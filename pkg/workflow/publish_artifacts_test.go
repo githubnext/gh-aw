@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 func TestParseUploadArtifactConfig(t *testing.T) {
@@ -213,7 +215,7 @@ func TestComputeEnabledToolNamesIncludesUploadArtifact(t *testing.T) {
 		},
 	}
 	tools := computeEnabledToolNames(data)
-	assert.True(t, hasStringKey(tools, "upload_artifact"), "upload_artifact should be in enabled tools")
+	assert.True(t, setutil.Contains(tools, "upload_artifact"), "upload_artifact should be in enabled tools")
 }
 
 func TestGenerateSafeOutputsArtifactStagingUpload(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/setutil"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -160,7 +161,7 @@ func (c *ActionCache) PruneStaleContainerPins(knownImages map[string]struct {
 	}
 	pruned := 0
 	for image := range c.ContainerPins {
-		if !hasStringKey(knownImages, image) {
+		if !setutil.Contains(knownImages, image) {
 			delete(c.ContainerPins, image)
 			c.dirty = true
 			pruned++

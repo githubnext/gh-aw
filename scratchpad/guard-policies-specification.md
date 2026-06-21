@@ -1,8 +1,25 @@
+---
+title: Guard Policies Integration Specification
+description: Formal specification for the guard policies framework in the MCP Gateway
+version: 0.1.0
+status: Draft
+sidebar:
+  order: 1450
+---
+
 # Guard Policies Integration Proposal
 
 ## Executive Summary
 
 This document proposes an extensible guard policies framework for the MCP Gateway, starting with GitHub-specific policies. Guard policies enable fine-grained access control at the MCP gateway level, restricting which repositories and operations AI agents can access through MCP servers.
+
+**Version**: 0.1.0  
+**Status**: Draft  
+**Date**: 2026-06-21
+
+## Requirements Notation
+
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and **OPTIONAL** in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
 
 ## Problem Statement
 
@@ -396,3 +413,31 @@ This implementation covers guard policies in the MCP gateway. The design is:
 - **Forward-compatible**: Supports future enhancements
 
 The implementation follows established patterns in the codebase and integrates with the existing compilation and validation infrastructure.
+
+---
+
+## Conformance
+
+The key words in this section are to be interpreted as described in RFC 2119 (see [Requirements Notation](#requirements-notation) above).
+
+A conforming implementation of the guard policies framework **MUST** satisfy all of the following normative requirements:
+
+**GP-01**: Implementations MUST support the `allowed-repos` field on `GitHubToolConfig` and validate its value as either a string scalar (`"all"` or `"public"`) or an array of repository patterns. Implementations MUST reject any other type with a descriptive compilation error.
+
+**GP-02**: Implementations MUST support the `min-integrity` field on `GitHubToolConfig` and validate its value as one of the enum strings `"none"`, `"unapproved"`, `"approved"`, or `"merged"`. Any other value MUST produce a descriptive compilation error.
+
+**GP-03**: When `allowed-repos` is set to an array, implementations MUST validate that each element is a non-empty string matching one of the allowed pattern formats: exact (`owner/repo`), owner-wildcard (`owner/*`), or prefix-wildcard (`owner/prefix*`). Uppercase letters and wildcards in non-terminal positions MUST be rejected.
+
+**GP-04**: Implementations MUST NOT permit an empty array as the value of `allowed-repos`. An empty allowlist MUST produce a compilation error indicating that an empty array is invalid.
+
+**GP-05**: Implementations MUST call `deriveSafeOutputsGuardPolicyFromGitHub()` during MCP renderer setup for the safe-outputs server whenever a GitHub guard policy is present in the workflow frontmatter, and MUST apply the derived `write-sink` policy to the safe-outputs server configuration before the workflow is executed.
+
+**GP-06**: The derived safe-outputs `write-sink` policy MUST map `allowed-repos: "all"` and `allowed-repos: "public"` to `accept: ["*"]`, permitting all safe output operations.
+
+**GP-07**: The derived safe-outputs `write-sink` policy MUST transform each repository pattern in an `allowed-repos` array: owner-wildcard patterns (`owner/*`) MUST become `"private:owner"`; prefix-wildcard patterns (`owner/prefix*`) MUST become `"private:owner/prefix*"`; exact patterns (`owner/repo`) MUST become `"private:owner/repo"`. Duplicate accept entries MUST be deduplicated.
+
+**GP-08**: When no GitHub guard policy fields are present on the tool configuration, `deriveSafeOutputsGuardPolicyFromGitHub()` MUST return `nil`. The absence of a guard policy MUST NOT be treated as an implicit `accept: ["*"]`.
+
+**GP-09**: Implementations SHOULD emit a debug-level log message when a guard policy is derived, identifying the source `allowed-repos` value and the resulting `accept` list.
+
+**GP-10**: When `lockdown: true` is set in the same workflow, implementations MUST treat `lockdown` as taking absolute precedence. Guard policy fields (`allowed-repos`, `min-integrity`) MUST NOT widen access beyond the single triggering repository when lockdown is active. The compiler SHOULD emit a warning when both `lockdown: true` and guard policy fields are present.

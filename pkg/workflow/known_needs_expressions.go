@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var knownNeedsLog = logger.New("workflow:known_needs")
@@ -150,7 +151,7 @@ func filterExpressionsForActivation(mappings []*ExpressionMapping, customJobs ma
 			continue
 		}
 		// If it's a custom job NOT in beforeActivationJobs, drop it
-		if _, isCustomJob := customJobs[jobName]; isCustomJob && !hasStringKey(beforeActivationSet, jobName) {
+		if _, isCustomJob := customJobs[jobName]; isCustomJob && !setutil.Contains(beforeActivationSet, jobName) {
 			knownNeedsLog.Printf("Filtered post-activation expression from activation substitution step: %s", m.Content)
 			continue
 		}

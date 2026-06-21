@@ -567,8 +567,8 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "--start-date -1w") {
 		t.Errorf("Job activity_report gh aw logs command should include --start-date -1w in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "--count 100") {
-		t.Errorf("Job activity_report gh aw logs command should include --count 100 in:\n%s", yaml)
+	if !strings.Contains(yaml, "--count 500") {
+		t.Errorf("Job activity_report gh aw logs command should include --count 500 in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "--format markdown") {
 		t.Errorf("Job activity_report gh aw logs command should include --format markdown in:\n%s", yaml)

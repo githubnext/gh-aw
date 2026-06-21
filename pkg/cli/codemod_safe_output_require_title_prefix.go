@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var safeOutputRequireTitlePrefixCodemodLog = logger.New("cli:codemod_safe_output_require_title_prefix")
@@ -140,7 +141,7 @@ func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map
 				continue
 			}
 			key := strings.TrimSuffix(trimmed, ":")
-			if hasStringKey(handlersToRename, key) {
+			if setutil.Contains(handlersToRename, key) {
 				activeHandler = key
 				activeHandlerIndent = indent
 				handlerChildIndent = ""

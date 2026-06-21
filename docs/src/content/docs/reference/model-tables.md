@@ -9,13 +9,13 @@ This page lists the built-in model aliases used by GitHub Agentic Workflows.
 
 ## Model Aliases
 
-Model aliases let you write `engine: copilot` with a human-friendly model name such as `sonnet` or `mini`, and gh-aw resolves it to the best available concrete model at compile time. Each alias holds an ordered list of patterns; the first pattern that matches an available model wins.
+Model aliases let you write `engine: copilot` with a human-friendly name such as `sonnet` or `mini`. gh-aw resolves each alias at compile time by trying its ordered fallback patterns until one matches an available model.
 
-For details on the alias syntax, fallback resolution algorithm, and how to define your own aliases in workflow frontmatter, see the [Model Alias Format Specification](/gh-aw/specs/model-alias-specification/).
+For alias syntax, fallback resolution, and custom aliases in workflow frontmatter, see the [Model Alias Format Specification](/gh-aw/specs/model-alias-specification/).
 
 ### Vendor Aliases
 
-Vendor aliases map a short name to one or more provider-scoped glob patterns. The Copilot gateway is always tried first.
+Vendor aliases map a short name to one or more provider-scoped glob patterns, with the Copilot gateway tried first.
 
 | Alias | Fallback patterns (tried in order) |
 |-------|-------------------------------------|
@@ -28,6 +28,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gpt-5.4` | `copilot/gpt-5.4*`, `openai/gpt-5.4*` |
 | `gpt-5.3` | `copilot/gpt-5.3*`, `openai/gpt-5.3*` |
 | `gpt-5.2` | `copilot/gpt-5.2*`, `openai/gpt-5.2*` |
+| `gpt-5.1` | `copilot/gpt-5.1*`, `openai/gpt-5.1*` |
 | `gpt-5-mini` | `copilot/gpt-5*mini*`, `openai/gpt-5*mini*` |
 | `gpt-5-nano` | `copilot/gpt-5*nano*`, `openai/gpt-5*nano*` |
 | `gpt-5-codex` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*` |
@@ -38,7 +39,8 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gemini-flash` | `copilot/gemini-*flash*`, `google/gemini-*flash*`, `gemini/gemini-*flash*` |
 | `gemini-flash-lite` | `copilot/gemini-*flash*lite*`, `google/gemini-*flash*lite*`, `gemini/gemini-*flash*lite*` |
 | `gemini-pro` | `copilot/gemini-*pro*`, `google/gemini-*pro*`, `gemini/gemini-*pro*` |
-| `vision` | `copilot/gemini-*image*`, `gemini/gemini-*image*`, `copilot/gemini-*flash*`, `gemini/gemini-*flash*` |
+| `vision` | `copilot/gemini-*image*`, `google/gemini-*image*`, `gemini/gemini-*image*`, `copilot/gemini-*flash*`, `google/gemini-*flash*`, `gemini/gemini-*flash*` |
+| `image-generation` | `copilot/gpt-image*`, `openai/gpt-image*`, `openai/chatgpt-image*`, `copilot/gemini-*image*`, `google/gemini-*image*`, `gemini/gemini-*image*`, `google/imagen*` |
 | `gemma` | `copilot/gemma*`, `google/gemma*`, `gemini/gemma*` |
 | `deep-research` | `copilot/deep-research*`, `copilot/o3-deep-research*`, `copilot/o4-mini-deep-research*`, `google/deep-research*`, `gemini/deep-research*`, `openai/o3-deep-research*`, `openai/o4-mini-deep-research*` |
 | `any` | `copilot/*`, `anthropic/*`, `openai/*`, `google/*`, `gemini/*` |
@@ -54,7 +56,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 
 ### Meta-Aliases
 
-Meta-aliases reference other aliases by name. They are resolved recursively until a concrete pattern is reached.
+Meta-aliases expand to other aliases and resolve recursively until they reach a concrete pattern.
 
 | Meta-alias | Expands to |
 |------------|------------|
@@ -62,7 +64,7 @@ Meta-aliases reference other aliases by name. They are resolved recursively unti
 | `small` | `mini` |
 | `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `gemini-flash-lite` |
 | `large` | `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
-| `agent` | `sonnet-6x` → `gpt-5.4` → `gpt-5.3` → `gemini-pro` → `any` |
+| `agent` | `sonnet-6x` → `gpt-5.5` → `gpt-5.4` → `gpt-5.3` → `gemini-pro` → `any` |
 | `small-agent` | `haiku` → `gpt-5-mini` → `gemini-flash` |
 | `copilot` | `agent` |
 | `claude` | `agent` |

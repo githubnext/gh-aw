@@ -46,6 +46,8 @@ safe-outputs:
 timeout-minutes: 5
 imports:
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Smoke Test: Service Ports (Redis)

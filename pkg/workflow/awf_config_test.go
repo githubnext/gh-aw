@@ -1352,6 +1352,7 @@ func TestBuildAWFCommand_ConfigFileWithPathSetup(t *testing.T) {
 	assert.Less(t, pathSetupIdx, configWriteIdx, "path setup must precede config file write")
 	assert.Less(t, configWriteIdx, modelsPathIdx, "config file write must precede models.json path export")
 	assert.Less(t, modelsPathIdx, awfIdx, "models.json path export must precede AWF invocation")
+	assert.Contains(t, command, awfShellcheckDirective, "should include scoped shellcheck suppression before awf invocation")
 }
 
 func TestBuildAWFCommand_AddsToolCacheMountProbe(t *testing.T) {
@@ -1375,6 +1376,7 @@ func TestBuildAWFCommand_AddsToolCacheMountProbe(t *testing.T) {
 	assert.NotContains(t, command, `/home/runner/work/_tool`, "should not assume a self-hosted runner tool-cache path")
 	assert.NotContains(t, command, `:-/opt/hostedtoolcache`, "should not fall back to /opt/hostedtoolcache")
 	assert.Contains(t, command, `${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"}`, "should inject tool-cache mount args into awf invocation")
+	assert.Contains(t, command, awfShellcheckDirective, "should suppress intentional argument splitting in awf invocation")
 }
 
 func TestBuildAWFCommand_WorkflowCallNetworkAllowedUpdaterUsesRunnerTempEnv(t *testing.T) {
@@ -1396,7 +1398,10 @@ func TestBuildAWFCommand_WorkflowCallNetworkAllowedUpdaterUsesRunnerTempEnv(t *t
 
 	command := BuildAWFCommand(config)
 
-	assert.Contains(t, command, `os.environ.get("RUNNER_TEMP")`, "workflow_call network updater should resolve RUNNER_TEMP inside Python")
+	assert.Contains(t, command, `update_network_allowed.cjs`, "workflow_call network updater should invoke the JavaScript implementation")
+	assert.Contains(t, command, `GH_AW_ECOSYSTEM_MAP_JSON=`, "workflow_call network updater should pass ecosystem map via env var")
+	assert.Contains(t, command, `"${RUNNER_TEMP}/gh-aw/actions/update_network_allowed.cjs"`, "workflow_call network updater should resolve RUNNER_TEMP at runtime via shell expansion")
+	assert.NotContains(t, command, `os.environ.get("RUNNER_TEMP")`, "workflow_call network updater should not use Python os.environ")
 	assert.NotContains(t, command, `Path("${RUNNER_TEMP}/gh-aw/awf-config.json")`, "workflow_call network updater should not embed an unexpanded RUNNER_TEMP literal")
 }
 
@@ -1449,6 +1454,7 @@ func TestBuildAWFCommand_WritesAgentCLIStartTimestamp(t *testing.T) {
 			pipefailIdx := strings.Index(command, "set -o pipefail")
 			assert.Less(t, pipefailIdx, tsIdx,
 				"set -o pipefail must appear before timestamp write")
+			assert.Contains(t, command, awfShellcheckDirective, "should include scoped shellcheck suppression before awf invocation")
 			// Nothing between set -o pipefail and the timestamp write should reference
 			// PathSetup content (timestamp must come first).
 			if tc.pathSetup != "" {

@@ -13,11 +13,18 @@ const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /**
+ * @typedef {{ owner: string, repo: string }} RepoRef
+ * @typedef {{ id: string, url: string, repo: RepoRef }} CommentMetadata
+ * @typedef {{ id: string, url: string, repo: RepoRef | null }} ReusableStatusComment
+ */
+
+/**
  * Event type descriptions for comment messages
  */
 const EVENT_TYPE_DESCRIPTIONS = {
   issues: "issue",
   pull_request: "pull request",
+  pull_request_comment: "pull request comment",
   issue_comment: "issue comment",
   pull_request_review_comment: "pull request review comment",
   discussion: "discussion",
@@ -46,19 +53,122 @@ async function getDiscussionNodeId(discussionNumber, eventRepo = context.repo) {
 }
 
 /**
- * Helper function to set comment outputs
+ * Helper function to set comment outputs and return comment metadata
  * @param {string|number} commentId - The comment ID
  * @param {string} commentUrl - The comment URL
- * @param {{ owner: string, repo: string }} [eventRepo] - Repository where the comment was created (defaults to context.repo at runtime)
+ * @param {RepoRef} [eventRepo] - Repository where the comment was created (defaults to context.repo at runtime)
+ * @param {{ logReuse?: boolean }} [options]
+ * @returns {CommentMetadata}
  */
-function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo) {
-  core.info(`Successfully created comment with workflow link`);
+function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo, options = {}) {
+  if (options.logReuse) {
+    core.info(`Reusing existing status comment outputs`);
+  } else {
+    core.info(`Successfully created comment with workflow link`);
+  }
   core.info(`Comment ID: ${commentId}`);
   core.info(`Comment URL: ${commentUrl}`);
   core.info(`Comment Repo: ${eventRepo.owner}/${eventRepo.repo}`);
   core.setOutput("comment-id", commentId.toString());
   core.setOutput("comment-url", commentUrl);
   core.setOutput("comment-repo", `${eventRepo.owner}/${eventRepo.repo}`);
+  return {
+    id: commentId.toString(),
+    url: commentUrl,
+    repo: eventRepo,
+  };
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, any>|null}
+ */
+function parseObject(value) {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return /** @type {Record<string, any>} */ value;
+  }
+  return null;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {RepoRef | null}
+ */
+function parseRepoSlug(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const parts = trimmed.split("/");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    return null;
+  }
+  return { owner: parts[0], repo: parts[1] };
+}
+
+/**
+ * Read aw_context from workflow_dispatch or repository_dispatch payloads.
+ * Accepts both snake_case and camelCase input names for compatibility.
+ * @param {any} payload
+ * @returns {Record<string, any>|null}
+ */
+function extractAwContextFromPayload(payload) {
+  return parseObject(payload?.inputs?.aw_context) || parseObject(payload?.inputs?.awContext) || parseObject(payload?.client_payload?.aw_context) || parseObject(payload?.client_payload?.awContext);
+}
+
+/**
+ * @param {any} rawContext
+ * @returns {ReusableStatusComment | null}
+ */
+function readReusableStatusComment(rawContext) {
+  const awContext = extractAwContextFromPayload(rawContext?.payload);
+  if (!awContext) {
+    return null;
+  }
+
+  const rawId = awContext.status_comment_id ?? awContext.statusCommentId;
+  const id = rawId == null ? "" : String(rawId).trim();
+  if (!id) {
+    return null;
+  }
+
+  const rawUrl = awContext.status_comment_url ?? awContext.statusCommentUrl;
+  const url = typeof rawUrl === "string" ? rawUrl.trim() : "";
+  const repo = parseRepoSlug(awContext.status_comment_repo ?? awContext.statusCommentRepo);
+  return { id, url, repo };
+}
+
+/**
+ * @param {any} rawContext
+ * @param {string} message
+ */
+function reportCommentError(rawContext, message) {
+  if (rawContext?.nonFatalStatusCommentErrors) {
+    core.warning(message);
+    return;
+  }
+  core.setFailed(message);
 }
 
 /**
@@ -66,18 +176,30 @@ function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo) {
  * This script ONLY creates comments - it does NOT add reactions.
  * Use add_reaction.cjs in the pre-activation job to add reactions first for immediate feedback.
  */
-async function main() {
-  // Check if activation comments are disabled
+async function createOrReuseStatusComment(rawContext = context) {
   const messagesConfig = getMessages();
   if (!parseBoolTemplatable(messagesConfig?.activationComments, true)) {
     core.info("activation-comments is disabled: skipping activation comment creation");
-    return;
+    return null;
   }
 
-  const invocationContext = resolveInvocationContext(context);
-  const runUrl = buildWorkflowRunUrl(context, invocationContext.workflowRepo);
+  const invocationContext = resolveInvocationContext(rawContext);
+  const reusableComment = readReusableStatusComment(rawContext);
+  if (reusableComment) {
+    core.info(`Reusing existing status comment ID: ${reusableComment.id}`);
+    if (!reusableComment.repo) {
+      core.warning("Reusable status comment repo missing; falling back to the invocation event repo.");
+    }
+    const outputs = setCommentOutputs(reusableComment.id, reusableComment.url, reusableComment.repo || invocationContext.eventRepo, { logReuse: true });
+    return {
+      ...outputs,
+      reused: true,
+    };
+  }
 
-  core.info(`Run ID: ${context.runId}`);
+  const runUrl = buildWorkflowRunUrl(rawContext, invocationContext.workflowRepo);
+
+  core.info(`Run ID: ${rawContext.runId}`);
   core.info(`Run URL: ${runUrl}`);
   core.info(`Event source: ${invocationContext.source}`);
 
@@ -88,59 +210,63 @@ async function main() {
   const repo = invocationContext.eventRepo.repo;
   const payload = invocationContext.eventPayload;
 
-  try {
-    switch (eventName) {
-      case "issues":
-      case "issue_comment": {
-        const number = payload?.issue?.number;
-        if (!number) {
-          core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
-          return;
-        }
-        commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
-        break;
+  switch (eventName) {
+    case "issues":
+    case "issue_comment": {
+      const number = payload?.issue?.number;
+      if (!number) {
+        reportCommentError(rawContext, `${ERR_NOT_FOUND}: Issue number not found in event payload`);
+        return null;
       }
-
-      case "pull_request":
-      case "pull_request_review_comment": {
-        const number = payload?.pull_request?.number;
-        if (!number) {
-          core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
-          return;
-        }
-        // PRs use the issues comment endpoint
-        commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
-        break;
-      }
-
-      case "discussion": {
-        const discussionNumber = payload?.discussion?.number;
-        if (!discussionNumber) {
-          core.setFailed(`${ERR_NOT_FOUND}: Discussion number not found in event payload`);
-          return;
-        }
-        commentEndpoint = `discussion:${discussionNumber}`; // Special format to indicate discussion
-        break;
-      }
-
-      case "discussion_comment": {
-        const discussionCommentNumber = payload?.discussion?.number;
-        const discussionCommentId = payload?.comment?.id;
-        if (!discussionCommentNumber || !discussionCommentId) {
-          core.setFailed(`${ERR_NOT_FOUND}: Discussion or comment information not found in event payload`);
-          return;
-        }
-        commentEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; // Special format
-        break;
-      }
-
-      default:
-        core.setFailed(`${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
-        return;
+      commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
+      break;
     }
 
-    core.info(`Creating comment on: ${commentEndpoint}`);
-    await addCommentWithWorkflowLink(commentEndpoint, runUrl, eventName, invocationContext);
+    case "pull_request":
+    case "pull_request_comment":
+    case "pull_request_review_comment": {
+      const number = payload?.pull_request?.number;
+      if (!number) {
+        reportCommentError(rawContext, `${ERR_NOT_FOUND}: Pull request number not found in event payload`);
+        return null;
+      }
+      commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
+      break;
+    }
+
+    case "discussion": {
+      const discussionNumber = payload?.discussion?.number;
+      if (!discussionNumber) {
+        reportCommentError(rawContext, `${ERR_NOT_FOUND}: Discussion number not found in event payload`);
+        return null;
+      }
+      commentEndpoint = `discussion:${discussionNumber}`;
+      break;
+    }
+
+    case "discussion_comment": {
+      const discussionCommentNumber = payload?.discussion?.number;
+      const discussionCommentId = payload?.comment?.id;
+      if (!discussionCommentNumber || !discussionCommentId) {
+        reportCommentError(rawContext, `${ERR_NOT_FOUND}: Discussion or comment information not found in event payload`);
+        return null;
+      }
+      commentEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`;
+      break;
+    }
+
+    default:
+      reportCommentError(rawContext, `${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
+      return null;
+  }
+
+  core.info(`Creating comment on: ${commentEndpoint}`);
+  return addCommentWithWorkflowLink(commentEndpoint, runUrl, eventName, invocationContext);
+}
+
+async function main() {
+  try {
+    await createOrReuseStatusComment(context);
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     // Don't fail the job - just warn since this is not critical
@@ -220,7 +346,7 @@ async function postDiscussionComment(discussionNumber, commentBody, replyToNodeI
   }
 
   const comment = result.addDiscussionComment.comment;
-  setCommentOutputs(comment.id, comment.url, eventRepo);
+  return setCommentOutputs(comment.id, comment.url, eventRepo);
 }
 
 /**
@@ -244,8 +370,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
   if (eventName === "discussion") {
     // Parse discussion number from special format: "discussion:NUMBER"
     const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-    await postDiscussionComment(discussionNumber, commentBody, null, eventRepo);
-    return;
+    return postDiscussionComment(discussionNumber, commentBody, null, eventRepo);
   }
 
   if (eventName === "discussion_comment") {
@@ -254,8 +379,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
 
     // GitHub Discussions only supports two nesting levels, so resolve the top-level parent's node ID
     const commentNodeId = await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id);
-    await postDiscussionComment(discussionNumber, commentBody, commentNodeId, eventRepo);
-    return;
+    return postDiscussionComment(discussionNumber, commentBody, commentNodeId, eventRepo);
   }
 
   // Create a new comment for non-discussion events
@@ -264,7 +388,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
     headers: { Accept: "application/vnd.github+json" },
   });
 
-  setCommentOutputs(createResponse.data.id, createResponse.data.html_url, eventRepo);
+  return setCommentOutputs(createResponse.data.id, createResponse.data.html_url, eventRepo);
 }
 
-module.exports = { main, addCommentWithWorkflowLink, buildCommentBody, postDiscussionComment };
+module.exports = { main, addCommentWithWorkflowLink, buildCommentBody, postDiscussionComment, createOrReuseStatusComment };

@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/agentdrain"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var drain3Log = logger.New("cli:drain3_integration")
@@ -359,7 +360,7 @@ func buildAnomalyReasons(anomalies []struct {
 	})
 	for _, a := range anomalies {
 		r := fmt.Sprintf("stage=%s score=%.2f: %s", a.evt.Stage, a.report.AnomalyScore, a.report.Reason)
-		if !hasStringKey(seen, r) {
+		if !setutil.Contains(seen, r) {
 			reasons = append(reasons, r)
 			seen[r] = struct {
 			}{}

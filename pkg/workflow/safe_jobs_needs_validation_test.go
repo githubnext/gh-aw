@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 // TestValidateSafeJobNeeds_NoSafeOutputs verifies that validation is a no-op
@@ -435,9 +437,9 @@ func TestComputeValidSafeJobNeeds(t *testing.T) {
 	t.Run("base – no safe-outputs", func(t *testing.T) {
 		data := &WorkflowData{}
 		valid := computeValidSafeJobNeeds(data)
-		assert.True(t, hasStringKey(valid, "agent"), "agent should always be valid")
-		assert.False(t, hasStringKey(valid, "detection"), "detection not valid without safe-outputs")
-		assert.False(t, hasStringKey(valid, "safe_outputs"), "safe_outputs not valid without safe-outputs")
+		assert.True(t, setutil.Contains(valid, "agent"), "agent should always be valid")
+		assert.False(t, setutil.Contains(valid, "detection"), "detection not valid without safe-outputs")
+		assert.False(t, setutil.Contains(valid, "safe_outputs"), "safe_outputs not valid without safe-outputs")
 	})
 
 	t.Run("only custom jobs configured – safe_outputs absent", func(t *testing.T) {
@@ -451,7 +453,7 @@ func TestComputeValidSafeJobNeeds(t *testing.T) {
 			},
 		}
 		valid := computeValidSafeJobNeeds(data)
-		assert.False(t, hasStringKey(valid, "safe_outputs"), "safe_outputs should not be valid when only custom jobs present")
+		assert.False(t, setutil.Contains(valid, "safe_outputs"), "safe_outputs should not be valid when only custom jobs present")
 	})
 
 	t.Run("builtin type configured – safe_outputs present", func(t *testing.T) {
@@ -462,11 +464,11 @@ func TestComputeValidSafeJobNeeds(t *testing.T) {
 			},
 		}
 		valid := computeValidSafeJobNeeds(data)
-		assert.True(t, hasStringKey(valid, "agent"))
-		assert.True(t, hasStringKey(valid, "safe_outputs"))
-		assert.True(t, hasStringKey(valid, "detection"), "detection enabled when ThreatDetection is non-nil")
-		assert.False(t, hasStringKey(valid, "upload_assets"))
-		assert.False(t, hasStringKey(valid, "unlock"))
+		assert.True(t, setutil.Contains(valid, "agent"))
+		assert.True(t, setutil.Contains(valid, "safe_outputs"))
+		assert.True(t, setutil.Contains(valid, "detection"), "detection enabled when ThreatDetection is non-nil")
+		assert.False(t, setutil.Contains(valid, "upload_assets"))
+		assert.False(t, setutil.Contains(valid, "unlock"))
 	})
 
 	t.Run("with upload-asset configured", func(t *testing.T) {
@@ -474,7 +476,7 @@ func TestComputeValidSafeJobNeeds(t *testing.T) {
 			SafeOutputs: &SafeOutputsConfig{UploadAssets: &UploadAssetsConfig{}},
 		}
 		valid := computeValidSafeJobNeeds(data)
-		assert.True(t, hasStringKey(valid, "upload_assets"))
+		assert.True(t, setutil.Contains(valid, "upload_assets"))
 	})
 
 	t.Run("with lock-for-agent enabled", func(t *testing.T) {
@@ -483,7 +485,7 @@ func TestComputeValidSafeJobNeeds(t *testing.T) {
 			SafeOutputs:  &SafeOutputsConfig{},
 		}
 		valid := computeValidSafeJobNeeds(data)
-		assert.True(t, hasStringKey(valid, "unlock"))
+		assert.True(t, setutil.Contains(valid, "unlock"))
 	})
 
 	t.Run("custom safe-job names are included", func(t *testing.T) {
@@ -496,8 +498,8 @@ func TestComputeValidSafeJobNeeds(t *testing.T) {
 			},
 		}
 		valid := computeValidSafeJobNeeds(data)
-		assert.True(t, hasStringKey(valid, "my_packager"), "dash-to-underscore normalized name should be valid")
-		assert.True(t, hasStringKey(valid, "notify_team"))
+		assert.True(t, setutil.Contains(valid, "my_packager"), "dash-to-underscore normalized name should be valid")
+		assert.True(t, setutil.Contains(valid, "notify_team"))
 	})
 }
 

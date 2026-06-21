@@ -75,6 +75,16 @@ When enabled, the workflow compiles as `workflow_dispatch`-centric, and the comp
 shared `agentic_commands.yml` workflow that listens to merged slash-command events and
 dispatches matching target workflows with `aw_context`.
 
+When centralized routing is active, a builtin `/help` command is also enabled. It posts a comment in the current issue, pull request, or discussion with the supported slash commands (both centralized and non-centralized) and their descriptions, plus a link to this documentation.
+
+To disable the builtin handler, set the top-level `help_command` field in `.github/workflows/aw.json`:
+
+```json
+{
+  "help_command": false
+}
+```
+
 ```yaml wrap
 on:
   slash_command:

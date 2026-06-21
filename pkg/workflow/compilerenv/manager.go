@@ -53,7 +53,7 @@ const (
 // otherwise returns the parsed override as a string.
 func ResolveDefaultMaxTurns(fallback string) string {
 	if parsed, ok := parsePositiveIntEnvVar(DefaultMaxTurns); ok {
-		return strconv.FormatInt(parsed, 10)
+		return strconv.Itoa(parsed)
 	}
 	return fallback
 }
@@ -62,7 +62,7 @@ func ResolveDefaultMaxTurns(fallback string) string {
 // otherwise returns the parsed override.
 func ResolveDefaultTimeoutMinutes(fallback int) int {
 	if parsed, ok := parsePositiveIntEnvVar(DefaultTimeoutMinutes); ok {
-		return int(parsed)
+		return parsed
 	}
 	return fallback
 }
@@ -71,7 +71,7 @@ func ResolveDefaultTimeoutMinutes(fallback int) int {
 // otherwise returns the parsed override.
 func ResolveDefaultMaxTurnCacheMisses(fallback int) int {
 	if parsed, ok := parsePositiveIntEnvVar(DefaultMaxTurnCacheMisses); ok {
-		return int(parsed)
+		return parsed
 	}
 	return fallback
 }
@@ -98,15 +98,15 @@ func ResolveDefaultUTC(fallback string) string {
 	return raw
 }
 
-// parsePositiveIntEnvVar parses an environment variable as a base-10 positive int64.
+// parsePositiveIntEnvVar parses an environment variable as a base-10 positive int.
 // It returns (value, true) when the variable is set to a valid value > 0.
 // For unset, empty, non-numeric, or non-positive values, it returns (0, false).
-func parsePositiveIntEnvVar(name string) (int64, bool) {
+func parsePositiveIntEnvVar(name string) (int, bool) {
 	raw := strings.TrimSpace(os.Getenv(name))
 	if raw == "" {
 		return 0, false
 	}
-	parsed, err := strconv.ParseInt(raw, 10, 64)
+	parsed, err := strconv.Atoi(raw)
 	if err != nil || parsed <= 0 {
 		return 0, false
 	}

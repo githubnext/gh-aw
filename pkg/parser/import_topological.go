@@ -8,6 +8,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 // topologicalSortImports sorts imports in topological order using Kahn's algorithm.
@@ -120,7 +122,7 @@ func calculateInDegree(imports []string, dependencies map[string][]string, allIm
 	sortedImports := sortedDependencyKeys(dependencies)
 	for _, imp := range sortedImports {
 		for _, dep := range dependencies[imp] {
-			if hasStringKey(allImportsSet, dep) {
+			if setutil.Contains(allImportsSet, dep) {
 				inDegree[imp]++
 			}
 		}
@@ -178,7 +180,7 @@ func reduceDependentInDegrees(
 ) []string {
 	for _, imp := range sortedImports {
 		for _, dep := range dependencies[imp] {
-			if dep == current && hasStringKey(allImportsSet, imp) {
+			if dep == current && setutil.Contains(allImportsSet, imp) {
 				inDegree[imp]--
 				importLog.Printf("Reduced in-degree of %s to %d (resolved dependency on %s)", imp, inDegree[imp], current)
 				if inDegree[imp] == 0 {

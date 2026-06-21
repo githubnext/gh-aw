@@ -42,9 +42,8 @@
 require("./shim.cjs");
 
 const fs = require("fs");
-const path = require("path");
 const crypto = require("crypto");
-const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
 const {
@@ -81,7 +80,7 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 const OUTPUT_TAIL_MAX_CHARS = 600;
 const OUTPUT_TAIL_MAX_LINES = 12;
-const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_PATH = path.join(__dirname, "../md/copilot_requests_proxy_auth_403.md");
+const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME = "copilot_requests_proxy_auth_403.md";
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 
@@ -420,9 +419,10 @@ function envFlagEnabled(value) {
  * Build a more actionable Copilot auth diagnostic when a 401/403 came from the gh-aw API proxy.
  * @param {string} output
  * @param {NodeJS.ProcessEnv} [env]
+ * @param {{ renderTemplateFromFile?: typeof renderTemplateFromFile }} [options]
  * @returns {string}
  */
-function buildCopilotProxyAuthFailureDiagnostic(output, env = process.env) {
+function buildCopilotProxyAuthFailureDiagnostic(output, env = process.env, options = {}) {
   const authFailure = parseProviderAuthFailure(output);
   if (!authFailure || !isLikelyAWFAPIProxyURL(authFailure.providerUrl)) {
     return "";
@@ -431,7 +431,8 @@ function buildCopilotProxyAuthFailureDiagnostic(output, env = process.env) {
   const selectedModel = typeof env.COPILOT_MODEL === "string" && env.COPILOT_MODEL.trim() ? env.COPILOT_MODEL.trim() : "(unset)";
   const stage = detectCopilotAuthFailureStage(output);
   if (authFailure.statusCode === "403" && envFlagEnabled(env.S2STOKENS)) {
-    return renderTemplateFromFile(COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_PATH, {
+    const render = options.renderTemplateFromFile || renderTemplateFromFile;
+    return render(getPromptPath(COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME), {
       selected_model: selectedModel,
       stage,
     });

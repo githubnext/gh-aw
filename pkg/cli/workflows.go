@@ -17,6 +17,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -148,7 +149,7 @@ func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHub
 
 	var userWorkflowCount int
 	for name := range workflowMap {
-		if hasStringKey(mdWorkflowNames, name) {
+		if setutil.Contains(mdWorkflowNames, name) {
 			userWorkflowCount++
 		}
 	}

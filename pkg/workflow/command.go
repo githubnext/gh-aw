@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var commandLog = logger.New("workflow:command")
@@ -194,7 +195,7 @@ func buildEventAwareCommandCondition(commandNames []string, commandEvents []stri
 	})
 	for _, eventName := range eventNames {
 		actualName := GetActualGitHubEventName(eventName)
-		if !hasStringKey(actualEventNames, actualName) {
+		if !setutil.Contains(actualEventNames, actualName) {
 			actualEventNames[actualName] = struct {
 			}{}
 			commentEventTerms = append(commentEventTerms, BuildEventTypeEquals(actualName))

@@ -318,4 +318,137 @@ describe("mcp_scripts_validation.cjs", () => {
       expect(violations[0].field).toBe("title");
     });
   });
+
+  describe("validateStringMinLengths", () => {
+    it("should return empty array when all string fields meet minLength", async () => {
+      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+
+      const args = { body: "This body is long enough to satisfy the constraint" };
+      const schema = {
+        type: "object",
+        properties: { body: { type: "string", minLength: 20 } },
+      };
+
+      expect(validateStringMinLengths(args, schema)).toEqual([]);
+    });
+
+    it("should return violation when field is shorter than minLength", async () => {
+      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+
+      const args = { body: "." };
+      const schema = {
+        type: "object",
+        properties: { body: { type: "string", minLength: 20 } },
+      };
+
+      const violations = validateStringMinLengths(args, schema);
+      expect(violations).toHaveLength(1);
+      expect(violations[0].field).toBe("body");
+      expect(violations[0].minLength).toBe(20);
+      expect(violations[0].actualLength).toBe(1);
+    });
+
+    it("should trim whitespace before comparing against minLength", async () => {
+      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+
+      // 25 spaces — trims to 0 chars, below minLength 20
+      const args = { body: " ".repeat(25) };
+      const schema = {
+        type: "object",
+        properties: { body: { type: "string", minLength: 20 } },
+      };
+
+      const violations = validateStringMinLengths(args, schema);
+      expect(violations).toHaveLength(1);
+      expect(violations[0].actualLength).toBe(0);
+    });
+
+    it("should accept a value at exactly minLength", async () => {
+      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+
+      const args = { body: "12345678901234567890" }; // exactly 20 chars
+      const schema = {
+        type: "object",
+        properties: { body: { type: "string", minLength: 20 } },
+      };
+
+      expect(validateStringMinLengths(args, schema)).toEqual([]);
+    });
+
+    it("should skip absent fields", async () => {
+      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+
+      const args = {};
+      const schema = {
+        type: "object",
+        properties: { body: { type: "string", minLength: 20 } },
+      };
+
+      expect(validateStringMinLengths(args, schema)).toEqual([]);
+    });
+
+    it("should skip fields with no minLength in schema", async () => {
+      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+
+      const args = { title: "short" };
+      const schema = {
+        type: "object",
+        properties: { title: { type: "string" } },
+      };
+
+      expect(validateStringMinLengths(args, schema)).toEqual([]);
+    });
+
+    it("should skip non-string typed fields", async () => {
+      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+
+      const args = { count: 3 };
+      const schema = {
+        type: "object",
+        properties: { count: { type: "number", minLength: 5 } },
+      };
+
+      expect(validateStringMinLengths(args, schema)).toEqual([]);
+    });
+
+    it("should return violations for multiple short fields", async () => {
+      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+
+      const args = { title: "Hi", body: "." };
+      const schema = {
+        type: "object",
+        properties: {
+          title: { type: "string", minLength: 5 },
+          body: { type: "string", minLength: 20 },
+        },
+      };
+
+      const violations = validateStringMinLengths(args, schema);
+      expect(violations).toHaveLength(2);
+      const fields = violations.map(v => v.field);
+      expect(fields).toContain("title");
+      expect(fields).toContain("body");
+    });
+
+    it("should handle null/undefined inputSchema gracefully", async () => {
+      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+
+      const args = { body: "short" };
+
+      expect(validateStringMinLengths(args, null)).toEqual([]);
+      expect(validateStringMinLengths(args, undefined)).toEqual([]);
+    });
+
+    it("should accept minLength of zero (always passes)", async () => {
+      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+
+      const args = { body: "" };
+      const schema = {
+        type: "object",
+        properties: { body: { type: "string", minLength: 0 } },
+      };
+
+      expect(validateStringMinLengths(args, schema)).toEqual([]);
+    });
+  });
 });

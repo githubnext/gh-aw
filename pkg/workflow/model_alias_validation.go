@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var modelAliasValidationLog = newValidationLogger("model_alias")
@@ -253,7 +254,7 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		if hasStringKey(visited, key) {
+		if setutil.Contains(visited, key) {
 			continue
 		}
 		path := []string{} // current DFS path (ordered)
@@ -298,7 +299,7 @@ type dfsState struct {
 }
 
 func (s *dfsState) dfs(node string) []string {
-	if hasStringKey(s.visited, node) {
+	if setutil.Contains(s.visited, node) {
 		return nil
 	}
 	if s.onPath[node] {

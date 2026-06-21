@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -71,7 +72,7 @@ func extractSecretsFromConfig(config parser.RegistryMCPServerConfig) []SecretInf
 	// Extract from HTTP headers
 	for key, value := range config.Headers {
 		secretName := workflow.ExtractSecretName(value)
-		if secretName != "" && !hasStringKey(seen, secretName) {
+		if secretName != "" && !setutil.Contains(seen, secretName) {
 			secrets = append(secrets, SecretInfo{
 				Name:   secretName,
 				EnvKey: key,
@@ -84,7 +85,7 @@ func extractSecretsFromConfig(config parser.RegistryMCPServerConfig) []SecretInf
 	// Extract from environment variables
 	for key, value := range config.Env {
 		secretName := workflow.ExtractSecretName(value)
-		if secretName != "" && !hasStringKey(seen, secretName) {
+		if secretName != "" && !setutil.Contains(seen, secretName) {
 			secrets = append(secrets, SecretInfo{
 				Name:   secretName,
 				EnvKey: key,

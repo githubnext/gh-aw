@@ -9,7 +9,7 @@
  *
  * Event mapping:
  *   SDK "user.message"            → JSONL "user.message"
- *   SDK "tool.execution_start"    → JSONL "tool.execution_start"  (toolName, mcpServerName)
+ *   SDK "tool.execution_start"    → JSONL "tool.execution_start"  (toolName, mcpServerName, command?)
  *   SDK "tool.execution_complete" → JSONL "tool.execution_complete" (toolName, mcpServerName, success, result)
  *   SDK "assistant.message"       → JSONL "assistant.message"     (content)
  *
@@ -29,6 +29,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { buildCopilotSDKPermissionHandler, getEnvPositiveIntOrDefault, parseMaxToolDenialsLimit, MAX_TOOL_DENIALS_DEFAULT } = require("./copilot_sdk_permissions.cjs");
+const { extractShellCommandFromToolData } = require("./tool_call_details.cjs");
 
 // Default timeout for a single sendAndWait call: 10 minutes.
 // This is intentionally generous — the headless Copilot CLI has its own internal
@@ -256,10 +257,12 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           const toolName = event.data?.toolName ?? "unknown";
           const mcpServerName = event.data?.mcpServerName ?? "";
           const toolCallId = event.data?.toolCallId;
+          const command = extractShellCommandFromToolData(event.data);
           if (toolCallId) {
             pendingToolCalls.set(toolCallId, { toolName, mcpServerName });
           }
-          writeEvent("tool.execution_start", { toolName, mcpServerName }, event.timestamp);
+          const eventData = command ? { toolName, mcpServerName, command } : { toolName, mcpServerName };
+          writeEvent("tool.execution_start", eventData, event.timestamp);
           break;
         }
 

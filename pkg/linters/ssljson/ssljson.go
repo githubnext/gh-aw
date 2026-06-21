@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 
 	"golang.org/x/tools/go/analysis"
+
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 const anchorPkg = "github.com/github/gh-aw/pkg/linters/ssljson"
@@ -107,7 +109,7 @@ func ValidateDoc(doc SSLDoc) []string {
 	}
 
 	// Rule 1: entry_scene must reference an existing scene.
-	if doc.Scheduling.EntryScene != "" && !hasStringKey(sceneIDs, doc.Scheduling.EntryScene) {
+	if doc.Scheduling.EntryScene != "" && !setutil.Contains(sceneIDs, doc.Scheduling.EntryScene) {
 		msgs = append(msgs, fmt.Sprintf("entry_scene %q not found in scenes", doc.Scheduling.EntryScene))
 	}
 
@@ -117,12 +119,12 @@ func ValidateDoc(doc SSLDoc) []string {
 			msgs = append(msgs, fmt.Sprintf("scene %q has invalid type %q", scene.ID, scene.Type))
 		}
 		// Rule 3: entry_logic_step must reference an existing logic step.
-		if scene.EntryLogicStep != "" && !hasStringKey(stepIDs, scene.EntryLogicStep) {
+		if scene.EntryLogicStep != "" && !setutil.Contains(stepIDs, scene.EntryLogicStep) {
 			msgs = append(msgs, fmt.Sprintf("scene %q entry_logic_step %q not found in logic_steps", scene.ID, scene.EntryLogicStep))
 		}
 		// Rule 4: scene transition targets must resolve to a scene ID or terminal.
 		for _, rule := range scene.NextSceneRules {
-			if !hasStringKey(sceneIDs, rule.Target) && !sceneTerminals[rule.Target] {
+			if !setutil.Contains(sceneIDs, rule.Target) && !sceneTerminals[rule.Target] {
 				msgs = append(msgs, fmt.Sprintf(
 					"scene %q transition target %q is not a scene ID or END_SUCCESS/END_FAIL",
 					scene.ID, rule.Target,
@@ -141,7 +143,7 @@ func ValidateDoc(doc SSLDoc) []string {
 			msgs = append(msgs, fmt.Sprintf("logic step %q has invalid resource_scope %q", step.ID, step.ResourceScope))
 		}
 		// Rule 7: logic-step next must be a step ID or a terminal target.
-		if !hasStringKey(stepIDs, step.Next) && !stepTerminals[step.Next] {
+		if !setutil.Contains(stepIDs, step.Next) && !stepTerminals[step.Next] {
 			msgs = append(msgs, fmt.Sprintf(
 				"logic step %q next %q is not a step ID or YIELD_SUCCESS/YIELD_FAIL",
 				step.ID, step.Next,

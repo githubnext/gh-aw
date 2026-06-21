@@ -297,7 +297,10 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 					}
 
 					// Apply action pinning using type-safe version
-					pinnedStep := applyActionPinToTypedStep(typedStep, data)
+					pinnedStep, err := applyActionPinToTypedStep(typedStep, data)
+					if err != nil {
+						return nil, fmt.Errorf("failed to pin action for step in safe job %s: %w", normalizedJobName, err)
+					}
 
 					// Convert back to map for YAML generation
 					stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())

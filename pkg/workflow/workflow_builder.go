@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"fmt"
 	"maps"
 	"strings"
 
@@ -382,7 +383,7 @@ func extractDispatchItemNumber(frontmatter map[string]any) bool {
 }
 
 // processAndMergeSteps handles the merging of imported steps with main workflow steps
-func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) {
+func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) error {
 	workflowBuilderLog.Print("Processing and merging custom steps")
 
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(frontmatter, "steps")
@@ -399,7 +400,10 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 				workflowBuilderLog.Printf("Failed to convert copilot-setup steps to typed steps: %v", err)
 			} else {
 				// Apply action pinning to copilot-setup steps
-				typedCopilotSteps = applyActionPinsToTypedSteps(typedCopilotSteps, workflowData)
+				typedCopilotSteps, err = applyActionPinsToTypedSteps(typedCopilotSteps, workflowData)
+				if err != nil {
+					return fmt.Errorf("copilot-setup steps: %w", err)
+				}
 				// Convert back to []any for YAML marshaling
 				copilotSetupSteps = StepsToSlice(typedCopilotSteps)
 			}
@@ -416,7 +420,10 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 				workflowBuilderLog.Printf("Failed to convert other imported steps to typed steps: %v", err)
 			} else {
 				// Apply action pinning to other imported steps
-				typedOtherSteps = applyActionPinsToTypedSteps(typedOtherSteps, workflowData)
+				typedOtherSteps, err = applyActionPinsToTypedSteps(typedOtherSteps, workflowData)
+				if err != nil {
+					return fmt.Errorf("imported steps: %w", err)
+				}
 				// Convert back to []any for YAML marshaling
 				otherImportedSteps = StepsToSlice(typedOtherSteps)
 			}
@@ -437,7 +444,10 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 						workflowBuilderLog.Printf("Failed to convert main steps to typed steps: %v", err)
 					} else {
 						// Apply action pinning to main steps
-						typedMainSteps = applyActionPinsToTypedSteps(typedMainSteps, workflowData)
+						typedMainSteps, err = applyActionPinsToTypedSteps(typedMainSteps, workflowData)
+						if err != nil {
+							return fmt.Errorf("steps: %w", err)
+						}
 						// Convert back to []any for YAML marshaling
 						mainSteps = StepsToSlice(typedMainSteps)
 					}
@@ -464,6 +474,7 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 			workflowData.CustomSteps = unquoteUsesWithComments(string(stepsYAML))
 		}
 	}
+	return nil
 }
 
 // processAndMergePreSteps handles the processing and merging of pre-steps with action pinning.
@@ -471,7 +482,7 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 // built-in steps, allowing users to mint tokens or perform other setup that must happen
 // before the repository is checked out. Imported pre-steps are merged before the main
 // workflow's pre-steps so that the main workflow can override or extend the imports.
-func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) {
+func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) error {
 	workflowBuilderLog.Print("Processing and merging pre-steps")
 
 	mainPreStepsYAML := c.extractTopLevelYAMLSection(frontmatter, "pre-steps")
@@ -486,7 +497,10 @@ func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowD
 			if err != nil {
 				workflowBuilderLog.Printf("Failed to convert imported pre-steps to typed steps: %v", err)
 			} else {
-				typedImported = applyActionPinsToTypedSteps(typedImported, workflowData)
+				typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
+				if err != nil {
+					return fmt.Errorf("imported pre-steps: %w", err)
+				}
 				importedPreSteps = StepsToSlice(typedImported)
 			}
 		}
@@ -504,7 +518,10 @@ func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowD
 					if err != nil {
 						workflowBuilderLog.Printf("Failed to convert main pre-steps to typed steps: %v", err)
 					} else {
-						typedMain = applyActionPinsToTypedSteps(typedMain, workflowData)
+						typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
+						if err != nil {
+							return fmt.Errorf("pre-steps: %w", err)
+						}
 						mainPreSteps = StepsToSlice(typedMain)
 					}
 				}
@@ -524,11 +541,12 @@ func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowD
 			workflowData.PreSteps = unquoteUsesWithComments(string(stepsYAML))
 		}
 	}
+	return nil
 }
 
 // processAndMergePreAgentSteps handles processing and merging of pre-agent-steps with action pinning.
 // Imported pre-agent-steps are prepended so main workflow pre-agent-steps run last.
-func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) {
+func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) error {
 	workflowBuilderLog.Print("Processing and merging pre-agent-steps")
 
 	mainPreAgentStepsYAML := c.extractTopLevelYAMLSection(frontmatter, "pre-agent-steps")
@@ -542,7 +560,10 @@ func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, work
 			if err != nil {
 				workflowBuilderLog.Printf("Failed to convert imported pre-agent-steps to typed steps: %v", err)
 			} else {
-				typedImported = applyActionPinsToTypedSteps(typedImported, workflowData)
+				typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
+				if err != nil {
+					return fmt.Errorf("imported pre-agent-steps: %w", err)
+				}
 				importedPreAgentSteps = StepsToSlice(typedImported)
 			}
 		}
@@ -559,7 +580,10 @@ func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, work
 					if err != nil {
 						workflowBuilderLog.Printf("Failed to convert main pre-agent-steps to typed steps: %v", err)
 					} else {
-						typedMain = applyActionPinsToTypedSteps(typedMain, workflowData)
+						typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
+						if err != nil {
+							return fmt.Errorf("pre-agent-steps: %w", err)
+						}
 						mainPreAgentSteps = StepsToSlice(typedMain)
 					}
 				}
@@ -578,11 +602,12 @@ func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, work
 			workflowData.PreAgentSteps = unquoteUsesWithComments(string(stepsYAML))
 		}
 	}
+	return nil
 }
 
 // processAndMergePostSteps handles the processing and merging of post-steps with action pinning.
 // Imported post-steps are appended after the main workflow's post-steps.
-func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) {
+func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) error {
 	workflowBuilderLog.Print("Processing and merging post-steps")
 
 	mainPostStepsYAML := c.extractTopLevelYAMLSection(frontmatter, "post-steps")
@@ -597,7 +622,10 @@ func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflow
 			if err != nil {
 				workflowBuilderLog.Printf("Failed to convert imported post-steps to typed steps: %v", err)
 			} else {
-				typedImported = applyActionPinsToTypedSteps(typedImported, workflowData)
+				typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
+				if err != nil {
+					return fmt.Errorf("imported post-steps: %w", err)
+				}
 				importedPostSteps = StepsToSlice(typedImported)
 			}
 		}
@@ -615,7 +643,10 @@ func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflow
 					if err != nil {
 						workflowBuilderLog.Printf("Failed to convert main post-steps to typed steps: %v", err)
 					} else {
-						typedMain = applyActionPinsToTypedSteps(typedMain, workflowData)
+						typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
+						if err != nil {
+							return fmt.Errorf("post-steps: %w", err)
+						}
 						mainPostSteps = StepsToSlice(typedMain)
 					}
 				}
@@ -635,4 +666,5 @@ func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflow
 			workflowData.PostSteps = unquoteUsesWithComments(string(stepsYAML))
 		}
 	}
+	return nil
 }

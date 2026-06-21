@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
 
@@ -369,7 +370,7 @@ func buildToolCallsFromRPCMessages(logPath string) ([]MCPToolCall, error) {
 
 	// Emit any requests that never received a response
 	for key, p := range pending {
-		if !hasStringKey(processedKeys, key) {
+		if !setutil.Contains(processedKeys, key) {
 			toolCalls = append(toolCalls, MCPToolCall{
 				Timestamp:  p.timestamp.Format(time.RFC3339Nano),
 				ServerName: p.serverID,

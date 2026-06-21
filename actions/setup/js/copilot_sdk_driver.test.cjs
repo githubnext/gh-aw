@@ -119,6 +119,76 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(stop).toHaveBeenCalledTimes(1);
     });
 
+    it("serializes tool.execution_start command details when available", async () => {
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      const stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+      try {
+        let onEvent = () => {};
+        const session = {
+          sessionId: "session-tool-start-command",
+          on: handler => {
+            onEvent = handler;
+          },
+          sendAndWait: vi.fn().mockImplementation(async () => {
+            onEvent({
+              type: "tool.execution_start",
+              ephemeral: false,
+              timestamp: new Date().toISOString(),
+              data: {
+                toolName: "bash",
+                mcpServerName: "terminal",
+                input: { command: "git status" },
+              },
+            });
+            onEvent({
+              type: "assistant.message",
+              ephemeral: false,
+              timestamp: new Date().toISOString(),
+              data: { content: "ok" },
+            });
+            return { data: { content: "ok" } };
+          }),
+          disconnect,
+        };
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = vi.fn().mockResolvedValue(session);
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        const parsedEvents = stderrWriteSpy.mock.calls
+          .map(([message]) => {
+            if (typeof message !== "string" || !message.endsWith("\n")) return null;
+            try {
+              return JSON.parse(message.trimEnd());
+            } catch {
+              return null;
+            }
+          })
+          .filter(Boolean);
+        const startEvent = parsedEvents.find(event => event.type === "tool.execution_start");
+        expect(startEvent).toMatchObject({
+          type: "tool.execution_start",
+          data: { toolName: "bash", mcpServerName: "terminal", command: "git status" },
+        });
+      } finally {
+        stderrWriteSpy.mockRestore();
+      }
+    });
+
     it("resolves exitCode 0 on SDK idle-timeout when output collected and all tool calls complete", async () => {
       // Regression test: when sendAndWait throws an idle-timeout error but the agent
       // produced output and all tool calls completed, the driver must return exitCode 0.

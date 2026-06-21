@@ -662,6 +662,7 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 				if shouldLogProgress {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("All requested artifacts already present for run %d, skipping download", runID)))
 				}
+				ensureUsageAwInfoFallback(ctx, runID, outputDir, verbose, owner, repo, hostname, artifactFilter)
 				return nil
 			}
 			// Restrict the download to only the artifacts that are not yet on disk.
@@ -897,6 +898,8 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		return fmt.Errorf("failed to flatten activation artifact: %w", err)
 	}
 
+	ensureUsageAwInfoFallback(ctx, runID, outputDir, verbose, owner, repo, hostname, artifactFilter)
+
 	// Flatten unified agent directory structure
 	if err := flattenUnifiedArtifact(outputDir, verbose); err != nil {
 		return fmt.Errorf("failed to flatten unified artifact: %w", err)
@@ -962,4 +965,66 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 	}
 
 	return nil
+}
+
+func ensureUsageAwInfoFallback(ctx context.Context, runID int64, outputDir string, verbose bool, owner, repo, hostname string, artifactFilter []string) {
+	if !isUsageOnlyArtifactFilter(artifactFilter) {
+		return
+	}
+
+	awInfoPath := filepath.Join(outputDir, "aw_info.json")
+	if _, err := os.Stat(awInfoPath); err == nil {
+		return
+	}
+
+	logsDownloadLog.Printf("aw_info.json missing from usage artifact, downloading activation artifact as fallback")
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("aw_info.json missing from usage artifact; downloading activation artifact as fallback"))
+	}
+
+	activationNames := []string{constants.ActivationArtifactName}
+	if artifactNames, err := listRunArtifactNames(ctx, runID, owner, repo, hostname, verbose); err == nil {
+		var matched []string
+		for _, name := range artifactNames {
+			if artifactMatchesFilter(name, []string{constants.ActivationArtifactName}) {
+				matched = append(matched, name)
+			}
+		}
+		if len(matched) > 0 {
+			activationNames = matched
+		}
+	} else {
+		logsDownloadLog.Printf("Failed to list artifacts for activation fallback: %v", err)
+	}
+
+	if err := downloadArtifactsByName(ctx, runID, outputDir, activationNames, verbose, owner, repo, hostname); err != nil {
+		logsDownloadLog.Printf("Activation artifact fallback download failed: %v", err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not download activation artifact fallback: %v", err)))
+		}
+	}
+	foundActivationDir := false
+	for _, name := range activationNames {
+		activationDir := findArtifactDir(outputDir, name, "")
+		if activationDir != "" {
+			foundActivationDir = true
+			logsDownloadLog.Printf("Found activation artifact fallback directory: %s", activationDir)
+			if err := flattenActivationArtifact(outputDir, verbose); err != nil {
+				logsDownloadLog.Printf("Failed to flatten fallback activation artifact: %v", err)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to flatten activation artifact fallback: %v", err)))
+				}
+			}
+			break
+		}
+	}
+	if !foundActivationDir {
+		logsDownloadLog.Print("Activation artifact fallback directory not found after download attempt")
+	}
+	if _, err := os.Stat(awInfoPath); os.IsNotExist(err) {
+		logsDownloadLog.Print("aw_info.json still absent after activation artifact fallback")
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("aw_info.json still absent after activation artifact fallback"))
+		}
+	}
 }

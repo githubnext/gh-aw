@@ -16,6 +16,7 @@ const { formatAICCredits } = require("./daily_aic_workflow_helpers.cjs");
 const { formatAIC } = require("./model_costs.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
+const { extractShellCommandFromToolData } = require("./tool_call_details.cjs");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -29,6 +30,9 @@ const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
 const FAILURE_CATEGORIES_PATH = "/tmp/gh-aw/failure_categories.json";
 const GITHUB_API_VERSION = "2022-11-28";
 const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
+const RECENT_TOOL_CALLS_WITH_COMMAND_PREVIEW = new Set(["bash", "shell"]);
+const ELLIPSIS = "...";
+const ELLIPSIS_LENGTH = ELLIPSIS.length;
 // Engine-side 429/rate-limit signatures:
 // - HTTP 429 accompanied by "too many requests"/"rate limit" phrasing
 // - provider error codes like rate_limit_error / rate_limit_exceeded
@@ -36,6 +40,7 @@ const COPILOT_SESSION_STATE_DIR = path.join(os.tmpdir(), "gh-aw", "sandbox", "ag
 // - retry wrapper text that includes the canonical "Failed to get response..." phrase
 const ENGINE_RATE_LIMIT_429_RE =
   /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|\brate_limit_(?:error|exceeded)\b|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
+const ENGINE_MAX_RUNS_EXCEEDED_RE = /(?:\bmax_runs_exceeded\b|\bmaximum\s+llm\s+invocations\s+exceeded\b)/i;
 
 /**
  * Parse action failure issue expiration from environment.
@@ -1174,6 +1179,48 @@ function normalizeDeniedPermissionCommand(command) {
 }
 
 /**
+ * Collapse tool call details to a compact single-line preview.
+ * @param {string} value
+ * @param {number} [maxLen]
+ * @returns {string}
+ */
+function normalizeToolCallPreview(value, maxLen = 120) {
+  const singleLine = String(value || "")
+    .replace(/`/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!singleLine) return "";
+  if (singleLine.length <= maxLen) return singleLine;
+  return `${singleLine.slice(0, maxLen - ELLIPSIS_LENGTH)}${ELLIPSIS}`;
+}
+
+/**
+ * Best-effort extraction of a shell command preview from a tool.execution_start payload.
+ * @param {Record<string, any>} data
+ * @returns {string}
+ */
+function extractShellCommandPreview(data) {
+  return normalizeToolCallPreview(extractShellCommandFromToolData(data));
+}
+
+/**
+ * Format a compact display value for a recent tool call entry.
+ * @param {string} toolName
+ * @param {string} mcpServerName
+ * @param {Record<string, any>} data
+ * @returns {string}
+ */
+function formatRecentToolCall(toolName, mcpServerName, data) {
+  const base = mcpServerName ? `${mcpServerName}.${toolName}` : toolName;
+  const normalizedToolName = typeof toolName === "string" ? toolName.toLowerCase() : "";
+  if (!RECENT_TOOL_CALLS_WITH_COMMAND_PREVIEW.has(normalizedToolName)) {
+    return base;
+  }
+  const commandPreview = extractShellCommandPreview(data);
+  return commandPreview ? `${base}(${commandPreview})` : base;
+}
+
+/**
  * Load missing_tool messages from agent output.
  * Returns an empty array when the output file doesn't exist, cannot be parsed, or has no missing_tool items.
  * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
@@ -1319,7 +1366,7 @@ function loadToolDenialsExceededEvents() {
             const toolName = typeof parsed.data.toolName === "string" ? parsed.data.toolName.trim() : "";
             if (toolName) {
               const mcpServerName = typeof parsed.data.mcpServerName === "string" ? parsed.data.mcpServerName.trim() : "";
-              recentToolCalls.push(mcpServerName ? `${mcpServerName}.${toolName}` : toolName);
+              recentToolCalls.push(formatRecentToolCall(toolName, mcpServerName, parsed.data));
               if (recentToolCalls.length > 5) recentToolCalls.shift();
             }
             continue;
@@ -1566,6 +1613,20 @@ function hasEngineRateLimit429Signal(content) {
 }
 
 /**
+ * Detect max-runs guardrail failures in text payloads.
+ * Returns true when content includes either the `max_runs_exceeded` error type
+ * or the "Maximum LLM invocations exceeded" message fragment.
+ * @param {string|null|undefined} content
+ * @returns {boolean}
+ */
+function hasEngineMaxRunsExceededSignal(content) {
+  if (!content) {
+    return false;
+  }
+  return ENGINE_MAX_RUNS_EXCEEDED_RE.test(content);
+}
+
+/**
  * Detect HTTP 429/rate-limit engine failures from OTLP JSONL mirror payloads.
  * @param {string} [otelJsonlPathOverride]
  * @returns {boolean}
@@ -1591,6 +1652,17 @@ function hasEngineRateLimit429InOTELMirror(otelJsonlPathOverride) {
 function buildEngineRateLimit429Context(engineLabel) {
   const normalizedEngineLabel = engineLabel.trim() || "AI";
   return "\n" + renderPromptTemplate("engine_rate_limit_429.md", { engine_label: normalizedEngineLabel });
+}
+
+/**
+ * Build dedicated context for max-runs guardrail failures.
+ * Renders the max-runs-exceeded prompt template with the active engine label.
+ * @param {string} [engineLabel]
+ * @returns {string}
+ */
+function buildEngineMaxRunsExceededContext(engineLabel) {
+  const normalizedEngineLabel = (typeof engineLabel === "string" ? engineLabel : "").trim() || "AI";
+  return "\n" + renderPromptTemplate("engine_max_runs_exceeded.md", { engine_label: normalizedEngineLabel });
 }
 
 /**
@@ -2090,6 +2162,11 @@ function buildEngineFailureContext(options = {}) {
     if (!suppressEngineRateLimit429 && (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror())) {
       core.info("Detected engine HTTP 429/rate-limit signal — using dedicated context message");
       return buildEngineRateLimit429Context(engineLabel);
+    }
+
+    if (hasEngineMaxRunsExceededSignal(logContent)) {
+      core.info("Detected engine max-runs guardrail signal — using dedicated context message");
+      return buildEngineMaxRunsExceededContext(engineLabel);
     }
 
     const errorMessages = new Set();
@@ -3456,8 +3533,10 @@ module.exports = {
   buildCredentialAuthErrorContext,
   buildAICreditsRateLimitErrorContext,
   buildUnknownModelAICreditsContext,
+  hasEngineMaxRunsExceededSignal,
   hasEngineRateLimit429Signal,
   hasEngineRateLimit429InOTELMirror,
+  buildEngineMaxRunsExceededContext,
   buildEngineRateLimit429Context,
   readTokenUsageMarkdown,
   parseFirewallAuthErrors,

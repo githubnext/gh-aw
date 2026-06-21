@@ -69,7 +69,7 @@ Agents SHOULD treat this class of mismatch as a regression signal and open a cor
 
 ---
 
-## 3. Conformance Requirements
+## 5. Conformance Requirements
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** in this section are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
 
@@ -89,11 +89,11 @@ The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** in this section ar
 
 ---
 
-## 4. Drift Detection Procedure
+## 6. Drift Detection Procedure
 
 This section describes the concrete steps for detecting schema drift between `gh-aw-firewall` and `gh-aw`.
 
-### 4.1 When to Run
+### 6.1 When to Run
 
 Drift detection MUST be triggered when:
 
@@ -101,7 +101,7 @@ Drift detection MUST be triggered when:
 2. A scheduled workflow runs the reconciliation check (RECOMMENDED: daily or weekly).
 3. An agent is asked to generate or validate AWF config behavior.
 
-### 4.2 Step-by-Step Procedure
+### 6.2 Step-by-Step Procedure
 
 1. **Fetch the canonical sources** from `github/gh-aw-firewall`:
    - `docs/awf-config.schema.json` — published schema
@@ -129,7 +129,7 @@ Drift detection MUST be triggered when:
 
 6. **Open a corrective PR** when any drift of category "missing in gh-aw" or "spec mismatch" is found. The PR description MUST include the drift report and reference this procedure.
 
-### 4.3 Example Drift Check (CLI)
+### 6.3 Example Drift Check (CLI)
 
 ```bash
 # Requires GH_TOKEN (or GITHUB_TOKEN) with repo read access
@@ -161,7 +161,7 @@ rg --no-heading --no-filename --only-matching 'apiProxy\.[A-Za-z0-9_.]+' pkg/wor
 diff -u /tmp/schema-keys.txt /tmp/ghaw-refs.txt || true
 ```
 
-### 4.4 Automation
+### 6.4 Automation
 
 A scheduled GitHub Actions workflow in `github/gh-aw` SHOULD automate this procedure. The workflow SHOULD:
 
@@ -172,7 +172,7 @@ A scheduled GitHub Actions workflow in `github/gh-aw` SHOULD automate this proce
 
 Current implementation reference: [`/.github/workflows/schema-consistency-checker.md`](../.github/workflows/schema-consistency-checker.md) (scheduled daily) is the tracked drift-detection workflow path for schema consistency checks and SHOULD include AWF config source drift checks from this section.
 
-#### 4.4.1 Drift SLA tracking (CR-06)
+#### 6.4.1 Drift SLA tracking (CR-06)
 
 To satisfy CR-06 tracking obligations, drift escalation records SHOULD use:
 
@@ -195,11 +195,11 @@ To satisfy CR-06 tracking obligations, drift escalation records SHOULD use:
 
 The scheduled schema consistency workflow SHOULD open or update one such issue when drift remains unresolved beyond 5 business days.
 
-### 4.5 DriftRecord Entity Schema
+### 6.5 DriftRecord Entity Schema
 
-A `DriftRecord` represents a single detected schema drift item produced by the drift detection procedure (Section 4.2, Step 5). All automation and agents that produce or consume drift reports **MUST** use this schema for structured drift output.
+A `DriftRecord` represents a single detected schema drift item produced by the drift detection procedure (Section 6.2, Step 5). All automation and agents that produce or consume drift reports **MUST** use this schema for structured drift output.
 
-#### 4.5.1 Formal Schema (JSON Schema)
+#### 6.5.1 Formal Schema (JSON Schema)
 
 ```json
 {
@@ -234,18 +234,18 @@ A `DriftRecord` represents a single detected schema drift item produced by the d
 }
 ```
 
-#### 4.5.2 Field Reference
+#### 6.5.2 Field Reference
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `property_path` | `string` | **MUST** | Dot-notation config property path (e.g., `apiProxy.anthropicAutoCache`) |
-| `drift_category` | `enum` | **MUST** | One of `missing_in_ghaw`, `missing_in_schema`, or `spec_mismatch` (see Section 4.2, Step 4) |
+| `drift_category` | `enum` | **MUST** | One of `missing_in_ghaw`, `missing_in_schema`, or `spec_mismatch` (see Section 6.2, Step 4) |
 | `suggested_action` | `string` | **MUST** | Actionable remediation text; **MUST NOT** be empty |
 | `detected_at` | `string` (ISO 8601) | **MUST** | UTC timestamp of detection; filesystem-safe format **SHOULD** use `YYYY-MM-DDTHH:MM:SSZ` |
 
-#### 4.5.3 Usage
+#### 6.5.3 Usage
 
-The drift detection procedure (Section 4.2, Step 5) **MUST** produce a list of zero or more `DriftRecord` objects. When any record has `drift_category` of `missing_in_ghaw` or `spec_mismatch`, the detecting automation **MUST** open a corrective PR (CR-05) and, if the SLA window is exceeded, an escalation issue (CR-06). The corrective PR description **MUST** embed the full `DriftRecord` list as JSON.
+The drift detection procedure (Section 6.2, Step 5) **MUST** produce a list of zero or more `DriftRecord` objects. When any record has `drift_category` of `missing_in_ghaw` or `spec_mismatch`, the detecting automation **MUST** open a corrective PR (CR-05) and, if the SLA window is exceeded, an escalation issue (CR-06). The corrective PR description **MUST** embed the full `DriftRecord` list as JSON.
 
 **Example output (Step 5 of the drift detection procedure):**
 
@@ -260,7 +260,7 @@ The drift detection procedure (Section 4.2, Step 5) **MUST** produce a list of z
 ]
 ```
 
-## 5. Safeguards
+## 7. Safeguards
 
 When canonical sources in `github/gh-aw-firewall` are unavailable (GitHub outage, auth failure, transient fetch errors), agents and automation MUST apply the following safeguards:
 

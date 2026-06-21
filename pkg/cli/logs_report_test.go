@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
@@ -532,13 +533,13 @@ func TestAggregateDomainStats(t *testing.T) {
 		}
 
 		// Verify specific domains
-		if !hasStringKey(agg.allAllowedDomains, "example.com") {
+		if !setutil.Contains(agg.allAllowedDomains, "example.com") {
 			t.Error("Expected example.com in allowed domains")
 		}
-		if !hasStringKey(agg.allAllowedDomains, "api.github.com") {
+		if !setutil.Contains(agg.allAllowedDomains, "api.github.com") {
 			t.Error("Expected api.github.com in allowed domains")
 		}
-		if !hasStringKey(agg.allBlockedDomains, "blocked.com") {
+		if !setutil.Contains(agg.allBlockedDomains, "blocked.com") {
 			t.Error("Expected blocked.com in blocked domains")
 		}
 	})

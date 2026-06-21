@@ -1158,6 +1158,70 @@ func TestConclusionJobNonWorkflowCallNoArtifactPrefix(t *testing.T) {
 	}
 }
 
+// TestConclusionJobCategoriesFilterQuoting verifies that category names containing
+// special characters (particularly single quotes) are safely embedded as double-quoted
+// YAML scalars, preventing YAML injection via the GH_AW_FAILURE_CATEGORIES_FILTER and
+// GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER env vars.
+func TestConclusionJobCategoriesFilterQuoting(t *testing.T) {
+	t.Run("included categories with single quote", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				NoOp:                           &NoOpConfig{},
+				ReportFailureAsIssue:           true,
+				ReportFailureAsIssueCategories: []string{"it's-a-category", "normal-category"},
+			},
+		}
+
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("Failed to build conclusion job: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be created")
+		}
+
+		jobYAML := strings.Join(job.Steps, "")
+		// Must use double-quoted YAML scalar (produced by %q), not single-quoted
+		if !strings.Contains(jobYAML, `GH_AW_FAILURE_CATEGORIES_FILTER: "[\"it's-a-category\",\"normal-category\"]"`) {
+			t.Errorf("Expected GH_AW_FAILURE_CATEGORIES_FILTER to be a safe double-quoted YAML scalar.\nGenerated YAML:\n%s", jobYAML)
+		}
+		if strings.Contains(jobYAML, "GH_AW_FAILURE_CATEGORIES_FILTER: '") {
+			t.Error("GH_AW_FAILURE_CATEGORIES_FILTER must not use single-quoted YAML scalar (injection risk)")
+		}
+	})
+
+	t.Run("excluded categories with single quote", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				NoOp:                                   &NoOpConfig{},
+				ReportFailureAsIssue:                   true,
+				ReportFailureAsIssueExcludedCategories: []string{"it's-excluded", "other-excluded"},
+			},
+		}
+
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("Failed to build conclusion job: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be created")
+		}
+
+		jobYAML := strings.Join(job.Steps, "")
+		// Must use double-quoted YAML scalar (produced by %q), not single-quoted
+		if !strings.Contains(jobYAML, `GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER: "[\"it's-excluded\",\"other-excluded\"]"`) {
+			t.Errorf("Expected GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER to be a safe double-quoted YAML scalar.\nGenerated YAML:\n%s", jobYAML)
+		}
+		if strings.Contains(jobYAML, "GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER: '") {
+			t.Error("GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER must not use single-quoted YAML scalar (injection risk)")
+		}
+	})
+}
+
 func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	compiler := NewCompiler()
 	workflowData := &WorkflowData{
@@ -1183,6 +1247,12 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(allSteps, "Upload usage artifact") {
 		t.Errorf("Expected conclusion job to upload usage artifact.\nGenerated steps:\n%s", allSteps)
 	}
+	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/aw_info.json") {
+		t.Errorf("Expected usage artifact to include aw_info.json path.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "cp /tmp/gh-aw/aw_info.json /tmp/gh-aw/usage/aw_info.json") {
+		t.Errorf("Expected usage artifact collection to include aw_info.json copy command.\nGenerated steps:\n%s", allSteps)
+	}
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/aw-info.jsonl") {
 		t.Errorf("Expected usage artifact to include aw-info.jsonl path.\nGenerated steps:\n%s", allSteps)
 	}
@@ -1191,6 +1261,9 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	}
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/detection_usage.jsonl") {
 		t.Errorf("Expected usage artifact to include detection_usage.jsonl path.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/github_rate_limits.jsonl") {
+		t.Errorf("Expected usage artifact to include GitHub API rate limit usage path.\nGenerated steps:\n%s", allSteps)
 	}
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/agent/token_usage.jsonl") {
 		t.Errorf("Expected usage artifact to include agent token usage path.\nGenerated steps:\n%s", allSteps)
@@ -1212,5 +1285,11 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	}
 	if !strings.Contains(allSteps, ": > /tmp/gh-aw/usage/detection/token_usage.jsonl") {
 		t.Errorf("Expected usage artifact collection to ensure detection token usage file exists.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "generate_usage_activity_summary.cjs") {
+		t.Errorf("Expected usage artifact collection to generate activity summary aggregates.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/activity/summary.json") {
+		t.Errorf("Expected usage artifact to include activity summary path.\nGenerated steps:\n%s", allSteps)
 	}
 }

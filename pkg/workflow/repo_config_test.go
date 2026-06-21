@@ -59,6 +59,29 @@ func TestLoadRepoConfig_EmptyObject(t *testing.T) {
 	require.NoError(t, err, "empty aw.json should load without error")
 	assert.False(t, cfg.MaintenanceDisabled, "maintenance should be enabled by default")
 	assert.Nil(t, cfg.Maintenance, "maintenance config should be nil when not specified")
+	assert.True(t, cfg.IsHelpCommandEnabled(), "help command should be enabled by default")
+}
+
+func TestLoadRepoConfig_HelpCommandFalse(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"help_command": false}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.HelpCommand, "help_command should be set")
+	assert.False(t, *cfg.HelpCommand, "help_command should be false when explicitly set")
+	assert.False(t, cfg.IsHelpCommandEnabled(), "help command should be disabled when help_command is false")
+}
+
+func TestLoadRepoConfig_HelpCommandTrue(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"help_command": true}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.HelpCommand, "help_command should be set")
+	assert.True(t, *cfg.HelpCommand, "help_command should be true when explicitly set")
+	assert.True(t, cfg.IsHelpCommandEnabled(), "help command should be enabled when help_command is true")
 }
 
 func TestLoadRepoConfig_MaintenanceEmptyObject(t *testing.T) {
@@ -255,6 +278,43 @@ func TestFormatRunsOn(t *testing.T) {
 func TestActionFailureIssueExpiresHours_Default(t *testing.T) {
 	cfg := &RepoConfig{}
 	assert.Equal(t, DefaultActionFailureIssueExpiresHours, cfg.ActionFailureIssueExpiresHours(), "default should be returned when aw.json does not set action_failure_issue_expires")
+}
+
+func TestLoadRepoConfig_AutoUpgradeEnabled(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"auto_upgrade": true}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.AutoUpgrade, "auto_upgrade should be set")
+	assert.True(t, *cfg.AutoUpgrade, "auto_upgrade should be true")
+	assert.True(t, cfg.IsAutoUpgradeEnabled(), "IsAutoUpgradeEnabled should return true")
+}
+
+func TestLoadRepoConfig_AutoUpgradeDisabled(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"auto_upgrade": false}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.AutoUpgrade, "auto_upgrade should be set")
+	assert.False(t, *cfg.AutoUpgrade, "auto_upgrade should be false")
+	assert.False(t, cfg.IsAutoUpgradeEnabled(), "IsAutoUpgradeEnabled should return false")
+}
+
+func TestLoadRepoConfig_AutoUpgradeOmitted(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	assert.Nil(t, cfg.AutoUpgrade, "auto_upgrade should be nil when omitted")
+	assert.False(t, cfg.IsAutoUpgradeEnabled(), "IsAutoUpgradeEnabled should return false when omitted (opt-in)")
+}
+
+func TestIsAutoUpgradeEnabled_NilConfig(t *testing.T) {
+	var r *RepoConfig
+	assert.False(t, r.IsAutoUpgradeEnabled(), "IsAutoUpgradeEnabled should return false for nil RepoConfig")
 }
 
 // writeAWJSON creates .github/workflows/aw.json with the given JSON content.

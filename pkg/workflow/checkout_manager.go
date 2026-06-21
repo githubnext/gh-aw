@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var checkoutManagerLog = logger.New("workflow:checkout_manager")
@@ -453,7 +454,7 @@ func mergeSparsePatterns(existing []string, newPatterns string) []string {
 
 	for _, p := range existing {
 		p = strings.TrimSpace(p)
-		if p != "" && !hasStringKey(seen, p) {
+		if p != "" && !setutil.Contains(seen, p) {
 			seen[p] = struct {
 			}{}
 			result = append(result, p)
@@ -462,7 +463,7 @@ func mergeSparsePatterns(existing []string, newPatterns string) []string {
 
 	for p := range strings.SplitSeq(newPatterns, "\n") {
 		p = strings.TrimSpace(p)
-		if p != "" && !hasStringKey(seen, p) {
+		if p != "" && !setutil.Contains(seen, p) {
 			seen[p] = struct {
 			}{}
 			result = append(result, p)
@@ -479,7 +480,7 @@ func mergeFetchRefs(existing []string, newRefs []string) []string {
 	result := make([]string, 0)
 	for _, r := range existing {
 		r = strings.TrimSpace(r)
-		if r != "" && !hasStringKey(seen, r) {
+		if r != "" && !setutil.Contains(seen, r) {
 			seen[r] = struct {
 			}{}
 			result = append(result, r)
@@ -487,7 +488,7 @@ func mergeFetchRefs(existing []string, newRefs []string) []string {
 	}
 	for _, r := range newRefs {
 		r = strings.TrimSpace(r)
-		if r != "" && !hasStringKey(seen, r) {
+		if r != "" && !setutil.Contains(seen, r) {
 			seen[r] = struct {
 			}{}
 			result = append(result, r)

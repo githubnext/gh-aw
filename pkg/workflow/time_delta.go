@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var timeDeltaLog = logger.New("workflow:time_delta")
@@ -107,7 +108,7 @@ func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, 
 		unit := match[2]
 
 		// Check for duplicate units
-		if hasStringKey(seenUnits, unit) {
+		if setutil.Contains(seenUnits, unit) {
 			return nil, fmt.Errorf("duplicate unit '%s' in time delta: +%s", unit, deltaStr)
 		}
 		seenUnits[unit] = struct {

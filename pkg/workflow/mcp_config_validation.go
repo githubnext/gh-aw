@@ -20,6 +20,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var mcpValidationLog = newValidationLogger("mcp_config")
@@ -194,7 +195,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 
 	// Check for unknown fields that might be typos or deprecated (like "network")
 	for field := range toolConfig {
-		if !hasStringKey(knownToolFields, field) {
+		if !setutil.Contains(knownToolFields, field) {
 			// Build list of valid fields for the error message
 			validFields := []string{}
 			for k := range knownToolFields {

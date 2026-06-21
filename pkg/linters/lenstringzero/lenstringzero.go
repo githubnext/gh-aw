@@ -1,5 +1,6 @@
-// Package lenstringzero implements a Go analysis linter that flags len(s) == 0
-// and len(s) != 0 comparisons on string values that should use == "" or != "" instead.
+// Package lenstringzero implements a Go analysis linter that flags len(s) == 0,
+// len(s) != 0, and equivalent relational comparisons (len(s) > 0, len(s) >= 1,
+// len(s) < 1, len(s) <= 0) on string values that should use == "" or != "" instead.
 package lenstringzero
 
 import (
@@ -16,8 +17,10 @@ import (
 )
 
 var Analyzer = &analysis.Analyzer{
-	Name:     "lenstringzero",
-	Doc:      "reports len(s) == 0 and len(s) != 0 comparisons on string values that should use == \"\" or != \"\" instead",
+	Name: "lenstringzero",
+	Doc: "reports len(s) == 0, len(s) != 0, and equivalent relational comparisons " +
+		"(len(s) > 0, len(s) >= 1, len(s) < 1, len(s) <= 0) on string values " +
+		"that should use == \"\" or != \"\" instead",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/lenstringzero",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -37,7 +40,9 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		if expr.Op != token.EQL && expr.Op != token.NEQ {
+		switch expr.Op {
+		case token.EQL, token.NEQ, token.GTR, token.GEQ, token.LSS, token.LEQ:
+		default:
 			return
 		}
 
@@ -46,24 +51,13 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		var lenArg ast.Expr
-		isDirect := false
-		if isLenCall(expr.X) && isIntZero(expr.Y) {
-			lenArg = lenCallArg(expr.X)
-			isDirect = true
-		} else if isIntZero(expr.X) && isLenCall(expr.Y) {
-			lenArg = lenCallArg(expr.Y)
-			isDirect = true
-		} else if isIntZero(expr.Y) {
-			if arg, ok := lenAliasArg(pass, expr.X, lenStringAliases); ok {
-				lenArg = arg
-			}
-		} else if isIntZero(expr.X) {
-			if arg, ok := lenAliasArg(pass, expr.Y, lenStringAliases); ok {
-				lenArg = arg
-			}
+		lenArg, isDirect, normalOp, lit, matched := matchLenLiteralExpr(pass, expr, lenStringAliases)
+		if !matched {
+			return
 		}
-		if lenArg == nil {
+
+		fixOp, cmpVerb, valid := resolveFixOp(normalOp, lit)
+		if !valid {
 			return
 		}
 
@@ -76,21 +70,14 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		op := expr.Op.String()
-		var cmpVerb string
-		if expr.Op == token.EQL {
-			cmpVerb = "empty"
-		} else {
-			cmpVerb = "non-empty"
-		}
 		var fixes []analysis.SuggestedFix
 		if isDirect {
-			fixes = buildLenStringFix(pass, expr, lenArg)
+			fixes = buildLenStringFix(pass, expr, lenArg, fixOp)
 		}
 		pass.Report(analysis.Diagnostic{
 			Pos:            expr.Pos(),
 			End:            expr.End(),
-			Message:        fmt.Sprintf(`use s %s "" to check for %s string instead of len(s) %s 0`, op, cmpVerb, op),
+			Message:        fmt.Sprintf(`use s %s "" to check for %s string instead of len(s) %s %d`, fixOp, cmpVerb, normalOp, lit),
 			SuggestedFixes: fixes,
 		})
 	})
@@ -98,14 +85,112 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-// buildLenStringFix returns a SuggestedFix that rewrites a direct len(s) == 0
-// or len(s) != 0 comparison to s == "" or s != "".
-func buildLenStringFix(pass *analysis.Pass, expr *ast.BinaryExpr, lenArg ast.Expr) []analysis.SuggestedFix {
+// matchLenLiteralExpr tries to match len(s)/alias OP literal or literal OP len(s)/alias.
+// Returns (lenArg, isDirect, normalOp, lit, matched) where:
+//   - lenArg is the string expression passed to len()
+//   - isDirect indicates a direct len() call (true) vs a stored alias (false)
+//   - normalOp is the operator normalized so that len is on the left side
+//   - lit is the integer literal value (0 or 1)
+//   - matched indicates whether a valid pattern was found
+func matchLenLiteralExpr(pass *analysis.Pass, expr *ast.BinaryExpr, aliases map[types.Object]ast.Expr) (lenArg ast.Expr, isDirect bool, normalOp token.Token, lit int, ok bool) {
+	op := expr.Op
+
+	// Normal order: len/alias on the left, literal on the right.
+	if isLenCall(expr.X) {
+		if isIntZero(expr.Y) {
+			return lenCallArg(expr.X), true, op, 0, true
+		}
+		if isIntOne(expr.Y) {
+			return lenCallArg(expr.X), true, op, 1, true
+		}
+	}
+	if isIntZero(expr.Y) {
+		if arg, ok2 := lenAliasArg(pass, expr.X, aliases); ok2 {
+			return arg, false, op, 0, true
+		}
+	}
+	if isIntOne(expr.Y) {
+		if arg, ok2 := lenAliasArg(pass, expr.X, aliases); ok2 {
+			return arg, false, op, 1, true
+		}
+	}
+
+	// Yoda order: literal on the left, len/alias on the right.
+	// Flip the operator so the normalized form has len on the left.
+	if isLenCall(expr.Y) {
+		if isIntZero(expr.X) {
+			return lenCallArg(expr.Y), true, flipOp(op), 0, true
+		}
+		if isIntOne(expr.X) {
+			return lenCallArg(expr.Y), true, flipOp(op), 1, true
+		}
+	}
+	if isIntZero(expr.X) {
+		if arg, ok2 := lenAliasArg(pass, expr.Y, aliases); ok2 {
+			return arg, false, flipOp(op), 0, true
+		}
+	}
+	if isIntOne(expr.X) {
+		if arg, ok2 := lenAliasArg(pass, expr.Y, aliases); ok2 {
+			return arg, false, flipOp(op), 1, true
+		}
+	}
+
+	return nil, false, 0, 0, false
+}
+
+// resolveFixOp returns the fix operator and comparison verb for a normalized
+// comparison where len is on the left side.
+// Only the semantically meaningful cases are flagged:
+//
+//	len(s) == 0  →  s == ""   (empty)
+//	len(s) != 0  →  s != ""   (non-empty)
+//	len(s) > 0   →  s != ""   (non-empty)
+//	len(s) >= 1  →  s != ""   (non-empty)
+//	len(s) < 1   →  s == ""   (empty)
+//	len(s) <= 0  →  s == ""   (empty)
+//
+// Tautologies (len(s) >= 0) and contradictions (len(s) < 0) are not flagged.
+func resolveFixOp(normalOp token.Token, lit int) (fixOp token.Token, cmpVerb string, ok bool) {
+	switch normalOp {
+	case token.EQL:
+		if lit == 0 {
+			return token.EQL, "empty", true
+		}
+	case token.NEQ:
+		if lit == 0 {
+			return token.NEQ, "non-empty", true
+		}
+	case token.GTR:
+		if lit == 0 {
+			return token.NEQ, "non-empty", true
+		}
+	case token.GEQ:
+		if lit == 1 {
+			return token.NEQ, "non-empty", true
+		}
+		// lit == 0 → len(s) >= 0 is always true; do not flag.
+	case token.LSS:
+		if lit == 1 {
+			return token.EQL, "empty", true
+		}
+		// lit == 0 → len(s) < 0 is always false; do not flag.
+	case token.LEQ:
+		if lit == 0 {
+			return token.EQL, "empty", true
+		}
+	}
+	return 0, "", false
+}
+
+// buildLenStringFix returns a SuggestedFix that rewrites a direct len(s) comparison
+// to a direct string comparison using fixOp (== or !=).
+func buildLenStringFix(pass *analysis.Pass, expr *ast.BinaryExpr, lenArg ast.Expr, fixOp token.Token) []analysis.SuggestedFix {
 	text := astutil.NodeText(pass.Fset, lenArg)
 	if text == "" {
 		return nil
 	}
-	replacement := fmt.Sprintf(`%s %s ""`, text, expr.Op.String())
+	replacement := fmt.Sprintf(`%s %s ""`, text, fixOp.String())
 	return []analysis.SuggestedFix{{
 		Message: "Replace with direct string comparison",
 		TextEdits: []analysis.TextEdit{{
@@ -114,6 +199,23 @@ func buildLenStringFix(pass *analysis.Pass, expr *ast.BinaryExpr, lenArg ast.Exp
 			NewText: []byte(replacement),
 		}},
 	}}
+}
+
+// flipOp returns the comparison operator adjusted for swapping left and right operands.
+// For example, when converting "0 < len(s)" to the normalized "len(s) > 0", LSS becomes GTR.
+func flipOp(op token.Token) token.Token {
+	switch op {
+	case token.LSS:
+		return token.GTR
+	case token.GTR:
+		return token.LSS
+	case token.LEQ:
+		return token.GEQ
+	case token.GEQ:
+		return token.LEQ
+	default:
+		return op
+	}
 }
 
 func isLenCall(expr ast.Expr) bool {
@@ -136,6 +238,11 @@ func lenCallArg(expr ast.Expr) ast.Expr {
 func isIntZero(expr ast.Expr) bool {
 	lit, ok := expr.(*ast.BasicLit)
 	return ok && lit.Kind == token.INT && lit.Value == "0"
+}
+
+func isIntOne(expr ast.Expr) bool {
+	lit, ok := expr.(*ast.BasicLit)
+	return ok && lit.Kind == token.INT && lit.Value == "1"
 }
 
 func collectLenStringAliases(pass *analysis.Pass) map[types.Object]ast.Expr {

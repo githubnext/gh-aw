@@ -51,10 +51,10 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if arg, ok := caseConvArg(expr.X); ok && sameOperand(pass, arg, expr.Y) {
+		if arg, ok := caseConvArg(pass, expr.X); ok && sameOperand(pass, arg, expr.Y) {
 			return
 		}
-		if arg, ok := caseConvArg(expr.Y); ok && sameOperand(pass, expr.X, arg) {
+		if arg, ok := caseConvArg(pass, expr.Y); ok && sameOperand(pass, expr.X, arg) {
 			return
 		}
 		if arg, ok := caseConvAliasArg(pass, expr.X, caseConvAliases); ok && sameOperand(pass, arg, expr.Y) {
@@ -64,7 +64,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if isCaseConvCall(expr.X) || isCaseConvCall(expr.Y) ||
+		if isCaseConvCall(pass, expr.X) || isCaseConvCall(pass, expr.Y) ||
 			(isCaseConvAlias(pass, expr.X, caseConvAliases) && astutil.IsStringLiteral(expr.Y)) ||
 			(isCaseConvAlias(pass, expr.Y, caseConvAliases) && astutil.IsStringLiteral(expr.X)) {
 			if nolint.HasDirective(pass.Fset.PositionFor(expr.Pos(), false), noLintLinesByFile) {
@@ -88,8 +88,8 @@ func run(pass *analysis.Pass) (any, error) {
 // an alias variable), since alias variables may be defined at a different
 // source location.
 func buildEqualFoldFix(pass *analysis.Pass, expr *ast.BinaryExpr) []analysis.SuggestedFix {
-	leftArg, leftOK := caseConvArg(expr.X)
-	rightArg, rightOK := caseConvArg(expr.Y)
+	leftArg, leftOK := caseConvArg(pass, expr.X)
+	rightArg, rightOK := caseConvArg(pass, expr.Y)
 	if !leftOK && !rightOK {
 		return nil
 	}
@@ -106,12 +106,20 @@ func buildEqualFoldFix(pass *analysis.Pass, expr *ast.BinaryExpr) []analysis.Sug
 	if text1 == "" || text2 == "" {
 		return nil
 	}
-	call := fmt.Sprintf("strings.EqualFold(%s, %s)", text1, text2)
+	equalFoldPkg := "strings"
+	if leftOK {
+		if pkgName, ok := caseConvPkgName(pass, expr.X); ok {
+			equalFoldPkg = pkgName
+		}
+	} else if pkgName, ok := caseConvPkgName(pass, expr.Y); ok {
+		equalFoldPkg = pkgName
+	}
+	call := fmt.Sprintf("%s.EqualFold(%s, %s)", equalFoldPkg, text1, text2)
 	if expr.Op == token.NEQ {
 		call = "!" + call
 	}
 	return []analysis.SuggestedFix{{
-		Message: "Replace with strings.EqualFold",
+		Message: fmt.Sprintf("Replace with %s.EqualFold", equalFoldPkg),
 		TextEdits: []analysis.TextEdit{{
 			Pos:     expr.Pos(),
 			End:     expr.End(),
@@ -167,7 +175,7 @@ func collectAliasesFromAssignStmt(pass *analysis.Pass, stmt *ast.AssignStmt, ali
 				delete(aliases, obj)
 				continue
 			}
-			if arg, ok := caseConvArg(rhs); ok {
+			if arg, ok := caseConvArg(pass, rhs); ok {
 				aliases[obj] = arg
 			} else {
 				delete(aliases, obj)
@@ -192,7 +200,7 @@ func collectAliasesFromValueSpec(pass *analysis.Pass, spec *ast.ValueSpec, alias
 			delete(aliases, obj)
 			continue
 		}
-		if arg, ok := caseConvArg(rhs); ok {
+		if arg, ok := caseConvArg(pass, rhs); ok {
 			aliases[obj] = arg
 		} else {
 			delete(aliases, obj)
@@ -209,8 +217,8 @@ func deleteAliasForExpr(pass *analysis.Pass, aliases map[types.Object]ast.Expr, 
 }
 
 // isCaseConvCall reports whether node is a call to strings.ToLower or strings.ToUpper.
-func isCaseConvCall(n ast.Node) bool {
-	_, ok := caseConvArg(n)
+func isCaseConvCall(pass *analysis.Pass, n ast.Node) bool {
+	_, ok := caseConvArg(pass, n)
 	return ok
 }
 
@@ -236,7 +244,7 @@ func caseConvAliasArg(pass *analysis.Pass, expr ast.Expr, aliases map[types.Obje
 }
 
 // caseConvArg returns the argument when n is strings.ToLower/ToUpper(<arg>).
-func caseConvArg(n ast.Node) (ast.Expr, bool) {
+func caseConvArg(pass *analysis.Pass, n ast.Node) (ast.Expr, bool) {
 	call, ok := n.(*ast.CallExpr)
 	if !ok {
 		return nil, false
@@ -248,17 +256,29 @@ func caseConvArg(n ast.Node) (ast.Expr, bool) {
 	if !ok {
 		return nil, false
 	}
-	ident, ok := sel.X.(*ast.Ident)
-	if !ok {
-		return nil, false
-	}
-	if ident.Name != "strings" {
+	if !astutil.IsPkgSelector(pass, sel, "strings") {
 		return nil, false
 	}
 	if sel.Sel.Name != "ToLower" && sel.Sel.Name != "ToUpper" {
 		return nil, false
 	}
 	return call.Args[0], true
+}
+
+func caseConvPkgName(pass *analysis.Pass, n ast.Node) (string, bool) {
+	call, ok := n.(*ast.CallExpr)
+	if !ok {
+		return "", false
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || !astutil.IsPkgSelector(pass, sel, "strings") {
+		return "", false
+	}
+	if sel.Sel.Name != "ToLower" && sel.Sel.Name != "ToUpper" {
+		return "", false
+	}
+	pkgName := astutil.NodeText(pass.Fset, sel.X)
+	return pkgName, pkgName != ""
 }
 
 func sameOperand(pass *analysis.Pass, left ast.Expr, right ast.Expr) bool {

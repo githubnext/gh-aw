@@ -96,6 +96,8 @@ pre-agent-steps:
       mkdir -p /tmp/gh-aw/agent
       echo "http://localhost:4321/gh-aw/" > /tmp/gh-aw/agent/server-url.txt
       echo "Server URL: http://localhost:4321/gh-aw/"
+features:
+  gh-aw-detection: true
 ---
 
 # Documentation Noob Testing

@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var zizmorLog = logger.New("cli:zizmor")
@@ -212,7 +213,7 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 			})
 			for _, location := range finding.Locations {
 				filePath := location.Symbolic.Key.Local.GivenPath
-				if filePath != "" && !hasStringKey(affectedFiles, filePath) {
+				if filePath != "" && !setutil.Contains(affectedFiles, filePath) {
 					affectedFiles[filePath] = struct {
 					}{}
 					fileFindings[filePath] = append(fileFindings[filePath], finding)

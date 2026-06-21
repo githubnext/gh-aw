@@ -68,6 +68,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
@@ -830,7 +831,7 @@ func appendMCPGatewayCustomAndHTTPEnvFlags(containerCmd *strings.Builder, workfl
 	addedEnvVars := buildAddedGatewayEnvVarSet(workflowData, gatewayConfig, hasGitHub, githubTool, tools, engine)
 	var envVarNames []string
 	for envVarName := range mcpEnvVars {
-		if !hasStringKey(addedEnvVars, envVarName) {
+		if !setutil.Contains(addedEnvVars, envVarName) {
 			envVarNames = append(envVarNames, envVarName)
 		}
 	}

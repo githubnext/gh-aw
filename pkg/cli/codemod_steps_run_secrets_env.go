@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var stepsRunSecretsEnvCodemodLog = logger.New("cli:codemod_steps_run_secrets_env")
@@ -247,7 +248,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 					modified = true
 				}
 				for _, binding := range bindings {
-					if !hasStringKey(seen, binding.Name) {
+					if !setutil.Contains(seen, binding.Name) {
 						seen[binding.Name] = struct {
 						}{}
 						orderedBindings = append(orderedBindings, binding.Name)
@@ -264,7 +265,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 			modified = true
 		}
 		for _, binding := range bindings {
-			if !hasStringKey(seen, binding.Name) {
+			if !setutil.Contains(seen, binding.Name) {
 				seen[binding.Name] = struct {
 				}{}
 				orderedBindings = append(orderedBindings, binding.Name)
@@ -281,7 +282,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 
 	missingBindings := make([]string, 0, len(orderedBindings))
 	for _, name := range orderedBindings {
-		if !hasStringKey(existingEnvKeys, name) {
+		if !setutil.Contains(existingEnvKeys, name) {
 			missingBindings = append(missingBindings, name)
 		}
 	}
@@ -387,7 +388,7 @@ func replaceStepExpressionRefs(line string, shellIsPowerShell bool, existingBind
 		} else {
 			result.WriteString("$" + envName)
 		}
-		if !hasStringKey(registeredNames, envName) {
+		if !setutil.Contains(registeredNames, envName) {
 			registeredNames[envName] = struct {
 			}{}
 			ordered = append(ordered, stepExpressionBinding{

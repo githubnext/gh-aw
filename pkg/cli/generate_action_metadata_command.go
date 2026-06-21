@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/setutil"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -223,7 +224,7 @@ func extractInputs(content string) []ActionInput {
 	for _, match := range matches {
 		if len(match) > 1 {
 			inputName := match[1]
-			if !hasStringKey(seen, inputName) {
+			if !setutil.Contains(seen, inputName) {
 				inputs = append(inputs, ActionInput{
 					Name:        inputName,
 					Description: "Input parameter: " + inputName,
@@ -263,7 +264,7 @@ func extractOutputs(content string) []ActionOutput {
 	for _, match := range matches {
 		if len(match) > 1 {
 			outputName := match[1]
-			if !hasStringKey(seen, outputName) {
+			if !setutil.Contains(seen, outputName) {
 				outputs = append(outputs, ActionOutput{
 					Name:        outputName,
 					Description: "Output parameter: " + outputName,
@@ -301,7 +302,7 @@ func extractDependencies(content string) []string {
 	for _, match := range matches {
 		if len(match) > 1 {
 			dep := match[1]
-			if !hasStringKey(seen, dep) {
+			if !setutil.Contains(seen, dep) {
 				deps = append(deps, dep)
 				seen[dep] = struct {
 				}{}

@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -233,7 +234,7 @@ func collectImports(workflowPath string, files map[string]struct {
 }, visited map[string]struct {
 }, verbose bool) error {
 	// Avoid processing the same file multiple times
-	if hasStringKey(visited, workflowPath) {
+	if setutil.Contains(visited, workflowPath) {
 		runPushLog.Printf("Skipping already visited file: %s", workflowPath)
 		return nil
 	}
@@ -488,12 +489,12 @@ func pushWorkflowFiles(ctx context.Context, workflowName string, files []string,
 		if err == nil {
 			// Validate the staged path
 			validPath, validErr := fileutil.ValidateAbsolutePath(absStagedPath)
-			if validErr == nil && hasStringKey(ourFiles, validPath) {
+			if validErr == nil && setutil.Contains(ourFiles, validPath) {
 				runPushLog.Printf("Staged file %s matches our file %s (absolute)", stagedFile, validPath)
 				continue
 			}
 		}
-		if hasStringKey(ourFiles, stagedFile) {
+		if setutil.Contains(ourFiles, stagedFile) {
 			runPushLog.Printf("Staged file %s matches our file (relative)", stagedFile)
 			continue
 		}

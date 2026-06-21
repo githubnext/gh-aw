@@ -14,6 +14,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/importinpututil"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 // importAccumulator centralizes the builder/slice/set variables used during
@@ -846,7 +847,7 @@ func mergeObservabilityConfigs(configs []string) string {
 			continue
 		}
 		for _, e := range extractOTLPEndpointsFromObsMap(obs) {
-			if !hasStringKey(seen, e.URL) {
+			if !setutil.Contains(seen, e.URL) {
 				seen[e.URL] = struct {
 				}{}
 				allEndpoints = append(allEndpoints, e)

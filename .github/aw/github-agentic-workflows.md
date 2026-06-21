@@ -52,6 +52,7 @@ See also: [workflow-editing.md](workflow-editing.md)
 - Use `${{ steps.sanitized.outputs.text }}` for untrusted user content.
 - Set `strict: true` for production workflows.
 - Limit network and bash access to what the workflow actually needs.
+- For visual regression workflows, explicitly name the baseline source (for example `cache-memory` key, artifact, or branch path). See [visual-regression.md](visual-regression.md).
 
 See also: [workflow-constraints.md](workflow-constraints.md)
 

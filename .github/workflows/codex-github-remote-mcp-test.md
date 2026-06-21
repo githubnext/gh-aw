@@ -19,7 +19,8 @@ tools:
 timeout-minutes: 5
 strict: true
 
-
+features:
+  gh-aw-detection: true
 ---
 
 # Codex GitHub Remote MCP Test

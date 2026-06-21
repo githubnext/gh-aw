@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -297,7 +298,7 @@ func (g *DependencyGraph) findAffectedTopLevelWorkflows(filePath string) []strin
 		// Get all workflows that import this file
 		importers := g.reverseImports[current]
 		for _, importer := range importers {
-			if hasStringKey(visited, importer) {
+			if setutil.Contains(visited, importer) {
 				continue
 			}
 			visited[importer] = struct {

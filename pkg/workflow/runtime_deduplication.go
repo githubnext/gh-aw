@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
+
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var runtimeDeduplicationLog = logger.New("workflow:runtime_deduplication")
@@ -208,7 +210,7 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 	// Filter runtime requirements to exclude those with user-customized setup actions
 	var filteredRequirements []RuntimeRequirement
 	for _, req := range runtimeRequirements {
-		if !hasStringKey(filteredRuntimeIDs, req.Runtime.ID) {
+		if !setutil.Contains(filteredRuntimeIDs, req.Runtime.ID) {
 			filteredRequirements = append(filteredRequirements, req)
 		} else {
 			runtimeDeduplicationLog.Printf("  Excluding runtime %s from generated setup steps (user has custom setup)", req.Runtime.ID)

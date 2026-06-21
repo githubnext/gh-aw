@@ -120,4 +120,58 @@ describe("write_daily_aic_usage_cache", () => {
     await runMain();
     expect(fs.existsSync(cacheFile)).toBe(false);
   });
+
+  it("skips writing when GITHUB_RUN_ID is an empty string", async () => {
+    process.env.GITHUB_RUN_ID = "";
+    writeUsageFile(5.0);
+    await runMain();
+    expect(fs.existsSync(cacheFile)).toBe(false);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("GITHUB_RUN_ID not set"));
+  });
+
+  it("writes a zero-AIC entry when no usage files are found in the usage dir", async () => {
+    // No writeUsageFile call — aic will be 0, but should still be written
+    await runMain();
+
+    expect(fs.existsSync(cacheFile)).toBe(true);
+    const content = fs.readFileSync(cacheFile, "utf8").trim();
+    const entry = JSON.parse(content);
+    expect(entry.run_id).toBe(12345);
+    expect(entry.aic).toBe(0);
+    expect(typeof entry.timestamp).toBe("string");
+  });
+
+  it("preserves unparseable lines in the existing cache file", async () => {
+    const recentTs = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    fs.writeFileSync(cacheFile, "not-valid-json\n" + JSON.stringify({ run_id: 5001, aic: 2.5, timestamp: recentTs }) + "\n", "utf8");
+    writeUsageFile(1.0);
+    await runMain();
+
+    const lines = fs.readFileSync(cacheFile, "utf8").trim().split("\n");
+    expect(lines[0]).toBe("not-valid-json");
+    const runIds = lines.slice(1).map(line => JSON.parse(line).run_id);
+    expect(runIds).toContain(5001);
+    expect(runIds).toContain(12345);
+  });
+
+  it("creates the cache parent directory when it does not exist", async () => {
+    const deepCacheFile = path.join(tmpDir, "nested", "deep", "cache.jsonl");
+    writeUsageFile(3.0);
+    await exports.mainWithPaths(deepCacheFile, usageDir);
+
+    expect(fs.existsSync(deepCacheFile)).toBe(true);
+    const entry = JSON.parse(fs.readFileSync(deepCacheFile, "utf8").trim());
+    expect(entry.run_id).toBe(12345);
+    expect(entry.aic).toBe(3.0);
+  });
+
+  it("emits a warning and does not crash when the existing cache file cannot be read", async () => {
+    // Creating a directory at the cache path causes readFileSync to throw EISDIR
+    fs.mkdirSync(cacheFile);
+    writeUsageFile(2.0);
+    await runMain();
+
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Could not read existing cache file"));
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to write usage cache"));
+  });
 });

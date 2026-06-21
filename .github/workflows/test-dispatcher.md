@@ -14,7 +14,8 @@ safe-outputs:
     workflows:
       - test-workflow
     max: 1
-
+features:
+  gh-aw-detection: true
 ---
 
 # Test Dispatcher Workflow

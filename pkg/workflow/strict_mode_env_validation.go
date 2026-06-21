@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 // validateEnvSecrets detects secrets in the top-level env section and the engine.env section,
@@ -114,7 +115,7 @@ func (c *Compiler) validateEnvSecretsSection(config map[string]any, sectionName 
 	// are explicitly allowed (e.g. engine env var overrides in engine.env).
 	envStrings := make(map[string]string)
 	for key, value := range envMap {
-		if allowedEnvVarKeys != nil && hasStringKey(allowedEnvVarKeys, key) {
+		if allowedEnvVarKeys != nil && setutil.Contains(allowedEnvVarKeys, key) {
 			strictModeValidationLog.Printf("Skipping allowed engine env var key in %s: %s", sectionName, key)
 			continue
 		}

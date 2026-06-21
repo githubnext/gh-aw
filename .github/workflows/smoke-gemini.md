@@ -70,7 +70,8 @@ safe-outputs:
       run-success: "🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Gemini has spoken. ✨"
       run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. Gemini encountered unexpected challenges..."
 timeout-minutes: 10
-
+features:
+  gh-aw-detection: true
 ---
 
 # Smoke Test: Gemini Engine Validation

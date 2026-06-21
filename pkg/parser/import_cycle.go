@@ -3,7 +3,11 @@
 // depth-first search to find and report circular import chains.
 package parser
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/github/gh-aw/pkg/setutil"
+)
 
 // findCyclePath uses DFS to find a complete cycle path in the dependency graph.
 // Returns a path showing the full chain including the back-edge (e.g., ["b.md", "c.md", "d.md", "b.md"]).
@@ -54,7 +58,7 @@ func dfsForCycle(current, target string, cycleNodes map[string]struct {
 	sortedDeps := make([]string, 0, len(deps))
 	for _, dep := range deps {
 		// Only follow edges within the cycle subgraph
-		if hasStringKey(cycleNodes, dep) {
+		if setutil.Contains(cycleNodes, dep) {
 			sortedDeps = append(sortedDeps, dep)
 		}
 	}
@@ -70,7 +74,7 @@ func dfsForCycle(current, target string, cycleNodes map[string]struct {
 		}
 
 		// Continue DFS if not visited
-		if !hasStringKey(visited, dep) {
+		if !setutil.Contains(visited, dep) {
 			if dfsForCycle(dep, target, cycleNodes, dependencies, visited, path, false) {
 				return true
 			}

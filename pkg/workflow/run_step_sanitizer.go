@@ -50,8 +50,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
+
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var runStepSanitizerLog = logger.New("workflow:run_step_sanitizer")
@@ -108,7 +110,7 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 
 	for _, match := range matches {
 		original := match[0]
-		if hasStringKey(seen, original) {
+		if setutil.Contains(seen, original) {
 			continue
 		}
 		seen[original] = struct {

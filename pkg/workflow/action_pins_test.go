@@ -15,6 +15,7 @@ import (
 const setupNodeV6ExpectedUsesPlaceholder = "__setup_node_v6__"
 const checkoutV6ExpectedUsesPlaceholder = "__checkout_v6__"
 const checkoutSHAExpectedUsesPlaceholder = "__checkout_sha__"
+const checkoutLatestExpectedUsesPlaceholder = "__checkout_latest__"
 
 func expectedPinnedUses(t *testing.T, repo, version string) string {
 	t.Helper()
@@ -25,6 +26,16 @@ func expectedPinnedUses(t *testing.T, repo, version string) string {
 	}
 	if result == "" {
 		t.Fatalf("getActionPinWithData(%s, %s) returned empty result", repo, version)
+	}
+	return result
+}
+
+func latestPinnedUsesForRepo(t *testing.T, repo string) string {
+	t.Helper()
+
+	result := getCachedActionPin(repo, &WorkflowData{})
+	if result == "" {
+		t.Fatalf("getCachedActionPin(%s) returned empty", repo)
 	}
 	return result
 }
@@ -174,6 +185,15 @@ func TestApplyActionPinToStep(t *testing.T) {
 			expectedUses: "my-org/my-action@v1",
 		},
 		{
+			name: "step with unversioned action",
+			stepMap: map[string]any{
+				"name": "Checkout",
+				"uses": "actions/checkout",
+			},
+			expectPinned: true,
+			expectedUses: checkoutLatestExpectedUsesPlaceholder,
+		},
+		{
 			name: "step without uses field",
 			stepMap: map[string]any{
 				"name": "Run command",
@@ -205,7 +225,10 @@ func TestApplyActionPinToStep(t *testing.T) {
 			}
 
 			// Apply action pinning using typed version
-			pinnedStep := applyActionPinToTypedStep(typedStep, data)
+			pinnedStep, pinErr := applyActionPinToTypedStep(typedStep, data)
+			if pinErr != nil {
+				t.Fatalf("applyActionPinToTypedStep() returned error: %v", pinErr)
+			}
 			if pinnedStep == nil {
 				t.Fatal("applyActionPinToTypedStep returned nil")
 			}
@@ -230,6 +253,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 				}
 				if expectedUses == checkoutSHAExpectedUsesPlaceholder {
 					expectedUses = expectedPinnedUses(t, "actions/checkout", "de0fac2e4500dabe0009e67214ff5f5447ce83dd")
+				}
+				if expectedUses == checkoutLatestExpectedUsesPlaceholder {
+					expectedUses = latestPinnedUsesForRepo(t, "actions/checkout")
 				}
 				if usesStr != expectedUses {
 					t.Errorf("applyActionPinToTypedStep uses = %q, want %q", usesStr, expectedUses)
@@ -319,6 +345,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 		step         *WorkflowStep
 		expectPinned bool
 		expectedUses string
+		wantErr      bool
 	}{
 		{
 			name: "step with pinned action (checkout)",
@@ -349,6 +376,23 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 			},
 			expectPinned: false,
 			expectedUses: "my-org/my-action@v1",
+		},
+		{
+			name: "step with unversioned action in embedded pins",
+			step: &WorkflowStep{
+				Name: "Checkout",
+				Uses: "actions/checkout",
+			},
+			expectPinned: true,
+			expectedUses: checkoutLatestExpectedUsesPlaceholder,
+		},
+		{
+			name: "step with unversioned action not in pins returns error",
+			step: &WorkflowStep{
+				Name: "Custom action",
+				Uses: "my-org/my-unpinned-action",
+			},
+			wantErr: true,
 		},
 		{
 			name: "step without uses field",
@@ -388,13 +432,27 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 			// Create a test WorkflowData
 			data := &WorkflowData{}
 
-			result := applyActionPinToTypedStep(tt.step, data)
+			result, err := applyActionPinToTypedStep(tt.step, data)
 
 			if tt.step == nil {
+				if err != nil {
+					t.Errorf("applyActionPinToTypedStep(nil) returned error: %v", err)
+				}
 				if result != nil {
 					t.Errorf("applyActionPinToTypedStep(nil) = %v, want nil", result)
 				}
 				return
+			}
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("applyActionPinToTypedStep() expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("applyActionPinToTypedStep() returned error: %v", err)
 			}
 
 			if result == nil {
@@ -408,6 +466,9 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 			}
 			if expectedUses == checkoutV6ExpectedUsesPlaceholder {
 				expectedUses = expectedPinnedUses(t, "actions/checkout", "v6")
+			}
+			if expectedUses == checkoutLatestExpectedUsesPlaceholder {
+				expectedUses = latestPinnedUsesForRepo(t, "actions/checkout")
 			}
 			if result.Uses != expectedUses {
 				t.Errorf("applyActionPinToTypedStep() uses = %q, want %q", result.Uses, expectedUses)
@@ -453,7 +514,10 @@ func TestApplyActionPinToTypedStep_Immutability(t *testing.T) {
 	originalUses := originalStep.Uses
 
 	data := &WorkflowData{}
-	result := applyActionPinToTypedStep(originalStep, data)
+	result, err := applyActionPinToTypedStep(originalStep, data)
+	if err != nil {
+		t.Fatalf("applyActionPinToTypedStep() returned error: %v", err)
+	}
 
 	// Verify the original step was not modified
 	if originalStep.Uses != originalUses {
@@ -649,9 +713,10 @@ func TestApplyActionPinsToTypedSteps(t *testing.T) {
 	}
 
 	tests := []struct {
-		name  string
-		steps []*WorkflowStep
-		want  []*WorkflowStep
+		name    string
+		steps   []*WorkflowStep
+		want    []*WorkflowStep
+		wantErr bool
 	}{
 		{
 			name:  "nil steps",
@@ -725,11 +790,32 @@ func TestApplyActionPinsToTypedSteps(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "unversioned action not in pins returns error",
+			steps: []*WorkflowStep{
+				{
+					Name: "Unknown action",
+					Uses: "my-org/my-unpinned-action",
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := applyActionPinsToTypedSteps(tt.steps, data)
+			got, err := applyActionPinsToTypedSteps(tt.steps, data)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("applyActionPinsToTypedSteps() expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("applyActionPinsToTypedSteps() returned unexpected error: %v", err)
+			}
 
 			if len(got) != len(tt.want) {
 				t.Errorf("applyActionPinsToTypedSteps() returned %d steps, want %d", len(got), len(tt.want))
@@ -1224,7 +1310,10 @@ func TestMapToStepWithActionPinning(t *testing.T) {
 			}
 
 			// Apply action pinning using typed version
-			pinnedStep := applyActionPinToTypedStep(typedStep, data)
+			pinnedStep, pinErr := applyActionPinToTypedStep(typedStep, data)
+			if pinErr != nil {
+				t.Fatalf("applyActionPinToTypedStep() returned error: %v", pinErr)
+			}
 			if pinnedStep == nil {
 				t.Fatal("applyActionPinToTypedStep returned nil")
 			}
@@ -1328,7 +1417,10 @@ func TestSliceToStepsWithActionPinning(t *testing.T) {
 			}
 
 			// Apply action pinning using typed version
-			pinnedSteps := applyActionPinsToTypedSteps(typedSteps, data)
+			pinnedSteps, pinErr := applyActionPinsToTypedSteps(typedSteps, data)
+			if pinErr != nil {
+				t.Fatalf("applyActionPinsToTypedSteps() returned unexpected error: %v", pinErr)
+			}
 			if len(pinnedSteps) != len(typedSteps) {
 				t.Errorf("applyActionPinsToTypedSteps() returned %d steps, want %d", len(pinnedSteps), len(typedSteps))
 			}

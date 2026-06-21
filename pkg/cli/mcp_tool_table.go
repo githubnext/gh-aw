@@ -6,6 +6,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var mcpToolTableLog = logger.New("cli:mcp_tool_table")
@@ -71,7 +72,7 @@ func renderMCPToolTable(info *parser.MCPServerInfo, opts MCPToolTableOptions) st
 		if len(info.Config.Allowed) == 0 || hasWildcard {
 			// If no allowed list is specified or "*" wildcard is present, assume all tools are allowed
 			status = "✅"
-		} else if hasStringKey(allowedMap, tool.Name) {
+		} else if setutil.Contains(allowedMap, tool.Name) {
 			status = "✅"
 		}
 
@@ -90,7 +91,7 @@ func renderMCPToolTable(info *parser.MCPServerInfo, opts MCPToolTableOptions) st
 	if opts.ShowSummary {
 		allowedCount := 0
 		for _, tool := range info.Tools {
-			if len(info.Config.Allowed) == 0 || hasWildcard || hasStringKey(allowedMap, tool.Name) {
+			if len(info.Config.Allowed) == 0 || hasWildcard || setutil.Contains(allowedMap, tool.Name) {
 				allowedCount++
 			}
 		}

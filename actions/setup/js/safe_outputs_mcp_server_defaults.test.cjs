@@ -324,7 +324,7 @@ const canWriteDefault = canWriteToDefaultPath();
             child.stdin.write(initMessage);
           }, 100),
           setTimeout(() => {
-            const toolCallMessage = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "create_issue", arguments: { title: "Test Issue", body: "Test body" } } }) + "\n";
+            const toolCallMessage = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "create_issue", arguments: { title: "Test Issue", body: "Test body for integration test 32c" } } }) + "\n";
             child.stdin.write(toolCallMessage);
           }, 200),
           setTimeout(() => {
@@ -378,7 +378,7 @@ const canWriteDefault = canWriteToDefaultPath();
               child.stdin.write(initMessage);
             }, 100),
             setTimeout(() => {
-              const toolCallMessage = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "create_issue", arguments: { title: "Test Issue", body: "Test body" } } }) + "\n";
+              const toolCallMessage = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "create_issue", arguments: { title: "Test Issue", body: "Test body for integration test 32c" } } }) + "\n";
               child.stdin.write(toolCallMessage);
             }, 200),
             setTimeout(() => {

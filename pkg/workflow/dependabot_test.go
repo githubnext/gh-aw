@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/testutil"
 
 	"github.com/goccy/go-yaml"
@@ -1026,7 +1027,7 @@ func TestGenerateDependabotConfig_MultipleEcosystems(t *testing.T) {
 	}
 
 	for ecosystem := range ecosystems {
-		if !hasStringKey(ecosystemsFound, ecosystem) {
+		if !setutil.Contains(ecosystemsFound, ecosystem) {
 			t.Errorf("ecosystem %q not found in dependabot.yml", ecosystem)
 		}
 	}

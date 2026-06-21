@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -244,7 +245,7 @@ func cleanupOrphanedIncludes(verbose bool) error {
 
 	// Remove unused includes
 	for _, include := range allIncludes {
-		if !hasStringKey(usedIncludes, include) {
+		if !setutil.Contains(usedIncludes, include) {
 			includePath := filepath.Join(workflowsDir, include)
 			if err := os.Remove(includePath); err != nil {
 				if verbose {
@@ -278,7 +279,7 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, er
 	// Get the files that would remain after removal
 	var remainingFiles []string
 	for _, file := range allMdFiles {
-		if !hasStringKey(removeMap, file) {
+		if !setutil.Contains(removeMap, file) {
 			remainingFiles = append(remainingFiles, file)
 		}
 	}
@@ -324,7 +325,7 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, er
 
 	var orphanedIncludes []string
 	for _, include := range allIncludes {
-		if !hasStringKey(usedIncludes, include) {
+		if !setutil.Contains(usedIncludes, include) {
 			orphanedIncludes = append(orphanedIncludes, include)
 		}
 	}

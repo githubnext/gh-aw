@@ -9,9 +9,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/goccy/go-yaml"
+
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 // PermissionsValidationResult contains the result of permissions validation
@@ -446,7 +448,7 @@ func ValidatePermissionScopeNames(permissionsYAML string) error {
 	}
 
 	for scopeKey := range permsMap {
-		if hasStringKey(validMeta, scopeKey) {
+		if setutil.Contains(validMeta, scopeKey) {
 			continue
 		}
 		if _, ok := validPermissionScopes[scopeKey]; ok {

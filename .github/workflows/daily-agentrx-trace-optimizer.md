@@ -48,6 +48,8 @@ imports:
     with:
       title-prefix: "[agentrx-optimizer] "
       expires: 7d
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

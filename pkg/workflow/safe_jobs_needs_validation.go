@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -47,7 +48,7 @@ func validateSafeJobNeeds(data *WorkflowData) error {
 		normalizedJobName := stringutil.NormalizeSafeOutputIdentifier(originalName)
 		for i, need := range jobConfig.Needs {
 			normalizedNeed := stringutil.NormalizeSafeOutputIdentifier(need)
-			if !hasStringKey(validIDs, normalizedNeed) {
+			if !setutil.Contains(validIDs, normalizedNeed) {
 				return fmt.Errorf(
 					"safe-outputs.jobs.%s: unknown needs target %q\n\nValid dependency targets for custom safe-jobs are:\n%s\n\n"+
 						"Custom safe-jobs cannot depend on workflow control jobs such as 'conclusion' or 'activation'",

@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var dockerLog = logger.New("workflow:docker")
@@ -29,7 +30,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 			if githubType == GitHubMCPModeLocal {
 				githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 				image := "ghcr.io/github/github-mcp-server:" + githubDockerImageVersion
-				if !hasStringKey(imageSet, image) {
+				if !setutil.Contains(imageSet, image) {
 					images = append(images, image)
 					imageSet[image] = struct {
 					}{}
@@ -43,7 +44,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
 		if !isPlaywrightCLIMode(tools) {
 			image := "mcr.microsoft.com/playwright/mcp"
-			if !hasStringKey(imageSet, image) {
+			if !setutil.Contains(imageSet, image) {
 				images = append(images, image)
 				imageSet[image] = struct {
 				}{}
@@ -56,7 +57,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 	// the default predownload set and lock-file manifest whenever enabled.
 	if workflowData != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		image := constants.DefaultGhAwNodeImage
-		if !hasStringKey(imageSet, image) {
+		if !setutil.Contains(imageSet, image) {
 			images = append(images, image)
 			imageSet[image] = struct {
 			}{}
@@ -71,7 +72,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 		if !actionMode.IsDev() {
 			// Release/script mode: Use alpine:latest (needs to be pulled)
 			image := constants.DefaultAlpineImage
-			if !hasStringKey(imageSet, image) {
+			if !setutil.Contains(imageSet, image) {
 				images = append(images, image)
 				imageSet[image] = struct {
 				}{}
@@ -90,7 +91,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 
 		// Add squid (proxy) container
 		squidImage := constants.DefaultFirewallRegistry + "/squid:" + awfImageTag
-		if !hasStringKey(imageSet, squidImage) {
+		if !setutil.Contains(imageSet, squidImage) {
 			images = append(images, squidImage)
 			imageSet[squidImage] = struct {
 			}{}
@@ -99,7 +100,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 
 		// Add default agent container
 		agentImage := constants.DefaultFirewallRegistry + "/agent:" + awfImageTag
-		if !hasStringKey(imageSet, agentImage) {
+		if !setutil.Contains(imageSet, agentImage) {
 			images = append(images, agentImage)
 			imageSet[agentImage] = struct {
 			}{}
@@ -111,7 +112,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 		// Each engine uses its own dedicated port for communication
 		if workflowData != nil && workflowData.AI != "" {
 			apiProxyImage := constants.DefaultFirewallRegistry + "/api-proxy:" + awfImageTag
-			if !hasStringKey(imageSet, apiProxyImage) {
+			if !setutil.Contains(imageSet, apiProxyImage) {
 				images = append(images, apiProxyImage)
 				imageSet[apiProxyImage] = struct {
 				}{}
@@ -123,7 +124,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 		// Without this, --skip-pull causes AWF to fail because the cli-proxy image was never pulled.
 		if isCliProxyNeeded(workflowData) {
 			cliProxyImage := constants.DefaultFirewallRegistry + "/cli-proxy:" + awfImageTag
-			if !hasStringKey(imageSet, cliProxyImage) {
+			if !setutil.Contains(imageSet, cliProxyImage) {
 				images = append(images, cliProxyImage)
 				imageSet[cliProxyImage] = struct {
 				}{}
@@ -148,7 +149,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 					// Use default version if not specified (consistent with mcp_servers.go)
 					image += ":" + string(constants.DefaultMCPGatewayVersion)
 				}
-				if !hasStringKey(imageSet, image) {
+				if !setutil.Contains(imageSet, image) {
 					images = append(images, image)
 					imageSet[image] = struct {
 					}{}
@@ -169,7 +170,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 					// Check for direct container field
 					if mcpConf.Container != "" {
 						image := mcpConf.Container
-						if !hasStringKey(imageSet, image) {
+						if !setutil.Contains(imageSet, image) {
 							images = append(images, image)
 							imageSet[image] = struct {
 							}{}
@@ -180,7 +181,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 						// The container image is the last arg
 						image := mcpConf.Args[len(mcpConf.Args)-1]
 						// Skip if it's a docker flag (starts with -)
-						if !strings.HasPrefix(image, "-") && !hasStringKey(imageSet, image) {
+						if !strings.HasPrefix(image, "-") && !setutil.Contains(imageSet, image) {
 							images = append(images, image)
 							imageSet[image] = struct {
 							}{}
@@ -248,7 +249,7 @@ func mergeDockerImages(existing, newImages []string) []string {
 	}
 	result := existing
 	for _, img := range newImages {
-		if !hasStringKey(seen, img) {
+		if !setutil.Contains(seen, img) {
 			result = append(result, img)
 			seen[img] = struct {
 			}{}
@@ -268,7 +269,7 @@ func mergeDockerImagePins(existing, newPins []GHAWManifestContainer) []GHAWManif
 	}
 	result := existing
 	for _, p := range newPins {
-		if p.Image != "" && !hasStringKey(seen, p.Image) {
+		if p.Image != "" && !setutil.Contains(seen, p.Image) {
 			result = append(result, p)
 			seen[p.Image] = struct {
 			}{}

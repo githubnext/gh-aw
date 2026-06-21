@@ -5,6 +5,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var safeOutputsNeedsValidationLog = logger.New("workflow:safe_outputs_needs_validation")
@@ -49,7 +50,7 @@ func validateSafeOutputsNeedsField(data *WorkflowData, fieldName string, needs [
 				fieldName,
 			)
 		}
-		if !hasStringKey(customJobs, need) {
+		if !setutil.Contains(customJobs, need) {
 			safeOutputsNeedsValidationLog.Printf("Validation failed: %q is not a known custom job", need)
 			return fmt.Errorf(
 				"safe-outputs.%s: unknown job %q. Expected one of the workflow's custom jobs. Example: safe-outputs.%s: [secrets_fetcher]",

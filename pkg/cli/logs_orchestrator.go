@@ -12,6 +12,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -28,6 +29,15 @@ import (
 )
 
 var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
+
+// isDeadlineExceeded reports whether ctx.Err() is context.DeadlineExceeded,
+// returning false for any other error (including nil).  It is used to
+// distinguish our own timeout cancellation (graceful partial results) from a
+// user-initiated cancellation or other error.
+func isDeadlineExceeded(ctx context.Context) bool {
+	// errors.Is handles nil gracefully (returns false), so no nil check needed.
+	return errors.Is(ctx.Err(), context.DeadlineExceeded)
+}
 
 // It reads from the GH_AW_MAX_CONCURRENT_DOWNLOADS environment variable if set,
 // validates the value is between 1 and 100, and falls back to the default if invalid.
@@ -165,11 +175,17 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
 
-	// Start timeout timer if specified
+	// activeCtx is ctx extended with a deadline when timeoutMinutes > 0.
+	// Using a named variable avoids reassigning the ctx parameter and makes it
+	// explicit that a derived context governs all downstream downloads.
+	activeCtx := ctx
 	var startTime time.Time
 	var timeoutReached bool
 	if timeoutMinutes > 0 {
 		startTime = time.Now()
+		var timeoutCancel context.CancelFunc
+		activeCtx, timeoutCancel = context.WithTimeout(ctx, time.Duration(timeoutMinutes)*time.Minute)
+		defer timeoutCancel()
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d minutes", timeoutMinutes)))
 		}
@@ -185,12 +201,24 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	fetchAllInRange := startDate != "" || endDate != ""
 
 	// Iterative algorithm: keep fetching runs until we have enough or exhaust available runs
+outerLoop:
 	for iteration < MaxIterations {
-		// Check context cancellation
+		// Check context cancellation or timeout deadline
 		select {
-		case <-ctx.Done():
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
-			return ctx.Err()
+		case <-activeCtx.Done():
+			if isDeadlineExceeded(activeCtx) {
+				// Our own timeout context expired — treat this as a graceful stop,
+				// not a hard error.  break outerLoop falls through to renderLogsOutput
+				// which outputs whatever processedRuns were collected before the deadline.
+				timeoutReached = true
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Timeout reached, stopping download"))
+				}
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+				return activeCtx.Err()
+			}
+			break outerLoop
 		default:
 		}
 
@@ -305,10 +333,22 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		// forcing us to scan the entire batch.
 		batchProcessed := 0
 		runsRemaining := runs
+	innerLoop:
 		for len(runsRemaining) > 0 && len(processedRuns) < count {
 			remainingNeeded := count - len(processedRuns)
 			if remainingNeeded <= 0 {
 				break
+			}
+
+			// Check context/timeout before starting each new chunk so we stop
+			// promptly when the deadline fires between individual chunk downloads.
+			select {
+			case <-activeCtx.Done():
+				if isDeadlineExceeded(activeCtx) {
+					timeoutReached = true
+				}
+				break innerLoop
+			default:
 			}
 
 			// Process slightly more than we need to account for skips due to filters.
@@ -317,7 +357,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 			chunk := runsRemaining[:chunkSize]
 			runsRemaining = runsRemaining[chunkSize:]
 
-			downloadResults := downloadRunArtifactsConcurrent(ctx, chunk, outputDir, verbose, remainingNeeded, repoOverride, artifactFilter)
+			downloadResults := downloadRunArtifactsConcurrent(activeCtx, chunk, outputDir, verbose, remainingNeeded, repoOverride, artifactFilter)
 
 			for _, result := range downloadResults {
 				if result.Skipped {

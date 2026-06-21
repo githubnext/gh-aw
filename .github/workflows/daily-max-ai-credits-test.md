@@ -28,6 +28,8 @@ safe-outputs:
     run-started: "🧪 [{workflow_name}]({run_url}) — per-run AI credit limit test running (intentionally fails, limit: 1 AI credit/run)."
     run-success: "⚠️ [{workflow_name}]({run_url}) completed without hitting the per-run limit of 1 AI credit — verify that max-ai-credits enforcement is working."
     run-failure: "🚫 [{workflow_name}]({run_url}) {status} — expected: the per-run AI credit limit of 1 was reached and the AWF firewall cut off the agent."
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Max AI Credits Test (Intentionally Fails)

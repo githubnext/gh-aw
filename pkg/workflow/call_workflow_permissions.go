@@ -3,12 +3,65 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
 var callWorkflowPermissionsLog = logger.New("workflow:call_workflow_permissions")
+
+// permissionLevelRank maps a permission level to a comparable rank where a higher
+// number grants strictly more access (none < read < write). Used to determine
+// whether one permission set covers another. Unknown or empty levels rank as 0.
+func permissionLevelRank(level PermissionLevel) int {
+	switch level {
+	case PermissionWrite:
+		return 2
+	case PermissionRead:
+		return 1
+	default: // PermissionNone or empty
+		return 0
+	}
+}
+
+// findUncoveredWorkerPermissions returns the worker permission scopes (formatted as
+// "scope: level") that the caller's declared permissions do not cover. A scope is
+// uncovered when the caller grants a strictly lower level than the worker requires.
+// The result is sorted for deterministic output; an empty result means the caller's
+// declared permissions are sufficient for the worker.
+//
+// This is used to validate (not modify) the caller's permission envelope: callers
+// control their own permission surface, and the compiler only warns when the declared
+// permissions are insufficient for a worker the caller invokes.
+func findUncoveredWorkerPermissions(caller, worker *Permissions) []string {
+	if worker == nil {
+		return nil
+	}
+
+	scopes := append(GetAllPermissionScopes(), PermissionCopilotRequests)
+	var missing []string
+	for _, scope := range scopes {
+		workerLevel, workerWants := worker.Get(scope)
+		if !workerWants || workerLevel == PermissionNone {
+			continue
+		}
+
+		callerLevel := PermissionNone
+		if caller != nil {
+			if level, has := caller.Get(scope); has {
+				callerLevel = level
+			}
+		}
+
+		if permissionLevelRank(callerLevel) < permissionLevelRank(workerLevel) {
+			missing = append(missing, fmt.Sprintf("%s: %s", scope, workerLevel))
+		}
+	}
+
+	sort.Strings(missing)
+	return missing
+}
 
 // extractJobPermissionsFromParsedWorkflow extracts and merges all job-level permissions
 // from a parsed GitHub Actions workflow map. Returns the union of all jobs' permissions.
@@ -54,8 +107,12 @@ func extractJobPermissionsFromParsedWorkflow(workflow map[string]any) *Permissio
 // permissions field is used as a proxy (the compiler will turn it into per-job
 // permissions when the worker is eventually compiled).
 //
+// This is used purely to VALIDATE the caller's declared permissions against what the
+// worker requires (see findUncoveredWorkerPermissions). The worker's permissions are
+// never written into the caller's lockfile; the caller controls its own permission
+// surface and the compiler only warns when it is insufficient.
+//
 // Returns nil when no workflow file is found or no permissions are declared.
-// The caller should omit the permissions block on the call-* job in that case.
 func extractCallWorkflowPermissions(workflowName, markdownPath string) (*Permissions, error) {
 	fileResult, err := findWorkflowFile(workflowName, markdownPath)
 	if err != nil {

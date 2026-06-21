@@ -8,6 +8,12 @@
       "write_permissions": ["actions"],
       "tools": ["actions_get", "actions_list", "actions_run_trigger", "get_job_logs"]
     },
+    "code_quality": {
+      "description": "Code quality findings",
+      "read_permissions": ["security-events"],
+      "write_permissions": [],
+      "tools": ["get_code_quality_finding"]
+    },
     "code_security": {
       "description": "Code scanning alerts",
       "read_permissions": ["security-events"],

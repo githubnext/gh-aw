@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
@@ -453,7 +454,7 @@ func collectRequiredFields(schema map[string]any) map[string]struct {
 func addObjectExamples(result map[string]any, properties map[string]any, requiredFields map[string]struct {
 }, includeRequired bool, count int) int {
 	for propName, propSchema := range properties {
-		if hasStringKey(requiredFields, propName) != includeRequired || count >= maxExampleFields {
+		if setutil.Contains(requiredFields, propName) != includeRequired || count >= maxExampleFields {
 			continue
 		}
 		propSchemaMap, ok := propSchema.(map[string]any)
@@ -664,7 +665,7 @@ func findFieldLocationsInSchema(schemaDoc any, targetField, currentPath string) 
 			continue
 		}
 		key := loc.FieldName + "|" + loc.SchemaPath
-		if hasStringKey(seen, key) {
+		if setutil.Contains(seen, key) {
 			continue
 		}
 		seen[key] = struct {
@@ -690,7 +691,7 @@ func findFieldLocationsInSchema(schemaDoc any, targetField, currentPath string) 
 			continue
 		}
 		key := loc.FieldName + "|" + loc.SchemaPath
-		if hasStringKey(seenFuzzy, key) {
+		if setutil.Contains(seenFuzzy, key) {
 			continue
 		}
 		seenFuzzy[key] = struct {
@@ -760,7 +761,7 @@ func generatePathLocationSuggestion(invalidProps []string, schemaDoc any, curren
 		})
 		for _, loc := range locations {
 			display := "'" + formatSchemaPathForDisplay(loc.SchemaPath) + "'"
-			if !hasStringKey(seenPaths, display) {
+			if !setutil.Contains(seenPaths, display) {
 				seenPaths[display] = struct {
 				}{}
 				pathNames = append(pathNames, display)

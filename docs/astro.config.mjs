@@ -450,6 +450,7 @@ export default defineConfig({
 				},
 				{ label: 'Agent Factory', link: '/agent-factory-status/' },
 				{ label: 'Editors', link: '/reference/editors/' },
+				{ label: 'About', link: '/about/' },
 			],
 		}),
 	],

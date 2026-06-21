@@ -18,6 +18,7 @@ func TestCheckoutPersistCredentials(t *testing.T) {
 		name        string
 		frontmatter string
 		description string
+		expectTrue  []string
 	}{
 		{
 			name: "main job checkout includes persist-credentials false",
@@ -72,7 +73,8 @@ safe-outputs:
 engine: claude
 strict: false
 ---`,
-			description: "Create pull request job checkout should include persist-credentials: false",
+			description: "Create pull request job checkout should include persist-credentials: true in safe_outputs job",
+			expectTrue:  []string{"safe_outputs"},
 		},
 		{
 			name: "safe output push-to-pull-request-branch checkout includes persist-credentials false",
@@ -90,7 +92,8 @@ safe-outputs:
 engine: claude
 strict: false
 ---`,
-			description: "Push to PR branch job checkout should include persist-credentials: false",
+			description: "Push to PR branch job checkout should include persist-credentials: true in safe_outputs job",
+			expectTrue:  []string{"safe_outputs"},
 		},
 		{
 			name: "safe output upload_assets checkout includes persist-credentials false",
@@ -197,19 +200,28 @@ strict: false
 				return
 			}
 
-			// Determine which job(s) we expect to have persist-credentials: true
-			// All jobs now use persist-credentials: false and rely on git remote set-url for authentication
+			// Determine which job(s) we expect to have persist-credentials: true.
+			// Safe outputs jobs that perform git fetch/push must keep credentials.
 			expectTrueJobs := make(map[string]bool)
+			for _, jobName := range tt.expectTrue {
+				expectTrueJobs[jobName] = true
+			}
 
 			// Verify each checkout has persist-credentials set correctly based on its job
 			for jobName, checkouts := range checkoutsByJob {
 				expectTrue := expectTrueJobs[jobName]
+				foundTrue := false
 
 				for idx, checkoutContext := range checkouts {
 					if expectTrue {
-						if !strings.Contains(checkoutContext, "persist-credentials: true") {
-							t.Errorf("%s (job: %s): Checkout #%d missing persist-credentials: true\nContext:\n%s",
+						hasPersistCredentialsSetting := strings.Contains(checkoutContext, "persist-credentials: true") ||
+							strings.Contains(checkoutContext, "persist-credentials: false")
+						if !hasPersistCredentialsSetting {
+							t.Errorf("%s (job: %s): Checkout #%d missing explicit persist-credentials setting\nContext:\n%s",
 								tt.description, jobName, idx+1, checkoutContext)
+						}
+						if strings.Contains(checkoutContext, "persist-credentials: true") {
+							foundTrue = true
 						}
 					} else {
 						if !strings.Contains(checkoutContext, "persist-credentials: false") {
@@ -217,6 +229,10 @@ strict: false
 								tt.description, jobName, idx+1, checkoutContext)
 						}
 					}
+				}
+
+				if expectTrue && !foundTrue {
+					t.Errorf("%s (job: %s): expected at least one checkout with persist-credentials: true", tt.description, jobName)
 				}
 			}
 		})
