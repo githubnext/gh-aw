@@ -11,7 +11,7 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
  * @param {Object} config
  * @param {Object} options
  * @param {boolean} [options.allowTitle=true]
- * @param {string} [options.defaultOperation]
+ * @param {string} options.defaultOperation - Required when item.body may be present; used as fallback operation if item.operation and configDefaultOperation are both absent.
  * @param {string | undefined} [options.configDefaultOperation]
  * @param {boolean} [options.includeBodyInApiData=false]
  * @param {(() => void) | undefined} [options.onBodyDisallowed]
