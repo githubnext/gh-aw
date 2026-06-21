@@ -404,14 +404,14 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			if len(data.SafeOutputs.ReportFailureAsIssueCategories) > 0 {
 				categoriesJSON, err := json.Marshal(data.SafeOutputs.ReportFailureAsIssueCategories)
 				if err == nil {
-					agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_FAILURE_CATEGORIES_FILTER: '%s'\n", categoriesJSON))
+					agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_FAILURE_CATEGORIES_FILTER: %q\n", string(categoriesJSON)))
 				}
 			}
 			// If excluded categories filter is configured, pass it as JSON
 			if len(data.SafeOutputs.ReportFailureAsIssueExcludedCategories) > 0 {
 				excludedCategoriesJSON, err := json.Marshal(data.SafeOutputs.ReportFailureAsIssueExcludedCategories)
 				if err == nil {
-					agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER: '%s'\n", excludedCategoriesJSON))
+					agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER: %q\n", string(excludedCategoriesJSON)))
 				}
 			}
 		}
