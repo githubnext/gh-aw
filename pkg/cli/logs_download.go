@@ -897,6 +897,30 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		return fmt.Errorf("failed to flatten activation artifact: %w", err)
 	}
 
+	// When the usage artifact was downloaded but aw_info.json is absent (older runs predate
+	// the usage-artifact copy), fall back to downloading the activation artifact so that
+	// engine-config extraction and audit commands work correctly.
+	if isUsageOnlyArtifactFilter(artifactFilter) {
+		awInfoPath := filepath.Join(outputDir, "aw_info.json")
+		if _, err := os.Stat(awInfoPath); os.IsNotExist(err) {
+			logsDownloadLog.Printf("aw_info.json missing from usage artifact, downloading activation artifact as fallback")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("aw_info.json missing from usage artifact; downloading activation artifact as fallback"))
+			}
+			if dlErr := downloadArtifactsByName(ctx, runID, outputDir, []string{constants.ActivationArtifactName}, verbose, owner, repo, hostname); dlErr != nil {
+				logsDownloadLog.Printf("Activation artifact fallback download failed: %v", dlErr)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not download activation artifact fallback: %v", dlErr)))
+				}
+			} else {
+				// Flatten any nested directory structure produced by the activation artifact download.
+				if flatErr := flattenActivationArtifact(outputDir, verbose); flatErr != nil {
+					logsDownloadLog.Printf("Failed to flatten fallback activation artifact: %v", flatErr)
+				}
+			}
+		}
+	}
+
 	// Flatten unified agent directory structure
 	if err := flattenUnifiedArtifact(outputDir, verbose); err != nil {
 		return fmt.Errorf("failed to flatten unified artifact: %w", err)
