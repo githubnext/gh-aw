@@ -571,6 +571,43 @@ describe("mcp_server_core.cjs", () => {
       expect(response.error.message).toContain("too short");
       expect(response.error.message).toContain("20");
     });
+
+    it("should return error for empty arguments object (probe detection) via handleRequest", async () => {
+      const { createServer, registerTool, handleRequest } = await import("./mcp_server_core.cjs");
+      const server = createServer({ name: "test-server", version: "1.0.0" });
+
+      registerTool(server, {
+        name: "probe_tool",
+        description: "A tool to test probe detection",
+        inputSchema: {
+          type: "object",
+          properties: { input: { type: "string", description: "Some input" } },
+          required: ["input"],
+        },
+        handler: args => ({
+          content: [{ type: "text", text: `received: ${args.input}` }],
+        }),
+      });
+
+      const response = await handleRequest(server, {
+        jsonrpc: "2.0",
+        id: 10,
+        method: "tools/call",
+        params: {
+          name: "probe_tool",
+          arguments: {}, // completely empty — probe attempt
+        },
+      });
+
+      expect(response.error).toBeDefined();
+      expect(response.error.code).toBe(-32602);
+      expect(response.error.message).toContain("write-once, not a discovery probe");
+      expect(response.error.message).toContain("tools/list");
+      expect(response.error.message).toContain("noop");
+      // Schema guidance should be included so the model can retry without calling tools/list
+      expect(response.error.message).toContain("Example:");
+      expect(response.error.message).toContain("Required parameter");
+    });
   });
 
   describe("loadToolHandlers", () => {
