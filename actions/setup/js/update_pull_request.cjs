@@ -11,8 +11,7 @@ const HANDLER_TYPE = "update_pull_request";
 const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { resolveTarget, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createUpdateHandlerFactory, createStandardResolveNumber, createStandardFormatResult } = require("./update_handler_factory.cjs");
-const { sanitizeTitle } = require("./sanitize_title.cjs");
-const { parseBoolTemplatable } = require("./templatable.cjs");
+const { buildCommonEntityUpdateData } = require("./update_entity_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -187,26 +186,13 @@ const resolvePRNumber = createStandardResolveNumber({
  */
 function buildPRUpdateData(item, config) {
   const canUpdateTitle = config.allow_title !== false; // Default true
-  const canUpdateBody = config.allow_body !== false; // Default true
-
-  const updateData = {};
-  let hasUpdates = false;
-
-  if (canUpdateTitle && item.title !== undefined) {
-    // Sanitize title for Unicode security (no prefix handling needed for updates)
-    updateData.title = sanitizeTitle(item.title);
-    hasUpdates = true;
-  }
-
-  if (canUpdateBody && item.body !== undefined) {
-    // Store operation information
-    // Use operation from item, or fall back to config default, or use "replace" as final default
-    const operation = item.operation || config.default_operation || "replace";
-    updateData._operation = operation;
-    updateData._rawBody = item.body;
-    updateData.body = item.body;
-    hasUpdates = true;
-  }
+  const { updateData, hasCommonUpdates } = buildCommonEntityUpdateData(item, config, {
+    allowTitle: canUpdateTitle,
+    defaultOperation: "replace",
+    configDefaultOperation: config.default_operation,
+    includeBodyInApiData: true,
+  });
+  let hasUpdates = hasCommonUpdates;
 
   // Other fields (always allowed)
   if (item.state !== undefined) {
@@ -235,9 +221,6 @@ function buildPRUpdateData(item, config) {
       reason: "No update fields provided or all fields are disabled",
     };
   }
-
-  // Pass footer config to executeUpdate (default to true)
-  updateData._includeFooter = parseBoolTemplatable(config.footer, true);
 
   return { success: true, data: updateData };
 }
