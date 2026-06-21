@@ -18,6 +18,7 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
 const EVENT_TYPE_DESCRIPTIONS = {
   issues: "issue",
   pull_request: "pull request",
+  pull_request_comment: "pull request comment",
   issue_comment: "issue comment",
   pull_request_review_comment: "pull request review comment",
   discussion: "discussion",
@@ -50,9 +51,14 @@ async function getDiscussionNodeId(discussionNumber, eventRepo = context.repo) {
  * @param {string|number} commentId - The comment ID
  * @param {string} commentUrl - The comment URL
  * @param {{ owner: string, repo: string }} [eventRepo] - Repository where the comment was created (defaults to context.repo at runtime)
+ * @param {{ reused?: boolean }} [options]
  */
-function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo) {
-  core.info(`Successfully created comment with workflow link`);
+function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo, options = {}) {
+  if (options.reused) {
+    core.info(`Reusing existing status comment outputs`);
+  } else {
+    core.info(`Successfully created comment with workflow link`);
+  }
   core.info(`Comment ID: ${commentId}`);
   core.info(`Comment URL: ${commentUrl}`);
   core.info(`Comment Repo: ${eventRepo.owner}/${eventRepo.repo}`);
@@ -87,12 +93,32 @@ function parseObject(value) {
     } catch {
       return null;
     }
+    // Parsed successfully, but the value was not a plain object.
     return null;
   }
   if (typeof value === "object" && !Array.isArray(value)) {
     return /** @type {Record<string, any>} */ value;
   }
   return null;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {{ owner: string, repo: string }|null}
+ */
+function parseRepoSlug(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const parts = trimmed.split("/");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    return null;
+  }
+  return { owner: parts[0], repo: parts[1] };
 }
 
 /**
@@ -107,7 +133,7 @@ function extractAwContextFromPayload(payload) {
 
 /**
  * @param {any} rawContext
- * @returns {{ id: string, url: string }|null}
+ * @returns {{ id: string, url: string, repo: { owner: string, repo: string }|null }|null}
  */
 function readReusableStatusComment(rawContext) {
   const awContext = extractAwContextFromPayload(rawContext?.payload);
@@ -123,7 +149,20 @@ function readReusableStatusComment(rawContext) {
 
   const rawUrl = awContext.status_comment_url ?? awContext.statusCommentUrl;
   const url = typeof rawUrl === "string" ? rawUrl.trim() : "";
-  return { id, url };
+  const repo = parseRepoSlug(awContext.status_comment_repo ?? awContext.statusCommentRepo);
+  return { id, url, repo };
+}
+
+/**
+ * @param {any} rawContext
+ * @param {string} message
+ */
+function reportCommentError(rawContext, message) {
+  if (rawContext?.nonFatalStatusCommentErrors) {
+    core.warning(message);
+    return;
+  }
+  core.setFailed(message);
 }
 
 /**
@@ -132,12 +171,18 @@ function readReusableStatusComment(rawContext) {
  * Use add_reaction.cjs in the pre-activation job to add reactions first for immediate feedback.
  */
 async function createOrReuseStatusComment(rawContext = context) {
+  const messagesConfig = getMessages();
+  if (!parseBoolTemplatable(messagesConfig?.activationComments, true)) {
+    core.info("activation-comments is disabled: skipping activation comment creation");
+    return null;
+  }
+
   const invocationContext = resolveInvocationContext(rawContext);
   const reusableComment = readReusableStatusComment(rawContext);
   if (reusableComment) {
     core.info(`Reusing existing status comment ID: ${reusableComment.id}`);
     return {
-      ...setCommentOutputs(reusableComment.id, reusableComment.url, invocationContext.eventRepo),
+      ...setCommentOutputs(reusableComment.id, reusableComment.url, reusableComment.repo || invocationContext.eventRepo, { reused: true }),
       reused: true,
     };
   }
@@ -160,7 +205,7 @@ async function createOrReuseStatusComment(rawContext = context) {
     case "issue_comment": {
       const number = payload?.issue?.number;
       if (!number) {
-        core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
+        reportCommentError(rawContext, `${ERR_NOT_FOUND}: Issue number not found in event payload`);
         return null;
       }
       commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
@@ -168,10 +213,11 @@ async function createOrReuseStatusComment(rawContext = context) {
     }
 
     case "pull_request":
+    case "pull_request_comment":
     case "pull_request_review_comment": {
       const number = payload?.pull_request?.number;
       if (!number) {
-        core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
+        reportCommentError(rawContext, `${ERR_NOT_FOUND}: Pull request number not found in event payload`);
         return null;
       }
       commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
@@ -181,7 +227,7 @@ async function createOrReuseStatusComment(rawContext = context) {
     case "discussion": {
       const discussionNumber = payload?.discussion?.number;
       if (!discussionNumber) {
-        core.setFailed(`${ERR_NOT_FOUND}: Discussion number not found in event payload`);
+        reportCommentError(rawContext, `${ERR_NOT_FOUND}: Discussion number not found in event payload`);
         return null;
       }
       commentEndpoint = `discussion:${discussionNumber}`;
@@ -192,7 +238,7 @@ async function createOrReuseStatusComment(rawContext = context) {
       const discussionCommentNumber = payload?.discussion?.number;
       const discussionCommentId = payload?.comment?.id;
       if (!discussionCommentNumber || !discussionCommentId) {
-        core.setFailed(`${ERR_NOT_FOUND}: Discussion or comment information not found in event payload`);
+        reportCommentError(rawContext, `${ERR_NOT_FOUND}: Discussion or comment information not found in event payload`);
         return null;
       }
       commentEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`;
@@ -200,7 +246,7 @@ async function createOrReuseStatusComment(rawContext = context) {
     }
 
     default:
-      core.setFailed(`${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
+      reportCommentError(rawContext, `${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
       return null;
   }
 
@@ -209,13 +255,6 @@ async function createOrReuseStatusComment(rawContext = context) {
 }
 
 async function main() {
-  // Check if activation comments are disabled
-  const messagesConfig = getMessages();
-  if (!parseBoolTemplatable(messagesConfig?.activationComments, true)) {
-    core.info("activation-comments is disabled: skipping activation comment creation");
-    return;
-  }
-
   try {
     await createOrReuseStatusComment(context);
   } catch (error) {

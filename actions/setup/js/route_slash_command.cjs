@@ -3,6 +3,7 @@
 // @safe-outputs-exempt SEC-004 — event body text is read only for slash-command parsing; outbound /help comments are built from internal metadata.
 
 const { REACTION_MAP } = require("./add_reaction.cjs");
+const { createOrReuseStatusComment } = require("./add_workflow_run_comment.cjs");
 const nodePath = require("node:path");
 const { matchesCommandName, parseSlashCommand } = require("./slash_command_matcher.cjs");
 // Keep this aligned with the current default stable GitHub REST API version used by workflows.
@@ -276,8 +277,10 @@ async function addImmediateReaction(reaction) {
 
 async function addImmediateStatusComment() {
   try {
-    const { createOrReuseStatusComment } = require("./add_workflow_run_comment.cjs");
-    const comment = await createOrReuseStatusComment(context);
+    const comment = await createOrReuseStatusComment({
+      ...context,
+      nonFatalStatusCommentErrors: true,
+    });
     if (!comment?.id) {
       return null;
     }
