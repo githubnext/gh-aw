@@ -1022,24 +1022,28 @@ describe("copilot_harness.cjs", () => {
 
     it("resolves the 403 guidance template from the runtime prompts directory", () => {
       const runtimePromptsDir = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-prompts-"));
-      withTestPromptsDir(runtimePromptsDir, () => {
-        const renderTemplateFromFile = vi.fn().mockReturnValue("rendered");
+      try {
+        withTestPromptsDir(runtimePromptsDir, () => {
+          const renderTemplateFromFile = vi.fn().mockReturnValue("rendered");
 
-        const diagnostic = buildCopilotProxyAuthFailureDiagnostic(
-          "Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).",
-          {
-            COPILOT_MODEL: "claude-sonnet-4.5",
-            S2STOKENS: "true",
-          },
-          { renderTemplateFromFile }
-        );
+          const diagnostic = buildCopilotProxyAuthFailureDiagnostic(
+            "Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).",
+            {
+              COPILOT_MODEL: "claude-sonnet-4.5",
+              S2STOKENS: "true",
+            },
+            { renderTemplateFromFile }
+          );
 
-        expect(diagnostic).toBe("rendered");
-        expect(renderTemplateFromFile).toHaveBeenCalledWith(path.join(runtimePromptsDir, "copilot_requests_proxy_auth_403.md"), {
-          selected_model: "claude-sonnet-4.5",
-          stage: "starting the Copilot CLI request",
+          expect(diagnostic).toBe("rendered");
+          expect(renderTemplateFromFile).toHaveBeenCalledWith(path.join(runtimePromptsDir, "copilot_requests_proxy_auth_403.md"), {
+            selected_model: "claude-sonnet-4.5",
+            stage: "starting the Copilot CLI request",
+          });
         });
-      });
+      } finally {
+        fs.rmSync(runtimePromptsDir, { recursive: true, force: true });
+      }
     });
 
     it("resolves the 403 guidance template from RUNNER_TEMP when GH_AW_PROMPTS_DIR is unset", () => {
@@ -1076,6 +1080,7 @@ describe("copilot_harness.cjs", () => {
         } else {
           delete process.env.RUNNER_TEMP;
         }
+        fs.rmSync(runnerTempDir, { recursive: true, force: true });
       }
     });
 
