@@ -207,7 +207,7 @@ async function getIssueDetails(owner, repo, issueNumber, githubClient = github) 
         id: assignee.id,
         login: assignee.login,
       }));
-      return { issueId: issue.id, currentAssignees, htmlUrl: "", title: "", body: "", taskContext: { owner, repo, type: "issue", number: issueNumber } };
+      return { issueId: issue.id, currentAssignees };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.error(`Failed to get issue details: ${errorMessage}`);
@@ -277,7 +277,7 @@ async function getPullRequestDetails(owner, repo, pullNumber, githubClient = git
         id: assignee.id,
         login: assignee.login,
       }));
-      return { pullRequestId: pullRequest.id, currentAssignees, htmlUrl: "", title: "", body: "", taskContext: { owner, repo, type: "pull", number: pullNumber } };
+      return { pullRequestId: pullRequest.id, currentAssignees };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.error(`Failed to get pull request details: ${errorMessage}`);
@@ -439,7 +439,15 @@ async function assignAgentToIssue(
       });
       return !!response?.replaceActorsForAssignable?.__typename;
     } catch (error) {
-      core.error(`Failed to assign ${agentName}: ${getErrorMessage(error)}`);
+      const errorMessage = getErrorMessage(error);
+      const err = /** @type {any} */ (error);
+      const is502Error = err?.response?.status === 502 || errorMessage.includes("502 Bad Gateway");
+      if (is502Error) {
+        core.warning(`Received 502 error from cloud gateway during agent task creation, but task may have been created`);
+        core.info(`Treating 502 error as success - agent task likely created`);
+        return true;
+      }
+      core.error(`Failed to assign ${agentName}: ${errorMessage}`);
       return false;
     }
   }

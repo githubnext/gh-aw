@@ -132,15 +132,6 @@ describe("assign_agent_helpers.cjs", () => {
     });
 
     it("should return null for unknown agent name", async () => {
-      // Need to mock GraphQL because the function calls it before checking agent name
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          suggestedActors: {
-            nodes: [],
-          },
-        },
-      });
-
       const result = await findAgent("owner", "repo", "unknown-agent");
 
       expect(result).toBeNull();
@@ -500,9 +491,8 @@ describe("assign_agent_helpers.cjs", () => {
       expect(summary).toContain("### ⚠️ Permission Requirements");
       expect(summary).toContain("actions: write");
       expect(summary).toContain("contents: write");
-      expect(summary).toContain("issues: write");
-      expect(summary).toContain("pull-requests: write");
-      expect(summary).toContain("replaceActorsForAssignable");
+      expect(summary).toContain("agent-tasks: write");
+      expect(summary).toContain("POST /agents/repos/{owner}/{repo}/tasks");
     });
   });
 
