@@ -440,7 +440,7 @@ async function assignAgentToIssue(
       return !!response?.replaceActorsForAssignable?.__typename;
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      const err = /** @type {any} */ (error);
+      const err = /** @type {any} */ error;
       const is502Error = err?.response?.status === 502 || errorMessage.includes("502 Bad Gateway");
       if (is502Error) {
         core.warning(`Received 502 error from cloud gateway during agent task creation, but task may have been created`);
