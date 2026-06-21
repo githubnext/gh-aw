@@ -45,6 +45,8 @@ tools:
 
 timeout-minutes: 30
 strict: true
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Go Function Namer

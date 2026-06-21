@@ -45,7 +45,8 @@ timeout-minutes: 15
 
 tools:
   cli-proxy: true
-
+features:
+  gh-aw-detection: true
 ---
 
 # Copilot PR Prompt Pattern Analysis

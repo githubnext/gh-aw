@@ -35,6 +35,8 @@ timeout-minutes: 30
 strict: true
 imports:
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

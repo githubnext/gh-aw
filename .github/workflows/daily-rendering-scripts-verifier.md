@@ -57,6 +57,8 @@ imports:
       expires: 3d
 
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Rendering Scripts Verifier

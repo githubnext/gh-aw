@@ -49,7 +49,8 @@ imports:
   - shared/reporting.md
   - shared/otlp.md
 timeout-minutes: 30
-
+features:
+  gh-aw-detection: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

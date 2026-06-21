@@ -50,7 +50,8 @@ safe-outputs:
   max-bot-mentions: 1
 
 timeout-minutes: 30
-
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Experiment Report

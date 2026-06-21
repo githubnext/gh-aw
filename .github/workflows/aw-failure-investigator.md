@@ -311,6 +311,8 @@ steps:
       print(f"Failed runs in payload: {len(payload['failed_run_ids'])}")
       print(f"Existing tracking issues in payload: {len(existing_tracking_issues)}")
       PY
+features:
+  gh-aw-detection: true
 ---
 
 # [aw] Failure Investigator (6h)

@@ -45,6 +45,8 @@ safe-outputs:
     run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋"
     run-failure: "🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown..."
 timeout-minutes: 10
+features:
+  gh-aw-detection: true
 ---
 
 # Breaking Change Checker

@@ -57,8 +57,8 @@ safe-outputs:
     allowed-reasons: [spam]
   threat-detection: false
 checkout: false
-
-
+features:
+  gh-aw-detection: true
 ---
 
 # AI Moderator

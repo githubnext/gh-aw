@@ -70,6 +70,8 @@ tools:
     toolsets:
     - default
 tracker-id: daily-doc-updater
+features:
+  gh-aw-detection: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

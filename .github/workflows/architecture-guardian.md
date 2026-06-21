@@ -148,7 +148,8 @@ steps:
 
       FILE_COUNT=$(echo "$CHANGED_FILES" | wc -l | tr -d ' ')
       echo "✅ Pre-computed metrics for $FILE_COUNT file(s) → /tmp/gh-aw/agent/arch-metrics.json"
-
+features:
+  gh-aw-detection: true
 ---
 
 # Architecture Guardian

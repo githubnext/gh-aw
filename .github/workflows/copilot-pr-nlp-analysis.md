@@ -71,7 +71,8 @@ timeout-minutes: 20
 
 tools:
   cli-proxy: true
-
+features:
+  gh-aw-detection: true
 ---
 
 # Copilot PR Conversation NLP Analysis

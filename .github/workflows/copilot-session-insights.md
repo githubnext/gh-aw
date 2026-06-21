@@ -55,8 +55,8 @@ imports:
 
   - shared/otlp.md
 timeout-minutes: 45
-
-
+features:
+  gh-aw-detection: true
 ---
 # Copilot coding agent Session Analysis
 

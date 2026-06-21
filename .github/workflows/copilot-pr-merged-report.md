@@ -43,6 +43,8 @@ imports:
 
   - shared/otlp.md
 timeout-minutes: 10
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Copilot PR Merged Report

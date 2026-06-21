@@ -54,6 +54,8 @@ imports:
 
 
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Agent Persona Explorer

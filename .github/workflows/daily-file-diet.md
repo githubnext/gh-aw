@@ -44,6 +44,8 @@ tools:
     toolsets:
     - default
 tracker-id: daily-file-diet
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

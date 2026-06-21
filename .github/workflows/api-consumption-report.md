@@ -36,6 +36,8 @@ imports:
 
 
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # GitHub API Consumption Report Agent

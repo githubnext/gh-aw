@@ -280,6 +280,8 @@ experiments:
 
 imports:
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Daily AstroStyleLite Markdown Spellcheck
