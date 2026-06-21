@@ -1000,6 +1000,30 @@ describe("copilot_harness.cjs", () => {
       expect(diagnostic).not.toContain("COPILOT_PROVIDER_API_KEY");
     });
 
+    it("falls back to inline 403 guidance when the template file is unavailable", () => {
+      const logger = vi.fn();
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic(
+        "Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).",
+        {
+          COPILOT_MODEL: "claude-sonnet-4.5",
+          S2STOKENS: "true",
+        },
+        {
+          renderTemplateFromFile: () => {
+            throw new Error("ENOENT: missing template");
+          },
+          logger,
+        }
+      );
+
+      expect(diagnostic).toContain("Copilot requests authentication failed");
+      expect(diagnostic).toContain("HTTP 403");
+      expect(diagnostic).toContain("model=claude-sonnet-4.5");
+      expect(diagnostic).toContain("stage=starting the Copilot CLI request");
+      expect(diagnostic).toContain("centralized Copilot billing");
+      expect(logger).toHaveBeenCalledWith(expect.stringContaining("proxy auth diagnostic template unavailable"));
+    });
+
     it("returns empty string for proxy 403 when S2STOKENS is not set (BYOK mode)", () => {
       const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", {
         COPILOT_MODEL: "claude-sonnet-4.5",
