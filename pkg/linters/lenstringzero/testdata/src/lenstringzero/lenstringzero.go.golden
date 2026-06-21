@@ -32,7 +32,50 @@ func arrayNotFlagged(s [1]byte) bool {
 	return len(s) != 0
 }
 
-func lenNotZeroOp(s string) bool {
+func lenGreaterThanZero(s string) bool {
+	return s != "" // want `use s != "" to check for non-empty string instead of len\(s\) > 0`
+}
+
+func lenGreaterOrEqualOne(s string) bool {
+	return s != "" // want `use s != "" to check for non-empty string instead of len\(s\) >= 1`
+}
+
+func lenLessThanOne(s string) bool {
+	return s == "" // want `use s == "" to check for empty string instead of len\(s\) < 1`
+}
+
+func lenLessOrEqualZero(s string) bool {
+	return s == "" // want `use s == "" to check for empty string instead of len\(s\) <= 0`
+}
+
+func yodaLenGreaterThanZero(s string) bool {
+	return s != "" // want `use s != "" to check for non-empty string instead of len\(s\) > 0`
+}
+
+func yodaLenGreaterOrEqualOne(s string) bool {
+	return s != "" // want `use s != "" to check for non-empty string instead of len\(s\) >= 1`
+}
+
+func yodaLenLessThanOne(s string) bool {
+	return s == "" // want `use s == "" to check for empty string instead of len\(s\) < 1`
+}
+
+func yodaLenLessOrEqualZero(s string) bool {
+	return s == "" // want `use s == "" to check for empty string instead of len\(s\) <= 0`
+}
+
+// len(s) >= 0 is always true — must not be flagged.
+func lenAlwaysTrue(s string) bool {
+	return len(s) >= 0
+}
+
+// len(s) < 0 is always false — must not be flagged.
+func lenAlwaysFalse(s string) bool {
+	return len(s) < 0
+}
+
+// Non-string slice must not be flagged for relational operators.
+func sliceGreaterThanZeroNotFlagged(s []byte) bool {
 	return len(s) > 0
 }
 
@@ -48,6 +91,26 @@ func aliasEmpty(s string) bool {
 func aliasNotEmpty(s string) bool {
 	n := len(s)
 	return n != 0 // want `use s != "" to check for non-empty string instead of len\(s\) != 0`
+}
+
+func aliasGreaterThanZero(s string) bool {
+	n := len(s)
+	return n > 0 // want `use s != "" to check for non-empty string instead of len\(s\) > 0`
+}
+
+func aliasGreaterOrEqualOne(s string) bool {
+	n := len(s)
+	return n >= 1 // want `use s != "" to check for non-empty string instead of len\(s\) >= 1`
+}
+
+func aliasLessThanOne(s string) bool {
+	n := len(s)
+	return n < 1 // want `use s == "" to check for empty string instead of len\(s\) < 1`
+}
+
+func aliasLessOrEqualZero(s string) bool {
+	n := len(s)
+	return n <= 0 // want `use s == "" to check for empty string instead of len\(s\) <= 0`
 }
 
 func aliasReassignedNotFlagged(s string) bool {
@@ -71,3 +134,4 @@ func arrayAliasNotFlagged(s [1]byte) bool {
 	n := len(s)
 	return n == 0
 }
+

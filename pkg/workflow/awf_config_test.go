@@ -1352,6 +1352,7 @@ func TestBuildAWFCommand_ConfigFileWithPathSetup(t *testing.T) {
 	assert.Less(t, pathSetupIdx, configWriteIdx, "path setup must precede config file write")
 	assert.Less(t, configWriteIdx, modelsPathIdx, "config file write must precede models.json path export")
 	assert.Less(t, modelsPathIdx, awfIdx, "models.json path export must precede AWF invocation")
+	assert.Contains(t, command, awfShellcheckDirective, "should include scoped shellcheck suppression before awf invocation")
 }
 
 func TestBuildAWFCommand_AddsToolCacheMountProbe(t *testing.T) {
@@ -1375,6 +1376,7 @@ func TestBuildAWFCommand_AddsToolCacheMountProbe(t *testing.T) {
 	assert.NotContains(t, command, `/home/runner/work/_tool`, "should not assume a self-hosted runner tool-cache path")
 	assert.NotContains(t, command, `:-/opt/hostedtoolcache`, "should not fall back to /opt/hostedtoolcache")
 	assert.Contains(t, command, `${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"}`, "should inject tool-cache mount args into awf invocation")
+	assert.Contains(t, command, awfShellcheckDirective, "should suppress intentional argument splitting in awf invocation")
 }
 
 func TestBuildAWFCommand_WorkflowCallNetworkAllowedUpdaterUsesRunnerTempEnv(t *testing.T) {
@@ -1452,6 +1454,7 @@ func TestBuildAWFCommand_WritesAgentCLIStartTimestamp(t *testing.T) {
 			pipefailIdx := strings.Index(command, "set -o pipefail")
 			assert.Less(t, pipefailIdx, tsIdx,
 				"set -o pipefail must appear before timestamp write")
+			assert.Contains(t, command, awfShellcheckDirective, "should include scoped shellcheck suppression before awf invocation")
 			// Nothing between set -o pipefail and the timestamp write should reference
 			// PathSetup content (timestamp must come first).
 			if tc.pathSetup != "" {

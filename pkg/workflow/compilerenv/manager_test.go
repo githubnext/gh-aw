@@ -1,6 +1,7 @@
 package compilerenv
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -104,6 +105,21 @@ func TestResolveDefaultMaxTurnCacheMisses(t *testing.T) {
 		t.Setenv(DefaultMaxTurnCacheMisses, "9")
 		assert.Equal(t, 9, ResolveDefaultMaxTurnCacheMisses(5))
 	})
+}
+
+func TestParsePositiveIntEnvVar_OverflowRegression(t *testing.T) {
+	// 2^31 = 2147483648, one above MaxInt32 (2^31-1): fits in int64 but overflows int32.
+	// On 32-bit platforms (strconv.IntSize == 32) strconv.Atoi rejects this
+	// value, so the function must fall back to the default — the original
+	// CWE-190 silent-overflow scenario.  On 64-bit platforms it parses
+	// successfully, proving no over-restriction.
+	const bigVal = "2147483648"
+	t.Setenv(DefaultTimeoutMinutes, bigVal)
+	if strconv.IntSize == 32 {
+		assert.Equal(t, 20, ResolveDefaultTimeoutMinutes(20), "overflow value must fall back on 32-bit")
+	} else {
+		assert.Equal(t, 2147483648, ResolveDefaultTimeoutMinutes(20), "value fits on 64-bit, must parse")
+	}
 }
 
 func TestResolveDefaultDetectionModel(t *testing.T) {

@@ -142,6 +142,23 @@ func buildPiModelsJSON(gatewayPort int, secretEnvVarName, modelID string) string
 	return string(b)
 }
 
+func resolvePiGatewaySecretEnvVar(profile universalLLMBackendProfile, backend UniversalLLMBackend) string {
+	if len(profile.coreSecretNames) > 0 {
+		return profile.coreSecretNames[0]
+	}
+
+	switch backend {
+	case UniversalLLMBackendAnthropic:
+		return "ANTHROPIC_API_KEY"
+	case UniversalLLMBackendCodex:
+		return "CODEX_API_KEY"
+	default:
+		// copilot-requests: write intentionally leaves coreSecretNames empty and
+		// uses COPILOT_GITHUB_TOKEN=${{ github.token }} instead.
+		return "COPILOT_GITHUB_TOKEN"
+	}
+}
+
 // GetRequiredSecretNames returns the list of secrets required by the Pi engine.
 // When the model uses provider/model format the provider-specific secret is required
 // (e.g. ANTHROPIC_API_KEY for "anthropic/..."); otherwise Pi routes through the
@@ -287,7 +304,20 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	var piModelsJSONSetup string // shell fragment prepended to piCommand when needed
 	if modelConfigured {
 		modelID := extractPiModelID(workflowData.EngineConfig.Model)
-		if firewallEnabled && len(profile.coreSecretNames) > 0 {
+
+		// Determine the env var name to use as the "apiKey" in the models.json gateway
+		// config. Pi's resolveConfigValue() reads process.env[apiKey] at runtime to
+		// obtain the actual token value.
+		gatewaySecretEnvVar := resolvePiGatewaySecretEnvVar(profile, backend)
+
+		if firewallEnabled {
+			// Pi + firewall must always route through aw-gateway/models.json. Native
+			// provider resolution bypasses the gateway and is incompatible with this mode.
+			if gatewaySecretEnvVar == "" {
+				piLog.Printf("Pi: no gateway apiKey env resolved for backend=%s; defaulting to COPILOT_GITHUB_TOKEN", backend)
+				gatewaySecretEnvVar = "COPILOT_GITHUB_TOKEN"
+			}
+
 			// Firewall case: write a models.json that redirects Pi's LLM calls to the
 			// AWF gateway sidecar port.  The "apiKey" field value is the name of the env
 			// var that holds the secret; Pi's resolveConfigValue() looks up
@@ -296,7 +326,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 			// printf '%s\n' '<json>' is safe here because JSON uses only double quotes
 			// (never single quotes), so single-quoting via shellEscapeArg requires no
 			// further escaping in practice.
-			modelsJSON := buildPiModelsJSON(profile.gatewayPort, profile.coreSecretNames[0], modelID)
+			modelsJSON := buildPiModelsJSON(profile.gatewayPort, gatewaySecretEnvVar, modelID)
 			piModelsJSONSetup = fmt.Sprintf(
 				`mkdir -p /tmp/gh-aw/pi-agent-dir && printf '%%s\n' %s > /tmp/gh-aw/pi-agent-dir/models.json && `,
 				shellEscapeArg(modelsJSON))

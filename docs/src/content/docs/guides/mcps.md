@@ -210,7 +210,6 @@ Pre-configured MCP server specifications are available in [`.github/workflows/sh
 | MCP Server | Import Path | Key Capabilities |
 |------------|-------------|------------------|
 | **Jupyter** | `shared/mcp/jupyter.md` | Execute code, manage notebooks, visualize data |
-| **Drain3** | `shared/mcp/drain3.md` | Log pattern mining with 8 tools including `index_file`, `list_clusters`, `find_anomalies` |
 | **AgentDB** | `shared/mcp/agentdb.md` | Semantic and hybrid retrieval over agent-collected corpora (e.g. discussions, issues), backed by a runtime store at `AGENTDB_PATH` |
 | **Others** | `shared/mcp/*.md` | AST-Grep, Azure, Brave Search, Context7, DataDog, DeepWiki, Fabric RTI, MarkItDown, Microsoft Docs, Notion, Sentry, Serena, Server Memory, Slack, Tavily |
 

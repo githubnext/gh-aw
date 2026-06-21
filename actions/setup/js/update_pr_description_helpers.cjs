@@ -103,12 +103,12 @@ function updateBody(params) {
   const sanitizedNewContent = sanitizeContent(newContent);
 
   // Inject CAUTION at top of new content if threat detection warning was raised
-  const detectionCaution = assembleMarkdownBodyParts({
+  const { detectionCaution } = assembleMarkdownBodyParts({
     includeFooter: false,
     workflowName,
     runUrl,
-  }).detectionCaution;
-  const contentWithCaution = detectionCaution ? detectionCaution + "\n\n" + sanitizedNewContent : sanitizedNewContent;
+  });
+  const contentWithCaution = detectionCaution ? `${detectionCaution}\n\n${sanitizedNewContent}` : sanitizedNewContent;
 
   if (operation === "replace") {
     // Replace: use new content with optional AI footer
