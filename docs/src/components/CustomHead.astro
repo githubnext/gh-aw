@@ -1,12 +1,18 @@
 ---
 import type { Props } from '@astrojs/starlight/props';
 
+type BlogAuthor = {
+  name?: string;
+  url?: string;
+};
+
 // Access page data via Starlight's route locals
 const route = Astro.locals.starlightRoute;
 const entry = route?.entry;
+const pathname = Astro.url.pathname;
 
 // Detect blog posts by URL path - more reliable than entry.id   
-const isBlogPost = Astro.url.pathname.includes('/blog/');
+const isBlogPath = pathname.includes('/blog/');
 
 // Social images - use combined image for blog posts, hero for everything else
 const heroImage = 'https://github.github.com/gh-aw/og-hero-1200x630.png';
@@ -22,20 +28,65 @@ const ogTitle = isHomePage ? siteTitle : `${rawPageTitle} | ${siteTitle}`;
 // Enhanced default description (110-160 chars optimal for OG)
 const defaultDescription = 'Write agentic workflows in natural language using markdown files and run them as GitHub Actions. Automate your repository with AI agents, strong guardrails, and simple configuration.';
 const pageDescription = entry?.data?.description || defaultDescription;
-const pathname = Astro.url.pathname;
 const isDocsHomePage = pathname === '/gh-aw/' || pathname === '/gh-aw/index.html';
+const configuredSite = Astro.site ?? new URL('https://github.github.com');
+const siteOrigin = configuredSite.origin;
+const siteUrl = new URL(import.meta.env.BASE_URL, configuredSite).toString();
+const websiteId = `${siteUrl}#website`;
+const organizationId = `${siteUrl}#organization`;
+
+const toSchemaDate = (value: unknown) => {
+  if (!value) return undefined;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return undefined;
+};
+
+const normalizeAuthorsArray = (value: unknown) => {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
+const pageUrl = new URL(pathname, siteOrigin).toString();
+const blogPublishedDate = toSchemaDate(entry?.data?.date);
+const blogModifiedDate = toSchemaDate(entry?.data?.lastUpdated ?? entry?.data?.date);
+const authorInput = entry?.data?.authors ?? entry?.data?.author;
+const blogAuthors = normalizeAuthorsArray(authorInput).flatMap((author) => {
+    if (typeof author === 'string') {
+      return [{
+        '@type': 'Person',
+        name: author,
+      }];
+    }
+
+    if (author && typeof author === 'object') {
+      const { name, url } = author as BlogAuthor;
+      if (!name) return [];
+
+      return [{
+        '@type': 'Person',
+        name,
+        ...(url ? { url } : {}),
+      }];
+    }
+
+    return [];
+  });
+const isBlogPost = isBlogPath && Boolean(blogPublishedDate);
+const hasContentEntry = Boolean(entry);
+
 const homeJsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
     {
       '@context': 'https://schema.org',
       '@type': 'WebSite',
-      '@id': 'https://github.github.com/gh-aw/#website',
+      '@id': websiteId,
       name: siteTitle,
-      url: 'https://github.github.com/gh-aw/',
+      url: siteUrl,
       description: defaultDescription,
       publisher: {
-        '@id': 'https://github.github.com/gh-aw/#organization',
+        '@id': organizationId,
       },
       potentialAction: {
         '@type': 'SearchAction',
@@ -46,7 +97,7 @@ const homeJsonLd = {
     {
       '@context': 'https://schema.org',
       '@type': 'Organization',
-      '@id': 'https://github.github.com/gh-aw/#organization',
+      '@id': organizationId,
       name: 'GitHub',
       url: 'https://github.com/github',
       sameAs: [
@@ -70,9 +121,9 @@ const homeJsonLd = {
     {
       '@context': 'https://schema.org',
       '@type': 'SoftwareApplication',
-      '@id': 'https://github.github.com/gh-aw/#software',
+      '@id': `${siteUrl}#software`,
       name: siteTitle,
-      url: 'https://github.github.com/gh-aw/',
+      url: siteUrl,
       description: defaultDescription,
       applicationCategory: 'DeveloperApplication',
       operatingSystem: 'Any',
@@ -80,13 +131,13 @@ const homeJsonLd = {
       downloadUrl: 'https://github.com/github/gh-aw/releases',
       creator: {
         '@context': 'https://schema.org',
-        '@id': 'https://github.github.com/gh-aw/#organization',
+        '@id': organizationId,
       },
     },
     {
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
-      '@id': 'https://github.github.com/gh-aw/#faq',
+      '@id': `${siteUrl}#faq`,
       mainEntity: [
         {
           '@type': 'Question',
@@ -125,6 +176,43 @@ const homeJsonLd = {
   ],
 };
 
+type PageJsonLd = {
+  '@context': 'https://schema.org';
+  '@type': 'BlogPosting' | 'TechArticle';
+} & Record<string, unknown>;
+
+let pageJsonLd: PageJsonLd | undefined;
+
+if (isBlogPost) {
+  pageJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: rawPageTitle,
+    description: pageDescription,
+    url: pageUrl,
+    datePublished: blogPublishedDate,
+    dateModified: blogModifiedDate,
+    ...(blogAuthors.length > 0 ? { author: blogAuthors } : {}),
+    publisher: {
+      '@id': organizationId,
+    },
+  };
+} else if (hasContentEntry && !isDocsHomePage && !isBlogPath) {
+  pageJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: rawPageTitle,
+    description: pageDescription,
+    url: pageUrl,
+    isPartOf: {
+      '@id': websiteId,
+    },
+    publisher: {
+      '@id': organizationId,
+    },
+  };
+}
+
 // Properties we override with enhanced values
 const overriddenProps = new Set([
   'og:title', 'og:description', 'og:image',
@@ -144,6 +232,9 @@ const filteredHead = head.filter(({ tag, attrs }) => {
 {filteredHead.map(({ tag: Tag, attrs, content }) => <Tag {...attrs} set:html={content} />)}
 {isDocsHomePage && (
   <script type="application/ld+json" set:html={JSON.stringify(homeJsonLd)} />
+)}
+{pageJsonLd && (
+  <script type="application/ld+json" set:html={JSON.stringify(pageJsonLd)} />
 )}
 
 <!-- Enhanced OG tags with site name in title and social image -->

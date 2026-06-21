@@ -18,6 +18,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
+	"github.com/github/gh-aw/pkg/linters/deferinloop"
 	"github.com/github/gh-aw/pkg/linters/errorfwrapv"
 	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
@@ -53,6 +54,7 @@ func main() {
 	multichecker.Main(
 		contextcancelnotdeferred.Analyzer,
 		ctxbackground.Analyzer,
+		deferinloop.Analyzer,
 		errormessage.Analyzer,
 		fprintlnsprintf.Analyzer,
 		errstringmatch.Analyzer,
