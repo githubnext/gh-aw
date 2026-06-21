@@ -39,8 +39,6 @@ imports:
       branch-name: "memory/prompt-analysis"
       description: "Historical prompt pattern analysis"
   - shared/copilot-pr-analysis-base.md
-
-  - shared/otlp.md
 timeout-minutes: 15
 
 tools:
@@ -136,8 +134,8 @@ Use cache memory to track patterns over time:
 
 1. **Load historical data**:
    ```bash
-   mkdir -p /tmp/gh-aw/cache-memory/prompt-analysis/
-   cat /tmp/gh-aw/cache-memory/prompt-analysis/history.json
+   mkdir -p /tmp/gh-aw/repo-memory/default/
+   cat /tmp/gh-aw/repo-memory/default/history.json
    ```
 
 2. **Expected format**:
@@ -187,7 +185,7 @@ Based on the analysis, generate actionable insights:
 
 Create a discussion with your findings using the safe-outputs create-discussion functionality.
 
-**Discussion Title**: `Copilot PR Prompt Analysis - [DATE]`
+**Discussion Title**: `Copilot PR Prompt Pattern Analysis - [DATE]`
 
 **Discussion Template**:
 ```markdown
