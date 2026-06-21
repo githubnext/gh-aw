@@ -70,6 +70,20 @@ function withTestPromptsDir(promptsDir, callback) {
   }
 }
 
+function withRunnerTemp(runnerTempDir, callback) {
+  const originalRunnerTemp = process.env.RUNNER_TEMP;
+  process.env.RUNNER_TEMP = runnerTempDir;
+  try {
+    return callback();
+  } finally {
+    if (typeof originalRunnerTemp === "string") {
+      process.env.RUNNER_TEMP = originalRunnerTemp;
+    } else {
+      delete process.env.RUNNER_TEMP;
+    }
+  }
+}
+
 describe("copilot_harness.cjs", () => {
   // Test the core logic patterns used by the driver without importing the module
   // (importing the module would invoke main() which calls process.exit).
@@ -1023,23 +1037,16 @@ describe("copilot_harness.cjs", () => {
     it("resolves the 403 guidance template from the runtime prompts directory", () => {
       const runtimePromptsDir = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-prompts-"));
       try {
+        fs.copyFileSync(path.join(promptsSourceDir, "copilot_requests_proxy_auth_403.md"), path.join(runtimePromptsDir, "copilot_requests_proxy_auth_403.md"));
         withTestPromptsDir(runtimePromptsDir, () => {
-          const renderTemplateFromFile = vi.fn().mockReturnValue("rendered");
-
-          const diagnostic = buildCopilotProxyAuthFailureDiagnostic(
-            "Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).",
-            {
-              COPILOT_MODEL: "claude-sonnet-4.5",
-              S2STOKENS: "true",
-            },
-            { renderTemplateFromFile }
-          );
-
-          expect(diagnostic).toBe("rendered");
-          expect(renderTemplateFromFile).toHaveBeenCalledWith(path.join(runtimePromptsDir, "copilot_requests_proxy_auth_403.md"), {
-            selected_model: "claude-sonnet-4.5",
-            stage: "starting the Copilot CLI request",
+          const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", {
+            COPILOT_MODEL: "claude-sonnet-4.5",
+            S2STOKENS: "true",
           });
+
+          expect(diagnostic).toContain("Copilot requests authentication failed");
+          expect(diagnostic).toContain("model=claude-sonnet-4.5");
+          expect(diagnostic).toContain("stage=starting the Copilot CLI request");
         });
       } finally {
         fs.rmSync(runtimePromptsDir, { recursive: true, force: true });
@@ -1048,37 +1055,27 @@ describe("copilot_harness.cjs", () => {
 
     it("resolves the 403 guidance template from RUNNER_TEMP when GH_AW_PROMPTS_DIR is unset", () => {
       const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
-      const originalRunnerTemp = process.env.RUNNER_TEMP;
       const runnerTempDir = fs.mkdtempSync(path.join(os.tmpdir(), "runner-temp-"));
       delete process.env.GH_AW_PROMPTS_DIR;
-      process.env.RUNNER_TEMP = runnerTempDir;
       try {
-        const renderTemplateFromFile = vi.fn().mockReturnValue("rendered");
-
-        const diagnostic = buildCopilotProxyAuthFailureDiagnostic(
-          "Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).",
-          {
+        const promptsDir = path.join(runnerTempDir, "gh-aw", "prompts");
+        fs.mkdirSync(promptsDir, { recursive: true });
+        fs.copyFileSync(path.join(promptsSourceDir, "copilot_requests_proxy_auth_403.md"), path.join(promptsDir, "copilot_requests_proxy_auth_403.md"));
+        withRunnerTemp(runnerTempDir, () => {
+          const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", {
             COPILOT_MODEL: "claude-sonnet-4.5",
             S2STOKENS: "true",
-          },
-          { renderTemplateFromFile }
-        );
+          });
 
-        expect(diagnostic).toBe("rendered");
-        expect(renderTemplateFromFile).toHaveBeenCalledWith(path.join(runnerTempDir, "gh-aw", "prompts", "copilot_requests_proxy_auth_403.md"), {
-          selected_model: "claude-sonnet-4.5",
-          stage: "starting the Copilot CLI request",
+          expect(diagnostic).toContain("Copilot requests authentication failed");
+          expect(diagnostic).toContain("model=claude-sonnet-4.5");
+          expect(diagnostic).toContain("stage=starting the Copilot CLI request");
         });
       } finally {
         if (typeof originalPromptsDir === "string") {
           process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
         } else {
           delete process.env.GH_AW_PROMPTS_DIR;
-        }
-        if (typeof originalRunnerTemp === "string") {
-          process.env.RUNNER_TEMP = originalRunnerTemp;
-        } else {
-          delete process.env.RUNNER_TEMP;
         }
         fs.rmSync(runnerTempDir, { recursive: true, force: true });
       }
