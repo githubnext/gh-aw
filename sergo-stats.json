@@ -1,11 +1,11 @@
 {
-  "total_runs": 42,
-  "total_findings": 305,
-  "total_tasks": 85,
+  "total_runs": 43,
+  "total_findings": 311,
+  "total_tasks": 87,
   "avg_success_score": 8.81,
-  "last_run": "2026-06-20",
-  "serena_lsp": "23 tools stable R4-42. activate_project --project. find_symbol broad 70s+ (prefer Grep). Receiver '(*Type).method'. SHALLOW CLONE (no git dates): detect new linter via cmd/linters/main.go Analyzer-count vs doc.go header delta. ALWAYS gh api sergo issues BEFORE strategy AND grep code for fix (issue OPEN != unfixed). R42 reconcile clean.",
-  "open_issues": "DO-NOT-REFILE: #38789(ctxbackground syntactic CLOSED) #39180/1(timeafterleak) #39323/4(timesleep NOT mine) #39493/4(ssljson FN+dedup, unfixed) #39732(uncheckedtypeassertion parent-shape) #39733(regexp LANDED) #39981(rawloginlib LANDED) #39982(jsonmarshal ExprStmt FN, unfixed) #40243(IsPkgSelector migrate 3 CI-enforced os/fmt/strings, OPEN) #40244(errstringmatch pattern-set, OPEN) #sg42a1(sprintferrdot verb {s,v} FP%#v+FN%q%x%X POSTED) #sg42a2(fileclosenotdeferred:172+contextcancelnotdeferred:138 syntactic pkg POSTED) #sg42a3(doc-sync 29vs30 POSTED).",
+  "last_run": "2026-06-21",
+  "serena_lsp": "23 tools stable R4-43. activate_project --project. find_symbol broad 70s+ (prefer Grep). Receiver '(*Type).method'. SHALLOW CLONE (no git dates): detect new linter via cmd/linters/main.go Analyzer-count (grep -c 'Analyzer' counts +1 for matches; count REG LINES 54-84) vs doc.go header delta. ALWAYS gh api sergo issues BEFORE strategy AND grep code for fix (issue OPEN != unfixed). SYNTACTIC-MATCH RE-GREP MUST USE BOTH `Name == pkg` AND `Name != pkg` (linters use != for early-return) or you miss holdouts (R43 found errstringmatch:100 via != that == grep missed).",
+  "open_issues": "DO-NOT-REFILE: #38789(ctxbackground CLOSED) #39180/1(timeafterleak) #39323/4(timesleep NOT mine) #39493/4(ssljson FN+dedup unfixed) #39732(uncheckedtypeassertion parent-shape) #39733(regexp NOT-landed-code-still-syntactic? recheck) #39981(rawloginlib) #39982(jsonmarshal ExprStmt FN) #40243(IsPkgSelector 3 CI-enforced osexit:59/fprintln:144/errstring:100 STILL SYNTACTIC=unfixed OPEN) #40244(errstringmatch pattern-set OPEN) #40434(sprintferrdot verb) #40435(fileclose:172+contextcancel:138 STILL SYNTACTIC=unfixed OPEN) #40436(doc-sync now 29vs31 off-by-2) #aw_sg43a1(tolowerequalfold:255 syntactic strings, MISSED by #40243, POSTED) #aw_sg43a2(lenstringzero:40 relational gap >0/<1 POSTED).",
   "patterns": {
     "phantom_reconcile": "gh api issues?labels=sergo&state=all&per_page=30 BEFORE strategy + grep CODE for fix (team rarely auto-closes; R41/42 #39733/#39981 OPEN-but-landed).",
     "registry_delta_detect": "R42: cmd/linters/main.go *.Analyzer count vs doc.go:3 'NN active analyzers' header = new-linter detector under shallow clone. R42 found 30 regs vs doc '29' + 2 omitted (hardcodedfilepath,sprintferrdot)=30th linter sprintferrdot. Doc-sync issue class (#38787/#38028 closed precedent). NEW linter=fresh precision-audit target.",
@@ -17,11 +17,12 @@
     "enforce_readiness": "grep prod for pattern->TP sites=enforce issue."
   },
   "ci_enforce_14": "cgo.yml LINTER_FLAGS (-test=false): errstringmatch panicinlibrarycode manualmutexunlock osexitinlibrary rawloginlib regexpcompileinfunction fprintlnsprintf strconvparseignorederror jsonmarshalignoredeerror uncheckedtypeassertion fmterrorfnoverbs tolowerequalfold httpnoctx timeafterleak. sprintferrdot/fileclosenotdeferred/contextcancelnotdeferred NEW, likely NOT yet enforced.",
-  "linters_R42": {
-    "registered": 30,
-    "newest_3": "contextcancelnotdeferred, fileclosenotdeferred, sprintferrdot (sprintferrdot=30th, the registry-delta this run). All 3 audited R42: sprintferrdot verb-gap (sg42a1) + filecloseclose/contextcancel syntactic pkg (sg42a2).",
-    "audited_clean": "manualmutexunlock, fmterrorfnoverbs, panicinlibrarycode (R41). sprintferrdot .Error() detection sound (TypesInfo+Implements:191-208); only verb classification broken.",
-    "next_R43": "(1) reverify #40243/#40244/#39982/sg42a1-3 landing; after #40243 grep ZERO ident.Name==pkg in CI-enforced, then re-grep ALL 30 linters for the antipattern (sg42a2 showed new linters regress). (2) FRESH non-enforced audit never-done: errorfwrapv excessivefuncparams largefunc errormessage ossetenvlibrary seenmapbool lenstringzero sprintferrdot-Fscanf(wrong in list?). (3) pattern_set probe: tolowerequalfold(ToLower+ToUpper?) httpnoctx(all client methods?) strconvparse(bare ExprStmt?). (4) watch 31st linter delta (main.go count vs doc.go header). (5) reverify ssljson#39493/4,timeafterleak#39180/1. Prefer single-file precision."
+  "linters_R43": {
+    "registered": 31,
+    "newest": "sprintferrorsnew=31st (R43 registry-delta; errors.New(fmt.Sprintf)->fmt.Errorf). AUDITED CLEAN: IsPkgSelector for errors+fmt both, test-skip, exact arg; goodVariable(pre-built msg var) FN by-design. sprintferrdot=30th(R42). contextcancel/fileclose=R42.",
+    "full_syntactic_holdouts_R43": "grep `Name (==|!=) pkg` (BOTH ops): osexitinlibrary:59 os, fprintlnsprintf:144 fmt, errstringmatch:100 strings (=#40243); fileclosenotdeferred:172 os, contextcancelnotdeferred:138 context (=#40435); tolowerequalfold:255 strings (=NEW sg43a1, missed by #40243). ALL still syntactic in code -> #40243+#40435 UNFIXED. lenstringzero len-builtin Name=='len' OK (builtin not pkg).",
+    "audited_clean": "manualmutexunlock, fmterrorfnoverbs, panicinlibrarycode (R41). sprintferrorsnew (R43). lenstringzero precise except relational gap (sg43a2). sprintferrdot .Error() detect sound; verb broken (#40434).",
+    "next_R44": "(1) reverify landings: #40243/#40435 (currently code-still-syntactic=unfixed), #40244/#39982/#40434/sg43a1-2. (2) After any IsPkgSelector PR lands, RE-GREP `Name (==|!=)` BOTH ops across all 31. (3) FRESH never-audited: errorfwrapv excessivefuncparams largefunc errormessage ossetenvlibrary seenmapbool(map[string]bool set). (4) pattern_set probe: httpnoctx(all client methods?) strconvparse(bare ExprStmt?) sprintferrorsnew(Sprint/Sprintln siblings? weak). (5) watch 32nd linter delta. (6) doc.go now off-by-2 (#40436)+omits hardcodedfilepath/sprintferrdot/sprintferrorsnew. Prefer single-file precision."
   },
   "repo_context": "pkg/: ~937 prod .go. 30 analyzer subpkgs registered (cmd/linters/main.go:53-82)+internal(astutil/filecheck/nolint). astutil.IsPkgSelector(astutil.go:75-94)=canonical pkg-identity helper. Linters in pkg/linters/ (NOT pkg/cli/linters). Issue flow: Write JSON /tmp/gh-aw/agent/issueN.json, `safeoutputs create_issue . < file`; labels['sergo']+temporary_id aw_sg42aN. Dedup gh api single-stmt --jq. Bash blocks: go build, ls/cat/mkdir /tmp, multi-stmt, $var loops, grep|grep. Repo-memory: Glob/Read/Write/Edit ONLY. MEMORY 10KB TOTAL patch-keep lean."
 }
