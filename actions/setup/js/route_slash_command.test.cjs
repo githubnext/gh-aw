@@ -168,6 +168,7 @@ describe("route_slash_command", () => {
     delete process.env.GH_AW_HELP_COMMANDS;
     delete process.env.GH_AW_HELP_COMMAND_ENABLED;
     delete process.env.GH_AW_SLASH_COMMAND_DOCS_URL;
+    delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
     delete process.env.GITHUB_WORKSPACE;
     delete process.env.GITHUB_REF;
     delete process.env.GITHUB_HEAD_REF;
@@ -235,6 +236,22 @@ describe("route_slash_command", () => {
         body: expect.stringContaining("has started processing this issue comment"),
       })
     );
+  });
+
+  it("does not create an immediate status comment when activation comments are disabled", async () => {
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      archie: [{ workflow: "archie", events: ["issue_comment"], status_comment: true }],
+    });
+    process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ activationComments: false });
+    globals.context.payload.issue.number = 77;
+    globals.context.payload.comment.body = "/archie please";
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(JSON.parse(dispatchCalls[0].inputs.aw_context).status_comment_id).toBeUndefined();
+    expect(globals.github.request.mock.calls.filter(([route]) => /\/issues\/77\/comments$/.test(String(route)))).toHaveLength(0);
+    expect(globals.core.info).toHaveBeenCalledWith("activation-comments is disabled: skipping activation comment creation");
   });
 
   it("dispatches without status comment context when immediate status comment creation fails", async () => {
