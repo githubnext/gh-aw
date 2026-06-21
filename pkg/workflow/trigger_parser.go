@@ -7,10 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/goccy/go-yaml"
+
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
-	"github.com/goccy/go-yaml"
 )
 
 var triggerParserLog = logger.New("workflow:trigger_parser")
@@ -265,7 +267,7 @@ func parsePullRequestTrigger(tokens []string) (*TriggerIR, error) {
 		}, nil
 	}
 
-	if hasStringKey(validTypes, activityType) {
+	if setutil.Contains(validTypes, activityType) {
 		ir := &TriggerIR{
 			Event: "pull_request",
 			Types: []string{activityType},
@@ -343,7 +345,7 @@ func parseIssueTrigger(tokens []string) (*TriggerIR, error) {
 		"transferred": {},
 	}
 
-	if !hasStringKey(validTypes, activityType) {
+	if !setutil.Contains(validTypes, activityType) {
 		return nil, fmt.Errorf("invalid issue activity type: '%s'. Valid types: opened, edited, closed, reopened, assigned, unassigned, labeled, unlabeled, deleted, transferred. Example: 'issue opened'", activityType)
 	}
 
@@ -395,7 +397,7 @@ func parseDiscussionTrigger(tokens []string) (*TriggerIR, error) {
 		"unanswered":       {},
 	}
 
-	if !hasStringKey(validTypes, activityType) {
+	if !setutil.Contains(validTypes, activityType) {
 		return nil, fmt.Errorf("invalid discussion activity type: '%s'. Valid types: created, edited, deleted, transferred, pinned, unpinned, labeled, unlabeled, locked, unlocked, category_changed, answered, unanswered. Example: 'discussion created'", activityType)
 	}
 
@@ -514,7 +516,7 @@ func parseReleaseTrigger(tokens []string) (*TriggerIR, error) {
 		"released":    {},
 	}
 
-	if !hasStringKey(validTypes, activityType) {
+	if !setutil.Contains(validTypes, activityType) {
 		return nil, fmt.Errorf("invalid release activity type: '%s'. Valid types: published, unpublished, created, edited, deleted, prereleased, released. Example: 'release published'", activityType)
 	}
 
@@ -669,11 +671,11 @@ func parseDeploymentTrigger(input string) (*TriggerIR, error) {
 	}{"or": {}, "and": {}}
 	for _, tok := range tokens[1:] {
 		tok = strings.ToLower(strings.TrimRight(tok, ","))
-		if hasStringKey(conjunctions, tok) {
+		if setutil.Contains(conjunctions, tok) {
 			continue
 		}
 		if state, ok := stateAliases[tok]; ok {
-			if !hasStringKey(seenStates, state) {
+			if !setutil.Contains(seenStates, state) {
 				states = append(states, state)
 				seenStates[state] = struct {
 				}{}

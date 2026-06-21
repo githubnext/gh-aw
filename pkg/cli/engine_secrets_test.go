@@ -6,9 +6,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 func TestGetRequiredSecretsForEngine(t *testing.T) {
@@ -295,7 +297,7 @@ func TestEngineSecretConfigStructure(t *testing.T) {
 		assert.Equal(t, "owner/repo", config.RepoSlug)
 		assert.Equal(t, "copilot", config.Engine)
 		assert.True(t, config.Verbose)
-		assert.True(t, hasStringKey(config.ExistingSecrets, "SECRET1"))
+		assert.True(t, setutil.Contains(config.ExistingSecrets, "SECRET1"))
 		assert.True(t, config.IncludeSystemSecrets)
 		assert.False(t, config.IncludeOptional)
 	})

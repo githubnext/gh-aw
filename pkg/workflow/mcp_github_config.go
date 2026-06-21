@@ -68,6 +68,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/typeutil"
 )
 
@@ -230,7 +231,7 @@ func expandDefaultToolset(toolsetsStr string) string {
 			githubConfigLog.Printf("Expanding %q keyword to action-friendly toolsets", toolset)
 			// Expand "default" or "action-friendly" to action-friendly toolsets (excludes "users")
 			for _, dt := range ActionFriendlyGitHubToolsets {
-				if !hasStringKey(seenToolsets, dt) {
+				if !setutil.Contains(seenToolsets, dt) {
 					result = append(result, dt)
 					seenToolsets[dt] = struct {
 					}{}
@@ -238,7 +239,7 @@ func expandDefaultToolset(toolsetsStr string) string {
 			}
 		} else {
 			// Keep other toolsets as-is (including "all", individual toolsets, etc.)
-			if !hasStringKey(seenToolsets, toolset) {
+			if !setutil.Contains(seenToolsets, toolset) {
 				result = append(result, toolset)
 				seenToolsets[toolset] = struct {
 				}{}

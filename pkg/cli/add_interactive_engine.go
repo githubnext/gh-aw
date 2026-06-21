@@ -7,8 +7,10 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
+
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -46,7 +48,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 		// Priority 1: Check existing repository secrets using EngineOptions
 		// This takes precedence over workflow preference since users should use what's already available
 		for _, opt := range constants.EngineOptions {
-			if hasStringKey(c.existingSecrets, opt.SecretName) {
+			if setutil.Contains(c.existingSecrets, opt.SecretName) {
 				defaultEngine = opt.Value
 				addInteractiveLog.Printf("Found existing secret %s, recommending engine: %s", opt.SecretName, opt.Value)
 				break
@@ -94,7 +96,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 		// Add markers for secret availability and workflow specification.
 		// opt may be nil for catalog engines not yet represented in EngineOptions;
 		// in that case we conservatively show '[no secret]'.
-		if opt != nil && hasStringKey(c.existingSecrets, opt.SecretName) {
+		if opt != nil && setutil.Contains(c.existingSecrets, opt.SecretName) {
 			label += " [secret exists]"
 		} else {
 			label += " [no secret]"

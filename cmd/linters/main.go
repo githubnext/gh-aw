@@ -40,6 +40,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/seenmapbool"
 	"github.com/github/gh-aw/pkg/linters/sortslice"
 	"github.com/github/gh-aw/pkg/linters/sprintferrdot"
+	"github.com/github/gh-aw/pkg/linters/sprintferrorsnew"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
 	"github.com/github/gh-aw/pkg/linters/timeafterleak"
@@ -73,6 +74,7 @@ func main() {
 		seenmapbool.Analyzer,
 		sortslice.Analyzer,
 		sprintferrdot.Analyzer,
+		sprintferrorsnew.Analyzer,
 		strconvparseignorederror.Analyzer,
 		jsonmarshalignoredeerror.Analyzer,
 		lenstringzero.Analyzer,

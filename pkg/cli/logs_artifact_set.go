@@ -20,6 +20,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var artifactSetLog = logger.New("cli:logs_artifact_set")
@@ -193,7 +194,7 @@ func ResolveArtifactFilter(sets []string) []string {
 	var names []string
 	for _, s := range sets {
 		for _, name := range artifactSetArtifacts[ArtifactSet(s)] {
-			if !hasStringKey(seen, name) {
+			if !setutil.Contains(seen, name) {
 				seen[name] = struct {
 				}{}
 				names = append(names, name)

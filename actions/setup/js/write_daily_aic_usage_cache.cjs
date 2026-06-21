@@ -35,17 +35,15 @@ const USAGE_DIR = "/tmp/gh-aw/usage";
  * @param {Record<string, unknown>} [details]
  */
 function logCache(message, details) {
-  const suffix =
-    details && Object.keys(details).length > 0
-      ? ": " +
-        (() => {
-          try {
-            return JSON.stringify(details);
-          } catch {
-            return "{}";
-          }
-        })()
-      : "";
+  let suffix = "";
+  if (details && Object.keys(details).length > 0) {
+    try {
+      suffix = ": " + JSON.stringify(details);
+    } catch (e) {
+      core.warning(`[daily-aic-cache] logCache: could not serialise details: ${e}`);
+      suffix = ": {}";
+    }
+  }
   core.info(`[daily-aic-cache] ${message}${suffix}`);
 }
 

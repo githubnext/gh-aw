@@ -16,6 +16,8 @@ sidebar:
 > This file is retained for historical reference only. It documents the original v1.x architecture
 > prior to the MCP Gateway refactor. For all normative requirements, conformance testing, and
 > implementation guidance, refer to the canonical v1.21.0 specification linked above.
+>
+> **Archival Notice**: This file is scheduled for **deletion on or before 2026-09-21** (90 days from 2026-06-21 audit date). After that date, any remaining references to this scratchpad file in doc-site navigation, workflow files, or internal links **MUST** be updated to point to the canonical path `docs/src/content/docs/specs/safe-outputs-specification.md`. To request a deletion-date extension, open an issue with the `docs` label and tag `@gh-aw-team`.
 
 # Safe Outputs System Specification
 

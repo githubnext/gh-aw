@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var safeUpdateLog = logger.New("workflow:safe_update")
@@ -108,7 +109,7 @@ func collectSecretViolations(manifest *GHAWManifest, secretNames []string) []str
 		if ghAwInternalSecrets[full] {
 			continue
 		}
-		if hasStringKey(known, full) {
+		if setutil.Contains(known, full) {
 			continue
 		}
 		violations = append(violations, full)
@@ -188,7 +189,7 @@ func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added
 		if isTrustedActionRepo(repo) {
 			continue
 		}
-		if !hasStringKey(knownRepos, repo) {
+		if !setutil.Contains(knownRepos, repo) {
 			added = append(added, repo)
 		}
 	}
@@ -199,7 +200,7 @@ func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added
 		if isTrustedActionRepo(repo) {
 			continue
 		}
-		if !hasStringKey(newRepos, repo) {
+		if !setutil.Contains(newRepos, repo) {
 			removed = append(removed, repo)
 		}
 	}

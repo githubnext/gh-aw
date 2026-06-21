@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -199,7 +200,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 					importsLog.Printf("Include path exists locally, preserving: %s", filePath)
 					result.WriteString(line + "\n")
 					// Add file to queue for processing nested includes (first visit only)
-					if !hasStringKey(visited, filePath) {
+					if !setutil.Contains(visited, filePath) {
 						visited[filePath] = struct {
 						}{}
 						queue = append(queue, filePath)
@@ -223,7 +224,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 			writeImportDirective(&result, workflowSpec, isOptional)
 
 			// Only enqueue for nested-include processing on the first visit to prevent cycles
-			if !hasStringKey(visited, filePath) {
+			if !setutil.Contains(visited, filePath) {
 				visited[filePath] = struct {
 				}{}
 				queue = append(queue, filePath)
@@ -279,7 +280,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 				nestedFilePath, _ := splitImportPath(includePath)
 
 				// Check for cycle detection
-				if hasStringKey(visited, nestedFilePath) {
+				if setutil.Contains(visited, nestedFilePath) {
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cycle detected for include: %s, skipping", nestedFilePath)))
 					}

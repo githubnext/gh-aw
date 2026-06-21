@@ -8,9 +8,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/goccy/go-yaml"
+
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var jsonWorkflowLog = logger.New("cli:jsonworkflow_to_markdown")
@@ -113,7 +115,7 @@ func (w *JSONWorkflow) UnmarshalJSON(data []byte) error {
 		"created_at": {}, "created_by": {}, "disabled": {}, "disabled_state": {}, "updated_at": {},
 	}
 	for k, v := range raw {
-		if !hasStringKey(knownKeys, k) {
+		if !setutil.Contains(knownKeys, k) {
 			if w.Extra == nil {
 				w.Extra = make(map[string]any)
 			}

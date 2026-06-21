@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
@@ -604,7 +605,7 @@ func (c *Compiler) extractPreActivationCustomFields(jobs map[string]any) ([]stri
 					jobName,
 				)
 			}
-			if !hasStringKey(allowedFields, field) {
+			if !setutil.Contains(allowedFields, field) {
 				return nil, nil, fmt.Errorf("jobs.%s: unsupported field '%s' - only 'steps', 'outputs', and 'pre-steps' are allowed", jobName, field)
 			}
 		}

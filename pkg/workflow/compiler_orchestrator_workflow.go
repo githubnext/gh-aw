@@ -6,6 +6,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var orchestratorWorkflowLog = logger.New("workflow:compiler_orchestrator_workflow")
@@ -196,10 +197,18 @@ func (c *Compiler) populateWorkflowBuildContext(ctx *workflowBuildContext) error
 	if err := c.mergeImportedWorkflowConfiguration(ctx); err != nil {
 		return err
 	}
-	c.processAndMergeSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
-	c.processAndMergePreSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
-	c.processAndMergePreAgentSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
-	c.processAndMergePostSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
+	if err := c.processAndMergeSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
+		return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
+	}
+	if err := c.processAndMergePreSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
+		return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
+	}
+	if err := c.processAndMergePreAgentSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
+		return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
+	}
+	if err := c.processAndMergePostSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
+		return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
+	}
 	c.processAndMergeServices(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
 	ctx.workflowData.KnownActionCredentialEnvVars = DetectKnownCredentialLeakingActionsFromWorkflowData(ctx.workflowData)
 	if err := c.extractAdditionalConfigurations(ctx.frontmatter.Frontmatter, ctx.toolsResult.tools, ctx.markdownDir, ctx.workflowData, ctx.engineSetup.importsResult, ctx.toolsResult.rawMainMarkdown, ctx.toolsResult.safeOutputs); err != nil {
@@ -283,7 +292,7 @@ func mergeRawOTLPEndpoints(mainObs map[string]any, importedObs map[string]any) (
 	seen := make(map[string]struct {
 	})
 	for _, ep := range extractRawOTLPEndpointMaps(mainObs) {
-		if url, _ := ep["url"].(string); url != "" && !hasStringKey(seen, url) {
+		if url, _ := ep["url"].(string); url != "" && !setutil.Contains(seen, url) {
 			seen[url] = struct {
 			}{}
 			mergedEndpoints = append(mergedEndpoints, ep)
@@ -291,7 +300,7 @@ func mergeRawOTLPEndpoints(mainObs map[string]any, importedObs map[string]any) (
 	}
 	mainCount = len(mergedEndpoints)
 	for _, ep := range extractRawOTLPEndpointMaps(importedObs) {
-		if url, _ := ep["url"].(string); url != "" && !hasStringKey(seen, url) {
+		if url, _ := ep["url"].(string); url != "" && !setutil.Contains(seen, url) {
 			seen[url] = struct {
 			}{}
 			mergedEndpoints = append(mergedEndpoints, ep)
@@ -661,7 +670,10 @@ func (c *Compiler) processOnSectionAndFilters(
 		}
 		typedSteps, convErr := SliceToSteps(anySteps)
 		if convErr == nil {
-			typedSteps = applyActionPinsToTypedSteps(typedSteps, workflowData)
+			typedSteps, convErr = applyActionPinsToTypedSteps(typedSteps, workflowData)
+			if convErr != nil {
+				return fmt.Errorf("on.steps: %w", convErr)
+			}
 			for i, s := range typedSteps {
 				onSteps[i] = s.ToMap()
 			}

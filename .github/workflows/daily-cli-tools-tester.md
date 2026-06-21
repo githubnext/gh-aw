@@ -33,6 +33,8 @@ imports:
       expires: 3d
 
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Daily CLI Tools Exploratory Tester

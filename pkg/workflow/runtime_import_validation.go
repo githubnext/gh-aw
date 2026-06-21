@@ -25,6 +25,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 // runtimeImportMacroRe matches {{#runtime-import filepath}} or {{#runtime-import? filepath}}.
@@ -73,7 +74,7 @@ func extractRuntimeImportPaths(markdownContent string) []string {
 			}
 
 			// Add to list if not already seen
-			if !hasStringKey(seen, importPath) {
+			if !setutil.Contains(seen, importPath) {
 				paths = append(paths, importPath)
 				seen[importPath] = struct {
 				}{}

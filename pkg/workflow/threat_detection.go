@@ -327,7 +327,10 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		// Step 12: Upload detection_result.json + detection.log as the detection artifact
 		steps = append(steps, c.buildUploadDetectionArtifactStep(data)...)
 
-		// Step 13: Conclude via threat-detect conclude (no .cjs)
+		// Step 13: Parse threat-detection token usage for step summary and downstream footer rendering.
+		steps = append(steps, c.buildDetectionTokenUsageSummaryStep(data)...)
+
+		// Step 14: Conclude via threat-detect conclude (no .cjs)
 		steps = append(steps, c.buildExternalDetectorConcludeStep(data)...)
 	} else {
 		// Inline engine path (default)

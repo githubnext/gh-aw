@@ -116,8 +116,8 @@ This workflow operates on a separate repository.
 		"generated workflow should run gh aw logs directly")
 	assert.Contains(t, contentStr, "--start-date -1w",
 		"generated workflow should download 7 days of logs for activity_report")
-	assert.Contains(t, contentStr, "--count 100",
-		"generated workflow should limit activity_report log downloads to at most 100 runs")
+	assert.Contains(t, contentStr, "--count 500",
+		"generated workflow should limit activity_report log downloads to at most 500 runs")
 	assert.Contains(t, contentStr, "--format markdown",
 		"generated workflow should request markdown report output from gh aw logs")
 	assert.Contains(t, contentStr, "./.cache/gh-aw/activity-report-logs/report.md",

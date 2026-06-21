@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/types"
 )
@@ -612,7 +613,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryM
 	}
 
 	for key := range toolConfig {
-		if !hasStringKey(knownProperties, key) {
+		if !setutil.Contains(knownProperties, key) {
 			mcpCustomLog.Printf("Unknown property '%s' in MCP config for tool '%s'", key, toolName)
 			// Build list of valid properties
 			validProps := []string{}

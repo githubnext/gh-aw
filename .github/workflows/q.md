@@ -134,7 +134,11 @@ This workflow was triggered from a comment on discussion #${{ github.event.discu
    - Is a specific workflow mentioned?
    - Are there error messages or issues described?
    - Is this a general optimization request?
-3. **Identify Target Workflows from GitHub Context**:
+3. **Detect Cost-Optimization Intent**: Check whether the triggering content contains any of the following keywords (case-insensitive): **optimize**, **cost**, **improve**. If any keyword is found and it appears in the context of workflow, agent, or token performance (e.g. "optimize this workflow", "reduce cost", "improve performance"):
+   - Read `.github/skills/optimize-agentic-workflow/SKILL.md` for token-reduction techniques
+   - Apply a cost-reduction focus throughout all phases: measure AIC usage, identify top cost drivers, and prioritize AIC savings in every recommendation
+   - Follow the Optimization Analysis Plan from the skill: measure → identify top drivers → apply quick wins → sub-agent delegation → prompt caching → experiment
+4. **Identify Target Workflows from GitHub Context**:
    - Use the issue/PR/discussion details and triggering content to determine the target workflow(s)
    - Prefer explicit workflow names from the GitHub context when available
    - If the target is ambiguous, ask for clarification instead of guessing

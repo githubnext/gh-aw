@@ -25,7 +25,8 @@ imports:
 tools:
   cli-proxy: true
   cache-memory: true
-
+features:
+  gh-aw-detection: true
 ---
 
 # Test Create PR Error Handling

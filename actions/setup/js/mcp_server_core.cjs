@@ -31,7 +31,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { ReadBuffer } = require("./read_buffer.cjs");
-const { validateRequiredFields, validateStringInputLengths } = require("./mcp_scripts_validation.cjs");
+const { validateRequiredFields, validateStringInputLengths, validateStringMinLengths } = require("./mcp_scripts_validation.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const { createDependencyInstallGate } = require("./mcp_dependencies_manager.cjs");
@@ -772,9 +772,10 @@ async function handleRequest(server, request, defaultHandler) {
       if (missing.length) {
         const hasRequiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) && tool.inputSchema.required.length > 0;
         if (hasRequiredFields && Object.keys(args).length === 0) {
+          const schemaGuidance = generateEnhancedErrorMessage(tool.inputSchema.required, name, tool.inputSchema);
           throw {
             code: -32602,
-            message: `Empty arguments are not allowed — this tool is write-once, not a discovery probe. To inspect the schema, use the tools/list MCP method. To signal that no action is needed, call \`noop\` with a \`message\`.`,
+            message: `Empty arguments are not allowed — this tool is write-once, not a discovery probe. To inspect the schema, use the tools/list MCP method. To signal that no action is needed, call \`noop\` with a \`message\`.\n\n${schemaGuidance}`,
           };
         }
         throw {
@@ -790,6 +791,16 @@ async function handleRequest(server, request, defaultHandler) {
         throw {
           code: -32602,
           message: `Input string parameter(s) exceed the 10 KB limit for tool '${name}': ${details}`,
+        };
+      }
+
+      // Validate minLength constraints from the schema.
+      const tooShort = validateStringMinLengths(args, tool.inputSchema);
+      if (tooShort.length) {
+        const details = tooShort.map(v => `'${v.field}' is too short (minimum ${v.minLength} characters, got ${v.actualLength})`).join(", ");
+        throw {
+          code: -32602,
+          message: `Invalid arguments: ${details}`,
         };
       }
 
@@ -931,10 +942,11 @@ async function handleMessage(server, req, defaultHandler) {
       if (missing.length) {
         const hasRequiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) && tool.inputSchema.required.length > 0;
         if (hasRequiredFields && Object.keys(args).length === 0) {
+          const schemaGuidance = generateEnhancedErrorMessage(tool.inputSchema.required, name, tool.inputSchema);
           server.replyError(
             id,
             -32602,
-            `Empty arguments are not allowed — this tool is write-once, not a discovery probe. To inspect the schema, use the tools/list MCP method. To signal that no action is needed, call \`noop\` with a \`message\`.`
+            `Empty arguments are not allowed — this tool is write-once, not a discovery probe. To inspect the schema, use the tools/list MCP method. To signal that no action is needed, call \`noop\` with a \`message\`.\n\n${schemaGuidance}`
           );
           return;
         }
@@ -947,6 +959,14 @@ async function handleMessage(server, req, defaultHandler) {
       if (oversized.length) {
         const details = oversized.map(v => `'${v.field}' (${v.byteLength} bytes)`).join(", ");
         server.replyError(id, -32602, `Input string parameter(s) exceed the 10 KB limit for tool '${name}': ${details}`);
+        return;
+      }
+
+      // Validate minLength constraints from the schema.
+      const tooShort = validateStringMinLengths(args, tool.inputSchema);
+      if (tooShort.length) {
+        const details = tooShort.map(v => `'${v.field}' is too short (minimum ${v.minLength} characters, got ${v.actualLength})`).join(", ");
+        server.replyError(id, -32602, `Invalid arguments: ${details}`);
         return;
       }
 

@@ -45,6 +45,8 @@ imports:
   - shared/sentry.md
   - shared/grafana.md
   - shared/datadog.md
+features:
+  gh-aw-detection: true
 ---
 
 # Smoke OTEL

@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
@@ -144,7 +145,7 @@ func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, impor
 
 		// Merge allowed domains from imported network
 		for _, domain := range importedNetwork.Allowed {
-			if !hasStringKey(domainSet, domain) {
+			if !setutil.Contains(domainSet, domain) {
 				result.Allowed = append(result.Allowed, domain)
 				domainSet[domain] = struct {
 				}{}
@@ -249,7 +250,7 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 		// exclude lists from imported configs are merged as a set into the result.
 		for _, key := range typeKeys {
 			if _, exists := config[key]; exists {
-				if hasStringKey(topDefinedTypes, key) {
+				if setutil.Contains(topDefinedTypes, key) {
 					// Main workflow overrides imported definition — extract protected-files
 					// exclude lists before removing the type entry.
 					if handlerCfg, ok := config[key].(map[string]any); ok {
@@ -264,7 +265,7 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 					delete(config, key)
 					continue
 				}
-				if hasStringKey(importedDefinedTypes, key) {
+				if setutil.Contains(importedDefinedTypes, key) {
 					return nil, fmt.Errorf("safe-outputs conflict: '%s' is defined in multiple imported workflows. Each safe-output type can only be defined once", key)
 				}
 				importedDefinedTypes[key] = struct {
@@ -367,7 +368,7 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 		"ThreatDetection":         {},
 	}
 	for _, handler := range safeOutputHandlers {
-		if hasStringKey(specialMergeFields, handler.StructField) {
+		if setutil.Contains(specialMergeFields, handler.StructField) {
 			continue
 		}
 		mergeSafeOutputFieldIfNil(result, importedConfig, handler.StructField)

@@ -52,8 +52,17 @@ function validateAllowedIssueFields(issueFields, allowedFields) {
   if (!Array.isArray(issueFields) || issueFields.length === 0) {
     return;
   }
+  if (!Array.isArray(allowedFields) || allowedFields.length === 0) {
+    return;
+  }
+  const allowedFieldSet = new Set(allowedFields.map(f => f.toLowerCase()));
+  if (allowedFieldSet.has("*")) {
+    return;
+  }
   for (const field of issueFields) {
-    validateAllowedIssueFieldName(field.name, allowedFields);
+    if (!allowedFieldSet.has(field.name.toLowerCase())) {
+      throw new Error(`${ERR_VALIDATION}: issue field "${field.name}" is not in the allowed-fields list: ${allowedFields.join(", ")}`);
+    }
   }
 }
 

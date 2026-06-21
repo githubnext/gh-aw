@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -152,7 +153,10 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert safe-outputs step at index %d to typed step: %w", i, err)
 			}
-			pinnedStep := applyActionPinToTypedStep(typedStep, data)
+			pinnedStep, err := applyActionPinToTypedStep(typedStep, data)
+			if err != nil {
+				return nil, fmt.Errorf("failed to pin action for safe-outputs step at index %d: %w", i, err)
+			}
 			stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert safe-outputs step at index %d to YAML: %w", i, err)
@@ -584,7 +588,7 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 	}
 	if data.SafeOutputs != nil {
 		for _, need := range data.SafeOutputs.Needs {
-			if hasStringKey(seenNeeds, need) {
+			if setutil.Contains(seenNeeds, need) {
 				continue
 			}
 			needs = append(needs, need)

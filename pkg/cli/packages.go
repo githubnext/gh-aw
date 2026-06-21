@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/setutil"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -61,7 +62,7 @@ func collectLocalIncludeDependenciesRecursive(content, baseDir string, dependenc
 			fullSourcePath := filepath.Join(baseDir, filePath)
 
 			// Skip if we've already processed this file
-			if hasStringKey(seen, fullSourcePath) {
+			if setutil.Contains(seen, fullSourcePath) {
 				continue
 			}
 			seen[fullSourcePath] = struct {

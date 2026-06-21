@@ -15,6 +15,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 // TestAuthDefinition_RequiredSecretNames verifies that RequiredSecretNames returns the
@@ -386,8 +388,8 @@ func TestStrictModeGetEngineBaseEnvVarKeys_IncludesAuthSecrets(t *testing.T) {
 	compiler.registerInlineEngineDefinition(config)
 
 	keys := compiler.getEngineBaseEnvVarKeys("codex")
-	assert.True(t, hasStringKey(keys, "MY_CLIENT_ID"), "client ID secret should be in allowed env-var keys")
-	assert.True(t, hasStringKey(keys, "MY_CLIENT_SECRET"), "client secret should be in allowed env-var keys")
+	assert.True(t, setutil.Contains(keys, "MY_CLIENT_ID"), "client ID secret should be in allowed env-var keys")
+	assert.True(t, setutil.Contains(keys, "MY_CLIENT_SECRET"), "client secret should be in allowed env-var keys")
 }
 
 // TestBuiltInEngineAuthUnchanged is a regression test verifying that the built-in engines

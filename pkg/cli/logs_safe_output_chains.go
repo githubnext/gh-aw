@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var safeOutputChainsLog = logger.New("cli:logs_safe_output_chains")
@@ -87,10 +88,10 @@ func buildSafeOutputChainMetrics(logsPath string) SafeOutputChainMetrics {
 			metrics.ChainedTargetCount++
 			metrics.ChainedFollowupActionCount += count - 1
 		}
-		if hasStringKey(delegatedTargets, key) {
+		if setutil.Contains(delegatedTargets, key) {
 			metrics.DelegatedTempTargetCount++
 		}
-		if hasStringKey(closedTargets, key) {
+		if setutil.Contains(closedTargets, key) {
 			metrics.ClosedTempTargetCount++
 		}
 	}

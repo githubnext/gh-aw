@@ -4,11 +4,11 @@
 
 **Title:** AW Harness — Single-Session Agentic Workflow Execution Engine
 
-**Status:** Working Draft
+**Status:** Aspirational (Implementation Pending)
 
 **Date:** 2025-07-14
 
-**Last Updated:** 2026-05-10
+**Last Updated:** 2026-06-21
 
 **Editor:** GitHub gh-aw Team
 
@@ -20,7 +20,9 @@ This document specifies the **AW Harness** (`aw_harness.cjs`), a Node.js executi
 
 ## Status of This Document
 
-This is an internal design specification for the GitHub gh-aw project. It is not a W3C standard, nor is it on the W3C standards track. The document describes the intended architecture, contracts, and implementation plan for `aw_harness.cjs`. Feedback and corrections **SHOULD** be submitted via the project's standard pull request process.
+This is an internal design specification for the GitHub gh-aw project. It is not a W3C standard, nor is it on the W3C standards track. The document describes the **intended** architecture, contracts, and implementation plan for `aw_harness.cjs`.
+
+> ⚠️ **Implementation Status**: As of the last audit (2026-06-21), `aw_harness.cjs` has **not been found** in the repository at the expected location `actions/setup/js/aw_harness.cjs`. This specification is **aspirational** — it describes the target design. The implementation work items are tracked in §10.8. Until `aw_harness.cjs` is present at the expected path, `engine: aw` is not available for production workflows. Feedback and corrections **SHOULD** be submitted via the project's standard pull request process.
 
 ---
 
@@ -803,6 +805,31 @@ The following five extensions **MUST** be loaded into the `AgentSession` created
 > }
 > ```
 
+### 8.6 Extension Lifecycle Requirements
+
+*(This section is normative.)*
+
+The following requirements govern the initialization, execution, and teardown ordering of all extensions (built-in and user-defined) within a single `AgentSession`.
+
+#### 8.6.1 Initialization Order
+
+- Extensions **MUST** be initialized in the order they are registered. Built-in extensions (§8.1–§8.5) **MUST** be registered before any user-defined extensions declared in `harness.extensions`.
+- Extension 1 (Provider Setup, §8.1) **MUST** be initialized first, before any other extension, because all subsequent extensions may depend on provider registration being complete.
+- If Extension 1 fails to register at least one provider, the harness **MUST** abort initialization and exit with code `2` (invocation failure). No other extension **SHOULD** be initialized after a provider setup failure.
+
+#### 8.6.2 Initialization Failure Handling
+
+- If a built-in extension (§8.2–§8.5) fails to initialize (e.g., throws during construction or event handler registration), the harness **MUST** treat this as a fatal error and abort with exit code `2`. Built-in extension failures are not recoverable at runtime.
+- If a user-defined extension (declared via `harness.extensions`) fails to load or throws during initialization:
+  - When `harness.extensions-required: true`, the harness **MUST** abort with exit code `2` and emit a descriptive error to stderr identifying the failing extension.
+  - When `harness.extensions-required: false` (the default), the harness **SHOULD** emit a `WARN`-level message to stderr identifying the failing extension and MUST continue loading remaining extensions. The session **SHOULD** proceed without the failed extension.
+
+#### 8.6.3 Teardown and Error Propagation
+
+- On session completion (success or failure), extensions are implicitly cleaned up when the `AgentSession` is disposed. Implementations **MUST** call `session.dispose()` (or equivalent Pi SDK cleanup method) in both success and failure paths to ensure all extension resources are released.
+- If an extension's event handler throws an unhandled exception during session execution, the harness **SHOULD** catch the exception, emit a `WARN`-level message to stderr, and continue session execution. Extension event handler failures **MUST NOT** silently corrupt session state.
+- If Extension 4 (Session Repair, §8.4) encounters a non-recoverable session error, it **MUST** emit the error to the JSONL stream and allow the harness to exit with the appropriate exit code (§5.3). It **MUST NOT** enter an infinite repair loop; a maximum of three consecutive repair attempts **SHOULD** be enforced per session.
+
 ---
 
 ## 9. Model Resolution
@@ -985,6 +1012,36 @@ The following ordered work items describe the implementation sequence:
 12. **Write example workflows** — Single-task examples demonstrating `engine: aw` with various tools.
 
 13. **Add build to Makefile** — Add `make aw-harness` target that runs esbuild and copies `aw_harness.cjs` to `actions/setup/js/`.
+
+### 10.9 Pi SDK Version Pinning
+
+> *(This section is normative.)*
+
+To ensure reproducible builds and prevent breaking changes from upstream Pi SDK releases, the `aw-harness` package **MUST** pin Pi SDK dependencies to exact or tightly-bounded semver ranges. The following requirements apply:
+
+- The `package.json` for `aw-harness` **MUST** specify Pi SDK packages (`@earendil-works/pi-coding-agent`, `pi-agent-core`, `pi-ai`) with an exact version (`"1.2.3"`) or a patch-bounded range (`"~1.2.3"`). Unbounded minor-version ranges (`"^1.2.3"`) **MUST NOT** be used for Pi SDK core packages, because minor releases may introduce breaking API changes to `ExtensionAPI` or `AgentSession`.
+
+- The `package-lock.json` (or equivalent lock file) **MUST** be committed alongside `package.json` to guarantee deterministic installs in CI.
+
+- When upgrading a Pi SDK dependency, the implementer **MUST** update the pinned version in `package.json`, regenerate `package-lock.json`, and run the full test suite (§10.5) before merging. The commit message **SHOULD** include the previous and new Pi SDK version numbers.
+
+- Implementations **SHOULD** define a single `PI_SDK_VERSION` constant in the harness source (e.g., `src/version.ts`) that can be read at startup and emitted in the JSONL event stream (§8.5.1), enabling post-hoc correlation between run logs and SDK version.
+
+**Example `package.json` (normative fragment):**
+
+```jsonc
+{
+  "name": "aw-harness",
+  "version": "0.1.0",
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "~0.8.0",
+    "pi-agent-core": "~0.8.0",
+    "pi-ai": "~0.8.0"
+  }
+}
+```
+
+> [!NOTE] Replace `~0.8.0` with the verified minimum Pi SDK release that provides the `ExtensionAPI` and `AgentSession` interfaces required by this specification. Update this comment and the pinned version when upgrading.
 
 ---
 

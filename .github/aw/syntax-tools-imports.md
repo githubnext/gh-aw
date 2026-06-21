@@ -233,7 +233,7 @@ imports:
 ---
 ```
 
-**Object form with inputs** — Use `path:`/`uses:` + `with:`/`inputs:` to pass values to shared workflows that define an `import-schema:`. Optional `checkout:` and `env:` fields customize the import:
+**Object form with inputs** — Use `path:`/`uses:` + `with:`/`inputs:` to pass values to shared workflows that define an `import-schema:`:
 
 ```yaml
 imports:
@@ -241,14 +241,10 @@ imports:
     with:
       environment: staging
       max-issues: 3
-    env:
-      MY_VAR: "value"         # Optional: pass env vars into the imported workflow
-    checkout: main            # Optional: ref to check out when this import is processed
   - uses: shared/security-notice.md  # 'uses' is an alias for 'path'
 ```
 
-- `env:` - Environment variables passed into the imported workflow context (object). Use when a shared workflow relies on environment variables that must be supplied by the importing workflow.
-- `checkout:` - Ref (branch, tag, or SHA) to check out when processing this import (string). Overrides the default checkout for this specific import entry.
+`path`/`uses` and `with`/`inputs` are the only valid keys on an import entry. To supply environment variables or a checkout ref, set top-level `env:`/`checkout:` frontmatter inside the imported file itself — those are merged into the importing workflow (see the merge list below), not configured per import entry.
 
 Conditional `imports:` entries are not supported. For experiment-specific prompt variants, keep the import unconditional and gate a `{{#runtime-import? ...}}` block (optional form) in the workflow body instead. The optional form is not promoted to unconditional lock-file macros, so the content is only injected when the condition is true at runtime.
 

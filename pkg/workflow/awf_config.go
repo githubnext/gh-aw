@@ -65,10 +65,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/santhosh-tekuri/jsonschema/v6"
+
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/jsonutil"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/santhosh-tekuri/jsonschema/v6"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 //go:embed schemas/awf-config.schema.json
@@ -496,7 +498,7 @@ func splitDomainList(domains string) []string {
 	})
 	for d := range strings.SplitSeq(domains, ",") {
 		d = strings.TrimSpace(d)
-		if d != "" && !hasStringKey(seen, d) {
+		if d != "" && !setutil.Contains(seen, d) {
 			seen[d] = struct {
 			}{}
 			result = append(result, d)

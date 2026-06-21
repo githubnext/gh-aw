@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var onNeedsValidationLog = logger.New("workflow:on_needs_validation")
@@ -57,7 +58,7 @@ func validateOnNeedsTargets(data *WorkflowData) error {
 				need,
 			)
 		}
-		if !hasStringKey(customJobs, need) {
+		if !setutil.Contains(customJobs, need) {
 			return fmt.Errorf(
 				"on.needs: unknown job %q. Expected one of the workflow's custom jobs. Example: on.needs: [secrets_fetcher]",
 				need,
@@ -117,7 +118,7 @@ func (c *Compiler) validateOnGitHubAppNeedsExpressions(data *WorkflowData) error
 		if _, exists := data.Jobs[jobName]; !exists {
 			return fmt.Errorf("on.github-app.%s: unknown job %q in needs expression", fieldName, jobName)
 		}
-		if !hasStringKey(allowed, jobName) {
+		if !setutil.Contains(allowed, jobName) {
 			return fmt.Errorf(
 				"on.github-app.%s references needs.%s.outputs.* but job %q is not available before activation. Add it to on.needs (example: on.needs: [%s])",
 				fieldName,
@@ -174,10 +175,10 @@ func validateOnNeedsDependencyChain(
 	}, visiting map[string]struct {
 	}, visited map[string]struct {
 	}) error {
-	if hasStringKey(visited, current) {
+	if setutil.Contains(visited, current) {
 		return nil
 	}
-	if hasStringKey(visiting, current) {
+	if setutil.Contains(visiting, current) {
 		return fmt.Errorf("on.needs: cycle detected while validating dependency chain for %q", root)
 	}
 
@@ -215,7 +216,7 @@ func validateOnNeedsDependencyChain(
 		}
 
 		_, depHasExplicitNeeds := depConfig["needs"]
-		if !depHasExplicitNeeds && !hasStringKey(onNeedsSet, dep) && !hasStringKey(promptReferencedSet, dep) {
+		if !depHasExplicitNeeds && !setutil.Contains(onNeedsSet, dep) && !setutil.Contains(promptReferencedSet, dep) {
 			return fmt.Errorf(
 				"on.needs: job %q depends on %q, but %q has no explicit needs and is not in on.needs. It may get an implicit needs: activation and create a cycle. Add %q to on.needs or give %q explicit needs that run before activation",
 				current,

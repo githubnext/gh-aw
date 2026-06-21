@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -133,7 +134,7 @@ func findUnsafeEngineEnvSecretKeys(envMap map[string]any, allowed map[string]str
 	unsafe := make(map[string]struct {
 	})
 	for key, value := range envMap {
-		if hasStringKey(allowed, key) {
+		if setutil.Contains(allowed, key) {
 			continue
 		}
 		strVal, ok := value.(string)
@@ -208,7 +209,7 @@ func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]struct {
 
 		if inEnv && !removingKey && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") && len(indent) > len(envIndent) {
 			key := parseYAMLMapKey(trimmed)
-			if key != "" && hasStringKey(unsafeKeys, key) {
+			if key != "" && setutil.Contains(unsafeKeys, key) {
 				modified = true
 				removingKey = true
 				removingKeyIndent = indent
@@ -288,7 +289,7 @@ func getTopLevelEnvSecretsGuidedErrorCodemod() Codemod {
 			seenExpressions := make(map[string]struct {
 			})
 			for _, expr := range secretExpressions {
-				if hasStringKey(seenExpressions, expr) {
+				if setutil.Contains(seenExpressions, expr) {
 					continue
 				}
 				seenExpressions[expr] = struct {

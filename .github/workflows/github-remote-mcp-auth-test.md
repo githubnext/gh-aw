@@ -28,6 +28,8 @@ imports:
 
 
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 # GitHub Remote MCP Authentication Test
 

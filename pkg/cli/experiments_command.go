@@ -14,12 +14,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/workflow"
-	"github.com/spf13/cobra"
 )
 
 var experimentsLog = logger.New("cli:experiments_command")
@@ -503,7 +505,7 @@ func fetchLocalExperiments() ([]ExperimentInfo, error) {
 			continue
 		}
 		workflowID := extractExperimentName(line)
-		if workflowID == "" || hasStringKey(seen, workflowID) {
+		if workflowID == "" || setutil.Contains(seen, workflowID) {
 			continue
 		}
 		seen[workflowID] = struct {

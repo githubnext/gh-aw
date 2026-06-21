@@ -171,6 +171,14 @@ Test workflow`
 	if !strings.Contains(detectionSection, "detection_conclusion") {
 		t.Error("External detector path must contain detection_conclusion step")
 	}
+	if !strings.Contains(detectionSection, "id: parse_detection_token_usage") {
+		t.Error("External detector path must contain parse_detection_token_usage step so detection AIC is exported")
+	}
+	parseIdx := strings.Index(detectionSection, "id: parse_detection_token_usage")
+	concludeIdx := strings.Index(detectionSection, "id: detection_conclusion")
+	if concludeIdx == -1 || parseIdx >= concludeIdx {
+		t.Error("External detector path must emit parse_detection_token_usage before detection_conclusion so detection AIC is exported")
+	}
 
 	// The rw mount for the threat-detection directory must be present
 	if !strings.Contains(detectionSection, "/tmp/gh-aw/threat-detection:/tmp/gh-aw/threat-detection:rw") {

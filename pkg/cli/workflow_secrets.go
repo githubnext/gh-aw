@@ -7,6 +7,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -25,7 +26,7 @@ func getSecretsRequirementsForWorkflows(workflowFiles []string) []SecretRequirem
 	for _, workflowFile := range workflowFiles {
 		secrets := getSecretRequirementsForWorkflow(workflowFile)
 		for _, req := range secrets {
-			if !hasStringKey(seenSecrets, req.Name) {
+			if !setutil.Contains(seenSecrets, req.Name) {
 				seenSecrets[req.Name] = struct {
 				}{}
 				allRequirements = append(allRequirements, req)
@@ -35,7 +36,7 @@ func getSecretsRequirementsForWorkflows(workflowFiles []string) []SecretRequirem
 
 	// Always add system secrets (deduplicated)
 	for _, sys := range constants.SystemSecrets {
-		if hasStringKey(seenSecrets, sys.Name) {
+		if setutil.Contains(seenSecrets, sys.Name) {
 			continue
 		}
 		seenSecrets[sys.Name] = struct {

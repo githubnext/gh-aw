@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -101,14 +102,14 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 
 		if isAllowed {
 			analysis.AllowedCount++
-			if !hasStringKey(allowedDomainsSet, domain) {
+			if !setutil.Contains(allowedDomainsSet, domain) {
 				allowedDomainsSet[domain] = struct {
 				}{}
 				analysis.AllowedDomains = append(analysis.AllowedDomains, domain)
 			}
 		} else {
 			analysis.BlockedCount++
-			if !hasStringKey(blockedDomainsSet, domain) {
+			if !setutil.Contains(blockedDomainsSet, domain) {
 				blockedDomainsSet[domain] = struct {
 				}{}
 				analysis.BlockedDomains = append(analysis.BlockedDomains, domain)

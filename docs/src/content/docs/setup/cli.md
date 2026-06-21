@@ -32,7 +32,7 @@ gh extension install github/gh-aw
 
 ### Pinning to a Specific Version
 
-Pin to specific versions for production environments, team consistency, or avoiding breaking changes:
+Pin a version for production environments, team consistency, or to avoid breaking changes:
 
 ```bash wrap
 gh extension install github/gh-aw@v0.1.0          # Pin to release tag
@@ -46,31 +46,31 @@ gh extension install github/gh-aw@v0.2.0
 
 ### Alternative: Standalone Installer
 
-Use the standalone installer if extension installation fails (common in Codespaces, restricted networks, or with auth issues):
+If extension installation fails, use the standalone installer instead:
 
 ```bash wrap
 curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash                # Latest
 curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash -s v0.1.0      # Pinned
 ```
 
-Installs to `~/.local/share/gh/extensions/gh-aw/gh-aw`. Supports Linux, macOS, FreeBSD, Windows, and Android (Termux). Works behind corporate firewalls using direct release download URLs.
+This installs to `~/.local/share/gh/extensions/gh-aw/gh-aw` and supports Linux, macOS, FreeBSD, Windows, and Android (Termux), including environments behind corporate firewalls.
 
 ### GitHub Actions Setup Action
 
-Install the CLI in GitHub Actions workflows using the `setup-cli` action with automatic checksum verification and platform detection:
+In GitHub Actions, use the `setup-cli` action for platform detection and checksum verification:
 
-``````yaml wrap
+```yaml wrap
 - name: Install gh-aw CLI
   uses: github/gh-aw/actions/setup-cli@main
   with:
     version: v0.37.18
-``````
+```
 
-See the [setup-cli action README](https://github.com/github/gh-aw/blob/main/actions/setup-cli/README.md) for complete documentation.
+See the [setup-cli action README](https://github.com/github/gh-aw/blob/main/actions/setup-cli/README.md) for full details.
 
 ### GitHub Enterprise Server Support
 
-Configure for GitHub Enterprise Server deployments:
+For GitHub Enterprise Server deployments:
 
 ```bash wrap
 export GH_HOST="github.enterprise.com"                           # Set hostname
@@ -78,17 +78,15 @@ gh auth login --hostname github.enterprise.com                   # Authenticate
 gh aw logs workflow --repo github.enterprise.com/owner/repo      # Use with commands
 ```
 
-For GHE Cloud with data residency (`*.ghe.com`), see the dedicated [Debugging GHE Cloud guide](/gh-aw/troubleshooting/debug-ghe/) for setup and troubleshooting steps.
+For GHE Cloud with data residency (`*.ghe.com`), see the dedicated [Debugging GHE Cloud guide](/gh-aw/troubleshooting/debug-ghe/).
 
-Commands that support `--create-pull-request` (such as `gh aw add`, `gh aw init`, `gh aw update`, and `gh aw upgrade`) automatically detect the enterprise host from the git remote and route PR creation to the correct GHES instance. No extra flags are needed.
-
-`gh aw audit` and `gh aw add-wizard` also auto-detect the GHES host from the git remote, so running them inside a GHES repository works without setting `GH_HOST` manually.
+Commands that support `--create-pull-request` — including `gh aw add`, `gh aw init`, `gh aw update`, and `gh aw upgrade` — automatically detect the enterprise host from the git remote and route PR creation to the correct GHES instance. `gh aw audit` and `gh aw add-wizard` do the same, so running them inside a GHES repository usually does not require setting `GH_HOST` manually.
 
 #### Configuring `gh` CLI on GHES
 
-The compiled agent job automatically runs `configure_gh_for_ghe.sh` before the agent starts executing. The script detects the GitHub host from the `GITHUB_SERVER_URL` environment variable (set by GitHub Actions on GHES) and configures `gh` to authenticate against it. No configuration is required for the agent to use `gh` CLI commands on your GHES instance.
+The compiled agent job automatically runs `configure_gh_for_ghe.sh` before the agent starts. The script reads `GITHUB_SERVER_URL` and configures `gh` for that host, so the agent can use `gh` commands on GHES without extra setup.
 
-Custom workflow jobs (independent GitHub Actions jobs defined in workflow frontmatter) and the safe-outputs job automatically have `GH_HOST` derived from `GITHUB_SERVER_URL` at the start of each job. On github.com this is a no-op; on GHES/GHEC it ensures all `gh` CLI commands in the job target the correct instance without any manual setup.
+Custom workflow jobs and the safe-outputs job also derive `GH_HOST` from `GITHUB_SERVER_URL` at startup. On github.com this is a no-op; on GHES or GHEC it ensures `gh` targets the correct instance automatically.
 
 For custom `steps:` that require additional authentication setup (for example, when running `gh` commands without a `GH_TOKEN` in scope), the helper script is available:
 
@@ -105,7 +103,7 @@ steps:
       gh pr list --state open --limit 200 --json number,title
 ```
 
-The script is installed to `/opt/gh-aw/actions/configure_gh_for_ghe.sh` by the setup action. When `GH_TOKEN` is already set in the environment, the script skips `gh auth login` and only exports `GH_HOST` — the token handles authentication.
+The setup action installs the script at `/opt/gh-aw/actions/configure_gh_for_ghe.sh`. If `GH_TOKEN` is already set, the script skips `gh auth login` and only exports `GH_HOST`.
 
 > [!NOTE]
 > Custom steps run outside the agent firewall sandbox and have access to standard GitHub Actions environment variables including `GITHUB_SERVER_URL`, `GITHUB_TOKEN`, and `GH_TOKEN`.
@@ -120,9 +118,9 @@ The script is installed to `/opt/gh-aw/actions/configure_gh_for_ghe.sh` by the s
 
 ### The `--push` Flag
 
-The `run` command supports `--push` to automatically commit and push changes before dispatching the workflow. It stages all changes, commits, and pushes to the remote. Requires a clean working directory.
+`gh aw run --push` stages all changes, commits them, and pushes before dispatching the workflow. It requires a clean working directory.
 
-For `init`, `update`, and `upgrade`, use `--create-pull-request` to create a pull request with the changes instead.
+For `init`, `update`, and `upgrade`, use `--create-pull-request` instead.
 
 ## Commands
 

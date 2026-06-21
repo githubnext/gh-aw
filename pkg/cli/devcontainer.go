@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/setutil"
 
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
@@ -289,7 +290,7 @@ func mergeExtensions(existing, toAdd []string) []string {
 
 	// Add existing extensions
 	for _, ext := range existing {
-		if !hasStringKey(extensionSet, ext) {
+		if !setutil.Contains(extensionSet, ext) {
 			extensionSet[ext] = struct {
 			}{}
 			result = append(result, ext)
@@ -298,7 +299,7 @@ func mergeExtensions(existing, toAdd []string) []string {
 
 	// Add new extensions if not already present
 	for _, ext := range toAdd {
-		if !hasStringKey(extensionSet, ext) {
+		if !setutil.Contains(extensionSet, ext) {
 			extensionSet[ext] = struct {
 			}{}
 			result = append(result, ext)

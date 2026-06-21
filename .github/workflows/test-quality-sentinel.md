@@ -81,6 +81,8 @@ timeout-minutes: 15
 imports:
   - shared/reporting.md
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Test Quality Sentinel 🧪

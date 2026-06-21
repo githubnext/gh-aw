@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var shellLog = logger.New("workflow:shell")
@@ -198,7 +199,7 @@ func findExpandableVars(s string) []string {
 			break
 		}
 		varRef := s[start : start+end+1]
-		if !hasStringKey(seen, varRef) {
+		if !setutil.Contains(seen, varRef) {
 			seen[varRef] = struct {
 			}{}
 			vars = append(vars, varRef)

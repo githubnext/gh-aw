@@ -145,9 +145,35 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	repoSlug := opts.RepoSlug
 	maintenanceLog.Print("Checking if maintenance workflow is needed")
 
+	// Compute the resolver and setup action reference early — needed in all code
+	// paths including the maintenance-disabled early-exit path.
+	var resolver SHAResolver
+	for _, workflowData := range workflowDataList {
+		if workflowData != nil && workflowData.ActionResolver != nil {
+			resolver = workflowData.ActionResolver
+			break
+		}
+	}
+	setupActionRef := ResolveSetupActionReference(ctx, actionMode, version, actionTag, resolver)
+	githubScriptPin := getCachedActionPinFromResolver("actions/github-script", resolver)
+
 	// Respect explicit opt-out from aw.json: maintenance: false
 	if repoConfig != nil && repoConfig.MaintenanceDisabled {
-		return handleMaintenanceDisabled(workflowDataList, workflowDir)
+		if err := handleMaintenanceDisabled(workflowDataList, workflowDir); err != nil {
+			return err
+		}
+		return GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
+			Context:         ctx,
+			WorkflowDir:     workflowDir,
+			Enabled:         repoConfig.IsAutoUpgradeEnabled(),
+			RepoSlug:        repoSlug,
+			SetupActionRef:  setupActionRef,
+			GitHubScriptPin: githubScriptPin,
+			ActionMode:      actionMode,
+			Version:         version,
+			ActionTag:       actionTag,
+			Resolver:        resolver,
+		})
 	}
 
 	// Determine the runs-on value to use for all maintenance jobs.
@@ -169,19 +195,6 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	// Scan workflows for expires fields and track the minimum expires value
 	hasExpires, minExpires, triggerReason := scanWorkflowsForExpires(workflowDataList)
 
-	// Get the setup action reference (local or remote based on mode).
-	// Use the first available WorkflowData's ActionResolver to enable SHA pinning.
-	// Computed early so it is available in the !hasExpires path for side-repo workflows.
-	// Iterate to find the first non-nil entry because shared-only compilation paths
-	// may provide nil placeholders.
-	var resolver SHAResolver
-	for _, workflowData := range workflowDataList {
-		if workflowData != nil && workflowData.ActionResolver != nil {
-			resolver = workflowData.ActionResolver
-			break
-		}
-	}
-
 	if !hasExpires {
 		maintenanceLog.Print("No workflows use expires field, skipping maintenance workflow generation")
 
@@ -197,7 +210,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 
 		// Even without expires, side-repo targets still need maintenance workflows
 		// for safe_outputs, create_labels, and validate operations.
-		return generateAllSideRepoMaintenanceWorkflows(ctx, generateAllSideRepoMaintenanceWorkflowsOptions{
+		if err := generateAllSideRepoMaintenanceWorkflows(ctx, generateAllSideRepoMaintenanceWorkflowsOptions{
 			workflowDataList: workflowDataList,
 			workflowDir:      workflowDir,
 			version:          version,
@@ -207,6 +220,21 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 			resolver:         resolver,
 			hasExpires:       false,
 			minExpiresDays:   0,
+		}); err != nil {
+			return err
+		}
+
+		return GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
+			Context:         ctx,
+			WorkflowDir:     workflowDir,
+			Enabled:         repoConfig != nil && repoConfig.IsAutoUpgradeEnabled(),
+			RepoSlug:        repoSlug,
+			SetupActionRef:  setupActionRef,
+			GitHubScriptPin: githubScriptPin,
+			ActionMode:      actionMode,
+			Version:         version,
+			ActionTag:       actionTag,
+			Resolver:        resolver,
 		})
 	}
 
@@ -279,7 +307,18 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		return err
 	}
 
-	return nil
+	return GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
+		Context:         ctx,
+		WorkflowDir:     workflowDir,
+		Enabled:         repoConfig != nil && repoConfig.IsAutoUpgradeEnabled(),
+		RepoSlug:        repoSlug,
+		SetupActionRef:  setupActionRef,
+		GitHubScriptPin: githubScriptPin,
+		ActionMode:      actionMode,
+		Version:         version,
+		ActionTag:       actionTag,
+		Resolver:        resolver,
+	})
 }
 
 // handleMaintenanceDisabled handles the case where maintenance is disabled in repo config.

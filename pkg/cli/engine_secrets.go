@@ -8,10 +8,12 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
+
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/repoutil"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/styles"
@@ -165,8 +167,8 @@ func getMissingRequiredSecrets(requirements []SecretRequirement, existingSecrets
 			continue
 		}
 
-		exists := hasStringKey(existingSecrets, req.Name) || sliceutil.Any(req.AlternativeEnvVars, func(alt string) bool {
-			return hasStringKey(existingSecrets, alt)
+		exists := setutil.Contains(existingSecrets, req.Name) || sliceutil.Any(req.AlternativeEnvVars, func(alt string) bool {
+			return setutil.Contains(existingSecrets, alt)
 		})
 		if !exists {
 			missing = append(missing, req)
@@ -216,14 +218,14 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 	engineSecretsLog.Printf("Ensuring secret available: %s", req.Name)
 
 	// Check if secret already exists in the repository
-	if hasStringKey(config.ExistingSecrets, req.Name) {
+	if setutil.Contains(config.ExistingSecrets, req.Name) {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using existing %s secret in repository", req.Name)))
 		return nil
 	}
 
 	// Check alternative secret names in repository
 	for _, alt := range req.AlternativeEnvVars {
-		if hasStringKey(config.ExistingSecrets, alt) {
+		if setutil.Contains(config.ExistingSecrets, alt) {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using existing %s secret in repository (alternative for %s)", alt, req.Name)))
 			return nil
 		}
@@ -436,7 +438,7 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 // checkOptionalSecret checks if an optional secret is available (without prompting)
 func checkOptionalSecret(req SecretRequirement, config EngineSecretConfig) error {
 	// Check repository
-	if hasStringKey(config.ExistingSecrets, req.Name) {
+	if setutil.Contains(config.ExistingSecrets, req.Name) {
 		if config.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Optional secret %s exists in repository", req.Name)))
 		}
@@ -537,14 +539,14 @@ func GetEngineSecretNameAndValue(engine string, existingSecrets map[string]struc
 	secretName := opt.SecretName
 
 	// Check if secret already exists in repository
-	if hasStringKey(existingSecrets, secretName) {
+	if setutil.Contains(existingSecrets, secretName) {
 		engineSecretsLog.Printf("Secret %s already exists in repository", secretName)
 		return secretName, "", true, nil
 	}
 
 	// Check alternative secret names in repository
 	for _, alt := range opt.AlternativeSecrets {
-		if hasStringKey(existingSecrets, alt) {
+		if setutil.Contains(existingSecrets, alt) {
 			engineSecretsLog.Printf("Alternative secret %s exists in repository", alt)
 			return secretName, "", true, nil
 		}
@@ -579,8 +581,8 @@ func displayMissingSecrets(requirements []SecretRequirement, repoSlug string, ex
 
 	for _, req := range requirements {
 		// Check if secret exists
-		exists := hasStringKey(existingSecrets, req.Name) || sliceutil.Any(req.AlternativeEnvVars, func(alt string) bool {
-			return hasStringKey(existingSecrets, alt)
+		exists := setutil.Contains(existingSecrets, req.Name) || sliceutil.Any(req.AlternativeEnvVars, func(alt string) bool {
+			return setutil.Contains(existingSecrets, alt)
 		})
 
 		if !exists {
@@ -654,12 +656,12 @@ func displaySecretsSummaryTable(requirements []SecretRequirement, existingSecret
 	// Display each required secret with status
 	for _, req := range requiredOnly {
 		// Check if secret exists
-		exists := hasStringKey(existingSecrets, req.Name)
+		exists := setutil.Contains(existingSecrets, req.Name)
 		var altUsed string
 		if !exists {
 			// Check alternatives
 			for _, alt := range req.AlternativeEnvVars {
-				if hasStringKey(existingSecrets, alt) {
+				if setutil.Contains(existingSecrets, alt) {
 					exists = true
 					altUsed = alt
 					break

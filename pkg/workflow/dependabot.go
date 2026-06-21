@@ -16,10 +16,12 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/setutil"
+
+	"github.com/goccy/go-yaml"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/goccy/go-yaml"
 )
 
 var dependabotLog = logger.New("workflow:dependabot")
@@ -504,7 +506,7 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 				if dependencyName == pattern {
 					managedPresent[pattern] = struct {
 					}{}
-					if !hasStringKey(managedPatternsWithComment, pattern) {
+					if !setutil.Contains(managedPatternsWithComment, pattern) {
 						changed = true
 					}
 				}
@@ -512,7 +514,7 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 		}
 
 		for _, pattern := range managedPatterns {
-			if hasStringKey(managedPresent, pattern) {
+			if setutil.Contains(managedPresent, pattern) {
 				continue
 			}
 			ignoreEntries = append(ignoreEntries, map[string]any{"dependency-name": pattern})

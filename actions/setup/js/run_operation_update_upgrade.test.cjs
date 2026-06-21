@@ -418,4 +418,153 @@ describe("run_operation_update_upgrade", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No changes detected"));
     });
   });
+
+  describe("mainNotifyIssue", () => {
+    beforeEach(() => {
+      process.env.GH_AW_CMD_PREFIX = "gh aw";
+      process.env.GH_TOKEN = "test-token";
+
+      mockGithub = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({ data: { items: [] } }),
+          },
+          issues: {
+            update: vi.fn().mockResolvedValue({}),
+            create: vi.fn().mockResolvedValue({
+              data: { html_url: "https://github.com/testowner/testrepo/issues/42", number: 42 },
+            }),
+          },
+        },
+      };
+
+      global.github = mockGithub;
+    });
+
+    it("runs upgrade and creates issue when files are changed", async () => {
+      mockExec.exec = vi.fn().mockResolvedValue(0);
+
+      // git diff returns a changed file for the first known upgrade file, empty for the rest
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && args[0] === "diff" && args[2] === "--" && args[3] === ".github/aw/actions-lock.json") {
+          return { stdout: ".github/aw/actions-lock.json\n", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 0 };
+      });
+
+      const { mainNotifyIssue } = await import("./run_operation_update_upgrade.cjs");
+      await mainNotifyIssue();
+
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "upgrade"]);
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining("agentic-auto-upgrade") }));
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "testowner",
+          repo: "testrepo",
+          title: "[aw] Upgrade available",
+          body: expect.stringContaining("<!-- gh-aw-workflow-id: agentic-auto-upgrade -->"),
+          labels: ["agentic-workflows"],
+        })
+      );
+      expect(mockCore.notice).toHaveBeenCalledWith(expect.stringContaining("https://github.com/testowner/testrepo/issues/42"));
+    });
+
+    it("closes existing issues before creating a new one", async () => {
+      mockExec.exec = vi.fn().mockResolvedValue(0);
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && args[3] === ".github/aw/actions-lock.json") {
+          return { stdout: ".github/aw/actions-lock.json\n", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 0 };
+      });
+
+      // Simulate two existing open issues with the marker
+      mockGithub.rest.search.issuesAndPullRequests = vi.fn().mockResolvedValue({
+        data: {
+          items: [
+            { number: 10, title: "old upgrade 1", body: "<!-- gh-aw-workflow-id: agentic-auto-upgrade -->", pull_request: undefined },
+            { number: 11, title: "old upgrade 2", body: "<!-- gh-aw-workflow-id: agentic-auto-upgrade -->", pull_request: undefined },
+          ],
+        },
+      });
+
+      const { mainNotifyIssue } = await import("./run_operation_update_upgrade.cjs");
+      await mainNotifyIssue();
+
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 10, state: "closed" }));
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 11, state: "closed" }));
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not create issue when no files are changed", async () => {
+      mockExec.exec = vi.fn().mockResolvedValue(0);
+      // All git diff calls return empty output (no changes)
+      mockExec.getExecOutput = vi.fn().mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 });
+
+      const { mainNotifyIssue } = await import("./run_operation_update_upgrade.cjs");
+      await mainNotifyIssue();
+
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("already up to date"));
+    });
+
+    it("throws when upgrade command exits with non-zero code", async () => {
+      mockExec.exec = vi.fn().mockResolvedValue(1);
+
+      const { mainNotifyIssue } = await import("./run_operation_update_upgrade.cjs");
+      await expect(mainNotifyIssue()).rejects.toThrow("exit code 1");
+    });
+
+    it("filters out pull_request items from search results", async () => {
+      mockExec.exec = vi.fn().mockResolvedValue(0);
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && args[3] === ".github/aw/actions-lock.json") {
+          return { stdout: ".github/aw/actions-lock.json\n", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 0 };
+      });
+
+      // Mix of PR and issue results — PR should be filtered out
+      mockGithub.rest.search.issuesAndPullRequests = vi.fn().mockResolvedValue({
+        data: {
+          items: [
+            { number: 5, title: "a PR", body: "<!-- gh-aw-workflow-id: agentic-auto-upgrade -->", pull_request: { url: "..." } },
+            { number: 6, title: "an issue", body: "<!-- gh-aw-workflow-id: agentic-auto-upgrade -->", pull_request: undefined },
+          ],
+        },
+      });
+
+      const { mainNotifyIssue } = await import("./run_operation_update_upgrade.cjs");
+      await mainNotifyIssue();
+
+      // Only the issue (not the PR) should be closed
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledTimes(1);
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 6 }));
+    });
+
+    it("retries issue creation without labels when label is missing", async () => {
+      mockExec.exec = vi.fn().mockResolvedValue(0);
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && args[3] === ".github/aw/actions-lock.json") {
+          return { stdout: ".github/aw/actions-lock.json\n", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 0 };
+      });
+
+      const labelError = new Error("Validation Failed");
+      labelError.status = 422;
+      mockGithub.rest.issues.create = vi
+        .fn()
+        .mockRejectedValueOnce(labelError)
+        .mockResolvedValueOnce({ data: { html_url: "https://github.com/testowner/testrepo/issues/43", number: 43 } });
+
+      const { mainNotifyIssue } = await import("./run_operation_update_upgrade.cjs");
+      await mainNotifyIssue();
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);
+      expect(mockGithub.rest.issues.create).toHaveBeenNthCalledWith(1, expect.objectContaining({ labels: ["agentic-workflows"] }));
+      expect(mockGithub.rest.issues.create).toHaveBeenNthCalledWith(2, expect.not.objectContaining({ labels: expect.anything() }));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("retrying without labels"));
+    });
+  });
 });

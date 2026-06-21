@@ -178,8 +178,9 @@ Create exactly one issue using the `create_issue` safe output.
 
 1. Draft the title and body locally first if needed, but emit exactly one final `create_issue` safe output only after the full payload is complete.
 2. Do **not** use `bash`, `cli-proxy`, or the `safeoutputs` CLI to create the issue or inspect the tool schema. Emit the safe output directly with `title` and `body` arguments.
-3. Never retry `create_issue` with empty, placeholder, or partial arguments.
-4. If the quality checks below cannot be met, emit `report_incomplete` directly as a safe output instead of `create_issue`.
+3. Do **not** use `python3`, `node`, `jq`, or any other scripting runtime to construct or validate the issue payload — build the body string inline and emit the safe output directly.
+4. Never retry `create_issue` with empty, placeholder, or partial arguments.
+5. If the quality checks below cannot be met, emit `report_incomplete` directly as a safe output instead of `create_issue`.
 
 ### Issue format
 
@@ -243,7 +244,7 @@ One-paragraph description of the spec and what was formalized.
 Before emitting `create_issue`, verify the body:
 - Contains all required sections (`Summary`, `Specification`, `Formal Model`, `Behavioral Coverage Map`, `Generated Test Suite`, `Usage`, `Context`).
 - Has at least 5 rows in the Behavioral Coverage Map.
-- The generated test file compiles without errors (review for syntax mistakes).
+- The generated test file has no obvious syntax errors — **visual review only**: scan for mismatched braces, missing imports, and undefined identifiers. Do **not** run `go build`, `go test`, `go version`, `python3`, `node`, `jq`, or any compiler or runtime to verify.
 - Is at least 1200 characters long.
 
 If these checks cannot be met, emit `report_incomplete` directly as a safe output instead of `create_issue`.

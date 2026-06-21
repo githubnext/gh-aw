@@ -198,7 +198,9 @@ type MCPToolCall struct {
 
 // MCPServerStats contains server-level statistics
 type MCPServerStats struct {
-	ServerName      string `json:"server_name" console:"header:Server"`
+	ServerName string `json:"server_name" console:"header:Server"`
+	// RequestCount is kept for backward-compatible report schemas that label per-server
+	// request volume; in MCP usage summaries this currently mirrors ToolCallCount.
 	RequestCount    int    `json:"request_count" console:"header:Requests"`
 	ToolCallCount   int    `json:"tool_call_count" console:"header:Tool Calls"`
 	TotalInputSize  int    `json:"total_input_size" console:"header:Total Input,format:number"`

@@ -179,7 +179,7 @@ Move open non-draft PRs toward a state where a maintainer can investigate quickl
 6. If a `pr-processor` call returns non-JSON or an error, record `{pr_number: <N>, skip_reason: "sub_agent_error"}` in the `skipped` array of the run-summary noop payload and move to the next PR without retrying.
 7. Do not fetch full PR diffs or large file lists unless absolutely required for a skip decision.
 8. **Never finish without at least one safe-output tool call.** If you have not called `add_comment` or `update_pull_request`, you must call the run-summary `noop` (see **Run summary** below) before finishing.
-9. Call safe-output MCP tools directly (`add_comment`, `update_pull_request`, `push_to_pull_request_branch`, `noop`, `report_incomplete`). Do **not** use `gh pr comment`, `gh api ... -X POST`, or `safeoutputs ...` shell wrappers for write actions.
+9. Use `safeoutputs <tool> --param value` shell commands for all safe-output operations (`add_comment`, `update_pull_request`, `push_to_pull_request_branch`, `noop`, `report_incomplete`). Do **not** use `gh pr comment`, `gh pr update-branch`, `gh api ... -X POST`, or any GitHub API write calls outside of `safeoutputs`. Do **not** pipe `safeoutputs` to other commands or run `safeoutputs --help` — the tool schemas are already provided; use the examples below directly.
 
 ## Required skip rules per PR
 
@@ -211,6 +211,10 @@ For each PR that is not skipped:
 1. **Update branch if possible**
    - If the PR is behind its base branch (or otherwise indicates branch update needed), attempt `update_pull_request` with `update_branch: true`.
    - Use a minimal append body marker so maintainers can trace the action, including `pr-sous-chef` and the run URL.
+   - Example (`update_pull_request` shell call):
+     ```bash
+     safeoutputs update_pull_request --pull_request_number 12345 --update_branch true --body "<!-- pr-sous-chef branch update -->" --operation append
+     ```
 
 2. **Nudge unresolved review feedback**
    - Check pull request review threads/comments.
@@ -220,9 +224,9 @@ For each PR that is not skipped:
      - a short sentence asking Copilot to address unresolved review feedback.
    - Every `add_comment` must include `pr_number` set to the current PR's numeric `number` from the loop item.
    - Never emit `add_comment` without a numeric target field (`pr_number`/`pull_request_number`/`issue_number`/`item_number`) when `target: "*"` is configured.
-   - Example (`add_comment` tool call):
-     ```json
-     {"add_comment":{"pr_number":12345,"body":"<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot review all comments and address unresolved review feedback."}}
+   - Example (`add_comment` shell call):
+     ```bash
+     safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot review all comments and address unresolved review feedback.'
      ```
 
 3. **Apply one additional forward-progress nudge**
@@ -244,10 +248,10 @@ At the end, call **exactly one** `noop` with a compact summary including counts 
 - branch_update_attempts
 - formatter_pushes (number of PRs that had formatting fixes committed and pushed)
 
-Example (`noop` tool call):
+Example (`noop` shell call):
 
-```json
-{"noop":{"message":"processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=2; nudged_review_comments=1; nudged_other=1; branch_update_attempts=0; formatter_pushes=0"}}
+```bash
+safeoutputs noop --message "processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=2; nudged_review_comments=1; nudged_other=1; branch_update_attempts=0; formatter_pushes=0"
 ```
 
 ## Formatting Requirements

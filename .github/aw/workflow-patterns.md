@@ -44,6 +44,13 @@ Compact `workflow_run` examples:
 - **Deploy workflow failure triage**: trigger on `workflow_run` for `Deploy`, read failed jobs/logs/artifacts, create one incident issue, `noop` when rerun succeeds.
 - **CI regression watcher**: trigger on `workflow_run` for `CI`, compare current failure against recent runs, create issue only for new regressions, `noop` for known flakes.
 
+Incident duplicate-suppression pattern:
+
+- derive a stable incident key from the monitored workflow and failure signal (for example `<workflow-name>#<head-sha>#<failed-job-name>`)
+- search open issues by title-prefix/label/key before creating a new issue
+- create via `safe-outputs.create-issue` only when no matching open incident exists
+- use `noop` for duplicates and include the matching issue number in the explanation
+
 ### Use `deployment_status` when
 
 - monitoring an external deployment service reporting back to GitHub
@@ -152,6 +159,21 @@ Rules:
 - set `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` on every `gh` step
 - add `permissions: actions: read` for downloading workflow logs/artifacts
 - use `jq` to reduce JSON payload size
+
+Compact reporting/incident prefetch example:
+
+```yaml
+steps:
+  - name: Prefetch compact failure context
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+    run: |
+      gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" \
+        --jq '[.jobs[] | select(.conclusion != "success") | {name, conclusion, started_at, completed_at}]' \
+        > /tmp/gh-aw/agent/failed_jobs.json
+```
 
 ## PR Visual Regression Pattern
 

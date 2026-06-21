@@ -118,6 +118,8 @@ pre-agent-steps:
         sleep 3
       done
       echo "Server ready at http://localhost:4321/gh-aw/!"
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -1,7 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+// @safe-outputs-exempt SEC-004 — event body text is read only for slash-command parsing; outbound /help comments are built from internal metadata.
 
 const { REACTION_MAP } = require("./add_reaction.cjs");
+const { createOrReuseStatusComment } = require("./add_workflow_run_comment.cjs");
 const nodePath = require("node:path");
 const { matchesCommandName, parseSlashCommand } = require("./slash_command_matcher.cjs");
 // Keep this aligned with the current default stable GitHub REST API version used by workflows.
@@ -140,6 +142,10 @@ function normalizeReaction(reaction) {
   return trimmed;
 }
 
+function maintainsStatusComment(route) {
+  return route?.status_comment === true;
+}
+
 /**
  * Returns the first valid non-"none" ai_reaction configured on matching routes.
  * @param {Array<{ai_reaction?: unknown}>} routes
@@ -269,6 +275,26 @@ async function addImmediateReaction(reaction) {
   }
 }
 
+async function addImmediateStatusComment() {
+  try {
+    const comment = await createOrReuseStatusComment({
+      ...context,
+      nonFatalStatusCommentErrors: true,
+    });
+    if (!comment?.id) {
+      return null;
+    }
+    return {
+      status_comment_id: String(comment.id),
+      ...(comment.url ? { status_comment_url: comment.url } : {}),
+      ...(comment.repo?.owner && comment.repo?.repo ? { status_comment_repo: `${comment.repo.owner}/${comment.repo.repo}` } : {}),
+    };
+  } catch (error) {
+    core.warning(`Immediate status comment failed: ${String(error)}`);
+    return null;
+  }
+}
+
 /**
  * Dispatches a workflow with the API version header required by GitHub REST.
  * @param {string} workflowId
@@ -295,6 +321,173 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
       return false;
     }
     throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${String(error)}`);
+  }
+}
+
+function isBuiltinHelpEnabled() {
+  const raw = (process.env.GH_AW_HELP_COMMAND_ENABLED || "").trim().toLowerCase();
+  if (!raw || raw === "true") {
+    return true;
+  }
+  if (raw === "false") {
+    return false;
+  }
+  core.warning(`Invalid value for GH_AW_HELP_COMMAND_ENABLED (expected 'true' or 'false', got '${raw}'). Using default: enabled.`);
+  return true;
+}
+
+function parseHelpCommandsMetadata() {
+  const raw = process.env.GH_AW_HELP_COMMANDS || "[]";
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .flatMap(item => {
+        const command = typeof item?.command === "string" ? item.command.trim() : "";
+        if (!command) {
+          return [];
+        }
+        const description = typeof item?.description === "string" ? item.description.trim() : "";
+        return [
+          {
+            command,
+            description,
+            centralized: Boolean(item?.centralized),
+            decentralized: Boolean(item?.decentralized),
+            label: Boolean(item?.label),
+            source_file: typeof item?.source_file === "string" ? item.source_file.trim() : "",
+          },
+        ];
+      })
+      .sort((left, right) => left.command.localeCompare(right.command));
+  } catch (error) {
+    core.warning(`Failed to parse GH_AW_HELP_COMMANDS metadata: ${String(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Regex matching bare GitHub @mentions outside inline code spans.
+ * Captures the preceding non-word character (p1) and the username (p2).
+ */
+const GITHUB_MENTION_RE = /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?)/g;
+
+/**
+ * Neutralizes bare @mentions in a description string so they do not trigger
+ * GitHub notifications. Wraps matched mentions in backticks.
+ * @param {string} description
+ * @returns {string}
+ */
+function neutralizeDescriptionMentions(description) {
+  return description.replace(GITHUB_MENTION_RE, (_, p1, p2) => `${p1}\`@${p2}\``);
+}
+
+function buildCommandBulletLine(entry) {
+  const desc = entry.description ? neutralizeDescriptionMentions(entry.description) : "";
+  const suffix = desc ? ` — ${desc}` : "";
+  const commandText = `\`/${entry.command}\``;
+  if (entry.source_file) {
+    const owner = context.repo.owner;
+    const repo = context.repo.repo;
+    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const sourceUrl = `${githubServer}/${owner}/${repo}/blob/HEAD/.github/workflows/${entry.source_file}.md`;
+    return `- [${commandText}](${sourceUrl})${suffix}`;
+  }
+  return `- ${commandText}${suffix}`;
+}
+
+function buildLabelBulletLine(entry) {
+  const desc = entry.description ? neutralizeDescriptionMentions(entry.description) : "";
+  const suffix = desc ? ` — ${desc}` : "";
+  return `- \`${entry.command}\`${suffix}`;
+}
+
+function buildHelpCommentBody(helpCommands) {
+  // Commands that are centralized should appear only in the centralized section even if
+  // they are also registered as decentralized (e.g. two workflows for the same command).
+  const centralized = helpCommands.filter(entry => entry.centralized);
+  const centralizedNames = new Set(centralized.map(entry => entry.command));
+  const decentralized = helpCommands.filter(entry => entry.decentralized && !centralizedNames.has(entry.command));
+  const labels = helpCommands.filter(entry => entry.label);
+
+  const lines = ["### Agentic Workflow Commands", "", "**Centralized slash commands**"];
+  if (centralized.length === 0) {
+    lines.push("- _None_");
+  } else {
+    for (const entry of centralized) {
+      lines.push(buildCommandBulletLine(entry));
+    }
+  }
+
+  lines.push("", "**Non-centralized slash commands**");
+  if (decentralized.length === 0) {
+    lines.push("- _None_");
+  } else {
+    for (const entry of decentralized) {
+      lines.push(buildCommandBulletLine(entry));
+    }
+  }
+
+  lines.push("", "**Label commands**");
+  if (labels.length === 0) {
+    lines.push("- _None_");
+  } else {
+    for (const entry of labels) {
+      lines.push(buildLabelBulletLine(entry));
+    }
+  }
+
+  const docsUrl = (process.env.GH_AW_SLASH_COMMAND_DOCS_URL || "").trim();
+  if (docsUrl) {
+    lines.push("", `Learn more: [Slash command documentation](${docsUrl})`);
+  }
+  return lines.join("\n");
+}
+
+async function postBuiltinHelpComment(commentBody) {
+  const owner = context.repo.owner;
+  const repo = context.repo.repo;
+
+  try {
+    const issueNumber = context.payload?.issue?.number ?? context.payload?.pull_request?.number;
+    if (issueNumber) {
+      await github.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: commentBody,
+        headers: {
+          "X-GitHub-Api-Version": GITHUB_API_VERSION,
+        },
+      });
+      return true;
+    }
+
+    if (context.eventName === "discussion" || context.eventName === "discussion_comment") {
+      const discussionID = context.payload?.discussion?.node_id;
+      if (!discussionID) {
+        core.warning("Unable to post builtin /help response: discussion node_id missing.");
+        return false;
+      }
+      await github.graphql(
+        `
+          mutation($discussionId: ID!, $body: String!) {
+            addDiscussionComment(input: { discussionId: $discussionId, body: $body }) {
+              comment { id }
+            }
+          }`,
+        { discussionId: discussionID, body: commentBody }
+      );
+      return true;
+    }
+
+    core.warning(`Unable to post builtin /help response for event '${context.eventName}'.`);
+    return false;
+  } catch (error) {
+    core.warning(`Failed to post builtin /help comment: ${String(error)}`);
+    return false;
   }
 }
 
@@ -325,12 +518,12 @@ function isDisabledWorkflowDispatchError(error) {
 }
 
 /**
- * @param {Record<string, Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown}>>} slashRouteMap
+ * @param {Record<string, Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, status_comment?: unknown}>>} slashRouteMap
  * @param {string} actualCommand
- * @returns {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown}>}
+ * @returns {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, status_comment?: unknown}>}
  */
 function resolveMatchingSlashRoutes(slashRouteMap, actualCommand) {
-  /** @type {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown}>} */
+  /** @type {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, status_comment?: unknown}>} */
   const matchedRoutes = [];
   const seen = new Set();
 
@@ -340,7 +533,9 @@ function resolveMatchingSlashRoutes(slashRouteMap, actualCommand) {
     }
 
     for (const route of configuredRoutes) {
-      const key = JSON.stringify([route?.workflow ?? "", route?.ai_reaction ?? "", Array.isArray(route?.events) ? route.events : []]);
+      // Keep the de-duplication key explicit so routes that differ only by
+      // status-comment behavior remain distinct dispatch targets.
+      const key = JSON.stringify([route?.workflow ?? "", route?.ai_reaction ?? "", route?.status_comment === true, Array.isArray(route?.events) ? route.events : []]);
       if (seen.has(key)) {
         continue;
       }
@@ -423,6 +618,19 @@ async function main() {
   }
 
   const commandName = selectedCommand;
+  if (commandName === "help") {
+    if (isBuiltinHelpEnabled()) {
+      await addImmediateReaction("eyes");
+      const posted = await postBuiltinHelpComment(buildHelpCommentBody(parseHelpCommandsMetadata()));
+      if (posted) {
+        core.info("Posted builtin /help command response.");
+      }
+      return;
+    }
+    // Builtin /help is disabled — fall through so custom /help workflows still dispatch.
+    core.info("Builtin /help command is disabled by aw.json (help_command=false); routing normally.");
+  }
+
   core.info(`Resolved command '/${commandName}' for event identifier '${identifier}'.`);
   const configuredRoutes = resolveMatchingSlashRoutes(slashRouteMap, commandName);
   core.info(`Configured routes for '/${commandName}': ${configuredRoutes.length}.`);
@@ -437,6 +645,11 @@ async function main() {
     core.info(`Adding immediate '${immediateReaction}' reaction for '/${commandName}'.`);
     await addImmediateReaction(immediateReaction);
   }
+  let statusCommentContext = null;
+  if (routes.some(maintainsStatusComment)) {
+    core.info(`Adding immediate status comment for '/${commandName}'.`);
+    statusCommentContext = await addImmediateStatusComment();
+  }
 
   core.info(`Dispatch ref resolved to '${ref}'.`);
   for (const route of routes) {
@@ -450,6 +663,7 @@ async function main() {
       ...buildAwContext(),
       command_name: commandName,
       ...(routeReaction ? { desired_ai_reaction: routeReaction } : {}),
+      ...(maintainsStatusComment(route) && statusCommentContext ? statusCommentContext : {}),
     };
     core.info(`Dispatching workflow '${workflowID}' for '/${commandName}'.`);
     const dispatched = await dispatchWorkflow(workflowID, ref, {

@@ -74,9 +74,9 @@ All metrics use standardized names from scratchpad/metrics-glossary.md:
 **Tests**: Test files/LOC (`test_lines_of_code`), test-to-source ratio (`test_to_source_ratio`)
 
 **Churn (7d)**: Files modified, commits, lines added/deleted, most active files (requires `git fetch --unshallow`)
-  - **IMPORTANT**: Exclude generated `*.lock.yml` files from churn calculations to avoid noise
-  - Calculate separate churn metrics: source code churn vs workflow lock file churn
-  - Use source code churn (excluding `*.lock.yml`) for quality score calculation
+  - **IMPORTANT**: Exclude generated files (`*.lock.yml`, `actions-lock.json`) from churn calculations to avoid noise
+  - Calculate separate churn metrics: source code churn vs generated file churn
+  - Use source code churn (excluding `*.lock.yml` and `actions-lock.json`) for quality score calculation
 
 **Workflows**: Total `.md` files (`total_workflows`), `.lock.yml` files, avg workflow size in `.github/workflows`
 
@@ -114,7 +114,7 @@ Store as JSON Lines in `/tmp/gh-aw/repo-memory/default/history.jsonl`:
 }
 ```
 
-**Note**: Churn metrics are split into `source` (excludes `*.lock.yml`) and `lock_files` (only `*.lock.yml`) for separate tracking.
+**Note**: Churn metrics are split into `source` (excludes `*.lock.yml` and `actions-lock.json`) and `generated_files` (only `*.lock.yml` and `actions-lock.json`) for separate tracking.
 
 ## Data Visualization with Python
 
@@ -127,7 +127,7 @@ Generate **6 high-quality charts** to visualize code metrics and trends using Py
 2. **Top Directories** (`top_directories.png`) — horizontal bar chart of top 10 directories by LOC (full paths, LOC and percent, highlight `cmd`/`pkg`/`docs`/`workflows`, distinct directory-type colors). Save to `/tmp/gh-aw/python/charts/top_directories.png`.
 3. **Quality Score Breakdown** (`quality_score_breakdown.png`) — stacked bar or pie breakdown of Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target (100%) with red→green gradient. Save to `/tmp/gh-aw/python/charts/quality_score_breakdown.png`.
 4. **Test Coverage** (`test_coverage.png`) — grouped comparison of test vs source LOC by language, ratio visualization, optional trend indicator, and recommended ratio marker (0.5–1.0). Save to `/tmp/gh-aw/python/charts/test_coverage.png`.
-5. **Code Churn** (`code_churn.png`) — diverging bars for top 10 most changed source files in 7 days; **exclude** `*.lock.yml`, show added/deleted/net, color by file type, truncate long paths when needed. Save to `/tmp/gh-aw/python/charts/code_churn.png`.
+5. **Code Churn** (`code_churn.png`) — diverging bars for top 10 most changed source files in 7 days; **exclude** `*.lock.yml` and `actions-lock.json`, show added/deleted/net, color by file type, truncate long paths when needed. Save to `/tmp/gh-aw/python/charts/code_churn.png`.
 6. **Historical Trends** (`historical_trends.png`) — multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. Save to `/tmp/gh-aw/python/charts/historical_trends.png`.
 {{else}}
 Generate **2 high-quality charts** focusing on the most actionable signals:
@@ -275,7 +275,7 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 
 ![Code Churn](URL_FROM_UPLOAD_ASSET)
 
-[Most changed source files and activity patterns - excludes generated *.lock.yml files]
+[Most changed source files and activity patterns - excludes generated *.lock.yml and actions-lock.json files]
 
 ![Historical Trends](URL_FROM_UPLOAD_ASSET)
 
@@ -324,14 +324,14 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 
 **Most Active Source Files**: path/to/file.go (+XXX/-XXX), path/to/file.js (+XXX/-XXX), ...
 
-### Workflow Lock File Churn (*.lock.yml only)
+### Generated File Churn (*.lock.yml and actions-lock.json)
 
-- **Lock Files Modified**: XXX files
+- **Generated Files Modified**: XXX files
 - **Lines Added**: +X,XXX lines
 - **Lines Deleted**: -X,XXX lines
 - **Net Change**: +/-X,XXX lines
 
-**Note**: Lock file churn is reported separately and excluded from quality score calculations to avoid noise from generated files.
+**Note**: Generated file churn (`.lock.yml` and `actions-lock.json`) is reported separately and excluded from quality score calculations to avoid noise from code-generated files.
 
 ### Workflow Metrics
 
@@ -387,13 +387,13 @@ Weighted average: Test coverage (30%), Code organization (25%), Documentation (2
 
 ### Churn Stability Component (15% of Quality Score)
 
-**CRITICAL**: Use **source code churn only** (exclude `*.lock.yml` files) when calculating churn stability for the quality score.
+**CRITICAL**: Use **source code churn only** (exclude `*.lock.yml` and `actions-lock.json` files) when calculating churn stability for the quality score.
 
 **Calculation**:
-1. Calculate source code churn: `git log --since="7 days ago" --numstat --pretty=format: -- . ':!*.lock.yml'`
+1. Calculate source code churn: `git log --since="7 days ago" --numstat --pretty=format: -- . ':!*.lock.yml' ':!**/actions-lock.json'`
 2. Compute churn score based on files modified and net change (lower churn = higher stability)
 3. Normalize to 0-15 points scale
-4. Track workflow lock file churn separately for informational purposes only
+4. Track generated file churn separately for informational purposes only
 
 This ensures the quality score reflects actionable source code volatility, not noise from generated files.
 

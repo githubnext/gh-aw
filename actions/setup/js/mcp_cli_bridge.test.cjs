@@ -435,6 +435,22 @@ describe("mcp_cli_bridge.cjs", () => {
       expect(hasStdinJsonPayload([".", "--extra", "value"])).toBe(false);
     });
 
+    it("returns true for '--key .' (per-field stdin marker, space-separated)", () => {
+      expect(hasStdinJsonPayload(["--body", "."])).toBe(true);
+    });
+
+    it("returns true for '--key=.' (per-field stdin marker, equals-separated)", () => {
+      expect(hasStdinJsonPayload(["--body=."])).toBe(true);
+    });
+
+    it("returns true for mixed flags when one uses the per-field sentinel", () => {
+      expect(hasStdinJsonPayload(["--title", "My title", "--body", "."])).toBe(true);
+    });
+
+    it("returns false when flag value is not '.' (not a sentinel)", () => {
+      expect(hasStdinJsonPayload(["--body", "hello"])).toBe(false);
+    });
+
     it("parses stdin JSON object when '.' sentinel is used", () => {
       const schemaProperties = {
         issue_number: { type: "integer" },
@@ -518,6 +534,68 @@ describe("mcp_cli_bridge.cjs", () => {
       const { args } = parseToolArgs(["."], schemaProperties, stdinContent);
 
       expect(args).toEqual({ body: "### Title\n\nLine one.\n\nLine two." });
+    });
+  });
+
+  describe("per-field stdin marker ('.')", () => {
+    it("substitutes '--body .' with stdin content (space-separated form)", () => {
+      const schemaProperties = { title: { type: "string" }, body: { type: "string" } };
+      const stdinContent = "This is a long body from stdin.";
+
+      const { args } = parseToolArgs(["--title", "My issue", "--body", "."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ title: "My issue", body: "This is a long body from stdin." });
+    });
+
+    it("substitutes '--body=.' with stdin content (equals-separated form)", () => {
+      const schemaProperties = { body: { type: "string" } };
+      const stdinContent = "Body content from stdin.";
+
+      const { args } = parseToolArgs(["--body=."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ body: "Body content from stdin." });
+    });
+
+    it("trims leading/trailing whitespace from stdin content", () => {
+      const schemaProperties = { body: { type: "string" } };
+      const stdinContent = "  \n  Trimmed content.  \n  ";
+
+      const { args } = parseToolArgs(["--body", "."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ body: "Trimmed content." });
+    });
+
+    it("falls back to literal '.' when stdinContent is null", () => {
+      const schemaProperties = { body: { type: "string" } };
+
+      const { args } = parseToolArgs(["--body", "."], schemaProperties, null);
+
+      expect(args).toEqual({ body: "." });
+    });
+
+    it("falls back to literal '.' when stdinContent is empty", () => {
+      const schemaProperties = { body: { type: "string" } };
+
+      const { args } = parseToolArgs(["--body", "."], schemaProperties, "");
+
+      expect(args).toEqual({ body: "." });
+    });
+
+    it("falls back to literal '.' when stdinContent is whitespace-only", () => {
+      const schemaProperties = { body: { type: "string" } };
+
+      const { args } = parseToolArgs(["--body", "."], schemaProperties, "   \n   ");
+
+      expect(args).toEqual({ body: "." });
+    });
+
+    it("all fields using '.' receive the same stdin content", () => {
+      const schemaProperties = { title: { type: "string" }, body: { type: "string" } };
+      const stdinContent = "Shared stdin content.";
+
+      const { args } = parseToolArgs(["--title", ".", "--body", "."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ title: "Shared stdin content.", body: "Shared stdin content." });
     });
   });
 

@@ -43,8 +43,10 @@ tools:
   - cat pkg/workflow/js/safe_outputs_tools.json
   - cat pkg/parser/schemas/main_workflow_schema.json
   - cat pkg/cli/workflows/*.md
+  - sed -n
   - git status
   - git diff --name-only
+  - cd * && git diff --name-only
   - python3 *
   cli-proxy: true
   edit: null
@@ -120,6 +122,7 @@ Do not modify unrelated existing fixture files and do not create duplicates when
 ## Guardrails
 
 - Keep additions minimal and deterministic.
+- Prefer bash inspection commands (`cat`, `grep`, `sed`) instead of `read(...)` tool calls for repository files.
 - Use `###`/`####` headings only in generated report text.
 - Use `<details>` blocks for long sections.
 - This workflow must end with either `create_pull_request` or `noop`.

@@ -3,6 +3,7 @@ package workflow
 import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
@@ -33,7 +34,7 @@ func expandBotNames(bots []string) []string {
 	}
 	needsExpansion := false
 	for _, b := range bots {
-		if hasStringKey(copilotBotSet, b) {
+		if setutil.Contains(copilotBotSet, b) {
 			needsExpansion = true
 			break
 		}
@@ -45,7 +46,7 @@ func expandBotNames(bots []string) []string {
 	// identifier that expands to len(constants.CopilotBotNames) entries.
 	expanded := make([]string, 0, len(bots)*len(constants.CopilotBotNames))
 	for _, b := range bots {
-		if hasStringKey(copilotBotSet, b) {
+		if setutil.Contains(copilotBotSet, b) {
 			expanded = append(expanded, constants.CopilotBotNames...)
 		} else {
 			expanded = append(expanded, b)

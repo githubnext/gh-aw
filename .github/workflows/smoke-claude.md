@@ -132,7 +132,8 @@ safe-outputs:
           core.info(`[FICTITIOUS SLACK] → ${targetChannel}: ${text}`);
           return { success: true, channel: targetChannel, message: text };
 timeout-minutes: 10
-
+features:
+  gh-aw-detection: true
 ---
 
 # Smoke Test: Claude Engine Validation.

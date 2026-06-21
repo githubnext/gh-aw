@@ -11,9 +11,11 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
+
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -603,7 +605,7 @@ func detectNetworkFromRepo() []string {
 			_, err := os.Stat(filepath.Join(cwd, m.file))
 			found = err == nil
 		}
-		if found && !hasStringKey(seen, m.bucket) {
+		if found && !setutil.Contains(seen, m.bucket) {
 			seen[m.bucket] = struct {
 			}{}
 		}

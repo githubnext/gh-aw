@@ -31,6 +31,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
@@ -60,6 +61,17 @@ const (
 	// for ARC/DinD runners. A dedicated directory under /tmp/gh-aw is used so that the
 	// runner user has a consistent home that exists on the daemon-visible filesystem.
 	awfArcDindChrootIdentityHome = "/tmp/gh-aw/home"
+
+	// awfShellcheckDirective suppresses shellcheck warnings only on the generated AWF
+	// invocation line:
+	//   - SC1003 is expected because generated GitHub expression literals can include
+	//     single quotes (for example ports['<port>']) and must survive unchanged.
+	//   - SC2086 is expected because compiler-owned AWF argument fragments are emitted
+	//     as intentional expandable shell snippets (for example ${GH_AW_TOOL_CACHE_MOUNT:+...}
+	//     and ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}).
+	//
+	// User-controlled values remain quoted via shellEscapeArg/shellJoinArgs.
+	awfShellcheckDirective = "# shellcheck disable=SC1003,SC2086"
 )
 
 // AWFCommandConfig contains configuration for building AWF commands.
@@ -174,43 +186,12 @@ func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
 		return "", fmt.Errorf("marshal network allowed ecosystem map: %w", err)
 	}
 
-	return fmt.Sprintf(`python3 - <<'PY'
-import json
-import os
-from pathlib import Path
-
-runner_temp = os.environ.get("RUNNER_TEMP")
-if not runner_temp:
-    raise SystemExit("RUNNER_TEMP is not set")
-
-config_path = Path(runner_temp) / "gh-aw" / "awf-config.json"
-try:
-    config = json.loads(config_path.read_text())
-except FileNotFoundError as exc:
-    raise SystemExit(f"Missing AWF config file at {config_path}") from exc
-except json.JSONDecodeError as exc:
-    raise SystemExit(f"Invalid AWF config JSON at {config_path}: {exc}") from exc
-except OSError as exc:
-    raise SystemExit(f"Failed to read AWF config file at {config_path}: {exc}") from exc
-
-network_allowed = os.environ.get(%q, "")
-tokens = [token.strip() for token in network_allowed.split(",") if token.strip()]
-
-if tokens:
-    ecosystem_map = json.loads(r'''%s''')
-    allow_domains = config.setdefault("network", {}).setdefault("allowDomains", [])
-    seen = set(allow_domains)
-    for token in tokens:
-        for domain in ecosystem_map.get(token, [token]):
-            if domain not in seen:
-                allow_domains.append(domain)
-                seen.add(domain)
-
-try:
-    config_path.write_text(json.dumps(config, separators=(",", ":"), ensure_ascii=False) + "\n")
-except OSError as exc:
-    raise SystemExit(f"Failed to write AWF config file at {config_path}: {exc}") from exc
-PY`, string(WorkflowCallNetworkAllowedEnvVar), string(ecosystemJSON)), nil
+	// Pass the ecosystem map JSON via an env var and invoke the JavaScript
+	// implementation deployed by actions/setup to ${RUNNER_TEMP}/gh-aw/actions/.
+	// Using node avoids any Python dependency and eliminates quote-injection risk:
+	// shellEscapeArg safely single-quotes and escapes the JSON payload.
+	return fmt.Sprintf(`GH_AW_ECOSYSTEM_MAP_JSON=%s node "${RUNNER_TEMP}/gh-aw/actions/update_network_allowed.cjs"`,
+		shellEscapeArg(string(ecosystemJSON))), nil
 }
 
 // BuildAWFCommand builds a complete AWF command with all arguments.
@@ -414,6 +395,18 @@ fi`,
 	// Build the complete command with proper formatting.
 	// configFileSetup (if non-empty) writes the AWF config JSON immediately before the
 	// AWF invocation so the file is present when AWF parses --config.
+	//
+	// shellcheck directive rationale:
+	//   - SC1003 is expected because this generated block intentionally contains GitHub
+	//     expression literals (for example ${{ job.services.<id>.ports['<port>'] }})
+	//     that include single quotes and must survive into runtime unchanged.
+	//   - SC2086 is expected because a subset of AWF arguments are intentionally emitted
+	//     as expandable shell fragments (for example ${GH_AW_TOOL_CACHE_MOUNT:+...} and
+	//     ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}). These fragments are produced by trusted
+	//     compiler-owned probes above and are not user-provided free-form shell input.
+	//
+	// We keep normal quoting for all user-controlled values via shellEscapeArg/shellJoinArgs
+	// and scope this suppression to the generated AWF invocation line only.
 	var command string
 	if config.PathSetup != "" && configFileSetup != "" {
 		command = fmt.Sprintf(`set -o pipefail
@@ -425,7 +418,7 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003
+%s
 %s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
@@ -436,6 +429,7 @@ fi`,
 			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
+			awfShellcheckDirective,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
@@ -454,7 +448,7 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003
+%s
 %s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
@@ -464,6 +458,7 @@ fi`,
 			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
+			awfShellcheckDirective,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
@@ -481,7 +476,7 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003
+%s
 %s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
@@ -491,6 +486,7 @@ fi`,
 			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
+			awfShellcheckDirective,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
@@ -507,7 +503,7 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003
+%s
 %s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
@@ -516,6 +512,7 @@ fi`,
 			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
+			awfShellcheckDirective,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
@@ -817,7 +814,7 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 	var names []string
 
 	addUnique := func(name string) {
-		if !hasStringKey(seen, name) {
+		if !setutil.Contains(seen, name) {
 			seen[name] = struct {
 			}{}
 			names = append(names, name)

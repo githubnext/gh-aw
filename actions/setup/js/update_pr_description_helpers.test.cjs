@@ -31,6 +31,18 @@ describe("update_pr_description_helpers.cjs", () => {
       const footer = buildAIFooter("Test & Workflow", "https://github.com/owner/repo/actions/runs/123");
       expect(footer).toContain("Test & Workflow");
     });
+
+    it("should include historyUrl in footer when provided", () => {
+      const historyUrl = "https://github.com/search?q=repo%3Aowner%2Frepo";
+      const footer = buildAIFooter("Test Workflow", "https://github.com/owner/repo/actions/runs/123", historyUrl);
+      expect(footer).toContain(historyUrl);
+    });
+
+    it("should return a non-empty footer string", () => {
+      const footer = buildAIFooter("Test Workflow", "https://github.com/owner/repo/actions/runs/123");
+      expect(typeof footer).toBe("string");
+      expect(footer.length).toBeGreaterThan(0);
+    });
   });
 
   describe("buildIslandStartMarker", () => {
@@ -95,6 +107,34 @@ describe("update_pr_description_helpers.cjs", () => {
       expect(result1.found).toBe(true);
       expect(result2.found).toBe(true);
       expect(result1.startIndex).toBeLessThan(result2.startIndex);
+    });
+
+    it("should return exact startIndex=0 and endIndex=body.length when island spans entire body", () => {
+      const startMarker = buildIslandStartMarker("wf");
+      const endMarker = buildIslandEndMarker("wf");
+      const body = `${startMarker}inner${endMarker}`;
+      const result = findIsland(body, "wf");
+      expect(result.found).toBe(true);
+      expect(result.startIndex).toBe(0);
+      expect(result.endIndex).toBe(body.length);
+    });
+
+    it("should not find island in empty body", () => {
+      const result = findIsland("", "test-workflow");
+      expect(result.found).toBe(false);
+      expect(result.startIndex).toBe(-1);
+      expect(result.endIndex).toBe(-1);
+    });
+
+    it("should find island with prefix content and return correct startIndex", () => {
+      const prefix = "prefix content\n";
+      const startMarker = buildIslandStartMarker("wf");
+      const endMarker = buildIslandEndMarker("wf");
+      const body = `${prefix}${startMarker}inner${endMarker}`;
+      const result = findIsland(body, "wf");
+      expect(result.found).toBe(true);
+      expect(result.startIndex).toBe(prefix.length);
+      expect(result.endIndex).toBe(body.length);
     });
   });
 
