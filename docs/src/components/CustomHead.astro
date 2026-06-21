@@ -173,35 +173,37 @@ const homeJsonLd = {
   ],
 };
 
-const pageJsonLd = isBlogPost
-  ? {
-      '@context': 'https://schema.org',
-      '@type': 'BlogPosting',
-      headline: rawPageTitle,
-      description: pageDescription,
-      url: pageUrl,
-      datePublished: blogPublishedDate,
-      dateModified: blogModifiedDate,
-      ...(blogAuthors.length > 0 ? { author: blogAuthors } : {}),
-      publisher: {
-        '@id': organizationId,
-      },
-    }
-  : !isDocsHomePage && !isBlogPath
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'TechArticle',
-        name: rawPageTitle,
-        description: pageDescription,
-        url: pageUrl,
-        isPartOf: {
-          '@id': websiteId,
-        },
-        publisher: {
-          '@id': organizationId,
-        },
-      }
-    : undefined;
+let pageJsonLd;
+
+if (isBlogPost) {
+  pageJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: rawPageTitle,
+    description: pageDescription,
+    url: pageUrl,
+    datePublished: blogPublishedDate,
+    dateModified: blogModifiedDate,
+    ...(blogAuthors.length > 0 ? { author: blogAuthors } : {}),
+    publisher: {
+      '@id': organizationId,
+    },
+  };
+} else if (!isDocsHomePage && !isBlogPath) {
+  pageJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    name: rawPageTitle,
+    description: pageDescription,
+    url: pageUrl,
+    isPartOf: {
+      '@id': websiteId,
+    },
+    publisher: {
+      '@id': organizationId,
+    },
+  };
+}
 
 // Properties we override with enhanced values
 const overriddenProps = new Set([
