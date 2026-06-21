@@ -42,4 +42,7 @@ func TestValidateUnsupportedClaudeOAuthTokenForWorkflowFiles(t *testing.T) {
 	if err := validateUnsupportedClaudeOAuthTokenForWorkflowFiles([]string{claudeWorkflow}, ""); err == nil || !strings.Contains(err.Error(), claudeCodeOAuthTokenEnvVar) {
 		t.Fatalf("expected unsupported token error for claude workflow, got %v", err)
 	}
+	if err := validateUnsupportedClaudeOAuthTokenForWorkflowFiles([]string{filepath.Join(tempDir, "missing.md")}, ""); err == nil || !strings.Contains(err.Error(), "failed to inspect workflow") {
+		t.Fatalf("expected inspection error for missing workflow file, got %v", err)
+	}
 }
