@@ -43,11 +43,16 @@ const toSchemaDate = (value: unknown) => {
   return undefined;
 };
 
+const normalizeAuthorsArray = (value: unknown) => {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
 const pageUrl = new URL(pathname, siteOrigin).toString();
 const blogPublishedDate = toSchemaDate(entry?.data?.date);
 const blogModifiedDate = toSchemaDate(entry?.data?.lastUpdated ?? entry?.data?.date);
 const rawAuthors = entry?.data?.authors ?? entry?.data?.author;
-const blogAuthors = (Array.isArray(rawAuthors) ? rawAuthors : rawAuthors ? [rawAuthors] : [])
+const blogAuthors = normalizeAuthorsArray(rawAuthors)
   .map((author) => {
     if (typeof author === 'string') {
       return {
