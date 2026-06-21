@@ -20,7 +20,7 @@ import (
 // Analyzer is the defer-in-loop analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "deferinloop",
-	Doc:      "reports defer statements placed directly inside for or range loop bodies; defers inside function literals are exempt because they form a new function scope",
+	Doc:      "reports defer statements placed directly inside for or range loop bodies; a function literal between a defer and an enclosing loop is treated as a new scope boundary, making the defer exempt",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/deferinloop",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
