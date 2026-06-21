@@ -247,6 +247,20 @@ func TestFilterPiArgs(t *testing.T) {
 	})
 }
 
+func TestResolvePiGatewaySecretEnvVar(t *testing.T) {
+	t.Run("uses first core secret when present", func(t *testing.T) {
+		profile := universalLLMBackendProfile{coreSecretNames: []string{"CUSTOM_API_KEY", "SECOND"}}
+		assert.Equal(t, "CUSTOM_API_KEY", resolvePiGatewaySecretEnvVar(profile, UniversalLLMBackendAnthropic))
+	})
+
+	t.Run("falls back to backend defaults when core secrets are empty", func(t *testing.T) {
+		profile := universalLLMBackendProfile{}
+		assert.Equal(t, "ANTHROPIC_API_KEY", resolvePiGatewaySecretEnvVar(profile, UniversalLLMBackendAnthropic))
+		assert.Equal(t, "CODEX_API_KEY", resolvePiGatewaySecretEnvVar(profile, UniversalLLMBackendCodex))
+		assert.Equal(t, "COPILOT_GITHUB_TOKEN", resolvePiGatewaySecretEnvVar(profile, UniversalLLMBackendCopilot))
+	})
+}
+
 func TestPiEngine_GetExecutionSteps_ProviderPrefixCopilot(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{
@@ -343,6 +357,8 @@ func TestPiEngine_GetExecutionSteps_FirewallAnthropicProvider(t *testing.T) {
 	stepText := strings.Join(steps[0], "\n")
 	assert.Contains(t, stepText, "PI_CODING_AGENT_DIR", "Firewall mode should set PI_CODING_AGENT_DIR for models.json config")
 	assert.Contains(t, stepText, "aw-gateway", "Firewall mode should register the aw-gateway provider in models.json")
+	assert.Contains(t, stepText, "aw-gateway/claude-opus-4-20251101", "Firewall mode should route model via aw-gateway provider")
+	assert.NotContains(t, stepText, " --model anthropic/claude-opus-4-20251101", "Firewall mode must not use native provider resolution")
 	assert.Contains(t, stepText, "claude-opus-4-20251101", "Step should include the model ID in models.json")
 	assert.Contains(t, stepText, `\"enabled\":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
 	// Anthropic provider routes through the Claude LLM gateway port.
@@ -374,6 +390,8 @@ func TestPiEngine_GetExecutionSteps_FirewallCodexProvider(t *testing.T) {
 	stepText := strings.Join(steps[0], "\n")
 	assert.Contains(t, stepText, "PI_CODING_AGENT_DIR", "Firewall mode should set PI_CODING_AGENT_DIR for models.json config")
 	assert.Contains(t, stepText, "aw-gateway", "Firewall mode should register the aw-gateway provider in models.json")
+	assert.Contains(t, stepText, "aw-gateway/gpt-4.1", "Firewall mode should route model via aw-gateway provider")
+	assert.NotContains(t, stepText, " --model openai/gpt-4.1", "Firewall mode must not use native provider resolution")
 	assert.Contains(t, stepText, "gpt-4.1", "Step should include the model ID in models.json")
 	assert.Contains(t, stepText, `\"enabled\":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
 	// Codex/OpenAI provider routes through the Codex LLM gateway port.

@@ -142,6 +142,23 @@ func buildPiModelsJSON(gatewayPort int, secretEnvVarName, modelID string) string
 	return string(b)
 }
 
+func resolvePiGatewaySecretEnvVar(profile universalLLMBackendProfile, backend UniversalLLMBackend) string {
+	if len(profile.coreSecretNames) > 0 {
+		return profile.coreSecretNames[0]
+	}
+
+	switch backend {
+	case UniversalLLMBackendAnthropic:
+		return "ANTHROPIC_API_KEY"
+	case UniversalLLMBackendCodex:
+		return "CODEX_API_KEY"
+	default:
+		// copilot-requests: write intentionally leaves coreSecretNames empty and
+		// uses COPILOT_GITHUB_TOKEN=${{ github.token }} instead.
+		return "COPILOT_GITHUB_TOKEN"
+	}
+}
+
 // GetRequiredSecretNames returns the list of secrets required by the Pi engine.
 // When the model uses provider/model format the provider-specific secret is required
 // (e.g. ANTHROPIC_API_KEY for "anthropic/..."); otherwise Pi routes through the
@@ -289,31 +306,18 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 		modelID := extractPiModelID(workflowData.EngineConfig.Model)
 
 		// Determine the env var name to use as the "apiKey" in the models.json gateway
-		// config.  Pi's resolveConfigValue() reads process.env[apiKey] at runtime to
+		// config. Pi's resolveConfigValue() reads process.env[apiKey] at runtime to
 		// obtain the actual token value.
-		//
-		// For Anthropic/Codex backends this is always profile.coreSecretNames[0].
-		// For the Copilot backend with copilot-requests: write permission,
-		// coreSecretNames is empty (no PAT secret required) but COPILOT_GITHUB_TOKEN
-		// is still injected via the profile env (set to ${{ github.token }}).
-		// Without this fallback, Pi would bypass the AWF gateway and attempt a direct
-		// connection to api.individual.githubcopilot.com — which the firewall blocks.
-		gatewaySecretEnvVar := ""
-		if len(profile.coreSecretNames) > 0 {
-			gatewaySecretEnvVar = profile.coreSecretNames[0]
-		} else if backend == UniversalLLMBackendCopilot {
-			// The Copilot backend profile always injects COPILOT_GITHUB_TOKEN into
-			// the container env (see getUniversalLLMBackendProfile).  When
-			// coreSecretNames is empty it means copilot-requests: write is set and
-			// COPILOT_GITHUB_TOKEN=${{ github.token }} — the GitHub Actions token
-			// already provides Copilot access without a personal PAT.  Using this
-			// env var as the models.json apiKey routes the request through the AWF
-			// api-proxy gateway rather than attempting a direct connection to
-			// api.individual.githubcopilot.com (which is blocked by the firewall).
-			gatewaySecretEnvVar = "COPILOT_GITHUB_TOKEN"
-		}
+		gatewaySecretEnvVar := resolvePiGatewaySecretEnvVar(profile, backend)
 
-		if firewallEnabled && gatewaySecretEnvVar != "" {
+		if firewallEnabled {
+			// Pi + firewall must always route through aw-gateway/models.json. Native
+			// provider resolution bypasses the gateway and is incompatible with this mode.
+			if gatewaySecretEnvVar == "" {
+				piLog.Printf("Pi: no gateway apiKey env resolved for backend=%s; defaulting to COPILOT_GITHUB_TOKEN", backend)
+				gatewaySecretEnvVar = "COPILOT_GITHUB_TOKEN"
+			}
+
 			// Firewall case: write a models.json that redirects Pi's LLM calls to the
 			// AWF gateway sidecar port.  The "apiKey" field value is the name of the env
 			// var that holds the secret; Pi's resolveConfigValue() looks up
