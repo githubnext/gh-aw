@@ -11,33 +11,24 @@ gh-aw (GitHub Agentic Workflows) is a CLI extension for GitHub that compiles mar
 
 ## Project Glossary
 
-AGENTS.md
-CLAUDE.md
-COPILOT_GITHUB_TOKEN
-COPILOT_MODEL
-DOCKER_HOST
-GH_AW_DEFAULT_DETECTION_MODEL
-GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS
-GH_HOST
-GITHUB_TOKEN
-MCP_GATEWAY_SESSION_TIMEOUT
-README.md
-YAML
 acceptEdits
 actions
 activation
 actor
 add-comment
 add-wizard
-agentic
-agentic-workflows
 agent
 agent-output.json
+agentic
+agentic-workflows
+AGENTS.md
+ai-credits
 allowed
 allowed-domains
 allowed-files
 allowed-github-references
 allowed-repos
+ANTHROPIC_API_KEY
 api-target
 append
 approval-labels
@@ -55,33 +46,38 @@ blocked
 blocked-users
 body
 branch
-bun
 bypassPermissions
 cache
 cache-memory
 call-workflow
 checkout
+claude
+CLAUDE.md
 client-id
+close-issue
+close-pull-request
 codex
 comment-memory
-compile
 compilation
-concurrency
+compile
 conclusion
+concurrency
 contents
 copilot
+COPILOT_GITHUB_TOKEN
+COPILOT_MODEL
 create-discussion
 create-issue
 create-pull-request
 create-pull-request-review-comment
 cron
 cross-repository
+crush
 custom
 custom-safe-outputs
 daily
 default
 defaults
-deno
 dependencies
 detection
 dev-tools
@@ -89,6 +85,7 @@ discussion
 discussion-number
 discussions
 dispatch-workflow
+DOCKER_HOST
 domain
 download-artifact
 edit
@@ -117,11 +114,16 @@ fuzzy-schedule
 gemini
 gemini-flash
 gemini-pro
+GEMINI_API_KEY
 gh-aw
+GH_AW_DEFAULT_DETECTION_MODEL
+GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS
+GH_HOST
 github
 github-app
 github-token
 github-tools
+GITHUB_TOKEN
 go.mod
 gpt-5
 gpt-5-mini
@@ -129,7 +131,6 @@ haiku
 headers
 hide-older-comments
 hourly
-http
 id-token
 ignore
 ignore-if-missing
@@ -162,10 +163,10 @@ mcp
 mcp-gateway
 mcp-scripts
 mcp-servers
+MCP_GATEWAY_SESSION_TIMEOUT
 member
 merge
 merged
-midnight
 min-integrity
 min-samples
 min-version
@@ -174,11 +175,10 @@ model
 model-alias
 network
 network.allowed
-node
 noop
-noon
 notify
 observability
+opencode
 opentelemetry
 opus
 organization
@@ -208,8 +208,8 @@ pull_request
 pull_request_target
 push
 push-to-pull-request-branch
-python
 rate-limiting
+README.md
 redirect
 refusal-labels
 registry
@@ -251,10 +251,10 @@ threat-detection
 timeout-minutes
 timezone
 title-prefix
-toolsets
 tools
 tools.github
 tools.timeout
+toolsets
 total-effective-tokens
 traceId
 traceparent
@@ -266,7 +266,6 @@ update-project
 upload-artifact
 upload-asset
 user-rate-limit
-uv
 variants
 version
 warn
@@ -279,6 +278,7 @@ workflow-dispatch
 workflow_call
 workflow_dispatch
 workflows
+YAML
 
 ## Fix Speech-to-Text Errors
 
@@ -322,6 +322,13 @@ Common misrecognitions to correct:
 - "hide older comments" → "hide-older-comments" (hyphenated)
 - "preserve branch name" → "preserve-branch-name" (hyphenated)
 - "max daily AI credits" → "max-daily-ai-credits" (hyphenated)
+- "AI credits" → "ai-credits" (hyphenated)
+- "open code" → "opencode" (one word when used as engine name)
+- "crush" → "crush" (CLI engine name, lowercase)
+- "anthropic API key" → "ANTHROPIC_API_KEY" (uppercase with underscores)
+- "gemini API key" → "GEMINI_API_KEY" (uppercase with underscores)
+- "close issue" → "close-issue" (hyphenated in YAML context)
+- "close pull request" → "close-pull-request" (hyphenated in YAML context)
 
 ## Clean Up and Improve Text
 
