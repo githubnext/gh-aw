@@ -214,13 +214,14 @@ strict: false
 
 				for idx, checkoutContext := range checkouts {
 					if expectTrue {
-						if strings.Contains(checkoutContext, "persist-credentials: true") {
-							foundTrue = true
-						}
-						if !strings.Contains(checkoutContext, "persist-credentials: true") &&
-							!strings.Contains(checkoutContext, "persist-credentials: false") {
+						hasPersistCredentialsSetting := strings.Contains(checkoutContext, "persist-credentials: true") ||
+							strings.Contains(checkoutContext, "persist-credentials: false")
+						if !hasPersistCredentialsSetting {
 							t.Errorf("%s (job: %s): Checkout #%d missing explicit persist-credentials setting\nContext:\n%s",
 								tt.description, jobName, idx+1, checkoutContext)
+						}
+						if strings.Contains(checkoutContext, "persist-credentials: true") {
+							foundTrue = true
 						}
 					} else {
 						if !strings.Contains(checkoutContext, "persist-credentials: false") {
