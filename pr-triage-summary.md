@@ -1,24 +1,31 @@
 # PR Triage Summary
 
-**Last Updated**: 2026-06-21T12:58:25Z  
-**Last Run ID**: [§27905018760](https://github.com/github/gh-aw/actions/runs/27905018760)
+## Latest Run
+
+- **Date**: 2026-06-21T18:45:45Z
+- **Run ID**: [§27913916316](https://github.com/github/gh-aw/actions/runs/27913916316)
+- **Previous Run**: [§27905018760](https://github.com/github/gh-aw/actions/runs/27905018760) (2026-06-21T12:58:25Z)
 
 ## Status
 
-All open agent PRs are same-repo branches. Fork-only triage policy results in **0 eligible PRs** each run.
+**Fork-only policy active**: 0 eligible PRs out of 3 agent PRs found.
 
-## Open Agent PRs (2026-06-21, Run §27905018760)
+All Copilot coding agent PRs in this repo are same-repo branches (`copilot/*`), not fork PRs. This has been consistent across all runs.
 
-| # | Author | Title | +/- | CI | Status |
-|---|--------|-------|-----|----|--------|
-| #40423 | copilot-swe-agent | Add `replace-label` safe-outputs type | +1836/-5 | none | Open, 21 comments, 1.4d old |
-| #40576 | copilot-swe-agent | Align Smoke Copilot prompts with actual tool names | +11/-11 | 16✅/9⏳ | Open |
-| #40578 | copilot-swe-agent | code simplifier: allowed_issue_fields.cjs | +18/-904 | 26✅/16⏳ | Open |
-| #40584 | github-actions | [jsweep] Clean update_pr_description_helpers.cjs | +43/-3 | none | Open, 9 comments |
-| #40593 | github-actions | [docs] Update dictation skill instructions | +32/-25 | none | Open |
-| #40599 | github-actions | [code-scanning-fix] CWE-190 int conversion | +6/-6 | none | DRAFT |
-| #40604 | github-actions | [instructions] Sync instruction files 0.80.6 | +4/-6 | none | Open |
+## Open Agent PRs (as of this run)
 
-## Pattern
+| PR | Category | Status | CI | Age |
+|----|----------|--------|----|-----|
+| [#40669](https://github.com/github/gh-aw/pull/40669) | chore/feature | OPEN, changes requested | 2 fail/38 pass | <1d |
+| [#40662](https://github.com/github/gh-aw/pull/40662) | bug/perf | DRAFT | none | <1d |
+| [#40423](https://github.com/github/gh-aw/pull/40423) | feature | OPEN, active iteration | none | 1.6d |
 
-Consistent pattern across all runs: agent PRs target same-repo branches, never external forks. No fork PRs have been eligible across any triage run.
+## Merged Since Last Run
+
+- #40578 — code simplifier: allowed_issue_fields.cjs; remove drain3_server.py
+- #40576 — Align Smoke Copilot prompts with actual tool names
+
+## Historical Pattern
+
+All Copilot agent PRs are same-repo branches — fork-only triage has never matched any PRs.
+Consider updating triage policy to include same-repo agent PRs.
