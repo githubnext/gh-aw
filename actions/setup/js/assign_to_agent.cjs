@@ -258,18 +258,13 @@ async function main(config = {}) {
           return { success: false, error };
         }
         try {
-          const itemPullRequestRepoQuery = `
-            query($owner: String!, $name: String!) {
-              repository(owner: $owner, name: $name) { id }
-            }
-          `;
-          const itemPullRequestRepoResponse = await githubClient.graphql(itemPullRequestRepoQuery, { owner: pullRequestRepoParts[0], name: pullRequestRepoParts[1] });
-          effectivePullRequestRepoId = itemPullRequestRepoResponse.repository.id;
+          await resolvePullRequestRepo(githubClient, pullRequestRepoParts[0], pullRequestRepoParts[1], configuredBaseBranch);
+          effectivePullRequestRepoId = itemPullRequestRepo;
           effectivePullRequestRepoSlug = itemPullRequestRepo;
           hasValidatedPerItemPullRequestRepoOverride = true;
-          core.info(`Using per-item pull request repository: ${itemPullRequestRepo} (ID: ${effectivePullRequestRepoId})`);
+          core.info(`Using per-item pull request repository: ${itemPullRequestRepo}`);
         } catch (error) {
-          const errorMsg = `Failed to fetch pull request repository ID for ${itemPullRequestRepo}: ${getErrorMessage(error)}`;
+          const errorMsg = `Failed to resolve pull request repository for ${itemPullRequestRepo}: ${getErrorMessage(error)}`;
           core.error(errorMsg);
           _allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error: errorMsg });
           return { success: false, error: errorMsg };
@@ -391,7 +386,7 @@ async function main(config = {}) {
       if (effectiveBaseBranch) core.info(`Using base branch: ${effectiveBaseBranch}`);
 
       const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents, effectivePullRequestRepoId, model, customAgent, customInstructions, effectiveBaseBranch, githubClient);
-      if (!success) throw new Error(`Failed to assign ${agentName} via GraphQL`);
+      if (!success) throw new Error(`Failed to assign ${agentName} via REST`);
 
       core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number}`);
       _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true });

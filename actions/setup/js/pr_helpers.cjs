@@ -71,8 +71,8 @@ function getPullRequestNumber(messageItem, context) {
 }
 
 /**
- * Resolves the pull request repository ID and effective base branch.
- * Fetches `id` and `defaultBranchRef.name` from the GitHub API.
+ * Resolves pull request repository context and effective base branch.
+ * Fetches repository metadata from the GitHub REST API.
  * The effective base branch is the explicitly configured branch (if any),
  * falling back to the repository's actual default branch.
  *
@@ -83,17 +83,25 @@ function getPullRequestNumber(messageItem, context) {
  * @returns {Promise<{repoId: string, effectiveBaseBranch: string|null, resolvedDefaultBranch: string|null}>}
  */
 async function resolvePullRequestRepo(github, owner, repo, configuredBaseBranch) {
-  const query = `
-    query($owner: String!, $name: String!) {
-      repository(owner: $owner, name: $name) {
-        id
-        defaultBranchRef { name }
+  if (!github?.rest?.repos?.get && github?.graphql) {
+    const query = `
+      query($owner: String!, $name: String!) {
+        repository(owner: $owner, name: $name) {
+          id
+          defaultBranchRef { name }
+        }
       }
-    }
-  `;
-  const response = await github.graphql(query, { owner, name: repo });
-  const repoId = response.repository.id;
-  const resolvedDefaultBranch = response.repository.defaultBranchRef?.name ?? null;
+    `;
+    const response = await github.graphql(query, { owner, name: repo });
+    const repoId = response.repository.id;
+    const resolvedDefaultBranch = response.repository.defaultBranchRef?.name ?? null;
+    const effectiveBaseBranch = configuredBaseBranch || resolvedDefaultBranch;
+    return { repoId, effectiveBaseBranch, resolvedDefaultBranch };
+  }
+
+  const { data } = await github.rest.repos.get({ owner, repo });
+  const repoId = `${owner}/${repo}`;
+  const resolvedDefaultBranch = data.default_branch ?? null;
   const effectiveBaseBranch = configuredBaseBranch || resolvedDefaultBranch;
   return { repoId, effectiveBaseBranch, resolvedDefaultBranch };
 }
