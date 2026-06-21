@@ -45,7 +45,7 @@ jobs:
           sparse-checkout: |
             .github/skills
             .github/workflows
-            actions/setup/js/slash_command_matcher.cjs
+            actions/setup/js
           persist-credentials: false
     steps:
       - name: Match requested skill
