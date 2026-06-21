@@ -23,10 +23,21 @@ const mockContext = {
 };
 
 const mockGithub = {
-  graphql: vi.fn(),
+  request: vi.fn().mockResolvedValue({ data: { id: "task-123" } }),
   rest: {
     issues: {
       createComment: vi.fn().mockResolvedValue({ data: { id: 12345 } }),
+      checkUserCanBeAssigned: vi.fn().mockResolvedValue({}),
+      get: vi.fn(),
+    },
+    users: {
+      getByUsername: vi.fn().mockResolvedValue({ data: { id: 99999 } }),
+    },
+    pulls: {
+      get: vi.fn(),
+    },
+    repos: {
+      get: vi.fn().mockResolvedValue({ data: { node_id: "REPO_NODE_ID", default_branch: "main" } }),
     },
   },
 };

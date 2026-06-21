@@ -80,25 +80,9 @@ function getPullRequestNumber(messageItem, context) {
  * @param {string} owner
  * @param {string} repo
  * @param {string|null|undefined} configuredBaseBranch - explicitly configured base branch (may be null or undefined)
- * @returns {Promise<{repoId: string, repoSlug: string, effectiveBaseBranch: string|null, resolvedDefaultBranch: string|null}>}
+ * @returns {Promise<{repoSlug: string, effectiveBaseBranch: string|null, resolvedDefaultBranch: string|null}>}
  */
 async function resolvePullRequestRepo(github, owner, repo, configuredBaseBranch) {
-  if (!github?.rest?.repos?.get && github?.graphql) {
-    const query = `
-      query($owner: String!, $name: String!) {
-        repository(owner: $owner, name: $name) {
-          id
-          defaultBranchRef { name }
-        }
-      }
-    `;
-    const response = await github.graphql(query, { owner, name: repo });
-    const repoId = response.repository.id;
-    const resolvedDefaultBranch = response.repository.defaultBranchRef?.name ?? null;
-    const effectiveBaseBranch = configuredBaseBranch || resolvedDefaultBranch;
-    return { repoId, repoSlug: `${owner}/${repo}`, effectiveBaseBranch, resolvedDefaultBranch };
-  }
-
   const { data } = await github.rest.repos.get({ owner, repo });
   const repoId = data.node_id;
   if (!repoId) {
@@ -106,7 +90,7 @@ async function resolvePullRequestRepo(github, owner, repo, configuredBaseBranch)
   }
   const resolvedDefaultBranch = data.default_branch ?? null;
   const effectiveBaseBranch = configuredBaseBranch || resolvedDefaultBranch;
-  return { repoId, repoSlug: `${owner}/${repo}`, effectiveBaseBranch, resolvedDefaultBranch };
+  return { repoSlug: `${owner}/${repo}`, effectiveBaseBranch, resolvedDefaultBranch };
 }
 
 /**

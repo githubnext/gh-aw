@@ -95,7 +95,6 @@ async function main(config = {}) {
   // Resolve pull request repo upfront (if globally configured)
   let pullRequestOwner = null;
   let pullRequestRepo = null;
-  let pullRequestRepoId = null;
   let effectiveBaseBranch = configuredBaseBranch;
   const pullRequestRepoConfig = config["pull-request-repo"] ? String(config["pull-request-repo"]).trim() : null;
 
@@ -111,14 +110,12 @@ async function main(config = {}) {
       core.info(`Using pull request repository: ${pullRequestOwner}/${pullRequestRepo}`);
       try {
         const resolved = await resolvePullRequestRepo(githubClient, pullRequestOwner, pullRequestRepo, configuredBaseBranch);
-        pullRequestRepoId = resolved.repoId;
         effectiveBaseBranch = resolved.effectiveBaseBranch;
-        core.info(`Pull request repository ID: ${pullRequestRepoId}`);
         if (!configuredBaseBranch && effectiveBaseBranch) {
           core.info(`Resolved pull request repository default branch: ${effectiveBaseBranch}`);
         }
       } catch (error) {
-        throw new Error(`Failed to fetch pull request repository ID for ${pullRequestOwner}/${pullRequestRepo}: ${getErrorMessage(error)}`);
+        throw new Error(`Failed to fetch pull request repository for ${pullRequestOwner}/${pullRequestRepo}: ${getErrorMessage(error)}`);
       }
     } else {
       core.warning(`Invalid pull-request-repo format: ${pullRequestRepoConfig}. Expected owner/repo. PRs will be created in issue repository.`);
@@ -240,7 +237,6 @@ async function main(config = {}) {
     const basePullRequestRepoSlug = pullRequestOwner && pullRequestRepo ? `${pullRequestOwner}/${pullRequestRepo}` : `${effectiveOwner}/${effectiveRepo}`;
 
     // Handle per-item pull_request_repo override
-    let effectivePullRequestRepoId = pullRequestRepoId;
     let effectivePullRequestRepoSlug = basePullRequestRepoSlug;
     let hasValidatedPerItemPullRequestRepoOverride = false;
     const hasPullRequestRepoOverrideField = message.pull_request_repo != null;
@@ -258,8 +254,7 @@ async function main(config = {}) {
           return { success: false, error };
         }
         try {
-          const resolved = await resolvePullRequestRepo(githubClient, pullRequestRepoParts[0], pullRequestRepoParts[1], configuredBaseBranch);
-          effectivePullRequestRepoId = resolved.repoId;
+          await resolvePullRequestRepo(githubClient, pullRequestRepoParts[0], pullRequestRepoParts[1], configuredBaseBranch);
           effectivePullRequestRepoSlug = itemPullRequestRepo;
           hasValidatedPerItemPullRequestRepoOverride = true;
           core.info(`Using per-item pull request repository: ${itemPullRequestRepo}`);
@@ -394,7 +389,6 @@ async function main(config = {}) {
         currentAssignees,
         agentName,
         allowedAgents,
-        effectivePullRequestRepoId,
         model,
         customAgent,
         customInstructions,

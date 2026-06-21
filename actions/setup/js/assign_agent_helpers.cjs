@@ -42,29 +42,6 @@ function getAgentName(assignee) {
  * @returns {Promise<string[]>}
  */
 async function getAvailableAgentLogins(owner, repo, githubClient = github) {
-  if (!githubClient?.request && githubClient?.graphql) {
-    const query = `
-      query($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          suggestedActors(first: 100, capabilities: [CAN_BE_ASSIGNED]) {
-            nodes { ... on Bot { login __typename } }
-          }
-        }
-      }
-    `;
-    try {
-      const response = await githubClient.graphql(query, { owner, repo });
-      const actors = response.repository?.suggestedActors?.nodes || [];
-      const knownValues = Object.values(AGENT_LOGIN_NAMES);
-      const available = actors.filter(actor => actor?.login && knownValues.includes(actor.login)).map(actor => actor.login);
-      return available.sort();
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : String(e);
-      core.debug(`Failed to list available agent logins: ${errorMessage}`);
-      return [];
-    }
-  }
-
   const knownValues = Object.values(AGENT_LOGIN_NAMES);
   const available = [];
   for (const login of knownValues) {
@@ -98,52 +75,6 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
   if (!loginName) {
     core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
     return null;
-  }
-
-  if (!githubClient?.request && githubClient?.graphql) {
-    const query = `
-      query($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          suggestedActors(first: 100, capabilities: [CAN_BE_ASSIGNED]) {
-            nodes {
-              ... on Bot {
-                id
-                login
-                __typename
-              }
-            }
-          }
-        }
-      }
-    `;
-    try {
-      const response = await githubClient.graphql(query, { owner, repo });
-      const actors = response.repository.suggestedActors.nodes;
-      const agent = actors.find(actor => actor.login === loginName);
-      if (agent) return agent.id;
-      const knownValues = Object.values(AGENT_LOGIN_NAMES);
-      const available = actors.filter(a => a?.login && knownValues.includes(a.login)).map(a => a.login);
-      core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
-      if (available.length > 0) core.info(`Available assignable coding agents: ${available.join(", ")}`);
-      else core.info("No coding agents are currently assignable in this repository.");
-      if (agentName === "copilot") {
-        core.info("Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot");
-      }
-      return null;
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
-      if (
-        errorMessage.includes("Bad credentials") ||
-        errorMessage.includes("Not Authenticated") ||
-        errorMessage.includes("Resource not accessible") ||
-        errorMessage.includes("Insufficient permissions") ||
-        errorMessage.includes("requires authentication")
-      ) {
-        throw error;
-      }
-      return null;
-    }
   }
 
   try {
@@ -189,41 +120,6 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
  * @returns {Promise<{issueId: string, currentAssignees: Array<{id: string, login: string}>, htmlUrl: string, title: string, body: string, taskContext: {owner: string, repo: string, type: "issue", number: number}}|null>}
  */
 async function getIssueDetails(owner, repo, issueNumber, githubClient = github) {
-  if (!githubClient?.request && githubClient?.graphql) {
-    const query = `
-      query($owner: String!, $repo: String!, $issueNumber: Int!) {
-        repository(owner: $owner, name: $repo) {
-          issue(number: $issueNumber) {
-            id
-            assignees(first: 100) {
-              nodes {
-                id
-                login
-              }
-            }
-          }
-        }
-      }
-    `;
-    try {
-      const response = await githubClient.graphql(query, { owner, repo, issueNumber });
-      const issue = response.repository.issue;
-      if (!issue || !issue.id) {
-        core.error("Could not get issue data");
-        return null;
-      }
-      const currentAssignees = issue.assignees.nodes.map(assignee => ({
-        id: assignee.id,
-        login: assignee.login,
-      }));
-      return { issueId: issue.id, currentAssignees };
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      core.error(`Failed to get issue details: ${errorMessage}`);
-      throw error;
-    }
-  }
-
   try {
     const { data: issue } = await githubClient.rest.issues.get({ owner, repo, issue_number: issueNumber });
     if (!issue || !issue.number) {
@@ -259,41 +155,6 @@ async function getIssueDetails(owner, repo, issueNumber, githubClient = github) 
  * @returns {Promise<{pullRequestId: string, currentAssignees: Array<{id: string, login: string}>, htmlUrl: string, title: string, body: string, taskContext: {owner: string, repo: string, type: "pull", number: number}}|null>}
  */
 async function getPullRequestDetails(owner, repo, pullNumber, githubClient = github) {
-  if (!githubClient?.request && githubClient?.graphql) {
-    const query = `
-      query($owner: String!, $repo: String!, $pullNumber: Int!) {
-        repository(owner: $owner, name: $repo) {
-          pullRequest(number: $pullNumber) {
-            id
-            assignees(first: 100) {
-              nodes {
-                id
-                login
-              }
-            }
-          }
-        }
-      }
-    `;
-    try {
-      const response = await githubClient.graphql(query, { owner, repo, pullNumber });
-      const pullRequest = response.repository.pullRequest;
-      if (!pullRequest || !pullRequest.id) {
-        core.error("Could not get pull request data");
-        return null;
-      }
-      const currentAssignees = pullRequest.assignees.nodes.map(assignee => ({
-        id: assignee.id,
-        login: assignee.login,
-      }));
-      return { pullRequestId: pullRequest.id, currentAssignees };
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      core.error(`Failed to get pull request details: ${errorMessage}`);
-      throw error;
-    }
-  }
-
   try {
     const { data: pullRequest } = await githubClient.rest.pulls.get({ owner, repo, pull_number: pullNumber });
     if (!pullRequest || !pullRequest.number) {
@@ -327,7 +188,6 @@ async function getPullRequestDetails(owner, repo, pullNumber, githubClient = git
  * @param {Array<{id: string, login: string}>} currentAssignees - List of current assignees with id and login
  * @param {string} agentName - Agent name for error messages
  * @param {string[]|null} allowedAgents - Optional list of allowed agent names. If provided, filters out non-allowed agents from current assignees.
- * @param {string|null} pullRequestRepoId - Optional pull request repository ID for GraphQL fallback
  * @param {string|null} model - Optional AI model to use (e.g., "claude-opus-4.6", "auto")
  * @param {string|null} customAgent - Optional custom agent ID for custom agents
  * @param {string|null} customInstructions - Optional custom instructions for the agent
@@ -343,7 +203,6 @@ async function assignAgentToIssue(
   currentAssignees,
   agentName,
   allowedAgents = null,
-  pullRequestRepoId = null,
   model = null,
   customAgent = null,
   customInstructions = null,
@@ -372,93 +231,6 @@ async function assignAgentToIssue(
       // Not an agent - keep it (regular user assignee)
       return true;
     });
-  }
-
-  if (!githubClient?.request && githubClient?.graphql) {
-    const actorIds = [agentId, ...filteredAssignees.map(a => a.id).filter(id => id !== agentId)];
-    const hasAgentAssignment = pullRequestRepoId || model || customAgent || customInstructions || baseBranch;
-    let mutation;
-    let variables;
-    if (hasAgentAssignment) {
-      const agentAssignmentFields = [];
-      const agentAssignmentParams = [];
-      if (pullRequestRepoId) {
-        agentAssignmentFields.push("targetRepositoryId: $targetRepoId");
-        agentAssignmentParams.push("$targetRepoId: ID!");
-      }
-      if (model) {
-        agentAssignmentFields.push("model: $model");
-        agentAssignmentParams.push("$model: String!");
-      }
-      if (customAgent) {
-        agentAssignmentFields.push("customAgent: $customAgent");
-        agentAssignmentParams.push("$customAgent: String!");
-      }
-      if (customInstructions) {
-        agentAssignmentFields.push("customInstructions: $customInstructions");
-        agentAssignmentParams.push("$customInstructions: String!");
-      }
-      if (baseBranch) {
-        agentAssignmentFields.push("baseRef: $baseRef");
-        agentAssignmentParams.push("$baseRef: String!");
-      }
-      const allParams = ["$assignableId: ID!", "$actorIds: [ID!]!", ...agentAssignmentParams].join(", ");
-      const assignmentFields = agentAssignmentFields.join("\n            ");
-      mutation = `
-        mutation(${allParams}) {
-          replaceActorsForAssignable(input: {
-            assignableId: $assignableId,
-            actorIds: $actorIds,
-            agentAssignment: {
-              ${assignmentFields}
-            }
-          }) {
-            __typename
-          }
-        }
-      `;
-      variables = {
-        assignableId,
-        actorIds,
-        ...(pullRequestRepoId && { targetRepoId: pullRequestRepoId }),
-        ...(model && { model }),
-        ...(customAgent && { customAgent }),
-        ...(customInstructions && { customInstructions }),
-        ...(baseBranch && { baseRef: baseBranch }),
-      };
-    } else {
-      mutation = `
-        mutation($assignableId: ID!, $actorIds: [ID!]!) {
-          replaceActorsForAssignable(input: {
-            assignableId: $assignableId,
-            actorIds: $actorIds
-          }) {
-            __typename
-          }
-        }
-      `;
-      variables = { assignableId, actorIds };
-    }
-    try {
-      const response = await githubClient.graphql(mutation, {
-        ...variables,
-        headers: {
-          "GraphQL-Features": "issues_copilot_assignment_api_support,coding_agent_model_selection",
-        },
-      });
-      return !!response?.replaceActorsForAssignable?.__typename;
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      const err = /** @type {any} */ error;
-      const is502Error = err?.response?.status === 502 || errorMessage.includes("502 Bad Gateway");
-      if (is502Error) {
-        core.warning(`Received 502 error from cloud gateway during agent task creation, but task may have been created`);
-        core.info(`Treating 502 error as success - agent task likely created`);
-        return true;
-      }
-      core.error(`Failed to assign ${agentName}: ${errorMessage}`);
-      return false;
-    }
   }
 
   if (!githubClient?.request) {
@@ -691,7 +463,7 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
 
     // Assign agent by starting a REST task (no allowed list filtering in this helper)
     core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, null, null, null, null, null, null, github, issueDetails.taskContext);
+    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, null, null, null, null, null, github, issueDetails.taskContext);
 
     if (!success) {
       return { success: false, error: `Failed to assign ${agentName} via REST` };
