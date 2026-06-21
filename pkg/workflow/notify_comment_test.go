@@ -1216,14 +1216,8 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(allSteps, ": > /tmp/gh-aw/usage/detection/token_usage.jsonl") {
 		t.Errorf("Expected usage artifact collection to ensure detection token usage file exists.\nGenerated steps:\n%s", allSteps)
 	}
-	if !strings.Contains(allSteps, "python3 - <<'PY'") {
+	if !strings.Contains(allSteps, "generate_usage_activity_summary.cjs") {
 		t.Errorf("Expected usage artifact collection to generate activity summary aggregates.\nGenerated steps:\n%s", allSteps)
-	}
-	if !strings.Contains(allSteps, "usage-activity-summary/v1") {
-		t.Errorf("Expected activity summary generator to emit the usage activity schema marker.\nGenerated steps:\n%s", allSteps)
-	}
-	if !strings.Contains(allSteps, "def is_allowed_decision(decision: str) -> bool:") {
-		t.Errorf("Expected activity summary generator to normalize Squid decision markers before counting allowed requests.\nGenerated steps:\n%s", allSteps)
 	}
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/activity/summary.json") {
 		t.Errorf("Expected usage artifact to include activity summary path.\nGenerated steps:\n%s", allSteps)
