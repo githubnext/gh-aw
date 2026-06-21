@@ -56,7 +56,7 @@ function makeHarnessTempDir(name) {
   return fs.mkdtempSync(path.join(agentTempDir, name));
 }
 
-function withPromptsDir(promptsDir, callback) {
+function withTestPromptsDir(promptsDir, callback) {
   const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
   process.env.GH_AW_PROMPTS_DIR = promptsDir;
   try {
@@ -990,7 +990,7 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("rewrites local proxy 403 errors in copilot-requests mode to org-billing guidance", () => {
-      withPromptsDir(promptsSourceDir, () => {
+      withTestPromptsDir(promptsSourceDir, () => {
         const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).\nCheck your COPILOT_PROVIDER_API_KEY or COPILOT_PROVIDER_BEARER_TOKEN.", {
           COPILOT_MODEL: "claude-sonnet-4.5",
           S2STOKENS: "true",
@@ -1008,7 +1008,7 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("treats truthy S2STOKENS values as copilot-requests mode for 403 guidance", () => {
-      withPromptsDir(promptsSourceDir, () => {
+      withTestPromptsDir(promptsSourceDir, () => {
         const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", {
           COPILOT_MODEL: "claude-sonnet-4.5",
           S2STOKENS: " YES ",
@@ -1021,8 +1021,8 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("resolves the 403 guidance template from the runtime prompts directory", () => {
-      const runtimePromptsDir = path.join(os.tmpdir(), "runtime-prompts");
-      withPromptsDir(runtimePromptsDir, () => {
+      const runtimePromptsDir = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-prompts-"));
+      withTestPromptsDir(runtimePromptsDir, () => {
         const renderTemplateFromFile = vi.fn().mockReturnValue("rendered");
 
         const diagnostic = buildCopilotProxyAuthFailureDiagnostic(
@@ -1040,6 +1040,43 @@ describe("copilot_harness.cjs", () => {
           stage: "starting the Copilot CLI request",
         });
       });
+    });
+
+    it("resolves the 403 guidance template from RUNNER_TEMP when GH_AW_PROMPTS_DIR is unset", () => {
+      const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+      const originalRunnerTemp = process.env.RUNNER_TEMP;
+      const runnerTempDir = fs.mkdtempSync(path.join(os.tmpdir(), "runner-temp-"));
+      delete process.env.GH_AW_PROMPTS_DIR;
+      process.env.RUNNER_TEMP = runnerTempDir;
+      try {
+        const renderTemplateFromFile = vi.fn().mockReturnValue("rendered");
+
+        const diagnostic = buildCopilotProxyAuthFailureDiagnostic(
+          "Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).",
+          {
+            COPILOT_MODEL: "claude-sonnet-4.5",
+            S2STOKENS: "true",
+          },
+          { renderTemplateFromFile }
+        );
+
+        expect(diagnostic).toBe("rendered");
+        expect(renderTemplateFromFile).toHaveBeenCalledWith(path.join(runnerTempDir, "gh-aw", "prompts", "copilot_requests_proxy_auth_403.md"), {
+          selected_model: "claude-sonnet-4.5",
+          stage: "starting the Copilot CLI request",
+        });
+      } finally {
+        if (typeof originalPromptsDir === "string") {
+          process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+        } else {
+          delete process.env.GH_AW_PROMPTS_DIR;
+        }
+        if (typeof originalRunnerTemp === "string") {
+          process.env.RUNNER_TEMP = originalRunnerTemp;
+        } else {
+          delete process.env.RUNNER_TEMP;
+        }
+      }
     });
 
     it("returns empty string for proxy 403 when S2STOKENS is not set (BYOK mode)", () => {
