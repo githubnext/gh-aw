@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -168,8 +170,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 //   - `payload` is forwarded as the raw transport only when the worker declares it
 //     (GitHub Actions rejects undeclared inputs)
 //   - inherits all caller secrets via `secrets: inherit`
-//   - includes a job-level `permissions:` block that is the union of all the
-//     worker's job-level permissions, so GitHub allows the nested jobs to run
+//   - includes a job-level `permissions:` block derived from the CALLER's own
+//     declared permissions (not the worker's). The caller controls its own
+//     permission surface; the compiler validates that the declared permissions
+//     cover what the worker requires and warns if they do not.
 //
 // Returns the names of all generated jobs so they can be added to the conclusion
 // job's `needs` list.
@@ -287,24 +291,43 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 			callJob.SecretsInherit = true
 		}
 
-		// Compute the permission superset required by the worker's jobs and
-		// attach it to the caller job. GitHub validates reusable workflow calls
-		// against the caller job's declared permission envelope; without a
-		// permissions block the nested jobs are constrained to `none`.
+		// Derive the call-<worker> job's permission envelope from the CALLER's own
+		// declared permissions, not from the worker. GitHub validates reusable
+		// workflow calls against the caller job's declared permissions, so the caller
+		// must declare a scope that is sufficient for the worker. We never inflate the
+		// caller's permissions to match the worker (doing so would, for example,
+		// materialise speculative scopes like vulnerability-alerts that GitHub rejects).
+		// Instead the caller controls its own surface and we validate it below.
+		callerPerms := data.CachedPermissions
+		if callerPerms == nil {
+			callerPerms = NewPermissionsParser(data.Permissions).ToPermissions()
+		}
+		if callerPerms != nil {
+			rendered := callerPerms.RenderToYAML()
+			if rendered != "" {
+				callJob.Permissions = rendered
+				compilerSafeOutputJobsLog.Printf("Set permissions on call-workflow job '%s' from caller's declared permissions: %s", jobName, rendered)
+			}
+		}
+
+		// Validate (without modifying) that the caller's declared permissions cover what
+		// the worker requires. Emit a warning when they do not, so the user can widen the
+		// caller's `permissions:` block. This never alters the compiled permissions.
 		if markdownPath != "" {
-			perms, permErr := extractCallWorkflowPermissions(workflowName, markdownPath)
+			workerPerms, permErr := extractCallWorkflowPermissions(workflowName, markdownPath)
 			if permErr != nil {
-				// Non-fatal: log and continue without permissions rather than aborting compilation.
-				// The call-* job will be created without a permissions block; this may cause
-				// GitHub to reject nested worker jobs that require non-none permissions.
-				compilerSafeOutputJobsLog.Printf("Warning: could not extract permissions for call-workflow job '%s': %v. "+
-					"Ensure the target workflow file exists and contains valid YAML. "+
-					"The job will be created without a permissions block.", jobName, permErr)
-			} else if perms != nil {
-				rendered := perms.RenderToYAML()
-				if rendered != "" {
-					callJob.Permissions = rendered
-					compilerSafeOutputJobsLog.Printf("Set permissions on call-workflow job '%s': %s", jobName, rendered)
+				// Non-fatal: log and continue. The worker file may not exist yet (it may be
+				// compiled in the same batch), in which case validation is simply skipped.
+				compilerSafeOutputJobsLog.Printf("Could not extract worker permissions for call-workflow job '%s' (validation skipped): %v", jobName, permErr)
+			} else if workerPerms != nil {
+				if missing := findUncoveredWorkerPermissions(callerPerms, workerPerms); len(missing) > 0 {
+					fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+						fmt.Sprintf("call-workflow target '%s' may require permissions not granted by this workflow: %s.\n"+
+							"GitHub Actions constrains a called workflow's GITHUB_TOKEN to the caller job's permissions, "+
+							"so the worker's jobs may fail. Add the missing scope(s) to this workflow's `permissions:` block.",
+							workflowName, strings.Join(missing, ", "))))
+					c.IncrementWarningCount()
+					compilerSafeOutputJobsLog.Printf("Caller permissions insufficient for worker '%s': missing %s", workflowName, strings.Join(missing, ", "))
 				}
 			}
 		}
