@@ -70,6 +70,9 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 	if workflowIdOrName == "" {
 		return errors.New("workflow name or ID is required")
 	}
+	if err := validateUnsupportedClaudeOAuthTokenForEngine(opts.EngineOverride); err != nil {
+		return err
+	}
 
 	// Validate input format early before attempting workflow validation
 	for _, input := range opts.Inputs {
@@ -106,6 +109,9 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 		workflowFile, err := resolveWorkflowFile(workflowIdOrName, opts.Verbose)
 		if err != nil {
 			// Return error directly without wrapping - it already contains formatted message with suggestions
+			return err
+		}
+		if err := validateUnsupportedClaudeOAuthTokenForWorkflowFiles([]string{workflowFile}, opts.EngineOverride); err != nil {
 			return err
 		}
 

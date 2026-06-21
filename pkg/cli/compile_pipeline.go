@@ -102,6 +102,9 @@ func compileSpecificFiles(
 			continue
 		}
 		compileOrchestrationLog.Printf("Resolved to: %s", resolvedFile)
+		if err := validateUnsupportedClaudeOAuthTokenForWorkflowFiles([]string{resolvedFile}, config.EngineOverride); err != nil {
+			return workflowDataList, err
+		}
 
 		// Update result with resolved file name
 		result.Workflow = filepath.Base(resolvedFile)
@@ -275,6 +278,9 @@ func compileAllFilesInDirectory(
 
 	if len(mdFiles) == 0 {
 		return nil, fmt.Errorf("no workflow markdown files found in %s (workflow files must start with a frontmatter opener on the first line)", workflowsDir)
+	}
+	if err := validateUnsupportedClaudeOAuthTokenForWorkflowFiles(mdFiles, config.EngineOverride); err != nil {
+		return nil, err
 	}
 
 	compileOrchestrationLog.Printf("Found %d markdown files to compile", len(mdFiles))

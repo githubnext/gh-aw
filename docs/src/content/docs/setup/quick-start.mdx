@@ -78,13 +78,13 @@ The wizard generates a compiled workflow file (`.lock.yml`) automatically — yo
 > **Setting up `COPILOT_GITHUB_TOKEN`?**
 > 1. [Create a fine-grained Personal Access Token (PAT)](https://github.com/settings/personal-access-tokens/new) under your user account.
 > 2. Under **Permissions → Account permissions**, set **Copilot Requests** to **Read**, then generate the token.
-> 3. Add it as a repository secret from your repository root with `gh secret set COPILOT_GITHUB_TOKEN < /path/to/token.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#copilot_github_token) for more detail.
+> 3. Add it as a repository secret from your repository root with `gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#copilot_github_token) for more detail.
 >
 
 > [!NOTE]
 > **Setting up `ANTHROPIC_API_KEY`?**
 > 1. Create an API key in [Anthropic Console](https://console.anthropic.com/settings/keys).
-> 2. Add it as a repository secret from your repository root with `gh secret set ANTHROPIC_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#anthropic_api_key) for more detail.
+> 2. Add it as a repository secret from your repository root with `gh aw secrets set ANTHROPIC_API_KEY --value "YOUR_ANTHROPIC_API_KEY"`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#anthropic_api_key) for more detail.
 >
 
 > [!TIP]
