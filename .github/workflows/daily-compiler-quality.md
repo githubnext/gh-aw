@@ -366,10 +366,26 @@ Generate a comprehensive discussion report with findings.
 
 ### Output Contract (Required)
 
-1. Emit **exactly one** `create_discussion` safe-output item.
-2. Do **not** emit placeholder or draft bodies (for example: `test`, `.`, `todo`, or similar short placeholders).
-3. Only emit `create_discussion` after the final report body is complete and fully rendered.
-4. The workflow enforces a **minimum 200-character body length**, so very short outputs (placeholder or otherwise) will fail safe-outputs.
+1. Call safe-output tools **directly**. Use the `create_discussion` or `noop` tool itself — **never** use `bash`, `shell`, or `safeoutputs ...` CLI commands to invoke safe outputs.
+2. If the final report body is complete and valid, emit **exactly one** direct `create_discussion` tool call.
+3. Do **not** emit placeholder or draft bodies (for example: `test`, `.`, `todo`, or similar short placeholders).
+4. Only call `create_discussion` after the final report body is complete and fully rendered.
+5. If you cannot produce a valid discussion body, or decide no discussion should be created, call `noop` directly with a brief explanation instead of returning plain text.
+6. The workflow enforces a **minimum 200-character body length**, so very short outputs (placeholder or otherwise) will fail safe-outputs.
+
+### Direct Tool Call Examples
+
+Use the `create_discussion` tool directly:
+
+```json
+{"title":"Daily Compiler Code Quality Report - YYYY-MM-DD","category":"audits","body":"...full markdown report..."}
+```
+
+If you do not create a discussion, use `noop` directly:
+
+```json
+{"message":"No discussion created: [brief explanation]"}
+```
 
 ### Discussion Title
 

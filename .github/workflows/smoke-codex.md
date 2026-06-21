@@ -118,6 +118,7 @@ features:
     - Use bash to verify the file was written successfully (use `cat` to read it back)
 10. **Set Issue Field Testing**:
     - After creating the smoke-test issue, use `set_issue_field` exactly once on that new issue
+    - Reference the created issue using the `temporary_id` declared on the `create_issue` output: set `issue_number: '#aw_smoke_issue'` in the `set_issue_field` message
     - Discover available issue fields and choose one compatible field/value pair:
       - text field → short text value
       - number field → numeric value
@@ -129,6 +130,7 @@ features:
 
 **ALWAYS create an issue** with a summary of the smoke test run:
 - Title: "Smoke Test: Codex - ${{ github.run_id }}"
+- Declare `temporary_id: aw_smoke_issue` on this `create_issue` output so that the `set_issue_field` message (test #10) can reference it via `issue_number: '#aw_smoke_issue'`
 - Body should include:
   - Test results (✅ or ❌ for each test, including test #9 Cache Memory and test #10 Set Issue Field)
   - Overall status: PASS or FAIL

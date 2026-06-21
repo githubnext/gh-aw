@@ -518,7 +518,7 @@ jobs:
           ${GH_AW_CMD_PREFIX} logs \
             --repo "${GH_AW_TARGET_REPO_SLUG}" \
             --start-date -1w \
-            --count 100 \
+            --count 500 \
             --output ./.cache/gh-aw/activity-report-logs \
             --format markdown \
             --report-file ./.cache/gh-aw/activity-report-logs/report.md
