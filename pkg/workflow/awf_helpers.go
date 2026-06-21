@@ -61,6 +61,17 @@ const (
 	// for ARC/DinD runners. A dedicated directory under /tmp/gh-aw is used so that the
 	// runner user has a consistent home that exists on the daemon-visible filesystem.
 	awfArcDindChrootIdentityHome = "/tmp/gh-aw/home"
+
+	// awfShellcheckDirective suppresses shellcheck warnings only on the generated AWF
+	// invocation line:
+	//   - SC1003 is expected because generated GitHub expression literals can include
+	//     single quotes (for example ports['<port>']) and must survive unchanged.
+	//   - SC2086 is expected because compiler-owned AWF argument fragments are emitted
+	//     as intentional expandable shell snippets (for example ${GH_AW_TOOL_CACHE_MOUNT:+...}
+	//     and ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}).
+	//
+	// User-controlled values remain quoted via shellEscapeArg/shellJoinArgs.
+	awfShellcheckDirective = "# shellcheck disable=SC1003,SC2086"
 )
 
 // AWFCommandConfig contains configuration for building AWF commands.
@@ -396,7 +407,6 @@ fi`,
 	//
 	// We keep normal quoting for all user-controlled values via shellEscapeArg/shellJoinArgs
 	// and scope this suppression to the generated AWF invocation line only.
-	shellcheckDirective := "# shellcheck disable=SC1003,SC2086"
 	var command string
 	if config.PathSetup != "" && configFileSetup != "" {
 		command = fmt.Sprintf(`set -o pipefail
@@ -419,7 +429,7 @@ fi`,
 			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
-			shellcheckDirective,
+			awfShellcheckDirective,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
@@ -448,7 +458,7 @@ fi`,
 			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
-			shellcheckDirective,
+			awfShellcheckDirective,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
@@ -476,7 +486,7 @@ fi`,
 			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
-			shellcheckDirective,
+			awfShellcheckDirective,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
@@ -502,7 +512,7 @@ fi`,
 			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
-			shellcheckDirective,
+			awfShellcheckDirective,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
