@@ -1,6 +1,13 @@
 ---
 import type { Props } from '@astrojs/starlight/props';
 
+type BlogAuthor = {
+  name?: string;
+  url?: string;
+  slug?: string;
+  id?: string;
+};
+
 // Access page data via Starlight's route locals
 const route = Astro.locals.starlightRoute;
 const entry = route?.entry;
@@ -50,12 +57,7 @@ const blogAuthors = (Array.isArray(rawAuthors) ? rawAuthors : rawAuthors ? [rawA
     }
 
     if (author && typeof author === 'object') {
-      const { name, url, slug, id } = author as {
-        name?: string;
-        url?: string;
-        slug?: string;
-        id?: string;
-      };
+      const { name, url, slug, id } = author as BlogAuthor;
 
       const authorName = name ?? slug ?? id;
       if (!authorName) return undefined;
