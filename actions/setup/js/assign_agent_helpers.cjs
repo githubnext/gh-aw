@@ -42,7 +42,7 @@ function getAgentName(assignee) {
  * @returns {Promise<string[]>}
  */
 async function getAvailableAgentLogins(owner, repo, githubClient = github) {
-  if (!githubClient?.rest?.issues?.checkUserCanBeAssigned && githubClient?.graphql) {
+  if (!githubClient?.request && githubClient?.graphql) {
     const query = `
       query($owner: String!, $repo: String!) {
         repository(owner: $owner, name: $repo) {
@@ -100,7 +100,7 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
     return null;
   }
 
-  if (!githubClient?.rest?.issues?.checkUserCanBeAssigned && githubClient?.graphql) {
+  if (!githubClient?.request && githubClient?.graphql) {
     const query = `
       query($owner: String!, $repo: String!) {
         repository(owner: $owner, name: $repo) {
@@ -157,6 +157,15 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
+    if (
+      errorMessage.includes("Bad credentials") ||
+      errorMessage.includes("Not Authenticated") ||
+      errorMessage.includes("Resource not accessible") ||
+      errorMessage.includes("Insufficient permissions") ||
+      errorMessage.includes("requires authentication")
+    ) {
+      throw error;
+    }
     const available = await getAvailableAgentLogins(owner, repo, githubClient);
     core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
     if (available.length > 0) {
@@ -180,7 +189,7 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
  * @returns {Promise<{issueId: string, currentAssignees: Array<{id: string, login: string}>, htmlUrl: string, title: string, body: string, taskContext: {owner: string, repo: string, type: "issue", number: number}}|null>}
  */
 async function getIssueDetails(owner, repo, issueNumber, githubClient = github) {
-  if (!githubClient?.rest?.issues?.get && githubClient?.graphql) {
+  if (!githubClient?.request && githubClient?.graphql) {
     const query = `
       query($owner: String!, $repo: String!, $issueNumber: Int!) {
         repository(owner: $owner, name: $repo) {
@@ -250,7 +259,7 @@ async function getIssueDetails(owner, repo, issueNumber, githubClient = github) 
  * @returns {Promise<{pullRequestId: string, currentAssignees: Array<{id: string, login: string}>, htmlUrl: string, title: string, body: string, taskContext: {owner: string, repo: string, type: "pull", number: number}}|null>}
  */
 async function getPullRequestDetails(owner, repo, pullNumber, githubClient = github) {
-  if (!githubClient?.rest?.pulls?.get && githubClient?.graphql) {
+  if (!githubClient?.request && githubClient?.graphql) {
     const query = `
       query($owner: String!, $repo: String!, $pullNumber: Int!) {
         repository(owner: $owner, name: $repo) {
@@ -343,7 +352,7 @@ async function assignAgentToIssue(
   taskContext = null,
   pullRequestRepoSlug = null
 ) {
-  // SECURITY: pullRequestRepoId specifies a cross-repo target repository slug.
+  // SECURITY: pullRequestRepoSlug specifies a cross-repo target repository slug.
   // Callers MUST validate the corresponding repository slug against allowedRepos using
   // validateTargetRepo (from repo_helpers.cjs) before invoking this function.
   // Filter current assignees based on allowed list (if configured)
@@ -452,6 +461,11 @@ async function assignAgentToIssue(
     }
   }
 
+  if (!githubClient?.request) {
+    core.error(`GitHub client does not support REST requests; cannot create agent task`);
+    return false;
+  }
+
   if (!taskContext) {
     core.error(`Invalid assignment context: ${assignableId}`);
     return false;
@@ -471,7 +485,10 @@ async function assignAgentToIssue(
   const targetRepo = targetParts[1];
   const promptParts = [`Start work for ${itemType} ${sourceOwner}/${sourceRepo}#${itemNumber}.`, `Use this as the primary context: ${sourceUrl}`];
   if (targetRepoSlug !== `${sourceOwner}/${sourceRepo}`) promptParts.push(`Create the branch and pull request in ${targetRepoSlug}.`);
-  if (customAgent) promptParts.push(`Custom agent: ${customAgent}`);
+  if (customAgent) {
+    core.warning(`customAgent is not a dedicated REST parameter; it will be included as prompt context. If the agent runner does not parse this field, the custom agent selection may be ignored.`);
+    promptParts.push(`Custom agent: ${customAgent}`);
+  }
   if (customInstructions) promptParts.push(`Additional instructions:\n${customInstructions}`);
   const prompt = promptParts.join("\n\n");
 
@@ -552,8 +569,9 @@ async function assignAgentToIssue(
     }
 
     if (
-      errorMessage.includes("Resource not accessible by personal access token") ||
-      errorMessage.includes("Resource not accessible by integration") ||
+      errorMessage.includes("Bad credentials") ||
+      errorMessage.includes("Not Authenticated") ||
+      errorMessage.includes("Resource not accessible") ||
       errorMessage.includes("Insufficient permissions") ||
       errorMessage.includes("requires authentication")
     ) {

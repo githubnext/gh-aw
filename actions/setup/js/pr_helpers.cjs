@@ -100,7 +100,10 @@ async function resolvePullRequestRepo(github, owner, repo, configuredBaseBranch)
   }
 
   const { data } = await github.rest.repos.get({ owner, repo });
-  const repoId = data.node_id || `${owner}/${repo}`;
+  const repoId = data.node_id;
+  if (!repoId) {
+    throw new Error(`Repository ${owner}/${repo} did not return a valid node_id from the REST API`);
+  }
   const resolvedDefaultBranch = data.default_branch ?? null;
   const effectiveBaseBranch = configuredBaseBranch || resolvedDefaultBranch;
   return { repoId, repoSlug: `${owner}/${repo}`, effectiveBaseBranch, resolvedDefaultBranch };

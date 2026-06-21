@@ -484,6 +484,108 @@ describe("assign_agent_helpers.cjs", () => {
     });
   });
 
+  describe("assignAgentToIssue REST task creation path", () => {
+    const taskContext = { owner: "myorg", repo: "myrepo", type: "issue", number: 42 };
+
+    it("should start an agent task via REST when githubClient.request is present", async () => {
+      const mockRequest = vi.fn().mockResolvedValue({ data: { id: "task-123" } });
+      const restClient = { request: mockRequest };
+
+      const result = await assignAgentToIssue("ignored-id", "ignored-agent-id", [], "copilot", null, null, null, null, null, null, restClient, taskContext);
+
+      expect(result).toBe(true);
+      expect(mockRequest).toHaveBeenCalledWith(
+        "POST /agents/repos/{owner}/{repo}/tasks",
+        expect.objectContaining({
+          owner: "myorg",
+          repo: "myrepo",
+          create_pull_request: true,
+          prompt: expect.stringContaining("myorg/myrepo#42"),
+        })
+      );
+    });
+
+    it("should include model in REST request when provided", async () => {
+      const mockRequest = vi.fn().mockResolvedValue({ data: { id: "task-123" } });
+      const restClient = { request: mockRequest };
+
+      await assignAgentToIssue("id", "agent", [], "copilot", null, null, "claude-opus-4.6", null, null, null, restClient, taskContext);
+
+      expect(mockRequest).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ model: "claude-opus-4.6" }));
+    });
+
+    it("should include base_ref in REST request when baseBranch is provided", async () => {
+      const mockRequest = vi.fn().mockResolvedValue({ data: { id: "task-123" } });
+      const restClient = { request: mockRequest };
+
+      await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, "develop", restClient, taskContext);
+
+      expect(mockRequest).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ base_ref: "develop" }));
+    });
+
+    it("should not include model or base_ref when not provided", async () => {
+      const mockRequest = vi.fn().mockResolvedValue({ data: { id: "task-123" } });
+      const restClient = { request: mockRequest };
+
+      await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, null, restClient, taskContext);
+
+      const callArgs = mockRequest.mock.calls[0][1];
+      expect(callArgs.model).toBeUndefined();
+      expect(callArgs.base_ref).toBeUndefined();
+    });
+
+    it("should use pullRequestRepoSlug as target when provided", async () => {
+      const mockRequest = vi.fn().mockResolvedValue({ data: { id: "task-123" } });
+      const restClient = { request: mockRequest };
+
+      await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, null, restClient, taskContext, "otherorg/otherrepo");
+
+      expect(mockRequest).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ owner: "otherorg", repo: "otherrepo" }));
+    });
+
+    it("should return false and not call request when taskContext is missing", async () => {
+      const mockRequest = vi.fn();
+      const restClient = { request: mockRequest };
+
+      const result = await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, null, restClient, null);
+
+      expect(result).toBe(false);
+      expect(mockRequest).not.toHaveBeenCalled();
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Invalid assignment context"));
+    });
+
+    it("should return false when client has neither request nor graphql", async () => {
+      const emptyClient = {};
+
+      const result = await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, null, emptyClient, taskContext);
+
+      expect(result).toBe(false);
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("does not support REST requests"));
+    });
+
+    it("should treat 502 REST errors as success", async () => {
+      const err502 = Object.assign(new Error("502 Bad Gateway"), { response: { status: 502 } });
+      const mockRequest = vi.fn().mockRejectedValue(err502);
+      const restClient = { request: mockRequest };
+
+      const result = await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, null, restClient, taskContext);
+
+      expect(result).toBe(true);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("502"));
+    });
+
+    it("should call logPermissionError for Bad credentials on REST path", async () => {
+      const errAuth = new Error("Bad credentials");
+      const mockRequest = vi.fn().mockRejectedValue(errAuth);
+      const restClient = { request: mockRequest };
+
+      const result = await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, null, restClient, taskContext);
+
+      expect(result).toBe(false);
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Insufficient permissions"));
+    });
+  });
+
   describe("generatePermissionErrorSummary", () => {
     it("should return markdown content with permission requirements", () => {
       const summary = generatePermissionErrorSummary();

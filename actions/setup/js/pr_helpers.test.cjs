@@ -329,6 +329,49 @@ describe("resolvePullRequestRepo", () => {
     expect(result.resolvedDefaultBranch).toBeNull();
     expect(result.effectiveBaseBranch).toBeNull();
   });
+
+  it("uses REST repos.get when github.request is present", async () => {
+    const fakeGithub = {
+      request: vi.fn(),
+      rest: {
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { node_id: "MDEwOlJlcG9zaXRvcnkx", default_branch: "main" } }),
+        },
+      },
+    };
+    const result = await resolvePullRequestRepo(fakeGithub, "owner", "repo", undefined);
+    expect(result.repoId).toBe("MDEwOlJlcG9zaXRvcnkx");
+    expect(result.repoSlug).toBe("owner/repo");
+    expect(result.resolvedDefaultBranch).toBe("main");
+    expect(result.effectiveBaseBranch).toBe("main");
+    expect(fakeGithub.rest.repos.get).toHaveBeenCalledWith({ owner: "owner", repo: "repo" });
+  });
+
+  it("explicit configuredBaseBranch overrides REST default_branch", async () => {
+    const fakeGithub = {
+      request: vi.fn(),
+      rest: {
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { node_id: "MDEwOlJlcG9zaXRvcnkx", default_branch: "main" } }),
+        },
+      },
+    };
+    const result = await resolvePullRequestRepo(fakeGithub, "owner", "repo", "release");
+    expect(result.resolvedDefaultBranch).toBe("main");
+    expect(result.effectiveBaseBranch).toBe("release");
+  });
+
+  it("throws when REST response is missing node_id", async () => {
+    const fakeGithub = {
+      request: vi.fn(),
+      rest: {
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+      },
+    };
+    await expect(resolvePullRequestRepo(fakeGithub, "owner", "repo", undefined)).rejects.toThrow("Repository owner/repo did not return a valid node_id from the REST API");
+  });
 });
 
 describe("buildBranchInstruction", () => {
