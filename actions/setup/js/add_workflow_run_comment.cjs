@@ -51,10 +51,10 @@ async function getDiscussionNodeId(discussionNumber, eventRepo = context.repo) {
  * @param {string|number} commentId - The comment ID
  * @param {string} commentUrl - The comment URL
  * @param {{ owner: string, repo: string }} [eventRepo] - Repository where the comment was created (defaults to context.repo at runtime)
- * @param {{ reused?: boolean }} [options]
+ * @param {{ logReuse?: boolean }} [options]
  */
 function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo, options = {}) {
-  if (options.reused) {
+  if (options.logReuse) {
     core.info(`Reusing existing status comment outputs`);
   } else {
     core.info(`Successfully created comment with workflow link`);
@@ -103,7 +103,7 @@ function parseObject(value) {
 
 /**
  * @param {unknown} value
- * @returns {{ owner: string, repo: string }|null}
+ * @returns {{ owner: string, repo: string } | null}
  */
 function parseRepoSlugToRef(value) {
   if (typeof value !== "string") {
@@ -132,7 +132,7 @@ function extractAwContextFromPayload(payload) {
 
 /**
  * @param {any} rawContext
- * @returns {{ id: string, url: string, repo: { owner: string, repo: string }|null }|null}
+ * @returns {{ id: string, url: string, repo: { owner: string, repo: string } | null } | null}
  */
 function readReusableStatusComment(rawContext) {
   const awContext = extractAwContextFromPayload(rawContext?.payload);
@@ -180,7 +180,7 @@ async function createOrReuseStatusComment(rawContext = context) {
   const reusableComment = readReusableStatusComment(rawContext);
   if (reusableComment) {
     core.info(`Reusing existing status comment ID: ${reusableComment.id}`);
-    const outputs = setCommentOutputs(reusableComment.id, reusableComment.url, reusableComment.repo || invocationContext.eventRepo, { reused: true });
+    const outputs = setCommentOutputs(reusableComment.id, reusableComment.url, reusableComment.repo || invocationContext.eventRepo, { logReuse: true });
     return {
       ...outputs,
       reused: true,
