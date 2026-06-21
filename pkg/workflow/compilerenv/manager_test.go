@@ -108,7 +108,7 @@ func TestResolveDefaultMaxTurnCacheMisses(t *testing.T) {
 }
 
 func TestParsePositiveIntEnvVar_OverflowRegression(t *testing.T) {
-	// 2^31 = 2147483648: fits in int64 but overflows int32.
+	// 2^31 = 2147483648, one above MaxInt32 (2^31-1): fits in int64 but overflows int32.
 	// On 32-bit platforms (strconv.IntSize == 32) strconv.Atoi rejects this
 	// value, so the function must fall back to the default — the original
 	// CWE-190 silent-overflow scenario.  On 64-bit platforms it parses
