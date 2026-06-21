@@ -94,24 +94,24 @@ describe("add_workflow_run_comment", () => {
     });
   });
 
-  async function importModule() {
+  async function importAddWorkflowRunComment() {
     return import("./add_workflow_run_comment.cjs?" + Date.now());
   }
 
   // Helper function to run the script
   async function runScript() {
-    const { main } = await importModule();
+    const { main } = await importAddWorkflowRunComment();
     await main();
   }
 
   async function runCreateOrReuseStatusComment(rawContext) {
-    const { createOrReuseStatusComment } = await importModule();
+    const { createOrReuseStatusComment } = await importAddWorkflowRunComment();
     return createOrReuseStatusComment(rawContext);
   }
 
   // Helper function to run addCommentWithWorkflowLink
   async function runAddCommentWithWorkflowLink(endpoint, runUrl, eventName) {
-    const { addCommentWithWorkflowLink } = await importModule();
+    const { addCommentWithWorkflowLink } = await importAddWorkflowRunComment();
     await addCommentWithWorkflowLink(endpoint, runUrl, eventName);
   }
 
@@ -655,47 +655,47 @@ describe("add_workflow_run_comment", () => {
 
   describe("buildCommentBody()", () => {
     it("should include the run URL in the comment body", async () => {
-      const { buildCommentBody } = await importModule();
+      const { buildCommentBody } = await importAddWorkflowRunComment();
       const body = buildCommentBody("issues", "https://github.com/testowner/testrepo/actions/runs/99");
       expect(body).toContain("https://github.com/testowner/testrepo/actions/runs/99");
     });
 
     it("should always include reaction comment type marker", async () => {
-      const { buildCommentBody } = await importModule();
+      const { buildCommentBody } = await importAddWorkflowRunComment();
       const body = buildCommentBody("issues", "https://example.com/run/1");
       expect(body).toContain("<!-- gh-aw-comment-type: reaction -->");
     });
 
     it("should include workflow-id marker when GITHUB_WORKFLOW is set", async () => {
       process.env.GITHUB_WORKFLOW = "my-workflow.yml";
-      const { buildCommentBody } = await importModule();
+      const { buildCommentBody } = await importAddWorkflowRunComment();
       const body = buildCommentBody("issues", "https://example.com/run/1");
       expect(body).toContain("<!-- gh-aw-workflow-id: my-workflow.yml -->");
     });
 
     it("should include tracker-id marker when GH_AW_TRACKER_ID is set", async () => {
       process.env.GH_AW_TRACKER_ID = "my-tracker";
-      const { buildCommentBody } = await importModule();
+      const { buildCommentBody } = await importAddWorkflowRunComment();
       const body = buildCommentBody("issues", "https://example.com/run/1");
       expect(body).toContain("<!-- gh-aw-tracker-id: my-tracker -->");
     });
 
     it("should add lock notice for issues event when GH_AW_LOCK_FOR_AGENT=true", async () => {
       process.env.GH_AW_LOCK_FOR_AGENT = "true";
-      const { buildCommentBody } = await importModule();
+      const { buildCommentBody } = await importAddWorkflowRunComment();
       const body = buildCommentBody("issues", "https://example.com/run/1");
       expect(body).toContain("🔒 This issue has been locked");
     });
 
     it("should not add lock notice for pull_request events", async () => {
       process.env.GH_AW_LOCK_FOR_AGENT = "true";
-      const { buildCommentBody } = await importModule();
+      const { buildCommentBody } = await importAddWorkflowRunComment();
       const body = buildCommentBody("pull_request", "https://example.com/run/1");
       expect(body).not.toContain("🔒 This issue has been locked");
     });
 
     it("should use unknown event type description for unrecognized events", async () => {
-      const { buildCommentBody } = await importModule();
+      const { buildCommentBody } = await importAddWorkflowRunComment();
       // Should not throw for unknown event types
       const body = buildCommentBody("some_unknown_event", "https://example.com/run/1");
       expect(body).toBeTruthy();
@@ -705,7 +705,7 @@ describe("add_workflow_run_comment", () => {
 
   describe("postDiscussionComment()", () => {
     it("should post a top-level discussion comment when no replyToNodeId", async () => {
-      const { postDiscussionComment } = await importModule();
+      const { postDiscussionComment } = await importAddWorkflowRunComment();
       await postDiscussionComment(10, "Test body");
 
       expect(mockGithub.graphql).toHaveBeenCalled();
@@ -716,7 +716,7 @@ describe("add_workflow_run_comment", () => {
     });
 
     it("should post a threaded comment when replyToNodeId is provided", async () => {
-      const { postDiscussionComment } = await importModule();
+      const { postDiscussionComment } = await importAddWorkflowRunComment();
       await postDiscussionComment(10, "Reply body", "DC_kwParent123");
 
       const mutationCall = mockGithub.graphql.mock.calls.find(call => call[0].includes("replyToId"));
@@ -725,7 +725,7 @@ describe("add_workflow_run_comment", () => {
     });
 
     it("should set comment outputs after posting", async () => {
-      const { postDiscussionComment } = await importModule();
+      const { postDiscussionComment } = await importAddWorkflowRunComment();
       await postDiscussionComment(10, "Test body");
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "DC_kwDOTest456");

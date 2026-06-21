@@ -52,6 +52,7 @@ async function getDiscussionNodeId(discussionNumber, eventRepo = context.repo) {
  * @param {string} commentUrl - The comment URL
  * @param {{ owner: string, repo: string }} [eventRepo] - Repository where the comment was created (defaults to context.repo at runtime)
  * @param {{ logReuse?: boolean }} [options]
+ * @returns {{ id: string, url: string, repo: { owner: string, repo: string } }}
  */
 function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo, options = {}) {
   if (options.logReuse) {
@@ -105,7 +106,7 @@ function parseObject(value) {
  * @param {unknown} value
  * @returns {{ owner: string, repo: string } | null}
  */
-function parseRepoSlugToRef(value) {
+function parseRepoSlug(value) {
   if (typeof value !== "string") {
     return null;
   }
@@ -148,7 +149,7 @@ function readReusableStatusComment(rawContext) {
 
   const rawUrl = awContext.status_comment_url ?? awContext.statusCommentUrl;
   const url = typeof rawUrl === "string" ? rawUrl.trim() : "";
-  const repo = parseRepoSlugToRef(awContext.status_comment_repo ?? awContext.statusCommentRepo);
+  const repo = parseRepoSlug(awContext.status_comment_repo ?? awContext.statusCommentRepo);
   return { id, url, repo };
 }
 
