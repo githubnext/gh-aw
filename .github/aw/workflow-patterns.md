@@ -169,7 +169,6 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       RUN_ID: ${{ github.event.workflow_run.id }}
     run: |
-      mkdir -p /tmp/gh-aw/agent
       gh api repos/${{ github.repository }}/actions/runs/"$RUN_ID"/jobs \
         --jq '[.jobs[] | select(.conclusion != "success") | {name, conclusion, started_at, completed_at}]' \
         > /tmp/gh-aw/agent/failed_jobs.json
