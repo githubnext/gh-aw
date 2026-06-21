@@ -1,272 +1,283 @@
 {
-  "updated": "2026-06-20T22:00Z",
-  "date": "2026-06-20",
-  "partial": true,
-  "latest_window": "2026-06-20 (~23.3h 21:56Z-21:16Z). 395 runs, 275 s/120 f = 69.6% overall \u2014 BUT 103/120 fails (86%) are NEW workflow Skillet at 100% fail rate. EX-SKILLET success = 275/292 = 94.2% (on-baseline, healthy). Skillet=copilot, fires on push fleet-wide (all branches+main), 0-tok pre-activation fails, merged in HEAD 894b94c private:true. Non-Skillet fails (17): Avenger x8 (ESCALATING recur13, 100% of runs), copilot-sdk-lockout x2, security-obs-0tok x1, +singletons +2 by-design. missing_tools=2 missing_data=0 mcp=0. Tokens partial (18.3M captured, undercounted).",
-  "totals": {
-    "r": 395,
-    "completed": 395,
-    "s": 275,
-    "f": 120,
-    "rate": 69.6,
-    "rate_ex_skillet": 94.2,
-    "tok": 18325653,
-    "tok_note": "partial-undercounted",
-    "aic": 6398,
-    "turns": 7134,
-    "missing_tools": 2,
-    "missing_data": 0,
-    "mcp_failures": 0,
-    "safe_items": 0
+ "updated": "2026-06-21",
+ "date": "2026-06-21",
+ "partial": true,
+ "latest_window": "2026-06-20T21:54Z..2026-06-21T21:35Z ~23.7h",
+ "totals": {
+  "r": 325,
+  "s": 298,
+  "f": 27,
+  "rate": 91.7,
+  "prod_main_schedule_rate": 88.7,
+  "action_min": 3172,
+  "github_api": 3510,
+  "tok": null,
+  "missing_tools": 0,
+  "missing_data": 0,
+  "mcp_failures": 0
+ },
+ "engines": {
+  "copilot": 206,
+  "claude": 62,
+  "pi": 29,
+  "codex": 15,
+  "antigravity": 4,
+  "gemini": 4
+ },
+ "history": [
+  {
+   "d": "2026-05-25",
+   "r": 174,
+   "s": 162,
+   "rate": 94.7,
+   "$": 26.2265,
+   "tok": 56839455
   },
-  "engines": {
-    "note": "engine_counts unavailable (aw_info not fetched); Skillet=copilot, Avenger=claude per source"
+  {
+   "d": "2026-05-26",
+   "r": 49,
+   "s": 42,
+   "rate": 85.7,
+   "$": 26.366459,
+   "tok": 54489070
   },
-  "history": [
-    {
-      "d": "2026-05-25",
-      "r": 174,
-      "s": 162,
-      "rate": 94.7,
-      "$": 26.2265,
-      "tok": 56839455
-    },
-    {
-      "d": "2026-05-26",
-      "r": 49,
-      "s": 42,
-      "rate": 85.7,
-      "$": 26.366459,
-      "tok": 54489070
-    },
-    {
-      "d": "2026-05-27",
-      "r": 37,
-      "s": 30,
-      "rate": 90.9,
-      "$": 12.0,
-      "tok": 17283384,
-      "partial": true
-    },
-    {
-      "d": "2026-05-28",
-      "r": 64,
-      "s": 47,
-      "rate": 81.0,
-      "$": 29.354164,
-      "tok": 48923104,
-      "partial": true
-    },
-    {
-      "d": "2026-05-29",
-      "r": 21,
-      "s": 17,
-      "rate": 89.5,
-      "$": 7.18,
-      "tok": 14553338,
-      "partial": true,
-      "note": "small mid-cycle window; $ is claude-only"
-    },
-    {
-      "d": "2026-05-30",
-      "r": 56,
-      "s": 51,
-      "rate": 91.1,
-      "$": 24.55,
-      "tok": 49889280,
-      "note": "full window; $ claude-measured (copilot/codex cost not reported)"
-    },
-    {
-      "d": "2026-05-31",
-      "r": 59,
-      "s": 53,
-      "rate": 89.8,
-      "$": 31.63,
-      "tok": 68838688,
-      "note": "full window; $ claude-measured. Cost up on Go Logger Enhancement $8.30 outlier (success)."
-    },
-    {
-      "d": "2026-06-01",
-      "r": 53,
-      "s": 51,
-      "rate": 96.2,
-      "$": 15.62,
-      "tok": 38076235,
-      "note": "full window; $ claude-measured. BEST success rate in 14-day window. Both failures = same safe-output target=* class."
-    },
-    {
-      "d": "2026-06-02",
-      "r": 57,
-      "s": 48,
-      "rate": 84.2,
-      "$": 15.05,
-      "tok": 32731221,
-      "note": "full window; $ claude-measured. Success DOWN from 96.2% peak. 9 failures/3 classes: token-budget-429 RE-ESCALATED (2 wf over 25M cap), safe-output partial-failure-intolerance (3 wf), NEW copilot-sdk-session-auth (4 dev-iteration runs on 1 experimental wf). Cos\u2026"
-    },
-    {
-      "d": "2026-06-03",
-      "r": 17,
-      "s": 13,
-      "rate": 76.5,
-      "$": 6.75,
-      "tok": 6839253,
-      "note": "window since 06-02 night audit (17 completed/19, 2 in-prog). $ claude-measured. 4 failures: 3x copilot-sdk-session-auth (100% of sdk-driver runs, ESCALATED to prod main) + 1 safe-output target=* (Contribution Check)."
-    },
-    {
-      "d": "2026-06-04",
-      "r": 64,
-      "s": 57,
-      "rate": 89.1,
-      "$": 19.23,
-      "tok": 31739017,
-      "partial": true,
-      "note": "PARTIAL ~4h window (logs timeout). 7 fail: token-budget-429 RECUR prod main + safe-output target=* x2 (Contribution Check/PR Sous Chef) + copilot-sdk-tool-permission-lockout (PR Code Quality Reviewer) + 3 by-design smoke probes."
-    },
-    {
-      "d": "2026-06-05",
-      "r": 53,
-      "s": 48,
-      "rate": 90.6,
-      "tok": 30404314,
-      "note": "full window (~4h evening cluster; continuation returned 0 older runs). 5 fail: NEW model/param config-incompatibility x2 prod-main (Caveman effort-unsupported 400, Cache Strategy model-not-found 404) + TQS copilot agent-job redden w/ valid output + 2 by-design\u2026"
-    },
-    {
-      "d": "2026-06-06",
-      "r": 97,
-      "s": 81,
-      "rate": 83.5,
-      "tok": 41627101,
-      "partial": true,
-      "note": "PARTIAL ~6h window (15:11-21:29Z; logs tool timed out at 120s, newest 100 runs only, ~18h unobserved). 16 fail. DOMINANT: copilot SDK-driver path broken = 9/16 (NEW minimatch MODULE_NOT_FOUND x6 + RECUR tool-perm-lockout x3). Also: model/param config RECUR x2\u2026"
-    },
-    {
-      "d": "2026-06-07",
-      "r": 54,
-      "s": 46,
-      "rate": 85.2,
-      "tok": 23994237,
-      "note": "FULL but SMALL 24h window (~3.7h active cluster 17:56-21:38Z; continuation returned 0 older runs \u2014 quiet Sunday). PROD-MAIN 39/42 real = 92.9% (excl 1 intentional-fail). 8 fail/4 classes: NEW guardrail-module-missing x4 (PR branch copilot/fix-daily-credit-limi\u2026"
-    },
-    {
-      "d": "2026-06-08",
-      "r": 88,
-      "s": 66,
-      "rate": 75.0,
-      "tok": 24367927,
-      "partial": true,
-      "note": "PARTIAL ~3.3h evening cluster (18:21-21:40Z; logs timeout, 93/260 dirs had summaries). ACTIVE INCIDENT copilot-pat-not-supported-400 (NEW) onset 19:40Z still firing 21:37Z: '400 Personal Access Tokens are not supported for this endpoint' on copilot harness+sdk\u2026"
-    },
-    {
-      "d": "2026-06-09",
-      "r": 37,
-      "s": 31,
-      "rate": 83.8,
-      "tok": 23834861,
-      "partial": true,
-      "note": "PARTIAL ~2.5h evening cluster (19:13-21:41Z, 38 in-window). PAT-400 incident RESOLVED (4 signature-carrying runs all SUCCEEDED attempt1; pelikhan/fix-pat-400-retry landed). 6 fail ALL copilot: NEW daily-ai-credits-cap-429 (Ambient 1026.78/1000 prod-main), cli-\u2026"
-    },
-    {
-      "d": "2026-06-10",
-      "r": 93,
-      "s": 81,
-      "rate": 88.0,
-      "tok": 69624404,
-      "partial": true,
-      "note": "morning48+evening47 merged; mid-day gap"
-    },
-    {
-      "d": "2026-06-11",
-      "r": 65,
-      "s": 55,
-      "rate": 84.6,
-      "tok": 25421016,
-      "$": 14.1,
-      "partial": true,
-      "note": "evening cluster ~3.5h; prod-main 93.1%; both main fails recurring config; PR noise=smoke probes+daily-cap gate"
-    },
-    {
-      "d": "2026-06-12",
-      "r": 120,
-      "s": 108,
-      "rate": 90.0,
-      "tok": 126744181,
-      "aic": 19991.9,
-      "partial": true,
-      "note": "~6.5h window 15:08-21:41Z; 120 local run dirs. prod-main 93.2%. Dominant prod-main fail=copilot-sdk tool-perm-lockout x4 (RECUR day6). NEW chroot-node-not-available. PR fails=smoke noise (gemini-pricing x2, aoai-loop x2, smoke-copilot safe_outputs x3)."
-    },
-    {
-      "d": "2026-06-13",
-      "r": 98,
-      "s": 67,
-      "rate": 68.4,
-      "$": 22.62,
-      "tok": 43899856,
-      "partial": true,
-      "note": "WORST since 05-23. Avenger x6 + PR Sous Chef x6 NEW clusters dominate. Fix branches in flight."
-    },
-    {
-      "d": "2026-06-14",
-      "r": 100,
-      "s": 87,
-      "rate": 87.0,
-      "$": 26.32,
-      "tok": 54464548,
-      "partial": true,
-      "note": "REBOUND from 06-13. PR Sous Chef recovered 10/10. Remaining fails all known-recurring (Avenger ERR_CONFIG day2, copilot-sdk tool-perm-lockout day8 x2, Doc Unbloat empty-output). No new prod-main class."
-    },
-    {
-      "d": "2026-06-15",
-      "r": 37,
-      "s": 32,
-      "rate": 86.5,
-      "tok": 33390606,
-      "aic": 9962.87,
-      "partial": true,
-      "note": "~4.5h evening window. 5 fail/4-5 classes mostly recurring: tree-map-timeout, safe-out-integrator sdk-perm-lockout day9, security-obs 0-tok, cache-strategy binary-not-found NEW, doc-unbloat cache-git-integrity day3."
-    },
-    {
-      "d": "2026-06-16",
-      "r": 66,
-      "s": 47,
-      "rate": 71.2,
-      "tok": 41946177,
-      "partial": true,
-      "note": "~3.3h evening window. Overall 71.2% skewed by 9-run PR container-validation cluster (copilot/add-gh-aw-node-to-default-containers smoke+container tests, by-design). prod-main 84.4% (4 fail: 2 sdk-perm-lockout, 2 NEW upload_assets-redden). missing_tools/data/mcp=0."
-    },
-    {
-      "d": "2026-06-17",
-      "r": 43,
-      "s": 42,
-      "rate": 97.7,
-      "tok": 23678641
-    },
-    {
-      "d": "2026-06-18",
-      "r": 78,
-      "s": 67,
-      "rate": 88.2,
-      "tok": 42796721,
-      "partial": true,
-      "note": "prod-main 74.2%; 8-fail cluster all KNOWN-recurring (avenger x2, copilot-sdk-lockout x2, doc-unbloat, codex-binary, security-obs 0tok, PR-Sous-Chef safe_outputs); 0 missing-tools/data/mcp"
-    },
-    {
-      "d": "2026-06-19",
-      "r": 106,
-      "s": 97,
-      "rate": 91.5,
-      "tok": null,
-      "partial": true,
-      "note": "prod-main 85.2% rebound; 9 fails ALL known (avenger x4 100%, copilot-sdk-lockout x3, codex-cache-strategy, doc-unbloat); 0 missing-tools/data/mcp/errors; token data unavailable (artifacts not fetched)"
-    },
-    {
-      "d": "2026-06-20",
-      "r": 395,
-      "s": 275,
-      "rate": 69.6,
-      "rate_ex_skillet": 94.2,
-      "tok": 18325653,
-      "partial": true,
-      "note": "Skillet NEW 100%-fail x103 skews overall; ex-Skillet 94.2% healthy. Avenger escalating x8."
-    }
-  ]
+  {
+   "d": "2026-05-27",
+   "r": 37,
+   "s": 30,
+   "rate": 90.9,
+   "$": 12.0,
+   "tok": 17283384,
+   "partial": true
+  },
+  {
+   "d": "2026-05-28",
+   "r": 64,
+   "s": 47,
+   "rate": 81.0,
+   "$": 29.354164,
+   "tok": 48923104,
+   "partial": true
+  },
+  {
+   "d": "2026-05-29",
+   "r": 21,
+   "s": 17,
+   "rate": 89.5,
+   "$": 7.18,
+   "tok": 14553338,
+   "partial": true,
+   "note": "small mid-cycle window; $ is claude-only"
+  },
+  {
+   "d": "2026-05-30",
+   "r": 56,
+   "s": 51,
+   "rate": 91.1,
+   "$": 24.55,
+   "tok": 49889280,
+   "note": "full window; $ claude-measured (copilot/codex cost not reported)"
+  },
+  {
+   "d": "2026-05-31",
+   "r": 59,
+   "s": 53,
+   "rate": 89.8,
+   "$": 31.63,
+   "tok": 68838688,
+   "note": "full window; $ claude-measured. Cost up on Go Logger Enhancement $8.30 outlier (success)."
+  },
+  {
+   "d": "2026-06-01",
+   "r": 53,
+   "s": 51,
+   "rate": 96.2,
+   "$": 15.62,
+   "tok": 38076235,
+   "note": "full window; $ claude-measured. BEST success rate in 14-day window. Both failures = same safe-output target=* class."
+  },
+  {
+   "d": "2026-06-02",
+   "r": 57,
+   "s": 48,
+   "rate": 84.2,
+   "$": 15.05,
+   "tok": 32731221,
+   "note": "full window; $ claude-measured. Success DOWN from 96.2% peak. 9 failures/3 classes: token-budget-429 RE-ESCALATED (2 wf over 25M cap), sa..."
+  },
+  {
+   "d": "2026-06-03",
+   "r": 17,
+   "s": 13,
+   "rate": 76.5,
+   "$": 6.75,
+   "tok": 6839253,
+   "note": "window since 06-02 night audit (17 completed/19, 2 in-prog). $ claude-measured. 4 failures: 3x copilot-sdk-session-auth (100% of sdk-driv..."
+  },
+  {
+   "d": "2026-06-04",
+   "r": 64,
+   "s": 57,
+   "rate": 89.1,
+   "$": 19.23,
+   "tok": 31739017,
+   "partial": true,
+   "note": "PARTIAL ~4h window (logs timeout). 7 fail: token-budget-429 RECUR prod main + safe-output target=* x2 (Contribution Check/PR Sous Chef) +..."
+  },
+  {
+   "d": "2026-06-05",
+   "r": 53,
+   "s": 48,
+   "rate": 90.6,
+   "tok": 30404314,
+   "note": "full window (~4h evening cluster; continuation returned 0 older runs). 5 fail: NEW model/param config-incompatibility x2 prod-main (Cavem..."
+  },
+  {
+   "d": "2026-06-06",
+   "r": 97,
+   "s": 81,
+   "rate": 83.5,
+   "tok": 41627101,
+   "partial": true,
+   "note": "PARTIAL ~6h window (15:11-21:29Z; logs tool timed out at 120s, newest 100 runs only, ~18h unobserved). 16 fail. DOMINANT: copilot SDK-dri..."
+  },
+  {
+   "d": "2026-06-07",
+   "r": 54,
+   "s": 46,
+   "rate": 85.2,
+   "tok": 23994237,
+   "note": "FULL but SMALL 24h window (~3.7h active cluster 17:56-21:38Z; continuation returned 0 older runs \u2014 quiet Sunday). PROD-MAIN 39/42 real = ..."
+  },
+  {
+   "d": "2026-06-08",
+   "r": 88,
+   "s": 66,
+   "rate": 75.0,
+   "tok": 24367927,
+   "partial": true,
+   "note": "PARTIAL ~3.3h evening cluster (18:21-21:40Z; logs timeout, 93/260 dirs had summaries). ACTIVE INCIDENT copilot-pat-not-supported-400 (NEW..."
+  },
+  {
+   "d": "2026-06-09",
+   "r": 37,
+   "s": 31,
+   "rate": 83.8,
+   "tok": 23834861,
+   "partial": true,
+   "note": "PARTIAL ~2.5h evening cluster (19:13-21:41Z, 38 in-window). PAT-400 incident RESOLVED (4 signature-carrying runs all SUCCEEDED attempt1; ..."
+  },
+  {
+   "d": "2026-06-10",
+   "r": 93,
+   "s": 81,
+   "rate": 88.0,
+   "tok": 69624404,
+   "partial": true,
+   "note": "morning48+evening47 merged; mid-day gap"
+  },
+  {
+   "d": "2026-06-11",
+   "r": 65,
+   "s": 55,
+   "rate": 84.6,
+   "tok": 25421016,
+   "$": 14.1,
+   "partial": true,
+   "note": "evening cluster ~3.5h; prod-main 93.1%; both main fails recurring config; PR noise=smoke probes+daily-cap gate"
+  },
+  {
+   "d": "2026-06-12",
+   "r": 120,
+   "s": 108,
+   "rate": 90.0,
+   "tok": 126744181,
+   "aic": 19991.9,
+   "partial": true,
+   "note": "~6.5h window 15:08-21:41Z; 120 local run dirs. prod-main 93.2%. Dominant prod-main fail=copilot-sdk tool-perm-lockout x4 (RECUR day6). NE..."
+  },
+  {
+   "d": "2026-06-13",
+   "r": 98,
+   "s": 67,
+   "rate": 68.4,
+   "$": 22.62,
+   "tok": 43899856,
+   "partial": true,
+   "note": "WORST since 05-23. Avenger x6 + PR Sous Chef x6 NEW clusters dominate. Fix branches in flight."
+  },
+  {
+   "d": "2026-06-14",
+   "r": 100,
+   "s": 87,
+   "rate": 87.0,
+   "$": 26.32,
+   "tok": 54464548,
+   "partial": true,
+   "note": "REBOUND from 06-13. PR Sous Chef recovered 10/10. Remaining fails all known-recurring (Avenger ERR_CONFIG day2, copilot-sdk tool-perm-loc..."
+  },
+  {
+   "d": "2026-06-15",
+   "r": 37,
+   "s": 32,
+   "rate": 86.5,
+   "tok": 33390606,
+   "aic": 9962.87,
+   "partial": true,
+   "note": "~4.5h evening window. 5 fail/4-5 classes mostly recurring: tree-map-timeout, safe-out-integrator sdk-perm-lockout day9, security-obs 0-to..."
+  },
+  {
+   "d": "2026-06-16",
+   "r": 66,
+   "s": 47,
+   "rate": 71.2,
+   "tok": 41946177,
+   "partial": true,
+   "note": "~3.3h evening window. Overall 71.2% skewed by 9-run PR container-validation cluster (copilot/add-gh-aw-node-to-default-containers smoke+c..."
+  },
+  {
+   "d": "2026-06-17",
+   "r": 43,
+   "s": 42,
+   "rate": 97.7,
+   "tok": 23678641
+  },
+  {
+   "d": "2026-06-18",
+   "r": 78,
+   "s": 67,
+   "rate": 88.2,
+   "tok": 42796721,
+   "partial": true,
+   "note": "prod-main 74.2%; 8-fail cluster all KNOWN-recurring (avenger x2, copilot-sdk-lockout x2, doc-unbloat, codex-binary, security-obs 0tok, PR..."
+  },
+  {
+   "d": "2026-06-19",
+   "r": 106,
+   "s": 97,
+   "rate": 91.5,
+   "tok": null,
+   "partial": true,
+   "note": "prod-main 85.2% rebound; 9 fails ALL known (avenger x4 100%, copilot-sdk-lockout x3, codex-cache-strategy, doc-unbloat); 0 missing-tools/..."
+  },
+  {
+   "d": "2026-06-20",
+   "r": 395,
+   "s": 275,
+   "rate": 69.6,
+   "rate_ex_skillet": 94.2,
+   "tok": 18325653,
+   "partial": true,
+   "note": "Skillet NEW 100%-fail x103 skews overall; ex-Skillet 94.2% healthy. Avenger escalating x8."
+  },
+  {
+   "d": "2026-06-21",
+   "r": 325,
+   "s": 298,
+   "rate": 91.7,
+   "tok": null,
+   "partial": true,
+   "note": "REBOUND 91.7% (prod-main 88.7%); Skillet 103->4 de-escalate; Avenger 7/7 chronic; long-run copilot agent-job fails (Delight/FormalSpec/Sa..."
+  }
+ ]
 }

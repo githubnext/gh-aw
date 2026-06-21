@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-20T22:00Z",
+  "updated": "2026-06-21",
   "workflows": {
     "Linter Miner": {
       "last": "2026-06-06",
@@ -83,7 +83,10 @@
       "last_concl": "failure",
       "eff_tok": 625705,
       "class": "safe-output-partial-failure-intolerance",
-      "note": "agent SUCCESS but safe_outputs job failed -> red"
+      "note": "agent SUCCESS but safe_outputs job failed -> red",
+      "last_seen": "2026-06-21",
+      "last_note": "23/25 success",
+      "last_success_rate": 0.92
     },
     "Test Quality Sentinel": {
       "last": "2026-06-06",
@@ -152,7 +155,10 @@
       "last_concl": "failure",
       "eff_tok": 0,
       "class": "avenger-err-config-no-structured-logs",
-      "note": "x8 100% fail, ESCALATING 2->4->8 over 06-18/19/20. recur13. Chronic #1 non-Skillet offender."
+      "note": "x8 100% fail, ESCALATING 2->4->8 over 06-18/19/20. recur13. Chronic #1 non-Skillet offender.",
+      "last_seen": "2026-06-21",
+      "last_note": "7/7 fail today, 100% multi-day",
+      "last_success_rate": 0.0
     },
     "Daily Formal Spec Verifier": {
       "last": "2026-06-14",
@@ -202,7 +208,10 @@
       "last_concl": "failure",
       "eff_tok": 0,
       "class": "skillet-100pct-fail-on-push-fleet-wide",
-      "note": "NEW; 103 fails/100% in 24h on push all-branches+main, 0-tok pre-activation. private:true, merged HEAD 894b94c."
+      "note": "NEW; 103 fails/100% in 24h on push all-branches+main, 0-tok pre-activation. private:true, merged HEAD 894b94c.",
+      "last_seen": "2026-06-21",
+      "last_note": "4/4 fail, de-escalated from 103",
+      "last_success_rate": 0.0
     }
   }
 }
