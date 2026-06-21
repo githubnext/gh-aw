@@ -24,9 +24,10 @@ const (
 )
 
 type slashCommandRoute struct {
-	Workflow   string   `json:"workflow"`
-	Events     []string `json:"events"`
-	AIReaction string   `json:"ai_reaction,omitempty"`
+	Workflow      string   `json:"workflow"`
+	Events        []string `json:"events"`
+	AIReaction    string   `json:"ai_reaction,omitempty"`
+	StatusComment bool     `json:"status_comment,omitempty"`
 }
 
 type commandsHeaderMetadata struct {
@@ -160,7 +161,7 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 		}
 
 		for _, commandName := range commandNames {
-			routesByCommand[commandName] = append(routesByCommand[commandName], buildCentralizedRoutes(wd, routeEvents)...)
+			routesByCommand[commandName] = append(routesByCommand[commandName], buildCentralizedRoutes(wd, routeEvents, true)...)
 		}
 	}
 
@@ -185,6 +186,10 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 			case left.AIReaction < right.AIReaction:
 				return -1
 			case left.AIReaction > right.AIReaction:
+				return 1
+			case !left.StatusComment && right.StatusComment:
+				return -1
+			case left.StatusComment && !right.StatusComment:
 				return 1
 			default:
 				return 0
@@ -224,7 +229,7 @@ func collectCentralLabelCommandRoutes(workflowDataList []*WorkflowData, mergedEv
 		}
 
 		for _, labelName := range wd.LabelCommand {
-			routesByLabel[labelName] = append(routesByLabel[labelName], buildCentralizedRoutes(wd, routeEvents)...)
+			routesByLabel[labelName] = append(routesByLabel[labelName], buildCentralizedRoutes(wd, routeEvents, false)...)
 		}
 	}
 
@@ -249,6 +254,10 @@ func collectCentralLabelCommandRoutes(workflowDataList []*WorkflowData, mergedEv
 				return -1
 			case left.AIReaction > right.AIReaction:
 				return 1
+			case !left.StatusComment && right.StatusComment:
+				return -1
+			case left.StatusComment && !right.StatusComment:
+				return 1
 			default:
 				return 0
 			}
@@ -258,7 +267,7 @@ func collectCentralLabelCommandRoutes(workflowDataList []*WorkflowData, mergedEv
 	return routesByLabel
 }
 
-func buildCentralizedRoutes(wd *WorkflowData, routeEvents []string) []slashCommandRoute {
+func buildCentralizedRoutes(wd *WorkflowData, routeEvents []string, includeStatusComment bool) []slashCommandRoute {
 	if wd == nil {
 		return nil
 	}
@@ -266,17 +275,23 @@ func buildCentralizedRoutes(wd *WorkflowData, routeEvents []string) []slashComma
 	groupOrder := make([]string, 0, len(routeEvents))
 	for _, eventName := range routeEvents {
 		reaction := resolveCentralizedEventReaction(wd, eventName)
-		if _, exists := eventGroups[reaction]; !exists {
-			groupOrder = append(groupOrder, reaction)
+		statusComment := includeStatusComment && resolveCentralizedEventStatusComment(wd, eventName)
+		groupKey := reaction + "|" + strconv.FormatBool(statusComment)
+		if _, exists := eventGroups[groupKey]; !exists {
+			groupOrder = append(groupOrder, groupKey)
 		}
-		eventGroups[reaction] = append(eventGroups[reaction], eventName)
+		eventGroups[groupKey] = append(eventGroups[groupKey], eventName)
 	}
 	routes := make([]slashCommandRoute, 0, len(groupOrder))
-	for _, reaction := range groupOrder {
+	for _, groupKey := range groupOrder {
+		parts := strings.SplitN(groupKey, "|", 2)
+		reaction := parts[0]
+		statusComment := len(parts) == 2 && parts[1] == "true"
 		routes = append(routes, slashCommandRoute{
-			Workflow:   wd.WorkflowID,
-			Events:     slices.Clone(eventGroups[reaction]),
-			AIReaction: reaction,
+			Workflow:      wd.WorkflowID,
+			Events:        slices.Clone(eventGroups[groupKey]),
+			AIReaction:    reaction,
+			StatusComment: statusComment,
 		})
 	}
 	return routes
@@ -303,6 +318,23 @@ func resolveCentralizedEventReaction(wd *WorkflowData, eventName string) string 
 	}
 
 	return ""
+}
+
+func resolveCentralizedEventStatusComment(wd *WorkflowData, eventName string) bool {
+	if wd == nil || wd.StatusComment == nil || !*wd.StatusComment {
+		return false
+	}
+
+	switch eventName {
+	case "issues", "issue_comment":
+		return shouldIncludeIssueStatusComments(wd)
+	case "pull_request", "pull_request_comment", "pull_request_review_comment":
+		return shouldIncludePullRequestStatusComments(wd)
+	case "discussion", "discussion_comment":
+		return shouldIncludeDiscussionStatusComments(wd)
+	default:
+		return false
+	}
 }
 
 func buildCentralSlashCommandWorkflowYAML(

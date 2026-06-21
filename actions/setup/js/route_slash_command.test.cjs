@@ -94,6 +94,7 @@ describe("route_slash_command", () => {
     globals.core = {
       info: vi.fn(),
       warning: vi.fn(),
+      setOutput: vi.fn(),
       summary: summaryMock,
     };
     globals.github = {
@@ -194,6 +195,45 @@ describe("route_slash_command", () => {
     expect(summaryMock.addRaw).toHaveBeenCalledWith("- Configured commands: 1", true);
     expect(summaryMock.addRaw).toHaveBeenCalledWith("<details><summary>Configured commands</summary>\n\n- `/archie`\n\n</details>", true);
     expect(summaryMock.write).toHaveBeenCalledWith({ overwrite: false });
+  });
+
+  it("creates an immediate status comment once and forwards it in aw_context", async () => {
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      archie: [
+        { workflow: "archie", events: ["issue_comment"], ai_reaction: "eyes", status_comment: true },
+        { workflow: "archie-secondary", events: ["issue_comment"], ai_reaction: "eyes", status_comment: true },
+      ],
+    });
+    globals.context.payload.issue.number = 77;
+    globals.context.payload.comment.body = "/archie please";
+    globals.github.request = vi.fn(async (route, params) => {
+      if (String(route).includes("/comments")) {
+        return {
+          data: {
+            id: 999,
+            html_url: "https://github.com/github/gh-aw/issues/77#issuecomment-999",
+          },
+        };
+      }
+      reactionCalls.push([route, params]);
+      return { data: { id: 1 } };
+    });
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(2);
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.status_comment_id).toBe("999");
+    expect(awContext.status_comment_url).toBe("https://github.com/github/gh-aw/issues/77#issuecomment-999");
+    expect(awContext.status_comment_repo).toBe("github/gh-aw");
+    expect(JSON.parse(dispatchCalls[1].inputs.aw_context).status_comment_id).toBe("999");
+    expect(globals.github.request.mock.calls.filter(([route]) => String(route).includes("/reactions"))).toHaveLength(1);
+    expect(globals.github.request).toHaveBeenCalledWith(
+      expect.stringContaining("/issues/77/comments"),
+      expect.objectContaining({
+        body: expect.stringContaining("has started processing this issue comment"),
+      })
+    );
   });
 
   it("handles builtin /help by posting a context comment and skipping dispatch", async () => {

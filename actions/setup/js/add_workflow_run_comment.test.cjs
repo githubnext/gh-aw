@@ -199,6 +199,36 @@ describe("add_workflow_run_comment", () => {
     });
   });
 
+  describe("main() - workflow_dispatch aw_context reuse", () => {
+    it("reuses an existing status comment from aw_context", async () => {
+      global.context = {
+        eventName: "workflow_dispatch",
+        runId: 12345,
+        repo: { owner: "workflowowner", repo: "workflowrepo" },
+        payload: {
+          inputs: {
+            aw_context: JSON.stringify({
+              repo: "targetowner/targetrepo",
+              event_type: "issue_comment",
+              item_type: "issue",
+              item_number: 789,
+              status_comment_id: 67890,
+              status_comment_url: "https://github.com/targetowner/targetrepo/issues/789#issuecomment-67890",
+            }),
+          },
+        },
+      };
+
+      await runScript();
+
+      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "67890");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/targetowner/targetrepo/issues/789#issuecomment-67890");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "targetowner/targetrepo");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
   describe("main() - pull_request event", () => {
     it("should create comment on a pull request", async () => {
       global.context = {
