@@ -903,6 +903,32 @@ jobs:
 
           core.info(`✅ ${CONFIG_FILE} passes all structural and cross-row invariant checks`);
 
+    - name: Run zizmor security scan on lock files
+      run: |
+        echo "🔍 Running zizmor security scan on workflow lock files..."
+
+        # Find all .lock.yml files
+        LOCK_FILES=$(find .github/workflows -name "*.lock.yml" | sort | tr '\n' ' ')
+
+        if [ -z "$LOCK_FILES" ]; then
+          echo "⚠️  No .lock.yml files found to scan"
+          exit 0
+        fi
+
+        FILE_COUNT=$(find .github/workflows -name "*.lock.yml" | wc -l)
+        echo "Scanning $FILE_COUNT lock file(s) with zizmor..."
+
+        # Run zizmor via Docker - config is auto-detected from .github/zizmor.yml
+        # SC2086: word splitting is intentional to pass each file as a separate argument
+        # shellcheck disable=SC2086
+        docker run --rm \
+          -v "$(pwd)":/workdir \
+          -w /workdir \
+          ghcr.io/zizmorcore/zizmor:latest \
+          $LOCK_FILES
+
+        echo "✅ zizmor security scan passed"
+
   bench:
     # Only run benchmarks on main branch for performance tracking
     if: github.ref == 'refs/heads/main'
