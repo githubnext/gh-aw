@@ -93,7 +93,7 @@ function parseObject(value) {
     } catch {
       return null;
     }
-    // Parsing succeeded, but the result was not an object (for example, a primitive or array).
+    // Fall through when the parsed JSON value is not an object.
     return null;
   }
   if (typeof value === "object" && !Array.isArray(value)) {
