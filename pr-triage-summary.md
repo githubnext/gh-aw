@@ -1,35 +1,24 @@
-# PR Triage Memory
-Last: 2026-06-16T14:08:00Z | Run: 27623380878 | Fork PRs: 0
+# PR Triage Summary
 
-## PR Triage Summary - 2026-06-16T14:08Z (Run 27623380878)
+**Last Updated**: 2026-06-21T12:58:25Z  
+**Last Run ID**: [§27905018760](https://github.com/github/gh-aw/actions/runs/27905018760)
 
-### Status
-**No fork PRs to triage** (fork-only policy; all 15 open agent PRs are branch-based)
+## Status
 
-### Details
-- **Run ID**: 27623380878
-- **Open Agent PRs Found**: 15 (5 copilot-swe-agent + 10 github-actions)
-- **Fork PRs Found**: 0
-- **PRs Triaged**: 0 (fork-only policy)
-- **New Since Last Run**: #39540 (copilot-swe-agent) + 10 github-actions PRs
-- **Merged Since Last Run**: 0
-- **Unchanged (copilot-swe-agent)**: #39486, #39386, #39300, #39100
+All open agent PRs are same-repo branches. Fork-only triage policy results in **0 eligible PRs** each run.
 
-### Branch PRs Tracked (scores informational)
-| # | Title | Cat | Risk | Score | Action | CI | Review |
-|---|---|---|---|---|---|---|---|
-| #39100 | Run safe-outputs MCP in gh-aw container | feature | high | 83 | fast_track | 27 passing | human+bot |
-| #39386 | Cache-miss branch scoping fix | bug | medium | 61 | fast_track | none | bot-approved |
-| #39300 | Wildcard-target validation | bug | medium | 61 | batch_review | none | bot-commented |
-| #39540 | feat(repo-memory): format-json option (DRAFT) | feature | low | 38 | defer | none | none |
-| #39486 | AWF Firewall + MCP Gateway bump (DRAFT) | chore | medium | 35 | defer | none | none |
+## Open Agent PRs (2026-06-21, Run §27905018760)
 
-### github-actions PRs (new)
-10 new automated workflow PRs: docs, spec, fp-enhancer, jsweep, caveman, dead-code
+| # | Author | Title | +/- | CI | Status |
+|---|--------|-------|-----|----|--------|
+| #40423 | copilot-swe-agent | Add `replace-label` safe-outputs type | +1836/-5 | none | Open, 21 comments, 1.4d old |
+| #40576 | copilot-swe-agent | Align Smoke Copilot prompts with actual tool names | +11/-11 | 16✅/9⏳ | Open |
+| #40578 | copilot-swe-agent | code simplifier: allowed_issue_fields.cjs | +18/-904 | 26✅/16⏳ | Open |
+| #40584 | github-actions | [jsweep] Clean update_pr_description_helpers.cjs | +43/-3 | none | Open, 9 comments |
+| #40593 | github-actions | [docs] Update dictation skill instructions | +32/-25 | none | Open |
+| #40599 | github-actions | [code-scanning-fix] CWE-190 int conversion | +6/-6 | none | DRAFT |
+| #40604 | github-actions | [instructions] Sync instruction files 0.80.6 | +4/-6 | none | Open |
 
-### Notable
-- #39100: 3 days old, CI all green (27 passing), human reviewer @alinasisi engaged — top priority, immediate merge decision needed
-- #39386: Bot-approved, 16 comments — fast-track candidate
-- #39540: New DRAFT feature (repo-memory JSON formatting) — defer until ready
-- #39486: Large DRAFT bump (265 files) — deferred
-- 10 github-actions PRs eligible for auto-merge batch
+## Pattern
+
+Consistent pattern across all runs: agent PRs target same-repo branches, never external forks. No fork PRs have been eligible across any triage run.

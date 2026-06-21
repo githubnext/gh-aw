@@ -1,15 +1,87 @@
 {
-  "run_date": "2026-06-21T07:56:08Z",
-  "run_id": "27897874097",
-  "previous_run_id": "27889672106",
-  "previous_run_date": "2026-06-21T01:29:49Z",
+  "run_date": "2026-06-21T12:58:25Z",
+  "run_id": "27905018760",
+  "previous_run_id": "27897874097",
+  "previous_run_date": "2026-06-21T07:56:08Z",
   "fork_prs": 0,
-  "agent_prs_found": 3,
+  "agent_prs_found": 7,
   "copilot_swe_agent_prs": 3,
-  "github_actions_prs": 2,
+  "github_actions_prs": 4,
   "prs_triaged": 0,
   "fork_only_policy": true,
   "open_agent_prs": [
+    {
+      "number": 40604,
+      "title": "[instructions] Sync instruction files with release 0.80.6",
+      "author": "app/github-actions",
+      "draft": false,
+      "status": "OPEN",
+      "created": "2026-06-21",
+      "labels": ["documentation", "automation", "instructions"],
+      "is_fork": false,
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw",
+      "additions": 4,
+      "deletions": 6,
+      "changed_files": 2,
+      "review_decision": "",
+      "ci_status": "NO_CI",
+      "comments": 2
+    },
+    {
+      "number": 40599,
+      "title": "[code-scanning-fix] Fix go/incorrect-integer-conversion: unsafe int64 to int conversion (CWE-190)",
+      "author": "app/github-actions",
+      "draft": true,
+      "status": "OPEN",
+      "created": "2026-06-21",
+      "labels": ["security", "automated-fix", "agentic-campaign", "z_campaign_security-alert-burndown"],
+      "is_fork": false,
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw",
+      "additions": 6,
+      "deletions": 6,
+      "changed_files": 1,
+      "review_decision": "",
+      "ci_status": "NO_CI",
+      "comments": 1
+    },
+    {
+      "number": 40593,
+      "title": "[docs] Update dictation skill instructions",
+      "author": "app/github-actions",
+      "draft": false,
+      "status": "OPEN",
+      "created": "2026-06-21",
+      "labels": ["documentation", "automation"],
+      "is_fork": false,
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw",
+      "additions": 32,
+      "deletions": 25,
+      "changed_files": 1,
+      "review_decision": "",
+      "ci_status": "NO_CI",
+      "comments": 2
+    },
+    {
+      "number": 40584,
+      "title": "[jsweep] Clean update_pr_description_helpers.cjs",
+      "author": "app/github-actions",
+      "draft": false,
+      "status": "OPEN",
+      "created": "2026-06-21",
+      "labels": ["automation", "unbloat"],
+      "is_fork": false,
+      "head_repo": "github/gh-aw",
+      "base_repo": "github/gh-aw",
+      "additions": 43,
+      "deletions": 3,
+      "changed_files": 2,
+      "review_decision": "",
+      "ci_status": "NO_CI",
+      "comments": 9
+    },
     {
       "number": 40578,
       "title": "code simplifier: allowed_issue_fields.cjs; remove drain3_server.py",
@@ -25,7 +97,10 @@
       "deletions": 904,
       "changed_files": 7,
       "review_decision": "",
-      "ci_status": "ALL_PASS",
+      "ci_status": "PARTIAL_PASS",
+      "ci_passing": 26,
+      "ci_failing": 0,
+      "ci_pending": 16,
       "comments": 6
     },
     {
@@ -43,8 +118,11 @@
       "deletions": 11,
       "changed_files": 6,
       "review_decision": "",
-      "ci_status": "ALL_PASS",
-      "comments": 3
+      "ci_status": "PARTIAL_PASS",
+      "ci_passing": 16,
+      "ci_failing": 0,
+      "ci_pending": 9,
+      "comments": 5
     },
     {
       "number": 40423,
@@ -62,26 +140,35 @@
       "changed_files": 23,
       "review_decision": "",
       "ci_status": "NO_CI",
-      "comments": 0
+      "comments": 21,
+      "age_days": 1.4
     }
   ],
-  "merged_since_last_run": [
-    {"number": 40534, "title": "refactor: consolidate 6 identical hasStringKey copies into pkg/setutil.Contains", "merged_at": "2026-06-21T02:32:41Z"},
-    {"number": 40533, "title": "Add close-discussion safe-output to daily-performance-summary workflow", "merged_at": "2026-06-21T01:39:41Z"},
-    {"number": 40532, "title": "Exclude actions-lock.json from daily code metrics churn report", "merged_at": "2026-06-21T01:38:57Z"},
-    {"number": 40504, "title": "Precompute usage-artifact activity aggregates and include GitHub API rate limit data for usage-only reporting", "merged_at": "2026-06-21T05:05:58Z"}
-  ],
-  "new_since_last_run": [40578, 40576],
-  "still_open_from_before": [40423],
+  "merged_since_last_run": [],
+  "new_since_last_run": [40604, 40599, 40593, 40584],
+  "still_open_from_before": [40578, 40576, 40423],
   "statistics": {
     "by_status": {
-      "OPEN": 3
+      "OPEN": 7,
+      "DRAFT": 1
     },
-    "open_non_draft_prs": 3,
-    "draft_prs": 0,
+    "open_non_draft_prs": 6,
+    "draft_prs": 1,
     "prs_with_changes_requested": 0,
-    "prs_ci_all_pass": 2,
-    "prs_ci_no_ci": 1
+    "prs_ci_all_pass": 0,
+    "prs_ci_partial_pass": 2,
+    "prs_ci_no_ci": 5,
+    "by_author": {
+      "app/github-actions": 4,
+      "app/copilot-swe-agent": 3
+    },
+    "by_category": {
+      "docs": 2,
+      "chore": 2,
+      "refactor": 1,
+      "bug": 1,
+      "feature": 1
+    }
   },
-  "notes": "3 open agent PRs (all copilot-swe-agent), all same-repo branches (is_fork=false). Fork-only triage policy: 0 PRs eligible. 4 PRs merged since last run (#40534, #40533, #40532, #40504). 2 new PRs since last run (#40578, #40576). #40423 still open (created 2026-06-20, no CI status). #40578 and #40576 both have all CI passing. All 3 previous drafts (#40534, #40533, #40532) merged this run cycle. Ongoing pattern: all agent PRs are same-repo branches, never fork PRs. Run [§27897874097](https://github.com/github/gh-aw/actions/runs/27897874097)."
+  "notes": "7 open agent PRs: 4 from app/github-actions, 3 from app/copilot-swe-agent. All are same-repo branches (is_fork=false). Fork-only triage policy: 0 PRs eligible. No PRs merged since last run (2026-06-21T07:56:08Z). 4 new PRs since last run (#40604, #40599, #40593, #40584 - all github-actions). #40578 and #40576 still open with partial CI passing. #40423 still open (1.4 days old, 21 comments, no CI). Ongoing pattern: all agent PRs are same-repo branches, never fork PRs. Run [§27905018760](https://github.com/github/gh-aw/actions/runs/27905018760)."
 }
