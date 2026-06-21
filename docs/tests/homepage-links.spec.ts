@@ -64,4 +64,43 @@ test.describe('Homepage Links', () => {
       '/gh-aw/videos/create-workflow-on-github.vtt'
     );
   });
+
+  test('should expose VideoObject schema for homepage videos', async ({ page }) => {
+    const videoSchemas = await page.locator('script[type="application/ld+json"]').evaluateAll((scripts) =>
+      scripts
+        .map((script) => script.textContent ?? '')
+        .map((text) => {
+          try {
+            return JSON.parse(text);
+          } catch {
+            return null;
+          }
+        })
+        .filter((schema) => schema?.['@type'] === 'VideoObject')
+    );
+
+    expect(videoSchemas).toHaveLength(2);
+    expect(videoSchemas).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          '@context': 'https://schema.org',
+          '@type': 'VideoObject',
+          name: 'Install and add workflow in CLI demo video',
+          description: 'Install and add workflow in CLI demo video',
+          thumbnailUrl: 'https://github.github.com/gh-aw/videos/install-and-add-workflow-in-cli.png',
+          uploadDate: '2026-06-21',
+          contentUrl: 'https://github.github.com/gh-aw/videos/install-and-add-workflow-in-cli.mp4',
+        }),
+        expect.objectContaining({
+          '@context': 'https://schema.org',
+          '@type': 'VideoObject',
+          name: 'Create workflow on GitHub demo video',
+          description: 'Create workflow on GitHub demo video',
+          thumbnailUrl: 'https://github.github.com/gh-aw/videos/create-workflow-on-github.png',
+          uploadDate: '2026-06-21',
+          contentUrl: 'https://github.github.com/gh-aw/videos/create-workflow-on-github.mp4',
+        }),
+      ])
+    );
+  });
 });

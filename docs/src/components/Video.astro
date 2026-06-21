@@ -3,6 +3,8 @@ interface Props {
     src: string
     caption?: string
     title?: string
+    name?: string
+    description?: string
     captionsSrc?: string
     captionsLang?: string
     captionsLabel?: string
@@ -12,6 +14,10 @@ interface Props {
     repeat?: boolean
     silenced?: boolean
     thumbnail?: string
+    thumbnailUrl?: string
+    uploadDate?: string
+    contentUrl?: string
+    embedUrl?: string
     maxWidth?: string
 }
 
@@ -19,6 +25,8 @@ const {
     src, 
     caption, 
     title,
+    name,
+    description,
     captionsSrc,
     captionsLang = 'en',
     captionsLabel = 'English',
@@ -28,6 +36,10 @@ const {
     repeat = false,
     silenced = false,
     thumbnail,
+    thumbnailUrl,
+    uploadDate,
+    contentUrl,
+    embedUrl,
     maxWidth = '100%'
 } = Astro.props
 
@@ -67,6 +79,25 @@ const fallbackLinkLabel = accessibilityLabel
     ? `Download ${accessibilityLabel}`
     : 'Download this video'
 const loadingStrategy = autoStart ? 'eager' : 'lazy'
+const resolveAbsoluteUrl = (value?: string) =>
+    value ? new URL(value, Astro.site).toString() : undefined
+const schemaName = name || title || caption || fallbackLabel
+const schemaDescription = description || caption || title || (schemaName ? `${schemaName} video` : undefined)
+const resolvedThumbnailUrl = resolveAbsoluteUrl(thumbnailUrl || posterPath)
+const resolvedContentUrl = resolveAbsoluteUrl(contentUrl || src)
+const resolvedEmbedUrl = resolveAbsoluteUrl(embedUrl)
+const videoJsonLd = uploadDate && schemaName && schemaDescription && resolvedThumbnailUrl && (resolvedContentUrl || resolvedEmbedUrl)
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'VideoObject',
+        name: schemaName,
+        description: schemaDescription,
+        thumbnailUrl: resolvedThumbnailUrl,
+        uploadDate,
+        ...(resolvedContentUrl ? { contentUrl: resolvedContentUrl } : {}),
+        ...(resolvedEmbedUrl ? { embedUrl: resolvedEmbedUrl } : {}),
+    }
+    : undefined
 ---
 
 <div class="gh-aw-video-wrapper" style={`max-width: ${maxWidth};`}>
@@ -95,5 +126,8 @@ const loadingStrategy = autoStart ? 'eager' : 'lazy'
         <div class="gh-aw-video-caption" role="note">
             {caption}
         </div>
+    )}
+    {videoJsonLd && (
+        <script type="application/ld+json" set:html={JSON.stringify(videoJsonLd)} />
     )}
 </div>
