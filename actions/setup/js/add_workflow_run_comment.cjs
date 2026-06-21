@@ -93,7 +93,7 @@ function parseObject(value) {
     } catch {
       return null;
     }
-    // Parsed successfully, but the value was not a plain object.
+    // Parsing succeeded, but the result was not an object (for example, a primitive or array).
     return null;
   }
   if (typeof value === "object" && !Array.isArray(value)) {
@@ -106,7 +106,7 @@ function parseObject(value) {
  * @param {unknown} value
  * @returns {{ owner: string, repo: string }|null}
  */
-function parseRepoSlug(value) {
+function parseRepoSlugToRef(value) {
   if (typeof value !== "string") {
     return null;
   }
@@ -149,7 +149,7 @@ function readReusableStatusComment(rawContext) {
 
   const rawUrl = awContext.status_comment_url ?? awContext.statusCommentUrl;
   const url = typeof rawUrl === "string" ? rawUrl.trim() : "";
-  const repo = parseRepoSlug(awContext.status_comment_repo ?? awContext.statusCommentRepo);
+  const repo = parseRepoSlugToRef(awContext.status_comment_repo ?? awContext.statusCommentRepo);
   return { id, url, repo };
 }
 
