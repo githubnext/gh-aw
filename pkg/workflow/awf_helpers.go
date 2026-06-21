@@ -384,6 +384,19 @@ fi`,
 	// Build the complete command with proper formatting.
 	// configFileSetup (if non-empty) writes the AWF config JSON immediately before the
 	// AWF invocation so the file is present when AWF parses --config.
+	//
+	// shellcheck directive rationale:
+	//   - SC1003 is expected because this generated block intentionally contains GitHub
+	//     expression literals (for example ${{ job.services.<id>.ports['<port>'] }})
+	//     that include single quotes and must survive into runtime unchanged.
+	//   - SC2086 is expected because a subset of AWF arguments are intentionally emitted
+	//     as expandable shell fragments (for example ${GH_AW_TOOL_CACHE_MOUNT:+...} and
+	//     ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}). These fragments are produced by trusted
+	//     compiler-owned probes above and are not user-provided free-form shell input.
+	//
+	// We keep normal quoting for all user-controlled values via shellEscapeArg/shellJoinArgs
+	// and scope this suppression to the generated AWF invocation line only.
+	shellcheckDirective := "# shellcheck disable=SC1003,SC2086"
 	var command string
 	if config.PathSetup != "" && configFileSetup != "" {
 		command = fmt.Sprintf(`set -o pipefail
@@ -395,7 +408,7 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003,SC2086
+%s
 %s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
@@ -406,6 +419,7 @@ fi`,
 			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
+			shellcheckDirective,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
@@ -424,7 +438,7 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003,SC2086
+%s
 %s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
@@ -434,6 +448,7 @@ fi`,
 			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
+			shellcheckDirective,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
@@ -451,7 +466,7 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003,SC2086
+%s
 %s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
@@ -461,6 +476,7 @@ fi`,
 			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
+			shellcheckDirective,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
@@ -477,7 +493,7 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003,SC2086
+%s
 %s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
@@ -486,6 +502,7 @@ fi`,
 			arcDindDockerHostProbe,
 			arcDindPrefixProbe,
 			toolCacheMountProbe,
+			shellcheckDirective,
 			awfCommand,
 			expandableArgs,
 			toolCacheMountRef,
