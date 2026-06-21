@@ -354,6 +354,9 @@ describe("mcp_server_core.cjs", () => {
       expect(results[0].error.message).toContain("write-once, not a discovery probe");
       expect(results[0].error.message).toContain("tools/list");
       expect(results[0].error.message).toContain("noop");
+      // Schema guidance should be included so the model can retry without calling tools/list
+      expect(results[0].error.message).toContain("Example:");
+      expect(results[0].error.message).toContain("Required parameter");
     });
 
     it("should return enhanced error for partially-supplied but invalid required fields", async () => {
