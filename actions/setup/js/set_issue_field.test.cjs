@@ -99,6 +99,33 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(typeof result).toBe("function");
   });
 
+  it("should resolve issue number from temporary_id when create_issue precedes set_issue_field in same batch", async () => {
+    const message = {
+      type: "set_issue_field",
+      issue_number: "#aw_smoke_issue",
+      field_name: "Customer Impact",
+      value: "High",
+    };
+
+    const resolvedTemporaryIds = {
+      aw_smoke_issue: { repo: "test-owner/test-repo", number: 42 },
+    };
+
+    const result = await handler(message, resolvedTemporaryIds);
+
+    expect(result.success).toBe(true);
+    expect(result.issue_number).toBe(42);
+    expect(result.field_name).toBe("Customer Impact");
+    expect(result.field_node_id).toBe(textFieldId);
+    expect(mockGraphql).toHaveBeenCalledWith(
+      expect.stringContaining("setIssueFieldValue"),
+      expect.objectContaining({
+        issueId: issueNodeId,
+        issueFields: [expect.objectContaining({ fieldId: textFieldId, textValue: "High" })],
+      })
+    );
+  });
+
   it("should set issue text field successfully", async () => {
     const message = {
       type: "set_issue_field",
