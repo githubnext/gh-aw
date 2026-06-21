@@ -34,10 +34,6 @@ tools:
     mode: gh-proxy
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [context, pull_requests, code_security]
-  repo-memory:
-    - id: campaigns
-      branch-name: memory/campaigns
-      file-glob: [security-alert-burndown/**]
   edit:
   cache-memory:
 safe-outputs:
@@ -196,42 +192,6 @@ After successfully creating the pull request:
 - Append a new line to `/tmp/gh-aw/cache-memory/fixed-alerts.jsonl`
 - Use the format: `{"alert_number": [alert-number], "fixed_at": "[current-timestamp]", "pr_number": [pr-number]}`
 - This ensures the alert won't be selected again in future runs
-
-## Security Guidelines
-
-- **High-Risk Only**: This workflow only processes critical/high alerts to keep MCP responses bounded and actionable
-- **Minimal Changes**: Make only the changes necessary to fix the security issue
-- **No Breaking Changes**: Ensure the fix doesn't break existing functionality
-- **Best Practices**: Follow security best practices for the specific vulnerability type
-- **Code Quality**: Maintain code readability and maintainability
-- **No Duplicate Fixes**: Always check cache before selecting an alert
-
-## Cache Memory Format
-
-The cache memory file `fixed-alerts.jsonl` uses JSON Lines format:
-```jsonl
-{"alert_number": 123, "fixed_at": "2024-01-15T10:30:00Z", "pr_number": 456}
-{"alert_number": 124, "fixed_at": "2024-01-16T11:45:00Z", "pr_number": 457}
-{"alert_number": 125, "fixed_at": "2024-01-17T09:20:00Z", "pr_number": 458}
-```
-
-Each line is a separate JSON object representing one fixed alert.
-
-## Error Handling
-
-If any step fails:
-- **No Open Alerts**: Log "No unfixed security alerts found. All alerts have been addressed!" and exit gracefully
-- **All Alerts Already Fixed**: Log success message and exit gracefully
-- **Read Error**: Report the error and exit
-- **Fix Generation Failed**: Document why the fix couldn't be automated and exit
-
-## Important Notes
-
-- **Every 6 Hours**: This workflow runs every 6 hours to address security alerts
-- **One Alert at a Time**: Process only one alert per run to minimize risk
-- **Safe Operation**: All changes go through pull request review before merging
-- **Never Execute Untrusted Code**: Use read-only analysis tools
-- **Track Progress**: Cache ensures no duplicate work
 
 Remember: Your goal is to provide a secure, well-tested fix that can be reviewed and merged safely. Focus on quality and correctness over speed.
 
