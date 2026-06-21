@@ -50,29 +50,27 @@ const pageUrl = new URL(pathname, siteOrigin).toString();
 const blogPublishedDate = toSchemaDate(entry?.data?.date);
 const blogModifiedDate = toSchemaDate(entry?.data?.lastUpdated ?? entry?.data?.date);
 const authorInput = entry?.data?.authors ?? entry?.data?.author;
-const blogAuthors = normalizeAuthorsArray(authorInput)
-  .map((author) => {
+const blogAuthors = normalizeAuthorsArray(authorInput).flatMap((author) => {
     if (typeof author === 'string') {
-      return {
+      return [{
         '@type': 'Person',
         name: author,
-      };
+      }];
     }
 
     if (author && typeof author === 'object') {
       const { name, url } = author as BlogAuthor;
-      if (!name) return undefined;
+      if (!name) return [];
 
-      return {
+      return [{
         '@type': 'Person',
         name,
         ...(url ? { url } : {}),
-      };
+      }];
     }
 
-    return undefined;
-  })
-  .filter(Boolean);
+    return [];
+  });
 const isBlogPost = isBlogPath && Boolean(blogPublishedDate);
 
 const homeJsonLd = {

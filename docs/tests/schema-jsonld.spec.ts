@@ -6,9 +6,11 @@ async function getJsonLd(page: Page) {
   await expect(jsonLd).toHaveCount(1);
 
   const raw = await jsonLd.first().textContent();
-  expect(raw).toBeTruthy();
+  if (!raw) {
+    throw new Error('Expected JSON-LD script content');
+  }
 
-  return JSON.parse(raw!);
+  return JSON.parse(raw);
 }
 
 test.describe('Schema JSON-LD', () => {
