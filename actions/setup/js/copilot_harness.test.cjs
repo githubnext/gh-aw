@@ -973,7 +973,7 @@ describe("copilot_harness.cjs", () => {
   });
 
   describe("gh-aw API proxy auth diagnostics", () => {
-    const promptsSourceDir = new URL("../md/", import.meta.url).pathname;
+    const promptsSourceDir = path.resolve("../md");
 
     it("rewrites local proxy 401 errors to COPILOT_GITHUB_TOKEN guidance", () => {
       const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 401).\nCheck your COPILOT_PROVIDER_API_KEY or COPILOT_PROVIDER_BEARER_TOKEN.", {
@@ -1021,7 +1021,8 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("resolves the 403 guidance template from the runtime prompts directory", () => {
-      withPromptsDir("/tmp/runtime-prompts", () => {
+      const runtimePromptsDir = path.join(os.tmpdir(), "runtime-prompts");
+      withPromptsDir(runtimePromptsDir, () => {
         const renderTemplateFromFile = vi.fn().mockReturnValue("rendered");
 
         const diagnostic = buildCopilotProxyAuthFailureDiagnostic(
@@ -1034,7 +1035,7 @@ describe("copilot_harness.cjs", () => {
         );
 
         expect(diagnostic).toBe("rendered");
-        expect(renderTemplateFromFile).toHaveBeenCalledWith("/tmp/runtime-prompts/copilot_requests_proxy_auth_403.md", {
+        expect(renderTemplateFromFile).toHaveBeenCalledWith(path.join(runtimePromptsDir, "copilot_requests_proxy_auth_403.md"), {
           selected_model: "claude-sonnet-4.5",
           stage: "starting the Copilot CLI request",
         });
