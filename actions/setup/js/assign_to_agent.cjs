@@ -383,20 +383,7 @@ async function main(config = {}) {
       if (customInstructions) core.info(`Using custom instructions: ${customInstructions.substring(0, 100)}${customInstructions.length > 100 ? "..." : ""}`);
       if (effectiveBaseBranch) core.info(`Using base branch: ${effectiveBaseBranch}`);
 
-      const success = await assignAgentToIssue(
-        assignableId,
-        agentId,
-        currentAssignees,
-        agentName,
-        allowedAgents,
-        model,
-        customAgent,
-        customInstructions,
-        effectiveBaseBranch,
-        githubClient,
-        taskContext,
-        effectivePullRequestRepoSlug
-      );
+      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents, model, customAgent, customInstructions, effectiveBaseBranch, githubClient, taskContext, effectivePullRequestRepoSlug);
       if (!success) throw new Error(`Failed to assign ${agentName} via REST`);
 
       core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number}`);
