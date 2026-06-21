@@ -4,7 +4,7 @@
 # Deps: pip install fastmcp drain3
 from __future__ import annotations
 from typing import Any, Dict, Iterable, List, Optional
-import os, json, time, sys, logging
+import os, json, re, time, sys, logging
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -93,6 +93,28 @@ def _clusters_as_dicts(miner: TemplateMiner, limit: Optional[int] = None) -> Lis
 
 def _jsonl(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False) + "\n"
+
+def _snapshot_error(p: Path, snapshot: Path) -> Optional[str]:
+    if not snapshot.exists():
+        logger.error(f"No snapshot found for {str(p)}")
+        return _jsonl({"event": "error", "error": f"No snapshot for {str(p)}. Run index_file first.", "file": str(p)})
+    return None
+
+def _stream_clusters(path: str, limit: Optional[int], item_event: str) -> Iterable[str]:
+    p = Path(path).expanduser().resolve()
+    snapshot = _snapshot_path_for(p)
+    if err := _snapshot_error(p, snapshot):
+        yield err
+        return
+
+    logger.info(f"Snapshot exists: {str(snapshot)}")
+
+    miner = _new_miner(snapshot)
+    clusters = _clusters_as_dicts(miner, limit)
+    for c in clusters:
+        yield _jsonl({"event": item_event, "file": str(p), "snapshot": str(snapshot), **c})
+
+    yield _jsonl({"event": "summary", "file": str(p), "snapshot": str(snapshot), "count": len(clusters)})
 
 # -----------------------
 # MCP tools (streaming)
@@ -192,11 +214,10 @@ def query_file(path: str, text: str):
     logger.info(f"query_file called: path={path}, text_len={len(text)}")
     p = Path(path).expanduser().resolve()
     snapshot = _snapshot_path_for(p)
-    if not snapshot.exists():
-        logger.error(f"No snapshot found for {str(p)}")
-        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p)}. Run index_file first.", "file": str(p)})
+    if err := _snapshot_error(p, snapshot):
+        yield err
         return
-    
+
     logger.info(f"Snapshot exists: {str(snapshot)}")
 
     miner = _new_miner(snapshot)
@@ -224,21 +245,7 @@ def list_templates(path: str, limit: Optional[int] = None):
       - final {"event":"summary", count, ...}
     """
     logger.info(f"list_templates called: path={path}, limit={limit}")
-    p = Path(path).expanduser().resolve()
-    snapshot = _snapshot_path_for(p)
-    if not snapshot.exists():
-        logger.error(f"No snapshot found for {str(p)}")
-        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p)}. Run index_file first.", "file": str(p)})
-        return
-    
-    logger.info(f"Snapshot exists: {str(snapshot)}")
-
-    miner = _new_miner(snapshot)
-    clusters = _clusters_as_dicts(miner, limit)
-    for c in clusters:
-        yield _jsonl({"event": "template", "file": str(p), "snapshot": str(snapshot), **c})
-
-    yield _jsonl({"event": "summary", "file": str(p), "snapshot": str(snapshot), "count": len(clusters)})
+    yield from _stream_clusters(path, limit, "template")
 
 @mcp.tool()
 def list_clusters(path: str, limit: Optional[int] = None):
@@ -249,21 +256,7 @@ def list_clusters(path: str, limit: Optional[int] = None):
       - final {"event":"summary", count, ...}
     """
     logger.info(f"list_clusters called: path={path}, limit={limit}")
-    p = Path(path).expanduser().resolve()
-    snapshot = _snapshot_path_for(p)
-    if not snapshot.exists():
-        logger.error(f"No snapshot found for {str(p)}")
-        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p)}. Run index_file first.", "file": str(p)})
-        return
-    
-    logger.info(f"Snapshot exists: {str(snapshot)}")
-
-    miner = _new_miner(snapshot)
-    clusters = _clusters_as_dicts(miner, limit)
-    for c in clusters:
-        yield _jsonl({"event": "cluster", "file": str(p), "snapshot": str(snapshot), **c})
-
-    yield _jsonl({"event": "summary", "file": str(p), "snapshot": str(snapshot), "count": len(clusters)})
+    yield from _stream_clusters(path, limit, "cluster")
 
 @mcp.tool()
 def cluster_stats(path: str, cluster_id: int):
@@ -275,11 +268,10 @@ def cluster_stats(path: str, cluster_id: int):
     logger.info(f"cluster_stats called: path={path}, cluster_id={cluster_id}")
     p = Path(path).expanduser().resolve()
     snapshot = _snapshot_path_for(p)
-    if not snapshot.exists():
-        logger.error(f"No snapshot found for {str(p)}")
-        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p)}. Run index_file first.", "file": str(p)})
+    if err := _snapshot_error(p, snapshot):
+        yield err
         return
-    
+
     logger.info(f"Snapshot exists: {str(snapshot)}")
 
     miner = _new_miner(snapshot)
@@ -323,11 +315,10 @@ def find_anomalies(path: str, threshold: float = 0.01):
     logger.info(f"find_anomalies called: path={path}, threshold={threshold}")
     p = Path(path).expanduser().resolve()
     snapshot = _snapshot_path_for(p)
-    if not snapshot.exists():
-        logger.error(f"No snapshot found for {str(p)}")
-        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p)}. Run index_file first.", "file": str(p)})
+    if err := _snapshot_error(p, snapshot):
+        yield err
         return
-    
+
     logger.info(f"Snapshot exists: {str(snapshot)}")
 
     miner = _new_miner(snapshot)
@@ -386,17 +377,15 @@ def compare_runs(path1: str, path2: str):
     # Load first file
     p1 = Path(path1).expanduser().resolve()
     snapshot1 = _snapshot_path_for(p1)
-    if not snapshot1.exists():
-        logger.error(f"No snapshot found for {str(p1)}")
-        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p1)}. Run index_file first.", "file": str(p1)})
+    if err := _snapshot_error(p1, snapshot1):
+        yield err
         return
-    
+
     # Load second file
     p2 = Path(path2).expanduser().resolve()
     snapshot2 = _snapshot_path_for(p2)
-    if not snapshot2.exists():
-        logger.error(f"No snapshot found for {str(p2)}")
-        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p2)}. Run index_file first.", "file": str(p2)})
+    if err := _snapshot_error(p2, snapshot2):
+        yield err
         return
     
     logger.info(f"Both snapshots exist: {str(snapshot1)}, {str(snapshot2)}")
@@ -480,19 +469,16 @@ def search_pattern(path: str, pattern: str, use_regex: bool = False):
     logger.info(f"search_pattern called: path={path}, pattern={pattern}, use_regex={use_regex}")
     p = Path(path).expanduser().resolve()
     snapshot = _snapshot_path_for(p)
-    if not snapshot.exists():
-        logger.error(f"No snapshot found for {str(p)}")
-        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p)}. Run index_file first.", "file": str(p)})
+    if err := _snapshot_error(p, snapshot):
+        yield err
         return
-    
+
     logger.info(f"Snapshot exists: {str(snapshot)}")
 
     miner = _new_miner(snapshot)
     clusters = getattr(miner.drain, "clusters", []) or []
     
     matches = []
-    import re
-    
     for c in clusters:
         template_tokens = getattr(c, "log_template_tokens", []) or []
         template = " ".join(template_tokens)
