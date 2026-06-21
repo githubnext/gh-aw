@@ -20,7 +20,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 		"gpt-5", "gpt-5.5", "gpt-5.4", "gpt-5.3", "gpt-5.2", "gpt-5.1", "gpt-5-mini", "gpt-5-nano", "gpt-5-codex", "gpt-5-pro", "mai-code", "reasoning",
 		"gemini-flash", "gemini-flash-lite", "gemini-pro", "gemini-3-pro", "gemini-3-flash", "gemini-3.1-pro", "gemini-3.1-flash", "gemini-3.5-flash", "antigravity", "computer-use", "robotics", "deep-research",
 		"nano-banana",
-		"vision", "image-generation",
+		"fable", "vision", "image-generation", "video-generation", "music-generation",
 		"mini", "large", "any", "agent", "small-agent", "copilot", "claude", "codex", "gemini", "summarization",
 	}
 	for _, family := range expectedFamilies {
@@ -69,6 +69,9 @@ func TestBuiltinModelAliases(t *testing.T) {
 	assert.Contains(t, aliases["image-generation"], "copilot/gpt-image*", "image-generation should include copilot gpt-image patterns")
 	assert.Contains(t, aliases["image-generation"], "openai/gpt-image*", "image-generation should include openai gpt-image patterns")
 	assert.Contains(t, aliases["image-generation"], "google/imagen*", "image-generation should include google imagen patterns")
+	assert.Equal(t, []string{"copilot/*fable*", "anthropic/*fable*"}, aliases["fable"], "fable should map to copilot/anthropic fable family")
+	assert.Equal(t, []string{"google/veo*", "gemini/veo*", "copilot/veo*", "openai/sora*"}, aliases["video-generation"], "video-generation should map to veo and sora patterns")
+	assert.Equal(t, []string{"google/lyria*", "gemini/lyria*", "copilot/lyria*"}, aliases["music-generation"], "music-generation should map to lyria patterns")
 
 	// Meta-aliases reference other alias names (resolved recursively by AWF).
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite"}, aliases["mini"], "mini should reference haiku, gpt-5-mini, gpt-5-nano, and gemini-flash-lite")
