@@ -59,7 +59,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-codex-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.140.0"
+          GH_AW_INFO_VERSION: "0.141.0"
           GH_AW_INFO_AWF_VERSION: "v0.27.7"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Generate agentic run info
@@ -68,8 +68,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "codex"
           GH_AW_INFO_ENGINE_NAME: "Codex"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || vars.GH_AW_DEFAULT_MODEL_CODEX || 'default' }}
-          GH_AW_INFO_VERSION: "0.140.0"
-          GH_AW_INFO_AGENT_VERSION: "0.140.0"
+          GH_AW_INFO_VERSION: "0.141.0"
+          GH_AW_INFO_AGENT_VERSION: "0.141.0"
           GH_AW_INFO_WORKFLOW_NAME: "engine-codex-test"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -349,7 +349,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-codex-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.140.0"
+          GH_AW_INFO_VERSION: "0.141.0"
           GH_AW_INFO_AWF_VERSION: "v0.27.7"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Checkout repository
@@ -388,7 +388,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex CLI
-        run: npm install --ignore-scripts -g @openai/codex@0.140.0
+        run: npm install --ignore-scripts -g @openai/codex@0.141.0
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.7
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -422,7 +422,7 @@ jobs:
           GH_AW_SKILL_DIR: ".codex/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.7 ghcr.io/github/gh-aw-firewall/api-proxy:0.27.7 ghcr.io/github/gh-aw-firewall/squid:0.27.7 ghcr.io/github/gh-aw-mcpg:v0.3.27 ghcr.io/github/github-mcp-server:v1.3.0
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.7 ghcr.io/github/gh-aw-firewall/api-proxy:0.27.7 ghcr.io/github/gh-aw-firewall/squid:0.27.7 ghcr.io/github/gh-aw-mcpg:v0.3.27 ghcr.io/github/github-mcp-server:v1.4.0
       - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
@@ -469,7 +469,7 @@ jobs:
           user_agent = "engine-codex-test"
           startup_timeout_sec = 120
           tool_timeout_sec = 60
-          container = "ghcr.io/github/github-mcp-server:v1.3.0"
+          container = "ghcr.io/github/github-mcp-server:v1.4.0"
           env = { "GITHUB_HOST" = "$GITHUB_SERVER_URL", "GITHUB_PERSONAL_ACCESS_TOKEN" = "$GH_AW_GITHUB_TOKEN", "GITHUB_READ_ONLY" = "1", "GITHUB_TOOLSETS" = "context,repos,issues,pull_requests" }
           env_vars = ["GITHUB_HOST", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_READ_ONLY", "GITHUB_TOOLSETS"]
           GH_AW_MCP_CONFIG_NORM_EOF
@@ -480,7 +480,7 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "container": "ghcr.io/github/github-mcp-server:v1.3.0",
+                "container": "ghcr.io/github/github-mcp-server:v1.4.0",
                 "env": {
                   "GITHUB_HOST": "$GITHUB_SERVER_URL",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
@@ -742,7 +742,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-codex-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.140.0"
+          GH_AW_INFO_VERSION: "0.141.0"
           GH_AW_INFO_AWF_VERSION: "v0.27.7"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Check team membership for workflow
