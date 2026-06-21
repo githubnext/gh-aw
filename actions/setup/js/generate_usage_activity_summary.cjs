@@ -8,8 +8,8 @@
 //   gateway: total/failed tool-call counters with per-server breakdown
 
 const fs = require("fs");
+const { globSync } = require("node:fs");
 const path = require("path");
-const { globSync } = require("glob");
 
 const SQUID_STATUS_INDEX = 6;
 const SQUID_DECISION_INDEX = 7;
