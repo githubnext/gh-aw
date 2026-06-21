@@ -88,6 +88,18 @@ function withRunnerTemp(runnerTempDir, callback) {
   }
 }
 
+function withTemporaryPromptTemplate(prefix, promptDirResolver, callback) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  try {
+    const promptsDir = promptDirResolver(tempDir);
+    fs.mkdirSync(promptsDir, { recursive: true });
+    fs.copyFileSync(path.join(path.resolve("../md"), "copilot_requests_proxy_auth_403.md"), path.join(promptsDir, "copilot_requests_proxy_auth_403.md"));
+    return callback(tempDir, promptsDir);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 describe("copilot_harness.cjs", () => {
   // Test the core logic patterns used by the driver without importing the module
   // (importing the module would invoke main() which calls process.exit).
@@ -1039,32 +1051,11 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("resolves the 403 guidance template from the runtime prompts directory", () => {
-      const runtimePromptsDir = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-prompts-"));
-      try {
-        fs.copyFileSync(path.join(promptsSourceDir, "copilot_requests_proxy_auth_403.md"), path.join(runtimePromptsDir, "copilot_requests_proxy_auth_403.md"));
-        withTestPromptsDir(runtimePromptsDir, () => {
-          const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", {
-            COPILOT_MODEL: "claude-sonnet-4.5",
-            S2STOKENS: "true",
-          });
-
-          expect(diagnostic).toContain("Copilot requests authentication failed");
-          expect(diagnostic).toContain("model=claude-sonnet-4.5");
-          expect(diagnostic).toContain("stage=starting the Copilot CLI request");
-        });
-      } finally {
-        fs.rmSync(runtimePromptsDir, { recursive: true, force: true });
-      }
-    });
-
-    it("resolves the 403 guidance template from RUNNER_TEMP when GH_AW_PROMPTS_DIR is unset", () => {
-      const runnerTempDir = fs.mkdtempSync(path.join(os.tmpdir(), "runner-temp-"));
-      try {
-        const promptsDir = path.join(runnerTempDir, "gh-aw", "prompts");
-        fs.mkdirSync(promptsDir, { recursive: true });
-        fs.copyFileSync(path.join(promptsSourceDir, "copilot_requests_proxy_auth_403.md"), path.join(promptsDir, "copilot_requests_proxy_auth_403.md"));
-        withTestPromptsDir(undefined, () => {
-          withRunnerTemp(runnerTempDir, () => {
+      withTemporaryPromptTemplate(
+        "runtime-prompts-",
+        tempDir => tempDir,
+        (_tempDir, runtimePromptsDir) => {
+          withTestPromptsDir(runtimePromptsDir, () => {
             const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", {
               COPILOT_MODEL: "claude-sonnet-4.5",
               S2STOKENS: "true",
@@ -1074,10 +1065,29 @@ describe("copilot_harness.cjs", () => {
             expect(diagnostic).toContain("model=claude-sonnet-4.5");
             expect(diagnostic).toContain("stage=starting the Copilot CLI request");
           });
-        });
-      } finally {
-        fs.rmSync(runnerTempDir, { recursive: true, force: true });
-      }
+        }
+      );
+    });
+
+    it("resolves the 403 guidance template from RUNNER_TEMP when GH_AW_PROMPTS_DIR is unset", () => {
+      withTemporaryPromptTemplate(
+        "runner-temp-",
+        tempDir => path.join(tempDir, "gh-aw", "prompts"),
+        runnerTempDir => {
+          withTestPromptsDir(undefined, () => {
+            withRunnerTemp(runnerTempDir, () => {
+              const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", {
+                COPILOT_MODEL: "claude-sonnet-4.5",
+                S2STOKENS: "true",
+              });
+
+              expect(diagnostic).toContain("Copilot requests authentication failed");
+              expect(diagnostic).toContain("model=claude-sonnet-4.5");
+              expect(diagnostic).toContain("stage=starting the Copilot CLI request");
+            });
+          });
+        }
+      );
     });
 
     it("returns empty string for proxy 403 when S2STOKENS is not set (BYOK mode)", () => {
