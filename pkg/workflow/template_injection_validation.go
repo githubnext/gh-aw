@@ -61,12 +61,76 @@ var (
 	allowedRunScriptExpressionRegex = regexp.MustCompile(`^\$\{\{\s*(env\.[^}]+|vars\.[^}]+|runner\.[^}]+|github\.(repository|run_id|workspace)|steps\.parse-guard-vars\.outputs\.(approval_labels|blocked_users|trusted_users)|job\.services\[[^]]+\]\.ports\[[^]]+\])\s*\}\}$`)
 )
 
-// hasAnyExpressionInRunContent performs a fast line-by-line text scan to determine
-// whether any GitHub Actions expression (${{ ... }}) appears inside a YAML run: block.
-// Used by the compiler regression guardrail to detect expressions that should have
-// been rewritten to env variables.
-func hasAnyExpressionInRunContent(yamlContent string) bool {
-	return hasExpressionInRunContent(yamlContent, InlineExpressionPattern)
+// hasNonAllowedExpressionInRunContent performs a fast line-by-line text scan to
+// determine whether any GitHub Actions expression (${{ ... }}) that is NOT in the
+// compiler-owned allow-list appears inside a YAML run: block.
+//
+// Unlike hasAnyExpressionInRunContent, this function skips expressions that match
+// allowedRunScriptExpressionRegex (e.g. ${{ runner.temp }}, ${{ env.FOO }}).  It is
+// used as a fast pre-check for the regression guardrail inside validateTemplateInjection
+// (Path B) to avoid a yaml.Unmarshal when every run-block expression is compiler-owned.
+func hasNonAllowedExpressionInRunContent(yamlContent string) bool {
+	// Fast-path: no inline expressions anywhere → nothing to check.
+	if !InlineExpressionPattern.MatchString(yamlContent) {
+		return false
+	}
+
+	inRunBlock := false
+	runBlockIndent := 0
+
+	for line := range strings.SplitSeq(yamlContent, "\n") {
+		trimmed := strings.TrimLeft(line, " \t")
+		if trimmed == "" {
+			continue
+		}
+		indent := len(line) - len(trimmed)
+
+		if inRunBlock {
+			if indent <= runBlockIndent {
+				inRunBlock = false
+				// Fall through: check whether this line starts a new run: block.
+			} else {
+				// Inside run block content — check each expression on this line.
+				if InlineExpressionPattern.MatchString(line) {
+					for _, expr := range InlineExpressionPattern.FindAllString(line, -1) {
+						if !allowedRunScriptExpressionRegex.MatchString(expr) {
+							return true
+						}
+					}
+				}
+				continue
+			}
+		}
+
+		// Outside a run block: look for a run: key.
+		keyPart := trimmed
+		if strings.HasPrefix(keyPart, "-") {
+			keyPart = strings.TrimSpace(keyPart[1:])
+		}
+		if !strings.HasPrefix(keyPart, "run:") {
+			continue
+		}
+		rest := strings.TrimSpace(keyPart[4:]) // text after "run:"
+
+		if rest == "" {
+			inRunBlock = true
+			runBlockIndent = indent
+		} else if rest[0] == '|' || rest[0] == '>' {
+			inRunBlock = true
+			runBlockIndent = indent
+		} else {
+			// Inline run value.
+			if InlineExpressionPattern.MatchString(rest) {
+				for _, expr := range InlineExpressionPattern.FindAllString(rest, -1) {
+					if !allowedRunScriptExpressionRegex.MatchString(expr) {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regexp) bool {

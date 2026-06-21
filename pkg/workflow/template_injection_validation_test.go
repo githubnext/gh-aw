@@ -1339,3 +1339,104 @@ func TestTemplateInjectionYAMLParsingEdgeCases(t *testing.T) {
 		})
 	}
 }
+
+func TestHasNonAllowedExpressionInRunContent(t *testing.T) {
+	tests := []struct {
+		name     string
+		yaml     string
+		expected bool
+	}{
+		{
+			name: "no expressions anywhere",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo hello`,
+			expected: false,
+		},
+		{
+			name: "allowed runner.temp expression in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: node ${{ runner.temp }}/actions/foo.cjs`,
+			expected: false,
+		},
+		{
+			name: "allowed env expression in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ env.MY_VAR }}`,
+			expected: false,
+		},
+		{
+			name: "allowed vars expression in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ vars.MY_VAR }}`,
+			expected: false,
+		},
+		{
+			name: "allowed github.repository in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ github.repository }}`,
+			expected: false,
+		},
+		{
+			name: "disallowed user-controlled expression in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ github.event.issue.title }}`,
+			expected: true,
+		},
+		{
+			name: "disallowed steps output expression in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ steps.foo.outputs.bar }}`,
+			expected: true,
+		},
+		{
+			name: "expression in env field (not in run block)",
+			yaml: `jobs:
+  test:
+    steps:
+      - env:
+          MY_VAR: ${{ github.event.issue.title }}
+        run: echo hello`,
+			expected: false,
+		},
+		{
+			name: "allowed expression in multiline run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: |
+          node ${{ runner.temp }}/actions/foo.cjs
+          echo done`,
+			expected: false,
+		},
+		{
+			name: "disallowed expression in multiline run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: |
+          echo "${{ github.event.issue.title }}"`,
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hasNonAllowedExpressionInRunContent(tt.yaml)
+			assert.Equal(t, tt.expected, result, "hasNonAllowedExpressionInRunContent() mismatch")
+		})
+	}
+}
