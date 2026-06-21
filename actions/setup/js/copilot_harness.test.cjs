@@ -8,7 +8,6 @@ import path from "path";
 const require = createRequire(import.meta.url);
 const { EventEmitter } = require("events");
 const { PassThrough } = require("stream");
-const promptsSourceDir = new URL("../md/", import.meta.url).pathname;
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
 const { buildCopilotSDKEnv, isCopilotSDKEnabled } = require("./process_runner.cjs");
 const {
@@ -974,6 +973,8 @@ describe("copilot_harness.cjs", () => {
   });
 
   describe("gh-aw API proxy auth diagnostics", () => {
+    const promptsSourceDir = new URL("../md/", import.meta.url).pathname;
+
     it("rewrites local proxy 401 errors to COPILOT_GITHUB_TOKEN guidance", () => {
       const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 401).\nCheck your COPILOT_PROVIDER_API_KEY or COPILOT_PROVIDER_BEARER_TOKEN.", {
         COPILOT_MODEL: "claude-sonnet-4.5",
