@@ -51,8 +51,8 @@ const normalizeAuthorsArray = (value: unknown) => {
 const pageUrl = new URL(pathname, siteOrigin).toString();
 const blogPublishedDate = toSchemaDate(entry?.data?.date);
 const blogModifiedDate = toSchemaDate(entry?.data?.lastUpdated ?? entry?.data?.date);
-const rawAuthors = entry?.data?.authors ?? entry?.data?.author;
-const blogAuthors = normalizeAuthorsArray(rawAuthors)
+const authorInput = entry?.data?.authors ?? entry?.data?.author;
+const blogAuthors = normalizeAuthorsArray(authorInput)
   .map((author) => {
     if (typeof author === 'string') {
       return {
