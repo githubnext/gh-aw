@@ -42,9 +42,8 @@
 require("./shim.cjs");
 
 const fs = require("fs");
-const path = require("path");
 const crypto = require("crypto");
-const { renderTemplate, renderTemplateFromFile } = require("./messages_core.cjs");
+const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
 const {
@@ -81,14 +80,7 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 const OUTPUT_TAIL_MAX_CHARS = 600;
 const OUTPUT_TAIL_MAX_LINES = 12;
-const GH_AW_BILLING_REFERENCE_URL = "https://github.github.com/gh-aw/reference/billing/";
-const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_PATH = path.join(__dirname, "../md/copilot_requests_proxy_auth_403.md");
-const COPILOT_REQUESTS_PROXY_AUTH_403_FALLBACK_TEMPLATE = [
-  "Copilot requests authentication failed through the gh-aw API proxy (HTTP 403, model={selected_model}, stage={stage}). ",
-  "This workflow is using permissions.copilot-requests: write, so Copilot requests must be allowed through your organization's centralized Copilot billing configuration. ",
-  "Verify that copilot-requests: write is granted to the workflow or job and that Copilot org billing is enabled for your organization. ",
-  `See ${GH_AW_BILLING_REFERENCE_URL} for details.`,
-].join("");
+const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME = "copilot_requests_proxy_auth_403.md";
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 
@@ -427,7 +419,7 @@ function envFlagEnabled(value) {
  * Build a more actionable Copilot auth diagnostic when a 401/403 came from the gh-aw API proxy.
  * @param {string} output
  * @param {NodeJS.ProcessEnv} [env]
- * @param {{ renderTemplateFromFile?: typeof renderTemplateFromFile, logger?: typeof log }} [options]
+ * @param {{ renderTemplateFromFile?: typeof renderTemplateFromFile }} [options]
  * @returns {string}
  */
 function buildCopilotProxyAuthFailureDiagnostic(output, env = process.env, options = {}) {
@@ -440,20 +432,10 @@ function buildCopilotProxyAuthFailureDiagnostic(output, env = process.env, optio
   const stage = detectCopilotAuthFailureStage(output);
   if (authFailure.statusCode === "403" && envFlagEnabled(env.S2STOKENS)) {
     const render = options.renderTemplateFromFile || renderTemplateFromFile;
-    const logger = options.logger || log;
-    try {
-      return render(COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_PATH, {
-        selected_model: selectedModel,
-        stage,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger(`proxy auth diagnostic template unavailable (${COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_PATH}): ${message}`);
-      return renderTemplate(COPILOT_REQUESTS_PROXY_AUTH_403_FALLBACK_TEMPLATE, {
-        selected_model: selectedModel,
-        stage,
-      });
-    }
+    return render(getPromptPath(COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME), {
+      selected_model: selectedModel,
+      stage,
+    });
   }
   if (authFailure.statusCode !== "401") {
     return "";
