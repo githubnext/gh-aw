@@ -1375,6 +1375,7 @@ func TestBuildAWFCommand_AddsToolCacheMountProbe(t *testing.T) {
 	assert.NotContains(t, command, `/home/runner/work/_tool`, "should not assume a self-hosted runner tool-cache path")
 	assert.NotContains(t, command, `:-/opt/hostedtoolcache`, "should not fall back to /opt/hostedtoolcache")
 	assert.Contains(t, command, `${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"}`, "should inject tool-cache mount args into awf invocation")
+	assert.Contains(t, command, "# shellcheck disable=SC1003,SC2086", "should suppress intentional argument splitting in awf invocation")
 }
 
 func TestBuildAWFCommand_WorkflowCallNetworkAllowedUpdaterUsesRunnerTempEnv(t *testing.T) {

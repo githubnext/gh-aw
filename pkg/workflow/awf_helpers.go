@@ -395,7 +395,7 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003
+# shellcheck disable=SC1003,SC2086
 %s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
@@ -424,7 +424,7 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003
+# shellcheck disable=SC1003,SC2086
 %s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
@@ -451,7 +451,7 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003
+# shellcheck disable=SC1003,SC2086
 %s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
@@ -477,7 +477,7 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003
+# shellcheck disable=SC1003,SC2086
 %s %s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
