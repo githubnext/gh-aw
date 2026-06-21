@@ -13,6 +13,12 @@ const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /**
+ * @typedef {{ owner: string, repo: string }} RepoRef
+ * @typedef {{ id: string, url: string, repo: RepoRef }} CommentMetadata
+ * @typedef {{ id: string, url: string, repo: RepoRef | null }} ReusableStatusComment
+ */
+
+/**
  * Event type descriptions for comment messages
  */
 const EVENT_TYPE_DESCRIPTIONS = {
@@ -47,12 +53,12 @@ async function getDiscussionNodeId(discussionNumber, eventRepo = context.repo) {
 }
 
 /**
- * Helper function to set comment outputs
+ * Helper function to set comment outputs and return comment metadata
  * @param {string|number} commentId - The comment ID
  * @param {string} commentUrl - The comment URL
- * @param {{ owner: string, repo: string }} [eventRepo] - Repository where the comment was created (defaults to context.repo at runtime)
+ * @param {RepoRef} [eventRepo] - Repository where the comment was created (defaults to context.repo at runtime)
  * @param {{ logReuse?: boolean }} [options]
- * @returns {{ id: string, url: string, repo: { owner: string, repo: string } }}
+ * @returns {CommentMetadata}
  */
 function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo, options = {}) {
   if (options.logReuse) {
@@ -104,7 +110,7 @@ function parseObject(value) {
 
 /**
  * @param {unknown} value
- * @returns {{ owner: string, repo: string } | null}
+ * @returns {RepoRef | null}
  */
 function parseRepoSlug(value) {
   if (typeof value !== "string") {
@@ -133,7 +139,7 @@ function extractAwContextFromPayload(payload) {
 
 /**
  * @param {any} rawContext
- * @returns {{ id: string, url: string, repo: { owner: string, repo: string } | null } | null}
+ * @returns {ReusableStatusComment | null}
  */
 function readReusableStatusComment(rawContext) {
   const awContext = extractAwContextFromPayload(rawContext?.payload);
