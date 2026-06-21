@@ -32,22 +32,22 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 
 ## Quick Start
 
-Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](https://github.github.com/gh-aw/setup/quick-start/) to install the extension, add a sample workflow, and see it in action.
+Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/setup/quick-start.mdx) to install the extension, add a sample workflow, and see it in action.
 
 ## Overview
 
-Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [How It Works](https://github.github.com/gh-aw/introduction/how-they-work/).
+Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [How It Works](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/introduction/how-they-work.mdx).
 Supports GitHub Copilot, Claude (Anthropic), Codex (OpenAI), and Gemini (Google) — pick whichever AI account you already have.
 
 ## Guardrails
 
-Guardrails, safety and security are foundational to GitHub Agentic Workflows. Workflows run with read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. The system implements multiple layers of protection including sandboxed execution, input sanitization, network isolation, supply chain security (SHA-pinned dependencies), tool allow-listing, and compile-time validation. Access can be gated to team members only, with human approval gates for critical operations, ensuring AI agents operate safely within controlled boundaries. See the [Security Architecture](https://github.github.com/gh-aw/introduction/architecture/) for comprehensive details on threat modeling, implementation guidelines, and best practices.
+Guardrails, safety and security are foundational to GitHub Agentic Workflows. Workflows run with read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. The system implements multiple layers of protection including sandboxed execution, input sanitization, network isolation, supply chain security (SHA-pinned dependencies), tool allow-listing, and compile-time validation. Access can be gated to team members only, with human approval gates for critical operations, ensuring AI agents operate safely within controlled boundaries. See the [Security Architecture](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/introduction/architecture.mdx) for comprehensive details on threat modeling, implementation guidelines, and best practices.
 
 Using agentic workflows in your repository requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
 
 ## Documentation
 
-For complete documentation, examples, and guides, see the [Documentation](https://github.github.com/gh-aw/). If you are an agent, download [llms.txt](https://github.github.com/gh-aw/llms.txt) or the full corpus [llms-full.txt](https://github.github.com/gh-aw/llms-full.txt).
+For complete documentation, examples, and guides, see the [Documentation](https://github.com/github/gh-aw/tree/main/docs). If you are an agent, see [llms.txt source](https://github.com/github/gh-aw/blob/main/docs/src/pages/llms.txt.ts) and [llms-full.txt source](https://github.com/github/gh-aw/blob/main/docs/src/pages/llms-full.txt.ts).
 
 If you are running a version between 0.68.4 and 0.71.3, upgrading is strongly recommended due to a bug that impacts billing.
 
@@ -223,11 +223,11 @@ To build and test repository custom linters:
 We welcome your feedback on GitHub Agentic Workflows! 
 
 - [Community Feedback Discussions](https://github.com/orgs/community/discussions/186451)
-- [GitHub Next Discord](https://gh.io/next-discord)
+- [GitHub Discussions](https://github.com/github/gh-aw/discussions)
 
 ## Peli's Agent Factory
 
-See the [Peli's Agent Factory](https://github.github.com/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/) for a guided tour through many uses of agentic workflows.
+See the [Peli's Agent Factory](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/blog/2026-01-12-welcome-to-pelis-agent-factory.md) for a guided tour through many uses of agentic workflows.
 
 ## Related Projects
 
