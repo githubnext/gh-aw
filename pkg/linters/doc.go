@@ -1,9 +1,10 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// The actual analyzers are implemented in subpackages. All 29 active analyzers:
+// The actual analyzers are implemented in subpackages. All 30 active analyzers:
 //
 //   - contextcancelnotdeferred — flags context cancel functions called directly instead of deferred
 //   - ctxbackground — flags context.Background() inside functions that already receive a context
+//   - deferinloop — flags defer statements placed directly inside for or range loop bodies
 //   - errorfwrapv — flags fmt.Errorf calls that format error arguments with %v instead of %w
 //   - errormessage — flags non-actionable error message patterns in changed files
 //   - errstringmatch — flags brittle strings.Contains(err.Error(), "...") checks

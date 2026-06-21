@@ -44,9 +44,8 @@ jobs:
         with:
           sparse-checkout: |
             .github/skills
-            .github/workflows/agentic_commands.yml
-            .github/workflows/agentic-maintenance.yml
-            actions/setup/js/slash_command_matcher.cjs
+            .github/workflows
+            actions/setup/js
           persist-credentials: false
     steps:
       - name: Match requested skill
