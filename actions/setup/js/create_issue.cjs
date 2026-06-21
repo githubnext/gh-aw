@@ -1083,7 +1083,7 @@ async function main(config = {}) {
             } else if (issueDetails.currentAssignees.some(a => a.id === agentId)) {
               core.info(`copilot is already assigned to issue #${issue.number}`);
             } else {
-              const assigned = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, "copilot", null, null, null, null, null, null, copilotClient);
+              const assigned = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, "copilot", null, null, null, null, null, copilotClient, issueDetails.taskContext);
               if (assigned) {
                 core.info(`Successfully assigned copilot coding agent to issue #${issue.number}`);
               } else {
