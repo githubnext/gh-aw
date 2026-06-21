@@ -56,7 +56,9 @@ function validateAllowedIssueFields(issueFields, allowedFields) {
     return;
   }
   const allowedFieldSet = new Set(allowedFields.map(f => f.toLowerCase()));
-  if (allowedFieldSet.has("*")) return;
+  if (allowedFieldSet.has("*")) {
+    return;
+  }
   for (const field of issueFields) {
     if (!allowedFieldSet.has(field.name.toLowerCase())) {
       throw new Error(`${ERR_VALIDATION}: issue field "${field.name}" is not in the allowed-fields list: ${allowedFields.join(", ")}`);
