@@ -268,18 +268,25 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 	// Assign each sub-repo a dedicated env var so that GitHub Actions expressions
 	// (e.g. "${{ github.event.inputs.target_repo }}") are never inlined directly
 	// into the shell command, preventing template-injection scanner failures.
+	// pathEnvVarName is set only when path is expression-based; otherwise the
+	// literal path string is used directly in the shell command.
 	type subRepoEnvVar struct {
-		repository string
-		path       string
-		envVarName string
+		repository     string
+		path           string
+		envVarName     string
+		pathEnvVarName string // non-empty only when path is a GitHub Actions expression
 	}
 	subRepoEnvVars := make([]subRepoEnvVar, len(subRepos))
 	for i, repo := range subRepos {
-		subRepoEnvVars[i] = subRepoEnvVar{
+		ev := subRepoEnvVar{
 			repository: repo.repository,
 			path:       repo.path,
 			envVarName: fmt.Sprintf("GH_AW_SUBREPO_%d", i),
 		}
+		if strings.Contains(repo.path, "${{") {
+			ev.pathEnvVarName = fmt.Sprintf("GH_AW_SUBREPO_PATH_%d", i)
+		}
+		subRepoEnvVars[i] = ev
 	}
 
 	// Build the env block, including a dedicated var for every sub-repo.
@@ -299,6 +306,9 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 			// Plain string — quote for safe YAML scalar encoding.
 			envLines = append(envLines, formatYAMLEnv("          ", repo.envVarName, repo.repository))
 		}
+		if repo.pathEnvVarName != "" {
+			envLines = append(envLines, fmt.Sprintf("          %s: %s\n", repo.pathEnvVarName, githubExpressionWhitespaceReplacer.Replace(repo.path)))
+		}
 	}
 
 	steps := []string{
@@ -312,9 +322,21 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 		"          GIT_SERVER_URL_STRIPPED=\"${GITHUB_SERVER_URL#https://}\"\n",
 	)
 	for _, repo := range subRepoEnvVars {
+		// Use the path env var reference when path is expression-based to avoid
+		// inlining ${{ }} into the run: block (template-injection scanner risk).
+		gitDir := fmt.Sprintf("%q", repo.path)
+		if repo.pathEnvVarName != "" {
+			gitDir = fmt.Sprintf("\"${%s}\"", repo.pathEnvVarName)
+		}
+		// Comment uses the path literal (or env var reference) — never the raw
+		// repository expression — so ${{ }} never appears in the run: block.
+		commentRef := repo.path
+		if repo.pathEnvVarName != "" {
+			commentRef = "${" + repo.pathEnvVarName + "}"
+		}
 		steps = append(steps,
-			fmt.Sprintf("          # Re-authenticate git for %s\n", repo.path),
-			fmt.Sprintf("          git -C \"%s\" remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${GIT_SERVER_URL_STRIPPED}/${%s}.git\"\n", repo.path, repo.envVarName),
+			fmt.Sprintf("          # Re-authenticate git for %s\n", commentRef),
+			fmt.Sprintf("          git -C %s remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${GIT_SERVER_URL_STRIPPED}/${%s}.git\"\n", gitDir, repo.envVarName),
 		)
 	}
 	steps = append(steps,

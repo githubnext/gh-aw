@@ -1597,6 +1597,8 @@ func TestGenerateConfigureGitCredentialsSteps(t *testing.T) {
 		assert.Contains(t, combined, `GH_AW_SUBREPO_0: "org/other-repo"`, "literal repo must be in env var (quoted)")
 		assert.Contains(t, combined, "${GH_AW_SUBREPO_0}.git", "shell command must reference the env var")
 		assert.NotContains(t, combined, "org/other-repo.git", "literal repo must not be inlined in shell command")
+		assert.Contains(t, combined, "GITHUB_REPOSITORY:", "root repo env var must be present")
+		assert.Contains(t, combined, "GIT_TOKEN: "+token, "token env var must be present")
 	})
 
 	t.Run("multi-repo with expression-based repo does not inline expression in shell command (regression)", func(t *testing.T) {
@@ -1620,6 +1622,35 @@ func TestGenerateConfigureGitCredentialsSteps(t *testing.T) {
 			"comment must reference checkout path, never the raw expression")
 		assert.NotContains(t, combined, "# Re-authenticate git for github/${{",
 			"expression must not appear in bash comment (template injection risk)")
+		assert.Contains(t, combined, "GITHUB_REPOSITORY:", "root repo env var must be present")
+		assert.Contains(t, combined, "GIT_TOKEN: "+token, "token env var must be present")
+		// No raw Actions expression may appear in the run: block.
+		runIdx := strings.Index(combined, "run: |")
+		if runIdx >= 0 {
+			assert.NotContains(t, combined[runIdx:], "${{",
+				"run: block must not contain any raw GitHub Actions expression")
+		}
+	})
+
+	t.Run("multi-repo with expression-based path routes path through env var", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "org/other-repo", Path: "${{ github.event.inputs.target_path }}"},
+		})
+		steps := cm.GenerateConfigureGitCredentialsSteps(token, alwaysTrue)
+		combined := strings.Join(steps, "")
+
+		assert.Contains(t, combined, "GH_AW_SUBREPO_PATH_0: ${{ github.event.inputs.target_path }}",
+			"expression-based path must be assigned to an env var")
+		assert.Contains(t, combined, "${GH_AW_SUBREPO_PATH_0}",
+			"git -C argument must reference the path env var, not the raw expression")
+		assert.NotContains(t, combined, `git -C "${{ github.event.inputs.target_path }}"`,
+			"expression path must not be inlined in git -C argument (template injection risk)")
+		// No raw Actions expression may appear in the run: block.
+		runIdx := strings.Index(combined, "run: |")
+		if runIdx >= 0 {
+			assert.NotContains(t, combined[runIdx:], "${{",
+				"run: block must not contain any raw GitHub Actions expression")
+		}
 	})
 
 	t.Run("multiple sub-repos each get a unique env var", func(t *testing.T) {
