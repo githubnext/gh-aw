@@ -58,7 +58,11 @@ function makeHarnessTempDir(name) {
 
 function withTestPromptsDir(promptsDir, callback) {
   const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
-  process.env.GH_AW_PROMPTS_DIR = promptsDir;
+  if (typeof promptsDir === "string") {
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
+  } else {
+    delete process.env.GH_AW_PROMPTS_DIR;
+  }
   try {
     return callback();
   } finally {
@@ -1054,29 +1058,24 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("resolves the 403 guidance template from RUNNER_TEMP when GH_AW_PROMPTS_DIR is unset", () => {
-      const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
       const runnerTempDir = fs.mkdtempSync(path.join(os.tmpdir(), "runner-temp-"));
-      delete process.env.GH_AW_PROMPTS_DIR;
       try {
         const promptsDir = path.join(runnerTempDir, "gh-aw", "prompts");
         fs.mkdirSync(promptsDir, { recursive: true });
         fs.copyFileSync(path.join(promptsSourceDir, "copilot_requests_proxy_auth_403.md"), path.join(promptsDir, "copilot_requests_proxy_auth_403.md"));
-        withRunnerTemp(runnerTempDir, () => {
-          const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", {
-            COPILOT_MODEL: "claude-sonnet-4.5",
-            S2STOKENS: "true",
-          });
+        withTestPromptsDir(undefined, () => {
+          withRunnerTemp(runnerTempDir, () => {
+            const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", {
+              COPILOT_MODEL: "claude-sonnet-4.5",
+              S2STOKENS: "true",
+            });
 
-          expect(diagnostic).toContain("Copilot requests authentication failed");
-          expect(diagnostic).toContain("model=claude-sonnet-4.5");
-          expect(diagnostic).toContain("stage=starting the Copilot CLI request");
+            expect(diagnostic).toContain("Copilot requests authentication failed");
+            expect(diagnostic).toContain("model=claude-sonnet-4.5");
+            expect(diagnostic).toContain("stage=starting the Copilot CLI request");
+          });
         });
       } finally {
-        if (typeof originalPromptsDir === "string") {
-          process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
-        } else {
-          delete process.env.GH_AW_PROMPTS_DIR;
-        }
         fs.rmSync(runnerTempDir, { recursive: true, force: true });
       }
     });
