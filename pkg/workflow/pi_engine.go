@@ -287,7 +287,26 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	var piModelsJSONSetup string // shell fragment prepended to piCommand when needed
 	if modelConfigured {
 		modelID := extractPiModelID(workflowData.EngineConfig.Model)
-		if firewallEnabled && len(profile.coreSecretNames) > 0 {
+
+		// Determine the env var name to use as the "apiKey" in the models.json gateway
+		// config.  Pi's resolveConfigValue() reads process.env[apiKey] at runtime to
+		// obtain the actual token value.
+		//
+		// For Anthropic/Codex backends this is always profile.coreSecretNames[0].
+		// For the Copilot backend with copilot-requests: write permission,
+		// coreSecretNames is empty (no PAT secret required) but COPILOT_GITHUB_TOKEN
+		// is still injected via the profile env (set to ${{ github.token }}).
+		// Without this fallback, Pi would bypass the AWF gateway and attempt a direct
+		// connection to api.individual.githubcopilot.com — which the firewall blocks.
+		gatewaySecretEnvVar := ""
+		if len(profile.coreSecretNames) > 0 {
+			gatewaySecretEnvVar = profile.coreSecretNames[0]
+		} else if backend == UniversalLLMBackendCopilot {
+			// copilot-requests: write mode — COPILOT_GITHUB_TOKEN holds ${{ github.token }}
+			gatewaySecretEnvVar = "COPILOT_GITHUB_TOKEN"
+		}
+
+		if firewallEnabled && gatewaySecretEnvVar != "" {
 			// Firewall case: write a models.json that redirects Pi's LLM calls to the
 			// AWF gateway sidecar port.  The "apiKey" field value is the name of the env
 			// var that holds the secret; Pi's resolveConfigValue() looks up
@@ -296,7 +315,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 			// printf '%s\n' '<json>' is safe here because JSON uses only double quotes
 			// (never single quotes), so single-quoting via shellEscapeArg requires no
 			// further escaping in practice.
-			modelsJSON := buildPiModelsJSON(profile.gatewayPort, profile.coreSecretNames[0], modelID)
+			modelsJSON := buildPiModelsJSON(profile.gatewayPort, gatewaySecretEnvVar, modelID)
 			piModelsJSONSetup = fmt.Sprintf(
 				`mkdir -p /tmp/gh-aw/pi-agent-dir && printf '%%s\n' %s > /tmp/gh-aw/pi-agent-dir/models.json && `,
 				shellEscapeArg(modelsJSON))

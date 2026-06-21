@@ -383,3 +383,42 @@ func TestPiEngine_GetExecutionSteps_FirewallCodexProvider(t *testing.T) {
 	assert.NotContains(t, expectedModelsJSON, "host.docker.internal", "models.json baseUrl must not use host.docker.internal (not the api-proxy)")
 	assert.Contains(t, stepText, expectedModelsJSON, "Codex provider should route through CodexLLMGatewayPort via models.json")
 }
+
+// TestPiEngine_GetExecutionSteps_FirewallCopilotProvider_CopilotRequestsWrite verifies that
+// when copilot-requests: write permission is set, Pi still routes LLM calls through the AWF
+// api-proxy gateway (models.json) instead of using the native github-copilot provider.
+// Without this, Pi would bypass the firewall and call api.individual.githubcopilot.com
+// directly, which is blocked, causing a "no safe outputs" failure.
+func TestPiEngine_GetExecutionSteps_FirewallCopilotProvider_CopilotRequestsWrite(t *testing.T) {
+	engine := NewPiEngine()
+	toolsRaw := map[string]any{
+		"github":    map[string]any{"mode": "gh-proxy"},
+		"cli-proxy": true,
+	}
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		EngineConfig: &EngineConfig{ID: "pi", Model: "copilot/gpt-5.4"},
+		Tools:        toolsRaw,
+		ParsedTools:  NewTools(toolsRaw),
+		Permissions:  "permissions:\n  copilot-requests: write",
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+	require.Len(t, steps, 1, "Should produce exactly one execution step")
+
+	stepText := strings.Join(steps[0], "\n")
+	// Pi must route through the AWF api-proxy gateway even when copilot-requests: write is set.
+	// The native provider (github-copilot/gpt-5.4) hits api.individual.githubcopilot.com
+	// directly, which is blocked by the firewall.
+	assert.Contains(t, stepText, "PI_CODING_AGENT_DIR", "Firewall mode should set PI_CODING_AGENT_DIR for models.json config")
+	assert.Contains(t, stepText, "models.json", "Firewall mode should write a models.json gateway config")
+	assert.Contains(t, stepText, "aw-gateway", "Should use aw-gateway provider (api-proxy) not native github-copilot provider")
+	assert.NotContains(t, stepText, "github-copilot/gpt-5.4", "Should not pass github-copilot provider directly to Pi CLI (would bypass firewall)")
+	assert.Contains(t, stepText, "aw-gateway/gpt-5.4", "Should use aw-gateway/gpt-5.4 model flag")
+	// The models.json must route through the Copilot gateway port using COPILOT_GITHUB_TOKEN
+	// (set to ${{ github.token }} in copilot-requests: write mode).
+	expectedModelsJSON := buildPiModelsJSON(constants.CopilotLLMGatewayPort, "COPILOT_GITHUB_TOKEN", "gpt-5.4")
+	assert.Contains(t, stepText, expectedModelsJSON, "Copilot provider (copilot-requests: write) should route through CopilotLLMGatewayPort via models.json")
+}
