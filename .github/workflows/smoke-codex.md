@@ -65,12 +65,10 @@ safe-outputs:
     set-issue-field:
       max: 1
       allowed-fields: ["*"]
-    replace-label:
-      allowed-add: [smoke-codex]
-      allowed-remove: [smoke]
-      allowed-transitions:
-        - from: smoke
-          to: smoke-codex
+    add-labels:
+      allowed: [smoke-codex]
+    remove-labels:
+      allowed: [smoke]
     unassign-from-user:
       allowed: [githubactionagent]
       max: 1
@@ -142,7 +140,8 @@ checkout:
   - Overall status: PASS or FAIL
 
 If all tests pass and this workflow was triggered by a `pull_request` event:
-- Use the `replace_label` safe-output tool to replace the label `smoke` with `smoke-codex` on the pull request (use `item_number: ${{ github.event.pull_request.number }}`)
+- Use the `add_labels` safe-output tool to add the label `smoke-codex` to the pull request (use `item_number: ${{ github.event.pull_request.number }}`)
+- Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request (use `item_number: ${{ github.event.pull_request.number }}`)
 - Use the `unassign_from_user` safe-output tool to unassign the user `githubactionagent` from the pull request (this is a fictitious user used for testing; use `item_number: ${{ github.event.pull_request.number }}`)
 - Use the `add_smoked_label` safe-output action tool to add the label `smoked` to the pull request (call it with `{"labels": "smoked", "number": "${{ github.event.pull_request.number }}"}`)
 
