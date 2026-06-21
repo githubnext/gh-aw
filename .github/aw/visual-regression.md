@@ -52,6 +52,7 @@ Otherwise compare each screenshot to its baseline. Post a comment summarizing: p
 ## Key Design Decisions
 
 - **`cache-memory` key per base branch** — scopes baselines to `main`, `develop`, etc.
+- **Explicit baseline source** — state whether baselines come from `cache-memory`, a generated artifact, or a branch directory; do not leave baseline origin implicit.
 - **`allowed_domains: [localhost, 127.0.0.1]`** — prevents SSRF; serve app locally
 - **`retention-days: 30`** — beyond the default 7-day cache expiry
 - **Filesystem-safe timestamps** — `YYYY-MM-DD-HH-MM-SS`; colons break artifact filenames

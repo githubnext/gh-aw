@@ -24,6 +24,7 @@ Load these topic files only when relevant:
 - [visual-regression.md](visual-regression.md) for screenshot comparison workflows
 - [deployment-status.md](deployment-status.md) for external deployment monitoring
 - [charts.md](charts.md) for chart-generation workflows
+- [report.md](report.md) for reporting output structure and recurring report lifecycle
 
 ## Two Modes
 
@@ -91,6 +92,8 @@ Compact scenario examples:
 - **Visual regression on UI changes**: trigger `pull_request`, use only `playwright` + `cache-memory` (no extra tools), keep network minimal (allowlist only target preview/app hosts if required), publish via `add-comment`, call `noop` when UI paths are unchanged.
 - **Deployment incident triage**: use `deployment_status` for external provider failures and `workflow_run` for GitHub Actions failures, publish incident reports via `create-issue`, call `noop` when a failure self-recovers or is duplicate noise.
 - **Product/stakeholder digest**: use fuzzy `schedule` plus optional `workflow_dispatch`, define an explicit window (for example `last 7 full days ending at run start (UTC)`), publish digest with `create-issue`, call `noop` when there are no updates in that window.
+
+For compact prefetch + duplicate suppression patterns in reporting/incident workflows, follow [workflow-patterns.md](workflow-patterns.md) and [report.md](report.md) instead of embedding long inline instructions.
 
 ### 2a. Backend review compact guidance
 
