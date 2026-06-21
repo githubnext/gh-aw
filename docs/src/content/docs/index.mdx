@@ -28,7 +28,7 @@ Wake up to ready-to-review repository improvements — automated triage, CI insi
 
 GitHub Agentic Workflows deliver this: repository automation, running the coding agents you know and love, in GitHub Actions, with strong guardrails and security-first design principles.
 
-Use GitHub Copilot, Claude by Anthropic, Gemini from Google or OpenAI Codex for event-triggered and scheduled jobs to improve your repository. GitHub Agentic Workflows [augment](https://github.github.com/gh-aw/reference/faq/#determinism) your existing, deterministic CI/CD with [Continuous AI](https://githubnext.com/projects/continuous-ai) capabilities.
+Choose from **4 primary AI engines** — Copilot, Claude by Anthropic, Gemini, or OpenAI Codex — for event-triggered and scheduled jobs to improve your repository. GitHub Agentic Workflows [augment](https://github.github.com/gh-aw/reference/faq/#determinism) your existing, deterministic CI/CD with [Continuous AI](https://githubnext.com/projects/continuous-ai) capabilities.
 
 Developed by GitHub and Microsoft, workflows run with added guardrails, using safe outputs and sandboxed execution to help keep your repository safe.
 
@@ -44,7 +44,7 @@ Developed by GitHub and Microsoft, workflows run with added guardrails, using sa
     Workflows that understand context and adapt to situations
   </FeatureCard>
   <FeatureCard icon="beaker" title="Multiple AI Engines" href="/gh-aw/reference/engines/">
-    Support for Copilot, Claude, Codex, and custom AI processors
+    4 primary engines — Copilot, Claude, Codex, and Gemini — plus 3 experimental coding agents
   </FeatureCard>
   <FeatureCard icon="mark-github" title="GitHub Integration" href="/gh-aw/reference/github-tools/">
     Deep integration with Actions, Issues, PRs, Discussions, and repository management
@@ -59,7 +59,7 @@ Developed by GitHub and Microsoft, workflows run with added guardrails, using sa
 
 ## Guardrails Built-In
 
-AI agents can be manipulated by prompt injection, malicious repository content, or compromised tools. GitHub Agentic Workflows uses layered controls to keep each run contained: sandboxing limits where code can execute, scoped permissions limit what it can request, and gated outputs ensure only approved actions reach GitHub.
+AI agents can be manipulated by prompt injection, malicious repository content, or compromised tools. GitHub Agentic Workflows uses **6 layered controls** to keep each run contained: sandboxing limits where code can execute, scoped permissions limit what it can request, and gated outputs ensure only approved actions reach the platform.
 
 ```mermaid
 flowchart LR
@@ -98,13 +98,13 @@ flowchart LR
   </FeatureCard>
 </FeatureGrid>
 
-See the [Security Architecture](/gh-aw/introduction/architecture/) for a full breakdown of the layered defense-in-depth model.
+See the [Security Architecture](/gh-aw/introduction/architecture/) for a full breakdown of the layered defense-in-depth model, including **over 40 safe output types** across issues, PRs, labels, projects, and security operations.
 
 ## Manage Cost and Capacity
 
 Cost control starts with visibility. Use `gh aw logs` and `gh aw audit` to find runs consuming the most time, tokens, and AI Credits (AIC), then tighten prompts, triggers, and model choices before spend drifts upward.
 
-`max-ai-credits` gives each run a hard budget, while [OpenTelemetry](/gh-aw/guides/open-telemetry/) exports traces and token data to OTLP backends for dashboards, alerting, and cost analysis. For optimization over time, compare cost with [outcomes](/gh-aw/reference/outcomes/) so lower spend still produces useful accepted results.
+`max-ai-credits` gives each run a hard budget (default: **1,000 AIC per run**), while [OpenTelemetry](/gh-aw/guides/open-telemetry/) exports traces and token data to OTLP backends for dashboards, alerting, and cost analysis. For optimization over time, compare cost with [outcomes](/gh-aw/reference/outcomes/) so lower spend still produces useful accepted results.
 
 <FeatureGrid columns={3}>
   <FeatureCard icon="pulse" title="Cost Management" href="/gh-aw/reference/cost-management/">
@@ -141,7 +141,7 @@ safe-outputs:
 
 ## Daily Issues Report
 
-Create an upbeat daily status report for the team as a GitHub issue.
+Create an upbeat daily status report for the team as an issue.
 
 ## What to include
 
@@ -149,10 +149,10 @@ Create an upbeat daily status report for the team as a GitHub issue.
 - Progress tracking, goal reminders and highlights
 - Project status and recommendations
 - Actionable next steps for maintainers
-
+    
 ```
 
-The `gh aw` cli hardens this to a traditional GitHub Actions Workflow (.lock.yml) that runs an AI coding agent (Copilot CLI, Claude Code, Codex, ...) in a containerized environment on a schedule or manually. The AI coding agent reads your repository context, analyzes issues, generates visualizations, and creates reports. All defined in natural language rather than complex code.
+The `gh aw` CLI compiles this to a standard Actions workflow (.lock.yml) that runs an AI coding agent (Copilot CLI, Claude Code, Codex, ...) in a containerized environment on a schedule or manually. The AI coding agent reads your repository context, analyzes issues, generates visualizations, and creates reports. All defined in natural language rather than complex code.
 
 ## Gallery
 
@@ -190,7 +190,7 @@ Install the extension, add a sample workflow, and trigger your first run - all f
 
 ## Creating Workflows
 
-Create custom agentic workflows directly from the GitHub web interface using natural language.
+Create custom agentic workflows directly from the web interface using natural language.
 
 <Video
   src="/gh-aw/videos/create-workflow-on-github.mp4"
