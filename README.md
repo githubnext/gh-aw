@@ -198,7 +198,7 @@ To build and test repository custom linters:
 - @susmahad: #26276 _(direct issue)_, #25866 _(direct issue)_, #25710 _(direct issue)_
 - @szabta89: #29064 _(direct issue)_, #29063 _(direct issue)_, #24037 _(direct issue)_
 - @tadelesh: #26001 _(direct issue)_
-- @theletterf: #36423 _(direct issue)_, #34981 _(direct issue)_, #33963 _(direct issue)_, #32846 _(direct issue)_, #30964 _(direct issue)_, #30365 _(direct issue)_, #30327 _(direct issue)_, #28898 _(direct issue)_, #28895 _(direct issue)_, #28691 _(direct issue)_, #28672 _(direct issue)_, #28221 _(direct issue)_, #27566 _(direct issue)_, #25494 _(direct issue)_
+- @theletterf: #39904 _(direct issue)_, #36423 _(direct issue)_, #34981 _(direct issue)_, #33963 _(direct issue)_, #32846 _(direct issue)_, #30964 _(direct issue)_, #30365 _(direct issue)_, #30327 _(direct issue)_, #28898 _(direct issue)_, #28895 _(direct issue)_, #28691 _(direct issue)_, #28672 _(direct issue)_, #28221 _(direct issue)_, #27566 _(direct issue)_, #25494 _(direct issue)_
 - @tinytelly: #27282 _(direct issue)_
 - @tore-unumed: #36885 _(direct issue)_, #35446 _(direct issue)_, #35159 _(direct issue)_, #33545 _(direct issue)_, #31909 _(direct issue)_, #31650 _(direct issue)_, #30550 _(direct issue)_, #30324 _(direct issue)_, #29312 _(direct issue)_, #28019 _(direct issue)_
 - @trask: #31612 _(direct issue)_, #31241 _(direct issue)_, #31098 _(direct issue)_, #31097 _(direct issue)_
@@ -217,6 +217,13 @@ To build and test repository custom linters:
 - @zkoppert: #27741 _(direct issue)_
 
 </details>
+
+### ⚠️ Attribution Candidates Need Review
+
+The following community issues were closed during this period but could not be automatically linked to a specific merged PR. Please verify whether they should be credited:
+
+- **@brase** for [cross-repo create-pull-request can succeed and then fail with allowed-repos ERR_VALIDATION](https://github.com/github/gh-aw/issues/36651) (#36651) — closed 2026-06-03, no confirmed PR linkage found
+- **@theletterf** for [docs-pr-ai-menu: transient GitHub API 502 causes permanent workflow failure (no retries)](https://github.com/github/gh-aw/issues/39904) (#39904) — closed 2026-06-18, no confirmed PR linkage found
 
 ## Share Feedback
 
