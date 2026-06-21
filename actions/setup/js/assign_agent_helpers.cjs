@@ -82,13 +82,7 @@ async function getAvailableAgentLogins(owner, repo, githubClient = github) {
       }
     }
   }
-  try {
-    return available.sort();
-  } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : String(e);
-    core.debug(`Failed to list available agent logins: ${errorMessage}`);
-    return [];
-  }
+  return available.sort();
 }
 
 /**
@@ -139,7 +133,16 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
-      throw error;
+      if (
+        errorMessage.includes("Bad credentials") ||
+        errorMessage.includes("Not Authenticated") ||
+        errorMessage.includes("Resource not accessible") ||
+        errorMessage.includes("Insufficient permissions") ||
+        errorMessage.includes("requires authentication")
+      ) {
+        throw error;
+      }
+      return null;
     }
   }
 
@@ -149,7 +152,8 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
       repo,
       assignee: loginName,
     });
-    return loginName;
+    const { data: agentUser } = await githubClient.rest.users.getByUsername({ username: loginName });
+    return String(agentUser.id);
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
@@ -173,7 +177,7 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
  * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
- * @returns {Promise<{issueId: string, currentAssignees: Array<{id: string, login: string}>, htmlUrl: string, title: string, body: string}|null>}
+ * @returns {Promise<{issueId: string, currentAssignees: Array<{id: string, login: string}>, htmlUrl: string, title: string, body: string, taskContext: {owner: string, repo: string, type: "issue", number: number}}|null>}
  */
 async function getIssueDetails(owner, repo, issueNumber, githubClient = github) {
   if (!githubClient?.rest?.issues?.get && githubClient?.graphql) {
@@ -203,7 +207,7 @@ async function getIssueDetails(owner, repo, issueNumber, githubClient = github) 
         id: assignee.id,
         login: assignee.login,
       }));
-      return { issueId: issue.id, currentAssignees, htmlUrl: "", title: "", body: "" };
+      return { issueId: issue.id, currentAssignees, htmlUrl: "", title: "", body: "", taskContext: { owner, repo, type: "issue", number: issueNumber } };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.error(`Failed to get issue details: ${errorMessage}`);
@@ -218,16 +222,17 @@ async function getIssueDetails(owner, repo, issueNumber, githubClient = github) 
       return null;
     }
     const currentAssignees = (issue.assignees || []).map(assignee => ({
-      id: assignee.login,
+      id: String(assignee.id),
       login: assignee.login,
     }));
 
     return {
-      issueId: `${owner}/${repo}#issue:${issue.number}`,
+      issueId: String(issue.id),
       currentAssignees,
       htmlUrl: issue.html_url || "",
       title: issue.title || "",
       body: issue.body || "",
+      taskContext: { owner, repo, type: "issue", number: issue.number },
     };
   } catch (error) {
     const errorMessage = getErrorMessage(error);
@@ -242,7 +247,7 @@ async function getIssueDetails(owner, repo, issueNumber, githubClient = github) 
  * @param {string} repo - Repository name
  * @param {number} pullNumber - Pull request number
  * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
- * @returns {Promise<{pullRequestId: string, currentAssignees: Array<{id: string, login: string}>, htmlUrl: string, title: string, body: string}|null>}
+ * @returns {Promise<{pullRequestId: string, currentAssignees: Array<{id: string, login: string}>, htmlUrl: string, title: string, body: string, taskContext: {owner: string, repo: string, type: "pull", number: number}}|null>}
  */
 async function getPullRequestDetails(owner, repo, pullNumber, githubClient = github) {
   if (!githubClient?.rest?.pulls?.get && githubClient?.graphql) {
@@ -272,7 +277,7 @@ async function getPullRequestDetails(owner, repo, pullNumber, githubClient = git
         id: assignee.id,
         login: assignee.login,
       }));
-      return { pullRequestId: pullRequest.id, currentAssignees, htmlUrl: "", title: "", body: "" };
+      return { pullRequestId: pullRequest.id, currentAssignees, htmlUrl: "", title: "", body: "", taskContext: { owner, repo, type: "pull", number: pullNumber } };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.error(`Failed to get pull request details: ${errorMessage}`);
@@ -287,16 +292,17 @@ async function getPullRequestDetails(owner, repo, pullNumber, githubClient = git
       return null;
     }
     const currentAssignees = (pullRequest.assignees || []).map(assignee => ({
-      id: assignee.login,
+      id: String(assignee.id),
       login: assignee.login,
     }));
 
     return {
-      pullRequestId: `${owner}/${repo}#pull:${pullRequest.number}`,
+      pullRequestId: String(pullRequest.id),
       currentAssignees,
       htmlUrl: pullRequest.html_url || "",
       title: pullRequest.title || "",
       body: pullRequest.body || "",
+      taskContext: { owner, repo, type: "pull", number: pullRequest.number },
     };
   } catch (error) {
     const errorMessage = getErrorMessage(error);
@@ -312,15 +318,31 @@ async function getPullRequestDetails(owner, repo, pullNumber, githubClient = git
  * @param {Array<{id: string, login: string}>} currentAssignees - List of current assignees with id and login
  * @param {string} agentName - Agent name for error messages
  * @param {string[]|null} allowedAgents - Optional list of allowed agent names. If provided, filters out non-allowed agents from current assignees.
- * @param {string|null} pullRequestRepoId - Optional pull request repository slug (owner/repo) where PR should be created
+ * @param {string|null} pullRequestRepoId - Optional pull request repository ID for GraphQL fallback
  * @param {string|null} model - Optional AI model to use (e.g., "claude-opus-4.6", "auto")
  * @param {string|null} customAgent - Optional custom agent ID for custom agents
  * @param {string|null} customInstructions - Optional custom instructions for the agent
  * @param {string|null} baseBranch - Optional base branch for the PR (REST base_ref field)
  * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
+ * @param {{owner: string, repo: string, type: "issue"|"pull", number: number}|null} [taskContext] - Source issue/PR context for REST path
+ * @param {string|null} [pullRequestRepoSlug] - Optional pull request repository slug (owner/repo) for REST path
  * @returns {Promise<boolean>} True if successful
  */
-async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null, pullRequestRepoId = null, model = null, customAgent = null, customInstructions = null, baseBranch = null, githubClient = github) {
+async function assignAgentToIssue(
+  assignableId,
+  agentId,
+  currentAssignees,
+  agentName,
+  allowedAgents = null,
+  pullRequestRepoId = null,
+  model = null,
+  customAgent = null,
+  customInstructions = null,
+  baseBranch = null,
+  githubClient = github,
+  taskContext = null,
+  pullRequestRepoSlug = null
+) {
   // SECURITY: pullRequestRepoId specifies a cross-repo target repository slug.
   // Callers MUST validate the corresponding repository slug against allowedRepos using
   // validateTargetRepo (from repo_helpers.cjs) before invoking this function.
@@ -422,17 +444,16 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
     }
   }
 
-  const targetMatch = /^(?<sourceOwner>[^/]+)\/(?<sourceRepo>[^#]+)#(?<itemType>issue|pull):(?<itemNumber>\d+)$/.exec(assignableId);
-  if (!targetMatch || !targetMatch.groups) {
+  if (!taskContext) {
     core.error(`Invalid assignment context: ${assignableId}`);
     return false;
   }
-  const sourceOwner = targetMatch.groups.sourceOwner;
-  const sourceRepo = targetMatch.groups.sourceRepo;
-  const itemType = targetMatch.groups.itemType === "pull" ? "pull request" : "issue";
-  const itemNumber = targetMatch.groups.itemNumber;
+  const sourceOwner = taskContext.owner;
+  const sourceRepo = taskContext.repo;
+  const itemType = taskContext.type === "pull" ? "pull request" : "issue";
+  const itemNumber = String(taskContext.number);
   const sourceUrl = `https://github.com/${sourceOwner}/${sourceRepo}/${itemType === "pull request" ? "pull" : "issues"}/${itemNumber}`;
-  const targetRepoSlug = pullRequestRepoId || `${sourceOwner}/${sourceRepo}`;
+  const targetRepoSlug = pullRequestRepoSlug || `${sourceOwner}/${sourceRepo}`;
   const targetParts = targetRepoSlug.split("/");
   if (targetParts.length !== 2) {
     core.error(`Invalid target repository slug: ${targetRepoSlug}`);
@@ -547,9 +568,9 @@ function logPermissionError(agentName) {
   core.error("  1. Repository permissions:");
   core.error("     - actions: write");
   core.error("     - contents: write");
-  core.error("     - Agent tasks: read and write");
+  core.error("     - agent-tasks: write");
   core.error("");
-  core.error("  2. A fine-grained PAT or GitHub App user token with Agent tasks (read/write)");
+  core.error("  2. A fine-grained PAT or GitHub App user token with agent-tasks: write");
   core.error("     (Installation tokens are not supported for agent task creation)");
   core.error("");
   core.error("  3. Repository settings:");
@@ -637,14 +658,14 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
     core.info(`Issue context: ${issueDetails.issueId}`);
 
     // Check if agent is already assigned
-    if (issueDetails.currentAssignees.some(a => a.id === agentId)) {
+    if (issueDetails.currentAssignees.some(a => a.id === agentId || a.login === AGENT_LOGIN_NAMES[agentName])) {
       core.info(`${agentName} is already assigned to issue #${issueNumber}`);
       return { success: true };
     }
 
     // Assign agent by starting a REST task (no allowed list filtering in this helper)
     core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, null);
+    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, null, null, null, null, null, null, github, issueDetails.taskContext);
 
     if (!success) {
       return { success: false, error: `Failed to assign ${agentName} via REST` };

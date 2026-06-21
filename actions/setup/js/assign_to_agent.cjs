@@ -258,8 +258,8 @@ async function main(config = {}) {
           return { success: false, error };
         }
         try {
-          await resolvePullRequestRepo(githubClient, pullRequestRepoParts[0], pullRequestRepoParts[1], configuredBaseBranch);
-          effectivePullRequestRepoId = itemPullRequestRepo;
+          const resolved = await resolvePullRequestRepo(githubClient, pullRequestRepoParts[0], pullRequestRepoParts[1], configuredBaseBranch);
+          effectivePullRequestRepoId = resolved.repoId;
           effectivePullRequestRepoSlug = itemPullRequestRepo;
           hasValidatedPerItemPullRequestRepoOverride = true;
           core.info(`Using per-item pull request repository: ${itemPullRequestRepo}`);
@@ -347,16 +347,19 @@ async function main(config = {}) {
       core.info(`Getting ${type} details...`);
       let assignableId;
       let currentAssignees;
+      let taskContext = null;
       if (issueNumber) {
         const issueDetails = await getIssueDetails(effectiveOwner, effectiveRepo, issueNumber, githubClient);
         if (!issueDetails) throw new Error(`Failed to get issue details`);
         assignableId = issueDetails.issueId;
         currentAssignees = issueDetails.currentAssignees;
+        taskContext = issueDetails.taskContext || { owner: effectiveOwner, repo: effectiveRepo, type: "issue", number: issueNumber };
       } else if (pullNumber) {
         const prDetails = await getPullRequestDetails(effectiveOwner, effectiveRepo, pullNumber, githubClient);
         if (!prDetails) throw new Error(`Failed to get pull request details`);
         assignableId = prDetails.pullRequestId;
         currentAssignees = prDetails.currentAssignees;
+        taskContext = prDetails.taskContext || { owner: effectiveOwner, repo: effectiveRepo, type: "pull", number: pullNumber };
       } else {
         throw new Error(`No issue or pull request number available`);
       }
@@ -385,7 +388,21 @@ async function main(config = {}) {
       if (customInstructions) core.info(`Using custom instructions: ${customInstructions.substring(0, 100)}${customInstructions.length > 100 ? "..." : ""}`);
       if (effectiveBaseBranch) core.info(`Using base branch: ${effectiveBaseBranch}`);
 
-      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents, effectivePullRequestRepoId, model, customAgent, customInstructions, effectiveBaseBranch, githubClient);
+      const success = await assignAgentToIssue(
+        assignableId,
+        agentId,
+        currentAssignees,
+        agentName,
+        allowedAgents,
+        effectivePullRequestRepoId,
+        model,
+        customAgent,
+        customInstructions,
+        effectiveBaseBranch,
+        githubClient,
+        taskContext,
+        effectivePullRequestRepoSlug
+      );
       if (!success) throw new Error(`Failed to assign ${agentName} via REST`);
 
       core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number}`);
