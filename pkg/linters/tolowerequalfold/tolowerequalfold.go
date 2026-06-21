@@ -119,7 +119,7 @@ func buildEqualFoldFix(pass *analysis.Pass, expr *ast.BinaryExpr) []analysis.Sug
 		call = "!" + call
 	}
 	return []analysis.SuggestedFix{{
-		Message: "Replace with strings.EqualFold",
+		Message: fmt.Sprintf("Replace with %s.EqualFold", equalFoldPkg),
 		TextEdits: []analysis.TextEdit{{
 			Pos:     expr.Pos(),
 			End:     expr.End(),
@@ -272,6 +272,9 @@ func caseConvPkgName(pass *analysis.Pass, n ast.Node) (string, bool) {
 	}
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok || !astutil.IsPkgSelector(pass, sel, "strings") {
+		return "", false
+	}
+	if sel.Sel.Name != "ToLower" && sel.Sel.Name != "ToUpper" {
 		return "", false
 	}
 	pkgName := astutil.NodeText(pass.Fset, sel.X)
