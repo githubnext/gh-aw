@@ -39,6 +39,7 @@ tools:
   - grep -rn "safe-outputs:" pkg/cli/workflows/*.md
   - grep -n "yaml:.*" pkg/workflow/compiler_types.go
   - cat pkg/workflow/compiler_types.go
+  - cat pkg/workflow/compiler_safe_outputs_config_test.go
   - cat pkg/workflow/safe_outputs_validation_config.go
   - cat pkg/workflow/js/safe_outputs_tools.json
   - cat pkg/parser/schemas/main_workflow_schema.json
@@ -90,6 +91,7 @@ Ensure every supported safe-output type has both:
 ### Phase 3: Detect Go compiler-test gaps
 
 - Inspect `pkg/workflow/compiler_safe_outputs_config_test.go` (especially `TestAddHandlerManagerConfigEnvVar`).
+- Use the allowed `cat pkg/workflow/compiler_safe_outputs_config_test.go` bash command for that file instead of `read(...)`.
 - For each missing type, add a case using existing table-test style:
   - correct `SafeOutputsConfig` field,
   - default `Max` from validation config,
