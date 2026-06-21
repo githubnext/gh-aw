@@ -169,6 +169,7 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 type ListWorkflowRunsOptions struct {
 	Context      context.Context
 	WorkflowName string // filter by specific workflow (if empty, fetches all agentic workflows)
+	Engine       string // filter by engine ID from local workflow definitions (for example: copilot, claude)
 	Status       string // filter by run status/conclusion (for example: completed, success, failure)
 	Limit        int    // maximum number of runs to fetch in this API call (batch size)
 	StartDate    string // filter by creation date (>=); combined with EndDate/BeforeDate into a single --created range
@@ -352,6 +353,15 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 	}
 
 	// Apply run ID filtering if specified
+	if opts.Engine != "" {
+		workflowEngines, err := getAgenticWorkflowEnginesByName(opts.Verbose)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to get agentic workflow engines: %w", err)
+		}
+		agenticRuns = filterRunsByConfiguredEngine(agenticRuns, workflowEngines, opts.Engine)
+	}
+
+	// Apply run ID filtering if specified
 	if opts.BeforeRunID > 0 || opts.AfterRunID > 0 {
 		var filteredRuns []WorkflowRun
 		for _, run := range agenticRuns {
@@ -382,6 +392,19 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 	}
 
 	return agenticRuns, totalFetched, nil
+}
+
+func filterRunsByConfiguredEngine(runs []WorkflowRun, workflowEngines map[string]string, engine string) []WorkflowRun {
+	if engine == "" {
+		return runs
+	}
+	filtered := make([]WorkflowRun, 0, len(runs))
+	for _, run := range runs {
+		if workflowEngines[run.WorkflowName] == engine {
+			filtered = append(filtered, run)
+		}
+	}
+	return filtered
 }
 
 func workflowRunsSpinnerMessage(opts ListWorkflowRunsOptions) string {

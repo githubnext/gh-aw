@@ -285,6 +285,7 @@ outerLoop:
 		var oldestFetchedCreatedAt time.Time
 		runs, totalFetched, err := listWorkflowRunsWithPagination(ListWorkflowRunsOptions{
 			WorkflowName:           workflowName,
+			Engine:                 engine,
 			Limit:                  batchSize,
 			StartDate:              startDate,
 			EndDate:                endDate,

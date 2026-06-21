@@ -273,3 +273,22 @@ func TestWorkflowRunsSpinnerMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestFilterRunsByConfiguredEngine(t *testing.T) {
+	runs := []WorkflowRun{
+		{DatabaseID: 1, WorkflowName: "A"},
+		{DatabaseID: 2, WorkflowName: "B"},
+		{DatabaseID: 3, WorkflowName: "C"},
+	}
+	engines := map[string]string{
+		"A": "claude",
+		"B": "copilot",
+	}
+
+	filtered := filterRunsByConfiguredEngine(runs, engines, "claude")
+	require.Len(t, filtered, 1)
+	assert.Equal(t, int64(1), filtered[0].DatabaseID)
+
+	unfiltered := filterRunsByConfiguredEngine(runs, engines, "")
+	require.Len(t, unfiltered, 3)
+}

@@ -89,6 +89,62 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 	return workflowNames, nil
 }
 
+// getAgenticWorkflowEnginesByName returns engine IDs keyed by workflow display name.
+// It derives workflow names from .lock.yml files and resolves engine IDs from sibling .md sources.
+func getAgenticWorkflowEnginesByName(verbose bool) (map[string]string, error) {
+	logsUtilsLog.Print("Discovering agentic workflow engines from .lock.yml/.md files")
+	workflowEngines := make(map[string]string)
+
+	workflowsDir := constants.GetWorkflowDir()
+	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No .github/workflows directory found"))
+		}
+		return workflowEngines, nil
+	}
+
+	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to glob .lock.yml files: %w", err)
+	}
+
+	for _, lockFile := range files {
+		content, readErr := os.ReadFile(lockFile)
+		if readErr != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read %s: %v", lockFile, readErr)))
+			}
+			continue
+		}
+
+		var workflowName string
+		lines := strings.SplitSeq(string(content), "\n")
+		for line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "name:") {
+				parts := strings.SplitN(trimmed, ":", 2)
+				if len(parts) == 2 {
+					workflowName = strings.TrimSpace(strings.Trim(parts[1], `"'`))
+				}
+				break
+			}
+		}
+		if workflowName == "" {
+			continue
+		}
+
+		markdownPath := strings.TrimSuffix(lockFile, ".lock.yml") + ".md"
+		engineID := extractEngineIDFromFile(markdownPath)
+		if engineID == "" {
+			continue
+		}
+
+		workflowEngines[workflowName] = engineID
+	}
+
+	return workflowEngines, nil
+}
+
 // findAgentOutputFile searches for a file named agent_output.json within the logDir tree.
 // Returns the first path found (depth-first) and a boolean indicating success.
 func findAgentOutputFile(logDir string) (string, bool) {
