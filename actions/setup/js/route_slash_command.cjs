@@ -530,6 +530,8 @@ function resolveMatchingSlashRoutes(slashRouteMap, actualCommand) {
     }
 
     for (const route of configuredRoutes) {
+      // Keep the de-duplication key explicit so routes that differ only by
+      // status-comment behavior remain distinct dispatch targets.
       const key = JSON.stringify([route?.workflow ?? "", route?.ai_reaction ?? "", route?.status_comment === true, Array.isArray(route?.events) ? route.events : []]);
       if (seen.has(key)) {
         continue;

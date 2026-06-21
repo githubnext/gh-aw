@@ -276,6 +276,8 @@ func buildCentralizedRoutes(wd *WorkflowData, routeEvents []string, includeStatu
 	for _, eventName := range routeEvents {
 		reaction := resolveCentralizedEventReaction(wd, eventName)
 		statusComment := includeStatusComment && resolveCentralizedEventStatusComment(wd, eventName)
+		// Reactions are limited to GitHub's fixed enum values, so "|" is a safe
+		// separator for grouping the per-event route metadata deterministically.
 		groupKey := reaction + "|" + strconv.FormatBool(statusComment)
 		if _, exists := eventGroups[groupKey]; !exists {
 			groupOrder = append(groupOrder, groupKey)

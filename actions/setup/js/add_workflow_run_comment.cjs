@@ -96,12 +96,21 @@ function parseObject(value) {
 }
 
 /**
+ * Read aw_context from workflow_dispatch or repository_dispatch payloads.
+ * Accepts both snake_case and camelCase input names for compatibility.
+ * @param {any} payload
+ * @returns {Record<string, any>|null}
+ */
+function extractAwContextFromPayload(payload) {
+  return parseObject(payload?.inputs?.aw_context) || parseObject(payload?.inputs?.awContext) || parseObject(payload?.client_payload?.aw_context) || parseObject(payload?.client_payload?.awContext);
+}
+
+/**
  * @param {any} rawContext
  * @returns {{ id: string, url: string }|null}
  */
 function readReusableStatusComment(rawContext) {
-  const payload = rawContext?.payload;
-  const awContext = parseObject(payload?.inputs?.aw_context) || parseObject(payload?.inputs?.awContext) || parseObject(payload?.client_payload?.aw_context) || parseObject(payload?.client_payload?.awContext);
+  const awContext = extractAwContextFromPayload(rawContext?.payload);
   if (!awContext) {
     return null;
   }
