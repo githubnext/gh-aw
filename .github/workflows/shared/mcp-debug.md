@@ -256,19 +256,19 @@ The diagnostic report will be automatically posted as a comment on the pull requ
 
 ```
 # Server failed to start - investigate
-Read /tmp/gh-aw/mcp-logs/drain3/server.log
+Read /tmp/gh-aw/mcp-logs/<server-name>/server.log
 
-# Found error: ModuleNotFoundError: No module named 'fastmcp'
+# Found error: connection refused on port XXXX
 
 # Verify connectivity status
-Use mcp-inspect with workflow_file="dev" and server="drain3"
+Use mcp-inspect with workflow_file="dev" and server="<server-name>"
 
 # Create diagnostic report using safe-output
 Output report_diagnostics_to_pull_request with:
-- Issue: Drain3 MCP server failed to start
-- Root Cause: Missing fastmcp dependency
-- Evidence: ModuleNotFoundError from server.log
-- Fix: Add pip install fastmcp to workflow steps
+- Issue: MCP server failed to start
+- Root Cause: Port already in use or missing dependency
+- Evidence: Error message from server.log
+- Fix: Verify port availability and dependency installation
 ```
 
 Remember: Always conclude your debugging session by posting a diagnostic report using the `report_diagnostics_to_pull_request` safe-output. This ensures your findings are documented and actionable.
