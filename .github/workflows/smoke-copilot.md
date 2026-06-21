@@ -185,7 +185,7 @@ Run these checks and mark each as ✅/❌:
 8. Build: run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build`.
 9. Artifact upload (only if build passes): stage `./gh-aw` at `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/gh-aw` and call `upload_artifact` with `path: "gh-aw"`.
 10. Discussion create: call `create_discussion` in `announcements` with label `ai-generated`, title `copilot was here`, temp ID `aw_smoke_discussion`.
-11. Workflow dispatch: call `dispatch_workflow` for `haiku-printer` with an original testing/automation haiku.
+11. Workflow dispatch: call `dispatch_workflow` for `haiku-printer` and include `inputs.message` with an original testing/automation haiku (non-empty string).
 12. PR review tools: add 1-2 inline `create_pull_request_review_comment` comments, submit review with event `COMMENT`, then reply to most recent existing review comment ID when available.
 13. Comment memory: append an original 3-line haiku to `/tmp/gh-aw/comment-memory/*.md`.
 14. Sub-agent: use `file-summarizer` on `README.md`.
