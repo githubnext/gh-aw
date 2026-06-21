@@ -59,22 +59,21 @@ var (
 	// allowedRunScriptExpressionRegex matches trusted compiler-owned expressions that are
 	// intentionally rendered in generated run scripts and are not user-controlled.
 	allowedRunScriptExpressionRegex = regexp.MustCompile(`^\$\{\{\s*(env\.[^}]+|vars\.[^}]+|runner\.[^}]+|github\.(repository|run_id|workspace)|steps\.parse-guard-vars\.outputs\.(approval_labels|blocked_users|trusted_users)|job\.services\[[^]]+\]\.ports\[[^]]+\])\s*\}\}$`)
+	runKeyPattern                   = regexp.MustCompile(`(?:^|[\s{,])(?:run|["']run["']):`)
 )
 
-// hasNonAllowedExpressionInRunContent performs a fast line-by-line text scan to
-// determine whether any GitHub Actions expression (${{ ... }}) that is NOT in the
-// compiler-owned allow-list appears inside a YAML run: block.
-//
-// Unlike hasAnyExpressionInRunContent, this function skips expressions that match
-// allowedRunScriptExpressionRegex (e.g. ${{ runner.temp }}, ${{ env.FOO }}).  It is
-// used as a fast pre-check for the regression guardrail inside validateTemplateInjection
-// (Path B) to avoid a yaml.Unmarshal when every run-block expression is compiler-owned.
-func hasNonAllowedExpressionInRunContent(yamlContent string) bool {
-	// Fast-path: no inline expressions anywhere → nothing to check.
-	if !InlineExpressionPattern.MatchString(yamlContent) {
-		return false
+func findRunValue(keyPart string) (string, bool) {
+	loc := runKeyPattern.FindStringIndex(keyPart)
+	if loc == nil {
+		return "", false
 	}
+	return strings.TrimSpace(keyPart[loc[1]:]), true
+}
 
+// walkRunBlockLines scans raw YAML text and visits each inline run value or line inside a
+// multiline run block. It recognizes plain run: keys as well as quoted and flow-style forms
+// so Path B stays aligned with the parsed-YAML validators.
+func walkRunBlockLines(yamlContent string, visit func(line string) bool) bool {
 	inRunBlock := false
 	runBlockIndent := 0
 
@@ -90,47 +89,62 @@ func hasNonAllowedExpressionInRunContent(yamlContent string) bool {
 				inRunBlock = false
 				// Fall through: check whether this line starts a new run: block.
 			} else {
-				// Inside run block content — check each expression on this line.
-				if InlineExpressionPattern.MatchString(line) {
-					for _, expr := range InlineExpressionPattern.FindAllString(line, -1) {
-						if !allowedRunScriptExpressionRegex.MatchString(expr) {
-							return true
-						}
-					}
+				if visit(line) {
+					return true
 				}
 				continue
 			}
 		}
 
-		// Outside a run block: look for a run: key.
 		keyPart := trimmed
 		if strings.HasPrefix(keyPart, "-") {
 			keyPart = strings.TrimSpace(keyPart[1:])
 		}
-		if !strings.HasPrefix(keyPart, "run:") {
+
+		rest, ok := findRunValue(keyPart)
+		if !ok {
 			continue
 		}
-		rest := strings.TrimSpace(keyPart[4:]) // text after "run:"
 
-		if rest == "" {
+		if rest == "" || rest[0] == '|' || rest[0] == '>' {
 			inRunBlock = true
 			runBlockIndent = indent
-		} else if rest[0] == '|' || rest[0] == '>' {
-			inRunBlock = true
-			runBlockIndent = indent
-		} else {
-			// Inline run value.
-			if InlineExpressionPattern.MatchString(rest) {
-				for _, expr := range InlineExpressionPattern.FindAllString(rest, -1) {
-					if !allowedRunScriptExpressionRegex.MatchString(expr) {
-						return true
-					}
-				}
-			}
+			continue
+		}
+
+		if visit(rest) {
+			return true
 		}
 	}
 
 	return false
+}
+
+// hasNonAllowedExpressionInRunContent performs a fast line-by-line text scan to
+// determine whether any GitHub Actions expression (${{ ... }}) that is NOT in the
+// compiler-owned allow-list appears inside a YAML run: block.
+//
+// Unlike hasAnyExpressionInRunContent, this function skips expressions that match
+// allowedRunScriptExpressionRegex (e.g. ${{ runner.temp }}, ${{ env.FOO }}). It is
+// used as a fast pre-check for the regression guardrail inside validateTemplateInjection
+// (Path B) to avoid a yaml.Unmarshal when every run-block expression is compiler-owned.
+func hasNonAllowedExpressionInRunContent(yamlContent string) bool {
+	// Fast-path: no inline expressions anywhere → nothing to check.
+	if !InlineExpressionPattern.MatchString(yamlContent) {
+		return false
+	}
+
+	return walkRunBlockLines(yamlContent, func(line string) bool {
+		if !InlineExpressionPattern.MatchString(line) {
+			return false
+		}
+		for _, expr := range InlineExpressionPattern.FindAllString(line, -1) {
+			if !allowedRunScriptExpressionRegex.MatchString(expr) {
+				return true
+			}
+		}
+		return false
+	})
 }
 
 func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regexp) bool {
@@ -141,62 +155,7 @@ func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regex
 
 	// Matching expressions exist somewhere; scan for any that appear inside a run: block
 	// without doing a full YAML parse.
-	// Use SplitSeq to iterate over lines lazily, avoiding the up-front allocation of the
-	// full []string slice that strings.Split would create for large YAML content.
-	inRunBlock := false
-	runBlockIndent := 0
-
-	for line := range strings.SplitSeq(yamlContent, "\n") {
-		// Compute indentation first; skip blank and all-whitespace lines in one step.
-		trimmed := strings.TrimLeft(line, " \t")
-		if trimmed == "" {
-			// Blank / all-whitespace lines are allowed inside block scalars.
-			continue
-		}
-		indent := len(line) - len(trimmed)
-
-		if inRunBlock {
-			// A non-blank line at the same or lesser indentation ends the block.
-			if indent <= runBlockIndent {
-				inRunBlock = false
-				// Fall through: check whether this line starts a new run: block.
-			} else {
-				// Inside run block content — check for matching expressions.
-				if expressionRegex.MatchString(line) {
-					return true
-				}
-				continue
-			}
-		}
-
-		// Outside a run block: look for a run: key.
-		// Handle both "run: ..." (map key) and "- run: ..." (inline sequence item).
-		keyPart := trimmed
-		if strings.HasPrefix(keyPart, "-") {
-			keyPart = strings.TrimSpace(keyPart[1:])
-		}
-		if !strings.HasPrefix(keyPart, "run:") {
-			continue
-		}
-		rest := strings.TrimSpace(keyPart[4:]) // text after "run:"
-
-		if rest == "" {
-			// Empty run: value is unusual; treat conservatively as if block content follows.
-			inRunBlock = true
-			runBlockIndent = indent
-		} else if rest[0] == '|' || rest[0] == '>' {
-			// Literal or folded block scalar — content is on subsequent lines.
-			inRunBlock = true
-			runBlockIndent = indent
-		} else {
-			// Inline run value, e.g. run: echo "hello ${{ github.event.foo }}".
-			if expressionRegex.MatchString(rest) {
-				return true
-			}
-		}
-	}
-
-	return false
+	return walkRunBlockLines(yamlContent, expressionRegex.MatchString)
 }
 
 // validateNoTemplateInjectionFromParsed checks a pre-parsed workflow map for template

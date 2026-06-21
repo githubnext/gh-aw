@@ -1387,6 +1387,41 @@ func TestHasNonAllowedExpressionInRunContent(t *testing.T) {
 			expected: false,
 		},
 		{
+			name: "allowed github.run_id in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ github.run_id }}`,
+			expected: false,
+		},
+		{
+			name: "allowed github.workspace in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ github.workspace }}`,
+			expected: false,
+		},
+		{
+			name: "allowed parse guard output in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ steps.parse-guard-vars.outputs.approval_labels }}`,
+			expected: false,
+		},
+		{
+			name: "allowed service port expression in run block",
+			yaml: `jobs:
+  test:
+    services:
+      redis:
+        image: redis
+    steps:
+      - run: echo ${{ job.services['redis'].ports['6379'] }}`,
+			expected: false,
+		},
+		{
 			name: "disallowed user-controlled expression in run block",
 			yaml: `jobs:
   test:
@@ -1400,6 +1435,22 @@ func TestHasNonAllowedExpressionInRunContent(t *testing.T) {
   test:
     steps:
       - run: echo ${{ steps.foo.outputs.bar }}`,
+			expected: true,
+		},
+		{
+			name: "disallowed output from non-allow-listed step",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ steps.other-step.outputs.value }}`,
+			expected: true,
+		},
+		{
+			name: "mixed allowed and disallowed expressions on same line",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ env.FOO }} ${{ github.event.issue.title }}`,
 			expected: true,
 		},
 		{
@@ -1429,6 +1480,22 @@ func TestHasNonAllowedExpressionInRunContent(t *testing.T) {
     steps:
       - run: |
           echo "${{ github.event.issue.title }}"`,
+			expected: true,
+		},
+		{
+			name: "flow-style run step with disallowed expression",
+			yaml: `jobs:
+  test:
+    steps:
+      - { run: "echo ${{ github.actor }}" }`,
+			expected: true,
+		},
+		{
+			name: "quoted run key with disallowed expression",
+			yaml: `jobs:
+  test:
+    steps:
+      - "run": echo ${{ github.actor }}`,
 			expected: true,
 		},
 	}

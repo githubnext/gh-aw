@@ -331,9 +331,9 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 	} else {
 		// Path B: schema validation is disabled (parsedWorkflow is nil).
 		//
-		// Use two targeted text scans instead of hasAnyExpressionInRunContent so we
-		// can skip the expensive yaml.Unmarshal when all run-block expressions are
-		// compiler-owned safe references (e.g. ${{ runner.temp }}, ${{ env.FOO }}).
+		// Use two targeted text scans with a shared run-block walker so we can skip the
+		// expensive yaml.Unmarshal when all run-block expressions are compiler-owned safe
+		// references (e.g. ${{ runner.temp }}, ${{ env.FOO }}).
 		//
 		// needsUnsafeCheck:    true when user-controlled contexts appear in run: blocks
 		//                      → triggers validateNoTemplateInjectionFromParsed
@@ -352,6 +352,8 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 				reparsed = nil
 			}
 			if reparsed != nil {
+				// validateNoTemplateInjectionFromParsed only catches user-controlled contexts,
+				// so it is intentionally skipped when the UnsafeContextPattern scan found none.
 				if needsUnsafeCheck {
 					templateErr = validateNoTemplateInjectionFromParsed(reparsed)
 				}
