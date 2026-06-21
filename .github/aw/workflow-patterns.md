@@ -167,9 +167,10 @@ steps:
   - name: Prefetch compact failure context
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
       RUN_ID: ${{ github.event.workflow_run.id }}
     run: |
-      gh api repos/${{ github.repository }}/actions/runs/"$RUN_ID"/jobs \
+      gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" \
         --jq '[.jobs[] | select(.conclusion != "success") | {name, conclusion, started_at, completed_at}]' \
         > /tmp/gh-aw/agent/failed_jobs.json
 ```
