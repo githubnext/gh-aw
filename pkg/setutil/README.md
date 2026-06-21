@@ -12,7 +12,7 @@ All functions in this package are pure: they never modify their input. They are 
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `Contains` | `func[K comparable](set map[K]struct{}, key K) bool` | Reports whether `key` is present in `set` |
+| `Contains` | `func Contains[K comparable](set map[K]struct{}, key K) bool` | Reports whether `key` is present in `set` |
 
 ## Usage Examples
 
