@@ -302,7 +302,14 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 		if len(profile.coreSecretNames) > 0 {
 			gatewaySecretEnvVar = profile.coreSecretNames[0]
 		} else if backend == UniversalLLMBackendCopilot {
-			// copilot-requests: write mode — COPILOT_GITHUB_TOKEN holds ${{ github.token }}
+			// The Copilot backend profile always injects COPILOT_GITHUB_TOKEN into
+			// the container env (see getUniversalLLMBackendProfile).  When
+			// coreSecretNames is empty it means copilot-requests: write is set and
+			// COPILOT_GITHUB_TOKEN=${{ github.token }} — the GitHub Actions token
+			// already provides Copilot access without a personal PAT.  Using this
+			// env var as the models.json apiKey routes the request through the AWF
+			// api-proxy gateway rather than attempting a direct connection to
+			// api.individual.githubcopilot.com (which is blocked by the firewall).
 			gatewaySecretEnvVar = "COPILOT_GITHUB_TOKEN"
 		}
 
