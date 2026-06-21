@@ -40,6 +40,8 @@ global.github = mockGithub;
 global.context = mockContext;
 
 describe("add_workflow_run_comment", () => {
+  let importCounter = 0;
+
   beforeEach(() => {
     // Reset all mocks before each test
     vi.clearAllMocks();
@@ -95,7 +97,8 @@ describe("add_workflow_run_comment", () => {
   });
 
   async function importAddWorkflowRunComment() {
-    return import("./add_workflow_run_comment.cjs?" + Date.now());
+    importCounter += 1;
+    return import("./add_workflow_run_comment.cjs?test=" + importCounter);
   }
 
   // Helper function to run the script

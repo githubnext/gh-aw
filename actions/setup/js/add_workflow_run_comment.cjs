@@ -187,6 +187,9 @@ async function createOrReuseStatusComment(rawContext = context) {
   const reusableComment = readReusableStatusComment(rawContext);
   if (reusableComment) {
     core.info(`Reusing existing status comment ID: ${reusableComment.id}`);
+    if (!reusableComment.repo) {
+      core.warning("Reusable status comment repo missing; falling back to the invocation event repo.");
+    }
     const outputs = setCommentOutputs(reusableComment.id, reusableComment.url, reusableComment.repo || invocationContext.eventRepo, { logReuse: true });
     return {
       ...outputs,
