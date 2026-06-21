@@ -72,6 +72,7 @@ See also: [workflow-constraints.md](workflow-constraints.md)
 | Imports and shared components | [reuse.md](reuse.md) |
 | Sub-agents | [subagents.md](subagents.md) |
 | Skills | [skills.md](skills.md) |
+| Guidance routing decision tree | [decision-tree.md](decision-tree.md) |
 | Token cost optimization | [token-optimization.md](token-optimization.md) |
 | GitHub MCP server configuration | [github-mcp-server.md](github-mcp-server.md) |
 | Campaign and KPI patterns | [campaign.md](campaign.md) |
