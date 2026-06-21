@@ -525,6 +525,11 @@ func TestGenerateHeredocDelimiterFromContent_Stability(t *testing.T) {
 	assert.True(t, pattern.MatchString(result1), "Content-based delimiter should match expected format, got %q", result1)
 }
 
+func TestGenerateHeredocDelimiterFromContent_KnownChecksum(t *testing.T) {
+	result := GenerateHeredocDelimiterFromContent("MCP_CONFIG", `{"key":"value","items":[1,2,3]}`)
+	assert.Equal(t, "GH_AW_MCP_CONFIG_1987a252437b4244_EOF", result)
+}
+
 func TestGenerateHeredocDelimiterFromContent_ContentSensitive(t *testing.T) {
 	// Different content should produce different delimiters.
 	delim1 := GenerateHeredocDelimiterFromContent("PROMPT", "hello world")

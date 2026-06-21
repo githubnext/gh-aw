@@ -41,6 +41,8 @@ safe-outputs:
     run-started: "🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}..."
     run-success: "⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️"
     run-failure: "🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt..."
+features:
+  gh-aw-detection: true
 ---
 
 # Workflow Craft Agent

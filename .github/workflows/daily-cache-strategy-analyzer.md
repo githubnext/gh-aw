@@ -60,6 +60,8 @@ imports:
   - shared/reporting.md
   - shared/noop-reminder.md
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

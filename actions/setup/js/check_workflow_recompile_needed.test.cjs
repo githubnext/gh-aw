@@ -139,6 +139,14 @@ The following workflow lock files have changes:
         git: {
           createRef: vi.fn(),
         },
+        repos: {
+          get: vi.fn().mockResolvedValue({
+            data: {
+              node_id: "R_testowner_testrepo",
+              default_branch: "main",
+            },
+          }),
+        },
       },
       graphql: vi.fn().mockImplementation(query => {
         if (String(query).includes("createCommitOnBranch")) {

@@ -46,6 +46,8 @@ network:
 imports:
   - shared/reporting.md
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Daily AW Cross-Repo Compilation Agent

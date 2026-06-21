@@ -204,6 +204,8 @@ steps:
       echo "✅ PR pre-analysis complete. Agent should start with $SUMMARY_FILE"
 
 source: githubnext/agentics/workflows/ci-doctor.md@e15e57b40918dbca11b350c55d02ab61934afa75
+features:
+  gh-aw-detection: true
 ---
 
 # CI Failure Doctor

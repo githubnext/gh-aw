@@ -51,7 +51,8 @@ experiments:
     start_date: "2026-05-15"
     analysis_type: mann_whitney
     issue: 32335
-
+features:
+  gh-aw-detection: true
 ---
 
 # CI Optimization Coach

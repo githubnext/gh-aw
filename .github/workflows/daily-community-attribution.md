@@ -287,7 +287,8 @@ steps:
       echo "Data available in $DATA_DIR/:"
       echo "  attribution_by_author.json          — Tier 0-2 issues grouped by author (agent-ready)"
       echo "  readme_community_section_tier012.md — pre-formatted README section (Tier 0-2 only)"
-
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Community Attribution Updater

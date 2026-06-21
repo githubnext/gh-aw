@@ -59,8 +59,8 @@ tools:
   cli-proxy: true
   github:
     mode: gh-proxy
-
-
+features:
+  gh-aw-detection: true
 ---
 # Copilot Agent PR Analysis
 

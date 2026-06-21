@@ -61,7 +61,8 @@ experiments:
     notify:
       issue: 33280
     issue: 33280
-
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

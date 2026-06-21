@@ -71,8 +71,8 @@ function getPullRequestNumber(messageItem, context) {
 }
 
 /**
- * Resolves the pull request repository ID and effective base branch.
- * Fetches `id` and `defaultBranchRef.name` from the GitHub API.
+ * Resolves pull request repository context and effective base branch.
+ * Fetches repository metadata from the GitHub REST API.
  * The effective base branch is the explicitly configured branch (if any),
  * falling back to the repository's actual default branch.
  *
@@ -80,22 +80,17 @@ function getPullRequestNumber(messageItem, context) {
  * @param {string} owner
  * @param {string} repo
  * @param {string|null|undefined} configuredBaseBranch - explicitly configured base branch (may be null or undefined)
- * @returns {Promise<{repoId: string, effectiveBaseBranch: string|null, resolvedDefaultBranch: string|null}>}
+ * @returns {Promise<{repoSlug: string, effectiveBaseBranch: string|null, resolvedDefaultBranch: string|null}>}
  */
 async function resolvePullRequestRepo(github, owner, repo, configuredBaseBranch) {
-  const query = `
-    query($owner: String!, $name: String!) {
-      repository(owner: $owner, name: $name) {
-        id
-        defaultBranchRef { name }
-      }
-    }
-  `;
-  const response = await github.graphql(query, { owner, name: repo });
-  const repoId = response.repository.id;
-  const resolvedDefaultBranch = response.repository.defaultBranchRef?.name ?? null;
+  const { data } = await github.rest.repos.get({ owner, repo });
+  const repoId = data.node_id;
+  if (!repoId) {
+    throw new Error(`Repository ${owner}/${repo} did not return a valid node_id from the REST API`);
+  }
+  const resolvedDefaultBranch = data.default_branch ?? null;
   const effectiveBaseBranch = configuredBaseBranch || resolvedDefaultBranch;
-  return { repoId, effectiveBaseBranch, resolvedDefaultBranch };
+  return { repoSlug: `${owner}/${repo}`, effectiveBaseBranch, resolvedDefaultBranch };
 }
 
 /**

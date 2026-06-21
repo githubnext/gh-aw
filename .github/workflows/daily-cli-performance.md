@@ -73,7 +73,8 @@ jobs:
   pre-activation:
     outputs:
       has_changes: ${{ steps.changes.outputs.has_changes }}
-
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

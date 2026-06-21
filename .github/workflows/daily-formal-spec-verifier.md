@@ -53,6 +53,8 @@ safe-outputs:
   mentions: false
   allowed-github-references: []
   max-bot-mentions: 1
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

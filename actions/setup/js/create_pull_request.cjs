@@ -696,12 +696,12 @@ async function main(config = {}) {
         issueDetails.currentAssignees,
         "copilot",
         null, // allowedAgents — not restricted for fallback issues
-        null, // pullRequestRepoId — not applicable (issue, not PR)
         null, // model — not applicable
         null, // customAgent — not applicable
         null, // customInstructions — not applicable
         null, // baseBranch — not applicable
-        copilotClient
+        copilotClient,
+        issueDetails.taskContext
       );
       if (assigned) {
         core.info(`Successfully assigned copilot coding agent to fallback issue #${issueNumber}`);

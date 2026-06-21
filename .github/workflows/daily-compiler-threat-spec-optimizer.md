@@ -51,6 +51,8 @@ tools:
     - pull_requests
     - code_security
 tracker-id: daily-compiler-threat-spec-optimizer
+features:
+  gh-aw-detection: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

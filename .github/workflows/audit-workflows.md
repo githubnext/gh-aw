@@ -37,6 +37,8 @@ imports:
 
 
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Agentic Workflow Audit Agent

@@ -1339,3 +1339,171 @@ func TestTemplateInjectionYAMLParsingEdgeCases(t *testing.T) {
 		})
 	}
 }
+
+func TestHasNonAllowedExpressionInRunContent(t *testing.T) {
+	tests := []struct {
+		name     string
+		yaml     string
+		expected bool
+	}{
+		{
+			name: "no expressions anywhere",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo hello`,
+			expected: false,
+		},
+		{
+			name: "allowed runner.temp expression in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: node ${{ runner.temp }}/actions/foo.cjs`,
+			expected: false,
+		},
+		{
+			name: "allowed env expression in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ env.MY_VAR }}`,
+			expected: false,
+		},
+		{
+			name: "allowed vars expression in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ vars.MY_VAR }}`,
+			expected: false,
+		},
+		{
+			name: "allowed github.repository in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ github.repository }}`,
+			expected: false,
+		},
+		{
+			name: "allowed github.run_id in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ github.run_id }}`,
+			expected: false,
+		},
+		{
+			name: "allowed github.workspace in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ github.workspace }}`,
+			expected: false,
+		},
+		{
+			name: "allowed parse guard output in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ steps.parse-guard-vars.outputs.approval_labels }}`,
+			expected: false,
+		},
+		{
+			name: "allowed service port expression in run block",
+			yaml: `jobs:
+  test:
+    services:
+      redis:
+        image: redis
+    steps:
+      - run: echo ${{ job.services['redis'].ports['6379'] }}`,
+			expected: false,
+		},
+		{
+			name: "disallowed user-controlled expression in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ github.event.issue.title }}`,
+			expected: true,
+		},
+		{
+			name: "disallowed steps output expression in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ steps.foo.outputs.bar }}`,
+			expected: true,
+		},
+		{
+			name: "disallowed output from non-allow-listed step",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ steps.other-step.outputs.value }}`,
+			expected: true,
+		},
+		{
+			name: "mixed allowed and disallowed expressions on same line",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo ${{ env.FOO }} ${{ github.event.issue.title }}`,
+			expected: true,
+		},
+		{
+			name: "expression in env field (not in run block)",
+			yaml: `jobs:
+  test:
+    steps:
+      - env:
+          MY_VAR: ${{ github.event.issue.title }}
+        run: echo hello`,
+			expected: false,
+		},
+		{
+			name: "allowed expression in multiline run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: |
+          node ${{ runner.temp }}/actions/foo.cjs
+          echo done`,
+			expected: false,
+		},
+		{
+			name: "disallowed expression in multiline run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: |
+          echo "${{ github.event.issue.title }}"`,
+			expected: true,
+		},
+		{
+			name: "flow-style run step with disallowed expression",
+			yaml: `jobs:
+  test:
+    steps:
+      - { run: "echo ${{ github.actor }}" }`,
+			expected: true,
+		},
+		{
+			name: "quoted run key with disallowed expression",
+			yaml: `jobs:
+  test:
+    steps:
+      - "run": echo ${{ github.actor }}`,
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hasNonAllowedExpressionInRunContent(tt.yaml)
+			assert.Equal(t, tt.expected, result, "hasNonAllowedExpressionInRunContent() mismatch")
+		})
+	}
+}

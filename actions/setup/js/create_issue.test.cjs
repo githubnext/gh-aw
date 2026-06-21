@@ -370,36 +370,32 @@ describe("create_issue", () => {
     it("should assign copilot directly when enabled", async () => {
       process.env.GH_AW_ASSIGN_COPILOT = "true";
 
-      // Mock findAgent
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            suggestedActors: {
-              nodes: [{ id: "COPILOT_AGENT_ID", login: "copilot-swe-agent", __typename: "Bot" }],
-            },
-          },
-        })
-        // Mock getIssueDetails
-        .mockResolvedValueOnce({
-          repository: {
-            issue: {
-              id: "ISSUE_NODE_ID",
-              assignees: { nodes: [] },
-            },
-          },
-        })
-        // Mock assignAgentToIssue mutation
-        .mockResolvedValueOnce({
-          replaceActorsForAssignable: { __typename: "ReplaceActorsForAssignablePayload" },
-        });
+      // Mock findAgent (REST: checkUserCanBeAssigned + users.getByUsername)
+      mockGithub.rest.issues.checkUserCanBeAssigned = vi.fn().mockResolvedValue({});
+      mockGithub.rest.users = { getByUsername: vi.fn().mockResolvedValue({ data: { id: 42, login: "copilot-swe-agent" } }) };
+
+      // Mock getIssueDetails (REST: issues.get)
+      mockGithub.rest.issues.get = vi.fn().mockResolvedValue({
+        data: {
+          id: 456,
+          number: 123,
+          html_url: "https://github.com/test-owner/test-repo/issues/123",
+          title: "Test Issue",
+          body: "",
+          assignees: [],
+        },
+      });
+
+      // Mock assignAgentToIssue (REST: request)
+      mockGithub.request = vi.fn().mockResolvedValue({ data: { id: "task-123" } });
 
       const handler = await main({
         assignees: ["copilot"],
       });
       await handler({ title: "Test" });
 
-      // Verify graphql was called three times (findAgent, getIssueDetails, assignAgentToIssue)
-      expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
+      // Verify REST task creation was called
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ owner: expect.any(String), repo: expect.any(String) }));
     });
   });
 

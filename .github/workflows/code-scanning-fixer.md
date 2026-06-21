@@ -42,8 +42,8 @@ safe-outputs:
       - agentic-campaign
       - z_campaign_security-alert-burndown
 timeout-minutes: 20
-
-
+features:
+  gh-aw-detection: true
 ---
 
 # Code Scanning Alert Fixer Agent

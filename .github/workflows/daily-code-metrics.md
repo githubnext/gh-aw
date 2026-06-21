@@ -50,6 +50,8 @@ experiments:
     weight: [50, 50]
     start_date: "2026-05-16"
     issue: 1
+features:
+  gh-aw-detection: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

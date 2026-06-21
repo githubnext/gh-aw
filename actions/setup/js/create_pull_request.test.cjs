@@ -3151,6 +3151,7 @@ describe("create_pull_request - copilot assignee on fallback issues", () => {
 
     // Push fails to trigger the fallback-issue path; issue creation succeeds
     global.github = {
+      request: vi.fn().mockResolvedValue({ data: { id: "task-123" } }),
       rest: {
         pulls: {
           create: vi.fn().mockRejectedValue(Object.assign(new Error("Permission denied"), { status: 403 })),
@@ -3162,9 +3163,13 @@ describe("create_pull_request - copilot assignee on fallback issues", () => {
         issues: {
           create: vi.fn().mockResolvedValue({ data: { number: 99, html_url: "https://github.com/test/issues/99" } }),
           addLabels: vi.fn().mockResolvedValue({}),
+          checkUserCanBeAssigned: vi.fn().mockResolvedValue({}),
+          get: vi.fn().mockResolvedValue({ data: { id: 12345, number: 99, assignees: [], html_url: "", title: "", body: "" } }),
+        },
+        users: {
+          getByUsername: vi.fn().mockResolvedValue({ data: { id: 99999 } }),
         },
       },
-      graphql: vi.fn(),
     };
 
     global.context = {
@@ -3208,50 +3213,37 @@ describe("create_pull_request - copilot assignee on fallback issues", () => {
     vi.clearAllMocks();
   });
 
-  it("should not call graphql for copilot assignment when GH_AW_ASSIGN_COPILOT is not set", async () => {
+  it("should not call request for copilot assignment when GH_AW_ASSIGN_COPILOT is not set", async () => {
     delete process.env.GH_AW_ASSIGN_COPILOT;
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ assignees: ["copilot"], allow_empty: true });
     await handler({ title: "Test PR", body: "Test body" }, {});
 
-    // No graphql calls for copilot assignment
-    expect(global.github.graphql).not.toHaveBeenCalled();
+    // No REST task creation calls for copilot assignment
+    expect(global.github.request).not.toHaveBeenCalled();
   });
 
-  it("should not call graphql when copilot is not in assignees even if GH_AW_ASSIGN_COPILOT is true", async () => {
+  it("should not call request when copilot is not in assignees even if GH_AW_ASSIGN_COPILOT is true", async () => {
     process.env.GH_AW_ASSIGN_COPILOT = "true";
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ assignees: ["user1"], allow_empty: true });
     await handler({ title: "Test PR", body: "Test body" }, {});
 
-    expect(global.github.graphql).not.toHaveBeenCalled();
+    expect(global.github.request).not.toHaveBeenCalled();
   });
 
-  it("should strip copilot from REST assignees for fallback issue but assign via graphql when enabled", async () => {
+  it("should strip copilot from REST assignees for fallback issue but assign via REST task when enabled", async () => {
     process.env.GH_AW_ASSIGN_COPILOT = "true";
 
     // Mock findAgent → getIssueDetails → assignAgentToIssue
-    global.github.graphql
-      .mockResolvedValueOnce({
-        repository: {
-          suggestedActors: {
-            nodes: [{ id: "COPILOT_AGENT_ID", login: "copilot-swe-agent", __typename: "Bot" }],
-          },
-        },
-      })
-      .mockResolvedValueOnce({
-        repository: {
-          issue: {
-            id: "ISSUE_NODE_ID",
-            assignees: { nodes: [] },
-          },
-        },
-      })
-      .mockResolvedValueOnce({
-        replaceActorsForAssignable: { __typename: "ReplaceActorsForAssignablePayload" },
-      });
+    global.github.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
+    global.github.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 99999 } });
+    global.github.rest.issues.get.mockResolvedValueOnce({
+      data: { id: 12345, number: 99, assignees: [], html_url: "", title: "", body: "" },
+    });
+    global.github.request.mockResolvedValueOnce({ data: { id: "task-123" } });
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ assignees: ["copilot", "user1"], allow_empty: true });
@@ -3262,8 +3254,8 @@ describe("create_pull_request - copilot assignee on fallback issues", () => {
     expect(issueCall.assignees).not.toContain("copilot");
     expect(issueCall.assignees).toContain("user1");
 
-    // Graphql should be called for copilot assignment
-    expect(global.github.graphql).toHaveBeenCalledTimes(3);
+    // REST task creation should be called once for copilot assignment
+    expect(global.github.request).toHaveBeenCalledTimes(1);
   });
 
   it("should use configured fallback_labels for fallback issues instead of PR labels", async () => {

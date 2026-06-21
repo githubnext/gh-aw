@@ -31,7 +31,8 @@ safe-outputs:
     labels: [constraint-solving, problem-of-the-day]
     close-older-discussions: true
     expires: 7d
-
+features:
+  gh-aw-detection: true
 ---
 
 # Constraint Solving — Problem of the Day

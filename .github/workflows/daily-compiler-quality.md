@@ -93,6 +93,8 @@ tools:
     toolsets:
     - discussions
 tracker-id: daily-compiler-quality
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
