@@ -176,7 +176,7 @@ Test workflow`
 	}
 	parseIdx := strings.Index(detectionSection, "id: parse_detection_token_usage")
 	concludeIdx := strings.Index(detectionSection, "id: detection_conclusion")
-	if parseIdx >= concludeIdx {
+	if concludeIdx == -1 || parseIdx >= concludeIdx {
 		t.Error("External detector path must emit parse_detection_token_usage before detection_conclusion so detection AIC is exported")
 	}
 
