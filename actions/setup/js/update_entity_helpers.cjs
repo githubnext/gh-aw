@@ -30,7 +30,11 @@ function buildCommonEntityUpdateData(item, config, options = {}) {
 
   const canUpdateBody = config.allow_body !== false;
   if (item.body !== undefined && canUpdateBody) {
-    updateData._operation = item.operation || configDefaultOperation || defaultOperation;
+    const resolvedOperation = item.operation || configDefaultOperation || defaultOperation;
+    if (!resolvedOperation) {
+      throw new Error("buildCommonEntityUpdateData: defaultOperation is required when body may be present");
+    }
+    updateData._operation = resolvedOperation;
     updateData._rawBody = item.body;
     if (includeBodyInApiData) {
       updateData.body = item.body;
@@ -40,6 +44,8 @@ function buildCommonEntityUpdateData(item, config, options = {}) {
     onBodyDisallowed();
   }
 
+  // Always populate _includeFooter: downstream executeUpdate reads it regardless of
+  // whether title/body changed, matching pre-refactor behavior in both callers.
   updateData._includeFooter = parseBoolTemplatable(config.footer, true);
 
   return { updateData, hasCommonUpdates };

@@ -130,6 +130,8 @@ const resolveIssueNumber = createStandardResolveNumber({
  * @returns {{success: true, data: Object} | {success: false, error: string}} Update data result
  */
 function buildIssueUpdateData(item, config) {
+  // hasCommonUpdates is not needed here: the issue handler always continues to check
+  // entity-specific fields (state, labels, assignees, milestone, title prefix).
   const { updateData } = buildCommonEntityUpdateData(item, config, {
     defaultOperation: "append",
     onBodyDisallowed: () => {
