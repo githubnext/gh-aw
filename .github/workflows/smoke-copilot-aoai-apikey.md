@@ -152,7 +152,7 @@ features:
 
 # Smoke Test: Copilot Engine Validation (AOAI apikey BYOK)
 
-> **⚡ EXECUTE IMMEDIATELY**: You are the test runner. Begin executing the tests below right now using bash and the available tools. Do NOT analyze the task, do NOT propose creating files, do NOT say "no action needed". Your first action MUST be a real tool call (bash, GitHub MCP, or safeoutputs). Jump directly to the "Tests to Execute" section and start with test 1.
+> **⚡ EXECUTE IMMEDIATELY**: You are the test runner. Begin executing the tests below right now using bash and the available tools. Do NOT analyze the task, do NOT propose creating files, do NOT say "no action needed". Your first action MUST be a real tool call (bash, `github` tool, or safeoutputs). Jump directly to the "Tests to Execute" section and start with test 1.
 
 This variant routes the Copilot engine through Azure OpenAI (AOAI) using BYOK
 mode with an API key, via the `FOUNDRY_API_KEY` and `FOUNDRY_OPENAI_ENDPOINT`
