@@ -200,11 +200,11 @@ These are **not** MCP protocol tools — they are bash executables. Call them wi
 
 Run each check NOW and mark as ✅/❌. Do NOT create files to automate this — execute directly using bash and tools:
 
-1. GitHub MCP: review 2 merged PRs in `${{ github.repository }}`.
+1. `github` tool (configured with `mode: gh-proxy`): review 2 merged PRs in `${{ github.repository }}`.
 2. `mcpscripts-gh`: query 2 PRs using `pr list --repo ${{ github.repository }} --limit 2 --json number,title,author`.
 3. Serena CLI (bash only): run `serena activate_project --path ${{ github.workspace }}`, then `serena find_symbol --name_path <symbol>` and confirm at least 3 symbols.
 4. Playwright CLI (bash only): run `playwright-cli open https://github.com` then `playwright-cli screenshot`; confirm successful GitHub navigation.
-5. Web fetch tool: fetch `https://github.com` and confirm response contains `GitHub`.
+5. `web-fetch` tool: fetch `https://github.com` and confirm response contains `GitHub`.
 6. File + bash: create `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with timestamped success text, then `cat` it.
 7. Discussion interaction: get latest discussion with `github-discussion-query` (`limit=1`, `jq=".[0]"`), extract number, then `add_comment` to that discussion.
 8. Build: run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build`.
