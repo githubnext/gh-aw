@@ -29,8 +29,9 @@ const ogTitle = isHomePage ? siteTitle : `${rawPageTitle} | ${siteTitle}`;
 const defaultDescription = 'Write agentic workflows in natural language using markdown files and run them as GitHub Actions. Automate your repository with AI agents, strong guardrails, and simple configuration.';
 const pageDescription = entry?.data?.description || defaultDescription;
 const isDocsHomePage = pathname === '/gh-aw/' || pathname === '/gh-aw/index.html';
-const siteOrigin = 'https://github.github.com';
-const siteUrl = 'https://github.github.com/gh-aw/';
+const configuredSite = Astro.site ?? new URL('https://github.github.com');
+const siteOrigin = configuredSite.origin;
+const siteUrl = new URL(import.meta.env.BASE_URL, configuredSite).toString();
 const websiteId = `${siteUrl}#website`;
 const organizationId = `${siteUrl}#organization`;
 
@@ -72,6 +73,7 @@ const blogAuthors = normalizeAuthorsArray(authorInput).flatMap((author) => {
     return [];
   });
 const isBlogPost = isBlogPath && Boolean(blogPublishedDate);
+const hasContentEntry = Boolean(entry);
 
 const homeJsonLd = {
   '@context': 'https://schema.org',
@@ -174,7 +176,12 @@ const homeJsonLd = {
   ],
 };
 
-let pageJsonLd;
+type PageJsonLd = {
+  '@context': 'https://schema.org';
+  '@type': 'BlogPosting' | 'TechArticle';
+} & Record<string, unknown>;
+
+let pageJsonLd: PageJsonLd | undefined;
 
 if (isBlogPost) {
   pageJsonLd = {
@@ -190,11 +197,11 @@ if (isBlogPost) {
       '@id': organizationId,
     },
   };
-} else if (!isDocsHomePage && !isBlogPath) {
+} else if (hasContentEntry && !isDocsHomePage && !isBlogPath) {
   pageJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'TechArticle',
-    name: rawPageTitle,
+    headline: rawPageTitle,
     description: pageDescription,
     url: pageUrl,
     isPartOf: {

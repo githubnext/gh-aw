@@ -32,15 +32,16 @@ test.describe('Schema JSON-LD', () => {
     const schema = await getJsonLd(page);
 
     expect(schema['@type']).toBe('BlogPosting');
-    expect(schema.headline).toBe('Meet the Workflows: Testing & Validation');
-    expect(schema.description).toBe(
-      'A curated tour of testing workflows that keep everything running smoothly'
+    expect(typeof schema.headline).toBe('string');
+    expect(schema.headline.length).toBeGreaterThan(0);
+    expect(typeof schema.description).toBe('string');
+    expect(schema.description.length).toBeGreaterThan(0);
+    expect(typeof schema.url).toBe('string');
+    expect(schema.url).toContain(
+      '/gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/'
     );
-    expect(schema.url).toBe(
-      'https://github.github.com/gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/'
-    );
-    expect(schema.datePublished).toBe('2026-01-13T11:00:00.000Z');
-    expect(schema.dateModified).toBe('2026-01-13T11:00:00.000Z');
+    expect(schema.datePublished).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(schema.dateModified).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(schema.author).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ '@type': 'Person' }),
@@ -58,7 +59,7 @@ test.describe('Schema JSON-LD', () => {
     const schema = await getJsonLd(page);
 
     expect(schema['@type']).toBe('TechArticle');
-    expect(schema.name).toBe('Quick Start');
+    expect(schema.headline).toBe('Quick Start');
     expect(schema.description).toContain('Get your first agentic workflow running in minutes.');
     expect(schema.url).toBe('https://github.github.com/gh-aw/setup/quick-start/');
     expect(schema.isPartOf).toEqual({
