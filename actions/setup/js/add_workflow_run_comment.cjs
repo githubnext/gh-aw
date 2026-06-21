@@ -93,7 +93,6 @@ function parseObject(value) {
     } catch {
       return null;
     }
-    // Fall through when the parsed JSON value is not an object.
     return null;
   }
   if (typeof value === "object" && !Array.isArray(value)) {
@@ -181,8 +180,9 @@ async function createOrReuseStatusComment(rawContext = context) {
   const reusableComment = readReusableStatusComment(rawContext);
   if (reusableComment) {
     core.info(`Reusing existing status comment ID: ${reusableComment.id}`);
+    const outputs = setCommentOutputs(reusableComment.id, reusableComment.url, reusableComment.repo || invocationContext.eventRepo, { reused: true });
     return {
-      ...setCommentOutputs(reusableComment.id, reusableComment.url, reusableComment.repo || invocationContext.eventRepo, { reused: true }),
+      ...outputs,
       reused: true,
     };
   }
