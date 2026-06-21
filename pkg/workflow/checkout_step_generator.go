@@ -292,6 +292,8 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 	for _, repo := range subRepoEnvVars {
 		if strings.Contains(repo.repository, "${{") {
 			// GitHub Actions expression — write unquoted so the runner expands it.
+			// githubExpressionWhitespaceReplacer normalises any embedded newlines/tabs
+			// in the expression string to spaces (defined in safe_outputs_app_config.go).
 			envLines = append(envLines, fmt.Sprintf("          %s: %s\n", repo.envVarName, githubExpressionWhitespaceReplacer.Replace(repo.repository)))
 		} else {
 			// Plain string — quote for safe YAML scalar encoding.
