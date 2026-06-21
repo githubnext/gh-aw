@@ -1158,6 +1158,70 @@ func TestConclusionJobNonWorkflowCallNoArtifactPrefix(t *testing.T) {
 	}
 }
 
+// TestConclusionJobCategoriesFilterQuoting verifies that category names containing
+// special characters (particularly single quotes) are safely embedded as double-quoted
+// YAML scalars, preventing YAML injection via the GH_AW_FAILURE_CATEGORIES_FILTER and
+// GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER env vars.
+func TestConclusionJobCategoriesFilterQuoting(t *testing.T) {
+	t.Run("included categories with single quote", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				NoOp:                           &NoOpConfig{},
+				ReportFailureAsIssue:           true,
+				ReportFailureAsIssueCategories: []string{"it's-a-category", "normal-category"},
+			},
+		}
+
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("Failed to build conclusion job: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be created")
+		}
+
+		jobYAML := strings.Join(job.Steps, "")
+		// Must use double-quoted YAML scalar (produced by %q), not single-quoted
+		if !strings.Contains(jobYAML, `GH_AW_FAILURE_CATEGORIES_FILTER: "[\"it's-a-category\",\"normal-category\"]"`) {
+			t.Errorf("Expected GH_AW_FAILURE_CATEGORIES_FILTER to be a safe double-quoted YAML scalar.\nGenerated YAML:\n%s", jobYAML)
+		}
+		if strings.Contains(jobYAML, "GH_AW_FAILURE_CATEGORIES_FILTER: '") {
+			t.Error("GH_AW_FAILURE_CATEGORIES_FILTER must not use single-quoted YAML scalar (injection risk)")
+		}
+	})
+
+	t.Run("excluded categories with single quote", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				NoOp:                                   &NoOpConfig{},
+				ReportFailureAsIssue:                   true,
+				ReportFailureAsIssueExcludedCategories: []string{"it's-excluded", "other-excluded"},
+			},
+		}
+
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("Failed to build conclusion job: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be created")
+		}
+
+		jobYAML := strings.Join(job.Steps, "")
+		// Must use double-quoted YAML scalar (produced by %q), not single-quoted
+		if !strings.Contains(jobYAML, `GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER: "[\"it's-excluded\",\"other-excluded\"]"`) {
+			t.Errorf("Expected GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER to be a safe double-quoted YAML scalar.\nGenerated YAML:\n%s", jobYAML)
+		}
+		if strings.Contains(jobYAML, "GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER: '") {
+			t.Error("GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER must not use single-quoted YAML scalar (injection risk)")
+		}
+	})
+}
+
 func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	compiler := NewCompiler()
 	workflowData := &WorkflowData{

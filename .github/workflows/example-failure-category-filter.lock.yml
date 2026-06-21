@@ -1208,7 +1208,7 @@ jobs:
           GH_AW_DAILY_AI_CREDITS_THRESHOLD: ${{ needs.activation.outputs.daily_ai_credits_threshold }}
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
-          GH_AW_FAILURE_CATEGORIES_FILTER: '["agent_failure","missing_safe_outputs","missing_tool","missing_data"]'
+          GH_AW_FAILURE_CATEGORIES_FILTER: "[\"agent_failure\",\"missing_safe_outputs\",\"missing_tool\",\"missing_data\"]"
           GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
           GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
           GH_AW_TIMEOUT_MINUTES: "20"
