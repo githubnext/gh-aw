@@ -45,10 +45,41 @@ func GoodExplicitClose(paths []string) {
 	}
 }
 
+// BadIfInLoop flags defer inside an if block within a for loop.
+func BadIfInLoop(paths []string, cond bool) {
+	for _, p := range paths {
+		if cond {
+			f, _ := os.Open(p)
+			defer f.Close() // want `defer inside a loop does not execute at the end of each iteration; it runs when the enclosing function returns, which can cause resource leaks`
+		}
+	}
+}
+
+// BadSelectInLoop flags defer inside a select inside a for loop.
+func BadSelectInLoop(ch <-chan string) {
+	for {
+		select {
+		case p := <-ch:
+			f, _ := os.Open(p)
+			defer f.Close() // want `defer inside a loop does not execute at the end of each iteration; it runs when the enclosing function returns, which can cause resource leaks`
+		}
+	}
+}
+
 // GoodFuncLitInsideLoop is fine — defer is inside a closure (new scope).
 func GoodFuncLitInsideLoop(paths []string) {
 	for _, p := range paths {
 		func() {
+			f, _ := os.Open(p)
+			defer f.Close() // FuncLit boundary — not flagged
+		}()
+	}
+}
+
+// GoodGoFuncLitInsideLoop is fine — goroutine func literal also forms a new scope.
+func GoodGoFuncLitInsideLoop(paths []string) {
+	for _, p := range paths {
+		go func() {
 			f, _ := os.Open(p)
 			defer f.Close() // FuncLit boundary — not flagged
 		}()

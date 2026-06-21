@@ -20,7 +20,7 @@ import (
 // Analyzer is the defer-in-loop analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "deferinloop",
-	Doc:      "reports defer statements placed directly inside for or range loop bodies; a function literal between a defer and an enclosing loop is treated as a new scope boundary, making the defer exempt",
+	Doc:      "reports defer statements enclosed anywhere within a for or range loop body; a function literal between a defer and an enclosing loop is treated as a new scope boundary, making the defer exempt; test files are not checked",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/deferinloop",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -58,7 +58,7 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-// isInsideLoop reports whether cur (a DeferStmt) is directly enclosed by a
+// isInsideLoop reports whether cur (a DeferStmt) is enclosed anywhere within a
 // for or range loop body, without crossing a function literal boundary.
 // Defers inside func literals are exempt because they form a new function scope
 // and execute when the literal returns, not the outer function.
