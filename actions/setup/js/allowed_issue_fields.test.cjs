@@ -107,6 +107,11 @@ describe("validateAllowedIssueFields", () => {
     expect(() => validateAllowedIssueFields(fields, ["title", "body"])).toThrow("ERR_VALIDATION");
   });
 
+  it("throws when a field name is an empty string", () => {
+    const fields = [{ name: "", value: "New Title" }];
+    expect(() => validateAllowedIssueFields(fields, ["title", "body"])).toThrow("ERR_VALIDATION");
+  });
+
   it("does not throw when allowedFields is empty (no restriction)", () => {
     const fields = [{ name: "milestone", value: "v1.0" }];
     expect(() => validateAllowedIssueFields(fields, [])).not.toThrow();

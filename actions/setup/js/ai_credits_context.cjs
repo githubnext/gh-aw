@@ -255,6 +255,24 @@ function parseMaxAICreditsExceededFromAuditLog(auditJsonlPathOverride) {
 }
 
 /**
+ * @param {unknown} entry
+ * @returns {boolean}
+ */
+function parseUnknownModelAICreditsFromAuditEntry(entry) {
+  if (!entry || typeof entry !== "object") return false;
+  const stack = [entry];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node || typeof node !== "object") continue;
+    for (const [, value] of Object.entries(node)) {
+      if (value === UNKNOWN_MODEL_AI_CREDITS_TYPE) return true;
+      if (value && typeof value === "object") stack.push(value);
+    }
+  }
+  return false;
+}
+
+/**
  * Detects an `unknown_model_ai_credits` error from the firewall audit log.
  * This HTTP 400 error is emitted by the AWF API proxy when `maxAiCredits` is active and
  * the requested model is not in the built-in pricing table and no `defaultAiCreditsPricing`
@@ -268,20 +286,7 @@ function parseUnknownModelAICreditsFromAuditLog(auditJsonlPathOverride) {
     auditJsonlPathOverride,
     false,
     content => content.includes(UNKNOWN_MODEL_AI_CREDITS_TYPE),
-    (acc, entry) => {
-      if (acc) return true;
-      if (!entry || typeof entry !== "object") return false;
-      const stack = [entry];
-      while (stack.length > 0) {
-        const node = stack.pop();
-        if (!node || typeof node !== "object") continue;
-        for (const [, value] of Object.entries(node)) {
-          if (value === UNKNOWN_MODEL_AI_CREDITS_TYPE) return true;
-          if (value && typeof value === "object") stack.push(value);
-        }
-      }
-      return false;
-    }
+    (acc, entry) => acc || parseUnknownModelAICreditsFromAuditEntry(entry)
   );
 }
 
