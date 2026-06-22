@@ -292,21 +292,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_2422f086ac2c6052_EOF'
+          cat << 'GH_AW_PROMPT_af76823a4b601e69_EOF'
           <system>
-          GH_AW_PROMPT_2422f086ac2c6052_EOF
+          GH_AW_PROMPT_af76823a4b601e69_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_2422f086ac2c6052_EOF'
+          cat << 'GH_AW_PROMPT_af76823a4b601e69_EOF'
           <safe-output-tools>
           Tools: add_comment(max:10), create_issue(max:5), create_discussion, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_2422f086ac2c6052_EOF
+          GH_AW_PROMPT_af76823a4b601e69_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_2422f086ac2c6052_EOF'
+          cat << 'GH_AW_PROMPT_af76823a4b601e69_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -335,16 +335,16 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_2422f086ac2c6052_EOF
+          GH_AW_PROMPT_af76823a4b601e69_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_2422f086ac2c6052_EOF'
+          cat << 'GH_AW_PROMPT_af76823a4b601e69_EOF'
           </system>
           **IMPORTANT**: When analyzing agentic workflows, use the `agentic-workflows` tool to read workflow files.
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/agent-performance-analyzer.md}}
-          GH_AW_PROMPT_2422f086ac2c6052_EOF
+          GH_AW_PROMPT_af76823a4b601e69_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -655,9 +655,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_c6fef4815356071e_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_35fa2b50b67d28c9_EOF'
           {"add_comment":{"max":10},"create_discussion":{"expires":24,"fallback_to_issue":true,"max":1},"create_issue":{"expires":48,"group":true,"labels":["cookie"],"max":5},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":10240}]},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_c6fef4815356071e_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_35fa2b50b67d28c9_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -876,7 +876,7 @@ jobs:
           
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_4c27ef9d304151ee_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_7292df9048689c98_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -941,7 +941,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_4c27ef9d304151ee_EOF
+          GH_AW_MCP_CONFIG_7292df9048689c98_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1722,7 +1722,7 @@ jobs:
           DETECTION_AGENTIC_EXECUTION_OUTCOME: ${{ steps.detection_agentic_execution.outcome }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         run: |
-          threat-detect conclude --result-file /tmp/gh-aw/threat-detection/detection_result.json
+          bash "${RUNNER_TEMP}/gh-aw/actions/conclude_threat_detection.sh" /tmp/gh-aw/threat-detection/detection_result.json
 
   push_experiments_state:
     needs: activation
