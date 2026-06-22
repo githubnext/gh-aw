@@ -520,6 +520,78 @@ describe("mcp_server_core.cjs", () => {
       expect(results[0].error.code).toBe(-32603);
       expect(results[0].error.message).toBe("something went wrong");
     });
+
+    it("should fall back to -32603 when thrown plain object has a positive code", async () => {
+      const { registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      registerTool(server, {
+        name: "positive_code_throw_tool",
+        description: "A tool that throws a plain object with a positive code",
+        inputSchema: { type: "object", properties: { input: { type: "string" } }, required: ["input"] },
+        handler: () => {
+          throw { code: 1, message: "process exited with code 1" };
+        },
+      });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 101,
+        method: "tools/call",
+        params: { name: "positive_code_throw_tool", arguments: { input: "x" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error.code).toBe(-32603);
+      expect(results[0].error.message).toBe("process exited with code 1");
+    });
+
+    it("should fall back to -32603 and Internal error for thrown plain object without message", async () => {
+      const { registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      registerTool(server, {
+        name: "no_message_throw_tool",
+        description: "A tool that throws a plain object without a message",
+        inputSchema: { type: "object", properties: { input: { type: "string" } }, required: ["input"] },
+        handler: () => {
+          throw { code: -32602 };
+        },
+      });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 102,
+        method: "tools/call",
+        params: { name: "no_message_throw_tool", arguments: { input: "x" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error.code).toBe(-32602);
+      expect(results[0].error.message).toBe("Internal error");
+    });
+
+    it("should fall back to -32603 when thrown plain object has a non-integer negative code", async () => {
+      const { registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      registerTool(server, {
+        name: "non_integer_code_throw_tool",
+        description: "A tool that throws a plain object with a non-integer code",
+        inputSchema: { type: "object", properties: { input: { type: "string" } }, required: ["input"] },
+        handler: () => {
+          throw { code: -1.5, message: "fractional code should be ignored" };
+        },
+      });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 103,
+        method: "tools/call",
+        params: { name: "non_integer_code_throw_tool", arguments: { input: "x" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error.code).toBe(-32603);
+      expect(results[0].error.message).toBe("fractional code should be ignored");
+    });
   });
 
   describe("handleRequest", () => {
