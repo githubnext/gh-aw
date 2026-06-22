@@ -1020,6 +1020,22 @@ jobs:
 	assert.NotContains(t, customJobSection, "persist-credentials: false", "compiler should not override explicit persist-credentials: true")
 }
 
+func TestCustomJobCheckoutHardensNullPersistCredentials(t *testing.T) {
+	// A nil value for persist-credentials (YAML null) must be treated as absent
+	// and hardened to false. The compiler rejects YAML null in with-fields before
+	// reaching this function, but direct unit coverage guards against future
+	// code paths that could pass a nil value through.
+	stepMap := map[string]any{
+		"uses": "actions/checkout@v6",
+		"with": map[string]any{
+			"persist-credentials": nil,
+		},
+	}
+	ensureCheckoutPersistCredentials(stepMap)
+	withMap, _ := stepMap["with"].(map[string]any)
+	assert.Equal(t, false, withMap["persist-credentials"], "null persist-credentials should be hardened to false")
+}
+
 func TestPreStepsInsertAfterSetupBoundary(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "builtin-job-pre-steps-setup-boundary")
 

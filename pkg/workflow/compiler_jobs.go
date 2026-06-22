@@ -1258,7 +1258,7 @@ func ensureCheckoutPersistCredentials(stepMap map[string]any) {
 	if !ok {
 		return
 	}
-	if _, exists := withMap["persist-credentials"]; exists {
+	if v, exists := withMap["persist-credentials"]; exists && v != nil {
 		return
 	}
 	withMap["persist-credentials"] = false
