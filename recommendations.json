@@ -1,5 +1,5 @@
 {
- "updated": "2026-06-21",
+ "updated": "2026-06-22",
  "recommendations": [
   {
    "id": "rec-sdk-toolperm-allowlist-or-relax-guard",
@@ -11,10 +11,10 @@
    "recurrence": 12,
    "status": "open",
    "rec": "TOP PRIORITY (6 consecutive days, dominant prod-main fail class \u2014 4 prod-main hard-fails today). The copilot-sdk-driver path denies routine read-only/branch-setup commands the workflows legitimately need (`git checkout -b`, `git status`, `git show`, `awk`/`sed` over source, `read` of .changeset/.md/.go/_test.go) then aborts at 5 denials with NO retry, wasting up to 6.18M tokens (Daily Agent of the Day). Two-part fix:\u2026",
-   "note": "RECONFIRM 06-19 (day12). 3 prod/PR lockout fails (Safe Output Integrator, SPDD Spec Planner, PR Code Quality Reviewer). 12 days unresolved \u2014 still TOP PRIORITY.",
-   "detail": "NEW variant of copilot-sdk-driver-failures: long-running (21-31min) agent-JOB failures where the agent does real work (10-35 assistant msgs, 20-39 tool calls) then the job fails, with session_starts=0 + failed_tool_executions=4 signature. Affects Delight, Daily Formal Spec Ver...",
-   "escalation": "day13+",
-   "days_open": 1
+   "note": "RECONFIRM 06-22 (now DOMINANT #1 fail family \u2014 5 prod-main long-run fails today). 20+ days unresolved \u2014 TOP PRIORITY.",
+   "detail": "LONG-RUN variant of copilot-sdk-driver-failures is now the leading fail family (5 fails 06-22: Daily Compiler Threat Spec Optimizer 34m, Daily Formal Spec Verifier 29m, Layout Spec Maintainer 22m, Daily Safe Output Integrator 24m, Daily SPDD Spec Planner 24m). Agent does real work 20-34min then the job fails (session_starts=0 + failed_tool_executions signature). ~130min compute/day wasted. Fix: (1) flush emitted safe-output on session-idle/terminal instead of reddening; (2) allowlist routine read-only/branch-setup tool calls so the 5-denial abort path is not hit.",
+   "escalation": "day20+ DOMINANT \u2014 highest-ROI fix on the board",
+   "days_open": 2
   },
   {
    "id": "rec-chroot-node-bindmount",
@@ -157,22 +157,24 @@
    "linked_issues": [
     "avenger-err-config-no-structured-logs"
    ],
-   "status": "open",
-   "days_open": 1,
-   "escalation": "ESCALATE day-sustained \u2014 recommend pause-schedule"
+   "status": "open-watch",
+   "days_open": 2,
+   "last_seen": "2026-06-22",
+   "escalation": "STREAK BROKEN by absence 06-22 (Avenger 0 runs). If schedule was paused per this rec, keep paused until err-config root cause is fixed; confirm fix vs pause before re-enabling. Do NOT close \u2014 root cause unconfirmed."
   },
   {
    "id": "rec-skillet-confirm-resolution",
    "first_seen": "2026-06-21",
    "last_seen": "2026-06-21",
    "title": "Confirm Skillet fix and monitor",
-   "detail": "Skillet de-escalated 103->4 fails (06-20->06-21). Pre-activation 0-tok on event=null persists at low volume. Confirm whether a fix landed or dev-branch churn merely settled; verify the slash_command(centralized) trigger no longer fires on push.",
-   "priority": "P2",
+   "detail": "Skillet de-escalated 103->4->0 fails (06-20->06-21->06-22). Now 0 fails in window. Likely dev-branch churn settled. Verify the slash_command(centralized) trigger no longer fires on arbitrary push before closing.",
+   "priority": "P3",
    "linked_issues": [
     "skillet-100pct-fail-on-push-fleet-wide"
    ],
-   "status": "open",
-   "days_open": 1
+   "status": "near-resolved",
+   "days_open": 2,
+   "last_seen": "2026-06-22"
   }
  ]
 }

@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-21",
+  "updated": "2026-06-22",
   "workflows": {
     "Linter Miner": {
       "last": "2026-06-06",
@@ -16,11 +16,11 @@
       "note": "RECUR day4: awf-cli-proxy 18443 connection refused, agent never invoked turns=0 (27297209601)"
     },
     "PR Code Quality Reviewer": {
-      "last": "2026-06-19",
+      "last": "2026-06-22",
       "last_concl": "failure",
       "eff_tok": 0,
-      "class": "session.idle-870s-timeout",
-      "note": "06-19 0-tok/23min tool-perm-lockout on PR branch"
+      "class": "copilot-sdk-driver-failures",
+      "note": "06-22 PR-branch fail. Top action-min consumer (241min/window)."
     },
     "Daily Testify Uber Super Expert": {
       "last": "2026-06-16",
@@ -37,11 +37,11 @@
       "note": "MODULE_NOT_FOUND minimatch (run 27070604747); observability flagged as overkill_for_agentic"
     },
     "Daily SPDD Spec Planner": {
-      "last": "2026-06-19",
+      "last": "2026-06-22",
       "last_concl": "failure",
       "eff_tok": 0,
-      "class": "copilot-sdk-driver-failures",
-      "note": "06-19 0-tok/25min tool-perm-lockout (detection+safe_outputs oddly SUCCESS)"
+      "class": "copilot-sdk-driver-longrun",
+      "note": "06-22 24.5min agent-job fail."
     },
     "GEO Optimizer Daily Audit": {
       "last": "2026-06-06",
@@ -65,11 +65,11 @@
       "note": "06-19 codex 0-tok/6min agent:failure; ~100% fail-rate"
     },
     "Daily Safe Output Integrator": {
-      "last": "2026-06-19",
+      "last": "2026-06-22",
       "last_concl": "failure",
       "eff_tok": 0,
-      "class": "copilot-sdk-driver-failures",
-      "note": "06-19 0-tok/23min tool-perm-lockout, day12"
+      "class": "copilot-sdk-driver-longrun",
+      "note": "06-22 24.1min agent-job fail. Chronic sdk-driver, now long-run variant."
     },
     "Design Decision Gate": {
       "last": "2026-06-06",
@@ -135,7 +135,7 @@
     "Smoke Gemini": {
       "last_seen": "2026-06-11",
       "last_status": "failure",
-      "reliability": "0/2 \u2014 gemini model pricing missing (gemini-3.1-flash-tts-preview)",
+      "reliability": "0/2 — gemini model pricing missing (gemini-3.1-flash-tts-preview)",
       "engine": "gemini"
     },
     "Smoke Antigravity": {
@@ -151,22 +151,18 @@
       "engine": "pi"
     },
     "Avenger": {
-      "last": "2026-06-20",
-      "last_concl": "failure",
+      "last": "2026-06-22",
+      "last_concl": "absent",
       "eff_tok": 0,
       "class": "avenger-err-config-no-structured-logs",
-      "note": "x8 100% fail, ESCALATING 2->4->8 over 06-18/19/20. recur13. Chronic #1 non-Skillet offender.",
-      "last_seen": "2026-06-21",
-      "last_note": "7/7 fail today, 100% multi-day",
-      "last_success_rate": 0.0
+      "note": "06-22 DID NOT RUN (0 runs) — 5-day 100%-fail streak (06-18..06-21) broken by absence not fix. WATCH next fire."
     },
     "Daily Formal Spec Verifier": {
-      "last": "2026-06-14",
+      "last": "2026-06-22",
       "last_concl": "failure",
-      "last_seen": "2026-06-14",
-      "class": "copilot-sdk-driver-tool-permission-lockout",
-      "reliability": "tool-perm-lockout d=11 (read forecast-spec.md), 24m30s wasted",
-      "engine": "copilot-sdk"
+      "eff_tok": 0,
+      "class": "copilot-sdk-driver-longrun",
+      "note": "06-22 29.3min agent-job fail. Recur 06-21,06-22."
     },
     "Documentation Unbloat": {
       "last": "2026-06-19",
@@ -204,14 +200,39 @@
       "engine": "copilot"
     },
     "Skillet": {
-      "last": "2026-06-20",
+      "last": "2026-06-22",
+      "last_concl": "success",
+      "eff_tok": 0,
+      "class": "skillet-deescalated",
+      "note": "06-22 0 fails (103->4->0). De-escalation complete."
+    },
+    "Layout Specification Maintainer": {
+      "last": "2026-06-22",
       "last_concl": "failure",
       "eff_tok": 0,
-      "class": "skillet-100pct-fail-on-push-fleet-wide",
-      "note": "NEW; 103 fails/100% in 24h on push all-branches+main, 0-tok pre-activation. private:true, merged HEAD 894b94c.",
-      "last_seen": "2026-06-21",
-      "last_note": "4/4 fail, de-escalated from 103",
-      "last_success_rate": 0.0
+      "class": "copilot-sdk-driver-longrun",
+      "note": "06-22 NEW-affected 22.5min agent-job fail (copilot)."
+    },
+    "Daily Compiler Threat Spec Optimizer": {
+      "last": "2026-06-22",
+      "last_concl": "failure",
+      "eff_tok": 0,
+      "class": "copilot-sdk-driver-longrun",
+      "note": "06-22 NEW-affected 34.3min agent-job fail (copilot), longest of the long-run cluster."
+    },
+    "Daily Issues Report Generator": {
+      "last": "2026-06-22",
+      "last_concl": "failure",
+      "eff_tok": 0,
+      "class": "chroot-node-not-available",
+      "note": "06-22 8.4min fail; recur day2 (06-21,06-22). count 4."
+    },
+    "Workflow Portfolio Analyst": {
+      "last": "2026-06-22",
+      "last_concl": "failure",
+      "eff_tok": 0,
+      "class": "claude-agent-job-fail-longrun",
+      "note": "06-22 NEW 27.3min claude agent-job fail."
     }
   }
 }

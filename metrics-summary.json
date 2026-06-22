@@ -1,28 +1,31 @@
 {
- "updated": "2026-06-21",
- "date": "2026-06-21",
+ "updated": "2026-06-22",
+ "date": "2026-06-22",
  "partial": true,
- "latest_window": "2026-06-20T21:54Z..2026-06-21T21:35Z ~23.7h",
+ "latest_window": "2026-06-21T23:23Z..2026-06-22T21:35Z ~22.2h",
  "totals": {
-  "r": 325,
-  "s": 298,
-  "f": 27,
-  "rate": 91.7,
-  "prod_main_schedule_rate": 88.7,
-  "action_min": 3172,
-  "github_api": 3510,
+  "r": 274,
+  "s": 259,
+  "f": 15,
+  "rate": 94.5,
+  "prod_main_schedule_rate": 91.7,
+  "prod_main_ex_intentional": 92.9,
+  "action_min": 3159,
+  "github_api": 3320,
+  "aic": 3563,
   "tok": null,
   "missing_tools": 0,
   "missing_data": 0,
   "mcp_failures": 0
  },
  "engines": {
-  "copilot": 206,
-  "claude": 62,
-  "pi": 29,
-  "codex": 15,
-  "antigravity": 4,
-  "gemini": 4
+  "copilot": 158,
+  "claude": 43,
+  "pi": 18,
+  "codex": 13,
+  "antigravity": 1,
+  "gemini": 1,
+  "null_metadata": 40
  },
  "history": [
   {
@@ -278,6 +281,15 @@
    "tok": null,
    "partial": true,
    "note": "REBOUND 91.7% (prod-main 88.7%); Skillet 103->4 de-escalate; Avenger 7/7 chronic; long-run copilot agent-job fails (Delight/FormalSpec/Sa..."
+  },
+  {
+   "d": "2026-06-22",
+   "r": 274,
+   "s": 259,
+   "rate": 94.5,
+   "tok": null,
+   "partial": true,
+   "note": "HEALTHY on-baseline; prod-main 91.7% (92.9% ex-2-intentional). 0 new class, 0 missing-tools/data/mcp, no shared incident. Avenger 0 runs (streak broken by absence). Skillet 0 fails (de-escalation complete). Dominant fail = copilot-sdk-driver LONG-RUN variant x5 (20-34min agent-job fails)."
   }
  ]
 }

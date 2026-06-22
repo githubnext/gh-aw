@@ -1,5 +1,5 @@
 {
- "updated": "2026-06-21",
+ "updated": "2026-06-22",
  "anomalies": [
   {
    "id": "anom-sdk-toolperm-reescalate",
@@ -137,18 +137,27 @@
   {
    "id": "skillet-fleet-wide-push-fail",
    "first_seen": "2026-06-20",
-   "last_seen": "2026-06-21",
-   "persistence": 2,
-   "escalation_state": "de-escalating",
-   "note": "NEW wf Skillet 100%-fail 103x on 06-20 -> down to 4x 06-21. event=null/ref=null pre-activation 0-tok."
+   "last_seen": "2026-06-22",
+   "persistence": 3,
+   "escalation_state": "RESOLVED",
+   "note": "NEW wf Skillet 100%-fail 103x on 06-20 -> 4x 06-21 -> 0x 06-22. De-escalation complete; resolved unless push-triggered 0-tok fails resurface."
   },
   {
    "id": "avenger-sustained-100pct-fail",
    "first_seen": "2026-06-18",
-   "last_seen": "2026-06-21",
-   "persistence": 4,
-   "escalation_state": "escalating-sustained",
-   "note": "Avenger 100% fail multi-day (06-18 x2,06-19 x4,06-20 x8,06-21 x7). err-config/no-structured-logs."
+   "last_seen": "2026-06-22",
+   "persistence": 5,
+   "escalation_state": "streak-broken-by-absence",
+   "note": "Avenger 100% fail 06-18 x2,06-19 x4,06-20 x8,06-21 x7. 06-22: 0 runs (did not fire). Streak broken by ABSENCE, not confirmed fix. WATCH next scheduled fire to determine if err-config root cause persists."
+  },
+  {
+   "id": "copilot-sdk-longrun-agentjob-fail",
+   "first_seen": "2026-06-21",
+   "last_seen": "2026-06-22",
+   "persistence": 2,
+   "escalation_state": "ESCALATE-now-dominant",
+   "linked_issue": "copilot-sdk-driver-failures",
+   "note": "copilot-sdk-driver LONG-RUN variant is now the #1 failure family (5 fails 06-22): Daily Compiler Threat Spec Optimizer 34m, Daily Formal Spec Verifier 29m, Layout Spec Maintainer 22m, Daily Safe Output Integrator 24m, Daily SPDD Spec Planner 24m. Agent runs 20-34min doing real work then job fails. Burns ~130min compute/day with no output. Distinct from classic 0-tok/25min lockout."
   }
  ]
 }
