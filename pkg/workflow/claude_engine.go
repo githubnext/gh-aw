@@ -76,9 +76,10 @@ func (e *ClaudeEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHu
 	}
 	providerSecrets := llmProviderSecretNames(provider)
 	docsURL := "https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code"
-	if provider == LLMProviderGitHub {
+	switch provider {
+	case LLMProviderGitHub:
 		docsURL = "https://github.github.com/gh-aw/reference/engines/#github-copilot-default"
-	} else if provider == LLMProviderOpenAI {
+	case LLMProviderOpenAI:
 		docsURL = "https://github.github.com/gh-aw/reference/engines/#openai-codex"
 	}
 	return BuildDefaultSecretValidationStep(

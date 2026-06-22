@@ -53,9 +53,10 @@ func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitH
 		return GitHubActionStep{}
 	}
 	docsURL := "https://github.github.com/gh-aw/reference/engines/#github-copilot-default"
-	if provider == LLMProviderAnthropic {
+	switch provider {
+	case LLMProviderAnthropic:
 		docsURL = "https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code"
-	} else if provider == LLMProviderOpenAI {
+	case LLMProviderOpenAI:
 		docsURL = "https://github.github.com/gh-aw/reference/engines/#openai-codex"
 	}
 	return BuildDefaultSecretValidationStep(
