@@ -87,7 +87,7 @@ async function main(config = {}) {
   if (configuredBaseBranch) core.info(`Configured base branch: ${configuredBaseBranch}`);
   core.info(`Target configuration: ${targetConfig}`);
   core.info(`Max count: ${maxCount}`);
-  if (ignoreIfError) core.info("Ignore-if-error mode enabled: Will not fail if agent assignment encounters auth errors");
+  if (ignoreIfError) core.info("Ignore-if-error mode enabled: Will not fail if agent assignment encounters auth or availability errors");
   if (allowedAgents) core.info(`Allowed agents: ${allowedAgents.join(", ")}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) core.info(`Allowed repos: ${[...allowedRepos].join(", ")}`);
@@ -393,15 +393,17 @@ async function main(config = {}) {
       let errorMessage = getErrorMessage(error);
 
       const isAuthError = ["Bad credentials", "Not Authenticated", "Resource not accessible", "Insufficient permissions", "requires authentication"].some(msg => errorMessage.includes(msg));
+      const isAvailabilityError = errorMessage.includes("coding agent is not available for this repository");
 
-      if (ignoreIfError && isAuthError) {
-        core.warning(`Agent assignment failed for ${agentName} on ${type} #${number} due to authentication/permission error. Skipping due to ignore-if-error=true.`);
+      if (ignoreIfError && (isAuthError || isAvailabilityError)) {
+        const errorType = isAuthError ? "authentication/permission" : "agent availability";
+        core.warning(`Agent assignment failed for ${agentName} on ${type} #${number} due to ${errorType} error. Skipping due to ignore-if-error=true.`);
         core.info(`Error details: ${errorMessage}`);
         _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true, skipped: true });
         return { success: true, skipped: true };
       }
 
-      if (errorMessage.includes("coding agent is not available for this repository")) {
+      if (isAvailabilityError) {
         try {
           const available = await getAvailableAgentLogins(effectiveOwner, effectiveRepo, githubClient);
           if (available.length > 0) errorMessage += ` (available agents: ${available.join(", ")})`;

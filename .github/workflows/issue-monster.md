@@ -430,6 +430,7 @@ safe-outputs:
     max: 3
     target: "*"           # Requires explicit issue_number in agent output
     allowed: [copilot]    # Only allow copilot agent
+    ignore-if-error: true # Don't fail the workflow if copilot is temporarily unavailable
   add-comment:
     max: 3
     target: "*"
