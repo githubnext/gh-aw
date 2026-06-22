@@ -1,0 +1,42 @@
+{
+  "date": "2026-06-22",
+  "files_analyzed": {
+    "documentation": [
+      "docs/src/content/docs/reference/permissions.md",
+      "docs/src/content/docs/blog/2026-01-13-meet-the-workflows-security-compliance.md"
+    ],
+    "cli": [],
+    "messages": [
+      ".github/workflows/smoke-test-tools.md",
+      ".github/workflows/stale-repo-identifier.md"
+    ],
+    "validation": [
+      "pkg/workflow/runs_on_validation_test.go"
+    ]
+  },
+  "overall_quality": "mixed",
+  "quality_highlights": [
+    {
+      "file": ".github/workflows/smoke-test-tools.md",
+      "aspect": "All three status messages are clear and precise. run-failure explicitly names 'detected missing tools' and surfaces {status} — the pattern other workflows should follow."
+    },
+    {
+      "file": "pkg/workflow/runs_on_validation.go",
+      "aspect": "macOS runner error follows gold-standard pattern: problem statement → explanation → example → documentation link. Test file explicitly asserts all four properties."
+    }
+  ],
+  "single_file_improvements": [
+    {
+      "file": "docs/src/content/docs/reference/permissions.md",
+      "priority": "high",
+      "issue": "GitHub App-Only Permissions section: 20+ scope names as dense comma-separated text; 'These scopes must always be declared as read.' appears between Organization and User groups, creating ambiguity about which groups the constraint governs. Fix: move constraint note above Repository-level group as a blockquote; add brief parenthetical descriptions to group headers.",
+      "issue_temporary_id": "#aw_ux_perm1"
+    },
+    {
+      "file": ".github/workflows/stale-repo-identifier.md",
+      "priority": "medium",
+      "issue": "run-failure: 'Analysis interrupted!' — 'interrupted' implies external disruption not workflow failure; exclamation mark is tonally wrong on failure. Fix: 'Analysis failed. [{workflow_name}]({run_url}) did not complete: {status}'",
+      "issue_temporary_id": "#aw_ux_stale1"
+    }
+  ]
+}

@@ -1,90 +1,43 @@
 {
-  "last_updated": "2026-06-20",
+  "last_updated": "2026-06-22",
   "pending_tasks": [
     {
-      "file": "docs/src/content/docs/blog/2026-01-13-meet-the-workflows-advanced-analytics.md",
-      "created": "2026-06-20",
-      "status": "pending",
+      "file": "docs/src/content/docs/reference/permissions.md",
+      "created": "2026-06-22",
       "priority": "high",
-      "title": "Fix inaccurate add-wizard commands: line 53 points to copilot-agent-analysis.md (should be copilot-session-insights.md); line 59 missing .md extension on copilot-pr-nlp-analysis URL"
+      "title": "Move read-only constraint note before GitHub App-Only scope groups; add brief parenthetical group descriptions",
+      "issue_temporary_id": "#aw_ux_perm1"
     },
     {
-      "file": ".github/workflows/daily-fact.md",
-      "created": "2026-06-20",
-      "status": "pending",
+      "file": ".github/workflows/stale-repo-identifier.md",
+      "created": "2026-06-22",
       "priority": "medium",
-      "title": "Replace non-actionable run-failure message (line 62) with operationally useful message while preserving minimal personality"
+      "title": "Fix run-failure: 'interrupted!' to 'failed.' and frame {status} as elaboration",
+      "issue_temporary_id": "#aw_ux_stale1"
     },
     {
       "file": ".github/workflows/smoke-crush.md",
       "created": "2026-06-19",
-      "status": "pending",
       "priority": "high",
       "title": "Replace theatrical status messages with professional, actionable messages (lines 51-55)"
     },
     {
-      "file": "docs/src/content/docs/guides/using-at-scale.mdx",
-      "created": "2026-06-19",
-      "status": "pending",
-      "priority": "medium",
-      "title": "Add :::note[Before You Begin] prerequisites callout before opening paragraph; fix marketing-speak opening sentence"
-    },
-    {
       "file": ".github/workflows/smoke-copilot-aoai-apikey.md",
       "created": "2026-06-18",
-      "status": "pending",
       "priority": "high",
       "title": "Replace theatrical newspaper status messages with professional, actionable messages (lines 140-143)"
     },
     {
-      "file": "docs/src/content/docs/guides/open-telemetry.mdx",
-      "created": "2026-06-18",
-      "status": "pending",
-      "priority": "medium",
-      "title": "Reorder Built-in telemetry section: describe what is emitted before stating stability guarantee; fix vague 'These fields' referent (lines 95-99)"
-    },
-    {
       "file": "docs/src/content/docs/guides/network-configuration.md",
       "created": "2026-06-17",
-      "status": "pending",
       "priority": "high",
-      "title": "Fix wildcard domain documentation: resolve lines 64/65/70 inconsistency and add point-of-use explanation for non-standard subdomain-inclusive matching"
-    },
-    {
-      "file": "docs/src/content/docs/reference/playwright.md",
-      "created": "2026-06-14",
-      "status": "pending",
-      "priority": "high",
-      "title": "Fix version format in visual regression example: v1.52.0 → 0.1.13 (npm semver, not Docker image version)"
-    },
-    {
-      "file": ".github/workflows/smoke-codex.md",
-      "created": "2026-06-01",
-      "status": "pending",
-      "priority": "high",
-      "title": "Replace theatrical oracle status messages with actionable enterprise-appropriate messages"
-    },
-    {
-      "file": ".github/workflows/pdf-summary.md",
-      "created": "2026-06-01",
-      "status": "pending",
-      "priority": "medium",
-      "title": "Make run-failure message actionable with diagnostic direction"
+      "title": "Fix wildcard domain documentation: resolve inconsistency and add point-of-use explanation"
     },
     {
       "file": ".github/workflows/dev-hawk.md",
       "created": "2026-05-27",
-      "status": "pending",
       "priority": "high",
-      "title": "Replace all three theatrical status messages (run-started/run-success/run-failure) with actionable enterprise-appropriate messages",
-      "note": "Scope expanded 2026-06-17: all three messages need work, not just run-failure"
-    },
-    {
-      "file": "docs/src/content/docs/blog/2026-01-13-meet-the-workflows-quality-hygiene.md",
-      "created": "2026-05-27",
-      "status": "pending",
-      "priority": "medium",
-      "title": "Fix missing sentence break on line 80 (working well That's)"
+      "title": "Replace all three theatrical status messages with actionable enterprise-appropriate messages"
     }
   ]
 }
