@@ -386,13 +386,15 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 		}
 
 		command = BuildAWFCommand(AWFCommandConfig{
-			EngineName:         "pi",
-			EngineCommand:      piCommandWithPath,
-			LogFile:            logFile,
-			WorkflowData:       workflowData,
-			UsesTTY:            false,
-			AllowedDomains:     allowedDomains,
-			PathSetup:          "touch " + AgentStepSummaryPath,
+			EngineName:     "pi",
+			EngineCommand:  piCommandWithPath,
+			LogFile:        logFile,
+			WorkflowData:   workflowData,
+			UsesTTY:        false,
+			AllowedDomains: allowedDomains,
+			PathSetup: "touch " + AgentStepSummaryPath + "\n" +
+				"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
+				"export GH_AW_NODE_BIN",
 			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, profile.coreSecretNames),
 		})
 	} else {
