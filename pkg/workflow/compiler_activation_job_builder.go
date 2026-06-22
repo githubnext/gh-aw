@@ -406,6 +406,24 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 	return steps
 }
 
+func buildRuntimeFeaturesSummaryStep() []string {
+	return []string{
+		"      - name: Log runtime features\n",
+		"        run: |\n",
+		"          {\n",
+		"            echo \"## Runtime features\"\n",
+		"            echo\n",
+		"            if [[ -n \"${GH_AW_RUNTIME_FEATURES:-}\" ]]; then\n",
+		"              echo '```text'\n",
+		"              printf '%s\\n' \"$GH_AW_RUNTIME_FEATURES\"\n",
+		"              echo '```'\n",
+		"            else\n",
+		"              echo \"_Not set_\"\n",
+		"            fi\n",
+		"          } >> \"$GITHUB_STEP_SUMMARY\"\n",
+	}
+}
+
 // addActivationRepositoryAndOutputSteps appends checkout, validation, sanitization, comment, and lock steps.
 func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuildContext) error {
 	data := ctx.data

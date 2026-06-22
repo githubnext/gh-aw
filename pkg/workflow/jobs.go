@@ -13,6 +13,24 @@ import (
 
 var jobLog = logger.New("workflow:jobs")
 
+const runtimeFeaturesEnvVarName = "GH_AW_RUNTIME_FEATURES"
+const runtimeFeaturesEnvVarExpression = "${{ vars.GH_AW_RUNTIME_FEATURES }}"
+
+var runtimeFeaturesBuiltInJobNames = map[string]struct{}{
+	string(constants.AgentJobName):              {},
+	string(constants.ActivationJobName):         {},
+	string(constants.PreActivationJobName):      {},
+	string(constants.DetectionJobName):          {},
+	string(constants.SafeOutputsJobName):        {},
+	string(constants.UploadAssetsJobName):       {},
+	string(constants.UploadCodeScanningJobName): {},
+	string(constants.ConclusionJobName):         {},
+	string(constants.UnlockJobName):             {},
+	"push_experiments_state":                    {},
+	"push_repo_memory":                          {},
+	"update_cache_memory":                       {},
+}
+
 // Job represents a GitHub Actions job with all its properties
 type Job struct {
 	Name                       string
@@ -293,17 +311,18 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 	}
 
 	// Add environment variables section
-	if len(job.Env) > 0 {
+	env := buildRenderedJobEnv(job)
+	if len(env) > 0 {
 		b.WriteString("    env:\n")
 		// Sort environment variable keys for consistent output
-		envKeys := make([]string, 0, len(job.Env))
-		for key := range job.Env {
+		envKeys := make([]string, 0, len(env))
+		for key := range env {
 			envKeys = append(envKeys, key)
 		}
 		sort.Strings(envKeys)
 
 		for _, key := range envKeys {
-			fmt.Fprintf(b, "      %s: %s\n", key, job.Env[key])
+			fmt.Fprintf(b, "      %s: %s\n", key, env[key])
 		}
 	}
 
@@ -383,4 +402,28 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 
 	// Add newline after each job for proper formatting
 	b.WriteString("\n")
+}
+
+func buildRenderedJobEnv(job *Job) map[string]string {
+	if job == nil {
+		return nil
+	}
+	env := maps.Clone(job.Env)
+	if shouldInjectRuntimeFeaturesEnv(job) {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		if _, exists := env[runtimeFeaturesEnvVarName]; !exists {
+			env[runtimeFeaturesEnvVarName] = runtimeFeaturesEnvVarExpression
+		}
+	}
+	return env
+}
+
+func shouldInjectRuntimeFeaturesEnv(job *Job) bool {
+	if job == nil || job.Uses != "" {
+		return false
+	}
+	_, ok := runtimeFeaturesBuiltInJobNames[job.Name]
+	return ok
 }
