@@ -16,6 +16,15 @@ func BadHelper(wg *sync.WaitGroup) {
 	wg.Done() // want `sync.WaitGroup Done\(\) should be deferred to prevent deadlock if the function panics`
 }
 
+// Bad: non-deferred Done() with early return paths.
+func BadEarlyReturn(wg *sync.WaitGroup, err error) {
+	if err != nil {
+		return
+	}
+	doWork()
+	wg.Done() // want `sync.WaitGroup Done\(\) should be deferred to prevent deadlock if the function panics`
+}
+
 // Bad: Done() not deferred on a value receiver WaitGroup field.
 type Worker struct {
 	wg sync.WaitGroup
@@ -45,6 +54,30 @@ func (w *Worker) GoodMethod() {
 	doWork()
 }
 
+// Good: deferred closure containing Done() is already safe.
+func GoodDeferredClosure(wg *sync.WaitGroup) {
+	defer func() {
+		wg.Done()
+	}()
+	doWork()
+}
+
+// Good: loop-body Done() calls are intentionally not flagged.
+func GoodLoopDone(wg *sync.WaitGroup, n int) {
+	for range n {
+		wg.Done()
+	}
+}
+
+// Bad: embedded WaitGroup still needs deferred Done().
+type EmbeddedWorker struct {
+	sync.WaitGroup
+}
+
+func (w *EmbeddedWorker) BadEmbedded() {
+	w.Done() // want `sync.WaitGroup Done\(\) should be deferred to prevent deadlock if the function panics`
+}
+
 // Good: a different type has a Done() method — must not be flagged.
 type Finisher struct{}
 
@@ -56,3 +89,12 @@ func GoodOtherDone() {
 }
 
 func doWork() {}
+
+func NolintPreviousLineSuppressed(wg *sync.WaitGroup) {
+	//nolint:wgdonenotdeferred
+	wg.Done()
+}
+
+func NolintSameLineSuppressed(wg *sync.WaitGroup) {
+	wg.Done() //nolint:wgdonenotdeferred
+}

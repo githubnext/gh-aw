@@ -6,6 +6,7 @@ package wgdonenotdeferred
 import (
 	"go/ast"
 	"go/types"
+	"slices"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -33,60 +34,69 @@ func run(pass *analysis.Pass) (any, error) {
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
-		(*ast.FuncLit)(nil),
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		var body *ast.BlockStmt
-		switch fn := n.(type) {
-		case *ast.FuncDecl:
-			if fn.Body == nil {
-				return
-			}
-			pos := pass.Fset.PositionFor(fn.Pos(), false)
-			if filecheck.IsTestFile(pos.Filename) {
-				return
-			}
-			body = fn.Body
-		case *ast.FuncLit:
-			if fn.Body == nil {
-				return
-			}
-			body = fn.Body
-		}
-		if body == nil {
+		fn, ok := n.(*ast.FuncDecl)
+		if !ok || fn.Body == nil {
 			return
 		}
-		inspectBody(pass, noLintLinesByFile, body)
+		pos := pass.Fset.PositionFor(fn.Pos(), false)
+		if filecheck.IsTestFile(pos.Filename) {
+			return
+		}
+		inspectBody(pass, noLintLinesByFile, fn.Body)
 	})
 
 	return nil, nil
 }
 
 func inspectBody(pass *analysis.Pass, noLintLinesByFile map[string]map[int]struct{}, body *ast.BlockStmt) {
+	var stack []ast.Node
+
 	ast.Inspect(body, func(node ast.Node) bool {
 		if node == nil {
+			stack = stack[:len(stack)-1]
 			return false
 		}
-		// Do not descend into nested function literals — Preorder visits them separately,
-		// so descending here would cause duplicate diagnostics.
-		if _, ok := node.(*ast.FuncLit); ok {
-			return false
+
+		if deferStmt, ok := node.(*ast.DeferStmt); ok {
+			// A deferred function literal is already deferred; its body should not
+			// be analyzed as non-deferred Done() calls.
+			if deferStmt.Call != nil {
+				if _, ok := deferStmt.Call.Fun.(*ast.FuncLit); ok {
+					return false
+				}
+			}
 		}
-		// Flag any statement-level wg.Done() call that is not wrapped in defer.
-		// A deferred call appears as a DeferStmt, not an ExprStmt, so checking for
-		// ExprStmt naturally excludes deferred calls.
-		if exprStmt, ok := node.(*ast.ExprStmt); ok {
-			if call, ok := exprStmt.X.(*ast.CallExpr); ok {
-				if isWaitGroupDone(pass, call) {
-					pos := pass.Fset.PositionFor(call.Pos(), false)
-					if !nolint.HasDirective(pos, noLintLinesByFile) {
-						pass.ReportRangef(call,
-							"sync.WaitGroup Done() should be deferred to prevent deadlock if the function panics")
+
+		inLoop := false
+		for i := range slices.Backward(stack) {
+			switch stack[i].(type) {
+			case *ast.ForStmt, *ast.RangeStmt:
+				inLoop = true
+			}
+		}
+
+		// Skip diagnostics for loop-body calls where defer would be semantically wrong.
+		if !inLoop {
+			// Flag any statement-level wg.Done() call that is not wrapped in defer.
+			// A deferred call appears as a DeferStmt, not an ExprStmt, so checking for
+			// ExprStmt naturally excludes deferred calls.
+			if exprStmt, ok := node.(*ast.ExprStmt); ok {
+				if call, ok := exprStmt.X.(*ast.CallExpr); ok {
+					if isWaitGroupDone(pass, call) {
+						pos := pass.Fset.PositionFor(call.Pos(), false)
+						if !nolint.HasDirective(pos, noLintLinesByFile) {
+							pass.ReportRangef(call,
+								"sync.WaitGroup Done() should be deferred to prevent deadlock if the function panics")
+						}
 					}
 				}
 			}
 		}
+
+		stack = append(stack, node)
 		return true
 	})
 }
@@ -100,19 +110,48 @@ func isWaitGroupDone(pass *analysis.Pass, call *ast.CallExpr) bool {
 }
 
 func isWaitGroupType(t types.Type) bool {
+	return isWaitGroupTypeRecursive(t, map[types.Type]struct{}{})
+}
+
+func isWaitGroupTypeRecursive(t types.Type, seen map[types.Type]struct{}) bool {
 	if t == nil {
 		return false
 	}
-	if ptr, ok := t.(*types.Pointer); ok {
-		t = ptr.Elem()
+
+	if _, ok := seen[t]; ok {
+		return false
 	}
+	seen[t] = struct{}{}
+
+	if ptr, ok := t.(*types.Pointer); ok {
+		return isWaitGroupTypeRecursive(ptr.Elem(), seen)
+	}
+
 	named, ok := t.(*types.Named)
 	if !ok {
 		return false
 	}
+
 	obj := named.Obj()
 	if obj == nil || obj.Pkg() == nil {
 		return false
 	}
-	return obj.Pkg().Path() == "sync" && obj.Name() == "WaitGroup"
+
+	if obj.Pkg().Path() == "sync" && obj.Name() == "WaitGroup" {
+		return true
+	}
+
+	st, ok := named.Underlying().(*types.Struct)
+	if !ok {
+		return false
+	}
+	for field := range st.Fields() {
+		if !field.Anonymous() {
+			continue
+		}
+		if isWaitGroupTypeRecursive(field.Type(), seen) {
+			return true
+		}
+	}
+	return false
 }

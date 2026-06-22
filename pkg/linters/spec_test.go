@@ -41,6 +41,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
 	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
+	"github.com/github/gh-aw/pkg/linters/wgdonenotdeferred"
 )
 
 // TestSpec tests derive from pkg/linters/README.md. They enforce the documented
@@ -56,7 +57,7 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 30 analyzer
+// "Public API > Subpackages" table. The README documents 31 analyzer
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
@@ -67,7 +68,7 @@ type docAnalyzer struct {
 //	hardcodedfilepath, httpnoctx, jsonmarshalignoredeerror, largefunc, lenstringzero,
 //	manualmutexunlock, osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
 //	regexpcompileinfunction, seenmapbool, sortslice, ssljson, strconvparseignorederror,
-//	timeafterleak, timesleepnocontext, tolowerequalfold, uncheckedtypeassertion
+//	timeafterleak, timesleepnocontext, tolowerequalfold, uncheckedtypeassertion, wgdonenotdeferred
 func documentedAnalyzers() []docAnalyzer {
 	return []docAnalyzer{
 		{"contextcancelnotdeferred", contextcancelnotdeferred.Analyzer},
@@ -100,6 +101,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"timesleepnocontext", timesleepnocontext.Analyzer},
 		{"tolowerequalfold", tolowerequalfold.Analyzer},
 		{"uncheckedtypeassertion", uncheckedtypeassertion.Analyzer},
+		{"wgdonenotdeferred", wgdonenotdeferred.Analyzer},
 	}
 }
 
