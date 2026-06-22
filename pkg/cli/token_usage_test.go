@@ -229,6 +229,24 @@ func TestAnalyzeTokenUsageAICOnly(t *testing.T) {
 		require.NotNil(t, summary)
 		assert.InDelta(t, 3.75, summary.TotalAIC, 1e-9)
 	})
+
+	t.Run("falls back to agent_usage.json when token_usage.jsonl is empty", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-token-usage-aic-only-agent-usage")
+		usageDir := filepath.Join(tmpDir, "usage")
+		agentSubDir := filepath.Join(usageDir, "agent")
+		require.NoError(t, os.MkdirAll(agentSubDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(agentSubDir, "token_usage.jsonl"), []byte(""), 0o644))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(usageDir, "agent_usage.json"),
+			[]byte(`{"input_tokens":5463,"output_tokens":17080,"cache_read_tokens":1440173,"cache_write_tokens":64504,"ambient_context":8424,"ai_credits":94.653,"primary_model":"claude-sonnet-4.6"}`),
+			0o644,
+		))
+
+		summary, err := analyzeTokenUsageAICOnly(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.InDelta(t, 94.653, summary.TotalAIC, 1e-6)
+	})
 }
 
 func TestExtractUsageRecord(t *testing.T) {
@@ -254,7 +272,7 @@ func TestIsFinite(t *testing.T) {
 
 func TestSumAICFromUsageJSONLFiles(t *testing.T) {
 	t.Run("returns error for missing file", func(t *testing.T) {
-		_, err := sumAICFromUsageJSONLFiles([]string{filepath.Join(t.TempDir(), "missing.jsonl")})
+		_, _, err := sumAICFromUsageJSONLFiles([]string{filepath.Join(t.TempDir(), "missing.jsonl")})
 		require.Error(t, err)
 	})
 
@@ -263,8 +281,9 @@ func TestSumAICFromUsageJSONLFiles(t *testing.T) {
 		filePath := filepath.Join(tmpDir, "usage.jsonl")
 		require.NoError(t, os.WriteFile(filePath, []byte("not-json\n{}\n"), 0o644))
 
-		total, err := sumAICFromUsageJSONLFiles([]string{filePath})
+		total, found, err := sumAICFromUsageJSONLFiles([]string{filePath})
 		require.NoError(t, err)
+		assert.False(t, found)
 		assert.Zero(t, total)
 	})
 
@@ -275,8 +294,9 @@ func TestSumAICFromUsageJSONLFiles(t *testing.T) {
 		require.NoError(t, os.WriteFile(fileOne, []byte(`{"ai_credits":1.25}`+"\n"), 0o644))
 		require.NoError(t, os.WriteFile(fileTwo, []byte(`{"provider":"anthropic","model":"claude-sonnet-4-6","input_tokens":1000,"output_tokens":0,"cache_read_tokens":0,"cache_write_tokens":0,"reasoning_tokens":0}`+"\n"), 0o644))
 
-		total, err := sumAICFromUsageJSONLFiles([]string{fileOne, fileTwo})
+		total, found, err := sumAICFromUsageJSONLFiles([]string{fileOne, fileTwo})
 		require.NoError(t, err)
+		assert.True(t, found)
 		assert.Greater(t, total, 1.25)
 	})
 }
@@ -538,6 +558,33 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		assert.Equal(t, modelMismatchReasonTokenUsageMissing, summary.SubagentModelRequests[0].ReasonCode)
 		assert.Empty(t, summary.SubagentModelRequests[0].EffectiveModel)
 		require.Contains(t, summary.Warnings, subagentStdioWarning)
+	})
+
+	t.Run("falls back to agent_usage.json in usage subdir when token_usage.jsonl is empty", func(t *testing.T) {
+		// Reproduces the usage-only-mode scenario where the usage artifact has an empty
+		// placeholder token_usage.jsonl but agent_usage.json is now also copied there.
+		tmpDir := testutil.TempDir(t, "analyze-usage-subdir-fallback")
+		// Create the usage artifact directory as gh aw logs would lay it out.
+		usageDir := filepath.Join(tmpDir, "usage")
+		agentSubDir := filepath.Join(usageDir, "agent")
+		require.NoError(t, os.MkdirAll(agentSubDir, 0o755))
+		// Empty placeholder written by the conclusion job fallback line.
+		require.NoError(t, os.WriteFile(filepath.Join(agentSubDir, "token_usage.jsonl"), []byte(""), 0o644))
+		// agent_usage.json now copied to usage/ by buildUsageArtifactUploadSteps.
+		agentUsageContent := `{"input_tokens":5463,"output_tokens":17080,"cache_read_tokens":1440173,"cache_write_tokens":64504,"ambient_context":8424,"ai_credits":94.653,"primary_model":"claude-sonnet-4.6"}`
+		require.NoError(t, os.WriteFile(filepath.Join(usageDir, "agent_usage.json"), []byte(agentUsageContent), 0o644))
+
+		summary, err := analyzeTokenUsage(tmpDir, false)
+		require.NoError(t, err, "should not error when token_usage.jsonl is empty but agent_usage.json present")
+		require.NotNil(t, summary, "should fall back to agent_usage.json")
+		assert.Equal(t, 5463, summary.TotalInputTokens, "input tokens should come from agent_usage.json")
+		assert.Equal(t, 17080, summary.TotalOutputTokens, "output tokens should come from agent_usage.json")
+		// ai_credits from the file should be used directly.
+		assert.InDelta(t, 94.653, summary.TotalAIC, 1e-6, "AIC should be taken from the pre-computed ai_credits field")
+		require.Contains(t, summary.ByModel, "claude-sonnet-4.6", "primary_model should be used for ByModel attribution")
+		assert.InDelta(t, 94.653, summary.ByModel["claude-sonnet-4.6"].AIC, 1e-6, "per-model AIC should match pre-computed ai_credits")
+		require.NotNil(t, summary.AmbientContext, "ambient context should be captured from agent_usage.json")
+		assert.Equal(t, 8424, summary.AmbientContext.InputTokens, "ambient context should use the dedicated ambient_context field")
 	})
 
 	t.Run("captures alias-based sub-agent model requests used by workflow subagents", func(t *testing.T) {

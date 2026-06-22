@@ -44,13 +44,23 @@ See [GitHub's permissions reference](https://docs.github.com/en/actions/using-jo
 
 Certain permission scopes require [additional authentication](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools). These include:
 
-**Repository-level:** `administration`, `environments`, `git-signing`, `workflows`, `repository-hooks`, `single-file`, `codespaces`, `repository-custom-properties`
+> **Note:** All scopes in this section must always be declared as `read`.
 
-**Organization-level:** `organization-projects`, `members`, `organization-administration`, `team-discussions`, `organization-hooks`, `organization-members`, `organization-packages`, `organization-self-hosted-runners`, `organization-custom-org-roles`, `organization-custom-properties`, `organization-custom-repository-roles`, `organization-announcement-banners`, `organization-events`, `organization-plan`, `organization-user-blocking`, `organization-personal-access-token-requests`, `organization-personal-access-tokens`, `organization-copilot`, `organization-codespaces`
+**Repository-level** (repository configuration and access):
+`administration`, `environments`, `git-signing`, `workflows`, `repository-hooks`,
+`single-file`, `codespaces`, `repository-custom-properties`
 
-**User-level:** `email-addresses`, `codespaces-lifecycle-admin`, `codespaces-metadata`
+**Organization-level** (organization membership and settings):
+`organization-projects`, `members`, `organization-administration`, `team-discussions`,
+`organization-hooks`, `organization-members`, `organization-packages`,
+`organization-self-hosted-runners`, `organization-custom-org-roles`,
+`organization-custom-properties`, `organization-custom-repository-roles`,
+`organization-announcement-banners`, `organization-events`, `organization-plan`,
+`organization-user-blocking`, `organization-personal-access-token-requests`,
+`organization-personal-access-tokens`, `organization-copilot`, `organization-codespaces`
 
-These scopes must always be declared as `read`.
+**User-level** (user account access):
+`email-addresses`, `codespaces-lifecycle-admin`, `codespaces-metadata`
 
 ### Special Permission: `id-token`
 
