@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+// @safe-outputs-exempt SEC-004 — body fields are read-only API context, never written back
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 
