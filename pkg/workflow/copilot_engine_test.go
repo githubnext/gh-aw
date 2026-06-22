@@ -1479,7 +1479,7 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 		{
 			name: "GitHub MCP with allowed tools",
 			githubTool: map[string]any{
-				"allowed": []string{"list_workflows", "get_file_contents"},
+				"allowed": []string{"actions_list", "get_file_contents"},
 			},
 			isLast: true,
 			expectedStrs: []string{

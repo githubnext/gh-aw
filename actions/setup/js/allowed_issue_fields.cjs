@@ -55,7 +55,7 @@ function validateAllowedIssueFields(issueFields, allowedFields) {
   if (!Array.isArray(allowedFields) || allowedFields.length === 0) {
     return;
   }
-  const allowedFieldSet = new Set(allowedFields.map(f => f.toLowerCase()));
+  const allowedFieldSet = new Set(allowedFields.map(field => field.toLowerCase()));
   if (allowedFieldSet.has("*")) {
     return;
   }

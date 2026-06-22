@@ -40,14 +40,17 @@ const TEMPLATE_CONTEXT = {
   strict_compile_command: "gh aw compile --strict",
 };
 
+/** @returns {string} Rendered lockdown token error message with documentation URL */
 function renderLockdownTokenErrorMessage() {
   return renderTemplate(LOCKDOWN_TOKEN_ERROR_TEMPLATE, TEMPLATE_CONTEXT);
 }
 
+/** @returns {string} Rendered public strict mode error message with compile command and documentation URL */
 function renderPublicStrictModeErrorMessage() {
   return renderTemplate(PUBLIC_STRICT_MODE_ERROR_TEMPLATE, TEMPLATE_CONTEXT);
 }
 
+/** @returns {string} Rendered pull_request_target security error message with documentation URL */
 function renderPullRequestTargetErrorMessage() {
   return renderTemplate(PULL_REQUEST_TARGET_ERROR_TEMPLATE, TEMPLATE_CONTEXT);
 }
