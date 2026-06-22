@@ -83,7 +83,7 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
  */
 async function resolveLabel(githubClient, owner, repo, labelName, labelNodeIdCache) {
   if (labelNodeIdCache.has(labelName)) {
-    return /** @type {string} */ labelNodeIdCache.get(labelName);
+    return /** @type {string} */ (labelNodeIdCache.get(labelName));
   }
 
   try {
@@ -270,7 +270,7 @@ const main = createCountGatedHandler({
       if (!repoCaches.has(itemRepo)) {
         repoCaches.set(itemRepo, new Map());
       }
-      const labelNodeIdCache = /** @type {Map<string, string>} */ repoCaches.get(itemRepo);
+      const labelNodeIdCache = /** @type {Map<string, string>} */ (repoCaches.get(itemRepo));
 
       // Resolve the node ID of label_to_add — fails with hard error if the label does not exist
       let addLabelNodeId;
