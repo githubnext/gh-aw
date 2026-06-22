@@ -6,7 +6,6 @@ on:
   schedule:
     - cron: "every 6h"
   workflow_dispatch:
-max-ai-credits: 1500
 max-daily-ai-credits: 10000
 permissions:
   contents: read
@@ -85,7 +84,9 @@ steps:
       FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure", "cancelled"}
       MAX_DISCOVERY_PAGES = 20
       # Most dominant signatures appear in the final 30-60 lines.
-      MAX_LOG_TAIL_LINES = 80
+      MAX_LOG_TAIL_LINES = 50
+      # Deep-dive budget: investigate at most this many distinct failed runs.
+      MAX_FAILURES_TO_DETAIL = 5
       AGENTIC_WORKFLOW_PATHS = {
           f".github/workflows/{path.name}"
           for path in Path(".github/workflows").glob("*.lock.yml")
@@ -191,8 +192,9 @@ steps:
       
       failed_runs = list_failed_agentic_runs()
       
+      # Cap the number of runs to detail so the payload stays compact.
       failure_details = []
-      for run in failed_runs:
+      for run in failed_runs[:MAX_FAILURES_TO_DETAIL]:
           run_id = run.get("run_id")
           if not run_id:
               continue
@@ -338,12 +340,15 @@ Investigate agentic workflow failures from the last 6 hours and produce actionab
 
 ### 0) Read deterministic pre-fetch payload first (required)
 
-Read `failed_run_ids`, `failures`, and `existing_tracking_issues` from `/tmp/gh-aw/agent/failure-investigator/prefetch.json` first.
+Read `failed_run_ids`, `failures`, and `existing_tracking_issues` **once** from `/tmp/gh-aw/agent/failure-investigator/prefetch.json`.
+Do not re-read this file; keep the parsed data in context for all subsequent steps.
 Use this payload as the primary discovery dataset and build clustered failure rows with representative + comparator run IDs.
 Definitions for step 0 clustering:
 - representative run ID: failed run that best captures the dominant signature in a cluster
 - comparator run ID: nearest successful run of the same workflow when available, otherwise nearest prior failed run
 Only call additional logs/list APIs when a required field is missing or stale.
+
+**Early exit**: If `failed_run_ids` is empty, or every failure signature is already covered by an open issue in `existing_tracking_issues`, call `noop` immediately with a brief explanation and stop.
 
 ### 1) Correlate with existing issue context
 
@@ -352,11 +357,13 @@ Structure issue context in three internal buckets: `clusters` (name + issue numb
 
 ### 2) Deep-dive each failure cluster with `audit`
 
-Use the `cluster-evidence-extractor` agent, passing the clusters from steps 0-1, to retrieve per-cluster evidence (dominant error, tool-failure pattern, anomalies, failure class).
+Use the `cluster-evidence-extractor` agent, passing the clusters from steps 0-1 **including their `truncated_error_logs` from the prefetch payload**, to retrieve per-cluster evidence (dominant error, tool-failure pattern, anomalies, failure class).
+
+Limit deep-dive to the **3 highest-severity clusters** (P0 first, then P1). Do not audit clusters that are already fully explained by pre-fetched error logs.
 
 ### 3) Compare behavior with `audit-diff`
 
-Use `agentic-workflows` MCP `audit-diff` to compare:
+Use `agentic-workflows` MCP `audit-diff` to compare **the single highest-severity cluster only** (1 comparison maximum):
 - failed run vs nearest successful run of the same workflow, or
 - failed run vs prior failed run to detect drift
 
@@ -400,7 +407,11 @@ For sub-issues, prioritize high-quality actionable items, avoid duplicates unles
 description: Extracts per-cluster audit evidence including dominant errors, tool patterns, anomalies, and failure class
 model: small
 ---
-Given failure clusters from step 2, call `agentic-workflows` MCP `audit` for each cluster's representative failed run and a successful comparator when available.
+Given failure clusters with their `truncated_error_logs` from the prefetch payload:
+1. If a cluster has ≥10 lines of pre-fetched error logs, extract evidence directly from those logs — do **not** call `audit`.
+2. Only call `agentic-workflows` MCP `audit` when pre-fetched logs are missing or fewer than 5 lines. Cap total `audit` calls at **2** across all clusters.
+3. When calling `audit`, request only `artifacts: ["usage", "agent"]` to limit download size.
+
 Extract dominant error, tool-failure pattern, anomalies, and failure class.
 
 Return only JSON:
