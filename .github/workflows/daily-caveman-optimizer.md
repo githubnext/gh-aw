@@ -66,6 +66,8 @@ timeout-minutes: 30
 
 imports:
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Caveman Optimizer 🪨

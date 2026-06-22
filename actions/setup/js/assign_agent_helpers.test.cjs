@@ -10,7 +10,19 @@ const mockCore = {
 };
 
 const mockGithub = {
-  graphql: vi.fn(),
+  request: vi.fn(),
+  rest: {
+    issues: {
+      checkUserCanBeAssigned: vi.fn(),
+      get: vi.fn(),
+    },
+    users: {
+      getByUsername: vi.fn(),
+    },
+    pulls: {
+      get: vi.fn(),
+    },
+  },
 };
 
 // Set up global mocks before importing the module
@@ -58,103 +70,59 @@ describe("assign_agent_helpers.cjs", () => {
   });
 
   describe("getAvailableAgentLogins", () => {
-    it("should return available agent logins using github.graphql when no token provided", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          suggestedActors: {
-            nodes: [
-              { login: "copilot-swe-agent", __typename: "Bot" },
-              { login: "some-other-bot", __typename: "Bot" },
-            ],
-          },
-        },
-      });
+    it("should return available agent logins when checkUserCanBeAssigned succeeds", async () => {
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
 
       const result = await getAvailableAgentLogins("owner", "repo");
 
       expect(result).toEqual(["copilot-swe-agent"]);
-      expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledWith({ owner: "owner", repo: "repo", assignee: "copilot-swe-agent" });
     });
 
-    it("should return empty array when no agents are available", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          suggestedActors: {
-            nodes: [{ login: "some-random-bot", __typename: "Bot" }],
-          },
-        },
-      });
+    it("should return empty array when agent is not assignable (404)", async () => {
+      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404);
 
       const result = await getAvailableAgentLogins("owner", "repo");
 
       expect(result).toEqual([]);
     });
 
-    it("should handle GraphQL errors gracefully", async () => {
-      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error"));
+    it("should handle non-404 errors gracefully and return empty array", async () => {
+      const err500 = Object.assign(new Error("Server error"), { status: 500 });
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err500);
 
       const result = await getAvailableAgentLogins("owner", "repo");
 
       expect(result).toEqual([]);
-      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to list available agent logins"));
-    });
-
-    it("should handle null suggestedActors", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          suggestedActors: null,
-        },
-      });
-
-      const result = await getAvailableAgentLogins("owner", "repo");
-
-      expect(result).toEqual([]);
+      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to check assignability for copilot-swe-agent"));
     });
   });
 
   describe("findAgent", () => {
-    it("should find copilot agent and return its ID using github.graphql", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          suggestedActors: {
-            nodes: [
-              { id: "BOT_12345", login: "copilot-swe-agent", __typename: "Bot" },
-              { id: "BOT_67890", login: "other-bot", __typename: "Bot" },
-            ],
-          },
-        },
-      });
+    it("should find copilot agent and return its ID via REST", async () => {
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
+      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 12345 } });
 
       const result = await findAgent("owner", "repo", "copilot");
 
-      expect(result).toBe("BOT_12345");
-      expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
+      expect(result).toBe("12345");
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledWith({ owner: "owner", repo: "repo", assignee: "copilot-swe-agent" });
+      expect(mockGithub.rest.users.getByUsername).toHaveBeenCalledWith({ username: "copilot-swe-agent" });
     });
 
     it("should return null for unknown agent name", async () => {
-      // Need to mock GraphQL because the function calls it before checking agent name
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          suggestedActors: {
-            nodes: [],
-          },
-        },
-      });
-
       const result = await findAgent("owner", "repo", "unknown-agent");
 
       expect(result).toBeNull();
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Unknown agent: unknown-agent"));
     });
 
-    it("should return null when copilot is not available", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          suggestedActors: {
-            nodes: [{ id: "BOT_67890", login: "other-bot", __typename: "Bot" }],
-          },
-        },
-      });
+    it("should return null when copilot is not available (404)", async () => {
+      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404);
+      // getAvailableAgentLogins also calls checkUserCanBeAssigned
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404);
 
       const result = await findAgent("owner", "repo", "copilot");
 
@@ -162,8 +130,18 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("copilot coding agent (copilot-swe-agent) is not available"));
     });
 
-    it("should handle GraphQL errors", async () => {
-      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error"));
+    it("should handle REST errors and re-throw auth errors", async () => {
+      const authError = new Error("Bad credentials");
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(authError);
+
+      await expect(findAgent("owner", "repo", "copilot")).rejects.toThrow("Bad credentials");
+    });
+
+    it("should return null for non-auth errors", async () => {
+      const err = new Error("Something unexpected");
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err);
+      // getAvailableAgentLogins fallback
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(Object.assign(new Error("Not Found"), { status: 404 }));
 
       const result = await findAgent("owner", "repo", "copilot");
 
@@ -173,38 +151,38 @@ describe("assign_agent_helpers.cjs", () => {
   });
 
   describe("getIssueDetails", () => {
-    it("should return issue ID and current assignees", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          issue: {
-            id: "ISSUE_123",
-            assignees: {
-              nodes: [
-                { id: "USER_1", login: "user1" },
-                { id: "USER_2", login: "user2" },
-              ],
-            },
-          },
+    it("should return issue ID, current assignees, and task context", async () => {
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          id: 67890,
+          number: 123,
+          assignees: [
+            { id: 1, login: "user1" },
+            { id: 2, login: "user2" },
+          ],
+          html_url: "https://github.com/owner/repo/issues/123",
+          title: "Test issue",
+          body: "Test body",
         },
       });
 
       const result = await getIssueDetails("owner", "repo", 123);
 
       expect(result).toEqual({
-        issueId: "ISSUE_123",
+        issueId: "67890",
         currentAssignees: [
-          { id: "USER_1", login: "user1" },
-          { id: "USER_2", login: "user2" },
+          { id: "1", login: "user1" },
+          { id: "2", login: "user2" },
         ],
+        htmlUrl: "https://github.com/owner/repo/issues/123",
+        title: "Test issue",
+        body: "Test body",
+        taskContext: { owner: "owner", repo: "repo", type: "issue", number: 123 },
       });
     });
 
     it("should return null when issue is not found", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          issue: null,
-        },
-      });
+      mockGithub.rest.issues.get.mockResolvedValueOnce({ data: null });
 
       const result = await getIssueDetails("owner", "repo", 999);
 
@@ -212,284 +190,137 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockCore.error).toHaveBeenCalledWith("Could not get issue data");
     });
 
-    it("should handle GraphQL errors", async () => {
-      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error"));
+    it("should re-throw REST errors", async () => {
+      mockGithub.rest.issues.get.mockRejectedValueOnce(new Error("API error"));
 
-      await expect(getIssueDetails("owner", "repo", 123)).rejects.toThrow("GraphQL error");
+      await expect(getIssueDetails("owner", "repo", 123)).rejects.toThrow("API error");
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to get issue details"));
     });
 
     it("should return empty assignees when none exist", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          issue: {
-            id: "ISSUE_123",
-            assignees: {
-              nodes: [],
-            },
-          },
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          id: 67890,
+          number: 123,
+          assignees: [],
+          html_url: "https://github.com/owner/repo/issues/123",
+          title: "Test issue",
+          body: "",
         },
       });
 
       const result = await getIssueDetails("owner", "repo", 123);
 
       expect(result).toEqual({
-        issueId: "ISSUE_123",
+        issueId: "67890",
         currentAssignees: [],
+        htmlUrl: "https://github.com/owner/repo/issues/123",
+        title: "Test issue",
+        body: "",
+        taskContext: { owner: "owner", repo: "repo", type: "issue", number: 123 },
       });
     });
   });
 
   describe("assignAgentToIssue", () => {
-    it("should successfully assign agent using mutation", async () => {
-      // Mock the global github.graphql
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
+    const taskContext = { owner: "myorg", repo: "myrepo", type: "issue", number: 42 };
 
-      const result = await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null);
+    it("should start an agent task via REST", async () => {
+      const mockRequest = vi.fn().mockResolvedValue({ data: { id: "task-123" } });
+      const restClient = { request: mockRequest };
+
+      const result = await assignAgentToIssue("ignored-id", "ignored-agent-id", [], "copilot", null, null, null, null, null, restClient, taskContext);
 
       expect(result).toBe(true);
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("replaceActorsForAssignable"),
+      expect(mockRequest).toHaveBeenCalledWith(
+        "POST /agents/repos/{owner}/{repo}/tasks",
         expect.objectContaining({
-          assignableId: "ISSUE_123",
-          actorIds: ["AGENT_456", "USER_1"],
-        })
-      );
-
-      // Should always include both issues_copilot_assignment_api_support and coding_agent_model_selection
-      const calledArgs = mockGithub.graphql.mock.calls[0];
-      const variables = calledArgs[1];
-      expect(variables.headers["GraphQL-Features"]).toBe("issues_copilot_assignment_api_support,coding_agent_model_selection");
-    });
-
-    it("should preserve existing assignees when adding agent", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
-
-      await assignAgentToIssue(
-        "ISSUE_123",
-        "AGENT_456",
-        [
-          { id: "USER_1", login: "user1" },
-          { id: "USER_2", login: "user2" },
-        ],
-        "copilot",
-        null
-      );
-
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("replaceActorsForAssignable"),
-        expect.objectContaining({
-          assignableId: "ISSUE_123",
-          actorIds: expect.arrayContaining(["AGENT_456", "USER_1", "USER_2"]),
+          owner: "myorg",
+          repo: "myrepo",
+          create_pull_request: true,
+          prompt: expect.stringContaining("myorg/myrepo#42"),
         })
       );
     });
 
-    it("should not duplicate agent if already in assignees", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
+    it("should include model in REST request when provided", async () => {
+      const mockRequest = vi.fn().mockResolvedValue({ data: { id: "task-123" } });
+      const restClient = { request: mockRequest };
 
-      await assignAgentToIssue(
-        "ISSUE_123",
-        "AGENT_456",
-        ["AGENT_456", "USER_1"], // Agent already in list
-        "copilot"
-      );
+      await assignAgentToIssue("id", "agent", [], "copilot", null, "claude-opus-4.6", null, null, null, restClient, taskContext);
 
-      const calledArgs = mockGithub.graphql.mock.calls[0][1];
-      // Agent should only appear once in the actorIds array
-      const agentMatches = calledArgs.actorIds.filter(id => id === "AGENT_456");
-      expect(agentMatches.length).toBe(1);
+      expect(mockRequest).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ model: "claude-opus-4.6" }));
     });
 
-    it("should include model in agentAssignment when provided", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
+    it("should include base_ref in REST request when baseBranch is provided", async () => {
+      const mockRequest = vi.fn().mockResolvedValue({ data: { id: "task-123" } });
+      const restClient = { request: mockRequest };
 
-      await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null, null, "claude-opus-4.6");
+      await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, "develop", restClient, taskContext);
 
-      const calledArgs = mockGithub.graphql.mock.calls[0];
-      const mutation = calledArgs[0];
-      const variables = calledArgs[1];
-
-      // Mutation should include agentAssignment with model
-      expect(mutation).toContain("agentAssignment");
-      expect(mutation).toContain("model: $model");
-      expect(variables.model).toBe("claude-opus-4.6");
-      // Should always include both feature flags
-      expect(variables.headers["GraphQL-Features"]).toBe("issues_copilot_assignment_api_support,coding_agent_model_selection");
+      expect(mockRequest).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ base_ref: "develop" }));
     });
 
-    it("should include customAgent in agentAssignment when provided", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
+    it("should not include model or base_ref when not provided", async () => {
+      const mockRequest = vi.fn().mockResolvedValue({ data: { id: "task-123" } });
+      const restClient = { request: mockRequest };
 
-      await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null, null, null, "custom-agent-123");
+      await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, restClient, taskContext);
 
-      const calledArgs = mockGithub.graphql.mock.calls[0];
-      const mutation = calledArgs[0];
-      const variables = calledArgs[1];
-
-      // Mutation should include agentAssignment with customAgent
-      expect(mutation).toContain("agentAssignment");
-      expect(mutation).toContain("customAgent: $customAgent");
-      expect(variables.customAgent).toBe("custom-agent-123");
+      const callArgs = mockRequest.mock.calls[0][1];
+      expect(callArgs.model).toBeUndefined();
+      expect(callArgs.base_ref).toBeUndefined();
     });
 
-    it("should include customInstructions in agentAssignment when provided", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
+    it("should use pullRequestRepoSlug as target when provided", async () => {
+      const mockRequest = vi.fn().mockResolvedValue({ data: { id: "task-123" } });
+      const restClient = { request: mockRequest };
 
-      await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null, null, null, null, "Focus on performance optimization");
+      await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, restClient, taskContext, "otherorg/otherrepo");
 
-      const calledArgs = mockGithub.graphql.mock.calls[0];
-      const mutation = calledArgs[0];
-      const variables = calledArgs[1];
-
-      // Mutation should include agentAssignment with customInstructions
-      expect(mutation).toContain("agentAssignment");
-      expect(mutation).toContain("customInstructions: $customInstructions");
-      expect(variables.customInstructions).toBe("Focus on performance optimization");
+      expect(mockRequest).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ owner: "otherorg", repo: "otherrepo" }));
     });
 
-    it("should include multiple agentAssignment parameters when provided", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
+    it("should return false and not call request when taskContext is missing", async () => {
+      const mockRequest = vi.fn();
+      const restClient = { request: mockRequest };
 
-      await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null, "REPO_ID_789", "claude-opus-4.6", "custom-agent-123", "Focus on performance");
+      const result = await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, restClient, null);
 
-      const calledArgs = mockGithub.graphql.mock.calls[0];
-      const mutation = calledArgs[0];
-      const variables = calledArgs[1];
-
-      // Mutation should include agentAssignment with all parameters
-      expect(mutation).toContain("agentAssignment");
-      expect(mutation).toContain("targetRepositoryId: $targetRepoId");
-      expect(mutation).toContain("model: $model");
-      expect(mutation).toContain("customAgent: $customAgent");
-      expect(mutation).toContain("customInstructions: $customInstructions");
-
-      expect(variables.targetRepoId).toBe("REPO_ID_789");
-      expect(variables.model).toBe("claude-opus-4.6");
-      expect(variables.customAgent).toBe("custom-agent-123");
-      expect(variables.customInstructions).toBe("Focus on performance");
+      expect(result).toBe(false);
+      expect(mockRequest).not.toHaveBeenCalled();
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Invalid assignment context"));
     });
 
-    it("should include baseBranch as baseRef in agentAssignment when provided", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
+    it("should return false when client has neither request nor graphql", async () => {
+      const emptyClient = {};
 
-      await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null, null, null, null, null, "develop");
+      const result = await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, emptyClient, taskContext);
 
-      const calledArgs = mockGithub.graphql.mock.calls[0];
-      const mutation = calledArgs[0];
-      const variables = calledArgs[1];
-
-      // Mutation should include agentAssignment with baseRef
-      expect(mutation).toContain("agentAssignment");
-      expect(mutation).toContain("baseRef: $baseRef");
-      expect(variables.baseRef).toBe("develop");
+      expect(result).toBe(false);
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("does not support REST requests"));
     });
 
-    it("should not include baseRef in mutation when baseBranch is not provided", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
+    it("should treat 502 REST errors as success", async () => {
+      const err502 = Object.assign(new Error("502 Bad Gateway"), { response: { status: 502 } });
+      const mockRequest = vi.fn().mockRejectedValue(err502);
+      const restClient = { request: mockRequest };
 
-      await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null, null, null, null, null, null);
+      const result = await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, restClient, taskContext);
 
-      const calledArgs = mockGithub.graphql.mock.calls[0];
-      const mutation = calledArgs[0];
-      const variables = calledArgs[1];
-
-      expect(mutation).not.toContain("baseRef");
-      expect(variables.baseRef).toBeUndefined();
+      expect(result).toBe(true);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("502"));
     });
 
-    it("should include baseRef alongside other agentAssignment parameters", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
+    it("should call logPermissionError for Bad credentials on REST path", async () => {
+      const errAuth = new Error("Bad credentials");
+      const mockRequest = vi.fn().mockRejectedValue(errAuth);
+      const restClient = { request: mockRequest };
 
-      await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null, "REPO_ID_789", "claude-opus-4.6", null, "Fix the bug", "develop");
+      const result = await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, restClient, taskContext);
 
-      const calledArgs = mockGithub.graphql.mock.calls[0];
-      const mutation = calledArgs[0];
-      const variables = calledArgs[1];
-
-      expect(mutation).toContain("targetRepositoryId: $targetRepoId");
-      expect(mutation).toContain("model: $model");
-      expect(mutation).toContain("customInstructions: $customInstructions");
-      expect(mutation).toContain("baseRef: $baseRef");
-      expect(variables.targetRepoId).toBe("REPO_ID_789");
-      expect(variables.model).toBe("claude-opus-4.6");
-      expect(variables.customInstructions).toBe("Fix the bug");
-      expect(variables.baseRef).toBe("develop");
-    });
-
-    it("should omit agentAssignment when no agent-specific parameters provided", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
-
-      await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null, null, null, null, null);
-
-      const calledArgs = mockGithub.graphql.mock.calls[0];
-      const mutation = calledArgs[0];
-
-      // Mutation should NOT include agentAssignment when no parameters provided
-      expect(mutation).not.toContain("agentAssignment");
-    });
-
-    it("should include only provided agentAssignment fields", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
-
-      // Only provide model, not customAgent or customInstructions
-      await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null, null, "claude-opus-4.6", null, null);
-
-      const calledArgs = mockGithub.graphql.mock.calls[0];
-      const variables = calledArgs[1];
-
-      // Only model should be in variables
-      expect(variables.model).toBe("claude-opus-4.6");
-      expect(variables.customAgent).toBeUndefined();
-      expect(variables.customInstructions).toBeUndefined();
+      expect(result).toBe(false);
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Insufficient permissions"));
     });
   });
 
@@ -500,47 +331,28 @@ describe("assign_agent_helpers.cjs", () => {
       expect(summary).toContain("### ⚠️ Permission Requirements");
       expect(summary).toContain("actions: write");
       expect(summary).toContain("contents: write");
-      expect(summary).toContain("issues: write");
-      expect(summary).toContain("pull-requests: write");
-      expect(summary).toContain("replaceActorsForAssignable");
+      expect(summary).toContain("agent-tasks: write");
+      expect(summary).toContain("POST /agents/repos/{owner}/{repo}/tasks");
     });
   });
 
   describe("assignAgentToIssueByName", () => {
     it("should successfully assign copilot agent", async () => {
-      // Mock findAgent (uses github.graphql)
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          suggestedActors: {
-            nodes: [{ id: "AGENT_456", login: "copilot-swe-agent", __typename: "Bot" }],
-          },
-        },
+      // findAgent: checkUserCanBeAssigned + getByUsername
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
+      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 999 } });
+      // getIssueDetails
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: { id: 1111, number: 123, assignees: [], html_url: "", title: "", body: "" },
       });
-
-      // Mock getIssueDetails (uses github.graphql)
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          issue: {
-            id: "ISSUE_123",
-            assignees: {
-              nodes: [],
-            },
-          },
-        },
-      });
-
-      // Mock assignAgentToIssue mutation (uses github.graphql)
-      mockGithub.graphql.mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
+      // assignAgentToIssue (REST)
+      mockGithub.request.mockResolvedValueOnce({ data: { id: "task-1" } });
 
       const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot");
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("Looking for copilot coding agent...");
-      expect(mockCore.info).toHaveBeenCalledWith("Found copilot coding agent (ID: AGENT_456)");
+      expect(mockCore.info).toHaveBeenCalledWith("Found copilot coding agent (ID: 999)");
     });
 
     it("should return error for unsupported agent", async () => {
@@ -552,15 +364,11 @@ describe("assign_agent_helpers.cjs", () => {
     });
 
     it("should return error when agent is not available", async () => {
-      // Mock findAgent and getAvailableAgentLogins (both use github.graphql)
-      // Both calls return empty nodes
-      mockGithub.graphql.mockResolvedValue({
-        repository: {
-          suggestedActors: {
-            nodes: [], // No agents
-          },
-        },
-      });
+      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
+      // findAgent: checkUserCanBeAssigned throws 404
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404);
+      // getAvailableAgentLogins: also 404
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404);
 
       const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot");
 
@@ -569,26 +377,18 @@ describe("assign_agent_helpers.cjs", () => {
     });
 
     it("should report already assigned when agent is in assignees", async () => {
-      const agentId = "AGENT_456";
-
-      // Mock findAgent (uses github.graphql)
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          suggestedActors: {
-            nodes: [{ id: agentId, login: "copilot-swe-agent", __typename: "Bot" }],
-          },
-        },
-      });
-
-      // Mock getIssueDetails (uses github.graphql)
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          issue: {
-            id: "ISSUE_123",
-            assignees: {
-              nodes: [{ id: agentId }], // Already assigned
-            },
-          },
+      // findAgent
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
+      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 999 } });
+      // getIssueDetails - agent already assigned
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          id: 1111,
+          number: 123,
+          assignees: [{ id: 999, login: "copilot-swe-agent" }],
+          html_url: "",
+          title: "",
+          body: "",
         },
       });
 
@@ -600,38 +400,38 @@ describe("assign_agent_helpers.cjs", () => {
   });
 
   describe("getPullRequestDetails", () => {
-    it("should return pull request ID and current assignees", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          pullRequest: {
-            id: "PR_123",
-            assignees: {
-              nodes: [
-                { id: "USER_1", login: "user1" },
-                { id: "USER_2", login: "user2" },
-              ],
-            },
-          },
+    it("should return pull request ID, current assignees, and task context", async () => {
+      mockGithub.rest.pulls.get.mockResolvedValueOnce({
+        data: {
+          id: 67890,
+          number: 42,
+          assignees: [
+            { id: 1, login: "user1" },
+            { id: 2, login: "user2" },
+          ],
+          html_url: "https://github.com/owner/repo/pull/42",
+          title: "Test PR",
+          body: "Test body",
         },
       });
 
       const result = await getPullRequestDetails("owner", "repo", 42);
 
       expect(result).toEqual({
-        pullRequestId: "PR_123",
+        pullRequestId: "67890",
         currentAssignees: [
-          { id: "USER_1", login: "user1" },
-          { id: "USER_2", login: "user2" },
+          { id: "1", login: "user1" },
+          { id: "2", login: "user2" },
         ],
+        htmlUrl: "https://github.com/owner/repo/pull/42",
+        title: "Test PR",
+        body: "Test body",
+        taskContext: { owner: "owner", repo: "repo", type: "pull", number: 42 },
       });
     });
 
     it("should return null when pull request is not found", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          pullRequest: null,
-        },
-      });
+      mockGithub.rest.pulls.get.mockResolvedValueOnce({ data: null });
 
       const result = await getPullRequestDetails("owner", "repo", 999);
 
@@ -640,45 +440,34 @@ describe("assign_agent_helpers.cjs", () => {
     });
 
     it("should return empty assignees when none exist", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          pullRequest: {
-            id: "PR_456",
-            assignees: {
-              nodes: [],
-            },
-          },
+      mockGithub.rest.pulls.get.mockResolvedValueOnce({
+        data: {
+          id: 67890,
+          number: 42,
+          assignees: [],
+          html_url: "https://github.com/owner/repo/pull/42",
+          title: "Test PR",
+          body: "",
         },
       });
 
       const result = await getPullRequestDetails("owner", "repo", 42);
 
       expect(result).toEqual({
-        pullRequestId: "PR_456",
+        pullRequestId: "67890",
         currentAssignees: [],
+        htmlUrl: "https://github.com/owner/repo/pull/42",
+        title: "Test PR",
+        body: "",
+        taskContext: { owner: "owner", repo: "repo", type: "pull", number: 42 },
       });
     });
 
-    it("should handle GraphQL errors by re-throwing", async () => {
-      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error"));
+    it("should re-throw REST errors", async () => {
+      mockGithub.rest.pulls.get.mockRejectedValueOnce(new Error("API error"));
 
-      await expect(getPullRequestDetails("owner", "repo", 42)).rejects.toThrow("GraphQL error");
+      await expect(getPullRequestDetails("owner", "repo", 42)).rejects.toThrow("API error");
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to get pull request details"));
-    });
-
-    it("should call GraphQL with correct variables", async () => {
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          pullRequest: {
-            id: "PR_789",
-            assignees: { nodes: [] },
-          },
-        },
-      });
-
-      await getPullRequestDetails("myorg", "myrepo", 77);
-
-      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("pullRequest(number: $pullNumber)"), expect.objectContaining({ owner: "myorg", repo: "myrepo", pullNumber: 77 }));
     });
   });
 });

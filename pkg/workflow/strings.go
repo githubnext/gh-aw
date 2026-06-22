@@ -79,9 +79,8 @@
 package workflow
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
+	"hash/fnv"
 	"regexp"
 	"strings"
 
@@ -155,17 +154,17 @@ func escapeYAMLSingleQuoted(value string) string {
 }
 
 // GenerateHeredocDelimiterFromContent creates a stable heredoc delimiter derived from the
-// content it wraps. The 16-character hex tag is the first 8 bytes of SHA-256 of the content,
-// so the delimiter is identical across builds whenever the content is unchanged and changes
-// only when the content changes — reducing unnecessary diff noise and merge conflicts.
+// content it wraps. The 16-character hex tag is an FNV-1a checksum of the content and name,
+// used only for deterministic identifier generation so the delimiter stays stable across
+// builds whenever the content is unchanged and changes only when the content changes.
 //
 // The name prefix (e.g. "PROMPT", "MCP_CONFIG") is included for readability and to ensure
 // that two different heredocs wrapping identical content still produce distinct delimiters.
 func GenerateHeredocDelimiterFromContent(name string, content string) string {
-	h := sha256.New()
+	h := fnv.New64a()
 	h.Write([]byte(strings.ToUpper(name)))
 	h.Write([]byte(content))
-	tag := hex.EncodeToString(h.Sum(nil)[:8])
+	tag := fmt.Sprintf("%016x", h.Sum64())
 	upperName := strings.ToUpper(name)
 	if name == "" {
 		return "GH_AW_" + tag + "_EOF"

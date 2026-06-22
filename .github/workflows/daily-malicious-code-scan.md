@@ -31,8 +31,8 @@ imports:
   - shared/otlp.md
 tools:
   cli-proxy: true
-
-
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

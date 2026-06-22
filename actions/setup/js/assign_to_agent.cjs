@@ -95,7 +95,6 @@ async function main(config = {}) {
   // Resolve pull request repo upfront (if globally configured)
   let pullRequestOwner = null;
   let pullRequestRepo = null;
-  let pullRequestRepoId = null;
   let effectiveBaseBranch = configuredBaseBranch;
   const pullRequestRepoConfig = config["pull-request-repo"] ? String(config["pull-request-repo"]).trim() : null;
 
@@ -111,14 +110,12 @@ async function main(config = {}) {
       core.info(`Using pull request repository: ${pullRequestOwner}/${pullRequestRepo}`);
       try {
         const resolved = await resolvePullRequestRepo(githubClient, pullRequestOwner, pullRequestRepo, configuredBaseBranch);
-        pullRequestRepoId = resolved.repoId;
         effectiveBaseBranch = resolved.effectiveBaseBranch;
-        core.info(`Pull request repository ID: ${pullRequestRepoId}`);
         if (!configuredBaseBranch && effectiveBaseBranch) {
           core.info(`Resolved pull request repository default branch: ${effectiveBaseBranch}`);
         }
       } catch (error) {
-        throw new Error(`Failed to fetch pull request repository ID for ${pullRequestOwner}/${pullRequestRepo}: ${getErrorMessage(error)}`);
+        throw new Error(`Failed to fetch pull request repository for ${pullRequestOwner}/${pullRequestRepo}: ${getErrorMessage(error)}`);
       }
     } else {
       core.warning(`Invalid pull-request-repo format: ${pullRequestRepoConfig}. Expected owner/repo. PRs will be created in issue repository.`);
@@ -240,7 +237,6 @@ async function main(config = {}) {
     const basePullRequestRepoSlug = pullRequestOwner && pullRequestRepo ? `${pullRequestOwner}/${pullRequestRepo}` : `${effectiveOwner}/${effectiveRepo}`;
 
     // Handle per-item pull_request_repo override
-    let effectivePullRequestRepoId = pullRequestRepoId;
     let effectivePullRequestRepoSlug = basePullRequestRepoSlug;
     let hasValidatedPerItemPullRequestRepoOverride = false;
     const hasPullRequestRepoOverrideField = message.pull_request_repo != null;
@@ -258,18 +254,12 @@ async function main(config = {}) {
           return { success: false, error };
         }
         try {
-          const itemPullRequestRepoQuery = `
-            query($owner: String!, $name: String!) {
-              repository(owner: $owner, name: $name) { id }
-            }
-          `;
-          const itemPullRequestRepoResponse = await githubClient.graphql(itemPullRequestRepoQuery, { owner: pullRequestRepoParts[0], name: pullRequestRepoParts[1] });
-          effectivePullRequestRepoId = itemPullRequestRepoResponse.repository.id;
+          await resolvePullRequestRepo(githubClient, pullRequestRepoParts[0], pullRequestRepoParts[1], configuredBaseBranch);
           effectivePullRequestRepoSlug = itemPullRequestRepo;
           hasValidatedPerItemPullRequestRepoOverride = true;
-          core.info(`Using per-item pull request repository: ${itemPullRequestRepo} (ID: ${effectivePullRequestRepoId})`);
+          core.info(`Using per-item pull request repository: ${itemPullRequestRepo}`);
         } catch (error) {
-          const errorMsg = `Failed to fetch pull request repository ID for ${itemPullRequestRepo}: ${getErrorMessage(error)}`;
+          const errorMsg = `Failed to resolve pull request repository for ${itemPullRequestRepo}: ${getErrorMessage(error)}`;
           core.error(errorMsg);
           _allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error: errorMsg });
           return { success: false, error: errorMsg };
@@ -352,16 +342,19 @@ async function main(config = {}) {
       core.info(`Getting ${type} details...`);
       let assignableId;
       let currentAssignees;
+      let taskContext = null;
       if (issueNumber) {
         const issueDetails = await getIssueDetails(effectiveOwner, effectiveRepo, issueNumber, githubClient);
         if (!issueDetails) throw new Error(`Failed to get issue details`);
         assignableId = issueDetails.issueId;
         currentAssignees = issueDetails.currentAssignees;
+        taskContext = issueDetails.taskContext || { owner: effectiveOwner, repo: effectiveRepo, type: "issue", number: issueNumber };
       } else if (pullNumber) {
         const prDetails = await getPullRequestDetails(effectiveOwner, effectiveRepo, pullNumber, githubClient);
         if (!prDetails) throw new Error(`Failed to get pull request details`);
         assignableId = prDetails.pullRequestId;
         currentAssignees = prDetails.currentAssignees;
+        taskContext = prDetails.taskContext || { owner: effectiveOwner, repo: effectiveRepo, type: "pull", number: pullNumber };
       } else {
         throw new Error(`No issue or pull request number available`);
       }
@@ -390,8 +383,8 @@ async function main(config = {}) {
       if (customInstructions) core.info(`Using custom instructions: ${customInstructions.substring(0, 100)}${customInstructions.length > 100 ? "..." : ""}`);
       if (effectiveBaseBranch) core.info(`Using base branch: ${effectiveBaseBranch}`);
 
-      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents, effectivePullRequestRepoId, model, customAgent, customInstructions, effectiveBaseBranch, githubClient);
-      if (!success) throw new Error(`Failed to assign ${agentName} via GraphQL`);
+      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents, model, customAgent, customInstructions, effectiveBaseBranch, githubClient, taskContext, effectivePullRequestRepoSlug);
+      if (!success) throw new Error(`Failed to assign ${agentName} via REST`);
 
       core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number}`);
       _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true });

@@ -38,6 +38,8 @@ imports:
   - shared/reporting.md
   - shared/safe-output-app.md
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Artifacts Summary

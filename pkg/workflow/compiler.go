@@ -145,11 +145,9 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	// result between the two validators to avoid redundant yaml.Unmarshal calls.
 	//
 	// Performance note: when schema validation is enabled (needsSchemaCheck=true) the
-	// YAML is parsed regardless.  hasUnsafeExpressionInRunContent performs an expensive
-	// text scan (regex + strings.Split + full line walk) that would be redundant in that
-	// path; we skip it and reuse the pre-parsed result for template injection instead.
-	// The text scan is only used when schema validation is disabled (skipValidation=true),
-	// where it avoids an otherwise unnecessary yaml.Unmarshal call.
+	// YAML is parsed regardless.  The text scan in validateTemplateInjection is only
+	// used when schema validation is disabled (skipValidation=true), where targeted
+	// fast-path checks avoid an unnecessary yaml.Unmarshal.
 	needsSchemaCheck := !c.skipValidation
 
 	var parsedWorkflow map[string]any
@@ -169,8 +167,8 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	// parsedWorkflow != nil means the YAML was already parsed for schema validation;
 	// validateTemplateInjection reuses the pre-parsed tree (inspects only run: block values)
 	// rather than re-scanning the full YAML string.  When parsedWorkflow is nil (schema
-	// validation disabled), the lightweight hasUnsafeExpressionInRunContent text scan is
-	// used first to avoid an unnecessary yaml.Unmarshal.
+	// validation disabled), the validator uses targeted text scans to avoid an unnecessary
+	// yaml.Unmarshal when all run-block expressions are in the compiler-owned allowed list.
 	if err := c.validateTemplateInjection(yamlContent, lockFile, markdownPath, parsedWorkflow); err != nil {
 		return "", nil, nil, err
 	}
@@ -304,11 +302,20 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 // this function reuses it directly by walking the run: block values in the pre-parsed
 // tree, which is faster than re-scanning the full YAML string with a regex.
 //
-// When parsedWorkflow is nil (schema validation disabled via skipValidation), the
-// function first uses the lightweight hasAnyExpressionInRunContent text scan
-// to avoid an unnecessary yaml.Unmarshal call. When the scan detects expressions
-// in run blocks, the YAML is parsed with github.com/goccy/go-yaml for consistency
-// with the parsed-workflow validators.
+// When parsedWorkflow is nil (schema validation disabled via skipValidation), this
+// function uses two targeted text scans instead of a broad any-expression check:
+//
+//  1. hasExpressionInRunContent(UnsafeContextPattern) — detects user-controlled
+//     contexts (github.event.*, steps.*.outputs.*, inputs.*) that represent genuine
+//     template-injection risks.
+//
+//  2. hasNonAllowedExpressionInRunContent — detects compiler-regression cases where
+//     a ${{ ... }} expression that is NOT in the compiler-owned allow-list slipped
+//     into a run: block.
+//
+// For well-formed compiled workflows (the common case) both scans return false, so
+// no yaml.Unmarshal is needed at all.  A yaml.Unmarshal is only performed when at
+// least one scan detects a potential issue.
 func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath string, parsedWorkflow map[string]any) error {
 	var templateErr error
 
@@ -323,10 +330,20 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 		}
 	} else {
 		// Path B: schema validation is disabled (parsedWorkflow is nil).
-		// Use the text scan to cheaply determine whether any expressions (safe or
-		// unsafe) appear inside a run: block before paying the cost of a full
-		// yaml.Unmarshal for layered security + regression validation.
-		if hasAnyExpressionInRunContent(yamlContent) {
+		//
+		// Use two targeted text scans with a shared run-block walker so we can skip the
+		// expensive yaml.Unmarshal when all run-block expressions are compiler-owned safe
+		// references (e.g. ${{ runner.temp }}, ${{ env.FOO }}).
+		//
+		// needsUnsafeCheck:    true when user-controlled contexts appear in run: blocks
+		//                      → triggers validateNoTemplateInjectionFromParsed
+		// needsDisallowedCheck: true when any expression outside the compiler allow-list
+		//                      appears in run: blocks
+		//                      → triggers validateNoGitHubExpressionsInRunScriptsFromParsed
+		needsUnsafeCheck := hasExpressionInRunContent(yamlContent, UnsafeContextPattern)
+		needsDisallowedCheck := hasNonAllowedExpressionInRunContent(yamlContent)
+
+		if needsUnsafeCheck || needsDisallowedCheck {
 			workflowLog.Print("Validating for template injection vulnerabilities")
 			var reparsed map[string]any
 			if err := yaml.Unmarshal([]byte(yamlContent), &reparsed); err != nil {
@@ -335,8 +352,12 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 				reparsed = nil
 			}
 			if reparsed != nil {
-				templateErr = validateNoTemplateInjectionFromParsed(reparsed)
-				if templateErr == nil {
+				// validateNoTemplateInjectionFromParsed only catches user-controlled contexts,
+				// so it is intentionally skipped when the UnsafeContextPattern scan found none.
+				if needsUnsafeCheck {
+					templateErr = validateNoTemplateInjectionFromParsed(reparsed)
+				}
+				if templateErr == nil && needsDisallowedCheck {
 					templateErr = validateNoGitHubExpressionsInRunScriptsFromParsed(reparsed)
 				}
 			}

@@ -58,6 +58,8 @@ imports:
       expires: 1d
 
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 # Blog Auditor
 

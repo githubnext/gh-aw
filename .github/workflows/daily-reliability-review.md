@@ -37,6 +37,8 @@ imports:
       labels: [observability, automated-analysis]
   - shared/sentry.md
   - shared/mcp/sentry.md
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Reliability Review

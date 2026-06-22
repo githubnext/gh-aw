@@ -76,6 +76,8 @@ pre-agent-steps:
       echo "Pre-fetched PR diff (${LINES} lines) and metadata"
 tools:
   cli-proxy: true
+  github:
+    mode: gh-proxy
 safe-outputs:
   add-comment:
     hide-older-comments: true

@@ -34,8 +34,6 @@ docs/adr/
 
 ## ADR Template
 
-Two parts: **human-friendly narrative**, then **RFC 2119 normative specification** for machine-checkable conformance.
-
 ```markdown
 # ADR-{NNNN}: {Concise Decision Title}
 
@@ -44,8 +42,6 @@ Two parts: **human-friendly narrative**, then **RFC 2119 normative specification
 **Deciders**: {list of people/roles involved in the decision, or "Unknown" for historical records}
 
 ---
-
-## Part 1 — Narrative (Human-Friendly)
 
 ### Context
 
@@ -83,28 +79,6 @@ Two parts: **human-friendly narrative**, then **RFC 2119 normative specification
 
 ---
 
-## Part 2 — Normative Specification (RFC 2119)
-
-> The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this section are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
-
-### {Primary requirement area — e.g., "Data Storage", "API Design", "Authentication"}
-
-1. Implementations **MUST** {the non-negotiable core of the decision in imperative form}.
-2. Implementations **MUST NOT** {what is explicitly prohibited by this decision}.
-3. Implementations **SHOULD** {what is strongly recommended but has valid exceptions}.
-4. Implementations **MAY** {what is permitted but not required}.
-
-### {Secondary requirement area, if applicable}
-
-1. {Additional normative requirement}.
-2. {Additional normative requirement}.
-
-### Conformance
-
-An implementation is considered conformant with this ADR if it satisfies all **MUST** and **MUST NOT** requirements above. Failure to meet any **MUST** or **MUST NOT** requirement constitutes non-conformance.
-
----
-
 *ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
 ```
 
@@ -119,8 +93,6 @@ An implementation is considered conformant with this ADR if it satisfies all **M
 | `Superseded by ADR-XXXX` | A newer ADR replaces this one |
 
 ## Writing Quality Standards
-
-### Part 1 — Narrative Sections
 
 #### Context (3–5 sentences)
 - *What problem? What constraints?* (technical, organizational, timeline)
@@ -142,31 +114,6 @@ An implementation is considered conformant with this ADR if it satisfies all **M
 - **Negative**: real costs and trade-offs
 - **Neutral**: side effects worth noting
 - ≥2 per category for non-trivial decisions
-
-### Part 2 — Normative Specification
-
-Translates the Decision into testable [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) requirements.
-
-#### RFC 2119 Keyword Usage
-
-| Keyword | Use when… |
-|---------|-----------|
-| **MUST** / **REQUIRED** / **SHALL** | Absolute, non-negotiable constraint |
-| **MUST NOT** / **SHALL NOT** | Absolute prohibition |
-| **SHOULD** / **RECOMMENDED** | Strong recommendation; valid exceptions may exist |
-| **SHOULD NOT** / **NOT RECOMMENDED** | Strong discouragement; valid exceptions may exist |
-| **MAY** / **OPTIONAL** | Truly optional |
-
-#### Writing Normative Requirements
-
-- Complete sentences ending with a period
-- Keywords (**MUST**, **SHOULD**, **MAY**, etc.) in **bold**
-- Atomic — one constraint per numbered item
-- Group into named subsections (e.g., "Storage", "API", "Authentication")
-- Every section ends with a **Conformance** paragraph
-- Stay consistent with the narrative Decision
-- "We will always use X" → "Implementations **MUST** use X"
-- "We prefer Y" → "Implementations **SHOULD** use Y"
 
 ## Procedure: Writing a New ADR
 
@@ -206,7 +153,6 @@ Write to `docs/adr/{NNNN}-{title}.md`.
 
 ### Step 7: Validate
 
-**Part 1 — Narrative:**
 - [ ] Context, Decision, Alternatives, Consequences sections all present
 - [ ] Status is `Draft` for new ADRs
 - [ ] Date is today (YYYY-MM-DD format)
@@ -214,14 +160,6 @@ Write to `docs/adr/{NNNN}-{title}.md`.
 - [ ] Both positive and negative consequences listed
 - [ ] Filename follows NNNN-kebab-case-title.md convention
 - [ ] ADR number in title matches filename number
-
-**Part 2 — Normative Specification:**
-- [ ] RFC 2119 boilerplate paragraph present
-- [ ] All normative keywords in **bold**
-- [ ] Each requirement atomic (one constraint per item)
-- [ ] Requirements grouped into named subsections
-- [ ] Conformance paragraph present
-- [ ] Normative requirements are consistent with the narrative Decision section
 
 ## Procedure: Analyzing a PR Diff for ADR Content
 

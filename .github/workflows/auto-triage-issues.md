@@ -59,6 +59,8 @@ safe-outputs:
     max: 1
   noop:
 timeout-minutes: 15
+features:
+  gh-aw-detection: true
 ---
 
 # Auto-Triage Issues Agent 🏷️

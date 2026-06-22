@@ -42,6 +42,8 @@ safe-outputs:
 timeout-minutes: 30
 imports:
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Chaos PR Bundle Fuzzer

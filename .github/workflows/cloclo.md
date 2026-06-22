@@ -52,8 +52,8 @@ safe-outputs:
     run-success: "🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟"
     run-failure: "🎵 Intermission... [{workflow_name}]({run_url}) {status}. Check the [run logs]({run_url}) for details."
 timeout-minutes: 20
-
-
+features:
+  gh-aw-detection: true
 ---
 
 # /cloclo

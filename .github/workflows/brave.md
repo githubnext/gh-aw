@@ -32,7 +32,8 @@ safe-outputs:
 timeout-minutes: 10
 tools:
   cli-proxy: true
-
+features:
+  gh-aw-detection: true
 ---
 
 # Brave Web Search Agent

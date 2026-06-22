@@ -45,6 +45,8 @@ imports:
       expires: 1d
 
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Claude Code User Documentation Review

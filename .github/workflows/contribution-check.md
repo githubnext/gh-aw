@@ -111,8 +111,8 @@ steps:
           > "$GITHUB_WORKSPACE/contributing-guidelines-truncated.md"
       fi
       echo "✓ Wrote contributing-guidelines-truncated.md"
-
-
+features:
+  gh-aw-detection: true
 ---
 
 ## Target Repository

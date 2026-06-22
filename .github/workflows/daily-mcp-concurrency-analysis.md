@@ -62,6 +62,8 @@ tools:
     toolsets:
     - default
 tracker-id: mcp-concurrency-analysis
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

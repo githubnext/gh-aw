@@ -426,7 +426,7 @@ The MCP Scripts subsystem provides inline custom tool definitions (JavaScript, s
 | `SanitizeWorkflowIDForCacheKey` | `func(string) string` | Sanitizes a workflow ID for use as a cache key |
 | `PrettifyToolName` | `func(string) string` | Returns a human-readable tool name |
 | `ShortenCommand` | `func(string) string` | Shortens a long command for display |
-| `GenerateHeredocDelimiterFromSeed` | `func(name, seed string) string` | Generates a stable heredoc delimiter |
+| `GenerateHeredocDelimiterFromContent` | `func(name, content string) string` | Generates a stable heredoc delimiter |
 | `ValidateHeredocContent` | `func(content, delimiter string) error` | Validates heredoc content safety |
 | `ValidateHeredocDelimiter` | `func(string) error` | Validates a heredoc delimiter |
 

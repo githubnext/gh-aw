@@ -72,6 +72,8 @@ safe-outputs:
     labels: [automation, cli, documentation, cookie]
     max: 1
 timeout-minutes: 20
+features:
+  gh-aw-detection: true
 ---
 
 # CLI Consistency Checker

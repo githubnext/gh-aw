@@ -70,6 +70,17 @@ jobs:
         run: echo "${{ job.services['redis'].ports['6379'] }}"
 `
 
+	flowStyleRegressionYAML := `
+name: flow-style-regression
+on: workflow_dispatch
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - { run: "echo ${{ github.actor }}" }
+      - run: node ${{ runner.temp }}/actions/foo.cjs
+`
+
 	heredocExpressionYAML := `
 name: heredoc-expression
 on: workflow_dispatch
@@ -157,6 +168,13 @@ jobs:
 	t.Run("Path B - schema disabled - allowed generated run expression passes", func(t *testing.T) {
 		err := compiler.validateTemplateInjection(allowedGeneratedExpressionYAML, lockFile, markdownPath, nil)
 		assert.NoError(t, err, "compiler-owned job.services expression should be allowed")
+	})
+
+	t.Run("Path B - schema disabled - flow-style regression detected alongside allowed expression", func(t *testing.T) {
+		err := compiler.validateTemplateInjection(flowStyleRegressionYAML, lockFile, markdownPath, nil)
+		require.Error(t, err, "flow-style run expressions should still be detected in the fallback path")
+		assert.Contains(t, err.Error(), "compiler regression detected")
+		assert.Contains(t, err.Error(), "github.actor")
 	})
 
 	t.Run("Path A - schema enabled - heredoc expression passes", func(t *testing.T) {

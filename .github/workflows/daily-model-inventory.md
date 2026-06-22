@@ -323,6 +323,8 @@ safe-outputs:
 
 imports:
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Model Inventory Checker
