@@ -27,7 +27,7 @@ const { parseRuntimeFeatures, hasRuntimeFeature, getRuntimeFeatureValue } = requ
  */
 function setupGlobals(coreModule, githubModule, contextModule, execModule, ioModule, getOctokitFn) {
   global.core = coreModule;
-  const runtimeFeatures = parseRuntimeFeatures(process.env.GH_AW_RUNTIME_FEATURES);
+  const runtimeFeatures = Object.freeze(parseRuntimeFeatures(process.env.GH_AW_RUNTIME_FEATURES));
   global.runtimeFeatures = runtimeFeatures;
   global.hasRuntimeFeature = key => hasRuntimeFeature(runtimeFeatures, key);
   global.getRuntimeFeatureValue = key => getRuntimeFeatureValue(runtimeFeatures, key);

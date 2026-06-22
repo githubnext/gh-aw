@@ -48,6 +48,19 @@ func TestBuildRenderedJobEnv_PreservesExistingRuntimeFeaturesOverride(t *testing
 	}
 }
 
+func TestBuildRenderedJobEnv_DoesNotAddRuntimeFeaturesForUsesJobs(t *testing.T) {
+	job := &Job{
+		Name: string(constants.AgentJobName),
+		Uses: "./.github/workflows/reusable.yml",
+	}
+
+	env := buildRenderedJobEnv(job)
+
+	if _, ok := env[runtimeFeaturesEnvVarName]; ok {
+		t.Fatalf("expected reusable workflow job to skip %s, got %v", runtimeFeaturesEnvVarName, env)
+	}
+}
+
 func TestActivationJobIncludesRuntimeFeatureSummaryStep(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.repoConfigLoaded = true
@@ -64,6 +77,12 @@ func TestActivationJobIncludesRuntimeFeatureSummaryStep(t *testing.T) {
 	}
 	if !strings.Contains(steps, "GH_AW_RUNTIME_FEATURES") {
 		t.Fatal("expected runtime feature summary step to reference GH_AW_RUNTIME_FEATURES")
+	}
+	if !strings.Contains(steps, "GH_AW_RUNTIME_FEATURES_IS_SET") {
+		t.Fatal("expected runtime feature summary step to distinguish unset from empty values")
+	}
+	if !strings.Contains(steps, "_Empty string_") {
+		t.Fatal("expected runtime feature summary step to render empty values distinctly")
 	}
 	if !strings.Contains(steps, "$GITHUB_STEP_SUMMARY") {
 		t.Fatal("expected runtime feature summary step to write to GITHUB_STEP_SUMMARY")

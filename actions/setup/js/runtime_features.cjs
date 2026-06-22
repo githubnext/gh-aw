@@ -8,6 +8,8 @@
  *   - key=value
  *
  * Blank lines are ignored. Flags without an explicit value default to true.
+ * Empty values (key=) are preserved as the empty string; use hasRuntimeFeature()
+ * for presence checks when callers need to distinguish empty from missing.
  *
  * @param {string | undefined | null} raw
  * @returns {Record<string, string | boolean>}

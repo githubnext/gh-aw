@@ -16,6 +16,10 @@ var jobLog = logger.New("workflow:jobs")
 const runtimeFeaturesEnvVarName = "GH_AW_RUNTIME_FEATURES"
 const runtimeFeaturesEnvVarExpression = "${{ vars.GH_AW_RUNTIME_FEATURES }}"
 
+const pushExperimentsStateJobName = "push_experiments_state"
+const pushRepoMemoryJobName = "push_repo_memory"
+const updateCacheMemoryJobName = "update_cache_memory"
+
 var runtimeFeaturesBuiltInJobNames = map[string]struct{}{
 	string(constants.AgentJobName):              {},
 	string(constants.ActivationJobName):         {},
@@ -26,9 +30,9 @@ var runtimeFeaturesBuiltInJobNames = map[string]struct{}{
 	string(constants.UploadCodeScanningJobName): {},
 	string(constants.ConclusionJobName):         {},
 	string(constants.UnlockJobName):             {},
-	"push_experiments_state":                    {},
-	"push_repo_memory":                          {},
-	"update_cache_memory":                       {},
+	pushExperimentsStateJobName:                 {},
+	pushRepoMemoryJobName:                       {},
+	updateCacheMemoryJobName:                    {},
 }
 
 // Job represents a GitHub Actions job with all its properties
