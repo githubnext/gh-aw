@@ -38,7 +38,7 @@ Then gate analysis to failure outcomes:
 if: contains(fromJson('["failure","timed_out","cancelled","action_required"]'), github.event.workflow_run.conclusion)
 ```
 
-These conclusion states are grouped as "non-success outcomes requiring triage"; keep the list explicit so readers can adjust it for stricter (for example only `failure`) or broader incident policies.
+These are "non-success outcomes requiring triage"; keep the list explicit so readers can tighten (e.g., only `failure`) or broaden it.
 
 No-op expectations for this pattern:
 
@@ -47,7 +47,7 @@ No-op expectations for this pattern:
 
 #### Fuzzy Scheduling
 
-Instead of specifying exact cron expressions, use **fuzzy scheduling** to automatically distribute workflow execution times. This reduces load spikes and avoids the "Monday wall of work" problem where weekend tasks pile up.
+Use fuzzy scheduling instead of exact cron to distribute execution times. Avoids load spikes and the "Monday wall of work" from weekend accumulation.
 
 **Basic Fuzzy Schedules:**
 
@@ -69,15 +69,11 @@ on:
 
 **Why Prefer Weekday Schedules:**
 
-- **Avoids Monday backlog**: Daily workflows that run on weekends accumulate work that hits on Monday morning
-- **Better resource usage**: Team-facing workflows align with business hours
-- **Reduced noise**: Notifications and issues are created when team members are active
+- Avoids Monday backlog from weekend accumulation
+- Aligns with team business hours
+- Notifications fire when team members are active
 
-The compiler automatically:
-
-- Converts fuzzy schedules to deterministic cron expressions
-- Scatters execution times to avoid load spikes (e.g., `daily on weekdays` → `43 5 * * 1-5`)
-- Adds `workflow_dispatch:` trigger for manual runs
+The compiler converts fuzzy schedules to deterministic cron (e.g., `daily on weekdays` → `43 5 * * 1-5`), scatters execution to avoid load spikes, and adds `workflow_dispatch:` for manual runs.
 
 **Recommended Pattern:**
 
@@ -142,7 +138,7 @@ on:
 - `pull_request_review_comment` - Pull request review comments
 - `*` - All comment-related events (default)
 
-**Note**: Both `issue_comment` and `pull_request_comment` map to GitHub Actions' `issue_comment` event with automatic filtering to distinguish between issue and PR comments.
+**Note**: `issue_comment` and `pull_request_comment` both map to GitHub Actions' `issue_comment` event with filtering to distinguish them.
 
 ### Label Command Triggers
 

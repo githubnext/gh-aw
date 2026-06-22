@@ -30,32 +30,28 @@ Apply these in order — each check can halve costs:
 
 ## Frontier-Model Cost Pattern
 
-Using a more capable frontier model can reduce **total** cost when the workflow architecture prevents unnecessary invocations and keeps expensive context narrow.
+A frontier model can reduce **total** cost when architecture prevents unnecessary invocations and keeps expensive context narrow.
 
-Guidance:
+- use frontier model for planning, hypothesis selection, synthesis, ambiguous decisions, final judgment
+- do not spend frontier turns on repetitive extraction, duplicate detection, or broad first-pass scanning
+- add a cheap triage stage for known/duplicate/stale/low-value events; stop with `noop` when escalation is unnecessary
+- escalate to frontier model only when triage is uncertain or the case is genuinely new/high-value
+- cap sub-agent fan-out so escalations cannot recurse without bound
 
-- use the frontier model for planning, hypothesis selection, synthesis, ambiguous decisions, and final judgment
-- do not spend frontier-model turns on repetitive extraction, duplicate detection, or broad first-pass scanning
-- add a cheap triage stage for known/duplicate/stale/low-value events and stop with `noop` or another safe output when escalation is unnecessary
-- escalate to the frontier model only when triage is uncertain or the case is genuinely new/high-value
-- cap sub-agent fan-out so escalations cannot recurse or expand without bound
-
-Do **not** claim that frontier models are always cheaper. Cost wins come from architecture and selective execution, not model tier alone.
+Cost wins come from architecture and selective execution, not model tier alone.
 
 ---
 
 ## Pull Context, Do Not Push Context
 
-Avoid front-loading large raw context into the initial prompt when data can be fetched on demand.
-
-Prefer:
+Avoid front-loading large raw context when data can be fetched on demand. Prefer:
 
 - deterministic pre-steps that materialize compact files under `/tmp/gh-aw/`
 - `gh` + filtering commands (`jq`, `grep`, focused selectors) before context is exposed to the model
-- query interfaces and pre-aggregated summaries instead of full API payloads
+- pre-aggregated summaries instead of full API payloads
 - directed tool calls issued after the agent forms a hypothesis
 
-Warning on anchoring: if authors preselect raw logs or large payloads too early, the model may over-focus on that material and miss the actual cause elsewhere.
+Anchoring warning: preselecting raw logs too early can make the model over-focus and miss the actual cause.
 
 ---
 
@@ -102,7 +98,7 @@ Each line is one API call with `model`, `input_tokens`, `output_tokens`, `cache_
 
 ## Technique 1 — DataOps: Move Compute to Steps
 
-**The single biggest optimization.** Replace agentic data fetching with deterministic shell commands in `steps:`. Shell steps run outside the AI sandbox (no tokens) and produce structured output the agent reads directly.
+The single biggest optimization. Replace agentic data fetching with deterministic shell commands in `steps:`. Shell steps run outside the AI sandbox (no tokens) and produce structured output the agent reads directly.
 
 ### Before (agent does all the work)
 
@@ -157,12 +153,12 @@ Read the pre-computed stats at `/tmp/gh-aw/data/stats.json` and `/tmp/gh-aw/data
 Create a concise weekly PR summary discussion.
 ```
 
-Shell steps run outside the AI sandbox (zero tokens); the agent only reads compact aggregated JSON.
+Shell steps run outside the AI sandbox (zero tokens); the agent reads compact aggregated JSON.
 
 **Best practices:**
 
-- Write one JSON file per data source; use `jq` to pre-aggregate
-- Store files under `/tmp/gh-aw/` — this directory is available to the agent
+- One JSON file per data source; `jq` to pre-aggregate
+- Store files under `/tmp/gh-aw/`
 - Document file locations and schema in the prompt body so the agent doesn't need to explore
 
 See also: [DataOps pattern docs](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/data-ops.md)
@@ -180,7 +176,7 @@ tools:
     toolsets: [default]
 ```
 
-The agent reads GitHub data with `gh issue list`, `gh pr view`, etc., and can pipe through `jq` before the data enters context. The alternative `mode: local` starts a Docker-based MCP server with startup latency and verbose tool results.
+Agent reads GitHub via `gh issue list`, `gh pr view`, etc. and pipes through `jq` before data enters context. `mode: local` starts a Docker-based MCP server with startup latency and verbose tool results.
 
 ### `cli-proxy: true` (other MCP servers as CLIs)
 
@@ -195,7 +191,7 @@ tools:
     ...
 ```
 
-With `cli-proxy`, the agent calls `my-custom-mcp <tool> <args>` from bash and can pipe output through `jq` or `grep` to extract only the fields it needs — instead of receiving the full MCP tool response in the conversation context.
+With `cli-proxy`, the agent calls `my-custom-mcp <tool> <args>` from bash and pipes output through `jq`/`grep` to extract only needed fields — instead of receiving the full MCP tool response in context.
 
 **Summary:**
 
@@ -263,17 +259,15 @@ Read the JSON file provided. Return only:
 Nothing else.
 ```
 
-**Why this saves tokens:** sub-agents run on the cheap `small` model; the main agent only reads compact `{"number":…, "category":…}` JSON; sub-agent dispatches can run in parallel.
+**Why this saves tokens:** sub-agents run the cheap `small` model; main agent reads only compact `{"number":…, "category":…}` JSON; dispatches run in parallel.
 
 ### Pair sub-agents with sub-skills (progressive disclosure)
 
-Use sub-skills as progressive disclosure for instruction-heavy tasks:
-
 - Keep the main prompt short and plan-like (what to do, in what order).
-- Put verbose instructions (report layout, rubric details, long formatting constraints) into `## skill:` blocks.
-- Invoke those skills only at the moment they are needed (for example, when producing final output), so early planning/execution turns stay lean.
+- Put verbose instructions (report layout, rubric details, formatting constraints) into `## skill:` blocks.
+- Invoke skills only when needed (e.g., producing final output), so early turns stay lean.
 
-This pattern lowers ambient context and usually improves both latency and AIC by delaying expensive instruction payloads until the final phase.
+This delays expensive instruction payloads until the final phase, lowering ambient context.
 
 **Sub-agent model aliases:**
 
@@ -291,7 +285,7 @@ See also: [Inline Sub-Agents](subagents.md)
 
 ## Technique 4 — Apply the Caveman Technique
 
-Use an A/B experiment to compare a verbose prompt against a stripped-down minimal one. If the minimal variant produces equally useful output, adopt it permanently.
+A/B compare a verbose prompt against a minimal one. Adopt minimal if quality holds.
 
 ```yaml
 experiments:
@@ -306,7 +300,7 @@ List open issues by priority. Top 5 critical items. Be brief.
 {{/if}}
 ```
 
-Measure AI Credits (AIC) in each variant's run summary or via `gh aw audit`. If the `minimal` variant uses fewer AI Credits at acceptable quality, promote it as the baseline.
+Measure AIC via run summary or `gh aw audit`. If `minimal` wins on cost at acceptable quality, promote as baseline.
 
 ---
 
@@ -356,17 +350,17 @@ See also: [A/B Testing Experiments](experiments.md)
 
 ## Technique 6 — Reduce Trigger Frequency and Batch Work
 
-The cheapest run is the one you don't execute. If a workflow doesn't need near-real-time feedback, run it less often and batch items in one pass.
+The cheapest run is the one you don't execute. If a workflow doesn't need near-real-time feedback, run it less often and batch.
 
 ### Prefer slower schedules when latency is acceptable
 
 - `hourly` → `daily on weekdays` for team-facing summaries or audits
-- `daily` → `weekly` for trend reports, optimization reviews, and backlog hygiene
-- `every N hours` → a daily or weekly batch when the workflow only produces guidance or reports
+- `daily` → `weekly` for trend reports, optimization reviews, backlog hygiene
+- `every N hours` → daily/weekly batch when the workflow only produces guidance
 
 ### Prefer scheduled batches over reactive triggers
 
-Reactive triggers (`issues:`, `pull_request:`, comment commands) suit immediate feedback. Otherwise prefer `schedule: daily on weekdays` and batch work. Typical batch-friendly tasks: triage summaries, stale backlog review, token audits, security digests. Combine with `cache-memory` or `repo-memory` to track processed items so each run only handles new ones.
+Reactive triggers (`issues:`, `pull_request:`, comment commands) suit immediate feedback. Otherwise prefer `schedule: daily on weekdays` and batch work. Typical batch-friendly tasks: triage summaries, stale backlog review, token audits, security digests. Combine with `cache-memory` or `repo-memory` to track processed items.
 
 ---
 
@@ -385,7 +379,7 @@ observability:
     headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
 ```
 
-Setup, agent, and conclusion spans carry token usage attributes — compare runs over time and validate optimizations post-rollout. See [Frontmatter syntax](syntax.md#observability).
+Setup, agent, and conclusion spans carry token usage attributes. See [Frontmatter syntax](syntax.md#observability).
 
 ### Add AgenticOps token workflows
 

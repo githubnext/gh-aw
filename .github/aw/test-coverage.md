@@ -8,7 +8,7 @@ Consult this file when creating or updating a workflow that analyzes test covera
 
 ## Core Principle: Read Artifacts First
 
-**Always prefer fetching pre-computed coverage artifacts from CI over re-running the test suite.** Re-running tests is slow and duplicates work CI has already done.
+Always prefer fetching pre-computed coverage artifacts from CI over re-running tests. Re-running duplicates CI work.
 
 ## Coverage Data Strategy
 
