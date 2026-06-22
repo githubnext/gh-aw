@@ -135,17 +135,11 @@ Test workflow`
 	if strings.Contains(detectionSection, "parse_threat_detection_results.cjs") {
 		t.Error("External detector path must NOT emit parse_threat_detection_results.cjs")
 	}
-	if !strings.Contains(detectionSection, "threat-detect conclude") {
-		t.Error("External detector path must emit 'threat-detect conclude' as the conclude step")
+	if !strings.Contains(detectionSection, "conclude_threat_detection.sh") {
+		t.Error("External detector path must invoke conclude_threat_detection.sh for the conclude step")
 	}
-	if !strings.Contains(detectionSection, "conclusion=unknown") {
-		t.Error("External detector path must degrade to conclusion=unknown when result file is missing in continue-on-error mode")
-	}
-	if !strings.Contains(detectionSection, "GH_AW_DETECTION_CONCLUSION=unknown") {
-		t.Error("External detector path must export GH_AW_DETECTION_CONCLUSION=unknown for missing result fallback")
-	}
-	if !strings.Contains(detectionSection, "continuing because GH_AW_DETECTION_CONTINUE_ON_ERROR=true") {
-		t.Error("External detector path must warn and continue when result file is missing and continue-on-error is enabled")
+	if !strings.Contains(detectionSection, "GH_AW_DETECTION_CONTINUE_ON_ERROR") {
+		t.Error("External detector path must pass GH_AW_DETECTION_CONTINUE_ON_ERROR to conclude_threat_detection.sh")
 	}
 
 	// The install step must reference the pinned version
