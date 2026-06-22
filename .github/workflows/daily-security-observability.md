@@ -37,21 +37,81 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       mkdir -p /tmp/gh-aw/agent/integrity
+      mkdir -p /tmp/gh-aw/cache-memory/security-observability
+
+      CACHE_FILE=/tmp/gh-aw/cache-memory/security-observability/filtered-logs.snapshot.json
+      RUN_FILE=/tmp/gh-aw/agent/integrity/filtered-logs.json
+      FRESH_LOGS=/tmp/gh-aw/agent/integrity/filtered-logs.fresh.json
+      EMPTY_DATA='{"runs":[],"summary":{"total_runs":0}}'
+      NOW_EPOCH=$(date +%s)
+      MAX_CACHE_AGE_SECONDS=$((7 * 24 * 60 * 60))
+
+      # Warm start from cached 7-day snapshot when available and fresh.
+      if [ -f "$CACHE_FILE" ] && jq -e '.runs and .updated_at' "$CACHE_FILE" > /dev/null 2>&1; then
+        cache_updated_at=$(jq -r '.updated_at' "$CACHE_FILE")
+        cache_updated_epoch=$(
+          date -d "$cache_updated_at" +%s 2>/dev/null \
+            || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$cache_updated_at" +%s 2>/dev/null \
+            || echo 0
+        )
+        cache_age_seconds=$((NOW_EPOCH - cache_updated_epoch))
+        if [ "$cache_updated_epoch" -gt 0 ] && [ "$cache_age_seconds" -le "$MAX_CACHE_AGE_SECONDS" ]; then
+          jq '{runs: (.runs // []), summary: (.summary // {"total_runs": 0})}' "$CACHE_FILE" > "$RUN_FILE"
+          echo "✅ Warm cache restored (${cache_age_seconds}s old)"
+        else
+          echo "⚠️ Cache snapshot is stale (${cache_age_seconds}s old); starting fresh"
+        fi
+      fi
+
       # Download logs filtered to only runs with DIFC integrity-filtered events.
       # --artifacts mcp: only download the MCP gateway log artifact (sufficient for DIFC checking).
       # --timeout 8: cap execution at 8 minutes to prevent runaway downloads.
       gh aw logs --filtered-integrity --start-date -7d --json -c 200 \
         --artifacts mcp --timeout 8 \
-        > /tmp/gh-aw/agent/integrity/filtered-logs.json || true
+        > "$FRESH_LOGS" || true
 
       # Validate JSON output and fall back to an empty dataset on failure
-      if ! jq -e '.runs' /tmp/gh-aw/agent/integrity/filtered-logs.json > /dev/null 2>&1; then
+      if ! jq -e '.runs' "$FRESH_LOGS" > /dev/null 2>&1; then
         echo "⚠️ No valid logs produced; continuing with empty dataset"
-        echo '{"runs":[],"summary":{"total_runs":0}}' > /tmp/gh-aw/agent/integrity/filtered-logs.json
+        echo "$EMPTY_DATA" > "$FRESH_LOGS"
       fi
 
-      count=$(jq '.runs | length' /tmp/gh-aw/agent/integrity/filtered-logs.json 2>/dev/null || echo 0)
+      # Merge warm-start and fresh runs; fresh entries override warm-cache entries with the same run_id.
+      if [ -f "$RUN_FILE" ] && jq -e '.runs' "$RUN_FILE" > /dev/null 2>&1; then
+        jq -s '
+          {
+            runs: (
+              ((.[0].runs // []) + (.[1].runs // []))
+              | sort_by(.run_id)
+              | group_by(.run_id)
+              | map(.[-1])
+            ),
+            summary: {
+              total_runs: (
+                ((.[0].runs // []) + (.[1].runs // []) | sort_by(.run_id) | group_by(.run_id) | length)
+              )
+            }
+          }
+        ' "$RUN_FILE" "$FRESH_LOGS" > "$RUN_FILE.merged"
+        mv "$RUN_FILE.merged" "$RUN_FILE"
+      else
+        mv "$FRESH_LOGS" "$RUN_FILE"
+      fi
+
+      count=$(jq '.runs | length' "$RUN_FILE" 2>/dev/null || echo 0)
       echo "✅ Downloaded $count runs with integrity-filtered events"
+
+      # Persist updated 7-day snapshot back to cache-memory every run.
+      jq -n \
+        --arg updated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --slurpfile payload "$RUN_FILE" \
+        '{
+          updated_at: $updated_at,
+          runs: ($payload[0].runs // []),
+          summary: {
+            total_runs: (($payload[0].runs // []) | length)
+          }
+        }' > "$CACHE_FILE"
 
 tools:
   bash:
@@ -174,9 +234,14 @@ Upload both charts using `upload_asset` and record the returned URLs.
 
 ## Phase 3: Collect DIFC Integrity-Filtered Events
 
-### Step 3.1: Check for DIFC Data
+### Step 3.1: Warm Start Validation + DIFC Data Check
 
-Read `/tmp/gh-aw/agent/integrity/filtered-logs.json`. If the `runs` array is empty or missing (no runs found in the last 7 days), note "No DIFC integrity-filtered events found in the last 7 days." and proceed directly to Phase 5 (combined report).
+The startup step restores a cached snapshot from `/tmp/gh-aw/cache-memory/security-observability/filtered-logs.snapshot.json` before collecting fresh runs.
+
+1. Verify the restored snapshot age using `updated_at` from the cache file:
+   - If age is `<= 7 days`, treat it as a valid warm start.
+   - If age is `> 7 days` or missing, treat it as stale and rely on fresh logs.
+2. Read `/tmp/gh-aw/agent/integrity/filtered-logs.json`. If the `runs` array is empty or missing (no runs found in the last 7 days), note "No DIFC integrity-filtered events found in the last 7 days." and proceed directly to Phase 5 (combined report).
 
 ### Step 3.2: Fetch Detailed DIFC Gateway Data
 
