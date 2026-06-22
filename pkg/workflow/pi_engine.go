@@ -384,6 +384,9 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			piCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, piCommandWithPath)
 		}
+		pathSetup := "touch " + AgentStepSummaryPath + "\n" +
+			"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
+			"export GH_AW_NODE_BIN"
 
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:         "pi",
@@ -392,7 +395,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 			WorkflowData:       workflowData,
 			UsesTTY:            false,
 			AllowedDomains:     allowedDomains,
-			PathSetup:          "touch " + AgentStepSummaryPath,
+			PathSetup:          pathSetup,
 			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, profile.coreSecretNames),
 		})
 	} else {

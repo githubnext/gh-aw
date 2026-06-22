@@ -76,6 +76,14 @@ function parsePiLog(logContent) {
       num_turns: stats.turns || 0,
     };
     markdown += generateInformationSection(syntheticEntry);
+
+    // Append a normalized result entry so log_parser_bootstrap.cjs can write it
+    // to agent-stdio.log for OTEL gh-aw.turns / token-usage enrichment.
+    canonicalLogEntries.push({
+      type: "result",
+      num_turns: syntheticEntry.num_turns,
+      usage: syntheticEntry.usage,
+    });
   } else {
     markdown += generateInformationSection(null);
   }

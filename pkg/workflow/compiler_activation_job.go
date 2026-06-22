@@ -41,6 +41,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if err := c.addActivationCommandAndLabelOutputs(ctx); err != nil {
 		return nil, err
 	}
+	ctx.steps = append(ctx.steps, buildRuntimeFeaturesSummaryStep()...)
 
 	// Generate experiment selection steps when experiments are declared in the frontmatter.
 	// These steps run before the prompt is built so that experiments.name expressions

@@ -102,6 +102,17 @@ describe("parse_pi_log.cjs", () => {
       expect(result.markdown).toContain("500");
       expect(result.markdown).toContain("200");
     });
+
+    it("should include normalized result entry in logEntries for OTEL telemetry enrichment", () => {
+      const logContent = [JSON.stringify({ type: "result", stats: { input_tokens: 500, output_tokens: 200, duration_ms: 3000, turns: 2 } })].join("\n");
+
+      const result = parsePiLog(logContent);
+
+      const resultEntry = result.logEntries && result.logEntries.find(e => e.type === "result");
+      expect(resultEntry).toBeDefined();
+      expect(resultEntry.num_turns).toBe(2);
+      expect(resultEntry.usage).toEqual({ input_tokens: 500, output_tokens: 200 });
+    });
   });
 
   describe("transformPiEntries function", () => {
