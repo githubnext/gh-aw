@@ -1268,8 +1268,7 @@ func ensureCheckoutPersistCredentials(stepMap map[string]any) {
 // including either unpinned or version-pinned forms.
 func isCheckoutAction(uses string) bool {
 	trimmed := strings.Trim(strings.TrimSpace(uses), "\"'")
-	lower := strings.ToLower(trimmed)
-	return lower == "actions/checkout" || strings.HasPrefix(lower, "actions/checkout@")
+	return strings.EqualFold(trimmed, "actions/checkout") || strings.HasPrefix(strings.ToLower(trimmed), "actions/checkout@")
 }
 
 // shouldAddCheckoutStep returns true if the workflow requires a checkout step.
