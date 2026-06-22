@@ -296,14 +296,18 @@ func TestRunSummaryJSONStructure(t *testing.T) {
 				Tool:         "test_tool",
 				Reason:       "Tool not available",
 				Alternatives: "alternative_tool",
-				Timestamp:    time.Now().Format(time.RFC3339),
+				ReportProvenance: ReportProvenance{
+					Timestamp: time.Now().Format(time.RFC3339),
+				},
 			},
 		},
 		MCPFailures: []MCPFailureReport{
 			{
 				ServerName: "test-server",
 				Status:     "failed",
-				Timestamp:  time.Now().Format(time.RFC3339),
+				ReportProvenance: ReportProvenance{
+					Timestamp: time.Now().Format(time.RFC3339),
+				},
 			},
 		},
 		ArtifactsList: []string{

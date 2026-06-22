@@ -356,9 +356,11 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 					Tool:         item.Tool,
 					Reason:       item.Reason,
 					Alternatives: item.Alternatives,
-					Timestamp:    item.Timestamp,
-					WorkflowName: run.WorkflowName,
-					RunID:        run.DatabaseID,
+					ReportProvenance: ReportProvenance{
+						Timestamp:    item.Timestamp,
+						WorkflowName: run.WorkflowName,
+						RunID:        run.DatabaseID,
+					},
 				}
 				missingTools = append(missingTools, missingTool)
 
@@ -477,10 +479,12 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 			// Check if this is a noop entry
 			if item.Type == "noop" {
 				noop := NoopReport{
-					Message:      item.Message,
-					Timestamp:    item.Timestamp,
-					WorkflowName: run.WorkflowName,
-					RunID:        run.DatabaseID,
+					Message: item.Message,
+					ReportProvenance: ReportProvenance{
+						Timestamp:    item.Timestamp,
+						WorkflowName: run.WorkflowName,
+						RunID:        run.DatabaseID,
+					},
 				}
 				noops = append(noops, noop)
 
@@ -606,9 +610,11 @@ func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 					Reason:       item.Reason,
 					Context:      item.Context,
 					Alternatives: item.Alternatives,
-					Timestamp:    item.Timestamp,
-					WorkflowName: run.WorkflowName,
-					RunID:        run.DatabaseID,
+					ReportProvenance: ReportProvenance{
+						Timestamp:    item.Timestamp,
+						WorkflowName: run.WorkflowName,
+						RunID:        run.DatabaseID,
+					},
 				}
 				missingData = append(missingData, missingDataItem)
 
@@ -754,11 +760,13 @@ func processMCPFailureEntry(entry map[string]any, run WorkflowRun, verbose bool,
 		}
 
 		failure := MCPFailureReport{
-			ServerName:   serverName,
-			Status:       status,
-			WorkflowName: run.WorkflowName,
-			RunID:        run.DatabaseID,
-			Timestamp:    timestamp,
+			ServerName: serverName,
+			Status:     status,
+			ReportProvenance: ReportProvenance{
+				Timestamp:    timestamp,
+				WorkflowName: run.WorkflowName,
+				RunID:        run.DatabaseID,
+			},
 		}
 
 		*mcpFailures = append(*mcpFailures, failure)
