@@ -40,6 +40,121 @@ steps:
   - name: Prepare analysis workspace
     run: |
       mkdir -p /tmp/gh-aw/ambient-context
+  - name: Closed PR deduplication guard
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -euo pipefail
+      python3 - <<'PY'
+      import json, subprocess, datetime, os
+
+      result = subprocess.run(
+          ["gh", "pr", "list",
+           "--state", "closed",
+           "--json", "number,title,closedAt,mergedAt,headRefName",
+           "--limit", "100"],
+          capture_output=True, text=True, check=True,
+      )
+      all_prs = json.loads(result.stdout)
+
+      cutoff = (datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(days=14)).replace(
+          hour=0, minute=0, second=0, microsecond=0
+      )
+      cutoff_str = cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+      optimizer_patterns = [
+          "copilot/ambient-context",
+          "copilot/daily-ambient-context",
+          "ambient-context-optim",
+      ]
+      closed_optimizer_prs = [
+          pr for pr in all_prs
+          if pr.get("mergedAt") is None
+          and any(p in pr.get("headRefName", "") for p in optimizer_patterns)
+          and (pr.get("closedAt") or "") > cutoff_str
+      ]
+
+      blocked_files = set()
+      for pr in closed_optimizer_prs:
+          r = subprocess.run(
+              ["gh", "pr", "view", str(pr["number"]), "--json", "files",
+               "--jq", "[.files[].path]"],
+              capture_output=True, text=True,
+          )
+          if r.returncode == 0:
+              try:
+                  blocked_files.update(json.loads(r.stdout))
+              except Exception:
+                  pass
+
+      data = {
+          "closed_optimizer_prs": closed_optimizer_prs,
+          "blocked_files": sorted(blocked_files),
+          "pr_count": len(closed_optimizer_prs),
+          "generated_at": datetime.datetime.now(tz=datetime.timezone.utc).isoformat(),
+      }
+      os.makedirs("/tmp/gh-aw/ambient-context", exist_ok=True)
+      with open("/tmp/gh-aw/ambient-context/closed-pr-targets.json", "w") as f:
+          json.dump(data, f, indent=2)
+
+      print(f"Deduplication guard: {len(closed_optimizer_prs)} closed optimizer PRs, "
+            f"{len(blocked_files)} blocked files")
+      for bf in sorted(blocked_files):
+          print(f"  BLOCKED: {bf}")
+      PY
+  - name: PR close-rate metric
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -euo pipefail
+      python3 - <<'PY'
+      import json, subprocess, datetime, os
+
+      result = subprocess.run(
+          ["gh", "pr", "list",
+           "--state", "all",
+           "--json", "number,title,createdAt,closedAt,mergedAt,headRefName",
+           "--limit", "100"],
+          capture_output=True, text=True, check=True,
+      )
+      all_prs_full = json.loads(result.stdout)
+
+      optimizer_patterns = [
+          "copilot/ambient-context",
+          "copilot/daily-ambient-context",
+          "ambient-context-optim",
+      ]
+      cutoff_7d = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(days=7)
+      cutoff_7d_str = cutoff_7d.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+      opt_prs_7d = [
+          pr for pr in all_prs_full
+          if any(p in pr.get("headRefName", "") for p in optimizer_patterns)
+          and (pr.get("createdAt") or "") > cutoff_7d_str
+      ]
+
+      merged_7d = [pr for pr in opt_prs_7d if pr.get("mergedAt")]
+      closed_7d = [pr for pr in opt_prs_7d if not pr.get("mergedAt") and pr.get("closedAt")]
+      total_settled = len(merged_7d) + len(closed_7d)
+      close_rate = len(closed_7d) / total_settled if total_settled >= 3 else None
+      auto_pause = close_rate is not None and close_rate >= 0.30
+
+      rate_data = {
+          "merged_7d": len(merged_7d),
+          "closed_7d": len(closed_7d),
+          "total_settled_7d": total_settled,
+          "close_rate": round(close_rate, 3) if close_rate is not None else None,
+          "auto_pause": auto_pause,
+          "note": "close_rate is null when total_settled_7d < 3 (insufficient data for auto-pause)",
+      }
+      with open("/tmp/gh-aw/ambient-context/pr-close-rate.json", "w") as f:
+          json.dump(rate_data, f, indent=2)
+
+      print(f"PR close-rate (7d): "
+            f"{f'{close_rate:.0%}' if close_rate is not None else 'N/A (< 3 settled PRs)'} "
+            f"({len(closed_7d)} closed, {len(merged_7d)} merged)"
+            f"{' — AUTO-PAUSE ACTIVE' if auto_pause else ''}")
+      PY
 imports:
   - shared/otlp.md
 features:
@@ -97,131 +212,15 @@ Run the `audit` MCP tool for the **2 most expensive sampled runs** so you have r
 
 ### Step 4 — Closed PR Deduplication Guard
 
-Before generating recommendations, identify workflow files that were already targeted by ambient-context optimizer PRs that were **closed without merging in the last 14 days**.
-
-This prevents re-recommending changes to files the maintainer has already rejected.
-
-Run the following via cli-proxy:
-
-```bash
-gh pr list \
-  --state closed \
-  --json number,title,closedAt,mergedAt,headRefName \
-  --limit 100 \
-  > /tmp/gh-aw/ambient-context/all-closed-prs.json
-```
-
-Then write and run a Python script at `/tmp/gh-aw/ambient-context/closed_pr_guard.py` (standard library only):
-
-```python
-import json, subprocess, datetime, os
-
-with open("/tmp/gh-aw/ambient-context/all-closed-prs.json") as f:
-    all_prs = json.load(f)
-
-# Use midnight UTC for a predictable 14-day window regardless of execution time
-cutoff = (datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(days=14)).replace(
-    hour=0, minute=0, second=0, microsecond=0
-)
-cutoff_str = cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-optimizer_patterns = [
-    "copilot/ambient-context",
-    "copilot/daily-ambient-context",
-    "ambient-context-optim",
-]
-closed_optimizer_prs = [
-    pr for pr in all_prs
-    if pr.get("mergedAt") is None
-    and any(p in pr.get("headRefName", "") for p in optimizer_patterns)
-    and (pr.get("closedAt") or "") > cutoff_str
-]
-
-blocked_files = set()
-for pr in closed_optimizer_prs:
-    result = subprocess.run(
-        ["gh", "pr", "view", str(pr["number"]), "--json", "files",
-         "--jq", "[.files[].path]"],
-        capture_output=True, text=True,
-    )
-    if result.returncode == 0:
-        try:
-            blocked_files.update(json.loads(result.stdout))
-        except Exception:
-            pass
-
-data = {
-    "closed_optimizer_prs": closed_optimizer_prs,
-    "blocked_files": sorted(blocked_files),
-    "pr_count": len(closed_optimizer_prs),
-    "generated_at": datetime.datetime.now(tz=datetime.timezone.utc).isoformat(),
-}
-os.makedirs("/tmp/gh-aw/ambient-context", exist_ok=True)
-with open("/tmp/gh-aw/ambient-context/closed-pr-targets.json", "w") as f:
-    json.dump(data, f, indent=2)
-
-print(f"Deduplication guard: {len(closed_optimizer_prs)} closed optimizer PRs, "
-      f"{len(blocked_files)} blocked files")
-for bf in sorted(blocked_files):
-    print(f"  BLOCKED: {bf}")
-```
-
-Save the output as `/tmp/gh-aw/ambient-context/closed-pr-targets.json`.
+The deduplication guard runs as a deterministic pre-step before the agent starts.
+Read `/tmp/gh-aw/ambient-context/closed-pr-targets.json` — it has already been written.
 
 Files listed under `blocked_files` are **retry-blocked** — exclude any recommendation that targets them.
 
 ### Step 5 — PR Close-Rate Metric
 
-Compute the optimizer's 7-day PR success rate to detect a high-failure state:
-
-```bash
-gh pr list \
-  --state all \
-  --json number,title,createdAt,closedAt,mergedAt,headRefName \
-  --limit 100 \
-  > /tmp/gh-aw/ambient-context/all-prs.json
-```
-
-Add to (or run after) `closed_pr_guard.py`:
-
-```python
-with open("/tmp/gh-aw/ambient-context/all-prs.json") as f:
-    all_prs_full = json.load(f)
-
-cutoff_7d = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(days=7)
-cutoff_7d_str = cutoff_7d.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-opt_prs_7d = [
-    pr for pr in all_prs_full
-    if any(p in pr.get("headRefName", "") for p in optimizer_patterns)
-    and (pr.get("createdAt") or "") > cutoff_7d_str
-]
-
-merged_7d  = [pr for pr in opt_prs_7d if pr.get("mergedAt")]
-closed_7d  = [pr for pr in opt_prs_7d if not pr.get("mergedAt") and pr.get("closedAt")]
-total_settled = len(merged_7d) + len(closed_7d)
-# auto_pause requires at least 3 settled PRs to avoid false positives from small samples;
-# close_rate is None when the sample is too small (not 0.0, to avoid misleading zero reads)
-close_rate = len(closed_7d) / total_settled if total_settled >= 3 else None
-auto_pause = close_rate is not None and close_rate >= 0.30
-
-rate_data = {
-    "merged_7d": len(merged_7d),
-    "closed_7d": len(closed_7d),
-    "total_settled_7d": total_settled,
-    "close_rate": round(close_rate, 3) if close_rate is not None else None,
-    "auto_pause": auto_pause,
-    "note": "close_rate is null when total_settled_7d < 3 (insufficient data for auto-pause)",
-}
-with open("/tmp/gh-aw/ambient-context/pr-close-rate.json", "w") as f:
-    json.dump(rate_data, f, indent=2)
-
-print(f"PR close-rate (7d): {close_rate:.0%} "
-      f"({len(closed_7d)} closed, {len(merged_7d)} merged) "
-      f"{'— AUTO-PAUSE ACTIVE' if auto_pause else ''}")
-```
-
-Save the output as `/tmp/gh-aw/ambient-context/pr-close-rate.json`.
+The close-rate metric runs as a deterministic pre-step before the agent starts.
+Read `/tmp/gh-aw/ambient-context/pr-close-rate.json` — it has already been written.
 
 ## First-Request Extraction Rules
 
