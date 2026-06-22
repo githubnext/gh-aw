@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // DefaultMaxLines is the default maximum number of lines allowed in a function body.
@@ -37,6 +38,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "largefunc")
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -63,7 +65,8 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if filecheck.IsTestFile(pass.Fset.Position(body.Pos()).Filename) {
+		position := pass.Fset.PositionFor(reportNode.Pos(), false)
+		if filecheck.IsTestFile(position.Filename) {
 			return
 		}
 
@@ -73,6 +76,9 @@ func run(pass *analysis.Pass) (any, error) {
 		lines := end.Line - start.Line - 1
 
 		if lines > maxLines {
+			if nolint.HasDirective(position, noLintLinesByFile) {
+				return
+			}
 			pass.ReportRangef(
 				reportNode,
 				"%s is %d lines long (limit: %d); consider breaking it up",
