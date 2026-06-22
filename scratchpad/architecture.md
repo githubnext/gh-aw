@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-> Last updated: 2026-06-15 · Source: [Workflow run §27540847547](https://github.com/github/gh-aw/actions/runs/27540847547)
+> Last updated: 2026-06-22 · Source: [Workflow run §27946410822](https://github.com/github/gh-aw/actions/runs/27946410822)
 
 ## Overview
 
@@ -52,6 +52,9 @@ CLI entry points → core packages (cli, workflow, parser, console) → domain h
 │  ┌──────────────────────────────────────────────────────────────────────────────────┐    │
 │  │  github  —  GitHub label ↔ objective-value mapping (configurable audit scoring)  │    │
 │  └──────────────────────────────────────────────────────────────────────────────────┘    │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐    │
+│  │  intent  —  PR intent attribution resolver (maps PRs to issues/objectives)       │    │
+│  └──────────────────────────────────────────────────────────────────────────────────┘    │
 ├──────────────────────────────────── UTILITY PACKAGES ────────────────────────────────────┤
 │                                                                                          │
 │  ┌──────────┐ ┌─────────┐ ┌────────────┐ ┌────────┐ ┌─────────┐ ┌──────────┐             │
@@ -62,10 +65,9 @@ CLI entry points → core packages (cli, workflow, parser, console) → domain h
 │  │ jsonutil │ │ repoutil │ │semverutil│ │ sliceutil│ │syncutil│ │ timeutil │ │ tty │     │
 │  └──────────┘ └──────────┘ └──────────┘ └─────────┘ └────────┘ └──────────┘ └─────┘      │
 │                                                                                          │
-│  ┌──────────┐ ┌──────────┐  ┌───────────────────────────────┐  ┌──────────────────┐      │
-│  │ typeutil │ │  styles  │  │  importinpututil               │  │ testutil         │     │
-│  └──────────┘ └──────────┘  │  import path/sub-key resolver  │  │ (test-only)      │     │
-│                              └───────────────────────────────┘  └──────────────────┘     │
+│  ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌────────────────────────────┐ ┌──────────────┐   │
+│  │ typeutil │ │  styles  │ │ setutil │ │  importinpututil           │ │  testutil    │   │
+│  └──────────┘ └──────────┘ └─────────┘ └────────────────────────────┘ └──────────────┘   │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -81,6 +83,7 @@ CLI entry points → core packages (cli, workflow, parser, console) → domain h
 | `constants` | Core | Semantic type aliases, engine/job names, feature flags |
 | `workflow/compilerenv` | Core | Compiler environment management (used by cli + workflow) |
 | `github` | Domain | GitHub label ↔ objective-value mapping for audit/outcomes scoring |
+| `intent` | Domain | PR intent attribution resolver (maps PRs to closing issues/objectives) |
 | `actionpins` | Domain | GitHub Actions pin resolution and version management |
 | `agentdrain` | Domain | Agent drain/lifecycle utilities |
 | `linters` | Domain | Custom Go analysis linters (vet-style checks) |
@@ -95,6 +98,7 @@ CLI entry points → core packages (cli, workflow, parser, console) → domain h
 | `repoutil` | Util | GitHub repository slug and URL utilities |
 | `semverutil` | Util | Semantic versioning primitives |
 | `sliceutil` | Util | Generic slice operation helpers |
+| `setutil` | Util | Generic set operation helpers (map[K]struct{}) |
 | `syncutil` | Util | Concurrency synchronization helpers |
 | `timeutil` | Util | Time formatting helpers |
 | `tty` | Util | TTY detection utilities |
