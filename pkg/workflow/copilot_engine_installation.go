@@ -52,18 +52,11 @@ func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitH
 		copilotInstallLog.Print("Skipping COPILOT_GITHUB_TOKEN validation: BYOK provider credentials are configured")
 		return GitHubActionStep{}
 	}
-	docsURL := "https://github.github.com/gh-aw/reference/engines/#github-copilot-default"
-	switch provider {
-	case LLMProviderAnthropic:
-		docsURL = "https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code"
-	case LLMProviderOpenAI:
-		docsURL = "https://github.github.com/gh-aw/reference/engines/#openai-codex"
-	}
 	return BuildDefaultSecretValidationStep(
 		workflowData,
 		llmProviderSecretNames(provider),
 		"GitHub Copilot CLI",
-		docsURL,
+		llmProviderDocsURL(provider),
 	)
 }
 

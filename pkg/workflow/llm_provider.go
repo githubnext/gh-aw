@@ -85,3 +85,14 @@ func llmProviderGatewayBaseURL(provider string) string {
 	profile := llmProviderProfileFor(provider)
 	return fmt.Sprintf("http://host.docker.internal:%d", profile.gatewayPort)
 }
+
+func llmProviderDocsURL(provider string) string {
+	switch normalizeLLMProvider(provider) {
+	case LLMProviderGitHub:
+		return "https://github.github.com/gh-aw/reference/engines/#github-copilot-default"
+	case LLMProviderOpenAI:
+		return "https://github.github.com/gh-aw/reference/engines/#openai-codex"
+	default:
+		return "https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code"
+	}
+}

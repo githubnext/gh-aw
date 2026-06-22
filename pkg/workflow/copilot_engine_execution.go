@@ -136,7 +136,6 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	var copilotArgs []string
 	sandboxEnabled := isFirewallEnabled(workflowData)
 	llmProvider := e.ResolveLLMProvider(workflowData)
-	llmProviderProfile := llmProviderProfileFor(llmProvider)
 	providerOverrideBYOK := llmProvider != LLMProviderGitHub && sandboxEnabled
 	// isBYOKMode is true when the user has set COPILOT_PROVIDER_BASE_URL in engine.env,
 	// which routes Copilot requests to a non-GitHub provider. In that mode the GitHub
@@ -561,7 +560,7 @@ touch %s
 	// Auto-configure Copilot BYOK routing when engine.llm-provider selects a non-GitHub provider.
 	// Explicit engine.env values still win later via maps.Copy.
 	if providerOverrideBYOK {
-		env[constants.CopilotProviderBaseURL] = fmt.Sprintf("http://host.docker.internal:%d", llmProviderProfile.gatewayPort)
+		env[constants.CopilotProviderBaseURL] = llmProviderGatewayBaseURL(llmProvider)
 		env[constants.CopilotProviderAPIKey] = llmProviderSecretExpression(llmProvider, workflowData)
 	}
 
