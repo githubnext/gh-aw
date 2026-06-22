@@ -376,6 +376,30 @@ func findAgentUsageFile(runDir string) string {
 	return found
 }
 
+// agentUsageEntry is the JSON structure written by parse_token_usage.cjs to
+// /tmp/gh-aw/agent_usage.json.  It aggregates the total token counts for a run
+// and is included in both the "agent" and "usage" artifacts.
+type agentUsageEntry struct {
+	// Provider and Model fields are only populated when the usage data came from a
+	// single model (legacy per-request format written by older versions of the harness).
+	Provider string `json:"provider"`
+	Model    string `json:"model"`
+	// PrimaryModel is the dominant model for runs that used multiple models.
+	PrimaryModel string `json:"primary_model"`
+	// Raw token counts.
+	InputTokens      int `json:"input_tokens"`
+	OutputTokens     int `json:"output_tokens"`
+	CacheReadTokens  int `json:"cache_read_tokens"`
+	CacheWriteTokens int `json:"cache_write_tokens"`
+	ReasoningTokens  int `json:"reasoning_tokens"`
+	EffectiveTokens  int `json:"effective_tokens"`
+	// AmbientContextTokens is the first-request ambient input token count emitted by parse_token_usage.cjs.
+	AmbientContextTokens *int `json:"ambient_context"`
+	// AICredits is the pre-computed total AI Credits value written by parse_token_usage.cjs.
+	// When present and positive it is used directly so we don't need per-model pricing.
+	AICredits float64 `json:"ai_credits"`
+}
+
 func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 	cleanPath := filepath.Clean(filePath)
 	data, err := os.ReadFile(cleanPath)
@@ -383,15 +407,21 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 		return nil, fmt.Errorf("failed to read agent usage file: %w", err)
 	}
 
-	var entry TokenUsageEntry
+	var entry agentUsageEntry
 	if err := json.Unmarshal(data, &entry); err != nil {
 		return nil, fmt.Errorf("failed to parse agent usage file: %w", err)
 	}
 
-	model := strings.TrimSpace(entry.Model)
+	// Prefer primary_model when set; fall back to model; default to "unknown".
+	model := strings.TrimSpace(entry.PrimaryModel)
+	if model == "" {
+		model = strings.TrimSpace(entry.Model)
+	}
 	if model == "" {
 		model = "unknown"
 	}
+	// Prefer provider from entry; primary_model entries may omit it.
+	provider := strings.TrimSpace(entry.Provider)
 
 	summary := &TokenUsageSummary{
 		TotalInputTokens:      entry.InputTokens,
@@ -410,7 +440,7 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 	if hasTokenData {
 		summary.TotalRequests = 1
 		summary.ByModel[model] = &ModelTokenUsage{
-			Provider:         entry.Provider,
+			Provider:         provider,
 			InputTokens:      entry.InputTokens,
 			OutputTokens:     entry.OutputTokens,
 			CacheReadTokens:  entry.CacheReadTokens,
@@ -420,12 +450,31 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 		}
 	}
 
+	ambientInputTokens := entry.InputTokens
+	if entry.AmbientContextTokens != nil {
+		ambientInputTokens = *entry.AmbientContextTokens
+	}
 	summary.AmbientContext = &AmbientContextMetrics{
-		InputTokens:  entry.InputTokens,
+		InputTokens:  ambientInputTokens,
 		CachedTokens: entry.CacheReadTokens,
 	}
 
-	if hasRawTokenData {
+	if entry.AICredits > 0 {
+		// Use the pre-computed AI Credits value written by parse_token_usage.cjs.
+		// This is more accurate than recomputing from raw token counts because it
+		// was computed at the time the run completed with full per-request pricing.
+		summary.TotalAIC = entry.AICredits
+		if summary.ByModel[model] == nil {
+			summary.ByModel[model] = &ModelTokenUsage{}
+		}
+		summary.ByModel[model].Provider = provider
+		summary.ByModel[model].InputTokens = entry.InputTokens
+		summary.ByModel[model].OutputTokens = entry.OutputTokens
+		summary.ByModel[model].CacheReadTokens = entry.CacheReadTokens
+		summary.ByModel[model].CacheWriteTokens = entry.CacheWriteTokens
+		summary.ByModel[model].ReasoningTokens = entry.ReasoningTokens
+		summary.ByModel[model].AIC = entry.AICredits
+	} else if hasRawTokenData {
 		populateAIC(summary)
 	}
 
@@ -446,12 +495,17 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 		}
 
 		summary, err := parseTokenUsageFile(filePath)
-		if err != nil || summary == nil {
+		if err != nil {
 			return summary, err
 		}
-		summary.TotalSteeringEvents = countAPIProxySteeringEvents(runDir)
-		augmentSubagentModelAttribution(runDir, summary)
-		return summary, nil
+		// When the file exists but contains no entries (e.g. usage artifact has an
+		// empty placeholder token_usage.jsonl), fall through to the agent_usage.json
+		// fallback rather than returning nil immediately.
+		if summary != nil {
+			summary.TotalSteeringEvents = countAPIProxySteeringEvents(runDir)
+			augmentSubagentModelAttribution(runDir, summary)
+			return summary, nil
+		}
 	}
 
 	agentUsagePath := findAgentUsageFile(runDir)
@@ -553,14 +607,14 @@ func isFinite(value float64) bool {
 	return !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
-func sumAICFromUsageJSONLFiles(filePaths []string) (float64, error) {
+func sumAICFromUsageJSONLFiles(filePaths []string) (float64, bool, error) {
 	var totalAIC float64
 	found := false
 
 	for _, filePath := range filePaths {
 		file, err := os.Open(filepath.Clean(filePath))
 		if err != nil {
-			return 0, fmt.Errorf("failed to open usage JSONL file %s: %w", filePath, err)
+			return 0, false, fmt.Errorf("failed to open usage JSONL file %s: %w", filePath, err)
 		}
 
 		scanner := bufio.NewScanner(file)
@@ -606,17 +660,14 @@ func sumAICFromUsageJSONLFiles(filePaths []string) (float64, error) {
 		}
 		closeErr := file.Close()
 		if err := scanner.Err(); err != nil {
-			return 0, fmt.Errorf("error reading usage JSONL file %s: %w", filePath, err)
+			return 0, false, fmt.Errorf("error reading usage JSONL file %s: %w", filePath, err)
 		}
 		if closeErr != nil {
-			return 0, fmt.Errorf("failed to close usage JSONL file %s: %w", filePath, closeErr)
+			return 0, false, fmt.Errorf("failed to close usage JSONL file %s: %w", filePath, closeErr)
 		}
 	}
 
-	if !found {
-		return 0, nil
-	}
-	return totalAIC, nil
+	return totalAIC, found, nil
 }
 
 // analyzeTokenUsageAICOnly parses token usage inputs and computes only TotalAIC.
@@ -627,11 +678,13 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 	usageJSONLFiles := findUsageJSONLFiles(runDir)
 	if len(usageJSONLFiles) > 0 {
 		console.LogVerbose(verbose, "  Found usage JSONL files: "+strings.Join(usageJSONLFiles, ", "))
-		totalAIC, err := sumAICFromUsageJSONLFiles(usageJSONLFiles)
+		totalAIC, found, err := sumAICFromUsageJSONLFiles(usageJSONLFiles)
 		if err != nil {
 			return nil, err
 		}
-		return &TokenUsageSummary{TotalAIC: totalAIC}, nil
+		if found {
+			return &TokenUsageSummary{TotalAIC: totalAIC}, nil
+		}
 	}
 
 	filePath := findTokenUsageFile(runDir)
@@ -670,10 +723,9 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 		if err := scanner.Err(); err != nil {
 			return nil, fmt.Errorf("error reading token usage file: %w", err)
 		}
-		if !found {
-			return nil, nil
+		if found {
+			return &TokenUsageSummary{TotalAIC: totalAIC}, nil
 		}
-		return &TokenUsageSummary{TotalAIC: totalAIC}, nil
 	}
 
 	agentUsagePath := findAgentUsageFile(runDir)
@@ -685,20 +737,12 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 		console.LogVerbose(verbose, fmt.Sprintf("  Found agent usage file: %s (%d bytes)", filepath.Base(agentUsagePath), agentFileInfo.Size()))
 	}
 
-	data, err := os.ReadFile(filepath.Clean(agentUsagePath))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read agent usage file: %w", err)
-	}
-	var entry TokenUsageEntry
-	if err := json.Unmarshal(data, &entry); err != nil {
-		return nil, fmt.Errorf("failed to parse agent usage file: %w", err)
-	}
-	model := entry.Model
-	if model == "" {
-		model = "unknown"
+	summary, err := parseAgentUsageFile(agentUsagePath)
+	if err != nil || summary == nil {
+		return summary, err
 	}
 	return &TokenUsageSummary{
-		TotalAIC: computeModelInferenceAIC(entry.Provider, model, entry.InputTokens, entry.OutputTokens, entry.CacheReadTokens, entry.CacheWriteTokens, entry.ReasoningTokens),
+		TotalAIC: summary.TotalAIC,
 	}, nil
 }
 

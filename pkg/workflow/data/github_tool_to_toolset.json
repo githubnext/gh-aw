@@ -1,5 +1,5 @@
 {
-  "get_me": "users",
+  "get_me": "context",
   "get_teams": "context",
   "get_team_members": "context",
 
@@ -37,15 +37,10 @@
   "create_pull_request": "pull_requests",
   "search_pull_requests": "pull_requests",
 
-  "list_workflows": "actions",
-  "list_workflow_runs": "actions",
-  "get_workflow_run": "actions",
-  "get_workflow_run_logs": "actions",
-  "download_workflow_run_artifact": "actions",
-  "get_workflow_run_usage": "actions",
-  "list_workflow_jobs": "actions",
+  "actions_get": "actions",
+  "actions_list": "actions",
+  "actions_run_trigger": "actions",
   "get_job_logs": "actions",
-  "list_workflow_run_artifacts": "actions",
 
   "list_code_scanning_alerts": "code_security",
   "get_code_scanning_alert": "code_security",
@@ -68,7 +63,7 @@
   "list_gists": "gists",
 
   "get_label": "labels",
-  "list_label": "issues",
+  "list_label": "labels",
   "list_labels": "labels",
   "create_label": "labels",
 
