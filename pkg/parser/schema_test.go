@@ -706,7 +706,11 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxDailyAICreditsN
 }
 
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_SandboxAgentPlatform(t *testing.T) {
+	t.Parallel()
+
 	t.Run("valid platform is accepted", func(t *testing.T) {
+		t.Parallel()
+
 		frontmatter := map[string]any{
 			"on": "push",
 			"sandbox": map[string]any{
@@ -724,6 +728,8 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_SandboxAgentPlatfo
 	})
 
 	t.Run("unknown platform is rejected", func(t *testing.T) {
+		t.Parallel()
+
 		frontmatter := map[string]any{
 			"on": "push",
 			"sandbox": map[string]any{

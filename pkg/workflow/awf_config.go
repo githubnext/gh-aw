@@ -531,6 +531,8 @@ func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
 	return workflowData.EngineConfig.TokenWeights.Multipliers
 }
 
+// extractPlatformType returns sandbox.agent.platform only for enabled AWF sandbox
+// agents, or an empty string to let AWF fall back to its default platform logic.
 func extractPlatformType(workflowData *WorkflowData) string {
 	if workflowData == nil || workflowData.SandboxConfig == nil || workflowData.SandboxConfig.Agent == nil {
 		return ""
