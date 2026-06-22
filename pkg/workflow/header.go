@@ -70,7 +70,11 @@ func GenerateWorkflowHeader(sourceFile string, generatedBy string, customInstruc
 		instructionLines := strings.Split(strings.TrimSpace(customInstructions), "\n")
 		headerLog.Printf("Adding %d lines of custom instructions", len(instructionLines))
 		for _, line := range instructionLines {
-			fmt.Fprintf(&header, "# %s\n", strings.TrimSpace(line))
+			if trimmedLine := strings.TrimSpace(line); trimmedLine == "" {
+				header.WriteString("#\n")
+			} else {
+				fmt.Fprintf(&header, "# %s\n", trimmedLine)
+			}
 		}
 	}
 

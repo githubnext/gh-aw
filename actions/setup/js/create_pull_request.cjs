@@ -1625,12 +1625,17 @@ async function main(config = {}) {
                 const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
                 const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
                 const fallbackBundleTempRef = createBundleTempRef(branchName);
+                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(pushError instanceof Error ? pushError.message : String(pushError)), { allowedAliases: allowedMentionAliases })
+                  .replace(/\s+/g, " ")
+                  .trim();
                 const fallbackBody = `${issueSafeBody}
 
 ---
 
 > [!NOTE]
 > This was originally intended as a pull request, but the git push operation failed.
+>
+> **Original error:** ${pushFailureMessage}
 >
 > **Workflow Run:** [View run details and download bundle artifact](${runUrl})
 >
@@ -1966,12 +1971,17 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
                 }
 
                 const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
+                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(pushError instanceof Error ? pushError.message : String(pushError)), { allowedAliases: allowedMentionAliases })
+                  .replace(/\s+/g, " ")
+                  .trim();
                 const fallbackBody = `${issueSafeBody}
 
 ---
 
 > [!NOTE]
 > This was originally intended as a pull request, but the git push operation failed.
+>
+> **Original error:** ${pushFailureMessage}
 >
 > **Workflow Run:** [View run details and download patch artifact](${runUrl})
 >
