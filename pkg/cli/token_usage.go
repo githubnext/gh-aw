@@ -393,6 +393,7 @@ type agentUsageEntry struct {
 	CacheWriteTokens int `json:"cache_write_tokens"`
 	ReasoningTokens  int `json:"reasoning_tokens"`
 	EffectiveTokens  int `json:"effective_tokens"`
+	AmbientContext   int `json:"ambient_context"`
 	// AICredits is the pre-computed total AI Credits value written by parse_token_usage.cjs.
 	// When present and positive it is used directly so we don't need per-model pricing.
 	AICredits float64 `json:"ai_credits"`
@@ -448,8 +449,12 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 		}
 	}
 
+	ambientInputTokens := entry.AmbientContext
+	if ambientInputTokens == 0 {
+		ambientInputTokens = entry.InputTokens
+	}
 	summary.AmbientContext = &AmbientContextMetrics{
-		InputTokens:  entry.InputTokens,
+		InputTokens:  ambientInputTokens,
 		CachedTokens: entry.CacheReadTokens,
 	}
 
@@ -458,9 +463,12 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 		// This is more accurate than recomputing from raw token counts because it
 		// was computed at the time the run completed with full per-request pricing.
 		summary.TotalAIC = entry.AICredits
-		if model != "" && summary.ByModel[model] != nil {
-			summary.ByModel[model].AIC = entry.AICredits
+		if summary.ByModel[model] == nil {
+			summary.ByModel[model] = &ModelTokenUsage{
+				Provider: provider,
+			}
 		}
+		summary.ByModel[model].AIC = entry.AICredits
 	} else if hasRawTokenData {
 		populateAIC(summary)
 	}
@@ -594,14 +602,14 @@ func isFinite(value float64) bool {
 	return !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
-func sumAICFromUsageJSONLFiles(filePaths []string) (float64, error) {
+func sumAICFromUsageJSONLFiles(filePaths []string) (float64, bool, error) {
 	var totalAIC float64
 	found := false
 
 	for _, filePath := range filePaths {
 		file, err := os.Open(filepath.Clean(filePath))
 		if err != nil {
-			return 0, fmt.Errorf("failed to open usage JSONL file %s: %w", filePath, err)
+			return 0, false, fmt.Errorf("failed to open usage JSONL file %s: %w", filePath, err)
 		}
 
 		scanner := bufio.NewScanner(file)
@@ -647,17 +655,14 @@ func sumAICFromUsageJSONLFiles(filePaths []string) (float64, error) {
 		}
 		closeErr := file.Close()
 		if err := scanner.Err(); err != nil {
-			return 0, fmt.Errorf("error reading usage JSONL file %s: %w", filePath, err)
+			return 0, false, fmt.Errorf("error reading usage JSONL file %s: %w", filePath, err)
 		}
 		if closeErr != nil {
-			return 0, fmt.Errorf("failed to close usage JSONL file %s: %w", filePath, closeErr)
+			return 0, false, fmt.Errorf("failed to close usage JSONL file %s: %w", filePath, closeErr)
 		}
 	}
 
-	if !found {
-		return 0, nil
-	}
-	return totalAIC, nil
+	return totalAIC, found, nil
 }
 
 // analyzeTokenUsageAICOnly parses token usage inputs and computes only TotalAIC.
@@ -668,11 +673,13 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 	usageJSONLFiles := findUsageJSONLFiles(runDir)
 	if len(usageJSONLFiles) > 0 {
 		console.LogVerbose(verbose, "  Found usage JSONL files: "+strings.Join(usageJSONLFiles, ", "))
-		totalAIC, err := sumAICFromUsageJSONLFiles(usageJSONLFiles)
+		totalAIC, found, err := sumAICFromUsageJSONLFiles(usageJSONLFiles)
 		if err != nil {
 			return nil, err
 		}
-		return &TokenUsageSummary{TotalAIC: totalAIC}, nil
+		if found {
+			return &TokenUsageSummary{TotalAIC: totalAIC}, nil
+		}
 	}
 
 	filePath := findTokenUsageFile(runDir)
@@ -711,10 +718,9 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 		if err := scanner.Err(); err != nil {
 			return nil, fmt.Errorf("error reading token usage file: %w", err)
 		}
-		if !found {
-			return nil, nil
+		if found {
+			return &TokenUsageSummary{TotalAIC: totalAIC}, nil
 		}
-		return &TokenUsageSummary{TotalAIC: totalAIC}, nil
 	}
 
 	agentUsagePath := findAgentUsageFile(runDir)
@@ -726,20 +732,12 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 		console.LogVerbose(verbose, fmt.Sprintf("  Found agent usage file: %s (%d bytes)", filepath.Base(agentUsagePath), agentFileInfo.Size()))
 	}
 
-	data, err := os.ReadFile(filepath.Clean(agentUsagePath))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read agent usage file: %w", err)
-	}
-	var entry TokenUsageEntry
-	if err := json.Unmarshal(data, &entry); err != nil {
-		return nil, fmt.Errorf("failed to parse agent usage file: %w", err)
-	}
-	model := entry.Model
-	if model == "" {
-		model = "unknown"
+	summary, err := parseAgentUsageFile(agentUsagePath)
+	if err != nil || summary == nil {
+		return summary, err
 	}
 	return &TokenUsageSummary{
-		TotalAIC: computeModelInferenceAIC(entry.Provider, model, entry.InputTokens, entry.OutputTokens, entry.CacheReadTokens, entry.CacheWriteTokens, entry.ReasoningTokens),
+		TotalAIC: summary.TotalAIC,
 	}, nil
 }
 
