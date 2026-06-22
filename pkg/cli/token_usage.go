@@ -387,13 +387,14 @@ type agentUsageEntry struct {
 	// PrimaryModel is the dominant model for runs that used multiple models.
 	PrimaryModel string `json:"primary_model"`
 	// Raw token counts.
-	InputTokens      int  `json:"input_tokens"`
-	OutputTokens     int  `json:"output_tokens"`
-	CacheReadTokens  int  `json:"cache_read_tokens"`
-	CacheWriteTokens int  `json:"cache_write_tokens"`
-	ReasoningTokens  int  `json:"reasoning_tokens"`
-	EffectiveTokens  int  `json:"effective_tokens"`
-	AmbientContext   *int `json:"ambient_context"`
+	InputTokens      int `json:"input_tokens"`
+	OutputTokens     int `json:"output_tokens"`
+	CacheReadTokens  int `json:"cache_read_tokens"`
+	CacheWriteTokens int `json:"cache_write_tokens"`
+	ReasoningTokens  int `json:"reasoning_tokens"`
+	EffectiveTokens  int `json:"effective_tokens"`
+	// AmbientContextTokens is the first-request ambient input token count emitted by parse_token_usage.cjs.
+	AmbientContextTokens *int `json:"ambient_context"`
 	// AICredits is the pre-computed total AI Credits value written by parse_token_usage.cjs.
 	// When present and positive it is used directly so we don't need per-model pricing.
 	AICredits float64 `json:"ai_credits"`
@@ -450,8 +451,8 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 	}
 
 	ambientInputTokens := entry.InputTokens
-	if entry.AmbientContext != nil {
-		ambientInputTokens = *entry.AmbientContext
+	if entry.AmbientContextTokens != nil {
+		ambientInputTokens = *entry.AmbientContextTokens
 	}
 	summary.AmbientContext = &AmbientContextMetrics{
 		InputTokens:  ambientInputTokens,
@@ -465,14 +466,15 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 		summary.TotalAIC = entry.AICredits
 		if summary.ByModel[model] == nil {
 			summary.ByModel[model] = &ModelTokenUsage{
-				Provider:         provider,
-				InputTokens:      entry.InputTokens,
-				OutputTokens:     entry.OutputTokens,
-				CacheReadTokens:  entry.CacheReadTokens,
-				CacheWriteTokens: entry.CacheWriteTokens,
-				ReasoningTokens:  entry.ReasoningTokens,
+				Provider: provider,
 			}
 		}
+		summary.ByModel[model].Provider = provider
+		summary.ByModel[model].InputTokens = entry.InputTokens
+		summary.ByModel[model].OutputTokens = entry.OutputTokens
+		summary.ByModel[model].CacheReadTokens = entry.CacheReadTokens
+		summary.ByModel[model].CacheWriteTokens = entry.CacheWriteTokens
+		summary.ByModel[model].ReasoningTokens = entry.ReasoningTokens
 		summary.ByModel[model].AIC = entry.AICredits
 	} else if hasRawTokenData {
 		populateAIC(summary)
