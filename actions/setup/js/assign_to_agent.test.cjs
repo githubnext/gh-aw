@@ -1143,7 +1143,7 @@ describe("assign_to_agent", () => {
   });
 
   it("should still fail on non-auth errors even with ignore-if-error enabled", async () => {
-    process.env.GH_AW_AGENT_IGNORE_IF_MISSING = "true";
+    process.env.GH_AW_AGENT_IGNORE_IF_ERROR = "true";
     setAgentOutput({
       items: [
         {
@@ -1155,9 +1155,9 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    // Simulate a different error (not auth-related)
+    // Simulate a different error (not auth-related) during assignment
     const otherError = new Error("Network timeout");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(otherError);
+    mockGithub.request.mockRejectedValue(otherError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
