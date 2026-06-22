@@ -117,7 +117,7 @@ safe-outputs:
 
 ### MCP Scripts
 
-Custom MCP tools defined inline in workflow frontmatter using JavaScript or shell scripts. Enables lightweight tool creation without external dependencies while maintaining controlled secret access. Tools are generated at runtime and mounted as an MCP server with typed input parameters, default values, and environment variables. Configured via `mcp-scripts:` section.
+Custom MCP tools defined inline in workflow frontmatter using JavaScript or shell scripts. Enables lightweight tool creation while maintaining controlled secret access. Tools are generated at runtime and mounted as an MCP server with typed input parameters, default values, and environment variables. Configured via `mcp-scripts:` section. Use the `dependencies:` field to declare third-party npm or PyPI packages installed before first invocation. See [MCP Scripts Reference](/gh-aw/reference/mcp-scripts/).
 
 ### SARIF
 
@@ -425,6 +425,29 @@ A pattern for `workflow_call` reuse where safe-output policy and list fields acc
 
 A field available on `create-issue:`, `add-comment:`, and `create-pull-request:` safe outputs that strips wrapping backticks from recognized GitHub issue-closing keywords in body text. For example, `` `Closes #123` `` becomes `Closes #123` so GitHub can process it as a closing reference. Useful when AI-generated body text inadvertently wraps closing keywords in inline code formatting. Set `normalize-closing-keywords: true` to enable. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#normalize-closing-keywords) and [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
 
+### Mention Filtering (`mentions:`)
+
+A `safe-outputs` configuration section that controls how `@mentions` in AI-generated content are handled before being applied to GitHub. By default, mentions of repository collaborators and event context participants (issue/PR author, assignees, etc.) are allowed; other usernames are escaped with backticks. Set `mentions: false` to escape all mentions globally.
+
+Key fields under `safe-outputs.mentions`:
+- `allowed-collaborators` (deprecated alias: `allow-team-members`) — allow repository collaborators (default: `true`)
+- `allow-context` — allow event context participants (default: `true`)
+- `allowed` — list of individual users or bots always allowed regardless of collaboration status
+- `allowed-teams` — list of GitHub team slugs (`org/team-slug` or bare `team-slug`) whose members are always allowed; requires `read:org` scope on the workflow token
+- `max` — maximum unescaped mentions per output message (default: 50)
+
+Use `gh aw fix mentions-allow-team-members-to-allowed-collaborators` to migrate `allow-team-members` to `allowed-collaborators`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#mention-filtering-mentions).
+
+```aw wrap
+safe-outputs:
+  mentions:
+    allowed-collaborators: true
+    allowed-teams:
+      - myorg/eng
+    max: 50
+  add-comment: {}
+```
+
 ## Workflow Components
 
 ### Activation Token (`on.github-token:`, `on.github-app:`)
@@ -512,6 +535,20 @@ engine:
 ```
 
 See [Engines Reference](/gh-aw/reference/engines/).
+
+### Pi Extensions (`engine.extensions`)
+
+A Pi engine configuration field that loads additional plugins via `pi install <extension>` before the agent runs. Each entry is an npm package name. Only the Pi engine reads this field; other engines ignore it. Each listed extension produces one additional install step in the compiled workflow.
+
+```aw wrap
+engine:
+  id: pi
+  extensions:
+    - "@pi/web-search"
+    - "@pi/file-browser"
+```
+
+See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Experiments (`experiments:`)
 
@@ -620,6 +657,14 @@ max-tool-denials: 8
 ```
 
 See [Engines Reference](/gh-aw/reference/engines/).
+
+### Max Turn Cache Misses (`max-turn-cache-misses`)
+
+A top-level frontmatter field that caps the number of consecutive AWF API proxy cache misses allowed before inference is halted. Maps to `apiProxy.maxCacheMisses` in the compiled AWF config. Resolved at compile time via three-tier precedence: (1) the frontmatter value, (2) the `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` compiler process environment variable, (3) built-in constant default of `5`. Imported workflow values follow first-wins top-level guardrail merge behavior. Manage the org-wide default via `gh aw env` using the `default_max_turn_cache_misses` key. See [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/).
+
+```aw wrap
+max-turn-cache-misses: 10
+```
 
 ### Max Turns (`max-turns`)
 
@@ -927,6 +972,10 @@ Special triggers responding to slash commands in issue and PR comments. Configur
 
 An opt-in compilation mode for `slash_command:` workflows where the compiler generates a single shared `agentic_commands.yml` router workflow. The router listens to merged slash-command events and dispatches matching target workflows via `workflow_dispatch` with an `aw_context` payload. Enables combining slash commands with non-slash events (such as `issues` or `pull_request`) without trigger conflicts. Opt in by setting `on.slash_command.strategy: centralized`. See [Command Triggers](/gh-aw/reference/command-triggers/).
 
+### Builtin `/help` Command
+
+An auto-generated slash command available when [centralized routing](#centralized-slash-command-strategy-strategy-centralized) (`on.slash_command.strategy: centralized`) is active. Intercepts `/help` before normal route dispatch and posts a comment listing all available slash commands with their descriptions and a link to the command-triggers documentation. The command inventory is computed at compile time and embedded as environment variables in the generated central workflow. Disable per-repository by setting `help_command: false` in `.github/workflows/aw.json`. See [Command Triggers](/gh-aw/reference/command-triggers/).
+
 ### `aw_context`
 
 A structured context payload passed by the centralized slash-command router (`agentic_commands.yml`) when dispatching target workflows via `workflow_dispatch`. Contains the original GitHub event context (issue number, repository, actor, etc.) so the dispatched workflow can act on the correct resource even though it is triggered as a `workflow_dispatch`. See [Command Triggers](/gh-aw/reference/command-triggers/).
@@ -969,7 +1018,7 @@ A system-injected environment variable containing the comma-separated list of do
 
 ### `GH_AW_DEFAULT_*`
 
-A family of environment variables set in the compiler process environment or as GitHub Actions `vars.*` to apply organization- or repository-wide defaults without editing individual workflow frontmatter. Compiler-process variables (`GH_AW_DEFAULT_MAX_TURNS`, `GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_DETECTION_MODEL`) inject defaults at compile time by being read when `gh aw compile` runs; runtime repository variables (`GH_AW_DEFAULT_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`, `GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MODEL_COPILOT`, `GH_AW_DEFAULT_MODEL_CLAUDE`, `GH_AW_DEFAULT_MODEL_CODEX`) are embedded as `${{ vars.* }}` expressions in the compiled workflow and resolved by the GitHub Actions runner at execution time. Frontmatter settings always take precedence over `GH_AW_DEFAULT_*`. Managed in batch via `gh aw env`. See [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/).
+A family of environment variables set in the compiler process environment or as GitHub Actions `vars.*` to apply organization- or repository-wide defaults without editing individual workflow frontmatter. Compiler-process variables (`GH_AW_DEFAULT_MAX_TURNS`, `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES`, `GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_DETECTION_MODEL`) inject defaults at compile time by being read when `gh aw compile` runs; runtime repository variables (`GH_AW_DEFAULT_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`, `GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MODEL_COPILOT`, `GH_AW_DEFAULT_MODEL_CLAUDE`, `GH_AW_DEFAULT_MODEL_CODEX`) are embedded as `${{ vars.* }}` expressions in the compiled workflow and resolved by the GitHub Actions runner at execution time. Frontmatter settings always take precedence over `GH_AW_DEFAULT_*`. Managed in batch via `gh aw env`. See [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/).
 
 ### `GH_HOST`
 
