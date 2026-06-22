@@ -77,6 +77,42 @@ New confirmations this run:
   count can exceed the declared FILES dimension when BRANCH=diverged touches the
   same base files differently.
 
+### 2026-06-22 (run 27933136829) — cells 12-15
+
+Tested indices 12-15: the PATCH=small / BRANCH={ahead,diverged} cells at
+SIZE=tiny / HISTORY=none. All **passed**. First exercise of append-only push at
+the ~50 KB patch scale across all three commit structures.
+
+| config_id | outcome | patch files | patch KB | commits (final) | merges | push |
+|-----------|---------|-------------|----------|-----------------|--------|------|
+| tiny-none-single-small-ahead-single | pass (both) | 1 | 49.9 | 2 | 0 | +1 append → 2 |
+| tiny-none-single-small-ahead-multi | pass (both) | 1 | 50.1 | 4 | 0 | +1 append → 4 |
+| tiny-none-single-small-ahead-merge_msg | pass (both) | 1 | 48.7 | 2 | 0 | +1 append → 2 |
+| tiny-none-single-small-diverged-single | pass (both) | 2 | 49.1 | 2 | 0 | +1 append → 2 |
+
+New confirmations this run:
+- **Append-only push is fast-forward at 50 KB**: `merge-base --is-ancestor`
+  confirmed the appended commit was a clean fast-forward (no force-push, no
+  `git merge`) on every ahead/diverged cell. Patch sizes tracked the 50 KB
+  target within ~3% (48.7–50.1 KB) using base64 /dev/urandom content.
+- **merge_msg filename leak re-confirmed at 50 KB**: the "Merge branch 'x' into
+  feature" single-parent commit yields an EMPTY `git rev-list --merges` and
+  `parent` count = 1, but `format-patch` names the artifact
+  `0001-Merge-branch-x-into-feature.patch`. The misleading *filename* derives
+  from the subject even though the commit is structurally normal — cosmetic
+  artifact, not a rejection, but the clearest signal yet that any message-text
+  merge heuristic downstream would misfire here.
+- **COMMIT=multi header overhead stays negligible at 50 KB**: 3-commit split
+  added ~30 metadata lines vs ~636 payload lines; total still landed at 50.1 KB
+  (essentially exact). Header overhead is not a size-limit factor at this scale.
+- **diverged inflates net file count again**: declared 1-file payload, but
+  `git diff --stat main..feature` reported 3 net files (payload.bin, plus
+  stuff.md from the append commit, plus history.md showing as a deletion purely
+  because main advanced independently). Consistent with the 06-21 observation —
+  the net diff over-counts vs the declared FILES dimension whenever
+  BRANCH=diverged. Also: the append-only push step necessarily makes
+  actual_commit_count ≥ 2 even when COMMIT=single declares 1.
+
 ## Patterns / Hypotheses (to validate as coverage grows)
 
 - **Baseline corner is healthy**: the smallest configs (tiny/none/single/micro)
@@ -97,8 +133,9 @@ New confirmations this run:
 
 ## Next
 
-Next enumeration index: **12** → `tiny-none-single-small-ahead-single`.
+Next enumeration index: **16** → `tiny-none-single-small-diverged-multi`.
 
-Indices 12-14 finish the PATCH=small / BRANCH={ahead,diverged} cells (re-exercising
-append-only push at 50 KB); index 17 begins PATCH=medium (200 KB) — the first cell
-likely to start showing size-related overhead worth watching.
+Indices 16-17 finish the PATCH=small cells (16 = diverged-multi, 17 =
+diverged-merge_msg). Index 18 begins PATCH=medium (200 KB) at
+`tiny-none-single-medium-clean-single` — the first cell likely to start showing
+size-related overhead worth watching as the patch grows 4×.

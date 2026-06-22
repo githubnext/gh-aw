@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "last_run": "2026-06-21",
-  "tested_count": 12,
+  "last_run": "2026-06-22",
+  "tested_count": 16,
   "total_cells": 3600,
   "tested": {
     "tiny-none-single-micro-clean-single": {
@@ -63,8 +63,28 @@
       "outcome": "pass",
       "timestamp": "2026-06-21",
       "issue_url": null
+    },
+    "tiny-none-single-small-ahead-single": {
+      "outcome": "pass",
+      "timestamp": "2026-06-22",
+      "issue_url": null
+    },
+    "tiny-none-single-small-ahead-multi": {
+      "outcome": "pass",
+      "timestamp": "2026-06-22",
+      "issue_url": null
+    },
+    "tiny-none-single-small-ahead-merge_msg": {
+      "outcome": "pass",
+      "timestamp": "2026-06-22",
+      "issue_url": null
+    },
+    "tiny-none-single-small-diverged-single": {
+      "outcome": "pass",
+      "timestamp": "2026-06-22",
+      "issue_url": null
     }
   },
   "strategies": [],
-  "next_index": 12
+  "next_index": 16
 }
