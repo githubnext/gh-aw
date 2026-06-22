@@ -540,6 +540,29 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		require.Contains(t, summary.Warnings, subagentStdioWarning)
 	})
 
+	t.Run("falls back to agent_usage.json in usage subdir when token_usage.jsonl is empty", func(t *testing.T) {
+		// Reproduces the usage-only-mode scenario where the usage artifact has an empty
+		// placeholder token_usage.jsonl but agent_usage.json is now also copied there.
+		tmpDir := testutil.TempDir(t, "analyze-usage-subdir-fallback")
+		// Create the usage artifact directory as gh aw logs would lay it out.
+		usageDir := filepath.Join(tmpDir, "usage")
+		agentSubDir := filepath.Join(usageDir, "agent")
+		require.NoError(t, os.MkdirAll(agentSubDir, 0o755))
+		// Empty placeholder written by the conclusion job fallback line.
+		require.NoError(t, os.WriteFile(filepath.Join(agentSubDir, "token_usage.jsonl"), []byte(""), 0o644))
+		// agent_usage.json now copied to usage/ by buildUsageArtifactUploadSteps.
+		agentUsageContent := `{"input_tokens":5463,"output_tokens":17080,"cache_read_tokens":1440173,"cache_write_tokens":64504,"ambient_context":8424,"ai_credits":94.653,"primary_model":"claude-sonnet-4.6"}`
+		require.NoError(t, os.WriteFile(filepath.Join(usageDir, "agent_usage.json"), []byte(agentUsageContent), 0o644))
+
+		summary, err := analyzeTokenUsage(tmpDir, false)
+		require.NoError(t, err, "should not error when token_usage.jsonl is empty but agent_usage.json present")
+		require.NotNil(t, summary, "should fall back to agent_usage.json")
+		assert.Equal(t, 5463, summary.TotalInputTokens, "input tokens should come from agent_usage.json")
+		assert.Equal(t, 17080, summary.TotalOutputTokens, "output tokens should come from agent_usage.json")
+		// ai_credits from the file should be used directly.
+		assert.InDelta(t, 94.653, summary.TotalAIC, 1e-6, "AIC should be taken from the pre-computed ai_credits field")
+	})
+
 	t.Run("captures alias-based sub-agent model requests used by workflow subagents", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "analyze-subagent-model-alias")
 		logsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs")
