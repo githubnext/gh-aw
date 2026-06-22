@@ -53,6 +53,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `nano-banana` | `copilot/nano-banana*`, `google/nano-banana*`, `gemini/nano-banana*` |
 | `computer-use` | `copilot/*computer-use*`, `google/*computer-use*`, `gemini/*computer-use*`, `openai/*computer-use*` |
 | `robotics` | `copilot/*robotics*`, `google/*robotics*`, `gemini/*robotics*` |
+| `search` | `copilot/gpt-5*search*`, `openai/gpt-5*search*`, `openai/gpt-4o*search*` |
 
 ### Meta-Aliases
 
