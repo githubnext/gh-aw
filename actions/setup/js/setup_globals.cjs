@@ -8,6 +8,7 @@
  */
 
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
+const { parseRuntimeFeatures, hasRuntimeFeature, getRuntimeFeatureValue } = require("./runtime_features.cjs");
 
 /**
  * Stores GitHub Actions builtin objects (core, github, context, exec, io, getOctokit) in the global scope
@@ -26,6 +27,10 @@ const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs")
  */
 function setupGlobals(coreModule, githubModule, contextModule, execModule, ioModule, getOctokitFn) {
   global.core = coreModule;
+  const runtimeFeatures = Object.freeze(parseRuntimeFeatures(process.env.GH_AW_RUNTIME_FEATURES));
+  global.runtimeFeatures = runtimeFeatures;
+  global.hasRuntimeFeature = key => hasRuntimeFeature(runtimeFeatures, key);
+  global.getRuntimeFeatureValue = key => getRuntimeFeatureValue(runtimeFeatures, key);
   // Inject X-GitHub-Api-Version header on every request to suppress the
   // "@octokit/request: endpoint is deprecated" warning that fires when the
   // unversioned GitHub REST API is used.

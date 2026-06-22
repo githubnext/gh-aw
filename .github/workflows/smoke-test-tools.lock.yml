@@ -105,6 +105,7 @@ jobs:
       pull-requests: write
     env:
       GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
@@ -296,6 +297,23 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/add_workflow_run_comment.cjs');
             await main();
+      - name: Log runtime features
+        env:
+          GH_AW_RUNTIME_FEATURES_IS_SET: ${{ contains(toJSON(vars), '"GH_AW_RUNTIME_FEATURES":') }}
+        run: |
+          {
+            echo "## Runtime features"
+            echo
+            if [[ "$GH_AW_RUNTIME_FEATURES_IS_SET" != "true" ]]; then
+              echo "_Not set_"
+            elif [[ -n "$GH_AW_RUNTIME_FEATURES" ]]; then
+              echo '```text'
+              printf '%s\n' "$GH_AW_RUNTIME_FEATURES"
+              echo '```'
+            else
+              echo "_Empty string_"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -463,6 +481,7 @@ jobs:
       GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_PROJECT_UTC: "-08:00"
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: smoketesttools
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
@@ -1115,6 +1134,8 @@ jobs:
       group: "gh-aw-conclusion-smoke-test-tools"
       cancel-in-progress: false
       queue: max
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
       noop_message: ${{ steps.noop.outputs.noop_message }}
@@ -1382,6 +1403,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       aic: ${{ steps.parse_detection_token_usage.outputs.aic }}
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
@@ -1600,6 +1623,8 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_command_position.outputs.command_position_ok == 'true' }}
       matched_command: ${{ steps.check_command_position.outputs.matched_command }}
@@ -1675,6 +1700,7 @@ jobs:
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_ENGINE_VERSION: "1.0.63"
       GH_AW_PROJECT_UTC: "-08:00"
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔧 *Tool validation by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}\",\"runStarted\":\"🔧 Starting tool validation... [{workflow_name}]({run_url}) is checking the agent container tools...\",\"runSuccess\":\"✅ All tools validated successfully! [{workflow_name}]({run_url}) confirms agent container is ready.\",\"runFailure\":\"❌ Tool validation failed! [{workflow_name}]({run_url}) detected missing tools: {status}\"}"
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_WORKFLOW_EMOJI: "🧪"
