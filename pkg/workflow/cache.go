@@ -1037,14 +1037,17 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	// Prepend setup steps to all cache steps
 	steps = append(setupSteps, steps...)
 
-	// Job condition: run only if detection job succeeded (no threats found),
-	// AND the agent job succeeded (do not persist cache when agent failed or was skipped).
+	// Job condition: run if detection passed (succeeded — no threats found — or was skipped because
+	// the agent produced no outputs, e.g. called noop), AND the agent job succeeded.
 	// Using always() so this condition is evaluated even if an upstream job is skipped/failed.
+	// Using buildDetectionPassedCondition() (success OR skipped) matches push_repo_memory and
+	// ensures the cache is refreshed on every successful run, even when the agent calls noop and
+	// detection is skipped due to empty output_types.
 	agentSucceeded := BuildEquals(
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
 		BuildStringLiteral("success"),
 	)
-	jobCondition := RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), buildDetectionSuccessCondition()), agentSucceeded))
+	jobCondition := RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), buildDetectionPassedCondition()), agentSucceeded))
 
 	// Set up permissions for the cache update job
 	// If using local actions (dev mode without action-tag), we need contents: read to checkout the actions folder

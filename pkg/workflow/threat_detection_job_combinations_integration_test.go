@@ -209,7 +209,7 @@ Test workflow.
 			wantJobs:    []string{"safe_outputs", "detection", "update_cache_memory"},
 			wantNotJobs: []string{"push_repo_memory"},
 			wantInJobIf: map[string][]string{
-				"update_cache_memory": {"always()", "needs.detection.result == 'success'"},
+				"update_cache_memory": {"always()", "needs.detection.result == 'success'", "needs.detection.result == 'skipped'"},
 			},
 		},
 		{
@@ -231,7 +231,7 @@ Test workflow.
 			wantNotJobs: []string{"detection", "update_cache_memory", "push_repo_memory"},
 		},
 		{
-			name: "cache-memory + expression detection → update_cache_memory requires detection success",
+			name: "cache-memory + expression detection → update_cache_memory accepts detection success or skipped",
 			frontmatter: `---
 on:
   workflow_call:
@@ -254,7 +254,7 @@ Test workflow.
 			wantNotJobs: []string{"push_repo_memory"},
 			wantInJobIf: map[string][]string{
 				"detection":           {"inputs.enable-threat-detection"},
-				"update_cache_memory": {"always()", "needs.detection.result == 'success'"},
+				"update_cache_memory": {"always()", "needs.detection.result == 'success'", "needs.detection.result == 'skipped'"},
 			},
 		},
 		{
@@ -543,7 +543,7 @@ Test workflow.
 // TestCacheMemoryWithThreatDetectionNeedsAndConditions tests update_cache_memory job
 // graph position across all three detection modes.
 // The job exists only when detection is enabled; its condition uses always()
-// and requires detection success.
+// and accepts both detection success and skipped (so the cache is refreshed on noop runs).
 func TestCacheMemoryWithThreatDetectionNeedsAndConditions(t *testing.T) {
 	cases := []struct {
 		name              string
@@ -561,7 +561,7 @@ func TestCacheMemoryWithThreatDetectionNeedsAndConditions(t *testing.T) {
 			wantCacheMemJob:   true,
 			wantDetectionDep:  true,
 			wantAlwaysInCond:  true,
-			wantSkippedInCond: false,
+			wantSkippedInCond: true,
 		},
 		{
 			name:             "boolean false",
@@ -576,7 +576,7 @@ func TestCacheMemoryWithThreatDetectionNeedsAndConditions(t *testing.T) {
 			wantCacheMemJob:   true,
 			wantDetectionDep:  true,
 			wantAlwaysInCond:  true,
-			wantSkippedInCond: false,
+			wantSkippedInCond: true,
 		},
 	}
 

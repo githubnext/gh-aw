@@ -3736,7 +3736,8 @@ func TestPushRepoMemoryJobConditionalDetection(t *testing.T) {
 }
 
 // TestUpdateCacheMemoryJobConditionalDetection verifies that update_cache_memory keeps always()
-// but requires detection success (not skipped) when detection is expression-controlled.
+// and accepts both detection success and skipped (matching push_repo_memory behaviour so the cache
+// is refreshed on every successful agent run, including noop runs where detection is skipped).
 func TestUpdateCacheMemoryJobConditionalDetection(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
@@ -3777,12 +3778,12 @@ func TestUpdateCacheMemoryJobConditionalDetection(t *testing.T) {
 	if !strings.Contains(job.If, "always()") {
 		t.Errorf("update_cache_memory if: %q should contain 'always()'", job.If)
 	}
-	// Job condition must require detection success and must not accept skipped.
+	// Job condition must accept both detection success and skipped (mirrors push_repo_memory).
 	if !strings.Contains(job.If, "needs.detection.result == 'success'") {
 		t.Errorf("update_cache_memory if: %q should require detection success", job.If)
 	}
-	if strings.Contains(job.If, "'skipped'") {
-		t.Errorf("update_cache_memory if: %q must not accept skipped detection result", job.If)
+	if !strings.Contains(job.If, "'skipped'") {
+		t.Errorf("update_cache_memory if: %q should also accept skipped detection result (for noop runs)", job.If)
 	}
 	// Detection must be in Needs
 	if !slices.Contains(job.Needs, string(constants.DetectionJobName)) {

@@ -112,6 +112,11 @@ pre-agent-steps:
   - name: Pre-flight checks
     run: |
       mkdir -p /tmp/gh-aw/agent
+      mkdir -p /tmp/gh-aw/cache-memory
+
+      # Write a heartbeat timestamp so the cache always has fresh content to save,
+      # even on noop runs where the agent writes nothing to the cache directory.
+      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/gh-aw/cache-memory/last-run.txt
 
       # Check 1: verify docs directory structure exists
       DIR_COUNT=$(find docs/src/content/docs -maxdepth 1 -type d 2>/dev/null | wc -l)
@@ -136,9 +141,24 @@ pre-agent-steps:
       RECENT_CUTOFF=$(date -d '7 days ago' '+%Y-%m-%d' 2>/dev/null \
         || date -v-7d '+%Y-%m-%d' 2>/dev/null \
         || echo "0000-00-00")
+
+      # Expiration check: if the most recent cleanup entry is older than 14 days the
+      # cache has gone cold (e.g. GitHub Actions evicted the 7-day cache entry).
+      # Reset cleaned-files.txt so every file is eligible again and stale "already
+      # cleaned" claims are not silently reused.
+      CACHE_FILE="/tmp/gh-aw/cache-memory/cleaned-files.txt"
+      STALE_CUTOFF=$(date -d '14 days ago' '+%Y-%m-%d' 2>/dev/null \
+        || date -v-14d '+%Y-%m-%d' 2>/dev/null \
+        || echo "0000-00-00")
+      LATEST_ENTRY=$(awk 'NF>0{print $1}' "$CACHE_FILE" 2>/dev/null | sort | tail -1)
+      if [ -n "$LATEST_ENTRY" ] && [ "$LATEST_ENTRY" \< "$STALE_CUTOFF" ]; then
+        echo "Cache expiration: most recent entry $LATEST_ENTRY predates $STALE_CUTOFF — resetting cleaned-files.txt"
+        > "$CACHE_FILE"
+      fi
+
       CLEANED=$(awk -v cutoff="$RECENT_CUTOFF" \
         'NF>0 && $1>=cutoff{count++} END{print count+0}' \
-        /tmp/gh-aw/cache-memory/cleaned-files.txt 2>/dev/null || echo "0")
+        "$CACHE_FILE" 2>/dev/null || echo "0")
       UNCLEANED=$(( TOTAL - CLEANED ))
       if [ "$UNCLEANED" -le 0 ]; then
         echo '{"pass":false,"reason":"Pre-flight check: all eligible documentation files were cleaned recently — nothing to do this run."}' \
