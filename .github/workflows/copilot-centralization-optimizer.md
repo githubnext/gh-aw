@@ -108,7 +108,7 @@ steps:
             ' || true
           done < "$_task_ids" \
         | head -n "$TASK_LIMIT" \
-        >> /tmp/gh-aw/data/task-summaries.jsonl
+        >> /tmp/gh-aw/data/task-summaries.jsonl || true
       else
         echo "Agent tasks API not available for this repository (HTTP 404), proceeding with empty dataset" >&2
       fi
