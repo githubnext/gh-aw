@@ -20,6 +20,31 @@ on:
   workflow_dispatch:    # Manual trigger
 ```
 
+### `workflow_run` Failure-Triage Pattern
+
+Use this when reacting to failures from another workflow in the same repository:
+
+```yaml
+on:
+  workflow_run:
+    workflows: ["CI", "Deploy"]
+    types: [completed]
+  workflow_dispatch:
+```
+
+Then gate analysis to failure outcomes:
+
+```yaml
+if: contains(fromJson('["failure","timed_out","cancelled","action_required"]'), github.event.workflow_run.conclusion)
+```
+
+These conclusion states are grouped as "non-success outcomes requiring triage"; keep the list explicit so readers can adjust it for stricter (for example only `failure`) or broader incident policies.
+
+No-op expectations for this pattern:
+
+- `noop` when the monitored run concludes `success`.
+- `noop` when the same failure already has an open incident issue (duplicate suppression).
+
 #### Fuzzy Scheduling
 
 Instead of specifying exact cron expressions, use **fuzzy scheduling** to automatically distribute workflow execution times. This reduces load spikes and avoids the "Monday wall of work" problem where weekend tasks pile up.
