@@ -3255,8 +3255,8 @@
                     "platform": {
                       "type": "string",
                       "enum": ["github.com", "ghes", "ghec", "ghec-self-hosted"],
-                      "description": "AWF platform.type override. Declares the GitHub deployment type so AWF can apply deterministic Copilot auth behavior without relying on host heuristics. Omit to use the default github.com behavior."
-                    },
+                      "description": "AWF platform.type override. Declares the GitHub deployment type so AWF can apply deterministic Copilot auth behavior without relying on host heuristics. Omit to let AWF use its default host heuristic behavior."
+                    }
                     "command": {
                       "type": "string",
                       "x-internal": true,
