@@ -1,0 +1,138 @@
+{
+  "date": "2026-06-22",
+  "pr_count": 37,
+  "avg_sentiment": -0.13311351351351353,
+  "sentiment_breakdown": {
+    "positive": 12,
+    "neutral": 1,
+    "negative": 24
+  },
+  "top_topic": "analyzer / updated / artifact",
+  "top_keywords": [
+    "workflow",
+    "path",
+    "generated",
+    "agent",
+    "fix",
+    "copilot",
+    "run",
+    "coverage",
+    "workflows",
+    "issue"
+  ],
+  "top_bigrams": [
+    "sous chef",
+    "safe output",
+    "status comment",
+    "regression coverage",
+    "root cause"
+  ],
+  "clusters": [
+    {
+      "id": 1,
+      "terms": [
+        "analyzer",
+        "updated",
+        "artifact",
+        "delimiter",
+        "header",
+        "generated",
+        "detection",
+        "generation"
+      ],
+      "count": 15,
+      "name": "analyzer / updated / artifact"
+    },
+    {
+      "id": 3,
+      "terms": [
+        "tool",
+        "smoke",
+        "agent",
+        "workflow",
+        "copilot",
+        "prompt",
+        "workflows",
+        "blocked"
+      ],
+      "count": 11,
+      "name": "tool / smoke / agent"
+    },
+    {
+      "id": 0,
+      "terms": [
+        "sous chef",
+        "pr sous",
+        "sous",
+        "chef",
+        "pr",
+        "template",
+        "copilot",
+        "auth"
+      ],
+      "count": 6,
+      "name": "sous chef / pr sous / sous"
+    },
+    {
+      "id": 4,
+      "terms": [
+        "fix",
+        "spec",
+        "package",
+        "error",
+        "errors",
+        "agent",
+        "regression",
+        "resolve"
+      ],
+      "count": 3,
+      "name": "fix / spec / package"
+    },
+    {
+      "id": 2,
+      "terms": [
+        "checkout",
+        "pr",
+        "test",
+        "align",
+        "body",
+        "activation",
+        "shared",
+        "normalization"
+      ],
+      "count": 2,
+      "name": "checkout / pr / test"
+    },
+    {
+      "id": 5,
+      "terms": [
+        "update",
+        "readme",
+        "replace",
+        "shared",
+        "normalization",
+        "routing",
+        "usage",
+        "slash"
+      ],
+      "count": 0,
+      "name": "update / readme / replace"
+    }
+  ],
+  "temporal": {
+    "q1": -0.09059999999999999,
+    "q2": 0.0005777777777777512,
+    "q3": -0.22732222222222223,
+    "q4": -0.20690999999999998
+  },
+  "most_positive_pr": {
+    "number": 40624,
+    "title": "Refactor duplicated issue/PR update payload normalization into shared helper",
+    "score": 0.9652
+  },
+  "most_negative_pr": {
+    "number": 40715,
+    "title": "fix: handleMessage avoids [object Object] errors and enforces valid JSON-RPC error codes for thrown plain objects",
+    "score": -0.9501
+  }
+}
