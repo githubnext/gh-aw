@@ -147,6 +147,48 @@ async function runLogParser(options) {
       logEntries = result.logEntries || null;
     }
 
+    // Enrich agent-stdio.log with a normalized result entry when the engine does not
+    // write one directly (e.g. Copilot, Pi).  The OTEL conclusion span
+    // (send_otlp_span.cjs → readAgentRuntimeMetrics) reads agent-stdio.log for the
+    // gh-aw.turns attribute and token usage; without this entry those fields are zero
+    // for every engine except Claude Code, leaving 80 % of fleet runs un-triageable.
+    //
+    // Safety rules:
+    //  1. Only append when agent-stdio.log does NOT already contain a result entry
+    //     (avoids double-counting on Claude Code runs where the entry is written by
+    //     the --debug-file flag).
+    //  2. The appended line must be a standalone JSON object on its own line so that
+    //     the existing line-oriented parser in readAgentRuntimeMetrics can find it.
+    //  3. All errors are non-fatal – telemetry enrichment must never break workflows.
+    if (logEntries && Array.isArray(logEntries)) {
+      const resultEntry = logEntries.find(e => e && typeof e === "object" && e.type === "result" && (typeof e.num_turns === "number" || e.usage));
+      if (resultEntry) {
+        const stdioLogPath = "/tmp/gh-aw/agent-stdio.log";
+        try {
+          let alreadyHasResult = false;
+          if (fs.existsSync(stdioLogPath)) {
+            const stdioContent = fs.readFileSync(stdioLogPath, "utf8");
+            alreadyHasResult = stdioContent.split("\n").some(line => {
+              const start = line.indexOf("{");
+              if (start < 0) return false;
+              try {
+                const parsed = JSON.parse(line.slice(start));
+                return parsed && parsed.type === "result";
+              } catch {
+                return false;
+              }
+            });
+          }
+          if (!alreadyHasResult) {
+            fs.appendFileSync(stdioLogPath, JSON.stringify(resultEntry) + "\n");
+            core.info(`[log-parser] Wrote ${parserName} result entry to agent-stdio.log: num_turns=${resultEntry.num_turns ?? "n/a"}`);
+          }
+        } catch (err) {
+          core.warning(`[log-parser] Failed to enrich agent-stdio.log with result entry: ${getErrorMessage(err)}`);
+        }
+      }
+    }
+
     // Read safe outputs file if available
     let safeOutputsContent = "";
     let safeOutputEntriesCount = 0;
