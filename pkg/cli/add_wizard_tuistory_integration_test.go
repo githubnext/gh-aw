@@ -103,7 +103,7 @@ func TestTuistoryAddWizardIntegration(t *testing.T) {
 	}()
 
 	sessionName := fmt.Sprintf("gh-aw-add-wizard-%d", time.Now().UnixNano())
-	command := fmt.Sprintf("%s add-wizard ./%s --engine copilot --skip-secret", setup.binaryPath, filepath.Base(setup.workflowPath))
+	command := fmt.Sprintf("%s add-wizard ./%s --engine copilot --no-secret", setup.binaryPath, filepath.Base(setup.workflowPath))
 
 	launchArgs := []string{
 		"launch", command,
