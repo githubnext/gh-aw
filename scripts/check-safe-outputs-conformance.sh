@@ -4,7 +4,8 @@ set +o histexpand
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/specs/safe-outputs-specification.md
-# Version: 1.24.0 (2026-06-13)
+# Spec Version: 1.23.0 (2026-06-10)
+# Script Version: 1.25.0 (2026-06-22)
 
 set -euo pipefail
 
@@ -889,6 +890,46 @@ check_mce_actionable_errors() {
     fi
 }
 check_mce_actionable_errors
+
+# MCE-006: JSON-RPC Core Server Error Code Validity and Plain Object Error Handling (Section 8.2)
+echo "Running MCE-006: JSON-RPC Core Server Error Code Validity..."
+check_mce_core_error_handling() {
+    local core_file="actions/setup/js/mcp_server_core.cjs"
+    local failed=0
+
+    # Per spec Section 8.2 (JSON-RPC 2.0 compliance): The MCP server MUST return valid
+    # JSON-RPC error codes (negative integers) in all error responses. Positive integers
+    # such as process exit codes (1, 2, etc.) are NOT valid JSON-RPC error codes and MUST
+    # NOT be used, as they produce non-conformant responses (e.g. "code=1").
+    # The handleMessage function MUST also properly serialize error messages from thrown
+    # plain objects (non-Error instances) to avoid '[object Object]' in error responses.
+
+    if [ ! -f "$core_file" ]; then
+        log_high "MCE-006: MCP server core file missing: $core_file"
+        return
+    fi
+
+    # Check that the error code is validated as a negative integer before use.
+    # The guard pattern (e.code < 0) prevents positive subprocess exit codes from
+    # being forwarded as JSON-RPC error codes.
+    if ! grep -qE "e\.code < 0|err\.code < 0|code.*<.*0" "$core_file"; then
+        log_critical "MCE-006: MCP server core does not guard against non-negative JSON-RPC error codes — non-conformant responses possible (Section 8.2)"
+        failed=1
+    fi
+
+    # Check that error messages from thrown plain objects are serialized with String()
+    # to prevent '[object Object]' appearing as the error message when non-Error
+    # instances are thrown by handler code.
+    if ! grep -qE 'String\(e\.message\)|String\(err\.message\)' "$core_file"; then
+        log_high "MCE-006: MCP server core does not use String() for error message serialization — risk of '[object Object]' in responses (Section 8.2)"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "MCE-006: MCP server core enforces valid JSON-RPC error codes and proper error message serialization (Section 8.2)"
+    fi
+}
+check_mce_core_error_handling
 
 # TYPE-001: merge_pull_request Handler Existence and Default Branch Protection (Section 7.3, v1.17.0)
 echo "Running TYPE-001: merge_pull_request Handler Existence and Default Branch Protection..."
