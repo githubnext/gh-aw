@@ -95,11 +95,24 @@ func TestValidateGitHubToolsAgainstToolsets(t *testing.T) {
 			expectError:     false,
 		},
 		{
+			name:            "actions_run_trigger belongs to actions toolset",
+			allowedTools:    []string{"actions_run_trigger"},
+			enabledToolsets: []string{"actions"},
+			expectError:     false,
+		},
+		{
 			name:            "Actions toolset missing",
 			allowedTools:    []string{"actions_list", "actions_get"},
 			enabledToolsets: []string{"repos"},
 			expectError:     true,
 			errorContains:   []string{"actions", "actions_list", "actions_get"},
+		},
+		{
+			name:            "actions_run_trigger fails without actions toolset",
+			allowedTools:    []string{"actions_run_trigger"},
+			enabledToolsets: []string{"repos"},
+			expectError:     true,
+			errorContains:   []string{"actions", "actions_run_trigger"},
 		},
 		{
 			name:            "Discussions and gists toolsets",
@@ -118,6 +131,32 @@ func TestValidateGitHubToolsAgainstToolsets(t *testing.T) {
 			allowedTools:    []string{"get_user", "get_me", "get_teams"},
 			enabledToolsets: []string{"users", "context"},
 			expectError:     false,
+		},
+		{
+			name:            "get_me belongs to context toolset",
+			allowedTools:    []string{"get_me"},
+			enabledToolsets: []string{"context"},
+			expectError:     false,
+		},
+		{
+			name:            "get_me fails without context toolset",
+			allowedTools:    []string{"get_me"},
+			enabledToolsets: []string{"users"},
+			expectError:     true,
+			errorContains:   []string{"context", "get_me"},
+		},
+		{
+			name:            "list_label belongs to labels toolset",
+			allowedTools:    []string{"list_label"},
+			enabledToolsets: []string{"labels"},
+			expectError:     false,
+		},
+		{
+			name:            "list_label fails without labels toolset",
+			allowedTools:    []string{"list_label"},
+			enabledToolsets: []string{"issues"},
+			expectError:     true,
+			errorContains:   []string{"labels", "list_label"},
 		},
 		{
 			name:            "Search toolset",
@@ -253,7 +292,7 @@ func TestGitHubToolToToolsetMap_IncludesDefaultGitHubTools(t *testing.T) {
 func TestGitHubToolToToolsetMap_ConsistencyWithDocumentation(t *testing.T) {
 	// Sample of tools that should be in the map based on documentation
 	expectedMappings := map[string]string{
-		"get_me":                      "users",
+		"get_me":                      "context",
 		"get_repository":              "repos",
 		"get_file_contents":           "repos",
 		"list_issues":                 "issues",
@@ -262,10 +301,12 @@ func TestGitHubToolToToolsetMap_ConsistencyWithDocumentation(t *testing.T) {
 		"search_pull_requests":        "pull_requests",
 		"actions_list":                "actions",
 		"actions_get":                 "actions",
+		"actions_run_trigger":         "actions",
 		"list_code_scanning_alerts":   "code_security",
 		"create_discussion":           "discussions",
 		"create_gist":                 "gists",
 		"get_label":                   "labels",
+		"list_label":                  "labels",
 		"list_notifications":          "notifications",
 		"get_organization":            "orgs",
 		"get_user":                    "users",

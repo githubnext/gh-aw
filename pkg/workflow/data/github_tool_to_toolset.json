@@ -1,5 +1,5 @@
 {
-  "get_me": "users",
+  "get_me": "context",
   "get_teams": "context",
   "get_team_members": "context",
 
@@ -63,7 +63,7 @@
   "list_gists": "gists",
 
   "get_label": "labels",
-  "list_label": "issues",
+  "list_label": "labels",
   "list_labels": "labels",
   "create_label": "labels",
 
