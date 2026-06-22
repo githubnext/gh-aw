@@ -155,6 +155,8 @@ plt.savefig('/tmp/gh-aw/python/charts/chart.png',
 - **Grid**: Enable grid lines for easier reading
 - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
 
+> **Pattern**: load data from `/tmp/gh-aw/python/data/`, plot with `fig, ax = plt.subplots(figsize=(10,6), dpi=300)`, save to `/tmp/gh-aw/python/charts/`, upload via `upload_asset`.
+
 ## Including Images in Reports
 
 Use this approach to include chart images in reports (issues, discussions, step summaries):
@@ -218,45 +220,6 @@ cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
 echo "Saved data_loader.py to cache for future runs"
 ```
 
-## Complete Example Workflow
-
-```python
-#!/usr/bin/env python3
-"""
-Example data visualization script
-Generates a bar chart from external data
-"""
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# Apply canonical chart setup (see Chart Generation Best Practices above)
-
-# Load data from external file (NEVER inline)
-data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-
-# Process data
-summary = data.groupby('category')['value'].sum()
-
-# Create chart
-fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-summary.plot(kind='bar', ax=ax)
-
-# Customize
-ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
-ax.set_xlabel('Category', fontsize=12)
-ax.set_ylabel('Value', fontsize=12)
-ax.grid(True, alpha=0.3)
-
-# Save chart
-plt.savefig('/tmp/gh-aw/python/charts/chart.png',
-            dpi=300,
-            bbox_inches='tight',
-            facecolor='white')
-
-print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
-```
-
 ## Error Handling
 
 **Check File Existence:**
@@ -294,17 +257,6 @@ Chart images are uploaded individually via the `upload_asset` safe-output tool. 
 - Retention: 30 days
 
 Source and data files are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
-
-## Tips for Success
-
-1. **Always Separate Data**: Store data in files, never inline in code
-2. **Use Cache Memory**: Store reusable helpers for faster execution
-3. **High Quality Charts**: Use DPI 300+ and proper sizing
-4. **Clear Documentation**: Add docstrings and comments
-5. **Error Handling**: Validate data and check file existence
-6. **Type Hints**: Use type annotations for better code quality
-7. **Seaborn Defaults**: Leverage seaborn for better aesthetics
-8. **Reproducibility**: Set random seeds when needed
 
 ## Common Data Sources
 

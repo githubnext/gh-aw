@@ -96,71 +96,7 @@ jq 'length' /tmp/gh-aw/agent/pr-data/copilot-prs.json
 jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today) | .number]' /tmp/gh-aw/agent/pr-data/copilot-prs.json
 ```
 
-**Alternative Approaches** (if you need additional data not in the pre-fetched file):
-
-Search for pull requests created by Copilot in the last 24 hours.
-
-**Important**: The Copilot coding agent creates branches with the `copilot/` prefix, making branch-based search the most reliable method.
-
-**Recommended Approach**: The workflow uses `gh pr list --search "head:copilot/"` which provides reliable server-side filtering based on branch prefix.
-
-Use the GitHub tools with one of these strategies:
-
-1. **Use `gh pr list --search "head:copilot/"` (Recommended - used by this workflow)**:
-   ```bash
-   # Server-side filtering by branch prefix (current workflow approach)
-   DATE="$(date -d '24 hours ago' '+%Y-%m-%d')"
-   gh pr list --repo ${{ github.repository }} \
-     --search "head:copilot/ created:>=${DATE}" \
-     --state all \
-     --limit 1000 \
-     --json number,title,state,createdAt,closedAt,author
-   ```
-   
-   **Pros**: Most reliable method, server-side filtering, up to 1000 results
-   **Cons**: None
-   **Best for**: Production workflows (this is what the workflow uses)
-
-2. **Search by author (Alternative, but less reliable)**:
-   ```bash
-   # Author-based search (may miss some PRs)
-   DATE="$(date -d '24 hours ago' '+%Y-%m-%d')"
-   gh pr list --repo ${{ github.repository }} \
-     --author "app/github-copilot" \
-     --limit 100 \
-     --state all \
-     --json number,title,createdAt,author
-   ```
-   
-   **Pros**: Simple, targets specific author
-   **Cons**: Limited to 100 results, may not capture all Copilot PRs
-   **Best for**: Quick ad-hoc queries when branch naming is inconsistent
-
-3. **Search by branch pattern with git**:
-   ```bash
-   # List copilot branches
-   git branch -r | grep copilot
-   ```
-   This finds all remote branches with "copilot" in the name.
-
-4. **List all PRs and filter by author**:
-   Use `list_pull_requests` tool to get recent PRs, then filter by checking if:
-   - `user.login == "copilot"` or `user.login == "app/github-copilot"`
-   - Branch name starts with `copilot/`
-   - `user.type == "Bot"`
-
-   This is more reliable but requires processing all recent PRs.
-
-5. **Get PR Details**: For each found PR, use `pull_request_read` to get:
-   - PR number
-   - Title and description
-   - Creation timestamp
-   - Merge/close timestamp
-   - Current state (open, merged, closed)
-   - Number of comments
-   - Number of commits
-   - Files changed
-   - Review status
+**Alternative Approaches** (if you need additional data not in the pre-fetched file): Use `gh pr list --search "head:copilot/"` with `--state all` or `list_pull_requests` filtered by `user.login == "app/github-copilot"` or branch prefix `copilot/`.
 
 ### Phase 2: Analyze Each PR
 
