@@ -82,8 +82,9 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
  * @returns {Promise<string>} The GraphQL node ID of the label
  */
 async function resolveLabel(githubClient, owner, repo, labelName, labelNodeIdCache) {
-  if (labelNodeIdCache.has(labelName)) {
-    return /** @type {string} */ (labelNodeIdCache.get(labelName));
+  const cached = labelNodeIdCache.get(labelName);
+  if (cached !== undefined) {
+    return cached;
   }
 
   try {
@@ -267,10 +268,11 @@ const main = createCountGatedHandler({
       }
 
       // Get or initialize the per-repo label cache
-      if (!repoCaches.has(itemRepo)) {
-        repoCaches.set(itemRepo, new Map());
+      let labelNodeIdCache = repoCaches.get(itemRepo);
+      if (!labelNodeIdCache) {
+        labelNodeIdCache = new Map();
+        repoCaches.set(itemRepo, labelNodeIdCache);
       }
-      const labelNodeIdCache = /** @type {Map<string, string>} */ (repoCaches.get(itemRepo));
 
       // Resolve the node ID of label_to_add — fails with hard error if the label does not exist
       let addLabelNodeId;
