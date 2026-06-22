@@ -58,6 +58,7 @@ type EngineConfig struct {
 	Command            string // Custom executable path (when set, skip installation steps)
 	HarnessScript      string // Custom Node.js harness script filename (replaces engine default harness script when supported)
 	CopilotSDKDriver   string // Custom Copilot SDK driver script filename or command (copilot engine only). Setting this field implies copilot-sdk=true. Supports .js/.cjs/.mjs (Node.js), .py (Python), .ts/.mts (TypeScript), .rb (Ruby), or a bare command name for an arbitrary executable in PATH.
+	Driver             string // Custom inner driver script for engines that support driver mode (e.g. pi). A .js/.cjs/.mjs path relative to the workspace root or a bare basename resolved from the setup-action directory.
 	Env                map[string]string
 	Auth               *EngineAuthConfig // Engine-level auth config (mapped to AWF_AUTH_* env vars for API proxy sidecar auth)
 	Config             string
@@ -398,6 +399,16 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if sdkDriver, hasSDKDriver := engineObj["copilot-sdk-driver"]; hasSDKDriver {
 				if sdkDriverStr, ok := sdkDriver.(string); ok {
 					config.CopilotSDKDriver = sdkDriverStr
+				}
+			}
+
+			// Extract optional 'driver' field (string - validated separately).
+			// Used by the pi engine (and potentially others) to run an inner driver
+			// program instead of the engine's built-in CLI.
+			if driver, hasDriver := engineObj["driver"]; hasDriver {
+				if driverStr, ok := driver.(string); ok {
+					config.Driver = driverStr
+					engineLog.Printf("Extracted engine.driver: %s", driverStr)
 				}
 			}
 

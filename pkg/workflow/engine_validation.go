@@ -160,6 +160,54 @@ func (c *Compiler) validateEngineCopilotSDKDriver(workflowData *WorkflowData) er
 	}
 }
 
+// validateEngineDriver validates optional engine.driver configuration.
+// engine.driver must be either:
+//   - a relative path (with safe segments separated by '/') ending with a supported
+//     JavaScript extension (.js, .cjs, .mjs), or
+//   - a bare filename without any path separator, treated as a built-in driver
+//     resolved from the setup-action directory.
+//
+// Absolute paths, backslashes, '..' components, and shell metacharacters are rejected.
+func (c *Compiler) validateEngineDriver(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Driver == "" {
+		return nil
+	}
+
+	name := workflowData.EngineConfig.Driver
+
+	if strings.TrimSpace(name) != name {
+		return fmt.Errorf("engine.driver must be a safe path without leading/trailing whitespace (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
+	}
+
+	if filepath.IsAbs(name) ||
+		strings.Contains(name, `\`) ||
+		strings.Contains(name, "..") {
+		return fmt.Errorf("engine.driver must be a relative path (no absolute paths, '..', or backslashes) with a supported extension (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
+	}
+
+	// Each path segment must be safe (alphanumeric, underscore, dot, hyphen; may start with dot).
+	// Empty segments (consecutive slashes, leading/trailing slashes) are rejected.
+	for segment := range strings.SplitSeq(name, "/") {
+		if segment == "" {
+			return fmt.Errorf("engine.driver must not contain empty path segments (e.g. consecutive '/' or leading/trailing '/') (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
+		}
+		if !safeSDKDriverSegmentPattern.MatchString(segment) {
+			return fmt.Errorf("engine.driver must not contain shell metacharacters (found unsafe segment %q in: %s).\n\nSee: %s", segment, name, constants.DocsEnginesURL)
+		}
+	}
+
+	ext := strings.ToLower(filepath.Ext(name))
+	switch ext {
+	case ".js", ".cjs", ".mjs":
+		return nil
+	case "":
+		// No extension — valid as a bare built-in driver filename resolved from the setup-action directory.
+		return nil
+	default:
+		return fmt.Errorf("engine.driver has unsupported extension %q (found: %s). Must be a JavaScript file ending with .js, .cjs, or .mjs, or a bare name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
+	}
+}
+
 // validateEngineMCPSessionTimeout validates optional engine.mcp.session-timeout configuration.
 // The value must be a valid Go duration string of at least 5m (no upper bound).
 func (c *Compiler) validateEngineMCPSessionTimeout(workflowData *WorkflowData) error {
