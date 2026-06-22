@@ -360,11 +360,11 @@ It returns which clusters are already tracked (matched) and which are new gaps.
 
 Keep the combined cluster + tracking mapping in context for steps 2-4.
 
-**Early exit**: If `issue-matcher` returns no gaps and all clusters are P2 severity, call `noop` with a brief explanation and stop.
+**Early exit**: If all untracked clusters from `issue-matcher` are P2 severity (no P0 or P1 gaps), call `noop` with a brief explanation and stop.
 
 ### 2) Deepen evidence for untracked clusters
 
-Use the `cluster-evidence-extractor` agent for untracked P0 and P1 clusters identified in step 1 (up to 3 clusters). Pass each cluster's `truncated_error_logs` from the prefetch payload. Cap total `audit` calls at 2 across all clusters.
+Use the `cluster-evidence-extractor` agent for untracked P0 and P1 clusters identified in step 1 (at most 3 clusters). The agent prefers pre-fetched `truncated_error_logs` and only calls `audit` for clusters whose logs are too sparse — capping total `audit` MCP calls at 2 across all clusters.
 
 ### 3) Compare behavior with `audit-diff`
 
