@@ -48,41 +48,6 @@ When generating trending charts, focus on:
 - Add summary statistics (min, max, average, median)
 - Highlight recent trends vs. historical patterns
 
-## Example Trend Chart Types
-
-### Temporal Trends
-```python
-# Line chart with multiple trends
-fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-for column in data.columns:
-    ax.plot(data.index, data[column], marker='o', label=column, linewidth=2)
-ax.set_title('Trends Over Time', fontsize=16, fontweight='bold')
-ax.set_xlabel('Date', fontsize=12)
-ax.set_ylabel('Value', fontsize=12)
-ax.legend(loc='best')
-ax.grid(True, alpha=0.3)
-plt.xticks(rotation=45)
-```
-
-### Growth Rates
-```python
-# Bar chart showing period-over-period growth
-fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-growth_data.plot(kind='bar', ax=ax, color=sns.color_palette("husl"))
-ax.set_title('Growth Rates by Period', fontsize=16, fontweight='bold')
-ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
-ax.set_ylabel('Growth %', fontsize=12)
-```
-
-### Moving Averages
-```python
-# Trend with moving average overlay
-fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-ax.plot(dates, values, label='Actual', alpha=0.5, linewidth=1)
-ax.plot(dates, moving_avg, label='7-day Moving Average', linewidth=2.5)
-ax.fill_between(dates, values, moving_avg, alpha=0.2)
-```
-
 ## Data Preparation for Trends
 
 ### Time-Based Indexing
@@ -121,50 +86,9 @@ Use these palettes for impactful trend visualizations:
 - **Multiple series**: `sns.color_palette("husl", n_colors=8)`
 - **Categorical**: `sns.color_palette("Set2", n_colors=6)`
 
-## Annotation Best Practices
+## Styling and Annotations
 
-```python
-# Annotate key points
-max_idx = data['value'].idxmax()
-max_val = data['value'].max()
-ax.annotate(f'Peak: {max_val:.2f}',
-            xy=(max_idx, max_val),
-            xytext=(10, 20),
-            textcoords='offset points',
-            arrowprops=dict(arrowstyle='->', color='red'),
-            fontsize=10,
-            fontweight='bold')
-```
-
-## Styling for Awesome Charts
-
-```python
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# Set professional style
-sns.set_style("whitegrid")
-sns.set_context("notebook", font_scale=1.2)
-
-# Custom color palette
-custom_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"]
-sns.set_palette(custom_colors)
-
-# Figure with optimal dimensions
-fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
-
-# ... your plotting code ...
-
-# Tight layout for clean appearance
-plt.tight_layout()
-
-# Save with high quality
-plt.savefig('/tmp/gh-aw/python/charts/trend_chart.png',
-            dpi=300,
-            bbox_inches='tight',
-            facecolor='white',
-            edgecolor='none')
-```
+Use `sns.set_style("whitegrid")`, `sns.set_context("notebook", font_scale=1.2)`, `figsize=(14, 8)`, `dpi=300`, and `bbox_inches='tight'`. Annotate key peaks/troughs with `ax.annotate()` using `arrowprops`.
 
 ## Tips for Trending Charts
 

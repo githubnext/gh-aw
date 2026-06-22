@@ -13,6 +13,8 @@ permissions:
   pull-requests: read
 tracker-id: portfolio-analyst
 engine: claude
+max-turns: 20
+max-ai-credits: 250
 strict: true
 network:
   allowed:

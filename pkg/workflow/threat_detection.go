@@ -1130,8 +1130,13 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// Build the threat-detect command. The binary reads the prepared detection
 	// artifacts directory from /tmp/gh-aw/threat-detection/ (set up by previous
 	// steps) and writes the structured verdict to detection_result.json there.
+	// Prepend npm PATH setup so that npm-installed engine CLIs (e.g. claude, codex)
+	// can be found inside the AWF container's chroot environment. threat-detect
+	// invokes the engine binary as a subprocess and relies on PATH to locate it.
+	npmPathSetup := GetNpmBinPathSetup()
 	threatDetectCmd := fmt.Sprintf(
-		"threat-detect --engine %s --output %s %s",
+		"%s && threat-detect --engine %s --output %s %s",
+		npmPathSetup,
 		engineID,
 		shellEscapeArg(constants.ThreatDetectionResultPath),
 		shellEscapeArg(constants.ThreatDetectionDir),
