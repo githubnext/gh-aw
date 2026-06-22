@@ -1,13 +1,20 @@
 {
   "counts": {
     "prefetch_strategy": {
-      "lazy": 1
+      "lazy": 2
     }
   },
   "runs": [
     {
       "run_id": "27523096815",
       "timestamp": "2026-06-15T03:59:42.285Z",
+      "assignments": {
+        "prefetch_strategy": "lazy"
+      }
+    },
+    {
+      "run_id": "27928591213",
+      "timestamp": "2026-06-22T03:59:51.907Z",
       "assignments": {
         "prefetch_strategy": "lazy"
       }
