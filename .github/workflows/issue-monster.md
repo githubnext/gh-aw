@@ -559,6 +559,28 @@ From the prioritized and filtered list (issues WITHOUT Copilot assignments or op
 - Assign only the issues that are clearly separate in topic
 - Do not force assignments just to reach the maximum
 
+### 2b. CI Failure Triage Gate
+
+Before assigning any issue that appears to be a **CI failure report**, you MUST delegate to the `ci-triage` sub-agent to determine whether a Copilot dispatch is appropriate.
+
+**A CI failure issue is identified by ANY of:**
+- Label includes: `cgo-failure`, `agentic-workflows`, or `automation`
+- Title starts with: `[CI Failure Doctor]`, `[CGO]`, `[aw-failures]`, `[ci-coach]`, `[avenger]`, or `[lint-monster]`
+
+**For each CI failure issue in your selected list:**
+1. Invoke the `ci-triage` sub-agent, providing the issue number and its body excerpt from the pre-fetched context.
+2. If the sub-agent returns `BLOCKED`: remove this issue from your working list and **skip it** — do NOT assign it to Copilot this run.
+3. If the sub-agent returns `APPROVED`: proceed with validation and assignment as normal.
+
+This gate prevents repeated wasted Copilot sessions on:
+- CI failures that already had multiple failed fix attempts in the past 7 days (retry-blocked)
+- Transient/infrastructure failures unlikely to be fixed by a code change
+- Tasks requiring architectural knowledge or human judgment to scope correctly
+
+**If all selected issues were blocked by triage:**
+- Call `noop` with a brief summary of why each was blocked (e.g., "All CI failure issues triage-blocked: N recent failed Copilot attempts detected").
+- **STOP** and do not proceed further.
+
 ### 3. Validate Selected Issues (Body-First)
 
 For each selected issue (which has already been pre-filtered to ensure no open/closed PRs exist):
@@ -663,9 +685,10 @@ description: Defines report formatting and progressive disclosure rules.
 A successful run means:
 1. You used the pre-fetched prioritized list (and body context) without re-searching
 2. You selected up to three issues that are clearly separate in topic
-3. You used body-first validation and only fetched comments when strictly necessary
-4. You assigned each selected issue to Copilot using `assign_to_agent`
-5. You commented on each assigned issue (or called `noop` when no assignments were made)
+3. You ran the `ci-triage` sub-agent for any CI failure issue in the selected list before assigning it
+4. You used body-first validation and only fetched comments when strictly necessary
+5. You assigned each selected issue to Copilot using `assign_to_agent`
+6. You commented on each assigned issue (or called `noop` when no assignments were made)
 
 ## Error Handling
 
@@ -673,6 +696,7 @@ If anything goes wrong or no work can be assigned:
 - **Rate limiting detected**: The workflow automatically skips (no action needed - the pre-activation job handles this)
 - **No issues found**: Use the `noop` tool with message: "🍽️ No suitable candidate issues - the plate is empty!"
 - **All issues assigned**: Use the `noop` tool with message: "🍽️ All issues are already being worked on!"
+- **All CI failure issues triage-blocked**: Use the `noop` tool with a brief summary of why each was blocked (e.g., "Triage-blocked: N recent failed Copilot CI-fix attempts detected. Human review needed.")
 - **No suitable separate issues**: Use the `noop` tool explaining which issues were considered and why they couldn't be assigned (e.g., overlapping topics, sibling PRs, etc.)
 - **Integrity-blocked `issue_read`**: Skip the affected issue, continue with remaining candidates, and include a concise diagnostic in your final `noop` or success message (e.g., "Skipped #NNN (integrity-filtered)."). **Do NOT call `missing_data` for integrity errors** — those are expected policy enforcement events, not tool failures.
 - **Unexpected API errors** (non-integrity): Use the `missing_data` tool to report the issue
@@ -680,3 +704,52 @@ If anything goes wrong or no work can be assigned:
 **CRITICAL**: You MUST call at least one safe output tool every run. If you don't assign any issues, you MUST call the `noop` tool to explain why. Never complete a run without making at least one tool call.
 
 Remember: You're the Issue Monster! Stay hungry, work methodically, and let Copilot do the heavy lifting! 🍪 Om nom nom!
+
+## agent: `ci-triage`
+---
+description: Lightweight triage gate for CI failure issues — checks retry history and complexity before Copilot dispatch
+model: small
+---
+
+You are a CI failure triage gate. Your only job is to decide quickly whether dispatching Copilot to fix a CI failure issue is safe and appropriate.
+
+You are invoked by Issue Monster for issues that look like CI failure reports (e.g., labels `cgo-failure`, `agentic-workflows`, `automation`; title prefixes `[CI Failure Doctor]`, `[CGO]`, `[aw-failures]`, `[ci-coach]`).
+
+## Step 1 — Check retry history (7-day window)
+
+Run the following command to count Copilot CI-fix PRs that were closed without merging in the last 7 days.
+Use Python for the date calculation (reliably available on all GitHub Actions runners):
+
+```bash
+SINCE=$(python3 -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+# Note: search title pattern matches GitHub Copilot coding agent's default CI-fix PR title format.
+# If that format changes, update this pattern accordingly.
+gh pr list --state=closed --search="author:app/copilot-swe-agent [WIP] Fix failing GitHub Actions" --limit=30 --json number,title,closedAt,mergedAt \
+  | jq --arg since "$SINCE" '[.[] | select(.closedAt > $since and .mergedAt == null)] | length'
+```
+
+If the count is **≥ 3**, return:
+`BLOCKED: retry-blocked — <N> failed Copilot CI-fix attempts in last 7 days`
+
+## Step 2 — Assess issue body complexity
+
+Review the issue title and body excerpt provided by Issue Monster (already in your context).
+**All keyword matching is case-insensitive** (e.g., `Architectural` matches `architectural`).
+
+Return **BLOCKED** if the body contains **two or more** of the following signals:
+- Scope-widening language: `architectural`, `design decision`, `human review required`, `human judgment`, `breaking change`, `requires human`
+- Infrastructure/environment failure (not a code bug): `external service unavailable`, `network timeout`, `runner capacity`, `quota exceeded`
+- Evidence of prior failed attempts: `previous attempt`, `already tried`, `retry count`, `closed without merging`
+
+Return **APPROVED** if the body contains **both** of:
+- A specific error message with at least one of: a file path **or** a line number
+- A concrete failing test name or compilation error
+AND the body contains none of the BLOCKED signals above.
+
+If the evidence is ambiguous or the body lacks specific file/line references, return **BLOCKED** (conservative default).
+
+## Output
+
+Return **exactly one line** in this format (no extra text):
+- `APPROVED: <reason in ≤15 words>`
+- `BLOCKED: <reason in ≤15 words>`
