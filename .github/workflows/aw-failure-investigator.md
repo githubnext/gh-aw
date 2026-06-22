@@ -350,16 +350,21 @@ Only call additional logs/list APIs when a required field is missing or stale.
 
 **Early exit**: If `failed_run_ids` is empty, or every failure signature is already covered by an open issue in `existing_tracking_issues`, call `noop` immediately with a brief explanation and stop.
 
-### 1) Correlate with existing issue context
+### 1) Classify failures and correlate with existing issues
 
-Using `existing_tracking_issues` already loaded from `/tmp/gh-aw/agent/failure-investigator/prefetch.json` in step 0, group issues into clusters by label/title pattern, identify tracking gaps, and flag potential duplicates. Merge with the failure data from step 0.
-Structure issue context in three internal buckets: `clusters` (name + issue numbers), `gaps` (failure signature + reason), and `potential_duplicates` (issue numbers + reason).
+Use the `failure-classifier` agent, passing the full `failures` array (including `truncated_error_logs`) from the prefetch payload.
+It returns compact JSON with severity-ranked clusters (id, severity, representative_run_id, comparator_run_id, workflows, error_signature).
 
-### 2) Deep-dive each failure cluster with `audit`
+Then use the `issue-matcher` agent, passing the cluster summaries and `existing_tracking_issues` from the prefetch payload.
+It returns which clusters are already tracked (matched) and which are new gaps.
 
-Use the `cluster-evidence-extractor` agent, passing the clusters from steps 0-1 **including their `truncated_error_logs` from the prefetch payload**, to retrieve per-cluster evidence (dominant error, tool-failure pattern, anomalies, failure class).
+Keep the combined cluster + tracking mapping in context for steps 2-4.
 
-Limit deep-dive to the **3 highest-severity clusters** (P0 first, then P1). Do not audit clusters that are already fully explained by pre-fetched error logs.
+**Early exit**: If `issue-matcher` returns no gaps and all clusters are P2 severity, call `noop` with a brief explanation and stop.
+
+### 2) Deepen evidence for untracked clusters
+
+Use the `cluster-evidence-extractor` agent for untracked P0 and P1 clusters identified in step 1 (up to 3 clusters). Pass each cluster's `truncated_error_logs` from the prefetch payload. Cap total `audit` calls at 2 across all clusters.
 
 ### 3) Compare behavior with `audit-diff`
 
@@ -401,6 +406,60 @@ When creating a parent report issue, include: executive summary, failure cluster
 For sub-issues, prioritize high-quality actionable items, avoid duplicates unless scope changed, and reference the parent issue and analyzed run IDs.
 
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation.
+
+## agent: `failure-classifier`
+---
+description: Groups pre-fetched failure runs into severity-ranked clusters by error signature and workflow
+model: small
+---
+You receive a JSON array of `failures` from the pre-fetch payload. Each entry has `run_id`, `workflow_name`, `workflow_path`, `conclusion`, `failed_job_names`, `failed_steps`, and `truncated_error_logs`.
+
+Group failures into clusters:
+1. Cluster by dominant error signature extracted from `truncated_error_logs[].tail_lines`; group failures from the same workflow with matching signatures together.
+2. Assign severity — P0: agent/infra crash, data loss risk, or startup_failure; P1: persistent failure pattern across ≥2 runs; P2: isolated or transient.
+3. Pick `representative_run_id` (run that best illustrates the cluster) and `comparator_run_id` (nearest run_id not in the cluster, for diff).
+4. Copy `truncated_error_logs` from the representative run only into the output cluster.
+
+Return only JSON — no prose:
+```json
+{
+  "clusters": [
+    {
+      "id": "cluster-1",
+      "severity": "P0",
+      "representative_run_id": 123,
+      "comparator_run_id": 456,
+      "workflows": ["workflow-name"],
+      "error_signature": "one-line dominant error",
+      "run_ids": [123, 789],
+      "truncated_error_logs": []
+    }
+  ]
+}
+```
+
+## agent: `issue-matcher`
+---
+description: Matches failure clusters to existing open tracking issues to identify coverage gaps
+model: small
+---
+You receive:
+- `clusters`: array of failure clusters (id, severity, workflows, error_signature)
+- `existing_tracking_issues`: array of open issues (number, title, labels, url)
+
+For each cluster, determine whether an existing issue already tracks it. Match by error_signature similarity and workflow name overlap.
+
+Return only JSON — no prose:
+```json
+{
+  "matched": [
+    {"cluster_id": "cluster-1", "issue_number": 42, "confidence": "high"}
+  ],
+  "gaps": [
+    {"cluster_id": "cluster-2", "reason": "no existing issue covers this signature"}
+  ]
+}
+```
 
 ## agent: `cluster-evidence-extractor`
 ---
