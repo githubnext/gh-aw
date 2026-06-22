@@ -112,16 +112,10 @@ var DangerousPropertyNamesSet = func() map[string]struct{} {
 // Currently, both modes use identical tool lists, but this may diverge in the future
 // if different modes require different default tool sets.
 var DefaultReadOnlyGitHubTools = []string{
-	// actions
-	"download_workflow_run_artifact",
+	// actions (actions_run_trigger excluded: it is a write/trigger operation, not read-only)
+	"actions_get",
+	"actions_list",
 	"get_job_logs",
-	"get_workflow_run",
-	"get_workflow_run_logs",
-	"get_workflow_run_usage",
-	"list_workflow_jobs",
-	"list_workflow_run_artifacts",
-	"list_workflow_runs",
-	"list_workflows",
 	// code security
 	"get_code_scanning_alert",
 	"list_code_scanning_alerts",

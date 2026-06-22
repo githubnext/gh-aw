@@ -26,6 +26,7 @@ const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } 
 const { validateCreatePullRequestIntent, validatePushToPullRequestBranchIntent, validateCreateIssueIntent, validateAddCommentIntent } = require("./intent_probe.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
+const { lstatGuard } = require("./symlink_guard.cjs");
 
 /** PR event names used for target:triggering context validation across all safe-output handlers. */
 const PR_EVENT_NAMES = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
@@ -1938,8 +1939,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         };
       }
 
-      const stat = fs.lstatSync(filePath);
-      if (stat.isSymbolicLink()) {
+      const stat = lstatGuard(filePath);
+      if (stat === null) {
         throw {
           code: -32602,
           message: `${ERR_VALIDATION}: upload_artifact: symlinks are not allowed: ${filePath}`,

@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+// @safe-outputs-exempt SEC-004 — body sanitized transitively via sanitizeContent in update_handler_factory.cjs / update_pr_description_helpers.cjs
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction

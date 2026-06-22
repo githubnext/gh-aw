@@ -42,6 +42,25 @@ safe-outputs:
     expires: 30
 ```
 
+## Scheduled Report Window Scoping
+
+Always define the report window explicitly in the prompt so runs are deterministic and comparable.
+
+Good window examples:
+
+- `last 24 full hours ending at workflow start (UTC)`
+- `last 7 full days ending at workflow start (UTC)`
+- `since previous successful run timestamp`
+- `current calendar week to date (UTC, Monday 00:00 to now)`
+
+When choosing a strategy: use fixed durations for stable trend comparisons, run-based windows for continuous monitoring workflows, and calendar windows for stakeholder/business reporting.
+
+Window + no-op expectation:
+
+- call `noop` when the selected window has no qualifying updates to report
+- state the evaluated window in the no-op message for transparency
+- example (replace placeholders with computed values): `noop("No updates in last 24 full hours ({{window_start_utc}} to {{window_end_utc}})")`
+
 ## Report Style and Structure
 
 ### Header Levels
