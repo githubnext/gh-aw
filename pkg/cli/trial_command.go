@@ -67,7 +67,9 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			engineOverride, _ := cmd.Flags().GetString("engine")
 			appendText, _ := cmd.Flags().GetString("append")
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
-			disableSecurityScanner, _ := cmd.Flags().GetBool("disable-security-scanner")
+			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
+			disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
+			disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
 
 			if err := validateEngine(engineOverride); err != nil {
 				trialLog.Printf("Engine validation failed: engine=%s, err=%v", engineOverride, err)
@@ -128,7 +130,9 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	addEngineFlag(cmd)
 	addJSONFlag(cmd)
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
+	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
 	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
+	_ = cmd.Flags().MarkHidden("disable-security-scanner")
 	cmd.MarkFlagsMutuallyExclusive("host-repo", "repo")
 	cmd.MarkFlagsMutuallyExclusive("logical-repo", "clone-repo")
 
