@@ -163,16 +163,36 @@ async function runLogParser(options) {
     if (logEntries && Array.isArray(logEntries)) {
       const resultEntry = logEntries.find(e => e && typeof e === "object" && e.type === "result" && (typeof e.num_turns === "number" || e.usage));
       if (resultEntry) {
+        const normalizedResultEntry = {
+          type: "result",
+          num_turns: typeof resultEntry.num_turns === "number" && Number.isFinite(resultEntry.num_turns) && resultEntry.num_turns >= 0 ? resultEntry.num_turns : 0,
+          usage: {
+            input_tokens: typeof resultEntry.usage?.input_tokens === "number" && Number.isFinite(resultEntry.usage.input_tokens) && resultEntry.usage.input_tokens >= 0 ? resultEntry.usage.input_tokens : 0,
+            output_tokens: typeof resultEntry.usage?.output_tokens === "number" && Number.isFinite(resultEntry.usage.output_tokens) && resultEntry.usage.output_tokens >= 0 ? resultEntry.usage.output_tokens : 0,
+          },
+        };
         const stdioLogPath = "/tmp/gh-aw/agent-stdio.log";
         try {
           let alreadyHasResult = false;
           if (fs.existsSync(stdioLogPath)) {
             const stdioContent = fs.readFileSync(stdioLogPath, "utf8");
             alreadyHasResult = stdioContent.split("\n").some(line => {
-              const start = line.indexOf("{");
+              const objectStart = line.indexOf("{");
+              const arrayStart = line.indexOf("[{");
+              let start = -1;
+              if (objectStart >= 0 && arrayStart >= 0) {
+                start = Math.min(objectStart, arrayStart);
+              } else if (objectStart >= 0) {
+                start = objectStart;
+              } else {
+                start = arrayStart;
+              }
               if (start < 0) return false;
               try {
                 const parsed = JSON.parse(line.slice(start));
+                if (Array.isArray(parsed)) {
+                  return parsed.some(entry => entry && typeof entry === "object" && entry.type === "result");
+                }
                 return parsed && parsed.type === "result";
               } catch {
                 return false;
@@ -180,8 +200,9 @@ async function runLogParser(options) {
             });
           }
           if (!alreadyHasResult) {
-            fs.appendFileSync(stdioLogPath, JSON.stringify(resultEntry) + "\n");
-            core.info(`[log-parser] Wrote ${parserName} result entry to agent-stdio.log: num_turns=${resultEntry.num_turns ?? "n/a"}`);
+            fs.mkdirSync(path.dirname(stdioLogPath), { recursive: true });
+            fs.appendFileSync(stdioLogPath, JSON.stringify(normalizedResultEntry) + "\n");
+            core.info(`[log-parser] Wrote ${parserName} result entry to agent-stdio.log: num_turns=${normalizedResultEntry.num_turns ?? "n/a"}`);
           }
         } catch (err) {
           core.warning(`[log-parser] Failed to enrich agent-stdio.log with result entry: ${getErrorMessage(err)}`);

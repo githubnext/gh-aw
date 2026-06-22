@@ -256,8 +256,11 @@ describe("log_parser_bootstrap.cjs", () => {
             runLogParser({ parseLog: mockParseLog, parserName: "Copilot" });
             expect(fs.existsSync(stdioLogPath)).toBe(true);
             const parsed = JSON.parse(fs.readFileSync(stdioLogPath, "utf8").trim());
-            expect(parsed.type).toBe("result");
-            expect(parsed.num_turns).toBe(5);
+            expect(parsed).toEqual({
+              type: "result",
+              num_turns: 5,
+              usage: { input_tokens: 100, output_tokens: 50 },
+            });
             expect(mockCore.info).toHaveBeenCalledWith("[log-parser] Wrote Copilot result entry to agent-stdio.log: num_turns=5");
           } finally {
             fs.unlinkSync(logFile);
@@ -265,7 +268,7 @@ describe("log_parser_bootstrap.cjs", () => {
             if (fs.existsSync(stdioLogPath)) fs.unlinkSync(stdioLogPath);
           }
         }),
-        it("should not overwrite result entry when agent-stdio.log already has one", () => {
+        it("should not overwrite result entry when agent-stdio.log already has one in JSON array line", () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
           const stdioLogPath = "/tmp/gh-aw/agent-stdio.log";
@@ -273,7 +276,7 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.writeFileSync(logFile, "content");
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             fs.mkdirSync(path.dirname(stdioLogPath), { recursive: true });
-            fs.writeFileSync(stdioLogPath, JSON.stringify({ type: "result", num_turns: 3 }) + "\n");
+            fs.writeFileSync(stdioLogPath, JSON.stringify([{ type: "result", num_turns: 3 }]) + "\n");
             const mockParseLog = vi.fn().mockReturnValue({
               markdown: "## Result\n",
               mcpFailures: [],
@@ -283,7 +286,7 @@ describe("log_parser_bootstrap.cjs", () => {
             runLogParser({ parseLog: mockParseLog, parserName: "Copilot" });
             const written = fs.readFileSync(stdioLogPath, "utf8");
             expect(written.trim().split("\n")).toHaveLength(1);
-            expect(JSON.parse(written.trim()).num_turns).toBe(3);
+            expect(JSON.parse(written.trim())[0].num_turns).toBe(3);
             expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("[log-parser] Wrote"));
           } finally {
             fs.unlinkSync(logFile);
