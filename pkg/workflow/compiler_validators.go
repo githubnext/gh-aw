@@ -301,6 +301,7 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 		{enabled: workflowData.RateLimit != nil, message: "Using experimental feature: rate limiting"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.DispatchRepository != nil, message: "Using experimental feature: dispatch_repository"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.MergePullRequest != nil, message: "Using experimental feature: merge-pull-request"},
+		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ReplaceLabel != nil, message: "Using experimental feature: replace-label"},
 		{enabled: workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK, message: "Using experimental feature: engine.copilot-sdk"},
 		{enabled: isFeatureEnabled(constants.GHAWDetectionFeatureFlag, workflowData), message: "Using experimental feature: gh-aw-detection"},
 	}
