@@ -147,6 +147,69 @@ async function runLogParser(options) {
       logEntries = result.logEntries || null;
     }
 
+    // Enrich agent-stdio.log with a normalized result entry when the engine does not
+    // write one directly (e.g. Copilot, Pi).  The OTEL conclusion span
+    // (send_otlp_span.cjs → readAgentRuntimeMetrics) reads agent-stdio.log for the
+    // gh-aw.turns attribute and token usage; without this entry those fields are zero
+    // for every engine except Claude Code, leaving 80 % of fleet runs un-triageable.
+    //
+    // Safety rules:
+    //  1. Only append when agent-stdio.log does NOT already contain a result entry
+    //     (avoids double-counting on Claude Code runs where the entry is written by
+    //     the --debug-file flag).
+    //  2. The appended line must be a standalone JSON object on its own line so that
+    //     the existing line-oriented parser in readAgentRuntimeMetrics can find it.
+    //  3. All errors are non-fatal – telemetry enrichment must never break workflows.
+    if (logEntries && Array.isArray(logEntries)) {
+      const resultEntry = logEntries.find(e => e && typeof e === "object" && e.type === "result" && (typeof e.num_turns === "number" || e.usage));
+      if (resultEntry) {
+        const normalizedResultEntry = {
+          type: "result",
+          num_turns: typeof resultEntry.num_turns === "number" && Number.isFinite(resultEntry.num_turns) && resultEntry.num_turns >= 0 ? resultEntry.num_turns : 0,
+          usage: {
+            input_tokens: typeof resultEntry.usage?.input_tokens === "number" && Number.isFinite(resultEntry.usage.input_tokens) && resultEntry.usage.input_tokens >= 0 ? resultEntry.usage.input_tokens : 0,
+            output_tokens: typeof resultEntry.usage?.output_tokens === "number" && Number.isFinite(resultEntry.usage.output_tokens) && resultEntry.usage.output_tokens >= 0 ? resultEntry.usage.output_tokens : 0,
+          },
+        };
+        const stdioLogPath = "/tmp/gh-aw/agent-stdio.log";
+        try {
+          let alreadyHasResult = false;
+          if (fs.existsSync(stdioLogPath)) {
+            const stdioContent = fs.readFileSync(stdioLogPath, "utf8");
+            alreadyHasResult = stdioContent.split("\n").some(line => {
+              const objectStart = line.indexOf("{");
+              const arrayStart = line.indexOf("[");
+              let start = -1;
+              if (objectStart >= 0 && arrayStart >= 0) {
+                start = Math.min(objectStart, arrayStart);
+              } else if (objectStart >= 0) {
+                start = objectStart;
+              } else {
+                start = arrayStart;
+              }
+              if (start < 0) return false;
+              try {
+                const parsed = JSON.parse(line.slice(start));
+                if (Array.isArray(parsed)) {
+                  return parsed.some(entry => entry && typeof entry === "object" && entry.type === "result");
+                }
+                return parsed && parsed.type === "result";
+              } catch {
+                return false;
+              }
+            });
+          }
+          if (!alreadyHasResult) {
+            fs.mkdirSync(path.dirname(stdioLogPath), { recursive: true });
+            fs.appendFileSync(stdioLogPath, JSON.stringify(normalizedResultEntry) + "\n");
+            core.info(`[log-parser] Wrote ${parserName} result entry to agent-stdio.log: num_turns=${normalizedResultEntry.num_turns ?? "n/a"}`);
+          }
+        } catch (err) {
+          core.warning(`[log-parser] Failed to enrich agent-stdio.log with result entry: ${getErrorMessage(err)}`);
+        }
+      }
+    }
+
     // Read safe outputs file if available
     let safeOutputsContent = "";
     let safeOutputEntriesCount = 0;
