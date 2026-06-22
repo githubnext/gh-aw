@@ -44,6 +44,16 @@ func getMaxConcurrentDownloads() int {
 	return envutil.GetIntFromEnv("GH_AW_MAX_CONCURRENT_DOWNLOADS", MaxConcurrentDownloads, 1, 100, logsOrchestratorLog)
 }
 
+// matchEngineFilter checks whether the run recorded in awInfo matches the
+// requested engine filter string.  It returns (matches, detectedEngineID).
+// detectedEngineID is "" when awInfo is unavailable or carries no engine_id.
+func matchEngineFilter(awInfo *AwInfo, awInfoErr error, filterEngine string) (bool, string) {
+	if awInfoErr != nil || awInfo == nil || awInfo.EngineID == "" {
+		return false, ""
+	}
+	return awInfo.EngineID == filterEngine, awInfo.EngineID
+}
+
 type LogsDownloadOptions struct {
 	WorkflowName      string
 	Count             int
@@ -385,13 +395,7 @@ outerLoop:
 
 				// Apply engine filtering if specified
 				if engine != "" {
-					var engineMatches bool
-					var detectedEngineID string
-					if awInfoErr == nil && awInfo != nil && awInfo.EngineID != "" {
-						detectedEngineID = awInfo.EngineID
-						engineMatches = (awInfo.EngineID == engine)
-					}
-
+					engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, engine)
 					if !engineMatches {
 						if detectedEngineID == "" {
 							detectedEngineID = "unknown"
@@ -1003,12 +1007,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 		}
 
 		if opts.Engine != "" {
-			var engineMatches bool
-			var detectedEngineID string
-			if awInfoErr == nil && awInfo != nil && awInfo.EngineID != "" {
-				detectedEngineID = awInfo.EngineID
-				engineMatches = (awInfo.EngineID == opts.Engine)
-			}
+			engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, opts.Engine)
 			if !engineMatches {
 				if detectedEngineID == "" {
 					detectedEngineID = "unknown"

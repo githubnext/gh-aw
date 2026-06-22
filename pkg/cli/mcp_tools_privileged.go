@@ -163,6 +163,8 @@ from where the previous request stopped due to timeout.`,
 			cmdArgs = append(cmdArgs, "--filtered-integrity")
 		}
 		if args.Branch != "" {
+			// The MCP parameter is named "branch" for backwards compatibility,
+			// but the logs CLI flag is --ref (which accepts branches and tags).
 			cmdArgs = append(cmdArgs, "--ref", args.Branch)
 		}
 		if args.AfterRunID > 0 {
