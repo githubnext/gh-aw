@@ -11,7 +11,7 @@ permissions:
   pull-requests: read
   actions: read
 engine: claude
-timeout-minutes: 10
+timeout-minutes: 30
 imports:
   - uses: shared/meta-analysis-base.md
     with:
