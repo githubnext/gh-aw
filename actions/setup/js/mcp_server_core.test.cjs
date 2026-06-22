@@ -545,7 +545,7 @@ describe("mcp_server_core.cjs", () => {
       expect(results[0].error.message).toBe("process exited with code 1");
     });
 
-    it("should fall back to -32603 and Internal error for thrown plain object without message", async () => {
+    it("should use Internal error when thrown plain object has no message property", async () => {
       const { registerTool, handleMessage } = await import("./mcp_server_core.cjs");
 
       registerTool(server, {
