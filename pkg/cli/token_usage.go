@@ -465,9 +465,7 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 		// was computed at the time the run completed with full per-request pricing.
 		summary.TotalAIC = entry.AICredits
 		if summary.ByModel[model] == nil {
-			summary.ByModel[model] = &ModelTokenUsage{
-				Provider: provider,
-			}
+			summary.ByModel[model] = &ModelTokenUsage{}
 		}
 		summary.ByModel[model].Provider = provider
 		summary.ByModel[model].InputTokens = entry.InputTokens
