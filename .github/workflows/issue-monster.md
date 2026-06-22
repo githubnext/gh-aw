@@ -718,12 +718,13 @@ You are invoked by Issue Monster for issues that look like CI failure reports (e
 ## Step 1 — Check retry history (7-day window)
 
 Run the following command to count Copilot CI-fix PRs that were closed without merging in the last 7 days.
-Use Python for the date calculation (reliably available on all GitHub Actions runners):
+Uses `datetime.timezone.utc` (Python 3.2+, standard on all GitHub Actions runners):
 
 ```bash
 SINCE=$(python3 -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
-# Note: search title pattern matches GitHub Copilot coding agent's default CI-fix PR title format.
-# If that format changes, update this pattern accordingly.
+# Note: search title pattern matches GitHub Copilot coding agent's default CI-fix PR title format
+# (e.g. "[WIP] Fix failing GitHub Actions job"). If Copilot changes this format, Step 1 may
+# undercount retries — Step 2's body complexity check remains the safety backstop in that case.
 gh pr list --state=closed --search="author:app/copilot-swe-agent [WIP] Fix failing GitHub Actions" --limit=30 --json number,title,closedAt,mergedAt \
   | jq --arg since "$SINCE" '[.[] | select(.closedAt > $since and .mergedAt == null)] | length'
 ```
@@ -736,17 +737,22 @@ If the count is **≥ 3**, return:
 Review the issue title and body excerpt provided by Issue Monster (already in your context).
 **All keyword matching is case-insensitive** (e.g., `Architectural` matches `architectural`).
 
-Return **BLOCKED** if the body contains **two or more** of the following signals:
+**BLOCKED signals** — note each one that appears in the body:
 - Scope-widening language: `architectural`, `design decision`, `human review required`, `human judgment`, `breaking change`, `requires human`
 - Infrastructure/environment failure (not a code bug): `external service unavailable`, `network timeout`, `runner capacity`, `quota exceeded`
 - Evidence of prior failed attempts: `previous attempt`, `already tried`, `retry count`, `closed without merging`
 
-Return **APPROVED** if the body contains **both** of:
-- A specific error message with at least one of: a file path **or** a line number
-- A concrete failing test name or compilation error
-AND the body contains none of the BLOCKED signals above.
+Apply this decision:
 
-If the evidence is ambiguous or the body lacks specific file/line references, return **BLOCKED** (conservative default).
+1. Return **APPROVED** if **all three** of the following are true:
+   - The body contains a specific error message that includes a file path or line number.
+   - The body contains a concrete failing test name or compilation error.
+   - The body contains **none** of the BLOCKED signals.
+2. Otherwise return **BLOCKED** (conservative default). This covers all remaining cases:
+   - Two or more BLOCKED signals present.
+   - Exactly one BLOCKED signal (fails condition 3 above).
+   - Missing file/line reference or test name.
+   - Ambiguous or sparse issue body.
 
 ## Output
 
