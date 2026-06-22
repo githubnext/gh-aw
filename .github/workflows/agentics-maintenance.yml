@@ -23,13 +23,13 @@
 #
 # This file defines the generated agentic maintenance workflow for this repository.
 # It runs scheduled cleanup for expiring safe outputs and supports manual maintenance operations.
-#
+# 
 # This workflow is generated automatically when workflows use expiring safe outputs
 # or when repository maintenance features are enabled in .github/workflows/aw.json.
-#
+# 
 # To disable maintenance workflow generation, set in .github/workflows/aw.json:
 # {"maintenance": false}
-#
+# 
 # Agentic maintenance docs:
 # https://github.github.com/gh-aw/reference/ephemerals/#manual-maintenance-operations
 #
