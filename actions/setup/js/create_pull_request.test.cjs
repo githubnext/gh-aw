@@ -1018,6 +1018,48 @@ index 0000000..abc1234
     expect(fallbackIssueBody).toContain("git reset --hard");
     expect(fallbackIssueBody).toContain(`git update-ref -d ${fallbackBundleTempRef}`);
     expect(fallbackIssueBody).not.toContain("refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison");
+    expect(fallbackIssueBody).toContain("**Original error:** push rejected");
+    expect(fallbackIssueBody).toContain("Test body");
+    expect(fallbackIssueBody).toContain("Closes \\#57");
+    expect(fallbackIssueBody).toContain("Resolves test-owner/test-repo\\#58");
+    expect(fallbackIssueBody).not.toContain("Closes #57");
+    expect(fallbackIssueBody).not.toContain("Resolves test-owner/test-repo#58");
+  });
+
+  it("should include original error in fallback issue patch instructions when push fails (no bundle)", async () => {
+    const patchPath = canonicalPatchPath("autoloop/perf-comparison");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    // No bundle file - forces the patch transport fallback path
+    pushSignedSpy.mockRejectedValueOnce(new Error("push rejected"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58", branch: "autoloop/perf-comparison" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+
+    const fallbackIssueBody = global.github.rest.issues.create.mock.calls[0][0].body;
+    expect(fallbackIssueBody).toContain("**Original error:** push rejected");
+    expect(fallbackIssueBody).toContain("git am --3way");
+    expect(fallbackIssueBody).not.toContain("git update-ref");
     expect(fallbackIssueBody).toContain("Test body");
     expect(fallbackIssueBody).toContain("Closes \\#57");
     expect(fallbackIssueBody).toContain("Resolves test-owner/test-repo\\#58");

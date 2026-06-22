@@ -291,8 +291,8 @@ func createProject(ctx context.Context, ownerId, title string, verbose bool) (ma
 	projectLog.Printf("Creating project: ownerId=%s, title=%s", ownerId, title)
 	console.LogVerbose(verbose, "Creating project with owner ID: "+ownerId)
 
-	mutation := fmt.Sprintf(`mutation {
-		createProjectV2(input: { ownerId: "%s", title: "%s" }) {
+	mutation := `mutation($ownerId: ID!, $title: String!) {
+		createProjectV2(input: { ownerId: $ownerId, title: $title }) {
 			projectV2 {
 				id
 				number
@@ -300,9 +300,13 @@ func createProject(ctx context.Context, ownerId, title string, verbose bool) (ma
 				url
 			}
 		}
-	}`, ownerId, escapeGraphQLString(title))
+	}`
 
-	output, err := workflow.RunGH("Creating project...", "api", "graphql", "-f", "query="+mutation)
+	output, err := workflow.RunGH("Creating project...", "api", "graphql",
+		"-f", "query="+mutation,
+		"-f", "ownerId="+ownerId,
+		"-f", "title="+title,
+	)
 	if err != nil {
 		// Check for permission errors
 		//nolint:errstringmatch // gh CLI GraphQL surfaces missing Projects scope as INSUFFICIENT_SCOPES text.
@@ -352,8 +356,13 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 	repoName := parts[1]
 
 	// Get repository ID
-	query := fmt.Sprintf(`query { repository(owner: "%s", name: "%s") { id } }`, escapeGraphQLString(repoOwner), escapeGraphQLString(repoName))
-	output, err := workflow.RunGH("Getting repository ID...", "api", "graphql", "-f", "query="+query, "--jq", ".data.repository.id")
+	repoIdQuery := `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id } }`
+	output, err := workflow.RunGH("Getting repository ID...", "api", "graphql",
+		"-f", "query="+repoIdQuery,
+		"-f", "owner="+repoOwner,
+		"-f", "name="+repoName,
+		"--jq", ".data.repository.id",
+	)
 	if err != nil {
 		return fmt.Errorf("repository '%s' not found: %w", repoSlug, err)
 	}
@@ -364,15 +373,19 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 	}
 
 	// Link project to repository
-	mutation := fmt.Sprintf(`mutation {
-		linkProjectV2ToRepository(input: { projectId: "%s", repositoryId: "%s" }) {
+	mutation := `mutation($projectId: ID!, $repositoryId: ID!) {
+		linkProjectV2ToRepository(input: { projectId: $projectId, repositoryId: $repositoryId }) {
 			repository {
 				id
 			}
 		}
-	}`, projectId, repoId)
+	}`
 
-	_, err = workflow.RunGH("Linking project to repository...", "api", "graphql", "-f", "query="+mutation)
+	_, err = workflow.RunGH("Linking project to repository...", "api", "graphql",
+		"-f", "query="+mutation,
+		"-f", "projectId="+projectId,
+		"-f", "repositoryId="+repoId,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to link project to repository: %w", err)
 	}
