@@ -62,6 +62,20 @@
       "closed": 201,
       "open": 4,
       "rate": 79.8
+    },
+    {
+      "date": "2026-06-22",
+      "merged": 793,
+      "closed": 202,
+      "open": 5,
+      "rate": 79.7,
+      "categories": {
+        "bug_fix": 0.761,
+        "feature": 0.77,
+        "tests": 0.805,
+        "docs": 0.764,
+        "refactor": 0.709
+      }
     }
   ]
 }
