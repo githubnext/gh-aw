@@ -108,7 +108,7 @@ type ProcessedRun struct {
 
 // ReportProvenance holds the shared provenance fields common to all report record types.
 type ReportProvenance struct {
-	Timestamp    string `json:"timestamp,omitempty"`
+	Timestamp    string `json:"timestamp"`
 	WorkflowName string `json:"workflow_name,omitempty"` // Tracks which workflow reported this
 	RunID        int64  `json:"run_id,omitempty"`        // Tracks which run reported this
 }
