@@ -167,7 +167,9 @@ func TestBuildAuditData(t *testing.T) {
 			Tool:         "missing_tool",
 			Reason:       "Tool not available",
 			Alternatives: "use alternative_tool instead",
-			Timestamp:    "2024-01-01T10:00:00Z",
+			ReportProvenance: ReportProvenance{
+				Timestamp: "2024-01-01T10:00:00Z",
+			},
 		},
 	}
 

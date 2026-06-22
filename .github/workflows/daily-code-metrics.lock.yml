@@ -100,6 +100,7 @@ jobs:
       contents: read
     env:
       GH_AW_MAX_DAILY_AI_CREDITS: "10000"
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -249,6 +250,23 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
+      - name: Log runtime features
+        env:
+          GH_AW_RUNTIME_FEATURES_IS_SET: ${{ contains(toJSON(vars), '"GH_AW_RUNTIME_FEATURES":') }}
+        run: |
+          {
+            echo "## Runtime features"
+            echo
+            if [[ "$GH_AW_RUNTIME_FEATURES_IS_SET" != "true" ]]; then
+              echo "_Not set_"
+            elif [[ -n "$GH_AW_RUNTIME_FEATURES" ]]; then
+              echo '```text'
+              printf '%s\n' "$GH_AW_RUNTIME_FEATURES"
+              echo '```'
+            else
+              echo "_Empty string_"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Restore experiment state from git
         id: restore-experiment-state
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -473,6 +491,7 @@ jobs:
       GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_PROJECT_UTC: "-08:00"
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: dailycodemetrics
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
@@ -1270,6 +1289,8 @@ jobs:
       group: "gh-aw-conclusion-daily-code-metrics"
       cancel-in-progress: false
       queue: max
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
       noop_message: ${{ steps.noop.outputs.noop_message }}
@@ -1529,6 +1550,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       aic: ${{ steps.parse_detection_token_usage.outputs.aic }}
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
@@ -1753,6 +1776,8 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: write
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -1832,6 +1857,8 @@ jobs:
     concurrency:
       group: "push-repo-memory-${{ github.repository }}|daily/daily-code-metrics"
       cancel-in-progress: false
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       patch_size_exceeded_default: ${{ steps.push_repo_memory_default.outputs.patch_size_exceeded }}
       validation_error_default: ${{ steps.push_repo_memory_default.outputs.validation_error }}
@@ -1931,6 +1958,7 @@ jobs:
       GH_AW_ENGINE_ID: "claude"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_PROJECT_UTC: "-08:00"
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_TRACKER_ID: "daily-code-metrics"
       GH_AW_WORKFLOW_EMOJI: "📊"
@@ -2028,6 +2056,7 @@ jobs:
     permissions:
       contents: read
     env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: dailycodemetrics
     steps:
       - name: Checkout actions folder
@@ -2083,6 +2112,8 @@ jobs:
     permissions:
       contents: write
     timeout-minutes: 10
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       branch_name: ${{ steps.upload_assets.outputs.branch_name }}
       published_count: ${{ steps.upload_assets.outputs.published_count }}

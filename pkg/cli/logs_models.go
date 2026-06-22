@@ -106,22 +106,25 @@ type ProcessedRun struct {
 	JobDetails              []JobInfoWithDuration
 }
 
+// ReportProvenance holds the shared provenance fields common to all report record types.
+type ReportProvenance struct {
+	Timestamp    string `json:"timestamp"`
+	WorkflowName string `json:"workflow_name,omitempty"` // Tracks which workflow reported this
+	RunID        int64  `json:"run_id,omitempty"`        // Tracks which run reported this
+}
+
 // MissingToolReport represents a missing tool reported by an agentic workflow
 type MissingToolReport struct {
 	Tool         string `json:"tool"`
 	Reason       string `json:"reason"`
 	Alternatives string `json:"alternatives,omitempty"`
-	Timestamp    string `json:"timestamp"`
-	WorkflowName string `json:"workflow_name,omitempty"` // Added for tracking which workflow reported this
-	RunID        int64  `json:"run_id,omitempty"`        // Added for tracking which run reported this
+	ReportProvenance
 }
 
 // NoopReport represents a noop message reported by an agentic workflow
 type NoopReport struct {
-	Message      string `json:"message"`
-	Timestamp    string `json:"timestamp,omitempty"`
-	WorkflowName string `json:"workflow_name,omitempty"` // Added for tracking which workflow reported this
-	RunID        int64  `json:"run_id,omitempty"`        // Added for tracking which run reported this
+	Message string `json:"message"`
+	ReportProvenance
 }
 
 // MissingDataReport represents missing data reported by an agentic workflow
@@ -130,18 +133,14 @@ type MissingDataReport struct {
 	Reason       string `json:"reason"`
 	Context      string `json:"context,omitempty"`
 	Alternatives string `json:"alternatives,omitempty"`
-	Timestamp    string `json:"timestamp"`
-	WorkflowName string `json:"workflow_name,omitempty"` // Added for tracking which workflow reported this
-	RunID        int64  `json:"run_id,omitempty"`        // Added for tracking which run reported this
+	ReportProvenance
 }
 
 // MCPFailureReport represents an MCP server failure detected in a workflow run
 type MCPFailureReport struct {
-	ServerName   string `json:"server_name"`
-	Status       string `json:"status"`
-	Timestamp    string `json:"timestamp,omitempty"`
-	WorkflowName string `json:"workflow_name,omitempty"`
-	RunID        int64  `json:"run_id,omitempty"`
+	ServerName string `json:"server_name"`
+	Status     string `json:"status"`
+	ReportProvenance
 }
 
 // MissingToolSummary aggregates missing tool reports across runs

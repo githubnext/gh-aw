@@ -52,7 +52,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://example.com/my-workflow.md       # Guided setup from any HTTPS URL
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://example.com/workflow.json        # Import JSON workflow definition with guided setup
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --engine copilot   # Pre-select engine
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --skip-secret      # Skip secret prompt
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-secret        # Skip secret prompt
 `,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
@@ -68,7 +68,9 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			workflowDir, _ := cmd.Flags().GetString("dir")
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
-			skipSecret, _ := cmd.Flags().GetBool("skip-secret")
+			noSecret, _ := cmd.Flags().GetBool("no-secret")
+			skipSecretLegacy, _ := cmd.Flags().GetBool("skip-secret")
+			skipSecret := noSecret || skipSecretLegacy
 
 			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
 
@@ -112,8 +114,10 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	// Add stop-after flag
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
-	// Add skip-secret flag
+	// Add no-secret flag (--skip-secret is kept as an undocumented alias)
+	cmd.Flags().Bool("no-secret", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")
 	cmd.Flags().Bool("skip-secret", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")
+	_ = cmd.Flags().MarkHidden("skip-secret")
 
 	// Register completions
 	RegisterEngineFlagCompletion(cmd)

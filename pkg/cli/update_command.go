@@ -53,7 +53,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
   ` + string(constants.CLIExtensionPrefix) + ` update --no-merge         # Override local changes with upstream
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist --major # Allow major version updates
   ` + string(constants.CLIExtensionPrefix) + ` update --force            # Force update even if no changes
-  ` + string(constants.CLIExtensionPrefix) + ` update --disable-release-bump  # Update without force-bumping all action versions
+  ` + string(constants.CLIExtensionPrefix) + ` update --no-release-bump     # Update without force-bumping all action versions
   ` + string(constants.CLIExtensionPrefix) + ` update --no-compile           # Update without regenerating lock files
   ` + string(constants.CLIExtensionPrefix) + ` update --no-redirect          # Refuse workflows that use redirect frontmatter
   ` + string(constants.CLIExtensionPrefix) + ` update --dir custom/workflows  # Update workflows in custom directory
@@ -70,10 +70,14 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
 			noMergeFlag, _ := cmd.Flags().GetBool("no-merge")
-			disableReleaseBump, _ := cmd.Flags().GetBool("disable-release-bump")
+			disableReleaseBump, _ := cmd.Flags().GetBool("no-release-bump")
+			disableReleaseBumpLegacy, _ := cmd.Flags().GetBool("disable-release-bump")
+			disableReleaseBump = disableReleaseBump || disableReleaseBumpLegacy
 			noCompile, _ := cmd.Flags().GetBool("no-compile")
 			noRedirect, _ := cmd.Flags().GetBool("no-redirect")
-			disableSecurityScanner, _ := cmd.Flags().GetBool("disable-security-scanner")
+			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
+			disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
+			disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
 			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
@@ -137,8 +141,12 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 	cmd.Flags().Bool("no-merge", false, "Override local changes with upstream version instead of merging")
+	cmd.Flags().Bool("no-release-bump", false, "Disable automatic major version bumps for all actions (only core actions/* are force-updated)")
 	cmd.Flags().Bool("disable-release-bump", false, "Disable automatic major version bumps for all actions (only core actions/* are force-updated)")
+	_ = cmd.Flags().MarkHidden("disable-release-bump")
+	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
 	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
+	_ = cmd.Flags().MarkHidden("disable-security-scanner")
 	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files)")
 	cmd.Flags().Bool("no-redirect", false, "Refuse updates when redirect frontmatter is present")
 	addRepoFlag(cmd)
@@ -168,7 +176,7 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 
 	// Update GitHub Actions versions in actions-lock.json.
 	// By default all actions are updated to the latest major version.
-	// Pass --disable-release-bump to revert to only forcing updates for core (actions/*) actions.
+	// Pass --no-release-bump to revert to only forcing updates for core (actions/*) actions.
 	updateLog.Printf("Updating GitHub Actions versions in actions-lock.json: allowMajor=%v, disableReleaseBump=%v", opts.AllowMajor, opts.DisableReleaseBump)
 	if err := UpdateActions(ctx, opts.AllowMajor, opts.Verbose, opts.DisableReleaseBump, opts.CoolDown); err != nil {
 		// Non-fatal: warn but don't fail the update

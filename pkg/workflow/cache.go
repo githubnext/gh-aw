@@ -1064,7 +1064,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	}
 
 	job := &Job{
-		Name:        "update_cache_memory",
+		Name:        updateCacheMemoryJobName,
 		DisplayName: "", // No display name - job ID is sufficient
 		RunsOn:      c.formatFrameworkJobRunsOn(data),
 		If:          jobCondition,

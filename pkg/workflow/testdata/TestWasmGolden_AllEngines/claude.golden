@@ -25,6 +25,7 @@ jobs:
       contents: read
     env:
       GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -171,6 +172,23 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
+      - name: Log runtime features
+        env:
+          GH_AW_RUNTIME_FEATURES_IS_SET: ${{ contains(toJSON(vars), '"GH_AW_RUNTIME_FEATURES":') }}
+        run: |
+          {
+            echo "## Runtime features"
+            echo
+            if [[ "$GH_AW_RUNTIME_FEATURES_IS_SET" != "true" ]]; then
+              echo "_Not set_"
+            elif [[ -n "$GH_AW_RUNTIME_FEATURES" ]]; then
+              echo '```text'
+              printf '%s\n' "$GH_AW_RUNTIME_FEATURES"
+              echo '```'
+            else
+              echo "_Empty string_"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -313,6 +331,7 @@ jobs:
     permissions:
       contents: read
     env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: workflow
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
@@ -746,6 +765,8 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
       matched_command: ''
