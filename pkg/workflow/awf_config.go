@@ -535,6 +535,12 @@ func extractPlatformType(workflowData *WorkflowData) string {
 	if workflowData == nil || workflowData.SandboxConfig == nil || workflowData.SandboxConfig.Agent == nil {
 		return ""
 	}
+	if workflowData.SandboxConfig.Agent.Disabled {
+		return ""
+	}
+	if !isSupportedSandboxType(getAgentType(workflowData.SandboxConfig.Agent)) {
+		return ""
+	}
 	return workflowData.SandboxConfig.Agent.Platform
 }
 
