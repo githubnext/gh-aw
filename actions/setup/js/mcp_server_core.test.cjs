@@ -471,6 +471,55 @@ describe("mcp_server_core.cjs", () => {
       expect(results).toHaveLength(1);
       expect(results[0].result.content[0].text).toBe("default handler for no_handler_tool");
     });
+
+    it("should return the code and message from a thrown plain object (not Error instance)", async () => {
+      const { registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      registerTool(server, {
+        name: "plain_throw_tool",
+        description: "A tool that throws a plain object",
+        inputSchema: { type: "object", properties: { input: { type: "string" } }, required: ["input"] },
+        handler: () => {
+          throw { code: -32602, message: "ERR_VALIDATION: body required" };
+        },
+      });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 99,
+        method: "tools/call",
+        params: { name: "plain_throw_tool", arguments: { input: "x" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error.code).toBe(-32602);
+      expect(results[0].error.message).toBe("ERR_VALIDATION: body required");
+      expect(results[0].error.message).not.toContain("[object Object]");
+    });
+
+    it("should fall back to -32603 when thrown plain object has no valid error code", async () => {
+      const { registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      registerTool(server, {
+        name: "no_code_throw_tool",
+        description: "A tool that throws a plain object without a code",
+        inputSchema: { type: "object", properties: { input: { type: "string" } }, required: ["input"] },
+        handler: () => {
+          throw { message: "something went wrong" };
+        },
+      });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 100,
+        method: "tools/call",
+        params: { name: "no_code_throw_tool", arguments: { input: "x" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error.code).toBe(-32603);
+      expect(results[0].error.message).toBe("something went wrong");
+    });
   });
 
   describe("handleRequest", () => {
