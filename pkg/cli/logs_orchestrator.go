@@ -25,7 +25,6 @@ import (
 	"github.com/github/gh-aw/pkg/envutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
@@ -386,36 +385,20 @@ outerLoop:
 
 				// Apply engine filtering if specified
 				if engine != "" {
-					// Check if the run's engine matches the filter
-					detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
-
 					var engineMatches bool
-					if detectedEngine != nil {
-						// Get the engine ID to compare with the filter
-						registry := workflow.GetGlobalEngineRegistry()
-						for _, supportedEngine := range constants.AgenticEngines {
-							if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
-								engineMatches = (supportedEngine == engine)
-								break
-							}
-						}
+					var detectedEngineID string
+					if awInfoErr == nil && awInfo != nil && awInfo.EngineID != "" {
+						detectedEngineID = awInfo.EngineID
+						engineMatches = (awInfo.EngineID == engine)
 					}
 
 					if !engineMatches {
-						logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, no match detected", result.Run.DatabaseID, engine)
+						if detectedEngineID == "" {
+							detectedEngineID = "unknown"
+						}
+						logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, detected=%s", result.Run.DatabaseID, engine, detectedEngineID)
 						if verbose {
-							engineName := "unknown"
-							if detectedEngine != nil {
-								// Try to get a readable name for the detected engine
-								registry := workflow.GetGlobalEngineRegistry()
-								for _, supportedEngine := range constants.AgenticEngines {
-									if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
-										engineName = supportedEngine
-										break
-									}
-								}
-							}
-							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, engineName, engine)))
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, detectedEngineID, engine)))
 						}
 						continue
 					}
@@ -1020,21 +1003,19 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 		}
 
 		if opts.Engine != "" {
-			detectedEngine := extractEngineFromAwInfo(awInfoPath, opts.Verbose)
 			var engineMatches bool
-			if detectedEngine != nil {
-				registry := workflow.GetGlobalEngineRegistry()
-				for _, supportedEngine := range constants.AgenticEngines {
-					if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
-						engineMatches = (supportedEngine == opts.Engine)
-						break
-					}
-				}
+			var detectedEngineID string
+			if awInfoErr == nil && awInfo != nil && awInfo.EngineID != "" {
+				detectedEngineID = awInfo.EngineID
+				engineMatches = (awInfo.EngineID == opts.Engine)
 			}
 			if !engineMatches {
-				logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, no match detected", result.Run.DatabaseID, opts.Engine)
+				if detectedEngineID == "" {
+					detectedEngineID = "unknown"
+				}
+				logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, detected=%s", result.Run.DatabaseID, opts.Engine, detectedEngineID)
 				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine does not match filter '%s'", result.Run.DatabaseID, opts.Engine)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, detectedEngineID, opts.Engine)))
 				}
 				continue
 			}

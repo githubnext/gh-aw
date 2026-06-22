@@ -163,7 +163,7 @@ from where the previous request stopped due to timeout.`,
 			cmdArgs = append(cmdArgs, "--filtered-integrity")
 		}
 		if args.Branch != "" {
-			cmdArgs = append(cmdArgs, "--branch", args.Branch)
+			cmdArgs = append(cmdArgs, "--ref", args.Branch)
 		}
 		if args.AfterRunID > 0 {
 			cmdArgs = append(cmdArgs, "--after-run-id", strconv.FormatInt(args.AfterRunID, 10))
