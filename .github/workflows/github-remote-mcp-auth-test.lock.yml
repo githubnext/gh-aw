@@ -94,6 +94,7 @@ jobs:
       contents: read
     env:
       GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -241,6 +242,23 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
+      - name: Log runtime features
+        env:
+          GH_AW_RUNTIME_FEATURES_IS_SET: ${{ contains(toJSON(vars), '"GH_AW_RUNTIME_FEATURES":') }}
+        run: |
+          {
+            echo "## Runtime features"
+            echo
+            if [[ "$GH_AW_RUNTIME_FEATURES_IS_SET" != "true" ]]; then
+              echo "_Not set_"
+            elif [[ -n "$GH_AW_RUNTIME_FEATURES" ]]; then
+              echo '```text'
+              printf '%s\n' "$GH_AW_RUNTIME_FEATURES"
+              echo '```'
+            else
+              echo "_Empty string_"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -258,20 +276,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_d415574d5aa32b44_EOF'
+          cat << 'GH_AW_PROMPT_6294c8db404abe0a_EOF'
           <system>
-          GH_AW_PROMPT_d415574d5aa32b44_EOF
+          GH_AW_PROMPT_6294c8db404abe0a_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_d415574d5aa32b44_EOF'
+          cat << 'GH_AW_PROMPT_6294c8db404abe0a_EOF'
           <safe-output-tools>
           Tools: create_discussion, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_d415574d5aa32b44_EOF
+          GH_AW_PROMPT_6294c8db404abe0a_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_d415574d5aa32b44_EOF'
+          cat << 'GH_AW_PROMPT_6294c8db404abe0a_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -300,15 +318,15 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_d415574d5aa32b44_EOF
+          GH_AW_PROMPT_6294c8db404abe0a_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_d415574d5aa32b44_EOF'
+          cat << 'GH_AW_PROMPT_6294c8db404abe0a_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/github-remote-mcp-auth-test.md}}
-          GH_AW_PROMPT_d415574d5aa32b44_EOF
+          GH_AW_PROMPT_6294c8db404abe0a_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -408,6 +426,7 @@ jobs:
       GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_PROJECT_UTC: "-08:00"
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: githubremotemcpauthtest
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
@@ -532,9 +551,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_f49567b74760eec5_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_5e531cc32b2efdc0_EOF'
           {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1,"title_prefix":"[auth-test] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_f49567b74760eec5_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_5e531cc32b2efdc0_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -696,7 +715,7 @@ jobs:
           
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_8905bc3930404b6b_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_b46a4eac2d64d7dc_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -766,7 +785,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_8905bc3930404b6b_EOF
+          GH_AW_MCP_CONFIG_b46a4eac2d64d7dc_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1049,6 +1068,8 @@ jobs:
       group: "gh-aw-conclusion-github-remote-mcp-auth-test"
       cancel-in-progress: false
       queue: max
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
       noop_message: ${{ steps.noop.outputs.noop_message }}
@@ -1096,11 +1117,12 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/usage/agent /tmp/gh-aw/usage/detection
           echo "Usage artifact source file status:"
-          for file in /tmp/gh-aw/aw_info.json /tmp/gh-aw/aw-info.jsonl /tmp/gh-aw/agent_usage.jsonl /tmp/gh-aw/detection_usage.jsonl /tmp/gh-aw/github_rate_limits.jsonl /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl; do
+          for file in /tmp/gh-aw/aw_info.json /tmp/gh-aw/aw-info.jsonl /tmp/gh-aw/agent_usage.json /tmp/gh-aw/agent_usage.jsonl /tmp/gh-aw/detection_usage.jsonl /tmp/gh-aw/github_rate_limits.jsonl /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl; do
             [ -f "$file" ] && echo "FOUND: $file" || echo "MISSING: $file"
           done
           [ -f /tmp/gh-aw/aw_info.json ] && cp /tmp/gh-aw/aw_info.json /tmp/gh-aw/usage/aw_info.json || true
           [ -f /tmp/gh-aw/aw-info.jsonl ] && cp /tmp/gh-aw/aw-info.jsonl /tmp/gh-aw/usage/aw-info.jsonl || true
+          [ -f /tmp/gh-aw/agent_usage.json ] && cp /tmp/gh-aw/agent_usage.json /tmp/gh-aw/usage/agent_usage.json || true
           [ -f /tmp/gh-aw/agent_usage.jsonl ] && cp /tmp/gh-aw/agent_usage.jsonl /tmp/gh-aw/usage/agent_usage.jsonl || true
           [ -f /tmp/gh-aw/detection_usage.jsonl ] && cp /tmp/gh-aw/detection_usage.jsonl /tmp/gh-aw/usage/detection_usage.jsonl || true
           [ -f /tmp/gh-aw/github_rate_limits.jsonl ] && cp /tmp/gh-aw/github_rate_limits.jsonl /tmp/gh-aw/usage/github_rate_limits.jsonl || true
@@ -1124,6 +1146,7 @@ jobs:
           path: |
             /tmp/gh-aw/usage/aw_info.json
             /tmp/gh-aw/usage/aw-info.jsonl
+            /tmp/gh-aw/usage/agent_usage.json
             /tmp/gh-aw/usage/agent_usage.jsonl
             /tmp/gh-aw/usage/detection_usage.jsonl
             /tmp/gh-aw/usage/github_rate_limits.jsonl
@@ -1294,6 +1317,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       aic: ${{ steps.parse_detection_token_usage.outputs.aic }}
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
@@ -1503,7 +1528,7 @@ jobs:
           DETECTION_AGENTIC_EXECUTION_OUTCOME: ${{ steps.detection_agentic_execution.outcome }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         run: |
-          threat-detect conclude --result-file /tmp/gh-aw/threat-detection/detection_result.json
+          bash "${RUNNER_TEMP}/gh-aw/actions/conclude_threat_detection.sh" /tmp/gh-aw/threat-detection/detection_result.json
 
   safe_outputs:
     needs:
@@ -1529,6 +1554,7 @@ jobs:
       GH_AW_ENGINE_MODEL: "gpt-4.1"
       GH_AW_ENGINE_VERSION: "1.0.63"
       GH_AW_PROJECT_UTC: "-08:00"
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_WORKFLOW_EMOJI: "🧪"
       GH_AW_WORKFLOW_ID: "github-remote-mcp-auth-test"

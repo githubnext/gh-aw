@@ -169,4 +169,35 @@ describe("buildWorkflowRunUrl", () => {
     const url = buildWorkflowRunUrl({ serverUrl: "https://github.com", runId: 0 }, { owner: "owner", repo: "repo" });
     expect(url).toBe("https://github.com/owner/repo/actions/runs/0");
   });
+
+  it("should fall back to GITHUB_REPOSITORY when workflowRepo owner/repo are empty", () => {
+    const originalEnv = process.env.GITHUB_REPOSITORY;
+    process.env.GITHUB_REPOSITORY = "central-owner/central-repo";
+    try {
+      // Simulates the spread-context case where repo getter is lost: { owner: "", repo: "" }
+      const url = buildWorkflowRunUrl({ serverUrl: "https://github.com", runId: 999 }, { owner: "", repo: "" });
+      expect(url).toBe("https://github.com/central-owner/central-repo/actions/runs/999");
+    } finally {
+      if (originalEnv === undefined) {
+        delete process.env.GITHUB_REPOSITORY;
+      } else {
+        process.env.GITHUB_REPOSITORY = originalEnv;
+      }
+    }
+  });
+
+  it("should fall back to GITHUB_REPOSITORY when workflowRepo is missing", () => {
+    const originalEnv = process.env.GITHUB_REPOSITORY;
+    process.env.GITHUB_REPOSITORY = "env-owner/env-repo";
+    try {
+      const url = buildWorkflowRunUrl({ serverUrl: "https://github.com", runId: 42 }, null);
+      expect(url).toBe("https://github.com/env-owner/env-repo/actions/runs/42");
+    } finally {
+      if (originalEnv === undefined) {
+        delete process.env.GITHUB_REPOSITORY;
+      } else {
+        process.env.GITHUB_REPOSITORY = originalEnv;
+      }
+    }
+  });
 });

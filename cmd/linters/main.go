@@ -48,6 +48,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
 	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
+	"github.com/github/gh-aw/pkg/linters/wgdonenotdeferred"
 )
 
 func main() {
@@ -84,5 +85,6 @@ func main() {
 		timesleepnocontext.Analyzer,
 		tolowerequalfold.Analyzer,
 		uncheckedtypeassertion.Analyzer,
+		wgdonenotdeferred.Analyzer,
 	)
 }

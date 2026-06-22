@@ -44,10 +44,9 @@ cache:
 - `fail-on-cache-miss:` - Fail if cache not found (boolean)
 - `lookup-only:` - Only check cache existence (boolean)
 
-Cache steps are automatically added to the workflow job and the cache configuration is removed from the final `.lock.yml` file.
+Cache steps are auto-added to the workflow job; cache config is removed from the final `.lock.yml`.
 
-
-> **Memory configuration**: For detailed documentation on `cache-memory:`, `repo-memory:`, and `comment-memory:` configuration including advanced options and use cases, see [memory.md](memory.md).
+> **Memory configuration**: For `cache-memory:`, `repo-memory:`, and `comment-memory:`, see [memory.md](memory.md).
 
 
 ## Tool Configuration
@@ -107,7 +106,7 @@ mcp-servers:
 
 ### Engine Network Permissions
 
-Control network access for AI engines using the top-level `network:` field. If no `network:` permission is specified, it defaults to `network: defaults` which provides access to basic infrastructure only.
+Control network access via the top-level `network:` field. Defaults to `network: defaults` (basic infrastructure only) if unspecified.
 
 ```yaml
 engine:
@@ -165,7 +164,7 @@ network: {}
 
 **Available Ecosystem Identifiers:**
 
-Each ecosystem identifier enables network access to the domains required by that language's package manager and toolchain. When writing workflows that involve package management, builds, or tests, **always include the ecosystem identifier matching the repository's primary language** in addition to `defaults`.
+Each identifier enables network access to that language's package manager domains. For workflows with package management, builds, or tests, **always include the ecosystem matching the repository's primary language** plus `defaults`.
 
 | Identifier | Runtimes / Languages | Package Manager / Domains |
 |---|---|---|
@@ -325,7 +324,7 @@ In the compiled workflow, the order is: copilot-setup-steps → imported steps f
 
 ## Permission Patterns
 
-**IMPORTANT**: Agentic workflows should NOT include write permissions (`issues: write`, `pull-requests: write`, `contents: write`). The safe-outputs system provides these capabilities through separate, secured jobs with appropriate permissions. NO write permissions should be granted to the main AI processing job, it will only cause a later compilation error.
+**IMPORTANT**: Agentic workflows MUST NOT include write permissions (`issues: write`, `pull-requests: write`, `contents: write`). Safe-outputs provide these via separate secured jobs. Granting writes to the main AI job causes a compilation error.
 
 ### Read-Only Pattern
 
@@ -350,7 +349,7 @@ safe-outputs:
 
 **Key Benefits of Safe-Outputs:**
 
-- **Security**: Main job runs with minimal permissions
-- **Separation of Concerns**: Write operations are handled by dedicated jobs
-- **Permission Management**: Safe-outputs jobs automatically receive required permissions
-- **Audit Trail**: Clear separation between AI processing and GitHub API interactions
+- Main job runs with minimal permissions
+- Write operations handled by dedicated jobs
+- Safe-outputs jobs auto-receive required permissions
+- Clear audit trail between AI processing and GitHub API

@@ -144,15 +144,15 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 	addInteractiveLog.Printf("Collecting API key for engine: %s", engine)
 
-	// If --skip-secret flag is set, skip secrets configuration entirely.
-	// Note: for Copilot workflows, --skip-secret implies the PAT path; users who want
-	// copilot-requests (org billing) should not pass --skip-secret.
+	// If --no-secret flag is set, skip secrets configuration entirely.
+	// Note: for Copilot workflows, --no-secret implies the PAT path; users who want
+	// copilot-requests (org billing) should not pass --no-secret.
 	if c.SkipSecret {
 		opt := constants.GetEngineOption(engine)
 		if opt != nil {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping %s secret setup (--skip-secret flag set).", opt.SecretName)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping %s secret setup (--no-secret flag set).", opt.SecretName)))
 		} else {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping secret setup (--skip-secret flag set)."))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping secret setup (--no-secret flag set)."))
 		}
 		return nil
 	}

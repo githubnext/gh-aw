@@ -661,7 +661,7 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 	jobCondition := RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), activationSucceeded))
 
 	job := &Job{
-		Name:        "push_experiments_state",
+		Name:        pushExperimentsStateJobName,
 		RunsOn:      c.formatFrameworkJobRunsOn(data),
 		If:          jobCondition,
 		Permissions: "permissions:\n      contents: write",

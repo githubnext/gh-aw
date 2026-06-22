@@ -814,7 +814,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	concurrency := c.indentYAMLLines(fmt.Sprintf("concurrency:\n  group: %q\n  cancel-in-progress: false", concurrencyGroup), "    ")
 
 	job := &Job{
-		Name:        "push_repo_memory",
+		Name:        pushRepoMemoryJobName,
 		DisplayName: "", // No display name - job ID is sufficient
 		RunsOn:      c.formatFrameworkJobRunsOn(data),
 		If:          jobCondition,

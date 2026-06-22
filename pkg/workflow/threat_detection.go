@@ -1279,7 +1279,7 @@ func (c *Compiler) buildExternalDetectorConcludeStep(data *WorkflowData) []strin
 		"          DETECTION_AGENTIC_EXECUTION_OUTCOME: ${{ steps.detection_agentic_execution.outcome }}\n",
 		coeEnvLine,
 		"        run: |\n",
-		fmt.Sprintf("          threat-detect conclude --result-file %s\n", shellEscapeArg(constants.ThreatDetectionResultPath)),
+		fmt.Sprintf("          bash \"${RUNNER_TEMP}/gh-aw/actions/conclude_threat_detection.sh\" %s\n", shellEscapeArg(constants.ThreatDetectionResultPath)),
 	}...)
 
 	return steps

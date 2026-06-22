@@ -1223,6 +1223,7 @@ func (c *Compiler) extractPinnedJobSteps(fieldName string, jobName string, confi
 			return nil, fmt.Errorf("failed to pin action for %s in job '%s': %w", fieldName, jobName, err)
 		}
 		finalStepMap := pinnedStep.ToMap()
+		ensureCheckoutPersistCredentials(finalStepMap)
 		sanitizedMap, warnings, _ := sanitizeRunStepExpressions(finalStepMap)
 		for _, w := range warnings {
 			compilerJobsLog.Printf("sanitized run: expression in job '%s' step: %s", jobName, w)
@@ -1235,6 +1236,39 @@ func (c *Compiler) extractPinnedJobSteps(fieldName string, jobName string, confi
 	}
 
 	return pinnedSteps, nil
+}
+
+// ensureCheckoutPersistCredentials enforces with.persist-credentials: false for
+// actions/checkout steps when not explicitly configured by the user.
+func ensureCheckoutPersistCredentials(stepMap map[string]any) {
+	uses, ok := stepMap["uses"].(string)
+	if !ok || !isCheckoutAction(uses) {
+		return
+	}
+
+	withRaw, hasWith := stepMap["with"]
+	if !hasWith || withRaw == nil {
+		stepMap["with"] = map[string]any{
+			"persist-credentials": false,
+		}
+		return
+	}
+
+	withMap, ok := withRaw.(map[string]any)
+	if !ok {
+		return
+	}
+	if v, exists := withMap["persist-credentials"]; exists && v != nil {
+		return
+	}
+	withMap["persist-credentials"] = false
+}
+
+// isCheckoutAction reports whether a uses value points to actions/checkout,
+// including either unpinned or version-pinned forms.
+func isCheckoutAction(uses string) bool {
+	trimmed := strings.Trim(strings.TrimSpace(uses), "\"'")
+	return strings.EqualFold(trimmed, "actions/checkout") || strings.HasPrefix(strings.ToLower(trimmed), "actions/checkout@")
 }
 
 // shouldAddCheckoutStep returns true if the workflow requires a checkout step.

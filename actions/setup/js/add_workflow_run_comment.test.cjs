@@ -334,6 +334,34 @@ describe("add_workflow_run_comment", () => {
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
+
+    it("uses GITHUB_REPOSITORY for run URL when context is spread (repo getter lost)", async () => {
+      // When route_slash_command.cjs does {...context, nonFatalStatusCommentErrors: true},
+      // the context.repo prototype getter is not included in the spread.
+      // The run URL must fall back to GITHUB_REPOSITORY env var.
+      process.env.GITHUB_REPOSITORY = "central-owner/central-repo";
+      process.env.GITHUB_SERVER_URL = "https://github.com";
+
+      // Simulate a spread context: repo is absent (lost getter), but payload has the event repo
+      const result = await runCreateOrReuseStatusComment({
+        eventName: "issue_comment",
+        runId: 27971614768,
+        // no `repo` property - simulates lost prototype getter via {...context}
+        payload: {
+          issue: { number: 40795 },
+          repository: { owner: { login: "github" }, name: "gh-aw" },
+        },
+        nonFatalStatusCommentErrors: true,
+      });
+
+      expect(result?.id).toBe("67890");
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        expect.stringContaining("POST"),
+        expect.objectContaining({
+          body: expect.stringContaining("https://github.com/central-owner/central-repo/actions/runs/27971614768"),
+        })
+      );
+    });
   });
 
   describe("main() - pull_request event", () => {
@@ -654,6 +682,19 @@ describe("add_workflow_run_comment", () => {
         })
       );
     });
+
+    it("should fall back to GITHUB_WORKFLOW when GH_AW_WORKFLOW_NAME is not set", async () => {
+      process.env.GITHUB_WORKFLOW = "Agentic Commands";
+
+      await runAddCommentWithWorkflowLink("/repos/testowner/testrepo/issues/123/comments", "https://github.com/testowner/testrepo/actions/runs/12345", "issues");
+
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        expect.stringContaining("POST"),
+        expect.objectContaining({
+          body: expect.stringContaining("Agentic Commands"),
+        })
+      );
+    });
   });
 
   describe("buildCommentBody()", () => {
@@ -674,6 +715,13 @@ describe("add_workflow_run_comment", () => {
       const { buildCommentBody } = await importAddWorkflowRunComment();
       const body = buildCommentBody("issues", "https://example.com/run/1");
       expect(body).toContain("<!-- gh-aw-workflow-id: my-workflow.yml -->");
+    });
+
+    it("should use GITHUB_WORKFLOW as workflow name when GH_AW_WORKFLOW_NAME is not set", async () => {
+      process.env.GITHUB_WORKFLOW = "Agentic Commands";
+      const { buildCommentBody } = await importAddWorkflowRunComment();
+      const body = buildCommentBody("issue_comment", "https://example.com/run/1");
+      expect(body).toContain("[Agentic Commands]");
     });
 
     it("should include tracker-id marker when GH_AW_TRACKER_ID is set", async () => {

@@ -34,6 +34,7 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { withRetry } = require("./error_recovery.cjs");
+const { lstatGuard } = require("./symlink_guard.cjs");
 
 // ---------------------------------------------------------------------------
 // Timing helpers
@@ -198,8 +199,7 @@ function httpGet(url, timeoutMs) {
  */
 function assertNotSymlink(p) {
   try {
-    const stat = fs.lstatSync(p);
-    if (stat.isSymbolicLink()) {
+    if (lstatGuard(p) === null) {
       core.error(`ERROR: ${p} is a symlink — possible symlink attack, aborting`);
       process.exit(1);
     }

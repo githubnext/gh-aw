@@ -128,10 +128,12 @@ func TestBuildMissingToolsSummaryPopulatesDisplay(t *testing.T) {
 			},
 			MissingTools: []MissingToolReport{
 				{
-					Tool:         "terraform",
-					Reason:       "Infrastructure automation needed",
-					WorkflowName: "test-workflow",
-					RunID:        12345,
+					Tool:   "terraform",
+					Reason: "Infrastructure automation needed",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "test-workflow",
+						RunID:        12345,
+					},
 				},
 			},
 		},
@@ -162,9 +164,11 @@ func TestBuildMCPFailuresSummaryPopulatesDisplay(t *testing.T) {
 			},
 			MCPFailures: []MCPFailureReport{
 				{
-					ServerName:   "github-mcp-server",
-					WorkflowName: "test-workflow",
-					RunID:        12345,
+					ServerName: "github-mcp-server",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "test-workflow",
+						RunID:        12345,
+					},
 				},
 			},
 		},
@@ -247,10 +251,12 @@ func TestBuildMissingToolsSummaryDeduplication(t *testing.T) {
 			},
 			MissingTools: []MissingToolReport{
 				{
-					Tool:         "terraform",
-					Reason:       "First reason",
-					WorkflowName: "workflow-a",
-					RunID:        12345,
+					Tool:   "terraform",
+					Reason: "First reason",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "workflow-a",
+						RunID:        12345,
+					},
 				},
 			},
 		},
@@ -260,10 +266,12 @@ func TestBuildMissingToolsSummaryDeduplication(t *testing.T) {
 			},
 			MissingTools: []MissingToolReport{
 				{
-					Tool:         "terraform",
-					Reason:       "Second reason",
-					WorkflowName: "workflow-b",
-					RunID:        12346,
+					Tool:   "terraform",
+					Reason: "Second reason",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "workflow-b",
+						RunID:        12346,
+					},
 				},
 			},
 		},
@@ -273,10 +281,12 @@ func TestBuildMissingToolsSummaryDeduplication(t *testing.T) {
 			},
 			MissingTools: []MissingToolReport{
 				{
-					Tool:         "terraform",
-					Reason:       "Third reason from workflow-a",
-					WorkflowName: "workflow-a",
-					RunID:        12347,
+					Tool:   "terraform",
+					Reason: "Third reason from workflow-a",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "workflow-a",
+						RunID:        12347,
+					},
 				},
 			},
 		},
@@ -322,9 +332,11 @@ func TestBuildMCPFailuresSummaryDeduplication(t *testing.T) {
 			},
 			MCPFailures: []MCPFailureReport{
 				{
-					ServerName:   "github-mcp-server",
-					WorkflowName: "workflow-a",
-					RunID:        12345,
+					ServerName: "github-mcp-server",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "workflow-a",
+						RunID:        12345,
+					},
 				},
 			},
 		},
@@ -334,9 +346,11 @@ func TestBuildMCPFailuresSummaryDeduplication(t *testing.T) {
 			},
 			MCPFailures: []MCPFailureReport{
 				{
-					ServerName:   "github-mcp-server",
-					WorkflowName: "workflow-b",
-					RunID:        12346,
+					ServerName: "github-mcp-server",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "workflow-b",
+						RunID:        12346,
+					},
 				},
 			},
 		},
@@ -346,9 +360,11 @@ func TestBuildMCPFailuresSummaryDeduplication(t *testing.T) {
 			},
 			MCPFailures: []MCPFailureReport{
 				{
-					ServerName:   "github-mcp-server",
-					WorkflowName: "workflow-a",
-					RunID:        12347,
+					ServerName: "github-mcp-server",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "workflow-a",
+						RunID:        12347,
+					},
 				},
 			},
 		},
@@ -390,10 +406,12 @@ func TestAggregateSummaryItems(t *testing.T) {
 			},
 			MissingTools: []MissingToolReport{
 				{
-					Tool:         "docker",
-					Reason:       "Container operations needed",
-					WorkflowName: "workflow-a",
-					RunID:        1001,
+					Tool:   "docker",
+					Reason: "Container operations needed",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "workflow-a",
+						RunID:        1001,
+					},
 				},
 			},
 		},
@@ -403,10 +421,12 @@ func TestAggregateSummaryItems(t *testing.T) {
 			},
 			MissingTools: []MissingToolReport{
 				{
-					Tool:         "docker",
-					Reason:       "Container build needed",
-					WorkflowName: "workflow-b",
-					RunID:        1002,
+					Tool:   "docker",
+					Reason: "Container build needed",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "workflow-b",
+						RunID:        1002,
+					},
 				},
 			},
 		},
