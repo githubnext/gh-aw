@@ -178,7 +178,7 @@ async function runLogParser(options) {
             const stdioContent = fs.readFileSync(stdioLogPath, "utf8");
             alreadyHasResult = stdioContent.split("\n").some(line => {
               const objectStart = line.indexOf("{");
-              const arrayStart = line.indexOf("[{");
+              const arrayStart = line.indexOf("[");
               let start = -1;
               if (objectStart >= 0 && arrayStart >= 0) {
                 start = Math.min(objectStart, arrayStart);

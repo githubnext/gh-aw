@@ -276,7 +276,7 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.writeFileSync(logFile, "content");
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             fs.mkdirSync(path.dirname(stdioLogPath), { recursive: true });
-            fs.writeFileSync(stdioLogPath, JSON.stringify([{ type: "result", num_turns: 3 }]) + "\n");
+            fs.writeFileSync(stdioLogPath, `[ {"type":"result","num_turns":3} ]\n`);
             const mockParseLog = vi.fn().mockReturnValue({
               markdown: "## Result\n",
               mcpFailures: [],
