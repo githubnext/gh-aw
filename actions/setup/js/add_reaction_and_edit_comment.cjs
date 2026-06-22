@@ -250,7 +250,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
   const eventPayload = invocationContext?.eventPayload || context.payload;
   const eventRepo = invocationContext?.eventRepo || context.repo;
   try {
-    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "Workflow";
     const eventTypeDescription = EVENT_TYPE_DESCRIPTIONS[eventName] ?? "event";
 
     // Use getRunStartedMessage for the workflow link text (supports custom messages)

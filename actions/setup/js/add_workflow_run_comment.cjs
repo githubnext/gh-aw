@@ -282,7 +282,7 @@ async function main() {
  * @returns {string} The assembled comment body
  */
 function buildCommentBody(eventName, runUrl) {
-  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "Workflow";
   const eventTypeDescription = EVENT_TYPE_DESCRIPTIONS[eventName] ?? "event";
 
   // Sanitize before adding markers (defense in depth for custom message templates)

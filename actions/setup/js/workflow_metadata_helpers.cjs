@@ -38,7 +38,17 @@ function getWorkflowMetadata(owner, repo) {
  */
 function buildWorkflowRunUrl(ctx, workflowRepo) {
   const server = ctx.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
-  return `${server}/${workflowRepo.owner}/${workflowRepo.repo}/actions/runs/${ctx.runId}`;
+  let { owner, repo } = workflowRepo || {};
+  if (!owner || !repo) {
+    // When context is spread (e.g. `{...context}`), prototype getters like context.repo
+    // are not included. Fall back to GITHUB_REPOSITORY for the workflow repo.
+    const parts = (process.env.GITHUB_REPOSITORY || "").split("/");
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      owner = owner || parts[0];
+      repo = repo || parts[1];
+    }
+  }
+  return `${server}/${owner}/${repo}/actions/runs/${ctx.runId}`;
 }
 
 module.exports = {
