@@ -308,7 +308,7 @@ describe("create_pull_request bundle integration", () => {
     const safeOutputsRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-reconcile-spark-so-"));
     tempDirs.push(bareRemote, agentRepo, safeOutputsRepo);
 
-    // Initialise the bare remote and push a first commit onto main.
+    // Initialize the bare remote and push a first commit onto main.
     // Use -b main so we never need to run git symbolic-ref inside the bare repo
     // (git 2.36+ restricts bare-repo commands unless safe.bareRepository=all).
     execGit(["init", "--bare", "-b", "main"], { cwd: bareRemote });
@@ -321,7 +321,7 @@ describe("create_pull_request bundle integration", () => {
     execGit(["commit", "-m", "Initial commit on main"], { cwd: agentRepo });
     execGit(["branch", "-M", "main"], { cwd: agentRepo });
     execGit(["push", "-u", "origin", "main"], { cwd: agentRepo });
-    core.info("[reconcile-spark] bare remote initialised with main");
+    core.info("[reconcile-spark] bare remote initialized with main");
 
     // 2. Agent creates the feature branch and makes a first content commit.
     execGit(["checkout", "-b", branchName], { cwd: agentRepo });
