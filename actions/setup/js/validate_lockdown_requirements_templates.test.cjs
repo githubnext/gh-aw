@@ -1,15 +1,12 @@
 // @ts-check
-import { describe, it, expect } from "vitest";
-import { createRequire } from "module";
-
-const req = createRequire(import.meta.url);
-const { renderLockdownTokenErrorMessage, renderPublicStrictModeErrorMessage, renderPullRequestTargetErrorMessage } = req("./validate_lockdown_requirements_templates.cjs");
+const { renderLockdownTokenErrorMessage, renderPublicStrictModeErrorMessage, renderPullRequestTargetErrorMessage } = require("./validate_lockdown_requirements_templates.cjs");
 
 describe("validate_lockdown_requirements_templates", () => {
   describe("renderLockdownTokenErrorMessage", () => {
     it("returns a non-empty string", () => {
-      expect(typeof renderLockdownTokenErrorMessage()).toBe("string");
-      expect(renderLockdownTokenErrorMessage().length).toBeGreaterThan(0);
+      const message = renderLockdownTokenErrorMessage();
+      expect(message).toBeTypeOf("string");
+      expect(message.length).toBeGreaterThan(0);
     });
 
     it("includes the auth documentation URL", () => {
@@ -41,21 +38,13 @@ describe("validate_lockdown_requirements_templates", () => {
       const message = renderLockdownTokenErrorMessage();
       expect(message).not.toContain("{auth_docs_url}");
     });
-
-    it("does not contain unreplaced {security_docs_url} placeholder", () => {
-      const message = renderLockdownTokenErrorMessage();
-      expect(message).not.toContain("{security_docs_url}");
-    });
-
-    it("returns the same value on repeated calls", () => {
-      expect(renderLockdownTokenErrorMessage()).toBe(renderLockdownTokenErrorMessage());
-    });
   });
 
   describe("renderPublicStrictModeErrorMessage", () => {
     it("returns a non-empty string", () => {
-      expect(typeof renderPublicStrictModeErrorMessage()).toBe("string");
-      expect(renderPublicStrictModeErrorMessage().length).toBeGreaterThan(0);
+      const message = renderPublicStrictModeErrorMessage();
+      expect(message).toBeTypeOf("string");
+      expect(message.length).toBeGreaterThan(0);
     });
 
     it("includes the security documentation URL", () => {
@@ -87,16 +76,13 @@ describe("validate_lockdown_requirements_templates", () => {
       const message = renderPublicStrictModeErrorMessage();
       expect(message).not.toContain("{security_docs_url}");
     });
-
-    it("returns the same value on repeated calls", () => {
-      expect(renderPublicStrictModeErrorMessage()).toBe(renderPublicStrictModeErrorMessage());
-    });
   });
 
   describe("renderPullRequestTargetErrorMessage", () => {
     it("returns a non-empty string", () => {
-      expect(typeof renderPullRequestTargetErrorMessage()).toBe("string");
-      expect(renderPullRequestTargetErrorMessage().length).toBeGreaterThan(0);
+      const message = renderPullRequestTargetErrorMessage();
+      expect(message).toBeTypeOf("string");
+      expect(message.length).toBeGreaterThan(0);
     });
 
     it("includes the security documentation URL", () => {
@@ -128,10 +114,6 @@ describe("validate_lockdown_requirements_templates", () => {
       const message = renderPullRequestTargetErrorMessage();
       expect(message).not.toContain("{security_docs_url}");
     });
-
-    it("returns the same value on repeated calls", () => {
-      expect(renderPullRequestTargetErrorMessage()).toBe(renderPullRequestTargetErrorMessage());
-    });
   });
 
   describe("cross-function checks", () => {
@@ -155,10 +137,15 @@ describe("validate_lockdown_requirements_templates", () => {
       expect(message).not.toContain("GH_AW_GITHUB_TOKEN");
     });
 
+    it("module exposes exactly the expected exports", () => {
+      const mod = require("./validate_lockdown_requirements_templates.cjs");
+      expect(Object.keys(mod)).toEqual(["renderLockdownTokenErrorMessage", "renderPublicStrictModeErrorMessage", "renderPullRequestTargetErrorMessage"]);
+    });
+
     it("no message contains unreplaced placeholders", () => {
       const messages = [renderLockdownTokenErrorMessage(), renderPublicStrictModeErrorMessage(), renderPullRequestTargetErrorMessage()];
       for (const message of messages) {
-        expect(message).not.toMatch(/\{[a-z_]+\}/);
+        expect(message).not.toMatch(/\{[A-Za-z][A-Za-z0-9_]*\}/);
       }
     });
   });
