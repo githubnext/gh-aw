@@ -114,10 +114,10 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	// Add stop-after flag
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
-	// Add no-secret flag (--skip-secret is kept as a deprecated alias)
+	// Add no-secret flag (--skip-secret is kept as an undocumented alias)
 	cmd.Flags().Bool("no-secret", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")
 	cmd.Flags().Bool("skip-secret", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")
-	_ = cmd.Flags().MarkDeprecated("skip-secret", "use --no-secret instead")
+	_ = cmd.Flags().MarkHidden("skip-secret")
 
 	// Register completions
 	RegisterEngineFlagCompletion(cmd)

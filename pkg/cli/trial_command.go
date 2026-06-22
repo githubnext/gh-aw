@@ -132,7 +132,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
 	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
 	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
-	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
+	_ = cmd.Flags().MarkHidden("disable-security-scanner")
 	cmd.MarkFlagsMutuallyExclusive("host-repo", "repo")
 	cmd.MarkFlagsMutuallyExclusive("logical-repo", "clone-repo")
 
