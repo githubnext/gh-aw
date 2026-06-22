@@ -39,6 +39,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
+const { lstatGuard } = require("./symlink_guard.cjs");
 
 /**
  * Staging directory where the model places files to be uploaded.
@@ -139,8 +140,7 @@ function listFilesRecursive(dir, baseDir) {
     } else if (entry.isFile()) {
       // Reject symlinks – entry.isFile() returns false for symlinks unless dereferenced.
       // We check explicitly to avoid following symlinks.
-      const stat = fs.lstatSync(fullPath);
-      if (!stat.isSymbolicLink()) {
+      if (lstatGuard(fullPath) !== null) {
         files.push(path.relative(baseDir, fullPath));
       } else {
         core.warning(`Skipping symlink: ${fullPath}`);
@@ -165,8 +165,8 @@ function copySingleFileToStaging(sourcePath, destRelPath) {
     core.info(`Skipping auto-copy for ${destRelPath}: already exists in staging directory`);
     return { error: null };
   }
-  const stat = fs.lstatSync(sourcePath);
-  if (stat.isSymbolicLink()) {
+  const stat = lstatGuard(sourcePath);
+  if (stat === null) {
     return { error: `symlinks are not allowed: ${sourcePath}` };
   }
   if (!stat.isFile()) {
@@ -191,16 +191,16 @@ function copyDirectoryToStaging(sourceDir, destRelDir) {
   for (const entry of entries) {
     const srcFull = path.join(sourceDir, entry.name);
     const destRel = path.join(destRelDir, entry.name);
-    const stat = fs.lstatSync(srcFull);
-    if (stat.isSymbolicLink()) {
+    const stat = lstatGuard(srcFull);
+    if (stat === null) {
       core.warning(`Skipping symlink during auto-copy: ${srcFull}`);
       continue;
     }
-    if (entry.isDirectory()) {
+    if (stat.isDirectory()) {
       const sub = copyDirectoryToStaging(srcFull, destRel);
       if (sub.error) return sub;
       copiedCount += sub.copiedCount;
-    } else if (entry.isFile()) {
+    } else if (stat.isFile()) {
       const result = copySingleFileToStaging(srcFull, destRel);
       if (result.error) return { copiedCount, error: result.error };
       copiedCount++;
@@ -227,8 +227,8 @@ function autoCopyToStaging(reqPath) {
     if (!fs.existsSync(reqPath)) {
       return { copied: false, relPath: "", error: `absolute path does not exist: ${reqPath}` };
     }
-    const stat = fs.lstatSync(reqPath);
-    if (stat.isSymbolicLink()) {
+    const stat = lstatGuard(reqPath);
+    if (stat === null) {
       return { copied: false, relPath: "", error: `symlinks are not allowed: ${reqPath}` };
     }
     // Derive a relative destination path from the basename (or relative to filesystem root for nested paths).
@@ -258,8 +258,8 @@ function autoCopyToStaging(reqPath) {
   for (const root of searchRoots) {
     const candidate = path.resolve(root, reqPath);
     if (!fs.existsSync(candidate)) continue;
-    const stat = fs.lstatSync(candidate);
-    if (stat.isSymbolicLink()) {
+    const stat = lstatGuard(candidate);
+    if (stat === null) {
       return { copied: false, relPath: "", error: `symlinks are not allowed: ${candidate}` };
     }
     if (stat.isDirectory()) {
@@ -340,8 +340,8 @@ function resolveFiles(request, allowedPaths, defaultInclude, defaultExclude) {
       reqPath = copyResult.relPath;
     }
 
-    const stat = fs.lstatSync(path.resolve(STAGING_DIR, reqPath));
-    if (stat.isSymbolicLink()) {
+    const stat = lstatGuard(path.resolve(STAGING_DIR, reqPath));
+    if (stat === null) {
       return { files: [], error: `symlinks are not allowed: ${reqPath}` };
     }
     if (stat.isDirectory()) {
