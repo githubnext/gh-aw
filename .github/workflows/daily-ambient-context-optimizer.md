@@ -41,120 +41,116 @@ steps:
     run: |
       mkdir -p /tmp/gh-aw/ambient-context
   - name: Closed PR deduplication guard
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      set -euo pipefail
-      python3 - <<'PY'
-      import json, subprocess, datetime, os
+    uses: actions/github-script@v9.0.0
+    with:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+      script: |
+        const fs = require('fs');
 
-      result = subprocess.run(
-          ["gh", "pr", "list",
-           "--state", "closed",
-           "--json", "number,title,closedAt,mergedAt,headRefName",
-           "--limit", "100"],
-          capture_output=True, text=True, check=True,
-      )
-      all_prs = json.loads(result.stdout)
+        const { owner, repo } = context.repo;
+        const OPTIMIZER_PATTERNS = [
+          'copilot/ambient-context',
+          'copilot/daily-ambient-context',
+          'ambient-context-optim',
+        ];
 
-      cutoff = (datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(days=14)).replace(
-          hour=0, minute=0, second=0, microsecond=0
-      )
-      cutoff_str = cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")
+        const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+        cutoff.setUTCHours(0, 0, 0, 0);
 
-      optimizer_patterns = [
-          "copilot/ambient-context",
-          "copilot/daily-ambient-context",
-          "ambient-context-optim",
-      ]
-      closed_optimizer_prs = [
-          pr for pr in all_prs
-          if pr.get("mergedAt") is None
-          and any(p in pr.get("headRefName", "") for p in optimizer_patterns)
-          and (pr.get("closedAt") or "") > cutoff_str
-      ]
+        const allClosed = await github.paginate(github.rest.pulls.list, {
+          owner, repo, state: 'closed', per_page: 100,
+        });
 
-      blocked_files = set()
-      for pr in closed_optimizer_prs:
-          r = subprocess.run(
-              ["gh", "pr", "view", str(pr["number"]), "--json", "files",
-               "--jq", "[.files[].path]"],
-              capture_output=True, text=True,
-          )
-          if r.returncode == 0:
-              try:
-                  blocked_files.update(json.loads(r.stdout))
-              except Exception:
-                  pass
+        const closedOptimizerPrs = allClosed.filter((pr) => {
+          const branch = pr.head?.ref || '';
+          return (
+            !pr.merged_at &&
+            OPTIMIZER_PATTERNS.some((p) => branch.includes(p)) &&
+            new Date(pr.closed_at) >= cutoff
+          );
+        });
 
-      data = {
-          "closed_optimizer_prs": closed_optimizer_prs,
-          "blocked_files": sorted(blocked_files),
-          "pr_count": len(closed_optimizer_prs),
-          "generated_at": datetime.datetime.now(tz=datetime.timezone.utc).isoformat(),
-      }
-      os.makedirs("/tmp/gh-aw/ambient-context", exist_ok=True)
-      with open("/tmp/gh-aw/ambient-context/closed-pr-targets.json", "w") as f:
-          json.dump(data, f, indent=2)
+        const blockedFilesSet = new Set();
+        for (const pr of closedOptimizerPrs) {
+          try {
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner, repo, pull_number: pr.number, per_page: 100,
+            });
+            for (const f of files) blockedFilesSet.add(f.filename);
+          } catch (err) {
+            core.warning(`Could not list files for PR #${pr.number}: ${err.message}`);
+          }
+        }
 
-      print(f"Deduplication guard: {len(closed_optimizer_prs)} closed optimizer PRs, "
-            f"{len(blocked_files)} blocked files")
-      for bf in sorted(blocked_files):
-          print(f"  BLOCKED: {bf}")
-      PY
+        const blockedFiles = [...blockedFilesSet].sort();
+        const data = {
+          closed_optimizer_prs: closedOptimizerPrs.map((pr) => ({
+            number: pr.number,
+            title: pr.title,
+            closedAt: pr.closed_at,
+            mergedAt: pr.merged_at,
+            headRefName: pr.head?.ref,
+          })),
+          blocked_files: blockedFiles,
+          pr_count: closedOptimizerPrs.length,
+          generated_at: new Date().toISOString(),
+        };
+
+        fs.mkdirSync('/tmp/gh-aw/ambient-context', { recursive: true });
+        fs.writeFileSync('/tmp/gh-aw/ambient-context/closed-pr-targets.json', JSON.stringify(data, null, 2));
+
+        core.info(`Deduplication guard: ${closedOptimizerPrs.length} closed optimizer PRs, ${blockedFiles.length} blocked files`);
+        for (const bf of blockedFiles) core.info(`  BLOCKED: ${bf}`);
   - name: PR close-rate metric
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      set -euo pipefail
-      python3 - <<'PY'
-      import json, subprocess, datetime, os
+    uses: actions/github-script@v9.0.0
+    with:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+      script: |
+        const fs = require('fs');
 
-      result = subprocess.run(
-          ["gh", "pr", "list",
-           "--state", "all",
-           "--json", "number,title,createdAt,closedAt,mergedAt,headRefName",
-           "--limit", "100"],
-          capture_output=True, text=True, check=True,
-      )
-      all_prs_full = json.loads(result.stdout)
+        const { owner, repo } = context.repo;
+        const OPTIMIZER_PATTERNS = [
+          'copilot/ambient-context',
+          'copilot/daily-ambient-context',
+          'ambient-context-optim',
+        ];
 
-      optimizer_patterns = [
-          "copilot/ambient-context",
-          "copilot/daily-ambient-context",
-          "ambient-context-optim",
-      ]
-      cutoff_7d = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(days=7)
-      cutoff_7d_str = cutoff_7d.strftime("%Y-%m-%dT%H:%M:%SZ")
+        const cutoff7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-      opt_prs_7d = [
-          pr for pr in all_prs_full
-          if any(p in pr.get("headRefName", "") for p in optimizer_patterns)
-          and (pr.get("createdAt") or "") > cutoff_7d_str
-      ]
+        const allPrs = await github.paginate(github.rest.pulls.list, {
+          owner, repo, state: 'all', per_page: 100,
+        });
 
-      merged_7d = [pr for pr in opt_prs_7d if pr.get("mergedAt")]
-      closed_7d = [pr for pr in opt_prs_7d if not pr.get("mergedAt") and pr.get("closedAt")]
-      total_settled = len(merged_7d) + len(closed_7d)
-      close_rate = len(closed_7d) / total_settled if total_settled >= 3 else None
-      auto_pause = close_rate is not None and close_rate >= 0.30
+        const optPrs7d = allPrs.filter((pr) => {
+          const branch = pr.head?.ref || '';
+          return (
+            OPTIMIZER_PATTERNS.some((p) => branch.includes(p)) &&
+            new Date(pr.created_at) >= cutoff7d
+          );
+        });
 
-      rate_data = {
-          "merged_7d": len(merged_7d),
-          "closed_7d": len(closed_7d),
-          "total_settled_7d": total_settled,
-          "close_rate": round(close_rate, 3) if close_rate is not None else None,
-          "auto_pause": auto_pause,
-          "note": "close_rate is null when total_settled_7d < 3 (insufficient data for auto-pause)",
-      }
-      with open("/tmp/gh-aw/ambient-context/pr-close-rate.json", "w") as f:
-          json.dump(rate_data, f, indent=2)
+        const merged7d = optPrs7d.filter((pr) => pr.merged_at);
+        const closed7d = optPrs7d.filter((pr) => !pr.merged_at && pr.closed_at);
+        const totalSettled = merged7d.length + closed7d.length;
 
-      print(f"PR close-rate (7d): "
-            f"{f'{close_rate:.0%}' if close_rate is not None else 'N/A (< 3 settled PRs)'} "
-            f"({len(closed_7d)} closed, {len(merged_7d)} merged)"
-            f"{' — AUTO-PAUSE ACTIVE' if auto_pause else ''}")
-      PY
+        // close_rate is null when sample < 3 to avoid misleading zero reads
+        const closeRate = totalSettled >= 3 ? closed7d.length / totalSettled : null;
+        const autoPause = closeRate !== null && closeRate >= 0.30;
+
+        const rateData = {
+          merged_7d: merged7d.length,
+          closed_7d: closed7d.length,
+          total_settled_7d: totalSettled,
+          close_rate: closeRate !== null ? Math.round(closeRate * 1000) / 1000 : null,
+          auto_pause: autoPause,
+          note: 'close_rate is null when total_settled_7d < 3 (insufficient data for auto-pause)',
+        };
+
+        fs.writeFileSync('/tmp/gh-aw/ambient-context/pr-close-rate.json', JSON.stringify(rateData, null, 2));
+
+        const rateStr = closeRate !== null ? `${Math.round(closeRate * 100)}%` : 'N/A (< 3 settled PRs)';
+        core.info(`PR close-rate (7d): ${rateStr} (${closed7d.length} closed, ${merged7d.length} merged)${autoPause ? ' — AUTO-PAUSE ACTIVE' : ''}`);
+
 imports:
   - shared/otlp.md
 features:
