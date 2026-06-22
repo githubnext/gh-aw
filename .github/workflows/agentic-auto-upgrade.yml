@@ -23,10 +23,10 @@
 #
 # Alternative regeneration methods:
 # make recompile
-# 
+#
 # Or use the gh-aw CLI directly:
 # ./gh-aw compile --validate --verbose
-# 
+#
 # The workflow is generated when auto_upgrade is set to true in aw.json.
 # The weekly schedule is deterministically scattered based on the repository slug.
 #

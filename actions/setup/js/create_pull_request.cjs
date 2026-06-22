@@ -1625,7 +1625,7 @@ async function main(config = {}) {
                 const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
                 const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
                 const fallbackBundleTempRef = createBundleTempRef(branchName);
-                const pushFailureMessage = neutralizeClosingKeywordsForIssueBody(pushError instanceof Error ? pushError.message : String(pushError))
+                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(pushError instanceof Error ? pushError.message : String(pushError)), { allowedAliases: allowedMentionAliases })
                   .replace(/\s+/g, " ")
                   .trim();
                 const fallbackBody = `${issueSafeBody}
@@ -1971,7 +1971,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
                 }
 
                 const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
-                const pushFailureMessage = neutralizeClosingKeywordsForIssueBody(pushError instanceof Error ? pushError.message : String(pushError))
+                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(pushError instanceof Error ? pushError.message : String(pushError)), { allowedAliases: allowedMentionAliases })
                   .replace(/\s+/g, " ")
                   .trim();
                 const fallbackBody = `${issueSafeBody}
