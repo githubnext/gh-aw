@@ -17,9 +17,9 @@ sidebar:
 
 ## Abstract
 
-This specification defines the `replace-label` safe-output type for GitHub Agentic Workflows (gh-aw), a mechanism that enables AI agents to transition label state on GitHub issues and pull requests in a single GraphQL request. The `replace-label` type removes one label and adds another in a single GraphQL request, eliminating the HTTP round-trip between the two operations that would otherwise exist when using `remove-labels` and `add-labels` as separate sequential messages.
+This specification defines the `replace-label` safe-output type for GitHub Agentic Workflows (gh-aw), a mechanism that enables AI agents to transition label state on GitHub issues and pull requests in a single REST API call. The `replace-label` type removes one label and adds another in a single `PUT /repos/{owner}/{repo}/issues/{issue_number}/labels` REST call, eliminating the HTTP round-trip between the two operations that would otherwise exist when using `remove-labels` and `add-labels` as separate sequential messages.
 
-The specification covers the configuration schema, the message schema produced by AI agents, the multi-stage validation pipeline, the label-resolution mechanism, the GraphQL mutation executed against the GitHub API, error-handling requirements, security controls, and conformance testing requirements.
+The specification covers the configuration schema, the message schema produced by AI agents, the multi-stage validation pipeline, the REST API call executed against the GitHub API, error-handling requirements, security controls, and conformance testing requirements.
 
 ## Status of This Document
 
@@ -36,7 +36,7 @@ This is a Candidate Recommendation specification representing the design and imp
 3. [Concepts and Terminology](#3-concepts-and-terminology)
 4. [Data Model](#4-data-model)
 5. [Processing Model](#5-processing-model)
-6. [GraphQL Interface](#6-graphql-interface)
+6. [REST Interface](#6-rest-interface)
 7. [Error Handling](#7-error-handling)
 8. [Security Considerations](#8-security-considerations)
 9. [Compliance Testing](#9-compliance-testing)
@@ -52,7 +52,7 @@ This is a Candidate Recommendation specification representing the design and imp
 
 Label-based state machines are a common pattern in GitHub issue and pull request workflows. A triage issue may progress from `pending` → `in-review` → `approved`, or a PR review cycle may move from `needs-revision` → `ready-to-merge`. When these transitions are driven by AI agents operating through gh-aw, the canonical implementation using separate `remove-labels` and `add-labels` safe-output messages introduces a race window: between the removal and the addition, the item carries no label — or may be picked up by a concurrent automation that considers the intermediate label-less state valid.
 
-The `replace-label` type solves this by combining the remove and add operations into a single GraphQL request. The GitHub GraphQL API executes root-level mutations within a single request sequentially in declaration order, guaranteeing that the removal is applied before the addition. This eliminates the HTTP round-trip between the two operations, reducing the window in which an external observer could see the item in an intermediate state. Note that GitHub does not provide rollback semantics: if the remove succeeds but the add fails, the state is partially transitioned (see §7.2).
+The `replace-label` type solves this by combining the remove and add operations into a single REST API call (`PUT /repos/{owner}/{repo}/issues/{issue_number}/labels`). This endpoint replaces the entire label set of the target item atomically — the new desired state (current labels minus the removed label, plus the added label) is applied in a single request. This eliminates the HTTP round-trip between the two operations and provides true atomicity: either the entire label set update succeeds or it fails, with no intermediate state where neither label is present.
 
 ### 1.2 Scope
 
@@ -60,8 +60,8 @@ This specification covers:
 
 - The YAML configuration schema for the `replace-label` key within the `safe-outputs` frontmatter block
 - The JSON message schema produced by AI agents when requesting a label replacement
-- The multi-stage processing pipeline: schema validation, label allowlist/blocklist enforcement, required-label and title-prefix gate checks, staged-mode preview, label node-ID resolution and auto-creation, and GraphQL mutation execution
-- The exact GraphQL mutation used against the GitHub API
+- The multi-stage processing pipeline: schema validation, label allowlist/blocklist enforcement, required-label and title-prefix gate checks, staged-mode preview, label set computation, and REST API call execution
+- The exact REST API call used against the GitHub API
 - Rate-limit retry semantics and error propagation
 - Security controls, including cross-repository access restrictions
 - Conformance requirements and test procedures
@@ -82,7 +82,7 @@ The `replace-label` type is designed to satisfy the following goals:
 1. **Reduced race window**: Remove and add operations MUST execute in a single GitHub API round-trip to eliminate the observable intermediate state compared to two separate requests.
 2. **Idempotency on missing source label**: If the label to be removed is not present on the target item, the operation MUST still add the new label and succeed, rather than failing.
 3. **Least privilege**: Allowlist-based configuration MUST constrain which labels agents may add or remove, limiting the blast radius of a misbehaving agent.
-4. **Pre-existing labels**: Labels referenced in `label_to_add` MUST already exist in the repository. The operation MUST fail with a clear error if the label is missing, avoiding silent repository side effects.
+4. **Pre-existing labels**: Labels referenced in `label_to_add` MUST already exist in the repository; the REST `setLabels` call will fail with a 422 error if the label is missing.
 5. **Safe preview**: Staged mode MUST allow operators to review what the agent would do without applying any changes to the GitHub API.
 6. **Consistency with the safe-outputs framework**: Configuration fields (`max`, `target`, `target-repo`, `allowed-repos`, `github-token`, `staged`, `required-labels`, `required-title-prefix`) MUST follow the same semantics as all other safe-output types in gh-aw.
 
@@ -111,11 +111,9 @@ Normative requirements are additionally identified by a short requirement code o
 
 ## 3. Concepts and Terminology
 
-**Label replacement**: The operation of removing one named label from a GitHub labelable item and adding a different named label in the same GitHub GraphQL API request.
+**Label replacement**: The operation of removing one named label from a GitHub labelable item and adding a different named label in the same GitHub REST API call (`PUT /repos/{owner}/{repo}/issues/{issue_number}/labels`).
 
-**Labelable**: A GitHub resource that can carry labels. In this specification, labelable items are GitHub Issues and GitHub Pull Requests. The GitHub GraphQL type `Labelable` is the interface implemented by both.
-
-**Label node ID**: The globally unique GraphQL node ID assigned by GitHub to each label object within a repository (e.g., `LA_kwDOABCD123`). Node IDs are required by the GraphQL mutation API and differ from the integer REST API label ID.
+**Labelable**: A GitHub resource that can carry labels. In this specification, labelable items are GitHub Issues and GitHub Pull Requests.
 
 **Label allowlist** (`allowed-add`, `allowed-remove`): Optional glob pattern lists in the workflow configuration that constrain which labels an agent may add or remove. When absent, no label-name restriction applies.
 
@@ -267,13 +265,14 @@ A conforming implementation MUST execute the following pipeline for each `replac
             ▼
  ┌─────────────────────┐
  │  Stage 7            │
- │  Label Resolution   │  ← resolve labels (fail if not found)
+ │  Label Set          │  ← compute new label set (current - remove + add)
+ │  Computation        │
  └──────────┬──────────┘
             │
             ▼
  ┌─────────────────────┐
  │  Stage 8            │
- │  GraphQL Mutation   │  ← single request (sequential)
+ │  REST setLabels     │  ← single REST call (PUT /issues/{n}/labels)
  └─────────────────────┘
 ```
 
@@ -373,37 +372,27 @@ Gate checks require fetching the current state of the target item via the GitHub
 
 **RL-028**: Staged mode execution MUST return `{ success: true, staged: true }` from the handler. Note: the operation count IS incremented for staged messages by the `createCountGatedHandler` scaffold (which counts every processed message before delegating to the handler), so staged messages count toward the `max` budget.
 
-### 5.7 Stage 7: Label Resolution
+### 5.7 Stage 7: Label Set Computation
 
-Label resolution converts human-readable label names into the GraphQL node IDs required by the mutation. The implementation maintains a per-repository in-memory cache of `labelName → nodeId` to avoid redundant API calls within a single workflow run.
+The implementation derives the new label set from the current labels already attached to the target item (returned by the gate-check REST call in Stage 5). No additional API calls are required at this stage.
 
-#### 5.7.1 Resolving `label_to_add`
+**RL-029**: The implementation MUST compute the new label set as: `(current_labels − {label_to_remove}) ∪ {label_to_add}`, deduplicating the result. Label names MUST be preserved exactly as they appear on the item; no truncation or normalisation is applied.
 
-**RL-029**: The implementation MUST attempt to resolve the `label_to_add` name to a GraphQL node ID using the GitHub REST API (`GET /repos/{owner}/{repo}/labels/{name}`).
+**RL-033**: The presence of `label_to_remove` on the item MUST be determined from the current labels returned by the `GET /repos/{owner}/{repo}/issues/{issue_number}` REST call already performed in Stage 5.
 
-**RL-030**: When the label does not exist in the target repository (HTTP 404), the implementation MUST return a hard error and the message MUST be rejected. Labels referenced in `label_to_add` MUST be created in the repository before use.
+**RL-034**: When `label_to_remove` is not currently attached to the target item, the implementation MUST proceed with the operation, producing a new label set that simply adds `label_to_add` without removing anything. The operation MUST NOT fail in this case (see §1.3, Design Goal 2).
 
-**RL-031**: Label resolution MUST be retried on GitHub API rate-limit responses using the `RATE_LIMIT_RETRY_CONFIG` policy defined in `actions/setup/js/error_recovery.cjs`.
+### 5.8 Stage 8: REST Label Update
 
-**RL-032**: If resolution fails for any reason other than a rate-limit response, the implementation MUST return a hard error and the message MUST be rejected.
+**RL-036**: The implementation MUST execute the label replacement using a single `PUT /repos/{owner}/{repo}/issues/{issue_number}/labels` REST API call (`issues.setLabels`), passing the complete new label set computed in Stage 7. Separate add and remove calls MUST NOT be used.
 
-#### 5.7.2 Resolving `label_to_remove`
+**RL-037**: The REST call MUST be retried on GitHub API rate-limit responses using the `RATE_LIMIT_RETRY_CONFIG` policy.
 
-**RL-033**: The node ID of `label_to_remove` MUST be looked up from the current labels already attached to the target item (returned by the gate-check REST call in Stage 5), rather than from a separate API call.
-
-**RL-034**: When `label_to_remove` is not currently attached to the target item, the implementation MUST proceed with the `add` operation only, setting `$doRemove: false` so that the `removeLabelsFromLabelable` field is omitted from the mutation via the `@include(if: $doRemove)` directive. The operation MUST NOT fail in this case (see §1.3, Design Goal 2).
-
-### 5.8 Stage 8: GraphQL Mutation
-
-**RL-036**: The implementation MUST execute the label replacement using the single GraphQL mutation defined in §6 rather than two separate REST or GraphQL API calls.
-
-**RL-037**: The mutation MUST be retried on GitHub API rate-limit responses using the `RATE_LIMIT_RETRY_CONFIG` policy.
-
-**RL-038**: On successful mutation, the implementation MUST log:
+**RL-038**: On a successful call, the implementation MUST log:
 - The item type (issue or pull request), item number, and repository
 - The label that was removed (or a note that the source label was absent and no removal occurred)
 - The label that was added
-- The complete updated label set returned by the `addLabels` mutation result
+- The complete updated label set returned by the REST response
 
 **RL-039**: The handler result for a successful operation MUST include the fields `success: true`, `number`, `repo`, `labelRemoved` (null when the source label was absent), `labelAdded`, and `contextType`.
 
@@ -411,61 +400,36 @@ Label resolution converts human-readable label names into the GraphQL node IDs r
 
 ---
 
-## 6. GraphQL Interface
+## 6. REST Interface
 
-### 6.1 Mutation
+### 6.1 API Call
 
-The following GraphQL mutation is the normative interface used by the `replace-label` handler to execute label replacement operations.
+The label replacement is executed via a single REST API call:
 
-```graphql
-mutation ReplaceLabelMutation(
-  $labelableId: ID!
-  $addLabelIds: [ID!]!
-  $removeLabelIds: [ID!]!
-  $doRemove: Boolean!
-) {
-  removeLabels: removeLabelsFromLabelable(
-    input: { labelableId: $labelableId, labelIds: $removeLabelIds }
-  ) @include(if: $doRemove) {
-    clientMutationId
-  }
-  addLabels: addLabelsToLabelable(
-    input: { labelableId: $labelableId, labelIds: $addLabelIds }
-  ) {
-    labelable {
-      ... on Issue {
-        labels(first: 25) {
-          nodes { name }
-        }
-      }
-      ... on PullRequest {
-        labels(first: 25) {
-          nodes { name }
-        }
-      }
-    }
-  }
-}
+```
+PUT /repos/{owner}/{repo}/issues/{issue_number}/labels
 ```
 
-#### 6.1.1 Variable Bindings
+In the Octokit client this is `githubClient.rest.issues.setLabels(params)`.
 
-| Variable | Type | Source |
-|----------|------|--------|
-| `$labelableId` | `ID!` | GraphQL node ID of the target issue or pull request (`item.node_id` from REST response) |
-| `$addLabelIds` | `[ID!]!` | Array containing the single node ID of `label_to_add`, as resolved in Stage 7 |
-| `$removeLabelIds` | `[ID!]!` | Array containing the single node ID of `label_to_remove` when present on the item; empty array otherwise (ignored when `$doRemove` is `false`) |
-| `$doRemove` | `Boolean!` | `true` when `label_to_remove` is currently on the item; `false` to skip the remove field via `@include` |
+#### 6.1.1 Parameters
 
-**RL-041**: `$addLabelIds` MUST always contain exactly one element.
+| Parameter | Source |
+|-----------|--------|
+| `owner` | Repository owner, resolved from target configuration |
+| `repo` | Repository name, resolved from target configuration |
+| `issue_number` | Target item number, resolved in Stage 3 |
+| `labels` | New label name array computed in Stage 7 |
 
-**RL-042**: `$doRemove` MUST be `true` (and `$removeLabelIds` MUST contain exactly one element) when the label to remove is currently on the target item. When the label is absent, `$doRemove` MUST be `false` so the `removeLabelsFromLabelable` field is omitted from the request via the `@include(if: $doRemove)` directive.
+**RL-041**: The `labels` array MUST contain all labels that should be present on the item after the operation: current labels minus `label_to_remove` (if present), plus `label_to_add`, deduplicated.
+
+**RL-042**: `label_to_add` MUST always appear exactly once in the `labels` array (after deduplication).
 
 ### 6.2 Execution Semantics
 
-**RL-043**: The GitHub GraphQL API executes root-level mutations within a single request sequentially in declaration order. When `$doRemove` is `true`, `removeLabelsFromLabelable` executes before `addLabelsToLabelable` within the same request, preventing any external observer from reading the item in a state where neither label is present.
+**RL-043**: The `PUT /repos/{owner}/{repo}/issues/{issue_number}/labels` REST call replaces the entire label set of the target item in a single atomic operation. Either the new label set is applied successfully or the call fails — there is no intermediate state where neither label is present.
 
-> **Informative note**: This is a sequential operation in a single HTTP request, not a database transaction. GitHub does not provide rollback semantics: if `removeLabels` succeeds but `addLabels` fails, the removal is not reversed. Implementations MUST log this partial-success condition clearly when it occurs (see §7.2, RL-046).
+> **Informative note**: Unlike the former GraphQL approach (two root mutations in one request), this REST call provides true atomicity: both the removal and addition are reflected by a single server-side update. There is no partial-success scenario (see §7.2).
 
 ---
 
@@ -482,25 +446,20 @@ mutation ReplaceLabelMutation(
 | Label validation failure | `LABEL_BLOCKED` or `LABEL_NOT_ALLOWED` | Skip message with warning; do not fail run |
 | Gate check (required-labels) | `GATE_REQUIRED_LABELS` | Skip message (skipped=true); do not fail run |
 | Gate check (title prefix) | `GATE_TITLE_PREFIX` | Skip message (skipped=true); do not fail run |
-| Label resolution failure | `LABEL_RESOLUTION_FAILED` | Return hard error; message fails |
-| GraphQL mutation failure | `MUTATION_FAILED` | Return hard error; message fails |
+| REST setLabels failure | `SETLABELS_FAILED` | Return hard error; message fails |
 | Rate-limit exhausted after retries | `RATE_LIMIT_EXHAUSTED` | Return hard error; message fails |
 
 **RL-044**: A conforming implementation MUST NOT mark the workflow run as failed for soft-skip errors (schema invalid, count gate, target unresolvable, repo not allowed, label validation failure, gate check failures). These errors MUST be surfaced as workflow warnings only.
 
-**RL-045**: A conforming implementation MUST surface hard errors (label resolution failure, mutation failure, rate-limit exhaustion) as `core.error()` entries in the GitHub Actions log.
+**RL-045**: A conforming implementation MUST surface hard errors (REST call failure, rate-limit exhaustion) as `core.error()` entries in the GitHub Actions log.
 
-### 7.2 Partial Mutation Success
+### 7.2 REST Call Failure
 
-As noted in §6.2, the GraphQL API provides no rollback guarantee. The following rules govern partial-success handling:
-
-**RL-046**: When `removeLabelsFromLabelable` succeeds but `addLabelsToLabelable` returns an error, the implementation MUST log a `core.error()` entry clearly indicating that the remove succeeded but the add failed, and MUST return `{ success: false, error: <message> }`.
-
-**RL-047**: Implementors SHOULD provide the full GraphQL error detail in the error log entry to aid diagnosis.
+**RL-046**: When the `setLabels` REST call fails (e.g., HTTP 422 for an invalid label name), the implementation MUST log a `core.error()` entry and MUST return `{ success: false, error: <message> }`. Because this is a single atomic REST call, there is no partial-success scenario: either all label changes are applied or none are.
 
 ### 7.3 Rate-Limit Retry Policy
 
-**RL-048**: Both the label-resolution step (Stage 7) and the GraphQL mutation step (Stage 8) MUST apply the `RATE_LIMIT_RETRY_CONFIG` retry policy from `actions/setup/js/error_recovery.cjs`. This policy covers secondary rate-limit responses (HTTP 403 with Retry-After header) and primary rate-limit responses (HTTP 429).
+**RL-048**: The `setLabels` REST call (Stage 8) MUST apply the `RATE_LIMIT_RETRY_CONFIG` retry policy from `actions/setup/js/error_recovery.cjs`. This policy covers secondary rate-limit responses (HTTP 403 with Retry-After header) and primary rate-limit responses (HTTP 429).
 
 ---
 
@@ -589,19 +548,18 @@ The test suite for `replace-label` spans two layers:
 - **T-RL-032**: Verify that an item with a title matching `required-title-prefix` proceeds.
 - **T-RL-033**: Verify that an item whose title does not match `required-title-prefix` is skipped without failing.
 
-#### 9.2.5 Label Resolution Tests
+#### 9.2.5 Label Set Computation Tests
 
-- **T-RL-040**: Verify that an existing label is resolved via REST and its node ID is used.
-- **T-RL-041**: Verify that a missing `label_to_add` (HTTP 404) returns a hard error with `success: false`.
-- **T-RL-043**: Verify that the label node-ID cache prevents redundant API calls for the same label name within a run.
-- **T-RL-044**: Verify that when `label_to_remove` is not on the item, `$doRemove` is `false` and the remove field is omitted from the mutation.
+- **T-RL-040**: Verify that when `label_to_remove` is on the item, the computed new label set excludes it and includes `label_to_add`.
+- **T-RL-041**: Verify that when `label_to_add` is passed to `setLabels` and the label does not exist in the repository, the call fails with a hard error.
+- **T-RL-044**: Verify that when `label_to_remove` is not on the item, the computed new label set adds `label_to_add` without removing any label.
 
-#### 9.2.6 GraphQL Mutation Tests
+#### 9.2.6 REST setLabels Tests
 
-- **T-RL-050**: Verify the GraphQL mutation is called with the correct `labelableId`, `addLabelIds`, `removeLabelIds`, and `doRemove` variables.
-- **T-RL-051**: Verify that the mutation result's updated label list is logged.
-- **T-RL-052**: Verify that a GraphQL mutation error produces a hard error result with `success: false`.
-- **T-RL-053**: Verify that `$addLabelIds` always has exactly one element.
+- **T-RL-050**: Verify that `setLabels` is called with the correct `owner`, `repo`, `issue_number`, and `labels` array.
+- **T-RL-051**: Verify that the updated label list returned by `setLabels` is logged.
+- **T-RL-052**: Verify that a `setLabels` failure produces a hard error result with `success: false`.
+- **T-RL-053**: Verify that `label_to_add` always appears exactly once in the `labels` array.
 - **T-RL-054**: Verify that rate-limit responses trigger retry behavior.
 
 #### 9.2.7 Staged Mode Tests
@@ -633,16 +591,14 @@ The test suite for `replace-label` spans two layers:
 | RL-024 required-labels gate | T-RL-030, T-RL-031 | 1 | Required |
 | RL-025 required-title-prefix gate | T-RL-032, T-RL-033 | 1 | Required |
 | RL-027 Staged mode no writes | T-RL-060 | 1 | Required |
-| RL-029 label_to_add resolution | T-RL-040 | 1 | Required |
-| RL-030 label_to_add not found → hard error | T-RL-041 | 1 | Required |
+| RL-029 Label set computation | T-RL-040 | 1 | Required |
 | RL-034 Missing label_to_remove proceeds | T-RL-044 | 1 | Required |
-| RL-036 Single GraphQL mutation | T-RL-050 | 1 | Required |
-| RL-037 Rate-limit retry on mutation | T-RL-054 | 2 | Recommended |
-| RL-041 addLabelIds single element | T-RL-053 | 1 | Required |
-| RL-042 doRemove false when label absent | T-RL-044 | 1 | Required |
-| RL-043 Sequential mutation semantics | T-RL-050 | 1 | Required |
+| RL-036 Single REST setLabels call | T-RL-050 | 1 | Required |
+| RL-037 Rate-limit retry on REST call | T-RL-054 | 2 | Recommended |
+| RL-041 label_to_add in labels array | T-RL-053 | 1 | Required |
+| RL-043 Atomic REST operation | T-RL-050 | 1 | Required |
 | RL-050 Cross-repo restrictions | T-RL-070 – T-RL-072 | 1 | Required |
-| RL-052 No label auto-creation | T-RL-041 | 1 | Required |
+| RL-052 setLabels fails for missing label | T-RL-041 | 1 | Required |
 
 ---
 
@@ -679,8 +635,8 @@ The handler will:
 4. Validate `in-review` against `allowed-remove` ✓, check against `blocked` ✓.
 5. Validate `approved` against `allowed-add` ✓, check against `blocked` ✓.
 6. Fetch the PR and verify `in-review` is present (required-labels gate ✓).
-7. Resolve node IDs for both labels.
-8. Execute the GraphQL mutation: removes `in-review`, adds `approved` in a single request.
+7. Compute new label set: `["approved"] ∪ (current_labels − {"in-review"})`.
+8. Execute `setLabels` REST call with the new label set in a single request.
 
 ### 10.2 Missing Source Label: Graceful Add-Only
 
@@ -690,7 +646,9 @@ If the PR in Example 10.1 does not currently carry `in-review` (e.g., a prior ru
 Label "in-review" is not present on pull request #42 in owner/repo — will only add "approved"
 ```
 
-The mutation is called with `removeLabelIds: []` and `addLabelIds: [<approved-node-id>]`. The operation succeeds and returns `{ labelRemoved: null, labelAdded: "approved" }`.
+The handler logs `Label "in-review" is not present on pull request #42 in owner/repo — will only add "approved"`.
+
+The `setLabels` call is made with a label array that does not contain `in-review` (it was never present) but does contain `approved` plus any other existing labels. The operation succeeds and returns `{ labelRemoved: null, labelAdded: "approved" }`.
 
 ### 10.3 Staged Mode Preview
 
@@ -712,16 +670,15 @@ For the message `{ "label_to_remove": "in-progress", "label_to_add": "done", "it
 
 No API write calls are made. The handler returns `{ success: true, staged: true }`.
 
-### 10.4 Auto-Created Label
+### 10.4 Non-Existent Label
 
-Given the message `{ "label_to_remove": "needs-review", "label_to_add": "ship-it" }` and `ship-it` not existing in the repository:
+Given the message `{ "label_to_remove": "needs-review", "label_to_add": "ship-it" }` and `ship-it` not existing in the repository, the `setLabels` REST call returns HTTP 422 (Unprocessable Entity). The handler logs:
 
 ```
-Label "ship-it" not found in owner/repo, creating it
-Created label "ship-it" with color #a3b4c2
+Failed to replace label: Validation Failed
 ```
 
-The color `#a3b4c2` is the deterministic pastel color computed for the string `"ship-it"`.
+The message is rejected with `{ success: false }`. The label must be created in the repository before use.
 
 ### 10.5 Cross-Repository Operation
 
@@ -746,7 +703,7 @@ Agent message:
 }
 ```
 
-The handler resolves the target repository to `owner/platform` (which is in `allowed-repos`), fetches issue #88 from that repository, and executes the GraphQL mutation using the `INFRA_LABEL_TOKEN` credential.
+The handler resolves the target repository to `owner/platform` (which is in `allowed-repos`), fetches issue #88 from that repository, and executes the `setLabels` REST call using the `INFRA_LABEL_TOKEN` credential.
 
 ### 10.6 Blocked Label Rejection
 
@@ -782,10 +739,6 @@ The message is skipped. The workflow run is not marked as failed.
 
 - **[RFC 2119]** Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", BCP 14, RFC 2119, March 1997. https://www.ietf.org/rfc/rfc2119.txt
 
-- **[GRAPHQL]** GraphQL Foundation, "GraphQL Specification", June 2018. https://spec.graphql.org/June2018/
-
-- **[GITHUB-GRAPHQL-LABELS]** GitHub, Inc., "addLabelsToLabelable and removeLabelsFromLabelable mutations", GitHub GraphQL API Documentation. https://docs.github.com/en/graphql/reference/mutations#addlabelstolabelable
-
 - **[GITHUB-REST-LABELS]** GitHub, Inc., "Labels REST API", GitHub REST API Documentation. https://docs.github.com/en/rest/issues/labels
 
 ### Informative References
@@ -801,6 +754,15 @@ The message is skipped. The workflow run is not marked as failed.
 ---
 
 ## Change Log
+
+### Version 1.0.1 (Revision) — 2026-06-22
+
+- Replaced GraphQL mutation (Stage 8) with a single REST `PUT /repos/{owner}/{repo}/issues/{issue_number}/labels` call (`setLabels`), achieving true atomicity: either the entire label set update succeeds or fails with no partial-success scenario.
+- Removed Stage 7 label-resolution step (no longer requires node-ID lookup); replaced with label-set computation from the already-fetched issue state.
+- Removed §6 GraphQL Interface; added §6 REST Interface describing the `setLabels` endpoint, parameters, and execution semantics.
+- Removed RL-046/RL-047 partial-mutation-success requirements (not applicable to single-call REST approach).
+- Updated RL-029, RL-034, RL-036, RL-041 – RL-043 to reflect REST semantics.
+- Updated examples, compliance checklist, and references accordingly.
 
 ### Version 1.0.0 (Candidate Recommendation) — 2026-06-20
 

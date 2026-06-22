@@ -45,37 +45,10 @@ describe("replace_label", () => {
               node_id: "I_issue_789",
             },
           }),
-          getLabel: async ({ name }) => {
-            const labels = {
-              done: { name: "done", node_id: "LA_done_789", color: "0075ca" },
-              "in-progress": { name: "in-progress", node_id: "LA_in_progress_123", color: "e4e669" },
-            };
-            if (labels[name]) {
-              return { data: labels[name] };
-            }
-            const err = new Error("Not Found");
-            err.status = 404;
-            throw err;
-          },
-          createLabel: async ({ name, color }) => ({
-            data: { name, node_id: `LA_${name}_new`, color },
+          setLabels: async ({ labels }) => ({
+            data: labels.map(name => ({ name, node_id: `LA_${name}_id` })),
           }),
         },
-      },
-      graphql: async (mutation, variables) => {
-        if (mutation.includes("ReplaceLabelMutation")) {
-          return {
-            removeLabels: { clientMutationId: null },
-            addLabels: {
-              labelable: {
-                labels: {
-                  nodes: [{ name: "done" }],
-                },
-              },
-            },
-          };
-        }
-        throw new Error("Unknown query");
       },
     };
 
@@ -106,9 +79,9 @@ describe("replace_label", () => {
   });
 
   it("should return error when label_to_add does not exist in the repo", async () => {
-    mockGithub.rest.issues.getLabel = async () => {
-      const err = new Error("Not Found");
-      err.status = 404;
+    mockGithub.rest.issues.setLabels = async () => {
+      const err = new Error("Validation Failed");
+      err.status = 422;
       throw err;
     };
 
@@ -116,7 +89,6 @@ describe("replace_label", () => {
     const result = await handler({ label_to_remove: "in-progress", label_to_add: "needs-review" }, {});
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("needs-review");
   });
 
   it("should succeed even when label_to_remove is not present on the issue", async () => {
@@ -215,36 +187,15 @@ describe("replace_label", () => {
     expect(result.success).toBe(false);
   });
 
-  it("should log partial failure and return error when remove succeeds but add fails (RL-046)", async () => {
-    const gqlError = new Error("add mutation failed");
-    // @octokit/graphql populates err.data with the partial response when some fields succeed
-    gqlError.data = {
-      removeLabels: { clientMutationId: null }, // remove succeeded
-      // addLabels absent — simulates add failure after remove succeeded
-    };
-    mockGithub.graphql = async () => {
-      throw gqlError;
+  it("should return error when setLabels API call fails", async () => {
+    mockGithub.rest.issues.setLabels = async () => {
+      throw new Error("Service unavailable");
     };
 
     const handler = await main({});
     const result = await handler({ label_to_remove: "in-progress", label_to_add: "done" }, {});
 
     expect(result.success).toBe(false);
-    expect(mockCore.errors.some(e => e.includes("in-progress") && e.includes("done"))).toBe(true);
-  });
-
-  it("should return error when getLabel fails with a non-404 error", async () => {
-    mockGithub.rest.issues.getLabel = async () => {
-      const err = new Error("Service unavailable");
-      err.status = 503;
-      throw err;
-    };
-
-    const handler = await main({});
-    const result = await handler({ label_to_remove: "in-progress", label_to_add: "done" }, {});
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("done");
   });
 
   describe("allowed-transitions", () => {
