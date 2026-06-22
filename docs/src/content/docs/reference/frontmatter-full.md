@@ -1870,7 +1870,7 @@ sandbox:
 
     # AWF platform.type override. Declares the GitHub deployment type so AWF can
     # apply deterministic Copilot auth behavior without relying on host heuristics.
-    # Omit to use the default github.com behavior.
+    # Omit to let AWF use its default host heuristic behavior.
     # (optional)
     platform: "ghes"
 
