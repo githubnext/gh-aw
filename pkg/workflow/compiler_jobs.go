@@ -1238,6 +1238,8 @@ func (c *Compiler) extractPinnedJobSteps(fieldName string, jobName string, confi
 	return pinnedSteps, nil
 }
 
+// ensureCheckoutPersistCredentials enforces with.persist-credentials: false for
+// actions/checkout steps when not explicitly configured by the user.
 func ensureCheckoutPersistCredentials(stepMap map[string]any) {
 	uses, ok := stepMap["uses"].(string)
 	if !ok || !isCheckoutAction(uses) {
@@ -1262,6 +1264,8 @@ func ensureCheckoutPersistCredentials(stepMap map[string]any) {
 	withMap["persist-credentials"] = false
 }
 
+// isCheckoutAction reports whether a uses value points to actions/checkout,
+// including either unpinned or version-pinned forms.
 func isCheckoutAction(uses string) bool {
 	trimmed := strings.Trim(strings.TrimSpace(uses), "\"'")
 	lower := strings.ToLower(trimmed)
