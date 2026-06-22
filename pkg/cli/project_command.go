@@ -300,7 +300,7 @@ func createProject(ctx context.Context, ownerId, title string, verbose bool) (ma
 				url
 			}
 		}
-	}`, ownerId, escapeGraphQLString(title))
+	}`, escapeGraphQLString(ownerId), escapeGraphQLString(title))
 
 	output, err := workflow.RunGH("Creating project...", "api", "graphql", "-f", "query="+mutation)
 	if err != nil {
@@ -370,7 +370,7 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 				id
 			}
 		}
-	}`, projectId, repoId)
+	}`, escapeGraphQLString(projectId), escapeGraphQLString(repoId))
 
 	_, err = workflow.RunGH("Linking project to repository...", "api", "graphql", "-f", "query="+mutation)
 	if err != nil {
