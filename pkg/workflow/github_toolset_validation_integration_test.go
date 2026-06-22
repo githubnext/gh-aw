@@ -66,7 +66,7 @@ tools:
       - all
     allowed:
       - get_file_contents
-      - list_workflows
+      - actions_list
       - create_gist
 ---
 
@@ -107,7 +107,7 @@ tools:
     allowed:
       - get_file_contents
       - list_issues
-      - list_workflows
+      - actions_list
       - search_pull_requests
 ---
 
@@ -120,7 +120,7 @@ Test content.
 				"actions",
 				"pull_requests",
 				"list_issues",
-				"list_workflows",
+				"actions_list",
 				"search_pull_requests",
 			},
 		},
@@ -168,9 +168,9 @@ tools:
       - repos
       - issues
     allowed:
-      - list_workflows
-      - get_workflow_run
-      - download_workflow_run_artifact
+      - actions_list
+      - actions_get
+      - get_job_logs
 ---
 
 # Test workflow
@@ -179,9 +179,9 @@ Test content.
 			expectError: true,
 			errorContains: []string{
 				"actions",
-				"list_workflows",
-				"get_workflow_run",
-				"download_workflow_run_artifact",
+				"actions_list",
+				"actions_get",
+				"get_job_logs",
 			},
 		},
 		{
@@ -197,7 +197,7 @@ tools:
     allowed:
       - get_file_contents
       - list_issues
-      - list_workflows
+      - actions_list
 ---
 
 # Test workflow

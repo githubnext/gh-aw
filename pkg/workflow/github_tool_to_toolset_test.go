@@ -49,7 +49,7 @@ func TestValidateGitHubToolsAgainstToolsets(t *testing.T) {
 		},
 		{
 			name:            "All toolset enables everything",
-			allowedTools:    []string{"get_repository", "list_issues", "list_workflows", "create_gist"},
+			allowedTools:    []string{"get_repository", "list_issues", "actions_list", "create_gist"},
 			enabledToolsets: []string{"all"},
 			expectError:     false,
 		},
@@ -62,10 +62,10 @@ func TestValidateGitHubToolsAgainstToolsets(t *testing.T) {
 		},
 		{
 			name:            "Missing multiple toolsets",
-			allowedTools:    []string{"get_repository", "list_issues", "list_workflows"},
+			allowedTools:    []string{"get_repository", "list_issues", "actions_list"},
 			enabledToolsets: []string{"repos"}, // issues and actions missing
 			expectError:     true,
-			errorContains:   []string{"issues", "actions", "list_issues", "list_workflows"},
+			errorContains:   []string{"issues", "actions", "list_issues", "actions_list"},
 		},
 		{
 			name:            "Missing toolset for pull request tools",
@@ -90,16 +90,16 @@ func TestValidateGitHubToolsAgainstToolsets(t *testing.T) {
 		},
 		{
 			name:            "Actions toolset tools",
-			allowedTools:    []string{"list_workflows", "get_workflow_run", "download_workflow_run_artifact"},
+			allowedTools:    []string{"actions_list", "actions_get", "get_job_logs"},
 			enabledToolsets: []string{"actions"},
 			expectError:     false,
 		},
 		{
 			name:            "Actions toolset missing",
-			allowedTools:    []string{"list_workflows", "get_workflow_run"},
+			allowedTools:    []string{"actions_list", "actions_get"},
 			enabledToolsets: []string{"repos"},
 			expectError:     true,
-			errorContains:   []string{"actions", "list_workflows", "get_workflow_run"},
+			errorContains:   []string{"actions", "actions_list", "actions_get"},
 		},
 		{
 			name:            "Discussions and gists toolsets",
@@ -164,12 +164,12 @@ func TestGitHubToolsetValidationError_Error(t *testing.T) {
 		{
 			name: "Single missing toolset with single tool",
 			missingToolsets: map[string][]string{
-				"actions": {"list_workflows"},
+				"actions": {"actions_list"},
 			},
 			expectedParts: []string{
 				"ERROR",
 				"actions",
-				"list_workflows",
+				"actions_list",
 				"Suggested fix",
 			},
 		},
@@ -190,13 +190,13 @@ func TestGitHubToolsetValidationError_Error(t *testing.T) {
 			name: "Multiple missing toolsets",
 			missingToolsets: map[string][]string{
 				"issues":  {"list_issues", "create_issue"},
-				"actions": {"list_workflows"},
+				"actions": {"actions_list"},
 			},
 			expectedParts: []string{
 				"ERROR",
 				"actions",
 				"issues",
-				"list_workflows",
+				"actions_list",
 				"list_issues",
 				"create_issue",
 			},
@@ -260,8 +260,8 @@ func TestGitHubToolToToolsetMap_ConsistencyWithDocumentation(t *testing.T) {
 		"create_issue":                "issues",
 		"pull_request_read":           "pull_requests",
 		"search_pull_requests":        "pull_requests",
-		"list_workflows":              "actions",
-		"get_workflow_run":            "actions",
+		"actions_list":                "actions",
+		"actions_get":                 "actions",
 		"list_code_scanning_alerts":   "code_security",
 		"create_discussion":           "discussions",
 		"create_gist":                 "gists",
@@ -354,9 +354,9 @@ func TestValidateGitHubToolsDidYouMean(t *testing.T) {
 			shouldHaveSuggestion: true,
 		},
 		{
-			name:                 "typo list_workflos suggests list_workflows",
-			invalidTool:          "list_workflos",
-			expectedSuggestion:   "list_workflows",
+			name:                 "typo actions_lst suggests actions_list",
+			invalidTool:          "actions_lst",
+			expectedSuggestion:   "actions_list",
 			shouldHaveSuggestion: true,
 		},
 		{
