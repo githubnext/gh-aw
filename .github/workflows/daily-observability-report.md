@@ -73,7 +73,8 @@ Using `count: 30` gives a recent, representative cross-workflow sample without f
   "workflow_name": "",
   "count": 30,
   "start_date": "-7d",
-  "parse": true
+  "parse": true,
+  "artifacts": ["usage", "agent", "detection"]
 }
 ```
 
@@ -90,7 +91,8 @@ Only if the broad fetch is missing an important class of run (for example, no re
   "workflow_name": "workflow-name",
   "count": 100,
   "start_date": "-7d",
-  "parse": true
+  "parse": true,
+  "artifacts": ["usage", "agent", "detection"]
 }
 ```
 

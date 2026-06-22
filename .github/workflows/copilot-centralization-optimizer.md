@@ -40,12 +40,16 @@ steps:
       SINCE="$(date -u -d "-${TASK_LOOKBACK_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)"
       API_VERSION="2026-03-10"
 
-      gh api --paginate \
-        -H "Accept: application/vnd.github+json" \
-        -H "X-GitHub-Api-Version: ${API_VERSION}" \
-        "/agents/repos/$REPO/tasks?per_page=100" \
-        --jq '.tasks[].id' \
-        | while IFS= read -r task_id; do
+      _task_ids=$(mktemp)
+      trap 'rm -f "$_task_ids"' EXIT
+
+      if gh api --paginate \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: ${API_VERSION}" \
+          "/agents/repos/$REPO/tasks?per_page=100" \
+          --jq '.tasks[].id' \
+          > "$_task_ids"; then
+        while IFS= read -r task_id; do
             gh api \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: ${API_VERSION}" \
@@ -102,9 +106,15 @@ steps:
                     used_fallback_input: ($session_count > 0 and $first_non_empty_index != null and $first_non_empty_index > 0)
                   }
             ' || true
-          done \
+          done < "$_task_ids" \
         | head -n "$TASK_LIMIT" \
-        >> /tmp/gh-aw/data/task-summaries.jsonl
+        >> /tmp/gh-aw/data/task-summaries.jsonl || true
+      else
+        echo "Agent tasks API request failed; proceeding with empty dataset" >&2
+      fi
+
+      # Convert JSONL to JSON array for downstream analysis steps
+      jq -s '.' /tmp/gh-aw/data/task-summaries.jsonl > /tmp/gh-aw/data/task-summaries.json
 
   - name: Precompute optimization datasets
     env:

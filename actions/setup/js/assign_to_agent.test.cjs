@@ -1032,7 +1032,7 @@ describe("assign_to_agent", () => {
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
     // Should log that ignore-if-error is enabled
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Ignore-if-error mode enabled: Will not fail if agent assignment encounters auth errors"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Ignore-if-error mode enabled: Will not fail if agent assignment encounters auth or availability errors"));
 
     // Should warn about skipping but not fail
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Agent assignment failed"));
@@ -1109,8 +1109,8 @@ describe("assign_to_agent", () => {
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 
-  it("should still fail on non-auth errors even with ignore-if-error enabled", async () => {
-    process.env.GH_AW_AGENT_IGNORE_IF_MISSING = "true";
+  it("should skip assignment and not fail when ignore-if-error is true and agent is not available for the repository", async () => {
+    process.env.GH_AW_AGENT_IGNORE_IF_ERROR = "true";
     setAgentOutput({
       items: [
         {
@@ -1122,9 +1122,42 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    // Simulate a different error (not auth-related)
+    // Simulate agent not available (checkUserCanBeAssigned returns 404)
+    const notFoundError = new Error("Not Found");
+    notFoundError.status = 404;
+    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(notFoundError);
+    // getAvailableAgentLogins also calls checkUserCanBeAssigned - return 404 for that too
+    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(notFoundError);
+
+    await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
+
+    // Should warn about skipping due to agent availability error, but not fail
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("agent availability"));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("ignore-if-error=true"));
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+    // Summary should show skipped assignments
+    expect(mockCore.summary.addRaw).toHaveBeenCalled();
+    const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summaryCall).toContain("⏭️ Skipped");
+  });
+
+  it("should still fail on non-auth errors even with ignore-if-error enabled", async () => {
+    process.env.GH_AW_AGENT_IGNORE_IF_ERROR = "true";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Simulate a different error (not auth-related) during assignment
     const otherError = new Error("Network timeout");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(otherError);
+    mockGithub.request.mockRejectedValue(otherError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 

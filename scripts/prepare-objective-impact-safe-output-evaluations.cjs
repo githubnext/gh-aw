@@ -22,8 +22,28 @@ function readJSON(filePath, fallback) {
   }
 }
 
+// Atomically write content to a file using a temp-file-then-rename pattern.
+// Using O_EXCL on the temp file prevents symlink attacks (CWE-377).
+function writeFileAtomic(filePath, content) {
+  const tmp = filePath + "." + process.pid + ".tmp";
+  let fd;
+  try {
+    fd = fs.openSync(tmp, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL, 0o666);
+    fs.writeFileSync(fd, content);
+    fs.closeSync(fd);
+    fd = undefined;
+    fs.renameSync(tmp, filePath);
+  } catch (err) {
+    if (typeof fd === "number") {
+      try { fs.closeSync(fd); } catch {}
+    }
+    try { fs.unlinkSync(tmp); } catch {}
+    throw err;
+  }
+}
+
 function writeJSON(filePath, value) {
-  fs.writeFileSync(filePath, JSON.stringify(value, null, 2) + "\n");
+  writeFileAtomic(filePath, JSON.stringify(value, null, 2) + "\n");
 }
 
 function gh(args) {
@@ -130,7 +150,7 @@ function main() {
     }
   }
 
-  fs.writeFileSync(OUTPUT_JSONL, rows.map(row => JSON.stringify(row)).join("\n") + (rows.length > 0 ? "\n" : ""));
+  writeFileAtomic(OUTPUT_JSONL, rows.map(row => JSON.stringify(row)).join("\n") + (rows.length > 0 ? "\n" : ""));
 
   const summary = {
     total_issue_outcomes: rows.length,

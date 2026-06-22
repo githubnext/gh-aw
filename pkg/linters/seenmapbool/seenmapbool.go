@@ -67,7 +67,15 @@ func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintLinesByFile map
 	candidates := make(map[types.Object]ast.Node) // object -> declaration node for reporting
 
 	// First pass: collect declarations of map[string]bool locals.
+	// Stop at nested FuncLit boundaries so each closure is handled by its own
+	// Preorder visit — preventing duplicate diagnostics.
 	ast.Inspect(body, func(n ast.Node) bool {
+		if n == nil {
+			return false
+		}
+		if _, ok := n.(*ast.FuncLit); ok {
+			return false // do not descend into nested closures
+		}
 		switch stmt := n.(type) {
 		case *ast.AssignStmt:
 			// seen := make(map[string]bool)  or  seen := map[string]bool{}

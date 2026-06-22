@@ -984,7 +984,11 @@ async function handleMessage(server, req, defaultHandler) {
       server.replyError(id, -32601, `Method not found: ${method}`);
     }
   } catch (e) {
-    server.replyError(id, -32603, e instanceof Error ? e.message : String(e));
+    // Use the error code only if it's a valid JSON-RPC error code (must be a negative integer).
+    // Subprocess exit codes (positive integers like 1, 2, etc.) must not be used as JSON-RPC
+    // error codes, as that would produce non-conformant responses (e.g. "code=1").
+    const code = e && typeof e === "object" && Number.isInteger(e.code) && e.code < 0 ? e.code : -32603;
+    server.replyError(id, code, e && e.message ? String(e.message) : "Internal error");
   }
 }
 

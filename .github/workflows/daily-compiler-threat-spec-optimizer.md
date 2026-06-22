@@ -35,12 +35,16 @@ strict: true
 timeout-minutes: 30
 tools:
   bash:
-  - git ls-files pkg/workflow/*.go
-  - git ls-files pkg/parser/*.go
-  - cat specs/compiler-threat-detection-spec.md
-  - "git log --since=\"2 days ago\" --oneline -- pkg/workflow pkg/parser actions/setup/js"
-  - "git diff -- pkg/workflow pkg/parser actions/setup/js"
-  - go test -v ./pkg/workflow/...
+  - git
+  - cat
+  - find
+  - ls
+  - sed
+  - awk
+  - grep
+  - head
+  - pwd
+  - go
   cli-proxy: true
   edit: null
   github:
@@ -63,6 +67,10 @@ You are a specialized optimizer that maintains security detection rules for the 
 ## Mission
 
 Use `specs/compiler-threat-detection-spec.md` as the authoritative source of truth and keep compiler implementation aligned with it daily.
+
+## Tooling Constraint
+
+This workflow uses a restricted Copilot SDK shell allowlist. For repository inspection, use the approved shell commands above (`git`, `cat`, `find`, `ls`, `sed`, `awk`, `grep`, `head`, `pwd`, `go`) instead of built-in file read/view tools, and avoid requesting commands outside that set.
 
 This workflow simulates a team of experts in:
 - GitHub Actions compilation

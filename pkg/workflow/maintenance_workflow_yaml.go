@@ -54,15 +54,17 @@ func buildMaintenanceWorkflowYAML(
 	var yaml strings.Builder
 
 	// Add workflow header with logo and instructions
-	customInstructions := `Alternative regeneration methods:
-  make recompile
+	customInstructions := `This file defines the generated agentic maintenance workflow for this repository.
+It runs scheduled cleanup for expiring safe outputs and supports manual maintenance operations.
 
-Or use the gh-aw CLI directly:
-  ./gh-aw compile --validate --verbose
+This workflow is generated automatically when workflows use expiring safe outputs
+or when repository maintenance features are enabled in .github/workflows/aw.json.
 
-The workflow is generated when any workflow uses the 'expires' field
-in create-discussions, create-issues, or create-pull-request safe-outputs configuration.
-Schedule frequency is automatically determined by the shortest expiration time.`
+To disable maintenance workflow generation, set in .github/workflows/aw.json:
+  {"maintenance": false}
+
+Agentic maintenance docs:
+  https://github.github.com/gh-aw/reference/ephemerals/#manual-maintenance-operations`
 
 	header := GenerateWorkflowHeader("", "pkg/workflow/maintenance_workflow.go", customInstructions)
 	yaml.WriteString(header)

@@ -145,6 +145,7 @@ Present a structured summary and ask for approval before generation.
 | "request reviewer", "hide comment" | `add-reviewer`, `hide-comment` |
 | "create/update project", "project status update" | `create-project`, `update-project`, `create-project-status-update` |
 | "update release", "upload release asset" | `update-release`, `upload-asset` |
+| "trigger another workflow", "dispatch to workflow", "run another workflow" | `dispatch-workflow` |
 | "create/auto-fix code scan alert" | `create-code-scanning-alert`, `autofix-code-scanning-alert` |
 | "start an agent session", "assign to an agent" | `create-agent-session`, `assign-to-agent` |
 | "store persistent memory comment" | `comment-memory` |
@@ -180,7 +181,21 @@ Present a structured summary and ask for approval before generation.
 | "uses Deno or JSR packages" | include `deno` in `network.allowed` |
 | "uses Elixir / Hex packages" | include `elixir` in `network.allowed` |
 | "uses Bazel build" | include `bazel` in `network.allowed` |
+| "uses Clojure / Clojars packages" | include `clojure` in `network.allowed` |
+| "uses Julia packages" | include `julia` in `network.allowed` |
+| "uses Kotlin / JetBrains packages" | include `kotlin` in `network.allowed` |
+| "uses LuaRocks / Lua packages" | include `lua` in `network.allowed` |
+| "uses node CDNs (jsdelivr, unpkg)" | include `node-cdns` in `network.allowed` |
+| "uses OPAM / OCaml packages" | include `ocaml` in `network.allowed` |
+| "uses PowerShell Gallery" | include `powershell` in `network.allowed` |
 | "uses R / CRAN packages" | include `r` in `network.allowed` |
+| "uses sbt / Scala packages" | include `scala` in `network.allowed` |
+| "uses Zig packages" | include `zig` in `network.allowed` |
+| "uses Renovate, Codecov, or other CI tools" | include `dev-tools` in `network.allowed` |
+| "uses Chrome / Chromium downloads" | include `chrome` in `network.allowed` |
+| "uses LaTeX / TeX / MiKTeX" | include `latex` in `network.allowed` |
+| "uses Lean theorem prover" | include `lean` in `network.allowed` |
+| "builds Python packages from source" | include `python-native` in `network.allowed` |
 | "no external access" | `network.allowed: [defaults]` (or `[]` if explicitly zero network) |
 
 ### Tool Mapping
@@ -368,5 +383,7 @@ Portable HTTPS references:
 - `https://github.com/github/gh-aw/blob/main/.github/aw/safe-outputs.md` (index → `.../safe-outputs-content.md`, `.../safe-outputs-management.md`, `.../safe-outputs-automation.md`, `.../safe-outputs-runtime.md`)
 - `https://github.com/github/gh-aw/blob/main/.github/aw/network.md`
 - `https://github.com/github/gh-aw/blob/main/.github/aw/patterns.md`
+- `https://github.com/github/gh-aw/blob/main/.github/aw/subagents.md`
+- `https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md`
 - `https://github.com/github/gh-aw/blob/main/.github/aw/triggers.md`
 - `https://github.com/github/gh-aw/blob/main/.github/aw/create-agentic-workflow.md`

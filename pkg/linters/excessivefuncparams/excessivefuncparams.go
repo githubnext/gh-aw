@@ -9,6 +9,8 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // DefaultMaxParams is the default maximum number of parameters allowed in a function declaration.
@@ -36,6 +38,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "excessivefuncparams")
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -49,6 +52,10 @@ func run(pass *analysis.Pass) (any, error) {
 		if fn.Type == nil || fn.Type.Params == nil {
 			return
 		}
+		position := pass.Fset.PositionFor(fn.Name.Pos(), false)
+		if filecheck.IsTestFile(position.Filename) {
+			return
+		}
 
 		params := 0
 		for _, field := range fn.Type.Params.List {
@@ -60,6 +67,9 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		if params > maxParams {
+			if nolint.HasDirective(position, noLintLinesByFile) {
+				return
+			}
 			pass.ReportRangef(
 				fn.Name,
 				"%s has %d parameters (limit: %d); consider using an options struct",
