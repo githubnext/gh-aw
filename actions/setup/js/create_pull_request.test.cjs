@@ -1018,6 +1018,7 @@ index 0000000..abc1234
     expect(fallbackIssueBody).toContain("git reset --hard");
     expect(fallbackIssueBody).toContain(`git update-ref -d ${fallbackBundleTempRef}`);
     expect(fallbackIssueBody).not.toContain("refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison");
+    expect(fallbackIssueBody).toContain("**Original error:** push rejected");
     expect(fallbackIssueBody).toContain("Test body");
     expect(fallbackIssueBody).toContain("Closes \\#57");
     expect(fallbackIssueBody).toContain("Resolves test-owner/test-repo\\#58");
