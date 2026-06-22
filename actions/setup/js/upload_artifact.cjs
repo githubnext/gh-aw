@@ -191,15 +191,16 @@ function copyDirectoryToStaging(sourceDir, destRelDir) {
   for (const entry of entries) {
     const srcFull = path.join(sourceDir, entry.name);
     const destRel = path.join(destRelDir, entry.name);
-    if (lstatGuard(srcFull) === null) {
+    const stat = lstatGuard(srcFull);
+    if (stat === null) {
       core.warning(`Skipping symlink during auto-copy: ${srcFull}`);
       continue;
     }
-    if (entry.isDirectory()) {
+    if (stat.isDirectory()) {
       const sub = copyDirectoryToStaging(srcFull, destRel);
       if (sub.error) return sub;
       copiedCount += sub.copiedCount;
-    } else if (entry.isFile()) {
+    } else if (stat.isFile()) {
       const result = copySingleFileToStaging(srcFull, destRel);
       if (result.error) return { copiedCount, error: result.error };
       copiedCount++;
