@@ -206,6 +206,12 @@ func applyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) (*Workflo
 		return step, nil
 	}
 
+	// Local action references (./... or ../...) and Docker image references (docker://...)
+	// are valid GitHub Actions syntax that cannot and should not be pinned — emit as-is.
+	if strings.HasPrefix(step.Uses, "./") || strings.HasPrefix(step.Uses, "../") || strings.HasPrefix(step.Uses, "docker://") {
+		return step, nil
+	}
+
 	actionRepo := extractActionRepo(step.Uses)
 	if actionRepo == "" {
 		return step, nil
