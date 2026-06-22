@@ -92,10 +92,12 @@ func TestBuildLogsData(t *testing.T) {
 			},
 			MissingTools: []MissingToolReport{
 				{
-					Tool:         "github_search",
-					Reason:       "Not allowed",
-					WorkflowName: "Test Workflow",
-					RunID:        12346,
+					Tool:   "github_search",
+					Reason: "Not allowed",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "Test Workflow",
+						RunID:        12346,
+					},
 				},
 			},
 			MCPFailures: []MCPFailureReport{},
@@ -568,10 +570,12 @@ func TestBuildMissingToolsSummary(t *testing.T) {
 			},
 			MissingTools: []MissingToolReport{
 				{
-					Tool:         "github_search",
-					Reason:       "Not allowed",
-					WorkflowName: "Workflow A",
-					RunID:        1,
+					Tool:   "github_search",
+					Reason: "Not allowed",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "Workflow A",
+						RunID:        1,
+					},
 				},
 			},
 		},
@@ -582,16 +586,20 @@ func TestBuildMissingToolsSummary(t *testing.T) {
 			},
 			MissingTools: []MissingToolReport{
 				{
-					Tool:         "github_search",
-					Reason:       "Permission denied",
-					WorkflowName: "Workflow B",
-					RunID:        2,
+					Tool:   "github_search",
+					Reason: "Permission denied",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "Workflow B",
+						RunID:        2,
+					},
 				},
 				{
-					Tool:         "web_fetch",
-					Reason:       "Not configured",
-					WorkflowName: "Workflow B",
-					RunID:        2,
+					Tool:   "web_fetch",
+					Reason: "Not configured",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "Workflow B",
+						RunID:        2,
+					},
 				},
 			},
 		},
@@ -764,10 +772,12 @@ func TestBuildMCPFailuresSummary(t *testing.T) {
 			},
 			MCPFailures: []MCPFailureReport{
 				{
-					ServerName:   "playwright",
-					Status:       "failed",
-					WorkflowName: "Workflow A",
-					RunID:        1,
+					ServerName: "playwright",
+					Status:     "failed",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "Workflow A",
+						RunID:        1,
+					},
 				},
 			},
 		},
@@ -778,10 +788,12 @@ func TestBuildMCPFailuresSummary(t *testing.T) {
 			},
 			MCPFailures: []MCPFailureReport{
 				{
-					ServerName:   "playwright",
-					Status:       "failed",
-					WorkflowName: "Workflow B",
-					RunID:        2,
+					ServerName: "playwright",
+					Status:     "failed",
+					ReportProvenance: ReportProvenance{
+						WorkflowName: "Workflow B",
+						RunID:        2,
+					},
 				},
 			},
 		},
