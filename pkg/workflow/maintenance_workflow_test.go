@@ -416,6 +416,10 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		t.Fatalf("Expected maintenance workflow to be generated: %v", err)
 	}
 	yaml := string(content)
+	require.Contains(t, yaml, "This file defines the generated agentic maintenance workflow for this repository.")
+	require.Contains(t, yaml, "This workflow is generated automatically when workflows use expiring safe outputs")
+	require.Contains(t, yaml, `{"maintenance": false}`)
+	require.Contains(t, yaml, "https://github.github.com/gh-aw/reference/ephemerals/#manual-maintenance-operations")
 
 	operationSkipCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == ''`
 	operationRunCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'activity_report' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'update_pull_request_branches' && inputs.operation != 'validate' && inputs.operation != 'forecast'`
