@@ -569,5 +569,6 @@ The gh-aw repository uses custom agent files for performance engineering guides:
 - `.github/copilot/instructions/workflow-performance.md` - Workflow efficiency
 - `.github/copilot/instructions/build-performance.md` - Build optimization
 - `.github/copilot/instructions/cli-performance.md` - CLI performance
+- `.github/copilot/instructions/local-inference.md` - Local inference with self-hosted runners
 
 These files provide specialized guidance for performance engineering tasks and demonstrate the custom agent file format in practice.
