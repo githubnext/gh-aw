@@ -46,6 +46,7 @@ type EngineConfig struct {
 	ID                 string
 	Version            string
 	Model              string
+	LLMProvider        string // Inference provider override for this engine (github|anthropic|openai)
 	PermissionMode     string
 	MaxTurns           string
 	MaxToolDenials     string // Maximum repeated tool denials before stopping inference (copilot SDK mode only)
@@ -306,6 +307,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if model, hasModel := engineObj["model"]; hasModel {
 				if modelStr, ok := model.(string); ok {
 					config.Model = modelStr
+				}
+			}
+
+			// Extract optional 'llm-provider' field
+			if provider, hasProvider := engineObj["llm-provider"]; hasProvider {
+				if providerStr, ok := provider.(string); ok {
+					config.LLMProvider = strings.ToLower(strings.TrimSpace(providerStr))
 				}
 			}
 

@@ -11588,6 +11588,11 @@
               "type": "string",
               "description": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). Has sensible defaults and can typically be omitted."
             },
+            "llm-provider": {
+              "type": "string",
+              "enum": ["github", "anthropic", "openai"],
+              "description": "Optional inference provider override for this engine. Defaults to the engine's native provider (copilot: github, claude: anthropic, codex: openai)."
+            },
             "permission-mode": {
               "type": "string",
               "enum": ["auto", "acceptEdits", "plan", "bypassPermissions"],

@@ -41,7 +41,8 @@ const workspaceCommandPrefix = `cd "${GITHUB_WORKSPACE}" && `
 //     (BYOK mode — the external provider handles authentication, so COPILOT_GITHUB_TOKEN
 //     is not required for model routing).
 func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if hasCopilotRequestsWritePermission(workflowData) {
+	provider := e.ResolveLLMProvider(workflowData)
+	if provider == LLMProviderGitHub && hasCopilotRequestsWritePermission(workflowData) {
 		copilotInstallLog.Print("Skipping secret validation step: permissions.copilot-requests=write enabled, using GitHub Actions token")
 		return GitHubActionStep{}
 	}
@@ -51,11 +52,17 @@ func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitH
 		copilotInstallLog.Print("Skipping COPILOT_GITHUB_TOKEN validation: BYOK provider credentials are configured")
 		return GitHubActionStep{}
 	}
+	docsURL := "https://github.github.com/gh-aw/reference/engines/#github-copilot-default"
+	if provider == LLMProviderAnthropic {
+		docsURL = "https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code"
+	} else if provider == LLMProviderOpenAI {
+		docsURL = "https://github.github.com/gh-aw/reference/engines/#openai-codex"
+	}
 	return BuildDefaultSecretValidationStep(
 		workflowData,
-		[]string{"COPILOT_GITHUB_TOKEN"},
+		llmProviderSecretNames(provider),
 		"GitHub Copilot CLI",
-		"https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
+		docsURL,
 	)
 }
 

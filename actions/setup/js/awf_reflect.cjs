@@ -331,6 +331,7 @@ async function fetchAWFReflect(options) {
  *
  * @param {{
  *   model?: string,
+ *   provider?: string,
  *   reflectData: object | null | undefined,
  *   logger?: (msg: string) => void,
  * }} [options]
@@ -338,6 +339,7 @@ async function fetchAWFReflect(options) {
  */
 function resolveCopilotSDKCustomProviderFromReflect(options) {
   const configuredModel = typeof options?.model === "string" ? options.model.trim() : "";
+  const configuredProvider = typeof options?.provider === "string" ? options.provider.trim().toLowerCase() : "";
   const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
 
   const reflectData = options?.reflectData;
@@ -352,7 +354,11 @@ function resolveCopilotSDKCustomProviderFromReflect(options) {
     return null;
   }
 
-  const endpoint = (configuredModel ? endpoints.find(ep => Array.isArray(ep.models) && ep.models.includes(configuredModel)) : null) || endpoints.find(ep => String(ep.provider || "").toLowerCase() === "copilot") || endpoints[0];
+  const endpoint =
+    (configuredModel ? endpoints.find(ep => Array.isArray(ep.models) && ep.models.includes(configuredModel)) : null) ||
+    (configuredProvider ? endpoints.find(ep => String(ep.provider || "").toLowerCase() === configuredProvider) : null) ||
+    endpoints.find(ep => String(ep.provider || "").toLowerCase() === "copilot") ||
+    endpoints[0];
 
   let baseUrl = "";
   if (typeof endpoint?.models_url === "string" && endpoint.models_url) {

@@ -159,6 +159,27 @@ func TestClaudeEngineWithOutput(t *testing.T) {
 		Name:        "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{}, // non-nil means hasOutput=true
 	}
+
+	func TestClaudeEngineLLMProviderGitHubUsesCopilotCredentials(t *testing.T) {
+		engine := NewClaudeEngine()
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				LLMProvider: "github",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "test-log")
+		require.Len(t, steps, 1)
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		assert.Contains(t, stepContent, "GH_AW_LLM_PROVIDER: github")
+		assert.Contains(t, stepContent, "ANTHROPIC_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
+		assert.Contains(t, stepContent, fmt.Sprintf("ANTHROPIC_BASE_URL: http://host.docker.internal:%d", constants.CopilotLLMGatewayPort))
+	}
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
 	if len(steps) != 1 {
 		t.Fatalf("Expected 1 step (execution), got %d", len(steps))
