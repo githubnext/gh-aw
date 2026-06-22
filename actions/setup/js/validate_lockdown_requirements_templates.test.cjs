@@ -1,6 +1,8 @@
 // @ts-check
 const { renderLockdownTokenErrorMessage, renderPublicStrictModeErrorMessage, renderPullRequestTargetErrorMessage } = require("./validate_lockdown_requirements_templates.cjs");
 
+// Content-contract tests below assert specific phrasing and key terms from each template.
+// They document intentional wording and will fail on purposeful rewording — that is the intent.
 describe("validate_lockdown_requirements_templates", () => {
   describe("renderLockdownTokenErrorMessage", () => {
     it("returns a non-empty string", () => {
@@ -141,21 +143,11 @@ describe("validate_lockdown_requirements_templates", () => {
       const mod = require("./validate_lockdown_requirements_templates.cjs");
       const keys = Object.keys(mod);
       expect(keys).toHaveLength(3);
-      expect(keys).toEqual(
-        expect.arrayContaining([
-          "renderLockdownTokenErrorMessage",
-          "renderPublicStrictModeErrorMessage",
-          "renderPullRequestTargetErrorMessage",
-        ]),
-      );
+      expect(keys).toEqual(expect.arrayContaining(["renderLockdownTokenErrorMessage", "renderPublicStrictModeErrorMessage", "renderPullRequestTargetErrorMessage"]));
     });
 
     it("no message contains unreplaced placeholders", () => {
-      const messages = [
-        renderLockdownTokenErrorMessage(),
-        renderPublicStrictModeErrorMessage(),
-        renderPullRequestTargetErrorMessage(),
-      ];
+      const messages = [renderLockdownTokenErrorMessage(), renderPublicStrictModeErrorMessage(), renderPullRequestTargetErrorMessage()];
       for (const message of messages) {
         expect(message).not.toMatch(/\{[A-Za-z][A-Za-z0-9_]*\}/);
       }
