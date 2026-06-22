@@ -224,7 +224,7 @@ func TestUpdateCommand_HelpText(t *testing.T) {
 	// Should mention merge behavior
 	assert.Contains(t, outputStr, "no-merge", "Help should document --no-merge flag")
 	assert.Contains(t, outputStr, "no-redirect", "Help should document --no-redirect flag")
-	assert.Contains(t, outputStr, "disable-security-scanner", "Help should document --disable-security-scanner flag")
+	assert.Contains(t, outputStr, "no-security-scanner", "Help should document --no-security-scanner flag")
 	assert.Contains(t, outputStr, "repo", "Help should document --repo flag")
 	assert.Contains(t, outputStr, "3-way merge", "Help should explain merge behavior")
 
