@@ -143,47 +143,13 @@ For each update, analyze intermediate versions:
 - Check for version changelog in package description
 
 ### Tool Installation & Discovery
-**CACHE OPTIMIZATION**: 
-- Before installing, check cache-memory for previous help outputs (main and subcommands)
-- Only install and run --help if version has changed
-- Store main help outputs in cache-memory at `/tmp/gh-aw/cache-memory/[tool]-[version]-help.txt`
-- Store subcommand help outputs at `/tmp/gh-aw/cache-memory/[tool]-[version]-[subcommand]-help.txt`
+Check cache-memory first (`/tmp/gh-aw/cache-memory/`). Only install and run `--help` if the version changed; then save outputs to cache.
 
-For each CLI tool update:
-1. Install the new version globally (skip if already installed from cache check):
-   - Claude Code: `npm install -g @anthropic-ai/claude-code@<version>`
-   - Copilot CLI: `npm install -g @github/copilot@<version>`
-   - Codex: `npm install -g @openai/codex@<version>`
-   - Playwright MCP: `npm install -g @playwright/mcp@<version>`
-   - Playwright CLI: `npm install -g @playwright/cli@<version>`
-   - Pi: `npm install -g @earendil-works/pi-coding-agent@<version>`
-2. Invoke help to discover commands and flags (compare with cached output if available):
-   - Run `claude-code --help`
-   - Run `copilot --help` or `copilot help copilot`
-   - Run `codex --help`
-   - Run `npx @playwright/mcp@<version> --help` (if available)
-   - Run `playwright-cli --help` (if available)
-   - Run `pi --help` (if available)
-3. **Explore subcommand help** for each tool (especially Copilot CLI):
-   - Identify all available subcommands from main help output
-   - For each subcommand, run its help command (e.g., `copilot help config`, `copilot help environment`, `copilot config --help`)
-   - Store each subcommand help output in cache-memory at `/tmp/gh-aw/cache-memory/[tool]-[version]-[subcommand]-help.txt`
-   - **Priority subcommands for Copilot CLI**: `config`, `environment` (explicitly requested)
-   - Example commands:
-     - `copilot help copilot`
-     - `copilot help config` or `copilot config --help`
-     - `copilot help environment` or `copilot environment --help`
-4. Compare help output with previous version to identify:
-   - New commands or subcommands
-   - New command-line flags or options
-   - Deprecated or removed features
-   - Changed default behaviors
-   - **NEW**: Changes in subcommand functionality or flags
-5. Save all help outputs (main and subcommands) to cache-memory for future runs
+For each CLI tool update, install (`npm install -g <package>@<version>`), run `--help` on the main command and key subcommands (Copilot: `config`, `environment`), and compare with the cached output to identify new flags, removed features, or behavior changes.
 
 ### Update Process
 1. Edit `./pkg/constants/constants.go` with new version(s)
-2. **REQUIRED**: Run `make recompile` to update workflows (MUST be run after any constant changes)
+2. **REQUIRED**: Run `make recompile` in the **foreground** — do NOT background it with `&` or follow it with `sleep`. Wait for it to finish completely before proceeding. Example: `make recompile && echo "done"`.
 3. Verify changes with `git status`
 4. **REQUIRED**: Create issue via safe-outputs with detailed analysis (do NOT skip this step)
 
@@ -191,89 +157,9 @@ For each CLI tool update:
 
 **Follow the Report Structure Pattern defined in `shared/reporting.md`.**
 
-For each updated CLI, include:
-- **Version**: old → new (list intermediate versions if multiple)
-- **Release Timeline**: dates and intervals
-- **Changes**: Categorized as Breaking/Features/Fixes/Security/Performance
-- **Impact Assessment**: Risk level, affected features, migration notes
-- **Changelog Links**: Use plain URLs without backticks
-- **CLI Changes**: New commands, flags, or removed features discovered via help
-- **Subcommand Changes**: Changes in subcommand functionality or flags (especially `config` and `environment` for Copilot CLI)
-- **GitHub Release Notes**: Include highlights and PR summaries when available from GitHub releases
+For each updated CLI, include: version old → new, release timeline, changes categorized as Breaking/Features/Fixes/Security/Performance, impact assessment, changelog links, and any CLI/subcommand changes discovered via help output.
 
-**IMPORTANT**: Use h3 (###) or lower for all headers. Wrap full changelogs and migration guides in `<details>` tags as shown in the Report Structure Pattern.
-
-**URL Formatting Rules**:
-- Use plain URLs without backticks around package names
-- **CORRECT**: https://www.npmjs.com/package/@github/copilot
-- **INCORRECT**: `https://www.npmjs.com/package/@github/copilot` (has backticks)
-- **INCORRECT**: https://www.npmjs.com/package/`@github/copilot` (package name wrapped in backticks)
-
-**Pull Request Link Formatting**:
-- **CRITICAL**: Always use full URLs for pull requests that refer to external repositories
-- **CORRECT**: https://github.com/openai/codex/pull/6211
-- **INCORRECT**: #6211 (relative reference only works for same repository)
-- When copying PR references from release notes, convert `#1234` to full URLs like `https://github.com/owner/repo/pull/1234`
-
-Legacy template reference (adapt to use Report Structure Pattern above):
-```
-### Update [CLI Name]
-- Previous: [version] → New: [version]
-- Timeline: [dates and frequency]
-
-### Breaking Changes
-[list or "None"]
-
-### Key Features
-- [New feature 1]
-- [New feature 2]
-
-<details>
-<summary>View Full Changelog</summary>
-
-### Release Highlights (from GitHub)
-[Include key highlights from GitHub release notes if available]
-
-### Bug Fixes
-[list]
-
-### Security Updates
-[CVEs/patches or "None"]
-
-### CLI Discovery
-[New commands/flags or "None detected"]
-
-### Subcommand Changes
-[Changes in subcommands like config/environment or "None detected"]
-
-### Merged PRs (from GitHub)
-[List significant merged PRs from release notes if available]
-
-### Subcommand Help Analysis
-[Document changes in subcommand help output, particularly for config and environment commands]
-
-</details>
-
-<details>
-<summary>View Migration Guide</summary>
-
-[Step-by-step update instructions, code changes needed if any]
-
-</details>
-
-### Impact Assessment
-- Risk: [Low/Medium/High]
-- Affects: [features]
-
-### Recommendations
-[Update priority, testing strategy, rollout plan]
-
-### Package Links
-- **NPM Package**: https://www.npmjs.com/package/package-name-here
-- **Repository**: [GitHub URL if available]
-- **Release Notes**: [GitHub releases URL if available]
-- **Specific Release**: [Direct link to version's release notes if available]
-```
+**Important**: Use h3 (###) or lower for all headers. Wrap full changelogs in `<details>` tags. Use plain URLs (no backticks) and convert `#1234` PR references to full external URLs like `https://github.com/owner/repo/pull/1234`.
 
 ## Guidelines
 - Only update stable versions (no pre-releases)
@@ -297,54 +183,12 @@ Legacy template reference (adapt to use Report Structure Pattern above):
   - Use commands like `copilot help <subcommand>` or `<tool> <subcommand> --help`
 - Compare help output between old and new versions (both main help and subcommand help)
 - **SAVE TO CACHE**: Store help outputs (main and all subcommands) and version check results in cache-memory
-- **REQUIRED**: Always run `make recompile` after updating constants to regenerate workflow lock files
+- **REQUIRED**: Always run `make recompile` in the **foreground** (not backgrounded) after updating constants — wait for completion before proceeding
 - **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly
 
-## Common JSON Parsing Issues
+## JSON Parsing Tips
 
-When using npm commands or other CLI tools, their output may include informational messages with Unicode symbols that break JSON parsing:
-
-**Problem Patterns**:
-- `Unexpected token 'ℹ', "ℹ Timeout "... is not valid JSON`
-- `Unexpected token '⚠', "⚠ pip pack"... is not valid JSON`
-- `Unexpected token '✓', "✓ Success"... is not valid JSON`
-
-**Solutions**:
-
-### 1. Filter stderr (Recommended)
-Redirect stderr to suppress npm warnings/info:
-```bash
-npm view @github/copilot version 2>/dev/null
-npm view @anthropic-ai/claude-code --json 2>/dev/null
-```
-
-### 2. Use grep to filter output
-Remove lines with Unicode symbols before parsing:
-```bash
-npm view @github/copilot --json | grep -v "^[ℹ⚠✓]"
-```
-
-### 3. Use jq for reliable extraction
-Let jq handle malformed input:
-```bash
-# Extract version field only, ignoring non-JSON lines
-npm view @github/copilot --json 2>/dev/null | jq -r '.version'
-```
-
-### 4. Check tool output before parsing
-Always validate JSON before attempting to parse:
-```bash
-output=$(npm view package --json 2>/dev/null)
-if echo "$output" | jq empty 2>/dev/null; then
-  # Valid JSON, safe to parse
-  version=$(echo "$output" | jq -r '.version')
-else
-  # Invalid JSON, handle error
-  echo "Warning: npm output is not valid JSON"
-fi
-```
-
-**Best Practice**: Combine stderr filtering with jq extraction for most reliable results:
+Filter stderr and use jq to avoid Unicode token errors from npm output:
 ```bash
 npm view @github/copilot --json 2>/dev/null | jq -r '.version'
 ```

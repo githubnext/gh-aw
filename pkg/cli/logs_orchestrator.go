@@ -25,7 +25,6 @@ import (
 	"github.com/github/gh-aw/pkg/envutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
@@ -43,6 +42,16 @@ func isDeadlineExceeded(ctx context.Context) bool {
 // validates the value is between 1 and 100, and falls back to the default if invalid.
 func getMaxConcurrentDownloads() int {
 	return envutil.GetIntFromEnv("GH_AW_MAX_CONCURRENT_DOWNLOADS", MaxConcurrentDownloads, 1, 100, logsOrchestratorLog)
+}
+
+// matchEngineFilter checks whether the run recorded in awInfo matches the
+// requested engine filter string.  It returns (matches, detectedEngineID).
+// detectedEngineID is "" when awInfo is unavailable or carries no engine_id.
+func matchEngineFilter(awInfo *AwInfo, awInfoErr error, filterEngine string) (bool, string) {
+	if awInfoErr != nil || awInfo == nil || awInfo.EngineID == "" {
+		return false, ""
+	}
+	return awInfo.EngineID == filterEngine, awInfo.EngineID
 }
 
 type LogsDownloadOptions struct {
@@ -386,36 +395,14 @@ outerLoop:
 
 				// Apply engine filtering if specified
 				if engine != "" {
-					// Check if the run's engine matches the filter
-					detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
-
-					var engineMatches bool
-					if detectedEngine != nil {
-						// Get the engine ID to compare with the filter
-						registry := workflow.GetGlobalEngineRegistry()
-						for _, supportedEngine := range constants.AgenticEngines {
-							if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
-								engineMatches = (supportedEngine == engine)
-								break
-							}
-						}
-					}
-
+					engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, engine)
 					if !engineMatches {
-						logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, no match detected", result.Run.DatabaseID, engine)
+						if detectedEngineID == "" {
+							detectedEngineID = "unknown"
+						}
+						logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, detected=%s", result.Run.DatabaseID, engine, detectedEngineID)
 						if verbose {
-							engineName := "unknown"
-							if detectedEngine != nil {
-								// Try to get a readable name for the detected engine
-								registry := workflow.GetGlobalEngineRegistry()
-								for _, supportedEngine := range constants.AgenticEngines {
-									if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
-										engineName = supportedEngine
-										break
-									}
-								}
-							}
-							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, engineName, engine)))
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, detectedEngineID, engine)))
 						}
 						continue
 					}
@@ -1020,21 +1007,14 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 		}
 
 		if opts.Engine != "" {
-			detectedEngine := extractEngineFromAwInfo(awInfoPath, opts.Verbose)
-			var engineMatches bool
-			if detectedEngine != nil {
-				registry := workflow.GetGlobalEngineRegistry()
-				for _, supportedEngine := range constants.AgenticEngines {
-					if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
-						engineMatches = (supportedEngine == opts.Engine)
-						break
-					}
-				}
-			}
+			engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, opts.Engine)
 			if !engineMatches {
-				logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, no match detected", result.Run.DatabaseID, opts.Engine)
+				if detectedEngineID == "" {
+					detectedEngineID = "unknown"
+				}
+				logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, detected=%s", result.Run.DatabaseID, opts.Engine, detectedEngineID)
 				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine does not match filter '%s'", result.Run.DatabaseID, opts.Engine)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, detectedEngineID, opts.Engine)))
 				}
 				continue
 			}
