@@ -139,11 +139,23 @@ describe("validate_lockdown_requirements_templates", () => {
 
     it("module exposes exactly the expected exports", () => {
       const mod = require("./validate_lockdown_requirements_templates.cjs");
-      expect(Object.keys(mod)).toEqual(["renderLockdownTokenErrorMessage", "renderPublicStrictModeErrorMessage", "renderPullRequestTargetErrorMessage"]);
+      const keys = Object.keys(mod);
+      expect(keys).toHaveLength(3);
+      expect(keys).toEqual(
+        expect.arrayContaining([
+          "renderLockdownTokenErrorMessage",
+          "renderPublicStrictModeErrorMessage",
+          "renderPullRequestTargetErrorMessage",
+        ]),
+      );
     });
 
     it("no message contains unreplaced placeholders", () => {
-      const messages = [renderLockdownTokenErrorMessage(), renderPublicStrictModeErrorMessage(), renderPullRequestTargetErrorMessage()];
+      const messages = [
+        renderLockdownTokenErrorMessage(),
+        renderPublicStrictModeErrorMessage(),
+        renderPullRequestTargetErrorMessage(),
+      ];
       for (const message of messages) {
         expect(message).not.toMatch(/\{[A-Za-z][A-Za-z0-9_]*\}/);
       }
