@@ -26,13 +26,20 @@ function readJSON(filePath, fallback) {
 // Using O_EXCL on the temp file prevents symlink attacks (CWE-377).
 function writeFileAtomic(filePath, content) {
   const tmp = filePath + "." + process.pid + ".tmp";
-  const fd = fs.openSync(tmp, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL, 0o600);
+  let fd;
   try {
-    fs.writeSync(fd, content);
-  } finally {
+    fd = fs.openSync(tmp, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL, 0o666);
+    fs.writeFileSync(fd, content);
     fs.closeSync(fd);
+    fd = undefined;
+    fs.renameSync(tmp, filePath);
+  } catch (err) {
+    if (typeof fd === "number") {
+      try { fs.closeSync(fd); } catch {}
+    }
+    try { fs.unlinkSync(tmp); } catch {}
+    throw err;
   }
-  fs.renameSync(tmp, filePath);
 }
 
 function writeJSON(filePath, value) {
