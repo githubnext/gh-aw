@@ -110,7 +110,7 @@ steps:
         | head -n "$TASK_LIMIT" \
         >> /tmp/gh-aw/data/task-summaries.jsonl || true
       else
-        echo "Agent tasks API not available for this repository (HTTP 404), proceeding with empty dataset" >&2
+        echo "Agent tasks API request failed; proceeding with empty dataset" >&2
       fi
 
       # Convert JSONL to JSON array for downstream analysis steps
