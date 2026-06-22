@@ -23,6 +23,7 @@
  *   https://github.com/earendil-works/pi/blob/main/packages/agent/README.md
  */
 
+const { execSync } = require("child_process");
 const fs = require("fs");
 const crypto = require("crypto");
 
@@ -59,6 +60,12 @@ function getApiKey(provider) {
 // ---------------------------------------------------------------------------
 
 async function main() {
+  // Install required packages before dynamic imports.
+  execSync(
+    "npm install --ignore-scripts --no-save @earendil-works/pi-agent-core @earendil-works/pi-ai",
+    { stdio: "inherit", cwd: process.env.GITHUB_WORKSPACE || process.cwd() }
+  );
+
   const promptFile = process.env.GH_AW_PROMPT;
   if (!promptFile) throw new Error("GH_AW_PROMPT is not set");
   const prompt = fs.readFileSync(promptFile, "utf8");
