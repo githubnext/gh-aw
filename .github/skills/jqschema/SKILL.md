@@ -19,3 +19,5 @@ gh api search/repositories?q=language:go | ./.github/skills/jqschema/jqschema.sh
 ```
 
 The script replaces object values with type names (`"string"`, `"number"`, `"boolean"`, `"null"`), reduces arrays to first-element structure, and outputs compact JSON. Use `perPage: 1` to fetch minimal data when exploring unknown API shapes.
+
+**Example**: `{"total_count":1000,"items":[{"login":"user1","id":123}]}` → `{"total_count":"number","items":[{"login":"string","id":"number"}]}`

@@ -155,6 +155,8 @@ plt.savefig('/tmp/gh-aw/python/charts/chart.png',
 - **Grid**: Enable grid lines for easier reading
 - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
 
+> **Pattern**: load data from `/tmp/gh-aw/python/data/`, plot with `fig, ax = plt.subplots(figsize=(10,6), dpi=300)`, save to `/tmp/gh-aw/python/charts/`, upload via `upload_asset`.
+
 ## Including Images in Reports
 
 Use this approach to include chart images in reports (issues, discussions, step summaries):
