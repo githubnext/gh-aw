@@ -550,6 +550,20 @@ engine:
 
 See [AI Engines Reference](/gh-aw/reference/engines/).
 
+### Engine Driver (`engine.driver`)
+
+A Pi engine configuration field that replaces the built-in `pi` CLI with a Node.js driver script. When set, `gh aw` launches the driver with Node.js instead of the `pi` CLI; the driver must emit JSONL compatible with the existing log parser so step summaries and token tracking work unchanged. A bare filename (e.g. `pi_agent_core_driver.cjs`) resolves from the gh-aw setup-action directory; a path containing `/` resolves workspace-relative.
+
+```aw wrap
+engine:
+  id: pi
+  driver: pi_agent_core_driver.cjs
+  # or a custom workspace-relative driver:
+  # driver: .github/drivers/my-driver.cjs
+```
+
+See [AI Engines Reference](/gh-aw/reference/engines/).
+
 ### Experiments (`experiments:`)
 
 A frontmatter section that enables A/B testing of workflow prompt variants across successive runs. Each key in the `experiments:` map names an experiment; the value is either a bare array of variant strings or a rich object with additional fields (`variants`, `description`, `hypothesis`, `metric`, `weight`, `min_samples`, `start_date`, `end_date`). At runtime the activation job selects one variant per experiment using a balanced round-robin counter and exposes the selection as `${{ experiments.<name> }}` for use anywhere in the workflow body.

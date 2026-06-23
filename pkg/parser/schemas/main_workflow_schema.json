@@ -11697,7 +11697,7 @@
         },
         {
           "id": "copilot",
-          "copilot-sdk-driver": ".github/drivers/custom_copilot_sdk_driver.cjs",
+          "driver": ".github/drivers/custom_copilot_sdk_driver.cjs",
           "copilot-sdk": true,
           "version": "latest"
         }
@@ -11948,10 +11948,10 @@
               "type": "boolean",
               "description": "Enables the experimental GitHub Copilot SDK integration (copilot engine only). When true, the harness starts a separate headless Copilot CLI sidecar on the configured localhost port and sets COPILOT_SDK_URI on child processes."
             },
-            "copilot-sdk-driver": {
+            "driver": {
               "type": "string",
               "pattern": "^(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*)(?:/(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*))*$",
-              "description": "Custom Copilot SDK driver script or command (copilot engine only). Setting this field implies `copilot-sdk: true`. Accepts a relative path from the workspace root with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), e.g. `.github/drivers/my_driver.py`, or a bare command name without an extension for an arbitrary executable in PATH."
+              "description": "Custom inner driver script for engines that support driver mode (e.g. pi). Accepts a workspace-relative path ending with .js, .cjs, or .mjs (e.g. `.github/drivers/pi_agent_core_driver_sample_node.cjs`), or a bare filename without a path separator resolved from the gh-aw setup-action directory (e.g. `pi_agent_core_driver.cjs`)."
             }
           },
           "required": ["id"],

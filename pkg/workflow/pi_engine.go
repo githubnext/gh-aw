@@ -291,6 +291,9 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	profile := getUniversalLLMBackendProfile(backend, hasCopilotRequestsWritePermission(workflowData))
 	firewallEnabled := isFirewallEnabled(workflowData)
 
+	// When engine.driver is set, run the driver script directly instead of the pi CLI.
+	driverConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Driver != ""
+
 	// Build the pi command.  Pi v0.72+ uses flags-only syntax (no "run" subcommand).
 	// --print: non-interactive, process prompt from stdin and exit.
 	// --mode json: emit structured JSONL events to stdout.
@@ -336,29 +339,39 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 			piModelsJSONSetup = fmt.Sprintf(
 				`mkdir -p /tmp/gh-aw/pi-agent-dir && printf '%%s\n' %s > /tmp/gh-aw/pi-agent-dir/models.json && `,
 				shellEscapeArg(modelsJSON))
-			piArgs = append(piArgs, "--model", "aw-gateway/"+modelID)
+			if !driverConfigured {
+				piArgs = append(piArgs, "--model", "aw-gateway/"+modelID)
+			}
 			piLog.Printf("Pi: using models.json gateway routing for model %q via aw-gateway (port %d)", modelID, profile.gatewayPort)
 		} else {
-			// No firewall: use Pi's built-in provider so it can reach the real LLM API.
-			nativeProvider := piNativeProviderName(backend)
-			piArgs = append(piArgs, "--model", nativeProvider+"/"+modelID)
-			piLog.Printf("Pi: using native provider %q for model %q (no firewall)", nativeProvider, modelID)
+			if !driverConfigured {
+				// No firewall: use Pi's built-in provider so it can reach the real LLM API.
+				nativeProvider := piNativeProviderName(backend)
+				piArgs = append(piArgs, "--model", nativeProvider+"/"+modelID)
+				piLog.Printf("Pi: using native provider %q for model %q (no firewall)", nativeProvider, modelID)
+			}
 		}
 	}
 
-	// The prompt is piped from a file via stdin substitution.
-	// Two extensions are automatically loaded (in order):
-	//   1. pi_provider.cjs  — calls /reflect to discover the open LLM inference paths
-	//   2. pi_steering_extension.cjs — injects time-pressure steering messages
-	// Pi CLI supports multiple --extension flags; built-in extensions load after any
-	// user-specified extensions (via engine.args) so the built-in behaviour wins.
-	// ${RUNNER_TEMP} is a Linux shell variable expanded by bash at runtime; gh-aw
-	// container environments are Linux-only so this is safe across all runners.
-	// stdout (JSONL) and stderr are both piped through tee so that PiStreamingLogFile
-	// captures all structured events while agent-stdio.log captures the same output.
-	piCommand := fmt.Sprintf(
-		`cat /tmp/gh-aw/aw-prompts/prompt.txt | %s %s --extension "${RUNNER_TEMP}/gh-aw/actions/pi_provider.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs" 2>&1 | tee %s`,
-		commandName, shellJoinArgs(piArgs), PiStreamingLogFile)
+	var piCommand string
+	if driverConfigured {
+		piCommand = buildPiDriverCommand(workflowData.EngineConfig.Driver)
+		piLog.Printf("Pi: using driver mode with driver=%s", workflowData.EngineConfig.Driver)
+	} else {
+		// The prompt is piped from a file via stdin substitution.
+		// Two extensions are automatically loaded (in order):
+		//   1. pi_provider.cjs  — calls /reflect to discover the open LLM inference paths
+		//   2. pi_steering_extension.cjs — injects time-pressure steering messages
+		// Pi CLI supports multiple --extension flags; built-in extensions load after any
+		// user-specified extensions (via engine.args) so the built-in behaviour wins.
+		// ${RUNNER_TEMP} is a Linux shell variable expanded by bash at runtime; gh-aw
+		// container environments are Linux-only so this is safe across all runners.
+		// stdout (JSONL) and stderr are both piped through tee so that PiStreamingLogFile
+		// captures all structured events while agent-stdio.log captures the same output.
+		piCommand = fmt.Sprintf(
+			`cat /tmp/gh-aw/aw-prompts/prompt.txt | %s %s --extension "${RUNNER_TEMP}/gh-aw/actions/pi_provider.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs" 2>&1 | tee %s`,
+			commandName, shellJoinArgs(piArgs), PiStreamingLogFile)
+	}
 
 	// Prepend models.json generation when the gateway-routing approach is used.
 	if piModelsJSONSetup != "" {
@@ -522,4 +535,26 @@ func filterPiArgs(args []string) []string {
 	}
 
 	return filtered
+}
+
+// buildPiDriverCommand builds the shell command to run a pi engine driver script.
+//
+// When driverName contains a path separator ('/'), it is treated as a workspace-relative
+// custom driver: "${GITHUB_WORKSPACE}/<driverName>".  When it is a bare filename
+// (no '/'), it is resolved from the setup-action directory: "${RUNNER_TEMP}/gh-aw/actions/<driverName>".
+//
+// The driver reads GH_AW_PROMPT and GH_AW_PI_MODEL from the environment and emits
+// JSONL compatible with parse_pi_log.cjs to stdout; stderr and stdout are both
+// captured by tee to PiStreamingLogFile.
+func buildPiDriverCommand(driverName string) string {
+	var driverPath string
+	if strings.Contains(driverName, "/") {
+		// Workspace-relative custom driver: validation ensures no shell metacharacters or
+		// path traversal, so embedding directly in a double-quoted shell argument is safe.
+		driverPath = `"${GITHUB_WORKSPACE}/` + driverName + `"`
+	} else {
+		driverPath = fmt.Sprintf(`"%s/%s"`, SetupActionDestinationShell, driverName)
+	}
+
+	return fmt.Sprintf(`%s %s 2>&1 | tee %s`, nodeRuntimeResolutionCommand, driverPath, PiStreamingLogFile)
 }

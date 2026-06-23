@@ -131,8 +131,8 @@ func buildCopilotSDKInstallStep(workflowData *WorkflowData) GitHubActionStep {
 	// file extension to determine which language SDK to install. This ensures the correct SDK
 	// package manager command is generated (e.g., pip for .py drivers, ruby/gem for .rb drivers).
 	command := workflowData.EngineConfig.Command
-	if command == "" && workflowData.EngineConfig.CopilotSDKDriver != "" {
-		command = sdkDriverInstallCommand(workflowData.EngineConfig.CopilotSDKDriver)
+	if command == "" && workflowData.EngineConfig.Driver != "" {
+		command = sdkDriverInstallCommand(workflowData.EngineConfig.Driver)
 	}
 	spec := getCopilotSDKInstallSpec(command)
 	copilotInstallLog.Printf("copilot-sdk enabled; runtime=%s; install command=%s", spec.runtimeID, spec.command)
