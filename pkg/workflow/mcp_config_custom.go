@@ -371,7 +371,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				}
 				writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "env", renderedEnv)
 			} else {
-				renderedEnv := make(map[string]string)
+				renderedEnv := make(map[string]string, len(mcpConfig.Env))
 				for envKey, envValue := range mcpConfig.Env {
 					// Replace template expressions with environment variable references
 					// This prevents template injection by using shell variable substitution

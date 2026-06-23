@@ -36,6 +36,12 @@ func writeTOMLInlineStringMapSection(yaml *strings.Builder, indent, name string,
 	yaml.WriteString(" }\n")
 }
 
+// buildGitHubMCPEnvVars builds the common GitHub MCP environment map used by
+// local, remote, and TOML renderers.
+//
+// hostValue should be a full URL (for example https://hostname, with no
+// trailing slash) because github-mcp-server expects GITHUB_HOST in the same
+// format that GitHub Actions exposes via GITHUB_SERVER_URL.
 func buildGitHubMCPEnvVars(tokenValue, hostValue string, readOnly, lockdown bool, toolsets string) map[string]string {
 	envVars := map[string]string{
 		"GITHUB_PERSONAL_ACCESS_TOKEN": tokenValue,
