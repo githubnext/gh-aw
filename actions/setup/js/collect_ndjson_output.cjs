@@ -185,10 +185,9 @@ async function main() {
       const emptyOutputJson = JSON.stringify(emptyOutput);
       // Write agent_output.json for consistent downstream handling so the safe_outputs job
       // always finds a valid (empty) collection file even when the agent emitted nothing.
-      const path = require("path");
       try {
         fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
-        const agentOutputFile = path.join(TMP_GH_AW_PATH, AGENT_OUTPUT_FILENAME);
+        const agentOutputFile = require("path").join(TMP_GH_AW_PATH, AGENT_OUTPUT_FILENAME);
         fs.writeFileSync(agentOutputFile, emptyOutputJson, "utf8");
         core.info(`Stored empty collection to: ${agentOutputFile}`);
         core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);
