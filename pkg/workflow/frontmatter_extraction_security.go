@@ -197,6 +197,13 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract platform (AWF platform.type override)
+	if platformVal, hasPlatform := agentObj["platform"]; hasPlatform {
+		if platformStr, ok := platformVal.(string); ok {
+			agentConfig.Platform = platformStr
+		}
+	}
+
 	// Extract config for SRT
 	if configVal, hasConfig := agentObj["config"]; hasConfig {
 		agentConfig.Config = c.extractSRTConfig(configVal)

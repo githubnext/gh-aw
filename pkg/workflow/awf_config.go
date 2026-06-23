@@ -162,6 +162,9 @@ type AWFConfigFile struct {
 	// Network contains network egress control configuration.
 	Network *AWFNetworkConfig `json:"network,omitempty"`
 
+	// Platform contains GitHub deployment metadata used by AWF auth handling.
+	Platform *AWFPlatformConfig `json:"platform,omitempty"`
+
 	// APIProxy contains API proxy (LLM gateway) configuration.
 	APIProxy *AWFAPIProxyConfig `json:"apiProxy,omitempty"`
 
@@ -184,6 +187,12 @@ type AWFNetworkConfig struct {
 	// BlockDomains is the list of explicitly blocked egress domains.
 	// Maps to: --block-domains <comma-separated>
 	BlockDomains []string `json:"blockDomains,omitempty"`
+}
+
+// AWFPlatformConfig is the "platform" section of the AWF config file.
+type AWFPlatformConfig struct {
+	// Type is the GitHub deployment type consumed by AWF for auth behavior.
+	Type string `json:"type,omitempty"`
 }
 
 // AWFAPIProxyConfig is the "apiProxy" section of the AWF config file.
@@ -352,6 +361,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		}
 	}
 
+	if platformType := extractPlatformType(config.WorkflowData); platformType != "" {
+		awfConfig.Platform = &AWFPlatformConfig{Type: platformType}
+		awfConfigLog.Printf("Platform section: type=%s", platformType)
+	}
+
 	// ── API proxy section ─────────────────────────────────────────────────────
 	// maxAICredits is taken from frontmatter/imports only; when unset (0) the
 	// runtime value is resolved from vars.GH_AW_DEFAULT_MAX_AI_CREDITS via a
@@ -515,6 +529,21 @@ func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
 		return nil
 	}
 	return workflowData.EngineConfig.TokenWeights.Multipliers
+}
+
+// extractPlatformType returns sandbox.agent.platform only for enabled AWF sandbox
+// agents, or an empty string to let AWF fall back to its default platform logic.
+func extractPlatformType(workflowData *WorkflowData) string {
+	if workflowData == nil || workflowData.SandboxConfig == nil || workflowData.SandboxConfig.Agent == nil {
+		return ""
+	}
+	if workflowData.SandboxConfig.Agent.Disabled {
+		return ""
+	}
+	if !isSupportedSandboxType(getAgentType(workflowData.SandboxConfig.Agent)) {
+		return ""
+	}
+	return workflowData.SandboxConfig.Agent.Platform
 }
 
 // extractModelFallback returns an AWFModelFallbackConfig if the workflow has configured

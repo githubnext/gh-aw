@@ -1868,6 +1868,12 @@ sandbox:
     # (optional)
     version: "example-value"
 
+    # AWF platform.type override. Declares the GitHub deployment type so AWF can
+    # apply deterministic Copilot auth behavior without relying on host heuristics.
+    # Omit to let AWF use its default host heuristic behavior.
+    # (optional)
+    platform: "ghes"
+
     # Container mounts to add when using AWF. Each mount is specified using Docker
     # mount syntax: 'source:destination:mode' where mode can be 'ro' (read-only) or
     # 'rw' (read-write). Example: '/host/path:/container/path:ro'
