@@ -40,6 +40,7 @@ const INTERNAL_SERVERS = new Set(["github"]);
 
 /** Default timeout (ms) for HTTP calls to the local MCP gateway */
 const DEFAULT_HTTP_TIMEOUT_MS = 15000;
+const DEFAULT_RETRY_DELAY_MS = 1000;
 
 /**
  * @param {number} ms
@@ -239,7 +240,7 @@ function resolveRetryDelayMs(retryDelayMs, maxAttempts) {
   if (typeof retryDelayMs === "number" && retryDelayMs > 0) {
     return retryDelayMs;
   }
-  return maxAttempts > 1 ? 1000 : 0;
+  return maxAttempts > 1 ? DEFAULT_RETRY_DELAY_MS : 0;
 }
 
 /**

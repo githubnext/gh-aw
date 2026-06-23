@@ -37,6 +37,9 @@ const { withRetry } = require("./error_recovery.cjs");
 const { fetchMCPTools, normalizeConfiguredToolNames } = require("./mount_mcp_as_cli.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
 
+const MCP_TOOL_WARMUP_MAX_ATTEMPTS = 8;
+const MCP_TOOL_WARMUP_RETRY_DELAY_MS = 2000;
+
 // ---------------------------------------------------------------------------
 // Timing helpers
 // ---------------------------------------------------------------------------
@@ -288,8 +291,8 @@ async function warmConfiguredServerTools(gatewayOutput, apiKey) {
     core.info(`Warming MCP server '${serverName}' until configured tools are visible (${expectedTools.length} expected)...`);
     await fetchMCPTools(serverUrl, apiKey, core, {
       expectedTools,
-      maxAttempts: 8,
-      retryDelayMs: 2000,
+      maxAttempts: MCP_TOOL_WARMUP_MAX_ATTEMPTS,
+      retryDelayMs: MCP_TOOL_WARMUP_RETRY_DELAY_MS,
     });
   }
 }
