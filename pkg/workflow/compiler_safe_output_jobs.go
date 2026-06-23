@@ -245,11 +245,12 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 							with["payload"] = "${{ needs.safe_outputs.outputs.call_workflow_payload }}"
 							continue
 						}
-						with[inputName] = fmt.Sprintf("${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).%s }}", inputName)
+						with[inputName] = buildCallWorkflowInputExpression(inputName)
 						typedInputCount++
 					}
 					compilerSafeOutputJobsLog.Printf("Forwarding %d typed inputs for call-workflow job '%s'", typedInputCount, jobName)
 				}
+
 			}
 		}
 
@@ -341,4 +342,35 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 	}
 
 	return jobNames, nil
+}
+
+func buildCallWorkflowInputExpression(inputName string) string {
+	payloadExpr := "fromJSON(needs.safe_outputs.outputs.call_workflow_payload)"
+	if isBareActionsIdentifier(inputName) {
+		return fmt.Sprintf("${{ %s.%s }}", payloadExpr, inputName)
+	}
+
+	escapedInputName := strings.ReplaceAll(inputName, "'", "''")
+	return fmt.Sprintf("${{ %s['%s'] }}", payloadExpr, escapedInputName)
+}
+
+func isBareActionsIdentifier(name string) bool {
+	if name == "" {
+		return false
+	}
+
+	for i, r := range name {
+		if i == 0 {
+			if r != '_' && (r < 'A' || r > 'Z') && (r < 'a' || r > 'z') {
+				return false
+			}
+			continue
+		}
+
+		if r != '_' && (r < 'A' || r > 'Z') && (r < 'a' || r > 'z') && (r < '0' || r > '9') {
+			return false
+		}
+	}
+
+	return true
 }

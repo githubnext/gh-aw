@@ -1138,7 +1138,7 @@ jobs:
     with:
       aw_context: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).aw_context }}
       payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}
-      task-description: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).task-description }}
+      task-description: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload)['task-description'] }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
