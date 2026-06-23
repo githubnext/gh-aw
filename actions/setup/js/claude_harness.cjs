@@ -296,12 +296,13 @@ function stripContinueArgs(args) {
  * When GH_AW_LLM_PROVIDER is "github", Claude CLI cannot authenticate with the
  * Copilot backend directly. The api-proxy sidecar exposes an Anthropic-compatible
  * endpoint at CopilotLLMGatewayPort (10002) and handles Copilot authentication
- * itself using COPILOT_GITHUB_TOKEN from the host environment.
+ * itself; COPILOT_GITHUB_TOKEN is consumed by the api-proxy from the runner's
+ * host environment (passed via the AWF step env, excluded from the agent container).
  *
  * This function injects the Anthropic environment variables that Claude CLI
  * requires so it routes through the correct api-proxy port:
- *   - ANTHROPIC_BASE_URL: points to the Copilot api-proxy endpoint
- *   - ANTHROPIC_API_KEY: required by Claude CLI; the proxy does not validate it
+ *   - ANTHROPIC_BASE_URL: points to the Copilot api-proxy endpoint (port 10002)
+ *   - ANTHROPIC_API_KEY: required non-empty by Claude CLI; the proxy ignores it
  *
  * Returns undefined when the provider is not "github" so the caller can fall
  * through to using the default process.env unchanged.
@@ -313,7 +314,7 @@ function buildClaudeGitHubProviderEnv(env) {
   const sourceEnv = env ?? process.env;
   const provider = (sourceEnv.GH_AW_LLM_PROVIDER || "").toLowerCase().trim();
   if (provider !== "github") return undefined;
-  const port = AWF_API_PROXY_PROVIDER_PORTS[provider] ?? AWF_API_PROXY_PROVIDER_PORTS.github;
+  const port = AWF_API_PROXY_PROVIDER_PORTS[provider];
   return {
     ...sourceEnv,
     ANTHROPIC_BASE_URL: `http://api-proxy:${port}`,
