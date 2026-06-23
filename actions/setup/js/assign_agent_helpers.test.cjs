@@ -96,6 +96,7 @@ describe("assign_agent_helpers.cjs", () => {
       expect(result).toEqual(["github-copilot-enterprise"]);
       expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledWith({ owner: "owner", repo: "repo", assignee: "copilot-swe-agent" });
       expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledWith({ owner: "owner", repo: "repo", assignee: "github-copilot-enterprise" });
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(5);
     });
 
     it("should return empty array when no alias is assignable (404)", async () => {
@@ -105,6 +106,7 @@ describe("assign_agent_helpers.cjs", () => {
       const result = await getAvailableAgentLogins("owner", "repo");
 
       expect(result).toEqual([]);
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(5);
     });
 
     it("should handle non-404 errors gracefully and return empty array", async () => {
@@ -115,6 +117,7 @@ describe("assign_agent_helpers.cjs", () => {
 
       expect(result).toEqual([]);
       expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to check assignability for copilot-swe-agent"));
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(5);
     });
   });
 
@@ -146,6 +149,7 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledWith({ owner: "owner", repo: "repo", assignee: "copilot-swe-agent" });
       expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledWith({ owner: "owner", repo: "repo", assignee: "github-copilot-enterprise" });
       expect(mockGithub.rest.users.getByUsername).toHaveBeenCalledWith({ username: "github-copilot-enterprise" });
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(2);
     });
 
     it("should return null for unknown agent name", async () => {

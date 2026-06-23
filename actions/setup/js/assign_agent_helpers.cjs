@@ -121,7 +121,6 @@ async function getAssignableBots(owner, repo, githubClient = github) {
         page,
       });
       pageData = Array.isArray(response.data) ? response.data : [];
-      if (pageData.length === 0) continue;
       assignees.push(...pageData);
       page++;
     } while (pageData.length === 100);
