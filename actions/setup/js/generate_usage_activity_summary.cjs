@@ -42,10 +42,18 @@ function getFirewallDomainKey(domain, dest) {
   if (domain !== PLACEHOLDER_DOMAIN_KEY) {
     return domain;
   }
-  if (dest !== PLACEHOLDER_DOMAIN_KEY && dest !== PLACEHOLDER_DEST_KEY) {
+  if (!isPlaceholderFirewallField(dest)) {
     return dest;
   }
   return PLACEHOLDER_DOMAIN_KEY;
+}
+
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
+function isPlaceholderFirewallField(value) {
+  return value === PLACEHOLDER_DEST_KEY || value === PLACEHOLDER_DOMAIN_KEY;
 }
 
 /**
@@ -55,7 +63,7 @@ function getFirewallDomainKey(domain, dest) {
  * @returns {boolean}
  */
 function isInternalFirewallErrorEntry(client, domain, dest) {
-  return client.startsWith(LOCALHOST_CLIENT_PREFIX) && domain === PLACEHOLDER_DOMAIN_KEY && (dest === PLACEHOLDER_DEST_KEY || dest === PLACEHOLDER_DOMAIN_KEY);
+  return client.startsWith(LOCALHOST_CLIENT_PREFIX) && domain === PLACEHOLDER_DOMAIN_KEY && isPlaceholderFirewallField(dest);
 }
 
 /**
