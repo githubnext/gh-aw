@@ -48,6 +48,31 @@ func renderCustomMCPConfigWrapperWithContext(yaml *strings.Builder, toolName str
 	return nil
 }
 
+func renderCustomMCPEnvVars(env map[string]string, tomlFormat, requiresCopilotFields bool) map[string]string {
+	renderedEnv := make(map[string]string, len(env))
+	for envKey, envValue := range env {
+		if tomlFormat {
+			// Replace template expressions with environment variable references for TOML.
+			// For TOML, we use direct shell variable syntax without backslash.
+			envValue = strings.ReplaceAll(envValue, "${{ secrets.", "${")
+			envValue = strings.ReplaceAll(envValue, "${{ env.", "${")
+			envValue = strings.ReplaceAll(envValue, "${{ github.workspace }}", "${GITHUB_WORKSPACE}")
+			envValue = strings.ReplaceAll(envValue, " }}", "}")
+		} else if requiresCopilotFields {
+			// For Copilot, replace all template expressions with \${VAR} syntax.
+			envValue = ReplaceTemplateExpressionsWithEnvVars(envValue)
+		} else {
+			// For non-Copilot engines, replace secrets with ${VAR} bash expansion so
+			// they are never directly interpolated in the run block (RGS-008). The
+			// env vars are injected into the step env block by collectMCPEnvironmentVariables.
+			envValue = ReplaceSecretsWithBashVars(envValue)
+		}
+		renderedEnv[envKey] = envValue
+	}
+
+	return renderedEnv
+}
+
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
 // This function handles the common logic for rendering MCP configurations across different engines
 func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, renderer MCPConfigRenderer) error {
@@ -358,35 +383,10 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 			}
 		case "env":
+			renderedEnv := renderCustomMCPEnvVars(mcpConfig.Env, renderer.Format == "toml", renderer.RequiresCopilotFields)
 			if renderer.Format == "toml" {
-				renderedEnv := make(map[string]string, len(mcpConfig.Env))
-				for envKey, envValue := range mcpConfig.Env {
-					// Replace template expressions with environment variable references for TOML
-					// For TOML, we use direct shell variable syntax without backslash
-					envValue = strings.ReplaceAll(envValue, "${{ secrets.", "${")
-					envValue = strings.ReplaceAll(envValue, "${{ env.", "${")
-					envValue = strings.ReplaceAll(envValue, "${{ github.workspace }}", "${GITHUB_WORKSPACE}")
-					envValue = strings.ReplaceAll(envValue, " }}", "}")
-					renderedEnv[envKey] = envValue
-				}
 				writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "env", renderedEnv)
 			} else {
-				renderedEnv := make(map[string]string, len(mcpConfig.Env))
-				for envKey, envValue := range mcpConfig.Env {
-					// Replace template expressions with environment variable references
-					// This prevents template injection by using shell variable substitution
-					// instead of GitHub Actions template expansion
-					if renderer.RequiresCopilotFields {
-						// For Copilot, replace all template expressions with \${VAR} syntax
-						envValue = ReplaceTemplateExpressionsWithEnvVars(envValue)
-					} else {
-						// For non-Copilot engines, replace secrets with ${VAR} bash expansion
-						// so they are never directly interpolated in the run block (RGS-008).
-						// The env vars are injected into the step env block by collectMCPEnvironmentVariables.
-						envValue = ReplaceSecretsWithBashVars(envValue)
-					}
-					renderedEnv[envKey] = envValue
-				}
 				// Add header secrets for passthrough (copilot only)
 				for varName := range headerSecrets {
 					// Only add if not already in env
@@ -418,9 +418,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		case "http_headers":
 			// TOML format for HTTP headers (Codex style)
 			if len(mcpConfig.Headers) > 0 {
-				renderedHeaders := make(map[string]string, len(mcpConfig.Headers))
-				maps.Copy(renderedHeaders, mcpConfig.Headers)
-				writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "http_headers", renderedHeaders)
+				writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "http_headers", mcpConfig.Headers)
 			}
 		case "headers":
 			renderedHeaders := make(map[string]string, len(mcpConfig.Headers))
