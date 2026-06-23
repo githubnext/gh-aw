@@ -56,6 +56,7 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_FIREWALL_ENABLED = "false";
     process.env.GH_AW_INFO_AWF_VERSION = "";
     process.env.GH_AW_INFO_AWMG_VERSION = "";
+    process.env.GH_AW_INFO_DETECTION_VERSION = "";
     process.env.GH_AW_INFO_FIREWALL_TYPE = "";
     process.env.GH_AW_INFO_FRONTMATTER_SOURCE = "";
     process.env.GH_AW_INFO_FRONTMATTER_EMOJI = "";
@@ -180,6 +181,14 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.firewall_enabled).toBe(true);
     expect(awInfo.awf_version).toBe("v0.23.0");
     expect(awInfo.steps.firewall).toBe("squid");
+  });
+
+  it("should set detection version from env vars", async () => {
+    process.env.GH_AW_INFO_DETECTION_VERSION = "v0.2.2";
+    await main(mockCore, mockContext);
+
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.detection_version).toBe("v0.2.2");
   });
 
   it("should fail when a numeric context field contains non-numeric data", async () => {

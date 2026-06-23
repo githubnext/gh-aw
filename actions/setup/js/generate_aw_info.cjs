@@ -75,6 +75,7 @@ async function main(core, ctx) {
     firewall_enabled: process.env.GH_AW_INFO_FIREWALL_ENABLED === "true",
     awf_version: process.env.GH_AW_INFO_AWF_VERSION || "",
     awmg_version: process.env.GH_AW_INFO_AWMG_VERSION || "",
+    detection_version: process.env.GH_AW_INFO_DETECTION_VERSION || "",
     steps: {
       firewall: process.env.GH_AW_INFO_FIREWALL_TYPE || "",
     },

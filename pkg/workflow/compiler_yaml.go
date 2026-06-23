@@ -872,6 +872,12 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		mcpGatewayVersion = data.SandboxConfig.MCP.Version
 	}
 
+	// External threat detection binary version
+	detectionVersion := ""
+	if isFeatureEnabled(constants.GHAWDetectionFeatureFlag, data) {
+		detectionVersion = string(constants.DefaultThreatDetectVersion)
+	}
+
 	// Firewall type
 	firewallType := ""
 	if isFirewallEnabled(data) {
@@ -914,6 +920,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_ENABLED: \"%t\"\n", firewallEnabled)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWF_VERSION: \"%s\"\n", firewallVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_DETECTION_VERSION: \"%s\"\n", detectionVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
 	if data.Source != "" {
 		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_SOURCE: %q\n", data.Source)

@@ -400,3 +400,51 @@ func TestAllVersionsInAwInfo(t *testing.T) {
 		t.Errorf("Expected output to contain awmg_version '%s', got:\n%s", expectedAwmgLine, output)
 	}
 }
+
+func TestDetectionVersionInAwInfo(t *testing.T) {
+	tests := []struct {
+		name                     string
+		enableExternalDetection  bool
+		expectedDetectionVersion string
+		description              string
+	}{
+		{
+			name:                     "external detection enabled",
+			enableExternalDetection:  true,
+			expectedDetectionVersion: string(constants.DefaultThreatDetectVersion),
+			description:              "Should include detection version when gh-aw-detection feature is enabled",
+		},
+		{
+			name:                     "external detection disabled",
+			enableExternalDetection:  false,
+			expectedDetectionVersion: "",
+			description:              "Should include empty detection version when gh-aw-detection feature is disabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(WithVersion("1.0.0"))
+			registry := GetGlobalEngineRegistry()
+			engine, err := registry.GetEngine("copilot")
+			if err != nil {
+				t.Fatalf("Failed to get copilot engine: %v", err)
+			}
+
+			workflowData := &WorkflowData{
+				Name:     "Test Workflow",
+				Features: map[string]any{string(constants.GHAWDetectionFeatureFlag): tt.enableExternalDetection},
+			}
+
+			var yaml strings.Builder
+			compiler.generateCreateAwInfo(&yaml, workflowData, engine)
+			output := yaml.String()
+
+			expectedLine := `GH_AW_INFO_DETECTION_VERSION: "` + tt.expectedDetectionVersion + `"`
+			if !strings.Contains(output, expectedLine) {
+				t.Errorf("%s: Expected output to contain '%s', got:\n%s",
+					tt.description, expectedLine, output)
+			}
+		})
+	}
+}
