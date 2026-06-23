@@ -1,5 +1,5 @@
 {
- "updated": "2026-06-22",
+ "updated": "2026-06-23",
  "anomalies": [
   {
    "id": "anom-sdk-toolperm-reescalate",
@@ -153,11 +153,13 @@
   {
    "id": "copilot-sdk-longrun-agentjob-fail",
    "first_seen": "2026-06-21",
-   "last_seen": "2026-06-22",
-   "persistence": 2,
+   "last_seen": "2026-06-23",
+   "persistence": 3,
    "escalation_state": "ESCALATE-now-dominant",
    "linked_issue": "copilot-sdk-driver-failures",
-   "note": "copilot-sdk-driver LONG-RUN variant is now the #1 failure family (5 fails 06-22): Daily Compiler Threat Spec Optimizer 34m, Daily Formal Spec Verifier 29m, Layout Spec Maintainer 22m, Daily Safe Output Integrator 24m, Daily SPDD Spec Planner 24m. Agent runs 20-34min doing real work then job fails. Burns ~130min compute/day with no output. Distinct from classic 0-tok/25min lockout."
+   "note": "copilot-sdk-driver LONG-RUN variant is now the #1 failure family (5 fails 06-22): Daily Compiler Threat Spec Optimizer 34m, Daily Formal Spec Verifier 29m, Layout Spec Maintainer 22m, Daily Safe Output Integrator 24m, Daily SPDD Spec Planner 24m. Agent runs 20-34min doing real work then job fails. Burns ~130min compute/day with no output. Distinct from classic 0-tok/25min lockout.",
+   "state": "RECURRING",
+   "recur": "2026-06-23: 4 LONG/0-tok agent-job fails. NEW cost outlier: Daily Agent of the Day Blog Writer 52.6min/$144.15 (claude-sonnet-4.6 via copilot engine), 56 assistant-msgs/75 tool-calls, 1336/1541 firewall-BLOCKED requests (87% block rate) \u2014 agent burned 52min largely on blocked network retries then job failed. Safe Output Integrator 24.5m/$145. Most-expensive single failing runs this window."
   }
  ]
 }

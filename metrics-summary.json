@@ -1,31 +1,31 @@
 {
- "updated": "2026-06-22",
- "date": "2026-06-22",
+ "updated": "2026-06-23",
+ "date": "2026-06-23",
  "partial": true,
- "latest_window": "2026-06-21T23:23Z..2026-06-22T21:35Z ~22.2h",
+ "latest_window": "2026-06-23T10:36Z..21:22Z ~10.8h active (overnight quiet, 0 runs)",
  "totals": {
-  "r": 274,
-  "s": 259,
-  "f": 15,
-  "rate": 94.5,
-  "prod_main_schedule_rate": 91.7,
-  "prod_main_ex_intentional": 92.9,
-  "action_min": 3159,
-  "github_api": 3320,
-  "aic": 3563,
+  "r": 174,
+  "s": 161,
+  "f": 13,
+  "rate": 92.5,
+  "prod_main_schedule_rate": 89.1,
+  "prod_main_ex_intentional": 91.1,
+  "action_min": 2024,
+  "github_api": 1967,
+  "aic": 12635,
   "tok": null,
   "missing_tools": 0,
   "missing_data": 0,
   "mcp_failures": 0
  },
  "engines": {
-  "copilot": 158,
-  "claude": 43,
+  "copilot": 108,
+  "claude": 28,
   "pi": 18,
-  "codex": 13,
-  "antigravity": 1,
-  "gemini": 1,
-  "null_metadata": 40
+  "codex": 7,
+  "antigravity": 2,
+  "gemini": 2,
+  "null_metadata": 0
  },
  "history": [
   {
@@ -290,6 +290,16 @@
    "tok": null,
    "partial": true,
    "note": "HEALTHY on-baseline; prod-main 91.7% (92.9% ex-2-intentional). 0 new class, 0 missing-tools/data/mcp, no shared incident. Avenger 0 runs (streak broken by absence). Skillet 0 fails (de-escalation complete). Dominant fail = copilot-sdk-driver LONG-RUN variant x5 (20-34min agent-job fails)."
+  },
+  {
+   "d": "2026-06-23",
+   "r": 174,
+   "s": 161,
+   "rate": 92.5,
+   "aic": 12635,
+   "tok": null,
+   "partial": true,
+   "note": "HEALTHY on-baseline; prod-main 89.1% (91.1% ex-2-intentional). 0 missing-tools/data/mcp. copilot-sdk LONG-RUN dominant (4/8 real prod-main). Blog Writer $144/52.6m + claude Failure Investigator 0-tok NEW. Avenger still 0 runs; Skillet 0 fails."
   }
  ]
 }
