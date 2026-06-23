@@ -1756,6 +1756,21 @@ ${diffs}
     expect(result.error).toContain("src/index.js");
   });
 
+  it("should return a staged preview when files fall outside the allowed-files allowlist", async () => {
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+    const patchPath = writePatch("should-stage-files-outside-the-allowed-files-allowlist", createPatchWithFiles("go.mod", "go.sum"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allowed_files: [".changeset/**"] });
+    const result = await handler({ title: "Test PR", body: "", branch: "should-stage-files-outside-the-allowed-files-allowlist" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.staged).toBe(true);
+    expect(result.error).toBeUndefined();
+    expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
+    expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("outside the allowed-files list"));
+  });
+
   it("should reject a mixed patch where some files are outside the allowlist", async () => {
     const patchPath = writePatch("should-reject-a-mixed-patch-where-some-files-are-outside-the", createPatchWithFiles(".github/aw/github-agentic-workflows.md", "src/index.js"));
 

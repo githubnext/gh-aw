@@ -1206,6 +1206,16 @@ async function main(config = {}) {
             protection.source === "allowlist"
               ? `Cannot create pull request: patch modifies files outside the allowed-files list (${filesStr}). Add the files to the allowed-files configuration field or remove them from the patch.`
               : `Cannot create pull request: patch modifies protected files (${filesStr}). Add them to the allowed-files configuration field or set protected-files: fallback-to-issue to create a review issue instead.`;
+          if (isStaged) {
+            let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+            summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+            summaryContent += `**Status:** ❌ File protection policy blocked\n\n`;
+            summaryContent += `**Message:** ${message}\n\n`;
+
+            await core.summary.addRaw(summaryContent).write();
+            core.info("📝 Pull request creation preview written to step summary (file protection policy blocked)");
+            return { success: true, staged: true };
+          }
           core.error(message);
           return { success: false, error: message };
         }
