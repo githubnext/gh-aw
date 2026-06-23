@@ -848,6 +848,17 @@ func (c *Compiler) getThreatDetectionEngineID(data *WorkflowData) string {
 	return "claude"
 }
 
+// getExternalThreatDetectionEngineID returns the engine used by the external
+// threat-detect path. Pi workflows currently fall back to the Copilot engine
+// because threat-detect does not invoke Pi directly.
+func (c *Compiler) getExternalThreatDetectionEngineID(data *WorkflowData) string {
+	engineID := c.getThreatDetectionEngineID(data)
+	if engineID == "pi" {
+		return "copilot"
+	}
+	return engineID
+}
+
 // buildWorkflowContextEnvVars creates environment variables for workflow context
 func (c *Compiler) buildWorkflowContextEnvVars(data *WorkflowData) []string {
 	workflowName := data.Name
@@ -964,7 +975,7 @@ func (c *Compiler) buildInstallAWFForExternalDetectorStep(data *WorkflowData) []
 // buildInstallDetectionEngineForExternalDetectorStep installs the selected detection
 // engine in the external detector path so threat-detect can invoke the engine binary.
 func (c *Compiler) buildInstallDetectionEngineForExternalDetectorStep(data *WorkflowData) []string {
-	engineID := c.getThreatDetectionEngineID(data)
+	engineID := c.getExternalThreatDetectionEngineID(data)
 	engine, err := c.getAgenticEngine(engineID)
 	if err != nil {
 		threatLog.Printf("Failed to resolve detection engine %q for external detector installation: %v (compilation will continue without engine install steps; threat-detect will only succeed if the engine binary is already available at runtime)", engineID, err)
@@ -991,7 +1002,8 @@ func (c *Compiler) buildInstallDetectionEngineForExternalDetectorStep(data *Work
 	}
 
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
-		data.SafeOutputs.ThreatDetection.EngineConfig != nil {
+		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
+		(data.SafeOutputs.ThreatDetection.EngineConfig.ID == "" || data.SafeOutputs.ThreatDetection.EngineConfig.ID == engineID) {
 		ec := data.SafeOutputs.ThreatDetection.EngineConfig
 		threatDetectionData.EngineConfig = &EngineConfig{
 			ID:               engineID,
@@ -1078,7 +1090,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		}
 	}
 
-	engineID := c.getThreatDetectionEngineID(data)
+	engineID := c.getExternalThreatDetectionEngineID(data)
 	engine, err := c.getAgenticEngine(engineID)
 	if err != nil {
 		return []string{fmt.Sprintf("      # Failed to resolve detection engine %q: %v\n", engineID, err)}
@@ -1115,7 +1127,8 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 
 	// Inherit engine config overrides from threat-detection config when set.
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
-		data.SafeOutputs.ThreatDetection.EngineConfig != nil {
+		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
+		(data.SafeOutputs.ThreatDetection.EngineConfig.ID == "" || data.SafeOutputs.ThreatDetection.EngineConfig.ID == engineID) {
 		ec := data.SafeOutputs.ThreatDetection.EngineConfig
 		threatDetectionData.EngineConfig = &EngineConfig{
 			ID:        engineID,

@@ -223,3 +223,61 @@ Test workflow`
 		t.Error("External detector path must configure engine auth env like the agent job")
 	}
 }
+
+func TestExternalDetectorPathUsesCopilotForPiWorkflows(t *testing.T) {
+	compiler := NewCompiler()
+
+	tmpDir := testutil.TempDir(t, "test-external-detector-pi-*")
+	workflowPath := filepath.Join(tmpDir, "test-external-detector-pi.md")
+
+	workflowContent := `---
+on: push
+engine:
+  id: pi
+  model: copilot/gpt-5.4
+safe-outputs:
+  create-issue:
+features:
+  gh-aw-detection: true
+tools:
+  github:
+    mode: gh-proxy
+  cli-proxy: true
+---
+Test workflow`
+
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowPath)
+	result, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	detectionSection := extractJobSection(string(result), "detection")
+	if detectionSection == "" {
+		t.Fatal("Detection job not found in compiled workflow")
+	}
+
+	if !strings.Contains(detectionSection, "install_copilot_cli.sh") {
+		t.Error("Pi external detector path must install the Copilot engine")
+	}
+	if strings.Contains(detectionSection, "@earendil-works/pi-coding-agent") {
+		t.Error("Pi external detector path must not install the Pi engine")
+	}
+	if !strings.Contains(detectionSection, "threat-detect --engine copilot") {
+		t.Error("Pi external detector path must invoke threat-detect with the copilot engine")
+	}
+	if strings.Contains(detectionSection, "threat-detect --engine pi") {
+		t.Error("Pi external detector path must not invoke threat-detect with the pi engine")
+	}
+	if !strings.Contains(detectionSection, "COPILOT_GITHUB_TOKEN:") {
+		t.Error("Pi external detector path must inherit Copilot auth env")
+	}
+}
