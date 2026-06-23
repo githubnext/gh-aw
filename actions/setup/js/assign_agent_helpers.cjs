@@ -40,7 +40,7 @@ const AGENT_NAME_BY_LOGIN = Object.fromEntries(Object.entries(AGENT_LOGIN_NAMES)
  * @returns {boolean}
  */
 function isBotAssignee(assignee) {
-  return assignee?.type === "Bot" || assignee?.login?.endsWith("[bot]") === true;
+  return assignee?.type === "Bot" || assignee?.login?.endsWith("[bot]");
 }
 
 /**
@@ -170,7 +170,8 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       const status = error?.status;
-      aliasFailures.push(`${loginName}${status ? ` (${status})` : ""}: ${errorMessage}`);
+      const statusLabel = status ? ` (${status})` : "";
+      aliasFailures.push(`${loginName}${statusLabel}: ${errorMessage}`);
       if (
         errorMessage.includes("Bad credentials") ||
         errorMessage.includes("Not Authenticated") ||
