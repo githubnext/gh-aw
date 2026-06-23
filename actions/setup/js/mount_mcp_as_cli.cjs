@@ -229,6 +229,20 @@ function normalizeConfiguredToolNames(value) {
 }
 
 /**
+ * Resolve the retry delay for MCP tool discovery.
+ *
+ * @param {number | undefined} retryDelayMs
+ * @param {number} maxAttempts
+ * @returns {number}
+ */
+function resolveRetryDelayMs(retryDelayMs, maxAttempts) {
+  if (typeof retryDelayMs === "number" && retryDelayMs > 0) {
+    return retryDelayMs;
+  }
+  return maxAttempts > 1 ? 1000 : 0;
+}
+
+/**
  * Query the tools list from an MCP server via JSON-RPC.
  * Follows the standard MCP handshake: initialize → notifications/initialized → tools/list.
  *
@@ -247,7 +261,7 @@ async function fetchMCPTools(serverUrl, apiKey, core, options = {}) {
   const authHeaders = { Authorization: apiKey };
   const expectedTools = normalizeConfiguredToolNames(options.expectedTools);
   const maxAttempts = Math.max(1, Number.isInteger(options.maxAttempts) ? options.maxAttempts : 1);
-  const retryDelayMs = typeof options.retryDelayMs === "number" && options.retryDelayMs > 0 ? options.retryDelayMs : maxAttempts > 1 ? 1000 : 0;
+  const retryDelayMs = resolveRetryDelayMs(options.retryDelayMs, maxAttempts);
   const postJSON = options.httpPostJSON || httpPostJSON;
 
   /** @type {Array<{name: string, description?: string, inputSchema?: unknown}>} */
@@ -511,4 +525,4 @@ async function main() {
   core.setOutput("mounted-servers", mountedServers.join(","));
 }
 
-module.exports = { main, fetchMCPTools, generateCLIWrapperScript, getMissingExpectedTools, isValidServerName, normalizeConfiguredToolNames, shellEscapeDoubleQuoted, parseMCPResponseBody };
+module.exports = { main, fetchMCPTools, generateCLIWrapperScript, getMissingExpectedTools, isValidServerName, normalizeConfiguredToolNames, resolveRetryDelayMs, shellEscapeDoubleQuoted, parseMCPResponseBody };

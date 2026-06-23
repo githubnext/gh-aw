@@ -40,7 +40,10 @@ describe("mount_mcp_as_cli.cjs", () => {
   });
 
   it("computes missing expected tools from the discovered tool list", () => {
-    expect(getMissingExpectedTools(["list_datasources", "tempo_traceql-search", "tempo_get-trace"], [{ name: "list_datasources" }, { name: "tempo_get-trace" }])).toEqual(["tempo_traceql-search"]);
+    const expectedTools = ["list_datasources", "tempo_traceql-search", "tempo_get-trace"];
+    const discoveredTools = [{ name: "list_datasources" }, { name: "tempo_get-trace" }];
+
+    expect(getMissingExpectedTools(expectedTools, discoveredTools)).toEqual(["tempo_traceql-search"]);
   });
 
   it("retries tools/list until expected tools appear", async () => {
@@ -51,8 +54,13 @@ describe("mount_mcp_as_cli.cjs", () => {
       warning: message => warning.push(message),
     };
     let listAttempt = 0;
+    /**
+     * @param {string} _url
+     * @param {Record<string, string>} _headers
+     * @param {{ method?: string }} body
+     */
     const httpPostJSON = async (_url, _headers, body) => {
-      const method = /** @type {{ method?: string }} */ body.method;
+      const method = body.method;
       if (method === "initialize") {
         return { statusCode: 200, body: { jsonrpc: "2.0", result: {} }, headers: { "mcp-session-id": "session-1" } };
       }
