@@ -22,7 +22,17 @@ const AGENT_LOGIN_NAMES = {
  * Reverse lookup of assignee aliases to canonical agent names.
  * @type {Record<string, string>}
  */
-const AGENT_NAME_BY_LOGIN = Object.fromEntries(Object.entries(AGENT_LOGIN_NAMES).flatMap(([agentName, logins]) => logins.map(login => [login, agentName])));
+const AGENT_NAME_BY_LOGIN = Object.fromEntries(Object.entries(AGENT_LOGIN_NAMES).flatMap(([agentName, logins]) => logins.map(login => [login.startsWith("@") ? login.slice(1) : login, agentName])));
+
+/**
+ * GitHub can surface bots either via type="Bot" or a [bot] login suffix.
+ * Check both because assignee responses are not always consistent across endpoints.
+ * @param {{login?: string, type?: string}|null|undefined} assignee
+ * @returns {boolean}
+ */
+function isBotAssignee(assignee) {
+  return assignee?.type === "Bot" || String(assignee?.login || "").endsWith("[bot]");
+}
 
 /**
  * Return the known GitHub login aliases for an agent.
@@ -108,7 +118,7 @@ async function getAssignableBots(owner, repo, githubClient = github) {
     return [
       ...new Set(
         assignees
-          .filter(assignee => assignee?.type === "Bot" || String(assignee?.login || "").endsWith("[bot]"))
+          .filter(isBotAssignee)
           .map(assignee => assignee.login)
           .filter(Boolean)
       ),
