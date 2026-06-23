@@ -850,13 +850,21 @@ func (c *Compiler) getThreatDetectionEngineID(data *WorkflowData) string {
 
 // getExternalThreatDetectionEngineID returns the engine used by the external
 // threat-detect path. Pi workflows currently fall back to the Copilot engine
-// because threat-detect does not invoke Pi directly.
+// because threat-detect only knows how to launch the built-in gh-aw agentic
+// engines, and Pi is not one of those supported detector backends yet.
 func (c *Compiler) getExternalThreatDetectionEngineID(data *WorkflowData) string {
 	engineID := c.getThreatDetectionEngineID(data)
 	if engineID == "pi" {
 		return "copilot"
 	}
 	return engineID
+}
+
+func canReuseThreatDetectionEngineConfigForExternalDetector(data *WorkflowData, engineID string) bool {
+	return data.SafeOutputs != nil &&
+		data.SafeOutputs.ThreatDetection != nil &&
+		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
+		(data.SafeOutputs.ThreatDetection.EngineConfig.ID == "" || data.SafeOutputs.ThreatDetection.EngineConfig.ID == engineID)
 }
 
 // buildWorkflowContextEnvVars creates environment variables for workflow context
@@ -1001,9 +1009,7 @@ func (c *Compiler) buildInstallDetectionEngineForExternalDetectorStep(data *Work
 		},
 	}
 
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
-		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
-		(data.SafeOutputs.ThreatDetection.EngineConfig.ID == "" || data.SafeOutputs.ThreatDetection.EngineConfig.ID == engineID) {
+	if canReuseThreatDetectionEngineConfigForExternalDetector(data, engineID) {
 		ec := data.SafeOutputs.ThreatDetection.EngineConfig
 		threatDetectionData.EngineConfig = &EngineConfig{
 			ID:               engineID,
@@ -1126,9 +1132,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	}
 
 	// Inherit engine config overrides from threat-detection config when set.
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
-		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
-		(data.SafeOutputs.ThreatDetection.EngineConfig.ID == "" || data.SafeOutputs.ThreatDetection.EngineConfig.ID == engineID) {
+	if canReuseThreatDetectionEngineConfigForExternalDetector(data, engineID) {
 		ec := data.SafeOutputs.ThreatDetection.EngineConfig
 		threatDetectionData.EngineConfig = &EngineConfig{
 			ID:        engineID,
