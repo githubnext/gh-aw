@@ -555,9 +555,9 @@ This project follows the GitHub Community Guidelines. Please be respectful and i
 
 Releases are defined in `.github/workflows/release.md` and triggered from the compiled GitHub Actions workflow.
 
-The team follows semantic versioning on a best-effort basis.
+The team follows a **weekly or bi-weekly minor release cadence**, similar to VS Code's release practices. Version numbers increment the minor component on each release cycle — not on the basis of change scope. Patch releases are reserved for urgent fixes between cycles; major releases are used for significant breaking changes only.
 
-> **Note:** The release workflow publishes the new version as a **prerelease** on GitHub with `latest=false`. Prereleases are floated for a few days. On Monday, maintainers promote the last known good prerelease to stable so `latest` resolves to that release.
+> **Note:** The release workflow publishes the new version as a **prerelease** on GitHub with `latest=false`. Prereleases are floated for a few days. On Monday, maintainers promote the last known good prerelease to stable so `latest` resolves to that release. Immediately after promotion, a new minor pre-release is kicked off to start the next cycle.
 
 ### Steps
 
@@ -589,10 +589,17 @@ The team follows semantic versioning on a best-effort basis.
 
    Users who install with `version: latest` (the default) will now receive the new release.
 
+5. **Start the next release cycle** _(immediately after promotion)_
+
+   Following the weekly/bi-weekly cadence, kick off a new `minor` release right after promoting the previous one to stable. Repeat steps 1–3 to publish it as a prerelease. This prerelease then floats until the next Monday, when it becomes the new stable release.
+
+   > [!TIP]
+   > Always select `minor` when starting a new cycle. Use `patch` only for urgent fixes within a cycle, and `major` only for significant breaking changes.
+
 ### Summary
 
 ```
-Launch release action
+Launch release action (minor)
         │
         ▼
 Workflow pushes tag & pauses
@@ -609,11 +616,14 @@ Approve the gh-aw-actions-release environment gate
         ▼
 Release published as prerelease 🎉
         │
-        ▼  (manual)
+        ▼  (Monday — manual)
 Promote prerelease → full release on GitHub Releases page
         │
         ▼
 'latest' now resolves to the new version ✅
+        │
+        ▼  (same day — start next cycle)
+Launch next minor release action → new prerelease published
 ```
 
 ## 🎯 Why This Contribution Model?

@@ -7,6 +7,19 @@ sidebar:
 
 GitHub Agentic Workflows uses a two-layer versioning model: the **CLI extension** (`gh aw`) that you run locally or in CI, and the **compiled `.lock.yml` files** that run in GitHub Actions. Each layer has independent version tracking.
 
+## Release Cadence
+
+gh-aw follows a **weekly or bi-weekly minor release cadence**, similar to [VS Code's release practices](https://code.visualstudio.com/updates). Each release cycle:
+
+1. A new **minor** version is published as a prerelease and floated for a few days.
+2. On **Monday**, the last known-good prerelease is promoted to stable and `latest` is updated.
+3. Immediately after promotion, the next minor prerelease is kicked off.
+
+Patch releases are reserved for urgent fixes between cycles. Major releases are used only for significant breaking changes.
+
+> [!NOTE]
+> Version numbers increment on a time cadence, not on the scope of changes — a "minor" release may contain anything from small improvements to large new features.
+
 ## Release Channels
 
 Two options are available when installing gh-aw:
