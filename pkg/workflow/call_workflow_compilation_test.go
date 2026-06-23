@@ -988,9 +988,11 @@ safe-outputs:
 	assert.Contains(t, yaml, "payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}",
 		"Should always forward canonical payload")
 
-	// Hyphenated input must be forwarded via fromJSON
-	assert.Contains(t, yaml, "fromJSON(needs.safe_outputs.outputs.call_workflow_payload).task-description",
-		"Should forward task-description (hyphenated) via fromJSON")
+	// Hyphenated input must use bracket access because dot access is invalid for `-`.
+	assert.Contains(t, yaml, "fromJSON(needs.safe_outputs.outputs.call_workflow_payload)['task-description']",
+		"Should forward task-description (hyphenated) via bracket access")
+	assert.NotContains(t, yaml, "fromJSON(needs.safe_outputs.outputs.call_workflow_payload).task-description",
+		"Hyphenated input must not use dot access")
 
 	// payload must not appear as a fromJSON entry
 	assert.NotContains(t, yaml, "fromJSON(needs.safe_outputs.outputs.call_workflow_payload).payload",

@@ -20,9 +20,7 @@ const path = require("path");
  * @returns {ValidationResult} Validation result with list of invalid files
  */
 function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions) {
-  const allowAll = !allowedExtensions?.length;
-
-  if (allowAll) {
+  if (!allowedExtensions?.length) {
     core.info(`All file extensions are allowed in ${memoryType}-memory directory`);
     return { valid: true, invalidFiles: [] };
   }
@@ -33,6 +31,7 @@ function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions)
   }
 
   const extensions = new Set(allowedExtensions.map(ext => ext.trim().toLowerCase()));
+  /** @type {string[]} */
   const invalidFiles = [];
 
   /**
@@ -50,9 +49,7 @@ function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions)
       if (entry.isDirectory()) {
         // Skip .git directory — it is git metadata used for integrity branching
         // and contains files with no extension (e.g. HEAD, ORIG_HEAD, packed-refs).
-        if (entry.name === ".git") {
-          continue;
-        }
+        if (entry.name === ".git") continue;
         scanDirectory(fullPath, relativeFilePath);
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();

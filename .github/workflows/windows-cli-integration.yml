@@ -278,6 +278,287 @@ jobs:
           Invoke-CliProcess -FilePath $binary -ArgumentList @("totally-unknown-subcommand-xyz") -TimeoutMs 10000 -ExpectFailure -ExpectedErrorPattern "unknown|not found|invalid|unrecognized" | Out-Null
           Add-Content $env:GITHUB_STEP_SUMMARY "✅ Unknown subcommand fails fast with explicit error output"
 
+      - name: "[ConPTY] startup probe hang detection"
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
+
+          Add-Type -TypeDefinition @"
+          using System;
+          using System.ComponentModel;
+          using System.Diagnostics;
+          using System.IO;
+          using System.Runtime.InteropServices;
+          using System.Text;
+          using System.Threading.Tasks;
+          using Microsoft.Win32.SafeHandles;
+
+          public static class ConPtySmoke
+          {
+              private const int EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
+              private const int PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016;
+              private const uint WAIT_TIMEOUT = 0x00000102;
+
+              [StructLayout(LayoutKind.Sequential)]
+              private struct COORD
+              {
+                  public short X;
+                  public short Y;
+
+                  public COORD(short x, short y)
+                  {
+                      X = x;
+                      Y = y;
+                  }
+              }
+
+              [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+              private struct STARTUPINFO
+              {
+                  public int cb;
+                  public string lpReserved;
+                  public string lpDesktop;
+                  public string lpTitle;
+                  public int dwX;
+                  public int dwY;
+                  public int dwXSize;
+                  public int dwYSize;
+                  public int dwXCountChars;
+                  public int dwYCountChars;
+                  public int dwFillAttribute;
+                  public int dwFlags;
+                  public short wShowWindow;
+                  public short cbReserved2;
+                  public IntPtr lpReserved2;
+                  public IntPtr hStdInput;
+                  public IntPtr hStdOutput;
+                  public IntPtr hStdError;
+              }
+
+              [StructLayout(LayoutKind.Sequential)]
+              private struct STARTUPINFOEX
+              {
+                  public STARTUPINFO StartupInfo;
+                  public IntPtr lpAttributeList;
+              }
+
+              [StructLayout(LayoutKind.Sequential)]
+              private struct PROCESS_INFORMATION
+              {
+                  public IntPtr hProcess;
+                  public IntPtr hThread;
+                  public int dwProcessId;
+                  public int dwThreadId;
+              }
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern bool CreatePipe(out IntPtr hReadPipe, out IntPtr hWritePipe, IntPtr lpPipeAttributes, int nSize);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern int CreatePseudoConsole(COORD size, IntPtr hInput, IntPtr hOutput, uint dwFlags, out IntPtr hPC);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern void ClosePseudoConsole(IntPtr hPC);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern bool InitializeProcThreadAttributeList(IntPtr lpAttributeList, int dwAttributeCount, int dwFlags, ref IntPtr lpSize);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern bool UpdateProcThreadAttribute(IntPtr lpAttributeList, uint dwFlags, IntPtr attribute, IntPtr lpValue, IntPtr cbSize, IntPtr lpPreviousValue, IntPtr lpReturnSize);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern void DeleteProcThreadAttributeList(IntPtr lpAttributeList);
+
+              [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+              private static extern bool CreateProcessW(
+                  string lpApplicationName,
+                  StringBuilder lpCommandLine,
+                  IntPtr lpProcessAttributes,
+                  IntPtr lpThreadAttributes,
+                  bool bInheritHandles,
+                  int dwCreationFlags,
+                  IntPtr lpEnvironment,
+                  string lpCurrentDirectory,
+                  ref STARTUPINFOEX lpStartupInfo,
+                  out PROCESS_INFORMATION lpProcessInformation);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern bool GetExitCodeProcess(IntPtr hProcess, out int lpExitCode);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern bool TerminateProcess(IntPtr hProcess, uint uExitCode);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern bool CloseHandle(IntPtr hObject);
+
+              private static void ThrowLastWin32(string operation)
+              {
+                  int err = Marshal.GetLastWin32Error();
+                  string sysMsg = new Win32Exception(err).Message;
+                  throw new Win32Exception(err, $"{operation}: {sysMsg}");
+              }
+
+              public static string Run(string fileName, string arguments, int timeoutMs)
+              {
+                  IntPtr stdinRead = IntPtr.Zero;
+                  IntPtr stdinWrite = IntPtr.Zero;
+                  IntPtr stdoutRead = IntPtr.Zero;
+                  IntPtr stdoutWrite = IntPtr.Zero;
+                  IntPtr pseudoConsole = IntPtr.Zero;
+                  IntPtr attributeList = IntPtr.Zero;
+                  bool attributeListInitialized = false;
+                  IntPtr pseudoConsoleValuePtr = IntPtr.Zero;
+                  PROCESS_INFORMATION processInfo = default;
+
+                  try
+                  {
+                      if (!CreatePipe(out stdinRead, out stdinWrite, IntPtr.Zero, 0))
+                      {
+                          ThrowLastWin32("CreatePipe(stdin)");
+                      }
+                      if (!CreatePipe(out stdoutRead, out stdoutWrite, IntPtr.Zero, 0))
+                      {
+                          ThrowLastWin32("CreatePipe(stdout)");
+                      }
+
+                      int hresult = CreatePseudoConsole(new COORD(120, 40), stdinRead, stdoutWrite, 0, out pseudoConsole);
+                      if (hresult != 0)
+                      {
+                          Marshal.ThrowExceptionForHR(hresult);
+                      }
+
+                      CloseHandle(stdinRead);
+                      stdinRead = IntPtr.Zero;
+                      CloseHandle(stdoutWrite);
+                      stdoutWrite = IntPtr.Zero;
+
+                      IntPtr attributeListSize = IntPtr.Zero;
+                      InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref attributeListSize);
+                      attributeList = Marshal.AllocHGlobal(attributeListSize);
+                      if (!InitializeProcThreadAttributeList(attributeList, 1, 0, ref attributeListSize))
+                      {
+                          ThrowLastWin32("InitializeProcThreadAttributeList");
+                      }
+                      attributeListInitialized = true;
+
+                      IntPtr pseudoConsoleValue = pseudoConsole;
+                      pseudoConsoleValuePtr = Marshal.AllocHGlobal(IntPtr.Size);
+                      Marshal.WriteIntPtr(pseudoConsoleValuePtr, pseudoConsoleValue);
+                      if (!UpdateProcThreadAttribute(
+                          attributeList,
+                          0,
+                          (IntPtr)PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+                          pseudoConsoleValuePtr,
+                          (IntPtr)IntPtr.Size,
+                          IntPtr.Zero,
+                          IntPtr.Zero))
+                      {
+                          ThrowLastWin32("UpdateProcThreadAttribute");
+                      }
+
+                      STARTUPINFOEX startupInfo = new STARTUPINFOEX();
+                      startupInfo.StartupInfo.cb = Marshal.SizeOf<STARTUPINFOEX>();
+                      startupInfo.lpAttributeList = attributeList;
+
+                      string escapedArguments = string.IsNullOrWhiteSpace(arguments) ? string.Empty : " " + arguments;
+                      StringBuilder commandLine = new StringBuilder("\"" + fileName + "\"" + escapedArguments);
+                      if (!CreateProcessW(
+                          null,
+                          commandLine,
+                          IntPtr.Zero,
+                          IntPtr.Zero,
+                          false,
+                          EXTENDED_STARTUPINFO_PRESENT,
+                          IntPtr.Zero,
+                          Path.GetDirectoryName(fileName),
+                          ref startupInfo,
+                          out processInfo))
+                      {
+                          ThrowLastWin32("CreateProcessW");
+                      }
+
+                      CloseHandle(stdinWrite);
+                      stdinWrite = IntPtr.Zero;
+
+                      using FileStream outputStream = new FileStream(new SafeFileHandle(stdoutRead, ownsHandle: true), FileAccess.Read);
+                      stdoutRead = IntPtr.Zero;
+                      using StreamReader reader = new StreamReader(outputStream, Encoding.UTF8);
+                      Task<string> readTask = reader.ReadToEndAsync();
+
+                      uint waitResult = WaitForSingleObject(processInfo.hProcess, unchecked((uint)timeoutMs));
+                      if (waitResult == WAIT_TIMEOUT)
+                      {
+                          if (!TerminateProcess(processInfo.hProcess, 1))
+                          {
+                              int err = Marshal.GetLastWin32Error();
+                              if (err != 5) ThrowLastWin32("TerminateProcess");
+                          }
+                          ClosePseudoConsole(pseudoConsole);
+                          pseudoConsole = IntPtr.Zero;
+                          try { readTask.GetAwaiter().GetResult(); } catch { }
+                          throw new TimeoutException($"ConPTY child timed out after {timeoutMs}ms for: {commandLine}");
+                      }
+                      if (waitResult != 0)
+                      {
+                          ThrowLastWin32("WaitForSingleObject");
+                      }
+
+                      ClosePseudoConsole(pseudoConsole);
+                      pseudoConsole = IntPtr.Zero;
+
+                      if (!readTask.Wait(timeoutMs))
+                          throw new TimeoutException($"ConPTY output drain timed out after {timeoutMs}ms");
+                      string output = readTask.GetAwaiter().GetResult();
+                      if (!GetExitCodeProcess(processInfo.hProcess, out int exitCode))
+                      {
+                          ThrowLastWin32("GetExitCodeProcess");
+                      }
+                      if (exitCode != 0)
+                      {
+                          throw new InvalidOperationException($"ConPTY child exited with code {exitCode}: {commandLine}\n{output}");
+                      }
+
+                      return output;
+                  }
+                  finally
+                  {
+                      if (processInfo.hThread != IntPtr.Zero) CloseHandle(processInfo.hThread);
+                      if (processInfo.hProcess != IntPtr.Zero) CloseHandle(processInfo.hProcess);
+                      if (pseudoConsole != IntPtr.Zero) ClosePseudoConsole(pseudoConsole);
+                      if (attributeList != IntPtr.Zero)
+                      {
+                          if (attributeListInitialized) DeleteProcThreadAttributeList(attributeList);
+                          Marshal.FreeHGlobal(attributeList);
+                      }
+                      if (pseudoConsoleValuePtr != IntPtr.Zero) Marshal.FreeHGlobal(pseudoConsoleValuePtr);
+                      if (stdinRead != IntPtr.Zero) CloseHandle(stdinRead);
+                      if (stdinWrite != IntPtr.Zero) CloseHandle(stdinWrite);
+                      if (stdoutRead != IntPtr.Zero) CloseHandle(stdoutRead);
+                      if (stdoutWrite != IntPtr.Zero) CloseHandle(stdoutWrite);
+                  }
+              }
+          }
+          "@
+
+          # Allow slightly more time than the redirected-stdio checks because the
+          # ConPTY host and child process are both created within this smoke test.
+          $conPtyTimeoutMs = 15000
+          foreach ($command in @(
+            @{ name = "--help"; args = "--help"; expected = "GitHub Agentic Workflows" },
+            @{ name = "version"; args = "version"; expected = "gh aw version " }
+          )) {
+            $output = [ConPtySmoke]::Run($env:BINARY, $command.args, $conPtyTimeoutMs)
+            $cleanOutput = $output -replace "`e\[[\d;]*[A-Za-z]", ""
+            if ($cleanOutput -notmatch [regex]::Escape($command.expected)) {
+              throw "Expected ConPTY output for '$($command.name)' to contain '$($command.expected)', got:`n$cleanOutput"
+            }
+            Add-Content $env:GITHUB_STEP_SUMMARY "✅ ConPTY scenario passed: $($command.name)"
+          }
+
       # Explicit check for stdin-blocking hang (common bubbletea/TUI regression)
       - name: "[pwsh] stdin hang detection"
         shell: pwsh
