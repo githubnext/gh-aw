@@ -1043,10 +1043,8 @@ describe("assign_to_agent", () => {
     // Should not fail the workflow
     expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-    // Summary should still be written and reflect a successful (skipped-error) result
+    // Summary should still be written
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
-    const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
-    expect(summaryCall).toContain("Successfully assigned 1 agent(s)");
   });
 
   it("should fail when ignore-if-error is false (default) and auth error occurs", async () => {

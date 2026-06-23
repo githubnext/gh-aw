@@ -344,7 +344,6 @@ describe("assign_agent_helpers.cjs", () => {
 
       await expect(assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, restClient, taskContext)).rejects.toThrow("Bad credentials");
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to assign copilot: Insufficient permissions"));
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Insufficient permissions"));
     });
   });
 

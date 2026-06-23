@@ -327,15 +327,15 @@ async function main(config = {}) {
 
     try {
       // Find agent (use cache to avoid repeated lookups)
-      let agentId = agentCache[agentName];
-      if (!agentId) {
+      let agentLogin = agentCache[agentName];
+      if (!agentLogin) {
         core.info(`Looking for ${agentName} coding agent...`);
-        agentId = await findAgent(effectiveOwner, effectiveRepo, agentName, githubClient);
-        if (!agentId) {
+        agentLogin = await findAgent(effectiveOwner, effectiveRepo, agentName, githubClient);
+        if (!agentLogin) {
           throw new Error(`${agentName} coding agent is not available for this repository`);
         }
-        agentCache[agentName] = agentId;
-        core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+        agentCache[agentName] = agentLogin;
+        core.info(`Found ${agentName} coding agent (ID: ${agentLogin})`);
       }
 
       // Get issue or PR details
@@ -372,7 +372,7 @@ async function main(config = {}) {
       // When a different pull_request_repo is provided on the message, allow re-assignment
       // so Copilot can be triggered for a different target repository on the same issue.
       const knownAgentLogins = getAgentLogins(agentName);
-      if (currentAssignees.some(a => a.id === agentId || knownAgentLogins.includes(a.login)) && !shouldAllowReassignment) {
+      if (currentAssignees.some(a => a.id === agentLogin || knownAgentLogins.includes(a.login)) && !shouldAllowReassignment) {
         core.info(`${agentName} is already assigned to ${type} #${number}`);
         _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true });
         return { success: true };
@@ -384,7 +384,7 @@ async function main(config = {}) {
       if (customInstructions) core.info(`Using custom instructions: ${customInstructions.substring(0, 100)}${customInstructions.length > 100 ? "..." : ""}`);
       if (effectiveBaseBranch) core.info(`Using base branch: ${effectiveBaseBranch}`);
 
-      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents, model, customAgent, customInstructions, effectiveBaseBranch, githubClient, taskContext, effectivePullRequestRepoSlug);
+      const success = await assignAgentToIssue(assignableId, agentLogin, currentAssignees, agentName, allowedAgents, model, customAgent, customInstructions, effectiveBaseBranch, githubClient, taskContext, effectivePullRequestRepoSlug);
       if (!success) throw new Error(`Failed to assign ${agentName} via REST`);
 
       core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number}`);
