@@ -122,6 +122,8 @@ function parseFirewallLogs() {
           // Domain key resolution intentionally considers both domain and dest
           // because Squid may leave domain unset while dest remains usable.
           const domainKey = getFirewallDomainKey(domain, dest);
+          // Keep total/allowed/blocked counters aligned with per-domain buckets by
+          // excluding unresolved placeholder/error keys from both representations.
           if (!isValidDomainKey(domainKey)) {
             continue;
           }
