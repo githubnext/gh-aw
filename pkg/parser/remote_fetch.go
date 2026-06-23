@@ -744,7 +744,7 @@ func downloadFileViaGitClone(owner, repo, path, ref, host string) ([]byte, error
 // Returns the symlink target and true if it is a symlink, or empty string and false otherwise.
 // A nil error with false means the path is not a symlink (e.g., it's a directory or file).
 func checkRemoteSymlink(client *api.RESTClient, owner, repo, dirPath, ref string) (string, bool, error) {
-	endpoint := fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, dirPath, ref)
+	endpoint := buildContentsAPIPath(owner, repo, dirPath, ref)
 	remoteLog.Printf("Checking if path component is symlink: %s/%s/%s@%s", owner, repo, dirPath, ref)
 
 	// The Contents API returns a JSON object for files/symlinks but a JSON array for directories.
@@ -951,14 +951,29 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 }
 
 func createRESTClientForHost(host string) (*api.RESTClient, error) {
+	opts := api.ClientOptions{Timeout: constants.DefaultHTTPClientTimeout}
 	if host != "" {
-		return api.NewRESTClient(api.ClientOptions{Host: host})
+		opts.Host = host
 	}
-	return api.DefaultRESTClient()
+	return api.NewRESTClient(opts)
+}
+
+func buildContentsAPIPath(owner, repo, path, ref string) string {
+	pathSegments := strings.Split(path, "/")
+	for i := range pathSegments {
+		pathSegments[i] = url.PathEscape(pathSegments[i])
+	}
+	return fmt.Sprintf(
+		"repos/%s/%s/contents/%s?ref=%s",
+		owner,
+		repo,
+		strings.Join(pathSegments, "/"),
+		url.QueryEscape(ref),
+	)
 }
 
 func fetchRemoteFileContent(client *api.RESTClient, owner, repo, path, ref string, fileContent any) error {
-	return client.Get(fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), fileContent)
+	return client.Get(buildContentsAPIPath(owner, repo, path, ref), fileContent)
 }
 
 // downloadFileViaPublicAPI downloads a file from a public GitHub repository
@@ -1020,16 +1035,7 @@ func ListWorkflowFilesForHost(owner, repo, ref, workflowPath, host string) ([]st
 func listWorkflowFilesForHost(owner, repo, ref, workflowPath, host string) ([]string, error) {
 	remoteLog.Printf("Listing workflow files for %s/%s@%s (path: %s)", owner, repo, ref, workflowPath)
 
-	// Create REST client
-	var (
-		client *api.RESTClient
-		err    error
-	)
-	if host != "" {
-		client, err = api.NewRESTClient(api.ClientOptions{Host: host})
-	} else {
-		client, err = api.DefaultRESTClient()
-	}
+	client, err := createRESTClientForHost(host)
 	if err != nil {
 		remoteLog.Printf("Failed to create REST client, attempting git fallback: %v", err)
 		return listWorkflowFilesViaGitForHost(owner, repo, ref, workflowPath, host)
@@ -1043,7 +1049,7 @@ func listWorkflowFilesForHost(owner, repo, ref, workflowPath, host string) ([]st
 	}
 
 	// Fetch directory contents from GitHub API
-	endpoint := fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, workflowPath, ref)
+	endpoint := buildContentsAPIPath(owner, repo, workflowPath, ref)
 	err = client.Get(endpoint, &contents)
 	if err != nil {
 		errStr := err.Error()
@@ -1088,15 +1094,7 @@ func ListDirAllFilesForHost(owner, repo, ref, dirPath, host string) ([]string, e
 func listDirAllFilesForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
 	remoteLog.Printf("Listing all files in dir for %s/%s@%s (path: %s)", owner, repo, ref, dirPath)
 
-	var (
-		client *api.RESTClient
-		err    error
-	)
-	if host != "" {
-		client, err = api.NewRESTClient(api.ClientOptions{Host: host})
-	} else {
-		client, err = api.DefaultRESTClient()
-	}
+	client, err := createRESTClientForHost(host)
 	if err != nil {
 		remoteLog.Printf("Failed to create REST client, attempting git fallback: %v", err)
 		return listDirAllFilesViaGitForHost(owner, repo, ref, dirPath, host)
@@ -1108,7 +1106,7 @@ func listDirAllFilesForHost(owner, repo, ref, dirPath, host string) ([]string, e
 		Type string `json:"type"`
 	}
 
-	endpoint := fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, dirPath, ref)
+	endpoint := buildContentsAPIPath(owner, repo, dirPath, ref)
 	err = client.Get(endpoint, &contents)
 	if err != nil {
 		errStr := err.Error()
@@ -1209,15 +1207,7 @@ func ListDirAllFilesRecursivelyForHost(owner, repo, ref, dirPath, host string) (
 func listDirAllFilesRecursivelyForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
 	remoteLog.Printf("Listing all files recursively in dir for %s/%s@%s (path: %s)", owner, repo, ref, dirPath)
 
-	var (
-		client *api.RESTClient
-		err    error
-	)
-	if host != "" {
-		client, err = api.NewRESTClient(api.ClientOptions{Host: host})
-	} else {
-		client, err = api.DefaultRESTClient()
-	}
+	client, err := createRESTClientForHost(host)
 	if err != nil {
 		remoteLog.Printf("Failed to create REST client, attempting git fallback: %v", err)
 		return listDirAllFilesRecursivelyViaGitForHost(owner, repo, ref, dirPath, host)
@@ -1262,7 +1252,7 @@ func listContentsRecursivelyWithDepth(client *api.RESTClient, owner, repo, ref, 
 		Type string `json:"type"`
 	}
 
-	endpoint := fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, dirPath, ref)
+	endpoint := buildContentsAPIPath(owner, repo, dirPath, ref)
 	if err := client.Get(endpoint, &contents); err != nil {
 		return nil, fmt.Errorf("failed to list dir files from %s/%s (path: %s): %w", owner, repo, dirPath, err)
 	}
@@ -1363,15 +1353,7 @@ func ListDirSubdirsForHost(owner, repo, ref, dirPath, host string) ([]string, er
 func listDirSubdirsForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
 	remoteLog.Printf("Listing subdirs in %s/%s@%s (path: %s)", owner, repo, ref, dirPath)
 
-	var (
-		client *api.RESTClient
-		err    error
-	)
-	if host != "" {
-		client, err = api.NewRESTClient(api.ClientOptions{Host: host})
-	} else {
-		client, err = api.DefaultRESTClient()
-	}
+	client, err := createRESTClientForHost(host)
 	if err != nil {
 		remoteLog.Printf("Failed to create REST client, attempting git fallback: %v", err)
 		return listDirSubdirsViaGitForHost(owner, repo, ref, dirPath, host)
@@ -1383,7 +1365,7 @@ func listDirSubdirsForHost(owner, repo, ref, dirPath, host string) ([]string, er
 		Type string `json:"type"`
 	}
 
-	endpoint := fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, dirPath, ref)
+	endpoint := buildContentsAPIPath(owner, repo, dirPath, ref)
 	err = client.Get(endpoint, &contents)
 	if err != nil {
 		errStr := err.Error()
