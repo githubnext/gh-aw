@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { AGENT_LOGIN_NAMES, getAvailableAgentLogins, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
+const { AGENT_LOGIN_NAMES, getAgentLogins, getAvailableAgentLogins, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTarget, isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
@@ -371,7 +371,8 @@ async function main(config = {}) {
       // Skip if agent is already assigned and no explicit per-item pull_request_repo is specified.
       // When a different pull_request_repo is provided on the message, allow re-assignment
       // so Copilot can be triggered for a different target repository on the same issue.
-      if (currentAssignees.some(a => a.id === agentId) && !shouldAllowReassignment) {
+      const knownAgentLogins = getAgentLogins(agentName);
+      if (currentAssignees.some(a => a.id === agentId || knownAgentLogins.includes(a.login)) && !shouldAllowReassignment) {
         core.info(`${agentName} is already assigned to ${type} #${number}`);
         _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true });
         return { success: true };

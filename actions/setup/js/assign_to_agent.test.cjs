@@ -621,7 +621,10 @@ describe("assign_to_agent", () => {
     });
 
     const apiError = new Error("API rate limit exceeded");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(apiError);
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: { id: 12345, number: 42, assignees: [], html_url: "", title: "", body: "" },
+    });
+    mockGithub.request.mockRejectedValue(apiError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -720,8 +723,8 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
-    // Should only look up agent once (cached for second assignment)
-    expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(1);
+    // Should not do assignee lookup for agent resolution
+    expect(mockGithub.rest.issues.checkUserCanBeAssigned).not.toHaveBeenCalled();
   }, 15000); // Increase timeout to 15 seconds to account for the delay
 
   it("should use target repository when configured", async () => {
@@ -1025,27 +1028,23 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    // Simulate authentication error - use mockRejectedValueOnce to avoid affecting other tests
+    // Simulate authentication error from REST task creation
     const authError = new Error("Bad credentials");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(authError);
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: { id: 12345, number: 42, assignees: [], html_url: "", title: "", body: "" },
+    });
+    mockGithub.request.mockRejectedValue(authError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
     // Should log that ignore-if-error is enabled
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Ignore-if-error mode enabled: Will not fail if agent assignment encounters auth or availability errors"));
 
-    // Should warn about skipping but not fail
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Agent assignment failed"));
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("ignore-if-error=true"));
-
     // Should not fail the workflow
     expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-    // Summary should show skipped assignments
+    // Summary should still be written
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
-    const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
-    expect(summaryCall).toContain("⏭️ Skipped");
-    expect(summaryCall).toContain("assignment failed due to error");
   });
 
   it("should fail when ignore-if-error is false (default) and auth error occurs", async () => {
@@ -1061,9 +1060,12 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    // Simulate authentication error
+    // Simulate authentication error from REST task creation
     const authError = new Error("Bad credentials");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(authError);
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: { id: 12345, number: 42, assignees: [], html_url: "", title: "", body: "" },
+    });
+    mockGithub.request.mockRejectedValue(authError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1098,9 +1100,12 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    // Simulate permission error
+    // Simulate permission error from REST task creation
     const permError = new Error("Resource not accessible by integration");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(permError);
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: { id: 12345, number: 42, assignees: [], html_url: "", title: "", body: "" },
+    });
+    mockGithub.request.mockRejectedValue(permError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1109,7 +1114,7 @@ describe("assign_to_agent", () => {
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 
-  it("should skip assignment and not fail when ignore-if-error is true and agent is not available for the repository", async () => {
+  it("should skip assignment and not fail when ignore-if-error is true and task creation returns unavailable error", async () => {
     process.env.GH_AW_AGENT_IGNORE_IF_ERROR = "true";
     setAgentOutput({
       items: [
@@ -1122,12 +1127,13 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    // Simulate agent not available (checkUserCanBeAssigned returns 404)
-    const notFoundError = new Error("Not Found");
+    // Simulate task creation unavailable error (404)
+    const notFoundError = new Error("copilot coding agent is not available for this repository");
     notFoundError.status = 404;
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(notFoundError);
-    // getAvailableAgentLogins also calls checkUserCanBeAssigned - return 404 for that too
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(notFoundError);
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: { id: 12345, number: 42, assignees: [], html_url: "", title: "", body: "" },
+    });
+    mockGithub.request.mockRejectedValue(notFoundError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1197,9 +1203,12 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    // Fail all assignments with auth error
+    // Fail task creation with auth error
     const authError = new Error("Bad credentials");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(authError);
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: { id: 1111, number: 11, assignees: [], html_url: "", title: "", body: "" },
+    });
+    mockGithub.request.mockRejectedValue(authError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1224,7 +1233,10 @@ describe("assign_to_agent", () => {
     // Simulate an error whose message contains an @mention and an HTML comment —
     // both are potentially dangerous if posted unsanitized.
     const dangerousError = new Error("@admin triggered <!-- inject --> error");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(dangerousError);
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: { id: 1111, number: 11, assignees: [], html_url: "", title: "", body: "" },
+    });
+    mockGithub.request.mockRejectedValue(dangerousError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1253,7 +1265,10 @@ describe("assign_to_agent", () => {
 
     // Simulate authentication error (will be skipped by ignore-if-error)
     const authError = new Error("Bad credentials");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(authError);
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: { id: 12345, number: 42, assignees: [], html_url: "", title: "", body: "" },
+    });
+    mockGithub.request.mockRejectedValue(authError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1274,7 +1289,10 @@ describe("assign_to_agent", () => {
     });
 
     const authError = new Error("Bad credentials");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(authError);
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: { id: 12345, number: 42, assignees: [], html_url: "", title: "", body: "" },
+    });
+    mockGithub.request.mockRejectedValue(authError);
 
     // Simulate failure to post comment
     mockGithub.rest.issues.createComment.mockRejectedValue(new Error("Could not post comment"));

@@ -159,18 +159,12 @@ describe("assign_agent_helpers.cjs", () => {
   });
 
   describe("findAgent", () => {
-    it("should find copilot agent via a fallback alias and return its ID via REST", async () => {
-      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404).mockResolvedValueOnce({});
-      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 12345 } });
-
+    it("should resolve and return the default copilot alias without REST lookups", async () => {
       const result = await findAgent("owner", "repo", "copilot");
 
-      expect(result).toBe("12345");
-      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledWith({ owner: "owner", repo: "repo", assignee: "copilot-swe-agent" });
-      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledWith({ owner: "owner", repo: "repo", assignee: "github-copilot-enterprise" });
-      expect(mockGithub.rest.users.getByUsername).toHaveBeenCalledWith({ username: "github-copilot-enterprise" });
-      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(2);
+      expect(result).toBe("copilot-swe-agent");
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).not.toHaveBeenCalled();
+      expect(mockGithub.rest.users.getByUsername).not.toHaveBeenCalled();
     });
 
     it("should return null for unknown agent name", async () => {
@@ -178,37 +172,6 @@ describe("assign_agent_helpers.cjs", () => {
 
       expect(result).toBeNull();
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Unknown agent: unknown-agent"));
-    });
-
-    it("should return null and log bots when no copilot alias is available (404)", async () => {
-      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(err404);
-      mockGithub.rest.issues.listAssignees.mockResolvedValue({ data: [{ login: "github-actions[bot]", type: "Bot" }] });
-
-      const result = await findAgent("owner", "repo", "copilot");
-
-      expect(result).toBeNull();
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("copilot coding agent aliases are not available"));
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Assignable bots in this repository: github-actions[bot]"));
-    });
-
-    it("should handle REST errors and re-throw auth errors", async () => {
-      const authError = new Error("Bad credentials");
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(authError);
-
-      await expect(findAgent("owner", "repo", "copilot")).rejects.toThrow("Bad credentials");
-    });
-
-    it("should return null for non-auth errors", async () => {
-      const err = new Error("Something unexpected");
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err);
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(Object.assign(new Error("Not Found"), { status: 404 }));
-      mockGithub.rest.issues.listAssignees.mockResolvedValue({ data: [] });
-
-      const result = await findAgent("owner", "repo", "copilot");
-
-      expect(result).toBeNull();
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Assignee alias copilot-swe-agent was not assignable"));
     });
   });
 
@@ -379,9 +342,7 @@ describe("assign_agent_helpers.cjs", () => {
       const mockRequest = vi.fn().mockRejectedValue(errAuth);
       const restClient = { request: mockRequest };
 
-      const result = await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, restClient, taskContext);
-
-      expect(result).toBe(false);
+      await expect(assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, restClient, taskContext)).rejects.toThrow("Bad credentials");
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Insufficient permissions"));
     });
   });
@@ -400,9 +361,6 @@ describe("assign_agent_helpers.cjs", () => {
 
   describe("assignAgentToIssueByName", () => {
     it("should successfully assign copilot agent", async () => {
-      // findAgent: checkUserCanBeAssigned + getByUsername
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
-      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 999 } });
       // getIssueDetails
       mockGithub.rest.issues.get.mockResolvedValueOnce({
         data: { id: 1111, number: 123, assignees: [], html_url: "", title: "", body: "" },
@@ -414,7 +372,7 @@ describe("assign_agent_helpers.cjs", () => {
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("Looking for copilot coding agent...");
-      expect(mockCore.info).toHaveBeenCalledWith("Found copilot coding agent (ID: 999)");
+      expect(mockCore.info).toHaveBeenCalledWith("Using copilot coding agent alias: copilot-swe-agent");
     });
 
     it("should return error for unsupported agent", async () => {
@@ -425,27 +383,13 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockCore.warning).toHaveBeenCalled();
     });
 
-    it("should return error when agent is not available", async () => {
-      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(err404);
-      mockGithub.rest.issues.listAssignees.mockResolvedValue({ data: [] });
-
-      const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot");
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("not available");
-    });
-
     it("should report already assigned when agent is in assignees", async () => {
-      // findAgent
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
-      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 999 } });
       // getIssueDetails - agent already assigned
       mockGithub.rest.issues.get.mockResolvedValueOnce({
         data: {
           id: 1111,
           number: 123,
-          assignees: [{ id: 999, login: "copilot-swe-agent" }],
+          assignees: [{ id: 1, login: "copilot-swe-agent" }],
           html_url: "",
           title: "",
           body: "",
@@ -459,9 +403,6 @@ describe("assign_agent_helpers.cjs", () => {
     });
 
     it("should skip assignment when a secondary copilot alias is already assigned", async () => {
-      // findAgent resolves via primary alias with id 999
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
-      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 999 } });
       // getIssueDetails - a secondary alias is the current assignee (different id, same agent)
       mockGithub.rest.issues.get.mockResolvedValueOnce({
         data: {
