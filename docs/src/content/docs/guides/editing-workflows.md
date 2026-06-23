@@ -5,17 +5,13 @@ sidebar:
   order: 5
 ---
 
-Agentic workflows consist of two parts: the **YAML frontmatter** (compiled into the lock file; changes require recompilation) and the **markdown body** (loaded at runtime; changes take effect immediately). This lets you iterate on AI instructions without recompilation while maintaining strict control over security-sensitive configuration.
+Agentic workflows have two parts: the **YAML frontmatter**, which is compiled into the lock file and requires recompilation when changed, and the **markdown body**, which is loaded at runtime and takes effect on the next run. This lets you iterate on instructions quickly while keeping security-sensitive configuration behind compilation.
 
 See [Creating Agentic Workflows](/gh-aw/setup/creating-workflows/) for guidance on creating workflows with AI assistance.
 
 ## Editing Without Recompilation
 
-You can edit the **markdown body** directly on GitHub.com or in any editor without recompiling. Changes take effect on the next workflow run.
-
-### What You Can Edit
-
-The markdown body is loaded at runtime from the original `.md` file. You can freely edit task instructions, output templates, conditional logic ("If X, then do Y"), context explanations, and examples.
+You can edit the **markdown body** directly on GitHub.com or in any editor without recompiling. That includes task instructions, output templates, conditional guidance, context, and examples.
 
 ### Example: Adding Instructions
 
@@ -63,24 +59,9 @@ For priority, consider:
 ## Editing With Recompilation Required
 
 > [!WARNING]
-> Changes to the **YAML frontmatter** always require recompilation. These are security-sensitive configuration options.
+> Changes to the **YAML frontmatter** always require recompilation because they affect security-sensitive configuration.
 
-### What Requires Recompilation
-
-Any changes to the frontmatter configuration between `---` markers:
-
-- **Triggers** (`on:`): Event types, filters, schedules
-- **Permissions** (`permissions:`): Repository access levels
-- **Tools** (`tools:`): Tool configurations, MCP servers, allowed tools
-- **Network** (`network:`): Allowed domains, firewall rules
-- **Safe outputs** (`safe-outputs:`): Output types, threat detection
-- **MCP Scripts** (`mcp-scripts:`): Custom MCP tools defined inline
-- **Runtimes** (`runtimes:`): Node, Python, Go version overrides
-- **Imports** (`imports:`): Shared configuration files
-- **Custom jobs** (`jobs:`): Additional workflow jobs
-- **Engine** (`engine:`): AI engine selection (copilot, claude, codex)
-- **Timeout** (`timeout-minutes:`): Maximum execution time
-- **Roles** (`roles:`): Permission requirements for actors
+Any change between the `---` markers requires recompilation, including triggers (`on:`), permissions, tools, network settings, safe outputs, MCP scripts, runtimes, imports, custom jobs, engine selection, timeouts, and roles.
 
 ### Example: Adding a Tool (Requires Recompilation)
 
@@ -108,11 +89,9 @@ tools:
 
 ⚠️ Run `gh aw compile my-workflow` before committing this change.
 
-## Expressions and Environment Variables
+## Expressions in Markdown
 
-### Allowed Expressions
-
-You can safely use these expressions in markdown without recompilation:
+You can use these expressions in markdown without recompilation:
 
 ```markdown
 # Process Issue
@@ -129,8 +108,6 @@ Repository: ${{ github.repository }}
 
 These expressions are evaluated at runtime and validated for security. See [Templating](/gh-aw/reference/templating/) for the complete list of allowed expressions.
 
-### Prohibited Expressions
-
 Arbitrary expressions are blocked for security. This will fail at runtime:
 
 ```markdown
@@ -139,6 +116,12 @@ Run this command: ${{ github.event.comment.body }}
 ```
 
 Use `steps.sanitized.outputs.text` for sanitized user input instead.
+
+## Quick Rule of Thumb
+
+- Edit the markdown body for instruction changes.
+- Recompile after any frontmatter change.
+- Use sanitized step outputs instead of raw user input in expressions.
 
 ## Related Documentation
 
