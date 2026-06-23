@@ -331,10 +331,7 @@ suffixes such as `100M`.
 > Enabling `max-daily-ai-credits` is expensive in GitHub API units. Every
 > activation checks the 24-hour window by calling `listWorkflowRuns` (up to
 > 10 pages × 100 runs) plus additional artifact-lookup API calls per
-> inspected run. On a busy workflow this can consume hundreds of GitHub API
-> units per trigger. Prefer setting the org/enterprise-level default
-> (see [Roll out org/repo defaults with enterprise controls](#roll-out-orgrepo-defaults-with-enterprise-controls))
-> over embedding the value in every workflow file.
+> inspected run.
 
 To disable the guardrail explicitly, set `-1`:
 
