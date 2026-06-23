@@ -1869,7 +1869,7 @@ func TestBuildDetectionJobStepsCodexExternalDetectorIncludesContainerDownload(t 
 		}
 	})
 
-	t.Run("codex without gh-aw-detection still omits container download (inline path)", func(t *testing.T) {
+	t.Run("codex without gh-aw-detection emits exactly one container download (inline path via MCP setup)", func(t *testing.T) {
 		data := &WorkflowData{
 			AI: "codex",
 			SafeOutputs: &SafeOutputsConfig{
@@ -1886,12 +1886,12 @@ func TestBuildDetectionJobStepsCodexExternalDetectorIncludesContainerDownload(t 
 		steps := compiler.buildDetectionJobSteps(data)
 		joined := strings.Join(steps, "")
 
-		// For the inline codex path, MCP setup generation emits the download step separately.
-		// buildDetectionJobSteps itself should NOT emit it here to avoid duplicates.
-		// (The actual presence of the step in the final job is tested via integration tests.)
+		// For the inline codex path, MCP setup generation (inside buildDetectionEngineExecutionStep)
+		// emits the "Download container images" step exactly once. buildPullAWFContainersStep must
+		// NOT also emit it, or the step would appear twice and trip duplicate-step validation.
 		downloadCount := strings.Count(joined, "Download container images")
-		if downloadCount > 1 {
-			t.Errorf("expected at most one 'Download container images' step for inline codex path, got %d\n%s", downloadCount, joined)
+		if downloadCount != 1 {
+			t.Errorf("expected exactly one 'Download container images' step for inline codex path, got %d\n%s", downloadCount, joined)
 		}
 	})
 }
