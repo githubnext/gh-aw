@@ -113,6 +113,40 @@ New confirmations this run:
   BRANCH=diverged. Also: the append-only push step necessarily makes
   actual_commit_count ≥ 2 even when COMMIT=single declares 1.
 
+### 2026-06-23 (run 28004973333) — cells 16-19
+
+Tested indices 16-19: the last two PATCH=small / BRANCH=diverged cells, then the
+first two PATCH=medium (200 KB) / BRANCH=clean cells. All **passed**. First
+exercise of the 200 KB patch tier — 4× the previous max.
+
+| config_id | outcome | patch files | patch KB | commits | merges | push |
+|-----------|---------|-------------|----------|---------|--------|------|
+| tiny-none-single-small-diverged-multi | pass (both) | 3 | 52.09 | 3 | 0 | +1 append → 4 |
+| tiny-none-single-small-diverged-merge_msg | pass (both) | 1 | 50.62 | 1 | 0 | +1 append → 2 |
+| tiny-none-single-medium-clean-single | pass | 1 | 205.8 | 1 | 0 | none |
+| tiny-none-single-medium-clean-multi | pass | 3 | 202.0 | 3 | 0 | none |
+
+New confirmations this run:
+- **PATCH=medium (200 KB) is comfortably within limits** for create_pull_request
+  at tiny/none. Measured patch sizes (202–206 KB) track the 200 KB target
+  closely with non-compressible base64 content. No size-limit effects at 4× the
+  prior tier — overhead stays proportionally constant, not growing with size.
+- **format-patch overhead is fixed-per-commit and immaterial at 200 KB**:
+  COMMIT=single added ~3.2 KB (~1.6%); COMMIT=multi (3 commits) added ~4.6 KB
+  (~2.3%), i.e. ~1.5 KB per commit. The per-commit header cost is constant in
+  absolute terms, so its *relative* weight shrinks as PATCH grows — the
+  COMMIT=multi-near-threshold risk matters most at micro PATCH, least at large.
+- **bundle < patch confirmed again**: diverged-multi bundle was 38.57 KB vs
+  52.09 KB raw patch (pack vs base64-in-patch). The .patch sum stays the honest
+  size metric for thresholds.
+- **merge_msg filename leak re-confirmed at 50 KB / diverged**: single-parent
+  "Merge branch x into feature" commit → empty `git rev-list --merges`, parent
+  count 1, but format-patch names it `0001-Merge-branch-x-into-feature.patch`.
+  Cosmetic; a downstream message-text merge heuristic would still misfire.
+- **diverged append-only still a clean fast-forward at 50 KB**: `merge-base
+  --is-ancestor` confirmed prior tip is ancestor of new tip on both diverged
+  cells; no force-push, no `git merge` on feature.
+
 ## Patterns / Hypotheses (to validate as coverage grows)
 
 - **Baseline corner is healthy**: the smallest configs (tiny/none/single/micro)
@@ -133,9 +167,12 @@ New confirmations this run:
 
 ## Next
 
-Next enumeration index: **16** → `tiny-none-single-small-diverged-multi`.
+Next enumeration index: **20** → `tiny-none-single-medium-clean-merge_msg`.
 
-Indices 16-17 finish the PATCH=small cells (16 = diverged-multi, 17 =
-diverged-merge_msg). Index 18 begins PATCH=medium (200 KB) at
-`tiny-none-single-medium-clean-single` — the first cell likely to start showing
-size-related overhead worth watching as the patch grows 4×.
+Indices 20-22 cover the rest of PATCH=medium / BRANCH=clean+ahead (20 =
+clean-merge_msg, 21 = ahead-single, 22 = ahead-multi). The medium tier continues
+to look benign on size; the next genuinely interesting jumps remain PATCH=large
+(1000 KB, index range ~36-53 at tiny/none/single) and especially PATCH=xlarge
+(4000 KB) and FILES=batch (100 files), still far ahead in the enumeration —
+those stay the priority candidates for the first size-limit rejection or
+timeout.
