@@ -157,7 +157,7 @@ describe("collect_ndjson_output.cjs", () => {
         expect(mockCore.info).toHaveBeenCalledWith("Output file does not exist: /tmp/gh-aw/nonexistent-file.txt — no safe-output items were emitted; treating as empty collection (graceful no-op)"),
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AGENT_OUTPUT", path.join(TMP_GH_AW_PATH, AGENT_OUTPUT_FILENAME)));
     }),
-    it("should warn and still set output when artifact write fails for missing output file", async () => {
+    it("should error and still set output when artifact write fails for missing output file", async () => {
       const writeError = new Error("disk full");
       const spy = vi.spyOn(fs, "writeFileSync").mockImplementationOnce(() => {
         throw writeError;
