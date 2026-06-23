@@ -408,6 +408,7 @@ jobs:
                   IntPtr stdoutWrite = IntPtr.Zero;
                   IntPtr pseudoConsole = IntPtr.Zero;
                   IntPtr attributeList = IntPtr.Zero;
+                  bool attributeListInitialized = false;
                   PROCESS_INFORMATION processInfo = default;
 
                   try
@@ -439,6 +440,7 @@ jobs:
                       {
                           ThrowLastWin32("InitializeProcThreadAttributeList");
                       }
+                      attributeListInitialized = true;
 
                       IntPtr pseudoConsoleValue = pseudoConsole;
                       IntPtr pseudoConsoleValuePtr = Marshal.AllocHGlobal(IntPtr.Size);
@@ -524,7 +526,7 @@ jobs:
                       if (pseudoConsole != IntPtr.Zero) ClosePseudoConsole(pseudoConsole);
                       if (attributeList != IntPtr.Zero)
                       {
-                          DeleteProcThreadAttributeList(attributeList);
+                          if (attributeListInitialized) DeleteProcThreadAttributeList(attributeList);
                           Marshal.FreeHGlobal(attributeList);
                       }
                       if (stdinRead != IntPtr.Zero) CloseHandle(stdinRead);
