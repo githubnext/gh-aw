@@ -93,6 +93,9 @@ func applyUsageActivitySummaryToResult(summary *usageActivitySummary, result *Do
 
 	if summary.Firewall != nil && result.FirewallAnalysis == nil {
 		requestsByDomain := maps.Clone(summary.Firewall.RequestsByDomain)
+		if requestsByDomain == nil {
+			requestsByDomain = map[string]DomainRequestStats{}
+		}
 		allowedSet := map[string]struct{}{}
 		blockedSet := map[string]struct{}{}
 		for _, domain := range summary.Firewall.AllowedDomains {

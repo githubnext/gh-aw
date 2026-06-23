@@ -25,7 +25,7 @@ const ERROR_DOMAIN_PREFIX = "error:";
  * Check if a Squid decision indicates an allowed request
  */
 function isAllowedDecision(decision) {
-  const base = decision.split("/")[0].trim().toUpperCase();
+  const base = decision.trim().toUpperCase().split(/[/:]/)[0];
   return ["TCP_TUNNEL", "TCP_HIT", "TCP_MISS"].includes(base);
 }
 
@@ -57,6 +57,14 @@ function isPlaceholderFirewallField(value) {
 }
 
 /**
+ * @param {string} domain
+ * @returns {boolean}
+ */
+function isValidDomainKey(domain) {
+  return domain !== PLACEHOLDER_DOMAIN_KEY && !domain.startsWith(ERROR_DOMAIN_PREFIX);
+}
+
+/**
  * @param {string} client
  * @param {string} domain
  * @param {string} dest
@@ -81,7 +89,7 @@ function parseFirewallLogs() {
 
   // The sandbox firewall logs may be emitted in nested directories (for example,
   // api-proxy-logs/*.log), so these patterns are intentionally recursive.
-  const firewallPaths = ["/tmp/gh-aw/sandbox/firewall/logs/**/*.log", "/tmp/gh-aw/threat-detection/sandbox/firewall/logs/**/*.log", "/tmp/gh-aw/squid-logs-*/*.log", "/tmp/gh-aw/threat-detection/squid-logs-*/*.log"];
+  const firewallPaths = ["/tmp/gh-aw/sandbox/firewall/logs/**/*.log", "/tmp/gh-aw/threat-detection/sandbox/firewall/logs/**/*.log", "/tmp/gh-aw/squid-logs-*/**/*.log", "/tmp/gh-aw/threat-detection/squid-logs-*/**/*.log"];
 
   for (const pattern of firewallPaths) {
     const files = globSync(pattern);
@@ -109,6 +117,11 @@ function parseFirewallLogs() {
             continue;
           }
 
+          const domainKey = getFirewallDomainKey(domain, dest);
+          if (!isValidDomainKey(domainKey)) {
+            continue;
+          }
+
           firewall.total_requests += 1;
 
           // Squid access log columns (0-based):
@@ -128,7 +141,6 @@ function parseFirewallLogs() {
             allowed = true;
           }
 
-          const domainKey = getFirewallDomainKey(domain, dest);
           if (!firewall.requests_by_domain[domainKey]) {
             firewall.requests_by_domain[domainKey] = { allowed: 0, blocked: 0 };
           }
@@ -154,7 +166,6 @@ function parseFirewallLogs() {
     return null;
   }
 
-  const isValidDomainKey = domain => domain !== PLACEHOLDER_DOMAIN_KEY && !domain.startsWith(ERROR_DOMAIN_PREFIX);
   const requestsByDomain = {};
   for (const [domain, stats] of Object.entries(firewall.requests_by_domain)) {
     if (!isValidDomainKey(domain)) {

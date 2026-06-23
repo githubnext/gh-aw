@@ -39,6 +39,8 @@ func TestLoadUsageActivitySummary(t *testing.T) {
 	require.NotNil(t, summary, "summary should not be nil")
 	require.NotNil(t, summary.Firewall, "firewall section should be present")
 	assert.Equal(t, 10, summary.Firewall.TotalRequests, "firewall total_requests should be parsed from JSON")
+	assert.Equal(t, []string{"api.github.com:443"}, summary.Firewall.AllowedDomains, "firewall allowed_domains should be parsed from JSON")
+	assert.Equal(t, []string{"blocked.example.com:443"}, summary.Firewall.BlockedDomains, "firewall blocked_domains should be parsed from JSON")
 	assert.Len(t, summary.Firewall.RequestsByDomain, 2, "firewall requests_by_domain should be parsed from JSON")
 	require.NotNil(t, summary.Session, "session section should be present")
 	assert.Equal(t, 7, summary.Session.Turns, "session turns should be parsed from JSON")
@@ -78,6 +80,7 @@ func TestApplyUsageActivitySummaryToResult(t *testing.T) {
 	assert.Equal(t, 4, result.Run.Turns, "turns should be backfilled when detailed session artifacts are absent")
 	require.NotNil(t, result.FirewallAnalysis, "firewall summary should be backfilled")
 	assert.Equal(t, 12, result.FirewallAnalysis.TotalRequests, "firewall total requests should be copied from the summary")
+	assert.Equal(t, 9, result.FirewallAnalysis.AllowedRequests, "firewall allowed requests should be copied from the summary")
 	assert.Equal(t, 3, result.FirewallAnalysis.BlockedRequests, "firewall blocked requests should be copied from the summary")
 	assert.Equal(t, []string{"api.github.com:443"}, result.FirewallAnalysis.AllowedDomains, "allowed domains should be backfilled from the summary")
 	assert.Equal(t, []string{"blocked.example.com:443"}, result.FirewallAnalysis.BlockedDomains, "blocked domains should be backfilled from the summary")
@@ -89,6 +92,30 @@ func TestApplyUsageActivitySummaryToResult(t *testing.T) {
 	assert.Equal(t, "github", result.MCPToolUsage.Servers[0].ServerName, "server names should be preserved")
 	assert.Equal(t, 5, result.MCPToolUsage.Servers[0].ToolCallCount, "tool call counts should be preserved")
 	assert.Equal(t, 2, result.MCPToolUsage.Servers[0].ErrorCount, "failed call counts should map to server error counts")
+}
+
+func TestApplyUsageActivitySummaryToResultLegacyFirewall(t *testing.T) {
+	t.Parallel()
+
+	result := DownloadResult{}
+	summary := &usageActivitySummary{
+		Firewall: &usageActivityFirewall{
+			TotalRequests:   5,
+			AllowedRequests: 5,
+			BlockedRequests: 0,
+		},
+	}
+
+	applyUsageActivitySummaryToResult(summary, &result, true)
+
+	require.NotNil(t, result.FirewallAnalysis, "legacy firewall summary should still backfill analysis")
+	assert.Equal(t, 5, result.FirewallAnalysis.TotalRequests, "legacy total requests should be copied")
+	assert.Equal(t, 5, result.FirewallAnalysis.AllowedRequests, "legacy allowed requests should be copied")
+	assert.Equal(t, 0, result.FirewallAnalysis.BlockedRequests, "legacy blocked requests should be copied")
+	assert.Empty(t, result.FirewallAnalysis.AllowedDomains, "legacy summaries should backfill empty allowed domains")
+	assert.Empty(t, result.FirewallAnalysis.BlockedDomains, "legacy summaries should backfill empty blocked domains")
+	require.NotNil(t, result.FirewallAnalysis.RequestsByDomain, "legacy summaries should backfill a non-nil requests map")
+	assert.Empty(t, result.FirewallAnalysis.RequestsByDomain, "legacy summaries should backfill an empty requests map")
 }
 
 func TestLoadUsageActivitySummaryFallbackPath(t *testing.T) {
