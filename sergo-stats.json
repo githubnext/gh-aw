@@ -1,11 +1,11 @@
 {
-  "total_runs": 44,
-  "total_findings": 317,
-  "total_tasks": 89,
-  "avg_success_score": 8.81,
-  "last_run": "2026-06-22",
+  "total_runs": 45,
+  "total_findings": 323,
+  "total_tasks": 90,
+  "avg_success_score": 8.79,
+  "last_run": "2026-06-23",
   "serena_lsp": "23 tools stable R4-44. activate_project --project. find_symbol broad 70s+ (prefer Grep). SHALLOW CLONE (git log 1 commit): new-linter via main.go grep -c 'Analyzer' vs doc.go header. `gh issue list --search` ERRORS 'malformed version' -> `gh api repos/OWNER/REPO/issues?labels=sergo&state=all --jq`. ALWAYS gh api sergo issues BEFORE strategy + grep code for fix (OPEN != fixed). Syntactic re-grep MUST use BOTH `Name == pkg` AND `Name != pkg`.",
-  "open_issues": "DO-NOT-REFILE (OPEN unless noted): #39180/1(timeafterleak CLOSED) #39323/4(timesleep NOT mine) #39493/4(ssljson) #39732(uncheckedtypeassertion parent-shape) #39733(regexp) #39981(rawloginlib) #39982(jsonmarshal ExprStmt FN) #40243(IsPkgSelector 3 CI-enforced osexit:59/fprintln:144/errstring:100 STILL SYNTACTIC unfixed) #40244(errstringmatch pattern-set) #40434(sprintferrdot verb) #40435(fileclose:172+contextcancel:138 STILL SYNTACTIC unfixed) #40436(doc-sync 30vs32) #40580(tolowerequalfold-now-refactored-type-resolved-recheck-closed?) #40581(lenstringzero relational) #aw_sg44a1(seenmapbool double-report POSTED) #aw_sg44a2(excessivefuncparams test-skip+largefunc/excessive nolint POSTED).",
+  "open_issues": "DO-NOT-REFILE (OPEN unless noted): #39180/1(timeafterleak CLOSED) #39323/4(timesleep NOT mine) #39493/4(ssljson) #39732(uncheckedtypeassertion parent-shape) #39733(regexp) #39981(rawloginlib) #39982(jsonmarshal ExprStmt FN) #40243(IsPkgSelector 3 CI-enforced osexit:59/fprintln:144/errstring:100 STILL SYNTACTIC unfixed) #40244(errstringmatch pattern-set) #40434(sprintferrdot verb) #40435(fileclose:172+contextcancel:138 STILL SYNTACTIC unfixed) #40436(doc-sync 30vs32) #40580(tolowerequalfold-now-refactored-type-resolved-recheck-closed?) #40581(lenstringzero relational) #40733(seenmapbool double-report, was sg44a1) #40734(threshold largefunc/excessivefuncparams nolint+test-skip, was sg44a2) #aw_sg45a1(wgdonenotdeferred inLoop crosses FuncLit boundary FN POSTED R45).",
   "patterns": {
     "phantom_reconcile": "gh api sergo issues BEFORE strategy + grep CODE for fix (team rarely auto-closes; landed-but-open common).",
     "registry_delta_detect": "main.go grep -c 'Analyzer' vs doc.go:3 'NN active' header = new-linter detector. R42-44: 30,31,32. doc.go drifts=#40436. New linter=fresh audit target.",
@@ -16,15 +16,16 @@
     "parent_shape_too_narrow": "#39732 uncheckedtypeassertion (gates safe form on ONE parent).",
     "map_dedup_hides_dups": "#39494 ssljson map[string]bool collapses dup keys.",
     "suppression_enforce_gap": "R44 #aw_sg44a2: 20/32 linters wire internal/nolint; threshold linters largefunc+excessivefuncparams DON'T (legit-large unsuppressable=blocks enforce); excessivefuncparams also no filecheck.IsTestFile (lone FuncDecl linter linting tests). PROBE new linters for nolint+test-skip parity.",
-    "enforce_readiness": "grep prod for pattern->TP sites=enforce issue."
+    "enforce_readiness": "grep prod for pattern->TP sites=enforce issue.",
+    "scope_boundary_funclit": "R45 #aw_sg45a1 wgdonenotdeferred: manual ancestor/stack walk for For/Range loop membership WITHOUT breaking at FuncLit => Done() in goroutine-launched-in-loop wrongly treated in-loop+suppressed (FN on canonical fan-out). CORRECT ref=deferinloop cur.Enclosing(For,Range,FuncLit)+break FuncLit. PROBE any linter walking ancestors for loop/scope without FuncLit boundary."
   },
   "ci_enforce_14": "cgo.yml LINTER_FLAGS -test=false (test-skip moot in CI): errstringmatch panicinlibrarycode manualmutexunlock osexitinlibrary rawloginlib regexpcompileinfunction fprintlnsprintf strconvparseignorederror jsonmarshalignoredeerror uncheckedtypeassertion fmterrorfnoverbs tolowerequalfold httpnoctx timeafterleak. NOT-enforced probe-targets: sprintferrdot fileclose contextcancel sprintferrorsnew lenstringzero seenmapbool ossetenvlibrary errorfwrapv excessivefuncparams largefunc deferinloop errormessage.",
   "linters_R44": {
-    "registered": 32,
-    "delta": "31->32. doc.go header '30'/29bullets/omits hardcodedfilepath,sprintferrdot,sprintferrorsnew (#40436). Exact 32nd unidentifiable (shallow clone, no dates).",
+    "registered": 33,
+    "delta": "R45: 32->33. 33rd=wgdonenotdeferred (last main.go import+reg). doc.go header STILL '30' (now 30-vs-33, #40436 widens). New_pattern scope_boundary_funclit found in it (#aw_sg45a1).",
     "audited_clean_R44": "errorfwrapv(IsFmtErrorf+types.Implements(errorIface)+full %-verb/flag/width/idx parse; %w skipped; only flags error-implementing args), ossetenvlibrary(fn.Pkg().Path()=='os' type-resolved+test-skip), largefunc(per-node span, no recurse=no dup, test-skip), deferinloop(cursor.Enclosing FuncLit boundary).",
     "tolowerequalfold_refactored": "R44 detection now type-resolved collectCaseConvAliases:131 (was ident.Name=='strings'); NodeText only in fix-text. #40580 likely ADDRESSED - recheck.",
-    "next_R45": "(1) recheck landings: #40580(refactored-maybe-fixed), #40243/#40435(R44 still syntactic), #40244/#39982/#40434/#40581/#aw_sg44a1-2. (2) ID 32nd; watch 33rd. (3) fresh: errormessage(changed-files; CHECK its {FuncDecl,FuncLit}+recurse for double_traversal_dup), execcommandwithoutcontext, strconvparse(bare ExprStmt?), hardcodedfilepath recheck. (4) suppression parity audit across 12 non-enforced. (5) pattern_set: httpnoctx(all client methods?). Prefer single-file precision; 2 issues/run."
+    "next_R46": "(1) recheck landings: #40580(tolowerequalfold), #40243/#40435(syntactic holdouts), #40244/#39982/#40434/#40581, #40733/#40734(R44), #aw_sg45a1(wgdonenotdeferred FuncLit-boundary). (2) DELTA 32->33 done(wgdonenotdeferred); watch 34th via grep -c Analyzer vs 33. (3) RESOLVED R45: httpnoctx COMPLETE(4/4)=no gap; errormessage CLEAN(CallExpr Preorder); strconvparse bare-ExprStmt FN low-value(pure). fresh-probe REMAINING: execcommandwithoutcontext, hardcodedfilepath recheck, manualmutexunlock, panicinlibrarycode, wgdonenotdeferred-NOW-audited. (4) NEW pattern scope_boundary_funclit: probe any linter doing manual ancestor/stack walk for For/Range/loop WITHOUT FuncLit break (wgdonenotdeferred had it; deferinloop correct ref). (5) suppression parity audit across non-enforced. Prefer single-file precision; 1-2 issues/run."
   },
   "repo_context": "pkg/: ~937 prod .go (947 incl test). 32 analyzers cmd/linters/main.go:55-86. astutil.IsPkgSelector(astutil.go:75-94)=canonical pkg-identity; internal/nolint=per-line suppress (20/32 wire); internal/filecheck.IsTestFile=test-skip. Linters in pkg/linters/. Issue flow: Write JSON /tmp/gh-aw/agent/issueN.json, `safeoutputs create_issue . < file`; labels['sergo']+temporary_id aw_sg44aN. Dedup `gh api ...issues?labels=sergo --jq` (gh issue list --search BROKEN). Bash blocks: go build, /tmp ls/cat/mkdir, multi-stmt, $var loops, grep|grep. Repo-memory: Glob/Read/Write/Edit ONLY. MEMORY 10KB TOTAL PATCH: surgical edits + append-only strategies, avoid full-rewriting both JSONs same run."
 }
