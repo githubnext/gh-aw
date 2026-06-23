@@ -72,7 +72,7 @@ function getAgentName(assignee) {
 
 /**
  * Return list of coding agent bot login names that are currently available as assignable actors
- * (intersection of suggestedActors and known AGENT_LOGIN_NAMES values)
+ * in this repository, as determined by checkUserCanBeAssigned.
  * @param {string} owner
  * @param {string} repo
  * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
@@ -112,6 +112,7 @@ async function getAssignableBots(owner, repo, githubClient = github) {
     const assignees = [];
     let page = 1;
     let pageData = [];
+    const MAX_PAGES = 5;
 
     do {
       const response = await githubClient.rest.issues.listAssignees({
@@ -123,7 +124,7 @@ async function getAssignableBots(owner, repo, githubClient = github) {
       pageData = Array.isArray(response.data) ? response.data : [];
       assignees.push(...pageData);
       page++;
-    } while (pageData.length === 100);
+    } while (pageData.length === 100 && page <= MAX_PAGES);
 
     return [
       ...new Set(
@@ -165,12 +166,9 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
         repo,
         assignee: loginName,
       });
-      const { data: agentUser } = await githubClient.rest.users.getByUsername({ username: loginName });
-      core.info(`Resolved ${agentName} agent via assignee alias ${loginName}`);
-      return String(agentUser.id);
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      const status = error?.status;
+    } catch (checkError) {
+      const errorMessage = getErrorMessage(checkError);
+      const status = checkError?.status;
       const statusLabel = status ? ` (${status})` : "";
       aliasFailures.push(`${loginName}${statusLabel}: ${errorMessage}`);
       if (
@@ -181,23 +179,26 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
         errorMessage.includes("requires authentication")
       ) {
         core.error(`Failed to check assignee alias ${loginName} for ${agentName}: ${errorMessage}`);
-        throw error;
+        throw checkError;
       }
       core.info(`Assignee alias ${loginName} was not assignable: ${errorMessage}`);
+      continue;
+    }
+    // Alias confirmed assignable — resolve the user ID separately
+    try {
+      const { data: agentUser } = await githubClient.rest.users.getByUsername({ username: loginName });
+      core.info(`Resolved ${agentName} agent via assignee alias ${loginName}`);
+      return String(agentUser.id);
+    } catch (lookupError) {
+      core.warning(`Alias ${loginName} is assignable but user lookup failed: ${getErrorMessage(lookupError)}`);
     }
   }
 
-  const available = await getAvailableAgentLogins(owner, repo, githubClient);
   const bots = await getAssignableBots(owner, repo, githubClient);
   core.warning(`${agentName} coding agent aliases are not available as assignees for this repository`);
   core.info(`Assignee aliases tried: ${loginNames.join(", ")}`);
   if (aliasFailures.length > 0) {
     core.info(`Alias lookup results: ${aliasFailures.join(" | ")}`);
-  }
-  if (available.length > 0) {
-    core.info(`Available assignable coding agents: ${available.join(", ")}`);
-  } else {
-    core.info("No known coding agent aliases are currently assignable in this repository.");
   }
   if (bots.length > 0) {
     core.info(`Assignable bots in this repository: ${bots.join(", ")}`);
@@ -537,11 +538,7 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
     core.info(`Looking for ${agentName} coding agent...`);
     const agentId = await findAgent(owner, repo, agentName);
     if (!agentId) {
-      const error = `${agentName} coding agent is not available for this repository`;
-      // Enrich with available agent logins
-      const available = await getAvailableAgentLogins(owner, repo);
-      const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
-      return { success: false, error: enrichedError };
+      return { success: false, error: `${agentName} coding agent is not available for this repository` };
     }
     core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
 
