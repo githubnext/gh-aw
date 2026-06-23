@@ -55,6 +55,8 @@ function parseFirewallLogs() {
     requests_by_domain: {},
   };
 
+  // The sandbox firewall logs may be emitted in nested directories (for example,
+  // api-proxy-logs/*.log), so these patterns are intentionally recursive.
   const firewallPaths = ["/tmp/gh-aw/sandbox/firewall/logs/**/*.log", "/tmp/gh-aw/threat-detection/sandbox/firewall/logs/**/*.log", "/tmp/gh-aw/squid-logs-*/*.log", "/tmp/gh-aw/threat-detection/squid-logs-*/*.log"];
 
   for (const pattern of firewallPaths) {
@@ -128,10 +130,10 @@ function parseFirewallLogs() {
     return null;
   }
 
-  const validDomain = domain => domain !== "-" && !domain.startsWith("error:");
+  const validDomainKey = domain => domain !== "-" && !domain.startsWith("error:");
   const requestsByDomain = {};
   for (const [domain, stats] of Object.entries(firewall.requests_by_domain)) {
-    if (!validDomain(domain)) {
+    if (!validDomainKey(domain)) {
       continue;
     }
     requestsByDomain[domain] = stats;
@@ -141,8 +143,8 @@ function parseFirewallLogs() {
     total_requests: firewall.total_requests,
     allowed_requests: firewall.allowed_requests,
     blocked_requests: firewall.blocked_requests,
-    allowed_domains: Array.from(firewall.allowed_domains).filter(validDomain).sort(),
-    blocked_domains: Array.from(firewall.blocked_domains).filter(validDomain).sort(),
+    allowed_domains: Array.from(firewall.allowed_domains).filter(validDomainKey).sort(),
+    blocked_domains: Array.from(firewall.blocked_domains).filter(validDomainKey).sort(),
     requests_by_domain: requestsByDomain,
   };
 }
