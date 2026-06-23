@@ -1,25 +1,15 @@
 {
-  "run_date": "2026-06-23T07:33:11Z",
-  "run_id": "28009874414",
-  "previous_run_id": "27995232884",
-  "previous_run_date": "2026-06-23T01:14:26Z",
+  "run_date": "2026-06-23T13:17:53Z",
+  "run_id": "28028928593",
+  "previous_run_id": "28009874414",
+  "previous_run_date": "2026-06-23T07:33:11Z",
   "fork_prs": 0,
-  "agent_prs_found": 4,
-  "copilot_swe_agent_prs": 3,
-  "github_actions_prs": 1,
+  "agent_prs_found": 2,
+  "copilot_swe_agent_prs": 2,
+  "github_actions_prs": 0,
   "prs_triaged": 0,
   "fork_only_policy": true,
   "open_agent_prs": [
-    {
-      "number": 40973,
-      "title": "Handle staged create_pull_request policy denials as previews",
-      "author": "Copilot",
-      "is_fork": false,
-      "draft": true,
-      "labels": [],
-      "created_at": "2026-06-23T06:10:40Z",
-      "updated_at": "2026-06-23T06:24:35Z"
-    },
     {
       "number": 40954,
       "title": "Fix external detection job setup for codex and pi workflows",
@@ -29,16 +19,6 @@
       "labels": ["smoke-claude", "needs-review", "smoke-copilot-aoai-apikey"],
       "created_at": "2026-06-23T05:20:35Z",
       "updated_at": "2026-06-23T06:47:31Z"
-    },
-    {
-      "number": 40951,
-      "title": "[jsweep] Clean validate_memory_files.cjs",
-      "author": "github-actions[bot]",
-      "is_fork": false,
-      "draft": false,
-      "labels": ["automation", "unbloat"],
-      "created_at": "2026-06-23T05:14:20Z",
-      "updated_at": "2026-06-23T07:21:01Z"
     },
     {
       "number": 40930,
@@ -51,13 +31,12 @@
       "updated_at": "2026-06-23T06:55:48Z"
     }
   ],
-  "new_since_last_run": [40973, 40954, 40951, 40930],
-  "closed_since_last_run": [40906, 40903, 40902, 40897, 40887, 40884, 40883, 40882, 40880, 40877, 40423],
+  "closed_since_last_run": [40973],
   "statistics": {
-    "total_open_agent_prs": 4,
-    "copilot_prs": 3,
-    "github_actions_prs": 1,
+    "total_open_agent_prs": 2,
+    "copilot_prs": 2,
+    "github_actions_prs": 0,
     "fork_prs_eligible": 0
   },
-  "notes": "4 open agent PRs (3 Copilot, 1 github-actions[bot]). All same-repo branches (is_fork=false). Fork-only triage policy: 0 PRs eligible. 11 PRs from previous run were closed/merged. Run [§28009874414](https://github.com/github/gh-aw/actions/runs/28009874414)."
+  "notes": "2 open Copilot PRs (#40954, #40930). All same-repo branches (is_fork=false). Fork-only triage policy: 0 PRs eligible. PR #40973 closed since last run. Run [§28028928593](https://github.com/github/gh-aw/actions/runs/28028928593)."
 }
