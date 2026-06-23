@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -19,7 +20,7 @@ func writeJSONStringMapEntries(yaml *strings.Builder, values map[string]string, 
 func mustMarshalJSONString(value string) string {
 	encoded, err := json.Marshal(value)
 	if err != nil {
-		panic(err)
+		return strconv.Quote(value)
 	}
 	return string(encoded)
 }
