@@ -291,10 +291,11 @@ async function fetchMCPTools(serverUrl, apiKey, core, options = {}) {
         if ("tools" in result && Array.isArray(result.tools)) {
           lastTools = /** @type {Array<{name: string, description?: string, inputSchema?: unknown}>} */ result.tools;
           const missingExpected = getMissingExpectedTools(expectedTools, lastTools);
-          if (missingExpected.length === 0 || attempt === maxAttempts) {
-            if (missingExpected.length > 0) {
-              core.warning(`  tools/list for ${serverUrl} is still missing expected tools after ${attempt} attempt(s): ${missingExpected.join(", ")}`);
-            }
+          if (missingExpected.length === 0) {
+            return lastTools;
+          }
+          if (attempt === maxAttempts) {
+            core.warning(`  tools/list for ${serverUrl} is still missing expected tools after ${attempt} attempt(s): ${missingExpected.join(", ")}`);
             return lastTools;
           }
           core.info(`  tools/list for ${serverUrl} is missing ${missingExpected.length} expected tool(s) on attempt ${attempt}/${maxAttempts}; retrying: ${missingExpected.join(", ")}`);

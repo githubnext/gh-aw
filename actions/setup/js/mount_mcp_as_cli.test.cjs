@@ -44,7 +44,12 @@ describe("mount_mcp_as_cli.cjs", () => {
   });
 
   it("retries tools/list until expected tools appear", async () => {
-    const core = { info: () => {}, warning: () => {} };
+    const info = [];
+    const warning = [];
+    const core = {
+      info: message => info.push(message),
+      warning: message => warning.push(message),
+    };
     let listAttempt = 0;
     const httpPostJSON = async (_url, _headers, body) => {
       const method = /** @type {{ method?: string }} */ body.method;
@@ -70,5 +75,7 @@ describe("mount_mcp_as_cli.cjs", () => {
 
     expect(listAttempt).toBe(2);
     expect(tools.map(tool => tool.name)).toEqual(["list_datasources", "tempo_traceql-search", "tempo_get-trace"]);
+    expect(info).toContainEqual(expect.stringContaining("retrying: tempo_traceql-search, tempo_get-trace"));
+    expect(warning).toEqual([]);
   });
 });

@@ -280,8 +280,7 @@ async function warmConfiguredServerTools(gatewayOutput, apiKey) {
 
   const servers = /** @type {Record<string, Record<string, unknown>>} */ rawServers;
   for (const [serverName, serverConfig] of Object.entries(servers)) {
-    const serverUrl = typeof serverConfig.url === "string" ? serverConfig.url : "";
-    const expectedTools = Array.isArray(serverConfig.tools) ? serverConfig.tools.filter(name => typeof name === "string" && name) : [];
+    const { serverUrl, expectedTools } = getConfiguredToolWarmupTarget(serverConfig);
     if (!serverUrl || expectedTools.length === 0) {
       continue;
     }
@@ -293,6 +292,19 @@ async function warmConfiguredServerTools(gatewayOutput, apiKey) {
       retryDelayMs: 2000,
     });
   }
+}
+
+/**
+ * Extract the server URL and configured tool allowlist from a gateway server entry.
+ *
+ * @param {Record<string, unknown>} serverConfig
+ * @returns {{ serverUrl: string, expectedTools: string[] }}
+ */
+function getConfiguredToolWarmupTarget(serverConfig) {
+  return {
+    serverUrl: typeof serverConfig.url === "string" ? serverConfig.url : "",
+    expectedTools: Array.isArray(serverConfig.tools) ? serverConfig.tools.filter(name => typeof name === "string" && name) : [],
+  };
 }
 
 // ---------------------------------------------------------------------------
