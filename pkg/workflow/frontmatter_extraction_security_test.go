@@ -39,6 +39,21 @@ func TestExtractAgentSandboxConfigPlatform(t *testing.T) {
 	})
 }
 
+func TestExtractAgentSandboxConfigNetworkIsolation(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("extracts sandbox.agent.network-isolation from object format", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id":                "awf",
+			"network-isolation": true,
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.True(t, config.NetworkIsolation, "Should extract sandbox.agent.network-isolation")
+	})
+}
+
 func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 	compiler := &Compiler{}
 

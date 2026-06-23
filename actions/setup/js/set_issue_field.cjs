@@ -12,6 +12,7 @@ const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { parseAllowedIssueFields, validateAllowedIssueFieldName } = require("./allowed_issue_fields.cjs");
 const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
+const { hasIssueIntentsRuntimeFeature, normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "set_issue_field";
@@ -155,7 +156,7 @@ function buildFieldUpdatePayload(field, rawValue) {
  * Sets one issue field via GraphQL mutation.
  * @param {Object} githubClient - Authenticated GitHub client
  * @param {string} issueNodeId - GraphQL node ID of the issue
- * @param {{fieldId: string, singleSelectOptionId?: string, numberValue?: number, dateValue?: string, textValue?: string}} fieldUpdate
+ * @param {{fieldId: string, singleSelectOptionId?: string, numberValue?: number, dateValue?: string, textValue?: string, rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean}} fieldUpdate
  * @returns {Promise<void>}
  */
 async function setIssueFieldValue(githubClient, issueNodeId, fieldUpdate) {
@@ -347,6 +348,10 @@ async function main(config = {}) {
         fieldId: fieldNodeId,
         ...fieldUpdateResult.update,
       };
+
+      if (hasIssueIntentsRuntimeFeature()) {
+        Object.assign(fieldUpdate, normalizeIssueIntentMetadata(item));
+      }
 
       await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate);
 

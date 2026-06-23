@@ -107,6 +107,29 @@ describe("remove_labels", () => {
       expect(removeLabelCalls[1].name).toBe("enhancement");
     });
 
+    it("should accept structured label entries and remove normalized label names", async () => {
+      const handler = await main({ max: 10 });
+      const removeLabelCalls = [];
+
+      mockGithub.rest.issues.removeLabel = async params => {
+        removeLabelCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug", rationale: "No longer needed", confidence: "medium" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(456);
+      expect(removeLabelCalls).toHaveLength(1);
+      expect(removeLabelCalls[0].name).toBe("bug");
+    });
+
     it("should accept issue_number as an alias for item_number", async () => {
       const handler = await main({ max: 10 });
       const removeLabelCalls = [];

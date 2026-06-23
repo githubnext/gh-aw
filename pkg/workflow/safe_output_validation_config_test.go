@@ -264,19 +264,75 @@ func TestUpdatePullRequestValidationConfig(t *testing.T) {
 	}
 }
 
+func TestUpdateIssueValidationConfig(t *testing.T) {
+	config, ok := ValidationConfig["update_issue"]
+	if !ok {
+		t.Fatal("update_issue not found in ValidationConfig")
+	}
+
+	if config.CustomValidation != "requiresOneOf:status,title,body,labels,assignees,milestone" {
+		t.Errorf("update_issue customValidation = %q, want %q", config.CustomValidation, "requiresOneOf:status,title,body,labels,assignees,milestone")
+	}
+
+	if _, ok := config.Fields["labels"]; !ok {
+		t.Error("update_issue Fields is missing the 'labels' field")
+	}
+}
+
+func TestIssueIntentValidationFields(t *testing.T) {
+	for _, typeName := range []string{"set_issue_type", "set_issue_field"} {
+		config, ok := ValidationConfig[typeName]
+		if !ok {
+			t.Fatalf("%s not found in ValidationConfig", typeName)
+		}
+
+		if _, ok := config.Fields["rationale"]; !ok {
+			t.Fatalf("%s Fields is missing 'rationale'", typeName)
+		}
+		if _, ok := config.Fields["confidence"]; !ok {
+			t.Fatalf("%s Fields is missing 'confidence'", typeName)
+		}
+		if _, ok := config.Fields["suggest"]; !ok {
+			t.Fatalf("%s Fields is missing 'suggest'", typeName)
+		}
+
+		confidence := config.Fields["confidence"]
+		if len(confidence.Enum) != 3 || confidence.Enum[0] != "LOW" || confidence.Enum[1] != "MEDIUM" || confidence.Enum[2] != "HIGH" {
+			t.Fatalf("%s confidence enum = %v, want [LOW MEDIUM HIGH]", typeName, confidence.Enum)
+		}
+	}
+}
+
+func TestIssueIntentLabelValidationFields(t *testing.T) {
+	for _, typeName := range []string{"add_labels", "remove_labels", "update_issue"} {
+		config, ok := ValidationConfig[typeName]
+		if !ok {
+			t.Fatalf("%s not found in ValidationConfig", typeName)
+		}
+
+		labels, ok := config.Fields["labels"]
+		if !ok {
+			t.Fatalf("%s Fields is missing 'labels'", typeName)
+		}
+		if labels.Type != "array" {
+			t.Fatalf("%s labels type = %q, want %q", typeName, labels.Type, "array")
+		}
+	}
+}
+
 func TestValidationConfigConsistency(t *testing.T) {
 	// Verify that all types with customValidation have valid validation rules
 	validCustomValidations := map[string]bool{
-		"requiresOneOf:status,title,body":                true,
-		"requiresOneOf:title,body":                       true,
-		"requiresOneOf:title,body,update_branch":         true,
-		"requiresOneOf:title,body,labels":                true,
-		"requiresOneOf:issue_number,pull_number":         true,
-		"requiresOneOf:milestone_number,milestone_title": true,
-		"requiresOneOf:field_name,field_node_id":         true,
-		"requiresOneOf:reviewers,team_reviewers":         true,
-		"startLineLessOrEqualLine":                       true,
-		"parentAndSubDifferent":                          true,
+		"requiresOneOf:status,title,body,labels,assignees,milestone": true,
+		"requiresOneOf:title,body":                                   true,
+		"requiresOneOf:title,body,update_branch":                     true,
+		"requiresOneOf:title,body,labels":                            true,
+		"requiresOneOf:issue_number,pull_number":                     true,
+		"requiresOneOf:milestone_number,milestone_title":             true,
+		"requiresOneOf:field_name,field_node_id":                     true,
+		"requiresOneOf:reviewers,team_reviewers":                     true,
+		"startLineLessOrEqualLine":                                   true,
+		"parentAndSubDifferent":                                      true,
 	}
 
 	for typeName, config := range ValidationConfig {

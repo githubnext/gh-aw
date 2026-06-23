@@ -594,6 +594,8 @@ func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatew
 	if domain == "" {
 		if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
 			domain = "localhost"
+		} else if isAWFNetworkIsolationEnabled(workflowData) {
+			domain = "awmg-mcpg"
 		} else {
 			domain = "host.docker.internal"
 		}
@@ -640,9 +642,10 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
 	// MCP_GATEWAY_HOST_DOMAIN is the domain used by host-side clients (e.g. Gemini CLI).
 	// When MCP_GATEWAY_DOMAIN is host.docker.internal (only reachable from containers),
-	// use localhost instead; otherwise inherit the configured domain as-is.
+	// or when network isolation is active (gateway on bridge; host reaches it via the
+	// published 127.0.0.1 port), use localhost instead; otherwise inherit the domain.
 	hostDomain := domain
-	if domain == "host.docker.internal" {
+	if domain == "host.docker.internal" || isAWFNetworkIsolationEnabled(workflowData) {
 		hostDomain = "localhost"
 	}
 	yaml.WriteString("          export MCP_GATEWAY_HOST_DOMAIN=\"" + hostDomain + "\"\n")
@@ -716,9 +719,19 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	// appendMCPGatewayBaseEnvFlags alone write ~2KB of -e flags; allocating
 	// 2048 bytes upfront covers the common case without overcommitting.
 	containerCmd.Grow(2048)
-	containerCmd.WriteString("docker run -i --rm --network host")
+	containerCmd.WriteString("docker run -i --rm")
+	if isAWFNetworkIsolationEnabled(workflowData) {
+		containerCmd.WriteString(" --network bridge")
+		// Publish the gateway port to the host so host-side clients (e.g. Gemini CLI)
+		// can reach the gateway at localhost:${MCP_GATEWAY_PORT}.
+		containerCmd.WriteString(" -p 127.0.0.1:${MCP_GATEWAY_PORT}:${MCP_GATEWAY_PORT}")
+	} else {
+		containerCmd.WriteString(" --network host")
+	}
 	containerCmd.WriteString(" --name awmg-mcpg")
-	containerCmd.WriteString(" --add-host host.docker.internal:127.0.0.1")
+	if !isAWFNetworkIsolationEnabled(workflowData) {
+		containerCmd.WriteString(" --add-host host.docker.internal:127.0.0.1")
+	}
 	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")
 	containerCmd.WriteString(" --group-add ${DOCKER_SOCK_GID}")
 	containerCmd.WriteString(" -v ${DOCKER_SOCK_PATH}:/var/run/docker.sock")

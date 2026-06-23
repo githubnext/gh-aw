@@ -113,6 +113,29 @@ describe("add_labels", () => {
       expect(addLabelsCalls[0].labels).toEqual(["bug", "enhancement"]);
     });
 
+    it("should accept structured label entries and add normalized label names", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug", rationale: "Known crash path", confidence: "high", suggest: true }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(456);
+      expect(addLabelsCalls).toHaveLength(1);
+      expect(addLabelsCalls[0].labels).toEqual(["bug"]);
+    });
+
     it("should accept issue_number as an alias for item_number", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];

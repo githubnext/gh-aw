@@ -9,8 +9,6 @@ Expert Architecture Decision Record (ADR) writer. Follow the **Michael Nygard AD
 
 ## ADR Philosophy
 
-ADRs are permanent records of significant technical decisions: *"Why does the codebase look the way it does?"*
-
 - **Immutable once accepted** — never deleted; superseded ones marked "Superseded by ADR-XXXX"
 - **Decision-focused** — capture *why*, not just *what*
 - **Honest about trade-offs** — include real negatives and costs
@@ -18,19 +16,9 @@ ADRs are permanent records of significant technical decisions: *"Why does the co
 
 ## Storage Convention
 
-ADRs live in `docs/adr/` as sequentially numbered Markdown files:
+`docs/adr/NNNN-kebab-case-title.md` — `NNNN` is zero-padded 4 digits, lowercase kebab-case title, hyphens only.
 
-```
-docs/adr/
-  0001-use-postgresql-for-primary-storage.md
-  0002-adopt-hexagonal-architecture.md
-  0003-switch-from-rest-to-graphql.md
-```
-
-**Filename format**: `NNNN-kebab-case-title.md`
-- `NNNN` zero-padded 4 digits (e.g., `0001`, `0042`)
-- Lowercase kebab-case title
-- Only hyphens as separators
+Example: `docs/adr/0001-use-postgresql-for-primary-storage.md`
 
 ## ADR Template
 
@@ -45,23 +33,23 @@ docs/adr/
 
 ### Context
 
-{Describe the situation, problem, and forces at play in plain language. What is the issue that motivated this decision? What constraints exist? What are the non-negotiable requirements? Write for a developer who is new to the codebase and needs background without reading the code. Keep this to 3–5 sentences.}
+{Situation, problem, constraints, non-negotiable requirements. Write for a developer new to the codebase. 3–5 sentences.}
 
 ### Decision
 
-{State the decision clearly using active voice. Start with "We will..." or "We decided to...". Explain the primary rationale in 2–4 sentences. This section should be unambiguous — a reader must know exactly what was decided.}
+{Active voice: "We will..." or "We decided to...". Primary rationale. 2–4 sentences, unambiguous.}
 
 ### Alternatives Considered
 
 #### Alternative 1: {Name}
 
-{Description of the alternative. Why was it considered? Why was it not chosen? Be honest — if it was a close call, say so.}
+{What, why considered, why not chosen. Be honest if it was a close call.}
 
 #### Alternative 2: {Name}
 
-{Description of the alternative. Why was it considered? Why was it not chosen?}
+{What, why considered, why not chosen.}
 
-*(Add more alternatives as needed. Minimum 2 alternatives for non-trivial decisions.)*
+*(Minimum 2 alternatives for non-trivial decisions.)*
 
 ### Consequences
 
@@ -95,24 +83,18 @@ docs/adr/
 ## Writing Quality Standards
 
 #### Context (3–5 sentences)
-- *What problem? What constraints?* (technical, organizational, timeline)
-- Codebase state at decision time
-- Problem space, not implementation
+- Problem and constraints (technical, organizational, timeline)
+- Codebase state at decision time; problem space, not implementation
 
 #### Decision (2–4 sentences)
 - Active voice: "We will use X because Y"
-- Name the primary driver (performance, simplicity, cost, etc.)
-- Name the pattern/principle if applicable
+- Name primary driver (performance, simplicity, cost) and pattern/principle if applicable
 
 #### Alternatives Considered (2–4 sentences each)
-- **≥2 genuine alternatives** (no strawmen)
-- For each: what, why considered, why rejected
-- If close call, say so
+- **≥2 genuine alternatives** (no strawmen); for each: what, why considered, why rejected
 
 #### Consequences
-- **Positive**: real benefits
-- **Negative**: real costs and trade-offs
-- **Neutral**: side effects worth noting
+- **Positive**, **Negative**, **Neutral**: real benefits, costs, and side effects
 - ≥2 per category for non-trivial decisions
 
 ## Procedure: Writing a New ADR
@@ -123,13 +105,11 @@ docs/adr/
 ls docs/adr/*.md 2>/dev/null | grep -oP '\d{4}' | sort -n | tail -1
 ```
 
-Start at `0001` if none exist; otherwise increment.
+Start at `0001` if none; otherwise increment.
 
 ### Step 2: Derive the Filename
 
-Kebab-case the title: lowercase, hyphens for spaces/specials, drop meaningless leading articles, 3–6 words.
-
-Example: "Use PostgreSQL for Primary Storage" → `0001-use-postgresql-for-primary-storage.md`
+Kebab-case: lowercase, hyphens, drop leading articles, 3–6 words. "Use PostgreSQL for Primary Storage" → `0001-use-postgresql-for-primary-storage.md`.
 
 ### Step 3: Ensure Directory
 
@@ -139,13 +119,13 @@ mkdir -p docs/adr
 
 ### Step 4: Analyze Context
 
-- PR diff: identify implicit decisions
-- Description: clarify decision and rationale
+- PR diff: implicit decisions
+- Description: decision and rationale
 - Updating: read current version first
 
 ### Step 5: Write the ADR
 
-Apply the template strictly. Fill every section. No placeholder text — mark unknowns `[TODO: verify]`.
+Apply template strictly. Fill every section. Mark unknowns `[TODO: verify]`.
 
 ### Step 6: Save
 
@@ -179,13 +159,9 @@ For each: what problem? what alternatives? what consequences?
 
 1. Read the ADR **Decision** — extract commitments
 2. Check code for conformance/deviation
-3. Note **divergences**: code contradicts decision
-4. Note **scope creep**: significant decisions in code not covered
+3. Note **divergences** (code contradicts decision) and **scope creep** (significant code decisions not covered)
 
-Return:
-- **Aligned**: code implements the ADR
-- **Partially aligned**: minor divergences
-- **Divergent**: significant contradictions
+Return: **Aligned** (code implements ADR), **Partially aligned** (minor divergences), or **Divergent** (significant contradictions).
 
 ## Examples of ADR-Worthy Decisions
 

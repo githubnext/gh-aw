@@ -13,7 +13,7 @@
  *   issue_number?: number|string,
  *   pr_number?: number|string,
  *   pull_number?: number|string,
- *   labels?: string[],
+ *   labels?: Array<string|{name: string, rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean}>,
  *   repo?: string
  * }} AddLabelsMessage
  */
@@ -33,6 +33,7 @@ const { MAX_LABELS } = require("./constants.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
+const { normalizeIssueIntentLabelNames } = require("./issue_intents.cjs");
 
 /**
  * Main handler factory for add_labels
@@ -91,6 +92,14 @@ const main = createCountGatedHandler({
       const contextType = effectiveContext.eventPayload?.pull_request ? "pull request" : "issue";
       const requestedLabels = message.labels ?? [];
       core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
+      let requestedLabelNames;
+      try {
+        requestedLabelNames = normalizeIssueIntentLabelNames(requestedLabels);
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        core.warning(`Invalid add_labels payload: ${errorMessage}`);
+        return { success: false, error: errorMessage };
+      }
 
       // Apply required-labels and required-title-prefix filters
       if (requiredLabels.length > 0 || requiredTitlePrefix) {
@@ -113,7 +122,7 @@ const main = createCountGatedHandler({
       }
 
       // If no labels provided, return a helpful message with allowed labels if configured
-      if (requestedLabels.length === 0) {
+      if (requestedLabelNames.length === 0) {
         const labelSource = allowedLabels.length > 0 ? `the allowed list: ${JSON.stringify(allowedLabels)}` : "the repository's available labels";
         const error = `No labels provided. Please provide at least one label from ${labelSource}`;
         core.info(error);
@@ -121,14 +130,14 @@ const main = createCountGatedHandler({
       }
 
       // Enforce max limits on labels before validation
-      const limitResult = tryEnforceArrayLimit(requestedLabels, MAX_LABELS, "labels");
+      const limitResult = tryEnforceArrayLimit(requestedLabelNames, MAX_LABELS, "labels");
       if (!limitResult.success) {
         core.warning(`Label limit exceeded: ${limitResult.error}`);
         return { success: false, error: limitResult.error };
       }
 
       // Use validation helper to sanitize and validate labels
-      const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount, blockedPatterns);
+      const labelsResult = validateLabels(requestedLabelNames, allowedLabels, maxCount, blockedPatterns);
 
       if (!labelsResult.valid) {
         // If no valid labels, log info and return gracefully

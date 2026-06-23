@@ -890,34 +890,37 @@ func getThreatDetectionAdditionalAllowedDomains(data *WorkflowData) []string {
 // getThreatDetectionEngineID returns the effective engine ID for the detection job.
 // It mirrors threat-detection engine resolution: threat-detection.engine overrides main engine.
 func (c *Compiler) getThreatDetectionEngineID(data *WorkflowData) string {
+	var engineID string
+
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
 		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
 		data.SafeOutputs.ThreatDetection.EngineConfig.ID != "" {
-		return data.SafeOutputs.ThreatDetection.EngineConfig.ID
+		engineID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
+	} else {
+		engineID = data.AI
+		if engineID == "" && data.EngineConfig != nil && data.EngineConfig.ID != "" {
+			engineID = data.EngineConfig.ID
+		}
 	}
 
-	mainEngineID := data.AI
-	if mainEngineID == "" && data.EngineConfig != nil && data.EngineConfig.ID != "" {
-		mainEngineID = data.EngineConfig.ID
+	if engineID == "" {
+		engineID = "claude"
 	}
 
-	if mainEngineID != "" {
-		return mainEngineID
-	}
-
-	return "claude"
-}
-
-// getExternalThreatDetectionEngineID returns the engine used by the external
-// threat-detect path. Pi workflows currently fall back to the Copilot engine
-// because threat-detect only knows how to launch the built-in gh-aw agentic
-// engines, and Pi is not one of those supported detector backends yet.
-func (c *Compiler) getExternalThreatDetectionEngineID(data *WorkflowData) string {
-	engineID := c.getThreatDetectionEngineID(data)
+	// Threat detection currently does not support the Pi engine backend.
+	// Normalize to Copilot so workflows with engine: pi still get a working detector.
 	if engineID == "pi" {
 		return "copilot"
 	}
+
 	return engineID
+}
+
+// getExternalThreatDetectionEngineID returns the engine used by the external
+// threat-detect path. Threat-detection engine resolution is centralized in
+// getThreatDetectionEngineID, including Pi -> Copilot normalization.
+func (c *Compiler) getExternalThreatDetectionEngineID(data *WorkflowData) string {
+	return c.getThreatDetectionEngineID(data)
 }
 
 func canReuseThreatDetectionEngineConfigForExternalDetector(data *WorkflowData, engineID string) bool {

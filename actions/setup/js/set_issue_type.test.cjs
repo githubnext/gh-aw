@@ -308,4 +308,41 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     // Should still resolve to the Bug type
     expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("updateIssue"), expect.objectContaining({ typeId: bugTypeId }));
   });
+
+  it("should use issueType intent metadata mutation when runtime feature is enabled", async () => {
+    process.env.GH_AW_RUNTIME_FEATURES = "issue_intents";
+
+    try {
+      const { main } = require("./set_issue_type.cjs");
+      const featureHandler = await main({ max: 5 });
+
+      const result = await featureHandler(
+        {
+          type: "set_issue_type",
+          issue_number: 42,
+          issue_type: "Bug",
+          rationale: "Author explicitly requests a bug fix",
+          confidence: "high",
+          suggest: true,
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockGraphql).toHaveBeenCalledWith(
+        expect.stringContaining("issueType: $issueType"),
+        expect.objectContaining({
+          issueId: issueNodeId,
+          issueType: {
+            issueTypeId: bugTypeId,
+            rationale: "Author explicitly requests a bug fix",
+            confidence: "HIGH",
+            suggest: true,
+          },
+        })
+      );
+    } finally {
+      delete process.env.GH_AW_RUNTIME_FEATURES;
+    }
+  });
 });

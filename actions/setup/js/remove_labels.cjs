@@ -16,6 +16,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
+const { normalizeIssueIntentLabelNames } = require("./issue_intents.cjs");
 
 /**
  * Main handler factory for remove_labels
@@ -82,6 +83,14 @@ const main = createCountGatedHandler({
       const contextType = effectiveContext.eventPayload?.pull_request ? "pull request" : "issue";
       const requestedLabels = message.labels ?? [];
       core.info(`Requested labels to remove: ${JSON.stringify(requestedLabels)}`);
+      let requestedLabelNames;
+      try {
+        requestedLabelNames = normalizeIssueIntentLabelNames(requestedLabels);
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        core.warning(`Invalid remove_labels payload: ${errorMessage}`);
+        return { success: false, error: errorMessage };
+      }
 
       // Apply required-labels and required-title-prefix filters
       if (requiredLabels.length > 0 || requiredTitlePrefix) {
@@ -104,7 +113,7 @@ const main = createCountGatedHandler({
       }
 
       // If no labels provided, return a helpful message with allowed labels if configured
-      if (!requestedLabels || requestedLabels.length === 0) {
+      if (!requestedLabelNames || requestedLabelNames.length === 0) {
         let errorMessage = "No labels provided. Please provide at least one label from";
         if (allowedLabels.length > 0) {
           errorMessage += ` the allowed list: ${JSON.stringify(allowedLabels)}`;
@@ -119,7 +128,7 @@ const main = createCountGatedHandler({
       }
 
       // Use validation helper to sanitize and validate labels
-      const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount, blockedPatterns);
+      const labelsResult = validateLabels(requestedLabelNames, allowedLabels, maxCount, blockedPatterns);
       if (!labelsResult.valid) {
         // If no valid labels, log info and return gracefully
         if (labelsResult.error?.includes("No valid labels")) {

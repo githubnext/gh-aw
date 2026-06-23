@@ -3257,6 +3257,10 @@
                       "enum": ["github.com", "ghes", "ghec", "ghec-self-hosted"],
                       "description": "AWF platform.type override. Declares the GitHub deployment type so AWF can apply deterministic Copilot auth behavior without relying on host heuristics. Omit to let AWF use its default host heuristic behavior."
                     },
+                    "network-isolation": {
+                      "type": "boolean",
+                      "description": "Enable AWF network topology egress mode (--network-isolation). In this mode, MCP sidecars run as bridge containers and AWF attaches them to its internal awf-net network."
+                    },
                     "command": {
                       "type": "string",
                       "x-internal": true,

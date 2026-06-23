@@ -677,10 +677,7 @@ jobs:
                   },
                   "labels": {
                     "required": true,
-                    "type": "array",
-                    "itemType": "string",
-                    "itemSanitize": true,
-                    "itemMaxLength": 128
+                    "type": "array"
                   },
                   "repo": {
                     "type": "string",
@@ -815,10 +812,7 @@ jobs:
                   },
                   "labels": {
                     "required": true,
-                    "type": "array",
-                    "itemType": "string",
-                    "itemSanitize": true,
-                    "itemMaxLength": 128
+                    "type": "array"
                   },
                   "repo": {
                     "type": "string",
@@ -860,10 +854,7 @@ jobs:
                     "issueOrPRNumber": true
                   },
                   "labels": {
-                    "type": "array",
-                    "itemType": "string",
-                    "itemSanitize": true,
-                    "itemMaxLength": 128
+                    "type": "array"
                   },
                   "milestone": {
                     "optionalPositiveInteger": true
@@ -894,7 +885,7 @@ jobs:
                     "maxLength": 128
                   }
                 },
-                "customValidation": "requiresOneOf:status,title,body"
+                "customValidation": "requiresOneOf:status,title,body,labels,assignees,milestone"
               },
               "update_pull_request": {
                 "defaultMax": 1,
