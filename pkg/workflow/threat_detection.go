@@ -281,9 +281,13 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 	// Step 1: Pull AWF container images - the detection engine runs inside AWF (firewall),
 	// so pre-pulling the containers speeds up execution and avoids on-demand pulls.
 	//
-	// For Codex detection, MCP setup generation already emits this step, so skip here
-	// to avoid duplicate step IDs/names in the detection job.
-	if c.getThreatDetectionEngineID(data) != "codex" {
+	// For the inline Codex detection path (gh-aw-detection feature disabled), MCP setup
+	// generation already emits this step via generateDownloadDockerImagesStep, so skip here
+	// to avoid duplicate step names in the detection job.
+	// For the external detector path (gh-aw-detection: true), MCP setup is not called for
+	// the detection job, so the download step must be emitted here unconditionally.
+	usingExternalDetector := isFeatureEnabled(constants.GHAWDetectionFeatureFlag, data)
+	if c.getThreatDetectionEngineID(data) != "codex" || usingExternalDetector {
 		steps = append(steps, c.buildPullAWFContainersStep(data)...)
 	}
 

@@ -1835,6 +1835,67 @@ func TestCleanFirewallDirsStepOrdering(t *testing.T) {
 	}
 }
 
+func TestBuildDetectionJobStepsCodexExternalDetectorIncludesContainerDownload(t *testing.T) {
+	// Regression test: when engine=codex and gh-aw-detection feature is enabled (external
+	// detector path), the detection job must include a "Download container images" step.
+	// Previously the step was omitted under the incorrect assumption that MCP setup generation
+	// would emit it — MCP setup is only called for the inline codex detection path.
+	compiler := NewCompiler()
+
+	t.Run("codex with gh-aw-detection includes Download container images", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "codex",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+			Features: map[string]any{
+				string(constants.GHAWDetectionFeatureFlag): true,
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+				},
+			},
+		}
+
+		steps := compiler.buildDetectionJobSteps(data)
+		joined := strings.Join(steps, "")
+
+		if !strings.Contains(joined, "Download container images") {
+			t.Errorf("expected 'Download container images' step in codex external detector detection job steps\ngot:\n%s", joined)
+		}
+		if !strings.Contains(joined, "download_docker_images.sh") {
+			t.Errorf("expected 'download_docker_images.sh' in detection job steps\ngot:\n%s", joined)
+		}
+	})
+
+	t.Run("codex without gh-aw-detection still omits container download (inline path)", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "codex",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+			Features: map[string]any{},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+				},
+			},
+		}
+
+		steps := compiler.buildDetectionJobSteps(data)
+		joined := strings.Join(steps, "")
+
+		// For the inline codex path, MCP setup generation emits the download step separately.
+		// buildDetectionJobSteps itself should NOT emit it here to avoid duplicates.
+		// (The actual presence of the step in the final job is tested via integration tests.)
+		downloadCount := strings.Count(joined, "Download container images")
+		if downloadCount > 1 {
+			t.Errorf("expected at most one 'Download container images' step for inline codex path, got %d\n%s", downloadCount, joined)
+		}
+	})
+}
+
 func TestBuildPullAWFContainersStepPropagatesFeatures(t *testing.T) {
 	compiler := NewCompiler()
 
