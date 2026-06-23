@@ -1767,6 +1767,7 @@ ${diffs}
     expect(result.success).toBe(true);
     expect(result.staged).toBe(true);
     expect(result.error).toBeUndefined();
+    expect(global.core.error).not.toHaveBeenCalled();
     expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
     expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("outside the allowed-files list"));
   });
