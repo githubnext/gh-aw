@@ -10,12 +10,24 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 
 /**
- * Map agent names to their GitHub bot login names
- * @type {Record<string, string>}
+ * Map agent names to their GitHub bot login aliases.
+ * Keep the most common/current alias first so logs have a stable primary name.
+ * @type {Record<string, string[]>}
  */
 const AGENT_LOGIN_NAMES = {
-  copilot: "copilot-swe-agent",
+  copilot: ["copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"],
 };
+
+/**
+ * Return the known GitHub login aliases for an agent.
+ * @param {string} agentName
+ * @returns {string[]}
+ */
+function getAgentLogins(agentName) {
+  const logins = AGENT_LOGIN_NAMES[agentName];
+  if (!logins) return [];
+  return [...new Set((Array.isArray(logins) ? logins : [logins]).map(login => String(login).trim()).filter(Boolean))];
+}
 
 /**
  * Check if an assignee is a known coding agent (bot)
@@ -31,6 +43,12 @@ function getAgentName(assignee) {
     return normalized;
   }
 
+  for (const [agentName] of Object.entries(AGENT_LOGIN_NAMES)) {
+    if (getAgentLogins(agentName).includes(normalized)) {
+      return agentName;
+    }
+  }
+
   return null;
 }
 
@@ -43,7 +61,7 @@ function getAgentName(assignee) {
  * @returns {Promise<string[]>}
  */
 async function getAvailableAgentLogins(owner, repo, githubClient = github) {
-  const knownValues = Object.values(AGENT_LOGIN_NAMES);
+  const knownValues = [...new Set(Object.keys(AGENT_LOGIN_NAMES).flatMap(agentName => getAgentLogins(agentName)))];
   const available = [];
   for (const login of knownValues) {
     try {
@@ -64,6 +82,45 @@ async function getAvailableAgentLogins(owner, repo, githubClient = github) {
 }
 
 /**
+ * Return assignable bot logins from the repository assignee list.
+ * @param {string} owner
+ * @param {string} repo
+ * @param {Object} [githubClient]
+ * @returns {Promise<string[]>}
+ */
+async function getAssignableBots(owner, repo, githubClient = github) {
+  try {
+    const assignees = [];
+    let page = 1;
+
+    while (true) {
+      const { data } = await githubClient.rest.issues.listAssignees({
+        owner,
+        repo,
+        per_page: 100,
+        page,
+      });
+      if (!Array.isArray(data) || data.length === 0) break;
+      assignees.push(...data);
+      if (data.length < 100) break;
+      page++;
+    }
+
+    return [
+      ...new Set(
+        assignees
+          .filter(assignee => assignee?.type === "Bot" || String(assignee?.login || "").endsWith("[bot]"))
+          .map(assignee => assignee.login)
+          .filter(Boolean)
+      ),
+    ].sort();
+  } catch (error) {
+    core.debug(`Failed to list assignable bots for ${owner}/${repo}: ${getErrorMessage(error)}`);
+    return [];
+  }
+}
+
+/**
  * Find an agent that can be assigned in the repository using REST
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
@@ -72,44 +129,65 @@ async function getAvailableAgentLogins(owner, repo, githubClient = github) {
  * @returns {Promise<string|null>} Agent ID or null if not found
  */
 async function findAgent(owner, repo, agentName, githubClient = github) {
-  const loginName = AGENT_LOGIN_NAMES[agentName];
-  if (!loginName) {
+  const loginNames = getAgentLogins(agentName);
+  if (loginNames.length === 0) {
     core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
     return null;
   }
 
-  try {
-    await githubClient.rest.issues.checkUserCanBeAssigned({
-      owner,
-      repo,
-      assignee: loginName,
-    });
-    const { data: agentUser } = await githubClient.rest.users.getByUsername({ username: loginName });
-    return String(agentUser.id);
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
-    if (
-      errorMessage.includes("Bad credentials") ||
-      errorMessage.includes("Not Authenticated") ||
-      errorMessage.includes("Resource not accessible") ||
-      errorMessage.includes("Insufficient permissions") ||
-      errorMessage.includes("requires authentication")
-    ) {
-      throw error;
+  core.info(`Trying ${agentName} assignee aliases: ${loginNames.join(", ")}`);
+
+  const aliasFailures = [];
+  for (const loginName of loginNames) {
+    try {
+      core.info(`Checking assignee alias: ${loginName}`);
+      await githubClient.rest.issues.checkUserCanBeAssigned({
+        owner,
+        repo,
+        assignee: loginName,
+      });
+      const { data: agentUser } = await githubClient.rest.users.getByUsername({ username: loginName });
+      core.info(`Resolved ${agentName} agent via assignee alias ${loginName}`);
+      return String(agentUser.id);
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      const status = error && typeof error === "object" && "status" in error ? error.status : undefined;
+      aliasFailures.push(`${loginName}${status ? ` (${status})` : ""}: ${errorMessage}`);
+      if (
+        errorMessage.includes("Bad credentials") ||
+        errorMessage.includes("Not Authenticated") ||
+        errorMessage.includes("Resource not accessible") ||
+        errorMessage.includes("Insufficient permissions") ||
+        errorMessage.includes("requires authentication")
+      ) {
+        core.error(`Failed to check assignee alias ${loginName} for ${agentName}: ${errorMessage}`);
+        throw error;
+      }
+      core.info(`Assignee alias ${loginName} was not assignable: ${errorMessage}`);
     }
-    const available = await getAvailableAgentLogins(owner, repo, githubClient);
-    core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
-    if (available.length > 0) {
-      core.info(`Available assignable coding agents: ${available.join(", ")}`);
-    } else {
-      core.info("No coding agents are currently assignable in this repository.");
-    }
-    if (agentName === "copilot") {
-      core.info("Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot");
-    }
-    return null;
   }
+
+  const available = await getAvailableAgentLogins(owner, repo, githubClient);
+  const bots = await getAssignableBots(owner, repo, githubClient);
+  core.warning(`${agentName} coding agent aliases are not available as assignees for this repository`);
+  core.info(`Assignee aliases tried: ${loginNames.join(", ")}`);
+  if (aliasFailures.length > 0) {
+    core.info(`Alias lookup results: ${aliasFailures.join(" | ")}`);
+  }
+  if (available.length > 0) {
+    core.info(`Available assignable coding agents: ${available.join(", ")}`);
+  } else {
+    core.info("No known coding agent aliases are currently assignable in this repository.");
+  }
+  if (bots.length > 0) {
+    core.info(`Assignable bots in this repository: ${bots.join(", ")}`);
+  } else {
+    core.info("No assignable bots found in this repository.");
+  }
+  if (agentName === "copilot") {
+    core.info("Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot");
+  }
+  return null;
 }
 
 /**
@@ -457,7 +535,8 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
     core.info(`Issue context: ${issueDetails.issueId}`);
 
     // Check if agent is already assigned
-    if (issueDetails.currentAssignees.some(a => a.id === agentId || a.login === AGENT_LOGIN_NAMES[agentName])) {
+    const knownLogins = getAgentLogins(agentName);
+    if (issueDetails.currentAssignees.some(a => a.id === agentId || knownLogins.includes(a.login))) {
       core.info(`${agentName} is already assigned to issue #${issueNumber}`);
       return { success: true };
     }
@@ -481,7 +560,9 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
 module.exports = {
   AGENT_LOGIN_NAMES,
   getAgentName,
+  getAgentLogins,
   getAvailableAgentLogins,
+  getAssignableBots,
   findAgent,
   getIssueDetails,
   getPullRequestDetails,
