@@ -31,8 +31,7 @@ function normalizeLogin(login) {
  * Reverse lookup of assignee aliases to canonical agent names.
  * @type {Record<string, string>}
  */
-const AGENT_NAME_BY_LOGIN_ENTRIES = Object.entries(AGENT_LOGIN_NAMES).flatMap(([agentName, logins]) => logins.map(login => [normalizeLogin(login), agentName]));
-const AGENT_NAME_BY_LOGIN = Object.fromEntries(AGENT_NAME_BY_LOGIN_ENTRIES);
+const AGENT_NAME_BY_LOGIN = Object.fromEntries(Object.entries(AGENT_LOGIN_NAMES).flatMap(([agentName, logins]) => logins.map(login => [normalizeLogin(login), agentName])));
 
 /**
  * GitHub can surface bots either via type="Bot" or a [bot] login suffix.
@@ -52,7 +51,7 @@ function isBotAssignee(assignee) {
 function getAgentLogins(agentName) {
   const logins = AGENT_LOGIN_NAMES[agentName];
   if (!logins) return [];
-  return [...logins];
+  return logins;
 }
 
 /**
@@ -80,7 +79,7 @@ function getAgentName(assignee) {
  * @returns {Promise<string[]>}
  */
 async function getAvailableAgentLogins(owner, repo, githubClient = github) {
-  const knownValues = [...new Set(Object.keys(AGENT_LOGIN_NAMES).flatMap(agentName => getAgentLogins(agentName)))];
+  const knownValues = [...new Set(Object.values(AGENT_LOGIN_NAMES).flat())];
   const available = [];
   for (const login of knownValues) {
     try {
