@@ -897,11 +897,10 @@ func (c *Compiler) getThreatDetectionEngineID(data *WorkflowData) string {
 		data.SafeOutputs.ThreatDetection.EngineConfig.ID != "" {
 		engineID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
 	} else {
-		mainEngineID := data.AI
-		if mainEngineID == "" && data.EngineConfig != nil && data.EngineConfig.ID != "" {
-			mainEngineID = data.EngineConfig.ID
+		engineID = data.AI
+		if engineID == "" && data.EngineConfig != nil && data.EngineConfig.ID != "" {
+			engineID = data.EngineConfig.ID
 		}
-		engineID = mainEngineID
 	}
 
 	if engineID == "" {
