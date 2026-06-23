@@ -2970,11 +2970,11 @@ This section provides complete definitions for all remaining safe output types. 
 **Operational Semantics**:
 
 1. **Repository/PR Resolution**: Resolves target repository and pull request from context or explicit input.
-2. **Mergeability Check**: Validates pull request is mergeable and not draft/conflicted.
-3. **Policy Gates**: Enforces required checks, review decision, unresolved review thread gating, label constraints, and source branch constraints.
-4. **Base Branch Protection**: Refuses merges when the target base branch is protected or is the repository default branch.
-5. **Target Branch Open PR**: Refuses merges when the target base branch does not have an associated open pull request (i.e. no open PR exists with that branch as its head/source branch).
-6. **Idempotency**: Returns success when the pull request is already merged.
+2. **Idempotency**: Returns success immediately when the pull request is already merged; no further gates are evaluated.
+3. **Mergeability Check**: Validates pull request is mergeable and not draft/conflicted.
+4. **Policy Gates**: Enforces required checks, review decision, unresolved review thread gating, label constraints, and source branch constraints.
+5. **Base Branch Protection**: Refuses merges when the target base branch is protected or is the repository default branch.
+6. **Target Branch Open PR**: When the target base branch is neither protected nor the repository default, refuses merges when that branch does not have an associated open pull request (i.e. no open PR exists with that branch as its head/source branch). This gate enforces the PR-chain model (e.g. `release/1.0 → main`) as a hard invariant; no opt-out is provided. Only intra-repository PR chains are matched — fork-sourced upstream PRs are not considered. If your workflow does not follow this model, use a custom merge step instead.
 
 **Configuration Parameters**:
 
