@@ -164,7 +164,28 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	deploymentStatusIndent := -1
 	workflowRunIndent := -1
 	// activateEventSection resets all event-section flags and then activates the selected section.
+	// It also clears every top-level on: extension-array tracker (inBotsArray, inRolesArray,
+	// inSkipIfCheckFailing, etc.) before entering the new section.  This reset is required
+	// because each activateEventSection call ends with "continue", which bypasses the
+	// indent-based deactivation logic further down the loop.  Without the explicit reset here,
+	// a stale flag from a preceding bots:/roles:/skip-if-check-failing: block would cause that
+	// section's list items (e.g. "workflow_run.workflows: - CI") to be incorrectly commented out.
 	activateEventSection := func(section string, indent int) {
+		// Clear all top-level on: extension-array state so no sibling section leaks in.
+		inSkipRolesArray = false
+		inSkipBotsArray = false
+		inRolesArray = false
+		inBotsArray = false
+		inLabelsArray = false
+		inNeedsArray = false
+		// These trackers share the same exit-check-ordering issue: their deactivation
+		// logic runs after the "continue" that terminates each activateEventSection call,
+		// so they must also be reset here explicitly.
+		inSkipIfMatch = false
+		inSkipIfNoMatch = false
+		inSkipIfCheckFailing = false
+		inSkipAuthorAssociations = false
+
 		inPullRequest = section == "pull_request"
 		inIssues = section == "issues"
 		inDiscussion = section == "discussion"

@@ -320,21 +320,44 @@ workflow across the repository, regardless of who triggered them.
 max-daily-ai-credits: 15M
 ```
 
-You can also configure the same threshold via environment variable
-to make the guardrail configurable per environment or workflow call:
-
-```aw wrap
-env:
-  GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.AWF_DAILY_ET_LIMIT }}
-```
-
 When the total from the past 24 hours already meets or exceeds this threshold, the activation
 job warns, creates an issue, skips the agent job, and lets the
 conclusion job report the failure context.
 
-The guardrail is disabled by default when omitted. Set `-1` to disable
-it explicitly. Positive values accept plain integers or `K`/`M`
+The guardrail is disabled by default when omitted. Positive values accept plain integers or `K`/`M`
 suffixes such as `100M`.
+
+> [!CAUTION]
+> Enabling `max-daily-ai-credits` is expensive in GitHub API units. Every
+> activation checks the 24-hour window by calling `listWorkflowRuns` (up to
+> 10 pages × 100 runs) plus additional artifact-lookup API calls per
+> inspected run.
+
+To disable the guardrail explicitly, set `-1`:
+
+```aw wrap
+max-daily-ai-credits: -1
+```
+
+You can also disable the guardrail at runtime by setting the env variable to `-1`:
+
+```aw wrap
+env:
+  GH_AW_MAX_DAILY_AI_CREDITS: "-1"
+```
+
+For org-wide or enterprise-wide control, prefer setting the default once at the
+org or enterprise level instead of per-workflow. Set
+`GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS` as an [Actions variable](https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/store-information-in-variables)
+at the **organization** or **enterprise** scope so every workflow in the org
+inherits it without any frontmatter change:
+
+```bash
+# Disable the daily guardrail org-wide
+gh aw env update - --scope org --org MY_ORG <<'EOF'
+default_max_daily_ai_credits: "-1"
+EOF
+```
 
 > [!NOTE]
 > The daily guardrail is skipped for `workflow_call`,
