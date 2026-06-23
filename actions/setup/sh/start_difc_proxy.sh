@@ -39,6 +39,9 @@ mkdir -p "$PROXY_LOG_DIR" "$MCP_LOG_DIR"
 
 echo "Starting DIFC proxy container: $CONTAINER_IMAGE"
 
+# Remove any existing container to avoid name conflicts on cancelled/retried jobs.
+docker rm -f awmg-proxy 2>/dev/null || true
+
 DOCKER_NETWORK_ARGS=(--network host)
 if [ "${GH_AW_NETWORK_ISOLATION:-false}" = "true" ]; then
   DOCKER_NETWORK_ARGS=(--network bridge -p 127.0.0.1:18443:18443)

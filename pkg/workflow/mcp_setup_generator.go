@@ -642,9 +642,10 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
 	// MCP_GATEWAY_HOST_DOMAIN is the domain used by host-side clients (e.g. Gemini CLI).
 	// When MCP_GATEWAY_DOMAIN is host.docker.internal (only reachable from containers),
-	// use localhost instead; otherwise inherit the configured domain as-is.
+	// or when network isolation is active (gateway on bridge; host reaches it via the
+	// published 127.0.0.1 port), use localhost instead; otherwise inherit the domain.
 	hostDomain := domain
-	if domain == "host.docker.internal" {
+	if domain == "host.docker.internal" || isAWFNetworkIsolationEnabled(workflowData) {
 		hostDomain = "localhost"
 	}
 	yaml.WriteString("          export MCP_GATEWAY_HOST_DOMAIN=\"" + hostDomain + "\"\n")
@@ -721,6 +722,9 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	containerCmd.WriteString("docker run -i --rm")
 	if isAWFNetworkIsolationEnabled(workflowData) {
 		containerCmd.WriteString(" --network bridge")
+		// Publish the gateway port to the host so host-side clients (e.g. Gemini CLI)
+		// can reach the gateway at localhost:${MCP_GATEWAY_PORT}.
+		containerCmd.WriteString(" -p 127.0.0.1:${MCP_GATEWAY_PORT}:${MCP_GATEWAY_PORT}")
 	} else {
 		containerCmd.WriteString(" --network host")
 	}

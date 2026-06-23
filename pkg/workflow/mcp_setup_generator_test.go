@@ -595,12 +595,16 @@ tools:
 
 	require.Contains(t, yamlStr, `docker run -i --rm --network bridge`,
 		"Docker command should use bridge networking in network isolation mode")
+	require.Contains(t, yamlStr, `-p 127.0.0.1:`,
+		"Docker command should publish gateway port to host in network isolation mode")
 	require.NotContains(t, yamlStr, `--network host`,
 		"Docker command should not use host networking in network isolation mode")
 	require.NotContains(t, yamlStr, `--add-host host.docker.internal:127.0.0.1`,
 		"Docker command should not inject host.docker.internal mapping in network isolation mode")
 	require.Contains(t, yamlStr, `export MCP_GATEWAY_DOMAIN="awmg-mcpg"`,
 		"MCP gateway domain should use the internal container name in network isolation mode")
+	require.Contains(t, yamlStr, `export MCP_GATEWAY_HOST_DOMAIN="localhost"`,
+		"MCP gateway host domain should be localhost in network isolation mode so host-side clients can connect")
 }
 
 // TestMultipleHTTPMCPSecretsPassedToGatewayContainer verifies that multiple HTTP MCP servers
