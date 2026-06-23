@@ -37,6 +37,8 @@ function isAllowedDecision(decision) {
  * @returns {string}
  */
 function getFirewallDomainKey(domain, dest) {
+  // Squid can emit either "-" or "-:-" for missing destination fields, so both
+  // placeholders are treated as invalid destination keys.
   if (domain !== PLACEHOLDER_DOMAIN_KEY) {
     return domain;
   }
@@ -44,6 +46,16 @@ function getFirewallDomainKey(domain, dest) {
     return dest;
   }
   return PLACEHOLDER_DOMAIN_KEY;
+}
+
+/**
+ * @param {string} client
+ * @param {string} domain
+ * @param {string} dest
+ * @returns {boolean}
+ */
+function isInternalFirewallErrorEntry(client, domain, dest) {
+  return client.startsWith(LOCALHOST_CLIENT_PREFIX) && domain === PLACEHOLDER_DOMAIN_KEY && (dest === PLACEHOLDER_DEST_KEY || dest === PLACEHOLDER_DOMAIN_KEY);
 }
 
 /**
@@ -84,7 +96,7 @@ function parseFirewallLogs() {
           const domain = parts[SQUID_DOMAIN_INDEX];
           const dest = parts[SQUID_DEST_INDEX];
           const client = parts[SQUID_CLIENT_INDEX] || "";
-          const isInternalErrorEntry = client.startsWith(LOCALHOST_CLIENT_PREFIX) && domain === PLACEHOLDER_DOMAIN_KEY && (dest === PLACEHOLDER_DEST_KEY || dest === PLACEHOLDER_DOMAIN_KEY);
+          const isInternalErrorEntry = isInternalFirewallErrorEntry(client, domain, dest);
           if (isInternalErrorEntry) {
             continue;
           }
@@ -134,10 +146,10 @@ function parseFirewallLogs() {
     return null;
   }
 
-  const validDomainKey = domain => domain !== PLACEHOLDER_DOMAIN_KEY && !domain.startsWith(ERROR_DOMAIN_PREFIX);
+  const isValidDomainKey = domain => domain !== PLACEHOLDER_DOMAIN_KEY && !domain.startsWith(ERROR_DOMAIN_PREFIX);
   const requestsByDomain = {};
   for (const [domain, stats] of Object.entries(firewall.requests_by_domain)) {
-    if (!validDomainKey(domain)) {
+    if (!isValidDomainKey(domain)) {
       continue;
     }
     requestsByDomain[domain] = stats;
@@ -147,8 +159,8 @@ function parseFirewallLogs() {
     total_requests: firewall.total_requests,
     allowed_requests: firewall.allowed_requests,
     blocked_requests: firewall.blocked_requests,
-    allowed_domains: Array.from(firewall.allowed_domains).filter(validDomainKey).sort(),
-    blocked_domains: Array.from(firewall.blocked_domains).filter(validDomainKey).sort(),
+    allowed_domains: Array.from(firewall.allowed_domains).filter(isValidDomainKey).sort(),
+    blocked_domains: Array.from(firewall.blocked_domains).filter(isValidDomainKey).sort(),
     requests_by_domain: requestsByDomain,
   };
 }
