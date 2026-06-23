@@ -11697,7 +11697,7 @@
         },
         {
           "id": "copilot",
-          "copilot-sdk-driver": ".github/drivers/custom_copilot_sdk_driver.cjs",
+          "driver": ".github/drivers/custom_copilot_sdk_driver.cjs",
           "copilot-sdk": true,
           "version": "latest"
         }
@@ -11947,11 +11947,6 @@
             "copilot-sdk": {
               "type": "boolean",
               "description": "Enables the experimental GitHub Copilot SDK integration (copilot engine only). When true, the harness starts a separate headless Copilot CLI sidecar on the configured localhost port and sets COPILOT_SDK_URI on child processes."
-            },
-            "copilot-sdk-driver": {
-              "type": "string",
-              "pattern": "^(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*)(?:/(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*))*$",
-              "description": "Custom Copilot SDK driver script or command (copilot engine only). Setting this field implies `copilot-sdk: true`. Accepts a relative path from the workspace root with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), e.g. `.github/drivers/my_driver.py`, or a bare command name without an extension for an arbitrary executable in PATH."
             },
             "driver": {
               "type": "string",
