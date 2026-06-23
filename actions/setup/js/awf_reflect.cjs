@@ -22,9 +22,20 @@ const path = require("path");
 const { withRetry, sleep } = require("./error_recovery.cjs");
 
 // AWF API proxy management endpoint for discovering configured LLM providers and available models.
-// The api-proxy sidecar exposes /reflect on its management port (port 10000) inside the AWF
-// Docker network. From the agent container, the proxy is reachable via the "api-proxy" hostname.
+// The api-proxy sidecar exposes /reflect on each started provider port inside the AWF Docker
+// network. The Anthropic sidecar (port 10000) is the default, but only the ports whose provider
+// credentials are configured are actually started. From the agent container, the proxy is
+// reachable via the "api-proxy" hostname.
 const AWF_API_PROXY_REFLECT_URL = "http://api-proxy:10000/reflect";
+
+// Port assignments for AWF api-proxy provider endpoints.
+// Must match the constants defined in pkg/constants/constants.go (ClaudeLLMGatewayPort,
+// CodexLLMGatewayPort, CopilotLLMGatewayPort).
+const AWF_API_PROXY_PROVIDER_PORTS = /** @type {Record<string, number>} */ {
+  anthropic: 10000,
+  openai: 10001,
+  github: 10002,
+};
 // Path inside the agent container where the reflect payload is persisted. The directory is
 // co-located with other AWF firewall observability data so it is included in the agent artifact.
 const AWF_REFLECT_OUTPUT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
@@ -215,11 +226,32 @@ async function enrichReflectModels(reflectData, timeoutMs, logger) {
 }
 
 /**
+ * Resolve the AWF api-proxy /reflect URL for the active LLM provider.
+ *
+ * The /reflect endpoint is exposed by the api-proxy sidecar on each started provider port.
+ * Only the ports whose provider credentials are configured are actually started — using the
+ * wrong port (e.g., port 10000 when only GitHub/Copilot credentials are provided) will fail
+ * with a connection refused error.
+ *
+ * Reads GH_AW_LLM_PROVIDER (set by the gh-aw compiler to "anthropic", "openai", or "github")
+ * and maps it to the correct api-proxy port. Falls back to the Anthropic port (10000) when
+ * the provider is unset or unrecognised.
+ *
+ * @param {string} [providerOverride] - Override the provider (defaults to GH_AW_LLM_PROVIDER env var)
+ * @returns {string} The /reflect URL for the active provider's api-proxy endpoint.
+ */
+function resolveAWFReflectUrl(providerOverride) {
+  const provider = (providerOverride || process.env.GH_AW_LLM_PROVIDER || "anthropic").toLowerCase().trim();
+  const port = AWF_API_PROXY_PROVIDER_PORTS[provider] != null ? AWF_API_PROXY_PROVIDER_PORTS[provider] : AWF_API_PROXY_PROVIDER_PORTS.anthropic;
+  return `http://api-proxy:${port}/reflect`;
+}
+
+/**
  * Fetch the AWF API proxy /reflect endpoint and persist the response to disk.
  *
  * The /reflect endpoint is exposed by the api-proxy sidecar on each started provider port.
- * The active provider's gateway port should be used rather than a hardcoded port, since
- * port 10000 (the OpenAI sidecar) is only started when OpenAI credentials are configured.
+ * Use resolveAWFReflectUrl() to obtain the correct URL for the active provider, since only
+ * the ports whose provider credentials are configured are actually started.
  * This information is saved to AWF_REFLECT_OUTPUT_PATH so the post-run GitHub Actions step
  * (awf_reflect_summary.cjs) can include it in the step summary without requiring the
  * containers to still be running.
@@ -396,6 +428,7 @@ function resolveCopilotSDKCustomProviderFromReflect(options) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     AWF_API_PROXY_REFLECT_URL,
+    AWF_API_PROXY_PROVIDER_PORTS,
     AWF_REFLECT_OUTPUT_PATH,
     AWF_REFLECT_TIMEOUT_MS,
     AWF_MODELS_URL_TIMEOUT_MS,
@@ -407,6 +440,7 @@ if (typeof module !== "undefined" && module.exports) {
     extractModelIds,
     fetchAWFReflect,
     fetchModelsFromUrl,
+    resolveAWFReflectUrl,
     resolveCopilotSDKCustomProviderFromReflect,
   };
 }

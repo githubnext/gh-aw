@@ -44,6 +44,7 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  resolveAWFReflectUrl,
 } = require("./awf_reflect.cjs");
 const { emitMissingToolPermissionIssue, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
@@ -327,8 +328,10 @@ async function main() {
   const safeFreshRetryArgs = hadPromptFile && freshRetryArgs.length > 0 ? [...freshRetryArgs.slice(0, -2), "<prompt omitted>"] : freshRetryArgs;
 
   // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
+  // Use the provider-aware reflect URL so the correct api-proxy sidecar port is queried
+  // (e.g. port 10002 for GitHub/Copilot instead of the default Anthropic port 10000).
   // This is best-effort: failures are logged but do not affect the agent run.
-  await fetchAWFReflect({ logger: log });
+  await fetchAWFReflect({ reflectUrl: resolveAWFReflectUrl(), logger: log });
 
   // Pre-flight: skip the agent entirely when a noop has already been written by a prior step.
   // A noop indicates the work is complete or there is nothing to do — starting the agent
@@ -497,7 +500,7 @@ async function main() {
   }
 
   // Fetch AWF API proxy reflection data and persist to disk for post-run step summary.
-  await fetchAWFReflect({ logger: log });
+  await fetchAWFReflect({ reflectUrl: resolveAWFReflectUrl(), logger: log });
 
   log(`done: exitCode=${lastExitCode} totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
   process.exit(lastExitCode);

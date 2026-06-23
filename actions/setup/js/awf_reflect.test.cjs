@@ -7,6 +7,7 @@ import path from "path";
 const require = createRequire(import.meta.url);
 const {
   AWF_API_PROXY_REFLECT_URL,
+  AWF_API_PROXY_PROVIDER_PORTS,
   AWF_REFLECT_OUTPUT_PATH,
   AWF_REFLECT_TIMEOUT_MS,
   AWF_MODELS_URL_TIMEOUT_MS,
@@ -18,6 +19,7 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  resolveAWFReflectUrl,
   resolveCopilotSDKCustomProviderFromReflect,
 } = require("./awf_reflect.cjs");
 
@@ -32,6 +34,49 @@ describe("awf_reflect.cjs", () => {
       expect(AWF_MODELS_URL_RETRY_BASE_MS).toBe(250);
       expect(AWF_MODELS_URL_RETRY_MAX_MS).toBe(2000);
       expect(GEMINI_MODEL_NAME_PREFIX).toBe("models/");
+    });
+  });
+
+  describe("resolveAWFReflectUrl", () => {
+    afterEach(() => {
+      delete process.env.GH_AW_LLM_PROVIDER;
+    });
+
+    it("returns port 10000 for anthropic provider override", () => {
+      expect(resolveAWFReflectUrl("anthropic")).toBe("http://api-proxy:10000/reflect");
+    });
+
+    it("returns port 10001 for openai provider override", () => {
+      expect(resolveAWFReflectUrl("openai")).toBe("http://api-proxy:10001/reflect");
+    });
+
+    it("returns port 10002 for github provider override", () => {
+      expect(resolveAWFReflectUrl("github")).toBe("http://api-proxy:10002/reflect");
+    });
+
+    it("reads GH_AW_LLM_PROVIDER env var when no override provided", () => {
+      process.env.GH_AW_LLM_PROVIDER = "github";
+      expect(resolveAWFReflectUrl()).toBe("http://api-proxy:10002/reflect");
+    });
+
+    it("falls back to anthropic port 10000 when env var is unset", () => {
+      delete process.env.GH_AW_LLM_PROVIDER;
+      expect(resolveAWFReflectUrl()).toBe("http://api-proxy:10000/reflect");
+    });
+
+    it("falls back to anthropic port 10000 for unrecognised provider", () => {
+      expect(resolveAWFReflectUrl("unknown-provider")).toBe("http://api-proxy:10000/reflect");
+    });
+
+    it("is case-insensitive for provider override", () => {
+      expect(resolveAWFReflectUrl("GITHUB")).toBe("http://api-proxy:10002/reflect");
+      expect(resolveAWFReflectUrl("Anthropic")).toBe("http://api-proxy:10000/reflect");
+    });
+
+    it("AWF_API_PROXY_PROVIDER_PORTS exports correct port assignments", () => {
+      expect(AWF_API_PROXY_PROVIDER_PORTS.anthropic).toBe(10000);
+      expect(AWF_API_PROXY_PROVIDER_PORTS.openai).toBe(10001);
+      expect(AWF_API_PROXY_PROVIDER_PORTS.github).toBe(10002);
     });
   });
 
