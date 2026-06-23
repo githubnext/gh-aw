@@ -5,3 +5,18 @@
 {"timestamp":"2026-06-20T15:27:40Z","date":"2026-06-20","benchmarks":{"CompileSimpleWorkflow":{"ns_per_op":8901538,"bytes_per_op":6647560,"allocs_per_op":71140},"CompileComplexWorkflow":{"ns_per_op":2891877,"bytes_per_op":1529093,"allocs_per_op":10866},"CompileMCPWorkflow":{"ns_per_op":334195,"bytes_per_op":135821,"allocs_per_op":2366},"CompileMemoryUsage":{"ns_per_op":2533209,"bytes_per_op":1276482,"allocs_per_op":9086},"ParseWorkflow":{"ns_per_op":252936,"bytes_per_op":102368,"allocs_per_op":1804},"Validation":{"ns_per_op":37949,"bytes_per_op":3026,"allocs_per_op":59},"YAMLGeneration":{"ns_per_op":9484282,"bytes_per_op":6152541,"allocs_per_op":69571},"ExtractWorkflowNameFromFile":{"ns_per_op":9204,"bytes_per_op":263,"allocs_per_op":7}}}
 {"timestamp":"2026-06-21T15:30:57Z","date":"2026-06-21","benchmarks":{"CompileSimpleWorkflow":{"ns_per_op":12442700,"bytes_per_op":6614370,"allocs_per_op":71828,"iterations":3},"CompileComplexWorkflow":{"ns_per_op":12762871,"bytes_per_op":8407634,"allocs_per_op":98150,"iterations":3},"CompileMCPWorkflow":{"ns_per_op":310949,"bytes_per_op":136392,"allocs_per_op":2371,"iterations":3},"CompileMemoryUsage":{"ns_per_op":12064897,"bytes_per_op":7793048,"allocs_per_op":92210,"iterations":3},"ParseWorkflow":{"ns_per_op":268820,"bytes_per_op":102896,"allocs_per_op":1809,"iterations":3},"Validation":{"ns_per_op":43141,"bytes_per_op":3122,"allocs_per_op":60,"iterations":3},"YAMLGeneration":{"ns_per_op":8906176,"bytes_per_op":6209173,"allocs_per_op":70306,"iterations":3},"ExtractWorkflowNameFromFile":{"ns_per_op":7251,"bytes_per_op":263,"allocs_per_op":7,"iterations":147337}}}
 {"timestamp": "2026-06-22T16:24:21Z", "date": "2026-06-22", "benchmarks": {"CompileSimpleWorkflow": {"ns_per_op": 3590076, "bytes_per_op": 1005514, "allocs_per_op": 6027, "iterations": 3}, "CompileComplexWorkflow": {"ns_per_op": 4937144, "bytes_per_op": 1564682, "allocs_per_op": 10985, "iterations": 3}, "CompileMCPWorkflow": {"ns_per_op": 172887, "bytes_per_op": 136349, "allocs_per_op": 2371, "iterations": 3}, "CompileMemoryUsage": {"ns_per_op": 4532284, "bytes_per_op": 1459506, "allocs_per_op": 9215, "iterations": 3}, "ParseWorkflow": {"ns_per_op": 147205, "bytes_per_op": 102912, "allocs_per_op": 1809, "iterations": 3}, "Validation": {"ns_per_op": 29184, "bytes_per_op": 3122, "allocs_per_op": 60, "iterations": 3}, "YAMLGeneration": {"ns_per_op": 3523352, "bytes_per_op": 953792, "allocs_per_op": 5486, "iterations": 3}, "ExtractWorkflowNameFromFile": {"ns_per_op": 5723, "bytes_per_op": 262, "allocs_per_op": 7, "iterations": 190506}}}
+{
+  "timestamp": "2026-06-23T15:48:04Z",
+  "date": "2026-06-23",
+  "benchmarks": {
+    "CompileSimpleWorkflow": {"ns_per_op": 5928089, "bytes_per_op": 1005674, "allocs_per_op": 6059, "iterations": 3},
+    "CompileComplexWorkflow": {"ns_per_op": 9659500, "bytes_per_op": 1564888, "allocs_per_op": 10957, "iterations": 3},
+    "CompileMCPWorkflow": {"ns_per_op": 504573, "bytes_per_op": 136237, "allocs_per_op": 2371, "iterations": 3},
+    "CompileMemoryUsage": {"ns_per_op": 7780494, "bytes_per_op": 1445162, "allocs_per_op": 9167, "iterations": 3},
+    "ParseWorkflow": {"ns_per_op": 285710, "bytes_per_op": 103040, "allocs_per_op": 1809, "iterations": 3},
+    "Validation": {"ns_per_op": 73136, "bytes_per_op": 3122, "allocs_per_op": 60, "iterations": 3},
+    "YAMLGeneration": {"ns_per_op": 5929595, "bytes_per_op": 951197, "allocs_per_op": 5501, "iterations": 3},
+    "ExtractWorkflowNameFromFile": {"ns_per_op": 7015, "bytes_per_op": 262, "allocs_per_op": 7, "iterations": 171396}
+  }
+}
+
