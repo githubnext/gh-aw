@@ -39,7 +39,6 @@ const ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOS
 const ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN = new RegExp(`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)(\\s+)\`(${ISSUE_REFERENCE_PATTERN})\``, "gi");
 const NORMALIZE_CLOSER_BODY_TYPES = new Set(["create_issue", "add_comment", "create_pull_request"]);
 const ISSUE_INTENT_LABEL_TYPES = new Set(["add_labels", "remove_labels", "update_issue"]);
-const ISSUE_INTENT_LABEL_CONFIDENCE_VALUES = new Set(["LOW", "MEDIUM", "HIGH"]);
 
 /**
  * Remove markdown backticks around recognized issue-closing keyword references.
@@ -145,12 +144,6 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
     if (label.confidence !== undefined) {
       if (label.confidence !== null && label.confidence !== "") {
         const confidenceRaw = String(label.confidence).trim().toUpperCase();
-        if (!ISSUE_INTENT_LABEL_CONFIDENCE_VALUES.has(confidenceRaw)) {
-          return {
-            isValid: false,
-            error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].confidence must be one of: LOW, MEDIUM, HIGH`,
-          };
-        }
         /** @type {"LOW"|"MEDIUM"|"HIGH"} */
         let confidence;
         switch (confidenceRaw) {

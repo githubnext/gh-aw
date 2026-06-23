@@ -6,7 +6,6 @@ const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { hasRuntimeFeature, parseRuntimeFeatures } = require("./runtime_features.cjs");
 
 const ISSUE_INTENTS_FEATURE = "issue_intents";
-const ISSUE_INTENT_CONFIDENCE_VALUES = new Set(["LOW", "MEDIUM", "HIGH"]);
 const ISSUE_INTENT_RATIONALE_MAX_LENGTH = 1024;
 
 function hasIssueIntentsRuntimeFeature() {
@@ -33,9 +32,6 @@ function normalizeIssueIntentMetadata(source) {
 
   if (source.confidence !== undefined && source.confidence !== null && source.confidence !== "") {
     const confidenceRaw = String(source.confidence).trim().toUpperCase();
-    if (!ISSUE_INTENT_CONFIDENCE_VALUES.has(confidenceRaw)) {
-      throw new Error(`Invalid confidence ${JSON.stringify(source.confidence)}. Expected one of: LOW, MEDIUM, HIGH.`);
-    }
     /** @type {"LOW"|"MEDIUM"|"HIGH"} */
     let confidence;
     switch (confidenceRaw) {
