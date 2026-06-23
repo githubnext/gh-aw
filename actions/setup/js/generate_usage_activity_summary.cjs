@@ -15,6 +15,7 @@ const SQUID_STATUS_INDEX = 6;
 const SQUID_DECISION_INDEX = 7;
 const SQUID_DOMAIN_INDEX = 2;
 const SQUID_DEST_INDEX = 3;
+const SQUID_CLIENT_INDEX = 1;
 
 /**
  * Check if a Squid decision indicates an allowed request
@@ -22,6 +23,23 @@ const SQUID_DEST_INDEX = 3;
 function isAllowedDecision(decision) {
   const base = decision.split("/")[0].trim().toUpperCase();
   return ["TCP_TUNNEL", "TCP_HIT", "TCP_MISS"].includes(base);
+}
+
+/**
+ * Resolve the domain key used in aggregate firewall stats.
+ *
+ * @param {string} domain
+ * @param {string} dest
+ * @returns {string}
+ */
+function getFirewallDomainKey(domain, dest) {
+  if (domain !== "-") {
+    return domain;
+  }
+  if (dest !== "-" && dest !== "-:-") {
+    return dest;
+  }
+  return "-";
 }
 
 /**
@@ -59,7 +77,7 @@ function parseFirewallLogs() {
 
           const domain = parts[SQUID_DOMAIN_INDEX];
           const dest = parts[SQUID_DEST_INDEX];
-          const client = parts[1] || "";
+          const client = parts[SQUID_CLIENT_INDEX] || "";
           const isInternalErrorEntry = client.startsWith("::1:") && domain === "-" && (dest === "-:-" || dest === "-");
           if (isInternalErrorEntry) {
             continue;
@@ -84,7 +102,7 @@ function parseFirewallLogs() {
             allowed = true;
           }
 
-          const domainKey = domain !== "-" ? domain : dest !== "-" && dest !== "-:-" ? dest : "-";
+          const domainKey = getFirewallDomainKey(domain, dest);
           if (!firewall.requests_by_domain[domainKey]) {
             firewall.requests_by_domain[domainKey] = { allowed: 0, blocked: 0 };
           }
