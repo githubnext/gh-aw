@@ -45,6 +45,15 @@ func (b *handlerConfigBuilder) AddStringSlice(key string, value []string) *handl
 	return b
 }
 
+// AddMapSlice adds a slice of string maps field only if the slice is not empty.
+// Useful for structured list fields such as allowed-transitions.
+func (b *handlerConfigBuilder) AddMapSlice(key string, value []map[string]string) *handlerConfigBuilder {
+	if len(value) > 0 {
+		b.config[key] = value
+	}
+	return b
+}
+
 // AddTemplatableStringSlice adds a string slice field that may contain a GitHub Actions
 // expression.  When the slice has exactly one element and that element is a GitHub Actions
 // expression (as produced by preprocessStringArrayFieldAsTemplatable or

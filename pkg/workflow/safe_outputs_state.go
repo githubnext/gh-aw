@@ -61,6 +61,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.CreateCheckRun != nil ||
 		safeOutputs.AddLabels != nil ||
 		safeOutputs.RemoveLabels != nil ||
+		safeOutputs.ReplaceLabel != nil ||
 		safeOutputs.AddReviewer != nil ||
 		safeOutputs.AssignMilestone != nil ||
 		safeOutputs.AssignToAgent != nil ||
@@ -85,7 +86,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.MissingData != nil ||
 		safeOutputs.SetIssueType != nil ||
 		safeOutputs.SetIssueField != nil ||
-		safeOutputs.NoOp != nil // 44th field
+		safeOutputs.NoOp != nil
 }
 
 // The builtin types (noop, missing-data, missing-tool) are excluded from this check
@@ -126,6 +127,7 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.CreateCheckRun != nil ||
 		safeOutputs.AddLabels != nil ||
 		safeOutputs.RemoveLabels != nil ||
+		safeOutputs.ReplaceLabel != nil ||
 		safeOutputs.AddReviewer != nil ||
 		safeOutputs.AssignMilestone != nil ||
 		safeOutputs.AssignToAgent != nil ||

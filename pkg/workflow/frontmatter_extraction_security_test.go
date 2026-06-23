@@ -24,6 +24,21 @@ func TestExtractAgentSandboxConfigVersion(t *testing.T) {
 	})
 }
 
+func TestExtractAgentSandboxConfigPlatform(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("extracts sandbox.agent.platform from object format", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id":       "awf",
+			"platform": "ghes",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Equal(t, "ghes", config.Platform, "Should extract sandbox.agent.platform")
+	})
+}
+
 func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 	compiler := &Compiler{}
 

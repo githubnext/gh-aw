@@ -117,6 +117,9 @@ func validateSafeOutputsTarget(config *SafeOutputsConfig) error {
 	if config.RemoveLabels != nil {
 		configs = append(configs, targetConfig{"remove-labels", config.RemoveLabels.Target})
 	}
+	if config.ReplaceLabel != nil {
+		configs = append(configs, targetConfig{"replace-label", config.ReplaceLabel.Target})
+	}
 	if config.AddReviewer != nil {
 		configs = append(configs, targetConfig{"add-reviewer", config.AddReviewer.Target})
 	}

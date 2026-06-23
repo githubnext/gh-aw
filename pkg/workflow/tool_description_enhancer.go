@@ -338,6 +338,29 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 		}
 
+	case "replace_label":
+		if config := safeOutputs.ReplaceLabel; config != nil {
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d label replacement(s) allowed.", templatableIntValue(config.Max)))
+			}
+			if len(config.AllowedTransitions) > 0 {
+				pairs := make([]string, len(config.AllowedTransitions))
+				for i, t := range config.AllowedTransitions {
+					pairs[i] = fmt.Sprintf("%q → %q", t.From, t.To)
+				}
+				constraints = append(constraints, fmt.Sprintf("Only these label transitions are allowed: %s.", formatStringList(pairs)))
+			}
+			if len(config.AllowedAdd) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Only these labels can be added: %s.", formatStringList(config.AllowedAdd)))
+			}
+			if len(config.AllowedRemove) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Only these labels can be removed: %s.", formatStringList(config.AllowedRemove)))
+			}
+			if config.Target != "" {
+				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
+			}
+		}
+
 	case "add_reviewer":
 		if config := safeOutputs.AddReviewer; config != nil {
 			if templatableIntValue(config.Max) > 0 {

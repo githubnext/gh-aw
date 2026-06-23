@@ -214,6 +214,11 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	if config.ReplaceLabel != nil {
+		if err := checkMaxField("replace_label", config.ReplaceLabel.Max); err != nil {
+			return err
+		}
+	}
 	if config.ReplyToPullRequestReviewComment != nil {
 		if err := checkMaxField("reply_to_pull_request_review_comment", config.ReplyToPullRequestReviewComment.Max); err != nil {
 			return err

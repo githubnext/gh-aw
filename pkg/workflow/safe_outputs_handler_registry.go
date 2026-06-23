@@ -169,6 +169,37 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},
+	"replace_label": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.ReplaceLabel == nil {
+			return nil
+		}
+		c := cfg.ReplaceLabel
+		transitions := make([]map[string]string, len(c.AllowedTransitions))
+		for i, t := range c.AllowedTransitions {
+			transitions[i] = map[string]string{"from": t.From, "to": t.To}
+		}
+		config := newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddStringSlice("allowed_add", c.AllowedAdd).
+			AddStringSlice("allowed_remove", c.AllowedRemove).
+			AddStringSlice("blocked", c.Blocked).
+			AddMapSlice("allowed_transitions", transitions).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged).
+			Build()
+		// If config is empty, it means replace_label was explicitly configured with no options
+		// (null config), which means "allow any labels". Return non-nil empty map to
+		// indicate the handler is enabled.
+		if len(config) == 0 {
+			return make(map[string]any)
+		}
+		return config
+	},
 	"add_reviewer": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.AddReviewer == nil {
 			return nil

@@ -58,6 +58,30 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"imageTag"`, "should include imageTag")
 	})
 
+	t.Run("platform config is omitted when sandbox agent is disabled", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type:     SandboxTypeAWF,
+						Platform: "ghes",
+						Disabled: true,
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"platform":`, "platform should be absent when sandbox agent is disabled")
+	})
+
 	t.Run("blocked domains are included in the network section", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
@@ -695,6 +719,51 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, `"authHeader"`, "authHeader should be absent when not configured")
 	})
 
+	t.Run("sandbox agent platform is emitted in awf platform config", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type:     SandboxTypeAWF,
+						Platform: "ghes",
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"platform":{"type":"ghes"}`, "should include AWF platform.type when configured")
+	})
+
+	t.Run("platform config is omitted when sandbox agent platform is not configured", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type: SandboxTypeAWF,
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"platform":`, "platform section should be absent when sandbox.agent.platform is unset")
+	})
+
 	t.Run("model-fallback is emitted when enabled is explicitly set to false", func(t *testing.T) {
 		disabled := TemplatableBool("false")
 		config := AWFCommandConfig{
@@ -1194,6 +1263,31 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	// double-quote wrapping, so JSON double-quotes appear as \" in the shell command.
 	assert.Contains(t, command, `\"allowDomains\"`, "config JSON should include allowDomains")
 	assert.Contains(t, command, `\"enabled\":true`, "config JSON should have apiProxy enabled")
+}
+
+func TestBuildAWFCommand_EmbedsPlatformConfig(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		EngineCommand:  "copilot --prompt-file /tmp/prompt.txt",
+		LogFile:        "/tmp/gh-aw/agent-stdio.log",
+		AllowedDomains: "github.com",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type:     SandboxTypeAWF,
+					Platform: "ghes",
+				},
+			},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+
+	assert.Contains(t, command, `\"platform\":{\"type\":\"ghes\"}`, "expected awf-config JSON in command to include platform.type")
 }
 
 func TestBuildAWFCommand_ResolvesMaxAICreditsFromEnv(t *testing.T) {

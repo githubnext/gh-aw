@@ -688,6 +688,7 @@ type SafeOutputsConfig struct {
 	CreateCheckRun                         *CreateCheckRunConfig                  `yaml:"create-check-run,omitempty"` // Create GitHub Check Runs to report agent analysis results
 	AddLabels                              *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	RemoveLabels                           *RemoveLabelsConfig                    `yaml:"remove-labels,omitempty"`
+	ReplaceLabel                           *ReplaceLabelConfig                    `yaml:"replace-label,omitempty"` // Replace one label with another in a single atomic operation
 	AddReviewer                            *AddReviewerConfig                     `yaml:"add-reviewer,omitempty"`
 	AssignMilestone                        *AssignMilestoneConfig                 `yaml:"assign-milestone,omitempty"`
 	AssignToAgent                          *AssignToAgentConfig                   `yaml:"assign-to-agent,omitempty"`
