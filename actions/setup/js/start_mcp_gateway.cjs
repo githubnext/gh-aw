@@ -34,7 +34,7 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { withRetry } = require("./error_recovery.cjs");
-const { fetchMCPTools } = require("./mount_mcp_as_cli.cjs");
+const { fetchMCPTools, normalizeConfiguredToolNames } = require("./mount_mcp_as_cli.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
 
 // ---------------------------------------------------------------------------
@@ -303,7 +303,7 @@ async function warmConfiguredServerTools(gatewayOutput, apiKey) {
 function getConfiguredToolWarmupTarget(serverConfig) {
   return {
     serverUrl: typeof serverConfig.url === "string" ? serverConfig.url : "",
-    expectedTools: Array.isArray(serverConfig.tools) ? serverConfig.tools.filter(name => typeof name === "string" && name) : [],
+    expectedTools: normalizeConfiguredToolNames(serverConfig.tools),
   };
 }
 

@@ -219,6 +219,16 @@ function getMissingExpectedTools(expectedTools, actualTools) {
 }
 
 /**
+ * Normalize a configured MCP tool allowlist to non-empty string names.
+ *
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+function normalizeConfiguredToolNames(value) {
+  return Array.isArray(value) ? value.filter(name => typeof name === "string" && name) : [];
+}
+
+/**
  * Query the tools list from an MCP server via JSON-RPC.
  * Follows the standard MCP handshake: initialize → notifications/initialized → tools/list.
  *
@@ -235,7 +245,7 @@ function getMissingExpectedTools(expectedTools, actualTools) {
  */
 async function fetchMCPTools(serverUrl, apiKey, core, options = {}) {
   const authHeaders = { Authorization: apiKey };
-  const expectedTools = Array.isArray(options.expectedTools) ? options.expectedTools.filter(name => typeof name === "string" && name) : [];
+  const expectedTools = normalizeConfiguredToolNames(options.expectedTools);
   const maxAttempts = Math.max(1, Number.isInteger(options.maxAttempts) ? options.maxAttempts : 1);
   const retryDelayMs = typeof options.retryDelayMs === "number" && options.retryDelayMs > 0 ? options.retryDelayMs : 0;
   const postJSON = options.httpPostJSON || httpPostJSON;
@@ -501,4 +511,4 @@ async function main() {
   core.setOutput("mounted-servers", mountedServers.join(","));
 }
 
-module.exports = { main, fetchMCPTools, generateCLIWrapperScript, getMissingExpectedTools, isValidServerName, shellEscapeDoubleQuoted, parseMCPResponseBody };
+module.exports = { main, fetchMCPTools, generateCLIWrapperScript, getMissingExpectedTools, isValidServerName, normalizeConfiguredToolNames, shellEscapeDoubleQuoted, parseMCPResponseBody };
