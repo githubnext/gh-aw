@@ -19,10 +19,20 @@ const AGENT_LOGIN_NAMES = {
 };
 
 /**
+ * Normalize a GitHub login for internal matching.
+ * @param {string} login
+ * @returns {string}
+ */
+function normalizeLogin(login) {
+  return login.startsWith("@") ? login.slice(1) : login;
+}
+
+/**
  * Reverse lookup of assignee aliases to canonical agent names.
  * @type {Record<string, string>}
  */
-const AGENT_NAME_BY_LOGIN = Object.fromEntries(Object.entries(AGENT_LOGIN_NAMES).flatMap(([agentName, logins]) => logins.map(login => [login.startsWith("@") ? login.slice(1) : login, agentName])));
+const AGENT_NAME_BY_LOGIN_ENTRIES = Object.entries(AGENT_LOGIN_NAMES).flatMap(([agentName, logins]) => logins.map(login => [normalizeLogin(login), agentName]));
+const AGENT_NAME_BY_LOGIN = Object.fromEntries(AGENT_NAME_BY_LOGIN_ENTRIES);
 
 /**
  * GitHub can surface bots either via type="Bot" or a [bot] login suffix.
@@ -31,7 +41,7 @@ const AGENT_NAME_BY_LOGIN = Object.fromEntries(Object.entries(AGENT_LOGIN_NAMES)
  * @returns {boolean}
  */
 function isBotAssignee(assignee) {
-  return assignee?.type === "Bot" || String(assignee?.login || "").endsWith("[bot]");
+  return assignee?.type === "Bot" || assignee?.login?.endsWith("[bot]") === true;
 }
 
 /**
@@ -52,7 +62,7 @@ function getAgentLogins(agentName) {
  */
 function getAgentName(assignee) {
   // Normalize: remove @ prefix if present
-  const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
+  const normalized = normalizeLogin(assignee);
 
   // Check if it's a known agent
   if (AGENT_LOGIN_NAMES[normalized]) {
@@ -101,19 +111,20 @@ async function getAssignableBots(owner, repo, githubClient = github) {
   try {
     const assignees = [];
     let page = 1;
+    let pageData = [];
 
-    while (true) {
-      const { data } = await githubClient.rest.issues.listAssignees({
+    do {
+      const response = await githubClient.rest.issues.listAssignees({
         owner,
         repo,
         per_page: 100,
         page,
       });
-      if (!Array.isArray(data) || data.length === 0) break;
-      assignees.push(...data);
-      if (data.length < 100) break;
+      pageData = Array.isArray(response.data) ? response.data : [];
+      if (pageData.length === 0) continue;
+      assignees.push(...pageData);
       page++;
-    }
+    } while (pageData.length === 100);
 
     return [
       ...new Set(
