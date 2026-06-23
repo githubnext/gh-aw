@@ -16,6 +16,10 @@ const SQUID_DECISION_INDEX = 7;
 const SQUID_DOMAIN_INDEX = 2;
 const SQUID_DEST_INDEX = 3;
 const SQUID_CLIENT_INDEX = 1;
+const LOCALHOST_CLIENT_PREFIX = "::1:";
+const PLACEHOLDER_DOMAIN_KEY = "-";
+const PLACEHOLDER_DEST_KEY = "-:-";
+const ERROR_DOMAIN_PREFIX = "error:";
 
 /**
  * Check if a Squid decision indicates an allowed request
@@ -33,13 +37,13 @@ function isAllowedDecision(decision) {
  * @returns {string}
  */
 function getFirewallDomainKey(domain, dest) {
-  if (domain !== "-") {
+  if (domain !== PLACEHOLDER_DOMAIN_KEY) {
     return domain;
   }
-  if (dest !== "-" && dest !== "-:-") {
+  if (dest !== PLACEHOLDER_DOMAIN_KEY && dest !== PLACEHOLDER_DEST_KEY) {
     return dest;
   }
-  return "-";
+  return PLACEHOLDER_DOMAIN_KEY;
 }
 
 /**
@@ -80,7 +84,7 @@ function parseFirewallLogs() {
           const domain = parts[SQUID_DOMAIN_INDEX];
           const dest = parts[SQUID_DEST_INDEX];
           const client = parts[SQUID_CLIENT_INDEX] || "";
-          const isInternalErrorEntry = client.startsWith("::1:") && domain === "-" && (dest === "-:-" || dest === "-");
+          const isInternalErrorEntry = client.startsWith(LOCALHOST_CLIENT_PREFIX) && domain === PLACEHOLDER_DOMAIN_KEY && (dest === PLACEHOLDER_DEST_KEY || dest === PLACEHOLDER_DOMAIN_KEY);
           if (isInternalErrorEntry) {
             continue;
           }
@@ -130,7 +134,7 @@ function parseFirewallLogs() {
     return null;
   }
 
-  const validDomainKey = domain => domain !== "-" && !domain.startsWith("error:");
+  const validDomainKey = domain => domain !== PLACEHOLDER_DOMAIN_KEY && !domain.startsWith(ERROR_DOMAIN_PREFIX);
   const requestsByDomain = {};
   for (const [domain, stats] of Object.entries(firewall.requests_by_domain)) {
     if (!validDomainKey(domain)) {
