@@ -353,6 +353,76 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 			description: "Should reset workflow_run conclusion tracker when entering a new event section",
 		},
 		{
+			name: "workflow_run followed by bots keeps workflows and types uncommented",
+			input: `on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  bots:
+    - dependabot
+  workflow_dispatch:`,
+			expected: `on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  # bots: # Bots processed as bot check in pre-activation job
+    # - dependabot # Bots processed as bot check in pre-activation job
+  workflow_dispatch:`,
+			description: "Should not let bots array state leak into workflow_run fields",
+		},
+		{
+			name: "bots before workflow_run do not comment workflow_run list items",
+			input: `on:
+  bots:
+    - dependabot
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:`,
+			expected: `on:
+  # bots: # Bots processed as bot check in pre-activation job
+    # - dependabot # Bots processed as bot check in pre-activation job
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:`,
+			description: "Should reset bots array tracker before entering workflow_run section",
+		},
+		{
+			name: "roles before workflow_run do not comment workflow_run list items",
+			input: `on:
+  roles:
+    - write
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:`,
+			expected: `on:
+  # roles: # Roles processed as role check in pre-activation job
+    # - write # Roles processed as role check in pre-activation job
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:`,
+			description: "Should reset roles array tracker before entering workflow_run section",
+		},
+		{
+			name: "roles all before workflow_run keeps workflow_run intact",
+			input: `on:
+  roles: all
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:`,
+			expected: `on:
+  # roles: all # Roles processed as role check in pre-activation job
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:`,
+			description: "Should handle inline roles value without affecting workflow_run fields",
+		},
+		{
 			name: "top-level on needs array",
 			input: `on:
   needs:

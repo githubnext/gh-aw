@@ -194,6 +194,14 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			workflowRunIndent = -1
 		}
 	}
+	resetOnArrayTrackers := func() {
+		inSkipRolesArray = false
+		inSkipBotsArray = false
+		inRolesArray = false
+		inBotsArray = false
+		inLabelsArray = false
+		inNeedsArray = false
+	}
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
@@ -206,31 +214,37 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		// the permission comment-out logic.
 		if !inOnPermissions && !inOnSteps && !inSkipAuthorAssociations {
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "pull_request:" {
+				resetOnArrayTrackers()
 				activateEventSection("pull_request", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issues:" {
+				resetOnArrayTrackers()
 				activateEventSection("issues", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "discussion:" {
+				resetOnArrayTrackers()
 				activateEventSection("discussion", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issue_comment:" {
+				resetOnArrayTrackers()
 				activateEventSection("issue_comment", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "deployment_status:" {
+				resetOnArrayTrackers()
 				activateEventSection("deployment_status", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "workflow_run:" {
+				resetOnArrayTrackers()
 				activateEventSection("workflow_run", lineIndent)
 				result = append(result, line)
 				continue
