@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 
@@ -125,9 +126,36 @@ func secretSetClientOptions(apiBase string) api.ClientOptions {
 		Timeout: constants.DefaultHTTPClientTimeout,
 	}
 	if apiBase != "" {
-		opts.Host = strings.TrimPrefix(strings.TrimPrefix(apiBase, "https://"), "http://")
+		opts.Host = normalizeSecretSetAPIHost(apiBase)
 	}
 	return opts
+}
+
+func normalizeSecretSetAPIHost(apiBase string) string {
+	raw := strings.TrimSpace(apiBase)
+	if raw == "" {
+		return ""
+	}
+
+	for _, candidate := range []string{raw, "https://" + raw} {
+		parsed, err := url.Parse(candidate)
+		if err != nil || parsed.Hostname() == "" {
+			continue
+		}
+		if parsed.Hostname() == "api.github.com" {
+			return "github.com"
+		}
+		return parsed.Hostname()
+	}
+
+	legacy := strings.TrimPrefix(strings.TrimPrefix(raw, "https://"), "http://")
+	if idx := strings.IndexAny(legacy, "/:"); idx != -1 {
+		legacy = legacy[:idx]
+	}
+	if legacy == "api.github.com" {
+		return "github.com"
+	}
+	return legacy
 }
 
 func resolveSecretValueForSet(fromEnv, fromFlag string) (string, error) {

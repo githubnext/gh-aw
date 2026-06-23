@@ -959,7 +959,17 @@ func createRESTClientForHost(host string) (*api.RESTClient, error) {
 }
 
 func buildContentsAPIPath(owner, repo, path, ref string) string {
-	return fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, path, url.QueryEscape(ref))
+	pathSegments := strings.Split(path, "/")
+	for i := range pathSegments {
+		pathSegments[i] = url.PathEscape(pathSegments[i])
+	}
+	return fmt.Sprintf(
+		"repos/%s/%s/contents/%s?ref=%s",
+		owner,
+		repo,
+		strings.Join(pathSegments, "/"),
+		url.QueryEscape(ref),
+	)
 }
 
 func fetchRemoteFileContent(client *api.RESTClient, owner, repo, path, ref string, fileContent any) error {

@@ -41,6 +41,14 @@ func TestBuildContentsAPIPath(t *testing.T) {
 			t.Fatalf("buildContentsAPIPath() = %q, want %q", got, want)
 		}
 	})
+
+	t.Run("escapes path segments with reserved chars", func(t *testing.T) {
+		got := buildContentsAPIPath("owner", "repo", "skills/path with spaces/file#100%.md", "main")
+		want := "repos/owner/repo/contents/skills/path%20with%20spaces/file%23100%25.md?ref=main"
+		if got != want {
+			t.Fatalf("buildContentsAPIPath() = %q, want %q", got, want)
+		}
+	})
 }
 
 func TestGitFallbackRequiresNonEmptyRef(t *testing.T) {

@@ -187,4 +187,24 @@ func TestSecretSetClientOptions(t *testing.T) {
 			t.Fatalf("expected timeout %s, got %s", constants.DefaultHTTPClientTimeout, opts.Timeout)
 		}
 	})
+
+	t.Run("strips API path from api-url", func(t *testing.T) {
+		opts := secretSetClientOptions("https://ghe.example.com/api/v3")
+		if opts.Host != "ghe.example.com" {
+			t.Fatalf("expected host ghe.example.com, got %q", opts.Host)
+		}
+		if opts.Timeout != constants.DefaultHTTPClientTimeout {
+			t.Fatalf("expected timeout %s, got %s", constants.DefaultHTTPClientTimeout, opts.Timeout)
+		}
+	})
+
+	t.Run("maps api.github.com to github.com", func(t *testing.T) {
+		opts := secretSetClientOptions("https://api.github.com")
+		if opts.Host != "github.com" {
+			t.Fatalf("expected host github.com, got %q", opts.Host)
+		}
+		if opts.Timeout != constants.DefaultHTTPClientTimeout {
+			t.Fatalf("expected timeout %s, got %s", constants.DefaultHTTPClientTimeout, opts.Timeout)
+		}
+	})
 }
