@@ -115,6 +115,58 @@ describe("merge_pull_request branch validation", () => {
     expect(__testables.findMissingRequiredLabels(["AutoMerge"], ["automerge"])).toEqual(["automerge"]);
   });
 
+  it("getOpenPullRequestForBranch returns PR when one is open", async () => {
+    const { __testables } = await import("./merge_pull_request.cjs");
+
+    const githubClient = {
+      rest: {
+        pulls: {
+          list: vi.fn().mockResolvedValue({ data: [{ number: 42, html_url: "https://github.com/github/gh-aw/pull/42" }] }),
+        },
+      },
+    };
+
+    const result = await __testables.getOpenPullRequestForBranch(githubClient, "github", "gh-aw", "release/1.0");
+    expect(result).toEqual({ number: 42, html_url: "https://github.com/github/gh-aw/pull/42" });
+    expect(githubClient.rest.pulls.list).toHaveBeenCalledWith({
+      owner: "github",
+      repo: "gh-aw",
+      state: "open",
+      head: "github:release/1.0",
+      per_page: 1,
+    });
+  });
+
+  it("getOpenPullRequestForBranch returns null when no open PR exists", async () => {
+    const { __testables } = await import("./merge_pull_request.cjs");
+
+    const githubClient = {
+      rest: {
+        pulls: {
+          list: vi.fn().mockResolvedValue({ data: [] }),
+        },
+      },
+    };
+
+    const result = await __testables.getOpenPullRequestForBranch(githubClient, "github", "gh-aw", "orphan-branch");
+    expect(result).toBeNull();
+  });
+
+  it("getOpenPullRequestForBranch returns null when API returns null data", async () => {
+    const { __testables } = await import("./merge_pull_request.cjs");
+
+    const githubClient = {
+      rest: {
+        pulls: {
+          list: vi.fn().mockResolvedValue({ data: null }),
+        },
+      },
+    };
+
+    const result = await __testables.getOpenPullRequestForBranch(githubClient, "github", "gh-aw", "some-branch");
+    expect(result).toBeNull();
+  });
+
   it("resolves temporary ID for pull_request_number", async () => {
     const { __testables } = await import("./merge_pull_request.cjs");
     const result = __testables.resolvePullRequestNumber({ pull_request_number: "aw_pr1" }, { aw_pr1: { number: 42 } });
@@ -128,5 +180,60 @@ describe("merge_pull_request branch validation", () => {
     if (!result.success) {
       expect(result.error).toContain("Unresolved temporary ID");
     }
+  });
+
+  it("main() fires target_branch_has_no_open_pr when base branch has no upstream open PR", async () => {
+    global.context = {
+      eventName: "pull_request",
+      repo: { owner: "github", repo: "gh-aw" },
+      payload: {},
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({
+            data: {
+              number: 100,
+              html_url: "https://github.com/github/gh-aw/pull/100",
+              merged: false,
+              draft: false,
+              mergeable: true,
+              mergeable_state: "clean",
+              head: { ref: "feature/my-feature", sha: "abc123" },
+              base: { ref: "integration-branch" },
+              labels: [],
+              title: "Test PR",
+              requested_reviewers: [],
+              requested_teams: [],
+            },
+          }),
+          list: vi.fn().mockResolvedValue({ data: [] }),
+        },
+        repos: {
+          getBranch: vi.fn().mockResolvedValue({ data: { protected: false } }),
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+          getBranchProtection: vi.fn().mockRejectedValue({ status: 404 }),
+        },
+      },
+      graphql: vi.fn().mockResolvedValue({
+        repository: {
+          pullRequest: {
+            reviewDecision: null,
+            reviewThreads: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] },
+          },
+        },
+      }),
+      paginate: vi.fn().mockResolvedValue([]),
+    };
+
+    const { main } = await import("./merge_pull_request.cjs");
+    const handler = await main({ "target-repo": "github/gh-aw" });
+    const result = await handler({ pull_request_number: 100 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.failure_reasons).toEqual(expect.arrayContaining([expect.objectContaining({ code: "target_branch_has_no_open_pr" })]));
+
+    delete global.context;
+    delete global.github;
   });
 });

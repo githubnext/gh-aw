@@ -211,6 +211,12 @@ describe("add_workflow_run_comment", () => {
     });
 
     it("reuses an existing status comment from client_payload aw_context", async () => {
+      mockGithub.request.mockResolvedValueOnce({
+        data: {
+          id: 67890,
+          html_url: "https://github.com/statusowner/statusrepo/issues/789#issuecomment-67890",
+        },
+      });
       global.context = {
         eventName: "repository_dispatch",
         runId: 12345,
@@ -233,9 +239,17 @@ describe("add_workflow_run_comment", () => {
 
       await runScript();
 
-      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        expect.objectContaining({
+          owner: "statusowner",
+          repo: "statusrepo",
+          comment_id: 67890,
+          body: expect.stringContaining("https://github.com/workflowowner/workflowrepo/actions/runs/12345"),
+        })
+      );
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "67890");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/targetowner/targetrepo/issues/789#issuecomment-67890");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/statusowner/statusrepo/issues/789#issuecomment-67890");
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "statusowner/statusrepo");
       expect(mockCore.info).toHaveBeenCalledWith("Reusing existing status comment outputs");
     });
@@ -243,6 +257,12 @@ describe("add_workflow_run_comment", () => {
 
   describe("main() - workflow_dispatch aw_context reuse", () => {
     it("reuses an existing status comment from aw_context", async () => {
+      mockGithub.request.mockResolvedValueOnce({
+        data: {
+          id: 67890,
+          html_url: "https://github.com/targetowner/targetrepo/issues/789#issuecomment-67890",
+        },
+      });
       global.context = {
         eventName: "workflow_dispatch",
         runId: 12345,
@@ -263,7 +283,15 @@ describe("add_workflow_run_comment", () => {
 
       await runScript();
 
-      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        expect.objectContaining({
+          owner: "targetowner",
+          repo: "targetrepo",
+          comment_id: 67890,
+          body: expect.stringContaining("https://github.com/workflowowner/workflowrepo/actions/runs/12345"),
+        })
+      );
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "67890");
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/targetowner/targetrepo/issues/789#issuecomment-67890");
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "targetowner/targetrepo");
@@ -271,6 +299,12 @@ describe("add_workflow_run_comment", () => {
     });
 
     it("reuses an existing status comment from camelCase awContext", async () => {
+      mockGithub.request.mockResolvedValueOnce({
+        data: {
+          id: 67890,
+          html_url: "https://github.com/statusowner/statusrepo/issues/789#issuecomment-67890",
+        },
+      });
       global.context = {
         eventName: "workflow_dispatch",
         runId: 12345,
@@ -292,8 +326,113 @@ describe("add_workflow_run_comment", () => {
 
       await runScript();
 
-      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        expect.objectContaining({
+          owner: "statusowner",
+          repo: "statusrepo",
+          comment_id: 67890,
+          body: expect.stringContaining("https://github.com/workflowowner/workflowrepo/actions/runs/12345"),
+        })
+      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "67890");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/statusowner/statusrepo/issues/789#issuecomment-67890");
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "statusowner/statusrepo");
+      expect(mockCore.info).toHaveBeenCalledWith("Reusing existing status comment outputs");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("updates reusable discussion comments via GraphQL", async () => {
+      mockGithub.graphql.mockResolvedValue({
+        updateDiscussionComment: {
+          comment: {
+            id: "DC_kwDOReusable123",
+            url: "https://github.com/targetowner/targetrepo/discussions/789#discussioncomment-67890",
+          },
+        },
+      });
+      global.context = {
+        eventName: "workflow_dispatch",
+        runId: 12345,
+        repo: { owner: "workflowowner", repo: "workflowrepo" },
+        payload: {
+          inputs: {
+            aw_context: JSON.stringify({
+              repo: "targetowner/targetrepo",
+              event_type: "discussion_comment",
+              item_type: "discussion",
+              item_number: 789,
+              status_comment_id: "DC_kwDOReusable123",
+            }),
+          },
+        },
+      };
+
+      await runScript();
+
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("updateDiscussionComment"),
+        expect.objectContaining({
+          commentId: "DC_kwDOReusable123",
+          body: expect.stringContaining("https://github.com/workflowowner/workflowrepo/actions/runs/12345"),
+        })
+      );
+      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "DC_kwDOReusable123");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/targetowner/targetrepo/discussions/789#discussioncomment-67890");
+    });
+
+    it("warns and falls back to stale URL when reusable issue-comment update fails", async () => {
+      mockGithub.request.mockRejectedValueOnce(new Error("network timeout"));
+      global.context = {
+        eventName: "workflow_dispatch",
+        runId: 12345,
+        repo: { owner: "workflowowner", repo: "workflowrepo" },
+        payload: {
+          inputs: {
+            aw_context: JSON.stringify({
+              repo: "targetowner/targetrepo",
+              event_type: "issue_comment",
+              item_type: "issue",
+              item_number: 789,
+              status_comment_id: 67890,
+              status_comment_url: "https://github.com/targetowner/targetrepo/issues/789#issuecomment-67890",
+            }),
+          },
+        },
+      };
+
+      await runScript();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to update reusable status comment body"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/targetowner/targetrepo/issues/789#issuecomment-67890");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("warns when reusable comment ID is not a positive integer", async () => {
+      global.context = {
+        eventName: "workflow_dispatch",
+        runId: 12345,
+        repo: { owner: "workflowowner", repo: "workflowrepo" },
+        payload: {
+          inputs: {
+            aw_context: JSON.stringify({
+              repo: "targetowner/targetrepo",
+              event_type: "issue_comment",
+              item_type: "issue",
+              item_number: 789,
+              status_comment_id: "67890abc",
+              status_comment_url: "https://github.com/targetowner/targetrepo/issues/789#issuecomment-67890",
+            }),
+          },
+        },
+      };
+
+      await runScript();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining(`${ERR_VALIDATION}: Reusable status comment ID must be a positive integer (received "67890abc")`));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/targetowner/targetrepo/issues/789#issuecomment-67890");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
 

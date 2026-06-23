@@ -172,6 +172,54 @@ function reportCommentError(rawContext, message) {
 }
 
 /**
+ * @param {ReusableStatusComment} reusableComment
+ * @param {{
+ *   source: "native" | "workflow_dispatch" | "repository_dispatch";
+ *   eventName: string;
+ *   eventPayload: any;
+ *   workflowRepo: { owner: string, repo: string };
+ *   eventRepo: { owner: string, repo: string };
+ * }} invocationContext
+ * @param {any} rawContext
+ * @returns {Promise<string>}
+ */
+async function updateReusableStatusComment(reusableComment, invocationContext, rawContext) {
+  const runUrl = buildWorkflowRunUrl(rawContext, invocationContext.workflowRepo);
+  const commentBody = buildCommentBody(invocationContext.eventName, runUrl);
+
+  // Discussion comments use GraphQL node IDs and a dedicated update mutation.
+  if (reusableComment.id.startsWith("DC_")) {
+    const result = await github.graphql(
+      `
+      mutation($commentId: ID!, $body: String!) {
+        updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+          comment { id url }
+        }
+      }`,
+      { commentId: reusableComment.id, body: commentBody }
+    );
+    const updatedUrl = result?.updateDiscussionComment?.comment?.url;
+    return typeof updatedUrl === "string" && updatedUrl.trim() ? updatedUrl : reusableComment.url;
+  }
+
+  const commentRepo = reusableComment.repo || invocationContext.eventRepo;
+  const numericCommentId = Number(reusableComment.id);
+  if (!Number.isInteger(numericCommentId) || numericCommentId <= 0) {
+    throw new Error(`${ERR_VALIDATION}: Reusable status comment ID must be a positive integer (received "${reusableComment.id}")`);
+  }
+
+  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+    owner: commentRepo.owner,
+    repo: commentRepo.repo,
+    comment_id: numericCommentId,
+    body: commentBody,
+    headers: { Accept: "application/vnd.github+json" },
+  });
+  const updatedUrl = response?.data?.html_url;
+  return typeof updatedUrl === "string" && updatedUrl.trim() ? updatedUrl : reusableComment.url;
+}
+
+/**
  * Add a comment with a workflow run link to the triggering item.
  * This script ONLY creates comments - it does NOT add reactions.
  * Use add_reaction.cjs in the pre-activation job to add reactions first for immediate feedback.
@@ -190,7 +238,17 @@ async function createOrReuseStatusComment(rawContext = context) {
     if (!reusableComment.repo) {
       core.warning("Reusable status comment repo missing; falling back to the invocation event repo.");
     }
-    const outputs = setCommentOutputs(reusableComment.id, reusableComment.url, reusableComment.repo || invocationContext.eventRepo, { logReuse: true });
+    let reusableCommentUrl = reusableComment.url;
+    try {
+      reusableCommentUrl = await updateReusableStatusComment(reusableComment, invocationContext, rawContext);
+      core.info("Updated reusable status comment with current workflow run metadata");
+    } catch (error) {
+      core.warning(`Failed to update reusable status comment body: ${getErrorMessage(error)}`);
+      if (!reusableCommentUrl) {
+        core.warning("No fallback reusable status comment URL available; comment-url output will be empty.");
+      }
+    }
+    const outputs = setCommentOutputs(reusableComment.id, reusableCommentUrl, reusableComment.repo || invocationContext.eventRepo, { logReuse: true });
     return {
       ...outputs,
       reused: true,
