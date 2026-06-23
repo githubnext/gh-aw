@@ -164,7 +164,28 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	deploymentStatusIndent := -1
 	workflowRunIndent := -1
 	// activateEventSection resets all event-section flags and then activates the selected section.
+	// It also clears every top-level on: extension-array tracker (inBotsArray, inRolesArray,
+	// inSkipIfCheckFailing, etc.) before entering the new section.  This reset is required
+	// because each activateEventSection call ends with "continue", which bypasses the
+	// indent-based deactivation logic further down the loop.  Without the explicit reset here,
+	// a stale flag from a preceding bots:/roles:/skip-if-check-failing: block would cause that
+	// section's list items (e.g. "workflow_run.workflows: - CI") to be incorrectly commented out.
 	activateEventSection := func(section string, indent int) {
+		// Clear all top-level on: extension-array state so no sibling section leaks in.
+		inSkipRolesArray = false
+		inSkipBotsArray = false
+		inRolesArray = false
+		inBotsArray = false
+		inLabelsArray = false
+		inNeedsArray = false
+		// These trackers share the same exit-check-ordering issue: their deactivation
+		// logic runs after the "continue" that terminates each activateEventSection call,
+		// so they must also be reset here explicitly.
+		inSkipIfMatch = false
+		inSkipIfNoMatch = false
+		inSkipIfCheckFailing = false
+		inSkipAuthorAssociations = false
+
 		inPullRequest = section == "pull_request"
 		inIssues = section == "issues"
 		inDiscussion = section == "discussion"
@@ -194,16 +215,6 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			workflowRunIndent = -1
 		}
 	}
-	// resetOnArrayTrackers clears top-level on: extension array state when a new
-	// event section starts, preventing sibling sections from inheriting stale flags.
-	resetOnArrayTrackers := func() {
-		inSkipRolesArray = false
-		inSkipBotsArray = false
-		inRolesArray = false
-		inBotsArray = false
-		inLabelsArray = false
-		inNeedsArray = false
-	}
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
@@ -216,37 +227,31 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		// the permission comment-out logic.
 		if !inOnPermissions && !inOnSteps && !inSkipAuthorAssociations {
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "pull_request:" {
-				resetOnArrayTrackers()
 				activateEventSection("pull_request", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issues:" {
-				resetOnArrayTrackers()
 				activateEventSection("issues", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "discussion:" {
-				resetOnArrayTrackers()
 				activateEventSection("discussion", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issue_comment:" {
-				resetOnArrayTrackers()
 				activateEventSection("issue_comment", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "deployment_status:" {
-				resetOnArrayTrackers()
 				activateEventSection("deployment_status", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "workflow_run:" {
-				resetOnArrayTrackers()
 				activateEventSection("workflow_run", lineIndent)
 				result = append(result, line)
 				continue

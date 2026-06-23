@@ -123,13 +123,15 @@ Test workflow content.`,
 			name: "workflow_run with sibling bots - strict mode - should pass",
 			frontmatter: `---
 on:
-  workflow_run:
-    workflows: ["build"]
-    types: [completed]
-    branches:
-      - main
   bots:
     - dependabot
+  workflow_run:
+    workflows:
+      - build
+    types:
+      - completed
+    branches:
+      - main
 tools:
   github:
     toolsets: [repos]
@@ -147,12 +149,14 @@ Test workflow content.`,
 			name: "workflow_run with sibling roles all - strict mode - should pass",
 			frontmatter: `---
 on:
+  roles: all
   workflow_run:
-    workflows: ["build"]
-    types: [completed]
+    workflows:
+      - build
+    types:
+      - completed
     branches:
       - main
-  roles: all
 tools:
   github:
     toolsets: [repos]

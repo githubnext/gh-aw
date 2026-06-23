@@ -389,6 +389,50 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 			description: "Should reset bots array tracker before entering workflow_run section",
 		},
 		{
+			name: "bots before workflow_run with multi-line arrays do not comment workflow_run list items",
+			input: `on:
+  bots:
+    - dependabot
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:`,
+			expected: `on:
+  # bots: # Bots processed as bot check in pre-activation job
+    # - dependabot # Bots processed as bot check in pre-activation job
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:`,
+			description: "Should not comment out multi-line workflow_run.workflows/types items when bots precedes workflow_run",
+		},
+		{
+			name: "skip-if-check-failing before workflow_run does not corrupt workflow_run list items",
+			input: `on:
+  skip-if-check-failing:
+    - build
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:`,
+			expected: `on:
+  # skip-if-check-failing: # Skip-if-check-failing processed as check status gate in pre-activation job
+    # - build
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:`,
+			description: "Should reset inSkipIfCheckFailing before entering workflow_run to prevent list-item corruption",
+		},
+		{
 			name: "roles before workflow_run do not comment workflow_run list items",
 			input: `on:
   roles:
