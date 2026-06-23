@@ -190,5 +190,5 @@ func (c *Compiler) generateSamplesReplayStep(yaml *strings.Builder, data *Workfl
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -euo pipefail\n")
 	yaml.WriteString("          mkdir -p \"$(dirname \"$GH_AW_AGENT_STDIO_LOG\")\"\n")
-	yaml.WriteString("          node \"${{ runner.temp }}/gh-aw/actions/apply_samples.cjs\"\n")
+	yaml.WriteString("          node \"${RUNNER_TEMP}/gh-aw/actions/apply_samples.cjs\"\n")
 }

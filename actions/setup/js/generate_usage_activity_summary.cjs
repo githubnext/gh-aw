@@ -13,22 +13,85 @@ const path = require("path");
 
 const SQUID_STATUS_INDEX = 6;
 const SQUID_DECISION_INDEX = 7;
+const SQUID_DOMAIN_INDEX = 2;
+const SQUID_DEST_INDEX = 3;
+const SQUID_CLIENT_INDEX = 1;
+const LOCALHOST_CLIENT_PREFIX = "::1:";
+const PLACEHOLDER_DOMAIN_KEY = "-";
+const PLACEHOLDER_DEST_KEY = "-:-";
+const ERROR_DOMAIN_PREFIX = "error:";
 
 /**
  * Check if a Squid decision indicates an allowed request
  */
 function isAllowedDecision(decision) {
-  const base = decision.split("/")[0].trim().toUpperCase();
+  // Squid decision tokens appear in multiple formats (for example
+  // TCP_TUNNEL:HIER_DIRECT and TCP_MISS/200), so normalize on the leading verb.
+  const base = decision.trim().toUpperCase().split(/[/:]/)[0];
   return ["TCP_TUNNEL", "TCP_HIT", "TCP_MISS"].includes(base);
+}
+
+/**
+ * Resolve the domain key used in aggregate firewall stats.
+ *
+ * @param {string} domain
+ * @param {string} dest
+ * @returns {string}
+ */
+function getFirewallDomainKey(domain, dest) {
+  // Squid can emit either "-" or "-:-" for missing destination fields, so both
+  // placeholders are treated as invalid destination keys.
+  if (domain !== PLACEHOLDER_DOMAIN_KEY) {
+    return domain;
+  }
+  if (!isPlaceholderFirewallField(dest)) {
+    return dest;
+  }
+  return PLACEHOLDER_DOMAIN_KEY;
+}
+
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
+function isPlaceholderFirewallField(value) {
+  return value === PLACEHOLDER_DEST_KEY || value === PLACEHOLDER_DOMAIN_KEY;
+}
+
+/**
+ * @param {string} domain
+ * @returns {boolean}
+ */
+function isValidDomainKey(domain) {
+  return domain !== PLACEHOLDER_DOMAIN_KEY && !domain.startsWith(ERROR_DOMAIN_PREFIX);
+}
+
+/**
+ * @param {string} client
+ * @param {string} domain
+ * @param {string} dest
+ * @returns {boolean}
+ */
+function isInternalFirewallErrorEntry(client, domain, dest) {
+  return client.startsWith(LOCALHOST_CLIENT_PREFIX) && domain === PLACEHOLDER_DOMAIN_KEY && isPlaceholderFirewallField(dest);
 }
 
 /**
  * Parse firewall logs and aggregate request counts
  */
 function parseFirewallLogs() {
-  const firewall = { total_requests: 0, allowed_requests: 0, blocked_requests: 0 };
+  const firewall = {
+    total_requests: 0,
+    allowed_requests: 0,
+    blocked_requests: 0,
+    allowed_domains: new Set(),
+    blocked_domains: new Set(),
+    requests_by_domain: {},
+  };
 
-  const firewallPaths = ["/tmp/gh-aw/sandbox/firewall/logs/*.log", "/tmp/gh-aw/threat-detection/sandbox/firewall/logs/*.log", "/tmp/gh-aw/squid-logs-*/*.log", "/tmp/gh-aw/threat-detection/squid-logs-*/*.log"];
+  // The sandbox firewall logs may be emitted in nested directories (for example,
+  // api-proxy-logs/*.log), so these patterns are intentionally recursive.
+  const firewallPaths = ["/tmp/gh-aw/sandbox/firewall/logs/**/*.log", "/tmp/gh-aw/threat-detection/sandbox/firewall/logs/**/*.log", "/tmp/gh-aw/squid-logs-*/**/*.log", "/tmp/gh-aw/threat-detection/squid-logs-*/**/*.log"];
 
   for (const pattern of firewallPaths) {
     const files = globSync(pattern);
@@ -45,6 +108,23 @@ function parseFirewallLogs() {
 
           const parts = line.split(/\s+/);
           if (parts.length < 8) {
+            continue;
+          }
+
+          const domain = parts[SQUID_DOMAIN_INDEX];
+          const dest = parts[SQUID_DEST_INDEX];
+          const client = parts[SQUID_CLIENT_INDEX] || "";
+          const isInternalErrorEntry = isInternalFirewallErrorEntry(client, domain, dest);
+          if (isInternalErrorEntry) {
+            continue;
+          }
+
+          // Domain key resolution intentionally considers both domain and dest
+          // because Squid may leave domain unset while dest remains usable.
+          const domainKey = getFirewallDomainKey(domain, dest);
+          // Keep total/allowed/blocked counters aligned with per-domain buckets by
+          // excluding unresolved placeholder/error keys from both representations.
+          if (!isValidDomainKey(domainKey)) {
             continue;
           }
 
@@ -67,10 +147,18 @@ function parseFirewallLogs() {
             allowed = true;
           }
 
+          if (!firewall.requests_by_domain[domainKey]) {
+            firewall.requests_by_domain[domainKey] = { allowed: 0, blocked: 0 };
+          }
+
           if (allowed) {
             firewall.allowed_requests += 1;
+            firewall.requests_by_domain[domainKey].allowed += 1;
+            firewall.allowed_domains.add(domainKey);
           } else {
             firewall.blocked_requests += 1;
+            firewall.requests_by_domain[domainKey].blocked += 1;
+            firewall.blocked_domains.add(domainKey);
           }
         }
       } catch (err) {
@@ -80,7 +168,26 @@ function parseFirewallLogs() {
     }
   }
 
-  return firewall.total_requests > 0 ? firewall : null;
+  if (firewall.total_requests === 0) {
+    return null;
+  }
+
+  const requestsByDomain = {};
+  for (const [domain, stats] of Object.entries(firewall.requests_by_domain)) {
+    if (!isValidDomainKey(domain)) {
+      continue;
+    }
+    requestsByDomain[domain] = stats;
+  }
+
+  return {
+    total_requests: firewall.total_requests,
+    allowed_requests: firewall.allowed_requests,
+    blocked_requests: firewall.blocked_requests,
+    allowed_domains: Array.from(firewall.allowed_domains).filter(isValidDomainKey).sort(),
+    blocked_domains: Array.from(firewall.blocked_domains).filter(isValidDomainKey).sort(),
+    requests_by_domain: requestsByDomain,
+  };
 }
 
 /**
