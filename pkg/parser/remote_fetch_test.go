@@ -25,6 +25,32 @@ func TestBuildCommitLookupAPIPath(t *testing.T) {
 	})
 }
 
+func TestBuildContentsAPIPath(t *testing.T) {
+	t.Run("escapes refs with reserved query chars", func(t *testing.T) {
+		got := buildContentsAPIPath("owner", "repo", ".github/workflows/demo.md", "release+candidate#1")
+		want := "repos/owner/repo/contents/.github/workflows/demo.md?ref=release%2Bcandidate%231"
+		if got != want {
+			t.Fatalf("buildContentsAPIPath() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("keeps plain refs readable", func(t *testing.T) {
+		got := buildContentsAPIPath("owner", "repo", ".github/workflows/demo.md", "main")
+		want := "repos/owner/repo/contents/.github/workflows/demo.md?ref=main"
+		if got != want {
+			t.Fatalf("buildContentsAPIPath() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("escapes path segments with reserved chars", func(t *testing.T) {
+		got := buildContentsAPIPath("owner", "repo", "skills/path with spaces/file#100%.md", "main")
+		want := "repos/owner/repo/contents/skills/path%20with%20spaces/file%23100%25.md?ref=main"
+		if got != want {
+			t.Fatalf("buildContentsAPIPath() = %q, want %q", got, want)
+		}
+	})
+}
+
 func TestGitFallbackRequiresNonEmptyRef(t *testing.T) {
 	t.Run("all files fallback validates ref", func(t *testing.T) {
 		_, err := listDirAllFilesViaGitForHost("owner", "repo", "", "skills/demo", "")
