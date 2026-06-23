@@ -194,6 +194,8 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			workflowRunIndent = -1
 		}
 	}
+	// resetOnArrayTrackers clears top-level on: extension array state when a new
+	// event section starts, preventing sibling sections from inheriting stale flags.
 	resetOnArrayTrackers := func() {
 		inSkipRolesArray = false
 		inSkipBotsArray = false
