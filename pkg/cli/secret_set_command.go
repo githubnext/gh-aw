@@ -12,6 +12,7 @@ import (
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/tty"
@@ -88,11 +89,7 @@ The secret value can be provided in three ways:
 			}
 
 			// Create GitHub REST client using go-gh
-			opts := api.ClientOptions{}
-			if flagAPIBase != "" {
-				opts.Host = strings.TrimPrefix(strings.TrimPrefix(flagAPIBase, "https://"), "http://")
-			}
-			client, err := api.NewRESTClient(opts)
+			client, err := api.NewRESTClient(secretSetClientOptions(flagAPIBase))
 			if err != nil {
 				return fmt.Errorf("cannot create GitHub client: %w", err)
 			}
@@ -121,6 +118,16 @@ The secret value can be provided in three ways:
 	cmd.Flags().StringVar(&flagAPIBase, "api-url", "", "GitHub API base URL (default: https://api.github.com or $GITHUB_API_URL)")
 
 	return cmd
+}
+
+func secretSetClientOptions(apiBase string) api.ClientOptions {
+	opts := api.ClientOptions{
+		Timeout: constants.DefaultHTTPClientTimeout,
+	}
+	if apiBase != "" {
+		opts.Host = strings.TrimPrefix(strings.TrimPrefix(apiBase, "https://"), "http://")
+	}
+	return opts
 }
 
 func resolveSecretValueForSet(fromEnv, fromFlag string) (string, error) {
