@@ -15,7 +15,7 @@ name: Smoke Claude on Copilot
 engine:
   id: claude
   model-provider: github
-  model: claude-haiku-4.5
+  model: claude-opus-4.7
   bare: true
 strict: true
 tools:
