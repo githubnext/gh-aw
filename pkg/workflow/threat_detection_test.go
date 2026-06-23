@@ -1102,9 +1102,9 @@ func TestPrepareDetectionFilesStepWarnsWhenPromptContextMissingOrEmpty(t *testin
 }
 
 // TestDetectionJobLevelCondition verifies that the detection job-level `if:` condition
-// skips the job entirely when the agent produced no outputs and no patch.
-// This prevents the detection job from wasting a runner and ensures safe_outputs is
-// also correctly skipped (since it gates on needs.detection.result == 'success').
+// always runs the detection job when the agent ran (not skipped), regardless of whether
+// the agent produced any outputs. This ensures detection is never bypassed for noop/boop runs;
+// the detection_guard step inside the job handles the no-output case.
 func TestDetectionJobLevelCondition(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -1142,14 +1142,13 @@ func TestDetectionJobLevelCondition(t *testing.T) {
 		t.Errorf("Expected detection job condition to check for skipped status, got: %q", condition)
 	}
 
-	// Must check output_types and has_patch so the job is skipped at job-level
-	// when the agent produced nothing (avoiding unnecessary runner usage and
-	// preventing safe_outputs from running when there is nothing to publish).
-	if !strings.Contains(condition, "needs."+string(constants.AgentJobName)+".outputs.output_types") {
-		t.Errorf("Expected detection job condition to check output_types, got: %q", condition)
+	// Must NOT require output_types or has_patch — detection runs unconditionally when the agent ran,
+	// and the detection_guard step inside the job handles the no-output case.
+	if strings.Contains(condition, "outputs.output_types") {
+		t.Errorf("Detection job condition must not gate on output_types; got: %q", condition)
 	}
-	if !strings.Contains(condition, "needs."+string(constants.AgentJobName)+".outputs.has_patch") {
-		t.Errorf("Expected detection job condition to check has_patch, got: %q", condition)
+	if strings.Contains(condition, "outputs.has_patch") {
+		t.Errorf("Detection job condition must not gate on has_patch; got: %q", condition)
 	}
 }
 

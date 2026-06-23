@@ -1376,24 +1376,19 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		runsOn = normalizeRunsOnSnippet(data.SafeOutputs.ThreatDetection.RunsOn)
 	}
 
-	// Detection job condition: always run if agent job was not skipped AND produced outputs or a patch.
-	// Skip the detection job entirely (result = 'skipped') when there is nothing to detect against,
-	// so downstream jobs (safe_outputs) are also correctly skipped.
+	// Detection job condition: always run whenever the agent job was not skipped,
+	// regardless of whether the agent produced outputs (output_types) or a patch.
+	// This ensures detection is never bypassed even when the agent calls noop/boop —
+	// the detection_guard step inside the job handles the no-output case by setting
+	// run_detection=false, and detection_conclusion short-circuits with conclusion=skipped,
+	// success=true, so downstream jobs (safe_outputs, update_cache_memory) see
+	// needs.detection.result == 'success' and behave correctly.
 	alwaysFunc := BuildFunctionCall("always")
 	agentNotSkipped := BuildNotEquals(
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
 		BuildStringLiteral("skipped"),
 	)
-	outputTypesNotEmpty := BuildNotEquals(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
-		BuildStringLiteral(""),
-	)
-	hasPatchTrue := BuildEquals(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.has_patch", constants.AgentJobName)),
-		BuildStringLiteral("true"),
-	)
-	hasContent := BuildOr(outputTypesNotEmpty, hasPatchTrue)
-	jobConditionNode := BuildAnd(BuildAnd(alwaysFunc, agentNotSkipped), hasContent)
+	jobConditionNode := BuildAnd(alwaysFunc, agentNotSkipped)
 
 	// When detection is expression-controlled, add the caller expression to the condition so
 	// GitHub Actions skips the detection job at runtime when the expression evaluates to false.
