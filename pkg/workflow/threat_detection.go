@@ -372,6 +372,10 @@ func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data
 	const emptyMCPServersJSON = `{"mcpServers":{}}`
 	shellCodexConfigPath := constants.ShellMcpConfigDir + "/config.toml"
 	codexHomeConfigPath := constants.TmpMcpConfigDir + "/config.toml"
+	codexAPIBase := NewCodexEngine().getOpenAIProxyProviderBaseURL()
+	codexWSSBase := codexProxyWebsocketBaseURL(codexAPIBase)
+	codexConfig := buildExternalDetectorCodexConfig(codexAPIBase, codexWSSBase)
+	codexConfigDelimiter := GenerateHeredocDelimiterFromContent("CODEX_DETECTION_CONFIG", codexConfig)
 
 	return []string{
 		"      - name: Prepare Codex config for threat-detect\n",
@@ -379,10 +383,41 @@ func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data
 		"        run: |\n",
 		fmt.Sprintf("          mkdir -p %q %q %q\n", constants.ShellMcpConfigDir, constants.TmpMcpConfigDir, constants.TmpMcpConfigLogsDir),
 		fmt.Sprintf("          printf '%%s\\n' %q > %q\n", emptyMCPServersJSON, constants.ShellMcpServersJsonPath),
-		"          # Create empty config.toml files so CODEX_HOME exists for threat-detect.\n",
-		fmt.Sprintf("          : > %q\n", shellCodexConfigPath),
-		fmt.Sprintf("          : > %q\n", codexHomeConfigPath),
+		"          # Point Codex at the AWF OpenAI proxy and disable websocket startup.\n",
+		fmt.Sprintf("          cat > %q << %s\n", shellCodexConfigPath, codexConfigDelimiter),
+		codexConfig,
+		fmt.Sprintf("          %s\n", codexConfigDelimiter),
+		fmt.Sprintf("          cp %q %q\n", shellCodexConfigPath, codexHomeConfigPath),
 		fmt.Sprintf("          chmod 600 %q %q\n", shellCodexConfigPath, codexHomeConfigPath),
+	}
+}
+
+func buildExternalDetectorCodexConfig(apiBase, wssBase string) string {
+	return strings.Join([]string{
+		"          [history]",
+		"          persistence = \"none\"",
+		"",
+		"          model_provider = \"" + codexOpenAIProxyProviderID + "\"",
+		"",
+		"          [model_providers." + codexOpenAIProxyProviderID + "]",
+		"          name = \"" + codexOpenAIProxyProviderName + "\"",
+		"          base_url = \"" + apiBase + "\"",
+		"          api_base = \"" + apiBase + "\"",
+		"          wss_base = \"" + wssBase + "\"",
+		"          env_key = \"OPENAI_API_KEY\"",
+		"          supports_websockets = false",
+		"",
+	}, "\n")
+}
+
+func codexProxyWebsocketBaseURL(apiBase string) string {
+	switch {
+	case strings.HasPrefix(apiBase, "https://"):
+		return "wss://" + strings.TrimPrefix(apiBase, "https://")
+	case strings.HasPrefix(apiBase, "http://"):
+		return "ws://" + strings.TrimPrefix(apiBase, "http://")
+	default:
+		return apiBase
 	}
 }
 

@@ -330,4 +330,16 @@ Test workflow`
 	if !strings.Contains(detectionSection, string(constants.TmpMcpConfigDir)+"/config.toml") {
 		t.Error("Codex external detector path must create a writable CODEX_HOME config.toml")
 	}
+	if !strings.Contains(detectionSection, "model_provider = \"openai-proxy\"") {
+		t.Error("Codex external detector path must route Codex through the AWF OpenAI proxy")
+	}
+	if !strings.Contains(detectionSection, "api_base = \"http://") {
+		t.Error("Codex external detector path must set api_base in config.toml")
+	}
+	if !strings.Contains(detectionSection, "wss_base = \"ws://") {
+		t.Error("Codex external detector path must set wss_base in config.toml")
+	}
+	if !strings.Contains(detectionSection, "supports_websockets = false") {
+		t.Error("Codex external detector path must disable websocket startup for the proxy config")
+	}
 }
