@@ -12,10 +12,16 @@ func writeJSONStringMapEntries(yaml *strings.Builder, values map[string]string, 
 		if i == len(values)-1 {
 			comma = ""
 		}
-		encodedKey, _ := json.Marshal(key)           //nolint:jsonmarshalignorederror // marshaling a string cannot fail
-		encodedValue, _ := json.Marshal(values[key]) //nolint:jsonmarshalignorederror // marshaling a string cannot fail
-		fmt.Fprintf(yaml, "%s%s: %s%s\n", indent, encodedKey, encodedValue, comma)
+		fmt.Fprintf(yaml, "%s%s: %s%s\n", indent, mustMarshalJSONString(key), mustMarshalJSONString(values[key]), comma)
 	}
+}
+
+func mustMarshalJSONString(value string) string {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		panic(err)
+	}
+	return string(encoded)
 }
 
 func writeJSONStringMapSection(yaml *strings.Builder, indent, name string, values map[string]string, trailingComma bool) {
