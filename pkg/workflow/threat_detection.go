@@ -369,15 +369,19 @@ func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data
 		return nil
 	}
 
+	const emptyMCPServersJSON = `{"mcpServers":{}}`
+	codexHomeConfigPath := constants.TmpMcpConfigDir + "/config.toml"
+
 	return []string{
 		"      - name: Prepare Codex config for threat-detect\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        run: |\n",
 		fmt.Sprintf("          mkdir -p %q %q %q\n", constants.ShellMcpConfigDir, constants.TmpMcpConfigDir, constants.TmpMcpConfigLogsDir),
-		fmt.Sprintf("          printf '%%s\\n' '{\"mcpServers\":{}}' > %q\n", constants.ShellMcpServersJsonPath),
+		fmt.Sprintf("          printf '%%s\\n' %q > %q\n", emptyMCPServersJSON, constants.ShellMcpServersJsonPath),
+		"          # Create empty config.toml files so CODEX_HOME exists for threat-detect.\n",
 		fmt.Sprintf("          : > %q\n", constants.CodexMcpConfigTomlPath),
-		fmt.Sprintf("          : > %q\n", constants.TmpMcpConfigDir+"/config.toml"),
-		fmt.Sprintf("          chmod 600 %q %q\n", constants.CodexMcpConfigTomlPath, constants.TmpMcpConfigDir+"/config.toml"),
+		fmt.Sprintf("          : > %q\n", codexHomeConfigPath),
+		fmt.Sprintf("          chmod 600 %q %q\n", constants.CodexMcpConfigTomlPath, codexHomeConfigPath),
 	}
 }
 
