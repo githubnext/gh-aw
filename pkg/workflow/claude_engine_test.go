@@ -199,6 +199,26 @@ func TestClaudeEngineLLMProviderGitHubUsesCopilotCredentials(t *testing.T) {
 	assert.Contains(t, stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
 }
 
+func TestClaudeEngineLLMProviderAnthropicFirewallUsesClaudeGatewayPort(t *testing.T) {
+	engine := NewClaudeEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	require.Len(t, steps, 1)
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	assert.Contains(t, stepContent, "GH_AW_LLM_PROVIDER: anthropic")
+	assert.Contains(t, stepContent, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}")
+	// With firewall enabled, ANTHROPIC_BASE_URL must point to the Claude gateway port.
+	assert.Contains(t, stepContent, fmt.Sprintf("ANTHROPIC_BASE_URL: http://host.docker.internal:%d", constants.ClaudeLLMGatewayPort))
+	assert.NotContains(t, stepContent, "COPILOT_GITHUB_TOKEN:")
+}
+
 func TestClaudeEngineAllowsMountedMCPCLICommandsInRestrictedBash(t *testing.T) {
 	engine := NewClaudeEngine()
 

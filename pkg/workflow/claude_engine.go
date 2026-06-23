@@ -382,7 +382,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	if provider == LLMProviderAnthropic {
 		env["ANTHROPIC_API_KEY"] = llmProviderSecretExpression(provider, workflowData)
 	}
-	if isFirewallEnabled(workflowData) && provider != LLMProviderAnthropic {
+	if isFirewallEnabled(workflowData) {
 		env["ANTHROPIC_BASE_URL"] = llmProviderGatewayBaseURL(provider)
 	}
 	// When using the GitHub/Copilot provider (model-provider: github), the api-proxy container
