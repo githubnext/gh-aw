@@ -283,6 +283,56 @@ Test workflow`
 	}
 }
 
+func TestInlineDetectionUsesCopilotForPiWorkflows(t *testing.T) {
+	compiler := NewCompiler()
+
+	tmpDir := testutil.TempDir(t, "test-inline-detector-pi-*")
+	workflowPath := filepath.Join(tmpDir, "test-inline-detector-pi.md")
+
+	workflowContent := `---
+on: push
+engine:
+  id: pi
+  model: copilot/gpt-5.4
+safe-outputs:
+  create-issue:
+tools:
+  github:
+    mode: gh-proxy
+  cli-proxy: true
+---
+Test workflow`
+
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowPath)
+	result, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	detectionSection := extractJobSection(string(result), "detection")
+	if detectionSection == "" {
+		t.Fatal("Detection job not found in compiled workflow")
+	}
+
+	if !strings.Contains(detectionSection, "install_copilot_cli.sh") {
+		t.Error("Pi inline detection path must install the Copilot engine")
+	}
+	if strings.Contains(detectionSection, "@earendil-works/pi-coding-agent") {
+		t.Error("Pi inline detection path must not install the Pi engine")
+	}
+	if !strings.Contains(detectionSection, "COPILOT_GITHUB_TOKEN:") {
+		t.Error("Pi inline detection path must inherit Copilot auth env")
+	}
+}
+
 func TestExternalDetectorPathPreparesCodexConfig(t *testing.T) {
 	compiler := NewCompiler()
 

@@ -2104,7 +2104,7 @@ func TestBuildDetectionEngineExecutionStepPropagatesHarnessScriptOverride(t *tes
 	}
 }
 
-func TestBuildDetectionEngineExecutionStepOmitsPiCooldownEnv(t *testing.T) {
+func TestBuildDetectionEngineExecutionStepUsesCopilotForPi(t *testing.T) {
 	compiler := NewCompiler()
 
 	data := &WorkflowData{
@@ -2123,11 +2123,11 @@ func TestBuildDetectionEngineExecutionStepOmitsPiCooldownEnv(t *testing.T) {
 	}
 
 	rendered := strings.Join(steps, "")
-	if !strings.Contains(rendered, "Install Pi CLI") {
-		t.Fatal("expected detection steps to include the Pi install step")
+	if !strings.Contains(rendered, "Install GitHub Copilot CLI") {
+		t.Fatal("expected detection steps to include the Copilot install step for pi workflows")
 	}
-	if strings.Contains(rendered, "NPM_CONFIG_MIN_RELEASE_AGE:") {
-		t.Fatalf("expected detection steps to omit npm cooldown env for Pi installs")
+	if strings.Contains(rendered, "Install Pi CLI") {
+		t.Fatal("expected detection steps to avoid Pi install step")
 	}
 }
 
