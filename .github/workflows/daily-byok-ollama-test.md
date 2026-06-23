@@ -27,6 +27,8 @@ steps:
       OLLAMA_API_KEY="$(openssl rand -hex 16)"
       echo "OLLAMA_API_KEY=$OLLAMA_API_KEY" >> "$GITHUB_ENV"
   - name: Start Ollama service
+    env:
+      OLLAMA_HOST: "0.0.0.0:11434"
     run: |
       ollama serve &
       echo "Waiting for Ollama service..."

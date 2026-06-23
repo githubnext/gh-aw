@@ -34,13 +34,14 @@ tools:
     mode: gh-proxy
     toolsets: [default, repos, issues, pull_requests]
   cache-memory: true
+  edit: null
   bash:
     - "find specs docs scratchpad -type f -name \"*.md\""
     - "cat specs/*.md"
     - "cat docs/src/content/docs/reference/*specification*.md"
     - "cat scratchpad/*specification*.md"
     - "git log --oneline --since=\"14 days ago\" -- specs docs/src/content/docs/reference scratchpad"
-    - "sed -n"
+    - "sed *"
 
 steps:
   - name: Copy OpenSPDD prompts
@@ -88,6 +89,8 @@ Inspect specification files from:
 - `specs/**/*.md`
 - `docs/src/content/docs/reference/*specification*.md`
 - `scratchpad/*specification*.md`
+
+Use the allowed shell commands above or built-in file inspection tools only for read-only analysis. Do not modify repository files.
 
 ### Daily Rotation
 

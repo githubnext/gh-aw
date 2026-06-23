@@ -348,6 +348,48 @@ func TestDailyFormalSpecVerifierDefinesDirectSafeOutputContract(t *testing.T) {
 	}
 }
 
+func TestDailyFormalSpecVerifierAllowsReadOnlyFileInspection(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-formal-spec-verifier.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	if !strings.Contains(workflow, "edit: null") {
+		t.Fatal("Expected daily-formal-spec-verifier workflow to enable built-in file inspection tools")
+	}
+	if !strings.Contains(workflow, `- "sed *"`) {
+		t.Fatal("Expected daily-formal-spec-verifier workflow to allow ranged sed reads")
+	}
+}
+
+func TestDailySPDDSpecPlannerAllowsReadOnlyFileInspection(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-spdd-spec-planner.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	if !strings.Contains(workflow, "edit: null") {
+		t.Fatal("Expected daily-spdd-spec-planner workflow to enable built-in file inspection tools")
+	}
+	if !strings.Contains(workflow, `- "sed *"`) {
+		t.Fatal("Expected daily-spdd-spec-planner workflow to allow ranged sed reads")
+	}
+}
+
 func TestDailyCacheStrategyAnalyzerUsesCodexCompatibleModelsForExperiment(t *testing.T) {
 	repoRoot, err := findRepoRoot()
 	if err != nil {

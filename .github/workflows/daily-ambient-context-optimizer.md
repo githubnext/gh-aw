@@ -40,6 +40,117 @@ steps:
   - name: Prepare analysis workspace
     run: |
       mkdir -p /tmp/gh-aw/ambient-context
+  - name: Closed PR deduplication guard
+    uses: actions/github-script@v9.0.0
+    with:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+      script: |
+        const fs = require('fs');
+
+        const { owner, repo } = context.repo;
+        const OPTIMIZER_PATTERNS = [
+          'copilot/ambient-context',
+          'copilot/daily-ambient-context',
+          'ambient-context-optim',
+        ];
+
+        const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+        cutoff.setUTCHours(0, 0, 0, 0);
+
+        const allClosed = await github.paginate(github.rest.pulls.list, {
+          owner, repo, state: 'closed', per_page: 100,
+        });
+
+        const closedOptimizerPrs = allClosed.filter((pr) => {
+          const branch = pr.head?.ref || '';
+          return (
+            !pr.merged_at &&
+            OPTIMIZER_PATTERNS.some((p) => branch.includes(p)) &&
+            new Date(pr.closed_at) >= cutoff
+          );
+        });
+
+        const blockedFilesSet = new Set();
+        for (const pr of closedOptimizerPrs) {
+          try {
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner, repo, pull_number: pr.number, per_page: 100,
+            });
+            for (const f of files) blockedFilesSet.add(f.filename);
+          } catch (err) {
+            core.warning(`Could not list files for PR #${pr.number}: ${err.message}`);
+          }
+        }
+
+        const blockedFiles = [...blockedFilesSet].sort();
+        const data = {
+          closed_optimizer_prs: closedOptimizerPrs.map((pr) => ({
+            number: pr.number,
+            title: pr.title,
+            closedAt: pr.closed_at,
+            mergedAt: pr.merged_at,
+            headRefName: pr.head?.ref,
+          })),
+          blocked_files: blockedFiles,
+          pr_count: closedOptimizerPrs.length,
+          generated_at: new Date().toISOString(),
+        };
+
+        fs.mkdirSync('/tmp/gh-aw/ambient-context', { recursive: true });
+        fs.writeFileSync('/tmp/gh-aw/ambient-context/closed-pr-targets.json', JSON.stringify(data, null, 2));
+
+        core.info(`Deduplication guard: ${closedOptimizerPrs.length} closed optimizer PRs, ${blockedFiles.length} blocked files`);
+        for (const bf of blockedFiles) core.info(`  BLOCKED: ${bf}`);
+  - name: PR close-rate metric
+    uses: actions/github-script@v9.0.0
+    with:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+      script: |
+        const fs = require('fs');
+
+        const { owner, repo } = context.repo;
+        const OPTIMIZER_PATTERNS = [
+          'copilot/ambient-context',
+          'copilot/daily-ambient-context',
+          'ambient-context-optim',
+        ];
+
+        const cutoff7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+        const allPrs = await github.paginate(github.rest.pulls.list, {
+          owner, repo, state: 'all', per_page: 100,
+        });
+
+        const optPrs7d = allPrs.filter((pr) => {
+          const branch = pr.head?.ref || '';
+          return (
+            OPTIMIZER_PATTERNS.some((p) => branch.includes(p)) &&
+            new Date(pr.created_at) >= cutoff7d
+          );
+        });
+
+        const merged7d = optPrs7d.filter((pr) => pr.merged_at);
+        const closed7d = optPrs7d.filter((pr) => !pr.merged_at && pr.closed_at);
+        const totalSettled = merged7d.length + closed7d.length;
+
+        // close_rate is null when sample < 3 to avoid misleading zero reads
+        const closeRate = totalSettled >= 3 ? closed7d.length / totalSettled : null;
+        const autoPause = closeRate !== null && closeRate >= 0.30;
+
+        const rateData = {
+          merged_7d: merged7d.length,
+          closed_7d: closed7d.length,
+          total_settled_7d: totalSettled,
+          close_rate: closeRate !== null ? Math.round(closeRate * 1000) / 1000 : null,
+          auto_pause: autoPause,
+          note: 'close_rate is null when total_settled_7d < 3 (insufficient data for auto-pause)',
+        };
+
+        fs.writeFileSync('/tmp/gh-aw/ambient-context/pr-close-rate.json', JSON.stringify(rateData, null, 2));
+
+        const rateStr = closeRate !== null ? `${Math.round(closeRate * 100)}%` : 'N/A (< 3 settled PRs)';
+        core.info(`PR close-rate (7d): ${rateStr} (${closed7d.length} closed, ${merged7d.length} merged)${autoPause ? ' — AUTO-PAUSE ACTIVE' : ''}`);
+
 imports:
   - shared/otlp.md
 features:
@@ -94,6 +205,18 @@ Prefer higher-cost runs first by using `aic`, then `effective_tokens`, `token_us
 ### Step 3 — Enrich a subset with audits
 
 Run the `audit` MCP tool for the **2 most expensive sampled runs** so you have richer cost context and references.
+
+### Step 4 — Closed PR Deduplication Guard
+
+The deduplication guard runs as a deterministic pre-step before the agent starts.
+Read `/tmp/gh-aw/ambient-context/closed-pr-targets.json` — it has already been written.
+
+Files listed under `blocked_files` are **retry-blocked** — exclude any recommendation that targets them.
+
+### Step 5 — PR Close-Rate Metric
+
+The close-rate metric runs as a deterministic pre-step before the agent starts.
+Read `/tmp/gh-aw/ambient-context/pr-close-rate.json` — it has already been written.
 
 ## First-Request Extraction Rules
 
@@ -204,7 +327,7 @@ Each sub-agent invocation may return at most 3 opportunities for its run. Aggreg
 - Keep the workflow bounded and avoid exploratory loops.
 - Do not repeatedly re-open or re-parse the same artifacts once required metrics are extracted.
 - Keep the final issue body concise and evidence-based, with short bullets and compact explanations.
-- Keep the final issue body under 9500 bytes (UTF-8); if needed, shorten details before calling the tool.
+- Keep the final issue body under 9500 bytes (UTF-8); if needed, shorten details before calling the tool. Note: the CI-Validation Checklist for Implementing Agents (~600 bytes) counts toward this limit and must not be omitted.
 - Use at most 3 run links in the final References section.
 - Never call `create_issue` with placeholders, probes, or test strings (for example `"."` or `"test"`). Call it only with the final intended title/body.
 - Call `create_issue` only after validating your final body length and content.
@@ -232,6 +355,16 @@ Prioritize recommendations that:
 
 Do not recommend changes that would obviously weaken safety or remove necessary task context.
 
+Apply these additional guards before finalizing recommendations:
+
+- **Deduplication guard**: Load `/tmp/gh-aw/ambient-context/closed-pr-targets.json`. If a recommendation's primary target file appears in `blocked_files`, skip that recommendation entirely. If **all** candidate recommendations are blocked, do not create a standard recommendation issue; instead create a single minimal issue titled `[ambient-context] Deduplication block — YYYY-MM-DD` (UTC date) that lists the blocked files and their associated closed PRs, then stop.
+
+- **Minimum safe size guard**: Do not recommend reducing a workflow markdown file to fewer than **1,000 characters** or by more than **40%** of its current character count in a single recommendation.
+
+- **Auto-pause rule**: Load `/tmp/gh-aw/ambient-context/pr-close-rate.json`. If `auto_pause` is `true` (close rate ≥ 30% across ≥ 3 settled PRs in the last 7 days), limit the final recommendation count to **1** (the highest-confidence finding that does not target any blocked file) and include a close-rate warning in the issue body.
+
+- **CI-validation requirement**: Every recommendation targeting a `.github/workflows/*.md` file must include the "CI-Validation Checklist for Implementing Agents" in the issue body (see Report Requirements).
+
 ## Report Requirements
 
 Create exactly one issue titled:
@@ -251,6 +384,18 @@ Keep the issue structured like this (concise, no extra sections):
 ### Highest-Leverage Changes
 - a concise numbered list of the top recommendations
 
+### CI-Validation Checklist for Implementing Agents
+
+Any agent implementing workflow-file recommendations **must** complete every item below before opening a PR:
+
+- [ ] Run `make recompile` for every modified `.github/workflows/*.md` file — zero compilation errors required
+- [ ] Confirm no target workflow file is reduced by more than 40% of its current character count
+- [ ] Run `make agent-report-progress` before the final commit and confirm it passes
+- [ ] Check the `blocked_files` list in `/tmp/gh-aw/ambient-context/closed-pr-targets.json` (written by Step 4) — **do not re-attempt changes to any file that appears in a closed ambient-context optimization PR from the last 14 days**
+- [ ] Include a smoke-test result or dry-run output in the PR description for every changed workflow spec
+- [ ] Document all generated `.lock.yml` changes in the PR body
+- [ ] Do not submit as a draft PR
+
 ### Key Metrics
 | Metric | Value |
 |---|---|
@@ -259,6 +404,9 @@ Keep the issue structured like this (concise, no extra sections):
 | Median chars | ... |
 | P95 chars | ... |
 | Largest sampled request | ... |
+| Merged optimizer PRs (7d) | ... |
+| Closed optimizer PRs (7d) | ... |
+| Optimizer PR close-rate (7d) | ... |
 
 <details>
 <summary>Per-Run First-Request Metrics</summary>
@@ -290,6 +438,19 @@ Do not add a separate "MCP Tools" section. Keep MCP-to-CLI rewrite guidance insi
 
 ### References
 - Include up to 3 sampled run links in `[§12345](https://github.com/owner/repo/actions/runs/12345)` format
+
+## Final Validation Checklist
+
+Before calling `create_issue`, verify:
+
+- [ ] closed-PR deduplication guard was run (Step 4) and `/tmp/gh-aw/ambient-context/closed-pr-targets.json` was written
+- [ ] PR close-rate metric was computed (Step 5) and `/tmp/gh-aw/ambient-context/pr-close-rate.json` was written
+- [ ] any recommendation targeting a file in `blocked_files` was excluded from the final set
+- [ ] auto-pause rule was checked: if `auto_pause: true`, final recommendations are capped at 1
+- [ ] CI-validation checklist is present in the issue body for every workflow-md recommendation
+- [ ] Key Metrics table includes `Merged optimizer PRs (7d)`, `Closed optimizer PRs (7d)`, and `Optimizer PR close-rate (7d)`
+- [ ] last-14-day filtering was applied to run sample
+- [ ] deduplication block issue was created (and `create_issue` was NOT called for normal recommendations) when all candidates were blocked
 
 ## Reduced-Data Behavior
 
