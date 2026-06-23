@@ -557,7 +557,7 @@ touch %s
 	}
 	env["GH_AW_LLM_PROVIDER"] = llmProvider
 
-	// Auto-configure Copilot BYOK routing when engine.llm-provider selects a non-GitHub provider.
+	// Auto-configure Copilot BYOK routing when engine.model-provider selects a non-GitHub provider.
 	// Explicit engine.env values still win later via maps.Copy.
 	if providerOverrideBYOK {
 		env[constants.CopilotProviderBaseURL] = llmProviderGatewayBaseURL(llmProvider)

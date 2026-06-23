@@ -19,7 +19,7 @@ var piLog = logger.New("workflow:pi_engine")
 // provider/model format (e.g. "copilot/claude-sonnet-4-20250514"), Pi borrows the
 // matching engine's AWF configuration (secrets, gateway port, allowed domains) so the
 // firewall can route LLM traffic through the correct sidecar port.  Without a provider
-// prefix Pi defaults to the Copilot gateway.
+// prefix Pi defaults to the GitHub/Copilot gateway.
 //
 // Requirements:
 //   - tools.github.mode: gh-proxy must be enabled (pre-authenticated gh CLI).
@@ -56,9 +56,15 @@ func (e *PiEngine) GetModelEnvVarName() string {
 	return constants.PiCLIModelEnvVar
 }
 
+// ResolveLLMProvider returns the effective provider for Pi inference.
+// Default is github, overridable via engine.model-provider.
+func (e *PiEngine) ResolveLLMProvider(workflowData *WorkflowData) string {
+	return resolveEngineLLMProvider(workflowData, LLMProviderGitHub)
+}
+
 // resolvePiBackend extracts the provider prefix from the engine model (if any) and maps
 // it to the matching UniversalLLMBackend.  A model without a slash (e.g. "claude-sonnet-4")
-// defaults to the Copilot backend for backward compatibility.
+// defaults to the GitHub (Copilot) backend for backward compatibility.
 //
 // "github-copilot/" is accepted as an alias for "copilot/" since that is the
 // provider name used by Pi CLI's built-in model registry.

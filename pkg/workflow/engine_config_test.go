@@ -179,11 +179,11 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "codex", Model: "gpt-4o"},
 		},
 		{
-			name: "object format - with llm-provider override",
+			name: "object format - with model-provider override",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
-					"id":           "claude",
-					"llm-provider": "github",
+					"id":             "claude",
+					"model-provider": "github",
 				},
 			},
 			expectedEngineSetting: "claude",

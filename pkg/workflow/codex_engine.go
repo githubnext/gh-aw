@@ -73,6 +73,12 @@ func (e *CodexEngine) GetModelEnvVarName() string {
 	return ""
 }
 
+// ResolveLLMProvider returns the effective provider for Codex inference.
+// Default is openai, overridable via engine.model-provider.
+func (e *CodexEngine) ResolveLLMProvider(workflowData *WorkflowData) string {
+	return resolveEngineLLMProvider(workflowData, LLMProviderOpenAI)
+}
+
 // GetRequiredSecretNames returns the list of secrets required by the Codex engine
 // This includes CODEX_API_KEY, OPENAI_API_KEY, and optionally MCP_GATEWAY_API_KEY and mcp-scripts secrets
 func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {

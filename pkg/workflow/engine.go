@@ -310,9 +310,15 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
-			// Extract optional 'llm-provider' field
-			if provider, hasProvider := engineObj["llm-provider"]; hasProvider {
-				if providerStr, ok := provider.(string); ok {
+			// Extract optional 'model-provider' field.
+			// Backward compatibility: accept deprecated 'llm-provider' when
+			// model-provider is not set.
+			providerValue, hasProvider := engineObj["model-provider"]
+			if !hasProvider {
+				providerValue, hasProvider = engineObj["llm-provider"]
+			}
+			if hasProvider {
+				if providerStr, ok := providerValue.(string); ok {
 					config.LLMProvider = strings.ToLower(strings.TrimSpace(providerStr))
 				}
 			}

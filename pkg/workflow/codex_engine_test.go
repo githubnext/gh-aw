@@ -12,6 +12,15 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 )
 
+func TestCodexEngine_ResolveLLMProvider_DefaultOpenAI(t *testing.T) {
+	engine := NewCodexEngine()
+
+	asserted := engine.ResolveLLMProvider(&WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}})
+	if asserted != "openai" {
+		t.Fatalf("expected default model-provider to be openai, got %q", asserted)
+	}
+}
+
 func TestCodexEngine(t *testing.T) {
 	engine := NewCodexEngine()
 

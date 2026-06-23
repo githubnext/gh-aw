@@ -187,7 +187,7 @@ func TestGetRequiredSecretNames_Copilot(t *testing.T) {
 		assert.Contains(t, secrets, "API_TOKEN")
 	})
 
-	t.Run("llm-provider=openai switches core secret requirements", func(t *testing.T) {
+	t.Run("model-provider=openai switches core secret requirements", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Tools:       map[string]any{},
 			ParsedTools: &ToolsConfig{},
@@ -276,7 +276,7 @@ func TestGetRequiredSecretNames_Claude(t *testing.T) {
 		assert.Contains(t, secrets, "MCP_GATEWAY_API_KEY")
 	})
 
-	t.Run("llm-provider=github switches required secret to copilot token", func(t *testing.T) {
+	t.Run("model-provider=github switches required secret to copilot token", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Tools:       map[string]any{},
 			ParsedTools: &ToolsConfig{},

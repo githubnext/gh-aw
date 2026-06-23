@@ -46,7 +46,7 @@ func (e *ClaudeEngine) GetModelEnvVarName() string {
 }
 
 // ResolveLLMProvider returns the effective provider for Claude inference.
-// Default is anthropic, overridable via engine.llm-provider.
+// Default is anthropic, overridable via engine.model-provider.
 func (e *ClaudeEngine) ResolveLLMProvider(workflowData *WorkflowData) string {
 	return resolveEngineLLMProvider(workflowData, LLMProviderAnthropic)
 }

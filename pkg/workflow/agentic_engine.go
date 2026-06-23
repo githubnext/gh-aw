@@ -223,7 +223,7 @@ type ModelEnvVarProvider interface {
 }
 
 // LLMProviderResolver is implemented by engines that support selecting
-// different inference providers at runtime (for example engine.llm-provider).
+// different inference providers at runtime (for example engine.model-provider).
 // This interface is intentionally separate from CodingAgentEngine so provider
 // concerns remain decoupled from core engine execution capabilities.
 type LLMProviderResolver interface {
