@@ -19,6 +19,12 @@ const AGENT_LOGIN_NAMES = {
 };
 
 /**
+ * Reverse lookup of assignee aliases to canonical agent names.
+ * @type {Record<string, string>}
+ */
+const AGENT_NAME_BY_LOGIN = Object.fromEntries(Object.entries(AGENT_LOGIN_NAMES).flatMap(([agentName, logins]) => logins.map(login => [login, agentName])));
+
+/**
  * Return the known GitHub login aliases for an agent.
  * @param {string} agentName
  * @returns {string[]}
@@ -26,7 +32,7 @@ const AGENT_LOGIN_NAMES = {
 function getAgentLogins(agentName) {
   const logins = AGENT_LOGIN_NAMES[agentName];
   if (!logins) return [];
-  return [...new Set(logins.map(login => String(login).trim()).filter(Boolean))];
+  return [...logins];
 }
 
 /**
@@ -42,14 +48,7 @@ function getAgentName(assignee) {
   if (AGENT_LOGIN_NAMES[normalized]) {
     return normalized;
   }
-
-  for (const [agentName] of Object.entries(AGENT_LOGIN_NAMES)) {
-    if (getAgentLogins(agentName).includes(normalized)) {
-      return agentName;
-    }
-  }
-
-  return null;
+  return AGENT_NAME_BY_LOGIN[normalized] || null;
 }
 
 /**
