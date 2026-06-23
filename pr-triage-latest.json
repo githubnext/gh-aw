@@ -1,35 +1,63 @@
 {
-  "run_date": "2026-06-23T01:14:26Z",
-  "run_id": "27995232884",
-  "previous_run_id": "27977745904",
-  "previous_run_date": "2026-06-22T19:19:01Z",
+  "run_date": "2026-06-23T07:33:11Z",
+  "run_id": "28009874414",
+  "previous_run_id": "27995232884",
+  "previous_run_date": "2026-06-23T01:14:26Z",
   "fork_prs": 0,
-  "agent_prs_found": 11,
-  "copilot_swe_agent_prs": 10,
+  "agent_prs_found": 4,
+  "copilot_swe_agent_prs": 3,
   "github_actions_prs": 1,
   "prs_triaged": 0,
   "fork_only_policy": true,
   "open_agent_prs": [
-    {"number": 40906, "title": "[docs] Self-healing documentation fixes from issue analysis", "author": "github-actions[bot]", "is_fork": false},
-    {"number": 40903, "title": "Add engine-level `llm-provider` selection and provider-", "author": "Copilot", "is_fork": false},
-    {"number": 40902, "title": "Broaden strict Copilot read allowlists for SPDD and For", "author": "Copilot", "is_fork": false},
-    {"number": 40897, "title": "Add `engine.driver` for pi engine with @earendil-works/", "author": "Copilot", "is_fork": false},
-    {"number": 40887, "title": "fix: pass through supported local and Docker action ref", "author": "Copilot", "is_fork": false},
-    {"number": 40884, "title": "[WIP] Add human triage gate before agent dispatch to fi", "author": "Copilot", "is_fork": false},
-    {"number": 40883, "title": "Add deduplication guard and CI-validation checklist to", "author": "Copilot", "is_fork": false},
-    {"number": 40882, "title": "fix(cache-memory): ensure detection always runs on safe", "author": "Copilot", "is_fork": false},
-    {"number": 40880, "title": "Optimize aw-failure-investigator to reduce AI credit us", "author": "Copilot", "is_fork": false},
-    {"number": 40877, "title": "Expose AWF `platform.type` via `sandbox.agent.platform`", "author": "Copilot", "is_fork": false},
-    {"number": 40423, "title": "Add `replace-label` safe-outputs type (experimental)", "author": "Copilot", "is_fork": false}
+    {
+      "number": 40973,
+      "title": "Handle staged create_pull_request policy denials as previews",
+      "author": "Copilot",
+      "is_fork": false,
+      "draft": true,
+      "labels": [],
+      "created_at": "2026-06-23T06:10:40Z",
+      "updated_at": "2026-06-23T06:24:35Z"
+    },
+    {
+      "number": 40954,
+      "title": "Fix external detection job setup for codex and pi workflows",
+      "author": "Copilot",
+      "is_fork": false,
+      "draft": false,
+      "labels": ["smoke-claude", "needs-review", "smoke-copilot-aoai-apikey"],
+      "created_at": "2026-06-23T05:20:35Z",
+      "updated_at": "2026-06-23T06:47:31Z"
+    },
+    {
+      "number": 40951,
+      "title": "[jsweep] Clean validate_memory_files.cjs",
+      "author": "github-actions[bot]",
+      "is_fork": false,
+      "draft": false,
+      "labels": ["automation", "unbloat"],
+      "created_at": "2026-06-23T05:14:20Z",
+      "updated_at": "2026-06-23T07:21:01Z"
+    },
+    {
+      "number": 40930,
+      "title": "fix(claude): inject COPILOT_GITHUB_TOKEN, scope ANTHROPIC_BASE_URL to Anthropic provider, fix provider-aware api-proxy reflect check, and convert Copilot env vars to Anthropic vars in harness",
+      "author": "Copilot",
+      "is_fork": false,
+      "draft": false,
+      "labels": ["smoke", "smoke-claude", "needs-review"],
+      "created_at": "2026-06-23T03:44:46Z",
+      "updated_at": "2026-06-23T06:55:48Z"
+    }
   ],
-  "new_since_last_run": [40906, 40903, 40902, 40897, 40887, 40884, 40883, 40882, 40880, 40877],
-  "still_open_from_before": [40423],
-  "closed_since_last_run": [40837, 40833, 40831, 40824, 40822, 40821, 40820, 40819, 40794, 40793, 40792, 40790, 40789],
+  "new_since_last_run": [40973, 40954, 40951, 40930],
+  "closed_since_last_run": [40906, 40903, 40902, 40897, 40887, 40884, 40883, 40882, 40880, 40877, 40423],
   "statistics": {
-    "total_open_agent_prs": 11,
-    "copilot_prs": 10,
+    "total_open_agent_prs": 4,
+    "copilot_prs": 3,
     "github_actions_prs": 1,
     "fork_prs_eligible": 0
   },
-  "notes": "11 open agent PRs (10 Copilot, 1 github-actions[bot]). All same-repo branches (is_fork=False). Fork-only triage policy: 0 PRs eligible. 13 PRs from previous run were closed/merged. Run [§27995232884](https://github.com/github/gh-aw/actions/runs/27995232884)."
+  "notes": "4 open agent PRs (3 Copilot, 1 github-actions[bot]). All same-repo branches (is_fork=false). Fork-only triage policy: 0 PRs eligible. 11 PRs from previous run were closed/merged. Run [§28009874414](https://github.com/github/gh-aw/actions/runs/28009874414)."
 }
