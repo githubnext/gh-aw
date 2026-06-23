@@ -36,6 +36,7 @@ const fs = require("fs");
 const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
+  AWF_API_PROXY_PROVIDER_PORTS,
   AWF_REFLECT_OUTPUT_PATH,
   AWF_REFLECT_TIMEOUT_MS,
   AWF_MODELS_URL_TIMEOUT_MS,
@@ -290,6 +291,37 @@ function stripContinueArgs(args) {
 }
 
 /**
+ * Build the child process environment for the GitHub/Copilot provider.
+ *
+ * When GH_AW_LLM_PROVIDER is "github", Claude CLI cannot authenticate with the
+ * Copilot backend directly. The api-proxy sidecar exposes an Anthropic-compatible
+ * endpoint at CopilotLLMGatewayPort (10002) and handles Copilot authentication
+ * itself using COPILOT_GITHUB_TOKEN from the host environment.
+ *
+ * This function injects the Anthropic environment variables that Claude CLI
+ * requires so it routes through the correct api-proxy port:
+ *   - ANTHROPIC_BASE_URL: points to the Copilot api-proxy endpoint
+ *   - ANTHROPIC_API_KEY: required by Claude CLI; the proxy does not validate it
+ *
+ * Returns undefined when the provider is not "github" so the caller can fall
+ * through to using the default process.env unchanged.
+ *
+ * @param {NodeJS.ProcessEnv} [env] Source environment (defaults to process.env)
+ * @returns {NodeJS.ProcessEnv | undefined}
+ */
+function buildClaudeGitHubProviderEnv(env) {
+  const sourceEnv = env ?? process.env;
+  const provider = (sourceEnv.GH_AW_LLM_PROVIDER || "").toLowerCase().trim();
+  if (provider !== "github") return undefined;
+  const port = AWF_API_PROXY_PROVIDER_PORTS[provider] ?? AWF_API_PROXY_PROVIDER_PORTS.github;
+  return {
+    ...sourceEnv,
+    ANTHROPIC_BASE_URL: `http://api-proxy:${port}`,
+    ANTHROPIC_API_KEY: sourceEnv.ANTHROPIC_API_KEY || "copilot",
+  };
+}
+
+/**
  * Main entry point: run claude with retry logic for transient API failures.
  */
 async function main() {
@@ -348,6 +380,13 @@ async function main() {
   let continueDisabledPermanently = false;
   const driverStartTime = Date.now();
 
+  // When using the GitHub/Copilot provider, convert Copilot env variables into
+  // the Anthropic variables that Claude CLI requires to route through the proxy.
+  const childEnv = buildClaudeGitHubProviderEnv();
+  if (childEnv) {
+    log(`github provider: routing Claude CLI through ${childEnv.ANTHROPIC_BASE_URL}`);
+  }
+
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     // For --continue retries: omit the original prompt and add --continue.
     // Claude Code resumes the session from on-disk state; re-sending the original
@@ -370,7 +409,7 @@ async function main() {
       log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
     }
 
-    const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs });
+    const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs, env: childEnv });
     lastExitCode = result.exitCode;
 
     // Success — stop retrying
@@ -517,6 +556,7 @@ if (typeof module !== "undefined" && module.exports) {
     isInvalidModelError,
     isSignalTerminationExitCode,
     shouldRetryWithContinue,
+    buildClaudeGitHubProviderEnv,
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,
     extractDeniedCommands,

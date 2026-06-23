@@ -16,6 +16,7 @@ const {
   isInvalidModelError,
   isSignalTerminationExitCode,
   shouldRetryWithContinue,
+  buildClaudeGitHubProviderEnv,
   countPermissionDeniedIssues,
   hasNumerousPermissionDeniedIssues,
   extractDeniedCommands,
@@ -554,6 +555,55 @@ process.exit(1);`,
       // Harness exits 0 because noop means the work is done
       expect(result.status).toBe(0);
       expect(result.stderr).toContain("noop message found in safe-outputs — not retrying");
+    });
+  });
+
+  describe("buildClaudeGitHubProviderEnv", () => {
+    it("returns undefined when GH_AW_LLM_PROVIDER is not set", () => {
+      const env = { PATH: "/usr/bin" };
+      expect(buildClaudeGitHubProviderEnv(env)).toBeUndefined();
+    });
+
+    it("returns undefined when GH_AW_LLM_PROVIDER is anthropic", () => {
+      const env = { GH_AW_LLM_PROVIDER: "anthropic" };
+      expect(buildClaudeGitHubProviderEnv(env)).toBeUndefined();
+    });
+
+    it("returns undefined when GH_AW_LLM_PROVIDER is openai", () => {
+      const env = { GH_AW_LLM_PROVIDER: "openai" };
+      expect(buildClaudeGitHubProviderEnv(env)).toBeUndefined();
+    });
+
+    it("sets ANTHROPIC_BASE_URL to the Copilot proxy port when GH_AW_LLM_PROVIDER is github", () => {
+      const env = { GH_AW_LLM_PROVIDER: "github" };
+      const result = buildClaudeGitHubProviderEnv(env);
+      expect(result).toBeDefined();
+      expect(result.ANTHROPIC_BASE_URL).toBe("http://api-proxy:10002");
+    });
+
+    it("sets ANTHROPIC_API_KEY to copilot placeholder when not already set", () => {
+      const env = { GH_AW_LLM_PROVIDER: "github" };
+      const result = buildClaudeGitHubProviderEnv(env);
+      expect(result.ANTHROPIC_API_KEY).toBe("copilot");
+    });
+
+    it("preserves existing ANTHROPIC_API_KEY when already set", () => {
+      const env = { GH_AW_LLM_PROVIDER: "github", ANTHROPIC_API_KEY: "existing-key" };
+      const result = buildClaudeGitHubProviderEnv(env);
+      expect(result.ANTHROPIC_API_KEY).toBe("existing-key");
+    });
+
+    it("preserves other env vars from the source environment", () => {
+      const env = { GH_AW_LLM_PROVIDER: "github", PATH: "/usr/bin", HOME: "/home/runner" };
+      const result = buildClaudeGitHubProviderEnv(env);
+      expect(result.PATH).toBe("/usr/bin");
+      expect(result.HOME).toBe("/home/runner");
+      expect(result.GH_AW_LLM_PROVIDER).toBe("github");
+    });
+
+    it("is case-insensitive for the provider value", () => {
+      expect(buildClaudeGitHubProviderEnv({ GH_AW_LLM_PROVIDER: "GitHub" })).toBeDefined();
+      expect(buildClaudeGitHubProviderEnv({ GH_AW_LLM_PROVIDER: "GITHUB" })).toBeDefined();
     });
   });
 });
