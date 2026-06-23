@@ -1553,9 +1553,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-config" "/tmp/gh-aw/mcp-config" "/tmp/gh-aw/mcp-config/logs/"
           printf '%s\n' "{\"mcpServers\":{}}" > "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json"
           # Create empty config.toml files so CODEX_HOME exists for threat-detect.
-          : > "${{ runner.temp }}/gh-aw/mcp-config/config.toml"
+          : > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml"
           : > "/tmp/gh-aw/mcp-config/config.toml"
-          chmod 600 "${{ runner.temp }}/gh-aw/mcp-config/config.toml" "/tmp/gh-aw/mcp-config/config.toml"
+          chmod 600 "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" "/tmp/gh-aw/mcp-config/config.toml"
       - name: Install threat-detect binary
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         run: |
