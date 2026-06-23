@@ -268,7 +268,7 @@ func TestGenerateFindings(t *testing.T) {
 					"Description should indicate post-activation failure when agent job ran")
 				assert.Contains(t, finding.Description, "ran for 2.0m before failing",
 					"Description should include agent job runtime before failure")
-				assert.Contains(t, finding.Description, "no agent telemetry was exported",
+				assert.Contains(t, finding.Description, "no agent telemetry was available to analyze",
 					"Description should explain why no error details were available")
 			},
 		},

@@ -38,7 +38,7 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []E
 			if agentJob, ok := findFailedAgentJob(processedRun.JobDetails); ok {
 				// The agent job ran and failed, but telemetry/error artifacts were not exported.
 				// Surface this explicitly rather than misclassifying as pre-activation failure.
-				desc = fmt.Sprintf("Workflow '%s' failed after agent activation — agent job ran for %s before failing and no agent telemetry was exported", run.WorkflowName, timeutil.FormatDuration(agentJob.Duration))
+				desc = fmt.Sprintf("Workflow '%s' failed after agent activation — agent job ran for %s before failing and no agent telemetry was available to analyze", run.WorkflowName, timeutil.FormatDuration(agentJob.Duration))
 			} else {
 				// No log data available — run likely failed before agent activation (e.g. cancelled,
 				// infrastructure failure, or no downloadable artifacts).  Saying "failed with 0 error(s)"
