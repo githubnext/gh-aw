@@ -151,7 +151,7 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
             error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].confidence must be one of: LOW, MEDIUM, HIGH`,
           };
         }
-        const confidence = /** @type {"LOW"|"MEDIUM"|"HIGH"} */ confidenceRaw;
+        const confidence = confidenceRaw === "LOW" ? "LOW" : confidenceRaw === "MEDIUM" ? "MEDIUM" : "HIGH";
         normalizedLabel.confidence = confidence;
       }
     }

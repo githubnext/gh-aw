@@ -36,7 +36,7 @@ function normalizeIssueIntentMetadata(source) {
     if (!ISSUE_INTENT_CONFIDENCE_VALUES.has(confidenceRaw)) {
       throw new Error(`Invalid confidence ${JSON.stringify(source.confidence)}. Expected one of: LOW, MEDIUM, HIGH.`);
     }
-    const confidence = /** @type {"LOW"|"MEDIUM"|"HIGH"} */ confidenceRaw;
+    const confidence = confidenceRaw === "LOW" ? "LOW" : confidenceRaw === "MEDIUM" ? "MEDIUM" : "HIGH";
     metadata.confidence = confidence;
   }
 
