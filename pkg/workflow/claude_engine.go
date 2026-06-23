@@ -356,7 +356,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Build environment variables map
 	provider := e.ResolveLLMProvider(workflowData)
 	env := map[string]string{
-		"ANTHROPIC_API_KEY":       llmProviderSecretExpression(provider, workflowData),
 		"DISABLE_TELEMETRY":       "1",
 		"DISABLE_ERROR_REPORTING": "1",
 		"DISABLE_BUG_COMMAND":     "1",
@@ -379,15 +378,18 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		"RUNNER_TEMP":         "${{ runner.temp }}",
 	}
 	env["GH_AW_LLM_PROVIDER"] = provider
+	// ANTHROPIC_API_KEY is only needed for the Anthropic provider, not for the GitHub/Copilot provider.
+	if provider == LLMProviderAnthropic {
+		env["ANTHROPIC_API_KEY"] = llmProviderSecretExpression(provider, workflowData)
+	}
 	if isFirewallEnabled(workflowData) && provider != LLMProviderAnthropic {
 		env["ANTHROPIC_BASE_URL"] = llmProviderGatewayBaseURL(provider)
 	}
 	// When using the GitHub/Copilot provider (model-provider: github), the api-proxy container
 	// needs COPILOT_GITHUB_TOKEN in the host environment to configure the copilot provider at
-	// port CopilotLLMGatewayPort. ANTHROPIC_API_KEY alone (set above) is forwarded into the
-	// agent container but is insufficient to configure the api-proxy's copilot backend.
-	// COPILOT_GITHUB_TOKEN is already excluded from the agent container via ExcludeEnvVarNames,
-	// so injecting it here only makes it available to the api-proxy, not to the agent process.
+	// port CopilotLLMGatewayPort. COPILOT_GITHUB_TOKEN is already excluded from the agent
+	// container via ExcludeEnvVarNames, so injecting it here only makes it available to the
+	// api-proxy, not to the agent process.
 	if isFirewallEnabled(workflowData) && provider == LLMProviderGitHub {
 		env["COPILOT_GITHUB_TOKEN"] = llmProviderSecretExpression(provider, workflowData)
 	}
