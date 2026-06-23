@@ -193,8 +193,10 @@ async function main() {
         core.info(`Stored empty collection to: ${agentOutputFile}`);
         core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);
       } catch (writeError) {
-        core.warning(`Failed to write empty agent output file: ${getErrorMessage(writeError)}`);
+        core.error(`Failed to write empty agent output file: ${getErrorMessage(writeError)}`);
       }
+      // Always set the step output even if the artifact write failed;
+      // downstream steps reading GH_AW_AGENT_OUTPUT must handle the var being absent.
       core.setOutput("output", emptyOutputJson);
       core.setOutput("output_types", "");
       core.setOutput("has_patch", "false");
