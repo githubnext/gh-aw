@@ -16,7 +16,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
-const { getIssueIntentLabelNames, normalizeIssueIntentLabelSpecs } = require("./issue_intents.cjs");
+const { normalizeIssueIntentLabelNames } = require("./issue_intents.cjs");
 
 /**
  * Main handler factory for remove_labels
@@ -85,16 +85,7 @@ const main = createCountGatedHandler({
       core.info(`Requested labels to remove: ${JSON.stringify(requestedLabels)}`);
       let requestedLabelNames;
       try {
-        requestedLabelNames = requestedLabels.map((label, index) => {
-          if (typeof label === "string") {
-            return label;
-          }
-          const normalized = normalizeIssueIntentLabelSpecs([label]);
-          if (normalized.length !== 1) {
-            throw new Error(`Invalid labels[${index}] entry. Expected a single label specification.`);
-          }
-          return getIssueIntentLabelNames(normalized)[0];
-        });
+        requestedLabelNames = normalizeIssueIntentLabelNames(requestedLabels);
       } catch (error) {
         const errorMessage = getErrorMessage(error);
         core.warning(`Invalid remove_labels payload: ${errorMessage}`);

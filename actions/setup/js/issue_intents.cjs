@@ -56,7 +56,8 @@ function normalizeIssueIntentLabelSpecs(labels) {
     return [];
   }
   if (!Array.isArray(labels)) {
-    throw new Error(`Invalid labels ${JSON.stringify(labels)}. Expected an array of label names or label spec objects.`);
+    const receivedType = labels === null ? "null" : typeof labels;
+    throw new Error(`Invalid labels. Expected an array of label names or label spec objects; received ${receivedType}.`);
   }
 
   return labels.map((label, index) => {
@@ -90,6 +91,24 @@ function normalizeIssueIntentLabelSpecs(labels) {
   });
 }
 
+function normalizeIssueIntentLabelNames(labels) {
+  if (labels === undefined) {
+    return [];
+  }
+  if (!Array.isArray(labels)) {
+    const receivedType = labels === null ? "null" : typeof labels;
+    throw new Error(`Invalid labels. Expected an array of label names or label spec objects; received ${receivedType}.`);
+  }
+
+  return labels.map((label, index) => {
+    if (typeof label === "string") {
+      return label;
+    }
+    const normalized = normalizeIssueIntentLabelSpecs([label]);
+    return normalized[0].name;
+  });
+}
+
 function getIssueIntentLabelNames(labelSpecs) {
   return labelSpecs.map(label => label.name);
 }
@@ -112,6 +131,7 @@ module.exports = {
   buildIssueIntentLabelUpdates,
   getIssueIntentLabelNames,
   hasIssueIntentsRuntimeFeature,
+  normalizeIssueIntentLabelNames,
   normalizeIssueIntentLabelSpecs,
   normalizeIssueIntentMetadata,
 };

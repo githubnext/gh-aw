@@ -142,15 +142,17 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
         normalizedLabel.rationale = rationale;
       }
     }
-    if (label.confidence !== undefined && label.confidence !== null && label.confidence !== "") {
-      const confidence = String(label.confidence).trim().toUpperCase();
-      if (!ISSUE_INTENT_LABEL_CONFIDENCE_VALUES.has(confidence)) {
-        return {
-          isValid: false,
-          error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].confidence must be one of: LOW, MEDIUM, HIGH`,
-        };
+    if (label.confidence !== undefined) {
+      if (label.confidence !== null && label.confidence !== "") {
+        const confidence = String(label.confidence).trim().toUpperCase();
+        if (!ISSUE_INTENT_LABEL_CONFIDENCE_VALUES.has(confidence)) {
+          return {
+            isValid: false,
+            error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].confidence must be one of: LOW, MEDIUM, HIGH`,
+          };
+        }
+        normalizedLabel.confidence = /** @type {"LOW"|"MEDIUM"|"HIGH"} */ confidence;
       }
-      normalizedLabel.confidence = /** @type {"LOW"|"MEDIUM"|"HIGH"} */ confidence;
     }
     if (label.suggest !== undefined) {
       if (typeof label.suggest !== "boolean") {

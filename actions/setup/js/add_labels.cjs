@@ -33,7 +33,7 @@ const { MAX_LABELS } = require("./constants.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
-const { getIssueIntentLabelNames, normalizeIssueIntentLabelSpecs } = require("./issue_intents.cjs");
+const { normalizeIssueIntentLabelNames } = require("./issue_intents.cjs");
 
 /**
  * Main handler factory for add_labels
@@ -94,16 +94,7 @@ const main = createCountGatedHandler({
       core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
       let requestedLabelNames;
       try {
-        requestedLabelNames = requestedLabels.map((label, index) => {
-          if (typeof label === "string") {
-            return label;
-          }
-          const normalized = normalizeIssueIntentLabelSpecs([label]);
-          if (normalized.length !== 1) {
-            throw new Error(`Invalid labels[${index}] entry. Expected a single label specification.`);
-          }
-          return getIssueIntentLabelNames(normalized)[0];
-        });
+        requestedLabelNames = normalizeIssueIntentLabelNames(requestedLabels);
       } catch (error) {
         const errorMessage = getErrorMessage(error);
         core.warning(`Invalid add_labels payload: ${errorMessage}`);
