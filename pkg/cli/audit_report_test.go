@@ -232,6 +232,47 @@ func TestGenerateFindings(t *testing.T) {
 			},
 		},
 		{
+			name: "failed workflow with agent job failure and no telemetry uses post-activation message",
+			processedRun: func() ProcessedRun {
+				pr := createTestProcessedRun()
+				pr.Run.Conclusion = "failure"
+				pr.JobDetails = []JobInfoWithDuration{
+					{
+						JobInfo: JobInfo{
+							Name:       "activation",
+							Status:     "completed",
+							Conclusion: "success",
+						},
+						Duration: 37 * time.Second,
+					},
+					{
+						JobInfo: JobInfo{
+							Name:       "agent",
+							Status:     "completed",
+							Conclusion: "failure",
+						},
+						Duration: 2 * time.Minute,
+					},
+				}
+				return pr
+			}(),
+			metrics: MetricsData{
+				ErrorCount: 0,
+			},
+			errors:        []ErrorInfo{},
+			expectedCount: 1,
+			checkFindings: func(t *testing.T, findings []Finding) {
+				finding := findFindingByCategory(findings, "error")
+				require.NotNil(t, finding, "Failed workflow should still generate an error finding")
+				assert.Contains(t, finding.Description, "after agent activation",
+					"Description should indicate post-activation failure when agent job ran")
+				assert.Contains(t, finding.Description, "ran for 2.0m before failing",
+					"Description should include agent job runtime before failure")
+				assert.Contains(t, finding.Description, "no agent telemetry was available to analyze",
+					"Description should explain why no error details were available")
+			},
+		},
+		{
 			name: "timed out workflow",
 			processedRun: func() ProcessedRun {
 				pr := createTestProcessedRun()
