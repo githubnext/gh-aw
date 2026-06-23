@@ -776,7 +776,10 @@ jobs:
                   },
                   "labels": {
                     "required": true,
-                    "type": "array"
+                    "type": "array",
+                    "itemType": "string",
+                    "itemSanitize": true,
+                    "itemMaxLength": 128
                   },
                   "repo": {
                     "type": "string",
@@ -937,7 +940,10 @@ jobs:
                   },
                   "labels": {
                     "required": true,
-                    "type": "array"
+                    "type": "array",
+                    "itemType": "string",
+                    "itemSanitize": true,
+                    "itemMaxLength": 128
                   },
                   "repo": {
                     "type": "string",
@@ -964,14 +970,6 @@ jobs:
               "set_issue_field": {
                 "defaultMax": 5,
                 "fields": {
-                  "confidence": {
-                    "type": "string",
-                    "enum": [
-                      "LOW",
-                      "MEDIUM",
-                      "HIGH"
-                    ]
-                  },
                   "field_name": {
                     "type": "string",
                     "sanitize": true,
@@ -984,17 +982,9 @@ jobs:
                   "issue_number": {
                     "issueOrPRNumber": true
                   },
-                  "rationale": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 1024
-                  },
                   "repo": {
                     "type": "string",
                     "maxLength": 256
-                  },
-                  "suggest": {
-                    "type": "boolean"
                   },
                   "value": {
                     "required": true,
