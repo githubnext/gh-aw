@@ -211,6 +211,20 @@ interface AddLabelsItem extends BaseSafeOutputItem {
   issue_number?: number;
 }
 
+interface IssueIntentMetadata {
+  /** Optional rationale for the change */
+  rationale?: string;
+  /** Optional confidence level for the change */
+  confidence?: "LOW" | "MEDIUM" | "HIGH";
+  /** When true, route through pending suggestion review */
+  suggest?: boolean;
+}
+
+interface IssueIntentLabel extends IssueIntentMetadata {
+  /** Label name to apply */
+  name: string;
+}
+
 /**
  * JSONL item for removing labels from an issue or PR
  */
@@ -248,6 +262,8 @@ interface UpdateIssueItem extends BaseSafeOutputItem {
   body?: string;
   /** Optional issue number for target "*" */
   issue_number?: number | string;
+  /** Optional labels to replace on the issue */
+  labels?: Array<string | IssueIntentLabel>;
 }
 
 /**
@@ -318,7 +334,7 @@ interface AssignMilestoneItem extends BaseSafeOutputItem {
 /**
  * JSONL item for setting the type of a GitHub issue
  */
-interface SetIssueTypeItem extends BaseSafeOutputItem {
+interface SetIssueTypeItem extends BaseSafeOutputItem, IssueIntentMetadata {
   type: "set_issue_type";
   /** Issue type name to set (e.g., "Bug", "Feature"). Use empty string "" to clear the type. */
   issue_type: string;
@@ -329,7 +345,7 @@ interface SetIssueTypeItem extends BaseSafeOutputItem {
 /**
  * JSONL item for setting a custom issue field value
  */
-interface SetIssueFieldItem extends BaseSafeOutputItem {
+interface SetIssueFieldItem extends BaseSafeOutputItem, IssueIntentMetadata {
   type: "set_issue_field";
   /** Issue field name to set (e.g., "Priority", "Severity"). */
   field_name?: string;

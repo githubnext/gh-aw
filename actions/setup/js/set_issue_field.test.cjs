@@ -413,4 +413,44 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(result.error).toContain("Selections can't be made directly on unions");
     expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("No issue fields were discovered"));
   });
+
+  it("should include issue intent metadata when runtime feature is enabled", async () => {
+    process.env.GH_AW_RUNTIME_FEATURES = "issue_intents";
+
+    try {
+      const { main } = require("./set_issue_field.cjs");
+      const featureHandler = await main({ max: 5 });
+
+      const result = await featureHandler(
+        {
+          type: "set_issue_field",
+          issue_number: 42,
+          field_name: "Customer Impact",
+          value: "High",
+          rationale: "Customer-reported with SLA breach risk",
+          confidence: "high",
+          suggest: true,
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockGraphql).toHaveBeenCalledWith(
+        expect.stringContaining("setIssueFieldValue"),
+        expect.objectContaining({
+          issueFields: [
+            expect.objectContaining({
+              fieldId: textFieldId,
+              textValue: "High",
+              rationale: "Customer-reported with SLA breach risk",
+              confidence: "HIGH",
+              suggest: true,
+            }),
+          ],
+        })
+      );
+    } finally {
+      delete process.env.GH_AW_RUNTIME_FEATURES;
+    }
+  });
 });

@@ -11,6 +11,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
+const { hasIssueIntentsRuntimeFeature, normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "set_issue_type";
@@ -72,9 +73,30 @@ async function fetchIssueTypes(githubClient, owner, repo) {
  * @param {Object} githubClient - Authenticated GitHub client
  * @param {string} issueNodeId - GraphQL node ID of the issue
  * @param {string|null} typeId - GraphQL node ID of the issue type, or null to clear
+ * @param {{ rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} intentMetadata
  * @returns {Promise<void>}
  */
-async function setIssueTypeById(githubClient, issueNodeId, typeId) {
+async function setIssueTypeById(githubClient, issueNodeId, typeId, intentMetadata = {}) {
+  if (typeId !== null && hasIssueIntentsRuntimeFeature()) {
+    await githubClient.graphql(
+      `mutation($issueId: ID!, $issueType: IssueTypeUpdateInput) {
+        updateIssue(input: { id: $issueId, issueType: $issueType }) {
+          issue {
+            id
+          }
+        }
+      }`,
+      {
+        issueId: issueNodeId,
+        issueType: {
+          issueTypeId: typeId,
+          ...intentMetadata,
+        },
+      }
+    );
+    return;
+  }
+
   await githubClient.graphql(
     `mutation($issueId: ID!, $typeId: ID) {
       updateIssue(input: { id: $issueId, issueTypeId: $typeId }) {
@@ -204,6 +226,7 @@ async function main(config = {}) {
 
     try {
       const { owner, repo } = repoParts;
+      const intentMetadata = normalizeIssueIntentMetadata(item);
 
       // Get the issue's node ID for GraphQL
       const issueNodeId = await getIssueNodeId(githubClient, owner, repo, issueNumber);
@@ -231,7 +254,7 @@ async function main(config = {}) {
         core.info(`Resolved issue type ${JSON.stringify(issueTypeName)} to node ID: ${typeId}`);
       }
 
-      await setIssueTypeById(githubClient, issueNodeId, typeId);
+      await setIssueTypeById(githubClient, issueNodeId, typeId, intentMetadata);
 
       const successMsg = isClear ? `Successfully cleared issue type on issue #${issueNumber}` : `Successfully set issue type to ${JSON.stringify(issueTypeName)} on issue #${issueNumber}`;
       core.info(successMsg);
