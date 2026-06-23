@@ -25,6 +25,8 @@ const ERROR_DOMAIN_PREFIX = "error:";
  * Check if a Squid decision indicates an allowed request
  */
 function isAllowedDecision(decision) {
+  // Squid decision tokens appear in multiple formats (for example
+  // TCP_TUNNEL:HIER_DIRECT and TCP_MISS/200), so normalize on the leading verb.
   const base = decision.trim().toUpperCase().split(/[/:]/)[0];
   return ["TCP_TUNNEL", "TCP_HIT", "TCP_MISS"].includes(base);
 }
@@ -117,6 +119,8 @@ function parseFirewallLogs() {
             continue;
           }
 
+          // Domain key resolution intentionally considers both domain and dest
+          // because Squid may leave domain unset while dest remains usable.
           const domainKey = getFirewallDomainKey(domain, dest);
           if (!isValidDomainKey(domainKey)) {
             continue;
