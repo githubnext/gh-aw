@@ -298,6 +298,7 @@ jobs:
           {
               private const int EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
               private const int PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016;
+              private const uint WAIT_TIMEOUT = 0x00000102;
 
               [StructLayout(LayoutKind.Sequential)]
               private struct COORD
@@ -491,7 +492,7 @@ jobs:
                       Task<string> readTask = reader.ReadToEndAsync();
 
                       uint waitResult = WaitForSingleObject(processInfo.hProcess, unchecked((uint)timeoutMs));
-                      if (waitResult == 0x00000102)
+                      if (waitResult == WAIT_TIMEOUT)
                       {
                           TerminateProcess(processInfo.hProcess, 1);
                           throw new TimeoutException($"ConPTY child timed out after {timeoutMs}ms for: {commandLine}");
@@ -535,11 +536,14 @@ jobs:
           }
           "@
 
+          # Allow slightly more time than the redirected-stdio checks because the
+          # ConPTY host and child process are both created within this smoke test.
+          $conPtyTimeoutMs = 15000
           foreach ($command in @(
             @{ name = "--help"; args = "--help"; expected = "GitHub Agentic Workflows" },
             @{ name = "version"; args = "version"; expected = "gh aw version " }
           )) {
-            $output = [ConPtySmoke]::Run($env:BINARY, $command.args, 15000)
+            $output = [ConPtySmoke]::Run($env:BINARY, $command.args, $conPtyTimeoutMs)
             if ($output -notmatch [regex]::Escape($command.expected)) {
               throw "Expected ConPTY output for '$($command.name)' to contain '$($command.expected)', got:`n$output"
             }
