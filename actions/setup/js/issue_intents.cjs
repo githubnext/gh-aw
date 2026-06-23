@@ -36,7 +36,21 @@ function normalizeIssueIntentMetadata(source) {
     if (!ISSUE_INTENT_CONFIDENCE_VALUES.has(confidenceRaw)) {
       throw new Error(`Invalid confidence ${JSON.stringify(source.confidence)}. Expected one of: LOW, MEDIUM, HIGH.`);
     }
-    const confidence = confidenceRaw === "LOW" ? "LOW" : confidenceRaw === "MEDIUM" ? "MEDIUM" : "HIGH";
+    /** @type {"LOW"|"MEDIUM"|"HIGH"} */
+    let confidence;
+    switch (confidenceRaw) {
+      case "LOW":
+        confidence = "LOW";
+        break;
+      case "MEDIUM":
+        confidence = "MEDIUM";
+        break;
+      case "HIGH":
+        confidence = "HIGH";
+        break;
+      default:
+        throw new Error(`Invalid confidence ${JSON.stringify(source.confidence)}. Expected one of: LOW, MEDIUM, HIGH.`);
+    }
     metadata.confidence = confidence;
   }
 

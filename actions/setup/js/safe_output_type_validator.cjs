@@ -151,7 +151,24 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
             error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].confidence must be one of: LOW, MEDIUM, HIGH`,
           };
         }
-        const confidence = confidenceRaw === "LOW" ? "LOW" : confidenceRaw === "MEDIUM" ? "MEDIUM" : "HIGH";
+        /** @type {"LOW"|"MEDIUM"|"HIGH"} */
+        let confidence;
+        switch (confidenceRaw) {
+          case "LOW":
+            confidence = "LOW";
+            break;
+          case "MEDIUM":
+            confidence = "MEDIUM";
+            break;
+          case "HIGH":
+            confidence = "HIGH";
+            break;
+          default:
+            return {
+              isValid: false,
+              error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].confidence must be one of: LOW, MEDIUM, HIGH`,
+            };
+        }
         normalizedLabel.confidence = confidence;
       }
     }
