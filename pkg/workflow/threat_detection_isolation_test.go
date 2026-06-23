@@ -162,6 +162,12 @@ Test workflow`
 		t.Error("External detector path must invoke 'threat-detect --engine' inside AWF")
 	}
 
+	// The AWF execution step must prepend npm PATH setup so npm-installed engine CLIs
+	// (e.g. claude, codex) are found by threat-detect inside the AWF chroot.
+	if !strings.Contains(detectionSection, "RUNNER_TOOL_CACHE") {
+		t.Error("External detector AWF step must prepend npm PATH setup (RUNNER_TOOL_CACHE) so engine CLIs are on PATH")
+	}
+
 	// The upload step must include detection_result.json
 	if !strings.Contains(detectionSection, "detection_result.json") {
 		t.Error("External detector path must upload detection_result.json")
