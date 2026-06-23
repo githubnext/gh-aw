@@ -26,7 +26,7 @@
     "@astrojs/starlight": "^0.40.0",
     "@primer/octicons": "^19.28.1",
     "astro": "^6.4.6",
-    "astro-mermaid": "^2.0.2",
+    "astro-mermaid": "^2.0.4",
     "mermaid": "^11.15.0",
     "pdfjs-dist": "^6.0.227",
     "sharp": "^0.35.1",
