@@ -350,10 +350,19 @@ func buildCallWorkflowInputExpression(inputName string) string {
 		return fmt.Sprintf("${{ %s.%s }}", payloadExpr, inputName)
 	}
 
-	escapedInputName := strings.ReplaceAll(inputName, "'", "''")
+	escapedInputName := escapeActionsSingleQuotedString(inputName)
 	return fmt.Sprintf("${{ %s['%s'] }}", payloadExpr, escapedInputName)
 }
 
+// escapeActionsSingleQuotedString escapes a value for use inside a GitHub Actions
+// expression single-quoted string literal by doubling single quotes.
+func escapeActionsSingleQuotedString(value string) string {
+	return strings.ReplaceAll(value, "'", "''")
+}
+
+// isBareActionsIdentifier reports whether a name can be safely referenced via
+// dot access in GitHub Actions expressions (letters/underscore followed by
+// letters, digits, or underscore).
 func isBareActionsIdentifier(name string) bool {
 	if name == "" {
 		return false
