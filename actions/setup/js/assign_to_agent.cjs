@@ -335,7 +335,7 @@ async function main(config = {}) {
           throw new Error(`${agentName} coding agent is not available for this repository`);
         }
         agentCache[agentName] = agentLogin;
-        core.info(`Found ${agentName} coding agent (ID: ${agentLogin})`);
+        core.info(`Using ${agentName} coding agent alias: ${agentLogin}`);
       }
 
       // Get issue or PR details
@@ -372,7 +372,7 @@ async function main(config = {}) {
       // When a different pull_request_repo is provided on the message, allow re-assignment
       // so Copilot can be triggered for a different target repository on the same issue.
       const knownAgentLogins = getAgentLogins(agentName);
-      if (currentAssignees.some(a => a.id === agentLogin || knownAgentLogins.includes(a.login)) && !shouldAllowReassignment) {
+      if (currentAssignees.some(a => a.login === agentLogin || knownAgentLogins.includes(a.login)) && !shouldAllowReassignment) {
         core.info(`${agentName} is already assigned to ${type} #${number}`);
         _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true });
         return { success: true };
