@@ -26,7 +26,7 @@ const AGENT_LOGIN_NAMES = {
 function getAgentLogins(agentName) {
   const logins = AGENT_LOGIN_NAMES[agentName];
   if (!logins) return [];
-  return [...new Set((Array.isArray(logins) ? logins : [logins]).map(login => String(login).trim()).filter(Boolean))];
+  return [...new Set(logins.map(login => String(login).trim()).filter(Boolean))];
 }
 
 /**
@@ -151,7 +151,7 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
       return String(agentUser.id);
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      const status = error && typeof error === "object" && "status" in error ? error.status : undefined;
+      const status = error?.status;
       aliasFailures.push(`${loginName}${status ? ` (${status})` : ""}: ${errorMessage}`);
       if (
         errorMessage.includes("Bad credentials") ||
