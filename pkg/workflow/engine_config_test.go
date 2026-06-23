@@ -190,6 +190,17 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "claude", LLMProvider: "github"},
 		},
 		{
+			name: "object format - deprecated llm-provider ignored",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":           "claude",
+					"llm-provider": "github",
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude"},
+		},
+		{
 			name: "object format - complete",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
