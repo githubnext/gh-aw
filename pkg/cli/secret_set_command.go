@@ -16,6 +16,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/repoutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/tty"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/nacl/box"
@@ -137,7 +138,11 @@ func normalizeSecretSetAPIHost(apiBase string) string {
 		return ""
 	}
 
-	for _, candidate := range []string{raw, "https://" + raw} {
+	candidates := []string{raw}
+	if !strings.Contains(raw, "://") {
+		candidates = append(candidates, "https://"+raw)
+	}
+	for _, candidate := range candidates {
 		parsed, err := url.Parse(candidate)
 		if err != nil || parsed.Hostname() == "" {
 			continue
@@ -148,10 +153,7 @@ func normalizeSecretSetAPIHost(apiBase string) string {
 		return parsed.Hostname()
 	}
 
-	legacy := strings.TrimPrefix(strings.TrimPrefix(raw, "https://"), "http://")
-	if idx := strings.IndexAny(legacy, "/:"); idx != -1 {
-		legacy = legacy[:idx]
-	}
+	legacy := stringutil.ExtractDomainFromURL(raw)
 	if legacy == "api.github.com" {
 		return "github.com"
 	}
