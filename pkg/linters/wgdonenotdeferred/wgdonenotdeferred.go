@@ -71,10 +71,14 @@ func inspectBody(pass *analysis.Pass, noLintLinesByFile map[string]map[int]struc
 		}
 
 		inLoop := false
+	loopSearch:
 		for i := range slices.Backward(stack) {
 			switch stack[i].(type) {
+			case *ast.FuncLit:
+				break loopSearch
 			case *ast.ForStmt, *ast.RangeStmt:
 				inLoop = true
+				break loopSearch
 			}
 		}
 
