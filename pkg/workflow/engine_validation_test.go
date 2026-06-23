@@ -448,7 +448,7 @@ func TestValidateEngineHarnessScript(t *testing.T) {
 	}
 }
 
-func TestValidateEngineCopilotSDKDriver(t *testing.T) {
+func TestValidateEngineCopilotSDKDriver_Copilot(t *testing.T) {
 	tests := []struct {
 		name        string
 		workflow    *WorkflowData
@@ -472,21 +472,21 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 		{
 			name: "valid cjs copilot sdk driver",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "custom_copilot_sdk_driver.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "custom_copilot_sdk_driver.cjs"},
 			},
 			expectError: false,
 		},
 		{
 			name: "valid mjs copilot sdk driver",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "custom_copilot_sdk_driver.mjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "custom_copilot_sdk_driver.mjs"},
 			},
 			expectError: false,
 		},
 		{
 			name: "invalid extension",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "driver.sh"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "driver.sh"},
 			},
 			expectError: true,
 			errorSubstr: "unsupported extension",
@@ -494,7 +494,7 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 		{
 			name: "invalid path traversal",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "../driver.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "../driver.cjs"},
 			},
 			expectError: true,
 			errorSubstr: "relative path",
@@ -502,7 +502,7 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 		{
 			name: "invalid path separator leading slash",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "/abs/driver.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "/abs/driver.cjs"},
 			},
 			expectError: true,
 			errorSubstr: "relative path",
@@ -510,21 +510,21 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 		{
 			name: "valid relative path driver",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "nested/driver.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "nested/driver.cjs"},
 			},
 			expectError: false,
 		},
 		{
 			name: "valid github drivers path driver",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: ".github/drivers/my_driver.py"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: ".github/drivers/my_driver.py"},
 			},
 			expectError: false,
 		},
 		{
 			name: "invalid shell metacharacter",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "driver;rm -rf /.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "driver;rm -rf /.cjs"},
 			},
 			expectError: true,
 			errorSubstr: "metacharacter",
@@ -532,7 +532,7 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 		{
 			name: "invalid leading whitespace",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: " driver.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: " driver.cjs"},
 			},
 			expectError: true,
 			errorSubstr: "leading/trailing whitespace",
@@ -540,7 +540,7 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 		{
 			name: "invalid leading hyphen",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "-driver.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "-driver.cjs"},
 			},
 			expectError: true,
 			errorSubstr: "metacharacter",
@@ -548,49 +548,49 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 		{
 			name: "valid python driver",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "my_driver.py"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "my_driver.py"},
 			},
 			expectError: false,
 		},
 		{
 			name: "valid typescript driver",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "my_driver.ts"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "my_driver.ts"},
 			},
 			expectError: false,
 		},
 		{
 			name: "valid mts typescript driver",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "my_driver.mts"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "my_driver.mts"},
 			},
 			expectError: false,
 		},
 		{
 			name: "valid ruby driver",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "my_driver.rb"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "my_driver.rb"},
 			},
 			expectError: false,
 		},
 		{
 			name: "valid arbitrary command no extension",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "my-copilot-driver"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "my-copilot-driver"},
 			},
 			expectError: false,
 		},
 		{
 			name: "valid arbitrary command underscore no extension",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "my_driver"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "my_driver"},
 			},
 			expectError: false,
 		},
 		{
 			name: "invalid java extension",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "driver.java"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: "driver.java"},
 			},
 			expectError: true,
 			errorSubstr: "unsupported extension",
@@ -598,7 +598,7 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 		{
 			name: "invalid consecutive slashes",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: ".github//drivers/driver.py"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: ".github//drivers/driver.py"},
 			},
 			expectError: true,
 			errorSubstr: "empty path segments",
@@ -606,7 +606,7 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 		{
 			name: "invalid trailing slash",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: ".github/drivers/"},
+				EngineConfig: &EngineConfig{ID: "copilot", Driver: ".github/drivers/"},
 			},
 			expectError: true,
 			errorSubstr: "empty path segments",
@@ -616,7 +616,7 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
-			err := compiler.validateEngineCopilotSDKDriver(tt.workflow)
+			err := compiler.validateEngineDriver(tt.workflow)
 
 			if tt.expectError {
 				require.Error(t, err, "Expected validation error")
@@ -626,7 +626,7 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 				return
 			}
 
-			assert.NoError(t, err, "Expected copilot-sdk-driver validation to pass")
+			assert.NoError(t, err, "Expected driver validation to pass")
 		})
 	}
 }

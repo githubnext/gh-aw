@@ -670,15 +670,15 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		detectionEngineConfig = &EngineConfig{ID: engineSetting}
 	} else {
 		detectionEngineConfig = &EngineConfig{
-			ID:               detectionEngineConfig.ID,
-			Model:            detectionEngineConfig.Model,
-			Version:          detectionEngineConfig.Version,
-			Env:              detectionEngineConfig.Env,
-			Config:           detectionEngineConfig.Config,
-			Args:             detectionEngineConfig.Args,
-			APITarget:        detectionEngineConfig.APITarget,
-			HarnessScript:    detectionEngineConfig.HarnessScript,
-			CopilotSDKDriver: detectionEngineConfig.CopilotSDKDriver,
+			ID:            detectionEngineConfig.ID,
+			Model:         detectionEngineConfig.Model,
+			Version:       detectionEngineConfig.Version,
+			Env:           detectionEngineConfig.Env,
+			Config:        detectionEngineConfig.Config,
+			Args:          detectionEngineConfig.Args,
+			APITarget:     detectionEngineConfig.APITarget,
+			HarnessScript: detectionEngineConfig.HarnessScript,
+			Driver:        detectionEngineConfig.Driver,
 		}
 	}
 	if detectionEngineConfig.ID == "" {
@@ -990,17 +990,17 @@ func (c *Compiler) buildInstallDetectionEngineForExternalDetectorStep(data *Work
 		data.SafeOutputs.ThreatDetection.EngineConfig != nil {
 		ec := data.SafeOutputs.ThreatDetection.EngineConfig
 		threatDetectionData.EngineConfig = &EngineConfig{
-			ID:               engineID,
-			Model:            ec.Model,
-			Version:          ec.Version,
-			Env:              ec.Env,
-			Config:           ec.Config,
-			Args:             ec.Args,
-			Command:          ec.Command,
-			APITarget:        ec.APITarget,
-			HarnessScript:    ec.HarnessScript,
-			CopilotSDKDriver: ec.CopilotSDKDriver,
-			CopilotSDK:       ec.CopilotSDK,
+			ID:            engineID,
+			Model:         ec.Model,
+			Version:       ec.Version,
+			Env:           ec.Env,
+			Config:        ec.Config,
+			Args:          ec.Args,
+			Command:       ec.Command,
+			APITarget:     ec.APITarget,
+			HarnessScript: ec.HarnessScript,
+			Driver:        ec.Driver,
+			CopilotSDK:    ec.CopilotSDK,
 		}
 	}
 	if threatDetectionData.EngineConfig.APITarget == "" && data.EngineConfig != nil {

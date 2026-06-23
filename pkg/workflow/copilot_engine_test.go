@@ -399,8 +399,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKCustomDriver(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			CopilotSDK:       true,
-			CopilotSDKDriver: ".github/drivers/custom_copilot_sdk_driver.cjs",
+			CopilotSDK: true,
+			Driver:     ".github/drivers/custom_copilot_sdk_driver.cjs",
 		},
 	}
 
@@ -448,8 +448,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKPythonDriver(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			CopilotSDK:       true,
-			CopilotSDKDriver: "my_driver.py",
+			CopilotSDK: true,
+			Driver:     "my_driver.py",
 		},
 	}
 
@@ -472,8 +472,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKTypeScriptDriver(t *testing.T)
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			CopilotSDK:       true,
-			CopilotSDKDriver: "my_driver.ts",
+			CopilotSDK: true,
+			Driver:     "my_driver.ts",
 		},
 	}
 
@@ -496,8 +496,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKRubyDriver(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			CopilotSDK:       true,
-			CopilotSDKDriver: "my_driver.rb",
+			CopilotSDK: true,
+			Driver:     "my_driver.rb",
 		},
 	}
 
@@ -520,8 +520,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKArbitraryDriver(t *testing.T) 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			CopilotSDK:       true,
-			CopilotSDKDriver: "my-copilot-driver",
+			CopilotSDK: true,
+			Driver:     "my-copilot-driver",
 		},
 	}
 
@@ -2275,8 +2275,8 @@ func TestCopilotEngineInstallationWithCopilotSDKDriver(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
 				EngineConfig: &EngineConfig{
-					CopilotSDK:       true,
-					CopilotSDKDriver: tt.driver,
+					CopilotSDK: true,
+					Driver:     tt.driver,
 				},
 			}
 

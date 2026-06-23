@@ -113,59 +113,17 @@ func (c *Compiler) validateEngineHarnessScript(workflowData *WorkflowData) error
 	return validateEngineScriptFilename("engine.harness", workflowData.EngineConfig.HarnessScript)
 }
 
-// validateEngineCopilotSDKDriver validates optional engine.copilot-sdk-driver configuration.
-// engine.copilot-sdk-driver must be either:
-//   - a relative path (with safe segments separated by '/') ending with a supported language
-//     extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb), or
-//   - a bare command name without any extension (arbitrary executable in PATH).
-//
-// Absolute paths, backslashes, '..' components, and shell metacharacters are rejected.
-func (c *Compiler) validateEngineCopilotSDKDriver(workflowData *WorkflowData) error {
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.CopilotSDKDriver == "" {
-		return nil
-	}
-
-	name := workflowData.EngineConfig.CopilotSDKDriver
-
-	if strings.TrimSpace(name) != name {
-		return fmt.Errorf("engine.copilot-sdk-driver must be a safe path without leading/trailing whitespace (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
-	}
-
-	if filepath.IsAbs(name) ||
-		strings.Contains(name, `\`) ||
-		strings.Contains(name, "..") {
-		return fmt.Errorf("engine.copilot-sdk-driver must be a relative path (no absolute paths, '..', or backslashes) with a supported language extension or no extension (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
-	}
-
-	// Each path segment must be safe (alphanumeric, underscore, dot, hyphen; may start with dot).
-	// Empty segments (consecutive slashes, leading/trailing slashes) are rejected.
-	for segment := range strings.SplitSeq(name, "/") {
-		if segment == "" {
-			return fmt.Errorf("engine.copilot-sdk-driver must not contain empty path segments (e.g. consecutive '/' or leading/trailing '/') (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
-		}
-		if !safeSDKDriverSegmentPattern.MatchString(segment) {
-			return fmt.Errorf("engine.copilot-sdk-driver must not contain shell metacharacters (found unsafe segment %q in: %s).\n\nSee: %s", segment, name, constants.DocsEnginesURL)
-		}
-	}
-
-	ext := strings.ToLower(filepath.Ext(name))
-	switch ext {
-	case ".js", ".cjs", ".mjs", ".py", ".ts", ".mts", ".rb":
-		return nil
-	case "":
-		// No extension — valid as an arbitrary command name in PATH.
-		return nil
-	default:
-		return fmt.Errorf("engine.copilot-sdk-driver has unsupported extension %q (found: %s). Must be a script ending with .js, .cjs, .mjs, .py, .ts, .mts, or .rb, or a bare command name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
-	}
-}
-
-// validateEngineDriver validates optional engine.driver configuration.
+// validateEngineDriver validates the shared engine.driver field (also accepted as
+// engine.copilot-sdk-driver for backward compatibility with the copilot engine).
 // engine.driver must be either:
 //   - a relative path (with safe segments separated by '/') ending with a supported
-//     JavaScript extension (.js, .cjs, .mjs), or
-//   - a bare filename without any path separator, treated as a built-in driver
-//     resolved from the setup-action directory.
+//     extension for the engine in use, or
+//   - a bare command name without any extension (treated as an arbitrary executable in
+//     PATH for the copilot engine, or as a built-in driver for the pi engine).
+//
+// The allowed extensions depend on the engine:
+//   - copilot: .js, .cjs, .mjs (Node.js), .py (Python), .ts/.mts (TypeScript), .rb (Ruby)
+//   - all other engines (e.g. pi): .js, .cjs, .mjs only
 //
 // Absolute paths, backslashes, '..' components, and shell metacharacters are rejected.
 func (c *Compiler) validateEngineDriver(workflowData *WorkflowData) error {
@@ -174,6 +132,7 @@ func (c *Compiler) validateEngineDriver(workflowData *WorkflowData) error {
 	}
 
 	name := workflowData.EngineConfig.Driver
+	isCopilotEngine := workflowData.EngineConfig.ID == "copilot"
 
 	if strings.TrimSpace(name) != name {
 		return fmt.Errorf("engine.driver must be a safe path without leading/trailing whitespace (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
@@ -200,10 +159,18 @@ func (c *Compiler) validateEngineDriver(workflowData *WorkflowData) error {
 	switch ext {
 	case ".js", ".cjs", ".mjs":
 		return nil
+	case ".py", ".ts", ".mts", ".rb":
+		if isCopilotEngine {
+			return nil
+		}
+		return fmt.Errorf("engine.driver has unsupported extension %q for this engine (found: %s). Must be a JavaScript file ending with .js, .cjs, or .mjs, or a bare name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
 	case "":
-		// No extension — valid as a bare built-in driver filename resolved from the setup-action directory.
+		// No extension — valid as a bare built-in driver name or arbitrary command in PATH.
 		return nil
 	default:
+		if isCopilotEngine {
+			return fmt.Errorf("engine.driver has unsupported extension %q (found: %s). Must be a script ending with .js, .cjs, .mjs, .py, .ts, .mts, or .rb, or a bare command name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
+		}
 		return fmt.Errorf("engine.driver has unsupported extension %q (found: %s). Must be a JavaScript file ending with .js, .cjs, or .mjs, or a bare name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
 	}
 }

@@ -287,9 +287,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 	isCopilotSDKMode := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK
 	sdkDriverScriptName := "copilot_sdk_driver.cjs"
-	customSDKDriverConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDKDriver != ""
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDKDriver != "" {
-		sdkDriverScriptName = workflowData.EngineConfig.CopilotSDKDriver
+	customSDKDriverConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Driver != ""
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Driver != "" {
+		sdkDriverScriptName = workflowData.EngineConfig.Driver
 	}
 
 	// copilotSDKServerArgsJSON holds the JSON-encoded server-args array that will be set in
