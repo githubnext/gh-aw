@@ -489,11 +489,11 @@ async function main(config = {}) {
             details: { default_branch: branchPolicy.defaultBranch },
           });
         }
-        const targetBranchPR = await getOpenPullRequestForBranch(githubClient, owner, repo, baseBranch);
-        if (!targetBranchPR) {
+        const upstreamPR = await getOpenPullRequestForBranch(githubClient, owner, repo, baseBranch);
+        if (!upstreamPR) {
           failureReasons.push({
             code: "target_branch_has_no_open_pr",
-            message: `Target branch "${baseBranch}" does not have an open pull request`,
+            message: `Target branch "${baseBranch}" is not the head branch of any open pull request`,
           });
         }
       }
