@@ -285,9 +285,11 @@ async function main() {
 
   // @earendil-works/pi-agent-core and @earendil-works/pi-ai are ES modules;
   // use dynamic import() from a CommonJS entry point.
+  // @ts-ignore — packages are auto-installed at runtime before this point
   const { Agent } = await import("@earendil-works/pi-agent-core");
   // Importing @earendil-works/pi-ai registers all built-in API providers
   // (openai-completions, anthropic-messages, etc.) so streamSimple works.
+  // @ts-ignore — packages are auto-installed at runtime before this point
   await import("@earendil-works/pi-ai");
 
   // --- Set up agent ---
