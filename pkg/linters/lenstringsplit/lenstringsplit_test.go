@@ -12,5 +12,5 @@ import (
 
 func TestLenStringSplit(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, lenstringsplit.Analyzer, "lenstringsplit")
+	analysistest.RunWithSuggestedFixes(t, testdata, lenstringsplit.Analyzer, "lenstringsplit")
 }

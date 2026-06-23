@@ -6,12 +6,12 @@ const comma = ","
 
 // flagged: len(strings.Split(...)) with a non-empty separator inside a return statement.
 func countLines(content string) int {
-	return len(strings.Split(content, "\n")) // want `len\(strings\.Split\(\.\.\.`
+	return strings.Count(content, "\n")+1 // want `len\(strings\.Split\(\.\.\.`
 }
 
 // flagged: len(strings.Split(...)) assigned to a variable.
 func countFields(s string) int {
-	n := len(strings.Split(s, comma)) // want `len\(strings\.Split\(\.\.\.`
+	n := strings.Count(s, comma)+1 // want `len\(strings\.Split\(\.\.\.`
 	return n
 }
 
