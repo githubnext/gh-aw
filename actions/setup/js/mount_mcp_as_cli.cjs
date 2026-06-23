@@ -237,8 +237,8 @@ function normalizeConfiguredToolNames(value) {
  * @param {typeof import("@actions/core")} core - GitHub Actions core
  * @param {{
  *   expectedTools?: string[],
- *   maxAttempts?: number,
- *   retryDelayMs?: number,
+ *   maxAttempts?: number,   // When expectedTools are provided, retry tools/list up to this many times until all expected tools appear.
+ *   retryDelayMs?: number,  // Delay between retry attempts. Defaults to 1000ms when maxAttempts > 1.
  *   httpPostJSON?: typeof httpPostJSON,
  * }} [options]
  * @returns {Promise<Array<{name: string, description?: string, inputSchema?: unknown}>>}
@@ -247,7 +247,7 @@ async function fetchMCPTools(serverUrl, apiKey, core, options = {}) {
   const authHeaders = { Authorization: apiKey };
   const expectedTools = normalizeConfiguredToolNames(options.expectedTools);
   const maxAttempts = Math.max(1, Number.isInteger(options.maxAttempts) ? options.maxAttempts : 1);
-  const retryDelayMs = typeof options.retryDelayMs === "number" && options.retryDelayMs > 0 ? options.retryDelayMs : 0;
+  const retryDelayMs = typeof options.retryDelayMs === "number" && options.retryDelayMs > 0 ? options.retryDelayMs : maxAttempts > 1 ? 1000 : 0;
   const postJSON = options.httpPostJSON || httpPostJSON;
 
   /** @type {Array<{name: string, description?: string, inputSchema?: unknown}>} */
