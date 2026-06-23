@@ -48,6 +48,14 @@ func renderCustomMCPConfigWrapperWithContext(yaml *strings.Builder, toolName str
 	return nil
 }
 
+// renderCustomMCPEnvVars normalizes custom MCP env values for the target output
+// format before serialization.
+//
+// For TOML output, GitHub Actions template expressions are rewritten to direct
+// ${VAR} references because Codex config expects shell-style environment
+// expansion. For JSON output, Copilot uses escaped \${VAR} passthrough syntax,
+// while non-Copilot engines use bash variable substitution to avoid embedding
+// secret expressions directly in the generated run block.
 func renderCustomMCPEnvVars(env map[string]string, tomlFormat, requiresCopilotFields bool) map[string]string {
 	renderedEnv := make(map[string]string, len(env))
 	for envKey, envValue := range env {

@@ -270,19 +270,18 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	yaml.WriteString("                \"type\": \"http\",\n")
 	yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
 	hasGuardPolicies := hasGitHubMCPGuardPolicies(options.GuardPolicies, options.GuardPoliciesFromStep)
-	hasToolsSection := options.IncludeToolsField && len(options.AllowedTools) > 0
 	writeJSONStringMapSection(
 		yaml,
 		"                ",
 		"headers",
 		buildGitHubMCPRemoteHeaders(options.AuthorizationValue, options.ReadOnly, options.Lockdown, options.Toolsets),
-		hasToolsSection || options.IncludeEnvSection || hasGuardPolicies,
+		(options.IncludeToolsField && len(options.AllowedTools) > 0) || options.IncludeEnvSection || hasGuardPolicies,
 	)
 
 	// Add tools field if requested (Copilot needs it, Claude doesn't)
 	// Note: This is added here when IncludeToolsField is true, but in some cases
 	// the converter script also adds it back (see convert_gateway_config_copilot.cjs).
-	if hasToolsSection {
+	if options.IncludeToolsField && len(options.AllowedTools) > 0 {
 		yaml.WriteString("                \"tools\": [\n")
 		for i, tool := range options.AllowedTools {
 			yaml.WriteString("                  \"")
