@@ -193,6 +193,9 @@ func TestClaudeEngineLLMProviderGitHubUsesCopilotCredentials(t *testing.T) {
 	assert.Contains(t, stepContent, "GH_AW_LLM_PROVIDER: github")
 	assert.Contains(t, stepContent, "ANTHROPIC_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
 	assert.Contains(t, stepContent, fmt.Sprintf("ANTHROPIC_BASE_URL: http://host.docker.internal:%d", constants.CopilotLLMGatewayPort))
+	// COPILOT_GITHUB_TOKEN must also be set directly so the api-proxy can configure the
+	// copilot provider. It is excluded from the agent container via ExcludeEnvVarNames.
+	assert.Contains(t, stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
 }
 
 func TestClaudeEngineAllowsMountedMCPCLICommandsInRestrictedBash(t *testing.T) {

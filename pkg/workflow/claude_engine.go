@@ -382,6 +382,15 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	if isFirewallEnabled(workflowData) && provider != LLMProviderAnthropic {
 		env["ANTHROPIC_BASE_URL"] = llmProviderGatewayBaseURL(provider)
 	}
+	// When using the GitHub/Copilot provider (model-provider: github), the api-proxy container
+	// needs COPILOT_GITHUB_TOKEN in the host environment to configure the copilot provider at
+	// port CopilotLLMGatewayPort. ANTHROPIC_API_KEY alone (set above) is forwarded into the
+	// agent container but is insufficient to configure the api-proxy's copilot backend.
+	// COPILOT_GITHUB_TOKEN is already excluded from the agent container via ExcludeEnvVarNames,
+	// so injecting it here only makes it available to the api-proxy, not to the agent process.
+	if isFirewallEnabled(workflowData) && provider == LLMProviderGitHub {
+		env["COPILOT_GITHUB_TOKEN"] = llmProviderSecretExpression(provider, workflowData)
+	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
 	// Include the compiler version so agents can identify which gh-aw version generated the workflow
