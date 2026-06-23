@@ -1,1 +1,277 @@
-{"daily":[{"d":"2026-06-08","n":76,"s":0.06,"t":"Testing & CI / AI Credits Migr"},{"d":"2026-06-09","n":46,"s":-0.003,"t":"Bug Fixes & Error Handling"},{"d":"2026-06-10","n":54,"s":-0.095,"t":"failure / credits / context"},{"d":"2026-06-11","n":32,"s":-0.01,"t":"workflow / agent / field"},{"d":"2026-06-12","n":29,"s":0.033,"t":"CLI / Tool / MCP"},{"d":"2026-06-15","n":12,"s":0.03,"t":"token / verbose / sub"},{"d":"2026-06-16","n":7,"s":0.277,"t":"Impact Reports / AWF Infrastru"},{"d":"2026-06-17","n":38,"s":0.101,"t":"CI/CD & Tooling"},{"d":"2026-06-18","n":39,"s":0.011,"t":"Safe-Outputs"},{"d":"2026-06-19","n":34,"s":-0.169,"t":"CI/CD & Testing"}]}
+{
+  "daily_analysis": [
+    {
+      "date": "2026-05-28",
+      "pr_count": 60,
+      "avg_sentiment": 0.128,
+      "positive_count": 38,
+      "neutral_count": 2,
+      "negative_count": 20,
+      "top_topic": "workflow / step / model",
+      "top_keywords": [
+        "added",
+        "workflow",
+        "pr",
+        "updated",
+        "model",
+        "workflows",
+        "change",
+        "coverage",
+        "default",
+        "fallback"
+      ]
+    },
+    {
+      "date": "2026-06-08",
+      "pr_count": 76,
+      "avg_sentiment": 0.06,
+      "positive_count": 41,
+      "neutral_count": 4,
+      "negative_count": 31,
+      "top_topic": "Testing & CI / AI Credits Migration",
+      "top_keywords": [
+        "updated",
+        "behavior",
+        "output",
+        "daily",
+        "guardrail",
+        "credits",
+        "path",
+        "failure",
+        "test",
+        "aic"
+      ]
+    },
+    {
+      "date": "2026-06-09",
+      "pr_count": 46,
+      "avg_sentiment": -0.0028,
+      "positive_count": 17,
+      "neutral_count": 9,
+      "negative_count": 20,
+      "top_topic": "Bug Fixes & Error Handling",
+      "top_keywords": [
+        "workflow",
+        "test",
+        "run",
+        "failure",
+        "path",
+        "review",
+        "window",
+        "behavior",
+        "output",
+        "issue"
+      ]
+    },
+    {
+      "date": "2026-06-10",
+      "pr_count": 54,
+      "avg_sentiment": -0.0953,
+      "positive_count": 23,
+      "neutral_count": 1,
+      "negative_count": 30,
+      "top_topic": "failure / credits / context",
+      "top_keywords": [
+        "workflow",
+        "updated",
+        "failure",
+        "aic",
+        "behavior",
+        "test",
+        "output",
+        "tests",
+        "runtime",
+        "run"
+      ]
+    },
+    {
+      "date": "2026-06-11",
+      "pr_count": 32,
+      "avg_sentiment": -0.0099,
+      "positive_count": 11,
+      "neutral_count": 9,
+      "negative_count": 12,
+      "top_topic": "workflow / agent / field",
+      "top_keywords": [
+        "from",
+        "with",
+        "workflow",
+        "when",
+        "agent",
+        "this",
+        "test",
+        "engine",
+        "context",
+        "that"
+      ]
+    },
+    {
+      "date": "2026-06-12",
+      "pr_count": 29,
+      "avg_sentiment": 0.0328,
+      "positive_count": 13,
+      "neutral_count": 8,
+      "negative_count": 8,
+      "top_topic": "CLI / Tool / MCP",
+      "top_keywords": [
+        "copilot",
+        "workflow",
+        "block",
+        "test",
+        "output",
+        "failure",
+        "added",
+        "behavior",
+        "path",
+        "config"
+      ]
+    },
+    {
+      "date": "2026-06-15",
+      "pr_count": 12,
+      "avg_sentiment": 0.0302,
+      "positive_count": 7,
+      "neutral_count": 1,
+      "negative_count": 4,
+      "top_topic": "token / verbose / sub",
+      "top_keywords": [
+        "branch",
+        "cache",
+        "workflow",
+        "added",
+        "claude",
+        "inline",
+        "restore",
+        "step",
+        "output",
+        "usage"
+      ]
+    },
+    {
+      "date": "2026-06-16",
+      "pr_count": 7,
+      "avg_sentiment": 0.27718571428571426,
+      "positive_count": 4,
+      "neutral_count": 0,
+      "negative_count": 3,
+      "top_topic": "Impact Reports / AWF Infrastructure",
+      "top_keywords": [
+        "aic",
+        "workflow",
+        "sous",
+        "chef",
+        "step",
+        "fallback",
+        "outcome",
+        "generated",
+        "miss",
+        "report"
+      ]
+    },
+    {
+      "date": "2026-06-17",
+      "pr_count": 38,
+      "avg_sentiment": 0.1014,
+      "positive_count": 41,
+      "neutral_count": 15,
+      "negative_count": 20,
+      "top_topic": "CI/CD & Tooling",
+      "top_keywords": [
+        "workflow",
+        "output",
+        "safe",
+        "test",
+        "coverage",
+        "updated",
+        "path",
+        "aic",
+        "agent",
+        "tool"
+      ]
+    },
+    {
+      "date": "2026-06-18",
+      "pr_count": 39,
+      "avg_sentiment": 0.0114,
+      "positive_count": 17,
+      "neutral_count": 4,
+      "negative_count": 18,
+      "top_topic": "Safe-Outputs",
+      "top_keywords": [
+        "workflow",
+        "safe",
+        "path",
+        "copilot",
+        "claude",
+        "output",
+        "test",
+        "sous",
+        "chef",
+        "mcp"
+      ]
+    },
+    {
+      "date": "2026-06-19",
+      "pr_count": 34,
+      "avg_sentiment": -0.1694,
+      "positive_count": 14,
+      "neutral_count": 1,
+      "negative_count": 19,
+      "top_topic": "CI/CD & Testing",
+      "top_keywords": [
+        "workflow",
+        "step",
+        "output",
+        "host",
+        "changes",
+        "tests",
+        "branch",
+        "tool",
+        "run",
+        "safe"
+      ]
+    },
+    {
+      "date": "2026-06-22",
+      "pr_count": 37,
+      "avg_sentiment": -0.13311351351351353,
+      "positive_count": 12,
+      "neutral_count": 1,
+      "negative_count": 24,
+      "top_topic": "analyzer / updated / artifact",
+      "top_keywords": [
+        "workflow",
+        "path",
+        "generated",
+        "agent",
+        "fix",
+        "copilot",
+        "run",
+        "coverage",
+        "workflows",
+        "issue"
+      ]
+    },
+    {
+      "date": "2026-06-23",
+      "pr_count": 38,
+      "avg_sentiment": 0.005,
+      "positive_count": 9,
+      "neutral_count": 17,
+      "negative_count": 12,
+      "top_topic": "engine / awf / workflow",
+      "top_keywords": [
+        "workflow",
+        "engine",
+        "changes",
+        "step",
+        "aic",
+        "test",
+        "output",
+        "runs",
+        "claude",
+        "awf"
+      ]
+    }
+  ]
+}
