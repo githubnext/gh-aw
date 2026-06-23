@@ -1,0 +1,24 @@
+{
+  "date": "2026-06-23",
+  "date_range": {
+    "start": "2026-05-25",
+    "end": "2026-06-23"
+  },
+  "counts": {
+    "issues_open": 100,
+    "issues_closed": 100,
+    "prs_open": 5,
+    "prs_merged": 50,
+    "prs_closed": 30,
+    "commits": 100,
+    "discussions": 50,
+    "releases": 30,
+    "changesets": 431
+  },
+  "peaks": {
+    "issues_prs_peak_date": "2026-06-22",
+    "issues_prs_peak_total": 125,
+    "commit_peak_date": "2026-06-22",
+    "commit_peak_count": 44
+  }
+}
