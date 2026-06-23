@@ -239,7 +239,7 @@ func getLatestRelease(includePrereleases bool) (string, error) {
 	// Always target github.com explicitly: gh-aw is only published to github.com,
 	// and users in mixed-host environments (e.g. a GHE active auth host) must
 	// still reach the canonical registry to get the correct release metadata.
-	client, err := api.NewRESTClient(api.ClientOptions{Host: "github.com"})
+	client, err := api.NewRESTClient(gitHubDotComRESTClientOptions())
 	if err != nil {
 		return "", fmt.Errorf("failed to create GitHub client: %w", err)
 	}
@@ -272,6 +272,13 @@ func getLatestRelease(includePrereleases bool) (string, error) {
 	}
 
 	return release.TagName, nil
+}
+
+func gitHubDotComRESTClientOptions() api.ClientOptions {
+	return api.ClientOptions{
+		Host:    "github.com",
+		Timeout: constants.DefaultHTTPClientTimeout,
+	}
 }
 
 // findLatestPublishedReleaseTag returns the first non-draft release tag from the

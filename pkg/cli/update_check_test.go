@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -439,4 +440,10 @@ func TestIsCurrentVersionAtLeastLatest(t *testing.T) {
 			assert.Equal(t, tt.want, isCurrentVersionAtLeastLatest(tt.currentVersion, tt.latestVersion))
 		})
 	}
+}
+
+func TestGitHubDotComRESTClientOptions(t *testing.T) {
+	opts := gitHubDotComRESTClientOptions()
+	assert.Equal(t, "github.com", opts.Host)
+	assert.Equal(t, constants.DefaultHTTPClientTimeout, opts.Timeout)
 }
