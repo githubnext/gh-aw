@@ -69,6 +69,26 @@ func GoodLoopDone(wg *sync.WaitGroup, n int) {
 	}
 }
 
+// Bad: a goroutine launched inside a loop still needs to defer Done().
+func BadGoroutineInLoop(wg *sync.WaitGroup, n int) {
+	for range n {
+		go func() {
+			wg.Done() // want `sync.WaitGroup Done\(\) should be deferred to prevent deadlock if the function panics`
+			doWork()
+		}()
+	}
+}
+
+// Good: a goroutine launched inside a loop may safely defer Done().
+func GoodDeferredGoroutineInLoop(wg *sync.WaitGroup, n int) {
+	for range n {
+		go func() {
+			defer wg.Done()
+			doWork()
+		}()
+	}
+}
+
 // Bad: embedded WaitGroup still needs deferred Done().
 type EmbeddedWorker struct {
 	sync.WaitGroup
