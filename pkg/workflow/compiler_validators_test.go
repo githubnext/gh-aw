@@ -136,6 +136,88 @@ func TestValidateFeatureConfig(t *testing.T) {
 	}
 }
 
+func TestEmitExperimentalFeatureWarningsClaudeGitHubProvider(t *testing.T) {
+	tests := []struct {
+		name          string
+		engineConfig  *EngineConfig
+		expectWarning bool
+	}{
+		{
+			name: "claude with github provider produces experimental warning",
+			engineConfig: &EngineConfig{
+				ID:          "claude",
+				LLMProvider: LLMProviderGitHub,
+			},
+			expectWarning: true,
+		},
+		{
+			name: "claude with anthropic provider does not produce experimental warning",
+			engineConfig: &EngineConfig{
+				ID:          "claude",
+				LLMProvider: LLMProviderAnthropic,
+			},
+			expectWarning: false,
+		},
+		{
+			name: "claude with no provider does not produce experimental warning",
+			engineConfig: &EngineConfig{
+				ID: "claude",
+			},
+			expectWarning: false,
+		},
+		{
+			name: "non-claude engine with github provider does not produce experimental warning",
+			engineConfig: &EngineConfig{
+				ID:          "copilot",
+				LLMProvider: LLMProviderGitHub,
+			},
+			expectWarning: false,
+		},
+		{
+			name:          "nil engine config does not produce experimental warning",
+			engineConfig:  nil,
+			expectWarning: false,
+		},
+	}
+
+	expectedMessage := "Using experimental feature: engine.model-provider: github (claude)"
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				EngineConfig: tt.engineConfig,
+			}
+
+			oldStderr := os.Stderr
+			r, w, err := os.Pipe()
+			require.NoError(t, err)
+			os.Stderr = w
+			t.Cleanup(func() {
+				os.Stderr = oldStderr
+				_ = w.Close()
+				_ = r.Close()
+			})
+
+			compiler.emitExperimentalFeatureWarnings(workflowData)
+
+			require.NoError(t, w.Close())
+			os.Stderr = oldStderr
+			var buf bytes.Buffer
+			_, err = io.Copy(&buf, r)
+			require.NoError(t, err)
+			stderrOutput := buf.String()
+
+			if tt.expectWarning {
+				assert.Contains(t, stderrOutput, expectedMessage)
+				assert.Positive(t, compiler.GetWarningCount())
+			} else {
+				assert.NotContains(t, stderrOutput, expectedMessage)
+				assert.Zero(t, compiler.GetWarningCount())
+			}
+		})
+	}
+}
+
 func TestEmitExperimentalFeatureWarningsGHAWDetection(t *testing.T) {
 	t.Setenv("GH_AW_FEATURES", "")
 	tests := []struct {
