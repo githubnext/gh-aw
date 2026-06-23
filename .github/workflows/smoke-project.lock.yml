@@ -700,10 +700,7 @@ jobs:
                   },
                   "labels": {
                     "required": true,
-                    "type": "array",
-                    "itemType": "string",
-                    "itemSanitize": true,
-                    "itemMaxLength": 128
+                    "type": "array"
                   },
                   "repo": {
                     "type": "string",
@@ -893,10 +890,7 @@ jobs:
                   },
                   "labels": {
                     "required": true,
-                    "type": "array",
-                    "itemType": "string",
-                    "itemSanitize": true,
-                    "itemMaxLength": 128
+                    "type": "array"
                   },
                   "repo": {
                     "type": "string",

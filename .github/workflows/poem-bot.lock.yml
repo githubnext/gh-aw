@@ -701,10 +701,7 @@ jobs:
                   },
                   "labels": {
                     "required": true,
-                    "type": "array",
-                    "itemType": "string",
-                    "itemSanitize": true,
-                    "itemMaxLength": 128
+                    "type": "array"
                   },
                   "repo": {
                     "type": "string",
@@ -1015,10 +1012,7 @@ jobs:
                     "issueOrPRNumber": true
                   },
                   "labels": {
-                    "type": "array",
-                    "itemType": "string",
-                    "itemSanitize": true,
-                    "itemMaxLength": 128
+                    "type": "array"
                   },
                   "milestone": {
                     "optionalPositiveInteger": true
@@ -1049,7 +1043,7 @@ jobs:
                     "maxLength": 128
                   }
                 },
-                "customValidation": "requiresOneOf:status,title,body"
+                "customValidation": "requiresOneOf:status,title,body,labels,assignees,milestone"
               }
             }
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
