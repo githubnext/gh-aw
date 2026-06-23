@@ -240,7 +240,10 @@ function resolveRetryDelayMs(retryDelayMs, maxAttempts) {
   if (typeof retryDelayMs === "number" && retryDelayMs > 0) {
     return retryDelayMs;
   }
-  return maxAttempts > 1 ? DEFAULT_RETRY_DELAY_MS : 0;
+  if (typeof maxAttempts === "number" && maxAttempts > 1) {
+    return DEFAULT_RETRY_DELAY_MS;
+  }
+  return 0;
 }
 
 /**

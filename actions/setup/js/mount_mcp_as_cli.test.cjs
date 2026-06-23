@@ -57,7 +57,7 @@ describe("mount_mcp_as_cli.cjs", () => {
     /**
      * @param {string} _url
      * @param {Record<string, string>} _headers
-     * @param {{ method?: string }} body
+     * @param {{ jsonrpc?: string, id?: number, method?: string, params?: unknown }} body
      */
     const httpPostJSON = async (_url, _headers, body) => {
       const method = body.method;
@@ -83,7 +83,7 @@ describe("mount_mcp_as_cli.cjs", () => {
 
     expect(listAttempt).toBe(2);
     expect(tools.map(tool => tool.name)).toEqual(["list_datasources", "tempo_traceql-search", "tempo_get-trace"]);
-    expect(info).toContainEqual(expect.stringContaining("retrying: tempo_traceql-search, tempo_get-trace"));
+    expect(info).toContainEqual(expect.stringMatching(/attempt 1\/2; retrying: tempo_traceql-search, tempo_get-trace/));
     expect(warning).toEqual([]);
   });
 });
