@@ -125,6 +125,7 @@ async function main(config = {}) {
   // Closure-level state
   let processedCount = 0;
   const agentCache = {};
+  const agentLoginsCache = {};
   const processedAssignmentTargets = new Set();
 
   // Reset module-level results for this handler invocation
@@ -371,7 +372,8 @@ async function main(config = {}) {
       // Skip if agent is already assigned and no explicit per-item pull_request_repo is specified.
       // When a different pull_request_repo is provided on the message, allow re-assignment
       // so Copilot can be triggered for a different target repository on the same issue.
-      const knownAgentLogins = getAgentLogins(agentName);
+      const knownAgentLogins = agentLoginsCache[agentName] || getAgentLogins(agentName);
+      agentLoginsCache[agentName] = knownAgentLogins;
       if (currentAssignees.some(a => a.login === agentLogin || knownAgentLogins.includes(a.login)) && !shouldAllowReassignment) {
         core.info(`${agentName} is already assigned to ${type} #${number}`);
         _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true });

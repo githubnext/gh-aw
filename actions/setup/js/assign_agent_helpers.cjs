@@ -155,6 +155,7 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
     return null;
   }
 
+  // Safe because we return early when loginNames.length === 0 above.
   const resolvedAlias = loginNames[0];
   core.info(`Using ${agentName} coding agent alias: ${resolvedAlias}`);
   return resolvedAlias;
