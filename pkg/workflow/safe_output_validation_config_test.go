@@ -303,6 +303,23 @@ func TestIssueIntentValidationFields(t *testing.T) {
 	}
 }
 
+func TestIssueIntentLabelValidationFields(t *testing.T) {
+	for _, typeName := range []string{"add_labels", "remove_labels", "update_issue"} {
+		config, ok := ValidationConfig[typeName]
+		if !ok {
+			t.Fatalf("%s not found in ValidationConfig", typeName)
+		}
+
+		labels, ok := config.Fields["labels"]
+		if !ok {
+			t.Fatalf("%s Fields is missing 'labels'", typeName)
+		}
+		if labels.Type != "array" {
+			t.Fatalf("%s labels type = %q, want %q", typeName, labels.Type, "array")
+		}
+	}
+}
+
 func TestValidationConfigConsistency(t *testing.T) {
 	// Verify that all types with customValidation have valid validation rules
 	validCustomValidations := map[string]bool{

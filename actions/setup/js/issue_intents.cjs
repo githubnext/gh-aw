@@ -1,11 +1,13 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { sanitizeContent } = require("./sanitize_content.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { hasRuntimeFeature, parseRuntimeFeatures } = require("./runtime_features.cjs");
 
 const ISSUE_INTENTS_FEATURE = "issue_intents";
 const ISSUE_INTENT_CONFIDENCE_VALUES = new Set(["LOW", "MEDIUM", "HIGH"]);
+const ISSUE_INTENT_RATIONALE_MAX_LENGTH = 1024;
 
 function hasIssueIntentsRuntimeFeature() {
   if (typeof global.hasRuntimeFeature === "function") {
@@ -23,7 +25,7 @@ function normalizeIssueIntentMetadata(source) {
   const metadata = {};
 
   if (typeof source.rationale === "string") {
-    const rationale = source.rationale.trim();
+    const rationale = sanitizeContent(source.rationale, { maxLength: ISSUE_INTENT_RATIONALE_MAX_LENGTH }).trim();
     if (rationale) {
       metadata.rationale = rationale;
     }
@@ -50,8 +52,11 @@ function normalizeIssueIntentMetadata(source) {
 }
 
 function normalizeIssueIntentLabelSpecs(labels) {
-  if (!Array.isArray(labels)) {
+  if (labels === undefined) {
     return [];
+  }
+  if (!Array.isArray(labels)) {
+    throw new Error(`Invalid labels ${JSON.stringify(labels)}. Expected an array of label names or label spec objects.`);
   }
 
   return labels.map((label, index) => {

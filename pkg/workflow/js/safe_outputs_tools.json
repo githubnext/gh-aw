@@ -751,9 +751,43 @@
         "labels": {
           "type": "array",
           "items": {
-            "type": "string"
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Label name to apply."
+                  },
+                  "rationale": {
+                    "type": "string",
+                    "description": "Optional rationale for the change."
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "LOW",
+                      "MEDIUM",
+                      "HIGH"
+                    ],
+                    "description": "Optional confidence level for the change."
+                  },
+                  "suggest": {
+                    "type": "boolean",
+                    "description": "When true, route the change through pending human review instead of applying it immediately."
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
           },
-          "description": "Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository. This field is required \u2014 omitting it will cause a validation error."
+          "description": "Labels to add (e.g., ['bug', 'priority-high']). Each entry can be either a label name string or an object with name plus optional rationale/confidence/suggest intent metadata. Labels must exist in the repository. This field is required \u2014 omitting it will cause a validation error."
         },
         "item_number": {
           "type": [
@@ -790,9 +824,43 @@
         "labels": {
           "type": "array",
           "items": {
-            "type": "string"
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Label name to remove."
+                  },
+                  "rationale": {
+                    "type": "string",
+                    "description": "Optional rationale for the change."
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "LOW",
+                      "MEDIUM",
+                      "HIGH"
+                    ],
+                    "description": "Optional confidence level for the change."
+                  },
+                  "suggest": {
+                    "type": "boolean",
+                    "description": "When true, route the change through pending human review instead of applying it immediately."
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
           },
-          "description": "Label names to remove (e.g., ['smoke', 'needs-triage']). Non-existent labels are silently skipped."
+          "description": "Labels to remove (e.g., ['smoke', 'needs-triage']). Each entry can be either a label name string or an object with name plus optional rationale/confidence/suggest intent metadata. Non-existent labels are silently skipped."
         },
         "item_number": {
           "type": [

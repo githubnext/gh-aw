@@ -205,8 +205,8 @@ interface CreateCodeScanningAlertItem extends BaseSafeOutputItem {
  */
 interface AddLabelsItem extends BaseSafeOutputItem {
   type: "add_labels";
-  /** Array of label names to add */
-  labels: string[];
+  /** Array of label names or label specs to add */
+  labels: Array<string | IssueIntentLabel>;
   /** Target issue; otherwize resolved from current context */
   issue_number?: number;
 }
@@ -230,8 +230,8 @@ interface IssueIntentLabel extends IssueIntentMetadata {
  */
 interface RemoveLabelsItem extends BaseSafeOutputItem {
   type: "remove_labels";
-  /** Array of label names to remove */
-  labels: string[];
+  /** Array of label names or label specs to remove */
+  labels: Array<string | IssueIntentLabel>;
   /** Target issue; otherwise resolved from current context */
   item_number?: number;
 }

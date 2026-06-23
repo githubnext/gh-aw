@@ -105,7 +105,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"add_labels": {
 		DefaultMax: 5,
 		Fields: map[string]FieldValidation{
-			"labels":      {Required: true, Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"labels":      {Required: true, Type: "array"},
 			"item_number": {IssueNumberOrTemporaryID: true},
 			"repo":        {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
@@ -393,7 +393,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"remove_labels": {
 		DefaultMax: 5,
 		Fields: map[string]FieldValidation{
-			"labels":      {Required: true, Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"labels":      {Required: true, Type: "array"},
 			"item_number": {IssueNumberOrTemporaryID: true},
 			"repo":        {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},

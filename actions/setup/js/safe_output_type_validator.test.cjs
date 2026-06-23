@@ -36,6 +36,20 @@ const SAMPLE_VALIDATION_CONFIG = {
       labels: { type: "array", itemType: "string", itemSanitize: true, itemMaxLength: 128 },
     },
   },
+  add_labels: {
+    defaultMax: 3,
+    fields: {
+      labels: { required: true, type: "array" },
+      item_number: { issueNumberOrTemporaryId: true },
+    },
+  },
+  remove_labels: {
+    defaultMax: 3,
+    fields: {
+      labels: { required: true, type: "array" },
+      item_number: { issueNumberOrTemporaryId: true },
+    },
+  },
   update_issue: {
     defaultMax: 1,
     customValidation: "requiresOneOf:status,title,body,labels,assignees,milestone",
@@ -296,6 +310,40 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("body");
+    });
+
+    it("should validate add_labels with structured label entries", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem(
+        {
+          type: "add_labels",
+          item_number: 123,
+          labels: [{ name: "bug", rationale: "Known failure mode", confidence: "high", suggest: true }],
+        },
+        "add_labels",
+        1
+      );
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.labels).toEqual([{ name: "bug", rationale: "Known failure mode", confidence: "HIGH", suggest: true }]);
+    });
+
+    it("should fail add_labels when structured label entry is invalid", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem(
+        {
+          type: "add_labels",
+          item_number: 123,
+          labels: [{ rationale: "missing name" }],
+        },
+        "add_labels",
+        1
+      );
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("name");
     });
 
     it("should sanitize string fields", async () => {
