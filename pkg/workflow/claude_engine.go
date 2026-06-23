@@ -382,7 +382,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	if provider == LLMProviderAnthropic {
 		env["ANTHROPIC_API_KEY"] = llmProviderSecretExpression(provider, workflowData)
 	}
-	if isFirewallEnabled(workflowData) {
+	// ANTHROPIC_BASE_URL is only needed for the Anthropic provider: it tells Claude CLI to route
+	// inference requests through the api-proxy gateway at the Claude port (10000). Other providers
+	// use their own routing mechanism and do not consult this variable.
+	if isFirewallEnabled(workflowData) && provider == LLMProviderAnthropic {
 		env["ANTHROPIC_BASE_URL"] = llmProviderGatewayBaseURL(provider)
 	}
 	// When using the GitHub/Copilot provider (model-provider: github), the api-proxy container

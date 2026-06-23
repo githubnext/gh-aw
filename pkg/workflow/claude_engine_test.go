@@ -191,9 +191,9 @@ func TestClaudeEngineLLMProviderGitHubUsesCopilotCredentials(t *testing.T) {
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
 	assert.Contains(t, stepContent, "GH_AW_LLM_PROVIDER: github")
-	// ANTHROPIC_API_KEY is not needed for the GitHub/Copilot provider.
+	// ANTHROPIC_API_KEY and ANTHROPIC_BASE_URL are not needed for the GitHub/Copilot provider.
 	assert.NotContains(t, stepContent, "ANTHROPIC_API_KEY:")
-	assert.Contains(t, stepContent, fmt.Sprintf("ANTHROPIC_BASE_URL: http://host.docker.internal:%d", constants.CopilotLLMGatewayPort))
+	assert.NotContains(t, stepContent, "ANTHROPIC_BASE_URL:")
 	// COPILOT_GITHUB_TOKEN must be set so the api-proxy can configure the
 	// copilot provider. It is excluded from the agent container via ExcludeEnvVarNames.
 	assert.Contains(t, stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
