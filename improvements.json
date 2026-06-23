@@ -1,6 +1,18 @@
 {
-  "last_updated": "2026-06-22",
+  "last_updated": "2026-06-23",
   "pending_tasks": [
+    {
+      "file": "docs/src/content/docs/reference/measuring-impact.md",
+      "created": "2026-06-23",
+      "priority": "high",
+      "title": "Add starter metrics table to 'A Practical Measurement Model' section; consolidate three repeated prose metric lists"
+    },
+    {
+      "file": ".github/workflows/discussion-task-miner.md",
+      "created": "2026-06-23",
+      "priority": "medium",
+      "title": "Fix run-failure: 'interrupted!' to 'failed.' and frame {status} as elaboration"
+    },
     {
       "file": "docs/src/content/docs/reference/permissions.md",
       "created": "2026-06-22",
@@ -22,22 +34,10 @@
       "title": "Replace theatrical status messages with professional, actionable messages (lines 51-55)"
     },
     {
-      "file": ".github/workflows/smoke-copilot-aoai-apikey.md",
-      "created": "2026-06-18",
-      "priority": "high",
-      "title": "Replace theatrical newspaper status messages with professional, actionable messages (lines 140-143)"
-    },
-    {
       "file": "docs/src/content/docs/guides/network-configuration.md",
       "created": "2026-06-17",
       "priority": "high",
       "title": "Fix wildcard domain documentation: resolve inconsistency and add point-of-use explanation"
-    },
-    {
-      "file": ".github/workflows/dev-hawk.md",
-      "created": "2026-05-27",
-      "priority": "high",
-      "title": "Replace all three theatrical status messages with actionable enterprise-appropriate messages"
     }
   ]
 }

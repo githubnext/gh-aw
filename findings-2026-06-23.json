@@ -1,0 +1,40 @@
+{
+  "date": "2026-06-23",
+  "files_analyzed": {
+    "documentation": [
+      "docs/src/content/docs/reference/measuring-impact.md",
+      "docs/src/content/docs/blog/2026-03-30-weekly-update.md"
+    ],
+    "cli": [],
+    "messages": [
+      ".github/workflows/discussion-task-miner.md",
+      ".github/workflows/pr-code-quality-reviewer.md"
+    ],
+    "validation": [
+      "pkg/workflow/github_app_permissions_validation.go"
+    ]
+  },
+  "overall_quality": "mixed",
+  "quality_highlights": [
+    {
+      "file": ".github/workflows/pr-code-quality-reviewer.md",
+      "aspect": "All three status messages follow the gold-standard pattern. run-failure uses {status} to surface the actual failure reason; no exclamation marks on failure; no decorative trailing emojis."
+    },
+    {
+      "file": "docs/src/content/docs/blog/2026-03-30-weekly-update.md",
+      "aspect": "Consistent heading hierarchy per release, concrete CLI code examples with flags shown in context, 'Usage tip' box pairs observation with actionable next step."
+    }
+  ],
+  "single_file_improvements": [
+    {
+      "file": "docs/src/content/docs/reference/measuring-impact.md",
+      "priority": "high",
+      "issue": "Starter metrics list appears 3 times in prose with slight variations across sections. No structured table or list to allow scanning. Add a metrics table in 'A Practical Measurement Model' section."
+    },
+    {
+      "file": ".github/workflows/discussion-task-miner.md",
+      "priority": "medium",
+      "issue": "run-failure uses 'interrupted!' — inaccurate (implies external cancellation), exclamation mark is wrong tone for failure, trailing '...' adds no information. Fix: 'Task mining failed. [{workflow_name}]({run_url}) did not complete: {status}.'"
+    }
+  ]
+}
