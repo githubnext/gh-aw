@@ -134,6 +134,33 @@ async function getReviewSummary(githubClient, owner, repo, pullNumber) {
 }
 
 /**
+ * Returns the first open pull request where the given branch is the head (source) branch,
+ * or null if no such PR exists.
+ *
+ * @param {any} githubClient
+ * @param {string} owner
+ * @param {string} repo
+ * @param {string} branch
+ * @returns {Promise<{number: number, html_url: string}|null>}
+ */
+async function getOpenPullRequestForBranch(githubClient, owner, repo, branch) {
+  core.info(`Looking up open pull request for head branch "${branch}" in ${owner}/${repo}`);
+  const { data: prs } = await githubClient.rest.pulls.list({
+    owner,
+    repo,
+    state: "open",
+    head: `${owner}:${branch}`,
+    per_page: 1,
+  });
+  if (!prs || prs.length === 0) {
+    core.info(`No open pull request found for head branch "${branch}"`);
+    return null;
+  }
+  core.info(`Found open pull request #${prs[0].number} for head branch "${branch}"`);
+  return { number: prs[0].number, html_url: prs[0].html_url };
+}
+
+/**
  * @param {any} githubClient
  * @param {string} owner
  * @param {string} repo
@@ -462,6 +489,13 @@ async function main(config = {}) {
             details: { default_branch: branchPolicy.defaultBranch },
           });
         }
+        const targetBranchPR = await getOpenPullRequestForBranch(githubClient, owner, repo, baseBranch);
+        if (!targetBranchPR) {
+          failureReasons.push({
+            code: "target_branch_has_no_open_pr",
+            message: `Target branch "${baseBranch}" does not have an open pull request`,
+          });
+        }
       }
 
       const checkSummary = await evaluateRequiredChecks(githubClient, owner, repo, pr.head.sha, branchPolicy.requiredChecks);
@@ -577,5 +611,6 @@ module.exports = {
     getBranchPolicy,
     findMissingRequiredLabels,
     resolvePullRequestNumber,
+    getOpenPullRequestForBranch,
   },
 };

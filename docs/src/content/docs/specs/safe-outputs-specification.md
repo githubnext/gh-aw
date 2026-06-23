@@ -2973,7 +2973,8 @@ This section provides complete definitions for all remaining safe output types. 
 2. **Mergeability Check**: Validates pull request is mergeable and not draft/conflicted.
 3. **Policy Gates**: Enforces required checks, review decision, unresolved review thread gating, label constraints, and source branch constraints.
 4. **Base Branch Protection**: Refuses merges when the target base branch is protected or is the repository default branch.
-5. **Idempotency**: Returns success when the pull request is already merged.
+5. **Target Branch Open PR**: Refuses merges when the target base branch does not have an associated open pull request (i.e. no open PR exists with that branch as its head/source branch).
+6. **Idempotency**: Returns success when the pull request is already merged.
 
 **Configuration Parameters**:
 
@@ -3002,6 +3003,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Merge execution is blocked unless all configured gates pass.
 - Merge to the repository default branch is always refused by this safe output type.
+- Merge is refused when the target base branch does not have an open pull request where that branch is the head (source) branch. This enforces that merges flow only into branches actively tracked by an upstream PR.
 - `pull_request_number` may be a temporary ID that resolves to a pull request number from earlier safe-output operations.
 - GraphQL mergeability and review-summary queries are retried with transient-error retry logic.
 - Compiling a workflow with `merge-pull-request` emits: `Using experimental feature: merge-pull-request`.

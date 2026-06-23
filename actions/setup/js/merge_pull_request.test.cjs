@@ -115,6 +115,43 @@ describe("merge_pull_request branch validation", () => {
     expect(__testables.findMissingRequiredLabels(["AutoMerge"], ["automerge"])).toEqual(["automerge"]);
   });
 
+  it("getOpenPullRequestForBranch returns PR when one is open", async () => {
+    const { __testables } = await import("./merge_pull_request.cjs");
+
+    const githubClient = {
+      rest: {
+        pulls: {
+          list: vi.fn().mockResolvedValue({ data: [{ number: 42, html_url: "https://github.com/github/gh-aw/pull/42" }] }),
+        },
+      },
+    };
+
+    const result = await __testables.getOpenPullRequestForBranch(githubClient, "github", "gh-aw", "release/1.0");
+    expect(result).toEqual({ number: 42, html_url: "https://github.com/github/gh-aw/pull/42" });
+    expect(githubClient.rest.pulls.list).toHaveBeenCalledWith({
+      owner: "github",
+      repo: "gh-aw",
+      state: "open",
+      head: "github:release/1.0",
+      per_page: 1,
+    });
+  });
+
+  it("getOpenPullRequestForBranch returns null when no open PR exists", async () => {
+    const { __testables } = await import("./merge_pull_request.cjs");
+
+    const githubClient = {
+      rest: {
+        pulls: {
+          list: vi.fn().mockResolvedValue({ data: [] }),
+        },
+      },
+    };
+
+    const result = await __testables.getOpenPullRequestForBranch(githubClient, "github", "gh-aw", "orphan-branch");
+    expect(result).toBeNull();
+  });
+
   it("resolves temporary ID for pull_request_number", async () => {
     const { __testables } = await import("./merge_pull_request.cjs");
     const result = __testables.resolvePullRequestNumber({ pull_request_number: "aw_pr1" }, { aw_pr1: { number: 42 } });
