@@ -141,7 +141,7 @@ async function getAssignableBots(owner, repo, githubClient = github) {
 }
 
 /**
- * Resolve a canonical login alias for a supported agent.
+ * Return the canonical login alias for a supported agent.
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {string} agentName - Agent name (copilot)
@@ -156,9 +156,9 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
   }
 
   // Safe because we return early when loginNames.length === 0 above.
-  const resolvedAlias = loginNames[0];
-  core.info(`Using ${agentName} coding agent alias: ${resolvedAlias}`);
-  return resolvedAlias;
+  const defaultAlias = loginNames[0];
+  core.info(`Using ${agentName} coding agent alias: ${defaultAlias}`);
+  return defaultAlias;
 }
 
 /**

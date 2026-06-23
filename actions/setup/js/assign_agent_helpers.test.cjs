@@ -159,7 +159,7 @@ describe("assign_agent_helpers.cjs", () => {
   });
 
   describe("findAgent", () => {
-    it("should resolve and return the default copilot alias without REST lookups", async () => {
+    it("should return the default copilot alias without REST lookups", async () => {
       const result = await findAgent("owner", "repo", "copilot");
 
       expect(result).toBe("copilot-swe-agent");
