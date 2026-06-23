@@ -167,6 +167,7 @@ describe("collect_ndjson_output.cjs", () => {
         ((process.env.GH_AW_SAFE_OUTPUTS = `${TMP_GH_AW_PATH}/nonexistent-file.txt`),
           await eval(`(async () => { ${collectScript}; await main(); })()`),
           expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("disk full")),
+          expect(spy).toHaveBeenCalled(),
           expect(mockCore.setOutput).toHaveBeenCalledWith("output", '{"items":[],"errors":[]}'),
           expect(mockCore.exportVariable).not.toHaveBeenCalled());
       } finally {
