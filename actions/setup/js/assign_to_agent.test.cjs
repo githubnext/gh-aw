@@ -394,6 +394,31 @@ describe("assign_to_agent", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("copilot is already assigned to issue #42"));
   });
 
+  it("should handle agent already assigned via known copilot candidate ID", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // findAgent resolves to a different ID; existing issue assignee uses known candidate ID
+    mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
+    mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 99999 } });
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: { id: 12345, number: 42, assignees: [{ id: 203248971, login: "some-other-copilot-alias" }], html_url: "", title: "", body: "" },
+    });
+
+    await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("copilot is already assigned to issue #42"));
+    expect(mockGithub.request).not.toHaveBeenCalled();
+  });
+
   it("should allow re-assignment when agent is already assigned but pull_request_repo differs", async () => {
     process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/default-pr-repo";
     process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS = "test-owner/other-platform-repo";

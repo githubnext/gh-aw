@@ -30,7 +30,7 @@ const mockGithub = {
 globalThis.core = mockCore;
 globalThis.github = mockGithub;
 
-const { AGENT_LOGIN_NAMES, getAgentName, getAgentLogins, getAvailableAgentLogins, getAssignableBots, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary, assignAgentToIssueByName } =
+const { AGENT_LOGIN_NAMES, AGENT_CANDIDATE_IDS, getAgentName, getAgentLogins, getAgentCandidateIds, getAvailableAgentLogins, getAssignableBots, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary, assignAgentToIssueByName } =
   await import("./assign_agent_helpers.cjs");
 
 describe("assign_agent_helpers.cjs", () => {
@@ -42,6 +42,14 @@ describe("assign_agent_helpers.cjs", () => {
     it("should have copilot mapped to known assignee aliases", () => {
       expect(AGENT_LOGIN_NAMES).toEqual({
         copilot: ["copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"],
+      });
+
+      describe("AGENT_CANDIDATE_IDS", () => {
+        it("should have copilot mapped to known candidate bot IDs", () => {
+          expect(AGENT_CANDIDATE_IDS).toEqual({
+            copilot: ["203248971"],
+          });
+        });
       });
     });
   });
@@ -81,6 +89,16 @@ describe("assign_agent_helpers.cjs", () => {
   describe("getAgentLogins", () => {
     it("should return all known copilot aliases", () => {
       expect(getAgentLogins("copilot")).toEqual(["copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"]);
+    });
+
+    describe("getAgentCandidateIds", () => {
+      it("should return all known copilot candidate IDs", () => {
+        expect(getAgentCandidateIds("copilot")).toEqual(["203248971"]);
+      });
+
+      it("should return empty array for unknown agents", () => {
+        expect(getAgentCandidateIds("unknown")).toEqual([]);
+      });
     });
 
     it("should return empty array for unknown agents", () => {
@@ -468,6 +486,29 @@ describe("assign_agent_helpers.cjs", () => {
           id: 1111,
           number: 123,
           assignees: [{ id: 888, login: "github-copilot-enterprise" }],
+          html_url: "",
+          title: "",
+          body: "",
+        },
+      });
+
+      const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot");
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith("copilot is already assigned to issue #123");
+    });
+
+    it("should skip assignment when a known copilot candidate ID is already assigned", async () => {
+      // findAgent resolves via alias with a different runtime ID
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
+      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 999 } });
+      // getIssueDetails returns a known Copilot candidate ID from repository history
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          id: 1111,
+          number: 123,
+          assignees: [{ id: 203248971, login: "copilot-swe-agent" }],
           html_url: "",
           title: "",
           body: "",

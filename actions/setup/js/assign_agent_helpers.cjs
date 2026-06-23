@@ -19,6 +19,15 @@ const AGENT_LOGIN_NAMES = {
 };
 
 /**
+ * Map agent names to known candidate GitHub user IDs.
+ * These IDs are observed from closed issues assigned to user-facing aliases (e.g. "Copilot").
+ * @type {Record<string, string[]>}
+ */
+const AGENT_CANDIDATE_IDS = {
+  copilot: ["203248971"],
+};
+
+/**
  * Normalize a GitHub login for internal matching.
  * @param {string} login
  * @returns {string}
@@ -52,6 +61,17 @@ function getAgentLogins(agentName) {
   const logins = AGENT_LOGIN_NAMES[agentName];
   if (!logins) return [];
   return logins;
+}
+
+/**
+ * Return known candidate user IDs for an agent.
+ * @param {string} agentName
+ * @returns {string[]}
+ */
+function getAgentCandidateIds(agentName) {
+  const ids = AGENT_CANDIDATE_IDS[agentName];
+  if (!ids) return [];
+  return ids;
 }
 
 /**
@@ -553,7 +573,8 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
 
     // Check if agent is already assigned
     const knownLogins = getAgentLogins(agentName);
-    if (issueDetails.currentAssignees.some(a => a.id === agentId || knownLogins.includes(a.login))) {
+    const knownIds = new Set([agentId, ...getAgentCandidateIds(agentName)]);
+    if (issueDetails.currentAssignees.some(a => knownIds.has(String(a.id)) || knownLogins.includes(a.login))) {
       core.info(`${agentName} is already assigned to issue #${issueNumber}`);
       return { success: true };
     }
@@ -576,8 +597,10 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
 
 module.exports = {
   AGENT_LOGIN_NAMES,
+  AGENT_CANDIDATE_IDS,
   getAgentName,
   getAgentLogins,
+  getAgentCandidateIds,
   getAvailableAgentLogins,
   getAssignableBots,
   findAgent,
