@@ -14,6 +14,42 @@ const { generateStagedPreview } = require("./staged_preview.cjs");
  * @type {Array<{id: string, url: string, success: boolean, error?: string}>}
  */
 let _allResults = [];
+const AGENT_TASKS_API_VERSION = "2026-03-10";
+
+/**
+ * Build the REST request payload for creating an agent task.
+ *
+ * @param {{owner: string, repo: string, prompt: string, baseRef: string}} params
+ * @returns {{route: string, request: {owner: string, repo: string, prompt: string, base_ref: string, headers: Record<string, string>}}}
+ */
+function buildCreateAgentTaskRequest(params) {
+  return {
+    route: "POST /agents/repos/{owner}/{repo}/tasks",
+    request: {
+      owner: params.owner,
+      repo: params.repo,
+      prompt: params.prompt,
+      base_ref: params.baseRef,
+      headers: {
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": AGENT_TASKS_API_VERSION,
+      },
+    },
+  };
+}
+
+/**
+ * Normalize create-task response fields into session outputs.
+ *
+ * @param {any} task
+ * @returns {{id: string, url: string}}
+ */
+function getCreateAgentTaskResult(task) {
+  return {
+    id: task?.id || "",
+    url: task?.html_url || task?.url || "",
+  };
+}
 
 /**
  * Create a dedicated GitHub client for create-agent-session operations.
@@ -113,17 +149,16 @@ async function main(config = {}) {
 
       // Call the GitHub REST API to start a task
       // Reference: https://docs.github.com/en/rest/agent-tasks/agent-tasks?apiVersion=2026-03-10#start-a-task
-      const response = await githubClient.request("POST /agents/repos/{owner}/{repo}/tasks", {
+      const createTaskRequest = buildCreateAgentTaskRequest({
         owner: repoParts.owner,
         repo: repoParts.repo,
         prompt: taskDescription,
-        base_ref: baseBranch,
-        headers: { "X-GitHub-Api-Version": "2026-03-10" },
+        baseRef: baseBranch,
       });
+      const response = await githubClient.request(createTaskRequest.route, createTaskRequest.request);
 
       const task = response.data;
-      const taskId = task.id || "";
-      const taskUrl = task.html_url || task.url || "";
+      const { id: taskId, url: taskUrl } = getCreateAgentTaskResult(task);
 
       core.info(`✅ Successfully created agent session ${taskId}`);
       _allResults.push({ id: taskId, url: taskUrl, success: true });

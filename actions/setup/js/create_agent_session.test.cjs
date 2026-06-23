@@ -159,7 +159,10 @@ describe("create_agent_session.cjs", () => {
           repo: "test-repo",
           prompt: "Test task",
           base_ref: "develop",
-          headers: { "X-GitHub-Api-Version": "2026-03-10" },
+          headers: {
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2026-03-10",
+          },
         })
       );
     });
