@@ -144,14 +144,15 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
     }
     if (label.confidence !== undefined) {
       if (label.confidence !== null && label.confidence !== "") {
-        const confidence = String(label.confidence).trim().toUpperCase();
-        if (!ISSUE_INTENT_LABEL_CONFIDENCE_VALUES.has(confidence)) {
+        const confidenceRaw = String(label.confidence).trim().toUpperCase();
+        if (!ISSUE_INTENT_LABEL_CONFIDENCE_VALUES.has(confidenceRaw)) {
           return {
             isValid: false,
             error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].confidence must be one of: LOW, MEDIUM, HIGH`,
           };
         }
-        normalizedLabel.confidence = /** @type {"LOW"|"MEDIUM"|"HIGH"} */ confidence;
+        const confidence = /** @type {"LOW"|"MEDIUM"|"HIGH"} */ confidenceRaw;
+        normalizedLabel.confidence = confidence;
       }
     }
     if (label.suggest !== undefined) {
