@@ -42,6 +42,14 @@ const INTERNAL_SERVERS = new Set(["github"]);
 const DEFAULT_HTTP_TIMEOUT_MS = 15000;
 
 /**
+ * @param {number} ms
+ * @returns {Promise<void>}
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
  * Validate that a server name is safe to use as a filename and in shell scripts.
  * Prevents path traversal, shell metacharacter injection, and other abuse.
  *
@@ -196,67 +204,112 @@ function parseMCPResponseBody(body) {
 }
 
 /**
+ * Return configured tool names that are still missing from the discovered tool list.
+ *
+ * @param {string[] | undefined} expectedTools
+ * @param {Array<{name: string}>} actualTools
+ * @returns {string[]}
+ */
+function getMissingExpectedTools(expectedTools, actualTools) {
+  if (!Array.isArray(expectedTools) || expectedTools.length === 0) {
+    return [];
+  }
+  const actualNames = new Set(actualTools.map(tool => tool.name));
+  return expectedTools.filter(name => typeof name === "string" && name && !actualNames.has(name));
+}
+
+/**
  * Query the tools list from an MCP server via JSON-RPC.
  * Follows the standard MCP handshake: initialize → notifications/initialized → tools/list.
  *
  * @param {string} serverUrl - HTTP URL of the MCP server endpoint
  * @param {string} apiKey - Bearer token for gateway authentication
  * @param {typeof import("@actions/core")} core - GitHub Actions core
+ * @param {{
+ *   expectedTools?: string[],
+ *   maxAttempts?: number,
+ *   retryDelayMs?: number,
+ *   httpPostJSON?: typeof httpPostJSON,
+ * }} [options]
  * @returns {Promise<Array<{name: string, description?: string, inputSchema?: unknown}>>}
  */
-async function fetchMCPTools(serverUrl, apiKey, core) {
+async function fetchMCPTools(serverUrl, apiKey, core, options = {}) {
   const authHeaders = { Authorization: apiKey };
+  const expectedTools = Array.isArray(options.expectedTools) ? options.expectedTools.filter(name => typeof name === "string" && name) : [];
+  const maxAttempts = Math.max(1, Number.isInteger(options.maxAttempts) ? options.maxAttempts : 1);
+  const retryDelayMs = typeof options.retryDelayMs === "number" && options.retryDelayMs > 0 ? options.retryDelayMs : 0;
+  const postJSON = options.httpPostJSON || httpPostJSON;
 
-  // Step 1: initialize – establish the session and capture Mcp-Session-Id if present
-  let sessionHeader = {};
-  try {
-    const initResp = await httpPostJSON(
-      serverUrl,
-      authHeaders,
-      {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: {
-          capabilities: {},
-          clientInfo: { name: "mcp-cli-mount", version: "1.0.0" },
-          protocolVersion: "2024-11-05",
+  /** @type {Array<{name: string, description?: string, inputSchema?: unknown}>} */
+  let lastTools = [];
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Step 1: initialize – establish the session and capture Mcp-Session-Id if present
+    let sessionHeader = {};
+    try {
+      const initResp = await postJSON(
+        serverUrl,
+        authHeaders,
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            capabilities: {},
+            clientInfo: { name: "mcp-cli-mount", version: "1.0.0" },
+            protocolVersion: "2024-11-05",
+          },
         },
-      },
-      DEFAULT_HTTP_TIMEOUT_MS
-    );
-    const sessionId = initResp.headers["mcp-session-id"];
-    if (sessionId && typeof sessionId === "string") {
-      sessionHeader = { "Mcp-Session-Id": sessionId };
-    }
-  } catch (err) {
-    core.warning(`  initialize failed for ${serverUrl}: ${err instanceof Error ? err.message : String(err)}`);
-    return [];
-  }
-
-  // Step 2: notifications/initialized – required by MCP spec to complete the handshake.
-  // The server responds with 204 No Content; errors here are non-fatal.
-  try {
-    await httpPostJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", method: "notifications/initialized", params: {} }, 10000);
-  } catch (err) {
-    core.warning(`  notifications/initialized failed for ${serverUrl}: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  // Step 3: tools/list – get the available tool definitions
-  try {
-    const listResp = await httpPostJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", id: 2, method: "tools/list" }, DEFAULT_HTTP_TIMEOUT_MS);
-    const respBody = parseMCPResponseBody(listResp.body);
-    if (respBody && typeof respBody === "object" && "result" in respBody && respBody.result && typeof respBody.result === "object") {
-      const result = respBody.result;
-      if ("tools" in result && Array.isArray(result.tools)) {
-        return /** @type {Array<{name: string, description?: string, inputSchema?: unknown}>} */ result.tools;
+        DEFAULT_HTTP_TIMEOUT_MS
+      );
+      const sessionId = initResp.headers["mcp-session-id"];
+      if (sessionId && typeof sessionId === "string") {
+        sessionHeader = { "Mcp-Session-Id": sessionId };
       }
+    } catch (err) {
+      core.warning(`  initialize failed for ${serverUrl}: ${err instanceof Error ? err.message : String(err)}`);
+      if (attempt < maxAttempts && retryDelayMs > 0) {
+        await sleep(retryDelayMs);
+      }
+      continue;
     }
-    return [];
-  } catch (err) {
-    core.warning(`  tools/list failed for ${serverUrl}: ${err instanceof Error ? err.message : String(err)}`);
-    return [];
+
+    // Step 2: notifications/initialized – required by MCP spec to complete the handshake.
+    // The server responds with 204 No Content; errors here are non-fatal.
+    try {
+      await postJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", method: "notifications/initialized", params: {} }, 10000);
+    } catch (err) {
+      core.warning(`  notifications/initialized failed for ${serverUrl}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    // Step 3: tools/list – get the available tool definitions
+    try {
+      const listResp = await postJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", id: 2, method: "tools/list" }, DEFAULT_HTTP_TIMEOUT_MS);
+      const respBody = parseMCPResponseBody(listResp.body);
+      if (respBody && typeof respBody === "object" && "result" in respBody && respBody.result && typeof respBody.result === "object") {
+        const result = respBody.result;
+        if ("tools" in result && Array.isArray(result.tools)) {
+          lastTools = /** @type {Array<{name: string, description?: string, inputSchema?: unknown}>} */ result.tools;
+          const missingExpected = getMissingExpectedTools(expectedTools, lastTools);
+          if (missingExpected.length === 0 || attempt === maxAttempts) {
+            if (missingExpected.length > 0) {
+              core.warning(`  tools/list for ${serverUrl} is still missing expected tools after ${attempt} attempt(s): ${missingExpected.join(", ")}`);
+            }
+            return lastTools;
+          }
+          core.info(`  tools/list for ${serverUrl} is missing ${missingExpected.length} expected tool(s) on attempt ${attempt}/${maxAttempts}; retrying: ${missingExpected.join(", ")}`);
+        }
+      }
+    } catch (err) {
+      core.warning(`  tools/list failed for ${serverUrl}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    if (attempt < maxAttempts && retryDelayMs > 0) {
+      await sleep(retryDelayMs);
+    }
   }
+
+  return lastTools;
 }
 
 /**
@@ -447,4 +500,4 @@ async function main() {
   core.setOutput("mounted-servers", mountedServers.join(","));
 }
 
-module.exports = { main, fetchMCPTools, generateCLIWrapperScript, isValidServerName, shellEscapeDoubleQuoted, parseMCPResponseBody };
+module.exports = { main, fetchMCPTools, generateCLIWrapperScript, getMissingExpectedTools, isValidServerName, shellEscapeDoubleQuoted, parseMCPResponseBody };

@@ -34,6 +34,7 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { withRetry } = require("./error_recovery.cjs");
+const { fetchMCPTools } = require("./mount_mcp_as_cli.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
 
 // ---------------------------------------------------------------------------
@@ -258,6 +259,40 @@ function detectEngineType(configDir, env = process.env, existsSync = fs.existsSy
     return "claude";
   }
   return "unknown";
+}
+
+/**
+ * Best-effort warm-up for MCP servers that declare an explicit tool allowlist.
+ * Some proxied servers (notably Grafana Tempo) may initially expose only their
+ * static tools and register dynamic/proxied tools a few seconds later. Poll the
+ * advertised server endpoint until the configured tools appear, but continue the
+ * workflow with a warning if they never do.
+ *
+ * @param {Record<string, unknown>} gatewayOutput
+ * @param {string} apiKey
+ * @returns {Promise<void>}
+ */
+async function warmConfiguredServerTools(gatewayOutput, apiKey) {
+  const rawServers = gatewayOutput.mcpServers;
+  if (!rawServers || typeof rawServers !== "object" || Array.isArray(rawServers)) {
+    return;
+  }
+
+  const servers = /** @type {Record<string, Record<string, unknown>>} */ rawServers;
+  for (const [serverName, serverConfig] of Object.entries(servers)) {
+    const serverUrl = typeof serverConfig.url === "string" ? serverConfig.url : "";
+    const expectedTools = Array.isArray(serverConfig.tools) ? serverConfig.tools.filter(name => typeof name === "string" && name) : [];
+    if (!serverUrl || expectedTools.length === 0) {
+      continue;
+    }
+
+    core.info(`Warming MCP server '${serverName}' until configured tools are visible (${expectedTools.length} expected)...`);
+    await fetchMCPTools(serverUrl, apiKey, core, {
+      expectedTools,
+      maxAttempts: 8,
+      retryDelayMs: 2000,
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -722,6 +757,12 @@ async function main() {
     }
     process.exit(1);
   }
+
+  core.info("Warming MCP server tool registries...");
+  const toolWarmupStart = nowMs();
+  await warmConfiguredServerTools(gatewayOutput, apiKey || "");
+  printTiming(toolWarmupStart, "MCP tool warm-up");
+  core.info("");
 
   // -----------------------------------------------------------------------
   // Convert gateway output to agent-specific format
