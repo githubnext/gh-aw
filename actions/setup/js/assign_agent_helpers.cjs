@@ -21,6 +21,7 @@ const AGENT_LOGIN_NAMES = {
 /**
  * Map agent names to known candidate GitHub user IDs.
  * These IDs are observed from closed issues assigned to user-facing aliases (e.g. "Copilot").
+ * Add new IDs when valid Copilot assignments are detected but dedupe checks miss an existing assignee.
  * @type {Record<string, string[]>}
  */
 const AGENT_CANDIDATE_IDS = {
@@ -72,6 +73,19 @@ function getAgentCandidateIds(agentName) {
   const ids = AGENT_CANDIDATE_IDS[agentName];
   if (!ids) return [];
   return ids;
+}
+
+/**
+ * Check whether an agent is already assigned to a target via resolved ID, known candidate IDs, or known logins.
+ * @param {Array<{id: string|number, login?: string}>} currentAssignees
+ * @param {string|number} agentId
+ * @param {string} agentName
+ * @returns {boolean}
+ */
+function isAgentAlreadyAssigned(currentAssignees, agentId, agentName) {
+  const knownAgentIds = new Set([String(agentId), ...getAgentCandidateIds(agentName)]);
+  const knownAgentLogins = getAgentLogins(agentName);
+  return currentAssignees.some(a => knownAgentIds.has(String(a.id)) || knownAgentLogins.includes(a.login ?? ""));
 }
 
 /**
@@ -572,9 +586,7 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
     core.info(`Issue context: ${issueDetails.issueId}`);
 
     // Check if agent is already assigned
-    const knownLogins = getAgentLogins(agentName);
-    const knownIds = new Set([agentId, ...getAgentCandidateIds(agentName)]);
-    if (issueDetails.currentAssignees.some(a => knownIds.has(String(a.id)) || knownLogins.includes(a.login))) {
+    if (isAgentAlreadyAssigned(issueDetails.currentAssignees, agentId, agentName)) {
       core.info(`${agentName} is already assigned to issue #${issueNumber}`);
       return { success: true };
     }
@@ -601,6 +613,7 @@ module.exports = {
   getAgentName,
   getAgentLogins,
   getAgentCandidateIds,
+  isAgentAlreadyAssigned,
   getAvailableAgentLogins,
   getAssignableBots,
   findAgent,

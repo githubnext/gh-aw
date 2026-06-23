@@ -30,7 +30,7 @@ const mockGithub = {
 globalThis.core = mockCore;
 globalThis.github = mockGithub;
 
-const { AGENT_LOGIN_NAMES, AGENT_CANDIDATE_IDS, getAgentName, getAgentLogins, getAgentCandidateIds, getAvailableAgentLogins, getAssignableBots, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary, assignAgentToIssueByName } =
+const { AGENT_LOGIN_NAMES, AGENT_CANDIDATE_IDS, getAgentName, getAgentLogins, getAgentCandidateIds, isAgentAlreadyAssigned, getAvailableAgentLogins, getAssignableBots, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary, assignAgentToIssueByName } =
   await import("./assign_agent_helpers.cjs");
 
 describe("assign_agent_helpers.cjs", () => {
@@ -43,13 +43,13 @@ describe("assign_agent_helpers.cjs", () => {
       expect(AGENT_LOGIN_NAMES).toEqual({
         copilot: ["copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"],
       });
+    });
+  });
 
-      describe("AGENT_CANDIDATE_IDS", () => {
-        it("should have copilot mapped to known candidate bot IDs", () => {
-          expect(AGENT_CANDIDATE_IDS).toEqual({
-            copilot: ["203248971"],
-          });
-        });
+  describe("AGENT_CANDIDATE_IDS", () => {
+    it("should have copilot mapped to known candidate bot IDs", () => {
+      expect(AGENT_CANDIDATE_IDS).toEqual({
+        copilot: ["203248971"],
       });
     });
   });
@@ -91,18 +91,30 @@ describe("assign_agent_helpers.cjs", () => {
       expect(getAgentLogins("copilot")).toEqual(["copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"]);
     });
 
-    describe("getAgentCandidateIds", () => {
-      it("should return all known copilot candidate IDs", () => {
-        expect(getAgentCandidateIds("copilot")).toEqual(["203248971"]);
-      });
+    it("should return empty array for unknown agents", () => {
+      expect(getAgentLogins("unknown")).toEqual([]);
+    });
+  });
 
-      it("should return empty array for unknown agents", () => {
-        expect(getAgentCandidateIds("unknown")).toEqual([]);
-      });
+  describe("getAgentCandidateIds", () => {
+    it("should return all known copilot candidate IDs", () => {
+      expect(getAgentCandidateIds("copilot")).toEqual(["203248971"]);
     });
 
     it("should return empty array for unknown agents", () => {
-      expect(getAgentLogins("unknown")).toEqual([]);
+      expect(getAgentCandidateIds("unknown")).toEqual([]);
+    });
+  });
+
+  describe("isAgentAlreadyAssigned", () => {
+    it("should match via known candidate ID for copilot", () => {
+      const result = isAgentAlreadyAssigned([{ id: 203248971, login: "some-other-copilot-alias" }], 99999, "copilot");
+      expect(result).toBe(true);
+    });
+
+    it("should return false when no known IDs or logins match", () => {
+      const result = isAgentAlreadyAssigned([{ id: 123, login: "someone-else" }], 99999, "copilot");
+      expect(result).toBe(false);
     });
   });
 
