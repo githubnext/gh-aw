@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -22,6 +23,22 @@ func TestWriteJSONStringMapSection(t *testing.T) {
 
 	if output.String() != expected {
 		t.Fatalf("expected JSON map section:\n%s\ngot:\n%s", expected, output.String())
+	}
+}
+
+func TestWriteJSONStringMapSectionEscapesKeysAndValues(t *testing.T) {
+	var output strings.Builder
+
+	writeJSONStringMapSection(&output, "  ", "env", map[string]string{
+		`A"key`: "line1\nline2\\end",
+	}, false)
+
+	var parsed map[string]map[string]string
+	if err := json.Unmarshal([]byte("{\n"+output.String()+"}"), &parsed); err != nil {
+		t.Fatalf("expected valid JSON section, got error: %v\noutput:\n%s", err, output.String())
+	}
+	if parsed["env"][`A"key`] != "line1\nline2\\end" {
+		t.Fatalf("unexpected parsed value: %#v", parsed["env"])
 	}
 }
 

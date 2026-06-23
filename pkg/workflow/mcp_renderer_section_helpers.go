@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -11,7 +12,9 @@ func writeJSONStringMapEntries(yaml *strings.Builder, values map[string]string, 
 		if i == len(values)-1 {
 			comma = ""
 		}
-		fmt.Fprintf(yaml, "%s\"%s\": \"%s\"%s\n", indent, key, values[key], comma)
+		encodedKey, _ := json.Marshal(key)           //nolint:jsonmarshalignorederror // marshaling a string cannot fail
+		encodedValue, _ := json.Marshal(values[key]) //nolint:jsonmarshalignorederror // marshaling a string cannot fail
+		fmt.Fprintf(yaml, "%s%s: %s%s\n", indent, encodedKey, encodedValue, comma)
 	}
 }
 
