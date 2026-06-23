@@ -62,6 +62,25 @@ Run the `gh aw update` command to check for and apply updates to GitHub Actions 
 
 ### 1. Run the Update Command
 
+Before running the update, snapshot the existing `containers` section from `.github/aw/actions-lock.json`. The daily updater PR must preserve existing container pins even if `gh aw update` prunes stale container entries while refreshing action versions.
+
+```bash
+python - <<'PY'
+import json
+from pathlib import Path
+
+actions_lock = Path(".github/aw/actions-lock.json")
+snapshot = Path("/tmp/daily-workflow-updater-containers.json")
+
+containers = {}
+if actions_lock.exists():
+    data = json.loads(actions_lock.read_text())
+    containers = data.get("containers", {})
+
+snapshot.write_text(json.dumps(containers, indent=2))
+PY
+```
+
 Execute the update command to check for action updates:
 
 ```bash
@@ -76,7 +95,26 @@ This command will:
 
 **Important**: The command will show which actions were updated in the output.
 
-### 2. Check for Changes
+### 2. Preserve Existing Container Pins
+
+After the update completes, restore the original `containers` section back into `.github/aw/actions-lock.json` before checking for changes. This workflow manages GitHub Action version bumps only; it must not remove or rewrite cached container pins.
+
+```bash
+python - <<'PY'
+import json
+from pathlib import Path
+
+actions_lock = Path(".github/aw/actions-lock.json")
+snapshot = Path("/tmp/daily-workflow-updater-containers.json")
+
+if actions_lock.exists() and snapshot.exists():
+    data = json.loads(actions_lock.read_text())
+    data["containers"] = json.loads(snapshot.read_text())
+    actions_lock.write_text(json.dumps(data, indent=2) + "\n")
+PY
+```
+
+### 3. Check for Changes
 
 After running the update command, check if any changes were made to the actions-lock.json file:
 
@@ -86,7 +124,7 @@ git status
 
 Look specifically for changes to `.github/aw/actions-lock.json`. We only want to create a PR if this file has been modified.
 
-### 3. Review the Changes
+### 4. Review the Changes
 
 If `.github/aw/actions-lock.json` was modified, review the changes:
 
@@ -96,7 +134,9 @@ git diff .github/aw/actions-lock.json
 
 This will show you which actions were updated and to which versions.
 
-### 4. Handle Lock Files
+Confirm that the diff only contains action entry updates under the `entries` section. If the `containers` section changed, restore it again before continuing.
+
+### 5. Handle Lock Files
 
 **CRITICAL**: Do NOT include `.lock.yml` files in the PR. These files are compiled workflow files and should not be committed as part of action updates.
 
@@ -113,7 +153,7 @@ Verify that only `actions-lock.json` is staged:
 git status
 ```
 
-### 5. Create Pull Request
+### 6. Create Pull Request
 
 If `.github/aw/actions-lock.json` has changes:
 
@@ -163,42 +203,74 @@ The updated actions will be automatically used in workflow compilations. No manu
 *This PR was automatically created by the Daily Workflow Updater workflow.*
 ```
 
-### 6. Handle Edge Cases
+### 7. Handle Edge Cases
 
 - **No updates available**: If `actions-lock.json` was not modified, do NOT create a PR. Exit gracefully with a message like "All actions are already up to date."
 
 - **Only .lock.yml files changed**: If only `.lock.yml` files changed but `actions-lock.json` was not modified, reset the lock files and exit without creating a PR.
+
+- **Containers changed unexpectedly**: If `actions-lock.json` only changed in the `containers` section, restore the saved container snapshot, reset any `.lock.yml` files, and exit without creating a PR.
 
 - **Update command fails**: If the `gh aw update` command fails, report the error but do not create a PR. The error might be temporary (network issues, API rate limits).
 
 ## Important Guidelines
 
 1. **Only commit actions-lock.json**: Never commit `.lock.yml` files in this workflow
-2. **Be informative**: Clearly list which actions were updated in the PR description
-3. **Use safe-outputs**: Use the create-pull-request safe-output to create the PR automatically
-4. **Exit gracefully**: If no updates are needed, don't create a PR
-5. **Include details**: Show before/after versions for each updated action
-6. **Semantic versioning**: The update command respects semantic versioning by default
+2. **Preserve container pins**: Keep the pre-update `containers` section unchanged in `actions-lock.json`
+3. **Be informative**: Clearly list which actions were updated in the PR description
+4. **Use safe-outputs**: Use the create-pull-request safe-output to create the PR automatically
+5. **Exit gracefully**: If no updates are needed, don't create a PR
+6. **Include details**: Show before/after versions for each updated action
+7. **Semantic versioning**: The update command respects semantic versioning by default
 
 ## Example Workflow
 
 ```bash
 # Step 1: Run update
+python - <<'PY'
+import json
+from pathlib import Path
+
+actions_lock = Path(".github/aw/actions-lock.json")
+snapshot = Path("/tmp/daily-workflow-updater-containers.json")
+
+containers = {}
+if actions_lock.exists():
+    data = json.loads(actions_lock.read_text())
+    containers = data.get("containers", {})
+
+snapshot.write_text(json.dumps(containers, indent=2))
+PY
+
 gh aw update --verbose
 
-# Step 2: Check status
+# Step 2: Restore containers
+python - <<'PY'
+import json
+from pathlib import Path
+
+actions_lock = Path(".github/aw/actions-lock.json")
+snapshot = Path("/tmp/daily-workflow-updater-containers.json")
+
+if actions_lock.exists() and snapshot.exists():
+    data = json.loads(actions_lock.read_text())
+    data["containers"] = json.loads(snapshot.read_text())
+    actions_lock.write_text(json.dumps(data, indent=2) + "\n")
+PY
+
+# Step 3: Check status
 git status
 
-# Step 3: Review changes (if actions-lock.json changed)
+# Step 4: Review changes (if actions-lock.json changed)
 git diff .github/aw/actions-lock.json
 
-# Step 4: Reset lock files (if any changed)
+# Step 5: Reset lock files (if any changed)
 git checkout -- .github/workflows/*.lock.yml
 
-# Step 5: Verify only actions-lock.json is changed
+# Step 6: Verify only actions-lock.json is changed
 git status
 
-# Step 6: Create PR using safe-outputs if actions-lock.json changed
+# Step 7: Create PR using safe-outputs if actions-lock.json changed
 # (Use create-pull-request safe-output with appropriate title and body)
 ```
 
@@ -206,6 +278,7 @@ git status
 
 - Updates are checked daily
 - PR is created only when `actions-lock.json` changes
+- Existing container pins in `actions-lock.json` are preserved
 - `.lock.yml` files are never included in the PR
 - PR description clearly shows what was updated
 - Process handles edge cases gracefully
