@@ -594,6 +594,8 @@ func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatew
 	if domain == "" {
 		if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
 			domain = "localhost"
+		} else if isAWFNetworkIsolationEnabled(workflowData) {
+			domain = "awmg-mcpg"
 		} else {
 			domain = "host.docker.internal"
 		}
@@ -716,9 +718,16 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	// appendMCPGatewayBaseEnvFlags alone write ~2KB of -e flags; allocating
 	// 2048 bytes upfront covers the common case without overcommitting.
 	containerCmd.Grow(2048)
-	containerCmd.WriteString("docker run -i --rm --network host")
+	containerCmd.WriteString("docker run -i --rm")
+	if isAWFNetworkIsolationEnabled(workflowData) {
+		containerCmd.WriteString(" --network bridge")
+	} else {
+		containerCmd.WriteString(" --network host")
+	}
 	containerCmd.WriteString(" --name awmg-mcpg")
-	containerCmd.WriteString(" --add-host host.docker.internal:127.0.0.1")
+	if !isAWFNetworkIsolationEnabled(workflowData) {
+		containerCmd.WriteString(" --add-host host.docker.internal:127.0.0.1")
+	}
 	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")
 	containerCmd.WriteString(" --group-add ${DOCKER_SOCK_GID}")
 	containerCmd.WriteString(" -v ${DOCKER_SOCK_PATH}:/var/run/docker.sock")

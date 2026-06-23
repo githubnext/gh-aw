@@ -249,6 +249,9 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
 	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
+	if isAWFNetworkIsolationEnabled(data) {
+		sb.WriteString("          GH_AW_NETWORK_ISOLATION: 'true'\n")
+	}
 	// Store policy and image in env vars to avoid shell-quoting issues with
 	// inline JSON arguments and to keep the run: command clean.
 	fmt.Fprintf(&sb, "          DIFC_PROXY_POLICY: '%s'\n", policyJSON)
@@ -519,6 +522,9 @@ func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
 	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
+	if isAWFNetworkIsolationEnabled(data) {
+		sb.WriteString("          GH_AW_NETWORK_ISOLATION: 'true'\n")
+	}
 	fmt.Fprintf(&sb, "          CLI_PROXY_POLICY: '%s'\n", policyJSON)
 	fmt.Fprintf(&sb, "          CLI_PROXY_IMAGE: '%s'\n", containerImage)
 	sb.WriteString("        run: |\n")

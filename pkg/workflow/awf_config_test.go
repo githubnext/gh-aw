@@ -102,6 +102,31 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "ads.example.com", "should include the blocked domain")
 	})
 
+	t.Run("network isolation emits isolation and topologyAttach", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type:             SandboxTypeAWF,
+						NetworkIsolation: true,
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
+
+		assert.Contains(t, jsonStr, `"isolation":true`, "should enable network isolation")
+		assert.Contains(t, jsonStr, `"topologyAttach":["awmg-mcpg"]`, "should attach MCP gateway container to awf-net")
+	})
+
 	t.Run("openai API target is included in apiProxy targets", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "codex",
@@ -1558,4 +1583,39 @@ func TestBuildAWFCommand_WritesAgentCLIStartTimestamp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildAWFTopologyAttachList(t *testing.T) {
+	t.Run("includes only MCP gateway when cli proxy is not needed", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{
+					"toolsets": []string{"repos"},
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+
+		targets := buildAWFTopologyAttachList(workflowData)
+		assert.Equal(t, []string{"awmg-mcpg"}, targets)
+	})
+
+	t.Run("includes CLI proxy when gh-proxy mode is enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{
+					"mode":     "gh-proxy",
+					"toolsets": []string{"repos"},
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true, Version: "v0.26.0"},
+			},
+		}
+
+		targets := buildAWFTopologyAttachList(workflowData)
+		assert.Equal(t, []string{"awmg-mcpg", "awmg-cli-proxy"}, targets)
+	})
 }

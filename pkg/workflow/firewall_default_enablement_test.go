@@ -537,3 +537,45 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		}
 	})
 }
+
+func TestIsAWFNetworkIsolationEnabled(t *testing.T) {
+	t.Run("returns false when workflow data is nil", func(t *testing.T) {
+		if isAWFNetworkIsolationEnabled(nil) {
+			t.Error("Expected false for nil workflow data")
+		}
+	})
+
+	t.Run("returns false when agent config is missing", func(t *testing.T) {
+		workflowData := &WorkflowData{}
+		if isAWFNetworkIsolationEnabled(workflowData) {
+			t.Error("Expected false when agent config is missing")
+		}
+	})
+
+	t.Run("returns false when agent is disabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Disabled:         true,
+					NetworkIsolation: true,
+				},
+			},
+		}
+		if isAWFNetworkIsolationEnabled(workflowData) {
+			t.Error("Expected false when agent is disabled")
+		}
+	})
+
+	t.Run("returns true when network isolation is enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					NetworkIsolation: true,
+				},
+			},
+		}
+		if !isAWFNetworkIsolationEnabled(workflowData) {
+			t.Error("Expected true when network isolation is enabled")
+		}
+	})
+}

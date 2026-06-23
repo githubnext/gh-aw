@@ -204,6 +204,13 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract network-isolation (AWF topology egress mode)
+	if isolationVal, hasIsolation := agentObj["network-isolation"]; hasIsolation {
+		if isolationBool, ok := isolationVal.(bool); ok {
+			agentConfig.NetworkIsolation = isolationBool
+		}
+	}
+
 	// Extract config for SRT
 	if configVal, hasConfig := agentObj["config"]; hasConfig {
 		agentConfig.Config = c.extractSRTConfig(configVal)

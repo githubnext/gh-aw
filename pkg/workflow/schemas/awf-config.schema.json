@@ -39,8 +39,34 @@
         "upstreamProxy": {
           "type": "string",
           "description": "Upstream HTTP proxy URL (e.g. \"http://proxy.corp.example.com:8080\"). When set, the AWF Squid proxy forwards traffic through this proxy."
+        },
+        "isolation": {
+          "type": "boolean",
+          "description": "Enable network topology egress mode. AWF creates an internal awf-net and routes traffic through attached sidecars instead of host-network iptables."
+        },
+        "topologyAttach": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Container names to attach to awf-net after startup (equivalent to repeated --topology-attach flags). Requires network.isolation=true."
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["topologyAttach"]
+          },
+          "then": {
+            "properties": {
+              "isolation": {
+                "const": true
+              }
+            },
+            "required": ["isolation"]
+          }
+        }
+      ]
     },
     "apiProxy": {
       "type": "object",

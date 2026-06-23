@@ -40,7 +40,12 @@ if [ -n "$POLICY" ]; then
   POLICY_ARGS=(--policy "$POLICY")
 fi
 
-docker run -d --name awmg-cli-proxy --network host \
+DOCKER_NETWORK_ARGS=(--network host)
+if [ "${GH_AW_NETWORK_ISOLATION:-false}" = "true" ]; then
+  DOCKER_NETWORK_ARGS=(--network bridge -p 127.0.0.1:18443:18443)
+fi
+
+docker run -d --name awmg-cli-proxy "${DOCKER_NETWORK_ARGS[@]}" \
   --user "$(id -u):$(id -g)" \
   -e GH_TOKEN \
   -e GITHUB_SERVER_URL \
