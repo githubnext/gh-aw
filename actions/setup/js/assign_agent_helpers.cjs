@@ -40,7 +40,7 @@ const AGENT_NAME_BY_LOGIN = Object.fromEntries(Object.entries(AGENT_LOGIN_NAMES)
  * @returns {boolean}
  */
 function isBotAssignee(assignee) {
-  return assignee?.type === "Bot" || assignee?.login?.endsWith("[bot]");
+  return assignee?.type === "Bot" || Boolean(assignee?.login?.endsWith("[bot]"));
 }
 
 /**
@@ -79,6 +79,7 @@ function getAgentName(assignee) {
  * @returns {Promise<string[]>}
  */
 async function getAvailableAgentLogins(owner, repo, githubClient = github) {
+  // Deduplicate defensively so future alias additions across agents do not duplicate REST lookups.
   const knownValues = [...new Set(Object.values(AGENT_LOGIN_NAMES).flat())];
   const available = [];
   for (const login of knownValues) {
@@ -153,7 +154,7 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
     return null;
   }
 
-  core.info(`Trying ${agentName} assignee aliases: ${loginNames.join(", ")}`);
+  core.info(`Trying ${loginNames.length} ${agentName} assignee aliases: ${loginNames.join(", ")}`);
 
   const aliasFailures = [];
   for (const loginName of loginNames) {

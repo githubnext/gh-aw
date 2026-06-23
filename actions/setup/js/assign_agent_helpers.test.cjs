@@ -63,6 +63,8 @@ describe("assign_agent_helpers.cjs", () => {
     it("should return copilot for known copilot assignee aliases", () => {
       expect(getAgentName("copilot-swe-agent")).toBe("copilot");
       expect(getAgentName("@github-copilot-enterprise")).toBe("copilot");
+      expect(getAgentName("github-copilot-enterprise[bot]")).toBe("copilot");
+      expect(getAgentName("github-copilot")).toBe("copilot");
       expect(getAgentName("github-copilot[bot]")).toBe("copilot");
     });
 
