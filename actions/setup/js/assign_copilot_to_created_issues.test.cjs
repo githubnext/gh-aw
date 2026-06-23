@@ -23,7 +23,7 @@ globalThis.github = mockGithub;
 
 // Mock the assign_agent_helpers module
 vi.mock("./assign_agent_helpers.cjs", () => ({
-  AGENT_LOGIN_NAMES: { copilot: "copilot-swe-agent" },
+  AGENT_LOGIN_NAMES: { copilot: ["copilot-swe-agent", "github-copilot-enterprise"] },
   findAgent: vi.fn(),
   getIssueDetails: vi.fn(),
   assignAgentToIssue: vi.fn(),
