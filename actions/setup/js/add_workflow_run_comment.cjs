@@ -186,7 +186,6 @@ function reportCommentError(rawContext, message) {
 async function updateReusableStatusComment(reusableComment, invocationContext, rawContext) {
   const runUrl = buildWorkflowRunUrl(rawContext, invocationContext.workflowRepo);
   const commentBody = buildCommentBody(invocationContext.eventName, runUrl);
-  const commentRepo = reusableComment.repo || invocationContext.eventRepo;
 
   // Discussion comments use GraphQL node IDs and a dedicated update mutation.
   if (reusableComment.id.startsWith("DC_")) {
@@ -203,9 +202,10 @@ async function updateReusableStatusComment(reusableComment, invocationContext, r
     return typeof updatedUrl === "string" && updatedUrl.trim() ? updatedUrl : reusableComment.url;
   }
 
-  const numericCommentId = Number.parseInt(reusableComment.id, 10);
-  if (!Number.isFinite(numericCommentId) || numericCommentId <= 0) {
-    throw new Error(`${ERR_VALIDATION}: Reusable status comment ID is not a valid issue comment id`);
+  const commentRepo = reusableComment.repo || invocationContext.eventRepo;
+  const numericCommentId = Number(reusableComment.id);
+  if (!Number.isInteger(numericCommentId) || numericCommentId <= 0) {
+    throw new Error(`${ERR_VALIDATION}: Reusable status comment ID must be a positive integer (received "${reusableComment.id}")`);
   }
 
   const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
@@ -244,6 +244,9 @@ async function createOrReuseStatusComment(rawContext = context) {
       core.info("Updated reusable status comment with current workflow run metadata");
     } catch (error) {
       core.warning(`Failed to update reusable status comment body: ${getErrorMessage(error)}`);
+      if (!reusableCommentUrl) {
+        core.warning("No fallback reusable status comment URL available; comment-url output will be empty.");
+      }
     }
     const outputs = setCommentOutputs(reusableComment.id, reusableCommentUrl, reusableComment.repo || invocationContext.eventRepo, { logReuse: true });
     return {
