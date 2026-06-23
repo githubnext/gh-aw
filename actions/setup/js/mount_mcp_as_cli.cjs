@@ -267,6 +267,16 @@ async function fetchMCPTools(serverUrl, apiKey, core, options = {}) {
   const maxAttempts = Math.max(1, Number.isInteger(options.maxAttempts) ? options.maxAttempts : 1);
   const retryDelayMs = resolveRetryDelayMs(options.retryDelayMs, maxAttempts);
   const postJSON = options.httpPostJSON || httpPostJSON;
+  const initializeRequest = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: {
+      capabilities: {},
+      clientInfo: { name: "mcp-cli-mount", version: "1.0.0" },
+      protocolVersion: "2024-11-05",
+    },
+  };
 
   /** @type {Array<{name: string, description?: string, inputSchema?: unknown}>} */
   let lastTools = [];
@@ -275,21 +285,7 @@ async function fetchMCPTools(serverUrl, apiKey, core, options = {}) {
     // Step 1: initialize – establish the session and capture Mcp-Session-Id if present
     let sessionHeader = {};
     try {
-      const initResp = await postJSON(
-        serverUrl,
-        authHeaders,
-        {
-          jsonrpc: "2.0",
-          id: 1,
-          method: "initialize",
-          params: {
-            capabilities: {},
-            clientInfo: { name: "mcp-cli-mount", version: "1.0.0" },
-            protocolVersion: "2024-11-05",
-          },
-        },
-        DEFAULT_HTTP_TIMEOUT_MS
-      );
+      const initResp = await postJSON(serverUrl, authHeaders, initializeRequest, DEFAULT_HTTP_TIMEOUT_MS);
       const sessionId = initResp.headers["mcp-session-id"];
       if (sessionId && typeof sessionId === "string") {
         sessionHeader = { "Mcp-Session-Id": sessionId };
@@ -326,7 +322,7 @@ async function fetchMCPTools(serverUrl, apiKey, core, options = {}) {
             core.warning(`  tools/list for ${serverUrl} is still missing expected tools after ${attempt} attempt(s): ${missingExpected.join(", ")}`);
             return lastTools;
           }
-          core.info(`  tools/list for ${serverUrl} is missing ${missingExpected.length} expected tool(s) on attempt ${attempt}/${maxAttempts}; retrying: ${missingExpected.join(", ")}`);
+          core.info(`  tools/list for ${serverUrl} is missing ${missingExpected.length} expected tools on attempt ${attempt}/${maxAttempts}; retrying: ${missingExpected.join(", ")}`);
         }
       }
     } catch (err) {
