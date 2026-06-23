@@ -242,7 +242,7 @@ async function enrichReflectModels(reflectData, timeoutMs, logger) {
  */
 function resolveAWFReflectUrl(providerOverride) {
   const provider = (providerOverride || process.env.GH_AW_LLM_PROVIDER || "anthropic").toLowerCase().trim();
-  const port = AWF_API_PROXY_PROVIDER_PORTS[provider] != null ? AWF_API_PROXY_PROVIDER_PORTS[provider] : AWF_API_PROXY_PROVIDER_PORTS.anthropic;
+  const port = AWF_API_PROXY_PROVIDER_PORTS[provider] ?? AWF_API_PROXY_PROVIDER_PORTS.anthropic;
   return `http://api-proxy:${port}/reflect`;
 }
 
