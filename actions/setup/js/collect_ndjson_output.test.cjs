@@ -149,12 +149,13 @@ describe("collect_ndjson_output.cjs", () => {
         expect(mockCore.info).toHaveBeenCalledWith("GH_AW_SAFE_OUTPUTS not set, no output to collect"));
     }),
     it("should handle missing output file", async () => {
-      ((process.env.GH_AW_SAFE_OUTPUTS = "/tmp/gh-aw/nonexistent-file.txt"),
+      const missingFile = `${TMP_GH_AW_PATH}/nonexistent-file.txt`;
+      ((process.env.GH_AW_SAFE_OUTPUTS = missingFile),
         await eval(`(async () => { ${collectScript}; await main(); })()`),
         expect(mockCore.setOutput).toHaveBeenCalledWith("output", '{"items":[],"errors":[]}'),
         expect(mockCore.setOutput).toHaveBeenCalledWith("output_types", ""),
         expect(mockCore.setOutput).toHaveBeenCalledWith("has_patch", "false"),
-        expect(mockCore.info).toHaveBeenCalledWith("Output file does not exist: /tmp/gh-aw/nonexistent-file.txt — no safe-output items were emitted; treating as empty collection (graceful no-op)"),
+        expect(mockCore.info).toHaveBeenCalledWith(`Output file does not exist: ${missingFile} — no safe-output items were emitted; treating as empty collection (graceful no-op)`),
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AGENT_OUTPUT", path.join(TMP_GH_AW_PATH, AGENT_OUTPUT_FILENAME)));
     }),
     it("should error and still set output when artifact write fails", async () => {
@@ -163,7 +164,7 @@ describe("collect_ndjson_output.cjs", () => {
         throw writeError;
       });
       try {
-        ((process.env.GH_AW_SAFE_OUTPUTS = "/tmp/gh-aw/nonexistent-file.txt"),
+        ((process.env.GH_AW_SAFE_OUTPUTS = `${TMP_GH_AW_PATH}/nonexistent-file.txt`),
           await eval(`(async () => { ${collectScript}; await main(); })()`),
           expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("disk full")),
           expect(mockCore.setOutput).toHaveBeenCalledWith("output", '{"items":[],"errors":[]}'),
