@@ -112,7 +112,7 @@ async function getAssignableBots(owner, repo, githubClient = github) {
     const assignees = [];
     let page = 1;
     let pageData = [];
-    const MAX_PAGES = 5;
+    const MAX_PAGES = 5; // Limit to 5 pages (500 assignees) to bound API calls on large repositories
 
     do {
       const response = await githubClient.rest.issues.listAssignees({
