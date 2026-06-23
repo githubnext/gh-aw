@@ -21,7 +21,7 @@ describe("validateMemoryFiles", () => {
   beforeEach(() => {
     // Create a temporary directory for testing
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "validate-memory-test-"));
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   afterEach(() => {
@@ -253,7 +253,9 @@ describe("validateMemoryFiles", () => {
 
   it("calls core.error with details when files fail custom extension validation", () => {
     fs.writeFileSync(path.join(tempDir, "bad.log"), "log");
-    validateMemoryFiles(tempDir, "repo", [".json"]);
+    const result = validateMemoryFiles(tempDir, "repo", [".json"]);
+    expect(result.valid).toBe(false);
+    expect(result.invalidFiles).toContain("bad.log");
     expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Found 1 file(s) with invalid extensions in repo-memory:"));
     expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("bad.log (extension: .log)"));
     expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Allowed extensions: .json"));
@@ -261,7 +263,9 @@ describe("validateMemoryFiles", () => {
 
   it("reports files with no extension as '(no extension)' in error output", () => {
     fs.writeFileSync(path.join(tempDir, "noext"), "content");
-    validateMemoryFiles(tempDir, "cache", [".json"]);
+    const result = validateMemoryFiles(tempDir, "cache", [".json"]);
+    expect(result.valid).toBe(false);
+    expect(result.invalidFiles).toContain("noext");
     expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("noext (extension: (no extension))"));
   });
 
