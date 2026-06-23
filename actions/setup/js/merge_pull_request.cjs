@@ -159,7 +159,7 @@ async function getOpenPullRequestForBranch(githubClient, owner, repo, branch) {
       per_page: 1,
     })
   );
-  if (!prs || prs.length === 0) {
+  if (!Array.isArray(prs) || prs.length === 0) {
     core.info(`No open pull request found for head branch "${branch}"`);
     return null;
   }
