@@ -41,13 +41,14 @@ tools:
     branch-name: memory/formal-spec-verifier
     file-glob: ["*.md", "*.json"]
     max-file-size: 65536
+  edit: null
   bash:
     - "find specs -type f -name \"*.md\" | sort"
     - "cat specs/*.md"
     - "find . -name \"*_test.go\" -path \"*/pkg/*\" | head -20"
     - "cat pkg/workflow/*.go | head -200"
     - "cat pkg/cli/*.go"
-    - "sed -n"
+    - "sed *"
 
 safe-outputs:
   mentions: false
@@ -122,6 +123,8 @@ If a note file exists for the selected spec, read it and use the prior predicate
 ## Step 2 — Read and Parse the Specification
 
 Read the selected spec file in full with `bash`.
+
+Use built-in file inspection tools only for read-only analysis when bash output is insufficient. Do not modify repository files.
 
 Extract:
 

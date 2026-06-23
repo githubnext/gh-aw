@@ -395,6 +395,41 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "local action ref (./) is passed through unchanged",
+			step: &WorkflowStep{
+				Name: "Local action",
+				Uses: "./.github/actions/my-setup",
+			},
+			expectPinned: false,
+			expectedUses: "./.github/actions/my-setup",
+		},
+		{
+			name: "local action ref (../) returns error",
+			step: &WorkflowStep{
+				Name: "Parent local action",
+				Uses: "../other-repo/.github/actions/shared",
+			},
+			wantErr: true,
+		},
+		{
+			name: "docker image ref is passed through unchanged",
+			step: &WorkflowStep{
+				Name: "Docker action",
+				Uses: "docker://alpine:3.20",
+			},
+			expectPinned: false,
+			expectedUses: "docker://alpine:3.20",
+		},
+		{
+			name: "docker image ref with digest is passed through unchanged",
+			step: &WorkflowStep{
+				Name: "Docker action with digest",
+				Uses: "docker://alpine@sha256:abc123",
+			},
+			expectPinned: false,
+			expectedUses: "docker://alpine@sha256:abc123",
+		},
+		{
 			name: "step without uses field",
 			step: &WorkflowStep{
 				Name: "Run command",

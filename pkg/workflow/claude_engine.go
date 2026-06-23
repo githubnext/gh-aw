@@ -45,6 +45,12 @@ func (e *ClaudeEngine) GetModelEnvVarName() string {
 	return constants.ClaudeCLIModelEnvVar
 }
 
+// ResolveLLMProvider returns the effective provider for Claude inference.
+// Default is anthropic, overridable via engine.model-provider.
+func (e *ClaudeEngine) ResolveLLMProvider(workflowData *WorkflowData) string {
+	return resolveEngineLLMProvider(workflowData, LLMProviderAnthropic)
+}
+
 // GetAPMTarget returns "claude" so that apm-action packs Claude-specific primitives.
 func (e *ClaudeEngine) GetAPMTarget() string {
 	return "claude"
@@ -54,23 +60,26 @@ func (e *ClaudeEngine) GetAPMTarget() string {
 // When Anthropic WIF (github-oidc + provider=anthropic) is configured, no static API key
 // is needed and only common MCP secrets are returned.
 func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
-	if isAnthropicWIF(workflowData) {
+	provider := e.ResolveLLMProvider(workflowData)
+	if provider == LLMProviderAnthropic && isAnthropicWIF(workflowData) {
 		return collectCommonMCPSecrets(workflowData)
 	}
-	return append([]string{"ANTHROPIC_API_KEY"}, collectCommonMCPSecrets(workflowData)...)
+	return append(llmProviderSecretNames(provider), collectCommonMCPSecrets(workflowData)...)
 }
 
 // GetSecretValidationStep returns the secret validation step for the Claude engine.
 // Returns an empty step if custom command is specified or if Anthropic WIF is configured.
 func (e *ClaudeEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if isAnthropicWIF(workflowData) {
+	provider := e.ResolveLLMProvider(workflowData)
+	if provider == LLMProviderAnthropic && isAnthropicWIF(workflowData) {
 		return GitHubActionStep{}
 	}
+	providerSecrets := llmProviderSecretNames(provider)
 	return BuildDefaultSecretValidationStep(
 		workflowData,
-		[]string{"ANTHROPIC_API_KEY"},
+		providerSecrets,
 		"Claude Code",
-		"https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
+		llmProviderDocsURL(provider),
 	)
 }
 
@@ -328,7 +337,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			PathSetup:      "touch " + AgentStepSummaryPath, // Runs BEFORE AWF on the host
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"ANTHROPIC_API_KEY"}),
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, llmProviderSecretNames(e.ResolveLLMProvider(workflowData))),
 		})
 	} else {
 		// Run Claude command without AWF wrapper
@@ -345,8 +354,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Build environment variables map
+	provider := e.ResolveLLMProvider(workflowData)
 	env := map[string]string{
-		"ANTHROPIC_API_KEY":       "${{ secrets.ANTHROPIC_API_KEY }}",
+		"ANTHROPIC_API_KEY":       llmProviderSecretExpression(provider, workflowData),
 		"DISABLE_TELEMETRY":       "1",
 		"DISABLE_ERROR_REPORTING": "1",
 		"DISABLE_BUG_COMMAND":     "1",
@@ -367,6 +377,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
 		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
 		"RUNNER_TEMP":         "${{ runner.temp }}",
+	}
+	env["GH_AW_LLM_PROVIDER"] = provider
+	if isFirewallEnabled(workflowData) && provider != LLMProviderAnthropic {
+		env["ANTHROPIC_BASE_URL"] = llmProviderGatewayBaseURL(provider)
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection

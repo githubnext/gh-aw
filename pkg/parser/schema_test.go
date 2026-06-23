@@ -705,6 +705,48 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxDailyAICreditsN
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_SandboxAgentPlatform(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid platform is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on": "push",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"id":       "awf",
+					"platform": "ghes",
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-platform-ghes-test.md")
+		if err != nil {
+			t.Fatalf("expected sandbox.agent.platform=ghes to pass schema validation, got: %v", err)
+		}
+	})
+
+	t.Run("unknown platform is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on": "push",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"id":       "awf",
+					"platform": "github-enterprise",
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-platform-invalid-test.md")
+		if err == nil {
+			t.Fatal("expected sandbox.agent.platform=github-enterprise to fail schema validation")
+		}
+	})
+}
+
 func TestMainWorkflowSchema_WorkflowDispatchNumberTypeDocumentation(t *testing.T) {
 	t.Parallel()
 

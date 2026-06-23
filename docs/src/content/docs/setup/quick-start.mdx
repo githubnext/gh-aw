@@ -26,7 +26,7 @@ The aim here is to become familiar with **automated AI**: to install something t
 
 Before installing, ensure you have:
 
-- **AI Account** - [GitHub Copilot](https://github.com/features/copilot), [Anthropic Claude](https://www.anthropic.com/), [OpenAI Codex](https://openai.com/api/), or [Google Gemini](https://ai.google.dev/gemini-api)
+- **AI Account** - [GitHub Copilot](https://github.com/features/copilot), [Anthropic Claude](https://www.anthropic.com/), [OpenAI Codex](https://openai.com/api/), or [Google Gemini](https://ai.google.dev/gemini-api). If you already have GitHub Copilot, start there — it requires no extra account setup.
 - **GitHub Repository** - A repository where you have write access
 - **GitHub Actions** enabled - Check in [Settings → Actions](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository)
 - **GitHub CLI** (`gh`) v2.0.0+ - [Install here](https://cli.github.com). Check version: `gh --version`
@@ -72,7 +72,7 @@ This will take you through an interactive process to:
 4. **Add the workflow** - Adds the workflow file (`.md`) and its generated GitHub Actions lock file (`.lock.yml`) to `.github/workflows/`.
 5. **Optionally trigger an initial run** - Starts the workflow immediately.
 
-The wizard generates a compiled workflow file (`.lock.yml`) automatically — you don't need to edit it. See [Lock File](/gh-aw/reference/workflow-structure/#lock-file-header) for the full explanation.
+The `.lock.yml` is the compiled GitHub Actions workflow generated from your markdown — it is what actually runs, and it is regenerated automatically, so you never edit it by hand. See [Lock File](/gh-aw/reference/workflow-structure/#lock-file-header) for the full explanation.
 
 > [!NOTE]
 > **Setting up `COPILOT_GITHUB_TOKEN`?**

@@ -222,6 +222,16 @@ type ModelEnvVarProvider interface {
 	GetModelEnvVarName() string
 }
 
+// LLMProviderResolver is implemented by engines that support selecting
+// different inference providers at runtime (for example engine.model-provider).
+// This interface is intentionally separate from CodingAgentEngine so provider
+// concerns remain decoupled from core engine execution capabilities.
+type LLMProviderResolver interface {
+	// ResolveLLMProvider returns the effective provider for the workflow
+	// (for example "github", "anthropic", or "openai").
+	ResolveLLMProvider(workflowData *WorkflowData) string
+}
+
 // AgentFileProvider is an optional interface implemented by engines that have
 // engine-specific instruction or configuration files that should be treated as
 // security-sensitive manifests.  The compiler uses these lists to extend the

@@ -186,6 +186,21 @@ func TestGetRequiredSecretNames_Copilot(t *testing.T) {
 		assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN")
 		assert.Contains(t, secrets, "API_TOKEN")
 	})
+
+	t.Run("model-provider=openai switches core secret requirements", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools:       map[string]any{},
+			ParsedTools: &ToolsConfig{},
+			EngineConfig: &EngineConfig{
+				LLMProvider: "openai",
+			},
+		}
+
+		secrets := engine.GetRequiredSecretNames(workflowData)
+		assert.Contains(t, secrets, "CODEX_API_KEY")
+		assert.Contains(t, secrets, "OPENAI_API_KEY")
+		assert.NotContains(t, secrets, "COPILOT_GITHUB_TOKEN")
+	})
 }
 
 // TestGetRequiredSecretNames_Claude tests ClaudeEngine.GetRequiredSecretNames
@@ -259,6 +274,20 @@ func TestGetRequiredSecretNames_Claude(t *testing.T) {
 
 		assert.NotContains(t, secrets, "ANTHROPIC_API_KEY")
 		assert.Contains(t, secrets, "MCP_GATEWAY_API_KEY")
+	})
+
+	t.Run("model-provider=github switches required secret to copilot token", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools:       map[string]any{},
+			ParsedTools: &ToolsConfig{},
+			EngineConfig: &EngineConfig{
+				LLMProvider: "github",
+			},
+		}
+
+		secrets := engine.GetRequiredSecretNames(workflowData)
+		assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN")
+		assert.NotContains(t, secrets, "ANTHROPIC_API_KEY")
 	})
 }
 

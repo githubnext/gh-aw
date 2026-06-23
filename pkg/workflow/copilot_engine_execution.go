@@ -135,11 +135,13 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs []string
 	sandboxEnabled := isFirewallEnabled(workflowData)
+	llmProvider := e.ResolveLLMProvider(workflowData)
+	providerOverrideBYOK := llmProvider != LLMProviderGitHub && sandboxEnabled
 	// isBYOKMode is true when the user has set COPILOT_PROVIDER_BASE_URL in engine.env,
 	// which routes Copilot requests to a non-GitHub provider. In that mode the GitHub
 	// identity token (COPILOT_GITHUB_TOKEN) must NOT be injected into the step env:
 	// forwarding it to a third-party host would be a credential leak.
-	isBYOKMode := engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL)
+	isBYOKMode := providerOverrideBYOK || engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL)
 	if sandboxEnabled {
 		// Simplified args for sandbox mode (AWF)
 		copilotArgs = []string{"--add-dir", constants.TmpGhAwDirSlash, "--log-level", "all", "--log-dir", logsFolder}
@@ -553,6 +555,15 @@ touch %s
 		"GITHUB_SERVER_URL": "${{ github.server_url }}",
 		"GITHUB_API_URL":    "${{ github.api_url }}",
 	}
+	env["GH_AW_LLM_PROVIDER"] = llmProvider
+
+	// Auto-configure Copilot BYOK routing when engine.model-provider selects a non-GitHub provider.
+	// Explicit engine.env values still win later via maps.Copy.
+	if providerOverrideBYOK {
+		env[constants.CopilotProviderBaseURL] = llmProviderGatewayBaseURL(llmProvider)
+		env[constants.CopilotProviderAPIKey] = llmProviderSecretExpression(llmProvider, workflowData)
+	}
+
 	// Inject the GitHub token only when not in BYOK mode. The engine.env merge that
 	// happens later (maps.Copy(env, workflowData.EngineConfig.Env)) can still override
 	// or nullify this if the user explicitly sets COPILOT_GITHUB_TOKEN in engine.env.

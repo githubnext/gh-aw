@@ -278,6 +278,18 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 		},
 	},
 	{
+		Key:         "replace-label",
+		StructField: "ReplaceLabel",
+		ToolName:    "replace_label",
+		NewConfig:   func() any { return &ReplaceLabelConfig{} },
+		PermissionBuilder: func(safeOutputs *SafeOutputsConfig) *Permissions {
+			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "ReplaceLabel") {
+				return nil
+			}
+			return NewPermissionsContentsReadIssuesWritePRWrite()
+		},
+	},
+	{
 		Key:         "add-reviewer",
 		StructField: "AddReviewer",
 		ToolName:    "add_reviewer",

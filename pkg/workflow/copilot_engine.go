@@ -61,14 +61,21 @@ func (e *CopilotEngine) GetModelEnvVarName() string {
 	return constants.CopilotCLIModelEnvVar
 }
 
+// ResolveLLMProvider returns the effective provider for Copilot inference.
+// Default is github, overridable via engine.model-provider.
+func (e *CopilotEngine) ResolveLLMProvider(workflowData *WorkflowData) string {
+	return resolveEngineLLMProvider(workflowData, LLMProviderGitHub)
+}
+
 // GetRequiredSecretNames returns the list of secrets required by the Copilot engine.
 // This includes COPILOT_GITHUB_TOKEN and optionally MCP_GATEWAY_API_KEY.
 // It also includes COPILOT_PROVIDER_* env var keys that may carry secrets when BYOK mode
 // is configured — allowing them to pass through strict-mode validation and the secret filter.
 func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	copilotLog.Print("Collecting required secrets for Copilot engine")
-	secrets := []string{
-		"COPILOT_GITHUB_TOKEN",
+	provider := e.ResolveLLMProvider(workflowData)
+	secrets := append([]string{}, llmProviderSecretNames(provider)...)
+	secrets = append(secrets,
 		// BYOK provider variables that may carry secrets in engine.env.
 		// Listed unconditionally: checking for their presence in the current workflow's
 		// EngineConfig.Env would add complexity without security benefit, since these
@@ -78,7 +85,7 @@ func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []str
 		constants.CopilotProviderBaseURL,
 		constants.CopilotProviderAPIKey,
 		constants.CopilotProviderBearerToken,
-	}
+	)
 
 	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
 	if HasMCPServers(workflowData) {

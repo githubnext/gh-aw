@@ -356,6 +356,19 @@ describe("awf_reflect.cjs", () => {
       });
     });
 
+    it("prefers the endpoint matching the configured provider when model is unset", () => {
+      const reflectData = {
+        endpoints: [
+          { provider: "copilot", port: 10002, configured: true, models: ["claude-sonnet-4.6"] },
+          { provider: "anthropic", port: 10003, configured: true, models: ["claude-sonnet-4.6"] },
+        ],
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, provider: "anthropic" })).toEqual({
+        model: "claude-sonnet-4.6",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10003" },
+      });
+    });
+
     it("derives baseUrl from models_url origin when available", () => {
       const reflectData = {
         endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-4o"], models_url: "http://172.30.0.30:10002/v1/models" }],

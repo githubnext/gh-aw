@@ -227,6 +227,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.RemoveLabels = removeLabelsConfig
 			}
 
+			// Parse replace-label configuration
+			replaceLabelConfig := c.parseReplaceLabelConfig(outputMap)
+			if replaceLabelConfig != nil {
+				config.ReplaceLabel = replaceLabelConfig
+			}
+
 			// Parse add-reviewer configuration
 			addReviewerConfig := c.parseAddReviewerConfig(outputMap)
 			if addReviewerConfig != nil {

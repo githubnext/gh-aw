@@ -2896,3 +2896,36 @@ func TestSanitizeCopilotShellCommand(t *testing.T) {
 		})
 	}
 }
+
+func TestCopilotEngineLLMProviderAnthropicAutoBYOK(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			LLMProvider: "anthropic",
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	if !strings.Contains(stepContent, "GH_AW_LLM_PROVIDER: anthropic") {
+		t.Errorf("Expected GH_AW_LLM_PROVIDER override, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "COPILOT_PROVIDER_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
+		t.Errorf("Expected COPILOT_PROVIDER_API_KEY derived from Anthropic secret, got:\n%s", stepContent)
+	}
+	expectedBaseURL := "COPILOT_PROVIDER_BASE_URL: http://host.docker.internal:" + strconv.Itoa(constants.ClaudeLLMGatewayPort)
+	if !strings.Contains(stepContent, expectedBaseURL) {
+		t.Errorf("Expected COPILOT_PROVIDER_BASE_URL for anthropic gateway, got:\n%s", stepContent)
+	}
+	if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN:") {
+		t.Errorf("COPILOT_GITHUB_TOKEN should be omitted in auto-BYOK mode, got:\n%s", stepContent)
+	}
+}

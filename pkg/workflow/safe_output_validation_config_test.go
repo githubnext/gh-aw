@@ -49,6 +49,7 @@ func TestGetValidationConfigJSON(t *testing.T) {
 		"link_sub_issue",
 		"update_discussion",
 		"remove_labels",
+		"replace_label",
 		"unassign_from_user",
 		"hide_comment",
 		"missing_data",

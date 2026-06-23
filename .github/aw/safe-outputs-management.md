@@ -102,6 +102,22 @@ description: Safe-output reference for update, label, milestone, project, releas
   ```
 
   When `allowed` is omitted, any labels can be removed.
+- `replace-label:` - Atomic label state transition — removes one label and adds another in a single GraphQL request, eliminating the race window of separate remove + add operations
+
+  ```yaml
+  safe-outputs:
+    replace-label:
+      allowed-add: [approved, done]            # Optional: glob patterns for labels that may be added (any allowed if omitted)
+      allowed-remove: [in-review, pending]     # Optional: glob patterns for labels that may be removed (any allowed if omitted)
+      blocked: ["~*", "*[bot]"]                # Optional: blocked label patterns (glob; applies to both add and remove)
+      required-labels: [triage]                # Optional: ALL of these labels must be present on the issue/PR for the operation to run
+      required-title-prefix: "[Bug]"           # Optional: issue/PR title must start with this prefix
+      max: 5                                   # Optional: maximum number of replacements (default: 5)
+      target: "triggering"                     # Optional: "triggering" (default), "*" (any issue/PR), or number
+      target-repo: "owner/repo"                # Optional: cross-repository
+  ```
+
+  The agent calls `replace_label(label_to_remove, label_to_add)`. If the label to remove is not present on the item, only the add is applied (no failure). Labels that do not yet exist in the repository are auto-created with a deterministic pastel color.
 - `add-reviewer:` - Add reviewers to pull requests
 
   ```yaml

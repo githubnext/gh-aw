@@ -258,7 +258,8 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		frontmatter := map[string]any{
 			"sandbox": map[string]any{
 				"agent": map[string]any{
-					"type": "awf",
+					"type":     "awf",
+					"platform": "ghes",
 				},
 			},
 		}
@@ -270,6 +271,12 @@ func TestParseFrontmatterConfig(t *testing.T) {
 
 		if config.Sandbox == nil {
 			t.Fatal("Sandbox should not be nil")
+		}
+		if config.Sandbox.Agent == nil {
+			t.Fatal("Sandbox.Agent should not be nil")
+		}
+		if config.Sandbox.Agent.Platform != "ghes" {
+			t.Fatalf("Sandbox.Agent.Platform = %q, want %q", config.Sandbox.Agent.Platform, "ghes")
 		}
 	})
 
