@@ -1,0 +1,58 @@
+package lenstringsplit
+
+import "strings"
+
+const comma = ","
+
+// flagged: len(strings.Split(...)) with a non-empty separator inside a return statement.
+func countLines(content string) int {
+	return strings.Count(content, "\n")+1 // want `len\(strings\.Split\(\.\.\.`
+}
+
+// flagged: len(strings.Split(...)) assigned to a variable.
+func countFields(s string) int {
+	n := strings.Count(s, comma)+1 // want `len\(strings\.Split\(\.\.\.`
+	return n
+}
+
+// not flagged: len() is not called on the split result.
+func splitAndUse(s string) []string {
+	return strings.Split(s, "/")
+}
+
+// not flagged: len applied to a pre-split slice, not a strings.Split call.
+func countFromSlice(parts []string) int {
+	return len(parts)
+}
+
+// not flagged: strings.Fields is a different function.
+func countWords(s string) int {
+	return len(strings.Fields(s))
+}
+
+// not flagged: empty separators are not equivalent to strings.Count(...)+1.
+func countRunes(s string) int {
+	return len(strings.Split(s, ""))
+}
+
+func customLenNotFlagged(s string) int {
+	len := func(parts []string) int {
+		return 0
+	}
+	return len(strings.Split(s, ","))
+}
+
+// not flagged: a nolint directive suppresses the diagnostic.
+func suppressedCount(s string) int {
+	return len(strings.Split(s, ",")) //nolint:lenstringsplit
+}
+
+// not flagged: strings.SplitN has different semantics.
+func countSplitN(s string) int {
+	return len(strings.SplitN(s, ",", 3))
+}
+
+// not flagged: strings.SplitAfter is a distinct function.
+func countSplitAfter(s string) int {
+	return len(strings.SplitAfter(s, ","))
+}

@@ -31,6 +31,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/httpnoctx"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
+	"github.com/github/gh-aw/pkg/linters/lenstringsplit"
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
@@ -81,6 +82,7 @@ func main() {
 		strconvparseignorederror.Analyzer,
 		jsonmarshalignoredeerror.Analyzer,
 		lenstringzero.Analyzer,
+		lenstringsplit.Analyzer,
 		timeafterleak.Analyzer,
 		timesleepnocontext.Analyzer,
 		tolowerequalfold.Analyzer,
