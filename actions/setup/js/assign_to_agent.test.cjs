@@ -723,7 +723,7 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
-    // Should not do assignee lookup for agent resolution
+    // Agent resolution now uses static alias mapping, so no assignee REST lookup is needed.
     expect(mockGithub.rest.issues.checkUserCanBeAssigned).not.toHaveBeenCalled();
   }, 15000); // Increase timeout to 15 seconds to account for the delay
 
@@ -1043,8 +1043,10 @@ describe("assign_to_agent", () => {
     // Should not fail the workflow
     expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-    // Summary should still be written
+    // Summary should still be written and reflect a successful (skipped-error) result
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
+    const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summaryCall).toContain("Successfully assigned 1 agent(s)");
   });
 
   it("should fail when ignore-if-error is false (default) and auth error occurs", async () => {
