@@ -317,24 +317,27 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		// Step 8: Install the selected agentic engine binary for threat-detect execution
 		steps = append(steps, c.buildInstallDetectionEngineForExternalDetectorStep(data)...)
 
-		// Step 9: Install the threat-detect binary from GitHub Releases
+		// Step 9: Prepare any engine-specific config files needed by threat-detect.
+		steps = append(steps, c.buildPrepareDetectionEngineConfigForExternalDetectorStep(data)...)
+
+		// Step 10: Install the threat-detect binary from GitHub Releases
 		steps = append(steps, c.buildInstallThreatDetectStep()...)
 
-		// Step 10: Run threat-detect under AWF with a read-write mount for the result file
+		// Step 11: Run threat-detect under AWF with a read-write mount for the result file
 		steps = append(steps, c.buildExternalDetectorExecutionStep(data)...)
 
-		// Step 11: Custom post-steps if configured (run after detection execution)
+		// Step 12: Custom post-steps if configured (run after detection execution)
 		if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
 			steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
 		}
 
-		// Step 12: Upload detection_result.json + detection.log as the detection artifact
+		// Step 13: Upload detection_result.json + detection.log as the detection artifact
 		steps = append(steps, c.buildUploadDetectionArtifactStep(data)...)
 
-		// Step 13: Parse threat-detection token usage for step summary and downstream footer rendering.
+		// Step 14: Parse threat-detection token usage for step summary and downstream footer rendering.
 		steps = append(steps, c.buildDetectionTokenUsageSummaryStep(data)...)
 
-		// Step 14: Conclude via threat-detect conclude (no .cjs)
+		// Step 15: Conclude via threat-detect conclude (no .cjs)
 		steps = append(steps, c.buildExternalDetectorConcludeStep(data)...)
 	} else {
 		// Inline engine path (default)
@@ -359,6 +362,23 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 
 	threatLog.Printf("Generated %d detection job step lines", len(steps))
 	return steps
+}
+
+func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data *WorkflowData) []string {
+	if c.getExternalThreatDetectionEngineID(data) != "codex" {
+		return nil
+	}
+
+	return []string{
+		"      - name: Prepare Codex config for threat-detect\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		"        run: |\n",
+		fmt.Sprintf("          mkdir -p %q %q %q\n", constants.ShellMcpConfigDir, constants.TmpMcpConfigDir, constants.TmpMcpConfigLogsDir),
+		fmt.Sprintf("          printf '%%s\\n' '{\"mcpServers\":{}}' > %q\n", constants.ShellMcpServersJsonPath),
+		fmt.Sprintf("          : > %q\n", constants.CodexMcpConfigTomlPath),
+		fmt.Sprintf("          : > %q\n", constants.TmpMcpConfigDir+"/config.toml"),
+		fmt.Sprintf("          chmod 600 %q %q\n", constants.CodexMcpConfigTomlPath, constants.TmpMcpConfigDir+"/config.toml"),
+	}
 }
 
 // buildPullAWFContainersStep creates a step that pre-pulls AWF (agent workflow firewall)

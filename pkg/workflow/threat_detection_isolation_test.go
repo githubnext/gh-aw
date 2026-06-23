@@ -222,6 +222,7 @@ Test workflow`
 	if !strings.Contains(detectionSection, "COPILOT_GITHUB_TOKEN:") {
 		t.Error("External detector path must configure engine auth env like the agent job")
 	}
+
 }
 
 func TestExternalDetectorPathUsesCopilotForPiWorkflows(t *testing.T) {
@@ -279,5 +280,54 @@ Test workflow`
 	}
 	if !strings.Contains(detectionSection, "COPILOT_GITHUB_TOKEN:") {
 		t.Error("Pi external detector path must inherit Copilot auth env")
+	}
+}
+
+func TestExternalDetectorPathPreparesCodexConfig(t *testing.T) {
+	compiler := NewCompiler()
+
+	tmpDir := testutil.TempDir(t, "test-external-detector-codex-*")
+	workflowPath := filepath.Join(tmpDir, "test-external-detector-codex.md")
+
+	workflowContent := `---
+on: push
+engine: codex
+safe-outputs:
+  create-issue:
+features:
+  gh-aw-detection: true
+tools:
+  github:
+    mode: gh-proxy
+---
+Test workflow`
+
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowPath)
+	result, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	detectionSection := extractJobSection(string(result), "detection")
+	if detectionSection == "" {
+		t.Fatal("Detection job not found in compiled workflow")
+	}
+
+	if !strings.Contains(detectionSection, "Prepare Codex config for threat-detect") {
+		t.Error("Codex external detector path must prepare Codex config files before execution")
+	}
+	if !strings.Contains(detectionSection, string(constants.ShellMcpServersJsonPath)) {
+		t.Error("Codex external detector path must create an empty mcp-servers.json for Codex")
+	}
+	if !strings.Contains(detectionSection, string(constants.TmpMcpConfigDir)+"/config.toml") {
+		t.Error("Codex external detector path must create a writable CODEX_HOME config.toml")
 	}
 }
