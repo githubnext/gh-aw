@@ -341,7 +341,7 @@ await main();`
 	return script
 }
 
-// buildWorkflowContextEnvVars creates environment variables for workflow context creates environment variables for workflow context
+// buildWorkflowContextEnvVars creates environment variables for workflow context
 func (c *Compiler) buildWorkflowContextEnvVars(data *WorkflowData) []string {
 	workflowName := data.Name
 	if workflowName == "" {
