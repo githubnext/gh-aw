@@ -63,6 +63,42 @@ func TestCustomAWFConfiguration(t *testing.T) {
 			t.Error("Should contain reference to install_awf_binary.sh script for standard installation")
 		}
 	})
+
+	t.Run("network-isolation agent config passes --rootless to install script", func(t *testing.T) {
+		agentConfig := &AgentSandboxConfig{
+			ID:               "awf",
+			NetworkIsolation: true,
+		}
+
+		step := generateAWFInstallationStep("", agentConfig)
+		stepStr := strings.Join(step, "\n")
+
+		if len(step) == 0 {
+			t.Error("Expected installation step to be generated when network-isolation is set")
+		}
+
+		if !strings.Contains(stepStr, "install_awf_binary.sh") {
+			t.Error("Should contain reference to install_awf_binary.sh script")
+		}
+
+		if !strings.Contains(stepStr, "--rootless") {
+			t.Error("Should contain --rootless flag when network-isolation is enabled")
+		}
+	})
+
+	t.Run("non-isolation agent config does not pass --rootless", func(t *testing.T) {
+		agentConfig := &AgentSandboxConfig{
+			ID:               "awf",
+			NetworkIsolation: false,
+		}
+
+		step := generateAWFInstallationStep("", agentConfig)
+		stepStr := strings.Join(step, "\n")
+
+		if strings.Contains(stepStr, "--rootless") {
+			t.Error("Should not contain --rootless flag when network-isolation is disabled")
+		}
+	})
 }
 
 func TestGetAgentType(t *testing.T) {

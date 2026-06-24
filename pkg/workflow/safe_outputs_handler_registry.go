@@ -370,7 +370,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("sub_required_labels", c.SubRequiredLabels).
 			AddIfNotEmpty("sub_title_prefix", c.SubTitlePrefix).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
-			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
 			Build()

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -482,177 +483,229 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Using locally cached artifacts without metadata. Some report details may be unavailable."))
 	}
 
-	// Extract metrics from logs
-	metrics, err := extractLogMetrics(runOutputDir, verbose, run.WorkflowPath)
-	if err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics: %v", err)))
-		}
-		metrics = LogMetrics{}
-	}
-
-	// Update run with metrics
-	run.TokenUsage = metrics.TokenUsage
-	run.Turns = metrics.Turns
-	run.ErrorCount = 0
-	run.WarningCount = 0
+	// Set LogsPath early so all goroutines receive a fully-initialised run value.
 	run.LogsPath = runOutputDir
 
-	// Calculate duration
+	// Calculate duration before launching goroutines so it is visible to any
+	// analysis function that uses run.Duration.
 	if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
 		run.Duration = run.UpdatedAt.Sub(run.StartedAt)
 	}
 
-	// Add failed jobs to error count
-	if failedJobCount, err := fetchJobStatuses(run.DatabaseID, verbose); err == nil {
-		run.ErrorCount += failedJobCount
-		if verbose && failedJobCount > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count", failedJobCount)))
-		}
-	}
-
-	// Fetch detailed job information including durations
-	jobDetails, err := fetchJobDetails(run.DatabaseID, verbose)
-	if err != nil {
-		auditLog.Printf("fetchJobDetails failed: %v", err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details: %v", err)))
-		}
-	}
-
-	// Extract missing tools
-	missingTools, err := extractMissingToolsFromRun(runOutputDir, run, verbose)
-	if err != nil {
-		auditLog.Printf("extractMissingToolsFromRun failed: %v", err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools: %v", err)))
-		}
-	}
-
-	// Extract missing data
-	missingData, err := extractMissingDataFromRun(runOutputDir, run, verbose)
-	if err != nil {
-		auditLog.Printf("extractMissingDataFromRun failed: %v", err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing data: %v", err)))
-		}
-	}
-
-	// Extract noops
-	noops, noopErr := extractNoopsFromRun(runOutputDir, run, verbose)
-	if noopErr != nil {
-		auditLog.Printf("extractNoopsFromRun failed: %v", noopErr)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract noops: %v", noopErr)))
-		}
-	}
-
-	// Extract MCP failures
-	mcpFailures, err := extractMCPFailuresFromRun(runOutputDir, run, verbose)
-	if err != nil {
-		auditLog.Printf("extractMCPFailuresFromRun failed: %v", err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures: %v", err)))
-		}
-	}
-
-	// Analyze access logs if available
-	accessAnalysis, err := analyzeAccessLogs(runOutputDir, verbose)
-	if err != nil {
-		auditLog.Printf("analyzeAccessLogs failed: %v", err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs: %v", err)))
-		}
-	}
-
-	// Analyze firewall/gateway data only when the agent artifact was downloaded.
-	// Firewall audit logs are now included in the unified agent artifact.
-	// Skip silently when the artifact was intentionally excluded from the filter to
-	// avoid spurious "not found" warnings in verbose mode.
+	// Determine whether firewall-related artifacts should be expected before
+	// spawning goroutines, so the conditional goroutines can be started together
+	// with all other tasks.
 	hasFirewallArtifact := artifactMatchesFilter(constants.AgentArtifactName, artifactFilter)
 
-	// Analyze firewall logs if available
-	var firewallAnalysis *FirewallAnalysis
-	var policyAnalysis *PolicyAnalysis
-	var mcpToolUsage *MCPToolUsageData
-	var tokenUsageSummary *TokenUsageSummary
+	// Run all independent analysis tasks concurrently to reduce total audit time.
+	// Each goroutine writes to its own distinct variable; the main goroutine only
+	// reads those variables after wg.Wait(), so there are no data races.
+	var (
+		metrics                 LogMetrics
+		failedJobCount          int
+		jobDetails              []JobInfoWithDuration
+		missingTools            []MissingToolReport
+		missingData             []MissingDataReport
+		noops                   []NoopReport
+		mcpFailures             []MCPFailureReport
+		accessAnalysis          *DomainAnalysis
+		firewallAnalysis        *FirewallAnalysis
+		policyAnalysis          *PolicyAnalysis
+		mcpToolUsage            *MCPToolUsageData
+		tokenUsageSummary       *TokenUsageSummary
+		redactedDomainsAnalysis *RedactedDomainsAnalysis
+		rateLimitUsage          *GitHubRateLimitUsage
+		artifacts               []string
+		safeItemsCount          int
+	)
+	var wg sync.WaitGroup
+
+	// Log metrics extraction – reads agent log files; can be slow for large runs.
+	wg.Go(func() {
+		var err error
+		metrics, err = extractLogMetrics(runOutputDir, verbose, run.WorkflowPath)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics: %v", err)))
+			}
+			metrics = LogMetrics{}
+		}
+	})
+
+	// Fetch job details and derive failedJobCount from a single API call.
+	wg.Go(func() {
+		var err error
+		jobDetails, failedJobCount, err = fetchJobDetailsWithCounts(run.DatabaseID, verbose)
+		if err != nil {
+			auditLog.Printf("fetchJobDetailsWithCounts failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details: %v", err)))
+			}
+			return
+		}
+	})
+
+	wg.Go(func() {
+		var err error
+		missingTools, err = extractMissingToolsFromRun(runOutputDir, run, verbose)
+		if err != nil {
+			auditLog.Printf("extractMissingToolsFromRun failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools: %v", err)))
+			}
+		}
+	})
+
+	wg.Go(func() {
+		var err error
+		missingData, err = extractMissingDataFromRun(runOutputDir, run, verbose)
+		if err != nil {
+			auditLog.Printf("extractMissingDataFromRun failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing data: %v", err)))
+			}
+		}
+	})
+
+	wg.Go(func() {
+		var err error
+		noops, err = extractNoopsFromRun(runOutputDir, run, verbose)
+		if err != nil {
+			auditLog.Printf("extractNoopsFromRun failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract noops: %v", err)))
+			}
+		}
+	})
+
+	wg.Go(func() {
+		var err error
+		mcpFailures, err = extractMCPFailuresFromRun(runOutputDir, run, verbose)
+		if err != nil {
+			auditLog.Printf("extractMCPFailuresFromRun failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures: %v", err)))
+			}
+		}
+	})
+
+	wg.Go(func() {
+		var err error
+		accessAnalysis, err = analyzeAccessLogs(runOutputDir, verbose)
+		if err != nil {
+			auditLog.Printf("analyzeAccessLogs failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs: %v", err)))
+			}
+		}
+	})
+
+	// Firewall-related tasks are conditional on the agent artifact being present.
+	// analyzeFirewallLogs and extractFirewallFromAgentLog must remain sequential
+	// within one goroutine because the agent-log result is merged into the
+	// firewall-log result. The other three firewall tasks are fully independent.
 	if hasFirewallArtifact {
-		firewallAnalysis, err = analyzeFirewallLogs(runOutputDir, verbose)
-		if err != nil {
-			auditLog.Printf("analyzeFirewallLogs failed: %v", err)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs: %v", err)))
+		wg.Go(func() {
+			fa, err := analyzeFirewallLogs(runOutputDir, verbose)
+			if err != nil {
+				auditLog.Printf("analyzeFirewallLogs failed: %v", err)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs: %v", err)))
+				}
 			}
-		}
+			// Supplement firewall analysis with blocked domains extracted directly
+			// from agent-stdio.log (e.g. Codex CLI emits "--allow-domains <domain>"
+			// warnings when the sandbox firewall denies a network request).
+			if agentLogFirewall := extractFirewallFromAgentLog(runOutputDir, verbose); agentLogFirewall != nil {
+				if fa == nil {
+					fa = agentLogFirewall
+				} else {
+					fa.AddMetrics(agentLogFirewall)
+				}
+			}
+			firewallAnalysis = fa
+		})
 
-		// Supplement firewall analysis with blocked domains extracted directly from
-		// agent-stdio.log (e.g., Codex CLI emits "--allow-domains <domain>" warnings
-		// when the sandbox firewall denies a network request).
-		if agentLogFirewall := extractFirewallFromAgentLog(runOutputDir, verbose); agentLogFirewall != nil {
-			if firewallAnalysis == nil {
-				firewallAnalysis = agentLogFirewall
-			} else {
-				firewallAnalysis.AddMetrics(agentLogFirewall)
+		wg.Go(func() {
+			var err error
+			policyAnalysis, err = analyzeFirewallPolicy(runOutputDir, verbose)
+			if err != nil {
+				auditLog.Printf("analyzeFirewallPolicy failed: %v", err)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall policy: %v", err)))
+				}
 			}
-		}
+		})
 
-		// Analyze firewall policy artifacts if available (policy-manifest.json + audit.jsonl)
-		policyAnalysis, err = analyzeFirewallPolicy(runOutputDir, verbose)
-		if err != nil {
-			auditLog.Printf("analyzeFirewallPolicy failed: %v", err)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall policy: %v", err)))
+		wg.Go(func() {
+			var err error
+			mcpToolUsage, err = extractMCPToolUsageData(runOutputDir, verbose)
+			if err != nil {
+				auditLog.Printf("extractMCPToolUsageData failed: %v", err)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage: %v", err)))
+				}
 			}
-		}
+		})
 
-		// Extract MCP tool usage data from gateway logs
-		mcpToolUsage, err = extractMCPToolUsageData(runOutputDir, verbose)
-		if err != nil {
-			auditLog.Printf("extractMCPToolUsageData failed: %v", err)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage: %v", err)))
+		wg.Go(func() {
+			var err error
+			tokenUsageSummary, err = analyzeTokenUsage(runOutputDir, verbose)
+			if err != nil {
+				auditLog.Printf("analyzeTokenUsage failed: %v", err)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage: %v", err)))
+				}
 			}
-		}
-
-		// Analyze token usage from firewall proxy logs
-		tokenUsageSummary, err = analyzeTokenUsage(runOutputDir, verbose)
-		if err != nil {
-			auditLog.Printf("analyzeTokenUsage failed: %v", err)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage: %v", err)))
-			}
-		}
+		})
 	}
 
-	// Analyze redacted domains if available
-	redactedDomainsAnalysis, err := analyzeRedactedDomains(runOutputDir, verbose)
-	if err != nil {
-		auditLog.Printf("analyzeRedactedDomains failed: %v", err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze redacted domains: %v", err)))
+	wg.Go(func() {
+		var err error
+		redactedDomainsAnalysis, err = analyzeRedactedDomains(runOutputDir, verbose)
+		if err != nil {
+			auditLog.Printf("analyzeRedactedDomains failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze redacted domains: %v", err)))
+			}
 		}
-	}
+	})
 
-	// Analyze GitHub API rate limit consumption from github_rate_limits.jsonl
-	rateLimitUsage, err := analyzeGitHubRateLimits(runOutputDir, verbose)
-	if err != nil {
-		auditLog.Printf("analyzeGitHubRateLimits failed: %v", err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze GitHub rate limit usage: %v", err)))
+	wg.Go(func() {
+		var err error
+		rateLimitUsage, err = analyzeGitHubRateLimits(runOutputDir, verbose)
+		if err != nil {
+			auditLog.Printf("analyzeGitHubRateLimits failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze GitHub rate limit usage: %v", err)))
+			}
 		}
-	}
+	})
 
-	// List all artifacts
-	artifacts, err := listArtifacts(runOutputDir)
-	if err != nil {
-		auditLog.Printf("listArtifacts failed: %v", err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list artifacts: %v", err)))
+	wg.Go(func() {
+		var err error
+		artifacts, err = listArtifacts(runOutputDir)
+		if err != nil {
+			auditLog.Printf("listArtifacts failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list artifacts: %v", err)))
+			}
 		}
-	}
+	})
 
-	currentCreatedItems := extractCreatedItemsFromManifest(runOutputDir)
-	run.SafeItemsCount = len(currentCreatedItems)
+	wg.Go(func() {
+		safeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))
+	})
+
+	// Wait for all analysis tasks to complete before assembling the report.
+	wg.Wait()
+
+	// Update run with aggregated results from parallel tasks.
+	run.TokenUsage = metrics.TokenUsage
+	run.Turns = metrics.Turns
+	run.ErrorCount = failedJobCount
+	run.WarningCount = 0
+	run.SafeItemsCount = safeItemsCount
 
 	// Create processed run for report generation
 	processedRun := ProcessedRun{
