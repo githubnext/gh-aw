@@ -64,7 +64,7 @@ func TestSpec_Constants_DocumentedSemanticColorHexValues(t *testing.T) {
 // adaptive color variables are defined with both Light and Dark hex values as
 // listed in the package README.md adaptive color table.
 //
-// Specification: "These variables provide compat.AdaptiveColor values that
+// Specification: "These variables provide adaptiveColor values that
 // auto-select the correct shade at render time."
 func TestSpec_Constants_AllElevenAdaptiveColors(t *testing.T) {
 	type colorDef struct {
