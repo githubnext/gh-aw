@@ -180,6 +180,19 @@ function convertToLogEntries(parsedData) {
           ],
         },
       });
+    } else if (item.type === "text") {
+      // Add a plain agent message as assistant text content
+      logEntries.push({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "text",
+              text: item.content,
+            },
+          ],
+        },
+      });
     } else if (item.type === "tool") {
       // Add tool use as assistant content
       const toolUseId = `tool_${logEntries.length}`;
@@ -268,7 +281,197 @@ function convertToLogEntries(parsedData) {
  */
 function extractCodexModel(logContent) {
   const match = logContent.match(/^model:\s*(.+)$/m);
-  return match ? match[1].trim() : null;
+  if (match) {
+    return match[1].trim();
+  }
+  // Fallback for the experimental JSONL format, which has no "model:" header line.
+  // The codex harness logs the resolved spawn command, e.g.
+  //   [codex-harness] ... spawning: codex exec --model gpt-5.4 -c ...
+  const spawnMatch = logContent.match(/spawning:\s*codex\s+exec\s+--model\s+(\S+)/);
+  if (spawnMatch) {
+    return spawnMatch[1].trim();
+  }
+  return null;
+}
+
+/**
+ * Detects whether the log is in the Codex experimental JSONL event format.
+ * Newer Codex CLI versions (e.g. 0.141+) emit a stream of JSON objects such as
+ * `{"type":"thread.started",...}`, `{"type":"turn.completed",...}` and
+ * `{"type":"item.completed","item":{"type":"agent_message",...}}` instead of the
+ * legacy pretty-printed "thinking"/"tool server.method(...)" lines.
+ * @param {string[]} lines - The log split into lines
+ * @returns {boolean} True if at least one Codex JSONL event line is present
+ */
+function isCodexJsonlFormat(lines) {
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("{")) continue;
+    let event;
+    try {
+      event = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (event && typeof event === "object" && typeof event.type === "string" && /^(thread|turn|item)\./.test(event.type)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Parse the Codex experimental JSONL event stream into the shared logEntries model.
+ * Maps `item.completed` items (agent_message, reasoning, mcp_tool_call,
+ * command_execution) and `turn.completed` usage onto the same `parsedData`
+ * structure used by the legacy parser, so the common renderer is reused.
+ * @param {string} logContent - The raw log content
+ * @returns {{markdown: string, logEntries: Array, mcpFailures: Array<string>, maxTurnsHit: boolean}} Parsed log data
+ */
+function parseCodexJsonl(logContent) {
+  const lines = logContent.split("\n");
+  const parsedData = [];
+  let usage = null;
+  let turnCount = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("{")) continue;
+    let event;
+    try {
+      event = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (!event || typeof event !== "object") continue;
+
+    if (event.type === "turn.completed") {
+      turnCount++;
+      if (event.usage && typeof event.usage === "object") {
+        usage = event.usage;
+      }
+      continue;
+    }
+
+    // Only render completed items; `item.started` entries are interim duplicates.
+    if (event.type !== "item.completed" || !event.item || typeof event.item !== "object") {
+      continue;
+    }
+
+    const item = event.item;
+    switch (item.type) {
+      case "agent_message": {
+        if (typeof item.text === "string" && item.text.trim()) {
+          parsedData.push({ type: "text", content: item.text });
+        }
+        break;
+      }
+      case "reasoning": {
+        const reasoning = typeof item.text === "string" ? item.text : typeof item.summary === "string" ? item.summary : "";
+        if (reasoning.trim()) {
+          parsedData.push({ type: "thinking", content: reasoning });
+        }
+        break;
+      }
+      case "mcp_tool_call": {
+        const server = item.server || "mcp";
+        const toolName = item.tool || "tool";
+        const params = item.arguments != null ? JSON.stringify(item.arguments) : "";
+        let response = "";
+        if (item.error != null) {
+          response = typeof item.error === "string" ? item.error : JSON.stringify(item.error);
+        } else if (item.result != null) {
+          response = typeof item.result === "string" ? item.result : JSON.stringify(item.result);
+        }
+        const isError = item.status === "failed" || item.error != null;
+        parsedData.push({
+          type: "tool",
+          toolName: `${server}__${toolName}`,
+          params,
+          response,
+          statusIcon: isError ? "❌" : "✅",
+        });
+        break;
+      }
+      case "command_execution": {
+        const command = typeof item.command === "string" ? item.command : "";
+        const response = typeof item.aggregated_output === "string" ? item.aggregated_output : "";
+        const isError = item.status === "failed" || (typeof item.exit_code === "number" && item.exit_code !== 0);
+        parsedData.push({
+          type: "bash",
+          content: command,
+          response,
+          statusIcon: isError ? "❌" : "✅",
+        });
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  // Build markdown so the parser returns a truthy result and core.info has a
+  // readable fallback. The step summary itself is rendered from logEntries.
+  let markdown = "## 🤖 Reasoning\n\n";
+  for (const item of parsedData) {
+    if (item.type === "text") {
+      markdown += `${item.content}\n\n`;
+    } else if (item.type === "thinking") {
+      markdown += `<sub>◐ <em>${item.content}</em></sub>\n\n`;
+    }
+  }
+  markdown += "## 🤖 Commands and Tools\n\n";
+  for (const item of parsedData) {
+    if (item.type === "tool") {
+      const [server, toolName] = item.toolName.split("__");
+      markdown += formatCodexToolCall(server, toolName, item.params, item.response, item.statusIcon);
+    } else if (item.type === "bash") {
+      markdown += formatCodexBashCall(item.content, item.response, item.statusIcon);
+    }
+  }
+  markdown += "\n## 📊 Information\n\n";
+  if (usage) {
+    const inputTokens = typeof usage.input_tokens === "number" ? usage.input_tokens : 0;
+    const outputTokens = typeof usage.output_tokens === "number" ? usage.output_tokens : 0;
+    const totalTokens = inputTokens + outputTokens;
+    if (totalTokens > 0) {
+      markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
+    }
+  }
+
+  const logEntries = convertToLogEntries(parsedData);
+
+  // Prepend a system init entry so the session preview renders (matches the
+  // legacy path and the Claude/Copilot/Gemini parsers).
+  const model = extractCodexModel(logContent);
+  logEntries.unshift({
+    type: "system",
+    subtype: "init",
+    model: model || undefined,
+  });
+
+  // Surface token usage and turn count via a result entry so Statistics and the
+  // OTEL telemetry enrichment (agent-stdio.log result line) are populated.
+  if (usage) {
+    logEntries.push({
+      type: "result",
+      num_turns: turnCount > 0 ? turnCount : undefined,
+      usage: {
+        input_tokens: typeof usage.input_tokens === "number" ? usage.input_tokens : undefined,
+        output_tokens: typeof usage.output_tokens === "number" ? usage.output_tokens : undefined,
+        cache_read_input_tokens: typeof usage.cached_input_tokens === "number" ? usage.cached_input_tokens : undefined,
+      },
+    });
+  }
+
+  const canonicalLogEntries = convertLegacyLogEntriesToCopilotEvents(logEntries, { sourceEngine: "codex" });
+
+  return {
+    markdown,
+    logEntries: canonicalLogEntries,
+    mcpFailures: [],
+    maxTurnsHit: false,
+  };
 }
 
 /**
@@ -277,6 +480,11 @@ function extractCodexModel(logContent) {
  * @returns {{markdown: string, logEntries: Array, mcpFailures: Array<string>, maxTurnsHit: boolean}} Parsed log data
  */
 function parseCodexLog(logContent) {
+  // Newer Codex CLI versions emit a structured JSONL event stream rather than the
+  // legacy pretty-printed format. Route those to the dedicated JSONL parser.
+  if (logContent && isCodexJsonlFormat(logContent.split("\n"))) {
+    return parseCodexJsonl(logContent);
+  }
   if (!logContent) {
     return {
       markdown: "## 🤖 Commands and Tools\n\nNo log content provided.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n",
@@ -751,6 +959,8 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     main,
     parseCodexLog,
+    parseCodexJsonl,
+    isCodexJsonlFormat,
     formatCodexToolCall,
     formatCodexBashCall,
     extractMCPInitialization,
