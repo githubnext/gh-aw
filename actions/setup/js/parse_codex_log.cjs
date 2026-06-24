@@ -329,6 +329,8 @@ function isCodexJsonlFormat(lines) {
  * @returns {{markdown: string, logEntries: Array, mcpFailures: Array<string>, maxTurnsHit: boolean}} Parsed log data
  */
 function parseCodexJsonl(logContent) {
+  const DEFAULT_STATUS_ICON = "🔧";
+
   const lines = logContent.split("\n");
   const parsedData = [];
   let usage = null;
@@ -423,10 +425,10 @@ function parseCodexJsonl(logContent) {
   markdown += "## 🤖 Commands and Tools\n\n";
   for (const item of parsedData) {
     if (item.type === "tool") {
-      const [server = "tool", toolName = "tool"] = (item.toolName || "tool__tool").split("__");
-      markdown += formatCodexToolCall(server, toolName, item.params || "", item.response || "", item.statusIcon || "🔧");
+      const [server = "unknown", toolName = "unknown"] = (item.toolName || "unknown__unknown").split("__");
+      markdown += formatCodexToolCall(server, toolName, item.params || "", item.response || "", item.statusIcon || DEFAULT_STATUS_ICON);
     } else if (item.type === "bash") {
-      markdown += formatCodexBashCall(item.content || "", item.response || "", item.statusIcon || "🔧");
+      markdown += formatCodexBashCall(item.content || "", item.response || "", item.statusIcon || DEFAULT_STATUS_ICON);
     }
   }
   markdown += "\n## 📊 Information\n\n";
