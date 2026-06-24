@@ -22,7 +22,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Test Explicit Project URL Requirement

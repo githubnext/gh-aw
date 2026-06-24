@@ -56,7 +56,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
