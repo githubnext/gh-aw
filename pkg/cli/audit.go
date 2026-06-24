@@ -541,6 +541,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details: %v", err)))
 			}
+			return
 		}
 	})
 
