@@ -50,7 +50,7 @@ type AgentSandboxConfig struct {
 	Type             SandboxType                           `yaml:"type,omitempty"`           // Sandbox type: "awf" or "srt" (legacy, use ID instead)
 	Version          string                                `yaml:"version,omitempty"`        // AWF version override used to install and run the matching firewall version
 	Platform         string                                `yaml:"platform,omitempty"`       // AWF platform.type override (github.com, ghes, ghec, ghec-self-hosted)
-	NetworkIsolation bool                                  `yaml:"default-route,omitempty"`  // AWF network topology: false (omitted) = default route enabled (normal); only set internally (inverted from frontmatter default-route: false)
+	NetworkIsolation bool                                  `yaml:"default-route,omitempty"`  // Internal: true = isolation mode (AWF --network-isolation). Frontmatter default-route: false maps to NetworkIsolation=true; default-route: true or omitted maps to NetworkIsolation=false.
 	Disabled         bool                                  `yaml:"-"`                        // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
 	DisableReason    string                                `yaml:"-"`                        // Operator-authored justification from dangerously-disable-sandbox-agent feature; available for diagnostics and audit logging.
 	Config           *SandboxRuntimeConfig                 `yaml:"config,omitempty"`         // Custom SRT config (optional)
