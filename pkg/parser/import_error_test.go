@@ -36,6 +36,8 @@ imports:
 				"error:",
 				"import file not found",
 				"imports:",
+				"hint:",
+				"missing.md",
 			},
 		},
 		{
@@ -57,6 +59,7 @@ imports:
 				"error:",
 				"failed to download import file",
 				"owner/repo/file.md@main",
+				"hint:",
 			},
 		},
 		{
@@ -77,6 +80,7 @@ imports:
 				"test.md:3:3:",
 				"error:",
 				"invalid import specification",
+				"hint:",
 			},
 		},
 	}
