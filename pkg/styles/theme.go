@@ -4,8 +4,9 @@
 //
 // # Adaptive Color System
 //
-// This package uses compat.AdaptiveColor to automatically adapt colors based on the
-// terminal background, ensuring good readability in both light and dark terminal themes.
+// This package defines an adaptiveColor type that automatically selects between
+// light and dark color variants based on the terminal background, ensuring good
+// readability in both light and dark terminal themes.
 // Each color constant includes both Light and Dark variants that are automatically
 // selected based on the user's terminal configuration.
 //
@@ -47,48 +48,58 @@
 package styles
 
 import (
+	"image/color"
 	"os"
 	"runtime"
 
 	lipgloss "charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
-	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/x/term"
 )
 
-func configureLipglossCompat() {
-	compat.HasDarkBackground = lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
-	compat.Profile = colorprofile.Detect(os.Stderr, os.Environ())
+// hasDarkBackground tracks whether the terminal has a dark background.
+// Default is true (dark), which suits the vast majority of modern terminals.
+// On non-Windows platforms it is updated at startup by configureHasDarkBackground.
+// On Windows the probe is skipped entirely: the lipgloss background-color query
+// can crash (STATUS_DLL_INIT_FAILED) or hang under ConPTY and other
+// pseudo-terminal environments, so the safe default is always used instead.
+var hasDarkBackground = true
+
+// adaptiveColor selects between a light and a dark color variant based on the
+// terminal background detected at startup.
+type adaptiveColor struct {
+	Light color.Color
+	Dark  color.Color
 }
 
-func shouldConfigureLipglossCompat(goos string, stderrMode os.FileMode, statErr error) bool {
-	// On Windows, querying terminal capabilities against redirected/pipe handles
-	// can hang under some wrapper environments. Skip startup probing unless stderr
-	// is attached to a character device.
+// RGBA satisfies the color.Color interface.
+func (c adaptiveColor) RGBA() (uint32, uint32, uint32, uint32) {
+	if hasDarkBackground {
+		return c.Dark.RGBA()
+	}
+	return c.Light.RGBA()
+}
+
+type backgroundDetector func(term.File, term.File) bool
+
+func configureHasDarkBackground(detector backgroundDetector) {
+	hasDarkBackground = detector(os.Stdin, os.Stderr)
+}
+
+func shouldProbeTerminalBackground(goos string) bool {
+	// On Windows, the lipgloss background-color query can crash
+	// (STATUS_DLL_INIT_FAILED) or hang under ConPTY and other pseudo-terminal
+	// environments. Skip the probe entirely and use the default (dark background).
+	// A Windows-safe background detector can be added later without changing the
+	// startup-safety contract in this package.
 	if goos == "windows" {
-		if statErr != nil {
-			return false
-		}
-		return stderrMode&(os.ModeDevice|os.ModeCharDevice) == (os.ModeDevice | os.ModeCharDevice)
+		return false
 	}
 	return true
 }
 
 func init() {
-	stderrInfo, statErr := os.Stderr.Stat()
-	// Defensive fallback: Stat should not normally return (nil, nil). Treat that
-	// impossible state as an invalid stderr handle so Windows startup probing is
-	// safely skipped.
-	if statErr == nil && stderrInfo == nil {
-		statErr = os.ErrInvalid
-	}
-	// Zero mode means "unknown/unset"; on Windows this keeps the startup probe
-	// disabled unless stderr is explicitly confirmed as a character device.
-	stderrMode := os.FileMode(0)
-	if stderrInfo != nil {
-		stderrMode = stderrInfo.Mode()
-	}
-	if shouldConfigureLipglossCompat(runtime.GOOS, stderrMode, statErr) {
-		configureLipglossCompat()
+	if shouldProbeTerminalBackground(runtime.GOOS) {
+		configureHasDarkBackground(lipgloss.HasDarkBackground)
 	}
 }
 
@@ -125,67 +136,67 @@ const (
 // Dark variants use brighter colors (Dracula theme inspired) for dark backgrounds.
 var (
 	// ColorError is used for error messages and critical issues.
-	ColorError = compat.AdaptiveColor{
+	ColorError = adaptiveColor{
 		Light: lipgloss.Color(hexColorErrorLight), // Darker red for light backgrounds
 		Dark:  lipgloss.Color(hexColorErrorDark),  // Bright red for dark backgrounds (Dracula)
 	}
 
 	// ColorWarning is used for warning messages and cautionary information.
-	ColorWarning = compat.AdaptiveColor{
+	ColorWarning = adaptiveColor{
 		Light: lipgloss.Color(hexColorWarningLight), // Darker orange for light backgrounds
 		Dark:  lipgloss.Color(hexColorWarningDark),  // Bright orange for dark backgrounds (Dracula)
 	}
 
 	// ColorSuccess is used for success messages and confirmations.
-	ColorSuccess = compat.AdaptiveColor{
+	ColorSuccess = adaptiveColor{
 		Light: lipgloss.Color(hexColorSuccessLight), // Darker green for light backgrounds
 		Dark:  lipgloss.Color(hexColorSuccessDark),  // Bright green for dark backgrounds (Dracula)
 	}
 
 	// ColorInfo is used for informational messages
-	ColorInfo = compat.AdaptiveColor{
+	ColorInfo = adaptiveColor{
 		Light: lipgloss.Color(hexColorInfoLight), // Darker cyan/blue for light backgrounds
 		Dark:  lipgloss.Color(hexColorInfoDark),  // Bright cyan for dark backgrounds (Dracula)
 	}
 
 	// ColorPurple is used for file paths, commands, and highlights
-	ColorPurple = compat.AdaptiveColor{
+	ColorPurple = adaptiveColor{
 		Light: lipgloss.Color(hexColorPurpleLight), // Darker purple for light backgrounds
 		Dark:  lipgloss.Color(hexColorPurpleDark),  // Bright purple for dark backgrounds (Dracula)
 	}
 
 	// ColorYellow is used for progress messages and attention-grabbing content
-	ColorYellow = compat.AdaptiveColor{
+	ColorYellow = adaptiveColor{
 		Light: lipgloss.Color(hexColorYellowLight), // Darker yellow/gold for light backgrounds
 		Dark:  lipgloss.Color(hexColorYellowDark),  // Bright yellow for dark backgrounds (Dracula)
 	}
 
 	// ColorComment is used for secondary/muted information like line numbers
-	ColorComment = compat.AdaptiveColor{
+	ColorComment = adaptiveColor{
 		Light: lipgloss.Color(hexColorCommentLight), // Muted gray-blue for light backgrounds
 		Dark:  lipgloss.Color(hexColorCommentDark),  // Muted purple-gray for dark backgrounds (Dracula)
 	}
 
 	// ColorForeground is used for primary text content
-	ColorForeground = compat.AdaptiveColor{
+	ColorForeground = adaptiveColor{
 		Light: lipgloss.Color(hexColorForegroundLight), // Dark gray for light backgrounds
 		Dark:  lipgloss.Color(hexColorForegroundDark),  // Light gray/white for dark backgrounds (Dracula)
 	}
 
 	// ColorBackground is used for highlighted backgrounds
-	ColorBackground = compat.AdaptiveColor{
+	ColorBackground = adaptiveColor{
 		Light: lipgloss.Color(hexColorBackgroundLight), // Light gray for light backgrounds
 		Dark:  lipgloss.Color(hexColorBackgroundDark),  // Dark purple/gray for dark backgrounds (Dracula)
 	}
 
 	// ColorBorder is used for table borders and dividers
-	ColorBorder = compat.AdaptiveColor{
+	ColorBorder = adaptiveColor{
 		Light: lipgloss.Color(hexColorBorderLight), // Light gray border for light backgrounds
 		Dark:  lipgloss.Color(hexColorBorderDark),  // Dark purple border for dark backgrounds (Dracula)
 	}
 
 	// ColorTableAltRow is used for alternating row backgrounds in tables (zebra striping)
-	ColorTableAltRow = compat.AdaptiveColor{
+	ColorTableAltRow = adaptiveColor{
 		Light: lipgloss.Color(hexColorTableAltRowLight), // Subtle light gray for light backgrounds
 		Dark:  lipgloss.Color(hexColorTableAltRowDark),  // Subtle darker background for dark backgrounds
 	}
