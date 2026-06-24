@@ -855,6 +855,110 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
     });
 
+    it("should skip (success:true, skipped:true) when PR is permanently locked after all retries", async () => {
+      const setTimeoutSpy = vi.spyOn(global, "setTimeout").mockImplementation(handler => {
+        if (typeof handler === "function") {
+          handler();
+        }
+        return 0;
+      });
+      try {
+        buffer.setReviewMetadata("Looks good", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        const lockedError = Object.assign(new Error("lock prevents review"), { status: 422 });
+        mockGithub.rest.pulls.createReview.mockRejectedValue(lockedError);
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(result.skipped).toBe(true);
+        expect(result.pr_locked).toBe(true);
+        expect(result.reason).toContain("locked");
+        // 1 initial + 3 retries
+        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(4);
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("lock prevents review"));
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Review skipped"));
+      } finally {
+        setTimeoutSpy.mockRestore();
+      }
+    });
+
+    it("should succeed when locked-PR retry eventually unlocks", async () => {
+      const setTimeoutSpy = vi.spyOn(global, "setTimeout").mockImplementation(handler => {
+        if (typeof handler === "function") {
+          handler();
+        }
+        return 0;
+      });
+      try {
+        buffer.setReviewMetadata("Looks good", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        const lockedError = Object.assign(new Error("lock prevents review"), { status: 422 });
+        mockGithub.rest.pulls.createReview
+          .mockRejectedValueOnce(lockedError)
+          .mockRejectedValueOnce(lockedError)
+          .mockResolvedValueOnce({
+            data: {
+              id: 999,
+              html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-999",
+            },
+          });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(result.skipped).toBeUndefined();
+        expect(result.review_id).toBe(999);
+        // 1 initial + 2 locked retries (third attempt succeeds)
+        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(3);
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Retrying 3 time(s)"));
+      } finally {
+        setTimeoutSpy.mockRestore();
+      }
+    });
+
+    it("should return failure when lock retry encounters a different error", async () => {
+      const setTimeoutSpy = vi.spyOn(global, "setTimeout").mockImplementation(handler => {
+        if (typeof handler === "function") {
+          handler();
+        }
+        return 0;
+      });
+      try {
+        buffer.setReviewMetadata("Looks good", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        const lockedError = Object.assign(new Error("lock prevents review"), { status: 422 });
+        const otherError = Object.assign(new Error("internal server error"), { status: 500 });
+        mockGithub.rest.pulls.createReview.mockRejectedValueOnce(lockedError).mockRejectedValueOnce(otherError);
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("internal server error");
+        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+      } finally {
+        setTimeoutSpy.mockRestore();
+      }
+    });
+
     it("should dismiss older reviews matching workflow-call-id when supersede mode is enabled", async () => {
       const previousWorkflowId = process.env.GH_AW_WORKFLOW_ID;
       const previousCallerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID;
