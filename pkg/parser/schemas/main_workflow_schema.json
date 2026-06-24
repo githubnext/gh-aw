@@ -8181,11 +8181,21 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository sub-issue linking. Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "List of additional repositories in format 'owner/repo' that sub-issue linking can target. The target repository is always implicitly allowed."
+                  "description": "List of additional repositories in format 'owner/repo' that sub-issue linking can target. The target repository is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of repository slugs in 'owner/repo' format",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of repository slugs (e.g. '${{ inputs[\\'allowed-repos\\'] }}')"
+                    }
+                  ]
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
