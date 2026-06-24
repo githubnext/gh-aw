@@ -1,34 +1,35 @@
 {
-  "run_date": "2026-06-24T07:29:22Z",
-  "run_id": "28082462483",
-  "previous_run_id": "28068180690",
-  "previous_run_date": "2026-06-24T01:13:19Z",
+  "run_date": "2026-06-24T13:05:16Z",
+  "run_id": "28100407912",
+  "previous_run_id": "28082462483",
+  "previous_run_date": "2026-06-24T07:29:22Z",
   "fork_prs": 0,
   "agent_prs_found": 12,
   "prs_triaged": 0,
   "fork_only_policy": true,
   "open_agent_prs": [
-    {"number": 41191, "title": "[WIP] Refactor inline string-truncation reinventions and file-existence idioms", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:17:40Z"},
-    {"number": 41190, "title": "[WIP] Add missing safe output type and network identifiers to SKILL.md", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:16:51Z"},
-    {"number": 41189, "title": "[WIP] Add static analysis report for 2026-06-24", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:16:25Z"},
-    {"number": 41188, "title": "[WIP] Fix false positive for empty raw-string separator handling", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:14:40Z"},
-    {"number": 41187, "title": "[WIP] Fix ctxbackground linter to properly inspect closures", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:14:25Z"},
-    {"number": 41186, "title": "fix(footer): render correct trigger type in attribution suffix", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:14:08Z"},
-    {"number": 41185, "title": "[WIP] Fix audit tool performance exceedance for long-running workflows", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:13:35Z"},
-    {"number": 41184, "title": "Pin Daily Sub-Agent Model Resolution Audit sub-agent to a valid Codex model", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:12:23Z"},
-    {"number": 41183, "title": "Allow AgentRx native package installs in Daily AgentRx Trace Optimizer", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:10:49Z"},
-    {"number": 41182, "title": "Add SEC-005 exemption for `issue_intents.cjs` false positive", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:10:05Z"},
-    {"number": 41159, "title": "Honor GH_HOST in `gh aw trial --clone-repo` repository URLs", "draft": false, "is_fork": false, "created_at": "2026-06-24T04:50:15Z", "review_states": ["APPROVED"], "category": "feature", "risk": "medium"},
-    {"number": 41155, "title": "fix: treat locked-PR 422 as soft skip with retry in safe_outputs", "draft": false, "is_fork": false, "created_at": "2026-06-24T03:37:09Z", "review_states": ["APPROVED", "COMMENTED"], "category": "bug", "risk": "medium"}
+    {"number": 41191, "title": "[WIP] Refactor inline string-truncation reinventions and file-existence idioms", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:17:40Z", "updated_at": "2026-06-24T10:11:04Z"},
+    {"number": 41190, "title": "Add `replace-label` to Safe Output Mapping in agentic workflow designer SKILL.md", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:16:51Z", "updated_at": "2026-06-24T07:52:17Z", "note": "title changed since last run (was [WIP] Add missing safe output type...)"},
+    {"number": 41189, "title": "Pin RGS-007 workflow action refs to immutable SHAs", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:16:25Z", "updated_at": "2026-06-24T07:37:03Z", "note": "title changed since last run (was [WIP] Add static analysis report...)"},
+    {"number": 41188, "title": "fix(lenstringsplit): empty raw-string separator escapes non-empty guard — false positive + wrong autofix", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:14:40Z", "updated_at": "2026-06-24T07:41:01Z", "note": "title changed since last run (was [WIP] Fix false positive...)"},
+    {"number": 41187, "title": "ctxbackground: fix false negative and unsafe autofix for closures", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:14:25Z", "updated_at": "2026-06-24T07:39:57Z", "note": "title changed since last run (was [WIP] Fix ctxbackground linter...)"},
+    {"number": 41186, "title": "fix(footer): render correct trigger type in attribution suffix", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:14:08Z", "updated_at": "2026-06-24T07:27:27Z"},
+    {"number": 41185, "title": "perf: parallelize audit analysis tasks to cut latency for long-running workflows", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:13:35Z", "updated_at": "2026-06-24T07:49:12Z", "note": "title changed since last run (was [WIP] Fix audit tool performance...)"},
+    {"number": 41184, "title": "Pin Daily Sub-Agent Model Resolution Audit sub-agent to a valid Codex model", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:12:23Z", "updated_at": "2026-06-24T07:30:33Z"},
+    {"number": 41183, "title": "Allow AgentRx native package installs in Daily AgentRx Trace Optimizer", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:10:49Z", "updated_at": "2026-06-24T07:26:58Z"},
+    {"number": 41182, "title": "Add SEC-005 exemption for `issue_intents.cjs` false positive", "draft": true, "is_fork": false, "created_at": "2026-06-24T07:10:05Z", "updated_at": "2026-06-24T07:20:49Z"},
+    {"number": 41159, "title": "Honor GH_HOST in `gh aw trial --clone-repo` repository URLs", "draft": false, "is_fork": false, "created_at": "2026-06-24T04:50:15Z", "updated_at": "2026-06-24T12:28:49Z", "category": "feature", "risk": "medium"},
+    {"number": 41155, "title": "fix: treat locked-PR 422 as soft skip with retry in safe_outputs", "draft": false, "is_fork": false, "created_at": "2026-06-24T03:37:09Z", "updated_at": "2026-06-24T12:28:50Z", "category": "bug", "risk": "medium"}
   ],
-  "merged_since_last_run": [41161, 41158, 41153, 41130, 41129],
-  "new_since_last_run": [41191, 41190, 41189, 41188, 41187, 41186, 41185, 41184, 41183, 41182, 41159, 41155],
+  "merged_since_last_run": [],
+  "title_updates_since_last_run": [41190, 41189, 41188, 41187, 41185],
   "statistics": {
     "total_open_copilot_prs": 12,
     "draft_prs": 10,
     "ready_prs": 2,
     "fork_prs_eligible": 0,
-    "merged_since_last_run": 5
+    "merged_since_last_run": 0,
+    "prs_that_dropped_wip_title": 5
   },
-  "notes": "12 open Copilot PRs (#41155-#41191), all same-repo branches. 5 Copilot PRs merged since last run (#41161, #41158, #41153, #41130, #41129). Fork-only triage policy: 0 PRs eligible. Run [§28082462483](https://github.com/github/gh-aw/actions/runs/28082462483)."
+  "notes": "12 open Copilot PRs (#41155-#41191), all same-repo branches — fork-only triage policy: 0 eligible. 5 PRs dropped [WIP] prefix in title since last run (#41185, #41187, #41188, #41189, #41190) but remain in draft state. 2 ready PRs (#41155, #41159) previously reviewed/approved but not yet merged. No merges since last run. Run [§28100407912](https://github.com/github/gh-aw/actions/runs/28100407912)."
 }
