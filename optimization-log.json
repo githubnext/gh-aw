@@ -195,5 +195,15 @@
     "recommendations_count": 3,
     "subagent_candidates": 0,
     "estimated_aic_savings_per_run": 40
+  },
+  {
+    "date": "2026-06-24",
+    "workflow_name": "Design Decision Gate 🏗️",
+    "workflow_file": "design-decision-gate",
+    "total_aic_analyzed": 432.592,
+    "runs_audited": 7,
+    "recommendations_count": 3,
+    "subagent_candidates": 1,
+    "estimated_aic_savings_per_run": 40
   }
 ]
