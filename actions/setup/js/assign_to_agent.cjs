@@ -405,7 +405,7 @@ async function main(config = {}) {
 
       if (isAvailabilityError) {
         try {
-          const available = await getAvailableAgentLogins(effectiveOwner, effectiveRepo, githubClient);
+          const available = await getAvailableAgentLogins(effectiveOwner, effectiveRepo, issueNumber || pullNumber, githubClient);
           if (available.length > 0) errorMessage += ` (available agents: ${available.join(", ")})`;
         } catch (e) {
           core.debug("Failed to enrich unavailable agent message with available list");

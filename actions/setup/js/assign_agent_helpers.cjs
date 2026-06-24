@@ -109,25 +109,39 @@ async function getAvailableAgentLogins(owner, repo, issueNumber = null, githubCl
  * @param {Object} githubClient
  */
 async function validateAssigneeAlias(owner, repo, assignee, issueNumber, githubClient) {
-  if (issueNumber) {
-    core.debug(`Checking assignee alias ${assignee} via issue-scoped endpoint for ${owner}/${repo}#${issueNumber}`);
+  const parsedIssueNumber = Number(issueNumber);
+  const hasValidIssueNumber = Number.isInteger(parsedIssueNumber) && parsedIssueNumber > 0;
+  const hasIssueScopedRequest = typeof githubClient?.request === "function";
+
+  if (issueNumber && hasValidIssueNumber && hasIssueScopedRequest) {
+    core.debug(`Checking assignee alias ${assignee} via issue-scoped endpoint for ${owner}/${repo}#${parsedIssueNumber}`);
     try {
-      await githubClient.request("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
+      const issueScopedResponse = await githubClient.request("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
         owner,
         repo,
-        issue_number: Number(issueNumber),
+        issue_number: parsedIssueNumber,
         assignee,
       });
-      core.debug(`Assignee alias ${assignee} is assignable via issue-scoped check`);
-      return;
+      const issueScopedStatus = issueScopedResponse && typeof issueScopedResponse === "object" && "status" in issueScopedResponse ? Number(issueScopedResponse.status) : undefined;
+      if (Number.isInteger(issueScopedStatus) && issueScopedStatus >= 200 && issueScopedStatus < 300) {
+        core.debug(`Assignee alias ${assignee} is assignable via issue-scoped check`);
+        return;
+      }
+      core.debug(`Issue-scoped assignee check returned unexpected response for ${assignee} (status ${issueScopedStatus ?? "unknown"}); falling back to repository-scoped check`);
     } catch (e) {
       const status = e && typeof e === "object" && "status" in e ? e.status : undefined;
+      // Some coding-agent bot aliases can return 404 on issue-scoped checks even when
+      // assignment may still succeed; use repository-scoped endpoint as fallback.
       if (status !== 404 && status !== 422) {
         core.debug(`Issue-scoped assignee check failed for ${assignee} with status ${status ?? "unknown"}: ${getErrorMessage(e)}`);
         throw e;
       }
       core.debug(`Issue-scoped assignee check returned ${status} for ${assignee}; falling back to repository-scoped check`);
     }
+  } else if (issueNumber && !hasValidIssueNumber) {
+    core.debug(`Skipping issue-scoped assignee check for ${assignee}: invalid issue number ${String(issueNumber)}`);
+  } else if (issueNumber && !hasIssueScopedRequest) {
+    core.debug(`Skipping issue-scoped assignee check for ${assignee}: github client does not support request()`);
   }
   core.debug(`Checking assignee alias ${assignee} via repository-scoped endpoint for ${owner}/${repo}`);
   await githubClient.rest.issues.checkUserCanBeAssigned({
