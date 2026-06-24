@@ -265,20 +265,22 @@ func TestAdaptiveColorRGBASwitching(t *testing.T) {
 	})
 
 	c := adaptiveColor{
-		Light: lipgloss.Color("#ffffff"),
-		Dark:  lipgloss.Color("#000000"),
+		Light: lipgloss.Color("#123456"),
+		Dark:  lipgloss.Color("#abcdef"),
 	}
 
 	hasDarkBackground = true
 	r, g, b, a := c.RGBA()
-	if r != 0 || g != 0 || b != 0 || a != 0xffff {
-		t.Fatalf("dark background RGBA = (%d,%d,%d,%d), want (0,0,0,65535)", r, g, b, a)
+	wantR, wantG, wantB, wantA := c.Dark.RGBA()
+	if r != wantR || g != wantG || b != wantB || a != wantA {
+		t.Fatalf("dark background RGBA = (%d,%d,%d,%d), want (%d,%d,%d,%d)", r, g, b, a, wantR, wantG, wantB, wantA)
 	}
 
 	hasDarkBackground = false
 	r, g, b, a = c.RGBA()
-	if r != 0xffff || g != 0xffff || b != 0xffff || a != 0xffff {
-		t.Fatalf("light background RGBA = (%d,%d,%d,%d), want (65535,65535,65535,65535)", r, g, b, a)
+	wantR, wantG, wantB, wantA = c.Light.RGBA()
+	if r != wantR || g != wantG || b != wantB || a != wantA {
+		t.Fatalf("light background RGBA = (%d,%d,%d,%d), want (%d,%d,%d,%d)", r, g, b, a, wantR, wantG, wantB, wantA)
 	}
 }
 
@@ -290,9 +292,9 @@ func TestConfigureHasDarkBackgroundUsesStderr(t *testing.T) {
 
 	var gotReader term.File
 	var gotWriter term.File
-	configureHasDarkBackground(func(reader term.File, writer term.File) bool {
-		gotReader = reader
-		gotWriter = writer
+	configureHasDarkBackground(func(terminalInput term.File, terminalOutput term.File) bool {
+		gotReader = terminalInput
+		gotWriter = terminalOutput
 		return false
 	})
 
