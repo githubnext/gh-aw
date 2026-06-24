@@ -59,7 +59,7 @@ tools:
     - default
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 # Typist - Go Type Consistency Analysis
 

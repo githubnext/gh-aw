@@ -39,7 +39,7 @@ concurrency:
 
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Code Refiner

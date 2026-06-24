@@ -141,7 +141,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

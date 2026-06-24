@@ -48,7 +48,7 @@ tools:
 
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Security Compliance Campaign

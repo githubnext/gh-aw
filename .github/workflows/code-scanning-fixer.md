@@ -46,7 +46,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Code Scanning Alert Fixer Agent

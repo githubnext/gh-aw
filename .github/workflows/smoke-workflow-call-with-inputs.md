@@ -42,7 +42,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Smoke Test: Workflow Call with Inputs

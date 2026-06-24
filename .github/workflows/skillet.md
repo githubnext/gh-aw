@@ -164,7 +164,7 @@ jobs:
       skip_reason: ${{ steps.match_skill.outputs.skip_reason }}
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Skillet 🍳
