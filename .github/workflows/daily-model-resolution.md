@@ -60,17 +60,19 @@ logs captured in each run.
 
 Use these rules throughout the analysis:
 
-| Declared alias | Expected actual model | Detection regex (case-insensitive) |
+| Declared alias | Expected actual model | Detection pattern (case-insensitive) |
 |---|---|---|
-| `small` / `mini` | Any mini/haiku/flash/nano model | `/mini\|haiku\|flash\|nano/i` |
-| `large` / `sonnet` / `opus` | Any non-small model | does **not** match the small regex |
+| `small` / `mini` | Any mini/haiku/flash/nano model | contains `mini`, `haiku`, `flash`, or `nano` |
+| `large` / `sonnet` / `opus` | Any non-small model | does **not** contain `mini`, `haiku`, `flash`, or `nano` |
 | `inherited` | Same as parent workflow model | compare against parent model in `aw_info.json` |
+
+As a regex: `/(mini|haiku|flash|nano)/i` classifies a model as **small**; anything not matching is **large**.
 
 A **mismatch** is any case where:
 - a sub-agent declared `model: small` (or `mini`) but the api-proxy logs show
-  it was called with a model that does **not** match the small regex, **or**
-- a sub-agent declared `model: large` but was called with a model that matches
-  the small regex.
+  it was called with a model that does **not** contain `mini`, `haiku`, `flash`, or `nano`, **or**
+- a sub-agent declared `model: large` but was called with a model that does
+  contain `mini`, `haiku`, `flash`, or `nano`.
 
 ---
 
@@ -286,8 +288,10 @@ Read `{run_dir}/aw_info.json` for:
 ### Step 4 — Classify Model Sizes
 
 For each observed model from token-usage.jsonl, apply:
-- **small**: matches `/mini|haiku|flash|nano/i` → `"small"`
-- **large**: does not match → `"large"`
+- **small**: contains `mini`, `haiku`, `flash`, or `nano` (case-insensitive) → `"small"`
+- **large**: does not match any of those substrings → `"large"`
+
+Regex shorthand: `/(mini|haiku|flash|nano)/i` → small; no match → large.
 
 For each dispatch request, apply the same classification to the `requested_model`
 string (it may be a full model ID or an alias like `small`/`large`/`gpt-5-mini`).
