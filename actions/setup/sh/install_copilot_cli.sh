@@ -338,9 +338,6 @@ find_cached_copilot_bin() {
   fi
 
   for tool_cache_root in "${tool_cache_roots[@]}"; do
-    if [ -z "$tool_cache_root" ]; then
-      continue
-    fi
     if [ ! -d "${tool_cache_root}/copilot-cli" ]; then
       echo "  Toolcache root ${tool_cache_root}/copilot-cli not found, skipping" >&2
       continue
