@@ -445,9 +445,9 @@ jobs:
       run: make test-wasm-golden
 
     - name: Set up Node.js
-      uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e   # v4
+      uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f   # v6
       with:
-        node-version: '20'
+        node-version: '24'
 
     - name: Run wasm binary golden tests (Node.js)
       run: node scripts/test-wasm-golden.mjs
