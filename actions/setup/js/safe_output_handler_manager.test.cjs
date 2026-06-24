@@ -9,6 +9,7 @@ import {
   processMessages,
   buildCommentMemoryMessagesFromFiles,
   rollbackReviewResults,
+  skipReviewResults,
   logCreatedItemFromResult,
   isFailedProcessingResult,
   isReportOnlyFailureResult,
@@ -1912,6 +1913,62 @@ describe("Safe Output Handler Manager", () => {
 
     it("handles empty results array without throwing", () => {
       expect(() => rollbackReviewResults([], "error")).not.toThrow();
+    });
+  });
+
+  describe("skipReviewResults", () => {
+    it("marks submit_pull_request_review results as skipped", () => {
+      const results = [{ type: "submit_pull_request_review", success: true }];
+      skipReviewResults(results, "Review skipped — PR is locked");
+      expect(results[0].skipped).toBe(true);
+      expect(results[0].skipReason).toBe("Review skipped — PR is locked");
+      expect(results[0].success).toBe(true);
+    });
+
+    it("marks create_pull_request_review_comment results as skipped", () => {
+      const results = [
+        { type: "create_pull_request_review_comment", success: true },
+        { type: "create_pull_request_review_comment", success: true },
+      ];
+      skipReviewResults(results, "Review skipped — PR is locked");
+      expect(results[0].skipped).toBe(true);
+      expect(results[0].skipReason).toBe("Review skipped — PR is locked");
+      expect(results[1].skipped).toBe(true);
+    });
+
+    it("does not modify results with success:false", () => {
+      const results = [{ type: "submit_pull_request_review", success: false, error: "already failed" }];
+      skipReviewResults(results, "PR is locked");
+      expect(results[0].skipped).toBeUndefined();
+      expect(results[0].error).toBe("already failed");
+    });
+
+    it("does not modify unrelated result types", () => {
+      const results = [
+        { type: "add_comment", success: true },
+        { type: "create_issue", success: true },
+      ];
+      skipReviewResults(results, "PR is locked");
+      expect(results[0].skipped).toBeUndefined();
+      expect(results[1].skipped).toBeUndefined();
+    });
+
+    it("handles mixed result types correctly", () => {
+      const results = [
+        { type: "add_comment", success: true },
+        { type: "create_pull_request_review_comment", success: true },
+        { type: "submit_pull_request_review", success: true },
+        { type: "create_issue", success: true },
+      ];
+      skipReviewResults(results, "Review skipped — PR is locked");
+      expect(results[0].skipped).toBeUndefined();
+      expect(results[1].skipped).toBe(true);
+      expect(results[2].skipped).toBe(true);
+      expect(results[3].skipped).toBeUndefined();
+    });
+
+    it("handles empty results array without throwing", () => {
+      expect(() => skipReviewResults([], "PR is locked")).not.toThrow();
     });
   });
 

@@ -11,6 +11,9 @@ on:
       - 'CONTRIBUTING.md'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   error-message-lint:
     runs-on: ubuntu-latest

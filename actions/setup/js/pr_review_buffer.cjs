@@ -24,7 +24,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
 const { attachExecutionState, fetchPullRequestReviewState } = require("./safe_output_execution_metadata.cjs");
-const { withRetry, RATE_LIMIT_RETRY_CONFIG, isTransientError } = require("./error_recovery.cjs");
+const { withRetry, RATE_LIMIT_RETRY_CONFIG, isTransientError, sleep } = require("./error_recovery.cjs");
 
 const SUPERSEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
 const MAX_SUPERSEDE_REVIEW_PAGES = 10;
@@ -35,6 +35,18 @@ const FALLBACK_EMPTY_COMMENT_BODY = "_(empty comment body)_";
 const FALLBACK_TRUNCATION_SUFFIX = "\n\n_(Fallback review body truncated to fit GitHub length limits.)_";
 const FALLBACK_OMISSION_NOTE = "_(Unanchored comment details omitted to fit GitHub length limits.)_";
 const ELLIPSIS = "…";
+// GitHub API message fragment returned when a PR is locked and review submission is rejected.
+// Must be lowercase — compared against errorMessage.toLowerCase() for case-insensitive matching.
+const LOCKED_PR_REVIEW_MESSAGE = "lock prevents review";
+
+/** Returns true if the error message indicates a locked-PR 422 rejection. */
+const isLockedPrError = errorMessage => errorMessage.toLowerCase().includes(LOCKED_PR_REVIEW_MESSAGE);
+// Number of retries before treating a locked-PR 422 as a permanent soft skip.
+// A small number is used so the run does not stall when the PR is permanently locked.
+const LOCKED_PR_RETRY_COUNT = 3;
+// Delay between lock-retry attempts. Short enough to keep the run responsive
+// while still giving a transient lock a few seconds to clear.
+const LOCKED_PR_RETRY_DELAY_MS = 5000;
 // Keep review retries bounded so safe-outputs can recover from short installation-token
 // quota stalls without spending most of the workflow timeout waiting for a reset.
 const REVIEW_RATE_LIMIT_RETRY_CONFIG = {
@@ -549,13 +561,17 @@ function createReviewBuffer() {
       return beforeState ? fetchReviewStateBestEffort(repoParts, pullRequestNumber, "after") : null;
     }
 
-    try {
-      const { data: review } = await createReviewWithRetry(requestParams);
-      await maybeSupersedeOlderReviews(review.id);
-      const afterState = await fetchAfterStateIfAvailable();
-
-      core.info(`Created PR review #${review.id}: ${review.html_url}`);
-
+    /**
+     * Build the success result payload for a submitted PR review, wrapping it with
+     * execution-state metadata. Extracted to avoid duplicating the shape across the
+     * initial submit, own-PR-COMMENT retry, locked-PR retry, and body-only fallback paths.
+     *
+     * @param {{ id: number, html_url: string, state?: string }} review - Created review object
+     * @param {string} resolvedEvent - The review event actually used (may differ from the requested event)
+     * @param {number} commentCount - Number of inline comments included
+     * @param {import("./safe_output_execution_metadata.cjs").ReviewState|null} afterState - Post-submit review state
+     */
+    function buildReviewSuccessResult(review, resolvedEvent, commentCount, afterState) {
       return attachExecutionState(
         {
           success: true,
@@ -565,17 +581,27 @@ function createReviewBuffer() {
           review_url: review.html_url,
           pull_request_number: pullRequestNumber,
           repo: repo,
-          event: event,
-          comment_count: comments.length,
+          event: resolvedEvent,
+          comment_count: commentCount,
           metadata: {
             review_id: review.id,
-            review_event: event,
+            review_event: resolvedEvent,
             ...(review.state ? { review_state: review.state } : {}),
           },
         },
         beforeState,
         afterState
       );
+    }
+
+    try {
+      const { data: review } = await createReviewWithRetry(requestParams);
+      await maybeSupersedeOlderReviews(review.id);
+      const afterState = await fetchAfterStateIfAvailable();
+
+      core.info(`Created PR review #${review.id}: ${review.html_url}`);
+
+      return buildReviewSuccessResult(review, event, comments.length, afterState);
     } catch (error) {
       const errorMessage = getErrorMessage(error);
 
@@ -591,26 +617,7 @@ function createReviewBuffer() {
           await maybeSupersedeOlderReviews(review.id);
           const afterState = await fetchAfterStateIfAvailable();
           core.info(`Created PR review #${review.id}: ${review.html_url}`);
-          return attachExecutionState(
-            {
-              success: true,
-              url: review.html_url,
-              number: pullRequestNumber,
-              review_id: review.id,
-              review_url: review.html_url,
-              pull_request_number: pullRequestNumber,
-              repo: repo,
-              event: "COMMENT",
-              comment_count: comments.length,
-              metadata: {
-                review_id: review.id,
-                review_event: "COMMENT",
-                ...(review.state ? { review_state: review.state } : {}),
-              },
-            },
-            beforeState,
-            afterState
-          );
+          return buildReviewSuccessResult(review, "COMMENT", comments.length, afterState);
         } catch (retryError) {
           core.error(`Failed to submit PR review on retry: ${getErrorMessage(retryError)}`);
           return {
@@ -618,6 +625,38 @@ function createReviewBuffer() {
             error: getErrorMessage(retryError),
           };
         }
+      }
+
+      // When the PR is locked, retry a few times to detect if the lock is temporary,
+      // then treat as a soft skip (success:true, skipped:true) so the run is not failed.
+      // GitHub returns 422 with message "lock prevents review" for locked PRs.
+      // We check the error message (which withRetry/enhanceError preserves in "Original error:")
+      // rather than the status code, which may not survive error wrapping.
+      if (isLockedPrError(errorMessage)) {
+        core.warning(`PR #${pullRequestNumber} is locked (422 "${LOCKED_PR_REVIEW_MESSAGE}"). Retrying ${LOCKED_PR_RETRY_COUNT} time(s) to check if the lock is temporary...`);
+        for (let attempt = 1; attempt <= LOCKED_PR_RETRY_COUNT; attempt++) {
+          await sleep(LOCKED_PR_RETRY_DELAY_MS);
+          try {
+            const { data: review } = await createReviewWithRetry(requestParams);
+            await maybeSupersedeOlderReviews(review.id);
+            const afterState = await fetchAfterStateIfAvailable();
+            core.info(`Created PR review #${review.id} after lock retry (attempt ${attempt}/${LOCKED_PR_RETRY_COUNT}): ${review.html_url}`);
+            return buildReviewSuccessResult(review, event, comments.length, afterState);
+          } catch (retryError) {
+            const retryErrorMessage = getErrorMessage(retryError);
+            if (isLockedPrError(retryErrorMessage)) {
+              core.warning(`PR #${pullRequestNumber} is still locked (attempt ${attempt}/${LOCKED_PR_RETRY_COUNT})`);
+            } else {
+              // Different error on retry — surface as a regular failure
+              core.error(`Failed to submit PR review on lock retry attempt ${attempt}: ${retryErrorMessage}`);
+              return { success: false, error: retryErrorMessage };
+            }
+          }
+        }
+        // All retries exhausted — treat as a soft skip so the run stays green
+        const skipMsg = `Review skipped — PR #${pullRequestNumber} is locked`;
+        core.warning(skipMsg);
+        return { success: true, skipped: true, reason: skipMsg, pr_locked: true };
       }
 
       // When the API cannot resolve a line or path reference in an inline comment, retry as a
@@ -633,26 +672,7 @@ function createReviewBuffer() {
           await maybeSupersedeOlderReviews(review.id);
           const afterState = await fetchAfterStateIfAvailable();
           core.info(`Created PR review #${review.id} (body-only fallback): ${review.html_url}`);
-          return attachExecutionState(
-            {
-              success: true,
-              url: review.html_url,
-              number: pullRequestNumber,
-              review_id: review.id,
-              review_url: review.html_url,
-              pull_request_number: pullRequestNumber,
-              repo: repo,
-              event: event,
-              comment_count: 0,
-              metadata: {
-                review_id: review.id,
-                review_event: event,
-                ...(review.state ? { review_state: review.state } : {}),
-              },
-            },
-            beforeState,
-            afterState
-          );
+          return buildReviewSuccessResult(review, event, 0, afterState);
         } catch (retryError) {
           core.error(`Failed to submit body-only PR review: ${getErrorMessage(retryError)}`);
           return {

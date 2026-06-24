@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
-	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
@@ -104,9 +103,6 @@ func isStringsSplit(pass *analysis.Pass, call *ast.CallExpr) bool {
 func hasProvablyNonEmptySeparator(pass *analysis.Pass, call *ast.CallExpr) bool {
 	if len(call.Args) != 2 {
 		return false
-	}
-	if lit, ok := call.Args[1].(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		return lit.Value != `""`
 	}
 	tv, ok := pass.TypesInfo.Types[call.Args[1]]
 	if !ok || tv.Value == nil || tv.Value.Kind() != constant.String {

@@ -195,6 +195,10 @@ async function fetchIssueState(github, repoParts, issueNumber) {
   return extractIssueStateFromData(issue);
 }
 
+/**
+ * @typedef {{ requested_reviewers: string[], requested_team_reviewers: string[], reviews: Array<{id?: number, user?: string, state?: string, submitted_at?: string}> }} ReviewState
+ */
+
 function extractReviewStateFromData(pullRequest, reviews) {
   return {
     requested_reviewers: normalizeRequestedReviewers(pullRequest?.requested_reviewers),

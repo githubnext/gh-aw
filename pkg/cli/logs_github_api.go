@@ -72,24 +72,27 @@ func buildCreatedFilter(startDate, endDate, beforeDate string) string {
 	}
 }
 
-// fetchJobStatuses gets job information for a workflow run and counts failed jobs
-func fetchJobStatuses(runID int64, verbose bool) (int, error) {
-	logsGitHubAPILog.Printf("Fetching job statuses: runID=%d", runID)
-
+// fetchJobDetailsWithCounts fetches all job information for a workflow run in a single API
+// call and returns the full detail slice together with the count of failed jobs.
+// It is the single source of truth for the jobs endpoint; fetchJobDetails and
+// fetchJobStatuses are thin wrappers that each return only the value they need.
+func fetchJobDetailsWithCounts(runID int64, verbose bool) ([]JobInfoWithDuration, int, error) {
+	logsGitHubAPILog.Printf("Fetching job details: runID=%d", runID)
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching job statuses for run %d", runID)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching job details for run %d", runID)))
 	}
 
-	output, err := workflow.RunGHCombined("Fetching job statuses...", "api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion}")
+	output, err := workflow.RunGHCombined("Fetching job details...", "api",
+		fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID),
+		"--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion, started_at: .started_at, completed_at: .completed_at}")
 	if err != nil {
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to fetch job statuses for run %d: %v", runID, err)))
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", runID, err)))
 		}
-		// Don't fail the entire operation if we can't get job info
-		return 0, nil
+		return nil, 0, err
 	}
 
-	// Parse each line as a separate JSON object
+	var jobs []JobInfoWithDuration
 	failedJobs := 0
 	lines := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
 	for line := range lines {
@@ -105,7 +108,12 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 			continue
 		}
 
-		// Count jobs with failure conclusions as errors
+		jobWithDuration := JobInfoWithDuration{JobInfo: job}
+		if !job.StartedAt.IsZero() && !job.CompletedAt.IsZero() {
+			jobWithDuration.Duration = job.CompletedAt.Sub(job.StartedAt)
+		}
+		jobs = append(jobs, jobWithDuration)
+
 		if isFailureConclusion(job.Conclusion) {
 			failedJobs++
 			logsGitHubAPILog.Printf("Found failed job: name=%s, conclusion=%s", job.Name, job.Conclusion)
@@ -115,54 +123,32 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 		}
 	}
 
-	logsGitHubAPILog.Printf("Job status check complete: failedJobs=%d", failedJobs)
-	return failedJobs, nil
+	logsGitHubAPILog.Printf("Job fetch complete: total=%d failed=%d", len(jobs), failedJobs)
+	return jobs, failedJobs, nil
 }
 
-// fetchJobDetails gets detailed job information including durations for a workflow run
+// fetchJobDetails gets detailed job information including durations for a workflow run.
+// Errors from the underlying API call are suppressed so that callers can continue
+// processing even when job data is unavailable (e.g. missing permissions).
 func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
-	logsGitHubAPILog.Printf("Fetching job details: runID=%d", runID)
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching job details for run %d", runID)))
-	}
-
-	output, err := workflow.RunGHCombined("Fetching job details...", "api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion, started_at: .started_at, completed_at: .completed_at}")
+	jobs, _, err := fetchJobDetailsWithCounts(runID, verbose)
 	if err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", runID, err)))
-		}
 		// Don't fail the entire operation if we can't get job info
 		return nil, nil
 	}
-
-	var jobs []JobInfoWithDuration
-	lines := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
-	for line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		var job JobInfo
-		if err := json.Unmarshal([]byte(line), &job); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Failed to parse job info: "+line))
-			}
-			continue
-		}
-
-		jobWithDuration := JobInfoWithDuration{
-			JobInfo: job,
-		}
-
-		// Calculate duration if both timestamps are available
-		if !job.StartedAt.IsZero() && !job.CompletedAt.IsZero() {
-			jobWithDuration.Duration = job.CompletedAt.Sub(job.StartedAt)
-		}
-
-		jobs = append(jobs, jobWithDuration)
-	}
-
 	return jobs, nil
+}
+
+// fetchJobStatuses gets the count of failed jobs for a workflow run.
+// Errors from the underlying API call are suppressed so that callers can continue
+// processing even when job data is unavailable (e.g. missing permissions).
+func fetchJobStatuses(runID int64, verbose bool) (int, error) {
+	_, failedJobs, err := fetchJobDetailsWithCounts(runID, verbose)
+	if err != nil {
+		// Don't fail the entire operation if we can't get job info
+		return 0, nil
+	}
+	return failedJobs, nil
 }
 
 // ListWorkflowRunsOptions holds the options for listWorkflowRunsWithPagination
