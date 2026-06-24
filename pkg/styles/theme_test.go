@@ -290,9 +290,9 @@ func TestConfigureHasDarkBackgroundUsesStderr(t *testing.T) {
 
 	var gotReader term.File
 	var gotWriter term.File
-	configureHasDarkBackground(func(r term.File, w term.File) bool {
-		gotReader = r
-		gotWriter = w
+	configureHasDarkBackground(func(reader term.File, writer term.File) bool {
+		gotReader = reader
+		gotWriter = writer
 		return false
 	})
 
