@@ -1,31 +1,19 @@
 # PR Triage Summary
 
-## Latest Run
+## Last Run: 2026-06-24T18:49:02Z (Run §28121751751)
 
-- **Date**: 2026-06-21T18:45:45Z
-- **Run ID**: [§27913916316](https://github.com/github/gh-aw/actions/runs/27913916316)
-- **Previous Run**: [§27905018760](https://github.com/github/gh-aw/actions/runs/27905018760) (2026-06-21T12:58:25Z)
+**Fork-only policy**: 0 eligible PRs (all open Copilot PRs are same-repo)
 
-## Status
+| Metric | Value |
+|---|---|
+| Open Copilot PRs | 8 |
+| Eligible (fork) | 0 |
+| Merged since prev run | 11 |
 
-**Fork-only policy active**: 0 eligible PRs out of 3 agent PRs found.
+## History
 
-All Copilot coding agent PRs in this repo are same-repo branches (`copilot/*`), not fork PRs. This has been consistent across all runs.
-
-## Open Agent PRs (as of this run)
-
-| PR | Category | Status | CI | Age |
-|----|----------|--------|----|-----|
-| [#40669](https://github.com/github/gh-aw/pull/40669) | chore/feature | OPEN, changes requested | 2 fail/38 pass | <1d |
-| [#40662](https://github.com/github/gh-aw/pull/40662) | bug/perf | DRAFT | none | <1d |
-| [#40423](https://github.com/github/gh-aw/pull/40423) | feature | OPEN, active iteration | none | 1.6d |
-
-## Merged Since Last Run
-
-- #40578 — code simplifier: allowed_issue_fields.cjs; remove drain3_server.py
-- #40576 — Align Smoke Copilot prompts with actual tool names
-
-## Historical Pattern
-
-All Copilot agent PRs are same-repo branches — fork-only triage has never matched any PRs.
-Consider updating triage policy to include same-repo agent PRs.
+| Run | Date | Eligible | Merged |
+|---|---|---|---|
+| §28121751751 | 2026-06-24T18:49Z | 0 | 11 |
+| §28100407912 | 2026-06-24T13:05Z | 0 | 0 |
+| §28082462483 | 2026-06-24T07:29Z | 0 | - |
