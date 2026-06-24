@@ -260,10 +260,9 @@ else
   install_platform_binary
 fi
 
-# In rootless mode, add the install dir to PATH for this step and subsequent steps.
+# In rootless mode, add the install dir to PATH for subsequent steps.
 # $GITHUB_PATH is the mechanism for persisting PATH additions across steps in GitHub Actions.
 if [ "$ROOTLESS" = "true" ]; then
-  export PATH="${AWF_INSTALL_DIR}:${PATH}"
   if [ -n "${GITHUB_PATH:-}" ]; then
     echo "${AWF_INSTALL_DIR}" >> "${GITHUB_PATH}"
   fi
