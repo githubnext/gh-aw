@@ -70,7 +70,7 @@ func TestCustomAWFConfiguration(t *testing.T) {
 			NetworkIsolation: true,
 		}
 
-		step := generateAWFInstallationStep("v0.27.10", agentConfig)
+		step := generateAWFInstallationStep("", agentConfig)
 		stepStr := strings.Join(step, "\n")
 
 		if len(step) == 0 {
@@ -92,7 +92,7 @@ func TestCustomAWFConfiguration(t *testing.T) {
 			NetworkIsolation: false,
 		}
 
-		step := generateAWFInstallationStep("v0.27.10", agentConfig)
+		step := generateAWFInstallationStep("", agentConfig)
 		stepStr := strings.Join(step, "\n")
 
 		if strings.Contains(stepStr, "--rootless") {
