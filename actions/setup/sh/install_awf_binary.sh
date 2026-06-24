@@ -38,7 +38,7 @@ ROOTLESS=false
 for arg in "${@:2}"; do
   case "$arg" in
     --rootless) ROOTLESS=true ;;
-    *) echo "WARNING: Unknown argument: $arg" ;;
+    *) echo "WARNING: Unknown argument: $arg" >&2 ;;
   esac
 done
 
@@ -63,6 +63,25 @@ OS="$(uname -s)"
 ARCH="$(uname -m)"
 
 echo "Installing awf with checksum verification (version: ${AWF_VERSION}, os: ${OS}, arch: ${ARCH})"
+
+# Rootless mode preflight: verify write access to install directories
+if [ "$ROOTLESS" = "true" ]; then
+  if ! [ -w "${AWF_INSTALL_DIR}" ] 2>/dev/null; then
+    echo "ERROR: --rootless requires write access to ${AWF_INSTALL_DIR}" >&2
+    echo "       This directory is root-owned on standard runners. --rootless is intended" >&2
+    echo "       only for ARC/Kubernetes containers where the install dirs are pre-chowned" >&2
+    echo "       to the runner user." >&2
+    exit 1
+  fi
+  # Also check lib dir writability (or ability to create it)
+  if ! { mkdir -p "${AWF_LIB_DIR}" 2>/dev/null && [ -w "${AWF_LIB_DIR}" ]; }; then
+    echo "ERROR: --rootless requires write access to ${AWF_LIB_DIR}" >&2
+    echo "       This directory is root-owned on standard runners. --rootless is intended" >&2
+    echo "       only for ARC/Kubernetes containers where the install dirs are pre-chowned" >&2
+    echo "       to the runner user." >&2
+    exit 1
+  fi
+fi
 
 # Download URLs
 BASE_URL="https://github.com/${AWF_REPO}/releases/download/${AWF_VERSION}"

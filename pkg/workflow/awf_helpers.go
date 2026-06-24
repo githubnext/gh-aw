@@ -720,9 +720,10 @@ func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 	}
 
 	// In network-isolation mode, AWF runs rootless: no sudo needed.
+	// Strip the "sudo -E " prefix from the default command to get the base binary name.
 	if isAWFNetworkIsolationEnabled(workflowData) {
 		awfHelpersLog.Print("Using rootless AWF command (network-isolation mode)")
-		return "awf"
+		return strings.TrimPrefix(string(constants.AWFDefaultCommand), "sudo -E ")
 	}
 
 	awfHelpersLog.Print("Using standard AWF command")

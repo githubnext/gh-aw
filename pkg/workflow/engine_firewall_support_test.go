@@ -308,3 +308,23 @@ func TestGenerateFirewallLogParsingStepNetworkIsolationOmitsSudo(t *testing.T) {
 		t.Error("Expected firewall log parsing step to contain awf logs summary")
 	}
 }
+
+func TestGenerateFirewallLogParsingStepWithNetworkIsolationFalse(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				ID:               "awf",
+				NetworkIsolation: false,
+			},
+		},
+	}
+	step := generateFirewallLogParsingStep("test-workflow", workflowData)
+	stepContent := strings.Join(step, "\n")
+
+	// With NetworkIsolation explicitly false, should still use sudo chmod
+	if !strings.Contains(stepContent, "sudo chmod -R a+rX") {
+		t.Error("Expected sudo chmod when NetworkIsolation is explicitly false")
+	}
+}
+
