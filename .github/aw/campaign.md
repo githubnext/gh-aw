@@ -8,27 +8,27 @@ Coordinated, time-bounded pushes with measurable outcomes, including **KPI workf
 
 1. **Goal**: measurable success criteria (metric, source, target, deadline).
 2. **Cadence**: schedule + optional `workflow_dispatch`.
-3. **Stop condition**: what "goal met" looks like and what to do (report + stop early).
+3. **Stop condition**: what "goal met" means; report + stop early.
 4. **Outputs**: comment, issue, PR vs stdout/stderr only.
-5. **Scope**: single-repo or cross-repo (who owns coordination + auth).
-6. **Constraints**: per-run budget/time/quality caps (max PRs, max issues, runtime).
+5. **Scope**: single-repo or cross-repo (coordination + auth ownership).
+6. **Constraints**: per-run caps (max PRs, max issues, runtime).
 
 ### Composable building blocks
 
 - **Agentic (default)**: judgment, synthesis, ambiguous decisions.
-- **Deterministic core**: precise, repeatable, easy to validate.
-- **Hybrid**: deterministic prep in `steps:`, agentic prompt for decisions/edge cases.
-- **Metrics + memory**: `cache-memory` (and optionally `repo-memory`) for goal tracking across runs.
+- **Deterministic core**: precise, repeatable, validatable.
+- **Hybrid**: deterministic prep in `steps:`, agentic prompt for decisions.
+- **Metrics + memory**: `cache-memory` (optionally `repo-memory`) for goal tracking across runs.
 
 ### Pacing levers
 
 - **Cadence**: prefer fuzzy `schedule:` (weekdays for daily) to spread runs.
-- **No overlap**: workflow-level `concurrency:` so only one run is active.
-- **Global throughput**: share `concurrency.group` across multiple campaigns.
+- **No overlap**: workflow-level `concurrency:`.
+- **Global throughput**: share `concurrency.group` across campaigns.
 - **Hard deadline**: `on.stop-after` for date/time or relative window.
 - **Output caps**: `safe-outputs.*.max` (e.g., max 1 PR per run; max 1–3 comments).
 - **Rate limiting**: round-robin + cache-memory (one component per run) for large scopes.
-- **Goal-aware early exit**: deterministic pre-check, stop when goal already met.
+- **Goal-aware early exit**: deterministic pre-check, stop when goal met.
 
 **Minimal pacing example:**
 
@@ -59,7 +59,7 @@ safe-outputs:
 
 ### Goal-aware early exit
 
-Deterministic pre-check; exit early when goal is already met but still report.
+Deterministic pre-check; exit early when goal met but still report.
 
 ```markdown
 ---
@@ -89,15 +89,15 @@ Otherwise: proceed with the plan, then end with a summary and learnings.
 
 ### KPI workflows (measure + improve)
 
-First-class output is a **metric** and an **interpretation**. Make KPI computation deterministic.
+Output a **metric** and **interpretation**. Make KPI computation deterministic.
 
-- Compute KPI in `steps:` and write JSON (e.g., `/tmp/gh-aw/agent/kpi.json`).
+- Compute KPI in `steps:`, write JSON (e.g., `/tmp/gh-aw/agent/kpi.json`).
 - Agent reads JSON, decides report-only vs follow-up, ends with short summary.
 
 **Inputs:**
 
-- `workflow_dispatch` inputs for user-controlled parameters; normalize via `steps:` into JSON the agent reads.
-- `mcp-scripts:` when agent needs constrained, auditable access to privileged data (not a human input mechanism).
+- `workflow_dispatch` inputs for user parameters; normalize via `steps:` into JSON.
+- `mcp-scripts:` for constrained, auditable access to privileged data (not human input).
 
 **Minimum viable KPI spec:**
 
@@ -122,8 +122,8 @@ First-class output is a **metric** and an **interpretation**. Make KPI computati
 
 ### Cross-repo coordination
 
-- `safe-outputs.dispatch-workflow` is same-repo by default; cross-repo dispatch needs `target-repo` plus an `allowed-repos` allowlist and a token with `actions: write` on the target.
-- For org-wide/multi-org, use a coordinator sending `repository_dispatch` to each target repo.
+- `safe-outputs.dispatch-workflow` is same-repo by default; cross-repo needs `target-repo` plus `allowed-repos` allowlist and a token with `actions: write` on the target.
+- For org-wide/multi-org, use a coordinator sending `repository_dispatch` to each target.
   - Requires PAT or GitHub App token with access to every dispatched repo.
   - Prefer fine-grained PAT scoped to specific repos with `Actions: Read & Write`.
-  - Privileged operation: keep permissions minimal, lock down inputs.
+  - Privileged: keep permissions minimal, lock down inputs.
