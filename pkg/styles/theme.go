@@ -89,7 +89,8 @@ func shouldProbeTerminalBackground(goos string) bool {
 	// On Windows, the lipgloss background-color query can crash
 	// (STATUS_DLL_INIT_FAILED) or hang under ConPTY and other pseudo-terminal
 	// environments. Skip the probe entirely and use the default (dark background).
-	// TODO: replace this with a Windows-safe background detector.
+	// A Windows-safe background detector can be added later without changing the
+	// startup-safety contract in this package.
 	if goos == "windows" {
 		return false
 	}
