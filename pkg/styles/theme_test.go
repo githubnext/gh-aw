@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	lipgloss "charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
-	"github.com/charmbracelet/colorprofile"
 )
 
 // TestAdaptiveColorsHaveBothVariants verifies that all adaptive colors
@@ -229,11 +227,11 @@ func TestDarkColorsAreOriginalDracula(t *testing.T) {
 	}
 }
 
-// TestAdaptiveColorVarsUseHexConstants verifies that the exported AdaptiveColor vars
+// TestAdaptiveColorVarsUseHexConstants verifies that the exported adaptive color vars
 // are backed by the expected hex constants (spot-check a few key colors).
 func TestAdaptiveColorVarsUseHexConstants(t *testing.T) {
-	// Verify that the compat.AdaptiveColor vars hold non-nil color values.
-	colors := map[string]compat.AdaptiveColor{
+	// Verify that the adaptiveColor vars hold non-nil color values.
+	colors := map[string]adaptiveColor{
 		"ColorError":       ColorError,
 		"ColorWarning":     ColorWarning,
 		"ColorSuccess":     ColorSuccess,
@@ -260,23 +258,16 @@ func TestAdaptiveColorVarsUseHexConstants(t *testing.T) {
 }
 
 func TestConfigureLipglossCompatUsesStderr(t *testing.T) {
-	originalProfile := compat.Profile
-	originalHasDarkBackground := compat.HasDarkBackground
+	original := hasDarkBackground
 	t.Cleanup(func() {
-		compat.Profile = originalProfile
-		compat.HasDarkBackground = originalHasDarkBackground
+		hasDarkBackground = original
 	})
 
 	configureLipglossCompat()
 
-	expectedHasDarkBackground := lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
-	expectedProfile := colorprofile.Detect(os.Stderr, os.Environ())
-
-	if compat.HasDarkBackground != expectedHasDarkBackground {
-		t.Fatalf("compat.HasDarkBackground = %v, want %v", compat.HasDarkBackground, expectedHasDarkBackground)
-	}
-	if compat.Profile != expectedProfile {
-		t.Fatalf("compat.Profile = %v, want %v", compat.Profile, expectedProfile)
+	expected := lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
+	if hasDarkBackground != expected {
+		t.Fatalf("hasDarkBackground = %v, want %v", hasDarkBackground, expected)
 	}
 }
 
@@ -292,7 +283,7 @@ func TestShouldConfigureLipglossCompat(t *testing.T) {
 			name:       "windows character device",
 			goos:       "windows",
 			stderrMode: os.ModeDevice | os.ModeCharDevice,
-			want:       true,
+			want:       false,
 		},
 		{
 			name:       "windows redirected pipe",
