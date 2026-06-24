@@ -132,7 +132,7 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 		"        run: |",
 	}
 
-	// When root-mode is false (network isolation mode), AWF runs rootless so firewall files
+	// When sudo is false (network isolation mode), AWF runs rootless so firewall files
 	// are not owned by root — skip the sudo chmod permission-fix step.
 	if !isAWFNetworkIsolationEnabled(workflowData) {
 		stepLines = append(stepLines,

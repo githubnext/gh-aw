@@ -35,7 +35,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 # GitHub MCP Structural Analysis
 

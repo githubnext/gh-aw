@@ -33,7 +33,7 @@ timeout-minutes: 15
 
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 # Python Data Visualization Generator

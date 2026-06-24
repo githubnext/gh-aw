@@ -77,7 +77,7 @@ tools:
 tracker-id: spec-librarian
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 # Package Specification Librarian

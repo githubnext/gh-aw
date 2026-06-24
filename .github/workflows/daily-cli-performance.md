@@ -77,7 +77,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

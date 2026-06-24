@@ -61,7 +61,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 # Daily BYOK Endpoint Test

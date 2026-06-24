@@ -273,7 +273,7 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 	}
 
 	installCmd := "bash \"${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh\" " + version
-	// When root-mode is false (network isolation mode), AWF runs rootless: pass --rootless
+	// When sudo is false (network isolation mode), AWF runs rootless: pass --rootless
 	// so the install script skips sudo when writing to /usr/local/bin and /usr/local/lib/awf.
 	// Also check Disabled to match isAWFNetworkIsolationEnabled() behavior.
 	if agentConfig != nil && agentConfig.NetworkIsolation && !agentConfig.Disabled {

@@ -567,7 +567,7 @@ on: workflow_dispatch
 engine: copilot
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 tools:
   github:
     mode: remote

@@ -36,7 +36,7 @@ tools:
 
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 <!--

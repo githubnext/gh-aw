@@ -61,7 +61,7 @@ pre-agent-steps:
       fi
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 # Outcome Collector

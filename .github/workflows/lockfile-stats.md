@@ -25,7 +25,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 # Lockfile Statistics Analysis Agent
 

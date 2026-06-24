@@ -39,29 +39,29 @@ func TestExtractAgentSandboxConfigPlatform(t *testing.T) {
 	})
 }
 
-func TestExtractAgentSandboxConfigRootMode(t *testing.T) {
+func TestExtractAgentSandboxConfigSudo(t *testing.T) {
 	compiler := &Compiler{}
 
-	t.Run("extracts sandbox.agent.root-mode: false as network isolation mode", func(t *testing.T) {
+	t.Run("extracts sandbox.agent.sudo: false as network isolation mode", func(t *testing.T) {
 		agentObj := map[string]any{
-			"id":        "awf",
-			"root-mode": false,
+			"id":   "awf",
+			"sudo": false,
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.True(t, config.NetworkIsolation, "root-mode: false should enable network isolation (NetworkIsolation=true)")
+		assert.True(t, config.NetworkIsolation, "sudo: false should enable network isolation (NetworkIsolation=true)")
 	})
 
-	t.Run("extracts sandbox.agent.root-mode: true as normal mode", func(t *testing.T) {
+	t.Run("extracts sandbox.agent.sudo: true as normal mode", func(t *testing.T) {
 		agentObj := map[string]any{
-			"id":        "awf",
-			"root-mode": true,
+			"id":   "awf",
+			"sudo": true,
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.False(t, config.NetworkIsolation, "root-mode: true should disable network isolation (NetworkIsolation=false)")
+		assert.False(t, config.NetworkIsolation, "sudo: true should disable network isolation (NetworkIsolation=false)")
 	})
 }
 

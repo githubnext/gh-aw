@@ -64,7 +64,7 @@ steps:
 
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 # Mergefest - Merge Main into Pull Request Branch

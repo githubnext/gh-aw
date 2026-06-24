@@ -284,7 +284,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 # Daily AstroStyleLite Markdown Spellcheck

@@ -25,7 +25,7 @@ network:
 sandbox:
   agent:
     id: awf
-    root-mode: false
+    sudo: false
 tools:
   cli-proxy: true
   agentic-workflows:

@@ -47,7 +47,7 @@ steps:
 
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 # Dead Code Removal Agent

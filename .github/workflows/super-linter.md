@@ -96,7 +96,7 @@ tools:
 
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 # Super Linter Analysis Report

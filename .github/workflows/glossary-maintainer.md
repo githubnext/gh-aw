@@ -88,7 +88,7 @@ steps:
 
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 # Glossary Maintainer

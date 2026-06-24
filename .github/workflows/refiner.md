@@ -39,7 +39,7 @@ concurrency:
 
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 # Code Refiner

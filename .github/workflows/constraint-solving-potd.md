@@ -35,7 +35,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 # Constraint Solving — Problem of the Day

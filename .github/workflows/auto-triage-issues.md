@@ -63,7 +63,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    root-mode: false
+    sudo: false
 ---
 
 # Auto-Triage Issues Agent 🏷️
