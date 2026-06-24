@@ -41,3 +41,21 @@ func DoWorkShadowedContext(ctx context.Context) {
 	_ = context.Background()
 	_ = ctx
 }
+
+// flagged: closure whose own signature receives ctx
+func RegisterHandler() {
+	handle(func(ctx context.Context) {
+		_ = ctx // want `use the context.Context parameter instead of context.Background\(\)`
+	})
+}
+
+// not flagged: closure with no ctx param nested inside a function that does receive ctx;
+// the nearest enclosing function (the closure) has no ctx, so we stop there.
+func DoWorkWithDetachedClosure(ctx context.Context) {
+	go func() {
+		_ = context.Background()
+	}()
+	_ = ctx
+}
+
+func handle(f func(context.Context)) { f(nil) }
