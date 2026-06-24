@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -58,7 +59,7 @@ type orgRepoPreview struct {
 
 func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts UpdateWorkflowsOptions, createPR bool, verbose bool) error {
 	if strings.TrimSpace(org) == "" {
-		return fmt.Errorf("--org cannot be empty")
+		return errors.New("--org cannot be empty")
 	}
 	if err := validateRepoGlobs(repoGlobs); err != nil {
 		return err
@@ -151,7 +152,7 @@ func validateRepoGlobs(globs []string) error {
 	for _, glob := range globs {
 		glob = strings.TrimSpace(glob)
 		if glob == "" {
-			return fmt.Errorf("--repos patterns cannot be empty")
+			return errors.New("--repos patterns cannot be empty")
 		}
 		if _, err := path.Match(glob, "example"); err != nil {
 			return fmt.Errorf("invalid --repos pattern %q: %w", glob, err)

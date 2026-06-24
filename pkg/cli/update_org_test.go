@@ -30,6 +30,15 @@ func TestFilterOrgRepos(t *testing.T) {
 	assert.Equal(t, []string{"octo/web"}, filterOrgRepos(repos, []string{"octo/web"}))
 }
 
+func TestNewUpdateCommandOrgFlags(t *testing.T) {
+	cmd := NewUpdateCommand(func(string) error { return nil })
+
+	require.NotNil(t, cmd.Flags().Lookup("org"))
+	require.NotNil(t, cmd.Flags().Lookup("repos"))
+	assert.Contains(t, cmd.Example, "--org my-org")
+	assert.Contains(t, cmd.Example, "--repos '*-service'")
+}
+
 func TestRunUpdateForOrgDryRun(t *testing.T) {
 	origSearch := searchOrgWorkflowReposFn
 	origPreview := previewOrgRepoUpdatesFn
