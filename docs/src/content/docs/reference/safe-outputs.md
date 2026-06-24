@@ -512,6 +512,7 @@ safe-outputs:
     sub-title-prefix: "[Task]"            # sub must match prefix
     max: 1                                # max links (default: 1)
     target-repo: "owner/repo"             # cross-repository
+    allowed-repos: ["owner/repo1"]        # additional allowed repositories
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
