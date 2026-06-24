@@ -533,6 +533,28 @@ function rollbackReviewResults(results, errorMessage) {
 }
 
 /**
+ * Mark buffered review results as skipped when the PR is locked and submission was
+ * soft-skipped (success:true, skipped:true). Both submit_pull_request_review and
+ * create_pull_request_review_comment handlers buffer during message processing, so
+ * the skip must be back-propagated here so the Processing Summary reflects the actual
+ * outcome (skipped) rather than a misleading success count.
+ *
+ * Note: uses `skipReason` (not `reason`) so that the step-summary generator does not
+ * treat these entries as delegated-step skips and omit them from the output.
+ *
+ * @param {Array<{type: string, success: boolean, skipped?: boolean, skipReason?: string}>} results - Processing results to mutate
+ * @param {string} skipReason - Human-readable reason for the skip
+ */
+function skipReviewResults(results, skipReason) {
+  for (const r of results) {
+    if ((r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true) {
+      r.skipped = true;
+      r.skipReason = skipReason;
+    }
+  }
+}
+
+/**
  * Determine whether a processing result is a non-skipped, non-deferred, non-cancelled failure.
  *
  * @param {{success?: boolean, deferred?: boolean, skipped?: boolean, cancelled?: boolean}|null|undefined} result
@@ -1418,6 +1440,13 @@ async function main() {
         if (reviewResult.success && !reviewResult.skipped) {
           logCreatedItemFromResult(logCreatedItem, "submit_pull_request_review", reviewResult);
           core.info(`✓ PR review submitted successfully: ${reviewResult.review_url}`);
+        } else if (reviewResult.success && reviewResult.skipped) {
+          const skipReason = reviewResult.reason || "PR review submission skipped";
+          core.warning(`⚠ ${skipReason}`);
+          if (reviewResult.pr_locked) {
+            core.setOutput("pr_locked", "true");
+          }
+          skipReviewResults(processingResult.results, skipReason);
         } else if (!reviewResult.success) {
           reviewFailureError = reviewResult.error || "PR review finalization failed";
           core.error(`✗ Failed to submit PR review: ${reviewFailureError}`);
@@ -1629,6 +1658,7 @@ module.exports = {
   processMessages,
   buildCommentMemoryMessagesFromFiles,
   rollbackReviewResults,
+  skipReviewResults,
   logCreatedItemFromResult,
   isFailedProcessingResult,
   isReportOnlyFailureResult,

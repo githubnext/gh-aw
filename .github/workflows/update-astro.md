@@ -63,18 +63,21 @@ jobs:
         id: check
         working-directory: ./docs
         run: |
-          npx --yes npm-check-updates --jsonUpgraded 2>/dev/null > /tmp/gh-aw/agent/ncu-output.json || true
+          ncu_output="$(mktemp)"
+          npx --yes npm-check-updates --jsonUpgraded >"$ncu_output" 2>/dev/null || true
 
-          if [ -s /tmp/gh-aw/agent/ncu-output.json ] && [ "$(cat /tmp/gh-aw/agent/ncu-output.json | tr -d '[:space:]')" != "{}" ]; then
+          if [ -s "$ncu_output" ] && [ "$(tr -d '[:space:]' <"$ncu_output")" != "{}" ]; then
             echo "has_updates=true" >> "$GITHUB_OUTPUT"
             echo "Updates available:"
-            cat /tmp/gh-aw/agent/ncu-output.json
-            SUMMARY=$(jq -r 'to_entries | map(.key + ": " + .value) | join(", ")' /tmp/gh-aw/agent/ncu-output.json)
+            cat "$ncu_output"
+            SUMMARY=$(jq -r 'to_entries | map(.key + ": " + .value) | join(", ")' "$ncu_output")
             echo "updates_summary=$SUMMARY" >> "$GITHUB_OUTPUT"
           else
             echo "has_updates=false" >> "$GITHUB_OUTPUT"
             echo "No npm updates available in docs folder, skipping agent job"
           fi
+
+          rm -f "$ncu_output"
 
 ---
 

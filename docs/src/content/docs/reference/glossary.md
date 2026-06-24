@@ -756,6 +756,35 @@ on:
 
 Events that cause a workflow to run, defined in the `on:` section of frontmatter. Includes issue events, pull requests, schedules, manual runs, and slash commands.
 
+### Bot Filtering (`on.bots:`, `on.skip-bots:`)
+
+An authorization control configuring which GitHub bot accounts can trigger a workflow. `bots:` accepts an allowlist of bot account names; `skip-bots:` is the inverse, allowing all bots except those listed. The `[bot]` suffix is optional — `github-actions` matches `github-actions[bot]` automatically. Can be combined with other trigger types such as `workflow_run`. See [Triggers Reference](/gh-aw/reference/triggers/).
+
+```aw wrap
+on:
+  issues:
+    types: [opened]
+  bots: ["dependabot[bot]", "renovate[bot]"]
+```
+
+### Role Filtering (`on.roles:`, `on.skip-roles:`)
+
+An authorization control restricting which repository access roles can trigger a workflow. `roles:` is an exact-match allowlist — each value must match the actor's role exactly, with no privilege hierarchy. Defaults to `[admin, maintainer, write]`. `skip-roles:` is the inverse.
+
+Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce role checks.
+
+> [!WARNING]
+> `roles` is not a privilege threshold. Setting `roles: [write]` rejects admins and maintainers because `admin !== write`. To accept all typical contributors, list every role explicitly.
+
+See [Triggers Reference](/gh-aw/reference/triggers/).
+
+```aw wrap
+on:
+  issues:
+    types: [opened]
+  roles: [admin, maintainer, write]
+```
+
 ### Skip Author Associations (`on.skip-author-associations`)
 
 A pre-activation gating mechanism that skips workflow execution when the triggering event's author has a specific `author_association` value (such as `contributor`, `first_time_contributor`, or `none`). Configured per-event in the `on.skip-author-associations` field. Compiles to a job-level `if` expression — no runtime script step cost for skipped runs. Values are case-insensitive and accept a single string or array of strings per event key. See [Triggers Reference](/gh-aw/reference/triggers/).

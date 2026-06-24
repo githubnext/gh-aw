@@ -80,4 +80,53 @@ describe("update_entity_helpers.cjs - buildCommonEntityUpdateData", () => {
     expect(result.updateData._rawBody).toBeUndefined();
     expect(result.hasCommonUpdates).toBe(false);
   });
+
+  it("throws when body is present but no operation is resolvable", () => {
+    expect(() => buildCommonEntityUpdateData({ body: "Body text" }, {})).toThrow("buildCommonEntityUpdateData: defaultOperation is required when body may be present");
+  });
+
+  it("returns hasCommonUpdates false when neither title nor body is present", () => {
+    const result = buildCommonEntityUpdateData({}, {});
+
+    expect(result.hasCommonUpdates).toBe(false);
+    expect(result.updateData.title).toBeUndefined();
+    expect(result.updateData._rawBody).toBeUndefined();
+    expect(result.updateData._includeFooter).toBe(true);
+  });
+
+  it("populates _includeFooter false when config.footer is false", () => {
+    const result = buildCommonEntityUpdateData({}, { footer: false });
+
+    expect(result.updateData._includeFooter).toBe(false);
+  });
+
+  it('populates _includeFooter false when config.footer is the string "false"', () => {
+    const result = buildCommonEntityUpdateData({}, { footer: "false" });
+
+    expect(result.updateData._includeFooter).toBe(false);
+  });
+
+  it("does not include body in updateData.body by default when includeBodyInApiData is omitted", () => {
+    const result = buildCommonEntityUpdateData({ body: "Body text" }, {}, { defaultOperation: "append" });
+
+    expect(result.updateData._rawBody).toBe("Body text");
+    expect(result.updateData.body).toBeUndefined();
+  });
+
+  it("handles title-only update without body operation", () => {
+    const result = buildCommonEntityUpdateData({ title: "Only title" }, {});
+
+    expect(result.updateData.title).toBe("Only title");
+    expect(result.updateData._operation).toBeUndefined();
+    expect(result.updateData._rawBody).toBeUndefined();
+    expect(result.hasCommonUpdates).toBe(true);
+  });
+
+  it("does not call onBodyDisallowed when body is absent even if allow_body is false", () => {
+    const onBodyDisallowed = vi.fn();
+
+    buildCommonEntityUpdateData({}, { allow_body: false }, { onBodyDisallowed });
+
+    expect(onBodyDisallowed).not.toHaveBeenCalled();
+  });
 });

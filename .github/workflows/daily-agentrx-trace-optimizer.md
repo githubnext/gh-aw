@@ -29,7 +29,7 @@ experiments:
 engine: claude
 strict: true
 network:
-  allowed: [defaults, python, github]
+  allowed: [defaults, python-native, github]
 tools:
   agentic-workflows: true
   bash: true

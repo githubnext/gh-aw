@@ -444,6 +444,29 @@ func TestDailyCacheStrategyAnalyzerUsesCodexCompatibleModelsForExperiment(t *tes
 	}
 }
 
+func TestDailyModelResolutionUsesCodexCompatibleSubAgentModel(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-model-resolution.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	agentStart := strings.Index(workflow, "## agent: `run-analyzer`")
+	if agentStart == -1 {
+		t.Fatal("Expected daily-model-resolution workflow to define the run-analyzer sub-agent")
+	}
+	agentBlock := workflow[agentStart:]
+	if !strings.Contains(agentBlock, "\nmodel: gpt-5-mini\n") {
+		t.Fatal("Expected daily-model-resolution run-analyzer sub-agent to use explicit codex-compatible model gpt-5-mini")
+	}
+}
+
 // ============================================================================
 // Playwright Prompt Tests
 // ============================================================================
