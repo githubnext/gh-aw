@@ -206,7 +206,7 @@ func (t *TemplatableBool) String() string {
 	return string(*t)
 }
 
-func templatableBoolPtrString(value *TemplatableBool) *string {
+func templatableBoolToStringPtr(value *TemplatableBool) *string {
 	if value == nil {
 		return nil
 	}
@@ -227,6 +227,14 @@ func templatableBoolEnvVarValue(value *TemplatableBool) *string {
 		return &s
 	}
 	return nil
+}
+
+func resolveSafeOutputsStagedValue(trialMode bool, staged *TemplatableBool) *string {
+	if trialMode {
+		s := "true"
+		return &s
+	}
+	return templatableBoolEnvVarValue(staged)
 }
 
 // buildTemplatableEnvVar returns a YAML environment variable entry for a

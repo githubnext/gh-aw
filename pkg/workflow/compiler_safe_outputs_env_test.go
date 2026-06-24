@@ -132,7 +132,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 			},
 		},
 		{
-			name:      "trial mode does not add staged flag",
+			name:      "trial mode still adds staged flag",
 			trialMode: true,
 			safeOutputs: &SafeOutputsConfig{
 				Staged: templatableBoolPtr("true"),
@@ -140,8 +140,8 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 					TitlePrefix: "[Test] ",
 				},
 			},
-			checkNotContains: []string{
-				"GH_AW_SAFE_OUTPUTS_STAGED",
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_STAGED: \"true\"",
 			},
 		},
 		{
@@ -305,8 +305,8 @@ func TestTrialModeOverridesStagedFlag(t *testing.T) {
 
 	stepsContent := strings.Join(steps, "")
 
-	// Trial mode should prevent staged flag from being added
-	assert.NotContains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED")
+	// Trial mode should force staged mode on
+	assert.Contains(t, stepsContent, `GH_AW_SAFE_OUTPUTS_STAGED: "true"`)
 }
 
 // TestEnvVarsWithMultipleSafeOutputTypes tests comprehensive env var generation
@@ -426,7 +426,7 @@ func TestStagedFlagPrecedence(t *testing.T) {
 			name:       "staged true, trial mode",
 			staged:     true,
 			trialMode:  true,
-			expectFlag: false,
+			expectFlag: true,
 		},
 		{
 			// staged is independent of target-repo
@@ -441,12 +441,12 @@ func TestStagedFlagPrecedence(t *testing.T) {
 			expectFlag: false,
 		},
 		{
-			// trial mode suppresses staged regardless of target-repo
+			// trial mode still exports staged regardless of target-repo
 			name:       "staged true, trial mode and target-repo",
 			staged:     true,
 			trialMode:  true,
 			targetRepo: "org/repo",
-			expectFlag: false,
+			expectFlag: true,
 		},
 	}
 

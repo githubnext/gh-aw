@@ -423,7 +423,8 @@ function loadCustomSafeOutputActionHandlers() {
 /**
  * Parse a templatable boolean value that may arrive as a boolean literal or as
  * the string result of a resolved GitHub Actions expression.
- * @param {any} value
+ * Undefined and null values return false.
+ * @param {any} value - Candidate templatable boolean value.
  * @returns {boolean}
  */
 function isTemplatableTrue(value) {

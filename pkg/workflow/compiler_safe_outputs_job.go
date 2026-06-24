@@ -730,9 +730,7 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 
 	// Add safe output job environment variables (staged/target repo)
 	if data.SafeOutputs != nil {
-		if c.trialMode {
-			envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
-		} else if value := templatableBoolEnvVarValue(data.SafeOutputs.Staged); value != nil {
+		if value := resolveSafeOutputsStagedValue(c.trialMode, data.SafeOutputs.Staged); value != nil {
 			if isExpression(*value) {
 				envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = *value
 			} else {
