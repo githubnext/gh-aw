@@ -241,7 +241,7 @@ async function main(config = {}) {
 
     const issueTypeName = item.issue_type ?? "";
     const isClear = issueTypeName === "";
-    let normalizedIssueTypeName = issueTypeName;
+    let resolvedIssueTypeName = issueTypeName;
 
     core.info(`Setting issue type on issue #${issueNumber}: ${isClear ? "(clear)" : JSON.stringify(issueTypeName)}`);
 
@@ -253,19 +253,19 @@ async function main(config = {}) {
         core.warning(error);
         return { success: false, error };
       }
-      normalizedIssueTypeName = matchedAllowedType;
+      resolvedIssueTypeName = matchedAllowedType;
     }
 
     // If in staged mode, preview without executing
     if (isStaged) {
-      const description = isClear ? `Would clear issue type on issue #${issueNumber} in ${itemRepo}` : `Would set issue type to ${JSON.stringify(normalizedIssueTypeName)} on issue #${issueNumber} in ${itemRepo}`;
+      const description = isClear ? `Would clear issue type on issue #${issueNumber} in ${itemRepo}` : `Would set issue type to ${JSON.stringify(resolvedIssueTypeName)} on issue #${issueNumber} in ${itemRepo}`;
       logStagedPreviewInfo(description);
       return {
         success: true,
         staged: true,
         previewInfo: {
           issue_number: issueNumber,
-          issue_type: normalizedIssueTypeName,
+          issue_type: resolvedIssueTypeName,
           repo: itemRepo,
         },
       };
@@ -274,7 +274,7 @@ async function main(config = {}) {
     try {
       const { owner, repo } = repoParts;
       const intentMetadata = normalizeIssueIntentMetadata(item);
-      const typeValue = buildIssueTypeValue(isClear, normalizedIssueTypeName, intentMetadata);
+      const typeValue = buildIssueTypeValue(isClear, resolvedIssueTypeName, intentMetadata);
       await githubClient.rest.issues.update({
         owner,
         repo,
@@ -282,18 +282,18 @@ async function main(config = {}) {
         type: typeValue,
       });
 
-      const successMsg = isClear ? `Successfully cleared issue type on issue #${issueNumber}` : `Successfully set issue type to ${JSON.stringify(normalizedIssueTypeName)} on issue #${issueNumber}`;
+      const successMsg = isClear ? `Successfully cleared issue type on issue #${issueNumber}` : `Successfully set issue type to ${JSON.stringify(resolvedIssueTypeName)} on issue #${issueNumber}`;
       core.info(successMsg);
 
       return {
         success: true,
         issue_number: issueNumber,
-        issue_type: normalizedIssueTypeName,
+        issue_type: resolvedIssueTypeName,
         repo: itemRepo,
       };
     } catch (error) {
       if (!isClear && isIssueTypeValidationError(error)) {
-        const mappedError = mapInvalidIssueTypeError(error, normalizedIssueTypeName);
+        const mappedError = mapInvalidIssueTypeError(error, resolvedIssueTypeName);
         core.error(`Failed to set issue type on issue #${issueNumber}: ${mappedError}`);
         return { success: false, error: mappedError };
       }
