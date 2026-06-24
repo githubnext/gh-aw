@@ -539,14 +539,17 @@ function rollbackReviewResults(results, errorMessage) {
  * the skip must be back-propagated here so the Processing Summary reflects the actual
  * outcome (skipped) rather than a misleading success count.
  *
- * @param {Array<{type: string, success: boolean, skipped?: boolean, reason?: string}>} results - Processing results to mutate
- * @param {string} reason - Human-readable reason for the skip
+ * Note: uses `skipReason` (not `reason`) so that the step-summary generator does not
+ * treat these entries as delegated-step skips and omit them from the output.
+ *
+ * @param {Array<{type: string, success: boolean, skipped?: boolean, skipReason?: string}>} results - Processing results to mutate
+ * @param {string} skipReason - Human-readable reason for the skip
  */
-function skipReviewResults(results, reason) {
+function skipReviewResults(results, skipReason) {
   for (const r of results) {
     if ((r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true) {
       r.skipped = true;
-      r.reason = reason;
+      r.skipReason = skipReason;
     }
   }
 }

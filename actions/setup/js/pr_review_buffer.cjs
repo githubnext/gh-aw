@@ -561,13 +561,17 @@ function createReviewBuffer() {
       return beforeState ? fetchReviewStateBestEffort(repoParts, pullRequestNumber, "after") : null;
     }
 
-    try {
-      const { data: review } = await createReviewWithRetry(requestParams);
-      await maybeSupersedeOlderReviews(review.id);
-      const afterState = await fetchAfterStateIfAvailable();
-
-      core.info(`Created PR review #${review.id}: ${review.html_url}`);
-
+    /**
+     * Build the success result payload for a submitted PR review, wrapping it with
+     * execution-state metadata. Extracted to avoid duplicating the shape across the
+     * initial submit, own-PR-COMMENT retry, locked-PR retry, and body-only fallback paths.
+     *
+     * @param {{ id: number, html_url: string, state?: string }} review - Created review object
+     * @param {string} resolvedEvent - The review event actually used (may differ from the requested event)
+     * @param {number} commentCount - Number of inline comments included
+     * @param {import("./safe_output_execution_metadata.cjs").ReviewState|null} afterState - Post-submit review state
+     */
+    function buildReviewSuccessResult(review, resolvedEvent, commentCount, afterState) {
       return attachExecutionState(
         {
           success: true,
@@ -577,17 +581,27 @@ function createReviewBuffer() {
           review_url: review.html_url,
           pull_request_number: pullRequestNumber,
           repo: repo,
-          event: event,
-          comment_count: comments.length,
+          event: resolvedEvent,
+          comment_count: commentCount,
           metadata: {
             review_id: review.id,
-            review_event: event,
+            review_event: resolvedEvent,
             ...(review.state ? { review_state: review.state } : {}),
           },
         },
         beforeState,
         afterState
       );
+    }
+
+    try {
+      const { data: review } = await createReviewWithRetry(requestParams);
+      await maybeSupersedeOlderReviews(review.id);
+      const afterState = await fetchAfterStateIfAvailable();
+
+      core.info(`Created PR review #${review.id}: ${review.html_url}`);
+
+      return buildReviewSuccessResult(review, event, comments.length, afterState);
     } catch (error) {
       const errorMessage = getErrorMessage(error);
 
@@ -603,26 +617,7 @@ function createReviewBuffer() {
           await maybeSupersedeOlderReviews(review.id);
           const afterState = await fetchAfterStateIfAvailable();
           core.info(`Created PR review #${review.id}: ${review.html_url}`);
-          return attachExecutionState(
-            {
-              success: true,
-              url: review.html_url,
-              number: pullRequestNumber,
-              review_id: review.id,
-              review_url: review.html_url,
-              pull_request_number: pullRequestNumber,
-              repo: repo,
-              event: "COMMENT",
-              comment_count: comments.length,
-              metadata: {
-                review_id: review.id,
-                review_event: "COMMENT",
-                ...(review.state ? { review_state: review.state } : {}),
-              },
-            },
-            beforeState,
-            afterState
-          );
+          return buildReviewSuccessResult(review, "COMMENT", comments.length, afterState);
         } catch (retryError) {
           core.error(`Failed to submit PR review on retry: ${getErrorMessage(retryError)}`);
           return {
@@ -646,26 +641,7 @@ function createReviewBuffer() {
             await maybeSupersedeOlderReviews(review.id);
             const afterState = await fetchAfterStateIfAvailable();
             core.info(`Created PR review #${review.id} after lock retry (attempt ${attempt}/${LOCKED_PR_RETRY_COUNT}): ${review.html_url}`);
-            return attachExecutionState(
-              {
-                success: true,
-                url: review.html_url,
-                number: pullRequestNumber,
-                review_id: review.id,
-                review_url: review.html_url,
-                pull_request_number: pullRequestNumber,
-                repo: repo,
-                event: event,
-                comment_count: comments.length,
-                metadata: {
-                  review_id: review.id,
-                  review_event: event,
-                  ...(review.state ? { review_state: review.state } : {}),
-                },
-              },
-              beforeState,
-              afterState
-            );
+            return buildReviewSuccessResult(review, event, comments.length, afterState);
           } catch (retryError) {
             const retryErrorMessage = getErrorMessage(retryError);
             if (isLockedPrError(retryErrorMessage)) {
@@ -696,26 +672,7 @@ function createReviewBuffer() {
           await maybeSupersedeOlderReviews(review.id);
           const afterState = await fetchAfterStateIfAvailable();
           core.info(`Created PR review #${review.id} (body-only fallback): ${review.html_url}`);
-          return attachExecutionState(
-            {
-              success: true,
-              url: review.html_url,
-              number: pullRequestNumber,
-              review_id: review.id,
-              review_url: review.html_url,
-              pull_request_number: pullRequestNumber,
-              repo: repo,
-              event: event,
-              comment_count: 0,
-              metadata: {
-                review_id: review.id,
-                review_event: event,
-                ...(review.state ? { review_state: review.state } : {}),
-              },
-            },
-            beforeState,
-            afterState
-          );
+          return buildReviewSuccessResult(review, event, 0, afterState);
         } catch (retryError) {
           core.error(`Failed to submit body-only PR review: ${getErrorMessage(retryError)}`);
           return {

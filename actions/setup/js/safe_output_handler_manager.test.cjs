@@ -1921,7 +1921,7 @@ describe("Safe Output Handler Manager", () => {
       const results = [{ type: "submit_pull_request_review", success: true }];
       skipReviewResults(results, "Review skipped — PR is locked");
       expect(results[0].skipped).toBe(true);
-      expect(results[0].reason).toBe("Review skipped — PR is locked");
+      expect(results[0].skipReason).toBe("Review skipped — PR is locked");
       expect(results[0].success).toBe(true);
     });
 
@@ -1932,7 +1932,7 @@ describe("Safe Output Handler Manager", () => {
       ];
       skipReviewResults(results, "Review skipped — PR is locked");
       expect(results[0].skipped).toBe(true);
-      expect(results[0].reason).toBe("Review skipped — PR is locked");
+      expect(results[0].skipReason).toBe("Review skipped — PR is locked");
       expect(results[1].skipped).toBe(true);
     });
 
