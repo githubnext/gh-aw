@@ -23,6 +23,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/envutil"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -543,7 +544,7 @@ outerLoop:
 					} else {
 						// Always show success message for parsing, not just in verbose mode
 						logMdPath := filepath.Join(result.LogsPath, "log.md")
-						if _, err := os.Stat(logMdPath); err == nil {
+						if fileutil.FileExists(logMdPath) {
 							fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", run.DatabaseID, logMdPath)))
 						}
 					}
@@ -554,7 +555,7 @@ outerLoop:
 					} else {
 						// Show success message if firewall.md was created
 						firewallMdPath := filepath.Join(result.LogsPath, "firewall.md")
-						if _, err := os.Stat(firewallMdPath); err == nil {
+						if fileutil.FileExists(firewallMdPath) {
 							fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", run.DatabaseID, firewallMdPath)))
 						}
 					}
@@ -1128,7 +1129,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log for run %d: %v", run.DatabaseID, err)))
 			} else {
 				logMdPath := filepath.Join(result.LogsPath, "log.md")
-				if _, err := os.Stat(logMdPath); err == nil {
+				if fileutil.FileExists(logMdPath) {
 					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", run.DatabaseID, logMdPath)))
 				}
 			}
@@ -1136,7 +1137,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", run.DatabaseID, err)))
 			} else {
 				firewallMdPath := filepath.Join(result.LogsPath, "firewall.md")
-				if _, err := os.Stat(firewallMdPath); err == nil {
+				if fileutil.FileExists(firewallMdPath) {
 					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", run.DatabaseID, firewallMdPath)))
 				}
 			}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -385,7 +386,7 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 
 	// Check if a workflow with this name already exists
 	existingFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
-	if _, err := os.Stat(existingFile); err == nil && !opts.Force {
+	if fileutil.FileExists(existingFile) && !opts.Force {
 		if opts.FromWildcard {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow '%s' already exists in .github/workflows/. Skipping.", workflowName)))
 			return nil
@@ -417,7 +418,7 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 	destFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
 
 	fileExists := false
-	if _, err := os.Stat(destFile); err == nil {
+	if fileutil.FileExists(destFile) {
 		fileExists = true
 		if !opts.Force {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Destination file '%s' already exists, skipping.", destFile)))
@@ -617,7 +618,7 @@ func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTrac
 	}
 
 	fileExists := false
-	if _, err := os.Stat(destFile); err == nil {
+	if fileutil.FileExists(destFile) {
 		fileExists = true
 		if !opts.Force {
 			if opts.FromWildcard {
@@ -705,7 +706,7 @@ func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, 
 	}
 
 	fileExists := false
-	if _, err := os.Stat(destFile); err == nil {
+	if fileutil.FileExists(destFile) {
 		fileExists = true
 		if !opts.Force {
 			if opts.Verbose {
@@ -754,7 +755,7 @@ func addAgentFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, 
 	}
 
 	fileExists := false
-	if _, err := os.Stat(destFile); err == nil {
+	if fileutil.FileExists(destFile) {
 		fileExists = true
 		if !opts.Force {
 			if opts.Verbose {

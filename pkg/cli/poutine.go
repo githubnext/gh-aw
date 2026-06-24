@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -46,7 +47,7 @@ func ensurePoutineConfig(gitRoot string) error {
 	configPath := filepath.Join(gitRoot, ".poutine.yml")
 
 	// Check if config already exists
-	if _, err := os.Stat(configPath); err == nil {
+	if fileutil.FileExists(configPath) {
 		// Config exists, do not update it
 		poutineLog.Print(".poutine.yml already exists, skipping creation")
 		return nil

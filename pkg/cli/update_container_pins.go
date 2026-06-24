@@ -14,6 +14,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -85,7 +86,7 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 	// Load the action cache.
 	actionsLockPath := filepath.Join(".github", "aw", "actions-lock.json")
 	actionCache := workflow.NewActionCache(".")
-	if _, statErr := os.Stat(actionsLockPath); statErr == nil {
+	if fileutil.FileExists(actionsLockPath) {
 		if loadErr := actionCache.Load(); loadErr != nil {
 			return false, fmt.Errorf("failed to load actions-lock.json: %w", loadErr)
 		}

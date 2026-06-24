@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 
@@ -107,7 +108,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error
 
 		// Also check for corresponding .lock.yml file in .github/workflows
 		lockFile := stringutil.MarkdownToLockFile(file)
-		if _, err := os.Stat(lockFile); err == nil {
+		if fileutil.FileExists(lockFile) {
 			fmt.Fprintf(os.Stderr, "  %s (compiled workflow)\n", filepath.Base(lockFile))
 		}
 	}
@@ -146,7 +147,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error
 
 		// Also remove corresponding .lock.yml file
 		lockFile := stringutil.MarkdownToLockFile(file)
-		if _, err := os.Stat(lockFile); err == nil {
+		if fileutil.FileExists(lockFile) {
 			if err := os.Remove(lockFile); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove %s: %v", lockFile, err)))
 			} else {

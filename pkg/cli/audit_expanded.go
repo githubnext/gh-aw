@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -112,7 +113,7 @@ func findAwInfoPath(logsPath string) string {
 		filepath.Join(logsPath, "activation", "aw_info.json"),
 	}
 	for _, p := range candidates {
-		if _, err := os.Stat(p); err == nil {
+		if fileutil.FileExists(p) {
 			return p
 		}
 	}
@@ -190,7 +191,7 @@ func inferFallbackLogMetrics(logsPath string) (LogMetrics, string) {
 
 func findAgentStdioLogPath(logsPath string) string {
 	root := filepath.Join(logsPath, "agent-stdio.log")
-	if _, err := os.Stat(root); err == nil {
+	if fileutil.FileExists(root) {
 		return root
 	}
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -36,7 +37,7 @@ func ResolveWorkflowPath(workflowFile string) (string, error) {
 
 	// 2. Try exact relative path under .github/workflows
 	workflowPath := filepath.Join(workflowsDir, searchPath)
-	if _, err := os.Stat(workflowPath); err == nil {
+	if fileutil.FileExists(workflowPath) {
 		resolverLog.Printf("Found workflow at: %s", workflowPath)
 		return workflowPath, nil
 	}

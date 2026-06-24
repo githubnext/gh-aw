@@ -33,6 +33,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var safeOutputsStepsShellExpansionLog = newValidationLogger("safe_outputs_steps_shell_expansion")
@@ -153,9 +155,7 @@ func validateRunScriptForShellExpansion(stepIndex int, script string) error {
 					raw = strings.TrimRight(raw, "\r\t ")
 				}
 				// Clip the snippet to 60 characters to keep the error readable.
-				if len(raw) > 60 {
-					raw = raw[:57] + "..."
-				}
+				raw = stringutil.Truncate(raw, 60)
 				snippet = raw
 				patternDescription = dangerousPatternDescription[name]
 				break

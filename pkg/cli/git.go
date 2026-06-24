@@ -413,7 +413,7 @@ func ensureLogsGitignore() error {
 	gitignorePath := filepath.Join(gitRoot, ".github", "aw", "logs", ".gitignore")
 
 	// Check if .gitignore already exists
-	if _, err := os.Stat(gitignorePath); err == nil {
+	if fileutil.FileExists(gitignorePath) {
 		gitLog.Print(".github/aw/logs/.gitignore already exists") //nolint:hardcodedfilepath
 		return nil
 	}

@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -429,14 +430,14 @@ func detectFirewallAuditArtifacts(runDir string) (manifestPath, auditJSONLPath s
 	checkDir := func(dir, label string) bool {
 		if manifestPath == "" {
 			candidate := filepath.Join(dir, "policy-manifest.json")
-			if _, err := os.Stat(candidate); err == nil {
+			if fileutil.FileExists(candidate) {
 				manifestPath = candidate
 				firewallPolicyLog.Printf("Found policy manifest in %s: %s", label, manifestPath)
 			}
 		}
 		if auditJSONLPath == "" {
 			candidate := filepath.Join(dir, "audit.jsonl")
-			if _, err := os.Stat(candidate); err == nil {
+			if fileutil.FileExists(candidate) {
 				auditJSONLPath = candidate
 				firewallPolicyLog.Printf("Found audit JSONL in %s: %s", label, auditJSONLPath)
 			}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/github"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -617,7 +618,7 @@ func parseDurationString(s string) time.Duration {
 func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 	// If agent-stdio.log exists, the agent ran - don't scan step logs
 	agentStdioPath := filepath.Join(logsPath, "agent-stdio.log")
-	if _, err := os.Stat(agentStdioPath); err == nil {
+	if fileutil.FileExists(agentStdioPath) {
 		auditReportLog.Printf("agent-stdio.log found, skipping pre-agent step error extraction")
 		return nil
 	}
