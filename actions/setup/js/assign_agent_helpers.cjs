@@ -72,7 +72,8 @@ function getAgentName(assignee) {
 
 /**
  * Return list of coding agent bot login names that are currently available as assignable actors
- * in this repository, as determined by checkUserCanBeAssigned.
+ * in this repository, preferring issue-scoped checks when issue/PR context is available
+ * and falling back to repository-scoped checks.
  * @param {string} owner
  * @param {string} repo
  * @param {number|string|null} [issueNumber]
@@ -109,6 +110,7 @@ async function getAvailableAgentLogins(owner, repo, issueNumber = null, githubCl
  */
 async function validateAssigneeAlias(owner, repo, assignee, issueNumber, githubClient) {
   if (issueNumber) {
+    core.debug(`Checking assignee alias ${assignee} via issue-scoped endpoint for ${owner}/${repo}#${issueNumber}`);
     try {
       await githubClient.request("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
         owner,
@@ -116,19 +118,24 @@ async function validateAssigneeAlias(owner, repo, assignee, issueNumber, githubC
         issue_number: Number(issueNumber),
         assignee,
       });
+      core.debug(`Assignee alias ${assignee} is assignable via issue-scoped check`);
       return;
     } catch (e) {
       const status = e && typeof e === "object" && "status" in e ? e.status : undefined;
       if (status !== 404 && status !== 422) {
+        core.debug(`Issue-scoped assignee check failed for ${assignee} with status ${status ?? "unknown"}: ${getErrorMessage(e)}`);
         throw e;
       }
+      core.debug(`Issue-scoped assignee check returned ${status} for ${assignee}; falling back to repository-scoped check`);
     }
   }
+  core.debug(`Checking assignee alias ${assignee} via repository-scoped endpoint for ${owner}/${repo}`);
   await githubClient.rest.issues.checkUserCanBeAssigned({
     owner,
     repo,
     assignee,
   });
+  core.debug(`Assignee alias ${assignee} is assignable via repository-scoped check`);
 }
 
 /**
