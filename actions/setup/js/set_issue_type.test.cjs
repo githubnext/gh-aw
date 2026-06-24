@@ -26,15 +26,13 @@ const mockContext = {
   },
 };
 
-const mockGraphql = vi.fn();
-
 const mockGithub = {
   rest: {
     issues: {
       get: vi.fn(),
+      update: vi.fn(),
     },
   },
-  graphql: mockGraphql,
 };
 
 global.core = mockCore;
@@ -44,34 +42,11 @@ global.github = mockGithub;
 describe("set_issue_type (Handler Factory Architecture)", () => {
   let handler;
 
-  const issueNodeId = "I_kwDOABCD123456";
-  const bugTypeId = "IT_kwDOABCD_bug";
-  const featureTypeId = "IT_kwDOABCD_feature";
-
-  const mockIssueTypesQuery = {
-    repository: {
-      issueTypes: {
-        nodes: [
-          { id: bugTypeId, name: "Bug" },
-          { id: featureTypeId, name: "Feature" },
-        ],
-      },
-    },
-  };
-
   beforeEach(async () => {
     vi.clearAllMocks();
 
-    mockGithub.rest.issues.get.mockResolvedValue({ data: { node_id: issueNodeId } });
-    mockGraphql.mockImplementation(query => {
-      if (query.includes("issueTypes")) {
-        return Promise.resolve(mockIssueTypesQuery);
-      }
-      if (query.includes("updateIssue")) {
-        return Promise.resolve({ updateIssue: { issue: { id: issueNodeId } } });
-      }
-      return Promise.resolve({});
-    });
+    mockGithub.rest.issues.get.mockResolvedValue({ data: { labels: [], title: "Issue title" } });
+    mockGithub.rest.issues.update.mockResolvedValue({ data: {} });
 
     const { main } = require("./set_issue_type.cjs");
     handler = await main({ max: 5 });
@@ -95,12 +70,12 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     expect(result.success).toBe(true);
     expect(result.issue_number).toBe(42);
     expect(result.issue_type).toBe("Bug");
-    expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
       owner: "test-owner",
       repo: "test-repo",
       issue_number: 42,
+      type: "Bug",
     });
-    expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("updateIssue"), expect.objectContaining({ issueId: issueNodeId, typeId: bugTypeId }));
   });
 
   it("should clear issue type when issue_type is empty string", async () => {
@@ -114,10 +89,12 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
 
     expect(result.success).toBe(true);
     expect(result.issue_type).toBe("");
-    // Should call mutation with null typeId to clear
-    expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("updateIssue"), expect.objectContaining({ issueId: issueNodeId, typeId: null }));
-    // Should NOT fetch issue types when clearing
-    expect(mockGraphql).not.toHaveBeenCalledWith(expect.stringContaining("issueTypes"), expect.anything());
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      issue_number: 42,
+      type: "",
+    });
   });
 
   it("should use context issue number when issue_number not provided", async () => {
@@ -130,10 +107,11 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
 
     expect(result.success).toBe(true);
     expect(result.issue_number).toBe(123); // from context.payload.issue.number
-    expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
       owner: "test-owner",
       repo: "test-repo",
       issue_number: 123,
+      type: "Bug",
     });
   });
 
@@ -190,6 +168,17 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
   });
 
   it("should return error when issue type not found in repository", async () => {
+    const invalidTypeError = Object.assign(new Error("Validation failed"), {
+      status: 422,
+      response: {
+        status: 422,
+        data: {
+          errors: [{ message: "Type must be one of: Bug, Feature" }],
+        },
+      },
+    });
+    mockGithub.rest.issues.update.mockRejectedValue(invalidTypeError);
+
     const message = {
       type: "set_issue_type",
       issue_number: 42,
@@ -200,25 +189,6 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("not found");
     expect(result.error).toContain("Available types");
-  });
-
-  it("should return error when no issue types are available", async () => {
-    mockGraphql.mockImplementation(query => {
-      if (query.includes("issueTypes")) {
-        return Promise.resolve({ repository: { issueTypes: { nodes: [] } } });
-      }
-      return Promise.resolve({});
-    });
-
-    const message = {
-      type: "set_issue_type",
-      issue_number: 42,
-      issue_type: "Bug",
-    };
-
-    const result = await handler(message, {});
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("No issue types are available");
   });
 
   it("should respect max count configuration", async () => {
@@ -237,15 +207,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
   });
 
   it("should handle API errors gracefully", async () => {
-    mockGraphql.mockImplementation(query => {
-      if (query.includes("issueTypes")) {
-        return Promise.resolve(mockIssueTypesQuery);
-      }
-      if (query.includes("updateIssue")) {
-        return Promise.reject(new Error("GraphQL API error"));
-      }
-      return Promise.resolve({});
-    });
+    mockGithub.rest.issues.update.mockRejectedValue(new Error("API error"));
 
     const message = {
       type: "set_issue_type",
@@ -255,7 +217,33 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
 
     const result = await handler(message, {});
     expect(result.success).toBe(false);
-    expect(result.error).toContain("GraphQL API error");
+    expect(result.error).toContain("API error");
+  });
+
+  it("should map 422 invalid issue type errors to not-found shape", async () => {
+    const invalidTypeError = Object.assign(new Error("Validation failed"), {
+      status: 422,
+      response: {
+        status: 422,
+        data: {
+          errors: [{ message: "Type must be one of: Bug, Feature" }],
+        },
+      },
+    });
+    mockGithub.rest.issues.update.mockRejectedValue(invalidTypeError);
+
+    const result = await handler(
+      {
+        type: "set_issue_type",
+        issue_number: 42,
+        issue_type: "NonExistentType",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Issue type "NonExistentType" not found.');
+    expect(result.error).toContain("Available types:");
   });
 
   it("should handle invalid issue numbers", async () => {
@@ -290,7 +278,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
       expect(result.previewInfo.issue_type).toBe("Bug");
       // Should not call any API when staged
       expect(mockGithub.rest.issues.get).not.toHaveBeenCalled();
-      expect(mockGraphql).not.toHaveBeenCalled();
+      expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
     } finally {
       delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     }
@@ -305,11 +293,15 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
 
     const result = await handler(message, {});
     expect(result.success).toBe(true);
-    // Should still resolve to the Bug type
-    expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("updateIssue"), expect.objectContaining({ typeId: bugTypeId }));
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        issue_number: 42,
+        type: "bug",
+      })
+    );
   });
 
-  it("should use issueType intent metadata mutation when runtime feature is enabled", async () => {
+  it("should use issueType intent metadata REST payload when runtime feature is enabled", async () => {
     process.env.GH_AW_RUNTIME_FEATURES = "issue_intents";
 
     try {
@@ -329,14 +321,13 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
       );
 
       expect(result.success).toBe(true);
-      expect(mockGraphql).toHaveBeenCalledWith(
-        expect.stringContaining("issueType: $issueType"),
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          issueId: issueNodeId,
-          issueType: {
-            issueTypeId: bugTypeId,
+          issue_number: 42,
+          type: {
+            value: "Bug",
             rationale: "Author explicitly requests a bug fix",
-            confidence: "HIGH",
+            confidence: "high",
             suggest: true,
           },
         })
