@@ -6,7 +6,7 @@
       "gpt-5.4-mini": 1,
       "gpt-5-mini": 2,
       "gpt-5-codex": 8,
-      "gpt-5.4": 6
+      "gpt-5.4": 7
     }
   },
   "runs": [
@@ -141,6 +141,13 @@
       "timestamp": "2026-06-23T19:03:59.528Z",
       "assignments": {
         "model_size": "gpt-5-mini"
+      }
+    },
+    {
+      "run_id": "28122406451",
+      "timestamp": "2026-06-24T18:58:27.317Z",
+      "assignments": {
+        "model_size": "gpt-5.4"
       }
     }
   ]
