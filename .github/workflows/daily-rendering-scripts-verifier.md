@@ -363,13 +363,48 @@ If you found parser or rendering issues:
    npm test -- --run render_template 2>&1 | tail -20
    ```
 
-5. If tests pass, create a pull request using the `create_pull_request` safe output tool with:
-   - A clear title describing what was fixed
-   - A body that explains:
-     - The run ID and engine that triggered the discovery
-     - What the parsing/rendering failure was
-     - What changes were applied and why
-     - Test results confirming the fix
+5. If tests pass, create a pull request using the `create_pull_request` safe output tool.
+
+## PR Body Format
+
+> Use `###` (h3) or lower for all headers. Wrap verbose content in `<details><summary>...</summary>` tags to keep the PR body scannable.
+
+Use this structure:
+
+```markdown
+### Summary
+
+Brief description of what was fixed and why.
+
+### Trigger
+
+- **Run ID**: [§<RUN_ID>](https://github.com/${{ github.repository }}/actions/runs/<RUN_ID>)
+- **Engine**: ENGINE
+- **Date**: DATE
+
+### Changes
+
+Description of what was changed and why.
+
+<details>
+<summary>Parser failure details</summary>
+
+[Full error output, stack traces, or raw log excerpts]
+
+</details>
+
+### Test Results
+
+- Parser harness: PASS / FAIL
+- Render template tests: PASS / FAIL
+
+<details>
+<summary>Full test output</summary>
+
+[Complete test run output]
+
+</details>
+```
 
 ## Guidelines
 

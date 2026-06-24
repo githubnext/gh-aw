@@ -31,6 +31,8 @@ func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIss
 				return nil // Invalid configuration (e.g., wildcard target-repo), return nil to cause validation error
 			}
 			linkSubIssueConfig.SafeOutputTargetConfig = targetConfig
+			// Override AllowedRepos with expression-aware parsing (supports GitHub Actions expressions)
+			linkSubIssueConfig.AllowedRepos = ParseStringArrayOrExprFromConfig(configMap, "allowed-repos", linkSubIssueLog)
 
 			// Parse common base fields with default max of 5
 			c.parseBaseSafeOutputConfig(configMap, &linkSubIssueConfig.BaseSafeOutputConfig, 5)

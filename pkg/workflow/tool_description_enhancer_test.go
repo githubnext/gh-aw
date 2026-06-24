@@ -152,6 +152,19 @@ func TestEnhanceToolDescriptionLinkSubIssueTargetRepo(t *testing.T) {
 	}
 }
 
+func TestEnhanceToolDescriptionLinkSubIssueAllowedRepos(t *testing.T) {
+	description := enhanceToolDescription("link_sub_issue", "Link a sub-issue.", &SafeOutputsConfig{
+		LinkSubIssue: &LinkSubIssueConfig{
+			BaseSafeOutputConfig:   BaseSafeOutputConfig{Max: defaultIntStr(5)},
+			SafeOutputTargetConfig: SafeOutputTargetConfig{AllowedRepos: []string{"myorg/repo-a", "myorg/repo-b"}},
+		},
+	})
+
+	if !strings.Contains(description, "myorg/repo-a") {
+		t.Fatalf("expected allowed repos constraint in description, got: %s", description)
+	}
+}
+
 func TestEnhanceToolDescriptionMarkPRReadyForReviewTargetRepo(t *testing.T) {
 	description := enhanceToolDescription("mark_pull_request_as_ready_for_review", "Mark PR as ready.", &SafeOutputsConfig{
 		MarkPullRequestAsReadyForReview: &MarkPullRequestAsReadyForReviewConfig{
