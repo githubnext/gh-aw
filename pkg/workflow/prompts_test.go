@@ -457,7 +457,12 @@ func TestDailyModelResolutionUsesCodexCompatibleSubAgentModel(t *testing.T) {
 	}
 
 	workflow := string(content)
-	if !strings.Contains(workflow, "## agent: `run-analyzer`\n---\ndescription: Parses a single run directory to extract sub-agent dispatch requests and actual models from api-proxy logs, then classifies model size correctness.\nmodel: gpt-5-mini") {
+	agentStart := strings.Index(workflow, "## agent: `run-analyzer`")
+	if agentStart == -1 {
+		t.Fatal("Expected daily-model-resolution workflow to define the run-analyzer sub-agent")
+	}
+	agentBlock := workflow[agentStart:]
+	if !strings.Contains(agentBlock, "\nmodel: gpt-5-mini\n") {
 		t.Fatal("Expected daily-model-resolution run-analyzer sub-agent to use explicit codex-compatible model gpt-5-mini")
 	}
 }
