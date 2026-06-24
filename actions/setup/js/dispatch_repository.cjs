@@ -12,7 +12,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { parseRepoSlug, validateTargetRepo, parseAllowedRepos } = require("./repo_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { isStagedMode, isTemplatableTrue } = require("./safe_output_helpers.cjs");
 const { buildAwContext } = require("./aw_context.cjs");
 const { SAFE_OUTPUT_E001, SAFE_OUTPUT_E099 } = require("./error_codes.cjs");
 
@@ -137,7 +137,7 @@ async function main(config = {}) {
     core.info(`dispatch_repository: dispatching event_type="${eventType}" to ${targetRepoSlug} (workflow: ${toolConfig.workflow || "unspecified"})`);
 
     // If in staged mode, preview without executing
-    if (isStaged || toolConfig.staged) {
+    if (isStaged || isTemplatableTrue(toolConfig.staged)) {
       logStagedPreviewInfo(`Would dispatch repository_dispatch event: event_type="${eventType}" to ${targetRepoSlug}, client_payload=${JSON.stringify(clientPayload)}`);
       dispatchCounts[toolName] = currentCount + 1;
       return {

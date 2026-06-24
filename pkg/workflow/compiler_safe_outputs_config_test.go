@@ -2558,6 +2558,8 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 }
 
 func TestHandlerConfigStagedExpression(t *testing.T) {
+	t.Parallel()
+
 	compiler := NewCompiler()
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
@@ -2592,7 +2594,7 @@ func TestHandlerConfigStagedExpression(t *testing.T) {
 
 		handlerConfig, ok := config["create_issue"]
 		require.True(t, ok, "Should have create_issue handler")
-		assert.Equal(t, "${{ inputs.staged }}", handlerConfig["staged"])
+		assert.Equal(t, "${{ inputs.staged }}", handlerConfig["staged"], "staged expression should pass through to handler config JSON unchanged")
 		return
 	}
 

@@ -420,8 +420,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			// Handle staged flag
 			if err := preprocessBoolFieldAsString(outputMap, "staged", safeOutputsConfigLog); err != nil {
 				safeOutputsConfigLog.Printf("staged: %v", err)
-			}
-			if staged, exists := outputMap["staged"]; exists {
+			} else if staged, exists := outputMap["staged"]; exists {
 				if stagedStr, ok := staged.(string); ok && stagedStr != "" {
 					value := TemplatableBool(stagedStr)
 					config.Staged = &value

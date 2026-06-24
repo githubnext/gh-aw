@@ -595,7 +595,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_SafeOutputsStagedE
 		"safe-outputs": map[string]any{
 			"staged": "${{ inputs.staged }}",
 			"create-issue": map[string]any{
-				"staged": "${{ inputs.issue-staged }}",
+				"staged": "${{ inputs['issue-staged'] }}",
 			},
 		},
 	}
