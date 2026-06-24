@@ -180,34 +180,18 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 		}
 
 		// Build environment variables
-		envVars := make(map[string]string)
-		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "$GH_AW_GITHUB_TOKEN"
-		// GitHub host for enterprise deployments (format: https://hostname, e.g. https://myorg.ghe.com).
-		// GITHUB_SERVER_URL is set by GitHub Actions as a full URL (https://hostname, no trailing slash),
-		// which matches the format expected by github-mcp-server for GITHUB_HOST.
-		envVars["GITHUB_HOST"] = "$GITHUB_SERVER_URL"
-
-		if readOnly {
-			envVars["GITHUB_READ_ONLY"] = "1"
-		}
-
-		if lockdown {
-			envVars["GITHUB_LOCKDOWN_MODE"] = "1"
-		}
-
-		envVars["GITHUB_TOOLSETS"] = toolsets
+		envVars := buildGitHubMCPEnvVars(
+			"$GH_AW_GITHUB_TOKEN",
+			"$GITHUB_SERVER_URL",
+			readOnly,
+			lockdown,
+			toolsets,
+		)
 
 		// Write environment variables in sorted order for deterministic output
 		envKeys := sortedMapKeys(envVars)
 
-		yaml.WriteString("          env = { ")
-		for i, key := range envKeys {
-			if i > 0 {
-				yaml.WriteString(", ")
-			}
-			fmt.Fprintf(yaml, "\"%s\" = \"%s\"", key, envVars[key])
-		}
-		yaml.WriteString(" }\n")
+		writeTOMLInlineStringMapSection(yaml, "          ", "env", envVars)
 
 		// Use env_vars array to reference environment variables
 		yaml.WriteString("          env_vars = [")
@@ -254,77 +238,23 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	// for Copilot (see convert_gateway_config_copilot.cjs). This keeps the gateway
 	// config compatible with the schema which doesn't have the tools field.
 
-	// Add env section for GitHub MCP server environment variables
-	yaml.WriteString("                \"env\": {\n")
-
-	// Build environment variables map
-	envVars := make(map[string]string)
-
 	// GitHub token (always required)
+	tokenValue := "$GITHUB_MCP_SERVER_TOKEN"
+	hostValue := "$GITHUB_SERVER_URL"
 	if options.IncludeTypeField {
 		// Copilot engine: use escaped variable for Copilot CLI to interpolate
-		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "\\${GITHUB_MCP_SERVER_TOKEN}"
+		tokenValue = "\\${GITHUB_MCP_SERVER_TOKEN}"
 		// GitHub host for enterprise deployments (format: https://hostname, e.g. https://myorg.ghe.com).
 		// GITHUB_SERVER_URL is set by GitHub Actions as a full URL (https://hostname, no trailing slash),
 		// which matches the format expected by github-mcp-server for GITHUB_HOST.
 		// Copilot CLI interpolation syntax used here.
-		envVars["GITHUB_HOST"] = "\\${GITHUB_SERVER_URL}"
-	} else {
-		// Non-Copilot engines (Claude/Custom): use plain shell variable
-		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "$GITHUB_MCP_SERVER_TOKEN"
-		// GitHub host for enterprise deployments (format: https://hostname, e.g. https://myorg.ghe.com).
-		// GITHUB_SERVER_URL is set by GitHub Actions as a full URL (https://hostname, no trailing slash),
-		// which matches the format expected by github-mcp-server for GITHUB_HOST.
-		envVars["GITHUB_HOST"] = "$GITHUB_SERVER_URL"
+		hostValue = "\\${GITHUB_SERVER_URL}"
 	}
 
-	// Read-only mode
-	if options.ReadOnly {
-		envVars["GITHUB_READ_ONLY"] = "1"
-	}
-
-	// GitHub lockdown mode (only when explicitly configured)
-	if options.Lockdown {
-		// Use explicit lockdown value from configuration
-		envVars["GITHUB_LOCKDOWN_MODE"] = "1"
-	}
-
-	// Toolsets (always configured, defaults to "default")
-	envVars["GITHUB_TOOLSETS"] = options.Toolsets
-
-	// Write environment variables in sorted order for deterministic output
-	envKeys := sortedMapKeys(envVars)
-
-	for i, key := range envKeys {
-		isLast := i == len(envKeys)-1
-		comma := ""
-		if !isLast {
-			comma = ","
-		}
-		fmt.Fprintf(yaml, "                  \"%s\": \"%s\"%s\n", key, envVars[key], comma)
-	}
-
-	// Close env section, with trailing comma if guard-policies follows
-	hasGuardPolicies := len(options.GuardPolicies) > 0 || options.GuardPoliciesFromStep
-	if hasGuardPolicies {
-		yaml.WriteString("                },\n")
-		if options.GuardPoliciesFromStep {
-			// Render guard-policies with env var refs resolved at runtime from step outputs
-			// GITHUB_MCP_GUARD_MIN_INTEGRITY and GITHUB_MCP_GUARD_REPOS are set in Start MCP
-			// Gateway step from the determine-automatic-lockdown step outputs. They are
-			// non-empty only for public repositories.
-			renderGuardPoliciesJSON(yaml, map[string]any{
-				"allow-only": map[string]any{
-					"min-integrity": "$GITHUB_MCP_GUARD_MIN_INTEGRITY",
-					"repos":         "$GITHUB_MCP_GUARD_REPOS",
-				},
-			}, "                ")
-		} else {
-			renderGuardPoliciesJSON(yaml, options.GuardPolicies, "                ")
-		}
-	} else {
-		yaml.WriteString("                }\n")
-	}
+	envVars := buildGitHubMCPEnvVars(tokenValue, hostValue, options.ReadOnly, options.Lockdown, options.Toolsets)
+	hasGuardPolicies := hasGitHubMCPGuardPolicies(options.GuardPolicies, options.GuardPoliciesFromStep)
+	writeJSONStringMapSection(yaml, "                ", "env", envVars, hasGuardPolicies)
+	renderGitHubMCPGuardPolicies(yaml, options.GuardPolicies, options.GuardPoliciesFromStep, "                ")
 }
 
 // RenderGitHubMCPRemoteConfig renders the GitHub MCP server configuration for remote (hosted) mode.
@@ -339,40 +269,14 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	// Remote mode - use hosted GitHub MCP server
 	yaml.WriteString("                \"type\": \"http\",\n")
 	yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
-	yaml.WriteString("                \"headers\": {\n")
-
-	// Collect headers in a map
-	headers := make(map[string]string)
-	headers["Authorization"] = options.AuthorizationValue
-
-	// Add X-MCP-Readonly header if read-only mode is enabled
-	if options.ReadOnly {
-		headers["X-MCP-Readonly"] = "true"
-	}
-
-	// Add X-MCP-Lockdown header only when explicitly configured
-	if options.Lockdown {
-		// Use explicit lockdown value from configuration
-		headers["X-MCP-Lockdown"] = "true"
-	}
-
-	// Add X-MCP-Toolsets header if toolsets are configured
-	if options.Toolsets != "" {
-		headers["X-MCP-Toolsets"] = options.Toolsets
-	}
-
-	// Write headers using helper
-	writeHeadersToYAML(yaml, headers, "                  ")
-
-	// Determine if guard-policies section follows (explicit or from step)
-	hasGuardPolicies := len(options.GuardPolicies) > 0 || options.GuardPoliciesFromStep
-
-	// Close headers section
-	if options.IncludeToolsField || options.IncludeEnvSection || hasGuardPolicies {
-		yaml.WriteString("                },\n")
-	} else {
-		yaml.WriteString("                }\n")
-	}
+	hasGuardPolicies := hasGitHubMCPGuardPolicies(options.GuardPolicies, options.GuardPoliciesFromStep)
+	writeJSONStringMapSection(
+		yaml,
+		"                ",
+		"headers",
+		buildGitHubMCPRemoteHeaders(options.AuthorizationValue, options.ReadOnly, options.Lockdown, options.Toolsets),
+		(options.IncludeToolsField && len(options.AllowedTools) > 0) || options.IncludeEnvSection || hasGuardPolicies,
+	)
 
 	// Add tools field if requested (Copilot needs it, Claude doesn't)
 	// Note: This is added here when IncludeToolsField is true, but in some cases
@@ -397,33 +301,15 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 
 	// Add env section if needed (Copilot uses this, Claude doesn't)
 	if options.IncludeEnvSection {
-		yaml.WriteString("                \"env\": {\n")
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\",\n")
-		// GitHub host for enterprise deployments (format: https://hostname, e.g. https://myorg.ghe.com).
-		// GITHUB_SERVER_URL is set by GitHub Actions as a full URL (https://hostname, no trailing slash),
-		// which matches the format expected by github-mcp-server for GITHUB_HOST.
-		yaml.WriteString("                  \"GITHUB_HOST\": \"\\${GITHUB_SERVER_URL}\"\n")
-		// Close env section, with trailing comma if guard-policies follows
-		if hasGuardPolicies {
-			yaml.WriteString("                },\n")
-		} else {
-			yaml.WriteString("                }\n")
-		}
+		writeJSONStringMapSection(
+			yaml,
+			"                ",
+			"env",
+			buildGitHubMCPEnvVars("\\${GITHUB_MCP_SERVER_TOKEN}", "\\${GITHUB_SERVER_URL}", false, false, ""),
+			hasGuardPolicies,
+		)
 	}
 
 	// Add guard-policies if configured or from step
-	if options.GuardPoliciesFromStep {
-		// Render guard-policies with env var refs resolved at runtime from step outputs
-		// GITHUB_MCP_GUARD_MIN_INTEGRITY and GITHUB_MCP_GUARD_REPOS are set in Start MCP
-		// Gateway step from the determine-automatic-lockdown step outputs. They are
-		// non-empty only for public repositories.
-		renderGuardPoliciesJSON(yaml, map[string]any{
-			"allow-only": map[string]any{
-				"min-integrity": "$GITHUB_MCP_GUARD_MIN_INTEGRITY",
-				"repos":         "$GITHUB_MCP_GUARD_REPOS",
-			},
-		}, "                ")
-	} else if len(options.GuardPolicies) > 0 {
-		renderGuardPoliciesJSON(yaml, options.GuardPolicies, "                ")
-	}
+	renderGitHubMCPGuardPolicies(yaml, options.GuardPolicies, options.GuardPoliciesFromStep, "                ")
 }
