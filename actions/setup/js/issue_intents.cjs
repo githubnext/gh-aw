@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+// @safe-outputs-exempt SEC-005: this file only normalizes issue-intent labels/metadata; "target repository" appears only in a label-not-found error message, with no target-repo parameter or cross-repo write path.
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
