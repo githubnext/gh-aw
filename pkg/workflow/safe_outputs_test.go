@@ -919,7 +919,7 @@ func TestBuildStandardSafeOutputEnvVars(t *testing.T) {
 			workflowData: &WorkflowData{
 				Name: "Test Workflow",
 				SafeOutputs: &SafeOutputsConfig{
-					Staged: true,
+					Staged: templatableBoolPtr("true"),
 				},
 			},
 			targetRepoSlug: "",

@@ -47,13 +47,17 @@ func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
 		return
 	}
 
-	safeOutputsEnvLog.Printf("Applying safe output env vars: trial_mode=%t, staged=%t", data.TrialMode, data.SafeOutputs.Staged)
+	safeOutputsEnvLog.Printf("Applying safe output env vars: trial_mode=%t, staged=%v", data.TrialMode, data.SafeOutputs.Staged)
 
 	env["GH_AW_SAFE_OUTPUTS"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}"
 
 	// Add staged flag if specified
-	if data.TrialMode || data.SafeOutputs.Staged {
-		env["GH_AW_SAFE_OUTPUTS_STAGED"] = "true"
+	if value := resolveSafeOutputsStagedValue(data.TrialMode, data.SafeOutputs.Staged); value != nil {
+		if isExpression(*value) {
+			env["GH_AW_SAFE_OUTPUTS_STAGED"] = *value
+		} else {
+			env["GH_AW_SAFE_OUTPUTS_STAGED"] = "true"
+		}
 	}
 	if data.TrialMode && data.TrialLogicalRepo != "" {
 		env["GH_AW_TARGET_REPO_SLUG"] = data.TrialLogicalRepo
@@ -106,13 +110,13 @@ func buildWorkflowMetadataEnvVarsWithTrackerID(workflowName string, workflowSour
 
 // buildSafeOutputJobEnvVars builds environment variables for safe-output jobs with staged/target repo handling
 // This extracts the duplicated env setup logic in safe-output job builders (create_issue, add_comment, etc.)
-func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, staged bool, targetRepoSlug string) []string {
+func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, staged *TemplatableBool, targetRepoSlug string) []string {
 	var customEnvVars []string
 
 	// Pass the staged flag if it's set to true
-	if trialMode || staged {
-		safeOutputsEnvLog.Printf("Setting staged flag: trial_mode=%t, staged=%t", trialMode, staged)
-		customEnvVars = append(customEnvVars, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+	if value := resolveSafeOutputsStagedValue(trialMode, staged); value != nil {
+		safeOutputsEnvLog.Printf("Setting staged flag: trial_mode=%t, staged=%v", trialMode, staged)
+		customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_SAFE_OUTPUTS_STAGED", value)...)
 	}
 
 	// Set GH_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
@@ -272,11 +276,16 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 		return
 	}
 
-	// Add the global staged env var once if staged mode is enabled, not in trial mode,
-	// and at least one handler is configured. Staged mode is independent of target-repo.
-	if !c.trialMode && data.SafeOutputs.Staged && hasAnySafeOutputEnabled(data.SafeOutputs) {
-		*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-		safeOutputsEnvLog.Print("Added staged flag")
+	// Add the global staged env var once when resolveSafeOutputsStagedValue determines
+	// staged mode should be enabled (including trial mode), and at least one handler is
+	// configured. Staged mode is independent of target-repo.
+	if hasAnySafeOutputEnabled(data.SafeOutputs) {
+		if value := resolveSafeOutputsStagedValue(c.trialMode, data.SafeOutputs.Staged); value != nil {
+			*steps = append(*steps, buildTemplatableBoolEnvVar("GH_AW_SAFE_OUTPUTS_STAGED", value)...)
+			safeOutputsEnvLog.Print("Added staged flag")
+		} else {
+			safeOutputsEnvLog.Print("Staged flag not set")
+		}
 	}
 
 	// Check if copilot is in create-issue or create-pull-request assignees - enables inline copilot assignment

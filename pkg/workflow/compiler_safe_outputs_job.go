@@ -322,7 +322,7 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 	// NOTE: We do NOT export checkout_token as a job output. GitHub Actions masks output
 	// values that contain secret references, so the downstream job would receive an empty
 	// string. The upload job computes the token directly from static secret references.
-	if data.SafeOutputs.CreateCodeScanningAlerts != nil && !isHandlerStaged(c.trialMode || data.SafeOutputs.Staged, data.SafeOutputs.CreateCodeScanningAlerts.Staged) {
+	if data.SafeOutputs.CreateCodeScanningAlerts != nil && !isHandlerStaged(c.trialMode || templatableBoolIsTrue(data.SafeOutputs.Staged), data.SafeOutputs.CreateCodeScanningAlerts.Staged) {
 		consolidatedSafeOutputsJobLog.Print("Exposing sarif_file output for upload_code_scanning_sarif job")
 		outputs["sarif_file"] = "${{ steps.process_safe_outputs.outputs.sarif_file }}"
 
@@ -511,7 +511,7 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 	// This step runs even if previous steps fail, ensuring the audit trail
 	// is always available for the audit command to display.
 	// In staged mode, no items are actually created in GitHub so there is nothing to record.
-	isStaged := c.trialMode || data.SafeOutputs.Staged
+	isStaged := c.trialMode || templatableBoolIsTrue(data.SafeOutputs.Staged)
 	if !isStaged {
 		steps = append(steps, buildSafeOutputItemsManifestUploadStep(agentArtifactPrefix, c.getActionPin)...)
 	}
@@ -729,8 +729,14 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	}
 
 	// Add safe output job environment variables (staged/target repo)
-	if data.SafeOutputs != nil && (c.trialMode || data.SafeOutputs.Staged) {
-		envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
+	if data.SafeOutputs != nil {
+		if value := resolveSafeOutputsStagedValue(c.trialMode, data.SafeOutputs.Staged); value != nil {
+			if isExpression(*value) {
+				envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = *value
+			} else {
+				envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
+			}
+		}
 	}
 
 	// Set GH_AW_TARGET_REPO_SLUG - prefer trial target repo (applies to all steps)

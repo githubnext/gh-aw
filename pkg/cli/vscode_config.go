@@ -76,7 +76,7 @@ func ensureVSCodeSettings(verbose bool) error {
 	vscodeConfigLog.Printf("Ensured directory exists: %s", vscodeDir)
 
 	// Check if settings.json already exists
-	if _, err := os.Stat(settingsPath); err == nil {
+	if fileutil.FileExists(settingsPath) {
 		vscodeConfigLog.Print("Settings file already exists, skipping creation")
 		if verbose {
 			fmt.Fprintf(os.Stderr, "Settings file already exists at %s\n", settingsPath)

@@ -522,7 +522,7 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 			workflowData: &WorkflowData{
 				Name: "Test Workflow",
 				SafeOutputs: &SafeOutputsConfig{
-					Staged: true,
+					Staged: templatableBoolPtr("true"),
 				},
 			},
 			workflowID: "test-workflow",
@@ -1313,7 +1313,7 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 			name: "staged mode does not create upload job",
 			config: &CreateCodeScanningAlertsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Staged: true,
+					Staged: templatableBoolPtr("true"),
 				},
 			},
 			expectUploadJob: false,

@@ -47,8 +47,8 @@ func stepsRequireIDToken(steps []any) bool {
 // (i.e., it will only emit preview output, not make real API calls). A handler is
 // staged when either the global safe-outputs staged flag is true, or the
 // per-handler staged flag is true. Staged handlers do not require write permissions.
-func isHandlerStaged(globalStaged, handlerStaged bool) bool {
-	return globalStaged || handlerStaged
+func isHandlerStaged(globalStaged bool, handlerStaged *TemplatableBool) bool {
+	return globalStaged || templatableBoolIsTrue(handlerStaged)
 }
 
 // getPushFallbackAsPullRequest returns the effective fallback-as-pull-request setting (defaults to true).

@@ -137,7 +137,7 @@ async function main(config = {}) {
     core.info(`dispatch_repository: dispatching event_type="${eventType}" to ${targetRepoSlug} (workflow: ${toolConfig.workflow || "unspecified"})`);
 
     // If in staged mode, preview without executing
-    if (isStaged || toolConfig.staged) {
+    if (isStaged || isStagedMode(toolConfig)) {
       logStagedPreviewInfo(`Would dispatch repository_dispatch event: event_type="${eventType}" to ${targetRepoSlug}, client_payload=${JSON.stringify(clientPayload)}`);
       dispatchCounts[toolName] = currentCount + 1;
       return {

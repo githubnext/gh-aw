@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
@@ -286,14 +287,14 @@ func parseTokenUsageTimestamp(value string) (time.Time, bool) {
 // findTokenUsageFile searches for token-usage.jsonl in the run directory
 func findTokenUsageFile(runDir string) string {
 	usageArtifactCandidate := filepath.Join(runDir, "usage", "agent", "token_usage.jsonl")
-	if _, err := os.Stat(usageArtifactCandidate); err == nil {
+	if fileutil.FileExists(usageArtifactCandidate) {
 		tokenUsageLog.Printf("Found token usage file in usage artifact: %s", usageArtifactCandidate)
 		return usageArtifactCandidate
 	}
 
 	// Primary path: sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl
 	primary := filepath.Join(runDir, "sandbox", "firewall", "logs", tokenUsageJSONLPath)
-	if _, err := os.Stat(primary); err == nil {
+	if fileutil.FileExists(primary) {
 		tokenUsageLog.Printf("Found token usage file at primary path: %s", primary)
 		return primary
 	}
@@ -311,7 +312,7 @@ func findTokenUsageFile(runDir string) string {
 		name := entry.Name()
 		if strings.HasPrefix(name, "firewall-audit-logs") || strings.HasPrefix(name, "firewall-logs") {
 			candidate := filepath.Join(runDir, name, tokenUsageJSONLPath)
-			if _, err := os.Stat(candidate); err == nil {
+			if fileutil.FileExists(candidate) {
 				tokenUsageLog.Printf("Found token usage file in %s: %s", name, candidate)
 				return candidate
 			}
@@ -347,7 +348,7 @@ func findTokenUsageFile(runDir string) string {
 // findAgentUsageFile searches for agent_usage.json in the run directory.
 func findAgentUsageFile(runDir string) string {
 	primary := filepath.Join(runDir, agentUsageJSONPath)
-	if _, err := os.Stat(primary); err == nil {
+	if fileutil.FileExists(primary) {
 		tokenUsageLog.Printf("Found agent usage file at primary path: %s", primary)
 		return primary
 	}
@@ -761,7 +762,7 @@ func countAPIProxySteeringEvents(runDir string) int {
 
 func findAPIProxyEventsFile(runDir string) string {
 	primary := filepath.Join(runDir, "sandbox", "firewall", "logs", proxyEventsJSONLPath)
-	if _, err := os.Stat(primary); err == nil {
+	if fileutil.FileExists(primary) {
 		return primary
 	}
 
@@ -777,7 +778,7 @@ func findAPIProxyEventsFile(runDir string) string {
 		name := entry.Name()
 		if strings.HasPrefix(name, "firewall-audit-logs") || strings.HasPrefix(name, "firewall-logs") {
 			candidate := filepath.Join(runDir, name, proxyEventsJSONLPath)
-			if _, err := os.Stat(candidate); err == nil {
+			if fileutil.FileExists(candidate) {
 				return candidate
 			}
 		}
@@ -1017,7 +1018,7 @@ func extractSubagentModelRequests(runDir string) []SubagentModelRequest {
 
 func findAgentStdioFile(runDir string) string {
 	primary := filepath.Join(runDir, "agent-stdio.log")
-	if _, err := os.Stat(primary); err == nil {
+	if fileutil.FileExists(primary) {
 		return primary
 	}
 

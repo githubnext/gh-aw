@@ -684,7 +684,7 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 		{
 			name: "global staged=true - no permissions for any handler",
 			safeOutputs: &SafeOutputsConfig{
-				Staged:            true,
+				Staged:            templatableBoolPtr("true"),
 				CreateIssues:      &CreateIssuesConfig{},
 				CreateDiscussions: &CreateDiscussionsConfig{},
 				AddLabels:         &AddLabelsConfig{},
@@ -695,7 +695,7 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 			name: "per-handler staged=true - staged handler contributes no permissions",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")},
 				},
 				AddLabels: &AddLabelsConfig{},
 			},
@@ -710,10 +710,10 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 			name: "all handlers per-handler staged - no permissions",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")},
 				},
 				CreateDiscussions: &CreateDiscussionsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{},
@@ -721,9 +721,9 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 		{
 			name: "global staged=true overrides per-handler staged=false",
 			safeOutputs: &SafeOutputsConfig{
-				Staged: true,
+				Staged: templatableBoolPtr("true"),
 				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: false},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("false")},
 				},
 				DispatchWorkflow: &DispatchWorkflowConfig{},
 			},
@@ -732,9 +732,9 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 		{
 			name: "global staged=false, one handler staged=true",
 			safeOutputs: &SafeOutputsConfig{
-				Staged: false,
+				Staged: templatableBoolPtr("false"),
 				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")},
 				},
 				CloseIssues: &CloseIssuesConfig{},
 			},
@@ -747,7 +747,7 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 		{
 			name: "global staged=true - upload-asset staged, no contents:write",
 			safeOutputs: &SafeOutputsConfig{
-				Staged:       true,
+				Staged:       templatableBoolPtr("true"),
 				UploadAssets: &UploadAssetsConfig{},
 			},
 			expected: map[PermissionScope]PermissionLevel{},
@@ -755,7 +755,7 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 		{
 			name: "pr review operations - all staged via global flag",
 			safeOutputs: &SafeOutputsConfig{
-				Staged:                          true,
+				Staged:                          templatableBoolPtr("true"),
 				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{},
 				SubmitPullRequestReview:         &SubmitPullRequestReviewConfig{},
 			},
@@ -765,7 +765,7 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 			name: "pr review operations - one staged, one not",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")},
 				},
 				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{},
 			},
@@ -810,7 +810,7 @@ func TestComputePermissionsForSafeOutputs_StagedYAMLRendering(t *testing.T) {
 		{
 			name: "globally staged - renders permissions: {}",
 			safeOutputs: &SafeOutputsConfig{
-				Staged:       true,
+				Staged:       templatableBoolPtr("true"),
 				CreateIssues: &CreateIssuesConfig{},
 				AddLabels:    &AddLabelsConfig{},
 			},
@@ -819,15 +819,15 @@ func TestComputePermissionsForSafeOutputs_StagedYAMLRendering(t *testing.T) {
 		{
 			name: "all per-handler staged - renders permissions: {}",
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
-				AddLabels:    &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")}},
+				AddLabels:    &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")}},
 			},
 			expectedRendered: "permissions: {}",
 		},
 		{
 			name: "staged PR handlers - renders permissions: {}",
 			safeOutputs: &SafeOutputsConfig{
-				Staged:             true,
+				Staged:             templatableBoolPtr("true"),
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
 			expectedRendered: "permissions: {}",

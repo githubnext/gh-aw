@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/parser"
@@ -154,7 +155,7 @@ func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir s
 
 		// Check whether the target file already exists.
 		fileExists := false
-		if _, statErr := os.Stat(targetPath); statErr == nil {
+		if fileutil.FileExists(targetPath) {
 			fileExists = true
 			if !force {
 				isMarkdown := strings.HasSuffix(strings.ToLower(targetPath), ".md")

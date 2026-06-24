@@ -5,7 +5,7 @@
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
  */
 
-const { resolveTarget, isStagedMode, logStagedPreviewInfo, checkRequiredFilter } = require("./safe_output_helpers.cjs");
+const { resolveTarget, isTemplatableTrue, isStagedMode, logStagedPreviewInfo, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -60,7 +60,7 @@ async function main(config = {}) {
   }
 
   // Propagate per-handler staged flag to the shared PR review buffer
-  if (config.staged === true) {
+  if (isTemplatableTrue(config.staged)) {
     buffer.setStaged(true);
   }
   if (isStagedMode(config)) {

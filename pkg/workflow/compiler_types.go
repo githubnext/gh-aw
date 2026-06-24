@@ -661,7 +661,7 @@ type BaseSafeOutputConfig struct {
 	Max                      *string          `yaml:"max,omitempty"`                        // Maximum number of items to create (supports integer or GitHub Actions expression)
 	GitHubToken              string           `yaml:"github-token,omitempty"`               // GitHub token for this specific output type
 	GitHubApp                *GitHubAppConfig `yaml:"github-app,omitempty"`                 // GitHub App credentials for minting a per-handler installation access token
-	Staged                   bool             `yaml:"staged,omitempty"`                     // If true, emit step summary messages instead of making GitHub API calls for this specific output type
+	Staged                   *TemplatableBool `yaml:"staged,omitempty"`                     // Templatable preview-only mode for this specific output type
 	NormalizeClosingKeywords *bool            `yaml:"normalize-closing-keywords,omitempty"` // When true for this output type, strip backticks from recognized issue-closing keywords in body fields.
 	// Samples carries deterministic replay samples for the hidden `gh aw compile --use-samples` flag. Each entry is the JSON object passed to the corresponding MCP tool's `tools/call` arguments. Sample-only sidecar fields (e.g. `patch` for create_pull_request) are stripped before the call and used by the replay driver.
 	Samples []map[string]any `yaml:"samples,omitempty"`
@@ -723,7 +723,7 @@ type SafeOutputsConfig struct {
 	URLs                                   string                                 `yaml:"urls,omitempty"`                         // URL sanitization policy: SafeOutputsURLsPolicyAllowedOnly (default) or SafeOutputsURLsPolicyAllowedOrCodeRegion
 	AllowedDomains                         []string                               `yaml:"allowed-domains,omitempty"`              // Allowed domains for URL redaction, unioned with network.allowed; supports ecosystem identifiers
 	AllowGitHubReferences                  []string                               `yaml:"allowed-github-references,omitempty"`    // Allowed repositories for GitHub references (e.g., ["repo", "org/repo2"])
-	Staged                                 bool                                   `yaml:"staged,omitempty"`                       // If true, emit step summary messages instead of making GitHub API calls
+	Staged                                 *TemplatableBool                       `yaml:"staged,omitempty"`                       // Templatable preview-only mode for all safe outputs
 	Env                                    map[string]string                      `yaml:"env,omitempty"`                          // Environment variables to pass to safe output jobs
 	GitHubToken                            string                                 `yaml:"github-token,omitempty"`                 // GitHub token for safe output jobs
 	MaximumPatchSize                       int                                    `yaml:"max-patch-size,omitempty"`               // Maximum allowed patch size in KB (defaults to 4096)

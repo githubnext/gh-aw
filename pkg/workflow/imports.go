@@ -433,7 +433,7 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if result.URLs == "" && importedConfig.URLs != "" {
 		result.URLs = importedConfig.URLs
 	}
-	if !result.Staged && importedConfig.Staged {
+	if result.Staged == nil && importedConfig.Staged != nil {
 		result.Staged = importedConfig.Staged
 	}
 	if len(result.Env) == 0 && len(importedConfig.Env) > 0 {

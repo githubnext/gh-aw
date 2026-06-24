@@ -226,6 +226,8 @@ func TestUpdateCommand_HelpText(t *testing.T) {
 	assert.Contains(t, outputStr, "no-redirect", "Help should document --no-redirect flag")
 	assert.Contains(t, outputStr, "no-security-scanner", "Help should document --no-security-scanner flag")
 	assert.Contains(t, outputStr, "repo", "Help should document --repo flag")
+	assert.Contains(t, outputStr, "org", "Help should document --org flag")
+	assert.Contains(t, outputStr, "repos", "Help should document --repos flag")
 	assert.Contains(t, outputStr, "3-way merge", "Help should explain merge behavior")
 
 	// Should reference upgrade for other features
@@ -445,4 +447,44 @@ func TestGetLatestBranchCommitSHA_Integration(t *testing.T) {
 	sha, err := getLatestBranchCommitSHA(context.Background(), "actions/checkout", "main")
 	require.NoError(t, err, "Should fetch latest commit SHA for actions/checkout main branch")
 	assert.True(t, IsCommitSHA(sha), "Result should be a 40-char commit SHA, got: %s", sha)
+}
+
+// --- Org Dry-Run Integration Tests ---
+
+// TestUpdateCommand_OrgDryRunIntegration verifies that --org mode runs in dry-run
+// (the default, without --create-pull-request or --create-issue) for two known
+// repositories: github/gh-aw and github/gh-aw-firewall. The test validates that
+// the command completes successfully and produces well-formed output regardless
+// of whether the repos have pending updates.
+func TestUpdateCommand_OrgDryRunIntegration(t *testing.T) {
+	skipWithoutGitHubAuth(t)
+
+	setup := setupUpdateIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Run update --org github targeting only gh-aw and gh-aw-firewall.
+	// No --create-pull-request or --create-issue flags → dry-run mode (default).
+	cmd := exec.Command(setup.binaryPath, "update",
+		"--org", "github",
+		"--repos", "gh-aw,gh-aw-firewall",
+	)
+	cmd.Dir = setup.tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+	t.Logf("Output:\n%s", outputStr)
+
+	require.NoError(t, err, "org dry-run should succeed: %s", outputStr)
+
+	// --org and --repos flags must be recognised.
+	assert.NotContains(t, outputStr, "unknown flag", "All flags should be recognised")
+
+	// The output must indicate one of the three valid terminal states:
+	//   1. Dry-run preview with pending updates listed.
+	//   2. All repos already up-to-date.
+	//   3. No repos with source-managed workflows found in the filtered set.
+	dryRunPreview := strings.Contains(outputStr, "Dry-run preview")
+	alreadyUpToDate := strings.Contains(outputStr, "up to date")
+	noReposFound := strings.Contains(outputStr, "No repositories")
+	assert.True(t, dryRunPreview || alreadyUpToDate || noReposFound,
+		"Output should indicate dry-run preview, up-to-date status, or no repos found; got: %s", outputStr)
 }

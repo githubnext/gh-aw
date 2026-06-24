@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 // extractRunBlocks walks the YAML tree and extracts all run: field values
@@ -293,10 +295,7 @@ func extractRunSnippet(runContent string, expression string) string {
 			// Return the trimmed line containing the expression
 			trimmed := strings.TrimSpace(line)
 			// Limit snippet length to avoid overwhelming error messages
-			if len(trimmed) > 100 {
-				return trimmed[:97] + "..."
-			}
-			return trimmed
+			return stringutil.Truncate(trimmed, 100)
 		}
 	}
 

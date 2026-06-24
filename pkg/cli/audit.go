@@ -870,7 +870,7 @@ func parseAgentLogIfRequested(runID int64, runOutputDir string, verbose bool) {
 		return
 	}
 	logMdPath := filepath.Join(runOutputDir, "log.md")
-	if _, err := os.Stat(logMdPath); err == nil {
+	if fileutil.FileExists(logMdPath) {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", runID, logMdPath)))
 	}
 }
@@ -883,7 +883,7 @@ func parseFirewallLogsIfRequested(runID int64, runOutputDir string, verbose bool
 		return
 	}
 	firewallMdPath := filepath.Join(runOutputDir, "firewall.md")
-	if _, err := os.Stat(firewallMdPath); err == nil {
+	if fileutil.FileExists(firewallMdPath) {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", runID, firewallMdPath)))
 	}
 }
@@ -1006,7 +1006,7 @@ func auditJobRun(opts auditJobRunOptions) error {
 
 		if opts.stepNumber > 0 {
 			stepLogPath := filepath.Join(opts.outputDir, fmt.Sprintf("job-%d-step-%d.log", opts.jobID, opts.stepNumber))
-			if _, err := os.Stat(stepLogPath); err == nil {
+			if fileutil.FileExists(stepLogPath) {
 				fmt.Fprintf(os.Stderr, "  - %s (step %d output)\n", stepLogPath, opts.stepNumber)
 			}
 		} else {

@@ -45,8 +45,8 @@ func usesPatchesAndCheckouts(safeOutputs *SafeOutputsConfig) bool {
 	if safeOutputs == nil {
 		return false
 	}
-	createPRNeedsCheckout := safeOutputs.CreatePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreatePullRequests.Staged)
-	pushToPRNeedsCheckout := safeOutputs.PushToPullRequestBranch != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.PushToPullRequestBranch.Staged)
+	createPRNeedsCheckout := safeOutputs.CreatePullRequests != nil && !isHandlerStaged(templatableBoolIsTrue(safeOutputs.Staged), safeOutputs.CreatePullRequests.Staged)
+	pushToPRNeedsCheckout := safeOutputs.PushToPullRequestBranch != nil && !isHandlerStaged(templatableBoolIsTrue(safeOutputs.Staged), safeOutputs.PushToPullRequestBranch.Staged)
 	result := createPRNeedsCheckout || pushToPRNeedsCheckout
 	safeOutputsRuntimeLog.Printf("usesPatchesAndCheckouts: createPR=%v(needsCheckout=%v), pushToPRBranch=%v(needsCheckout=%v), result=%v",
 		safeOutputs.CreatePullRequests != nil, createPRNeedsCheckout,

@@ -174,7 +174,7 @@ func getCopilotSDKInstallSpec(command string) copilotSDKInstallSpec {
 	switch runtimeID {
 	case "python":
 		spec.stepName = "Install GitHub Copilot SDK (Python)"
-		spec.command = workspaceCommandPrefix + "pip install --disable-pip-version-check github-copilot-sdk==" + version
+		spec.command = workspaceCommandPrefix + "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + version
 	case "typescript":
 		spec.stepName = "Install GitHub Copilot SDK (TypeScript)"
 		spec.command = workspaceCommandPrefix + "npm install --ignore-scripts --no-save @github/copilot-sdk@" + version + " ts-node typescript"

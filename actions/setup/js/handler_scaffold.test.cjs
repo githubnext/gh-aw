@@ -75,6 +75,34 @@ describe("handler_scaffold", () => {
       expect(setupSpy).toHaveBeenCalledWith(config, 5, true);
     });
 
+    it('should pass isStaged as true when config.staged is the string "true"', async () => {
+      const setupSpy = vi.fn().mockResolvedValue(async () => ({ success: true }));
+
+      const factory = createCountGatedHandler({
+        handlerType: "test_handler",
+        setup: setupSpy,
+      });
+
+      const config = { max: 5, staged: "true" };
+      await factory(config);
+
+      expect(setupSpy).toHaveBeenCalledWith(config, 5, true);
+    });
+
+    it("should treat unresolved staged expressions as false until runtime resolves them", async () => {
+      const setupSpy = vi.fn().mockResolvedValue(async () => ({ success: true }));
+
+      const factory = createCountGatedHandler({
+        handlerType: "test_handler",
+        setup: setupSpy,
+      });
+
+      const config = { max: 5, staged: "${{ inputs.staged }}" };
+      await factory(config);
+
+      expect(setupSpy).toHaveBeenCalledWith(config, 5, false);
+    });
+
     it("should delegate to handleItem when under the limit", async () => {
       const handleItem = vi.fn().mockResolvedValue({ success: true, data: "result" });
 

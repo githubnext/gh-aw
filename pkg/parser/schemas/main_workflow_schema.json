@@ -4412,8 +4412,8 @@
                   "description": "GitHub token to use for comment-memory operations. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -5031,8 +5031,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -5130,8 +5130,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -5201,8 +5201,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -5358,8 +5358,8 @@
                   }
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -5494,8 +5494,8 @@
                   }
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -5560,8 +5560,8 @@
                   "examples": ["https://github.com/orgs/myorg/projects/123", "https://github.com/users/username/projects/456"]
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -5710,8 +5710,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -5826,8 +5826,8 @@
                   "description": "List of additional repositories in format 'owner/repo' that discussions can be closed in. The target repository is always implicitly allowed."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -5926,8 +5926,8 @@
                   "default": true
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -6014,8 +6014,8 @@
                   "description": "List of additional repositories in format 'owner/repo' that issues can be closed in. When specified, the agent can use a 'repo' field in the output to specify which repository to close the issue in. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -6117,8 +6117,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -6214,8 +6214,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -6367,8 +6367,8 @@
                   "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -6762,8 +6762,8 @@
                   "default": true
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -6862,8 +6862,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -6971,8 +6971,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -7058,8 +7058,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -7140,8 +7140,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -7221,8 +7221,8 @@
                   "description": "List of additional repositories in format 'owner/repo' that code scanning alerts can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the alert in. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -7276,8 +7276,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -7335,8 +7335,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -7461,8 +7461,8 @@
                   "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -7562,8 +7562,8 @@
                   "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -7686,8 +7686,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -7776,8 +7776,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -7900,8 +7900,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -7989,8 +7989,8 @@
                   "description": "List of allowed repositories in format 'owner/repo' for cross-repository user assignment operations. Use with 'repo' field in tool calls."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -8084,8 +8084,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -8202,8 +8202,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -8291,8 +8291,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -8395,8 +8395,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -8505,8 +8505,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, evaluate merge gates and emit preview results without executing the merge API call.",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, evaluate merge gates and emit preview results without executing the merge API call.",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -8640,8 +8640,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -8841,8 +8841,8 @@
                   "description": "Controls whether the workflow requests discussions:write permission for hide-comment. Default: true (includes discussions:write). Set to false if your GitHub App lacks Discussions permission to prevent 422 errors during token generation."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -8931,8 +8931,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -9019,8 +9019,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -9117,8 +9117,8 @@
                   "description": "Git ref (branch, tag, or SHA) to use when dispatching the workflow. For workflow_call relay scenarios this is auto-injected by the compiler from needs.activation.outputs.target_ref. Overrides the caller's GITHUB_REF."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -9243,8 +9243,8 @@
                 "description": "GitHub token to use for dispatching. Overrides global github-token if specified."
               },
               "staged": {
-                "type": "boolean",
-                "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)",
+                "$ref": "#/$defs/templatable_boolean",
+                "description": "When true, emit step summary messages instead of making GitHub API calls (preview mode)",
                 "examples": [true, false]
               }
             },
@@ -9289,8 +9289,8 @@
                   "description": "GitHub token passed to called workflows. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -9369,8 +9369,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -9447,8 +9447,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -9513,8 +9513,8 @@
                   "default": true
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -9594,8 +9594,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -9715,8 +9715,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub Actions artifact uploads (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub Actions artifact uploads (preview mode)",
                   "examples": [true, false]
                 }
               },
@@ -9762,8 +9762,8 @@
                   "default": true
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -9793,8 +9793,8 @@
           "description": "Enable AI agents to edit and update GitHub release content, including release notes, assets, and metadata."
         },
         "staged": {
-          "type": "boolean",
-          "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)",
+          "$ref": "#/$defs/templatable_boolean",
+          "description": "When true, emit step summary messages instead of making GitHub API calls (preview mode)",
           "examples": [true, false]
         },
         "env": {
@@ -10526,8 +10526,8 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
@@ -10573,7 +10573,7 @@
               "properties": {
                 "allowed-transitions": {
                   "type": "array",
-                  "description": "Optional list of allowed label state transitions. Each entry specifies a (from, to) pair that is permitted. When specified, the agent may ONLY perform the listed transitions, regardless of allowed-add/allowed-remove. Useful for enforcing a strict state machine (e.g. only 'in-review' → 'approved' is allowed).",
+                  "description": "Optional list of allowed label state transitions. Each entry specifies a (from, to) pair that is permitted. When specified, the agent may ONLY perform the listed transitions, regardless of allowed-add/allowed-remove. Useful for enforcing a strict state machine (e.g. only 'in-review' \u2192 'approved' is allowed).",
                   "items": {
                     "type": "object",
                     "properties": {
@@ -10666,8 +10666,8 @@
                   "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
                 },
                 "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
                 },
                 "samples": {
