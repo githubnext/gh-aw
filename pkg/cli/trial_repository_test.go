@@ -32,7 +32,7 @@ func TestTrialRepositoryURLHelpers(t *testing.T) {
 			expectedActionsURL: "https://example.ghe.com/owner/repo/settings/actions",
 		},
 		{
-			name:               "uses GITHUB_SERVER_URL when set",
+			name:               "GITHUB_SERVER_URL takes precedence over GH_HOST",
 			serverURL:          "https://server.ghe.com/",
 			ghHost:             "example.ghe.com",
 			repoSlug:           "owner/repo",
