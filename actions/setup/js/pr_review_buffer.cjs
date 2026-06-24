@@ -36,7 +36,11 @@ const FALLBACK_TRUNCATION_SUFFIX = "\n\n_(Fallback review body truncated to fit 
 const FALLBACK_OMISSION_NOTE = "_(Unanchored comment details omitted to fit GitHub length limits.)_";
 const ELLIPSIS = "…";
 // GitHub API message fragment returned when a PR is locked and review submission is rejected.
+// Must be lowercase — compared against errorMessage.toLowerCase() for case-insensitive matching.
 const LOCKED_PR_REVIEW_MESSAGE = "lock prevents review";
+
+/** Returns true if the error message indicates a locked-PR 422 rejection. */
+const isLockedPrError = errorMessage => errorMessage.toLowerCase().includes(LOCKED_PR_REVIEW_MESSAGE);
 // Number of retries before treating a locked-PR 422 as a permanent soft skip.
 // A small number is used so the run does not stall when the PR is permanently locked.
 const LOCKED_PR_RETRY_COUNT = 3;
@@ -633,7 +637,7 @@ function createReviewBuffer() {
       // GitHub returns 422 with message "lock prevents review" for locked PRs.
       // We check the error message (which withRetry/enhanceError preserves in "Original error:")
       // rather than the status code, which may not survive error wrapping.
-      if (errorMessage.toLowerCase().includes(LOCKED_PR_REVIEW_MESSAGE)) {
+      if (isLockedPrError(errorMessage)) {
         core.warning(`PR #${pullRequestNumber} is locked (422 "${LOCKED_PR_REVIEW_MESSAGE}"). Retrying ${LOCKED_PR_RETRY_COUNT} time(s) to check if the lock is temporary...`);
         for (let attempt = 1; attempt <= LOCKED_PR_RETRY_COUNT; attempt++) {
           await sleep(LOCKED_PR_RETRY_DELAY_MS);
@@ -664,7 +668,7 @@ function createReviewBuffer() {
             );
           } catch (retryError) {
             const retryErrorMessage = getErrorMessage(retryError);
-            if (retryErrorMessage.toLowerCase().includes(LOCKED_PR_REVIEW_MESSAGE)) {
+            if (isLockedPrError(retryErrorMessage)) {
               core.warning(`PR #${pullRequestNumber} is still locked (attempt ${attempt}/${LOCKED_PR_RETRY_COUNT})`);
             } else {
               // Different error on retry — surface as a regular failure
