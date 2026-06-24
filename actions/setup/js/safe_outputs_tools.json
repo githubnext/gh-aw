@@ -1281,6 +1281,10 @@
           "description": "The issue number to link as a sub-issue of the parent. This is the numeric ID from the GitHub URL (e.g., 101 in github.com/owner/repo/issues/101).",
           "x-synonyms": ["subIssueNumber"]
         },
+        "repo": {
+          "type": "string",
+          "description": "Target repository in 'owner/repo' format for cross-repository sub-issue linking. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."

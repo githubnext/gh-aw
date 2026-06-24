@@ -711,12 +711,19 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 //   - workflowData: The workflow data containing agent configuration
 //
 // Returns:
-//   - string: The AWF command to use (e.g., "sudo -E awf" or custom command)
+//   - string: The AWF command to use (e.g., "sudo -E awf", "awf", or custom command)
 func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && agentConfig.Command != "" {
 		awfHelpersLog.Printf("Using custom AWF command: %s", agentConfig.Command)
 		return agentConfig.Command
+	}
+
+	// In network-isolation mode, AWF runs rootless: no sudo needed.
+	// Strip the "sudo -E " prefix from the default command to get the base binary name.
+	if isAWFNetworkIsolationEnabled(workflowData) {
+		awfHelpersLog.Print("Using rootless AWF command (network-isolation mode)")
+		return strings.TrimPrefix(string(constants.AWFDefaultCommand), "sudo -E ")
 	}
 
 	awfHelpersLog.Print("Using standard AWF command")

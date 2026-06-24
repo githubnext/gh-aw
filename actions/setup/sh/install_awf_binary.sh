@@ -33,9 +33,28 @@ AWF_INSTALL_DIR="/usr/local/bin"
 AWF_INSTALL_NAME="awf"
 AWF_LIB_DIR="/usr/local/lib/awf"
 
+# Parse flags from remaining arguments
+ROOTLESS=false
+for arg in "${@:2}"; do
+  case "$arg" in
+    --rootless) ROOTLESS=true ;;
+    *) echo "WARNING: Unknown argument: $arg" >&2 ;;
+  esac
+done
+
+# maybe_sudo runs a command with sudo unless --rootless was specified.
+# In network-isolation mode, AWF runs rootless so sudo is not available or needed.
+maybe_sudo() {
+  if [ "$ROOTLESS" = "true" ]; then
+    "$@"
+  else
+    sudo "$@"
+  fi
+}
+
 if [ -z "$AWF_VERSION" ]; then
   echo "ERROR: AWF version is required"
-  echo "Usage: $0 VERSION"
+  echo "Usage: $0 VERSION [--rootless]"
   exit 1
 fi
 
@@ -44,6 +63,25 @@ OS="$(uname -s)"
 ARCH="$(uname -m)"
 
 echo "Installing awf with checksum verification (version: ${AWF_VERSION}, os: ${OS}, arch: ${ARCH})"
+
+# Rootless mode preflight: verify write access to install directories
+if [ "$ROOTLESS" = "true" ]; then
+  if ! [ -w "${AWF_INSTALL_DIR}" ] 2>/dev/null; then
+    echo "ERROR: --rootless requires write access to ${AWF_INSTALL_DIR}" >&2
+    echo "       This directory is root-owned on standard runners. --rootless is intended" >&2
+    echo "       only for ARC/Kubernetes containers where the install dirs are pre-chowned" >&2
+    echo "       to the runner user." >&2
+    exit 1
+  fi
+  # Also check lib dir writability (or ability to create it)
+  if ! { mkdir -p "${AWF_LIB_DIR}" 2>/dev/null && [ -w "${AWF_LIB_DIR}" ]; }; then
+    echo "ERROR: --rootless requires write access to ${AWF_LIB_DIR}" >&2
+    echo "       This directory is root-owned on standard runners. --rootless is intended" >&2
+    echo "       only for ARC/Kubernetes containers where the install dirs are pre-chowned" >&2
+    echo "       to the runner user." >&2
+    exit 1
+  fi
+fi
 
 # Download URLs
 BASE_URL="https://github.com/${AWF_REPO}/releases/download/${AWF_VERSION}"
@@ -132,18 +170,18 @@ install_bundle() {
   fi
 
   # Install bundle to lib directory
-  sudo mkdir -p "${AWF_LIB_DIR}"
-  sudo cp "${TEMP_DIR}/${bundle_name}" "${AWF_LIB_DIR}/${bundle_name}"
+  maybe_sudo mkdir -p "${AWF_LIB_DIR}"
+  maybe_sudo cp "${TEMP_DIR}/${bundle_name}" "${AWF_LIB_DIR}/${bundle_name}"
 
   # Create wrapper script using the absolute path to node.
   # Using an unquoted heredoc (<<WRAPPER) so that ${node_bin} is expanded
   # at wrapper-creation time, while \$@ is left as the literal $@ for
   # runtime argument forwarding.
-  sudo tee "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" > /dev/null <<WRAPPER
+  maybe_sudo tee "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" > /dev/null <<WRAPPER
 #!/bin/bash
 exec ${node_bin} /usr/local/lib/awf/awf-bundle.js "\$@"
 WRAPPER
-  sudo chmod +x "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
+  maybe_sudo chmod +x "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
 
   echo "✓ Installed awf bundle to ${AWF_LIB_DIR}/${bundle_name}"
 }
@@ -166,7 +204,7 @@ install_linux_binary() {
 
   # Make binary executable and install
   chmod +x "${TEMP_DIR}/${awf_binary}"
-  sudo mv "${TEMP_DIR}/${awf_binary}" "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
+  maybe_sudo mv "${TEMP_DIR}/${awf_binary}" "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
 }
 
 install_darwin_binary() {
@@ -191,7 +229,7 @@ install_darwin_binary() {
 
   # Make binary executable and install
   chmod +x "${TEMP_DIR}/${awf_binary}"
-  sudo mv "${TEMP_DIR}/${awf_binary}" "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
+  maybe_sudo mv "${TEMP_DIR}/${awf_binary}" "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
 }
 
 install_platform_binary() {
@@ -220,18 +258,20 @@ else
   install_platform_binary
 fi
 
-# Verify installation by running --version with sudo.
-# Use sudo to match how awf is invoked in subsequent steps (sudo -E awf ...).
-# On GPU runners (e.g. aw-gpu-runner-T4), /usr/local/bin may be inaccessible
-# to the current non-root user due to filesystem or security policy restrictions,
-# so running the version check without sudo would fail with "Permission denied".
+# Verify installation by running --version.
+# In legacy (non-rootless) mode, run with sudo (without -E, since we explicitly unset
+# environment variables below). On GPU runners (e.g. aw-gpu-runner-T4), /usr/local/bin
+# may be inaccessible to the current non-root user due to filesystem or security
+# policy restrictions, so running the version check without sudo would fail with
+# "Permission denied".
+# In rootless (network-isolation) mode, run without sudo since AWF is rootless.
 # A successful run prints the version string (e.g. "0.25.13") to stdout.
 # Also clear DIFC (Data Integrity and Filtering Controls) proxy env vars
 # set by start_difc_proxy.sh. When the DIFC proxy is active, GITHUB_API_URL
 # and GITHUB_GRAPHQL_URL point to localhost:18443 and GH_HOST is overridden.
 # The AWF bundle may try to reach these endpoints on startup, causing the
 # version check to fail with a connection error if the proxy rejects the request.
-sudo env -u GITHUB_API_URL -u GITHUB_GRAPHQL_URL -u GH_HOST \
+maybe_sudo env -u GITHUB_API_URL -u GITHUB_GRAPHQL_URL -u GH_HOST \
     "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" --version
 
 echo "✓ AWF installation complete"
