@@ -567,7 +567,7 @@ on: workflow_dispatch
 engine: copilot
 sandbox:
   agent:
-    network-isolation: true
+    default-route: false
 tools:
   github:
     mode: remote

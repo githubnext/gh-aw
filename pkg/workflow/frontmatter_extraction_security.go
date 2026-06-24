@@ -204,10 +204,11 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
-	// Extract network-isolation (AWF topology egress mode)
-	if isolationVal, hasIsolation := agentObj["network-isolation"]; hasIsolation {
-		if isolationBool, ok := isolationVal.(bool); ok {
-			agentConfig.NetworkIsolation = isolationBool
+	// Extract default-route (AWF topology egress mode).
+	// Semantics are inverted: default-route: false means no default route = network isolation mode.
+	if defaultRouteVal, hasDefaultRoute := agentObj["default-route"]; hasDefaultRoute {
+		if defaultRouteBool, ok := defaultRouteVal.(bool); ok {
+			agentConfig.NetworkIsolation = !defaultRouteBool
 		}
 	}
 
