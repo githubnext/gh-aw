@@ -326,7 +326,7 @@ find_cached_copilot_bin() {
     requested_version_normalized="$(normalize_version "$requested_version")"
   fi
 
-  local tool_cache_roots=()
+  local -a tool_cache_roots
 
   if [ -n "${RUNNER_TOOL_CACHE:-}" ]; then
     tool_cache_roots=("${RUNNER_TOOL_CACHE}")
