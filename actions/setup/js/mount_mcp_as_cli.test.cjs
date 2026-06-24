@@ -48,8 +48,16 @@ describe("mount_mcp_as_cli.cjs", () => {
     try {
       expect(toContainerUrl("http://0.0.0.0:8080/mcp/safeoutputs")).toBe("http://172.30.0.1:8080/mcp/safeoutputs");
     } finally {
-      process.env.MCP_GATEWAY_DOMAIN = originalDomain;
-      process.env.MCP_GATEWAY_PORT = originalPort;
+      if (originalDomain === undefined) {
+        delete process.env.MCP_GATEWAY_DOMAIN;
+      } else {
+        process.env.MCP_GATEWAY_DOMAIN = originalDomain;
+      }
+      if (originalPort === undefined) {
+        delete process.env.MCP_GATEWAY_PORT;
+      } else {
+        process.env.MCP_GATEWAY_PORT = originalPort;
+      }
     }
   });
 });
