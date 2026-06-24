@@ -1,51 +1,58 @@
 # Agent Performance — Latest Run
 
-**Timestamp:** 2026-06-23T13:40:00Z | **Run:** [§28029988746](https://github.com/github/gh-aw/actions/runs/28029988746)
+**Timestamp:** 2026-06-24T13:28:59Z | **Run:** [§28101831130](https://github.com/github/gh-aw/actions/runs/28101831130)
 
-## Summary: 60/100 Quality (↑ +3) | 60/100 Effectiveness (↑ +4) | 70/100 Health (↑ +4) | 3 workflows recovered
+## Summary: 60/100 Quality (→ stable) | 60/100 Effectiveness (→ stable) | 72/100 Health (↑ +2)
 
 ## Top Performers
-1. Static Analysis Suite (Q:95, E:92) — 250 workflows scanned, dedup clean, 100% success
+1. Static Analysis Suite (Q:95, E:92) — 251 workflows scanned, dedup clean, 100% success
 2. Team Status (Q:92, E:85) — daily summaries well-structured, high-value
-3. Copilot SWE Agent (Q:88, E:90) — 89% merge rate (33/37 settled) ↑ from 60%
+3. Copilot SWE Agent (Q:88, E:90) — 89% merge rate, 12 open PRs today (all <1d)
 4. Agentic Maintenance (Q:85, E:88) — 100% success, reliable ops
-5. Issue Monster (Q:82, E:85) — 100% success, consistent
-6. Auto-Triage Issues (Q:80, E:85) — CONFIRMED RECOVERED (5+ consecutive successes)
-7. PR Sous Chef (Q:80, E:83) — CONFIRMED RECOVERED (5+ successes Jun 23)
-8. Bot Detection (Q:80, E:85) — 100% success
+5. Issue Monster (Q:82, E:85) — 4/4 success, consistent
+6. Avenger (Q:82, E:85) — 4/4 success, confirmed stable
+7. PR Sous Chef (Q:80, E:83) — 5/5 success streak, confirmed stable
+8. Auto-Triage Issues (Q:80, E:85) — STABLE (5+ consecutive successes)
 
-## Confirmed Recovered (since last report Jun 21)
-- Auto-Triage Issues: CONFIRMED RECOVERED ✅
-- PR Sous Chef: CONFIRMED RECOVERED ✅
-- Daily Safe Outputs Git Simulator: CONFIRMED RECOVERED ✅
+## Confirmed Recovered (since Jun 23)
+- LintMonster: CONFIRMED RECOVERED ✅ (#40936 resolved Jun 24)
+- Daily News: STABLE ✅
+- Daily Safe Outputs Git Simulator: STABLE ✅
 
 ## Underperformers (Persistent)
-- Code Simplifier (Q:20, E:10) P1: intermittent regression after PR #40578. #40969 filed Jun 23. DO NOT RE-FILE.
+- Code Simplifier (Q:20, E:10) P1: HTTP 403 auth at 172.30.0.30:10002 Jun 24. #40969 OPEN. DO NOT RE-FILE.
 - Tool Denial Cluster (7+ workflows, Q:20, E:15): systemic. DO NOT RE-FILE.
 - Daily Safe Output Integrator (Q:20, E:15) Day 15+: tool denial. #39477. DO NOT RE-FILE.
 - Daily BYOK Ollama Test (Q:30, E:20) Day 15+: api-proxy cap. #39476/#40417. DO NOT RE-FILE.
-- Daily News (Q:30, E:20): orphan branch signing. #40190. DO NOT RE-FILE.
-- LintMonster (Q:70, E:60) Jun 23: copilot agent assignment permission failure. #40936. DO NOT RE-FILE.
+- Smoke CI (Q:30, E:30): upload_artifact 400 #38998. DO NOT RE-FILE.
 
-## PR Merge Rates (Jun 23 window — 60 PRs)
-- app/copilot-swe-agent: 89% (33/37 settled) ↑ from 60%
-- app/github-actions: 91% (10/11 settled) ↑ from 50%
-- app/dependabot: 0% (5 open — normal, awaiting review)
+## Monitoring (P2)
+- AI Moderator (#41156): Single "no safe outputs" Jun 24. Monitor Jun 25 before escalating.
+- Daily Rendering Scripts Verifier: Failed Jun 24 (#41202 auto-filed). Monitor.
+- Daily Sub-Agent Model Resolution Audit: Failed Jun 24 (#41177 auto-filed). Monitor.
+- GitHub Remote MCP Auth Test (#41174): Persistent. Monitor.
 
-## Ecosystem Health (Jun 23)
-- Workflows compiled: 250/250 (100%) ✅
-- Today: 40 success, 1 intentional failure, 10 in-progress
-- Smoke cluster: 36+ skipped/action_required/failing — systemic infra issue (#38998/#38999)
-- Coverage: 65 unique active workflows in 100 runs
+## PR Merge Rates (Jun 24 window)
+- app/copilot-swe-agent: 89% (33/37 settled) — stable
+- app/github-actions: 91% (10/11 settled) — stable
+- app/dependabot: 4 open (normal, awaiting review)
+- Stale PRs (>7d): 0 ✅
+
+## Trends
+- Quality: 60/100 (→ stable)
+- Effectiveness: 60/100 (→ stable)
+- Health: 72/100 (↑ from 70)
+- Compiled: 251/251 (100%) ✅
 
 ## Issues Filed This Run
-- 0 new issues (all P1/P2 already tracked; discussion created)
+- 0 new issues (all P1/P2 already tracked)
 
 ## Coverage Gaps (unchanged)
 - No automated recovery detection
 - No PR stall detection (PRs open >7d without review)
 - No AIC budget forecasting/alerting upstream
+- No unified smoke test dashboard (#38998 follow-up)
 
-## Do Not Re-File (additions Jun 23)
-- #40936 — LintMonster copilot agent assignment failure (monitor)
-- #40969 — Code Simplifier regression (#aw_cs_regress per WH)
+## Do Not Re-File (Jun 24 additions)
+- LintMonster #40936 (RECOVERED Jun 24)
+- All others: see shared-alerts.md
