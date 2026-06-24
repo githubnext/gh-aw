@@ -122,9 +122,8 @@ async function validateAssigneeAlias(owner, repo, assignee, issueNumber, githubC
         issue_number: parsedIssueNumber,
         assignee,
       });
-      const issueScopedStatus = issueScopedResponse && typeof issueScopedResponse === "object" && "status" in issueScopedResponse ? Number(issueScopedResponse.status) : undefined;
-      const validIssueScopedStatus = typeof issueScopedStatus === "number" && Number.isInteger(issueScopedStatus) ? issueScopedStatus : null;
-      if (validIssueScopedStatus !== null && validIssueScopedStatus >= 200 && validIssueScopedStatus < 300) {
+      const issueScopedStatus = issueScopedResponse && typeof issueScopedResponse === "object" && "status" in issueScopedResponse ? Number(issueScopedResponse.status) : Number.NaN;
+      if (Number.isInteger(issueScopedStatus) && issueScopedStatus >= 200 && issueScopedStatus < 300) {
         core.info(`Assignee alias ${assignee} is assignable via issue-scoped check`);
         return;
       }
