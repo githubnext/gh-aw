@@ -36,6 +36,8 @@ imports:
 				"error:",
 				"import file not found",
 				"imports:",
+				"hint:",
+				"missing.md",
 			},
 		},
 		{
@@ -57,6 +59,30 @@ imports:
 				"error:",
 				"failed to download import file",
 				"owner/repo/file.md@main",
+				"hint:",
+			},
+		},
+		{
+			name: "ref resolution error",
+			err: &parser.ImportError{
+				ImportPath: "owner/repo/file.md@v0.0.0-bad",
+				FilePath:   "test.md",
+				Line:       3,
+				Column:     3,
+				Cause:      errors.New("failed to resolve ref v0.0.0-bad: not found"),
+			},
+			yamlContent: `---
+on: push
+imports:
+  - owner/repo/file.md@v0.0.0-bad
+---`,
+			wantContain: []string{
+				"test.md:3:3:",
+				"error:",
+				"failed to resolve import reference",
+				"hint:",
+				"Verify the ref",
+				"owner/repo/file.md@v0.0.0-bad",
 			},
 		},
 		{
@@ -77,6 +103,7 @@ imports:
 				"test.md:3:3:",
 				"error:",
 				"invalid import specification",
+				"hint:",
 			},
 		},
 	}

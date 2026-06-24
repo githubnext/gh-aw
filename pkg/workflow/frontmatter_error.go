@@ -20,7 +20,7 @@ const frontmatterParseErrPrefix = "failed to parse frontmatter:\n"
 // Package-level compiled regex patterns for better performance
 var (
 	lineColPattern       = regexp.MustCompile(`\[(\d+):(\d+)\]\s*(.+)`)
-	sourceContextPattern = regexp.MustCompile(`\n(\s+\d+\s*\|)`)
+	sourceContextPattern = regexp.MustCompile(`\n(>?\s*\d+\s*\|)`)
 )
 
 // readSourceContextLines extracts source lines around a target line (±3 lines)
