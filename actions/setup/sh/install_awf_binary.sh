@@ -75,11 +75,11 @@ echo "Installing awf with checksum verification (version: ${AWF_VERSION}, os: ${
 
 # Rootless mode preflight: create and verify write access to install directories
 if [ "$ROOTLESS" = "true" ]; then
-  if ! { mkdir -p "${AWF_INSTALL_DIR}" 2>/dev/null && [ -w "${AWF_INSTALL_DIR}" ]; }; then
+  if ! { mkdir -p "${AWF_INSTALL_DIR}" && [ -w "${AWF_INSTALL_DIR}" ]; }; then
     echo "ERROR: --rootless could not create a writable install directory at ${AWF_INSTALL_DIR}" >&2
     exit 1
   fi
-  if ! { mkdir -p "${AWF_LIB_DIR}" 2>/dev/null && [ -w "${AWF_LIB_DIR}" ]; }; then
+  if ! { mkdir -p "${AWF_LIB_DIR}" && [ -w "${AWF_LIB_DIR}" ]; }; then
     echo "ERROR: --rootless could not create a writable lib directory at ${AWF_LIB_DIR}" >&2
     exit 1
   fi
@@ -181,7 +181,7 @@ install_bundle() {
   # runtime argument forwarding.
   maybe_sudo tee "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" > /dev/null <<WRAPPER
 #!/bin/bash
-exec ${node_bin} ${AWF_LIB_DIR}/awf-bundle.js "\$@"
+exec "${node_bin}" "${AWF_LIB_DIR}/awf-bundle.js" "\$@"
 WRAPPER
   maybe_sudo chmod +x "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
 
