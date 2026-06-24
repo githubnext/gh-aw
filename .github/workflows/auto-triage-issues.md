@@ -61,6 +61,9 @@ safe-outputs:
 timeout-minutes: 15
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Auto-Triage Issues Agent 🏷️

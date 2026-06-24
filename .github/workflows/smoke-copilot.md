@@ -152,6 +152,9 @@ experiments:
 features:
   gh-aw-detection: true
 
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Smoke Test: Copilot Engine Validation

@@ -94,6 +94,9 @@ tools:
   bash:
     - "*"
 
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Super Linter Analysis Report

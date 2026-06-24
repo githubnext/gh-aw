@@ -155,6 +155,9 @@ experiments:
   subagent_model: [small, large]
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Smoke Test: Copilot Engine Validation (AOAI Entra BYOK)

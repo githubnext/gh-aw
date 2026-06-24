@@ -44,6 +44,9 @@ tools:
     mode: gh-proxy
     toolsets:
     - default
+sandbox:
+  agent:
+    root-mode: false
 ---
 # Instructions Janitor
 

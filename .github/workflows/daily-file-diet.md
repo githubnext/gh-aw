@@ -46,6 +46,9 @@ tools:
 tracker-id: daily-file-diet
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

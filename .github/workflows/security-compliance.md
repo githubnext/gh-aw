@@ -46,6 +46,9 @@ tools:
     file-glob: "security-compliance-*/**"
 
 
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Security Compliance Campaign

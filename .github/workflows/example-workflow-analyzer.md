@@ -23,6 +23,9 @@ imports:
 
 
   - shared/otlp.md
+sandbox:
+  agent:
+    root-mode: false
 ---
 # Weekly Workflow Analysis
 

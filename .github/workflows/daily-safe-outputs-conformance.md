@@ -33,6 +33,9 @@ imports:
 
 
   - shared/otlp.md
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Daily Safe Outputs Conformance Checker

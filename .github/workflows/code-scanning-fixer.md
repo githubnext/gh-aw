@@ -44,6 +44,9 @@ safe-outputs:
 timeout-minutes: 20
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Code Scanning Alert Fixer Agent

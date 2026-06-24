@@ -37,6 +37,9 @@ concurrency:
   cancel-in-progress: true
 
 
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Code Refiner

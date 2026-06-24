@@ -86,6 +86,9 @@ steps:
       echo "$SCOPE" > /tmp/gh-aw/agent/scan-scope.txt
 
 
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Glossary Maintainer

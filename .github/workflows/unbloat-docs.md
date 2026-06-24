@@ -54,7 +54,9 @@ network:
 
 # Sandbox configuration - AWF is enabled by default but making it explicit for clarity
 sandbox:
-  agent: awf
+  agent:
+    id: awf
+    root-mode: false
 
 # Tools configuration
 tools:

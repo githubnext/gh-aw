@@ -75,6 +75,9 @@ tools:
     toolsets:
     - default
 tracker-id: spec-librarian
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Package Specification Librarian

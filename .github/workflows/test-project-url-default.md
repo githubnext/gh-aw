@@ -20,6 +20,9 @@ safe-outputs:
     project: "https://github.com/orgs/<ORG>/projects/<NUMBER>"
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Test Explicit Project URL Requirement

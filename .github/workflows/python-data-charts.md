@@ -31,6 +31,9 @@ safe-outputs:
 timeout-minutes: 15
 
 
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Python Data Visualization Generator

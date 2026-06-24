@@ -139,6 +139,9 @@ imports:
 
 
   - shared/otlp.md
+sandbox:
+  agent:
+    root-mode: false
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

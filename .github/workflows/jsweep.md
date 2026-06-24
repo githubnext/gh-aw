@@ -44,6 +44,9 @@ timeout-minutes: 20
 strict: true
 
 
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # jsweep - JavaScript Unbloater

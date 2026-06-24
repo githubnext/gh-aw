@@ -33,7 +33,9 @@ network:
   allowed:
     - defaults
 sandbox:
-  agent: awf
+  agent:
+    id: awf
+    root-mode: false
 
 tools:
   cli-proxy: true

@@ -74,6 +74,9 @@ tools:
 tracker-id: ab-testing-advisor
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

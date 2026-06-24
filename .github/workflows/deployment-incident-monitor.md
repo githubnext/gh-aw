@@ -30,6 +30,9 @@ safe-outputs:
   noop:
 timeout-minutes: 10
 
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Deployment Incident Monitor

@@ -151,6 +151,9 @@ tools:
 
 imports:
   - shared/otlp.md
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Daily Skill Optimizer Improvements

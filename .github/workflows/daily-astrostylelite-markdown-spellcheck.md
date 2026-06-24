@@ -282,6 +282,9 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    root-mode: false
 ---
 
 # Daily AstroStyleLite Markdown Spellcheck
