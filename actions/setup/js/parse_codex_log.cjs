@@ -425,7 +425,7 @@ function parseCodexJsonl(logContent) {
   markdown += "## 🤖 Commands and Tools\n\n";
   for (const item of parsedData) {
     if (item.type === "tool") {
-      const toolNameValue = item.toolName || "unknown__unknown";
+      const toolNameValue = item.toolName || "unknown-server__unknown-tool";
       const [server, toolName] = toolNameValue.split("__", 2);
       markdown += formatCodexToolCall(server, toolName, item.params || "", item.response || "", item.statusIcon || DEFAULT_STATUS_ICON);
     } else if (item.type === "bash") {
