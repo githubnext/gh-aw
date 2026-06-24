@@ -272,7 +272,7 @@ func TestCheckFirewallDisable(t *testing.T) {
 }
 
 func TestGenerateFirewallLogParsingStepFixesFirewallPermissions(t *testing.T) {
-	step := generateFirewallLogParsingStep("test-workflow")
+	step := generateFirewallLogParsingStep("test-workflow", nil)
 	stepContent := strings.Join(step, "\n")
 	expectedLogsDir := constants.AWFProxyLogsDir
 	expectedFirewallDir := path.Dir(expectedLogsDir)
@@ -283,5 +283,47 @@ func TestGenerateFirewallLogParsingStepFixesFirewallPermissions(t *testing.T) {
 
 	if !strings.Contains(stepContent, "sudo chmod -R a+rX "+expectedFirewallDir+" 2>/dev/null || true") {
 		t.Error("Expected firewall log parsing step to chmod the parent firewall directory for logs and audit upload")
+	}
+}
+
+func TestGenerateFirewallLogParsingStepNetworkIsolationOmitsSudo(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				ID:               "awf",
+				NetworkIsolation: true,
+			},
+		},
+	}
+	step := generateFirewallLogParsingStep("test-workflow", workflowData)
+	stepContent := strings.Join(step, "\n")
+
+	if strings.Contains(stepContent, "sudo chmod") {
+		t.Error("Expected firewall log parsing step to omit sudo chmod when network-isolation is enabled")
+	}
+
+	// Should still contain the awf logs summary logic
+	if !strings.Contains(stepContent, "awf logs summary") {
+		t.Error("Expected firewall log parsing step to contain awf logs summary")
+	}
+}
+
+func TestGenerateFirewallLogParsingStepWithNetworkIsolationFalse(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				ID:               "awf",
+				NetworkIsolation: false,
+			},
+		},
+	}
+	step := generateFirewallLogParsingStep("test-workflow", workflowData)
+	stepContent := strings.Join(step, "\n")
+
+	// With NetworkIsolation explicitly false, should still use sudo chmod
+	if !strings.Contains(stepContent, "sudo chmod -R a+rX") {
+		t.Error("Expected sudo chmod when NetworkIsolation is explicitly false")
 	}
 }
