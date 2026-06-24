@@ -1,4 +1,6 @@
+---
 "gh-aw": patch
+---
 
 perf: parallelize audit analysis tasks to reduce latency for long-running workflows
 
