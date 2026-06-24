@@ -1616,6 +1616,10 @@
             "subIssueNumber"
           ]
         },
+        "repo": {
+          "type": "string",
+          "description": "Target repository in 'owner/repo' format for cross-repository sub-issue linking. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."

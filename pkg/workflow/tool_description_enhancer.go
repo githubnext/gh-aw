@@ -452,6 +452,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.TargetRepoSlug != "" {
 				constraints = append(constraints, fmt.Sprintf("Sub-issues will be linked in repository %q.", config.TargetRepoSlug))
 			}
+			if len(config.AllowedRepos) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Sub-issue linking can target these repositories: %v.", config.AllowedRepos))
+			}
 		}
 
 	case "assign_milestone":
