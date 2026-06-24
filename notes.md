@@ -11,7 +11,6 @@
 ## Experimental finding (2026-06-20): Gate Footprint Signature Classification
 - Classify a branch's gate activity by **refire ratio = total runs / distinct workflows**.
 - **Narrow high-refire** (update-custom-css-themes: 27 runs / 5 distinct, ratio 5.4 — Q×12 + Agentic Commands×12): one branch re-firing the same 2 workflows; inflates daily gate-sweep count and co-located the only failure.
-- **Broad single-pass** (add-auto-updates 9/7, add-goal-support 8/8, investigate-skillet 6/6, ratio ~1.0-1.3): a normal one-pass CI fan-out per push.
 - Implication: GSII (sessions/branches=12.5) is bimodal by branch; "50 gate sweeps" ≠ 50 distinct gates. Effectiveness Medium-High; recommend Refine (track refire ratio per branch over time, watch if high-refire branches correlate with failures).
 
 ## Active patterns

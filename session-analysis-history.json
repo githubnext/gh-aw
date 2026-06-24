@@ -45,7 +45,7 @@
       "median_dur_min": 0.0,
       "loops": 0,
       "data_quality": "metadata-only",
-      "notes": "Partial recovery: success drops vs 5/26 (46\u219222) but stays clear of slump-day baseline (0-2). 70% on copilot/fix-stale-npm-metadata (Copilot-assigned). Top-2 branches=88%. Action_required 70%. 11 success durations all >=1.9m (cluster 9-15m)."
+      "notes": "Partial recovery: success drops vs 5/26 (46→22) but stays clear of slump-day baseline (0-2). 70% on copilot/fix-stale-npm-metadata (Copilot-assigned). Top-2 branches=88%. Action_required 70%. 11 success durations all >=1.9m (cluster 9-15m)."
     },
     {
       "date": "2026-06-03",
@@ -76,8 +76,19 @@
       "loops": 0,
       "data_quality": "metadata-only",
       "notes": "NEW zero-day (0%); recent-7d 6.0% vs prior-7d 20.6% downtrend. 49 action_required + 1 failure (skillet.lock on update-custom-css-themes). All 50 zero-duration, 24-min burst. EXPERIMENTAL gate-footprint-signature: dominant branch update-custom-css-themes 27/50 is narrow high-refire (Q12+AgenticCommands12, refire 5.4) vs 3 broad single-pass branches. 0 orphans (all Copilot-assigned). Logs empty 27th+ day. roll=20 experimental."
+    },
+    {
+      "date": "2026-06-24",
+      "sessions": 50,
+      "completion_pct": 2.0,
+      "avg_dur_min": 0.199,
+      "median_dur_min": 0.0,
+      "loops": 0,
+      "orphan_rate_pct": 0.0,
+      "data_quality": "metadata-only (OAuth, conv-logs empty 31st+ day)",
+      "notes": "Sharp pullback 20%->2% (-18pts); pure gate-sweep floor, single 9.73m cloud-agent success on lenstringsplit branch; tight 21-min window; orphan 0% (~34th healthy day)"
     }
   ],
-  "last_updated": "2026-06-20",
+  "last_updated": "2026-06-24",
   "version": "1.2"
 }
