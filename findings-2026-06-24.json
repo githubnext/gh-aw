@@ -1,0 +1,36 @@
+{
+  "date": "2026-06-24",
+  "files_analyzed": {
+    "documentation": [
+      "docs/src/content/docs/practices/sharing-workflows.md",
+      "docs/src/content/docs/specs/ai-credits-specification.md"
+    ],
+    "cli": [],
+    "messages": [
+      ".github/workflows/architecture-guardian.md",
+      ".github/workflows/discussion-task-miner.md"
+    ],
+    "validation": [
+      "pkg/workflow/strict_mode_sandbox_validation.go"
+    ]
+  },
+  "overall_quality": "mixed",
+  "quality_highlights": [
+    {
+      "file": "docs/src/content/docs/practices/sharing-workflows.md",
+      "aspect": "Seven clearly numbered sharing layers with practical code examples and consistent cross-references. Versioning section precisely distinguishes exact tags, moving refs, branch refs, and SHA pins."
+    },
+    {
+      "file": "pkg/workflow/strict_mode_sandbox_validation.go",
+      "aspect": "Single parameterized error template names exact forbidden field, offers two remediation paths, and links to reference documentation — all in one message."
+    }
+  ],
+  "single_file_improvements": [
+    {
+      "file": ".github/workflows/architecture-guardian.md",
+      "priority": "high",
+      "issue": "All three status messages have issues: 'Guardian online!' is theatrical; run-success has redundant 'Report delivered! 📋' clause; run-failure reuses 🏛️ success emoji and says 'Structure status unknown...' instead of 'Scan did not complete.'",
+      "issue_temporary_id": "#aw_ux_arch1"
+    }
+  ]
+}

@@ -1,6 +1,13 @@
 {
-  "last_updated": "2026-06-23",
+  "last_updated": "2026-06-24",
   "pending_tasks": [
+    {
+      "file": ".github/workflows/architecture-guardian.md",
+      "created": "2026-06-24",
+      "priority": "high",
+      "title": "Fix theatrical status messages: 'Guardian online!' → declarative; 'Report delivered! 📋' → remove redundancy; 'Structure status unknown...' → 'Scan did not complete.' with ❌ emoji on failure",
+      "issue_temporary_id": "#aw_ux_arch1"
+    },
     {
       "file": "docs/src/content/docs/reference/measuring-impact.md",
       "created": "2026-06-23",
