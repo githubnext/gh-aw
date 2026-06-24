@@ -9,11 +9,15 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
  */
 
 /**
- * @typedef {{ allow_body?: boolean, footer?: any }} EntityUpdateConfig
+ * @typedef {{ allow_body?: boolean, footer?: boolean | string }} EntityUpdateConfig
  */
 
 /**
- * @typedef {{ _includeFooter: boolean, title?: string, _operation?: string, _rawBody?: string, body?: string, [key: string]: any }} EntityUpdateData
+ * @typedef {{ _includeFooter: boolean, title?: string, _operation?: string, _rawBody?: string, body?: string }} EntityUpdateDataBase
+ */
+
+/**
+ * @typedef {EntityUpdateDataBase & { [key: string]: any }} EntityUpdateData
  */
 
 /**
@@ -22,6 +26,9 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * Build shared update payload fields for issue/PR update handlers.
+ *
+ * `options.defaultOperation` is required when `item.body` may be present;
+ * used as fallback when `item.operation` and `configDefaultOperation` are both absent.
  *
  * @param {EntityUpdateItem} item
  * @param {EntityUpdateConfig} config

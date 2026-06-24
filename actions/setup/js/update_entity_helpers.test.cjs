@@ -100,6 +100,12 @@ describe("update_entity_helpers.cjs - buildCommonEntityUpdateData", () => {
     expect(result.updateData._includeFooter).toBe(false);
   });
 
+  it('populates _includeFooter false when config.footer is the string "false"', () => {
+    const result = buildCommonEntityUpdateData({}, { footer: "false" });
+
+    expect(result.updateData._includeFooter).toBe(false);
+  });
+
   it("does not include body in updateData.body by default when includeBodyInApiData is omitted", () => {
     const result = buildCommonEntityUpdateData({ body: "Body text" }, {}, { defaultOperation: "append" });
 
