@@ -242,13 +242,12 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	tokenValue := "$GITHUB_MCP_SERVER_TOKEN"
 	hostValue := "$GITHUB_SERVER_URL"
 	if options.IncludeTypeField {
-		// Copilot engine: use escaped variable for Copilot CLI to interpolate
-		tokenValue = "\\${GITHUB_MCP_SERVER_TOKEN}"
+		// Copilot engine: keep shell expansion so gateway input remains valid JSON.
+		tokenValue = "${GITHUB_MCP_SERVER_TOKEN}"
 		// GitHub host for enterprise deployments (format: https://hostname, e.g. https://myorg.ghe.com).
 		// GITHUB_SERVER_URL is set by GitHub Actions as a full URL (https://hostname, no trailing slash),
 		// which matches the format expected by github-mcp-server for GITHUB_HOST.
-		// Copilot CLI interpolation syntax used here.
-		hostValue = "\\${GITHUB_SERVER_URL}"
+		hostValue = "${GITHUB_SERVER_URL}"
 	}
 
 	envVars := buildGitHubMCPEnvVars(tokenValue, hostValue, options.ReadOnly, options.Lockdown, options.Toolsets)

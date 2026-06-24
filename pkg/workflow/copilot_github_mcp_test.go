@@ -29,7 +29,7 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 				`"type": "stdio"`,
 				`"container": "ghcr.io/github/github-mcp-server:` + string(constants.DefaultGitHubMCPServerVersion) + `"`,
 				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}"`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
 			unexpectedContent: []string{},
 		},
