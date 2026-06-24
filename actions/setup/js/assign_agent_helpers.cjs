@@ -75,20 +75,17 @@ function getAgentName(assignee) {
  * in this repository, as determined by checkUserCanBeAssigned.
  * @param {string} owner
  * @param {string} repo
+ * @param {number|string|null} [issueNumber]
  * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
  * @returns {Promise<string[]>}
  */
-async function getAvailableAgentLogins(owner, repo, githubClient = github) {
+async function getAvailableAgentLogins(owner, repo, issueNumber = null, githubClient = github) {
   // Deduplicate defensively so future alias additions across agents do not duplicate REST lookups.
   const knownValues = [...new Set(Object.values(AGENT_LOGIN_NAMES).flat())];
   const available = [];
   for (const login of knownValues) {
     try {
-      await githubClient.rest.issues.checkUserCanBeAssigned({
-        owner,
-        repo,
-        assignee: login,
-      });
+      await validateAssigneeAlias(owner, repo, login, issueNumber, githubClient);
       available.push(login);
     } catch (e) {
       const status = e && typeof e === "object" && "status" in e ? e.status : undefined;
@@ -98,6 +95,40 @@ async function getAvailableAgentLogins(owner, repo, githubClient = github) {
     }
   }
   return available.sort();
+}
+
+/**
+ * Validate whether an assignee alias can be assigned in the repository context.
+ * Prefer issue-level assignability checks when issue/PR number is available because
+ * some agent bots are not surfaced by repository-scoped checks.
+ * @param {string} owner
+ * @param {string} repo
+ * @param {string} assignee
+ * @param {number|string|null} issueNumber
+ * @param {Object} githubClient
+ */
+async function validateAssigneeAlias(owner, repo, assignee, issueNumber, githubClient) {
+  if (issueNumber) {
+    try {
+      await githubClient.request("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
+        owner,
+        repo,
+        issue_number: Number(issueNumber),
+        assignee,
+      });
+      return;
+    } catch (e) {
+      const status = e && typeof e === "object" && "status" in e ? e.status : undefined;
+      if (status !== 404 && status !== 422) {
+        throw e;
+      }
+    }
+  }
+  await githubClient.rest.issues.checkUserCanBeAssigned({
+    owner,
+    repo,
+    assignee,
+  });
 }
 
 /**
@@ -145,10 +176,11 @@ async function getAssignableBots(owner, repo, githubClient = github) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {string} agentName - Agent name (copilot)
+ * @param {number|string|null} [issueNumber] - Optional issue/PR number for issue-scoped assignability check
  * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
  * @returns {Promise<string|null>} Agent ID or null if not found
  */
-async function findAgent(owner, repo, agentName, githubClient = github) {
+async function findAgent(owner, repo, agentName, issueNumber = null, githubClient = github) {
   const loginNames = getAgentLogins(agentName);
   if (loginNames.length === 0) {
     core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
@@ -161,11 +193,7 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
   for (const loginName of loginNames) {
     try {
       core.info(`Checking assignee alias: ${loginName}`);
-      await githubClient.rest.issues.checkUserCanBeAssigned({
-        owner,
-        repo,
-        assignee: loginName,
-      });
+      await validateAssigneeAlias(owner, repo, loginName, issueNumber, githubClient);
     } catch (checkError) {
       const errorMessage = getErrorMessage(checkError);
       const status = checkError?.status;
@@ -536,7 +564,7 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
   try {
     // Find agent using the github object authenticated via step-level github-token
     core.info(`Looking for ${agentName} coding agent...`);
-    const agentId = await findAgent(owner, repo, agentName);
+    const agentId = await findAgent(owner, repo, agentName, issueNumber);
     if (!agentId) {
       return { success: false, error: `${agentName} coding agent is not available for this repository` };
     }

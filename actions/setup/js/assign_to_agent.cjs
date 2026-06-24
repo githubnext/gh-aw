@@ -330,7 +330,7 @@ async function main(config = {}) {
       let agentId = agentCache[agentName];
       if (!agentId) {
         core.info(`Looking for ${agentName} coding agent...`);
-        agentId = await findAgent(effectiveOwner, effectiveRepo, agentName, githubClient);
+        agentId = await findAgent(effectiveOwner, effectiveRepo, agentName, issueNumber || pullNumber, githubClient);
         if (!agentId) {
           throw new Error(`${agentName} coding agent is not available for this repository`);
         }

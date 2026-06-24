@@ -676,7 +676,7 @@ async function main(config = {}) {
     }
     core.info(`Assigning copilot coding agent to fallback issue #${issueNumber} in ${owner}/${repo}...`);
     try {
-      const agentId = await findAgent(owner, repo, "copilot", copilotClient);
+      const agentId = await findAgent(owner, repo, "copilot", issueNumber, copilotClient);
       if (!agentId) {
         core.warning(`copilot coding agent is not available for ${owner}/${repo}`);
         return;
