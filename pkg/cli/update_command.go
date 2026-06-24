@@ -50,6 +50,8 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` update                    # Update all workflows from source
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist        # Update a specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist.md     # Same (alternative format)
+  ` + string(constants.CLIExtensionPrefix) + ` update --org my-org       # Preview workflow updates across an organization
+  ` + string(constants.CLIExtensionPrefix) + ` update --org my-org --repos '*-service'  # Limit org mode to matching repositories
   ` + string(constants.CLIExtensionPrefix) + ` update --no-merge         # Override local changes with upstream
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist --major # Allow major version updates
   ` + string(constants.CLIExtensionPrefix) + ` update --force            # Force update even if no changes
@@ -83,6 +85,8 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 			createPR := createPRFlag || prFlagAlias
 			coolDownStr, _ := cmd.Flags().GetString("cool-down")
 			targetRepo, _ := cmd.Flags().GetString("repo")
+			targetOrg, _ := cmd.Flags().GetString("org")
+			repoGlobs, _ := cmd.Flags().GetStringSlice("repos")
 
 			if err := validateEngine(engineOverride); err != nil {
 				return err
@@ -93,7 +97,11 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 				return fmt.Errorf("invalid --cool-down value: %w", err)
 			}
 
-			if createPR && targetRepo == "" {
+			if targetRepo != "" && targetOrg != "" {
+				return errors.New("--repo and --org cannot be used together")
+			}
+
+			if createPR && targetRepo == "" && targetOrg == "" {
 				if err := PreflightCheckForCreatePR(verbose); err != nil {
 					return err
 				}
@@ -118,6 +126,10 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 
 			if targetRepo != "" {
 				return runUpdateForTargetRepo(cmd.Context(), targetRepo, opts, createPR, verbose)
+			}
+
+			if targetOrg != "" {
+				return runUpdateForOrg(cmd.Context(), targetOrg, repoGlobs, opts, createPR, verbose)
 			}
 
 			if err := RunUpdateWorkflows(cmd.Context(), opts); err != nil {
@@ -149,6 +161,8 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 	_ = cmd.Flags().MarkHidden("disable-security-scanner")
 	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files)")
 	cmd.Flags().Bool("no-redirect", false, "Refuse updates when redirect frontmatter is present")
+	cmd.Flags().String("org", "", "Preview or create workflow update pull requests across an organization")
+	cmd.Flags().StringSlice("repos", nil, "Limit --org mode to repositories matching one or more glob patterns")
 	addRepoFlag(cmd)
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the update changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
@@ -325,7 +339,7 @@ func shallowCloneTargetRepo(ctx context.Context, repo, destination string) error
 		return fmt.Errorf("failed to clean previous checkout %s: %w", destination, err)
 	}
 
-	cmd := exec.CommandContext(ctx, "gh", "repo", "clone", repo, destination, "--", "--depth=1")
+	cmd := exec.CommandContext(ctx, "gh", "repo", "clone", repo, destination, "--", "--depth=1", "--filter=blob:none", "--sparse")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		trimmed := strings.TrimSpace(string(output))
@@ -333,6 +347,17 @@ func shallowCloneTargetRepo(ctx context.Context, repo, destination string) error
 			return fmt.Errorf("failed to shallow clone %s: %w", repo, err)
 		}
 		return fmt.Errorf("failed to shallow clone %s: %w: %s", repo, err, trimmed)
+	}
+
+	sparseArgs := []string{"-C", destination, "sparse-checkout", "set", ".github/workflows", ".github/agents", ".github/aw"}
+	sparseCmd := exec.CommandContext(ctx, "git", sparseArgs...)
+	output, err = sparseCmd.CombinedOutput()
+	if err != nil {
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed == "" {
+			return fmt.Errorf("failed to configure sparse checkout for %s: %w", repo, err)
+		}
+		return fmt.Errorf("failed to configure sparse checkout for %s: %w: %s", repo, err, trimmed)
 	}
 	return nil
 }

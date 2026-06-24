@@ -226,6 +226,8 @@ func TestUpdateCommand_HelpText(t *testing.T) {
 	assert.Contains(t, outputStr, "no-redirect", "Help should document --no-redirect flag")
 	assert.Contains(t, outputStr, "no-security-scanner", "Help should document --no-security-scanner flag")
 	assert.Contains(t, outputStr, "repo", "Help should document --repo flag")
+	assert.Contains(t, outputStr, "org", "Help should document --org flag")
+	assert.Contains(t, outputStr, "repos", "Help should document --repos flag")
 	assert.Contains(t, outputStr, "3-way merge", "Help should explain merge behavior")
 
 	// Should reference upgrade for other features
