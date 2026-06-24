@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +18,10 @@ func TestNewLintCommand(t *testing.T) {
 	require.NotNil(t, cmd, "NewLintCommand should return a non-nil command")
 	assert.Equal(t, "lint", cmd.Name(), "Command name should be 'lint'")
 	require.NotNil(t, cmd.Flags().Lookup("dir"), "lint command should have a --dir flag")
-	assert.Equal(t, "d", cmd.Flags().Lookup("dir").Shorthand, "--dir should have -d shorthand")
+	dirFlag := cmd.Flags().Lookup("dir")
+	assert.Equal(t, "d", dirFlag.Shorthand, "--dir should have -d shorthand")
+	assert.Empty(t, dirFlag.DefValue, "--dir default should be empty so help text controls default formatting")
+	assert.Equal(t, "Workflow directory (default: "+constants.GetWorkflowDir()+")", dirFlag.Usage, "--dir help text should match standard workflow-dir phrasing")
 	require.NotNil(t, cmd.Flags().Lookup("shellcheck"), "lint command should have a --shellcheck flag")
 	require.NotNil(t, cmd.Flags().Lookup("pyflakes"), "lint command should have a --pyflakes flag")
 	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unknown permission scope "copilot-requests"`,
@@ -48,6 +52,19 @@ func TestResolveLockFilesForLint(t *testing.T) {
 		files, err := resolveLockFilesForLint(nil, tempDir)
 		require.NoError(t, err, "should resolve lock files from default dir")
 		assert.Equal(t, []string{lockA, lockB}, files, "should return sorted .lock.yml files only")
+	})
+
+	t.Run("uses default workflow dir when dir is empty", func(t *testing.T) {
+		cwd := t.TempDir()
+		t.Chdir(cwd)
+		defaultWorkflowDir := filepath.Join(cwd, ".github", "workflows")
+		require.NoError(t, os.MkdirAll(defaultWorkflowDir, 0o755), "should create default workflow directory")
+		defaultLock := filepath.Join(defaultWorkflowDir, "default.lock.yml")
+		require.NoError(t, os.WriteFile(defaultLock, []byte("name: default"), 0o644), "should create lock file in default workflow directory")
+
+		files, err := resolveLockFilesForLint(nil, "")
+		require.NoError(t, err, "should resolve lock files from default workflow dir when --dir is omitted")
+		assert.Equal(t, []string{defaultLock}, files, "should lint lock files from .github/workflows by default")
 	})
 
 	t.Run("accepts explicit lock file path", func(t *testing.T) {
