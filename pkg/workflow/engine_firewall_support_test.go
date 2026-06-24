@@ -327,4 +327,3 @@ func TestGenerateFirewallLogParsingStepWithNetworkIsolationFalse(t *testing.T) {
 		t.Error("Expected sudo chmod when NetworkIsolation is explicitly false")
 	}
 }
-

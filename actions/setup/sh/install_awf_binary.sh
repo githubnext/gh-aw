@@ -259,8 +259,8 @@ else
 fi
 
 # Verify installation by running --version.
-# In legacy (non-rootless) mode, use sudo to match how awf is invoked in subsequent
-# steps. On GPU runners (e.g. aw-gpu-runner-T4), /usr/local/bin
+# In legacy (non-rootless) mode, run with sudo (without -E, since we explicitly unset
+# environment variables below). On GPU runners (e.g. aw-gpu-runner-T4), /usr/local/bin
 # may be inaccessible to the current non-root user due to filesystem or security
 # policy restrictions, so running the version check without sudo would fail with
 # "Permission denied".

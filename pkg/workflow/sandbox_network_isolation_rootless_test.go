@@ -57,10 +57,11 @@ This workflow verifies that sudo is omitted when network-isolation is enabled.
 			t.Error("Expected no 'sudo -E awf' in lock file when network-isolation is enabled")
 		}
 
-		// AWF must still be invoked (just without sudo). Check for the main AWF invocation pattern,
-		// not just any occurrence of "awf " which could match "awf logs summary" in log-parsing steps.
-		if !strings.Contains(lockStr, "run: awf ") && !strings.Contains(lockStr, "run: |\n          awf ") {
-			t.Error("Expected rootless 'awf' invocation in lock file main execution step")
+		// AWF must still be invoked (just without sudo). Check for the main AWF invocation pattern.
+		// The awf command appears in a multi-line run: | block with indentation (e.g., "          awf --config").
+		// This pattern uniquely identifies the main AWF execution (not the log-parsing "awf logs summary").
+		if !strings.Contains(lockStr, "\n          awf --config ") {
+			t.Error("Expected rootless 'awf --config' invocation in lock file main execution step")
 		}
 
 		// Install step must pass --rootless flag
