@@ -2059,7 +2059,7 @@ function buildAssignmentErrorsContext(hasAssignmentErrors, assignmentErrors) {
   }
 
   context += "\nTo resolve this, verify the agent token and Copilot access configuration:\n";
-  context += "- Configure a valid `GH_AW_AGENT_TOKEN` with repository write access and active Copilot entitlement\n";
+  context += "- Configure a valid `GH_AW_AGENT_TOKEN` with `issues: write` (and `pull-requests: write` when assigning PRs) plus active Copilot entitlement\n";
   context += "- If your org supports it, add `permissions: { copilot-requests: write }` to use org inference without a personal token\n";
   context += "- Docs: https://github.github.com/gh-aw/reference/engines/#github-copilot-default\n\n";
 

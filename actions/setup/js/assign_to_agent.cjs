@@ -470,7 +470,7 @@ function getAssignToAgentErrors() {
     _allResults
       // Include skipped(ignore-if-error) entries that still captured an error so
       // downstream failure handling can surface assignment problems in issue/comment reports.
-      .filter(r => r.error && (!r.success || r.skipped))
+      .filter(r => r.error && (!r.success || (r.success && r.skipped)))
       .map(r => {
         const number = r.issue_number || r.pull_number;
         const prefix = r.issue_number ? "issue" : "pr";
