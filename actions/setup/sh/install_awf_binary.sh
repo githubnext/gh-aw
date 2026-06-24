@@ -42,6 +42,15 @@ for arg in "${@:2}"; do
   esac
 done
 
+# In rootless mode, install into the user's home directory instead of /usr/local
+# so that standard GitHub-hosted runners (where /usr/local is root-owned) work
+# without requiring any pre-chowning or sudo.
+if [ "$ROOTLESS" = "true" ]; then
+  AWF_USER_PREFIX="${HOME}/.local"
+  AWF_INSTALL_DIR="${AWF_USER_PREFIX}/bin"
+  AWF_LIB_DIR="${AWF_USER_PREFIX}/lib/awf"
+fi
+
 # maybe_sudo runs a command with sudo unless --rootless was specified.
 # In network-isolation mode, AWF runs rootless so sudo is not available or needed.
 maybe_sudo() {
@@ -64,21 +73,14 @@ ARCH="$(uname -m)"
 
 echo "Installing awf with checksum verification (version: ${AWF_VERSION}, os: ${OS}, arch: ${ARCH})"
 
-# Rootless mode preflight: verify write access to install directories
+# Rootless mode preflight: create and verify write access to install directories
 if [ "$ROOTLESS" = "true" ]; then
-  if ! [ -w "${AWF_INSTALL_DIR}" ] 2>/dev/null; then
-    echo "ERROR: --rootless requires write access to ${AWF_INSTALL_DIR}" >&2
-    echo "       This directory is root-owned on standard runners. --rootless is intended" >&2
-    echo "       only for ARC/Kubernetes containers where the install dirs are pre-chowned" >&2
-    echo "       to the runner user." >&2
+  if ! { mkdir -p "${AWF_INSTALL_DIR}" 2>/dev/null && [ -w "${AWF_INSTALL_DIR}" ]; }; then
+    echo "ERROR: --rootless could not create a writable install directory at ${AWF_INSTALL_DIR}" >&2
     exit 1
   fi
-  # Also check lib dir writability (or ability to create it)
   if ! { mkdir -p "${AWF_LIB_DIR}" 2>/dev/null && [ -w "${AWF_LIB_DIR}" ]; }; then
-    echo "ERROR: --rootless requires write access to ${AWF_LIB_DIR}" >&2
-    echo "       This directory is root-owned on standard runners. --rootless is intended" >&2
-    echo "       only for ARC/Kubernetes containers where the install dirs are pre-chowned" >&2
-    echo "       to the runner user." >&2
+    echo "ERROR: --rootless could not create a writable lib directory at ${AWF_LIB_DIR}" >&2
     exit 1
   fi
 fi
@@ -179,7 +181,7 @@ install_bundle() {
   # runtime argument forwarding.
   maybe_sudo tee "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" > /dev/null <<WRAPPER
 #!/bin/bash
-exec ${node_bin} /usr/local/lib/awf/awf-bundle.js "\$@"
+exec ${node_bin} ${AWF_LIB_DIR}/awf-bundle.js "\$@"
 WRAPPER
   maybe_sudo chmod +x "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
 
@@ -256,6 +258,15 @@ if has_node_20; then
 else
   echo "Node.js >= 20 not available, falling back to platform binary..."
   install_platform_binary
+fi
+
+# In rootless mode, add the install dir to PATH for this step and subsequent steps.
+# $GITHUB_PATH is the mechanism for persisting PATH additions across steps in GitHub Actions.
+if [ "$ROOTLESS" = "true" ]; then
+  export PATH="${AWF_INSTALL_DIR}:${PATH}"
+  if [ -n "${GITHUB_PATH:-}" ]; then
+    echo "${AWF_INSTALL_DIR}" >> "${GITHUB_PATH}"
+  fi
 fi
 
 # Verify installation by running --version.
