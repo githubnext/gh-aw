@@ -35,8 +35,10 @@ func TestNewUpdateCommandOrgFlags(t *testing.T) {
 
 	require.NotNil(t, cmd.Flags().Lookup("org"))
 	require.NotNil(t, cmd.Flags().Lookup("repos"))
+	require.NotNil(t, cmd.Flags().Lookup("create-issue"))
 	assert.Contains(t, cmd.Example, "--org my-org")
 	assert.Contains(t, cmd.Example, "--repos '*-service'")
+	assert.Contains(t, cmd.Example, "--create-issue")
 }
 
 func TestRunUpdateForOrgDryRun(t *testing.T) {
@@ -74,7 +76,7 @@ func TestRunUpdateForOrgDryRun(t *testing.T) {
 	}()
 
 	output := captureUpdateOrgStderr(t, func() {
-		err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, false, false)
+		err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, false, false, false)
 		require.NoError(t, err)
 	})
 
@@ -120,9 +122,56 @@ func TestRunUpdateForOrgCreatePRSortsOldestFirst(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, true, false)
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, true, false, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/older", "octo/newer"}, processed)
+}
+
+func TestRunUpdateForOrgCreateIssueSortsOldestFirst(t *testing.T) {
+	origSearch := searchOrgWorkflowReposFn
+	origPreview := previewOrgRepoUpdatesFn
+	origUpdate := runUpdateForTargetRepoFn
+	origWait := waitForOrgRateLimitFn
+	origCreateIssue := createIssueForOrgRepoFn
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+		return []string{"octo/newer", "octo/older"}, nil
+	}
+	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
+		edited := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		if strings.HasSuffix(repo, "older") {
+			edited = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+		}
+		return orgRepoPreview{
+			Repo:       repo,
+			OldestEdit: edited,
+			Workflows: []orgWorkflowPreview{{
+				Name:       "repo-assist",
+				CurrentRef: "v1.0.0",
+				LatestRef:  "v1.1.0",
+			}},
+		}, nil
+	}
+	runUpdateForTargetRepoFn = func(ctx context.Context, targetRepo string, opts UpdateWorkflowsOptions, createPR bool, verbose bool) error {
+		t.Fatalf("unexpected update call for %s", targetRepo)
+		return nil
+	}
+	var issuedFor []string
+	createIssueForOrgRepoFn = func(ctx context.Context, preview orgRepoPreview, verbose bool) error {
+		issuedFor = append(issuedFor, preview.Repo)
+		return nil
+	}
+	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
+	defer func() {
+		searchOrgWorkflowReposFn = origSearch
+		previewOrgRepoUpdatesFn = origPreview
+		runUpdateForTargetRepoFn = origUpdate
+		waitForOrgRateLimitFn = origWait
+		createIssueForOrgRepoFn = origCreateIssue
+	}()
+
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, false, true, false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"octo/older", "octo/newer"}, issuedFor)
 }
 
 func captureUpdateOrgStderr(t *testing.T, fn func()) string {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"path"
 	"slices"
 	"strings"
 	"time"
@@ -26,19 +25,10 @@ const orgUpdateCoreBuffer = 500
 // quota is much smaller and org discovery only needs a narrow cushion between pages.
 const orgUpdateSearchBuffer = 1
 
-var searchOrgWorkflowReposFn = searchOrgWorkflowRepos
 var previewOrgRepoUpdatesFn = previewOrgRepoUpdates
 var runUpdateForTargetRepoFn = runUpdateForTargetRepo
 var waitForOrgRateLimitFn = waitForOrgRateLimit
-
-type orgSearchResponse struct {
-	Items []struct {
-		Path       string `json:"path"`
-		Repository struct {
-			FullName string `json:"full_name"`
-		} `json:"repository"`
-	} `json:"items"`
-}
+var createIssueForOrgRepoFn = createIssueForOrgRepo
 
 type orgRateLimitResponse struct {
 	Resources struct {
@@ -62,7 +52,7 @@ type orgRepoPreview struct {
 	OldestEdit time.Time
 }
 
-func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts UpdateWorkflowsOptions, createPR bool, verbose bool) error {
+func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts UpdateWorkflowsOptions, createPR bool, createIssue bool, verbose bool) error {
 	if strings.TrimSpace(org) == "" {
 		return errors.New("--org cannot be empty")
 	}
@@ -130,12 +120,24 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 		return 1
 	})
 
-	if !createPR {
+	if !createPR && !createIssue {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dry-run preview of update pull requests:"))
 		for _, repo := range previewByRepo {
 			fmt.Fprintf(os.Stderr, "- %s\n", repo.Repo)
 			for _, wf := range repo.Workflows {
 				fmt.Fprintf(os.Stderr, "  - %s: %s -> %s\n", wf.Name, shortRef(wf.CurrentRef), shortRef(wf.LatestRef))
+			}
+		}
+		return nil
+	}
+
+	if createIssue {
+		for _, repo := range previewByRepo {
+			if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil && verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo.Repo, err)))
+			}
+			if err := createIssueForOrgRepoFn(ctx, repo, verbose); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -151,90 +153,6 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 	}
 
 	return nil
-}
-
-func validateRepoGlobs(globs []string) error {
-	for _, glob := range globs {
-		glob = strings.TrimSpace(glob)
-		if glob == "" {
-			return errors.New("--repos patterns cannot be empty")
-		}
-		if _, err := path.Match(glob, "example"); err != nil {
-			return fmt.Errorf("invalid --repos pattern %q: %w", glob, err)
-		}
-	}
-	return nil
-}
-
-func filterOrgRepos(repos []string, globs []string) []string {
-	if len(globs) == 0 {
-		return repos
-	}
-	filtered := make([]string, 0, len(repos))
-	for _, repo := range repos {
-		name := repo
-		if _, tail, ok := strings.Cut(repo, "/"); ok {
-			name = tail
-		}
-		for _, glob := range globs {
-			if ok, _ := path.Match(glob, repo); ok {
-				filtered = append(filtered, repo)
-				break
-			}
-			if ok, _ := path.Match(glob, name); ok {
-				filtered = append(filtered, repo)
-				break
-			}
-		}
-	}
-	return filtered
-}
-
-func searchOrgWorkflowRepos(ctx context.Context, org string, verbose bool) ([]string, error) {
-	query := fmt.Sprintf(`org:%s path:.github/workflows extension:md "source:"`, org)
-	perPage := 100
-	page := 1
-	seen := make(map[string]struct{})
-	var repos []string
-
-	for {
-		if err := waitForOrgRateLimitFn(ctx, "search", verbose); err != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after search rate limit check failure: %v", err)))
-		}
-		endpoint := fmt.Sprintf("/search/code?q=%s&per_page=%d&page=%d", url.QueryEscape(query), perPage, page)
-		output, err := workflow.RunGHContext(ctx, "Searching repositories...", "api", endpoint)
-		if err != nil {
-			return nil, fmt.Errorf("failed to search organization repositories: %w", err)
-		}
-
-		var response orgSearchResponse
-		if err := json.Unmarshal(output, &response); err != nil {
-			return nil, fmt.Errorf("failed to parse organization search results: %w", err)
-		}
-		if len(response.Items) == 0 {
-			break
-		}
-
-		for _, item := range response.Items {
-			repo := strings.TrimSpace(item.Repository.FullName)
-			if repo == "" {
-				continue
-			}
-			if _, ok := seen[repo]; ok {
-				continue
-			}
-			seen[repo] = struct{}{}
-			repos = append(repos, repo)
-		}
-
-		if len(response.Items) < perPage {
-			break
-		}
-		page++
-	}
-
-	slices.Sort(repos)
-	return repos, nil
 }
 
 func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
@@ -385,5 +303,37 @@ func waitForOrgRateLimit(ctx context.Context, resource string, verbose bool) err
 			fmt.Sprintf("GitHub %s rate limit OK: %d/%d remaining", resource, limit.Remaining, limit.Limit),
 		))
 	}
+	return nil
+}
+
+// createIssueForOrgRepo opens a GitHub issue in the target repository listing
+// the source-managed workflows that have updates available. The issue title and
+// body are formatted so maintainers can act on the report without running
+// gh aw locally first.
+func createIssueForOrgRepo(ctx context.Context, preview orgRepoPreview, verbose bool) error {
+	title := "Update source-managed agentic workflows"
+
+	var body strings.Builder
+	body.WriteString("The following source-managed agentic workflows in this repository have updates available:\n\n")
+	body.WriteString("| Workflow | Current | Latest |\n")
+	body.WriteString("| --- | --- | --- |\n")
+	for _, wf := range preview.Workflows {
+		fmt.Fprintf(&body, "| %s | %s | %s |\n", wf.Name, shortRef(wf.CurrentRef), shortRef(wf.LatestRef))
+	}
+	body.WriteString("\nRun `gh aw update` to apply these updates.\n")
+
+	endpoint := fmt.Sprintf("/repos/%s/issues", preview.Repo)
+	_, err := workflow.RunGHContext(ctx, "Creating issue...",
+		"api",
+		"--method", "POST",
+		endpoint,
+		"-f", "title="+title,
+		"-f", "body="+body.String(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create issue in %s: %w", preview.Repo, err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created issue in "+preview.Repo))
 	return nil
 }
