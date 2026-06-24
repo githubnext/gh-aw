@@ -40,12 +40,17 @@ func run(pass *analysis.Pass) (any, error) {
 			continue
 		}
 
-		for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
-			fn, ok := encl.Node().(*ast.FuncDecl)
-			if !ok {
+		for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
+			var ftype *ast.FuncType
+			switch fn := encl.Node().(type) {
+			case *ast.FuncDecl:
+				ftype = fn.Type
+			case *ast.FuncLit:
+				ftype = fn.Type
+			default:
 				continue
 			}
-			ctxParamName, ok := contextParamName(pass, fn)
+			ctxParamName, ok := contextParamName(pass, ftype)
 			if !ok {
 				break
 			}
@@ -95,15 +100,15 @@ func isContextBackgroundCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 }
 
 // contextParamName returns the first non-blank context.Context parameter name.
-func contextParamName(pass *analysis.Pass, fn *ast.FuncDecl) (string, bool) {
-	if fn.Type.Params == nil {
+func contextParamName(pass *analysis.Pass, ftype *ast.FuncType) (string, bool) {
+	if ftype == nil || ftype.Params == nil {
 		return "", false
 	}
 	ctxType := contextType(pass)
 	if ctxType == nil {
 		return "", false
 	}
-	for _, field := range fn.Type.Params.List {
+	for _, field := range ftype.Params.List {
 		t := pass.TypesInfo.TypeOf(field.Type)
 		if t == nil {
 			continue
