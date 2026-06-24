@@ -50,7 +50,6 @@ imports:
       title-prefix: "[daily issues] "
   - ../skills/jqschema/SKILL.md
   - shared/issues-data-fetch.md
-  - shared/python-dataviz.md
   - shared/python-nlp.md
   - shared/trends.md
 

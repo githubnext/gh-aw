@@ -37,7 +37,6 @@ timeout-minutes: 30
 imports:
   - shared/mcp/sentry.md
   - shared/mcp/grafana.md
-  - shared/python-dataviz.md
   - shared/trends.md
 ---
 
