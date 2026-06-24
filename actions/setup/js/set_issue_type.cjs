@@ -59,8 +59,15 @@ function getErrorStatus(error) {
   if (typeof error !== "object" || error === null) {
     return undefined;
   }
-  const errorWithStatus = /** @type {IssueTypeAPIError} */ error;
-  return errorWithStatus.status ?? errorWithStatus.response?.status;
+  const status = "status" in error ? error.status : undefined;
+  if (typeof status === "number") {
+    return status;
+  }
+  if (!("response" in error) || typeof error.response !== "object" || error.response === null) {
+    return undefined;
+  }
+  const responseStatus = "status" in error.response ? error.response.status : undefined;
+  return typeof responseStatus === "number" ? responseStatus : undefined;
 }
 
 /**
@@ -81,11 +88,18 @@ function mapInvalidIssueTypeError(error, issueTypeName) {
   if (typeof error !== "object" || error === null) {
     return baseMessage;
   }
-  const errorWithResponse = /** @type {IssueTypeAPIError} */ error;
-  const responseData = errorWithResponse.response?.data;
-  let errorDetails = responseData?.message;
-  if (Array.isArray(responseData?.errors) && responseData.errors.length > 0) {
-    errorDetails = responseData.errors[0]?.message;
+  const responseData = "response" in error && typeof error.response === "object" && error.response !== null && "data" in error.response ? error.response.data : undefined;
+  let errorDetails;
+  if (typeof responseData === "object" && responseData !== null) {
+    if ("message" in responseData && typeof responseData.message === "string") {
+      errorDetails = responseData.message;
+    }
+    if ("errors" in responseData && Array.isArray(responseData.errors) && responseData.errors.length > 0) {
+      const firstError = responseData.errors[0];
+      if (typeof firstError === "object" && firstError !== null && "message" in firstError && typeof firstError.message === "string") {
+        errorDetails = firstError.message;
+      }
+    }
   }
   if (!errorDetails) {
     return baseMessage;
@@ -217,7 +231,7 @@ async function main(config = {}) {
 
     // Validate against allowed list if configured (empty string always allowed to clear)
     if (allowedTypes.length > 0 && !isClear) {
-      const matchedAllowedType = allowedTypes.find(candidateType => candidateType.toLowerCase() === issueTypeName.toLowerCase());
+      const matchedAllowedType = allowedTypes.find(allowedType => allowedType.toLowerCase() === issueTypeName.toLowerCase());
       if (!matchedAllowedType) {
         const error = `Issue type ${JSON.stringify(issueTypeName)} is not in the allowed list: ${JSON.stringify(allowedTypes)}`;
         core.warning(error);
