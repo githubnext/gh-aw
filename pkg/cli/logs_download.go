@@ -827,7 +827,7 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 			// The gh CLI fails when it encounters artifacts that are not valid zip archives.
 			// We warn and continue with any artifacts that were successfully downloaded.
 			if isNonZipArtifactError(output) {
-				// Show a concise warning; the raw output may be verbose so truncate it.
+				// Show a concise warning; preserve legacy behavior of 200 chars + "...".
 				msg := stringutil.Truncate(string(output), 203)
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Some artifacts could not be extracted (not a valid zip archive) and were skipped: "+msg))
 				skippedNonZipArtifacts = true

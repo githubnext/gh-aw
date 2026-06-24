@@ -83,6 +83,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No aw_info.json found at %s: %v", infoFilePath, statErr)))
 			}
 		} else {
+			// Path exists but is not a regular file (for example, a directory).
 			logsMetricsLog.Printf("No aw_info.json file found at %s", infoFilePath)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No aw_info.json file found at "+infoFilePath))
