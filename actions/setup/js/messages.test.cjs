@@ -715,7 +715,7 @@ describe("messages.cjs", () => {
 
       const result = generateFooterWithMessages("Test Workflow", "https://github.com/test/repo/actions/runs/123", "", "", undefined, 99, undefined);
 
-      expect(result).toContain("for issue #99");
+      expect(result).toContain("for PR #99");
     });
 
     it("should include triggering discussion number", async () => {
@@ -723,7 +723,7 @@ describe("messages.cjs", () => {
 
       const result = generateFooterWithMessages("Test Workflow", "https://github.com/test/repo/actions/runs/123", "", "", undefined, undefined, 7);
 
-      expect(result).toContain("for issue #discussion #7");
+      expect(result).toContain("for discussion #7");
     });
 
     it("should include installation instructions when source is provided", async () => {
