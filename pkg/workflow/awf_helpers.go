@@ -612,7 +612,7 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	}
 
 	if isAWFNetworkIsolationEnabled(config.WorkflowData) {
-		awfHelpersLog.Print("Skipping host-access flags: sandbox.agent.network-isolation is enabled")
+		awfHelpersLog.Print("Skipping host-access flags: sandbox.agent.sudo is false (network isolation mode)")
 	} else {
 		// Always add --enable-host-access: needed for the API proxy sidecar
 		// (to reach host.docker.internal:<port>) and for MCP gateway communication
@@ -719,10 +719,10 @@ func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 		return agentConfig.Command
 	}
 
-	// In network-isolation mode, AWF runs rootless: no sudo needed.
+	// When sudo is false (network isolation mode), AWF runs rootless: no sudo needed.
 	// Strip the "sudo -E " prefix from the default command to get the base binary name.
 	if isAWFNetworkIsolationEnabled(workflowData) {
-		awfHelpersLog.Print("Using rootless AWF command (network-isolation mode)")
+		awfHelpersLog.Print("Using rootless AWF command (sudo: false, network isolation mode)")
 		return strings.TrimPrefix(string(constants.AWFDefaultCommand), "sudo -E ")
 	}
 

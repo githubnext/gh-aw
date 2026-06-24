@@ -23,6 +23,9 @@ imports:
       expires: 1d
 
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 ---
 # Lockfile Statistics Analysis Agent
 

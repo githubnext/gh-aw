@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -69,10 +70,7 @@ func compileWorkflowWithTrackingAndRefresh(ctx context.Context, filePath string,
 	lockFile := stringutil.MarkdownToLockFile(filePath)
 
 	// Check if lock file exists before compilation
-	lockFileExists := false
-	if _, err := os.Stat(lockFile); err == nil {
-		lockFileExists = true
-	}
+	lockFileExists := fileutil.FileExists(lockFile)
 
 	addWorkflowCompilationLog.Printf("Lock file %s exists: %v", lockFile, lockFileExists)
 
@@ -83,9 +81,7 @@ func compileWorkflowWithTrackingAndRefresh(ctx context.Context, filePath string,
 	gitAttributesExisted := false
 	if gitRootErr == nil {
 		gitAttributesPath = filepath.Join(gitRoot, ".gitattributes")
-		if _, err := os.Stat(gitAttributesPath); err == nil {
-			gitAttributesExisted = true
-		}
+		gitAttributesExisted = fileutil.FileExists(gitAttributesPath)
 	}
 
 	// Track the lock file before compilation
@@ -147,7 +143,7 @@ func compileDispatchWorkflowDependencies(ctx context.Context, workflowFile strin
 		if _, mdErr := os.Stat(mdPath); mdErr != nil {
 			continue // .md doesn't exist locally
 		}
-		if _, lockErr := os.Stat(lockPath); lockErr == nil {
+		if fileutil.FileExists(lockPath) {
 			continue // .lock.yml already exists, nothing to do
 		}
 

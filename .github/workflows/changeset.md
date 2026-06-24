@@ -53,6 +53,9 @@ imports:
 
 
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Changeset Generator

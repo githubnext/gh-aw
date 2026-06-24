@@ -135,6 +135,9 @@ pre-agent-steps:
           in_used_not_schema: (.field_gaps.in_used_not_schema | length)
         }
       }' /tmp/gh-aw/agent/schema-diff.json
+sandbox:
+  agent:
+    sudo: false
 ---
 # Schema Consistency Checker
 

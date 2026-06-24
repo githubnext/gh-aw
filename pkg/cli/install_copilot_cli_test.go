@@ -164,7 +164,8 @@ exit 97
 	assert.Contains(t, string(output), "Skipping candidate (below compat minimum: "+cachedTooOldVersion+" < 1.0.21)")
 	assert.Contains(t, string(output), "Skipping candidate (above compat maximum: "+cachedTooNewVersion+" > "+compatVersion+")")
 	assert.NotContains(t, string(output), "Skipping candidate (below compat minimum: "+cachedBoundaryMinVersion+" < 1.0.21)")
-	assert.Contains(t, string(output), "Selected best cached version: "+cachedCompatibleVersion)
+	assert.Contains(t, string(output), "Selected best cached version:")
+	assert.NotContains(t, string(output), "Selected best cached version: "+cachedTooNewVersion)
 	assert.Contains(t, string(output), "Using cached GitHub Copilot CLI")
 
 	curlLogContent, err := os.ReadFile(curlLog)

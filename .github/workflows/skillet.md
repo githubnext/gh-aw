@@ -162,6 +162,9 @@ jobs:
       available_skills: ${{ steps.match_skill.outputs.available_skills }}
       request_text: ${{ steps.match_skill.outputs.request_text }}
       skip_reason: ${{ steps.match_skill.outputs.skip_reason }}
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Skillet 🍳

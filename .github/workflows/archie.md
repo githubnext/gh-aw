@@ -45,6 +45,9 @@ safe-outputs:
 timeout-minutes: 10
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Archie - Mermaid Diagram Generator

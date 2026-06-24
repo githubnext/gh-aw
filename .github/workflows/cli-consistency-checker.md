@@ -74,6 +74,9 @@ safe-outputs:
 timeout-minutes: 20
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # CLI Consistency Checker

@@ -14,6 +14,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 // renderGatewayMetricsTable renders gateway metrics as a console table
@@ -98,10 +99,7 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 		output.WriteString("\n")
 		filteredRows := make([][]string, 0, len(metrics.FilteredEvents))
 		for _, fe := range metrics.FilteredEvents {
-			reason := fe.Reason
-			if len(reason) > 80 {
-				reason = reason[:77] + "..."
-			}
+			reason := stringutil.Truncate(fe.Reason, 80)
 			filteredRows = append(filteredRows, []string{
 				fe.ServerID,
 				fe.ToolName,
@@ -121,10 +119,7 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 		output.WriteString("\n")
 		guardRows := make([][]string, 0, len(metrics.GuardPolicyEvents))
 		for _, gpe := range metrics.GuardPolicyEvents {
-			message := gpe.Message
-			if len(message) > 60 {
-				message = message[:57] + "..."
-			}
+			message := stringutil.Truncate(gpe.Message, 60)
 			repo := gpe.Repository
 			if repo == "" {
 				repo = "-"

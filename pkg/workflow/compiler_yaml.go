@@ -840,8 +840,8 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 
 	// Staged value from safe-outputs configuration
 	stagedValue := "false"
-	if data.SafeOutputs != nil && data.SafeOutputs.Staged {
-		stagedValue = "true"
+	if data.SafeOutputs != nil && data.SafeOutputs.Staged != nil {
+		stagedValue = data.SafeOutputs.Staged.String()
 	}
 
 	// Network configuration

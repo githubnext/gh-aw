@@ -16,7 +16,7 @@ func TestGenerateCreateAwInfoWithStaged(t *testing.T) {
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
-			Staged:       true, // pointer to true
+			Staged:       templatableBoolPtr("true"),
 		},
 	}
 
@@ -34,7 +34,7 @@ func TestGenerateCreateAwInfoWithStaged(t *testing.T) {
 	}
 
 	// Test with staged: false
-	workflowData.SafeOutputs.Staged = false
+	workflowData.SafeOutputs.Staged = templatableBoolPtr("false")
 
 	yaml.Reset()
 	c.generateCreateAwInfo(&yaml, workflowData, engine)

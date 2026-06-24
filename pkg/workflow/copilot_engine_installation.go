@@ -174,7 +174,7 @@ func getCopilotSDKInstallSpec(command string) copilotSDKInstallSpec {
 	switch runtimeID {
 	case "python":
 		spec.stepName = "Install GitHub Copilot SDK (Python)"
-		spec.command = workspaceCommandPrefix + "pip install --disable-pip-version-check github-copilot-sdk==" + version
+		spec.command = workspaceCommandPrefix + "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + version
 	case "typescript":
 		spec.stepName = "Install GitHub Copilot SDK (TypeScript)"
 		spec.command = workspaceCommandPrefix + "npm install --ignore-scripts --no-save @github/copilot-sdk@" + version + " ts-node typescript"
@@ -273,8 +273,8 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 	}
 
 	installCmd := "bash \"${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh\" " + version
-	// In network-isolation mode, AWF runs rootless: pass --rootless so the install
-	// script skips sudo when writing to /usr/local/bin and /usr/local/lib/awf.
+	// When sudo is false (network isolation mode), AWF runs rootless: pass --rootless
+	// so the install script skips sudo when writing to /usr/local/bin and /usr/local/lib/awf.
 	// Also check Disabled to match isAWFNetworkIsolationEnabled() behavior.
 	if agentConfig != nil && agentConfig.NetworkIsolation && !agentConfig.Disabled {
 		installCmd += " --rootless"

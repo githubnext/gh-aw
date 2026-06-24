@@ -48,6 +48,9 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Smoke Test: Service Ports (Redis)

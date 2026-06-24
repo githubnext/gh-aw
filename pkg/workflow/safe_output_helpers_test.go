@@ -233,7 +233,7 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 			name: "safe outputs with staged flag",
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
-					Staged: true,
+					Staged: templatableBoolPtr("true"),
 				},
 			},
 			expected: map[string]string{
@@ -530,10 +530,14 @@ func TestBuildSafeOutputJobEnvVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var staged *TemplatableBool
+			if tt.staged {
+				staged = templatableBoolPtr("true")
+			}
 			result := buildSafeOutputJobEnvVars(
 				tt.trialMode,
 				tt.trialLogicalRepoSlug,
-				tt.staged,
+				staged,
 				tt.targetRepoSlug,
 			)
 
@@ -651,7 +655,7 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 		TrialMode:        true,
 		TrialLogicalRepo: "owner/trial-repo",
 		SafeOutputs: &SafeOutputsConfig{
-			Staged: true,
+			Staged: templatableBoolPtr("true"),
 			UploadAssets: &UploadAssetsConfig{
 				BranchName:  "gh-aw-assets",
 				MaxSizeKB:   10240,

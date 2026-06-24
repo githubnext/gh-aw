@@ -72,6 +72,9 @@ safe-outputs:
 timeout-minutes: 10
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Smoke Test: Antigravity Engine Validation

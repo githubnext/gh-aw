@@ -578,11 +578,31 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ThreatDetectionMax
 					},
 				},
 			}
+
 			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/threat-detection-max-ai-credits-"+name+"-test.md")
 			if err != nil {
 				t.Fatalf("expected safe-outputs.threat-detection.max-ai-credits=%v (%s) to pass schema validation, got: %v", raw, name, err)
 			}
 		})
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_SafeOutputsStagedExpressionAccepted(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on": "push",
+		"safe-outputs": map[string]any{
+			"staged": "${{ inputs.staged }}",
+			"create-issue": map[string]any{
+				"staged": "${{ inputs['issue-staged'] }}",
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/safe-outputs-staged-expression-test.md")
+	if err != nil {
+		t.Fatalf("expected safe-outputs staged expressions to pass schema validation, got: %v", err)
 	}
 }
 

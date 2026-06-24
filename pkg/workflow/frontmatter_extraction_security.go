@@ -204,10 +204,14 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
-	// Extract network-isolation (AWF topology egress mode)
-	if isolationVal, hasIsolation := agentObj["network-isolation"]; hasIsolation {
-		if isolationBool, ok := isolationVal.(bool); ok {
-			agentConfig.NetworkIsolation = isolationBool
+	// Extract sudo (AWF topology egress mode).
+	// Semantics are inverted from the frontmatter field:
+	//   sudo: false  → no sudo = network isolation mode  → NetworkIsolation=true
+	//   sudo: true   → sudo enabled = normal mode        → NetworkIsolation=false
+	//   (omitted)      → sudo enabled = normal mode        → NetworkIsolation=false (zero value)
+	if sudoVal, hasSudo := agentObj["sudo"]; hasSudo {
+		if sudoBool, ok := sudoVal.(bool); ok {
+			agentConfig.NetworkIsolation = !sudoBool
 		}
 	}
 

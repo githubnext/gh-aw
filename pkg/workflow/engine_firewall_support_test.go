@@ -300,7 +300,7 @@ func TestGenerateFirewallLogParsingStepNetworkIsolationOmitsSudo(t *testing.T) {
 	stepContent := strings.Join(step, "\n")
 
 	if strings.Contains(stepContent, "sudo chmod") {
-		t.Error("Expected firewall log parsing step to omit sudo chmod when network-isolation is enabled")
+		t.Error("Expected firewall log parsing step to omit sudo chmod when sudo is false (network isolation mode)")
 	}
 
 	// Should still contain the awf logs summary logic

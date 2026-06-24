@@ -57,6 +57,9 @@ tools:
     mode: gh-proxy
     toolsets:
     - default
+sandbox:
+  agent:
+    sudo: false
 ---
 # Typist - Go Type Consistency Analysis
 

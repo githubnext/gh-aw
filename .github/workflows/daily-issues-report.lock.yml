@@ -765,7 +765,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.10
       - name: Install GitHub Copilot SDK (Python)
-        run: cd "${GITHUB_WORKSPACE}" && pip install --disable-pip-version-check github-copilot-sdk==1.0.2
+        run: cd "${GITHUB_WORKSPACE}" && python3 -m pip install --disable-pip-version-check github-copilot-sdk==1.0.2
       - name: Parse integrity filter lists
         id: parse-guard-vars
         env:

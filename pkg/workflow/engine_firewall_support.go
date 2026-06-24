@@ -132,8 +132,8 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 		"        run: |",
 	}
 
-	// In network-isolation mode, AWF runs rootless so firewall files are not owned by root
-	// — skip the sudo chmod permission-fix step.
+	// When sudo is false (network isolation mode), AWF runs rootless so firewall files
+	// are not owned by root — skip the sudo chmod permission-fix step.
 	if !isAWFNetworkIsolationEnabled(workflowData) {
 		stepLines = append(stepLines,
 			"          # Fix permissions on firewall logs/audit dirs so they can be uploaded as artifacts",

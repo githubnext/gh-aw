@@ -151,6 +151,9 @@ tools:
 
 imports:
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Daily Skill Optimizer Improvements

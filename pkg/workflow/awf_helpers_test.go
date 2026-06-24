@@ -1940,9 +1940,9 @@ func TestMainAgentRunUsesStandardCreditsExpressionNotDetectionExpression(t *test
 }
 
 // TestGetAWFCommandPrefixNetworkIsolation tests that GetAWFCommandPrefix returns the
-// rootless "awf" command (without "sudo -E") when network-isolation is enabled.
+// rootless "awf" command (without "sudo -E") when sudo: false (network isolation mode).
 func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
-	t.Run("returns awf (no sudo) when network-isolation is enabled", func(t *testing.T) {
+	t.Run("returns awf (no sudo) when sudo is false (network isolation mode)", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:         "test-workflow",
 			EngineConfig: &EngineConfig{ID: "copilot"},
@@ -1954,11 +1954,11 @@ func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
 			},
 		}
 		cmd := GetAWFCommandPrefix(workflowData)
-		assert.Equal(t, "awf", cmd, "Should return rootless 'awf' when network-isolation is enabled")
-		assert.NotContains(t, cmd, "sudo", "Should not contain sudo when network-isolation is enabled")
+		assert.Equal(t, "awf", cmd, "Should return rootless 'awf' when sudo is false (network isolation mode)")
+		assert.NotContains(t, cmd, "sudo", "Should not contain sudo when sudo is false (network isolation mode)")
 	})
 
-	t.Run("returns sudo -E awf when network-isolation is disabled", func(t *testing.T) {
+	t.Run("returns sudo -E awf when sudo is true (normal mode)", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:         "test-workflow",
 			EngineConfig: &EngineConfig{ID: "copilot"},
@@ -1970,7 +1970,7 @@ func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
 			},
 		}
 		cmd := GetAWFCommandPrefix(workflowData)
-		assert.Equal(t, "sudo -E awf", cmd, "Should return 'sudo -E awf' when network-isolation is disabled")
+		assert.Equal(t, "sudo -E awf", cmd, "Should return 'sudo -E awf' when sudo is true (normal mode)")
 	})
 
 	t.Run("returns sudo -E awf when no sandbox config is set", func(t *testing.T) {
@@ -1982,7 +1982,7 @@ func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
 		assert.Equal(t, "sudo -E awf", cmd, "Should return 'sudo -E awf' when there is no sandbox config")
 	})
 
-	t.Run("custom command takes precedence over network-isolation", func(t *testing.T) {
+	t.Run("custom command takes precedence over sudo setting", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:         "test-workflow",
 			EngineConfig: &EngineConfig{ID: "copilot"},
@@ -1995,6 +1995,6 @@ func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
 			},
 		}
 		cmd := GetAWFCommandPrefix(workflowData)
-		assert.Equal(t, "custom-awf", cmd, "Custom command should take precedence over network-isolation rootless mode")
+		assert.Equal(t, "custom-awf", cmd, "Custom command should take precedence over sudo rootless mode")
 	})
 }

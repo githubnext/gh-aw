@@ -59,6 +59,9 @@ safe-outputs:
     run-failure: "❌ [{workflow_name}]({run_url}) — BYOK endpoint test failed: {status}"
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Daily BYOK Endpoint Test

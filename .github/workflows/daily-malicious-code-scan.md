@@ -33,6 +33,9 @@ tools:
   cli-proxy: true
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -54,6 +54,9 @@ tools:
 tracker-id: daily-testify-uber-super-expert
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

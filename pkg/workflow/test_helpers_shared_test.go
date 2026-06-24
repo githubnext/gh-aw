@@ -17,6 +17,12 @@ func strPtr(s string) *string {
 	return new(s)
 }
 
+// templatableBoolPtr returns a pointer to a TemplatableBool value.
+func templatableBoolPtr(s string) *TemplatableBool {
+	value := TemplatableBool(s)
+	return &value
+}
+
 // mockValidationError helps create validation errors for testing.
 // This is a shared helper used by both unit and integration tests.
 type mockValidationError struct {

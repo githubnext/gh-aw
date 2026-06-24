@@ -75,6 +75,9 @@ tools:
     toolsets:
     - default
 tracker-id: spec-librarian
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Package Specification Librarian

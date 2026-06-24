@@ -64,7 +64,7 @@ func TestCustomAWFConfiguration(t *testing.T) {
 		}
 	})
 
-	t.Run("network-isolation agent config passes --rootless to install script", func(t *testing.T) {
+	t.Run("sudo: false agent config passes --rootless to install script", func(t *testing.T) {
 		agentConfig := &AgentSandboxConfig{
 			ID:               "awf",
 			NetworkIsolation: true,
@@ -74,7 +74,7 @@ func TestCustomAWFConfiguration(t *testing.T) {
 		stepStr := strings.Join(step, "\n")
 
 		if len(step) == 0 {
-			t.Error("Expected installation step to be generated when network-isolation is set")
+			t.Error("Expected installation step to be generated when sudo is false (network isolation mode)")
 		}
 
 		if !strings.Contains(stepStr, "install_awf_binary.sh") {
@@ -82,7 +82,7 @@ func TestCustomAWFConfiguration(t *testing.T) {
 		}
 
 		if !strings.Contains(stepStr, "--rootless") {
-			t.Error("Should contain --rootless flag when network-isolation is enabled")
+			t.Error("Should contain --rootless flag when sudo is false (network isolation mode)")
 		}
 	})
 
@@ -96,7 +96,7 @@ func TestCustomAWFConfiguration(t *testing.T) {
 		stepStr := strings.Join(step, "\n")
 
 		if strings.Contains(stepStr, "--rootless") {
-			t.Error("Should not contain --rootless flag when network-isolation is disabled")
+			t.Error("Should not contain --rootless flag when sudo is true (normal mode)")
 		}
 	})
 }

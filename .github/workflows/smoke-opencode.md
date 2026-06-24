@@ -58,6 +58,9 @@ safe-outputs:
 timeout-minutes: 10
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Smoke Test: OpenCode Engine Validation

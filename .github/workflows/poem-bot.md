@@ -152,6 +152,9 @@ safe-outputs:
 # Global timeout
 timeout-minutes: 10
 strict: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Poem Bot - A Creative Agentic Workflow

@@ -9,15 +9,15 @@ var dispatchRepositoryLog = logger.New("workflow:dispatch_repository")
 
 // DispatchRepositoryToolConfig defines a single repository dispatch tool within dispatch_repository
 type DispatchRepositoryToolConfig struct {
-	Description         string         `yaml:"description,omitempty"`          // Human-readable description
-	Workflow            string         `yaml:"workflow"`                       // Target workflow name (for traceability and payload)
-	EventType           string         `yaml:"event_type"`                     // repository_dispatch event_type
-	Repository          string         `yaml:"repository,omitempty"`           // Single target repository (owner/repo)
-	AllowedRepositories []string       `yaml:"allowed_repositories,omitempty"` // Multiple allowed target repositories
-	Inputs              map[string]any `yaml:"inputs,omitempty"`               // Input schema (similar to workflow_dispatch inputs)
-	Max                 *string        `yaml:"max,omitempty"`                  // Max dispatch executions (templatable int)
-	GitHubToken         string         `yaml:"github-token,omitempty"`         // Optional override token
-	Staged              bool           `yaml:"staged,omitempty"`               // If true, preview-only mode
+	Description         string           `yaml:"description,omitempty"`          // Human-readable description
+	Workflow            string           `yaml:"workflow"`                       // Target workflow name (for traceability and payload)
+	EventType           string           `yaml:"event_type"`                     // repository_dispatch event_type
+	Repository          string           `yaml:"repository,omitempty"`           // Single target repository (owner/repo)
+	AllowedRepositories []string         `yaml:"allowed_repositories,omitempty"` // Multiple allowed target repositories
+	Inputs              map[string]any   `yaml:"inputs,omitempty"`               // Input schema (similar to workflow_dispatch inputs)
+	Max                 *string          `yaml:"max,omitempty"`                  // Max dispatch executions (templatable int)
+	GitHubToken         string           `yaml:"github-token,omitempty"`         // Optional override token
+	Staged              *TemplatableBool `yaml:"staged,omitempty"`               // Templatable preview-only mode
 }
 
 // DispatchRepositoryConfig holds configuration for dispatching repository_dispatch events

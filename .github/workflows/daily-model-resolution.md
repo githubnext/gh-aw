@@ -37,6 +37,9 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

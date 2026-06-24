@@ -62,6 +62,9 @@ steps:
       EOF
 
 
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Mergefest - Merge Main into Pull Request Branch

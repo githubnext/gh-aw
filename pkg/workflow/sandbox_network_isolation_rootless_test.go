@@ -9,11 +9,12 @@ import (
 	"testing"
 )
 
-// TestNetworkIsolationRootless verifies that when sandbox.agent.network-isolation is
-// enabled the compiled lock.yml contains no "sudo" for the AWF binary install or the
-// AWF invocation (rootless mode), while legacy workflows still use "sudo -E awf".
+// TestNetworkIsolationRootless verifies that when sandbox.agent.sudo is false
+// (network isolation mode) the compiled lock.yml contains no "sudo" for the AWF binary
+// install or the AWF invocation (rootless mode), while legacy workflows still use
+// "sudo -E awf".
 func TestNetworkIsolationRootless(t *testing.T) {
-	t.Run("network-isolation workflow omits sudo from awf invocation and install", func(t *testing.T) {
+	t.Run("sudo: false workflow omits sudo from awf invocation and install", func(t *testing.T) {
 		workflowsDir := t.TempDir()
 
 		markdown := `---
@@ -27,12 +28,12 @@ network:
 sandbox:
   agent:
     id: awf
-    network-isolation: true
+    sudo: false
 ---
 
 # Test Network Isolation Rootless
 
-This workflow verifies that sudo is omitted when network-isolation is enabled.
+This workflow verifies that sudo is omitted when sudo is false (network isolation mode).
 `
 
 		workflowPath := filepath.Join(workflowsDir, "test-network-isolation.md")
@@ -54,7 +55,7 @@ This workflow verifies that sudo is omitted when network-isolation is enabled.
 
 		// AWF invocation must not use sudo
 		if strings.Contains(lockStr, "sudo -E awf") {
-			t.Error("Expected no 'sudo -E awf' in lock file when network-isolation is enabled")
+			t.Error("Expected no 'sudo -E awf' in lock file when sudo is false (network isolation mode)")
 		}
 
 		// AWF must still be invoked (just without sudo). Check for the main AWF invocation pattern.
@@ -69,16 +70,16 @@ This workflow verifies that sudo is omitted when network-isolation is enabled.
 			t.Error("Expected install_awf_binary.sh in lock file")
 		}
 		if !strings.Contains(lockStr, "--rootless") {
-			t.Error("Expected '--rootless' flag in install step when network-isolation is enabled")
+			t.Error("Expected '--rootless' flag in install step when sudo is false (network isolation mode)")
 		}
 
 		// The sudo chmod permission-fix step should be absent
 		if strings.Contains(lockStr, "sudo chmod -R a+rX") {
-			t.Error("Expected no 'sudo chmod -R a+rX' permission-fix step when network-isolation is enabled")
+			t.Error("Expected no 'sudo chmod -R a+rX' permission-fix step when sudo is false (network isolation mode)")
 		}
 	})
 
-	t.Run("legacy workflow (no network-isolation) still uses sudo -E awf", func(t *testing.T) {
+	t.Run("legacy workflow (sudo omitted) still uses sudo -E awf", func(t *testing.T) {
 		workflowsDir := t.TempDir()
 
 		markdown := `---
@@ -96,7 +97,7 @@ sandbox:
 
 # Test Legacy Sudo
 
-This workflow verifies that sudo is retained when network-isolation is NOT enabled.
+This workflow verifies that sudo is retained when sudo is not set (default route enabled).
 `
 
 		workflowPath := filepath.Join(workflowsDir, "test-legacy-sudo.md")
@@ -116,19 +117,19 @@ This workflow verifies that sudo is retained when network-isolation is NOT enabl
 		}
 		lockStr := string(lockContent)
 
-		// Legacy topology must still use sudo -E awf
+		// Default (sudo not set) must still use sudo -E awf
 		if !strings.Contains(lockStr, "sudo -E awf") {
-			t.Error("Expected 'sudo -E awf' in legacy lock file (no network-isolation)")
+			t.Error("Expected 'sudo -E awf' in lock file when sudo is not set (default route enabled)")
 		}
 
 		// Install step must NOT pass --rootless flag
 		if strings.Contains(lockStr, "--rootless") {
-			t.Error("Expected no '--rootless' flag in legacy install step")
+			t.Error("Expected no '--rootless' flag in install step when sudo is not set")
 		}
 
 		// sudo chmod permission-fix step should be present
 		if !strings.Contains(lockStr, "sudo chmod -R a+rX") {
-			t.Error("Expected 'sudo chmod -R a+rX' permission-fix step in legacy (non-isolation) workflow")
+			t.Error("Expected 'sudo chmod -R a+rX' permission-fix step when sudo is not set (default route enabled)")
 		}
 	})
 }
