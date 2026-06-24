@@ -378,7 +378,7 @@ Brief description of what was fixed and why.
 
 ### Trigger
 
-- **Run ID**: [§RUN_ID](https://github.com/${{ github.repository }}/actions/runs/RUN_ID)
+- **Run ID**: [§<RUN_ID>](https://github.com/${{ github.repository }}/actions/runs/<RUN_ID>)
 - **Engine**: ENGINE
 - **Date**: DATE
 
