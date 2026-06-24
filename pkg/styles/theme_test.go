@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	lipgloss "charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/term"
 )
 
 // TestAdaptiveColorsHaveBothVariants verifies that all adaptive colors
@@ -257,72 +258,78 @@ func TestAdaptiveColorVarsUseHexConstants(t *testing.T) {
 	}
 }
 
-func TestConfigureLipglossCompatUsesStderr(t *testing.T) {
+func TestAdaptiveColorRGBASwitching(t *testing.T) {
 	original := hasDarkBackground
 	t.Cleanup(func() {
 		hasDarkBackground = original
 	})
 
-	configureLipglossCompat()
+	c := adaptiveColor{
+		Light: lipgloss.Color("#ffffff"),
+		Dark:  lipgloss.Color("#000000"),
+	}
 
-	expected := lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
-	if hasDarkBackground != expected {
-		t.Fatalf("hasDarkBackground = %v, want %v", hasDarkBackground, expected)
+	hasDarkBackground = true
+	r, g, b, _ := c.RGBA()
+	if r != 0 || g != 0 || b != 0 {
+		t.Fatalf("dark background RGBA = (%d,%d,%d), want (0,0,0)", r, g, b)
+	}
+
+	hasDarkBackground = false
+	r, g, b, _ = c.RGBA()
+	if r != 0xffff || g != 0xffff || b != 0xffff {
+		t.Fatalf("light background RGBA = (%d,%d,%d), want (%d,%d,%d)", r, g, b, uint32(0xffff), uint32(0xffff), uint32(0xffff))
 	}
 }
 
-func TestShouldConfigureLipglossCompat(t *testing.T) {
+func TestConfigureHasDarkBackgroundUsesStderr(t *testing.T) {
+	original := hasDarkBackground
+	t.Cleanup(func() {
+		hasDarkBackground = original
+	})
+
+	var gotReader term.File
+	var gotWriter term.File
+	configureHasDarkBackground(func(r term.File, w term.File) bool {
+		gotReader = r
+		gotWriter = w
+		return false
+	})
+
+	if gotReader != os.Stdin {
+		t.Fatalf("reader = %v, want os.Stdin", gotReader)
+	}
+	if gotWriter != os.Stderr {
+		t.Fatalf("writer = %v, want os.Stderr", gotWriter)
+	}
+	if hasDarkBackground {
+		t.Fatalf("hasDarkBackground = %v, want false", hasDarkBackground)
+	}
+}
+
+func TestShouldProbeTerminalBackground(t *testing.T) {
 	tests := []struct {
-		name       string
-		goos       string
-		stderrMode os.FileMode
-		statErr    error
-		want       bool
+		name string
+		goos string
+		want bool
 	}{
 		{
-			name:       "windows character device",
-			goos:       "windows",
-			stderrMode: os.ModeDevice | os.ModeCharDevice,
-			want:       false,
+			name: "windows always skips startup probe",
+			goos: "windows",
+			want: false,
 		},
 		{
-			name:       "windows redirected pipe",
-			goos:       "windows",
-			stderrMode: os.ModeNamedPipe,
-			want:       false,
-		},
-		{
-			name:       "windows zero mode stat success",
-			goos:       "windows",
-			stderrMode: os.FileMode(0),
-			want:       false,
-		},
-		{
-			name:    "windows stat error",
-			goos:    "windows",
-			statErr: os.ErrPermission,
-			want:    false,
-		},
-		{
-			name:    "windows ErrInvalid fallback",
-			goos:    "windows",
-			statErr: os.ErrInvalid,
-			want:    false,
-		},
-		{
-			name:       "non-windows still configures",
-			goos:       "linux",
-			stderrMode: os.ModeNamedPipe,
-			statErr:    os.ErrPermission,
-			want:       true,
+			name: "non-windows still probes",
+			goos: "linux",
+			want: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := shouldConfigureLipglossCompat(tt.goos, tt.stderrMode, tt.statErr)
+			got := shouldProbeTerminalBackground(tt.goos)
 			if got != tt.want {
-				t.Fatalf("shouldConfigureLipglossCompat(%q, %v, %v) = %v, want %v", tt.goos, tt.stderrMode, tt.statErr, got, tt.want)
+				t.Fatalf("shouldProbeTerminalBackground(%q) = %v, want %v", tt.goos, got, tt.want)
 			}
 		})
 	}

@@ -53,11 +53,12 @@ import (
 	"runtime"
 
 	lipgloss "charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/term"
 )
 
 // hasDarkBackground tracks whether the terminal has a dark background.
 // Default is true (dark), which suits the vast majority of modern terminals.
-// On non-Windows platforms it is updated at startup by configureLipglossCompat.
+// On non-Windows platforms it is updated at startup by configureHasDarkBackground.
 // On Windows the probe is skipped entirely: the lipgloss background-color query
 // can crash (STATUS_DLL_INIT_FAILED) or hang under ConPTY and other
 // pseudo-terminal environments, so the safe default is always used instead.
@@ -78,14 +79,17 @@ func (c adaptiveColor) RGBA() (uint32, uint32, uint32, uint32) {
 	return c.Light.RGBA()
 }
 
-func configureLipglossCompat() {
-	hasDarkBackground = lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
+type backgroundDetector func(term.File, term.File) bool
+
+func configureHasDarkBackground(detector backgroundDetector) {
+	hasDarkBackground = detector(os.Stdin, os.Stderr)
 }
 
-func shouldConfigureLipglossCompat(goos string, stderrMode os.FileMode, statErr error) bool {
+func shouldProbeTerminalBackground(goos string) bool {
 	// On Windows, the lipgloss background-color query can crash
 	// (STATUS_DLL_INIT_FAILED) or hang under ConPTY and other pseudo-terminal
 	// environments. Skip the probe entirely and use the default (dark background).
+	// TODO: replace this with a Windows-safe background detector.
 	if goos == "windows" {
 		return false
 	}
@@ -93,21 +97,8 @@ func shouldConfigureLipglossCompat(goos string, stderrMode os.FileMode, statErr 
 }
 
 func init() {
-	stderrInfo, statErr := os.Stderr.Stat()
-	// Defensive fallback: Stat should not normally return (nil, nil). Treat that
-	// impossible state as an invalid stderr handle so Windows startup probing is
-	// safely skipped.
-	if statErr == nil && stderrInfo == nil {
-		statErr = os.ErrInvalid
-	}
-	// Zero mode means "unknown/unset"; on Windows this keeps the startup probe
-	// disabled unless stderr is explicitly confirmed as a character device.
-	stderrMode := os.FileMode(0)
-	if stderrInfo != nil {
-		stderrMode = stderrInfo.Mode()
-	}
-	if shouldConfigureLipglossCompat(runtime.GOOS, stderrMode, statErr) {
-		configureLipglossCompat()
+	if shouldProbeTerminalBackground(runtime.GOOS) {
+		configureHasDarkBackground(lipgloss.HasDarkBackground)
 	}
 }
 
