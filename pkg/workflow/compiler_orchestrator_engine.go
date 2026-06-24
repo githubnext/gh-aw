@@ -51,6 +51,8 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// `engine:` is always reported, even when imports also fail. The check is skipped
 	// when engineSetting is empty (engine may come from an import) or when a
 	// command-line --engine override is active (it will be validated later).
+	// The resolved value is intentionally discarded here because import defaults can
+	// still mutate engineConfig before the final resolveEngineRuntimeConfig call.
 	if engineSetting != "" && c.engineOverride == "" {
 		if _, err := c.engineCatalog.Resolve(engineSetting, engineConfig); err != nil {
 			orchestratorEngineLog.Printf("Early engine validation failed for %q: %v", engineSetting, err)

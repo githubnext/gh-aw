@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -602,8 +603,16 @@ Content.`
 	}
 
 	// Should include a "Did you mean: copilot?" suggestion
-	if !strings.Contains(errorStr, "copilot") {
-		t.Errorf("error should mention 'copilot' as a suggestion, got: %s", errorStr)
+	if !strings.Contains(errorStr, "Did you mean: copilot?") {
+		t.Errorf("error should include the exact suggestion line, got: %s", errorStr)
+	}
+
+	// Should preserve filename:line:col formatting for editor navigation.
+	if !strings.Contains(errorStr, testFile) {
+		t.Errorf("error should include the source file path, got: %s", errorStr)
+	}
+	if !regexp.MustCompile(regexp.QuoteMeta(testFile) + `:\d+:\d+: error:`).MatchString(errorStr) {
+		t.Errorf("error should have filename:line:col format, got: %s", errorStr)
 	}
 
 	// Should NOT report the missing import (engine error is primary)
