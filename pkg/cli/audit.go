@@ -532,21 +532,20 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 		}
 	})
 
-	// GitHub API calls share the same underlying endpoint; run them sequentially
-	// in one goroutine to avoid duplicate concurrent requests to the same URL.
+	// Fetch job details once; derive failedJobCount from the same response.
 	wg.Go(func() {
-		if count, err := fetchJobStatuses(run.DatabaseID, verbose); err == nil {
-			failedJobCount = count
-			if verbose && count > 0 {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count", count)))
-			}
-		}
 		var err error
 		jobDetails, err = fetchJobDetails(run.DatabaseID, verbose)
 		if err != nil {
 			auditLog.Printf("fetchJobDetails failed: %v", err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details: %v", err)))
+			}
+			return
+		}
+		for _, j := range jobDetails {
+			if isFailureConclusion(j.Conclusion) {
+				failedJobCount++
 			}
 		}
 	})
