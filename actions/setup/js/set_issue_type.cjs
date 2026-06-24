@@ -17,6 +17,8 @@ const { hasIssueIntentsRuntimeFeature, normalizeIssueIntentMetadata } = require(
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "set_issue_type";
 const AVAILABLE_TYPES_PATTERNS = [/one of:\s*(.+)$/i, /available(?: types?)?:\s*(.+)$/i];
+const NO_ISSUE_TYPES_PATTERNS = [/no issue types? (?:are )?available/i, /issue types? (?:is|are) not (?:enabled|configured)/i];
+const NO_ISSUE_TYPES_AVAILABLE_ERROR = "No issue types are available for this repository. Issue types must be configured in the repository or organization settings.";
 
 /**
  * @param {{ rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} intentMetadata Intent metadata in GraphQL format.
@@ -91,8 +93,16 @@ function mapInvalidIssueTypeError(error, issueTypeName) {
   // REST validation errors vary across endpoints and deployments; extract the list from
   // either "... one of: A, B" or "... available types: A, B" when present.
   const matchedPattern = AVAILABLE_TYPES_PATTERNS.find(pattern => pattern.test(errorDetails));
-  const availableTypes = (matchedPattern ? matchedPattern.exec(errorDetails)?.[1] : undefined)?.trim() || errorDetails;
-  return `${baseMessage} Available types: ${availableTypes}`;
+  const availableTypes = matchedPattern?.exec(errorDetails)?.[1]?.trim();
+  if (availableTypes) {
+    return `${baseMessage} Available types: ${availableTypes}`;
+  }
+
+  if (NO_ISSUE_TYPES_PATTERNS.some(pattern => pattern.test(errorDetails))) {
+    return NO_ISSUE_TYPES_AVAILABLE_ERROR;
+  }
+
+  return baseMessage;
 }
 
 /**
@@ -201,29 +211,31 @@ async function main(config = {}) {
 
     const issueTypeName = item.issue_type ?? "";
     const isClear = issueTypeName === "";
+    let normalizedIssueTypeName = issueTypeName;
 
     core.info(`Setting issue type on issue #${issueNumber}: ${isClear ? "(clear)" : JSON.stringify(issueTypeName)}`);
 
     // Validate against allowed list if configured (empty string always allowed to clear)
     if (allowedTypes.length > 0 && !isClear) {
-      const normalizedAllowed = allowedTypes.map(t => t.toLowerCase());
-      if (!normalizedAllowed.includes(issueTypeName.toLowerCase())) {
+      const matchedAllowedType = allowedTypes.find(allowedType => allowedType.toLowerCase() === issueTypeName.toLowerCase());
+      if (!matchedAllowedType) {
         const error = `Issue type ${JSON.stringify(issueTypeName)} is not in the allowed list: ${JSON.stringify(allowedTypes)}`;
         core.warning(error);
         return { success: false, error };
       }
+      normalizedIssueTypeName = matchedAllowedType;
     }
 
     // If in staged mode, preview without executing
     if (isStaged) {
-      const description = isClear ? `Would clear issue type on issue #${issueNumber} in ${itemRepo}` : `Would set issue type to ${JSON.stringify(issueTypeName)} on issue #${issueNumber} in ${itemRepo}`;
+      const description = isClear ? `Would clear issue type on issue #${issueNumber} in ${itemRepo}` : `Would set issue type to ${JSON.stringify(normalizedIssueTypeName)} on issue #${issueNumber} in ${itemRepo}`;
       logStagedPreviewInfo(description);
       return {
         success: true,
         staged: true,
         previewInfo: {
           issue_number: issueNumber,
-          issue_type: issueTypeName,
+          issue_type: normalizedIssueTypeName,
           repo: itemRepo,
         },
       };
@@ -232,7 +244,7 @@ async function main(config = {}) {
     try {
       const { owner, repo } = repoParts;
       const intentMetadata = normalizeIssueIntentMetadata(item);
-      const typeValue = buildIssueTypeValue(isClear, issueTypeName, intentMetadata);
+      const typeValue = buildIssueTypeValue(isClear, normalizedIssueTypeName, intentMetadata);
       await githubClient.rest.issues.update({
         owner,
         repo,
@@ -240,18 +252,18 @@ async function main(config = {}) {
         type: typeValue,
       });
 
-      const successMsg = isClear ? `Successfully cleared issue type on issue #${issueNumber}` : `Successfully set issue type to ${JSON.stringify(issueTypeName)} on issue #${issueNumber}`;
+      const successMsg = isClear ? `Successfully cleared issue type on issue #${issueNumber}` : `Successfully set issue type to ${JSON.stringify(normalizedIssueTypeName)} on issue #${issueNumber}`;
       core.info(successMsg);
 
       return {
         success: true,
         issue_number: issueNumber,
-        issue_type: issueTypeName,
+        issue_type: normalizedIssueTypeName,
         repo: itemRepo,
       };
     } catch (error) {
       if (!isClear && isIssueTypeValidationError(error)) {
-        const mappedError = mapInvalidIssueTypeError(error, issueTypeName);
+        const mappedError = mapInvalidIssueTypeError(error, normalizedIssueTypeName);
         core.error(`Failed to set issue type on issue #${issueNumber}: ${mappedError}`);
         return { success: false, error: mappedError };
       }

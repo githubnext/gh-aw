@@ -50,6 +50,15 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
         },
       },
     });
+  const createNoIssueTypesAvailableError = () =>
+    Object.assign(new Error("Validation failed"), {
+      response: {
+        status: 422,
+        data: {
+          errors: [{ message: "Issue types are not enabled for this repository" }],
+        },
+      },
+    });
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -222,6 +231,38 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     expect(result.error).toBe('Issue type "NonExistentType" not found. Available types: Bug, Feature');
   });
 
+  it("should map 422 invalid issue type errors without available list to base not-found message", async () => {
+    mockGithub.rest.issues.update.mockRejectedValue(createInvalidTypeError("Validation Failed"));
+
+    const result = await handler(
+      {
+        type: "set_issue_type",
+        issue_number: 42,
+        issue_type: "NonExistentType",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Issue type "NonExistentType" not found.');
+  });
+
+  it("should preserve no-issue-types-available error mapping", async () => {
+    mockGithub.rest.issues.update.mockRejectedValue(createNoIssueTypesAvailableError());
+
+    const result = await handler(
+      {
+        type: "set_issue_type",
+        issue_number: 42,
+        issue_type: "NonExistentType",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("No issue types are available for this repository. Issue types must be configured in the repository or organization settings.");
+  });
+
   it("should handle invalid issue numbers", async () => {
     const message = {
       type: "set_issue_type",
@@ -261,18 +302,25 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
   });
 
   it("should handle case-insensitive type matching", async () => {
+    const { main } = require("./set_issue_type.cjs");
+    const handlerWithAllowed = await main({
+      max: 5,
+      allowed: ["Bug", "Feature"],
+    });
+
     const message = {
       type: "set_issue_type",
       issue_number: 42,
       issue_type: "bug", // lowercase
     };
 
-    const result = await handler(message, {});
+    const result = await handlerWithAllowed(message, {});
     expect(result.success).toBe(true);
+    expect(result.issue_type).toBe("Bug");
     expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(
       expect.objectContaining({
         issue_number: 42,
-        type: "bug",
+        type: "Bug",
       })
     );
   });
