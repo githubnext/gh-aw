@@ -104,7 +104,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 			}
 
 			if createIssue && targetOrg == "" {
-				return errors.New("--create-issue is only valid with --org")
+				return errors.New("--create-issue requires --org to be specified")
 			}
 
 			if createPR && createIssue {
