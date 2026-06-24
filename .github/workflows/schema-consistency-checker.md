@@ -137,7 +137,7 @@ pre-agent-steps:
       }' /tmp/gh-aw/agent/schema-diff.json
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 # Schema Consistency Checker
 

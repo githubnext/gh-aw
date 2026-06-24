@@ -52,7 +52,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Smoke Agent: assign-to-agent with agentic-workflows

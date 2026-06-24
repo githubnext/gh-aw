@@ -47,7 +47,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Archie - Mermaid Diagram Generator

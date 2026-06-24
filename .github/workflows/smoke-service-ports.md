@@ -50,7 +50,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Smoke Test: Service Ports (Redis)

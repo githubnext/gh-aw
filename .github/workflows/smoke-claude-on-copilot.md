@@ -29,7 +29,7 @@ safe-outputs:
 timeout-minutes: 10
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Smoke Test: Claude on GitHub Inference PR Summary
