@@ -156,7 +156,7 @@ func buildImportErrorHint(message, importPath string) string {
 	case strings.Contains(message, "invalid import specification"):
 		return "Use the format `owner/repo/path@ref` for remote imports (e.g. `github/my-org/shared.md@main`)."
 	default:
-		return fmt.Sprintf("Check the `imports:` configuration for `%s` and the underlying error details above.", importPath)
+		return fmt.Sprintf("Check the `imports:` configuration for `%s` and review the error details.", importPath)
 	}
 }
 
