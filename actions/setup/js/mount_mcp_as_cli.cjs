@@ -76,8 +76,13 @@ function shellEscapeDoubleQuoted(str) {
  * @returns {string} URL suitable for use inside AWF containers
  */
 function toContainerUrl(rawUrl) {
-  const domain = process.env.MCP_GATEWAY_DOMAIN;
+  let domain = process.env.MCP_GATEWAY_DOMAIN;
   const port = process.env.MCP_GATEWAY_PORT;
+  if (domain === "host.docker.internal") {
+    // The CLI wrappers may run inside a chrooted host environment where
+    // host.docker.internal is not resolvable. Use the AWF gateway IP instead.
+    domain = "172.30.0.1";
+  }
   if (domain && port) {
     return rawUrl.replace(/^https?:\/\/[^/]+\/mcp\//, `http://${domain}:${port}/mcp/`);
   }
@@ -447,4 +452,4 @@ async function main() {
   core.setOutput("mounted-servers", mountedServers.join(","));
 }
 
-module.exports = { main, fetchMCPTools, generateCLIWrapperScript, isValidServerName, shellEscapeDoubleQuoted, parseMCPResponseBody };
+module.exports = { main, fetchMCPTools, generateCLIWrapperScript, isValidServerName, shellEscapeDoubleQuoted, parseMCPResponseBody, toContainerUrl };
