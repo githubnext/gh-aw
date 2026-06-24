@@ -39,29 +39,29 @@ func TestExtractAgentSandboxConfigPlatform(t *testing.T) {
 	})
 }
 
-func TestExtractAgentSandboxConfigDefaultRoute(t *testing.T) {
+func TestExtractAgentSandboxConfigRootMode(t *testing.T) {
 	compiler := &Compiler{}
 
-	t.Run("extracts sandbox.agent.default-route: false as network isolation mode", func(t *testing.T) {
+	t.Run("extracts sandbox.agent.root-mode: false as network isolation mode", func(t *testing.T) {
 		agentObj := map[string]any{
-			"id":            "awf",
-			"default-route": false,
+			"id":        "awf",
+			"root-mode": false,
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.True(t, config.NetworkIsolation, "default-route: false should enable network isolation (NetworkIsolation=true)")
+		assert.True(t, config.NetworkIsolation, "root-mode: false should enable network isolation (NetworkIsolation=true)")
 	})
 
-	t.Run("extracts sandbox.agent.default-route: true as normal mode", func(t *testing.T) {
+	t.Run("extracts sandbox.agent.root-mode: true as normal mode", func(t *testing.T) {
 		agentObj := map[string]any{
-			"id":            "awf",
-			"default-route": true,
+			"id":        "awf",
+			"root-mode": true,
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.False(t, config.NetworkIsolation, "default-route: true should disable network isolation (NetworkIsolation=false)")
+		assert.False(t, config.NetworkIsolation, "root-mode: true should disable network isolation (NetworkIsolation=false)")
 	})
 }
 

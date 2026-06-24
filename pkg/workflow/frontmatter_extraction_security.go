@@ -204,14 +204,14 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
-	// Extract default-route (AWF topology egress mode).
+	// Extract root-mode (AWF topology egress mode).
 	// Semantics are inverted from the frontmatter field:
-	//   default-route: false  → no default route = network isolation mode  → NetworkIsolation=true
-	//   default-route: true   → default route enabled = normal mode        → NetworkIsolation=false
-	//   (omitted)             → default route enabled = normal mode        → NetworkIsolation=false (zero value)
-	if defaultRouteVal, hasDefaultRoute := agentObj["default-route"]; hasDefaultRoute {
-		if defaultRouteBool, ok := defaultRouteVal.(bool); ok {
-			agentConfig.NetworkIsolation = !defaultRouteBool
+	//   root-mode: false  → no root mode = network isolation mode  → NetworkIsolation=true
+	//   root-mode: true   → root mode enabled = normal mode        → NetworkIsolation=false
+	//   (omitted)         → root mode enabled = normal mode        → NetworkIsolation=false (zero value)
+	if rootModeVal, hasRootMode := agentObj["root-mode"]; hasRootMode {
+		if rootModeBool, ok := rootModeVal.(bool); ok {
+			agentConfig.NetworkIsolation = !rootModeBool
 		}
 	}
 
