@@ -147,6 +147,44 @@ New confirmations this run:
   --is-ancestor` confirmed prior tip is ancestor of new tip on both diverged
   cells; no force-push, no `git merge` on feature.
 
+### 2026-06-24 (run 28077852611) — cells 20-23
+
+Tested indices 20-23: the last PATCH=medium / BRANCH=clean cell, then all three
+PATCH=medium / BRANCH=ahead cells at SIZE=tiny / HISTORY=none. All **passed**.
+First exercise of append-only push at the 200 KB patch tier.
+
+| config_id | outcome | patch files | patch KB | commits (final) | merges | push |
+|-----------|---------|-------------|----------|-----------------|--------|------|
+| tiny-none-single-medium-clean-merge_msg | pass | 1 | 198.4 | 1 | 0 | none |
+| tiny-none-single-medium-ahead-single | pass (both) | 1 | 198 | 2 | 0 | +1 append → 2 |
+| tiny-none-single-medium-ahead-multi | pass (both) | 3 | 202.4 | 4 | 0 | +1 append → 4 |
+| tiny-none-single-medium-ahead-merge_msg | pass (both) | 1 | 267.8 | 2 | 0 | +1 append → 2 |
+
+New confirmations this run:
+- **PATCH=medium (200 KB) append-only push is a clean fast-forward**:
+  `merge-base --is-ancestor` confirmed prior tip is ancestor of new tip on all
+  three ahead cells; no force-push, no `git merge` on feature. The 200 KB tier
+  behaves identically to micro/small for the push path.
+- **merge_msg filename leak re-confirmed at 200 KB (clean + ahead)**: single-
+  parent "Merge branch topic into feature" → empty `git rev-list --merges`,
+  parent count 1, but format-patch names it
+  `0001-Merge-branch-topic-into-feature.patch`. Cosmetic; consistent across
+  micro/small/medium and across clean/ahead/diverged. The clearest standing
+  signal that a downstream *message-text* merge heuristic (vs `--no-merges` /
+  parent-count) would misfire here.
+- **COMMIT=multi at 200 KB stays proportional**: 3 patches (68941/69154/69156 B)
+  = 207251 B (~202.4 KB); per-commit header overhead ~150-200 B per patch — i.e.
+  the per-commit cost did not grow with PATCH size, confirming the 06-23
+  "fixed-per-commit" finding at the ahead/push path too.
+- **MEASUREMENT CAVEAT — base64 sizing inconsistency**: the ahead-merge_msg
+  agent produced a 267.8 KB patch (vs ~198-202 KB for the other three) because
+  it base64-encoded the full 200000 random *bytes* (which inflates ~4/3 → ~270
+  KB on disk) instead of truncating the base64 stream to ~200000 bytes. Both are
+  non-compressible and well under any cap so outcome is unaffected, but agents
+  are NOT uniform about whether `patch_target_kb` means pre- or post-base64
+  bytes. This matters near a real threshold: standardize on "truncate the base64
+  output to TARGET_KB" so PATCH targets are honest. Watch at PATCH=large/xlarge.
+
 ## Patterns / Hypotheses (to validate as coverage grows)
 
 - **Baseline corner is healthy**: the smallest configs (tiny/none/single/micro)
@@ -167,12 +205,14 @@ New confirmations this run:
 
 ## Next
 
-Next enumeration index: **20** → `tiny-none-single-medium-clean-merge_msg`.
+Next enumeration index: **24** → `tiny-none-single-medium-diverged-single`.
 
-Indices 20-22 cover the rest of PATCH=medium / BRANCH=clean+ahead (20 =
-clean-merge_msg, 21 = ahead-single, 22 = ahead-multi). The medium tier continues
-to look benign on size; the next genuinely interesting jumps remain PATCH=large
-(1000 KB, index range ~36-53 at tiny/none/single) and especially PATCH=xlarge
-(4000 KB) and FILES=batch (100 files), still far ahead in the enumeration —
-those stay the priority candidates for the first size-limit rejection or
-timeout.
+Indices 24-26 finish PATCH=medium / BRANCH=diverged (24 = diverged-single,
+25 = diverged-multi, 26 = diverged-merge_msg); index 27 enters PATCH=large
+(1000 KB) at BRANCH=clean. The medium tier is now fully benign on size across
+clean/ahead. The first genuinely interesting size jump is **PATCH=large (1000
+KB)** starting at index 27, then **PATCH=xlarge (4000 KB)** at indices ~36-44 —
+these remain the priority candidates for the first size-limit rejection. Also
+prioritize standardizing the base64 truncation convention before reaching
+large/xlarge so PATCH targets are measured consistently (see 06-24 caveat).
+FILES=batch (100 files) and HISTORY=deep are still far ahead in the enumeration.
