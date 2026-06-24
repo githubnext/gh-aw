@@ -2734,8 +2734,10 @@ async function main() {
     // in the engine output and sets the agentic_engine_timeout output.
     const isTimedOut = agentConclusion === "timed_out" || agenticEngineTimeout;
 
-    // Check if there are assignment errors (regardless of agent job status)
-    const hasAssignmentErrors = parseInt(assignmentErrorCount, 10) > 0 || assignmentErrors.split("\n").some(line => line.trim());
+    // Check if there are assignment errors (regardless of agent job status).
+    // Use assignment_errors as the single source of truth because it includes
+    // both hard failures and skipped(ignore-if-error) assignment errors.
+    const hasAssignmentErrors = assignmentErrors.split("\n").some(line => line.trim());
 
     // Check if there are copilot assignment failures for created issues (regardless of agent job status)
     const hasAssignCopilotFailures = parseInt(assignCopilotFailureCount, 10) > 0;

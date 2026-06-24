@@ -466,14 +466,18 @@ function getAssignToAgentAssigned() {
  * @returns {string}
  */
 function getAssignToAgentErrors() {
-  return _allResults
-    .filter(r => r.error && (!r.success || r.skipped))
-    .map(r => {
-      const number = r.issue_number || r.pull_number;
-      const prefix = r.issue_number ? "issue" : "pr";
-      return `${prefix}:${number}:${r.agent}:${r.error}`;
-    })
-    .join("\n");
+  return (
+    _allResults
+      // Include skipped(ignore-if-error) entries that still captured an error so
+      // downstream failure handling can surface assignment problems in issue/comment reports.
+      .filter(r => r.error && (!r.success || r.skipped))
+      .map(r => {
+        const number = r.issue_number || r.pull_number;
+        const prefix = r.issue_number ? "issue" : "pr";
+        return `${prefix}:${number}:${r.agent}:${r.error}`;
+      })
+      .join("\n")
+  );
 }
 
 /**
