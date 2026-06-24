@@ -1054,6 +1054,8 @@ describe("assign_to_agent", () => {
 
     // Should not fail the workflow
     expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.setOutput).toHaveBeenCalledWith("assignment_error_count", "0");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("assignment_errors", expect.stringContaining("Bad credentials"));
 
     // Summary should show skipped assignments
     expect(mockCore.summary.addRaw).toHaveBeenCalled();

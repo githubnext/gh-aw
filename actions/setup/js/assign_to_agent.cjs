@@ -399,7 +399,17 @@ async function main(config = {}) {
         const errorType = isAuthError ? "authentication/permission" : "agent availability";
         core.warning(`Agent assignment failed for ${agentName} on ${type} #${number} due to ${errorType} error. Skipping due to ignore-if-error=true.`);
         core.info(`Error details: ${errorMessage}`);
-        _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true, skipped: true });
+        _allResults.push({
+          issue_number: issueNumber,
+          pull_number: pullNumber,
+          agent: agentName,
+          owner: effectiveOwner,
+          repo: effectiveRepo,
+          pull_request_repo: effectivePullRequestRepoSlug,
+          success: true,
+          skipped: true,
+          error: errorMessage,
+        });
         return { success: true, skipped: true };
       }
 
@@ -451,12 +461,13 @@ function getAssignToAgentAssigned() {
 
 /**
  * Returns the "assignment_errors" output string for step outputs.
- * Format: "issue:N:agent:error" or "pr:N:agent:error" per failure, newline-separated.
+ * Format: "issue:N:agent:error" or "pr:N:agent:error" per failure/skipped-with-error,
+ * newline-separated.
  * @returns {string}
  */
 function getAssignToAgentErrors() {
   return _allResults
-    .filter(r => !r.success && !r.skipped)
+    .filter(r => r.error && (!r.success || r.skipped))
     .map(r => {
       const number = r.issue_number || r.pull_number;
       const prefix = r.issue_number ? "issue" : "pr";
