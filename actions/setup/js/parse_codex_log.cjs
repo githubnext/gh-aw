@@ -423,10 +423,10 @@ function parseCodexJsonl(logContent) {
   markdown += "## 🤖 Commands and Tools\n\n";
   for (const item of parsedData) {
     if (item.type === "tool") {
-      const [server, toolName] = item.toolName.split("__");
-      markdown += formatCodexToolCall(server, toolName, item.params, item.response, item.statusIcon);
+      const [server = "tool", toolName = "tool"] = (item.toolName || "tool__tool").split("__");
+      markdown += formatCodexToolCall(server, toolName, item.params || "", item.response || "", item.statusIcon || "🔧");
     } else if (item.type === "bash") {
-      markdown += formatCodexBashCall(item.content, item.response, item.statusIcon);
+      markdown += formatCodexBashCall(item.content || "", item.response || "", item.statusIcon || "🔧");
     }
   }
   markdown += "\n## 📊 Information\n\n";

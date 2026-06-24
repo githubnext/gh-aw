@@ -118,7 +118,7 @@ describe("assign_agent_helpers.cjs", () => {
       const result = await getAvailableAgentLogins("owner", "repo");
 
       expect(result).toEqual([]);
-      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to check assignability for copilot-swe-agent"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Failed to check assignability for copilot-swe-agent"));
       expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(5);
     });
 
