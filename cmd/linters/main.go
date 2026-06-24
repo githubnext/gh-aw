@@ -45,6 +45,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/sprintferrorsnew"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
+	"github.com/github/gh-aw/pkg/linters/stringreplaceminusone"
 	"github.com/github/gh-aw/pkg/linters/timeafterleak"
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
@@ -80,6 +81,7 @@ func main() {
 		sprintferrdot.Analyzer,
 		sprintferrorsnew.Analyzer,
 		strconvparseignorederror.Analyzer,
+		stringreplaceminusone.Analyzer,
 		jsonmarshalignoredeerror.Analyzer,
 		lenstringzero.Analyzer,
 		lenstringsplit.Analyzer,
