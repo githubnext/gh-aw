@@ -276,8 +276,9 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 		return
 	}
 
-	// Add the global staged env var once when staged mode is enabled (including trial mode)
-	// and at least one handler is configured. Staged mode is independent of target-repo.
+	// Add the global staged env var once when resolveSafeOutputsStagedValue determines
+	// staged mode should be enabled (including trial mode), and at least one handler is
+	// configured. Staged mode is independent of target-repo.
 	if hasAnySafeOutputEnabled(data.SafeOutputs) {
 		if value := resolveSafeOutputsStagedValue(c.trialMode, data.SafeOutputs.Staged); value != nil {
 			*steps = append(*steps, buildTemplatableBoolEnvVar("GH_AW_SAFE_OUTPUTS_STAGED", value)...)
