@@ -217,7 +217,7 @@ async function main(config = {}) {
 
     // Validate against allowed list if configured (empty string always allowed to clear)
     if (allowedTypes.length > 0 && !isClear) {
-      const matchedAllowedType = allowedTypes.find(allowedType => allowedType.toLowerCase() === issueTypeName.toLowerCase());
+      const matchedAllowedType = allowedTypes.find(candidateType => candidateType.toLowerCase() === issueTypeName.toLowerCase());
       if (!matchedAllowedType) {
         const error = `Issue type ${JSON.stringify(issueTypeName)} is not in the allowed list: ${JSON.stringify(allowedTypes)}`;
         core.warning(error);

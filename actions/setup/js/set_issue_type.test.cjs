@@ -245,6 +245,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe('Issue type "NonExistentType" not found.');
+    expect(result.error).not.toContain("Available types:");
   });
 
   it("should preserve no-issue-types-available error mapping", async () => {
