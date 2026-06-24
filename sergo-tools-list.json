@@ -1,7 +1,7 @@
 {
-  "last_updated": "2026-06-23T00:00:00Z",
+  "last_updated": "2026-06-24T00:00:00Z",
   "tool_count": 23,
-  "tool_change_R45": "LSP 23 stable. REGISTRY DELTA 32->33 (grep -c Analyzer=33). 33rd=wgdonenotdeferred (last in main.go imports+reg). doc.go:3 STILL '30 active' (now 30-vs-33, #40436 widens, SKIP dup). R44 #aw_sg44a1/a2 LANDED as #40733(seenmapbool)/#40734(threshold nolint+test-skip). NEW HALF audit of 33rd wgdonenotdeferred: FALSE-NEG sg45a1=#aw_sg45a1 inLoop stack-walk (:73-79) crosses FuncLit boundary => `for{ go func(){wg.Done()}() }` suppressed (canonical fan-out, exactly its target). CONTRAST sibling deferinloop CORRECT (cur.Enclosing+FuncLit break :66-74). testdata BadGoroutine(not-in-loop)+GoodLoopDone(direct) but NO intersection. wgdonenotdeferred type-resolved(sync.WaitGroup obj.Pkg().Path) + nolint + test-skip = CLEAN on those axes. CACHED reconcile: httpnoctx COMPLETE (Get/Head/Post/PostForm=all 4 ctx-free methods, NOT a gap); errormessage CLEAN (CallExpr Preorder, no inner recurse=no double-trav); strconvparse AssignStmt-only bare-ExprStmt FN real but LOW-VALUE (strconv funcs pure=dead code); #40243/#40435 holdouts still open; #40580 still open.",
+  "tool_change_R46": "LSP 23 stable (no tool change R4-46). REGISTRY DELTA 33->34 (grep -c Analyzer=34); 34th=lenstringsplit (doc-omitted-minus-known detector). R46 issues: #aw_sg46a1 lenstringsplit empty-rawstring-sep FP; #aw_sg46a2 ctxbackground Enclosing(FuncDecl)-only FuncLit-scope FN. sg45a1 landed=#40947. 5 syntactic holdouts still open; tolowerequalfold type-resolved=#40580 landed.",
   "tools": [
     "activate_project", "check_onboarding_performed", "delete_memory", "edit_memory",
     "find_file", "find_referencing_symbols", "find_symbol", "get_current_config",
