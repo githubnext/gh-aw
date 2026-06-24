@@ -157,7 +157,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Smoke Test: Copilot Engine Validation (AOAI Entra BYOK)

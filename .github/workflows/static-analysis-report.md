@@ -89,7 +89,7 @@ steps:
 
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Static Analysis Report

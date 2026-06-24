@@ -62,7 +62,7 @@ tools:
 tracker-id: discussion-task-miner
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Discussion Task Miner - Code Quality Improvement Agent

@@ -78,7 +78,7 @@ steps:
 
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 # Repository Quality Improvement Agent
 
