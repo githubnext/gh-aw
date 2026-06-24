@@ -265,6 +265,8 @@ fi
 if [ "$ROOTLESS" = "true" ]; then
   if [ -n "${GITHUB_PATH:-}" ]; then
     echo "${AWF_INSTALL_DIR}" >> "${GITHUB_PATH}"
+  else
+    echo "WARNING: --rootless install complete but \$GITHUB_PATH is unset; add ${AWF_INSTALL_DIR} to PATH manually" >&2
   fi
 fi
 
