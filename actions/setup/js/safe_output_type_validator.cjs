@@ -38,6 +38,7 @@ const ISSUE_CLOSING_BOTH_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOSING
 const ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)\`(\\s+)(${ISSUE_REFERENCE_PATTERN})`, "gi");
 const ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN = new RegExp(`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)(\\s+)\`(${ISSUE_REFERENCE_PATTERN})\``, "gi");
 const NORMALIZE_CLOSER_BODY_TYPES = new Set(["create_issue", "add_comment", "create_pull_request"]);
+const ISSUE_INTENT_LABEL_TYPES = new Set(["add_labels", "remove_labels", "update_issue"]);
 
 /**
  * Remove markdown backticks around recognized issue-closing keyword references.
@@ -61,6 +62,123 @@ function normalizeIssueClosingKeywordBackticks(content) {
   normalized = normalized.replace(ISSUE_CLOSING_BOTH_BACKTICK_PATTERN, "$1$2$3");
   normalized = normalized.replace(ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN, "$1$2$3");
   return normalized.replace(ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN, "$1$2$3");
+}
+
+/**
+ * Validate and normalize issue-intent-aware label arrays.
+ * @param {any[]} value
+ * @param {number} lineNum
+ * @param {string} itemType
+ * @param {string} fieldName
+ * @param {ValidateOptions} [options]
+ * @returns {{isValid: boolean, normalizedValue?: any[], error?: string}}
+ */
+function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options) {
+  const normalized = [];
+  for (let i = 0; i < value.length; i++) {
+    const label = value[i];
+    if (typeof label === "string") {
+      const name = sanitizeContent(label, {
+        maxLength: 128,
+        allowedAliases: options?.allowedAliases || [],
+        maxBotMentions: options?.maxBotMentions,
+      });
+      if (!name) {
+        return { isValid: false, error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}] must be a non-empty string` };
+      }
+      normalized.push(name);
+      continue;
+    }
+
+    if (!label || typeof label !== "object" || Array.isArray(label)) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}] must be a string or an object with 'name'`,
+      };
+    }
+
+    const keys = Object.keys(label);
+    const invalidKeys = keys.filter(key => !["name", "rationale", "confidence", "suggest"].includes(key));
+    if (invalidKeys.length > 0) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}] contains unsupported fields: ${invalidKeys.join(", ")}`,
+      };
+    }
+    if (typeof label.name !== "string") {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].name must be a string`,
+      };
+    }
+    const name = sanitizeContent(label.name, {
+      maxLength: 128,
+      allowedAliases: options?.allowedAliases || [],
+      maxBotMentions: options?.maxBotMentions,
+    });
+    if (!name) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].name must be a non-empty string`,
+      };
+    }
+
+    /** @type {{ name: string, rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} */
+    const normalizedLabel = { name };
+    if (label.rationale !== undefined) {
+      if (typeof label.rationale !== "string") {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].rationale must be a string`,
+        };
+      }
+      const rationale = sanitizeContent(unfenceMarkdown(label.rationale), {
+        maxLength: 1024,
+        allowedAliases: options?.allowedAliases || [],
+        maxBotMentions: options?.maxBotMentions,
+      }).trim();
+      if (rationale) {
+        normalizedLabel.rationale = rationale;
+      }
+    }
+    if (label.confidence !== undefined) {
+      if (label.confidence !== null && label.confidence !== "") {
+        const confidenceRaw = String(label.confidence).trim().toUpperCase();
+        /** @type {"LOW"|"MEDIUM"|"HIGH"} */
+        let confidence;
+        switch (confidenceRaw) {
+          case "LOW":
+            confidence = "LOW";
+            break;
+          case "MEDIUM":
+            confidence = "MEDIUM";
+            break;
+          case "HIGH":
+            confidence = "HIGH";
+            break;
+          default:
+            return {
+              isValid: false,
+              error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].confidence must be one of: LOW, MEDIUM, HIGH`,
+            };
+        }
+        normalizedLabel.confidence = confidence;
+      }
+    }
+    if (label.suggest !== undefined) {
+      if (typeof label.suggest !== "boolean") {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].suggest must be a boolean`,
+        };
+      }
+      if (label.suggest) {
+        normalizedLabel.suggest = true;
+      }
+    }
+    normalized.push(normalizedLabel);
+  }
+  return { isValid: true, normalizedValue: normalized };
 }
 
 /**
@@ -432,6 +550,10 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
         isValid: false,
         error: `Line ${lineNum}: ${itemType} '${fieldName}' must be an array`,
       };
+    }
+
+    if (fieldName === "labels" && ISSUE_INTENT_LABEL_TYPES.has(itemType)) {
+      return validateIssueIntentLabels(value, lineNum, itemType, fieldName, options);
     }
 
     // Validate array items

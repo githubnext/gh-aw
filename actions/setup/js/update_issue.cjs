@@ -19,6 +19,8 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { fetchIssueState, mergeIssueState } = require("./safe_output_execution_metadata.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
+const { fetchAllRepoLabels } = require("./github_api_helpers.cjs");
+const { buildIssueIntentLabelUpdates, getIssueIntentLabelNames, hasIssueIntentsRuntimeFeature, normalizeIssueIntentLabelSpecs } = require("./issue_intents.cjs");
 
 /**
  * Execute the issue update API call
@@ -35,17 +37,30 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
   let rawBody = updateData._rawBody;
   const includeFooter = updateData._includeFooter !== false; // Default to true
   const titlePrefix = updateData._titlePrefix || "";
+  const labelsWereProvided = updateData.labels !== undefined;
+  const labelSpecs = labelsWereProvided ? normalizeIssueIntentLabelSpecs(updateData.labels) : undefined;
+  const useIssueIntentLabels = Boolean(labelSpecs) && hasIssueIntentsRuntimeFeature();
 
   // Remove internal fields
   const { _operation, _rawBody, _includeFooter, _titlePrefix, _workflowRepo, ...apiData } = updateData;
+  if (labelSpecs) {
+    apiData.labels = getIssueIntentLabelNames(labelSpecs);
+  }
+  if (useIssueIntentLabels) {
+    delete apiData.labels;
+  }
+
+  /** @type {any | null} */
+  let currentIssue = null;
 
   // Fetch current issue if needed (title prefix validation or body update)
-  if (titlePrefix || rawBody !== undefined) {
-    const { data: currentIssue } = await github.rest.issues.get({
+  if (titlePrefix || rawBody !== undefined || useIssueIntentLabels) {
+    const response = await github.rest.issues.get({
       owner: context.repo.owner,
       repo: context.repo.repo,
       issue_number: issueNumber,
     });
+    currentIssue = response.data;
 
     // Validate title prefix if specified
     if (titlePrefix) {
@@ -102,12 +117,48 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
     }
   }
 
-  const { data: issue } = await github.rest.issues.update({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    issue_number: issueNumber,
-    ...apiData,
-  });
+  /** @type {any} */
+  let issue = currentIssue;
+  if (Object.keys(apiData).length > 0) {
+    const response = await github.rest.issues.update({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: issueNumber,
+      ...apiData,
+    });
+    issue = response.data;
+  }
+
+  if (useIssueIntentLabels && labelSpecs) {
+    const issueNodeId = issue?.node_id || currentIssue?.node_id;
+    if (!issueNodeId) {
+      throw new Error(`Failed to resolve GraphQL node ID for issue #${issueNumber}`);
+    }
+
+    const repoLabels = await fetchAllRepoLabels(github, context.repo.owner, context.repo.repo);
+    const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
+    const labels = buildIssueIntentLabelUpdates(labelSpecs, labelIdByName);
+    const result = await github.graphql(
+      `mutation($issueId: ID!, $labels: [LabelUpdateInput!]!) {
+        updateIssue(input: { id: $issueId, labels: $labels }) {
+          issue {
+            id
+            labels(first: 100) {
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      }`,
+      { issueId: issueNodeId, labels }
+    );
+
+    issue = {
+      ...(issue || currentIssue || {}),
+      labels: result?.updateIssue?.issue?.labels?.nodes || [],
+    };
+  }
 
   return issue;
 }

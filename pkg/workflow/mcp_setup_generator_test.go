@@ -561,6 +561,52 @@ tools:
 		"Docker command should add supplementary group before mounting the Docker socket")
 }
 
+func TestMCPGatewayDockerCommandUsesBridgeInNetworkIsolationMode(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+sandbox:
+  agent:
+    network-isolation: true
+tools:
+  github:
+    mode: remote
+    toolsets: [repos]
+---
+
+# Test Docker Socket Group
+`
+
+	compiler := NewCompiler()
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.md")
+
+	err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+	require.NoError(t, err, "Failed to write test input file")
+
+	err = compiler.CompileWorkflow(inputFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	outputFile := stringutil.MarkdownToLockFile(inputFile)
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err, "Failed to read output file")
+	yamlStr := string(content)
+
+	require.Contains(t, yamlStr, `docker run -i --rm --network bridge`,
+		"Docker command should use bridge networking in network isolation mode")
+	require.Contains(t, yamlStr, `-p 127.0.0.1:`,
+		"Docker command should publish gateway port to host in network isolation mode")
+	require.NotContains(t, yamlStr, `--network host`,
+		"Docker command should not use host networking in network isolation mode")
+	require.NotContains(t, yamlStr, `--add-host host.docker.internal:127.0.0.1`,
+		"Docker command should not inject host.docker.internal mapping in network isolation mode")
+	require.Contains(t, yamlStr, `export MCP_GATEWAY_DOMAIN="awmg-mcpg"`,
+		"MCP gateway domain should use the internal container name in network isolation mode")
+	require.Contains(t, yamlStr, `export MCP_GATEWAY_HOST_DOMAIN="localhost"`,
+		"MCP gateway host domain should be localhost in network isolation mode so host-side clients can connect")
+}
+
 // TestMultipleHTTPMCPSecretsPassedToGatewayContainer verifies that multiple HTTP MCP servers
 // with different secrets all get their environment variables passed to the gateway container
 func TestMultipleHTTPMCPSecretsPassedToGatewayContainer(t *testing.T) {

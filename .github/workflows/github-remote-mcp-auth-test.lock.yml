@@ -715,14 +715,14 @@ jobs:
           
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_b46a4eac2d64d7dc_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_cafd6da6e0d34c84_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
                 "type": "http",
                 "url": "https://api.githubcopilot.com/mcp/",
                 "headers": {
-                  "Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}",
+                  "Authorization": "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
                   "X-MCP-Readonly": "true",
                   "X-MCP-Toolsets": "repos,issues,discussions"
                 },
@@ -732,8 +732,8 @@ jobs:
                   "issue_read"
                 ],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
-                  "GITHUB_HOST": "\${GITHUB_SERVER_URL}"
+                  "GITHUB_HOST": "\\${GITHUB_SERVER_URL}",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}"
                 },
                 "guard-policies": {
                   "allow-only": {
@@ -785,7 +785,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_b46a4eac2d64d7dc_EOF
+          GH_AW_MCP_CONFIG_cafd6da6e0d34c84_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
