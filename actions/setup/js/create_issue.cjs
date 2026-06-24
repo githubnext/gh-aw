@@ -1073,7 +1073,7 @@ async function main(config = {}) {
         }
         core.info(`Assigning copilot coding agent to issue #${issue.number} in ${qualifiedItemRepo}...`);
         try {
-          const agentId = await findAgent(repoParts.owner, repoParts.repo, "copilot", copilotClient);
+          const agentId = await findAgent(repoParts.owner, repoParts.repo, "copilot", issue.number, copilotClient);
           if (!agentId) {
             core.warning(`copilot coding agent is not available for ${qualifiedItemRepo}`);
           } else {

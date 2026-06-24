@@ -82,7 +82,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
         const repo = repoParts[1];
         
         if (!agentId) {
-          agentId = await findAgent(owner, repo, agentName);
+          agentId = await findAgent(owner, repo, agentName, issueNumber);
         }
         
         const issueDetails = await getIssueDetails(owner, repo, issueNumber);
@@ -109,7 +109,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
         const repo = repoParts[1];
         
         if (!agentId) {
-          agentId = await findAgent(owner, repo, agentName);
+          agentId = await findAgent(owner, repo, agentName, issueNumber);
         }
         
         const issueDetails = await getIssueDetails(owner, repo, issueNumber);
@@ -117,7 +117,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
       }
     })()`);
 
-    expect(findAgent).toHaveBeenCalledWith("owner", "repo", "copilot");
+    expect(findAgent).toHaveBeenCalledWith("owner", "repo", "copilot", 123);
     expect(getIssueDetails).toHaveBeenCalledWith("owner", "repo", 123);
     expect(assignAgentToIssue).toHaveBeenCalledWith("ISSUE_123", "AGENT_456", [], "copilot");
   });
@@ -150,7 +150,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
         const repo = repoParts[1];
         
         if (!agentId) {
-          agentId = await findAgent(owner, repo, agentName);
+          agentId = await findAgent(owner, repo, agentName, issueNumber);
         }
         
         const issueDetails = await getIssueDetails(owner, repo, issueNumber);
@@ -216,7 +216,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
           const owner = repoParts[0];
           const repo = repoParts[1];
           
-          const agentId = await findAgent(owner, repo, agentName);
+          const agentId = await findAgent(owner, repo, agentName, issueNumber);
           if (!agentId) {
             throw new Error(\`\${agentName} coding agent is not available for this repository\`);
           }
@@ -251,7 +251,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
         const owner = repoParts[0];
         const repo = repoParts[1];
         
-        const agentId = await findAgent(owner, repo, agentName);
+        const agentId = await findAgent(owner, repo, agentName, issueNumber);
         const issueDetails = await getIssueDetails(owner, repo, issueNumber);
         
         if (issueDetails.currentAssignees.includes(agentId)) {
@@ -292,7 +292,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
           const owner = repoParts[0];
           const repo = repoParts[1];
           
-          const agentId = await findAgent(owner, repo, agentName);
+          const agentId = await findAgent(owner, repo, agentName, issueNumber);
           const issueDetails = await getIssueDetails(owner, repo, issueNumber);
           const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
           
@@ -324,7 +324,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
           const owner = repoParts[0];
           const repo = repoParts[1];
           
-          const agentId = await findAgent(owner, repo, agentName);
+          const agentId = await findAgent(owner, repo, agentName, issueNumber);
           await getIssueDetails(owner, repo, issueNumber);
         }
       })()`);
