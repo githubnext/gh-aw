@@ -272,9 +272,16 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 		version = string(constants.DefaultFirewallVersion)
 	}
 
+	installCmd := "bash \"${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh\" " + version
+	// In network-isolation mode, AWF runs rootless: pass --rootless so the install
+	// script skips sudo when writing to /usr/local/bin and /usr/local/lib/awf.
+	if agentConfig != nil && agentConfig.NetworkIsolation {
+		installCmd += " --rootless"
+	}
+
 	stepLines := []string{
 		"      - name: Install AWF binary",
-		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh\" " + version,
+		"        run: " + installCmd,
 	}
 
 	return GitHubActionStep(stepLines)
