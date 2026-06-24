@@ -59,15 +59,12 @@ function getErrorStatus(error) {
   if (typeof error !== "object" || error === null) {
     return undefined;
   }
-  const status = "status" in error ? error.status : undefined;
-  if (typeof status === "number") {
-    return status;
-  }
+  const status = "status" in error && typeof error.status === "number" ? error.status : undefined;
+  if (status !== undefined) return status;
   if (!("response" in error) || typeof error.response !== "object" || error.response === null) {
     return undefined;
   }
-  const responseStatus = "status" in error.response ? error.response.status : undefined;
-  return typeof responseStatus === "number" ? responseStatus : undefined;
+  return "status" in error.response && typeof error.response.status === "number" ? error.response.status : undefined;
 }
 
 /**
