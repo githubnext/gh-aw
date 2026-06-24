@@ -1410,6 +1410,7 @@
                       "reopened",
                       "synchronize",
                       "converted_to_draft",
+                      "ready_for_review",
                       "locked",
                       "unlocked",
                       "enqueued",
