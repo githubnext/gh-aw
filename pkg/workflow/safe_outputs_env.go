@@ -283,6 +283,8 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 		if value := resolveSafeOutputsStagedValue(c.trialMode, data.SafeOutputs.Staged); value != nil {
 			*steps = append(*steps, buildTemplatableBoolEnvVar("GH_AW_SAFE_OUTPUTS_STAGED", value)...)
 			safeOutputsEnvLog.Print("Added staged flag")
+		} else {
+			safeOutputsEnvLog.Print("Staged flag not set")
 		}
 	}
 
