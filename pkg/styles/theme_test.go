@@ -270,15 +270,15 @@ func TestAdaptiveColorRGBASwitching(t *testing.T) {
 	}
 
 	hasDarkBackground = true
-	r, g, b, _ := c.RGBA()
-	if r != 0 || g != 0 || b != 0 {
-		t.Fatalf("dark background RGBA = (%d,%d,%d), want (0,0,0)", r, g, b)
+	r, g, b, a := c.RGBA()
+	if r != 0 || g != 0 || b != 0 || a != 0xffff {
+		t.Fatalf("dark background RGBA = (%d,%d,%d,%d), want (0,0,0,%d)", r, g, b, a, uint32(0xffff))
 	}
 
 	hasDarkBackground = false
-	r, g, b, _ = c.RGBA()
-	if r != 0xffff || g != 0xffff || b != 0xffff {
-		t.Fatalf("light background RGBA = (%d,%d,%d), want (%d,%d,%d)", r, g, b, uint32(0xffff), uint32(0xffff), uint32(0xffff))
+	r, g, b, a = c.RGBA()
+	if r != 0xffff || g != 0xffff || b != 0xffff || a != 0xffff {
+		t.Fatalf("light background RGBA = (%d,%d,%d,%d), want (%d,%d,%d,%d)", r, g, b, a, uint32(0xffff), uint32(0xffff), uint32(0xffff), uint32(0xffff))
 	}
 }
 
