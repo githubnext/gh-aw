@@ -54,13 +54,11 @@ func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
 	// Add staged flag if specified
 	if data.TrialMode {
 		env["GH_AW_SAFE_OUTPUTS_STAGED"] = "true"
-	} else if templatableBoolNeedsRuntimeEnv(data.SafeOutputs.Staged) {
-		if value := templatableBoolPtrString(data.SafeOutputs.Staged); value != nil {
-			if isExpression(*value) {
-				env["GH_AW_SAFE_OUTPUTS_STAGED"] = *value
-			} else {
-				env["GH_AW_SAFE_OUTPUTS_STAGED"] = "true"
-			}
+	} else if value := templatableBoolEnvVarValue(data.SafeOutputs.Staged); value != nil {
+		if isExpression(*value) {
+			env["GH_AW_SAFE_OUTPUTS_STAGED"] = *value
+		} else {
+			env["GH_AW_SAFE_OUTPUTS_STAGED"] = "true"
 		}
 	}
 	if data.TrialMode && data.TrialLogicalRepo != "" {
@@ -121,9 +119,9 @@ func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, stag
 	if trialMode {
 		safeOutputsEnvLog.Printf("Setting staged flag: trial_mode=%t, staged=%v", trialMode, staged)
 		customEnvVars = append(customEnvVars, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-	} else if templatableBoolNeedsRuntimeEnv(staged) {
+	} else if value := templatableBoolEnvVarValue(staged); value != nil {
 		safeOutputsEnvLog.Printf("Setting staged flag: trial_mode=%t, staged=%v", trialMode, staged)
-		customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_SAFE_OUTPUTS_STAGED", templatableBoolPtrString(staged))...)
+		customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_SAFE_OUTPUTS_STAGED", value)...)
 	}
 
 	// Set GH_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
@@ -285,8 +283,10 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 
 	// Add the global staged env var once if staged mode is enabled, not in trial mode,
 	// and at least one handler is configured. Staged mode is independent of target-repo.
-	if !c.trialMode && templatableBoolNeedsRuntimeEnv(data.SafeOutputs.Staged) && hasAnySafeOutputEnabled(data.SafeOutputs) {
-		*steps = append(*steps, buildTemplatableBoolEnvVar("GH_AW_SAFE_OUTPUTS_STAGED", templatableBoolPtrString(data.SafeOutputs.Staged))...)
+	if !c.trialMode && hasAnySafeOutputEnabled(data.SafeOutputs) {
+		if value := templatableBoolEnvVarValue(data.SafeOutputs.Staged); value != nil {
+			*steps = append(*steps, buildTemplatableBoolEnvVar("GH_AW_SAFE_OUTPUTS_STAGED", value)...)
+		}
 		safeOutputsEnvLog.Print("Added staged flag")
 	}
 

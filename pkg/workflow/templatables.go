@@ -218,11 +218,15 @@ func templatableBoolIsTrue(value *TemplatableBool) bool {
 	return value != nil && value.String() == "true"
 }
 
-func templatableBoolNeedsRuntimeEnv(value *TemplatableBool) bool {
+func templatableBoolEnvVarValue(value *TemplatableBool) *string {
 	if value == nil {
-		return false
+		return nil
 	}
-	return value.String() == "true" || isExpression(value.String())
+	s := value.String()
+	if s == "true" || isExpression(s) {
+		return &s
+	}
+	return nil
 }
 
 // buildTemplatableEnvVar returns a YAML environment variable entry for a

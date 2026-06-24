@@ -732,13 +732,11 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	if data.SafeOutputs != nil {
 		if c.trialMode {
 			envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
-		} else if templatableBoolNeedsRuntimeEnv(data.SafeOutputs.Staged) {
-			if value := templatableBoolPtrString(data.SafeOutputs.Staged); value != nil {
-				if isExpression(*value) {
-					envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = *value
-				} else {
-					envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
-				}
+		} else if value := templatableBoolEnvVarValue(data.SafeOutputs.Staged); value != nil {
+			if isExpression(*value) {
+				envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = *value
+			} else {
+				envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
 			}
 		}
 	}
