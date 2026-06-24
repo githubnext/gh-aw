@@ -532,20 +532,14 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 		}
 	})
 
-	// Fetch job details once; derive failedJobCount from the same response.
+	// Fetch job details and derive failedJobCount from a single API call.
 	wg.Go(func() {
 		var err error
-		jobDetails, err = fetchJobDetails(run.DatabaseID, verbose)
+		jobDetails, failedJobCount, err = fetchJobDetailsWithCounts(run.DatabaseID, verbose)
 		if err != nil {
-			auditLog.Printf("fetchJobDetails failed: %v", err)
+			auditLog.Printf("fetchJobDetailsWithCounts failed: %v", err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details: %v", err)))
-			}
-			return
-		}
-		for _, j := range jobDetails {
-			if isFailureConclusion(j.Conclusion) {
-				failedJobCount++
 			}
 		}
 	})
