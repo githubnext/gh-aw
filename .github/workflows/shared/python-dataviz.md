@@ -79,24 +79,6 @@ steps:
 
 Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
 
-## Installed Libraries
-
-- **NumPy**: Array processing and numerical operations
-- **Pandas**: Data manipulation and analysis
-- **Matplotlib**: Chart generation and plotting
-- **Seaborn**: Statistical data visualization
-- **SciPy**: Scientific computing utilities
-
-## Directory Structure
-
-```
-/tmp/gh-aw/python/
-├── data/          # Store all data files here (CSV, JSON, etc.)
-├── charts/        # Generated chart images (PNG)
-├── artifacts/     # Additional output files
-└── *.py           # Python scripts
-```
-
 ## Data Separation Requirement
 
 **CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
@@ -197,28 +179,7 @@ The asset URL points to the published asset file in the configured assets branch
 
 ## Cache Memory Integration
 
-The cache memory at `/tmp/gh-aw/cache-memory/` is available for storing reusable code:
-
-**Helper Functions to Cache:**
-- Data loading utilities: `data_loader.py`
-- Chart styling functions: `chart_utils.py`
-- Common data transformations: `transforms.py`
-
-**Check Cache Before Creating:**
-```bash
-# Check if helper exists in cache
-if [ -f /tmp/gh-aw/cache-memory/data_loader.py ]; then
-  cp /tmp/gh-aw/cache-memory/data_loader.py /tmp/gh-aw/python/
-  echo "Using cached data_loader.py"
-fi
-```
-
-**Save to Cache for Future Runs:**
-```bash
-# Save useful helpers to cache
-cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
-echo "Saved data_loader.py to cache for future runs"
-```
+The cache memory at `/tmp/gh-aw/cache-memory/` is available for reusable helpers. Reuse cached modules when present, and persist stable helpers after successful runs.
 
 ## Error Handling
 
@@ -260,29 +221,4 @@ Source and data files are uploaded with `if: always()` condition, ensuring they'
 
 ## Common Data Sources
 
-Based on common use cases:
-
-**Repository Statistics:**
-```python
-# Collect via GitHub API, save to data.csv
-# Then load and visualize
-data = pd.read_csv('/tmp/gh-aw/python/data/repo_stats.csv')
-```
-
-**Workflow Metrics:**
-```python
-# Collect via GitHub Actions API, save to data.json
-data = pd.read_json('/tmp/gh-aw/python/data/workflow_metrics.json')
-```
-
-**Sample Data Generation:**
-```python
-# Generate with NumPy, save to file first
-import numpy as np
-data = np.random.randn(100, 2)
-df = pd.DataFrame(data, columns=['x', 'y'])
-df.to_csv('/tmp/gh-aw/python/data/sample_data.csv', index=False)
-
-# Then load it back (demonstrating the pattern)
-data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
-```
+Typical inputs include repository statistics, workflow metrics, and generated sample datasets saved under `/tmp/gh-aw/python/data/` before plotting.
