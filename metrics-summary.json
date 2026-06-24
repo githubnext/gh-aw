@@ -1,31 +1,32 @@
 {
- "updated": "2026-06-23",
- "date": "2026-06-23",
- "partial": true,
- "latest_window": "2026-06-23T10:36Z..21:22Z ~10.8h active (overnight quiet, 0 runs)",
+ "updated": "2026-06-24",
+ "date": "2026-06-24",
+ "partial": false,
+ "latest_window": "2026-06-23T21:57Z..2026-06-24T21:21Z (~23.4h full, 4 stitched windows)",
  "totals": {
-  "r": 174,
-  "s": 161,
-  "f": 13,
-  "rate": 92.5,
-  "prod_main_schedule_rate": 89.1,
-  "prod_main_ex_intentional": 91.1,
-  "action_min": 2024,
-  "github_api": 1967,
-  "aic": 12635,
+  "r": 342,
+  "s": 317,
+  "f": 25,
+  "rate": 92.7,
+  "prod_main_rate": 92.4,
+  "prod_main_schedule_rate": 92.2,
+  "prod_main_ex_intentional": 93.3,
+  "action_min": 3776,
+  "github_api": 3893,
+  "aic": 26654,
   "tok": null,
   "missing_tools": 0,
   "missing_data": 0,
   "mcp_failures": 0
  },
  "engines": {
-  "copilot": 108,
-  "claude": 28,
-  "pi": 18,
-  "codex": 7,
-  "antigravity": 2,
-  "gemini": 2,
-  "null_metadata": 0
+  "copilot": 215,
+  "claude": 64,
+  "pi": 35,
+  "codex": 19,
+  "antigravity": 4,
+  "gemini": 3,
+  "null_metadata": 2
  },
  "history": [
   {
@@ -300,6 +301,16 @@
    "tok": null,
    "partial": true,
    "note": "HEALTHY on-baseline; prod-main 89.1% (91.1% ex-2-intentional). 0 missing-tools/data/mcp. copilot-sdk LONG-RUN dominant (4/8 real prod-main). Blog Writer $144/52.6m + claude Failure Investigator 0-tok NEW. Avenger still 0 runs; Skillet 0 fails."
+  },
+  {
+   "d": "2026-06-24",
+   "r": 342,
+   "s": 317,
+   "rate": 92.7,
+   "aic": 26654,
+   "tok": null,
+   "partial": false,
+   "note": "HEALTHY on-baseline (FULL 23.4h window). prod-main 92.4% (93.3% ex-2-intentional). 0 missing-tools/data/mcp. HEADLINE: Avenger RESUMED 2x fail after 06-22/23 absence (err-config unfixed, pause lifted). Daily Issues Report Gen chroot-node day4. copilot-sdk longrun (Safe Output Integrator 24.3m) persists. 9 dev-branch smoke probes (firewall/mcpg bump) = expected noise. 0 new fail class."
   }
  ]
 }

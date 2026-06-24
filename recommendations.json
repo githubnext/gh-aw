@@ -1,5 +1,5 @@
 {
- "updated": "2026-06-22",
+ "updated": "2026-06-24",
  "recommendations": [
   {
    "id": "rec-sdk-toolperm-allowlist-or-relax-guard",
@@ -157,10 +157,10 @@
    "linked_issues": [
     "avenger-err-config-no-structured-logs"
    ],
-   "status": "open-watch",
-   "days_open": 2,
-   "last_seen": "2026-06-22",
-   "escalation": "STREAK BROKEN by absence 06-22 (Avenger 0 runs). If schedule was paused per this rec, keep paused until err-config root cause is fixed; confirm fix vs pause before re-enabling. Do NOT close \u2014 root cause unconfirmed."
+   "status": "open",
+   "days_open": 4,
+   "last_seen": "2026-06-24",
+   "escalation": "RE-ESCALATE 2026-06-24: Avenger RESUMED (2/2 fail, 0-tok) after 06-22/23 absence. The pause did NOT include a fix \u2014 err-config root cause confirmed unfixed (issue recur 15). Either KEEP the schedule paused, or fix the follow-up-invocation err-config path before re-enabling. Highest-priority chronic prod-main offender that is now firing+failing again."
   },
   {
    "id": "rec-skillet-confirm-resolution",

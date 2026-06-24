@@ -1,6 +1,19 @@
 {
- "updated": "2026-06-23",
+ "updated": "2026-06-24",
  "anomalies": [
+  {
+   "id": "anom-avenger-resumed-after-pause-2026-06-24",
+   "first_seen": "2026-06-24",
+   "last_seen": "2026-06-24",
+   "wf": "Avenger",
+   "run": "28068396181,28070295852",
+   "kind": "err-config-no-structured-logs",
+   "persistence": 1,
+   "escalation": "RE-ESCALATE",
+   "status": "ACTIVE",
+   "detail": "Avenger RESUMED after 2-day absence (06-22,06-23) and immediately failed 2/2 (claude, 0-tok, 14.6m+15.7m). Confirms the 06-22/23 streak break was a PAUSE, not a fix — err-config/no-structured-logs root cause (open since ~06-08, issue recur 15) persists. Pause appears lifted. Owner action per rec-avenger-fix-err-config still required.",
+   "linked_issue": "avenger-err-config-no-structured-logs"
+  },
   {
    "id": "anom-sdk-toolperm-reescalate",
    "date": "2026-06-07",
