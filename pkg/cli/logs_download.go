@@ -828,7 +828,7 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 			// We warn and continue with any artifacts that were successfully downloaded.
 			if isNonZipArtifactError(output) {
 				// Show a concise warning; the raw output may be verbose so truncate it.
-				msg := stringutil.Truncate(string(output), 200)
+				msg := stringutil.Truncate(string(output), 203)
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Some artifacts could not be extracted (not a valid zip archive) and were skipped: "+msg))
 				skippedNonZipArtifacts = true
 			} else if isCaseCollisionArtifactError(output) {
