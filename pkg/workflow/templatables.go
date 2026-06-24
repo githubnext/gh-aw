@@ -208,7 +208,7 @@ func (t *TemplatableBool) String() string {
 	return string(*t)
 }
 
-func templatableBoolToStringPtr(value *TemplatableBool) *string {
+func templatableBoolPtrToStringPtr(value *TemplatableBool) *string {
 	if value == nil {
 		return nil
 	}
@@ -220,6 +220,9 @@ func templatableBoolIsTrue(value *TemplatableBool) bool {
 	return value != nil && value.String() == "true"
 }
 
+// templatableBoolEnvVarValue returns only staged values that must be preserved
+// in env vars at runtime. Literal false is treated the same as unset, while
+// literal true and GitHub Actions expressions must be propagated.
 func templatableBoolEnvVarValue(value *TemplatableBool) *string {
 	if value == nil {
 		return nil
