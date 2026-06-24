@@ -123,11 +123,12 @@ async function validateAssigneeAlias(owner, repo, assignee, issueNumber, githubC
         assignee,
       });
       const issueScopedStatus = issueScopedResponse && typeof issueScopedResponse === "object" && "status" in issueScopedResponse ? Number(issueScopedResponse.status) : undefined;
-      if (typeof issueScopedStatus === "number" && issueScopedStatus >= 200 && issueScopedStatus < 300) {
+      const validIssueScopedStatus = Number.isInteger(issueScopedStatus) ? issueScopedStatus : undefined;
+      if (validIssueScopedStatus !== undefined && validIssueScopedStatus >= 200 && validIssueScopedStatus < 300) {
         core.info(`Assignee alias ${assignee} is assignable via issue-scoped check`);
         return;
       }
-      core.info(`Issue-scoped assignee check returned unexpected response for ${assignee} (status ${issueScopedStatus ?? "unknown"}); falling back to repository-scoped check`);
+      core.info(`Issue-scoped assignee check returned unexpected response for ${assignee} (status ${validIssueScopedStatus ?? "unknown"}); falling back to repository-scoped check`);
     } catch (e) {
       const status = e && typeof e === "object" && "status" in e ? e.status : undefined;
       // Some coding-agent bot aliases can return 404 on issue-scoped checks even when
