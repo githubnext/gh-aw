@@ -1938,3 +1938,63 @@ func TestMainAgentRunUsesStandardCreditsExpressionNotDetectionExpression(t *test
 	assert.NotContains(t, stepContent, "vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS",
 		"main-agent run must not use detection credits expression")
 }
+
+// TestGetAWFCommandPrefixNetworkIsolation tests that GetAWFCommandPrefix returns the
+// rootless "awf" command (without "sudo -E") when network-isolation is enabled.
+func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
+	t.Run("returns awf (no sudo) when network-isolation is enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:               "awf",
+					NetworkIsolation: true,
+				},
+			},
+		}
+		cmd := GetAWFCommandPrefix(workflowData)
+		assert.Equal(t, "awf", cmd, "Should return rootless 'awf' when network-isolation is enabled")
+		assert.NotContains(t, cmd, "sudo", "Should not contain sudo when network-isolation is enabled")
+	})
+
+	t.Run("returns sudo -E awf when network-isolation is disabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:               "awf",
+					NetworkIsolation: false,
+				},
+			},
+		}
+		cmd := GetAWFCommandPrefix(workflowData)
+		assert.Equal(t, "sudo -E awf", cmd, "Should return 'sudo -E awf' when network-isolation is disabled")
+	})
+
+	t.Run("returns sudo -E awf when no sandbox config is set", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+		}
+		cmd := GetAWFCommandPrefix(workflowData)
+		assert.Equal(t, "sudo -E awf", cmd, "Should return 'sudo -E awf' when there is no sandbox config")
+	})
+
+	t.Run("custom command takes precedence over network-isolation", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:               "awf",
+					NetworkIsolation: true,
+					Command:          "custom-awf",
+				},
+			},
+		}
+		cmd := GetAWFCommandPrefix(workflowData)
+		assert.Equal(t, "custom-awf", cmd, "Custom command should take precedence over network-isolation rootless mode")
+	})
+}

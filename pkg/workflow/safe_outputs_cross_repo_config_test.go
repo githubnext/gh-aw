@@ -781,6 +781,89 @@ func TestParseAllowedRepos(t *testing.T) {
 	}
 }
 
+// TestLinkSubIssueConfigTargetRepo verifies that link-sub-issue correctly parses
+// target-repo and allowed-repos fields, including GitHub Actions expressions for allowed-repos.
+func TestLinkSubIssueConfigTargetRepo(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name          string
+		configMap     map[string]any
+		expectedRepo  string
+		expectedRepos []string
+		expectedToken string
+	}{
+		{
+			name: "target-repo and allowed-repos configured",
+			configMap: map[string]any{
+				"link-sub-issue": map[string]any{
+					"target-repo":   "githubnext/gh-aw-side-repo",
+					"allowed-repos": []any{"githubnext/gh-aw-side-repo"},
+					"github-token":  "${{ secrets.TEMP_USER_PAT }}",
+				},
+			},
+			expectedRepo:  "githubnext/gh-aw-side-repo",
+			expectedRepos: []string{"githubnext/gh-aw-side-repo"},
+			expectedToken: "${{ secrets.TEMP_USER_PAT }}",
+		},
+		{
+			name: "multiple allowed repos",
+			configMap: map[string]any{
+				"link-sub-issue": map[string]any{
+					"target-repo":   "org/primary-repo",
+					"allowed-repos": []any{"org/primary-repo", "org/secondary-repo"},
+				},
+			},
+			expectedRepo:  "org/primary-repo",
+			expectedRepos: []string{"org/primary-repo", "org/secondary-repo"},
+			expectedToken: "",
+		},
+		{
+			name: "allowed-repos as GitHub Actions expression",
+			configMap: map[string]any{
+				"link-sub-issue": map[string]any{
+					"target-repo":   "${{ inputs.target_repo }}",
+					"allowed-repos": "${{ inputs['allowed-repos'] }}",
+				},
+			},
+			expectedRepo:  "${{ inputs.target_repo }}",
+			expectedRepos: []string{"${{ inputs['allowed-repos'] }}"},
+			expectedToken: "",
+		},
+		{
+			name: "no cross-repo config",
+			configMap: map[string]any{
+				"link-sub-issue": map[string]any{
+					"max": 5,
+				},
+			},
+			expectedRepo:  "",
+			expectedRepos: nil,
+			expectedToken: "",
+		},
+		{
+			name: "nil config value",
+			configMap: map[string]any{
+				"link-sub-issue": nil,
+			},
+			expectedRepo:  "",
+			expectedRepos: nil,
+			expectedToken: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := compiler.parseLinkSubIssueConfig(tt.configMap)
+
+			require.NotNil(t, cfg, "config should not be nil")
+			assert.Equal(t, tt.expectedRepo, cfg.TargetRepoSlug, "TargetRepoSlug mismatch")
+			assert.Equal(t, tt.expectedRepos, cfg.AllowedRepos, "AllowedRepos mismatch")
+			assert.Equal(t, tt.expectedToken, cfg.GitHubToken, "GitHubToken mismatch")
+		})
+	}
+}
+
 // extractHandlerConfig is a helper that parses the GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
 // JSON from the rendered step strings.
 func extractHandlerConfig(t *testing.T, stepsContent string) map[string]map[string]any {

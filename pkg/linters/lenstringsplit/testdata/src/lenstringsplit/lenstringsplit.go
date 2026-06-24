@@ -35,6 +35,16 @@ func countRunes(s string) int {
 	return len(strings.Split(s, ""))
 }
 
+// not flagged: empty raw-string separator is also not equivalent to strings.Count(...)+1.
+func countRunesRaw(s string) int {
+	return len(strings.Split(s, ``))
+}
+
+// flagged: non-empty raw-string separator should be reported.
+func countCommaRaw(s string) int {
+	return len(strings.Split(s, `,`)) // want `len\(strings\.Split\(\.\.\.`
+}
+
 func customLenNotFlagged(s string) int {
 	len := func(parts []string) int {
 		return 0

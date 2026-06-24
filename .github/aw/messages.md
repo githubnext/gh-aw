@@ -29,7 +29,7 @@ Emoji by domain: 🔍 search · 📐 architecture · 🔬 analysis/security · �
 
 | Key | Variables | Default |
 |-----|-----------|---------|
-| `footer` | `{workflow_name}`, `{run_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}` | *(system default)* |
+| `footer` | `{workflow_name}`, `{run_url}`, `{triggering_number}`, `{triggering_type}`, `{workflow_source}`, `{workflow_source_url}` | *(system default)* |
 | `footer-install` | `{workflow_source}`, `{workflow_source_url}` | *(system default)* |
 | `footer-workflow-recompile` | `{workflow_name}`, `{run_url}`, `{repository}` | `> Workflow sync report by [{workflow_name}]({run_url}) for {repository}` |
 | `footer-workflow-recompile-comment` | `{workflow_name}`, `{run_url}`, `{repository}` | `> Update from [{workflow_name}]({run_url}) for {repository}` |

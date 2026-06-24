@@ -680,7 +680,7 @@ func (c *Compiler) generateSummarySteps(yaml *strings.Builder, data *WorkflowDat
 	// This replaces the previous per-engine blocks (Copilot, Codex, Claude) and extends
 	// support to all engines (including Gemini) so every agentic workflow uploads audit logs.
 	if isFirewallEnabled(data) {
-		firewallLogParsing := generateFirewallLogParsingStep(data.Name)
+		firewallLogParsing := generateFirewallLogParsingStep(data.Name, data)
 		for _, line := range firewallLogParsing {
 			yaml.WriteString(line)
 			yaml.WriteByte('\n')
