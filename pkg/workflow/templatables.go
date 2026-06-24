@@ -38,6 +38,8 @@ import (
 
 var templatablesLog = logger.New("workflow:templatables")
 
+const templatableBoolErrorExample = "value must be a boolean or a GitHub Actions expression (e.g. '${{ inputs.flag }}')"
+
 // TemplatableInt32 represents an integer frontmatter field that also accepts
 // GitHub Actions expression strings (e.g. "${{ inputs.timeout }}").  The
 // underlying value is always stored as a string: numeric literals as their
@@ -155,10 +157,10 @@ func (t *TemplatableBool) UnmarshalJSON(data []byte) error {
 
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
-		return fmt.Errorf("staged must be a boolean or a GitHub Actions expression (e.g. '${{ inputs.staged }}'), got %s", data)
+		return fmt.Errorf("%s, got %s", templatableBoolErrorExample, data)
 	}
 	if !isExpression(s) {
-		return fmt.Errorf("staged must be a boolean or a GitHub Actions expression (e.g. '${{ inputs.staged }}'), got string %q", s)
+		return fmt.Errorf("%s, got string %q", templatableBoolErrorExample, s)
 	}
 	*t = TemplatableBool(s)
 	return nil
@@ -179,13 +181,13 @@ func (t *TemplatableBool) UnmarshalYAML(node *yaml.Node) error {
 			return nil
 		case "!!str":
 			if !isExpression(node.Value) {
-				return fmt.Errorf("staged must be a boolean or a GitHub Actions expression (e.g. '${{ inputs.staged }}'), got string %q", node.Value)
+				return fmt.Errorf("%s, got string %q", templatableBoolErrorExample, node.Value)
 			}
 			*t = TemplatableBool(node.Value)
 			return nil
 		}
 	}
-	return errors.New("staged must be a boolean or a GitHub Actions expression (e.g. '${{ inputs.staged }}')")
+	return errors.New(templatableBoolErrorExample)
 }
 
 // MarshalJSON emits a JSON boolean for literal values and a JSON string for
