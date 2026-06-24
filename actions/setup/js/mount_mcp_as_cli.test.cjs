@@ -1,7 +1,7 @@
 // @ts-check
 import { describe, expect, it } from "vitest";
 
-import { parseMCPResponseBody, toContainerUrl } from "./mount_mcp_as_cli.cjs";
+import { AWF_GATEWAY_IP, parseMCPResponseBody, toContainerUrl } from "./mount_mcp_as_cli.cjs";
 
 describe("mount_mcp_as_cli.cjs", () => {
   it("parses JSON object responses unchanged", () => {
@@ -46,7 +46,7 @@ describe("mount_mcp_as_cli.cjs", () => {
     process.env.MCP_GATEWAY_PORT = "8080";
 
     try {
-      expect(toContainerUrl("http://0.0.0.0:8080/mcp/safeoutputs")).toBe("http://172.30.0.1:8080/mcp/safeoutputs");
+      expect(toContainerUrl("http://0.0.0.0:8080/mcp/safeoutputs")).toBe(`http://${AWF_GATEWAY_IP}:8080/mcp/safeoutputs`);
     } finally {
       if (originalDomain === undefined) {
         delete process.env.MCP_GATEWAY_DOMAIN;
