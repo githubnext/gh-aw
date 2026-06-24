@@ -91,12 +91,17 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 		}
 	}
 
-	// Build a set of images currently referenced in the compiled lock files so
-	// that stale entries (e.g. superseded AWF versions) can be pruned.
+	// Build a set of base image tags (without @sha256: digest suffix) currently
+	// referenced in the compiled lock files so that stale entries (e.g. superseded
+	// AWF versions) can be pruned. Lock files that were previously compiled may
+	// already embed pinned references (image:tag@sha256:...), so we strip the
+	// digest before comparing against container pin keys, which always use the
+	// base tag as the key.
 	imageSet := make(map[string]struct {
 	}, len(images))
 	for _, img := range images {
-		imageSet[img] = struct {
+		base, _, _ := strings.Cut(img, "@sha256:")
+		imageSet[base] = struct {
 		}{}
 	}
 

@@ -5,6 +5,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/workflow"
@@ -168,6 +169,76 @@ Manifests:
 			}
 		})
 	}
+}
+
+// TestUpdateContainerPins_PinnedLockFilesPreserveContainerPins verifies that when
+// lock files already contain digest-pinned image references (image:tag@sha256:...),
+// the existing container pins in actions-lock.json are NOT pruned.  This is the
+// regression test for the bug where gh aw update wiped out all container pins
+// because collectImagesFromLockFiles returned digest-suffixed keys that did not
+// match the base-tag keys used in the container pins map.
+func TestUpdateContainerPins_PinnedLockFilesPreserveContainerPins(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// actions-lock.json has an existing container pin using the base image tag as key.
+	actionsLockDir := filepath.Join(tmpDir, ".github", "aw")
+	require.NoError(t, os.MkdirAll(actionsLockDir, 0755))
+	actionsLockContent := `{
+  "entries": {},
+  "containers": {
+    "ghcr.io/github/gh-aw-firewall/agent:0.27.9": {
+      "image": "ghcr.io/github/gh-aw-firewall/agent:0.27.9",
+      "digest": "sha256:13f522853a688bfe24b04adbbe40b68101e8ef4b6fe0b636068527141bf1c269",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/agent:0.27.9@sha256:13f522853a688bfe24b04adbbe40b68101e8ef4b6fe0b636068527141bf1c269"
+    }
+  }
+}
+`
+	actionsLockPath := filepath.Join(actionsLockDir, "actions-lock.json")
+	require.NoError(t, os.WriteFile(actionsLockPath, []byte(actionsLockContent), 0644))
+
+	// The compiled lock file already embeds the digest-pinned reference (image:tag@sha256:...).
+	// This is the real-world case after a prior successful gh aw update run.
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+	lockFileContent := `name: test
+jobs:
+  setup:
+    steps:
+      - name: Download container images
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.9@sha256:13f522853a688bfe24b04adbbe40b68101e8ef4b6fe0b636068527141bf1c269
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "my-workflow.lock.yml"), []byte(lockFileContent), 0644))
+
+	// collectImagesFromLockFiles returns the digest-suffixed reference as-is.
+	images, err := collectImagesFromLockFiles(workflowsDir)
+	require.NoError(t, err)
+	require.Equal(t, []string{"ghcr.io/github/gh-aw-firewall/agent:0.27.9@sha256:13f522853a688bfe24b04adbbe40b68101e8ef4b6fe0b636068527141bf1c269"}, images)
+
+	// Build imageSet the same way UpdateContainerPins does: strip @sha256: suffix so
+	// the keys match the base-tag keys used in the container pins map.
+	imageSet := make(map[string]struct{})
+	for _, img := range images {
+		base, _, _ := strings.Cut(img, "@sha256:")
+		imageSet[base] = struct{}{}
+	}
+	assert.Equal(t, map[string]struct{}{"ghcr.io/github/gh-aw-firewall/agent:0.27.9": {}}, imageSet)
+
+	// With the correct imageSet (base tags), PruneStaleContainerPins should keep the pin.
+	cache := workflow.NewActionCache(tmpDir)
+	require.NoError(t, cache.Load())
+
+	pruned := cache.PruneStaleContainerPins(imageSet)
+	assert.Equal(t, 0, pruned, "no container pins should be pruned when lock files use pinned references")
+
+	pin, ok := cache.GetContainerPin("ghcr.io/github/gh-aw-firewall/agent:0.27.9")
+	require.True(t, ok, "container pin should still be present")
+	assert.Equal(t, "sha256:13f522853a688bfe24b04adbbe40b68101e8ef4b6fe0b636068527141bf1c269", pin.Digest)
+
+	// Verify the lock file is unchanged (the existing pin covers this image).
+	data, err := os.ReadFile(actionsLockPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "ghcr.io/github/gh-aw-firewall/agent:0.27.9", "container pin should still be in actions-lock.json")
 }
 
 // TestUpdateContainerPins_PrunesStaleEntries verifies that UpdateContainerPins
