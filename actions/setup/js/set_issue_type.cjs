@@ -80,20 +80,36 @@ function isIssueTypeValidationError(error) {
 
 /**
  * @param {unknown} error
+ * @returns {unknown}
+ */
+function getErrorResponseData(error) {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+  if (!("response" in error) || typeof error.response !== "object" || error.response === null) {
+    return undefined;
+  }
+  if (!("data" in error.response)) {
+    return undefined;
+  }
+  return error.response.data;
+}
+
+/**
+ * @param {unknown} error
  * @param {string} issueTypeName
  * @returns {string}
  */
 function mapInvalidIssueTypeError(error, issueTypeName) {
   const baseMessage = `Issue type ${JSON.stringify(issueTypeName)} not found.`;
-  if (typeof error !== "object" || error === null) {
-    return baseMessage;
-  }
-  const responseData = "response" in error && typeof error.response === "object" && error.response !== null && "data" in error.response ? error.response.data : undefined;
+  const responseData = getErrorResponseData(error);
   let errorDetails;
   if (typeof responseData === "object" && responseData !== null) {
     if ("message" in responseData && typeof responseData.message === "string") {
       errorDetails = responseData.message;
     }
+    // Keep previous precedence: if detailed validation errors exist, prefer the first
+    // entry over the top-level message.
     if ("errors" in responseData && Array.isArray(responseData.errors) && responseData.errors.length > 0) {
       const firstError = responseData.errors[0];
       if (typeof firstError === "object" && firstError !== null && "message" in firstError && typeof firstError.message === "string") {
