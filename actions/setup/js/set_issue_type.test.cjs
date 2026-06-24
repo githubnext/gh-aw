@@ -41,6 +41,15 @@ global.github = mockGithub;
 
 describe("set_issue_type (Handler Factory Architecture)", () => {
   let handler;
+  const createInvalidTypeError = (message = "Type must be one of: Bug, Feature") =>
+    Object.assign(new Error("Validation failed"), {
+      response: {
+        status: 422,
+        data: {
+          errors: [{ message }],
+        },
+      },
+    });
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -167,30 +176,6 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     expect(result.success).toBe(true);
   });
 
-  it("should return error when issue type not found in repository", async () => {
-    const invalidTypeError = Object.assign(new Error("Validation failed"), {
-      status: 422,
-      response: {
-        status: 422,
-        data: {
-          errors: [{ message: "Type must be one of: Bug, Feature" }],
-        },
-      },
-    });
-    mockGithub.rest.issues.update.mockRejectedValue(invalidTypeError);
-
-    const message = {
-      type: "set_issue_type",
-      issue_number: 42,
-      issue_type: "NonExistentType",
-    };
-
-    const result = await handler(message, {});
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("not found");
-    expect(result.error).toContain("Available types");
-  });
-
   it("should respect max count configuration", async () => {
     const { main } = require("./set_issue_type.cjs");
     const limitedHandler = await main({ max: 1 });
@@ -221,15 +206,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
   });
 
   it("should map 422 invalid issue type errors to not-found shape", async () => {
-    const invalidTypeError = Object.assign(new Error("Validation failed"), {
-      status: 422,
-      response: {
-        status: 422,
-        data: {
-          errors: [{ message: "Type must be one of: Bug, Feature" }],
-        },
-      },
-    });
+    const invalidTypeError = createInvalidTypeError();
     mockGithub.rest.issues.update.mockRejectedValue(invalidTypeError);
 
     const result = await handler(
@@ -242,8 +219,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     );
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('Issue type "NonExistentType" not found.');
-    expect(result.error).toContain("Available types:");
+    expect(result.error).toBe('Issue type "NonExistentType" not found. Available types: Bug, Feature');
   });
 
   it("should handle invalid issue numbers", async () => {
@@ -301,7 +277,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     );
   });
 
-  it("should use issueType intent metadata REST payload when runtime feature is enabled", async () => {
+  it("should pass issue intent metadata when runtime feature is enabled", async () => {
     process.env.GH_AW_RUNTIME_FEATURES = "issue_intents";
 
     try {

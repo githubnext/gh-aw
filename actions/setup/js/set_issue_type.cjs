@@ -3,6 +3,7 @@
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ * @typedef {{ status?: number, response?: { status?: number, data?: { errors?: Array<{ message?: string }>, message?: string } } }} IssueTypeAPIError
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -15,19 +16,49 @@ const { hasIssueIntentsRuntimeFeature, normalizeIssueIntentMetadata } = require(
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "set_issue_type";
+const AVAILABLE_TYPES_PATTERNS = [/one of:\s*(.+)$/i, /available(?: types?)?:\s*(.+)$/i];
 
 /**
- * @param {{ rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} intentMetadata
- * @returns {{ rationale?: string, confidence?: "low"|"medium"|"high", suggest?: boolean }}
+ * @param {{ rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} intentMetadata Intent metadata in GraphQL format.
+ * @returns {{ rationale?: string, confidence?: "low"|"medium"|"high", suggest?: boolean }} Intent metadata formatted for REST.
  */
 function toRestIssueIntentMetadata(intentMetadata) {
-  if (!intentMetadata.confidence) {
-    return intentMetadata;
+  /** @type {{ rationale?: string, confidence?: "low"|"medium"|"high", suggest?: boolean }} */
+  const restMetadata = {};
+  if (intentMetadata.rationale) {
+    restMetadata.rationale = intentMetadata.rationale;
   }
-  return {
-    ...intentMetadata,
-    confidence: intentMetadata.confidence.toLowerCase(),
-  };
+  if (intentMetadata.suggest) {
+    restMetadata.suggest = true;
+  }
+  if (intentMetadata.confidence) {
+    switch (intentMetadata.confidence) {
+      case "LOW":
+        restMetadata.confidence = "low";
+        break;
+      case "MEDIUM":
+        restMetadata.confidence = "medium";
+        break;
+      case "HIGH":
+        restMetadata.confidence = "high";
+        break;
+      default:
+        throw new Error(`Invalid confidence ${JSON.stringify(intentMetadata.confidence)}. Expected one of: LOW, MEDIUM, HIGH.`);
+    }
+  }
+  return restMetadata;
+}
+
+/**
+ * @param {unknown} error
+ * @returns {unknown}
+ */
+function getErrorStatus(error) {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+  const errorWithStatus = /** @type {IssueTypeAPIError} */ error;
+  return errorWithStatus.status ?? errorWithStatus.response?.status;
 }
 
 /**
@@ -35,11 +66,7 @@ function toRestIssueIntentMetadata(intentMetadata) {
  * @returns {boolean}
  */
 function isIssueTypeValidationError(error) {
-  const status =
-    typeof error === "object" && error !== null
-      ? /** @type {{ status?: unknown, response?: { status?: unknown } }} */ (error.status ?? /** @type {{ status?: unknown, response?: { status?: unknown } }} */ error.response?.status)
-      : undefined;
-  return status === 422;
+  return getErrorStatus(error) === 422;
 }
 
 /**
@@ -48,20 +75,43 @@ function isIssueTypeValidationError(error) {
  * @returns {string}
  */
 function mapInvalidIssueTypeError(error, issueTypeName) {
+  const baseMessage = `Issue type ${JSON.stringify(issueTypeName)} not found.`;
   if (typeof error !== "object" || error === null) {
-    return `Issue type ${JSON.stringify(issueTypeName)} not found.`;
+    return baseMessage;
   }
-  const responseData = /** @type {{ response?: { data?: { errors?: Array<{ message?: string }>, message?: string } } }} */ error.response?.data;
-  const errorDetails = Array.isArray(responseData?.errors)
-    ? responseData.errors
-        .map(err => err?.message)
-        .filter(Boolean)
-        .join("; ")
-    : responseData?.message;
+  const errorWithResponse = /** @type {IssueTypeAPIError} */ error;
+  const responseData = errorWithResponse.response?.data;
+  let errorDetails = responseData?.message;
+  if (Array.isArray(responseData?.errors) && responseData.errors.length > 0) {
+    errorDetails = responseData.errors[0]?.message;
+  }
   if (!errorDetails) {
-    return `Issue type ${JSON.stringify(issueTypeName)} not found.`;
+    return baseMessage;
   }
-  return `Issue type ${JSON.stringify(issueTypeName)} not found. Available types: ${errorDetails}`;
+  // REST validation errors vary across endpoints and deployments; extract the list from
+  // either "... one of: A, B" or "... available types: A, B" when present.
+  const matchedPattern = AVAILABLE_TYPES_PATTERNS.find(pattern => pattern.test(errorDetails));
+  const availableTypes = (matchedPattern ? matchedPattern.exec(errorDetails)?.[1] : undefined)?.trim() || errorDetails;
+  return `${baseMessage} Available types: ${availableTypes}`;
+}
+
+/**
+ * @param {boolean} isClear
+ * @param {string} issueTypeName
+ * @param {{ rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} intentMetadata
+ * @returns {string | { value: string, rationale?: string, confidence?: "low"|"medium"|"high", suggest?: boolean }}
+ */
+function buildIssueTypeValue(isClear, issueTypeName, intentMetadata) {
+  if (isClear) {
+    return "";
+  }
+  if (!hasIssueIntentsRuntimeFeature()) {
+    return issueTypeName;
+  }
+  return {
+    value: issueTypeName,
+    ...toRestIssueIntentMetadata(intentMetadata),
+  };
 }
 
 /**
@@ -182,14 +232,7 @@ async function main(config = {}) {
     try {
       const { owner, repo } = repoParts;
       const intentMetadata = normalizeIssueIntentMetadata(item);
-      const typeValue = isClear
-        ? ""
-        : hasIssueIntentsRuntimeFeature()
-          ? {
-              value: issueTypeName,
-              ...toRestIssueIntentMetadata(intentMetadata),
-            }
-          : issueTypeName;
+      const typeValue = buildIssueTypeValue(isClear, issueTypeName, intentMetadata);
       await githubClient.rest.issues.update({
         owner,
         repo,
