@@ -18,7 +18,12 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+// orgUpdateCoreBuffer preserves a 500-request safety margin on the core API budget
+// before org-mode applies a delay to avoid exhausting the hourly quota mid-run.
 const orgUpdateCoreBuffer = 500
+
+// orgUpdateSearchBuffer preserves at least one search request because GitHub's search
+// quota is much smaller and org discovery only needs a narrow cushion between pages.
 const orgUpdateSearchBuffer = 1
 
 var searchOrgWorkflowReposFn = searchOrgWorkflowRepos

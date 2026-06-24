@@ -98,7 +98,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 			}
 
 			if targetRepo != "" && targetOrg != "" {
-				return errors.New("--repo and --org cannot be used together")
+				return errors.New("cannot specify both --repo and --org flags; use --repo for a single repository or --org for organization-wide updates")
 			}
 
 			if createPR && targetRepo == "" && targetOrg == "" {
@@ -339,6 +339,8 @@ func shallowCloneTargetRepo(ctx context.Context, repo, destination string) error
 		return fmt.Errorf("failed to clean previous checkout %s: %w", destination, err)
 	}
 
+	// Use a sparse shallow clone to minimize bandwidth and disk usage when update mode
+	// needs a temporary checkout solely for workflow and agent files.
 	cmd := exec.CommandContext(ctx, "gh", "repo", "clone", repo, destination, "--", "--depth=1", "--filter=blob:none", "--sparse")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
