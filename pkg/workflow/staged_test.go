@@ -25,7 +25,7 @@ func TestStagedFlag(t *testing.T) {
 		t.Fatal("Expected config to be parsed")
 	}
 
-	if !config.Staged {
+	if !templatableBoolIsTrue(config.Staged) {
 		t.Fatal("Expected staged flag to be true")
 	}
 
@@ -53,7 +53,7 @@ func TestStagedFlagDefault(t *testing.T) {
 	}
 
 	// Verify staged flag is false
-	if config.Staged {
+	if config.Staged != nil {
 		t.Fatal("Expected staged flag to be false when not specified")
 	}
 }
@@ -76,7 +76,7 @@ func TestStagedFlagFalse(t *testing.T) {
 		t.Fatal("Expected config to be parsed")
 	}
 
-	if config.Staged {
+	if templatableBoolIsTrue(config.Staged) {
 		t.Fatal("Expected staged flag to be false")
 	}
 }
@@ -94,7 +94,7 @@ func TestStagedFlagForcedByCompiler(t *testing.T) {
 	if config == nil {
 		t.Fatal("Expected config to be parsed")
 	}
-	if !config.Staged {
+	if !templatableBoolIsTrue(config.Staged) {
 		t.Fatal("Expected compiler force-staged flag to override frontmatter staged: false")
 	}
 }
@@ -111,7 +111,7 @@ func TestStagedFlagForcedByCompilerWhenUnset(t *testing.T) {
 	if config == nil {
 		t.Fatal("Expected config to be parsed")
 	}
-	if !config.Staged {
+	if !templatableBoolIsTrue(config.Staged) {
 		t.Fatal("Expected compiler force-staged flag to set staged mode when frontmatter omits it")
 	}
 }
@@ -124,7 +124,7 @@ func TestClaudeEngineWithStagedFlag(t *testing.T) {
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
-			Staged:       true, // pointer to true
+			Staged:       templatableBoolPtr("true"),
 		},
 	}
 
@@ -142,7 +142,7 @@ func TestClaudeEngineWithStagedFlag(t *testing.T) {
 	}
 
 	// Test with staged flag false
-	workflowData.SafeOutputs.Staged = false // pointer to false
+	workflowData.SafeOutputs.Staged = templatableBoolPtr("false") // pointer to false
 
 	steps = engine.GetExecutionSteps(workflowData, "test-log")
 	stepContent = strings.Join([]string(steps[0]), "\n")
@@ -162,7 +162,7 @@ func TestCodexEngineWithStagedFlag(t *testing.T) {
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
-			Staged:       true, // pointer to true
+			Staged:       templatableBoolPtr("true"),
 		},
 	}
 

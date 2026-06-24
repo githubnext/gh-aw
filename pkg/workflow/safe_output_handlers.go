@@ -677,32 +677,44 @@ func isSafeOutputHandlerEnabledAndUnstaged(safeOutputs *SafeOutputsConfig, field
 		return false
 	}
 
-	return !isHandlerStaged(safeOutputs.Staged, safeOutputHandlerStaged(field))
+	return !isHandlerStaged(templatableBoolIsTrue(safeOutputs.Staged), safeOutputHandlerStaged(field))
 }
 
-func safeOutputHandlerStaged(field reflect.Value) bool {
+func safeOutputHandlerStaged(field reflect.Value) *TemplatableBool {
 	if !field.IsValid() || field.IsNil() {
-		return false
+		return nil
 	}
 
 	elem := field.Elem()
 	if !elem.IsValid() || elem.Kind() != reflect.Struct {
-		return false
+		return nil
 	}
 
-	if staged := elem.FieldByName("Staged"); staged.IsValid() && staged.Kind() == reflect.Bool {
-		return staged.Bool()
+	if staged := elem.FieldByName("Staged"); staged.IsValid() {
+		if value, ok := templatableBoolFromReflectValue(staged); ok {
+			return value
+		}
 	}
 
 	baseConfig := elem.FieldByName("BaseSafeOutputConfig")
 	if !baseConfig.IsValid() || baseConfig.Kind() != reflect.Struct {
-		return false
+		return nil
 	}
 
 	staged := baseConfig.FieldByName("Staged")
-	if !staged.IsValid() || staged.Kind() != reflect.Bool {
-		return false
+	if value, ok := templatableBoolFromReflectValue(staged); ok {
+		return value
 	}
+	return nil
+}
 
-	return staged.Bool()
+func templatableBoolFromReflectValue(value reflect.Value) (*TemplatableBool, bool) {
+	if !value.IsValid() {
+		return nil, false
+	}
+	if value.Kind() != reflect.Pointer || value.IsNil() {
+		return nil, false
+	}
+	typed, ok := value.Interface().(*TemplatableBool)
+	return typed, ok
 }

@@ -918,7 +918,7 @@ func TestFrontmatterConfigTypeSafety(t *testing.T) {
 		}
 
 		// Access staged flag directly
-		if !config.SafeOutputs.Staged {
+		if !templatableBoolIsTrue(config.SafeOutputs.Staged) {
 			t.Error("Staged should be true")
 		}
 	})

@@ -96,7 +96,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	// It is separate to avoid the checkout step (needed to restore HEAD to github.sha) from
 	// interfering with other safe-output operations in the consolidated safe_outputs job.
 	if data.SafeOutputs != nil && data.SafeOutputs.CreateCodeScanningAlerts != nil &&
-		!isHandlerStaged(false || data.SafeOutputs.Staged, data.SafeOutputs.CreateCodeScanningAlerts.Staged) {
+		!isHandlerStaged(templatableBoolIsTrue(data.SafeOutputs.Staged), data.SafeOutputs.CreateCodeScanningAlerts.Staged) {
 		compilerSafeOutputJobsLog.Print("Building separate upload_code_scanning_sarif job")
 		codeScanningJob, err := c.buildCodeScanningUploadJob(data)
 		if err != nil {

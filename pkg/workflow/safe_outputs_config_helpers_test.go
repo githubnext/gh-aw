@@ -89,7 +89,7 @@ func TestUsesPatchesAndCheckouts(t *testing.T) {
 		{
 			name: "returns false when CreatePullRequests is globally staged",
 			safeOutputs: &SafeOutputsConfig{
-				Staged:             true,
+				Staged:             templatableBoolPtr("true"),
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
 			expected: false,
@@ -97,7 +97,7 @@ func TestUsesPatchesAndCheckouts(t *testing.T) {
 		{
 			name: "returns false when PushToPullRequestBranch is globally staged",
 			safeOutputs: &SafeOutputsConfig{
-				Staged:                  true,
+				Staged:                  templatableBoolPtr("true"),
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
 			},
 			expected: false,
@@ -105,7 +105,7 @@ func TestUsesPatchesAndCheckouts(t *testing.T) {
 		{
 			name: "returns false when both PR handlers are globally staged",
 			safeOutputs: &SafeOutputsConfig{
-				Staged:                  true,
+				Staged:                  templatableBoolPtr("true"),
 				CreatePullRequests:      &CreatePullRequestsConfig{},
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
 			},
@@ -114,15 +114,15 @@ func TestUsesPatchesAndCheckouts(t *testing.T) {
 		{
 			name: "returns false when CreatePullRequests is per-handler staged",
 			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")}},
 			},
 			expected: false,
 		},
 		{
 			name: "returns false when both PR handlers are per-handler staged",
 			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests:      &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
-				PushToPullRequestBranch: &PushToPullRequestBranchConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+				CreatePullRequests:      &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")}},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")}},
 			},
 			expected: false,
 		},
@@ -130,14 +130,14 @@ func TestUsesPatchesAndCheckouts(t *testing.T) {
 			name: "returns true when CreatePullRequests is not staged but PushToPullRequestBranch is staged",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests:      &CreatePullRequestsConfig{},
-				PushToPullRequestBranch: &PushToPullRequestBranchConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")}},
 			},
 			expected: true,
 		},
 		{
 			name: "returns true when PushToPullRequestBranch is not staged but CreatePullRequests is staged",
 			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests:      &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true}},
+				CreatePullRequests:      &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")}},
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
 			},
 			expected: true,

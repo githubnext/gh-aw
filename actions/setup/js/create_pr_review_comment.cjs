@@ -59,7 +59,7 @@ async function main(config = {}) {
   }
 
   // Propagate per-handler staged flag to the shared PR review buffer
-  if (config.staged === true) {
+  if (config.staged === true || config.staged === "true") {
     buffer.setStaged(true);
   }
   if (isStagedMode(config)) {

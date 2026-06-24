@@ -985,7 +985,7 @@ func TestGenerateSafeOutputsConfigClosePullRequestStaged(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			ClosePullRequests: &ClosePullRequestsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Staged: true,
+					Staged: templatableBoolPtr("true"),
 				},
 			},
 		},

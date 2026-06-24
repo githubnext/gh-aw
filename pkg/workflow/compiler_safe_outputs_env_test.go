@@ -23,7 +23,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 		{
 			name: "create issues with staged flag",
 			safeOutputs: &SafeOutputsConfig{
-				Staged: true,
+				Staged: templatableBoolPtr("true"),
 				CreateIssues: &CreateIssuesConfig{
 					TitlePrefix: "[Test] ",
 				},
@@ -35,7 +35,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 		{
 			name: "create issues without staged flag",
 			safeOutputs: &SafeOutputsConfig{
-				Staged: false,
+				Staged: templatableBoolPtr("false"),
 				CreateIssues: &CreateIssuesConfig{
 					TitlePrefix: "[Test] ",
 				},
@@ -45,9 +45,21 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 			},
 		},
 		{
+			name: "create issues with staged expression",
+			safeOutputs: &SafeOutputsConfig{
+				Staged: templatableBoolPtr("${{ inputs.staged }}"),
+				CreateIssues: &CreateIssuesConfig{
+					TitlePrefix: "[Test] ",
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_STAGED: ${{ inputs.staged }}",
+			},
+		},
+		{
 			name: "add comments with staged flag",
 			safeOutputs: &SafeOutputsConfig{
-				Staged: true,
+				Staged: templatableBoolPtr("true"),
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
 						Max: strPtr("5"),
@@ -61,7 +73,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 		{
 			name: "add labels with staged flag",
 			safeOutputs: &SafeOutputsConfig{
-				Staged: true,
+				Staged: templatableBoolPtr("true"),
 				AddLabels: &AddLabelsConfig{
 					Allowed: []string{"bug"},
 				},
@@ -73,7 +85,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 		{
 			name: "update issues with staged flag",
 			safeOutputs: &SafeOutputsConfig{
-				Staged:       true,
+				Staged:       templatableBoolPtr("true"),
 				UpdateIssues: &UpdateIssuesConfig{},
 			},
 			checkContains: []string{
@@ -83,7 +95,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 		{
 			name: "update discussions with staged flag",
 			safeOutputs: &SafeOutputsConfig{
-				Staged:            true,
+				Staged:            templatableBoolPtr("true"),
 				UpdateDiscussions: &UpdateDiscussionsConfig{},
 			},
 			checkContains: []string{
@@ -93,7 +105,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 		{
 			name: "create pull requests with staged flag",
 			safeOutputs: &SafeOutputsConfig{
-				Staged: true,
+				Staged: templatableBoolPtr("true"),
 				CreatePullRequests: &CreatePullRequestsConfig{
 					TitlePrefix: "[PR] ",
 				},
@@ -105,7 +117,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 		{
 			name: "multiple types only add staged flag once",
 			safeOutputs: &SafeOutputsConfig{
-				Staged: true,
+				Staged: templatableBoolPtr("true"),
 				CreateIssues: &CreateIssuesConfig{
 					TitlePrefix: "[Issue] ",
 				},
@@ -123,7 +135,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 			name:      "trial mode does not add staged flag",
 			trialMode: true,
 			safeOutputs: &SafeOutputsConfig{
-				Staged: true,
+				Staged: templatableBoolPtr("true"),
 				CreateIssues: &CreateIssuesConfig{
 					TitlePrefix: "[Test] ",
 				},
@@ -136,7 +148,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 			// staged is independent of target-repo: staged flag is emitted even when target-repo is set
 			name: "target-repo specified still adds staged flag",
 			safeOutputs: &SafeOutputsConfig{
-				Staged: true,
+				Staged: templatableBoolPtr("true"),
 				CreateIssues: &CreateIssuesConfig{
 					TargetRepoSlug: "org/repo",
 					TitlePrefix:    "[Test] ",
@@ -183,7 +195,7 @@ func TestStagedFlagOnlyAddedOnce(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			Staged: true,
+			Staged: templatableBoolPtr("true"),
 			CreateIssues: &CreateIssuesConfig{
 				TitlePrefix: "[Issue] ",
 			},
@@ -251,7 +263,7 @@ func TestStagedFlagWithTargetRepo(t *testing.T) {
 			workflowData := &WorkflowData{
 				Name: "Test Workflow",
 				SafeOutputs: &SafeOutputsConfig{
-					Staged: true,
+					Staged: templatableBoolPtr("true"),
 					CreateIssues: &CreateIssuesConfig{
 						TargetRepoSlug: tt.targetRepo,
 					},
@@ -281,7 +293,7 @@ func TestTrialModeOverridesStagedFlag(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			Staged: true,
+			Staged: templatableBoolPtr("true"),
 			CreateIssues: &CreateIssuesConfig{
 				TitlePrefix: "[Test] ",
 			},
@@ -304,7 +316,7 @@ func TestEnvVarsWithMultipleSafeOutputTypes(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			Staged: true,
+			Staged: templatableBoolPtr("true"),
 			CreateIssues: &CreateIssuesConfig{
 				TitlePrefix: "[Issue] ",
 			},
@@ -343,7 +355,7 @@ func TestEnvVarsWithNoStagedConfig(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			Staged: false,
+			Staged: templatableBoolPtr("false"),
 			CreateIssues: &CreateIssuesConfig{
 				TitlePrefix: "[Test] ",
 			},
@@ -371,7 +383,7 @@ func TestEnvVarFormatting(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			Staged: true,
+			Staged: templatableBoolPtr("true"),
 			CreateIssues: &CreateIssuesConfig{
 				TitlePrefix: "[Test] ",
 			},
@@ -448,7 +460,7 @@ func TestStagedFlagPrecedence(t *testing.T) {
 			workflowData := &WorkflowData{
 				Name: "Test Workflow",
 				SafeOutputs: &SafeOutputsConfig{
-					Staged: tt.staged,
+					Staged: templatableBoolPtr(map[bool]string{true: "true", false: "false"}[tt.staged]),
 					CreateIssues: &CreateIssuesConfig{
 						TargetRepoSlug: tt.targetRepo,
 					},
@@ -476,7 +488,7 @@ func TestAddCommentsTargetRepoStagedBehavior(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			Staged: true,
+			Staged: templatableBoolPtr("true"),
 			AddComments: &AddCommentsConfig{
 				TargetRepoSlug: "org/target",
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -502,7 +514,7 @@ func TestAddLabelsTargetRepoStagedBehavior(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			Staged: true,
+			Staged: templatableBoolPtr("true"),
 			AddLabels: &AddLabelsConfig{
 				Allowed: []string{"bug"},
 				SafeOutputTargetConfig: SafeOutputTargetConfig{
@@ -534,7 +546,7 @@ func TestStagedFlagForAllHandlerTypes(t *testing.T) {
 			f, ok := soType.FieldByName(fieldName)
 			require.True(t, ok, "safeOutputFieldMapping references field %q which does not exist in SafeOutputsConfig", fieldName)
 
-			so := &SafeOutputsConfig{Staged: true}
+			so := &SafeOutputsConfig{Staged: templatableBoolPtr("true")}
 			soVal := reflect.ValueOf(so).Elem()
 			field := soVal.FieldByName(fieldName)
 			require.True(t, field.IsValid(), "Field %q not found in SafeOutputsConfig", fieldName)
@@ -563,7 +575,7 @@ func TestStagedFlagForAllHandlerTypes(t *testing.T) {
 		compiler := NewCompiler()
 		workflowData := &WorkflowData{
 			Name:        "Test Workflow",
-			SafeOutputs: &SafeOutputsConfig{Staged: true},
+			SafeOutputs: &SafeOutputsConfig{Staged: templatableBoolPtr("true")},
 		}
 
 		var steps []string

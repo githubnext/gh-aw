@@ -429,7 +429,7 @@ function loadCustomSafeOutputActionHandlers() {
  * @returns {boolean}
  */
 function isStagedMode(config) {
-  return process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || (config != null && config.staged === true);
+  return process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || (config != null && (config.staged === true || config.staged === "true"));
 }
 
 /**

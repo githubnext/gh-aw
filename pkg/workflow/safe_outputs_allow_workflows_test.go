@@ -68,7 +68,7 @@ func TestAllowWorkflowsPermission(t *testing.T) {
 			name: "staged create-pull-request with allow-workflows does not add workflows write",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")},
 					AllowWorkflows:       true,
 				},
 			},

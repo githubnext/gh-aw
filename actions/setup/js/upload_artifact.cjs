@@ -449,7 +449,7 @@ async function main(config = {}) {
   const allowedPaths = Array.isArray(config["allowed-paths"]) ? config["allowed-paths"] : [];
   const filtersInclude = Array.isArray(config["filters-include"]) ? config["filters-include"] : [];
   const filtersExclude = Array.isArray(config["filters-exclude"]) ? config["filters-exclude"] : [];
-  const isStaged = config["staged"] === true || process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = config["staged"] === true || config["staged"] === "true" || process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   core.info(`upload_artifact handler: max_uploads=${maxUploads}, retention_days=${retentionDays}, skip_archive=${skipArchive}`);
   core.info(`Allowed paths: ${allowedPaths.length > 0 ? allowedPaths.join(", ") : "(none – all staging files allowed)"}`);
