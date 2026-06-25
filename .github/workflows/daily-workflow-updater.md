@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "🔧"
 name: Daily Workflow Updater
 description: Automatically updates GitHub Actions versions and creates a PR if changes are detected

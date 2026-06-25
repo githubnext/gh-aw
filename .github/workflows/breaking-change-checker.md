@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "⚠️"
 description: Daily analysis of recent commits and merged PRs for breaking CLI changes
 on:
