@@ -476,7 +476,7 @@ func TestUpdateCommand_OrgDryRunIntegration(t *testing.T) {
 	require.NoError(t, err, "org dry-run should succeed: %s", outputStr)
 
 	// --org and --repos flags must be recognised.
-	assert.NotContains(t, outputStr, "unknown flag", "All flags should be recognised")
+	assert.NotContains(t, outputStr, "unknown flag", "All flags should be recognized")
 
 	// The output must indicate one of the three valid terminal states:
 	//   1. Dry-run preview with pending updates listed.
