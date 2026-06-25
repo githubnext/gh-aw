@@ -16,6 +16,25 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
+// mutexKey uniquely identifies a mutex receiver so that distinct struct
+// instances holding the same field type are tracked independently.
+//
+// For a direct local/parameter variable (e.g. `mu`), base is the variable's
+// types.Object and field is nil.
+//
+// For a field selector (e.g. `a.mu`), base is the types.Object of the
+// receiver variable `a` and field is the types.Object of the field `mu`.
+// This prevents `a.mu` and `b.mu` from collapsing to the same key even
+// though both resolve to the same field declaration.
+//
+// When the base expression is not a simple identifier (e.g. `getGuard().mu`),
+// base is set to the field's types.Object and field is nil, matching the
+// pre-existing behaviour for non-addressable expressions.
+type mutexKey struct {
+	base  types.Object
+	field types.Object
+}
+
 // Analyzer is the manual-mutex-unlock analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "manualmutexunlock",
@@ -54,8 +73,8 @@ func inspectMutexFuncDecl(pass *analysis.Pass, noLintLinesByFile map[string]map[
 		return
 	}
 
-	// Track mutex variables: types.Object -> *mutexVarState (lock position, hasDefer, hasManualUnlock)
-	mutexVars := make(map[types.Object]*mutexVarState)
+	// Track mutex variables: mutexKey -> *mutexVarState (lock position, hasDefer, hasManualUnlock)
+	mutexVars := make(map[mutexKey]*mutexVarState)
 
 	// Walk all statements in the function body
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
@@ -77,7 +96,7 @@ func inspectMutexFuncDecl(pass *analysis.Pass, noLintLinesByFile map[string]map[
 	}
 }
 
-func inspectMutexNode(pass *analysis.Pass, noLintLinesByFile map[string]map[int]struct{}, mutexVars map[types.Object]*mutexVarState, node ast.Node) bool {
+func inspectMutexNode(pass *analysis.Pass, noLintLinesByFile map[string]map[int]struct{}, mutexVars map[mutexKey]*mutexVarState, node ast.Node) bool {
 	if node == nil {
 		return false
 	}
@@ -90,13 +109,13 @@ func inspectMutexNode(pass *analysis.Pass, noLintLinesByFile map[string]map[int]
 	// Look for mutex Lock() calls
 	if exprStmt, ok := node.(*ast.ExprStmt); ok {
 		if call, ok := exprStmt.X.(*ast.CallExpr); ok {
-			if obj := getLockCallObj(pass, call); obj != nil {
+			if key, ok := getLockCallKey(pass, call); ok {
 				// If this mutex was already tracked from a prior lock on the same
 				// binding, report any unresolved violation before overwriting state.
-				if prev, exists := mutexVars[obj]; exists && prev.hasManualUnlock && !prev.hasDefer {
+				if prev, exists := mutexVars[key]; exists && prev.hasManualUnlock && !prev.hasDefer {
 					position := pass.Fset.PositionFor(prev.lockPos, false)
 					if nolint.HasDirective(position, noLintLinesByFile) {
-						mutexVars[obj] = &mutexVarState{
+						mutexVars[key] = &mutexVarState{
 							lockPos: call.Pos(),
 						}
 						return true
@@ -106,7 +125,7 @@ func inspectMutexNode(pass *analysis.Pass, noLintLinesByFile map[string]map[int]
 						Message: "mutex Unlock() should be deferred immediately after Lock() to prevent deadlocks on panic or early return",
 					})
 				}
-				mutexVars[obj] = &mutexVarState{
+				mutexVars[key] = &mutexVarState{
 					lockPos: call.Pos(),
 				}
 			}
@@ -115,8 +134,8 @@ func inspectMutexNode(pass *analysis.Pass, noLintLinesByFile map[string]map[int]
 
 	// Look for defer mu.Unlock()
 	if deferStmt, ok := node.(*ast.DeferStmt); ok {
-		if obj := getUnlockCallObj(pass, deferStmt.Call); obj != nil {
-			if state, found := mutexVars[obj]; found {
+		if key, ok := getUnlockCallKey(pass, deferStmt.Call); ok {
+			if state, found := mutexVars[key]; found {
 				state.hasDefer = true
 			}
 		}
@@ -125,8 +144,8 @@ func inspectMutexNode(pass *analysis.Pass, noLintLinesByFile map[string]map[int]
 	// Look for non-deferred mu.Unlock() in expression statements
 	if exprStmt, ok := node.(*ast.ExprStmt); ok {
 		if call, ok := exprStmt.X.(*ast.CallExpr); ok {
-			if obj := getUnlockCallObj(pass, call); obj != nil {
-				if state, found := mutexVars[obj]; found {
+			if key, ok := getUnlockCallKey(pass, call); ok {
+				if state, found := mutexVars[key]; found {
 					state.hasManualUnlock = true
 				}
 			}
@@ -142,44 +161,62 @@ type mutexVarState struct {
 	hasManualUnlock bool
 }
 
-// getLockCallObj returns the types.Object for the receiver if call is like mu.Lock() or mu.RLock()
-func getLockCallObj(pass *analysis.Pass, call *ast.CallExpr) types.Object {
+// getLockCallKey returns the mutexKey for the receiver if call is like mu.Lock() or mu.RLock()
+func getLockCallKey(pass *analysis.Pass, call *ast.CallExpr) (mutexKey, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
-		return nil
+		return mutexKey{}, false
 	}
 	if sel.Sel.Name != "Lock" && sel.Sel.Name != "RLock" {
-		return nil
+		return mutexKey{}, false
 	}
-	return getMutexReceiverObj(pass, sel.X)
+	return getMutexReceiverKey(pass, sel.X)
 }
 
-// getUnlockCallObj returns the types.Object for the receiver if call is like mu.Unlock() or mu.RUnlock()
-func getUnlockCallObj(pass *analysis.Pass, call *ast.CallExpr) types.Object {
+// getUnlockCallKey returns the mutexKey for the receiver if call is like mu.Unlock() or mu.RUnlock()
+func getUnlockCallKey(pass *analysis.Pass, call *ast.CallExpr) (mutexKey, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
-		return nil
+		return mutexKey{}, false
 	}
 	if sel.Sel.Name != "Unlock" && sel.Sel.Name != "RUnlock" {
-		return nil
+		return mutexKey{}, false
 	}
-	return getMutexReceiverObj(pass, sel.X)
+	return getMutexReceiverKey(pass, sel.X)
 }
 
-func getMutexReceiverObj(pass *analysis.Pass, recv ast.Expr) types.Object {
+func getMutexReceiverKey(pass *analysis.Pass, recv ast.Expr) (mutexKey, bool) {
 	if !isMutexType(pass.TypesInfo.TypeOf(recv)) {
-		return nil
+		return mutexKey{}, false
 	}
 
 	switch r := recv.(type) {
 	case *ast.Ident:
-		return pass.TypesInfo.ObjectOf(r)
+		obj := pass.TypesInfo.ObjectOf(r)
+		if obj == nil {
+			return mutexKey{}, false
+		}
+		return mutexKey{base: obj}, true
 	case *ast.SelectorExpr:
 		if sel := pass.TypesInfo.Selections[r]; sel != nil {
-			return sel.Obj()
+			fieldObj := sel.Obj()
+			// When the base is a plain identifier (the common case: `a.mu`),
+			// build a composite key (base var, field) so that distinct
+			// instances of the same struct type are tracked independently.
+			baseIdent, ok := r.X.(*ast.Ident)
+			if !ok {
+				// Fall back for non-ident base expressions (e.g. `getGuard().mu`):
+				// use the field object alone as the key, matching prior behaviour.
+				return mutexKey{base: fieldObj}, true
+			}
+			baseObj := pass.TypesInfo.ObjectOf(baseIdent)
+			if baseObj == nil {
+				return mutexKey{base: fieldObj}, true
+			}
+			return mutexKey{base: baseObj, field: fieldObj}, true
 		}
 	}
-	return nil
+	return mutexKey{}, false
 }
 
 // isMutexType returns true if t is sync.Mutex, sync.RWMutex, or a pointer to one
