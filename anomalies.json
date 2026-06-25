@@ -1,5 +1,5 @@
 {
- "updated": "2026-06-24",
+ "updated": "2026-06-25",
  "anomalies": [
   {
    "id": "anom-avenger-resumed-after-pause-2026-06-24",
@@ -11,7 +11,7 @@
    "persistence": 1,
    "escalation": "RE-ESCALATE",
    "status": "ACTIVE",
-   "detail": "Avenger RESUMED after 2-day absence (06-22,06-23) and immediately failed 2/2 (claude, 0-tok, 14.6m+15.7m). Confirms the 06-22/23 streak break was a PAUSE, not a fix — err-config/no-structured-logs root cause (open since ~06-08, issue recur 15) persists. Pause appears lifted. Owner action per rec-avenger-fix-err-config still required.",
+   "detail": "Avenger RESUMED after 2-day absence (06-22,06-23) and immediately failed 2/2 (claude, 0-tok, 14.6m+15.7m). Confirms the 06-22/23 streak break was a PAUSE, not a fix \u2014 err-config/no-structured-logs root cause (open since ~06-08, issue recur 15) persists. Pause appears lifted. Owner action per rec-avenger-fix-err-config still required.",
    "linked_issue": "avenger-err-config-no-structured-logs"
   },
   {
@@ -173,6 +173,34 @@
    "note": "copilot-sdk-driver LONG-RUN variant is now the #1 failure family (5 fails 06-22): Daily Compiler Threat Spec Optimizer 34m, Daily Formal Spec Verifier 29m, Layout Spec Maintainer 22m, Daily Safe Output Integrator 24m, Daily SPDD Spec Planner 24m. Agent runs 20-34min doing real work then job fails. Burns ~130min compute/day with no output. Distinct from classic 0-tok/25min lockout.",
    "state": "RECURRING",
    "recur": "2026-06-23: 4 LONG/0-tok agent-job fails. NEW cost outlier: Daily Agent of the Day Blog Writer 52.6min/$144.15 (claude-sonnet-4.6 via copilot engine), 56 assistant-msgs/75 tool-calls, 1336/1541 firewall-BLOCKED requests (87% block rate) \u2014 agent burned 52min largely on blocked network retries then job failed. Safe Output Integrator 24.5m/$145. Most-expensive single failing runs this window."
+  },
+  {
+   "id": "anom-prodmain-distributed-degradation-2026-06-25",
+   "first_seen": "2026-06-25",
+   "last_seen": "2026-06-25",
+   "kind": "distributed-0tok-agentjob-fail-elevation",
+   "persistence": 1,
+   "escalation": "NEW-HIGH",
+   "status": "ACTIVE",
+   "metric": "prod_main_rate",
+   "value": 81.0,
+   "detail": "Prod-main success fell to 81.0% (from 92.4/92.5/94.5 on 06-24/23/22) \u2014 worst since ~06-18. UNLIKE 06-20 (Skillet) this is NOT one workflow: 32 of 40 prod-main fails are 0-tok/0-turn agent-job failures distributed across ~16 distinct wfs and 4 engines (copilot15/pi7/claude6/codex2/null2). Spread evenly across the 24h window AND across gh-aw versions 0.80.2/1.0.65/2.1.191 \u2014 so NOT a single transient incident nor single-version regression. Reads as an aggregation of many independent agent-startup failures sharing a generic signature, plus 3 genuinely-new per-wf hotspots. Could be a noisy day OR an early systemic agent-startup degradation. CRITICAL to compare 06-26: revert-to-baseline => transient; persists => systemic.",
+   "linked_hotspots": [
+    "pi-gpt54-0tok-agentjob-fail",
+    "code-scanning-fixer-0tok-agentjob-fail"
+   ]
+  },
+  {
+   "id": "anom-pi-gpt54-autotriage-0tok-2026-06-25",
+   "first_seen": "2026-06-25",
+   "last_seen": "2026-06-25",
+   "wf": "Auto-Triage Issues",
+   "kind": "pi-gpt54-0tok-agentjob-fail",
+   "persistence": 1,
+   "escalation": "NEW-HIGH",
+   "status": "ACTIVE",
+   "detail": "Auto-Triage Issues (pi engine, model copilot/gpt-5.4 experimental) 5/6 fail. 0-tok/0-turn agent:failure ~2-6min, surrounding jobs green. Top single-wf prod-main offender this window. NEW. Likely experimental pi/gpt-5.4 driver or model-availability issue.",
+   "linked_issue": "pi-gpt54-0tok-agentjob-fail"
   }
  ]
 }

@@ -1,5 +1,5 @@
 {
- "updated": "2026-06-24",
+ "updated": "2026-06-25",
  "recommendations": [
   {
    "id": "rec-sdk-toolperm-allowlist-or-relax-guard",
@@ -150,7 +150,7 @@
   {
    "id": "rec-avenger-fix-err-config",
    "first_seen": "2026-06-21",
-   "last_seen": "2026-06-21",
+   "last_seen": "2026-06-24",
    "title": "Fix Avenger err-config / restore structured logs",
    "detail": "Avenger 100% fail 5 consecutive days (7/7 today). Top chronic prod-main offender. Needs owner intervention: the err-config / missing-structured-logs root cause has persisted unfixed since ~06-08 (count 14). Recommend disabling the scheduled trigger until fixed to stop daily pr...",
    "priority": "P1",
@@ -159,13 +159,12 @@
    ],
    "status": "open",
    "days_open": 4,
-   "last_seen": "2026-06-24",
    "escalation": "RE-ESCALATE 2026-06-24: Avenger RESUMED (2/2 fail, 0-tok) after 06-22/23 absence. The pause did NOT include a fix \u2014 err-config root cause confirmed unfixed (issue recur 15). Either KEEP the schedule paused, or fix the follow-up-invocation err-config path before re-enabling. Highest-priority chronic prod-main offender that is now firing+failing again."
   },
   {
    "id": "rec-skillet-confirm-resolution",
    "first_seen": "2026-06-21",
-   "last_seen": "2026-06-21",
+   "last_seen": "2026-06-22",
    "title": "Confirm Skillet fix and monitor",
    "detail": "Skillet de-escalated 103->4->0 fails (06-20->06-21->06-22). Now 0 fails in window. Likely dev-branch churn settled. Verify the slash_command(centralized) trigger no longer fires on arbitrary push before closing.",
    "priority": "P3",
@@ -173,8 +172,26 @@
     "skillet-100pct-fail-on-push-fleet-wide"
    ],
    "status": "near-resolved",
-   "days_open": 2,
-   "last_seen": "2026-06-22"
+   "days_open": 2
+  },
+  {
+   "id": "rec-pin-autotriage-stable-model",
+   "date": "2026-06-25",
+   "severity": "HIGH",
+   "status": "OPEN",
+   "linked_issue": "pi-gpt54-0tok-agentjob-fail",
+   "workflow": "Auto-Triage Issues",
+   "title": "Pin Auto-Triage Issues off experimental pi/gpt-5.4 until it stabilizes",
+   "detail": "Auto-Triage Issues failed 5/6 on 2026-06-25 with 0-tok/0-turn agent-job failures on engine pi / model copilot/gpt-5.4 (experimental). Observability already flags model_downgrade_available (triage is read-only/moderate). Switch engine.model to a stable id (gpt-4.1-mini or claude-haiku-4-5) until the pi/gpt-5.4 driver+model path is verified, OR investigate the pi-agent-core startup failure on gpt-5.4 directly."
+  },
+  {
+   "id": "rec-investigate-distributed-0tok-degradation",
+   "date": "2026-06-25",
+   "severity": "HIGH",
+   "status": "OPEN",
+   "linked_anomaly": "anom-prodmain-distributed-degradation-2026-06-25",
+   "title": "Confirm whether 06-25 distributed 0-tok agent-startup elevation is transient or systemic",
+   "detail": "32/40 prod-main fails on 06-25 were 0-tok/0-turn agent-job failures across 4 engines and ~16 wfs (prod-main 81.0%, worst since ~06-18). Spread evenly over 24h + across gh-aw versions argues against one incident/regression, but the elevated baseline is real. Action: re-run 06-26 audit and compare \u2014 if it reverts to ~92% baseline, classify transient/noisy-day; if 0-tok elevation persists across the same wf set, escalate to a systemic agent-startup investigation (driver/runner-image/launch path)."
   }
  ]
 }
