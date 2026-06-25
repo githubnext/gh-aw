@@ -151,7 +151,7 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
           }
         }
       }`,
-      { issueId: issueNodeId, labels }
+      { issueId: issueNodeId, labels, headers: { "GraphQL-Features": "update_issue_suggestions" } }
     );
 
     issue = {

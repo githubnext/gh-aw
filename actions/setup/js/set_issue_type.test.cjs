@@ -33,6 +33,7 @@ const mockGithub = {
       update: vi.fn(),
     },
   },
+  graphql: vi.fn(),
 };
 
 global.core = mockCore;
@@ -325,8 +326,28 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
     );
   });
 
-  it("should pass issue intent metadata when runtime feature is enabled", async () => {
+  it("should use GraphQL intent path with IssueTypeUpdateInput and GraphQL-Features header when runtime feature is enabled", async () => {
     process.env.GH_AW_RUNTIME_FEATURES = "issue_intents";
+
+    const issueNodeId = "I_kwDO_testissue";
+    const issueTypeNodeId = "IT_kwDO_bug";
+
+    mockGithub.rest.issues.get.mockResolvedValueOnce({ data: { node_id: issueNodeId } });
+    mockGithub.graphql.mockImplementation(async query => {
+      if (query.includes("organization(login")) {
+        return {
+          organization: {
+            issueTypes: {
+              nodes: [{ id: issueTypeNodeId, name: "Bug" }],
+            },
+          },
+        };
+      }
+      if (query.includes("updateIssue")) {
+        return { updateIssue: { issue: { id: issueNodeId } } };
+      }
+      return {};
+    });
 
     try {
       const { main } = require("./set_issue_type.cjs");
@@ -345,15 +366,18 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
       );
 
       expect(result.success).toBe(true);
-      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(
+      expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("IssueTypeUpdateInput"),
         expect.objectContaining({
-          issue_number: 42,
-          type: {
-            value: "Bug",
+          issueId: issueNodeId,
+          issueType: {
+            id: issueTypeNodeId,
             rationale: "Author explicitly requests a bug fix",
-            confidence: "high",
+            confidence: "HIGH",
             suggest: true,
           },
+          headers: { "GraphQL-Features": "update_issue_suggestions" },
         })
       );
     } finally {

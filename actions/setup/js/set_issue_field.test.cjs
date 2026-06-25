@@ -447,6 +447,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
               suggest: true,
             }),
           ],
+          headers: { "GraphQL-Features": "update_issue_suggestions" },
         })
       );
     } finally {
