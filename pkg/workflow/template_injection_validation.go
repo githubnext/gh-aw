@@ -75,8 +75,8 @@ type runContentExpressionScan struct {
 // forming a valid expression. Callers still apply InlineExpressionPattern
 // before classifying expressions.
 func mayContainInlineExpression(s string) bool {
-	_, rest, found := strings.Cut(s, "${{")
-	return found && strings.Contains(rest, "}}")
+	_, remainder, found := strings.Cut(s, "${{")
+	return found && strings.Contains(remainder, "}}")
 }
 
 func findRunValue(keyPart string) (string, bool) {

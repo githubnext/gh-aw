@@ -1511,10 +1511,10 @@ func TestHasNonAllowedExpressionInRunContent(t *testing.T) {
 
 func TestScanRunContentExpressions(t *testing.T) {
 	tests := []struct {
-		name           string
-		yaml           string
-		wantUnsafe     bool
-		wantDisallowed bool
+		name              string
+		yaml              string
+		wantHasUnsafe     bool
+		wantHasDisallowed bool
 	}{
 		{
 			name: "no expressions",
@@ -1522,8 +1522,8 @@ func TestScanRunContentExpressions(t *testing.T) {
   test:
     steps:
       - run: echo hello`,
-			wantUnsafe:     false,
-			wantDisallowed: false,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: false,
 		},
 		{
 			name: "allowed run expression only",
@@ -1531,8 +1531,8 @@ func TestScanRunContentExpressions(t *testing.T) {
   test:
     steps:
       - run: node ${{ runner.temp }}/actions/foo.cjs`,
-			wantUnsafe:     false,
-			wantDisallowed: false,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: false,
 		},
 		{
 			name: "unsafe run expression",
@@ -1540,8 +1540,8 @@ func TestScanRunContentExpressions(t *testing.T) {
   test:
     steps:
       - run: echo "${{ github.event.issue.title }}"`,
-			wantUnsafe:     true,
-			wantDisallowed: true,
+			wantHasUnsafe:     true,
+			wantHasDisallowed: true,
 		},
 		{
 			name: "safe env expression outside run block",
@@ -1551,8 +1551,8 @@ func TestScanRunContentExpressions(t *testing.T) {
       - env:
           TITLE: ${{ github.event.issue.title }}
         run: echo "$TITLE"`,
-			wantUnsafe:     false,
-			wantDisallowed: false,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: false,
 		},
 		{
 			name: "disallowed expression in flow-style run block",
@@ -1560,8 +1560,8 @@ func TestScanRunContentExpressions(t *testing.T) {
   test:
     steps:
       - { run: "echo ${{ github.actor }}" }`,
-			wantUnsafe:     false,
-			wantDisallowed: true,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: true,
 		},
 	}
 
@@ -1569,8 +1569,8 @@ func TestScanRunContentExpressions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := scanRunContentExpressions(tt.yaml)
 
-			assert.Equal(t, tt.wantUnsafe, got.hasUnsafe)
-			assert.Equal(t, tt.wantDisallowed, got.hasDisallowed)
+			assert.Equal(t, tt.wantHasUnsafe, got.hasUnsafe)
+			assert.Equal(t, tt.wantHasDisallowed, got.hasDisallowed)
 		})
 	}
 }
