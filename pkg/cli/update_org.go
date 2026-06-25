@@ -7,11 +7,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
-	"slices"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -73,183 +70,48 @@ type orgRepoPreview struct {
 func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts UpdateWorkflowsOptions, createPR bool, createIssue bool, verbose bool) error {
 	clearUpdateResolutionCaches()
 
-	if strings.TrimSpace(org) == "" {
-		return errors.New("--org cannot be empty")
-	}
-	if err := validateRepoGlobs(repoGlobs); err != nil {
-		return err
-	}
+	orgUpdateLog.Printf("Previewing updates for repositories in %s", org)
 
-	// Handle Ctrl-C / SIGTERM so an interrupted run still renders the report it
-	// gathered so far instead of exiting abruptly.
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Discovering repositories in "+org+" with source-managed workflows..."))
-	repoPaths, err := searchOrgWorkflowReposFn(ctx, org, verbose)
-	if err != nil {
-		return err
-	}
-
-	if len(repoPaths) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No repositories found with source-managed workflows"))
-		return nil
-	}
-
-	repos := filterOrgRepos(repoPaths, repoGlobs)
-	if len(repos) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No repositories matched the requested --repos filters"))
-		return nil
-	}
-
-	total := len(repos)
-	orgUpdateLog.Printf("Previewing updates for %d repositories in %s", total, org)
-
-	previewByRepo := make([]orgRepoPreview, 0, len(repos))
-	stopped := false
-	for i, repo := range repos {
-		// Honor a cancellation signal between repositories so we can still show
-		// the report for the work completed so far.
-		if ctx.Err() != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; stopping after %d/%d repositories", i, total)))
-			orgUpdateLog.Printf("Context canceled during preview at repo %d/%d: %v", i, total, ctx.Err())
-			stopped = true
-			break
-		}
-
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] Inspecting %s", i+1, total, repo)))
-
-		if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil {
-			if errors.Is(err, errOrgRateLimitCritical) {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GitHub API budget critical; stopping after %d/%d repositories and reporting what was found", i, total)))
-				orgUpdateLog.Printf("Rate limit critical during preview at repo %d/%d", i, total)
-				stopped = true
-				break
-			}
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo, err)))
-			}
-		}
-
-		preview, err := previewOrgRepoUpdatesFn(ctx, repo, opts, verbose)
+	// scanFn previews a single repo and decides whether to include it.
+	// It also prints per-repo progress to stderr so the user can see which
+	// workflows are being inspected.
+	scanFn := func(ctx context.Context, repo string, v bool) (orgRepoPreview, bool, error) {
+		preview, err := previewOrgRepoUpdatesFn(ctx, repo, opts, v)
 		if err != nil {
-			// A single repository failing (parse error, transient API issue, etc.)
-			// must not abort the whole org run; log it and keep going.
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", repo, err)))
-			orgUpdateLog.Printf("Failed to preview updates for %s: %v", repo, err)
-			continue
+			return orgRepoPreview{}, false, err
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 			fmt.Sprintf("%s: %d workflow(s), %d with updates", repo, preview.TotalWorkflows, len(preview.Workflows)),
 		))
 		if len(preview.Workflows) == 0 {
-			if verbose {
+			if v {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Skipping "+repo+": already up to date"))
 			}
-			continue
+			return orgRepoPreview{}, false, nil
 		}
-		previewByRepo = append(previewByRepo, preview)
+		return preview, true, nil
 	}
 
-	if len(previewByRepo) == 0 {
-		if stopped {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No updates found before processing stopped"))
-			return nil
-		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("All matching repositories are already up to date"))
-		return nil
-	}
-
-	slices.SortStableFunc(previewByRepo, func(a, b orgRepoPreview) int {
-		if a.OldestEdit.IsZero() && b.OldestEdit.IsZero() {
-			return strings.Compare(a.Repo, b.Repo)
-		}
-		if a.OldestEdit.IsZero() {
-			return 1
-		}
-		if b.OldestEdit.IsZero() {
-			return -1
-		}
-		if a.OldestEdit.Equal(b.OldestEdit) {
-			return strings.Compare(a.Repo, b.Repo)
-		}
-		if a.OldestEdit.Before(b.OldestEdit) {
-			return -1
-		}
-		return 1
-	})
-
-	// Always render the report of pending updates before applying anything; it is
-	// cheap to compute and lets the user see results even if the run was stopped
-	// early by a cancellation or a critical rate-limit condition.
-	renderOrgPreviewReport(previewByRepo, createPR || createIssue)
-
-	if !createPR && !createIssue {
-		return nil
-	}
-
-	if createIssue {
-		processed := 0
-		for i, repo := range previewByRepo {
-			if ctx.Err() != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; created issues for %d/%d repositories", processed, len(previewByRepo))))
-				orgUpdateLog.Printf("Context canceled during issue creation at %d/%d: %v", i, len(previewByRepo), ctx.Err())
-				return nil
-			}
-			if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil {
-				if errors.Is(err, errOrgRateLimitCritical) {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GitHub API budget critical; created issues for %d/%d repositories", processed, len(previewByRepo))))
-					orgUpdateLog.Printf("Rate limit critical during issue creation at %d/%d", i, len(previewByRepo))
-					return nil
-				}
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo.Repo, err)))
-				}
-			}
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] Creating issue in %s", i+1, len(previewByRepo), repo.Repo)))
-			if err := createIssueForOrgRepoFn(ctx, repo, verbose); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", repo.Repo, err)))
-				orgUpdateLog.Printf("Failed to create issue in %s: %v", repo.Repo, err)
-				continue
-			}
-			processed++
-		}
-		if processed == 0 {
-			return errors.New("failed to create issues in any repository")
-		}
-		return nil
-	}
-
-	processed := 0
-	for i, repo := range previewByRepo {
-		if ctx.Err() != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; updated %d/%d repositories", processed, len(previewByRepo))))
-			orgUpdateLog.Printf("Context canceled during update at %d/%d: %v", i, len(previewByRepo), ctx.Err())
-			return nil
-		}
-		if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil {
-			if errors.Is(err, errOrgRateLimitCritical) {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GitHub API budget critical; updated %d/%d repositories", processed, len(previewByRepo))))
-				orgUpdateLog.Printf("Rate limit critical during update at %d/%d", i, len(previewByRepo))
-				return nil
-			}
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo.Repo, err)))
-			}
-		}
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] Updating %s", i+1, len(previewByRepo), repo.Repo)))
-		if err := runUpdateForTargetRepoFn(ctx, repo.Repo, opts, true, verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", repo.Repo, err)))
-			orgUpdateLog.Printf("Failed to update %s: %v", repo.Repo, err)
-			continue
-		}
-		processed++
-	}
-	if processed == 0 {
-		return errors.New("failed to update any repository")
-	}
-
-	return nil
+	return runCommandForOrg(ctx, org, repoGlobs, orgRunCallbacks{
+		SearchFn: searchOrgWorkflowReposFn,
+		ScanFn:   scanFn,
+		ReportFn: renderOrgPreviewReport,
+		ApplyFn: func(ctx context.Context, preview orgRepoPreview, v bool) error {
+			return runUpdateForTargetRepoFn(ctx, preview.Repo, opts, true, v)
+		},
+		IssueFn: func(ctx context.Context, preview orgRepoPreview, v bool) error {
+			return createIssueForOrgRepoFn(ctx, preview, v)
+		},
+		DiscoveringMsg:   "Discovering repositories in " + org + " with source-managed workflows...",
+		NoReposMsg:       "No repositories found with source-managed workflows",
+		ScanLabel:        "Inspecting",
+		ApplyLabel:       "Updating",
+		IssueLabel:       "Creating issue in",
+		NoResultsMsg:     "All matching repositories are already up to date",
+		NoResultsStopMsg: "No updates found before processing stopped",
+		AllFailApplyMsg:  "failed to update any repository",
+		AllFailIssueMsg:  "failed to create issues in any repository",
+	}, createPR, createIssue, verbose)
 }
 
 // renderOrgPreviewReport prints the discovered updates for each repository. It is

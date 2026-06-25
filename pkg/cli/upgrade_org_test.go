@@ -196,7 +196,7 @@ func TestRunUpgradeCommandReposRequiresOrg(t *testing.T) {
 	assert.Contains(t, err.Error(), "--repos requires --org")
 }
 
-func TestRunUpgradeForOrgStopsOnFirstError(t *testing.T) {
+func TestRunUpgradeForOrgSkipsFailedRepos(t *testing.T) {
 	origSearch := searchOrgAnyWorkflowReposFn
 	origUpgrade := runUpgradeForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
@@ -217,8 +217,9 @@ func TestRunUpgradeForOrgStopsOnFirstError(t *testing.T) {
 	}()
 
 	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
-	require.ErrorIs(t, err, boom)
-	assert.Equal(t, []string{"octo/api"}, called, "should stop after first failure")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to upgrade any repository")
+	assert.Equal(t, []string{"octo/api", "octo/web"}, called, "should attempt all repos and skip failures")
 }
 
 func captureUpgradeOrgStderr(t *testing.T, fn func()) string {

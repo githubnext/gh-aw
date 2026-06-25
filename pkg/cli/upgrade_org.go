@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -24,61 +23,39 @@ var createIssueForUpgradeOrgRepoFn = createIssueForUpgradeOrgRepo
 // or --create-issue it prints a dry-run preview; with --create-pull-request it
 // checks out each repository, runs the upgrade, and opens a pull request; with
 // --create-issue it opens a GitHub issue in each repository.
+//
+// The function delegates to runCommandForOrg, which provides shared logic for
+// organization discovery, rate-limit handling, graceful cancellation, result
+// sorting, and per-repo error recovery.
 func runUpgradeForOrg(ctx context.Context, org string, repoGlobs []string, opts upgradeOptions, createPR bool, createIssue bool, verbose bool) error {
-	if strings.TrimSpace(org) == "" {
-		return errors.New("--org cannot be empty")
-	}
-	if err := validateRepoGlobs(repoGlobs); err != nil {
-		return err
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Discovering repositories in "+org+" with agentic workflows..."))
-	repoPaths, err := searchOrgAnyWorkflowReposFn(ctx, org, verbose)
-	if err != nil {
-		return err
-	}
-
-	if len(repoPaths) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No repositories found with agentic workflows"))
-		return nil
-	}
-
-	repos := filterOrgRepos(repoPaths, repoGlobs)
-	if len(repos) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No repositories matched the requested --repos filters"))
-		return nil
-	}
-
-	if !createPR && !createIssue {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dry-run preview of upgrade pull requests:"))
-		for _, repo := range repos {
-			fmt.Fprintf(os.Stderr, "- %s\n", repo)
-		}
-		return nil
-	}
-
-	if createIssue {
-		for _, repo := range repos {
-			if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil && verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo, err)))
+	return runCommandForOrg(ctx, org, repoGlobs, orgRunCallbacks{
+		SearchFn: searchOrgAnyWorkflowReposFn,
+		// ScanFn is nil: all discovered repos are upgrade candidates and no
+		// per-repo API scan is required to determine that.
+		ScanFn: nil,
+		ReportFn: func(results []orgRepoPreview, applying bool) {
+			if applying {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Repositories with agentic workflows (%d):", len(results))))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dry-run preview of upgrade pull requests:"))
 			}
-			if err := createIssueForUpgradeOrgRepoFn(ctx, repo, verbose); err != nil {
-				return err
+			for _, r := range results {
+				fmt.Fprintf(os.Stderr, "- %s\n", r.Repo)
 			}
-		}
-		return nil
-	}
-
-	for _, repo := range repos {
-		if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo, err)))
-		}
-		if err := runUpgradeForTargetRepoFn(ctx, repo, opts, verbose); err != nil {
-			return err
-		}
-	}
-
-	return nil
+		},
+		ApplyFn: func(ctx context.Context, preview orgRepoPreview, v bool) error {
+			return runUpgradeForTargetRepoFn(ctx, preview.Repo, opts, v)
+		},
+		IssueFn: func(ctx context.Context, preview orgRepoPreview, v bool) error {
+			return createIssueForUpgradeOrgRepoFn(ctx, preview.Repo, v)
+		},
+		DiscoveringMsg:  "Discovering repositories in " + org + " with agentic workflows...",
+		NoReposMsg:      "No repositories found with agentic workflows",
+		ApplyLabel:      "Upgrading",
+		IssueLabel:      "Creating issue in",
+		AllFailApplyMsg: "failed to upgrade any repository",
+		AllFailIssueMsg: "failed to create issues in any repository",
+	}, createPR, createIssue, verbose)
 }
 
 // runUpgradeForTargetRepo checks out repo to a temporary directory, runs the
