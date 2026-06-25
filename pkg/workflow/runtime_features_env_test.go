@@ -3,6 +3,9 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -83,5 +86,18 @@ func TestActivationJobIncludesRuntimeFeatureSummaryStep(t *testing.T) {
 	}
 	if !strings.Contains(steps, "log_runtime_features_summary.sh") {
 		t.Fatal("expected runtime feature summary step to call shared shell script")
+	}
+
+	// Verify that the shared shell script itself writes to GITHUB_STEP_SUMMARY, so the
+	// behavioral contract is not silently broken by editing the script.
+	_, testFile, _, _ := runtime.Caller(0)
+	repoRoot := filepath.Join(filepath.Dir(testFile), "..", "..")
+	scriptPath := filepath.Join(repoRoot, "actions", "setup", "sh", "log_runtime_features_summary.sh")
+	scriptContent, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("expected shared shell script to exist at %s: %v", scriptPath, err)
+	}
+	if !strings.Contains(string(scriptContent), "GITHUB_STEP_SUMMARY") {
+		t.Fatal("expected shared shell script to write to GITHUB_STEP_SUMMARY")
 	}
 }
