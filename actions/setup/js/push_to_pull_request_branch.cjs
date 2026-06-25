@@ -103,6 +103,23 @@ function parsePositiveInteger(value) {
 }
 
 /**
+ * Uses git as the source of truth for the files modified by a fetched bundle ref.
+ *
+ * @param {{ getExecOutput: (command: string, args?: string[], options?: any) => Promise<{ stdout: string }> }} exec
+ * @param {Record<string, unknown>} gitOptions
+ * @param {string} rangeBaseRef
+ * @param {string} bundleRef
+ * @returns {Promise<string[]>}
+ */
+async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef) {
+  const bundleDiffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", `${rangeBaseRef}..${bundleRef}`], gitOptions);
+  return bundleDiffResult.stdout
+    .split("\n")
+    .map(f => f.trim())
+    .filter(Boolean);
+}
+
+/**
  * Main handler factory for push_to_pull_request_branch
  * Returns a message handler function that processes individual push_to_pull_request_branch messages
  * @type {HandlerFactoryFunction}
@@ -795,11 +812,7 @@ async function main(config = {}) {
           // patch artifact under-detects files (for example, merge-resolution
           // content preserved only by the bundle transport).
           {
-            const bundleDiffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", `${rangeBaseRef}..${bundleRef}`], baseGitOpts);
-            const bundleFiles = bundleDiffResult.stdout
-              .split("\n")
-              .map(f => f.trim())
-              .filter(Boolean);
+            const bundleFiles = await getBundlePreApplyFiles(exec, baseGitOpts, rangeBaseRef, bundleRef);
             if (bundleFiles.length > 0) {
               core.info(`Pre-apply bundle verification: ${bundleFiles.length} file(s) detected from bundle transport`);
               const bundleProtection = checkFileProtectionPostApply(bundleFiles, config);
@@ -1330,4 +1343,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main, HANDLER_TYPE };
+module.exports = { main, HANDLER_TYPE, getBundlePreApplyFiles };
