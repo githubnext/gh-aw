@@ -2328,11 +2328,11 @@ function buildEngineFailureContext(options = {}) {
             : "**Diagnosis:** The DIFC proxy (`awmg-cli-proxy`) failed to respond (`diagnosis=unknown`). The probe exhausted its retry budget before the service became reachable.\n\n";
           context += dnsDiagnosis;
         }
-        context += "**Error details:**\n";
+        context += "\n<details>\n<summary>Error details</summary>\n\n";
         for (const message of errorMessages) {
           context += `- ${message}\n`;
         }
-        context += `\nSee [Diagnosing AWF Failures](https://github.com/github/gh-aw-firewall/blob/main/docs/diagnosing-awf-failures.md) for troubleshooting guidance.\n\n`;
+        context += `\n</details>\n\nSee [Diagnosing AWF Failures](https://github.com/github/gh-aw-firewall/blob/main/docs/diagnosing-awf-failures.md) for troubleshooting guidance.\n\n`;
         return context;
       }
 
