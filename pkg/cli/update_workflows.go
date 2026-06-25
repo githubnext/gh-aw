@@ -26,11 +26,14 @@ import (
 var defaultBranchCache sync.Map
 var branchCommitCache sync.Map
 
+// repoBranchKey is a composite cache key for branch commit SHA lookups.
 type repoBranchKey struct {
 	repo   string
 	branch string
 }
 
+// clearUpdateResolutionCaches clears per-run ref-resolution caches so update
+// operations always start from fresh repository state.
 func clearUpdateResolutionCaches() {
 	defaultBranchCache.Range(func(key, value any) bool {
 		defaultBranchCache.Delete(key)
@@ -312,6 +315,8 @@ func resolveLatestCommitFromDefaultBranch(ctx context.Context, repo, currentSHA 
 	return latestSHA, nil
 }
 
+// getRepoDefaultBranchCached wraps getRepoDefaultBranch with a cache to avoid
+// repeating identical GitHub API calls during batched update runs.
 func getRepoDefaultBranchCached(ctx context.Context, repo string) (string, error) {
 	if cached, ok := defaultBranchCache.Load(repo); ok {
 		if branch, isString := cached.(string); isString {
@@ -327,6 +332,8 @@ func getRepoDefaultBranchCached(ctx context.Context, repo string) (string, error
 	return branch, nil
 }
 
+// getLatestBranchCommitSHACached wraps getLatestBranchCommitSHA with a cache
+// keyed by repo+branch to reduce repeated branch-head API lookups.
 func getLatestBranchCommitSHACached(ctx context.Context, repo, branch string) (string, error) {
 	key := repoBranchKey{repo: repo, branch: branch}
 	if cached, ok := branchCommitCache.Load(key); ok {
