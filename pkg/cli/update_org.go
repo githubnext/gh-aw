@@ -64,9 +64,10 @@ type orgWorkflowPreview struct {
 }
 
 type orgRepoPreview struct {
-	Repo       string
-	Workflows  []orgWorkflowPreview
-	OldestEdit time.Time
+	Repo           string
+	TotalWorkflows int
+	Workflows      []orgWorkflowPreview
+	OldestEdit     time.Time
 }
 
 func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts UpdateWorkflowsOptions, createPR bool, createIssue bool, verbose bool) error {
@@ -136,6 +137,9 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 			orgUpdateLog.Printf("Failed to preview updates for %s: %v", repo, err)
 			continue
 		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+			fmt.Sprintf("%s: %d source-managed workflow(s), %d with updates", repo, preview.TotalWorkflows, len(preview.Workflows)),
+		))
 		if len(preview.Workflows) == 0 {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Skipping "+repo+": already up to date"))
@@ -250,7 +254,7 @@ func renderOrgPreviewReport(previewByRepo []orgRepoPreview, applying bool) {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dry-run preview of update pull requests:"))
 	}
 	for _, repo := range previewByRepo {
-		fmt.Fprintf(os.Stderr, "- %s\n", repo.Repo)
+		fmt.Fprintf(os.Stderr, "- %s (%d workflow(s))\n", repo.Repo, repo.TotalWorkflows)
 		for _, wf := range repo.Workflows {
 			fmt.Fprintf(os.Stderr, "  - %s: %s -> %s\n", wf.Name, shortRef(wf.CurrentRef), shortRef(wf.LatestRef))
 		}
@@ -279,7 +283,11 @@ func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflow
 		return orgRepoPreview{}, fmt.Errorf("failed to scan workflows in shallow checkout: %w", err)
 	}
 
-	preview := orgRepoPreview{Repo: repo, Workflows: make([]orgWorkflowPreview, 0, len(workflows))}
+	preview := orgRepoPreview{
+		Repo:           repo,
+		TotalWorkflows: len(workflows),
+		Workflows:      make([]orgWorkflowPreview, 0, len(workflows)),
+	}
 	for _, wf := range workflows {
 		sourceSpec, err := parseSourceSpec(wf.SourceSpec)
 		if err != nil {
@@ -361,6 +369,9 @@ func waitForOrgRateLimit(ctx context.Context, resource string, verbose bool) err
 	}
 
 	orgUpdateLog.Printf("GitHub %s rate limit: %d/%d remaining (reset at %s)", resource, limit.Remaining, limit.Limit, time.Unix(limit.Reset, 0).Format(time.RFC3339))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+		fmt.Sprintf("GitHub %s API rate limit: %d/%d remaining", resource, limit.Remaining, limit.Limit),
+	))
 
 	// Critical level: once consumption reaches limit-1000 API units, stop processing
 	// additional work rather than risking quota exhaustion or a long reset wait. The
@@ -407,16 +418,7 @@ func waitForOrgRateLimit(ctx context.Context, resource string, verbose bool) err
 // body are formatted so maintainers can act on the report without running
 // gh aw locally first.
 func createIssueForOrgRepo(ctx context.Context, preview orgRepoPreview, verbose bool) error {
-	title := "Update source-managed agentic workflows"
-
-	var body strings.Builder
-	body.WriteString("The following source-managed agentic workflows in this repository have updates available:\n\n")
-	body.WriteString("| Workflow | Current | Latest |\n")
-	body.WriteString("| --- | --- | --- |\n")
-	for _, wf := range preview.Workflows {
-		fmt.Fprintf(&body, "| %s | %s | %s |\n", wf.Name, shortRef(wf.CurrentRef), shortRef(wf.LatestRef))
-	}
-	body.WriteString("\nRun `gh aw update` to apply these updates.\n")
+	title, body := buildOrgUpdateIssue(preview)
 
 	endpoint := fmt.Sprintf("/repos/%s/issues", preview.Repo)
 	_, err := workflow.RunGHContext(ctx, "Creating issue...",
@@ -424,7 +426,7 @@ func createIssueForOrgRepo(ctx context.Context, preview orgRepoPreview, verbose 
 		"--method", "POST",
 		endpoint,
 		"-f", "title="+title,
-		"-f", "body="+body.String(),
+		"-f", "body="+body,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create issue in %s: %w", preview.Repo, err)
@@ -432,4 +434,21 @@ func createIssueForOrgRepo(ctx context.Context, preview orgRepoPreview, verbose 
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created issue in "+preview.Repo))
 	return nil
+}
+
+func buildOrgUpdateIssue(preview orgRepoPreview) (string, string) {
+	title := "[aw] Updates available"
+
+	var body strings.Builder
+	body.WriteString("## Agentic Workflows Update Available\n\n")
+	body.WriteString("The `gh aw update` command found source-managed workflow updates for this repository.\n\n")
+	body.WriteString("**Workflows with updates:**\n\n")
+	for _, wf := range preview.Workflows {
+		fmt.Fprintf(&body, "- `%s`: `%s` -> `%s`\n", wf.Name, shortRef(wf.CurrentRef), shortRef(wf.LatestRef))
+	}
+	body.WriteString("\n### How to apply\n\n")
+	body.WriteString("- **Via @copilot**: Add a comment `@copilot update agentic workflows` on this issue\n")
+	body.WriteString("- **Via CLI**: Run `gh aw update` in your local checkout\n")
+
+	return title, body.String()
 }

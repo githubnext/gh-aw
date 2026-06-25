@@ -55,8 +55,9 @@ func TestRunUpdateForOrgDryRun(t *testing.T) {
 	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
 		if repo == "octo/api" {
 			return orgRepoPreview{
-				Repo:       repo,
-				OldestEdit: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+				Repo:           repo,
+				TotalWorkflows: 1,
+				OldestEdit:     time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 				Workflows: []orgWorkflowPreview{{
 					Name:       "repo-assist",
 					CurrentRef: "v1.0.0",
@@ -85,6 +86,7 @@ func TestRunUpdateForOrgDryRun(t *testing.T) {
 
 	assert.Contains(t, output, "Dry-run preview of update pull requests")
 	assert.Contains(t, output, "octo/api")
+	assert.Contains(t, output, "octo/api (1 workflow(s))")
 	assert.Contains(t, output, "repo-assist: v1.0.0 -> v1.1.0")
 	assert.NotContains(t, output, "- octo/web\n")
 }
@@ -103,8 +105,9 @@ func TestRunUpdateForOrgCreatePRSortsOldestFirst(t *testing.T) {
 			edited = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 		}
 		return orgRepoPreview{
-			Repo:       repo,
-			OldestEdit: edited,
+			Repo:           repo,
+			TotalWorkflows: 1,
+			OldestEdit:     edited,
 			Workflows: []orgWorkflowPreview{{
 				Name:       "repo-assist",
 				CurrentRef: "v1.0.0",
@@ -145,8 +148,9 @@ func TestRunUpdateForOrgCreateIssueSortsOldestFirst(t *testing.T) {
 			edited = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 		}
 		return orgRepoPreview{
-			Repo:       repo,
-			OldestEdit: edited,
+			Repo:           repo,
+			TotalWorkflows: 1,
+			OldestEdit:     edited,
 			Workflows: []orgWorkflowPreview{{
 				Name:       "repo-assist",
 				CurrentRef: "v1.0.0",
@@ -190,7 +194,8 @@ func TestRunUpdateForOrgContinuesAfterPreviewError(t *testing.T) {
 			return orgRepoPreview{}, errors.New("failed to parse frontmatter")
 		}
 		return orgRepoPreview{
-			Repo: repo,
+			Repo:           repo,
+			TotalWorkflows: 1,
 			Workflows: []orgWorkflowPreview{{
 				Name:       "repo-assist",
 				CurrentRef: "v1.0.0",
@@ -233,7 +238,8 @@ func TestRunUpdateForOrgStopsOnCriticalRateLimit(t *testing.T) {
 	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
 		previewed = append(previewed, repo)
 		return orgRepoPreview{
-			Repo: repo,
+			Repo:           repo,
+			TotalWorkflows: 1,
 			Workflows: []orgWorkflowPreview{{
 				Name:       "repo-assist",
 				CurrentRef: "v1.0.0",
@@ -283,7 +289,8 @@ func TestRunUpdateForOrgStopsOnCancellation(t *testing.T) {
 		// Cancel after the first repo is previewed.
 		cancel()
 		return orgRepoPreview{
-			Repo: repo,
+			Repo:           repo,
+			TotalWorkflows: 1,
 			Workflows: []orgWorkflowPreview{{
 				Name:       "repo-assist",
 				CurrentRef: "v1.0.0",
@@ -355,4 +362,19 @@ func TestGetLatestWorkflowEditTimeFromCheckout(t *testing.T) {
 	got, err := getLatestWorkflowEditTimeFromCheckout(context.Background(), tempDir, workflowPath)
 	require.NoError(t, err)
 	assert.False(t, got.IsZero())
+}
+
+func TestBuildOrgUpdateIssue(t *testing.T) {
+	title, body := buildOrgUpdateIssue(orgRepoPreview{
+		Repo: "octo/repo",
+		Workflows: []orgWorkflowPreview{
+			{Name: "repo-assist", CurrentRef: "1111111", LatestRef: "2222222"},
+		},
+	})
+
+	assert.Equal(t, "[aw] Updates available", title)
+	assert.Contains(t, body, "## Agentic Workflows Update Available")
+	assert.Contains(t, body, "- `repo-assist`: `1111111` -> `2222222`")
+	assert.Contains(t, body, "@copilot update agentic workflows")
+	assert.Contains(t, body, "Run `gh aw update`")
 }

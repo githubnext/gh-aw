@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -21,6 +22,9 @@ import (
 	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var defaultBranchCache sync.Map
+var branchCommitCache sync.Map
 
 // UpdateWorkflowsOptions configures workflow update behavior.
 type UpdateWorkflowsOptions struct {
@@ -250,7 +254,7 @@ func resolveLatestRef(ctx context.Context, repo, currentRef string, allowMajor, 
 	}
 
 	// Get the latest commit SHA for the branch
-	latestSHA, err := getLatestBranchCommitSHA(ctx, repo, currentRef)
+	latestSHA, err := getLatestBranchCommitSHACached(ctx, repo, currentRef)
 	if err != nil {
 		return "", fmt.Errorf("failed to get latest commit for branch %s: %w", currentRef, err)
 	}
@@ -269,7 +273,7 @@ func resolveLatestRef(ctx context.Context, repo, currentRef string, allowMajor, 
 // logically track the default branch.
 func resolveLatestCommitFromDefaultBranch(ctx context.Context, repo, currentSHA string, verbose bool) (string, error) {
 	// Get the default branch name
-	defaultBranch, err := getRepoDefaultBranch(ctx, repo)
+	defaultBranch, err := getRepoDefaultBranchCached(ctx, repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to get default branch for %s: %w", repo, err)
 	}
@@ -281,7 +285,7 @@ func resolveLatestCommitFromDefaultBranch(ctx context.Context, repo, currentSHA 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Source has no branch ref, tracking default branch %q", defaultBranch)))
 
 	// Get the latest commit SHA from the default branch
-	latestSHA, err := getLatestBranchCommitSHA(ctx, repo, defaultBranch)
+	latestSHA, err := getLatestBranchCommitSHACached(ctx, repo, defaultBranch)
 	if err != nil {
 		return "", fmt.Errorf("failed to get latest commit for default branch %s: %w", defaultBranch, err)
 	}
@@ -289,6 +293,33 @@ func resolveLatestCommitFromDefaultBranch(ctx context.Context, repo, currentSHA 
 	updateLog.Printf("Latest commit on default branch %s: %s (current: %s)", defaultBranch, latestSHA, currentSHA)
 
 	return latestSHA, nil
+}
+
+func getRepoDefaultBranchCached(ctx context.Context, repo string) (string, error) {
+	if cached, ok := defaultBranchCache.Load(repo); ok {
+		return cached.(string), nil
+	}
+
+	branch, err := getRepoDefaultBranch(ctx, repo)
+	if err != nil {
+		return "", err
+	}
+	defaultBranchCache.Store(repo, branch)
+	return branch, nil
+}
+
+func getLatestBranchCommitSHACached(ctx context.Context, repo, branch string) (string, error) {
+	key := repo + "@" + branch
+	if cached, ok := branchCommitCache.Load(key); ok {
+		return cached.(string), nil
+	}
+
+	sha, err := getLatestBranchCommitSHA(ctx, repo, branch)
+	if err != nil {
+		return "", err
+	}
+	branchCommitCache.Store(key, sha)
+	return sha, nil
 }
 
 // fetchPublicGitHubAPI makes an unauthenticated GET request to the GitHub public
