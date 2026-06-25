@@ -7,15 +7,21 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/signal"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+// orgUpdateLog logs org-mode update progress and rate-limit telemetry for debugging.
+var orgUpdateLog = logger.New("cli:update_org")
 
 // orgUpdateCoreBuffer preserves a 500-request safety margin on the core API budget
 // before org-mode applies a delay to avoid exhausting the hourly quota mid-run.
@@ -24,6 +30,16 @@ const orgUpdateCoreBuffer = 500
 // orgUpdateSearchBuffer preserves at least one search request because GitHub's search
 // quota is much smaller and org discovery only needs a narrow cushion between pages.
 const orgUpdateSearchBuffer = 1
+
+// orgUpdateCriticalConsumed is the number of core API requests that, once consumed,
+// marks the budget as critical (i.e. remaining <= limit-1000). At that point org-mode
+// stops processing additional repositories instead of risking quota exhaustion or a
+// long wait for the hourly reset.
+const orgUpdateCriticalConsumed = 1000
+
+// errOrgRateLimitCritical signals that the GitHub API budget reached a critical level
+// and remaining work should be short-circuited rather than waiting for the reset.
+var errOrgRateLimitCritical = errors.New("github api rate limit reached critical level")
 
 var previewOrgRepoUpdatesFn = previewOrgRepoUpdates
 var runUpdateForTargetRepoFn = runUpdateForTargetRepo
@@ -60,6 +76,11 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 		return err
 	}
 
+	// Handle Ctrl-C / SIGTERM so an interrupted run still renders the report it
+	// gathered so far instead of exiting abruptly.
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Discovering repositories in "+org+" with source-managed workflows..."))
 	repoPaths, err := searchOrgWorkflowReposFn(ctx, org, verbose)
 	if err != nil {
@@ -77,15 +98,42 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 		return nil
 	}
 
+	total := len(repos)
+	orgUpdateLog.Printf("Previewing updates for %d repositories in %s", total, org)
+
 	previewByRepo := make([]orgRepoPreview, 0, len(repos))
-	for _, repo := range repos {
-		if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo, err)))
+	stopped := false
+	for i, repo := range repos {
+		// Honor a cancellation signal between repositories so we can still show
+		// the report for the work completed so far.
+		if ctx.Err() != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; stopping after %d/%d repositories", i, total)))
+			orgUpdateLog.Printf("Context canceled during preview at repo %d/%d: %v", i, total, ctx.Err())
+			stopped = true
+			break
+		}
+
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] Inspecting %s", i+1, total, repo)))
+
+		if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil {
+			if errors.Is(err, errOrgRateLimitCritical) {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GitHub API budget critical; stopping after %d/%d repositories and reporting what was found", i, total)))
+				orgUpdateLog.Printf("Rate limit critical during preview at repo %d/%d", i, total)
+				stopped = true
+				break
+			}
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo, err)))
+			}
 		}
 
 		preview, err := previewOrgRepoUpdatesFn(ctx, repo, opts, verbose)
 		if err != nil {
-			return fmt.Errorf("failed to preview updates for %s: %w", repo, err)
+			// A single repository failing (parse error, transient API issue, etc.)
+			// must not abort the whole org run; log it and keep going.
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", repo, err)))
+			orgUpdateLog.Printf("Failed to preview updates for %s: %v", repo, err)
+			continue
 		}
 		if len(preview.Workflows) == 0 {
 			if verbose {
@@ -97,6 +145,10 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 	}
 
 	if len(previewByRepo) == 0 {
+		if stopped {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No updates found before processing stopped"))
+			return nil
+		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("All matching repositories are already up to date"))
 		return nil
 	}
@@ -120,39 +172,88 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 		return 1
 	})
 
+	// Always render the report of pending updates before applying anything; it is
+	// cheap to compute and lets the user see results even if the run was stopped
+	// early by a cancellation or a critical rate-limit condition.
+	renderOrgPreviewReport(previewByRepo, createPR || createIssue)
+
 	if !createPR && !createIssue {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dry-run preview of update pull requests:"))
-		for _, repo := range previewByRepo {
-			fmt.Fprintf(os.Stderr, "- %s\n", repo.Repo)
-			for _, wf := range repo.Workflows {
-				fmt.Fprintf(os.Stderr, "  - %s: %s -> %s\n", wf.Name, shortRef(wf.CurrentRef), shortRef(wf.LatestRef))
-			}
-		}
 		return nil
 	}
 
 	if createIssue {
-		for _, repo := range previewByRepo {
-			if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil && verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo.Repo, err)))
+		processed := 0
+		for i, repo := range previewByRepo {
+			if ctx.Err() != nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; created issues for %d/%d repositories", processed, len(previewByRepo))))
+				orgUpdateLog.Printf("Context canceled during issue creation at %d/%d: %v", i, len(previewByRepo), ctx.Err())
+				return nil
 			}
+			if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil {
+				if errors.Is(err, errOrgRateLimitCritical) {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GitHub API budget critical; created issues for %d/%d repositories", processed, len(previewByRepo))))
+					orgUpdateLog.Printf("Rate limit critical during issue creation at %d/%d", i, len(previewByRepo))
+					return nil
+				}
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo.Repo, err)))
+				}
+			}
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] Creating issue in %s", i+1, len(previewByRepo), repo.Repo)))
 			if err := createIssueForOrgRepoFn(ctx, repo, verbose); err != nil {
-				return err
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", repo.Repo, err)))
+				orgUpdateLog.Printf("Failed to create issue in %s: %v", repo.Repo, err)
+				continue
 			}
+			processed++
 		}
 		return nil
 	}
 
-	for _, repo := range previewByRepo {
-		if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo.Repo, err)))
+	processed := 0
+	for i, repo := range previewByRepo {
+		if ctx.Err() != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; updated %d/%d repositories", processed, len(previewByRepo))))
+			orgUpdateLog.Printf("Context canceled during update at %d/%d: %v", i, len(previewByRepo), ctx.Err())
+			return nil
 		}
+		if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil {
+			if errors.Is(err, errOrgRateLimitCritical) {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GitHub API budget critical; updated %d/%d repositories", processed, len(previewByRepo))))
+				orgUpdateLog.Printf("Rate limit critical during update at %d/%d", i, len(previewByRepo))
+				return nil
+			}
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo.Repo, err)))
+			}
+		}
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] Updating %s", i+1, len(previewByRepo), repo.Repo)))
 		if err := runUpdateForTargetRepoFn(ctx, repo.Repo, opts, true, verbose); err != nil {
-			return err
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", repo.Repo, err)))
+			orgUpdateLog.Printf("Failed to update %s: %v", repo.Repo, err)
+			continue
 		}
+		processed++
 	}
 
 	return nil
+}
+
+// renderOrgPreviewReport prints the discovered updates for each repository. It is
+// intentionally cheap (no API calls) so it can be shown even when a run is stopped
+// early by a cancellation signal or a critical rate-limit condition.
+func renderOrgPreviewReport(previewByRepo []orgRepoPreview, applying bool) {
+	if applying {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Repositories with updates available (%d):", len(previewByRepo))))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dry-run preview of update pull requests:"))
+	}
+	for _, repo := range previewByRepo {
+		fmt.Fprintf(os.Stderr, "- %s\n", repo.Repo)
+		for _, wf := range repo.Workflows {
+			fmt.Fprintf(os.Stderr, "  - %s: %s -> %s\n", wf.Name, shortRef(wf.CurrentRef), shortRef(wf.LatestRef))
+		}
+	}
 }
 
 func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
@@ -183,17 +284,28 @@ func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflow
 			continue
 		}
 
-		if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s/%s: %v", repo, entry.Path, err)))
+		if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil {
+			if errors.Is(err, errOrgRateLimitCritical) {
+				orgUpdateLog.Printf("Rate limit critical while previewing %s; stopping workflow scan", repo)
+				break
+			}
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s/%s: %v", repo, entry.Path, err)))
+			}
 		}
 
 		content, err := downloadWorkflowContentFn(ctx, repo, entry.Path, defaultBranch, verbose)
 		if err != nil {
-			return orgRepoPreview{}, fmt.Errorf("failed to download %s: %w", entry.Path, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: failed to download: %v", repo, entry.Path, err)))
+			orgUpdateLog.Printf("Failed to download %s/%s: %v", repo, entry.Path, err)
+			continue
 		}
 		result, err := parser.ExtractFrontmatterFromContent(string(content))
 		if err != nil {
-			return orgRepoPreview{}, fmt.Errorf("failed to parse %s: %w", entry.Path, err)
+			// Parsing errors must not abort the run; skip this workflow and continue.
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: failed to parse frontmatter: %v", repo, entry.Path, err)))
+			orgUpdateLog.Printf("Failed to parse frontmatter for %s/%s: %v", repo, entry.Path, err)
+			continue
 		}
 		sourceRaw, ok := result.Frontmatter["source"]
 		if !ok {
@@ -206,12 +318,16 @@ func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflow
 
 		sourceSpec, err := parseSourceSpec(source)
 		if err != nil {
-			return orgRepoPreview{}, fmt.Errorf("failed to parse source for %s: %w", entry.Path, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: failed to parse source: %v", repo, entry.Path, err)))
+			orgUpdateLog.Printf("Failed to parse source for %s/%s: %v", repo, entry.Path, err)
+			continue
 		}
 		name := normalizeWorkflowID(entry.Name)
 		resolved, err := resolveRedirectedUpdateLocation(ctx, name, sourceSpec, opts.AllowMajor, verbose, opts.NoRedirect, opts.CoolDown)
 		if err != nil {
-			return orgRepoPreview{}, err
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: %v", repo, entry.Path, err)))
+			orgUpdateLog.Printf("Failed to resolve update location for %s/%s: %v", repo, entry.Path, err)
+			continue
 		}
 		if resolved.currentRef == resolved.latestRef && len(resolved.redirectHistory) == 0 && !opts.Force {
 			continue
@@ -278,6 +394,22 @@ func waitForOrgRateLimit(ctx context.Context, resource string, verbose bool) err
 	}
 	if limit.Limit == 0 {
 		return nil
+	}
+
+	orgUpdateLog.Printf("GitHub %s rate limit: %d/%d remaining (reset at %s)", resource, limit.Remaining, limit.Limit, time.Unix(limit.Reset, 0).Format(time.RFC3339))
+
+	// Critical level: once consumption reaches limit-1000 API units, stop processing
+	// additional work rather than risking quota exhaustion or a long reset wait. The
+	// search resource has a tiny quota, so the critical threshold only applies to core.
+	if resource != "search" {
+		criticalRemaining := limit.Limit - orgUpdateCriticalConsumed
+		if criticalRemaining > buffer && limit.Remaining <= criticalRemaining {
+			orgUpdateLog.Printf("GitHub %s rate limit critical: %d/%d remaining (<= %d)", resource, limit.Remaining, limit.Limit, criticalRemaining)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				fmt.Sprintf("GitHub %s API budget critical: %d/%d remaining (consumed %d API units)", resource, limit.Remaining, limit.Limit, limit.Limit-limit.Remaining),
+			))
+			return errOrgRateLimitCritical
+		}
 	}
 
 	if limit.Remaining <= buffer {
