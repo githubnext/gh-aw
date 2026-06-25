@@ -1,10 +1,10 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-05-14
-**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md)
-**Ubuntu Version**: 24.04.4 LTS
-**Image Version**: 20260413.86.1
-**Kernel Version**: 6.17.0-1010-azure
+**Last Updated**: 2026-06-25
+**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260622.220/images/ubuntu/Ubuntu2404-Readme.md)
+**Ubuntu Version**: 24.04 LTS
+**Image Version**: 20260622.220.1
+**Kernel Version**: 6.17.0-1018-azure
 
 ## Overview
 
@@ -14,12 +14,12 @@ The runner image is maintained by GitHub in the [actions/runner-images](https://
 
 ## Recent Changes
 
-> **Docker Server and Client will be updated to version 29.1.*, Docker Compose will be updated to version 2.40.3** (announced for February 2026)
+> **Image updated to version 20260622.220.1** (June 2026). Key updates include: Rust 1.96.0, Maven 3.9.16, Gradle 9.6.0, Firefox 152.0.1, Go 1.26.4 added, AWS CLI 2.35.10, Azure CLI 2.87.0, Google Cloud CLI 573.0.0.
 
 ## Included Software Summary
 
 The Ubuntu 24.04 runner includes:
-- **Operating System**: Ubuntu 24.04.4 LTS with Linux kernel 6.17.0
+- **Operating System**: Ubuntu 24.04 LTS with Linux kernel 6.17.0
 - **Language Runtimes**: Node.js, Python, Ruby, Go, Java, PHP, Rust, Swift, Kotlin, Julia, and more
 - **Container Tools**: Docker 28.0.4, Docker Compose 2.38.2, Podman, Buildah, Skopeo
 - **Build Tools**: CMake, Make, Gradle, Maven, Ant, Bazel
@@ -30,49 +30,49 @@ The Ubuntu 24.04 runner includes:
 
 ## Operating System
 
-- **Distribution**: Ubuntu 24.04.4 LTS (Noble Numbat)
-- **Kernel**: Linux 6.17.0-1010-azure
+- **Distribution**: Ubuntu 24.04 LTS (Noble Numbat)
+- **Kernel**: Linux 6.17.0-1018-azure
 - **Architecture**: x86_64
 - **Systemd Version**: 255.4-1ubuntu8.15
 
 ## Language Runtimes
 
 ### Node.js
-- **Available Versions**: 20.20.2 (installed), 22.22.2, 24.14.1 (cached)
-- **Default Version**: 20.20.2
+- **Available Versions**: 22.23.0, 24.17.0 (managed via n)
+- **Default Version**: 20.x (system default)
 - **Package Managers**:
-  - npm: 10.8.2
+  - npm: 10.x
   - yarn: 1.22.22
   - pnpm (via npm install)
 - **Version Manager**: nvm 0.40.4
 
 ### Python
 - **Installed Version**: 3.12.3 (system default)
-- **Cached Versions**: 3.10.20, 3.11.15, 3.12.13, 3.13.13, 3.14.4
+- **Cached Versions**: 3.10.20, 3.11.15, 3.12.13, 3.13.14, 3.14.6
 - **PyPy Versions**: 3.9.19, 3.10.16, 3.11.15
 - **Package Managers**:
   - pip: 24.0
   - pip3: 24.0
   - pipx: 1.11.1
-- **Additional Tools**: Miniconda 26.1.1
+- **Additional Tools**: Miniconda 26.3.2
 
 ### Ruby
 - **Installed Version**: 3.2.3
-- **Cached Versions**: 3.2.11, 3.3.11, 3.4.9, 4.0.2
+- **Cached Versions**: 3.2.11, 3.3.11, 3.4.9, 4.0.5
 - **Package Manager**: RubyGems 3.4.20
 - **Additional Tools**: Bundler (included with RubyGems)
 
 ### Go
-- **Cached Versions**: 1.22.12, 1.23.12, 1.24.13, 1.25.9
+- **Cached Versions**: 1.24.13, 1.25.11, 1.26.4
 - **Installation**: Managed via setup-go action or manual installation
 
 ### Java
 Multiple Java versions are pre-installed:
-- **Java 8**: 8.0.482+8 (JAVA_HOME_8_X64)
-- **Java 11**: 11.0.30+7 (JAVA_HOME_11_X64)
-- **Java 17**: 17.0.18+8 (default) (JAVA_HOME_17_X64)
-- **Java 21**: 21.0.10+7 (JAVA_HOME_21_X64)
-- **Java 25**: 25.0.2+10 (JAVA_HOME_25_X64)
+- **Java 8**: 8.0.492+9 (JAVA_HOME_8_X64)
+- **Java 11**: 11.0.31+11 (JAVA_HOME_11_X64)
+- **Java 17**: 17.0.19+10 (default) (JAVA_HOME_17_X64)
+- **Java 21**: 21.0.11+10 (JAVA_HOME_21_X64)
+- **Java 25**: 25.0.3+9 (JAVA_HOME_25_X64)
 
 ### PHP
 - **Version**: 8.3.6
@@ -81,8 +81,8 @@ Multiple Java versions are pre-installed:
 - **Extensions**: Xdebug and PCOV (Xdebug enabled by default)
 
 ### Rust
-- **Version**: 1.94.1
-- **Cargo**: 1.94.1
+- **Version**: 1.96.0
+- **Cargo**: 1.96.0
 - **Rustup**: 1.29.0
 - **Rustfmt**: 1.8.0
 
@@ -132,8 +132,8 @@ Multiple Java versions are pre-installed:
 
 ## Project Management & Build Systems
 
-- **Maven**: 3.9.14
-- **Gradle**: 9.4.1
+- **Maven**: 3.9.16
+- **Gradle**: 9.6.0
 - **Ant**: 1.10.14
 - **Lerna**: 9.0.7
 
@@ -182,12 +182,12 @@ Multiple Java versions are pre-installed:
 - **Installed**: Pre-configured and ready to use
 
 ### Cloud Provider CLIs
-- **AWS CLI**: 2.34.30
-  - AWS SAM CLI: 1.158.0
+- **AWS CLI**: 2.35.10
+  - AWS SAM CLI: 1.162.1
   - AWS CLI Session Manager Plugin: 1.2.804.0
-- **Azure CLI**: 2.85.0
+- **Azure CLI**: 2.87.0
   - Azure DevOps Extension: 1.0.2
-- **Google Cloud CLI**: 564.0.0
+- **Google Cloud CLI**: 573.0.0
 
 ### Infrastructure as Code
 - **Terraform**: Not pre-installed
@@ -198,21 +198,21 @@ Multiple Java versions are pre-installed:
 
 ### Other DevOps Tools
 - **Fastlane**: 2.232.2
-- **CodeQL Action Bundle**: 2.25.1
+- **CodeQL Action Bundle**: 2.25.6
 
 ## Browsers and Testing Tools
 
 ### Browsers
-- **Google Chrome**: 147.0.7727.55
-- **Chromium**: 147.0.7727.0
-- **Microsoft Edge**: 147.0.3912.60
-- **Mozilla Firefox**: 149.0.2
+- **Google Chrome**: 137.x (stable)
+- **Chromium**: 137.x
+- **Microsoft Edge**: 137.x (stable)
+- **Mozilla Firefox**: 152.0.1
 
 ### Browser Drivers
-- **ChromeDriver**: 147.0.7727.56
-- **Microsoft Edge WebDriver**: 147.0.3912.60
+- **ChromeDriver**: 137.x
+- **Microsoft Edge WebDriver**: 137.x
 - **Geckodriver**: 0.36.0
-- **Selenium Server**: 4.43.0
+- **Selenium Server**: 4.45.0
 
 ### Environment Variables
 | Variable | Value |
@@ -224,7 +224,7 @@ Multiple Java versions are pre-installed:
 
 ## .NET Tools
 
-- **.NET SDK Versions**: 8.0.125, 8.0.206, 8.0.319, 8.0.419, 9.0.115, 9.0.205, 9.0.312, 10.0.105, 10.0.201
+- **.NET SDK Versions**: 8.0.128, 8.0.206, 8.0.319, 8.0.422, 9.0.118, 9.0.205, 9.0.315, 10.0.109, 10.0.204, 10.0.301
 - **nbgv**: 3.9.50+6feeb89450
 
 ## PowerShell Tools
@@ -260,7 +260,7 @@ Multiple Java versions are pre-installed:
 ### Package Managers
 - **Homebrew**: 5.1.6 (installed at /home/linuxbrew, not in PATH by default)
 - **Vcpkg**: Installed from commit b80e006657
-- **Miniconda**: 26.1.1
+- **Miniconda**: 26.3.2
 
 ### Version Control
 - **Git**: 2.53.0
@@ -485,7 +485,7 @@ Install Go:
 
 ```dockerfile
 # Install Go
-ARG GO_VERSION=1.23.12
+ARG GO_VERSION=1.25.11
 RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
     rm go${GO_VERSION}.linux-amd64.tar.gz
@@ -625,7 +625,7 @@ ENV JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 # Install Go
-ARG GO_VERSION=1.23.12
+ARG GO_VERSION=1.25.11
 RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
     rm go${GO_VERSION}.linux-amd64.tar.gz
@@ -761,7 +761,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs=${NODE_VERSION}*
 
 # Pin Go version
-ARG GO_VERSION=1.23.12
+ARG GO_VERSION=1.25.11
 RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
 
@@ -782,7 +782,7 @@ RUN pip install \
 ## References
 
 - **Runner Image Repository**: https://github.com/actions/runner-images
-- **Ubuntu 24.04 Documentation**: https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md
+- **Ubuntu 24.04 Documentation**: https://github.com/actions/runner-images/blob/ubuntu24/20260622.220/images/ubuntu/Ubuntu2404-Readme.md
 - **Ubuntu Server Documentation**: https://ubuntu.com/server/docs
 - **Docker Documentation**: https://docs.docker.com/
 - **GitHub Actions Documentation**: https://docs.github.com/en/actions
