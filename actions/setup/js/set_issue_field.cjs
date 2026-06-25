@@ -355,11 +355,13 @@ async function main(config = {}) {
         ...fieldUpdateResult.update,
       };
 
-      if (hasIssueIntentsRuntimeFeature()) {
+      const useIntentHeader = hasIssueIntentsRuntimeFeature();
+      if (useIntentHeader) {
         Object.assign(fieldUpdate, normalizeIssueIntentMetadata(item));
+        core.info(`Using GraphQL-Features header for issue field mutation (issue_intents runtime feature enabled)`);
       }
 
-      await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, hasIssueIntentsRuntimeFeature());
+      await setIssueFieldValue(githubClient, issueNodeId, fieldUpdate, useIntentHeader);
 
       core.info(`Successfully set issue field ${JSON.stringify(fieldName || fieldNodeId)} to ${JSON.stringify(value)} on issue #${issueNumber}`);
 

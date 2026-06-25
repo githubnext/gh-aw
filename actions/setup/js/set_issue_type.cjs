@@ -338,8 +338,12 @@ async function main(config = {}) {
       if (hasIssueIntentsRuntimeFeature() && !isClear) {
         // GraphQL intent path: resolve the type's node ID from org issue types, then
         // call setIssueTypeById with IssueTypeUpdateInput + the GraphQL-Features header.
+        core.info(`Using GraphQL intent path (issue_intents runtime feature enabled)`);
+        core.info(`Fetching issue node ID for issue #${issueNumber}`);
         const issueNodeId = await getIssueNodeId(githubClient, owner, repo, issueNumber);
+        core.info(`Fetching issue types for org ${owner}`);
         const issueTypes = await fetchIssueTypesForOrg(githubClient, owner);
+        core.info(`Found ${issueTypes.length} issue type(s) for org ${owner}`);
         const typeNode = issueTypes.find(t => t.name.toLowerCase() === resolvedIssueTypeName.toLowerCase());
         if (!typeNode) {
           const availableNames = issueTypes.map(t => t.name).join(", ");
@@ -347,6 +351,7 @@ async function main(config = {}) {
           core.error(`Failed to set issue type on issue #${issueNumber}: ${error}`);
           return { success: false, error };
         }
+        core.info(`Resolved issue type ${JSON.stringify(resolvedIssueTypeName)} to node ID ${typeNode.id}`);
         await setIssueTypeById(githubClient, issueNodeId, typeNode.id, intentMetadata);
       } else {
         // REST path: used for the clear case and when the issue_intents feature is off.
