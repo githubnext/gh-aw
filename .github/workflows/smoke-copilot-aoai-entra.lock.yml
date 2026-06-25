@@ -315,21 +315,7 @@ jobs:
       - name: Log runtime features
         env:
           GH_AW_RUNTIME_FEATURES_IS_SET: ${{ contains(toJSON(vars), '"GH_AW_RUNTIME_FEATURES":') }}
-        run: |
-          if [[ "$GH_AW_RUNTIME_FEATURES_IS_SET" == "true" && -n "$GH_AW_RUNTIME_FEATURES" ]]; then
-            {
-              echo "### Runtime features"
-              echo
-              echo "<details>"
-              echo "<summary>Show configured runtime features</summary>"
-              echo
-              echo '```text'
-              printf '%s\n' "$GH_AW_RUNTIME_FEATURES"
-              echo '```'
-              echo
-              echo "</details>"
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/log_runtime_features_summary.sh"
       - name: Restore experiment state from git
         id: restore-experiment-state
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
