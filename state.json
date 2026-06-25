@@ -2,7 +2,7 @@
   "counts": {
     "tone_variant": {
       "clinical": 38,
-      "narrative": 27,
+      "narrative": 28,
       "assertive": 30
     }
   },
@@ -670,6 +670,13 @@
       "timestamp": "2026-06-24T19:18:19.761Z",
       "assignments": {
         "tone_variant": "assertive"
+      }
+    },
+    {
+      "run_id": "28140735837",
+      "timestamp": "2026-06-25T01:28:33.250Z",
+      "assignments": {
+        "tone_variant": "narrative"
       }
     }
   ]
