@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -123,9 +124,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 					t.Errorf("Expected command 'gh', got %q", server.Command)
 				}
 				expectedArgs := []string{"aw", "mcp-server"}
-				if len(server.Args) != len(expectedArgs) {
-					t.Errorf("Expected args %v, got %v", expectedArgs, server.Args)
-				} else if server.Args[0] != expectedArgs[0] || server.Args[1] != expectedArgs[1] {
+				if !reflect.DeepEqual(server.Args, expectedArgs) {
 					t.Errorf("Expected args %v, got %v", expectedArgs, server.Args)
 				}
 				expectedTools := []string{"compile", "audit", "logs", "inspect", "status", "audit-diff"}

@@ -119,7 +119,13 @@ func selectMCPServerMap(config *MCPConfig, serverName string) *map[string]VSCode
 }
 
 func mergeRequiredMCPServerFields(existingConfig, requiredConfig VSCodeMCPServer) (VSCodeMCPServer, bool) {
-	updatedConfig := existingConfig
+	updatedConfig := VSCodeMCPServer{
+		Type:    existingConfig.Type,
+		Command: existingConfig.Command,
+		Args:    append([]string(nil), existingConfig.Args...),
+		Tools:   append([]string(nil), existingConfig.Tools...),
+		CWD:     existingConfig.CWD,
+	}
 	changed := false
 
 	if updatedConfig.Type != requiredConfig.Type {
