@@ -1323,12 +1323,11 @@ describe("handle_agent_failure", () => {
 
     describe("buildAssignmentErrorsContext", () => {
       it("returns empty string when there are no assignment errors", () => {
-        expect(buildAssignmentErrorsContext(false, "")).toBe("");
-        expect(buildAssignmentErrorsContext(true, "")).toBe("");
+        expect(buildAssignmentErrorsContext("")).toBe("");
       });
 
       it("renders assignment failures with token guidance docs", () => {
-        const result = buildAssignmentErrorsContext(true, "issue:42:copilot:Bad credentials\npr:7:copilot:copilot coding agent is not available for this repository");
+        const result = buildAssignmentErrorsContext("issue:42:copilot:Bad credentials\npr:7:copilot:copilot coding agent is not available for this repository");
 
         expect(result).toContain("Agent Assignment Failed");
         expect(result).toContain("Issue #42 (agent: copilot): Bad credentials");

@@ -2034,12 +2034,11 @@ function buildCredentialAuthErrorContext(auditJsonlPathOverride) {
 /**
  * Build a context string when assign_to_agent reported assignment errors.
  * Includes remediation guidance for token and Copilot access setup.
- * @param {boolean} hasAssignmentErrors
  * @param {string} assignmentErrors
  * @returns {string}
  */
-function buildAssignmentErrorsContext(hasAssignmentErrors, assignmentErrors) {
-  if (!hasAssignmentErrors || !assignmentErrors) {
+function buildAssignmentErrorsContext(assignmentErrors) {
+  if (!assignmentErrors) {
     return "";
   }
 
@@ -2059,7 +2058,7 @@ function buildAssignmentErrorsContext(hasAssignmentErrors, assignmentErrors) {
   }
 
   context += "\nTo resolve this, verify the agent token and Copilot access configuration:\n";
-  context += "- Configure a valid `GH_AW_AGENT_TOKEN` with issue/PR write access plus active Copilot entitlement\n";
+  context += "- Configure a valid `GH_AW_AGENT_TOKEN` with `issues: write` and `pull_requests: write` plus active Copilot entitlement\n";
   context += "- If your org supports it, add `permissions: { copilot-requests: write }` to use org inference without a personal token\n";
   context += "- Docs: https://github.github.com/gh-aw/reference/engines/#github-copilot-default\n\n";
 
@@ -3098,7 +3097,7 @@ async function main() {
         const runId = extractRunId(runUrl);
 
         // Build assignment errors context
-        const assignmentErrorsContext = buildAssignmentErrorsContext(hasAssignmentErrors, assignmentErrors);
+        const assignmentErrorsContext = buildAssignmentErrorsContext(assignmentErrors);
 
         // Build create_discussion errors context
         const createDiscussionErrorsContext = hasCreateDiscussionErrors ? buildCreateDiscussionErrorsContext(createDiscussionErrors) : "";
@@ -3306,7 +3305,7 @@ async function main() {
         const issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
 
         // Build assignment errors context
-        const assignmentErrorsContext = buildAssignmentErrorsContext(hasAssignmentErrors, assignmentErrors);
+        const assignmentErrorsContext = buildAssignmentErrorsContext(assignmentErrors);
 
         // Build create_discussion errors context
         const createDiscussionErrorsContext = hasCreateDiscussionErrors ? buildCreateDiscussionErrorsContext(createDiscussionErrors) : "";
