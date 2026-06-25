@@ -343,6 +343,38 @@ func TestPiEngine_GetExecutionSteps_FirewallCopilotProvider(t *testing.T) {
 	assert.Contains(t, stepText, expectedModelsJSON, "Copilot provider should route through CopilotLLMGatewayPort via models.json")
 }
 
+func TestPiEngine_GetExecutionSteps_FirewallCopilotProviderBYOKKeepsProviderEnvVars(t *testing.T) {
+	engine := NewPiEngine()
+	toolsRaw := map[string]any{
+		"github":    map[string]any{"mode": "gh-proxy"},
+		"cli-proxy": true,
+	}
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:    "pi",
+			Model: "copilot/claude-sonnet-4-20250514",
+			Env: map[string]string{
+				constants.CopilotProviderBaseURL: "${{ secrets.PROVIDER_BASE_URL }}",
+				constants.CopilotProviderAPIKey:  "${{ secrets.PROVIDER_API_KEY }}",
+			},
+		},
+		Tools:       toolsRaw,
+		ParsedTools: NewTools(toolsRaw),
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+	require.Len(t, steps, 1, "Should produce exactly one execution step")
+
+	stepText := strings.Join(steps[0], "\n")
+	assert.Contains(t, stepText, constants.CopilotProviderBaseURL+": ${{ secrets.PROVIDER_BASE_URL }}")
+	assert.Contains(t, stepText, constants.CopilotProviderAPIKey+": ${{ secrets.PROVIDER_API_KEY }}")
+	assert.NotContains(t, stepText, "--exclude-env "+constants.CopilotProviderBaseURL)
+	assert.NotContains(t, stepText, "--exclude-env "+constants.CopilotProviderAPIKey)
+}
+
 func TestPiEngine_GetExecutionSteps_FirewallAnthropicProvider(t *testing.T) {
 	engine := NewPiEngine()
 	toolsRaw := map[string]any{

@@ -174,6 +174,12 @@ func (e *PiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	backend := resolvePiBackend(workflowData)
 	profile := getUniversalLLMBackendProfile(backend, hasCopilotRequestsWritePermission(workflowData))
 	secrets := append([]string{}, profile.coreSecretNames...)
+	if backend == UniversalLLMBackendCopilot {
+		secrets = append(secrets,
+			constants.CopilotProviderBaseURL,
+			constants.CopilotProviderAPIKey,
+		)
+	}
 	secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
 	return secrets
 }
@@ -380,6 +386,21 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 
 	var command string
 	if firewallEnabled {
+		excludeEnvVarNames := ComputeAWFExcludeEnvVarNames(workflowData, profile.coreSecretNames)
+		if backend == UniversalLLMBackendCopilot && engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL) {
+			byokProviderEnvVars := map[string]struct{}{
+				constants.CopilotProviderBaseURL: {},
+				constants.CopilotProviderAPIKey:  {},
+			}
+			filtered := make([]string, 0, len(excludeEnvVarNames))
+			for _, envVarName := range excludeEnvVarNames {
+				if _, drop := byokProviderEnvVars[envVarName]; !drop {
+					filtered = append(filtered, envVarName)
+				}
+			}
+			excludeEnvVarNames = filtered
+		}
+
 		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
 		// re-running the expensive map+sort operation.
 		var allowedDomains string
@@ -415,7 +436,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 			UsesTTY:            false,
 			AllowedDomains:     allowedDomains,
 			PathSetup:          pathSetup,
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, profile.coreSecretNames),
+			ExcludeEnvVarNames: excludeEnvVarNames,
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
