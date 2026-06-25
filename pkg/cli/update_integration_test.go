@@ -488,3 +488,31 @@ func TestUpdateCommand_OrgDryRunIntegration(t *testing.T) {
 	assert.True(t, dryRunPreview || alreadyUpToDate || noReposFound,
 		"Output should indicate dry-run preview, up-to-date status, or no repos found; got: %s", outputStr)
 }
+
+// TestUpdateCommand_OrgSingleRepoDryRunIntegration verifies that --org mode can
+// target a single repository using --repos gh-aw and still complete in dry-run
+// mode without requiring write operations.
+func TestUpdateCommand_OrgSingleRepoDryRunIntegration(t *testing.T) {
+	skipWithoutGitHubAuth(t)
+
+	setup := setupUpdateIntegrationTest(t)
+	defer setup.cleanup()
+
+	cmd := exec.Command(setup.binaryPath, "update",
+		"--org", "github",
+		"--repos", "gh-aw",
+	)
+	cmd.Dir = setup.tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+	t.Logf("Output:\n%s", outputStr)
+
+	require.NoError(t, err, "org single-repo dry-run should succeed: %s", outputStr)
+	assert.NotContains(t, outputStr, "unknown flag", "All flags should be recognised")
+
+	dryRunPreview := strings.Contains(outputStr, "Dry-run preview")
+	alreadyUpToDate := strings.Contains(outputStr, "up to date")
+	noReposFound := strings.Contains(outputStr, "No repositories")
+	assert.True(t, dryRunPreview || alreadyUpToDate || noReposFound,
+		"Output should indicate dry-run preview, up-to-date status, or no repos found; got: %s", outputStr)
+}
