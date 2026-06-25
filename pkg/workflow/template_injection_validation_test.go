@@ -1554,7 +1554,7 @@ func TestScanRunContentExpressions(t *testing.T) {
 			wantDisallowed: false,
 		},
 		{
-			name: "regression expression in flow-style run block",
+			name: "disallowed expression in flow-style run block",
 			yaml: `jobs:
   test:
     steps:
