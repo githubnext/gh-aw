@@ -144,6 +144,7 @@ test_*.sh
 aw.patch
 
 pkg/cli/.github/aw/actions-lock.json
+.github/aw/updates/
 
 # Test run artifacts (legacy - now uses system temp)
 test-runs/

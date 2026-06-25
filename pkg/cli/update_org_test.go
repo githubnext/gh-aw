@@ -318,6 +318,80 @@ func TestRunUpdateForOrgStopsOnCancellation(t *testing.T) {
 	assert.Contains(t, output, "- octo/a")
 }
 
+func TestRunUpdateForOrgCreateIssueReturnsErrorWhenAllIssueCreatesFail(t *testing.T) {
+	origSearch := searchOrgWorkflowReposFn
+	origPreview := previewOrgRepoUpdatesFn
+	origUpdate := runUpdateForTargetRepoFn
+	origWait := waitForOrgRateLimitFn
+	origCreateIssue := createIssueForOrgRepoFn
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+		return []string{"octo/a"}, nil
+	}
+	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
+		return orgRepoPreview{
+			Repo:           repo,
+			TotalWorkflows: 1,
+			Workflows: []orgWorkflowPreview{{
+				Name:       "repo-assist",
+				CurrentRef: "v1.0.0",
+				LatestRef:  "v1.1.0",
+			}},
+		}, nil
+	}
+	runUpdateForTargetRepoFn = func(ctx context.Context, targetRepo string, opts UpdateWorkflowsOptions, createPR bool, verbose bool) error {
+		t.Fatalf("unexpected update call for %s", targetRepo)
+		return nil
+	}
+	createIssueForOrgRepoFn = func(ctx context.Context, preview orgRepoPreview, verbose bool) error {
+		return errors.New("boom")
+	}
+	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
+	defer func() {
+		searchOrgWorkflowReposFn = origSearch
+		previewOrgRepoUpdatesFn = origPreview
+		runUpdateForTargetRepoFn = origUpdate
+		waitForOrgRateLimitFn = origWait
+		createIssueForOrgRepoFn = origCreateIssue
+	}()
+
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, false, true, false)
+	require.EqualError(t, err, "failed to create issues in any repository")
+}
+
+func TestRunUpdateForOrgCreatePRReturnsErrorWhenAllUpdatesFail(t *testing.T) {
+	origSearch := searchOrgWorkflowReposFn
+	origPreview := previewOrgRepoUpdatesFn
+	origUpdate := runUpdateForTargetRepoFn
+	origWait := waitForOrgRateLimitFn
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+		return []string{"octo/a"}, nil
+	}
+	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
+		return orgRepoPreview{
+			Repo:           repo,
+			TotalWorkflows: 1,
+			Workflows: []orgWorkflowPreview{{
+				Name:       "repo-assist",
+				CurrentRef: "v1.0.0",
+				LatestRef:  "v1.1.0",
+			}},
+		}, nil
+	}
+	runUpdateForTargetRepoFn = func(ctx context.Context, targetRepo string, opts UpdateWorkflowsOptions, createPR bool, verbose bool) error {
+		return errors.New("boom")
+	}
+	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
+	defer func() {
+		searchOrgWorkflowReposFn = origSearch
+		previewOrgRepoUpdatesFn = origPreview
+		runUpdateForTargetRepoFn = origUpdate
+		waitForOrgRateLimitFn = origWait
+	}()
+
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, true, false, false)
+	require.EqualError(t, err, "failed to update any repository")
+}
+
 func captureUpdateOrgStderr(t *testing.T, fn func()) string {
 	t.Helper()
 	orig := os.Stderr

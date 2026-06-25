@@ -214,6 +214,9 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 			}
 			processed++
 		}
+		if processed == 0 {
+			return errors.New("failed to create issues in any repository")
+		}
 		return nil
 	}
 
@@ -241,6 +244,9 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 			continue
 		}
 		processed++
+	}
+	if processed == 0 {
+		return errors.New("failed to update any repository")
 	}
 
 	return nil
