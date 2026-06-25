@@ -58,10 +58,6 @@ gh aw compile --approve           # Approve new secrets / action changes
 
 **MCP equivalent**: `compile` tool
 
-```
-Use the compile tool with workflow_name: "my-workflow"
-```
-
 ---
 
 ### `gh aw run`
@@ -80,16 +76,7 @@ gh aw run <workflow-name> --repeat 3              # Run 4 times total (1 + 3 rep
 gh aw run <workflow-name> -F key=value            # Pass a specific input (alias: --raw-field)
 ```
 
-**MCP equivalent**: Not available in the agentic-workflows MCP tool. If you cannot access the CLI, use the GitHub MCP server to dispatch the workflow:
-
-```
-Use the github MCP server tool "create_workflow_dispatch" with:
-  - owner: <org>
-  - repo: <repo>
-  - workflow_id: <workflow-name>.lock.yml
-  - ref: main
-  - inputs: { ... }
-```
+**MCP equivalent**: Not available. Fallback: use the GitHub MCP server's `create_workflow_dispatch` with `workflow_id: <workflow-name>.lock.yml`.
 
 ---
 
@@ -111,10 +98,6 @@ gh aw logs --repo owner/repo        # Query logs in another repository
 
 **MCP equivalent**: `logs` tool
 
-```
-Use the logs tool with workflow_name: "my-workflow"
-```
-
 ---
 
 ### `gh aw audit`
@@ -129,10 +112,6 @@ gh aw audit <id1> <id2> <id3> --json  # Multi-run diff
 ```
 
 **MCP equivalent**: `audit` tool (single run) / `audit-diff` tool (multi-run comparison)
-
-```
-Use the audit tool with run_id: 20135841934
-```
 
 ---
 
@@ -219,16 +198,14 @@ gh aw update --cool-down 3d                 # Custom cooldown before applying pe
 
 ### `gh aw deploy`
 
-Deploy one or more workflows to a target repository by chaining update, add, compile --purge, and opening a pull request.
+Deploy workflows to a target repository (chains update, add, compile --purge, opens a PR). `--repo` is required.
 
 ```bash
-gh aw deploy <workflow>... --repo owner/repo            # Deploy listed workflows to target repo
+gh aw deploy <workflow>... --repo owner/repo            # Deploy listed workflows
 gh aw deploy githubnext/agentics/ci-doctor --repo o/r   # Deploy a shared workflow
 gh aw deploy ./local-workflow.md --repo owner/repo      # Deploy a local workflow
-gh aw deploy <workflow> --repo owner/repo --force       # Overwrite existing files without confirmation
+gh aw deploy <workflow> --repo owner/repo --force       # Overwrite without confirmation
 ```
-
-`--repo` is required. Useful for orchestrating remote rollouts across multiple repositories from a central deployer workflow.
 
 **MCP equivalent**: Not available — run from a local terminal or invoke the CLI inside a workflow step with `github/gh-aw/actions/setup-cli`.
 
@@ -236,7 +213,7 @@ gh aw deploy <workflow> --repo owner/repo --force       # Overwrite existing fil
 
 ### `gh aw env`
 
-Manage compiler default variables (`GH_AW_DEFAULT_*`) in batch as GitHub Actions variables at repository, organization, or enterprise scope. The YAML file is flat and uses lowercase `default_*` keys (e.g. `default_max_turns`). Set a field to `null` to delete the variable; any non-null string sets it. Empty string `""` is treated as set-to-empty, not delete.
+Manage compiler default variables (`GH_AW_DEFAULT_*`) as repo/org/enterprise GitHub Actions variables. YAML file uses lowercase `default_*` keys. `null` deletes the variable; any non-null string sets it (`""` = set-to-empty, not delete).
 
 ```bash
 gh aw env get [file]                          # Download defaults to file.yml (default name)

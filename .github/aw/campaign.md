@@ -6,19 +6,19 @@ Coordinated, time-bounded pushes with measurable outcomes, including **KPI workf
 
 ### Minimum viable campaign spec
 
-1. **Goal**: measurable success criteria (metric, source, target, deadline).
+1. **Goal**: measurable criteria (metric, source, target, deadline).
 2. **Cadence**: schedule + optional `workflow_dispatch`.
-3. **Stop condition**: what "goal met" means; report + stop early.
+3. **Stop condition**: define "goal met"; report + stop early.
 4. **Outputs**: comment, issue, PR vs stdout/stderr only.
-5. **Scope**: single-repo or cross-repo (coordination + auth ownership).
-6. **Constraints**: per-run caps (max PRs, max issues, runtime).
+5. **Scope**: single-repo or cross-repo.
+6. **Constraints**: per-run caps (max PRs, issues, runtime).
 
 ### Composable building blocks
 
 - **Agentic (default)**: judgment, synthesis, ambiguous decisions.
 - **Deterministic core**: precise, repeatable, validatable.
 - **Hybrid**: deterministic prep in `steps:`, agentic prompt for decisions.
-- **Metrics + memory**: `cache-memory` (optionally `repo-memory`) for goal tracking across runs.
+- **Metrics + memory**: `cache-memory` (optionally `repo-memory`) for cross-run goal tracking.
 
 ### Pacing levers
 
@@ -59,7 +59,7 @@ safe-outputs:
 
 ### Goal-aware early exit
 
-Deterministic pre-check; exit early when goal met but still report.
+Deterministic pre-check; exit early when goal met, still report.
 
 ```markdown
 ---
@@ -126,4 +126,4 @@ Output a **metric** and **interpretation**. Make KPI computation deterministic.
 - For org-wide/multi-org, use a coordinator sending `repository_dispatch` to each target.
   - Requires PAT or GitHub App token with access to every dispatched repo.
   - Prefer fine-grained PAT scoped to specific repos with `Actions: Read & Write`.
-  - Privileged: keep permissions minimal, lock down inputs.
+  - Keep permissions minimal, lock down inputs.
