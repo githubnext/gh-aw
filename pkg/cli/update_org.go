@@ -293,15 +293,15 @@ func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflow
 	for _, wf := range workflows {
 		sourceSpec, err := parseSourceSpec(wf.SourceSpec)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: failed to parse source: %v", repo, wf.Path, err)))
-			orgUpdateLog.Printf("Failed to parse source for %s/%s: %v", repo, wf.Path, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: failed to parse source: %v", repo, wf.Name, err)))
+			orgUpdateLog.Printf("Failed to parse source for %s/%s: %v", repo, wf.Name, err)
 			continue
 		}
 		name := normalizeWorkflowID(wf.Name)
 		resolved, err := resolveRedirectedUpdateLocation(ctx, name, sourceSpec, opts.AllowMajor, verbose, opts.NoRedirect, opts.CoolDown)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: %v", repo, wf.Path, err)))
-			orgUpdateLog.Printf("Failed to resolve update location for %s/%s: %v", repo, wf.Path, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: %v", repo, wf.Name, err)))
+			orgUpdateLog.Printf("Failed to resolve update location for %s/%s: %v", repo, wf.Name, err)
 			continue
 		}
 		if resolved.currentRef == resolved.latestRef && len(resolved.redirectHistory) == 0 && !opts.Force {
@@ -371,9 +371,6 @@ func waitForOrgRateLimit(ctx context.Context, resource string, verbose bool) err
 	}
 
 	orgUpdateLog.Printf("GitHub %s rate limit: %d/%d remaining (reset at %s)", resource, limit.Remaining, limit.Limit, time.Unix(limit.Reset, 0).Format(time.RFC3339))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		fmt.Sprintf("GitHub %s API rate limit: %d/%d remaining", resource, limit.Remaining, limit.Limit),
-	))
 
 	// Critical level: once consumption reaches limit-1000 API units, stop processing
 	// additional work rather than risking quota exhaustion or a long reset wait. The

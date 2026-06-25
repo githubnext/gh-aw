@@ -42,7 +42,7 @@ func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, i
 	for range maxRedirectDepth {
 		currentRef := current.Ref
 		if currentRef == "" {
-			currentRef = "main"
+			currentRef = resolveDefaultBranchRef(ctx, current.Repo)
 		}
 
 		locationKey := sourceSpecWithRef(current, currentRef)
@@ -96,7 +96,7 @@ func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, i
 
 		nextRef := redirectedSource.Ref
 		if nextRef == "" {
-			nextRef = "main"
+			nextRef = resolveDefaultBranchRef(ctx, redirectedSource.Repo)
 		}
 
 		updateRedirectsLog.Printf("Following redirect: workflow=%s, from=%s, to=%s", workflowName, sourceSpecWithRef(current, latestRef), sourceSpecWithRef(redirectedSource, nextRef))
@@ -108,6 +108,21 @@ func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, i
 
 	updateRedirectsLog.Printf("Redirect chain exceeded max depth: workflow=%s, depth=%d", workflowName, maxRedirectDepth)
 	return nil, fmt.Errorf("redirect chain exceeded maximum depth (%d) while updating %s", maxRedirectDepth, workflowName)
+}
+
+// resolveDefaultBranchRef returns the repository's default branch name via the
+// GitHub API. When the source field omits a branch ref we must track the repo's
+// actual default branch (which may be "master", "trunk", etc.) rather than
+// assuming "main". If the API lookup fails, it falls back to "main" so resolution
+// can still proceed in offline or rate-limited scenarios.
+func resolveDefaultBranchRef(ctx context.Context, repo string) string {
+	branch, err := getRepoDefaultBranchCached(ctx, repo)
+	if err != nil || strings.TrimSpace(branch) == "" {
+		updateRedirectsLog.Printf("Falling back to 'main' as default branch for %s: %v", repo, err)
+		return "main"
+	}
+	updateRedirectsLog.Printf("Resolved default branch for %s: %s", repo, branch)
+	return branch
 }
 
 func extractRedirectFromContent(content string) (string, error) {

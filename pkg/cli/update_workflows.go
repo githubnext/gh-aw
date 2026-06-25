@@ -300,9 +300,8 @@ func resolveLatestCommitFromDefaultBranch(ctx context.Context, repo, currentSHA 
 
 	updateLog.Printf("Source is pinned to commit SHA, tracking default branch %q of %s", defaultBranch, repo)
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Source is pinned to commit SHA, checking default branch %q for updates", defaultBranch)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Source has no branch ref, tracking default branch %q", defaultBranch)))
 	}
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Source has no branch ref, tracking default branch %q", defaultBranch)))
 
 	// Get the latest commit SHA from the default branch
 	latestSHA, err := getLatestBranchCommitSHACached(ctx, repo, defaultBranch)

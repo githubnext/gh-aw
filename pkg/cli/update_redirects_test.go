@@ -131,4 +131,38 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 		require.Error(t, err, "redirect should be refused with --no-redirect")
 		assert.Contains(t, err.Error(), "redirect is disabled by --no-redirect", "error should explain redirect refusal")
 	})
+
+	t.Run("resolves default branch via API when source omits ref", func(t *testing.T) {
+		// Seed the default-branch cache so resolution uses the repo's actual
+		// default branch ("trunk") instead of assuming "main".
+		defaultBranchCache.Store("owner/repo", "trunk")
+		t.Cleanup(func() { defaultBranchCache.Delete("owner/repo") })
+
+		var seenRef string
+		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (string, error) {
+			seenRef = currentRef
+			return currentRef, nil
+		}
+		downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
+			key := fmt.Sprintf("%s/%s@%s", repo, path, ref)
+			if key == "owner/repo/workflows/original.md@trunk" {
+				return []byte("---\nname: Trunk Workflow\n---\n"), nil
+			}
+			return nil, fmt.Errorf("unexpected download key %s", key)
+		}
+
+		result, err := resolveRedirectedUpdateLocation(
+			context.Background(),
+			"trunk-workflow",
+			&SourceSpec{Repo: "owner/repo", Path: "workflows/original.md", Ref: ""},
+			false,
+			false,
+			false,
+			0,
+		)
+		require.NoError(t, err, "empty ref should resolve via default branch")
+		assert.Equal(t, "trunk", seenRef, "default branch should be resolved via the API, not hardcoded to main")
+		assert.Equal(t, "trunk", result.currentRef, "current ref should reflect the resolved default branch")
+		assert.Equal(t, "trunk", result.sourceFieldRef, "default branch should be preserved in source field")
+	})
 }
