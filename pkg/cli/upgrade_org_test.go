@@ -196,7 +196,7 @@ func TestRunUpgradeCommandReposRequiresOrg(t *testing.T) {
 	assert.Contains(t, err.Error(), "--repos requires --org")
 }
 
-func TestRunUpgradeForOrgCreatePRStopsOnFirstError(t *testing.T) {
+func TestRunUpgradeForOrgStopsOnFirstError(t *testing.T) {
 	origSearch := searchOrgAnyWorkflowReposFn
 	origUpgrade := runUpgradeForTargetRepoFn
 	origWait := waitForOrgRateLimitFn

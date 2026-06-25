@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -178,16 +179,26 @@ func createIssueForUpgradeOrgRepo(ctx context.Context, repo string, verbose bool
 	title := "Upgrade agentic workflows"
 
 	// Idempotency guard: skip if an open issue with this title already exists.
+	// Parse the response in Go rather than embedding the title in a jq expression
+	// to avoid any quoting or injection issues.
 	existsOutput, err := workflow.RunGHContext(ctx, "Checking for existing upgrade issue...",
 		"api",
-		fmt.Sprintf("/repos/%s/issues?state=open&per_page=20", repo),
-		"--jq", fmt.Sprintf(`[.[] | select(.title == "%s")] | length`, title),
+		fmt.Sprintf("/repos/%s/issues?state=open&per_page=100", repo),
 	)
-	if err == nil && strings.TrimSpace(string(existsOutput)) != "0" {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Skipping "+repo+": upgrade issue already exists"))
+	if err == nil {
+		var issues []struct {
+			Title string `json:"title"`
 		}
-		return nil
+		if jsonErr := json.Unmarshal(existsOutput, &issues); jsonErr == nil {
+			for _, issue := range issues {
+				if issue.Title == title {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Skipping "+repo+": upgrade issue already exists"))
+					}
+					return nil
+				}
+			}
+		}
 	}
 
 	body := "Agentic workflow files detected in this repository may have upgrades available.\n\n" +
