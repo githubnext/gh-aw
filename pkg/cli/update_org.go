@@ -140,7 +140,7 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 			continue
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-			fmt.Sprintf("%s: %d source-managed workflow(s), %d with updates", repo, preview.TotalWorkflows, len(preview.Workflows)),
+			fmt.Sprintf("%s: %d workflow(s), %d with updates", repo, preview.TotalWorkflows, len(preview.Workflows)),
 		))
 		if len(preview.Workflows) == 0 {
 			if verbose {

@@ -32,8 +32,14 @@ type repoBranchKey struct {
 }
 
 func clearUpdateResolutionCaches() {
-	defaultBranchCache = sync.Map{}
-	branchCommitCache = sync.Map{}
+	defaultBranchCache.Range(func(key, value any) bool {
+		defaultBranchCache.Delete(key)
+		return true
+	})
+	branchCommitCache.Range(func(key, value any) bool {
+		branchCommitCache.Delete(key)
+		return true
+	})
 }
 
 // UpdateWorkflowsOptions configures workflow update behavior.
