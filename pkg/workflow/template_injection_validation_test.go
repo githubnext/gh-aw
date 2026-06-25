@@ -1579,7 +1579,7 @@ func TestHasExpressionInRunContent(t *testing.T) {
 	tests := []struct {
 		name              string
 		yaml              string
-		regex             *regexp.Regexp
+		pattern           *regexp.Regexp
 		wantHasExpression bool
 	}{
 		{
@@ -1588,7 +1588,7 @@ func TestHasExpressionInRunContent(t *testing.T) {
   test:
     steps:
       - run: echo "${{ github.actor }}"`,
-			regex:             InlineExpressionPattern,
+			pattern:           InlineExpressionPattern,
 			wantHasExpression: true,
 		},
 		{
@@ -1597,7 +1597,7 @@ func TestHasExpressionInRunContent(t *testing.T) {
   test:
     steps:
       - run: echo "${{ github.event.issue.title }}"`,
-			regex:             UnsafeContextPattern,
+			pattern:           UnsafeContextPattern,
 			wantHasExpression: true,
 		},
 		{
@@ -1608,14 +1608,14 @@ func TestHasExpressionInRunContent(t *testing.T) {
       - env:
           TITLE: ${{ github.event.issue.title }}
         run: echo "$TITLE"`,
-			regex:             InlineExpressionPattern,
+			pattern:           InlineExpressionPattern,
 			wantHasExpression: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.wantHasExpression, hasExpressionInRunContent(tt.yaml, tt.regex))
+			assert.Equal(t, tt.wantHasExpression, hasExpressionInRunContent(tt.yaml, tt.pattern))
 		})
 	}
 }

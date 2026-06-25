@@ -20,7 +20,7 @@ jobs:
 `
 
 	b.ReportAllocs()
-	for range b.N {
+	for b.Loop() {
 		if err := compiler.validateTemplateInjection(yamlContent, "", "", nil); err != nil {
 			b.Fatalf("validateTemplateInjection() error = %v", err)
 		}
