@@ -2440,6 +2440,25 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Diagnosis:");
     });
 
+    it("detects AWF firewall startup failure with diagnosis=unknown but no EAI_AGAIN", () => {
+      // When only diagnosis=unknown triggers the DNS signal (no EAI_AGAIN in log),
+      // the diagnosis message should NOT claim EAI_AGAIN as the cause.
+      const lines = [
+        "[INFO] CLI proxy sidecar enabled - connecting to external DIFC proxy at awmg-cli-proxy:18443",
+        " Container awf-cli-proxy  Error",
+        "dependency failed to start: container awf-cli-proxy is unhealthy",
+        "[cli-proxy] DIFC proxy probe failed (attempt 1/10, diagnosis=unknown), retrying in 1s...",
+        "[ERROR] Fatal error: Error: AWF firewall failed to start: awf-cli-proxy could not connect to the external DIFC proxy",
+      ];
+      fs.writeFileSync(stdioLogPath, lines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("AWF Firewall Startup Failure");
+      expect(result).toContain("Diagnosis:");
+      expect(result).toContain("diagnosis=unknown");
+      expect(result).not.toContain("EAI_AGAIN");
+      expect(result).toContain("https://github.com/github/gh-aw-firewall/blob/main/docs/diagnosing-awf-failures.md");
+    });
+
     it("detects AWF firewall startup failure from infra-only log with specific failure signal", () => {
       // When the log contains only infra lines but includes a specific AWF firewall failure signal.
       // Note: container lifecycle lines like " Container awf-cli-proxy  Started" are NOT enough —
