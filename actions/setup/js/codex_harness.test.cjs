@@ -98,6 +98,10 @@ describe("codex_harness.cjs", () => {
       expect(isRateLimitError("RateLimitError: You exceeded your current quota")).toBe(true);
     });
 
+    it("returns true for 'Rate limit reached for' human-readable message", () => {
+      expect(isRateLimitError("Rate limit reached for gpt-4o-mini in organization org-xxx on tokens per min (TPM): " + "Limit 200000, Used 166655, Requested 35398. Please try again in 615ms.")).toBe(true);
+    });
+
     it("returns false for unrelated errors", () => {
       expect(isRateLimitError("Error: ENOENT: no such file")).toBe(false);
       expect(isRateLimitError("Fatal: out of memory")).toBe(false);
@@ -409,16 +413,14 @@ env_key = "OPENAI_API_KEY"
      */
     function shouldRetry(result, attempt) {
       if (result.exitCode === 0) return false;
-      const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError|Rate limit reached/i;
-      const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
       if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
       if (isMissingApiKeyError(result.output)) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
       const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
       if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || nonRetryableGuard.goalAlreadyActive || nonRetryableGuard.maxRunsExceeded) return false;
-      const isRateLimit = RATE_LIMIT_ERROR_PATTERN.test(result.output);
+      const isRateLimit = isRateLimitError(result.output);
       if (isRateLimit && isReconnectExhaustedError(result.output)) return false;
-      const isTransient = isRateLimit || SERVER_ERROR_PATTERN.test(result.output);
+      const isTransient = isRateLimit || isServerError(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
     }
 

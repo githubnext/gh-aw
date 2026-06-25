@@ -63,7 +63,7 @@ const MAX_DELAY_MS = 60000;
 // ("429 Too Many Requests"), the client-side exception class ("RateLimitError"), and
 // the human-readable message Codex emits inside "Reconnecting..." / error lines:
 // "Rate limit reached for <model> in organization <org> on tokens per min (TPM): ..."
-const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError|Rate limit reached/i;
+const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError|Rate limit reached for .+ on tokens per min/i;
 
 // Pattern to detect when Codex's internal stream-reconnect budget is fully spent.
 // Codex emits "Reconnecting... N/N (reason)" where both numbers are the same when
