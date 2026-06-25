@@ -148,7 +148,7 @@ func hasNonAllowedExpressionInRunContent(yamlContent string) bool {
 }
 
 func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regexp) bool {
-	if expressionRegex == UnsafeContextPattern {
+	if expressionRegex != nil && expressionRegex.String() == UnsafeContextPattern.String() {
 		return scanRunContentExpressions(yamlContent).hasUnsafe
 	}
 
