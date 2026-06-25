@@ -67,6 +67,14 @@ func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 	return append(llmProviderSecretNames(provider), collectCommonMCPSecrets(workflowData)...)
 }
 
+// GetSupportedEnvVarKeys returns the engine.env variable names that the Claude engine
+// supports as defined in the AWF specification.
+func (e *ClaudeEngine) GetSupportedEnvVarKeys() []string {
+	return []string{
+		constants.AnthropicAPIKey,
+	}
+}
+
 // GetSecretValidationStep returns the secret validation step for the Claude engine.
 // Returns an empty step if custom command is specified or if Anthropic WIF is configured.
 func (e *ClaudeEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
