@@ -284,6 +284,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s \"$INSTRUCTION\"",
 			commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	}
+	codexCommand = workspaceCommandPrefix + codexCommand
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string

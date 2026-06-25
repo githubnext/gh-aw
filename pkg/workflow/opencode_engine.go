@@ -114,6 +114,7 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 		commandName = workflowData.EngineConfig.Command
 	}
 	openCodeCommand := fmt.Sprintf("%s run %s %s", commandName, shellJoinArgs(openCodeArgs), promptArg)
+	openCodeCommand = workspaceCommandPrefix + openCodeCommand
 
 	firewallEnabled := isFirewallEnabled(workflowData)
 	var command string

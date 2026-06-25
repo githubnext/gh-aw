@@ -194,6 +194,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Append the prompt arg raw (not through shellJoinArgs) to preserve shell expansion
 	geminiCommand := fmt.Sprintf(`%s %s --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, commandName, shellJoinArgs(geminiArgs))
+	geminiCommand = workspaceCommandPrefix + geminiCommand
 
 	// Build the full command with AWF wrapping if enabled
 	var command string

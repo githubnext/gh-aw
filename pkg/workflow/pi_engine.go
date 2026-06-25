@@ -377,6 +377,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	if piModelsJSONSetup != "" {
 		piCommand = piModelsJSONSetup + piCommand
 	}
+	piCommand = workspaceCommandPrefix + piCommand
 
 	var command string
 	if firewallEnabled {

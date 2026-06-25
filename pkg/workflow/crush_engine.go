@@ -155,6 +155,7 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		commandName = workflowData.EngineConfig.Command
 	}
 	crushCommand := fmt.Sprintf("%s run %s %s", commandName, shellJoinArgs(crushArgs), promptArg)
+	crushCommand = workspaceCommandPrefix + crushCommand
 
 	// AWF wrapping
 	firewallEnabled := isFirewallEnabled(workflowData)

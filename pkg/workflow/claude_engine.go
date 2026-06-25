@@ -296,6 +296,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 		claudeCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, claudeCommand, modelEnvVar, modelEnvVar)
 	}
+	claudeCommand = workspaceCommandPrefix + claudeCommand
 
 	// Build the full command based on whether firewall is enabled
 	var command string
