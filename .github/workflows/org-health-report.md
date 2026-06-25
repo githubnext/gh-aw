@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "📊"
 description: Generate an organization-wide health report for all public repositories in the GitHub org
 on:
