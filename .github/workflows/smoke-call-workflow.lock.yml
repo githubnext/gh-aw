@@ -1132,8 +1132,10 @@ jobs:
     needs: safe_outputs
     if: needs.safe_outputs.outputs.call_workflow_name == 'smoke-workflow-call'
     permissions:
+      actions: read
       contents: read
-      pull-requests: read
+      issues: write
+      pull-requests: write
     uses: ./.github/workflows/smoke-workflow-call.lock.yml
     with:
       aw_context: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).aw_context }}

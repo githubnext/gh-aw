@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -292,44 +291,45 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 			callJob.SecretsInherit = true
 		}
 
-		// Derive the call-<worker> job's permission envelope from the CALLER's own
-		// declared permissions, not from the worker. GitHub validates reusable
-		// workflow calls against the caller job's declared permissions, so the caller
-		// must declare a scope that is sufficient for the worker. We never inflate the
-		// caller's permissions to match the worker (doing so would, for example,
-		// materialise speculative scopes like vulnerability-alerts that GitHub rejects).
-		// Instead the caller controls its own surface and we validate it below.
+		// Compute the call-<worker> job's permission envelope as the union of:
+		//   1. The caller's own declared permissions (the base scope the caller controls).
+		//   2. The worker's job-level permissions (the minimum the worker needs to run).
+		// GitHub validates reusable workflow calls against the caller job's declared
+		// permissions and rejects the run at startup when the caller grants less than
+		// the worker requires. Taking the union ensures the call job always holds a
+		// sufficient grant without requiring the caller's markdown to enumerate every
+		// permission the worker needs.
 		callerPerms := data.CachedPermissions
 		if callerPerms == nil {
 			callerPerms = NewPermissionsParser(data.Permissions).ToPermissions()
 		}
-		if callerPerms != nil {
-			rendered := callerPerms.RenderToYAML()
-			if rendered != "" {
-				callJob.Permissions = rendered
-				compilerSafeOutputJobsLog.Printf("Set permissions on call-workflow job '%s' from caller's declared permissions: %s", jobName, rendered)
-			}
-		}
 
-		// Validate (without modifying) that the caller's declared permissions cover what
-		// the worker requires. Emit a warning when they do not, so the user can widen the
-		// caller's `permissions:` block. This never alters the compiled permissions.
+		effectivePerms := callerPerms
 		if markdownPath != "" {
 			workerPerms, permErr := extractCallWorkflowPermissions(workflowName, markdownPath)
 			if permErr != nil {
 				// Non-fatal: log and continue. The worker file may not exist yet (it may be
-				// compiled in the same batch), in which case validation is simply skipped.
-				compilerSafeOutputJobsLog.Printf("Could not extract worker permissions for call-workflow job '%s' (validation skipped): %v", jobName, permErr)
+				// compiled in the same batch), in which case we fall back to the caller's
+				// own declared permissions.
+				compilerSafeOutputJobsLog.Printf("Could not extract worker permissions for call-workflow job '%s' (falling back to caller-only permissions): %v", jobName, permErr)
 			} else if workerPerms != nil {
-				if missing := findUncoveredWorkerPermissions(callerPerms, workerPerms); len(missing) > 0 {
-					fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
-						fmt.Sprintf("call-workflow target '%s' may require permissions not granted by this workflow: %s.\n"+
-							"GitHub Actions constrains a called workflow's GITHUB_TOKEN to the caller job's permissions, "+
-							"so the worker's jobs may fail. Add the missing scope(s) to this workflow's `permissions:` block.",
-							workflowName, strings.Join(missing, ", "))))
-					c.IncrementWarningCount()
-					compilerSafeOutputJobsLog.Printf("Caller permissions insufficient for worker '%s': missing %s", workflowName, strings.Join(missing, ", "))
-				}
+				// Merge worker permissions into a clone of the caller's permissions to
+				// form the effective permissions for the call-workflow job. Worker scopes
+				// that the caller did not declare are automatically added, preventing
+				// GitHub's startup_failure when the worker requires more than the caller
+				// originally declared.
+				merged := callerPerms.Clone()
+				merged.Merge(workerPerms)
+				effectivePerms = merged
+				compilerSafeOutputJobsLog.Printf("Merged caller and worker permissions for call-workflow job '%s'", jobName)
+			}
+		}
+
+		if effectivePerms != nil {
+			rendered := effectivePerms.RenderToYAML()
+			if rendered != "" {
+				callJob.Permissions = rendered
+				compilerSafeOutputJobsLog.Printf("Set permissions on call-workflow job '%s': %s", jobName, rendered)
 			}
 		}
 
