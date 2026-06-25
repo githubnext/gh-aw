@@ -278,6 +278,16 @@ jobs:
           Invoke-CliProcess -FilePath $binary -ArgumentList @("totally-unknown-subcommand-xyz") -TimeoutMs 10000 -ExpectFailure -ExpectedErrorPattern "unknown|not found|invalid|unrecognized" | Out-Null
           Add-Content $env:GITHUB_STEP_SUMMARY "✅ Unknown subcommand fails fast with explicit error output"
 
+      - name: Configure ConPTY
+        shell: pwsh
+        run: |
+          New-Item -Path HKCU:\Console -Force | Out-Null
+          Set-ItemProperty -Path HKCU:\Console -Name ForceV2 -Type DWord -Value 1
+          Set-ItemProperty -Path HKCU:\Console -Name VirtualTerminalLevel -Type DWord -Value 1
+          Add-Content -Path $env:GITHUB_ENV -Value "TERM=xterm"
+          Add-Content -Path $env:GITHUB_ENV -Value "CONEMUANSI=ON"
+          Add-Content $env:GITHUB_STEP_SUMMARY "✅ Configured HKCU\Console for ConPTY (ForceV2=1, VirtualTerminalLevel=1)"
+
       - name: "[ConPTY] startup probe hang detection"
         shell: pwsh
         run: |
