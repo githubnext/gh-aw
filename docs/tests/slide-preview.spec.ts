@@ -41,7 +41,7 @@ test.describe('Slide Preview on Homepage', () => {
 
     expect(width).toBeGreaterThan(0);
     expect(height).toBeGreaterThan(0);
-    expect(consoleErrors.some((message) => message.includes('InvalidPDFException'))).toBeFalsy();
+    expect(consoleErrors.some((message) => message.includes('InvalidPDFException'))).toBe(false);
 
     // Verify the hero has the 'is-ready' class indicating successful load
     const slideHero = page.locator('[data-slide-hero]');

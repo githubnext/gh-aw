@@ -23,6 +23,9 @@ function getRepositoryPath() {
       cwd: ROOT,
       encoding: "utf8",
     }).trim();
+    // Support the common GitHub HTTPS and SSH remote formats:
+    // https://github.com/owner/repo(.git)
+    // git@github.com:owner/repo(.git)
     const match = remote.match(/github\.com[:/](?<owner>[^/]+)\/(?<repo>[^/.]+?)(?:\.git)?$/);
     if (match?.groups?.owner && match.groups.repo) {
       return `${match.groups.owner}/${match.groups.repo}`;
@@ -32,6 +35,18 @@ function getRepositoryPath() {
   }
 
   return "github/gh-aw";
+}
+
+function getGitRef() {
+  if (process.env.GITHUB_SHA) {
+    return process.env.GITHUB_SHA;
+  }
+
+  try {
+    return execFileSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" }).trim();
+  } catch {
+    throw new Error("Unable to determine the current git ref. Set GITHUB_SHA or run this script from a git checkout.");
+  }
 }
 
 async function readPdfBytes() {
@@ -44,7 +59,7 @@ async function readPdfBytes() {
     throw new Error(`${SOURCE_PATH} is neither a PDF nor a Git LFS pointer.`);
   }
 
-  const ref = process.env.GITHUB_SHA || execFileSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" }).trim();
+  const ref = getGitRef();
   const repositoryPath = getRepositoryPath();
   const url = `https://media.githubusercontent.com/media/${repositoryPath}/${ref}/docs/slides/github-agentic-workflows.pdf`;
 
