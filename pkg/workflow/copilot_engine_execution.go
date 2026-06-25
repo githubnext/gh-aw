@@ -466,8 +466,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Excluding them breaks custom provider routing/auth in BYOK workflows.
 		if isBYOKMode {
 			byokProviderEnvVars := map[string]struct{}{
-				constants.CopilotProviderBaseURL:    {},
-				constants.CopilotProviderAPIKey:     {},
+				constants.CopilotProviderBaseURL:     {},
+				constants.CopilotProviderAPIKey:      {},
 				constants.CopilotProviderBearerToken: {},
 			}
 			filtered := make([]string, 0, len(excludeEnvVarNames))
