@@ -148,7 +148,8 @@ func searchOrgAnyWorkflowRepos(ctx context.Context, org string, verbose bool) ([
 func createIssueForUpgradeOrgRepo(ctx context.Context, repo string, verbose bool) error {
 	title := "Upgrade agentic workflows"
 	body := "Agentic workflow files detected in this repository may have upgrades available.\n\n" +
-		"Run `gh aw upgrade` to apply the latest codemods, update GitHub Actions versions, and recompile all workflows.\n"
+		"Run `gh aw upgrade` to apply the latest codemods, update GitHub Actions versions, and recompile all workflows.\n\n" +
+		"Review the upgrade output and any generated changes before committing to ensure there are no unexpected modifications.\n"
 
 	endpoint := fmt.Sprintf("/repos/%s/issues", repo)
 	_, err := workflow.RunGHContext(ctx, "Creating issue...",

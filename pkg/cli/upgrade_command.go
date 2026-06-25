@@ -90,17 +90,17 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			targetOrg, _ := cmd.Flags().GetString("org")
 			repoGlobs, _ := cmd.Flags().GetStringSlice("repos")
 
-			// Handle audit mode
-			if auditFlag {
-				return runDependencyAudit(cmd.Context(), verbose, jsonOutput)
-			}
-
 			if createIssue && targetOrg == "" {
 				return errors.New("--create-issue requires --org to be specified")
 			}
 
 			if createPR && createIssue {
 				return errors.New("cannot specify both --create-pull-request and --create-issue")
+			}
+
+			// Handle audit mode
+			if auditFlag {
+				return runDependencyAudit(cmd.Context(), verbose, jsonOutput)
 			}
 
 			opts := upgradeOptions{
