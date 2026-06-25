@@ -294,7 +294,7 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 
 	// Add permissions section
 	if job.PermissionsComment != "" {
-		for _, line := range strings.Split(strings.TrimRight(job.PermissionsComment, "\n"), "\n") {
+		for line := range strings.SplitSeq(strings.TrimRight(job.PermissionsComment, "\n"), "\n") {
 			fmt.Fprintf(b, "    %s\n", line)
 		}
 	}
