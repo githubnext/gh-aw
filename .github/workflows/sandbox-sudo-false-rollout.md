@@ -108,13 +108,14 @@ For each of the `TARGET` selected workflow files:
 
 1. **Read the file** to confirm the exact line containing `sudo: true` within the frontmatter sandbox block.
 
-2. **Edit the file** using the `edit` tool: replace the `sudo: true` line with `sudo: false`.
-   - Replace only the first occurrence of `    sudo: true` (4-space indent) that appears in the frontmatter (before the second `---` separator).
-   - Do not modify any `sudo: true` text appearing in the prompt body (after the second `---`).
+2. **Edit the file** using the `edit` tool: replace `sudo: true` with `sudo: false` in the frontmatter.
+   - Use the Step 1 Python script output to confirm each file has exactly one `sudo: true` match in its frontmatter before editing.
+   - If a file has more than one occurrence, skip it and log a warning — do not edit ambiguous files.
+   - Replace only the line `    sudo: true` (4-space indent) that is within the YAML frontmatter block (the text between the opening `---` and the second `---` separator).
 
-3. **Recompile the lock file**:
+3. **Recompile the lock file**. The workflow name is the `.md` basename without its extension — for example, for `daily-news.md` run:
    ```bash
-   gh aw compile .github/workflows/<workflow-basename-without-.md>
+   gh aw compile .github/workflows/daily-news
    ```
    Run this after editing each `.md` file so the corresponding `.lock.yml` is regenerated to reflect the rootless AWF mode. If the compile command fails, note the error but continue with the remaining workflows.
 
