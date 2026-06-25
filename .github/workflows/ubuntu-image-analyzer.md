@@ -1,5 +1,4 @@
 ---
-private: true
 on:
   schedule: weekly
   workflow_dispatch: null
