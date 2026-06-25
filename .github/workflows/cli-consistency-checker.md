@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "✅"
 description: Inspects the gh-aw CLI to identify inconsistencies, typos, bugs, or documentation gaps by running commands and analyzing output
 on:

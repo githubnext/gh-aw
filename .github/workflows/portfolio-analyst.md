@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "📊"
 description: Weekly portfolio analyst that maps AI Credit spend per workflow from OpenTelemetry telemetry with colorful charts and 30-day trends
 on:
