@@ -17,7 +17,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const AGENT_LOGIN_NAMES = {
   // Prefer [bot] aliases first so assignability checks and assignment requests
   // use the canonical bot login when both plain and [bot] aliases exist.
-  copilot: ["copilot-swe-agent[bot]", "copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"],
+  copilot: ["copilot-swe-agent[bot]", "github-copilot-enterprise[bot]", "github-copilot[bot]", "copilot-swe-agent", "github-copilot-enterprise", "github-copilot"],
 };
 
 /**

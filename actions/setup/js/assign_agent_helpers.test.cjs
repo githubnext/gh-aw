@@ -41,7 +41,7 @@ describe("assign_agent_helpers.cjs", () => {
   describe("AGENT_LOGIN_NAMES", () => {
     it("should have copilot mapped to known assignee aliases", () => {
       expect(AGENT_LOGIN_NAMES).toEqual({
-        copilot: ["copilot-swe-agent[bot]", "copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"],
+        copilot: ["copilot-swe-agent[bot]", "github-copilot-enterprise[bot]", "github-copilot[bot]", "copilot-swe-agent", "github-copilot-enterprise", "github-copilot"],
       });
     });
   });
@@ -80,7 +80,7 @@ describe("assign_agent_helpers.cjs", () => {
 
   describe("getAgentLogins", () => {
     it("should return all known copilot aliases", () => {
-      expect(getAgentLogins("copilot")).toEqual(["copilot-swe-agent[bot]", "copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"]);
+      expect(getAgentLogins("copilot")).toEqual(["copilot-swe-agent[bot]", "github-copilot-enterprise[bot]", "github-copilot[bot]", "copilot-swe-agent", "github-copilot-enterprise", "github-copilot"]);
     });
 
     it("should return empty array for unknown agents", () => {
@@ -95,7 +95,7 @@ describe("assign_agent_helpers.cjs", () => {
 
       const result = await getAvailableAgentLogins("owner", "repo", 123);
 
-      expect(result).toEqual(["copilot-swe-agent"]);
+      expect(result).toEqual(["github-copilot-enterprise[bot]"]);
       expect(mockGithub.request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
         owner: "owner",
         repo: "repo",
@@ -132,7 +132,7 @@ describe("assign_agent_helpers.cjs", () => {
 
       const result = await getAvailableAgentLogins("owner", "repo", 123);
 
-      expect(result).toEqual(["copilot-swe-agent"]);
+      expect(result).toEqual(["github-copilot-enterprise[bot]"]);
       expect(mockGithub.request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
         owner: "owner",
         repo: "repo",
@@ -191,7 +191,7 @@ describe("assign_agent_helpers.cjs", () => {
 
       const result = await findAgent("owner", "repo", "copilot", 123);
 
-      expect(result).toBe("copilot-swe-agent");
+      expect(result).toBe("github-copilot-enterprise[bot]");
       expect(mockGithub.request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
         owner: "owner",
         repo: "repo",
@@ -245,7 +245,7 @@ describe("assign_agent_helpers.cjs", () => {
 
       const result = await findAgent("owner", "repo", "copilot", 321);
 
-      expect(result).toBe("copilot-swe-agent");
+      expect(result).toBe("github-copilot-enterprise[bot]");
       expect(mockGithub.request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
         owner: "owner",
         repo: "repo",
@@ -256,7 +256,7 @@ describe("assign_agent_helpers.cjs", () => {
         owner: "owner",
         repo: "repo",
         issue_number: 321,
-        assignee: "copilot-swe-agent",
+        assignee: "github-copilot-enterprise[bot]",
       });
       expect(mockGithub.request).toHaveBeenCalledTimes(2);
     });
