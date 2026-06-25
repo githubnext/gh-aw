@@ -183,10 +183,10 @@ func (e *PiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 // provider API keys are valid engine.env overrides.
 func (e *PiEngine) GetSupportedEnvVarKeys() []string {
 	return []string{
-		"COPILOT_GITHUB_TOKEN",
-		"ANTHROPIC_API_KEY",
-		"CODEX_API_KEY",
-		"OPENAI_API_KEY",
+		constants.CopilotGitHubToken,
+		constants.AnthropicAPIKey,
+		constants.CodexAPIKey,
+		constants.OpenAIAPIKey,
 	}
 }
 

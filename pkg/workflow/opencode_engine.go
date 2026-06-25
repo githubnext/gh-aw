@@ -56,10 +56,10 @@ func (e *OpenCodeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []st
 // provider API keys are valid engine.env overrides.
 func (e *OpenCodeEngine) GetSupportedEnvVarKeys() []string {
 	return []string{
-		"COPILOT_GITHUB_TOKEN",
-		"ANTHROPIC_API_KEY",
-		"CODEX_API_KEY",
-		"OPENAI_API_KEY",
+		constants.CopilotGitHubToken,
+		constants.AnthropicAPIKey,
+		constants.CodexAPIKey,
+		constants.OpenAIAPIKey,
 	}
 }
 

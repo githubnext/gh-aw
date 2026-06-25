@@ -73,7 +73,7 @@ func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 // supports as defined in the AWF specification.
 func (e *GeminiEngine) GetSupportedEnvVarKeys() []string {
 	return []string{
-		"GEMINI_API_KEY",
+		constants.GeminiAPIKey,
 	}
 }
 

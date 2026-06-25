@@ -73,7 +73,7 @@ func (e *AntigravityEngine) GetRequiredSecretNames(workflowData *WorkflowData) [
 // supports as defined in the AWF specification.
 func (e *AntigravityEngine) GetSupportedEnvVarKeys() []string {
 	return []string{
-		"ANTIGRAVITY_API_KEY",
+		constants.AntigravityAPIKey,
 	}
 }
 
