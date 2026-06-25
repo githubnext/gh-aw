@@ -9,6 +9,10 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
+ * @typedef {{ type: string, fileName: string, sha: string, size: number, targetFileName: string, url?: string }} UploadAssetItem
+ */
+
+/**
  * Normalizes a branch name to be a valid git branch name.
  *
  * IMPORTANT: Keep this function in sync with the normalizeBranchName function in normalize_branch_name.cjs
@@ -75,7 +79,7 @@ async function main() {
   }
 
   // Find all upload-asset items
-  const uploadItems = result.items.filter(/** @param {any} item */ item => item.type === "upload_asset");
+  const uploadItems = /** @type {UploadAssetItem[]} */ result.items.filter(item => item.type === "upload_asset");
 
   if (uploadItems.length === 0) {
     core.info("No upload-asset items found in agent output");
