@@ -26,7 +26,7 @@ function getRepositoryPath() {
     // Support the common GitHub HTTPS and SSH remote formats:
     // https://github.com/owner/repo(.git)
     // git@github.com:owner/repo(.git)
-    const match = remote.match(/github\.com[:/](?<owner>[^/]+)\/(?<repo>[^/.]+?)(?:\.git)?$/);
+    const match = remote.match(/github\.com[:/](?<owner>[^\/]+)\/(?<repo>[^\/.]+?)(?:\.git)?$/);
     if (match?.groups?.owner && match.groups.repo) {
       return `${match.groups.owner}/${match.groups.repo}`;
     }
@@ -86,6 +86,6 @@ async function main() {
 }
 
 main().catch(error => {
-  console.error(error instanceof Error ? error.message : String(error));
+  console.error(error);
   process.exit(1);
 });
