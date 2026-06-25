@@ -304,6 +304,17 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// handles authentication, so the raw credentials must not reach the container.
 	excludeEnvVarNames := ComputeAWFExcludeEnvVarNames(threatDetectionData, engineCoreSecretVarNames(engineID))
 
+	// Compute allowed domains for the detection engine. The AWF firewall for the
+	// detection job must permit the engine's required API endpoints. Without this,
+	// engines such as Codex (which connects to api.openai.com and chatgpt.com) fail
+	// with "domain not in allowlist" and the detection job exits with code 1/2.
+	allowedDomains := GetAllowedDomainsForEngine(constants.EngineName(engineID), threatDetectionData.NetworkPermissions, nil, nil)
+	// Extend the allowlist with any custom API target domains when engine.api-target
+	// is set (e.g. GHE or a custom OpenAI-compatible endpoint).
+	if threatDetectionData.EngineConfig != nil && threatDetectionData.EngineConfig.APITarget != "" {
+		allowedDomains = mergeAPITargetDomains(allowedDomains, threatDetectionData.EngineConfig.APITarget)
+	}
+
 	// Build the threat-detect command. The binary reads the prepared detection
 	// artifacts directory from /tmp/gh-aw/threat-detection/ (set up by previous
 	// steps) and writes the structured verdict to detection_result.json there.
@@ -327,6 +338,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		LogFile:            constants.ThreatDetectionLogPath,
 		WorkflowData:       threatDetectionData,
 		ExcludeEnvVarNames: excludeEnvVarNames,
+		AllowedDomains:     allowedDomains,
 	}
 	command := BuildAWFCommand(awfConfig)
 

@@ -393,3 +393,54 @@ Test workflow`
 		t.Error("Codex external detector path must disable websocket startup for the proxy config")
 	}
 }
+
+// TestExternalDetectorCodexFirewallDomains verifies that the Codex external detection
+// path includes the required API domains in the AWF firewall allowlist.
+// Without the correct allowed domains the firewall blocks api.openai.com, chatgpt.com
+// and api.github.com and the detection job exits with code 1/2 (engine_error).
+func TestExternalDetectorCodexFirewallDomains(t *testing.T) {
+	compiler := NewCompiler()
+
+	tmpDir := testutil.TempDir(t, "test-external-detector-codex-fw-*")
+	workflowPath := filepath.Join(tmpDir, "test-codex-fw.md")
+
+	workflowContent := `---
+on: push
+engine: codex
+safe-outputs:
+  create-issue:
+features:
+  gh-aw-detection: true
+tools:
+  github:
+    mode: gh-proxy
+---
+Test workflow`
+
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowPath)
+	result, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	detectionSection := extractJobSection(string(result), "detection")
+	if detectionSection == "" {
+		t.Fatal("Detection job not found in compiled workflow")
+	}
+
+	// The AWF config JSON in the detection job must include Codex's required domains
+	// so that the engine can reach api.openai.com and chatgpt.com inside the sandbox.
+	for _, domain := range []string{"api.openai.com", "chatgpt.com", "openai.com"} {
+		if !strings.Contains(detectionSection, domain) {
+			t.Errorf("Codex external detector AWF config must allow domain %q", domain)
+		}
+	}
+}
