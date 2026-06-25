@@ -14,6 +14,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the exec-command-without-context analysis pass.
@@ -30,6 +31,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "execcommandwithoutcontext")
 
 	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
 		call, ok := cur.Node().(*ast.CallExpr)
@@ -43,6 +45,9 @@ func run(pass *analysis.Pass) (any, error) {
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
 		if filecheck.IsTestFile(pos.Filename) {
+			continue
+		}
+		if nolint.HasDirective(pos, noLintLinesByFile) {
 			continue
 		}
 

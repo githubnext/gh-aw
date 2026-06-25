@@ -125,3 +125,29 @@ func NolintSameLineSuppressed() {
 	mu.Lock() //nolint:manualmutexunlock
 	mu.Unlock()
 }
+
+// Wrong: two distinct instances of same struct type — manual unlock of a.mu
+// should be flagged even though b.mu has a proper defer.
+func BadTwoGuardsManualFirst(a, b *guarded) {
+	a.mu.Lock() // want `mutex Unlock\(\) should be deferred immediately after Lock\(\) to prevent deadlocks on panic or early return`
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	a.mu.Unlock()
+}
+
+// Wrong: same scenario but unlock of a.mu happens before b.mu.Lock() —
+// the re-lock path also catches this (order-independence).
+func BadTwoGuardsManualSecond(a, b *guarded) {
+	a.mu.Lock() // want `mutex Unlock\(\) should be deferred immediately after Lock\(\) to prevent deadlocks on panic or early return`
+	a.mu.Unlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+}
+
+// Correct: both instances deferred — no report expected.
+func GoodTwoGuardsBothDeferred(a, b *guarded) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+}

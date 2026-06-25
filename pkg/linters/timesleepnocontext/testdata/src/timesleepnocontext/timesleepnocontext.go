@@ -57,3 +57,9 @@ func GoodFuncLitWithOwnCtx() {
 func doWork(fn func(context.Context, time.Duration)) {
 	fn(context.Background(), time.Second)
 }
+
+// Good: inline nolint suppresses intentional sleep.
+func GoodNoLint(ctx context.Context, d time.Duration) {
+	_ = ctx
+	time.Sleep(d) //nolint:timesleepnocontext
+}
