@@ -11,30 +11,26 @@ permissions:
   pull-requests: read
   copilot-requests: write
 imports:
-- uses: shared/daily-audit-base.md
-  with:
-    expires: 3d
-    title-prefix: "[mcp-concurrency] "
-- shared/safe-output-app.md
-- uses: shared/mcp/serena.md
-  with:
-    languages:
-    - go
-    - typescript
-- shared/otlp.md
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[concurrency] "
+      expires: 7d
+      max: 5
+      labels: [bug, concurrency, thread-safety, automated-analysis, cookie]
+  - uses: shared/daily-audit-base.md
+    with:
+      expires: 3d
+      title-prefix: "[mcp-concurrency] "
+  - shared/safe-output-app.md
+  - uses: shared/mcp/serena.md
+    with:
+      languages:
+      - go
+      - typescript
+  - shared/otlp.md
 safe-outputs:
   create-agent-session:
     max: 3
-  create-issue:
-    expires: 7d
-    labels:
-    - bug
-    - concurrency
-    - thread-safety
-    - automated-analysis
-    - cookie
-    max: 5
-    title-prefix: "[concurrency] "
 description: Performs deep-dive concurrency analysis on each safe-outputs MCP server tool to ensure thread-safety and detect race conditions
 emoji: 📊
 engine:

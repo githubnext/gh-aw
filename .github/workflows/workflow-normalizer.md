@@ -21,13 +21,13 @@ tools:
   agentic-workflows:
   github:
     toolsets: [default]
-safe-outputs:
-  create-issue:
-    expires: 1d
-    title-prefix: "[workflow-style] "
-    labels: [cookie]
-    max: 1
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[workflow-style] "
+      expires: 1d
+      labels: [cookie]
+      max: 1
   - shared/reporting.md
 
   - shared/otlp.md

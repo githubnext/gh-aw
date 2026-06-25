@@ -22,12 +22,6 @@ tools:
 safe-outputs:
   mentions: false
   allowed-github-references: []
-  create-issue:
-    expires: 2d
-    title-prefix: "[reliability] "
-    labels: [observability, automated-analysis]
-    max: 1
-    close-older-issues: true
 timeout-minutes: 30
 imports:
   - uses: shared/daily-issue-base.md
@@ -35,6 +29,8 @@ imports:
       title-prefix: "[reliability] "
       expires: 2d
       labels: [observability, automated-analysis]
+      max: 1
+      close-older-issues: true
   - shared/sentry.md
   - shared/mcp/sentry.md
 features:

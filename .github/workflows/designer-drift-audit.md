@@ -8,6 +8,13 @@ permissions:
   contents: read
   issues: read
   pull-requests: read # required by pull_requests
+imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "Designer Drift Audit"
+      expires: 7d
+      labels: ["drift-audit", "automated"]
+      close-older-issues: true
 tools:
   github:
     mode: gh-proxy
@@ -107,12 +114,6 @@ steps:
       grep -oP '"(\w+)":\s*\{' pkg/workflow/safe_outputs_validation_config.go \
         | sed 's/": {//' | tr -d '"' | sort \
         > /tmp/gh-aw/data/all-safe-output-types.txt 2>/dev/null || true
-safe-outputs:
-  create-issue:
-    title-prefix: "Designer Drift Audit"
-    labels: ["drift-audit", "automated"]
-    close-older-issues: true
-    expires: 7d
 network:
   allowed:
     - defaults

@@ -30,12 +30,6 @@ safe-outputs:
   allowed-github-references: []
   missing-tool:
     create-issue: true
-  create-issue:
-    title-prefix: "[aw-compat] "
-    labels: [automation, compatibility, gh-aw]
-    close-older-issues: true
-    max: 6
-    expires: 7d
 timeout-minutes: 60
 strict: true
 network:
@@ -44,6 +38,13 @@ network:
     - github
     - go
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[aw-compat] "
+      expires: 7d
+      labels: [automation, compatibility, gh-aw]
+      max: 6
+      close-older-issues: true
   - shared/reporting.md
   - shared/otlp.md
 features:

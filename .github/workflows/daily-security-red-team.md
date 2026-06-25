@@ -20,11 +20,6 @@ tools:
     mode: gh-proxy
     toolsets: [issues]
   edit:
-safe-outputs:
-  create-issue:
-    title-prefix: "🚨 [SECURITY]"
-    labels: ["security", "red-team"]
-    max: 5
 experiments:
   reasoning_depth:
     variants: [single_pass, iterative]
@@ -45,6 +40,11 @@ experiments:
     issue: 31673
 timeout-minutes: 60
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "🚨 [SECURITY]"
+      labels: ["security", "red-team"]
+      max: 5
   - shared/security-analysis-base.md
   - uses: shared/daily-audit-base.md
     with:

@@ -11,15 +11,15 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
-safe-outputs:
-  create-issue:
-    expires: 2d
-    title-prefix: "[linter] "
-    labels: [automation, code-quality, cookie]
 engine: copilot
 name: Super Linter Report
 timeout-minutes: 15
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[linter] "
+      expires: 2d
+      labels: [automation, code-quality, cookie]
   - shared/reporting.md
   - shared/otlp.md
 jobs:

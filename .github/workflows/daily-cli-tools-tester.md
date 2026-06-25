@@ -18,15 +18,16 @@ tools:
   bash: ["*"]
   edit:
 safe-outputs:
-  create-issue:
-    expires: 7d
-    title-prefix: "[cli-tools-test] "
-    labels: [testing, automation, cli-tools]
-    max: 1
   noop:
 timeout-minutes: 60
 strict: true
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[cli-tools-test] "
+      expires: 7d
+      labels: [testing, automation, cli-tools]
+      max: 1
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[cli-tools-test] "

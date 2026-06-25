@@ -42,12 +42,6 @@ tools:
   cache-memory: true
 
 safe-outputs:
-  create-issue:
-    title-prefix: "🏗️ Architecture Diagram:"
-    labels: [architecture, diagram]
-    close-older-issues: true
-    expires: 7d
-    max: 1
   create-pull-request:
     expires: 7d
     title-prefix: "[architecture] "
@@ -55,6 +49,13 @@ safe-outputs:
   noop:
 
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "🏗️ Architecture Diagram:"
+      expires: 7d
+      labels: [architecture, diagram]
+      max: 1
+      close-older-issues: true
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[architecture-diagram] "

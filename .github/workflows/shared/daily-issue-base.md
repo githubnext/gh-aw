@@ -10,6 +10,8 @@
 #         expires: "2d"      # optional, default: 2d
 #         labels: [automation, cookie]
 #         assignees: [copilot]  # optional, default: []
+#         max: 1               # optional, default: 1
+#         close-older-issues: false # optional, default: false
 
 import-schema:
   title-prefix:
@@ -28,6 +30,14 @@ import-schema:
     type: array
     default: []
     description: "Assignees for created issues"
+  max:
+    type: number
+    default: 1
+    description: "Maximum issues allowed per run"
+  close-older-issues:
+    type: boolean
+    default: false
+    description: "Close previous issues from the same workflow key"
 
 imports:
   - shared/activation-app.md
@@ -39,6 +49,7 @@ safe-outputs:
     title-prefix: "${{ github.aw.import-inputs.title-prefix }}"
     labels: ${{ github.aw.import-inputs.labels }}
     assignees: ${{ github.aw.import-inputs.assignees }}
-    max: 1
+    max: ${{ github.aw.import-inputs.max }}
+    close-older-issues: ${{ github.aw.import-inputs.close-older-issues }}
   noop:
 ---

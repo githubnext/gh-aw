@@ -14,19 +14,18 @@ permissions:
   actions: read
 
 engine: claude
-safe-outputs:
-  create-issue:
-    expires: 2d
-    title-prefix: "[safeoutputs] "
-    labels: [bug, safe-outputs, tool-improvement, automated-analysis, cookie]
-    max: 1
-
 timeout-minutes: 30
 max-turns: 200
 max-ai-credits: 1500
 strict: true
 
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[safeoutputs] "
+      expires: 2d
+      labels: [bug, safe-outputs, tool-improvement, automated-analysis, cookie]
+      max: 1
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[safeoutputs]"
@@ -59,7 +58,6 @@ experiments:
     min_samples: 20
     weight: [50, 50]
     start_date: "2026-06-09"
-
 ---
 
 # Safe Output Tool Optimizer

@@ -20,6 +20,13 @@ engine:
   model: copilot/gpt-5.4
 
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[function-namer] "
+      expires: 7d
+      labels: [refactoring, code-quality, automated-analysis, cookie]
+      max: 1
+      close-older-issues: true
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[function-namer] "
@@ -27,14 +34,6 @@ imports:
   - shared/mcp/serena-go.md
 
   - shared/otlp.md
-safe-outputs:
-  create-issue:
-    expires: 7d
-    title-prefix: "[function-namer] "
-    labels: [refactoring, code-quality, automated-analysis, cookie]
-    max: 1
-    close-older-issues: true
-
 tools:
   cli-proxy: true
   cache-memory: true

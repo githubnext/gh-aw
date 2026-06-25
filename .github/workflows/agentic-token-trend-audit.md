@@ -20,14 +20,16 @@ network:
     - python
 tracker-id: agentic-token-trend-audit
 safe-outputs:
-  create-issue:
-    expires: 3d
-    title-prefix: "[agentic-token-trend-audit] "
-    max: 1
-    close-older-issues: true
   upload-asset:
     max: 5
     allowed-exts: [.png, .jpg, .jpeg, .svg]
+imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[agentic-token-trend-audit] "
+      expires: 3d
+      max: 1
+      close-older-issues: true
 tools:
   agentic-workflows:
   bash:

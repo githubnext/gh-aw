@@ -15,6 +15,12 @@ engine: claude
 network: 
    allowed: [defaults, node, go, "api.github.com", "ghcr.io"]
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[ca] "
+      expires: 2d
+      labels: [automation, dependencies, cookie]
+      close-older-issues: true
   - ../skills/jqschema/SKILL.md
   - shared/reporting.md
   - shared/otlp.md
@@ -25,12 +31,6 @@ tools:
   bash:
     - "*"
   edit:
-safe-outputs:
-  create-issue:
-    expires: 2d
-    title-prefix: "[ca] "
-    labels: [automation, dependencies, cookie]
-    close-older-issues: true
 timeout-minutes: 45
 features:
   gh-aw-detection: true

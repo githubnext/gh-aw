@@ -17,15 +17,15 @@ tools:
     mode: gh-proxy
     toolsets: [repos, issues]
   bash: true
-safe-outputs:
-  create-issue:
-    title-prefix: "[Safe Outputs Conformance] "
-    labels: ["safe-outputs", "conformance", "automated"]
-    expires: 1d
-    close-older-issues: true
-    max: 10
 timeout-minutes: 20
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[Safe Outputs Conformance] "
+      expires: 1d
+      labels: ["safe-outputs", "conformance", "automated"]
+      max: 10
+      close-older-issues: true
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[safe-outputs-conformance] "

@@ -15,6 +15,11 @@ cache:
     path: /tmp/gh-aw/agent/objective-impact-report
     restore-keys: |
       objective-impact-report-cache-
+imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "Impact Efficiency Report - "
+      max: 1
 tools:
   cli-proxy: true
   github:
@@ -38,9 +43,6 @@ safe-outputs:
   close-issue:
     required-title-prefix: "Impact Efficiency Report - "
     target: "*"
-    max: 1
-  create-issue:
-    title-prefix: "Impact Efficiency Report - "
     max: 1
 ---
 

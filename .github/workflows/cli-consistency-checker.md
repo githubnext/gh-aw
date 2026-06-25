@@ -19,6 +19,12 @@ strict: false
 network:
   allowed: [defaults]
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[cli-consistency] "
+      expires: 2d
+      labels: [automation, cli, documentation, cookie]
+      max: 1
   - shared/otlp.md
 tools:
   bash:
@@ -64,12 +70,6 @@ pre-agent-steps:
       fi
       cat "${help_files[@]}" > /tmp/gh-aw/agent/all-help.txt
       wc -l /tmp/gh-aw/agent/all-help.txt | awk '{print "Pre-collected help lines:", $1}'
-safe-outputs:
-  create-issue:
-    expires: 2d
-    title-prefix: "[cli-consistency] "
-    labels: [automation, cli, documentation, cookie]
-    max: 1
 timeout-minutes: 20
 features:
   gh-aw-detection: true

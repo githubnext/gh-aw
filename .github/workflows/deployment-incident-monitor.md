@@ -14,6 +14,12 @@ engine:
   id: copilot
   copilot-sdk: true
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[Incident] "
+      expires: 7d
+      labels: [incident, deployment-failure]
+      close-older-issues: true
   - shared/reporting.md
   - shared/otlp.md
 tools:
@@ -22,11 +28,6 @@ tools:
     mode: gh-proxy
     toolsets: [repos, actions]
 safe-outputs:
-  create-issue:
-    expires: 7d
-    title-prefix: "[Incident] "
-    labels: [incident, deployment-failure]
-    close-older-issues: true
   noop:
 timeout-minutes: 10
 

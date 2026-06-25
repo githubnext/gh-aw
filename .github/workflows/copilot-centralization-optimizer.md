@@ -8,6 +8,13 @@ on:
 permissions:
   contents: read
   copilot-requests: write
+imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[copilot-centralization] "
+      expires: 30d
+      labels: [report, ai-optimization]
+      close-older-issues: true
 tools:
   repo-memory:
     branch-name: memory/copilot-centralization-optimizer
@@ -20,11 +27,6 @@ safe-outputs:
   mentions: false
   allowed-github-references: []
   max-bot-mentions: 1
-  create-issue:
-    title-prefix: "[copilot-centralization] "
-    labels: [report, ai-optimization]
-    close-older-issues: true
-    expires: 30d
 steps:
   - name: Collect agent task data
     env:

@@ -16,14 +16,15 @@ tools:
 safe-outputs:
   mentions: false
   allowed-github-references: []
-  create-issue:
-    title-prefix: "[token-consumption] "
-    labels: [automation, observability, telemetry]
-    close-older-issues: true
-    expires: 1d
-    max: 1
 timeout-minutes: 30
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[token-consumption] "
+      expires: 1d
+      labels: [automation, observability, telemetry]
+      max: 1
+      close-older-issues: true
   - shared/mcp/sentry.md
   - shared/mcp/grafana.md
   - uses: shared/daily-audit-base.md

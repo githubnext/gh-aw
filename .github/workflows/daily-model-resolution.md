@@ -23,14 +23,14 @@ strict: true
 tools:
   agentic-workflows: true
   bash: true
-safe-outputs:
-  create-issue:
-    expires: 3d
-    title-prefix: "[model-resolution] "
-    close-older-issues: true
-    max: 1
 timeout-minutes: 30
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[model-resolution] "
+      expires: 3d
+      max: 1
+      close-older-issues: true
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [default, actions]

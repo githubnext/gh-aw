@@ -20,17 +20,6 @@ imports:
   with:
     assignees:
     - copilot
-    expires: 3d
-    labels:
-    - pkg-specifications
-    - review
-    - automation
-    title-prefix: "[spec-librarian] "
-- shared/go-source-analysis.md
-- shared/otlp.md
-safe-outputs:
-  create-issue:
-    assignees: copilot
     close-older-issues: true
     expires: 3d
     labels:
@@ -39,6 +28,9 @@ safe-outputs:
     - automation
     max: 1
     title-prefix: "[spec-librarian] "
+- shared/go-source-analysis.md
+- shared/otlp.md
+safe-outputs:
   messages:
     footer: "> 📚 *Specification review by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-failure: 📚 Specification review failed! [{workflow_name}]({run_url}) {status}.

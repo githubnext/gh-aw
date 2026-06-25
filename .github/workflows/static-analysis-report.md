@@ -16,17 +16,18 @@ tools:
   cache-memory: true
   timeout: 600
 safe-outputs:
-  create-issue:
-    expires: 7d
-    title-prefix: "[static-analysis] "
-    labels: [security, automation]
-    max: 4
-    close-older-issues: true
   add-comment:
     max: 3
 timeout-minutes: 45
 strict: true
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[static-analysis] "
+      expires: 7d
+      labels: [security, automation]
+      max: 4
+      close-older-issues: true
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [default, actions]

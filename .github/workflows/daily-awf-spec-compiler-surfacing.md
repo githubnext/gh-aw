@@ -24,16 +24,16 @@ tools:
     file-glob: [".json", ".md"]
     max-file-size: 65536
   bash: true
-safe-outputs:
-  create-issue:
-    title-prefix: "[awf-feature-surfacing] "
-    labels: [automation, awf, compiler, specifications]
-    close-older-issues: true
-    max: 1
-    expires: 7d
 timeout-minutes: 30
 strict: true
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[awf-feature-surfacing] "
+      expires: 7d
+      labels: [automation, awf, compiler, specifications]
+      max: 1
+      close-older-issues: true
   - shared/otlp.md
 features:
   gh-aw-detection: true

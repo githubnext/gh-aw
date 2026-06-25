@@ -37,12 +37,13 @@ tools:
 safe-outputs:
   mentions: false
   allowed-github-references: []
-  create-issue:
-    max: 3
-    labels: [copilot-opt, optimization, cookie]
-    title-prefix: "[copilot-opt] "
-    close-older-issues: true
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[copilot-opt] "
+      labels: [copilot-opt, optimization, cookie]
+      max: 3
+      close-older-issues: true
   - ../skills/jqschema/SKILL.md
   - shared/copilot-session-data-fetch.md
   - shared/copilot-pr-data-fetch.md

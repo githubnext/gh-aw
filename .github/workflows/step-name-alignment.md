@@ -13,15 +13,12 @@ network:
   - defaults
   - github
 imports:
-- shared/otlp.md
-safe-outputs:
-  create-issue:
-    expires: 2d
-    labels:
-    - maintenance
-    - step-naming
-    - cookie
-    title-prefix: "[step-names] "
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[step-names] "
+      expires: 2d
+      labels: [maintenance, step-naming, cookie]
+  - shared/otlp.md
 steps:
 - name: Build step alignment manifest
   run: |

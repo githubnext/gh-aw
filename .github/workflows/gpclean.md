@@ -23,13 +23,6 @@ network:
     - "github.com"
     - "storage.googleapis.com"
 
-safe-outputs:
-  create-issue:
-    expires: 2d
-    title-prefix: "[gpl-dependency]"
-    labels: [dependency-cleaner]
-    max: 1
-
 tools:
   cli-proxy: true
   cache-memory: true
@@ -57,6 +50,12 @@ experiments:
 strict: false
 
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[gpl-dependency]"
+      expires: 2d
+      labels: [dependency-cleaner]
+      max: 1
   - shared/reporting.md
 
 # Pre-download SBOM to get accurate dependency information
@@ -84,7 +83,6 @@ steps:
         PACKAGE_COUNT=$(jq '.sbom.packages | length' /tmp/gh-aw/agent/sbom.json 2>/dev/null || echo "unknown")
         echo "📊 SBOM contains ${PACKAGE_COUNT} packages"
       fi
-
 ---
 
 {{#if experiments.tool_verbosity == 'minimal_toolset' }}

@@ -36,14 +36,15 @@ tools:
 safe-outputs:
   mentions: false
   allowed-github-references: []
-  create-issue:
-    title-prefix: "[agentrx-optimizer] "
-    labels: [automation, observability, optimization, traces]
-    close-older-issues: true
-    expires: 7d
-    max: 1
 timeout-minutes: 45
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[agentrx-optimizer] "
+      expires: 7d
+      labels: [automation, observability, optimization, traces]
+      max: 1
+      close-older-issues: true
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[agentrx-optimizer] "

@@ -18,6 +18,12 @@ permissions:
 engine: copilot
 
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[video-analysis] "
+      expires: 2d
+      labels: [automation, video-processing, cookie]
+      max: 1
   - shared/ffmpeg.md
 
   - shared/otlp.md
@@ -25,16 +31,8 @@ tools:
   cli-proxy: true
   bash: true
 
-safe-outputs:
-  create-issue:
-    expires: 2d
-    title-prefix: "[video-analysis] "
-    labels: [automation, video-processing, cookie]
-    max: 1
-
 timeout-minutes: 15
 strict: true
-
 ---
 
 # Video Analysis Agent

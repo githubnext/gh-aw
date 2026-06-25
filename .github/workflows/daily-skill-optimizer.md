@@ -129,13 +129,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-safe-outputs:
-  create-issue:
-    title-prefix: "[skill-optimizer] "
-    labels: [automation, documentation, prompt-quality]
-    max: 1
-    expires: 7d
-
 steps:
   - name: Download skill-optimizer artifact
     uses: actions/download-artifact@v8.0.1
@@ -150,6 +143,12 @@ tools:
   edit:
 
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[skill-optimizer] "
+      expires: 7d
+      labels: [automation, documentation, prompt-quality]
+      max: 1
   - shared/otlp.md
 sandbox:
   agent:

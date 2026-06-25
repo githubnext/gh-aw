@@ -14,20 +14,18 @@ network:
   - defaults
   - github
 imports:
-- uses: shared/daily-audit-base.md
-  with:
-    expires: 3d
-    title-prefix: "[doc-healer] "
-- shared/otlp.md
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[doc-healer] "
+      expires: 3d
+      labels: [documentation, automation]
+      assignees: [copilot]
+  - uses: shared/daily-audit-base.md
+    with:
+      expires: 3d
+      title-prefix: "[doc-healer] "
+  - shared/otlp.md
 safe-outputs:
-  create-issue:
-    assignees:
-    - copilot
-    expires: 3d
-    labels:
-    - documentation
-    - automation
-    title-prefix: "[doc-healer] "
   create-pull-request:
     expires: 3d
     labels:

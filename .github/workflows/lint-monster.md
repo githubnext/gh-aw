@@ -53,11 +53,6 @@ steps:
       echo "Lint diagnostics captured: ${diag_count}"
 
 safe-outputs:
-  create-issue:
-    expires: 7d
-    title-prefix: "[lint-monster] "
-    labels: [automation, lint, cookie]
-    max: 3
   close-issue:
     max: 10
     required-title-prefix: "[lint-monster] "
@@ -78,6 +73,12 @@ safe-outputs:
   noop:
 
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[lint-monster] "
+      expires: 7d
+      labels: [automation, lint, cookie]
+      max: 3
   - shared/otlp.md
 ---
 

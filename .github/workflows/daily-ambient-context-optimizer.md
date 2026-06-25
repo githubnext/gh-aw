@@ -25,12 +25,6 @@ tools:
 safe-outputs:
   mentions: false
   allowed-github-references: []
-  create-issue:
-    title-prefix: "[ambient-context] "
-    labels: [automation, report, workflow-optimization, analysis]
-    close-older-issues: true
-    expires: 7d
-    max: 3
 timeout-minutes: 45
 steps:
   - name: Setup Python
@@ -152,6 +146,13 @@ steps:
         core.info(`PR close-rate (7d): ${rateStr} (${closed7d.length} closed, ${merged7d.length} merged)${autoPause ? ' — AUTO-PAUSE ACTIVE' : ''}`);
 
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[ambient-context] "
+      expires: 7d
+      labels: [automation, report, workflow-optimization, analysis]
+      max: 3
+      close-older-issues: true
   - shared/otlp.md
 features:
   gh-aw-detection: true

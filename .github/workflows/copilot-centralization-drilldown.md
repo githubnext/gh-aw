@@ -35,10 +35,12 @@ safe-outputs:
   mentions: false
   allowed-github-references: []
   max-bot-mentions: 1
-  create-issue:
-    title-prefix: "[copilot-centralization-draft] "
-    labels: [report, ai-optimization, workflow-design]
-    expires: 30d
+imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[copilot-centralization-draft] "
+      expires: 30d
+      labels: [report, ai-optimization, workflow-design]
 steps:
   - name: Normalize candidate input
     env:

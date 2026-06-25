@@ -19,12 +19,6 @@ tools:
   cli-proxy: true
   bash: true
 safe-outputs:
-  create-issue:
-    expires: 3d
-    title-prefix: "[syntax-error-quality] "
-    labels: [dx, error-messages, automated-analysis]
-    max: 1
-    close-older-issues: true
   noop:
 timeout-minutes: 20
 strict: true
@@ -51,6 +45,13 @@ steps:
       fi
       gh aw --version
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[syntax-error-quality] "
+      expires: 3d
+      labels: [dx, error-messages, automated-analysis]
+      max: 1
+      close-older-issues: true
   - shared/reporting.md
   - shared/otlp.md
 ---

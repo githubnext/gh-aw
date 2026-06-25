@@ -13,15 +13,17 @@ permissions:
   actions: read
   issues: read
 
+imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[windows-integration] "
+      labels: [workflow, windows]
 tools:
   github:
     mode: gh-proxy
     toolsets: [default]
 
 safe-outputs:
-  create-issue:
-    title-prefix: "[windows-integration] "
-    labels: [workflow, windows]
   noop:
 ---
 
