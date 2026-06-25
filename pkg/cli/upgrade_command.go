@@ -90,6 +90,10 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			targetOrg, _ := cmd.Flags().GetString("org")
 			repoGlobs, _ := cmd.Flags().GetStringSlice("repos")
 
+			if len(repoGlobs) > 0 && targetOrg == "" {
+				return errors.New("--repos requires --org to be specified")
+			}
+
 			if createIssue && targetOrg == "" {
 				return errors.New("--create-issue requires --org to be specified")
 			}

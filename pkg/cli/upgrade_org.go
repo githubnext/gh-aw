@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -97,6 +98,17 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 		return err
 	}
 
+	// Extend sparse checkout to include .github/skills; upgrade also updates
+	// the dispatcher skill (ensureAgenticWorkflowsDispatcher) and needs that path present.
+	sparseAddCmd := exec.CommandContext(ctx, "git", "-C", checkoutDir, "sparse-checkout", "add", ".github/skills")
+	if output, err := sparseAddCmd.CombinedOutput(); err != nil {
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed == "" {
+			return fmt.Errorf("failed to extend sparse checkout for %s: %w", repo, err)
+		}
+		return fmt.Errorf("failed to extend sparse checkout for %s: %w: %s", repo, err, trimmed)
+	}
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checked out "+repo+" at "+checkoutDir))
 	}
@@ -118,12 +130,27 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 	}
 
 	// Override fields that must be adjusted for a remote-repo upgrade.
+	// workflowDir is intentionally reset: --dir is a local-machine concept and
+	// must not be forwarded to remote repos where that path may not exist.
 	opts.ctx = ctx
 	opts.skipExtensionUpgrade = true
 	opts.verbose = verbose
+	opts.workflowDir = ""
 
 	if err := runUpgradeCommand(opts); err != nil {
 		return err
+	}
+
+	// Skip PR creation when the upgrade produced no changes (e.g. repo is already up to date).
+	changed, err := hasPendingChanges()
+	if err != nil {
+		return err
+	}
+	if !changed {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Skipping PR for "+repo+": already up to date"))
+		}
+		return nil
 	}
 
 	prBody := "This PR upgrades agentic workflows by applying the latest codemods, " +
@@ -135,24 +162,44 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 
 // searchOrgAnyWorkflowRepos searches an organization's repositories for any
 // agentic workflow markdown files in .github/workflows, returning a sorted
-// deduplicated slice of "owner/repo" strings.
+// deduplicated slice of "owner/repo" strings. README.md is excluded so that
+// repos containing only documentation are not treated as having workflows.
 func searchOrgAnyWorkflowRepos(ctx context.Context, org string, verbose bool) ([]string, error) {
-	query := fmt.Sprintf(`org:%s path:.github/workflows extension:md`, org)
+	query := fmt.Sprintf(`org:%s path:.github/workflows extension:md NOT filename:README`, org)
 	return searchOrgReposByQuery(ctx, query, verbose)
 }
 
 // createIssueForUpgradeOrgRepo opens a GitHub issue in the target repository
 // to notify maintainers that agentic workflow upgrades are available. The issue
 // prompts them to run gh aw upgrade locally to apply codemods, update action
-// versions, and recompile workflows.
+// versions, and recompile workflows. It is idempotent: if an open issue with the
+// same title already exists it logs a skip message instead of creating a duplicate.
 func createIssueForUpgradeOrgRepo(ctx context.Context, repo string, verbose bool) error {
 	title := "Upgrade agentic workflows"
+
+	// Idempotency guard: skip if an open issue with this title already exists.
+	existsOutput, err := workflow.RunGHContext(ctx, "Checking for existing upgrade issue...",
+		"api",
+		fmt.Sprintf("/repos/%s/issues?state=open&per_page=20", repo),
+		"--jq", fmt.Sprintf(`[.[] | select(.title == "%s")] | length`, title),
+	)
+	if err == nil && strings.TrimSpace(string(existsOutput)) != "0" {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Skipping "+repo+": upgrade issue already exists"))
+		}
+		return nil
+	}
+
 	body := "Agentic workflow files detected in this repository may have upgrades available.\n\n" +
 		"Run `gh aw upgrade` to apply the latest codemods, update GitHub Actions versions, and recompile all workflows.\n\n" +
 		"Review the upgrade output and any generated changes before committing to ensure there are no unexpected modifications.\n"
 
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Creating upgrade issue in "+repo+"..."))
+	}
+
 	endpoint := fmt.Sprintf("/repos/%s/issues", repo)
-	_, err := workflow.RunGHContext(ctx, "Creating issue...",
+	_, err = workflow.RunGHContext(ctx, "Creating issue...",
 		"api",
 		"--method", "POST",
 		endpoint,

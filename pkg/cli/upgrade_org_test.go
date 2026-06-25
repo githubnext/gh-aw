@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"testing"
@@ -185,6 +186,39 @@ func TestRunUpgradeCommandCreateIssueAndPRMutuallyExclusive(t *testing.T) {
 	err := cmd.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot specify both --create-pull-request and --create-issue")
+}
+
+func TestRunUpgradeCommandReposRequiresOrg(t *testing.T) {
+	cmd := NewUpgradeCommand()
+	cmd.SetArgs([]string{"--repos", "*-svc"})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--repos requires --org")
+}
+
+func TestRunUpgradeForOrgCreatePRStopsOnFirstError(t *testing.T) {
+	origSearch := searchOrgAnyWorkflowReposFn
+	origUpgrade := runUpgradeForTargetRepoFn
+	origWait := waitForOrgRateLimitFn
+	searchOrgAnyWorkflowReposFn = func(_ context.Context, _ string, _ bool) ([]string, error) {
+		return []string{"octo/api", "octo/web"}, nil
+	}
+	boom := errors.New("upgrade failed")
+	var called []string
+	runUpgradeForTargetRepoFn = func(_ context.Context, repo string, _ upgradeOptions, _ bool) error {
+		called = append(called, repo)
+		return boom
+	}
+	waitForOrgRateLimitFn = func(_ context.Context, _ string, _ bool) error { return nil }
+	defer func() {
+		searchOrgAnyWorkflowReposFn = origSearch
+		runUpgradeForTargetRepoFn = origUpgrade
+		waitForOrgRateLimitFn = origWait
+	}()
+
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
+	require.ErrorIs(t, err, boom)
+	assert.Equal(t, []string{"octo/api"}, called, "should stop after first failure")
 }
 
 func captureUpgradeOrgStderr(t *testing.T, fn func()) string {
