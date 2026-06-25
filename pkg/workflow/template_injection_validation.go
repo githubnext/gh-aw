@@ -149,9 +149,7 @@ func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regex
 
 	// Matching expressions exist somewhere; scan for any that appear inside a run: block
 	// without doing a full YAML parse.
-	return walkRunBlockLines(yamlContent, func(line string) bool {
-		return strings.Contains(line, "${{") && expressionRegex.MatchString(line)
-	})
+	return walkRunBlockLines(yamlContent, expressionRegex.MatchString)
 }
 
 // scanRunContentExpressions performs a single pass over run: blocks to detect both
