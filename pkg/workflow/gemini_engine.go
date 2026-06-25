@@ -69,6 +69,14 @@ func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 	return secrets
 }
 
+// GetSupportedEnvVarKeys returns the engine.env variable names that the Gemini engine
+// supports as defined in the AWF specification.
+func (e *GeminiEngine) GetSupportedEnvVarKeys() []string {
+	return []string{
+		"GEMINI_API_KEY",
+	}
+}
+
 // GetSecretValidationStep returns the secret validation step for the Gemini engine.
 // Returns an empty step if custom command is specified.
 func (e *GeminiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {

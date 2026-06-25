@@ -178,6 +178,18 @@ func (e *PiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	return secrets
 }
 
+// GetSupportedEnvVarKeys returns the engine.env variable names that the Pi engine
+// supports as defined in the AWF specification. Pi is a multi-provider engine so all
+// provider API keys are valid engine.env overrides.
+func (e *PiEngine) GetSupportedEnvVarKeys() []string {
+	return []string{
+		"COPILOT_GITHUB_TOKEN",
+		"ANTHROPIC_API_KEY",
+		"CODEX_API_KEY",
+		"OPENAI_API_KEY",
+	}
+}
+
 // GetSecretValidationStep returns the secret validation step for the Pi engine.
 // The validated secret depends on the resolved provider backend.
 func (e *PiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {

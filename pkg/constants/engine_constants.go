@@ -260,6 +260,12 @@ const (
 	// Sent as a Bearer token in the Authorization header. Takes precedence over COPILOT_PROVIDER_API_KEY.
 	CopilotProviderBearerToken = "COPILOT_PROVIDER_BEARER_TOKEN"
 
+	// CopilotProviderWireAPI (OPTIONAL) selects the HTTP wire API used when talking to a BYOK provider.
+	// Accepted values: "responses" (OpenAI Responses API), "completions" (legacy Chat Completions API).
+	// The Copilot CLI defaults to "completions" for custom providers; set to "responses" for Azure
+	// o-series models (e.g. o4-mini) that reject the legacy endpoint with HTTP 400.
+	CopilotProviderWireAPI = "COPILOT_PROVIDER_WIRE_API"
+
 	// CopilotCLIIntegrationIDEnvVar is the native environment variable name supported by the Copilot CLI
 	// for identifying the calling integration. This tells the Copilot CLI that it is being invoked
 	// by agentic workflows.
