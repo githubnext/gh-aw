@@ -81,19 +81,7 @@ func TestActivationJobIncludesRuntimeFeatureSummaryStep(t *testing.T) {
 	if !strings.Contains(steps, "GH_AW_RUNTIME_FEATURES_IS_SET") {
 		t.Fatal("expected runtime feature summary step to distinguish unset from empty values")
 	}
-	if strings.Contains(steps, "_Not set_") {
-		t.Fatal("expected runtime feature summary step to skip unset values")
-	}
-	if strings.Contains(steps, "_Empty string_") {
-		t.Fatal("expected runtime feature summary step to skip empty string values")
-	}
-	if !strings.Contains(steps, "<details>") {
-		t.Fatal("expected runtime feature summary step to use details-based progressive disclosure")
-	}
-	if !strings.Contains(steps, "### Runtime features") {
-		t.Fatal("expected runtime feature summary step heading to use h3 level")
-	}
-	if !strings.Contains(steps, "$GITHUB_STEP_SUMMARY") {
-		t.Fatal("expected runtime feature summary step to write to GITHUB_STEP_SUMMARY")
+	if !strings.Contains(steps, "log_runtime_features_summary.sh") {
+		t.Fatal("expected runtime feature summary step to call shared shell script")
 	}
 }

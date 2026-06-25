@@ -411,21 +411,7 @@ func buildRuntimeFeaturesSummaryStep() []string {
 		"      - name: Log runtime features\n",
 		"        env:\n",
 		"          GH_AW_RUNTIME_FEATURES_IS_SET: ${{ contains(toJSON(vars), '\"GH_AW_RUNTIME_FEATURES\":') }}\n",
-		"        run: |\n",
-		"          if [[ \"$GH_AW_RUNTIME_FEATURES_IS_SET\" == \"true\" && -n \"$GH_AW_RUNTIME_FEATURES\" ]]; then\n",
-		"            {\n",
-		"              echo \"### Runtime features\"\n",
-		"              echo\n",
-		"              echo \"<details>\"\n",
-		"              echo \"<summary>Show configured runtime features</summary>\"\n",
-		"              echo\n",
-		"              echo '```text'\n",
-		"              printf '%s\\n' \"$GH_AW_RUNTIME_FEATURES\"\n",
-		"              echo '```'\n",
-		"              echo\n",
-		"              echo \"</details>\"\n",
-		"            } >> \"$GITHUB_STEP_SUMMARY\"\n",
-		"          fi\n",
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/log_runtime_features_summary.sh\"\n",
 	}
 }
 
