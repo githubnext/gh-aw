@@ -76,6 +76,13 @@ const main = createCountGatedHandler({
 
       if (!itemNumber || Number.isNaN(Number(itemNumber))) {
         const error = "No issue/PR number available";
+        // When no explicit item number was given in the message and the event context
+        // provides no issue/PR (e.g. workflow_dispatch or schedule), soft-skip rather
+        // than hard-fail so the safe_outputs job stays green.
+        if (targetResult.number === null && !itemNumber) {
+          core.info(`⏭ Skipping ${HANDLER_TYPE}: ${error}`);
+          return { success: false, skipped: true, error };
+        }
         core.warning(error);
         return { success: false, error };
       }

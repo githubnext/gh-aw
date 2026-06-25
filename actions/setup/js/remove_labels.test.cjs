@@ -307,6 +307,7 @@ describe("remove_labels", () => {
       );
 
       expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
       expect(result.error.includes("No issue/PR number available")).toBe(true);
     });
 
