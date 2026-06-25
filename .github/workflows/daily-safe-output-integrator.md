@@ -45,6 +45,7 @@ tools:
   - cat pkg/workflow/js/safe_outputs_tools.json
   - cat pkg/parser/schemas/main_workflow_schema.json
   - cat pkg/cli/workflows/*.md
+  - cat *
   - sed -n
   - git status
   - git diff --name-only
