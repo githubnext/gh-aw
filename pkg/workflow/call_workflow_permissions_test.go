@@ -268,7 +268,31 @@ func TestExtractCallWorkflowPermissions_FileNotFound(t *testing.T) {
 	assert.Nil(t, perms, "Should return nil when no file exists")
 }
 
+func TestExtractCallWorkflowPermissionImport_MDWithoutPermissionsReturnsNil(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "Failed to create workflows directory")
+
+	mdContent := `---
+on:
+  workflow_call: {}
+engine: copilot
+---
+
+# Worker Without Permissions
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-no-perms.md"), []byte(mdContent), 0644), "Failed to write worker-no-perms.md")
+
+	markdownPath := filepath.Join(workflowsDir, "gateway.md")
+
+	imported, err := extractCallWorkflowPermissionImport("worker-no-perms", markdownPath)
+	require.NoError(t, err, "Should not error when markdown worker has no permissions")
+	assert.Nil(t, imported, "Should treat markdown workers with no permissions like other missing-import cases")
+}
+
 func TestExtractCallWorkflowPermissionImport_TracksReviewSource(t *testing.T) {
+	t.Setenv("GH_AW_WORKFLOWS_DIR", "")
+
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "Failed to create workflows directory")
@@ -292,9 +316,18 @@ jobs:
 	require.NoError(t, err, "Should extract imported permissions without error")
 	require.NotNil(t, imported, "Should return import metadata")
 	require.NotNil(t, imported.permissions, "Should include permissions")
-	assert.Equal(t, "compiled", imported.sourceKind, "Should track compiled workflow source kind")
+	assert.Equal(t, workflowSourceKindLock, imported.sourceKind, "Should track lock workflow source kind")
 	assert.Equal(t, "./.github/workflows/worker-review.lock.yml", renderWorkflowReviewPath(imported.sourcePath),
 		"Should render a repo-relative review path for help comments")
+}
+
+func TestBuildCallWorkflowPermissionsComment_NilInputs(t *testing.T) {
+	assert.Empty(t, buildCallWorkflowPermissionsComment("worker", nil), "Nil import should not emit a comment")
+	assert.Empty(t, buildCallWorkflowPermissionsComment("worker", &callWorkflowPermissionImport{}), "Nil permissions should not emit a comment")
+	assert.Empty(t, buildCallWorkflowPermissionsComment("worker", &callWorkflowPermissionImport{
+		permissions: NewPermissions(),
+		sourceKind:  workflowSourceKindLock,
+	}), "Empty permissions should not emit a comment")
 }
 
 // TestBuildCallWorkflowJobs_SetsPermissionsFromLockYML tests that call-workflow jobs
@@ -302,6 +335,8 @@ jobs:
 // When the caller already covers all of the worker's needs, the effective permissions
 // equal the caller's declared permissions.
 func TestBuildCallWorkflowJobs_SetsPermissionsFromLockYML(t *testing.T) {
+	t.Setenv("GH_AW_WORKFLOWS_DIR", "")
+
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
@@ -372,6 +407,8 @@ jobs:
 // target. When caller and worker declare the same permissions, the effective permissions
 // equal the caller's declared permissions.
 func TestBuildCallWorkflowJobs_SetsPermissionsFromMD(t *testing.T) {
+	t.Setenv("GH_AW_WORKFLOWS_DIR", "")
+
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()

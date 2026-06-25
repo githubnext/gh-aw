@@ -14,10 +14,18 @@ import (
 
 var callWorkflowPermissionsLog = logger.New("workflow:call_workflow_permissions")
 
+type workflowSourceKind string
+
+const (
+	workflowSourceKindLock     workflowSourceKind = "lock"
+	workflowSourceKindYAML     workflowSourceKind = "yaml"
+	workflowSourceKindMarkdown workflowSourceKind = "markdown"
+)
+
 type callWorkflowPermissionImport struct {
 	permissions *Permissions
 	sourcePath  string
-	sourceKind  string
+	sourceKind  workflowSourceKind
 }
 
 // permissionLevelRank maps a permission level to a comparable rank where a higher
@@ -110,6 +118,10 @@ func extractJobPermissionsFromParsedWorkflow(workflow map[string]any) *Permissio
 	return merged
 }
 
+// extractCallWorkflowPermissions is a compatibility helper used by existing tests.
+// New production code should prefer extractCallWorkflowPermissionImport when it
+// needs both the permissions and their review source metadata.
+//
 // extractCallWorkflowPermissions returns the permission superset required by the worker
 // workflow identified by workflowName. It resolves the file in priority order:
 // .lock.yml > .yml > .md (same-batch compilation target).
@@ -152,7 +164,7 @@ func extractCallWorkflowPermissionImport(workflowName, markdownPath string) (*ca
 		return &callWorkflowPermissionImport{
 			permissions: perms,
 			sourcePath:  fileResult.lockPath,
-			sourceKind:  "compiled",
+			sourceKind:  workflowSourceKindLock,
 		}, nil
 	}
 
@@ -164,7 +176,7 @@ func extractCallWorkflowPermissionImport(workflowName, markdownPath string) (*ca
 		return &callWorkflowPermissionImport{
 			permissions: perms,
 			sourcePath:  fileResult.ymlPath,
-			sourceKind:  "compiled",
+			sourceKind:  workflowSourceKindYAML,
 		}, nil
 	}
 
@@ -173,10 +185,13 @@ func extractCallWorkflowPermissionImport(workflowName, markdownPath string) (*ca
 		if err != nil {
 			return nil, err
 		}
+		if perms == nil {
+			return nil, nil
+		}
 		return &callWorkflowPermissionImport{
 			permissions: perms,
 			sourcePath:  fileResult.mdPath,
-			sourceKind:  "markdown",
+			sourceKind:  workflowSourceKindMarkdown,
 		}, nil
 	}
 
@@ -194,7 +209,7 @@ func buildCallWorkflowPermissionsComment(workflowName string, imported *callWork
 	}
 
 	reviewWhat := "job-level permissions"
-	if imported.sourceKind == "markdown" {
+	if imported.sourceKind == workflowSourceKindMarkdown {
 		reviewWhat = "frontmatter permissions"
 	}
 
@@ -204,6 +219,9 @@ func buildCallWorkflowPermissionsComment(workflowName string, imported *callWork
 	}, "\n")
 }
 
+// renderWorkflowReviewPath converts an absolute workflow path to the canonical
+// repo-relative display path used in generated review comments. This assumes
+// workflow files live directly in constants.GetWorkflowDir().
 func renderWorkflowReviewPath(sourcePath string) string {
 	return "./" + filepath.ToSlash(filepath.Join(constants.GetWorkflowDir(), filepath.Base(sourcePath)))
 }
