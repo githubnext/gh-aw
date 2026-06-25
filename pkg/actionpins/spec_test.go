@@ -166,7 +166,7 @@ func TestSpec_PublicAPI_GetLatestActionPinByRepo(t *testing.T) {
 	t.Run("returns a pin for a known repository", func(t *testing.T) {
 		known := "actions/checkout"
 		pin, ok := actionpins.GetLatestActionPinByRepo(known)
-		assert.True(t, ok, "should return true for a known repo")
+		require.True(t, ok, "should return true for a known repo")
 		assert.Equal(t, known, pin.Repo, "returned pin should belong to the queried repo")
 	})
 }
@@ -278,8 +278,8 @@ func TestSpec_DesignDecision_FormatConsistency(t *testing.T) {
 	cacheKey := actionpins.FormatCacheKey(repo, version)
 	reference := actionpins.FormatPinnedActionReference(repo, sha, version)
 
-	assert.True(t, strings.HasPrefix(cacheKey, repo+"@"), "cache key should be repo@version")
-	assert.True(t, strings.HasPrefix(reference, repo+"@"), "reference should start with repo@sha")
+	assert.Truef(t, strings.HasPrefix(cacheKey, repo+"@"), "cache key should be repo@version, got %q", cacheKey)
+	assert.Truef(t, strings.HasPrefix(reference, repo+"@"), "reference should start with repo@sha, got %q", reference)
 	assert.Contains(t, cacheKey, version, "cache key should contain version")
 	assert.Contains(t, reference, sha, "reference should contain sha")
 	assert.Contains(t, reference, version, "reference should contain version comment")
@@ -409,6 +409,16 @@ func TestSpec_PublicAPI_GetContainerPin(t *testing.T) {
 		_, ok := actionpins.GetContainerPin("does-not-exist/unknown-image:latest")
 		assert.False(t, ok, "should return false for unknown container image")
 	})
+
+	t.Run("returns pinned container for known image", func(t *testing.T) {
+		// "alpine:latest" is present in the embedded action_pins.json containers map.
+		pin, ok := actionpins.GetContainerPin("alpine:latest")
+		require.True(t, ok, "should return true for a known container image")
+		assert.Equal(t, "alpine:latest", pin.Image, "ContainerPin.Image should match the queried image")
+		assert.NotEmpty(t, pin.Digest, "ContainerPin.Digest should be non-empty for a known image")
+		assert.NotEmpty(t, pin.PinnedImage, "ContainerPin.PinnedImage should be non-empty for a known image")
+		assert.Contains(t, pin.PinnedImage, pin.Digest, "PinnedImage should contain the digest")
+	})
 }
 
 // TestSpec_Types_ContainerPin validates the documented ContainerPin type structure.
@@ -513,7 +523,70 @@ func TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo(t *testing.T) {
 	require.NotEmpty(t, results[0], "baseline goroutine 0 should return pins")
 	for i := 1; i < goroutines; i++ {
 		assert.NotEmpty(t, results[i], "concurrent GetActionPinsByRepo should return pins for known repo")
-		assert.Len(t, results[i], len(results[0]),
+		assert.Lenf(t, results[i], len(results[0]),
 			"concurrent GetActionPinsByRepo should return same number of pins (goroutine %d vs 0)", i)
 	}
+}
+
+// TestSpec_PublicAPI_ResolveActionPin_DynamicHappyPath validates that a dynamic resolver that
+// successfully returns a SHA produces a correctly formatted pinned reference.
+func TestSpec_PublicAPI_ResolveActionPin_DynamicHappyPath(t *testing.T) {
+	known := "actions/checkout"
+	latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
+	require.True(t, ok, "prerequisite: known repo must be in embedded data")
+
+	// Resolver returns the SHA of the latest embedded pin so that the resolved
+	// version comment can be verified end-to-end.
+	ctx := &actionpins.PinContext{
+		Resolver: &testSHAResolver{sha: latestPin.SHA},
+		Warnings: make(map[string]bool),
+	}
+	result, err := actionpins.ResolveActionPin(known, "v4", ctx)
+	require.NoError(t, err, "dynamic resolver success should not return an error")
+	assert.NotEmpty(t, result, "should return a non-empty pinned reference when resolver succeeds")
+	assert.Contains(t, result, latestPin.SHA, "result should contain the SHA returned by the resolver")
+	assert.True(t, strings.HasPrefix(result, known+"@"),
+		"result should start with repo@sha in the documented format")
+}
+
+// TestSpec_PublicAPI_ResolveLatestActionPin_NonNilContext validates that a non-nil PinContext
+// is forwarded correctly to the embedded pin resolution path.
+func TestSpec_PublicAPI_ResolveLatestActionPin_NonNilContext(t *testing.T) {
+	known := "actions/checkout"
+	latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
+	require.True(t, ok, "prerequisite: known repo must be in embedded data")
+
+	ctx := &actionpins.PinContext{Warnings: make(map[string]bool)}
+	result := actionpins.ResolveLatestActionPin(known, ctx)
+	expected := actionpins.FormatPinnedActionReference(known, latestPin.SHA, latestPin.Version)
+	assert.Equal(t, expected, result,
+		"non-nil ctx without a resolver should resolve the same reference as the nil-ctx path")
+}
+
+// TestSpec_PublicAPI_RecordResolutionFailure_WarningDedup validates that repeated resolution
+// failures for the same repo@version emit the warning only once (Warnings map deduplication).
+func TestSpec_PublicAPI_RecordResolutionFailure_WarningDedup(t *testing.T) {
+	var failures []actionpins.ResolutionFailure
+	ctx := &actionpins.PinContext{
+		Warnings: make(map[string]bool),
+		RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
+			failures = append(failures, f)
+		},
+	}
+
+	repo, version := "does-not-exist/x", "v1"
+	cacheKey := actionpins.FormatCacheKey(repo, version)
+
+	// First call: failure is recorded and warning key is set.
+	_, err := actionpins.ResolveActionPin(repo, version, ctx)
+	require.NoError(t, err)
+	require.Len(t, failures, 1, "first call should record one resolution failure")
+	assert.True(t, ctx.Warnings[cacheKey], "warning key should be set after first call")
+
+	// Second call with the same args: failure is recorded again (auditing is not
+	// deduplicated), but the warning is suppressed by the Warnings map.
+	_, err = actionpins.ResolveActionPin(repo, version, ctx)
+	require.NoError(t, err)
+	assert.Len(t, failures, 2, "second call should append another resolution failure")
+	assert.True(t, ctx.Warnings[cacheKey], "warning dedup key should remain set after second call")
 }

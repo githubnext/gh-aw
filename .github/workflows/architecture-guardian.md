@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "🏗️"
 name: Architecture Guardian
 description: Daily analysis of commits from the last 24 hours to detect code structure violations in Go and JavaScript files, such as large files, oversized functions, high export counts, and import cycles
