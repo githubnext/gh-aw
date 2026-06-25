@@ -278,9 +278,7 @@ async function getIssueDetails(owner, repo, issueNumber, githubClient = github) 
     // GitHub's issues API returns pull requests too; reject them here so callers
     // never accidentally treat a PR as an assignable issue.
     if (issue.pull_request) {
-      const prError = /** @type {Error & {isPullRequest: true}} */ new Error(`#${issueNumber} is a pull request, not an issue — assign_to_agent only supports issues`);
-      prError.isPullRequest = true;
-      throw prError;
+      throw Object.assign(new Error(`#${issueNumber} is a pull request, not an issue — assign_to_agent only supports issues`), { isPullRequest: true });
     }
     const currentAssignees = (issue.assignees || []).map(assignee => ({
       id: String(assignee.id),
