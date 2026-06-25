@@ -87,14 +87,22 @@ When an `allowed` list is configured, existing agent assignees not in the list a
 
 Both safe outputs require a fine-grained PAT. The default `GITHUB_TOKEN` lacks the necessary permissions.
 
+See the [official GitHub Copilot cloud agent API documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api) for the authoritative token requirements.
+
 ### Using a Personal Access Token (PAT)
 
 The required token type and permissions depend on whether you own the repository or an organization owns it.
 
-1. **Create the PAT** with **Repository permissions**: Actions, Contents, Agent tasks (read and write).
+**Fine-grained PAT** — requires these repository permissions:
+- Read access to **metadata**
+- Read and write access to **actions**, **contents**, **issues**, and **pull requests**
 
-   - [User-owned repositories](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&agent_tasks=write): Resource owner = your user account; Repository access = "Public repositories" or specific repos
-   - [Organization-owned repositories](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&agent_tasks=write): Resource owner = the organization; Repository access = specific repositories that will use the workflow
+**Classic PAT** — requires the `repo` scope.
+
+1. **Create the fine-grained PAT** with the permissions listed above.
+
+   - [User-owned repositories](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&issues=write&pull_requests=write): Resource owner = your user account; Repository access = "Public repositories" or specific repos
+   - [Organization-owned repositories](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&issues=write&pull_requests=write): Resource owner = the organization; Repository access = specific repositories that will use the workflow
 
 2. Add to repository secrets:
 

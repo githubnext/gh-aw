@@ -236,7 +236,7 @@ async function findAgent(owner, repo, agentName, issueNumber = null, githubClien
     core.info("No assignable bots found in this repository.");
   }
   if (agentName === "copilot") {
-    core.info("Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot");
+    core.info("Please visit https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api");
   }
   return null;
 }
@@ -423,20 +423,21 @@ async function assignAgentToIssue(
 function logPermissionError(agentName) {
   core.error(`Failed to assign ${agentName}: Insufficient permissions`);
   core.error("");
-  core.error("Assigning Copilot coding agent requires issues assignment permissions:");
-  core.error("  1. Repository permissions:");
-  core.error("     - issues: write");
+  core.error("Assigning Copilot coding agent requires the following token permissions:");
+  core.error("  Fine-grained PAT:");
+  core.error("    - Read access to metadata");
+  core.error("    - Read and write access to actions, contents, issues, and pull requests");
+  core.error("  Classic PAT:");
+  core.error("    - repo scope");
   core.error("");
-  core.error("  2. A token with permission to assign users to issues");
+  core.error("  Repository settings:");
+  core.error("    - Ensure assignee has access to the repository");
   core.error("");
-  core.error("  3. Repository settings:");
-  core.error("     - Ensure assignee has access to the repository");
+  core.error("  Organization/Enterprise settings and Copilot policy:");
+  core.error("    - Check if your org restricts bot assignments");
+  core.error("    - Verify Copilot is enabled for your repository");
   core.error("");
-  core.error("  4. Organization/Enterprise settings and Copilot policy:");
-  core.error("     - Check if your org restricts bot assignments");
-  core.error("     - Verify Copilot is enabled for your repository");
-  core.error("");
-  core.info("For more information, see: https://docs.github.com/en/rest/issues/assignees");
+  core.info("For more information, see: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api");
 }
 
 /**
@@ -447,25 +448,26 @@ function generatePermissionErrorSummary() {
   return `
 ### ⚠️ Permission Requirements
 
-Assigning Copilot coding agent requires **ALL** of these permissions:
+Assigning Copilot coding agent requires a token with the correct permissions. See the [official GitHub Copilot cloud agent API documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api) for details.
 
-\`\`\`yaml
-permissions:
-  issues: write
-\`\`\`
+**Fine-grained personal access token** — requires these repository permissions:
+- Read access to **metadata**
+- Read and write access to **actions**, **contents**, **issues**, and **pull requests**
+
+**Classic personal access token** — requires the **\`repo\`** scope.
 
 **Token capability note:**
 - Current token lacks permission for \`POST /repos/{owner}/{repo}/issues/{issue_number}/assignees\`.
 - Token must be able to assign users to issues in the target repository.
 
 **Recommended remediation paths:**
-1. Use a token with repository **Issues: write** permission.
+1. Use a fine-grained PAT with the permissions listed above, or a classic PAT with the \`repo\` scope.
 2. Ensure repository settings allow assignee updates.
 3. Verify Copilot coding agent is enabled for the repository and organization policy allows bot assignments.
 
 **Why this failed:** The token could not update issue assignees via the REST API.
 
-📖 Reference: https://docs.github.com/en/rest/issues/assignees
+📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api
 `;
 }
 

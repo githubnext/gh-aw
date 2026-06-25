@@ -430,8 +430,10 @@ describe("assign_agent_helpers.cjs", () => {
       const summary = generatePermissionErrorSummary();
 
       expect(summary).toContain("### ⚠️ Permission Requirements");
-      expect(summary).toContain("issues: write");
+      expect(summary).toContain("Fine-grained personal access token");
+      expect(summary).toContain("actions**, **contents**, **issues**");
       expect(summary).toContain("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees");
+      expect(summary).toContain("https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api");
     });
   });
 
