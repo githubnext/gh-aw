@@ -2,11 +2,12 @@
 set +o histexpand
 set -euo pipefail
 
-# Writes a collapsed Runtime features section to $GITHUB_STEP_SUMMARY only when the
-# variable is both declared in the vars context (IS_SET=true) and non-empty.
+# Writes a collapsed Runtime features section to $GITHUB_STEP_SUMMARY.
+# The step is only run when GH_AW_RUNTIME_FEATURES is present in the vars context
+# (guarded by the step's `if:` condition), so we only need to check for non-empty here.
 # A variable that exists in vars as an empty string produces no summary output — this
 # is intentional: an empty value has no meaningful content to surface.
-if [[ "${GH_AW_RUNTIME_FEATURES_IS_SET:-}" == "true" && -n "${GH_AW_RUNTIME_FEATURES:-}" ]]; then
+if [[ -n "${GH_AW_RUNTIME_FEATURES:-}" ]]; then
   {
     echo "### Runtime features"
     echo

@@ -81,8 +81,8 @@ func TestActivationJobIncludesRuntimeFeatureSummaryStep(t *testing.T) {
 	if !strings.Contains(steps, "GH_AW_RUNTIME_FEATURES") {
 		t.Fatal("expected runtime feature summary step to reference GH_AW_RUNTIME_FEATURES")
 	}
-	if !strings.Contains(steps, "GH_AW_RUNTIME_FEATURES_IS_SET") {
-		t.Fatal("expected runtime feature summary step to distinguish unset from empty values")
+	if !strings.Contains(steps, "if:") {
+		t.Fatal("expected runtime feature summary step to use if: condition to skip when var is unset")
 	}
 	if !strings.Contains(steps, "log_runtime_features_summary.sh") {
 		t.Fatal("expected runtime feature summary step to call shared shell script")

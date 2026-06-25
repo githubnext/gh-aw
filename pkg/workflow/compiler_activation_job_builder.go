@@ -409,8 +409,7 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 func buildRuntimeFeaturesSummaryStep() []string {
 	return []string{
 		"      - name: Log runtime features\n",
-		"        env:\n",
-		"          GH_AW_RUNTIME_FEATURES_IS_SET: ${{ contains(toJSON(vars), '\"GH_AW_RUNTIME_FEATURES\":') }}\n",
+		"        if: ${{ contains(toJSON(vars), '\"GH_AW_RUNTIME_FEATURES\":') }}\n",
 		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/log_runtime_features_summary.sh\"\n",
 	}
 }
