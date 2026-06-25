@@ -285,15 +285,17 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	if harnessScriptName != "" {
 		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
 		// as the last positional arg.  The harness also provides retry logic.
+		// The harness sets cwd=GITHUB_WORKSPACE when spawning the codex process, so no
+		// shell-level cd prefix is needed.
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
 		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
 			execPrefix, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s \"$INSTRUCTION\"",
+		// Apply workspace prefix here since there is no JS harness to set the cwd.
+		codexCommand = workspaceCommandPrefix + fmt.Sprintf("%s exec%s%s%s%s%s%s \"$INSTRUCTION\"",
 			commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	}
-	codexCommand = workspaceCommandPrefix + codexCommand
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string

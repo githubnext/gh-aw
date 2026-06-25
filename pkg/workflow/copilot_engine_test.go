@@ -155,8 +155,8 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
 		t.Errorf("Expected command to pass prompt file path directly, got:\n%s", stepContent)
 	}
-	if !strings.Contains(stepContent, `cd "${GITHUB_WORKSPACE}" &&`) {
-		t.Errorf("Expected Copilot command to launch from ${GITHUB_WORKSPACE}, got:\n%s", stepContent)
+	if strings.Contains(stepContent, `cd "${GITHUB_WORKSPACE}" &&`) {
+		t.Errorf("Expected Copilot command to not use shell cd prefix (harness sets cwd via spawn options), got:\n%s", stepContent)
 	}
 
 	if strings.Contains(stepContent, "COPILOT_CLI_INSTRUCTION=") {
@@ -356,8 +356,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	if !strings.Contains(stepContent, "copilot_sdk_driver.cjs") {
 		t.Fatalf("Expected SDK driver mode command to include copilot_sdk_driver.cjs, got:\n%s", stepContent)
 	}
-	if !strings.Contains(stepContent, `cd "${GITHUB_WORKSPACE}" &&`) {
-		t.Fatalf("Expected SDK driver mode command to launch from ${GITHUB_WORKSPACE}, got:\n%s", stepContent)
+	if strings.Contains(stepContent, `cd "${GITHUB_WORKSPACE}" &&`) {
+		t.Fatalf("Expected SDK driver mode command to not use shell cd prefix (harness sets cwd via spawn options), got:\n%s", stepContent)
 	}
 
 	// No stdin pipe: configuration is in env vars, not piped JSON.

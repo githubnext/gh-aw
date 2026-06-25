@@ -278,16 +278,19 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
 		// as the last positional arg on the initial run.  On --continue retries it omits the
 		// prompt so Claude Code resumes from its on-disk session state.
+		// The harness sets cwd=GITHUB_WORKSPACE when spawning the claude process, so no
+		// shell-level cd prefix is needed.
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
 		claudeCommand = fmt.Sprintf("%s %s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt", execPrefix, shellJoinArgs(claudeArgs), mcpConfigArg)
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
+		// Apply workspace prefix here since there is no JS harness to set the cwd.
 		//
 		// The prompt command is appended raw after shellJoinArgs because it contains
 		// shell variable references ("$(cat ...)") that must NOT be escaped —
 		// single-quoting them would prevent shell expansion at runtime.
 		promptCommand := `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`
-		claudeCommand = fmt.Sprintf("%s%s %s", shellJoinArgs(append([]string{commandName}, claudeArgs...)), mcpConfigArg, promptCommand)
+		claudeCommand = workspaceCommandPrefix + fmt.Sprintf("%s%s %s", shellJoinArgs(append([]string{commandName}, claudeArgs...)), mcpConfigArg, promptCommand)
 	}
 
 	// When model is not configured, use the GH_AW_MODEL_AGENT_CLAUDE fallback env var
@@ -304,7 +307,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 		claudeCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, claudeCommand, modelEnvVar, modelEnvVar)
 	}
-	claudeCommand = workspaceCommandPrefix + claudeCommand
 
 	// Build the full command based on whether firewall is enabled
 	var command string
