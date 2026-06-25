@@ -18,7 +18,7 @@
 //
 // Map Operations:
 //   - excludeMapKeys() - Create new map excluding specified keys
-//   - sortedMapKeys() - Return sorted keys of a map[string]string
+//   - sortedMapKeys() - Return sorted keys of a map[string]string (delegates to sliceutil.SortedKeys)
 //
 // For type conversion utilities, use pkg/typeutil directly:
 //   - typeutil.ParseIntValue() - Strictly parse numeric types to int; returns (value, ok).
@@ -34,11 +34,9 @@
 package workflow
 
 import (
-	"maps"
-	"slices"
-
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var mapHelpersLog = logger.New("workflow:map_helpers")
@@ -70,5 +68,5 @@ func excludeMapKeys(original map[string]any, excludeKeys ...string) map[string]a
 // sortedMapKeys returns the keys of a map[string]string in sorted order.
 // Used to produce deterministic output when writing environment variables.
 func sortedMapKeys(m map[string]string) []string {
-	return slices.Sorted(maps.Keys(m))
+	return sliceutil.SortedKeys(m)
 }

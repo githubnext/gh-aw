@@ -4,13 +4,12 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"maps"
-	"slices"
 	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -359,7 +358,7 @@ func getEcosystemDomains(category string) []string {
 				domainMap[d] = struct{}{}
 			}
 		}
-		result := slices.Sorted(maps.Keys(domainMap))
+		result := sliceutil.SortedKeys(domainMap)
 		return result
 	}
 
@@ -425,7 +424,7 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 		}
 	}
 
-	return slices.Sorted(maps.Keys(domainMap))
+	return sliceutil.SortedKeys(domainMap)
 }
 
 // GetAllowedDomains returns the allowed domains from network permissions.
@@ -520,7 +519,7 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 		}
 	}
 
-	return slices.Sorted(maps.Keys(domainMap))
+	return sliceutil.SortedKeys(domainMap)
 }
 
 // ecosystemPriority defines the order in which ecosystems are checked by GetDomainEcosystem.
@@ -729,7 +728,7 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 		}
 	}
 
-	domains := slices.Sorted(maps.Keys(domainMap))
+	domains := sliceutil.SortedKeys(domainMap)
 
 	// Join with commas for AWF --allow-domains flag
 	return strings.Join(domains, ",")
@@ -856,7 +855,7 @@ func GetBlockedDomains(network *NetworkPermissions) []string {
 		}
 	}
 
-	return slices.Sorted(maps.Keys(domainMap))
+	return sliceutil.SortedKeys(domainMap)
 }
 
 // formatBlockedDomains formats blocked domains as a comma-separated string suitable for AWF's --block-domains flag
@@ -922,7 +921,7 @@ func mergeAPITargetDomains(domainsStr string, apiTarget string) string {
 		domainMap[d] = struct{}{}
 	}
 
-	return strings.Join(slices.Sorted(maps.Keys(domainMap)), ",")
+	return strings.Join(sliceutil.SortedKeys(domainMap), ",")
 }
 
 // computeAllowedDomainsForSanitization computes the allowed domains for sanitization
@@ -1009,7 +1008,7 @@ func expandAllowedDomains(entries []string) []string {
 			domainMap[entry] = struct{}{}
 		}
 	}
-	return slices.Sorted(maps.Keys(domainMap))
+	return sliceutil.SortedKeys(domainMap)
 }
 
 // computeExpandedAllowedDomainsForSanitization computes the allowed domains for URL sanitization,
@@ -1050,5 +1049,5 @@ func (c *Compiler) computeExpandedAllowedDomainsForSanitization(data *WorkflowDa
 	domainMap["github.com"] = struct{}{}
 
 	// Produce a sorted, comma-separated result
-	return strings.Join(slices.Sorted(maps.Keys(domainMap)), ","), nil
+	return strings.Join(sliceutil.SortedKeys(domainMap), ","), nil
 }

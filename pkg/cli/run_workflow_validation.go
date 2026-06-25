@@ -15,6 +15,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
 )
@@ -237,7 +238,7 @@ func validateWorkflowInputs(markdownPath string, providedInputs []string) error 
 		// Add helpful information about valid inputs
 		if len(workflowInputs) > 0 {
 			var inputDescriptions []string
-			sortedNames := slices.Sorted(maps.Keys(workflowInputs))
+			sortedNames := sliceutil.SortedKeys(workflowInputs)
 			for _, name := range sortedNames {
 				def := workflowInputs[name]
 				required := ""

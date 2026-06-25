@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/goccy/go-yaml"
 )
 
@@ -153,7 +153,7 @@ func (c *Compiler) renderStepFromMap(out *strings.Builder, step map[string]any, 
 			case map[string]any:
 				// For complex fields like "with" or "env" — sort keys for stable output.
 				fmt.Fprintf(out, "%s:\n", field)
-				for _, key := range slices.Sorted(maps.Keys(v)) {
+				for _, key := range sliceutil.SortedKeys(v) {
 					if field == "env" {
 						fmt.Fprintf(out, "%s    %s: %s\n", indent, key, formatStepEnvValueForYAML(v[key]))
 					} else {
@@ -194,7 +194,7 @@ func (c *Compiler) renderStepFromMap(out *strings.Builder, step map[string]any, 
 		case map[string]any:
 			// Sort keys for stable output.
 			fmt.Fprintf(out, "%s:\n", field)
-			for _, key := range slices.Sorted(maps.Keys(v)) {
+			for _, key := range sliceutil.SortedKeys(v) {
 				if field == "env" {
 					fmt.Fprintf(out, "%s    %s: %s\n", indent, key, formatStepEnvValueForYAML(v[key]))
 				} else {
