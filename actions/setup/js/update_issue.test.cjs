@@ -1016,6 +1016,7 @@ describe("update_issue.cjs - cross-repo and operation integration", () => {
               suggest: true,
             },
           ],
+          headers: { "GraphQL-Features": "update_issue_suggestions" },
         })
       );
     } finally {

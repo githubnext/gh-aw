@@ -135,9 +135,11 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
       throw new Error(`Failed to resolve GraphQL node ID for issue #${issueNumber}`);
     }
 
+    core.info(`Using GraphQL intent path for label update with GraphQL-Features header (issue_intents runtime feature enabled)`);
     const repoLabels = await fetchAllRepoLabels(github, context.repo.owner, context.repo.repo);
     const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
     const labels = buildIssueIntentLabelUpdates(labelSpecs, labelIdByName);
+    core.info(`Updating ${labels.length} label(s) on issue #${issueNumber} via GraphQL intent mutation`);
     const result = await github.graphql(
       `mutation($issueId: ID!, $labels: [LabelUpdateInput!]!) {
         updateIssue(input: { id: $issueId, labels: $labels }) {
@@ -151,7 +153,7 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
           }
         }
       }`,
-      { issueId: issueNodeId, labels }
+      { issueId: issueNodeId, labels, headers: { "GraphQL-Features": "update_issue_suggestions" } }
     );
 
     issue = {

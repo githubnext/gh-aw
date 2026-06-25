@@ -76,7 +76,7 @@ on:
                 });
                 
                 const comments = prTimelineResult?.repository?.pullRequest?.timelineItems?.nodes || [];
-                const rateLimitPattern = /rate limit|API rate limit|secondary rate limit|abuse detection|429|too many requests/i;
+                const rateLimitPattern = /rate limit|API rate limit|secondary rate limit|abuse detection|\b429\b|too many requests/i;
                 
                 for (const comment of comments) {
                   if (comment.body && rateLimitPattern.test(comment.body)) {
