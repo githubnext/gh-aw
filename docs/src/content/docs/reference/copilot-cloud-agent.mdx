@@ -91,10 +91,10 @@ Both safe outputs require a fine-grained PAT. The default `GITHUB_TOKEN` lacks t
 
 The required token type and permissions depend on whether you own the repository or an organization owns it.
 
-1. **Create the PAT** with **Repository permissions**: Actions, Contents, Issues, Pull requests (all Write).
+1. **Create the PAT** with **Repository permissions**: Actions, Contents, Agent tasks (read and write).
 
-   - [User-owned repositories](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&issues=write&pull_requests=write): Resource owner = your user account; Repository access = "Public repositories" or specific repos
-   - [Organization-owned repositories](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&issues=write&pull_requests=write): Resource owner = the organization; Repository access = specific repositories that will use the workflow
+   - [User-owned repositories](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&agent_tasks=write): Resource owner = your user account; Repository access = "Public repositories" or specific repos
+   - [Organization-owned repositories](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&agent_tasks=write): Resource owner = the organization; Repository access = specific repositories that will use the workflow
 
 2. Add to repository secrets:
 

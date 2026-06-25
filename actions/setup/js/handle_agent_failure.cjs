@@ -243,6 +243,7 @@ function buildFailureMatchCategories(options) {
  * @param {boolean} options.hasDailyAICExceeded
  * @param {boolean} options.aiCreditsRateLimitError
  * @param {boolean} options.maxAICreditsExceeded
+ * @param {boolean} options.hasAssignmentErrors
  * @returns {string}
  */
 function buildFailureIssueTitle(options) {
@@ -260,6 +261,7 @@ function buildFailureIssueTitle(options) {
   if (options.hasMissingSafeOutputs) return `[aw] ${workflowName} produced no safe outputs`;
   if (options.hasMissingTool) return `[aw] ${workflowName} is missing required tool`;
   if (options.hasMissingData) return `[aw] ${workflowName} is missing required data`;
+  if (options.hasAssignmentErrors) return `[aw] ${workflowName} failed to assign agent`;
   return `[aw] ${workflowName} failed`;
 }
 
@@ -2058,9 +2060,9 @@ function buildAssignmentErrorsContext(assignmentErrors) {
   }
 
   context += "\nTo resolve this, verify the agent token and Copilot access configuration:\n";
-  context += "- Configure a valid `GH_AW_AGENT_TOKEN` with `issues: write` and `pull-requests: write` plus active Copilot entitlement\n";
-  context += "- If your org supports it, add `permissions: { copilot-requests: write }` to use org inference without a personal token\n";
-  context += "- Docs: https://github.github.com/gh-aw/reference/engines/#github-copilot-default\n\n";
+  context += "- Configure a valid `GH_AW_AGENT_TOKEN` as a fine-grained PAT with **Agent tasks: read and write** permission (GitHub App installation tokens are not supported)\n";
+  context += "- Ensure Copilot coding agent is enabled for this repository and a Copilot Business or Enterprise subscription is active\n";
+  context += "- Docs: https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication\n\n";
 
   return context;
 }
@@ -2990,6 +2992,7 @@ async function main() {
       hasDailyAICExceeded,
       aiCreditsRateLimitError,
       maxAICreditsExceeded,
+      hasAssignmentErrors,
     });
     const failureCategories = buildFailureMatchCategories({
       agentConclusion,
