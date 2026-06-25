@@ -9,7 +9,8 @@ import (
 
 const (
 	githubRepositoryExpression              = "${{ github.repository }}"
-	githubLockdownGuardPolicyWarningMessage = "'tools.github.lockdown: true' is set; GitHub guard policy fields ('allowed-repos', 'min-integrity', 'blocked-users', 'trusted-users', 'approval-labels') will be ignored.\nGuard policies are only evaluated when lockdown is not active."
+	githubLockdownGuardPolicyWarningMessage = `'tools.github.lockdown: true' is set; GitHub guard policy fields ('allowed-repos', 'min-integrity', 'blocked-users', 'trusted-users', 'approval-labels') will be ignored.
+Guard policies are only evaluated when lockdown is not active.`
 )
 
 // validateGitHubReadOnly validates that read-only: false is not set for the GitHub tool.

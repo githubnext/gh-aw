@@ -474,7 +474,7 @@ concurrency:
 
 ## Revalidation Cadence
 
-Re-run this validation whenever any of the following occur:
+Whenever any of the following occur, re-run this validation:
 
 1. `specs/security-architecture-spec.md` changes any MUST/SHALL-level requirement, compliance-test mapping, or security guarantee wording.
 2. Compiler or runtime changes alter compiled job structure, permission separation, threat-detection placement, timestamp validation, or other `.lock.yml` security behaviors described in this report.

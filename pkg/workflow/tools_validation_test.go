@@ -618,32 +618,36 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 	require.NoError(t, validateGitHubGuardPolicy(tools, "test-workflow"))
 
 	compiler := NewCompiler()
+	stderrOutput := captureGitHubValidationStderr(t, func() {
+		emitGitHubLockdownGuardPolicyWarning(compiler, tools, "test-workflow.md")
+	})
+
+	assert.Contains(t, stderrOutput, "tools.github.lockdown: true")
+	assert.Contains(t, stderrOutput, "guard policy fields")
+	assert.Contains(t, stderrOutput, "will be ignored")
+	assert.Equal(t, 1, compiler.GetWarningCount())
+}
+
+func captureGitHubValidationStderr(t *testing.T, fn func()) string {
+	t.Helper()
+
 	oldStderr := os.Stderr
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 	os.Stderr = w
-	restoreStderr := true
 	defer func() {
-		if restoreStderr {
-			os.Stderr = oldStderr
-		}
+		os.Stderr = oldStderr
 	}()
 
-	emitGitHubLockdownGuardPolicyWarning(compiler, tools, "test-workflow.md")
+	fn()
 
 	require.NoError(t, w.Close())
 
 	var buf bytes.Buffer
 	_, err = io.Copy(&buf, r)
 	require.NoError(t, err)
-	os.Stderr = oldStderr
-	restoreStderr = false
 
-	stderrOutput := buf.String()
-	assert.Contains(t, stderrOutput, "tools.github.lockdown: true")
-	assert.Contains(t, stderrOutput, "guard policy fields")
-	assert.Contains(t, stderrOutput, "will be ignored")
-	assert.Equal(t, 1, compiler.GetWarningCount())
+	return buf.String()
 }
 
 func TestValidateReposScopeWithStringSlice(t *testing.T) {
