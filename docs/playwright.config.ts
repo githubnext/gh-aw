@@ -45,9 +45,9 @@ export default defineConfig({
     // Ensure the command always runs relative to the docs folder, regardless
     // of the caller's current working directory.
     cwd: configDir,
-    // Use the dev server for tests to avoid running `prebuild` steps (like
-    // slide generation) as part of webServer startup.
-    command: 'npm run dev --silent -- --host 127.0.0.1 --port 4321',
+    // Keep startup lighter than a full prebuild, but ensure the homepage slide
+    // preview asset exists before the dev server starts.
+    command: 'npm run build:slides && npm run dev --silent -- --host 127.0.0.1 --port 4321',
     url: 'http://localhost:4321/gh-aw/',
     reuseExistingServer: !process.env.CI,
     timeout: 180 * 1000,

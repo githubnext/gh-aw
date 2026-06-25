@@ -1,7 +1,16 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Slide Preview on Homepage', () => {
+  let consoleErrors: string[];
+
   test.beforeEach(async ({ page }) => {
+    consoleErrors = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') {
+        consoleErrors.push(message.text());
+      }
+    });
+
     await page.goto('/gh-aw/');
     await page.waitForLoadState('networkidle');
   });
@@ -32,6 +41,7 @@ test.describe('Slide Preview on Homepage', () => {
 
     expect(width).toBeGreaterThan(0);
     expect(height).toBeGreaterThan(0);
+    expect(consoleErrors.some((message) => message.includes('InvalidPDFException'))).toBeFalsy();
 
     // Verify the hero has the 'is-ready' class indicating successful load
     const slideHero = page.locator('[data-slide-hero]');
