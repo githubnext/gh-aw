@@ -322,7 +322,7 @@ func getLatestWorkflowEditTimeFromCheckout(ctx context.Context, checkoutDir, wor
 	if filepath.IsAbs(workflowPath) {
 		rel, err := filepath.Rel(checkoutDir, workflowPath)
 		if err != nil {
-			return time.Time{}, err
+			return time.Time{}, fmt.Errorf("failed to derive workflow path relative to checkout %s for %s: %w", checkoutDir, workflowPath, err)
 		}
 		relativePath = rel
 	}
@@ -330,7 +330,7 @@ func getLatestWorkflowEditTimeFromCheckout(ctx context.Context, checkoutDir, wor
 	cmd := exec.CommandContext(ctx, "git", "-C", checkoutDir, "log", "--max-count=1", "--format=%cI", "--", relativePath)
 	output, err := cmd.Output()
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}, fmt.Errorf("failed to read latest commit time for %s in checkout %s: %w", relativePath, checkoutDir, err)
 	}
 	date := strings.TrimSpace(string(output))
 	if date == "" {
