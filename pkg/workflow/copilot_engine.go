@@ -124,7 +124,7 @@ func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []str
 // all BYOK provider variables that may carry secret values.
 func (e *CopilotEngine) GetSupportedEnvVarKeys() []string {
 	return []string{
-		"COPILOT_GITHUB_TOKEN",
+		constants.CopilotGitHubToken,
 		constants.CopilotProviderBaseURL,
 		constants.CopilotProviderAPIKey,
 		constants.CopilotProviderBearerToken,

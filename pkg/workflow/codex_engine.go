@@ -89,8 +89,8 @@ func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []strin
 // supports as defined in the AWF specification.
 func (e *CodexEngine) GetSupportedEnvVarKeys() []string {
 	return []string{
-		"CODEX_API_KEY",
-		"OPENAI_API_KEY",
+		constants.CodexAPIKey,
+		constants.OpenAIAPIKey,
 	}
 }
 

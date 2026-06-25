@@ -71,7 +71,7 @@ func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 // supports as defined in the AWF specification.
 func (e *ClaudeEngine) GetSupportedEnvVarKeys() []string {
 	return []string{
-		"ANTHROPIC_API_KEY",
+		constants.AnthropicAPIKey,
 	}
 }
 
