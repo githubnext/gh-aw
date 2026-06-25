@@ -1,7 +1,7 @@
 {
-  "last_updated": "2026-06-24T00:00:00Z",
+  "last_updated": "2026-06-25T00:00:00Z",
   "tool_count": 23,
-  "tool_change_R46": "LSP 23 stable (no tool change R4-46). REGISTRY DELTA 33->34 (grep -c Analyzer=34); 34th=lenstringsplit (doc-omitted-minus-known detector). R46 issues: #aw_sg46a1 lenstringsplit empty-rawstring-sep FP; #aw_sg46a2 ctxbackground Enclosing(FuncDecl)-only FuncLit-scope FN. sg45a1 landed=#40947. 5 syntactic holdouts still open; tolowerequalfold type-resolved=#40580 landed.",
+  "tool_change_R47": "LSP 23 stable (no tool change R4-47). REGISTRY DELTA 34->35 (grep -c Analyzer=35); 35th=stringreplaceminusone (strings.Replace n=-1 -> ReplaceAll; AUDITED CLEAN well-built type-resolved+const-fold+nolint+test-skip+autofix). R47 issues: #aw_sg47a1 manualmutexunlock(CI-ENFORCED) Selections.Obj()=field-decl collapses distinct instances=>masking FN; #aw_sg47a2 nolint-parity 4 non-enforced context linters. R46 sg46a1/a2 LANDED=#41163/#41164 (both OPEN). 5 syntactic holdouts still open.",
   "tools": [
     "activate_project", "check_onboarding_performed", "delete_memory", "edit_memory",
     "find_file", "find_referencing_symbols", "find_symbol", "get_current_config",
