@@ -1532,6 +1532,70 @@ index 0000000..abc1234
       }
     });
 
+    it("should use authoritative bundle file detection before apply and match post-apply verification", async () => {
+      const bundlePath = canonicalBundlePath("feature-branch");
+      const patchPath = createPatchFile(
+        "feature-branch",
+        `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/.changeset/patch-fix.md b/.changeset/patch-fix.md
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/.changeset/patch-fix.md
+@@ -0,0 +1 @@
++content
+--
+2.34.1
+`
+      );
+      fs.writeFileSync(bundlePath, "bundle content");
+
+      const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
+
+      try {
+        const actualFiles = [".changeset/patch-fix.md", "pkg/workflow/pi_byok_env_passthrough_integration_test.go", "pkg/workflow/pi_engine.go", "pkg/workflow/pi_engine_test.go"];
+        mockExec.getExecOutput.mockImplementation((cmd, args, options) => {
+          if (cmd === "git" && args[0] === "ls-remote") {
+            return Promise.resolve({ exitCode: 0, stdout: "remote-head\trefs/heads/feature-branch\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-parse" && args[1] === "HEAD") {
+            return Promise.resolve({ exitCode: 0, stdout: "remote-head\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ exitCode: 0, stdout: "false\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+            return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
+            return Promise.resolve({ exitCode: 0, stdout: `${actualFiles.join("\n")}\n`, stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-list") {
+            return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
+          }
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+        });
+
+        const module = await loadModule();
+        const handler = await module.main({ allowed_files: [".changeset/**", "pkg/workflow/**"] });
+        const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
+
+        expect(result.success).toBe(true);
+        expect(mockCore.info).toHaveBeenCalledWith("Pre-apply bundle verification: 4 file(s) detected from bundle transport");
+
+        const diffCalls = mockExec.getExecOutput.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames");
+        expect(diffCalls.map(([, args]) => args[3])).toContain("remote-head..refs/bundles/push-feature-branch");
+        expect(diffCalls.map(([, args]) => args[3])).toContain("remote-head..HEAD");
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
+    });
+
     it("should use sanitized branch name (not agent-supplied message.branch) in bundle fetch refspec", async () => {
       // The agent may supply a message.branch value; the bundle fetch must use the
       // sanitized branchName from the GitHub API — never the raw agent input.

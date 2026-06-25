@@ -167,7 +167,7 @@ func TestInitRepository_MCP_Idempotent(t *testing.T) {
 	}
 }
 
-func TestEnsureMCPConfig_RendersInstructions(t *testing.T) {
+func TestEnsureMCPConfig_UpdatesExistingFile(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -207,7 +207,7 @@ func TestEnsureMCPConfig_RendersInstructions(t *testing.T) {
 		t.Fatalf("ensureMCPConfig() returned error: %v", err)
 	}
 
-	// Verify the config was NOT modified (file should remain unchanged)
+	// Verify the config was updated in place
 	content, err := os.ReadFile(mcpConfigPath)
 	if err != nil {
 		t.Fatalf("Failed to read .github/mcp.json: %v", err)
@@ -223,9 +223,15 @@ func TestEnsureMCPConfig_RendersInstructions(t *testing.T) {
 		t.Errorf("Expected existing 'other-server' to be preserved")
 	}
 
-	// Check that github-agentic-workflows was NOT added (file should not be modified)
-	if _, exists := config.MCPServers["github-agentic-workflows"]; exists {
-		t.Errorf("Expected 'github-agentic-workflows' server to NOT be added (should render instructions instead)")
+	server, exists := config.MCPServers["github-agentic-workflows"]
+	if !exists {
+		t.Fatalf("Expected 'github-agentic-workflows' server to be added")
+	}
+	if server.Type != "local" {
+		t.Errorf("Expected type 'local', got %q", server.Type)
+	}
+	if server.Command != "gh" {
+		t.Errorf("Expected command 'gh', got %q", server.Command)
 	}
 }
 

@@ -283,22 +283,8 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/add_workflow_run_comment.cjs');
             await main();
       - name: Log runtime features
-        env:
-          GH_AW_RUNTIME_FEATURES_IS_SET: ${{ contains(toJSON(vars), '"GH_AW_RUNTIME_FEATURES":') }}
-        run: |
-          {
-            echo "## Runtime features"
-            echo
-            if [[ "$GH_AW_RUNTIME_FEATURES_IS_SET" != "true" ]]; then
-              echo "_Not set_"
-            elif [[ -n "$GH_AW_RUNTIME_FEATURES" ]]; then
-              echo '```text'
-              printf '%s\n' "$GH_AW_RUNTIME_FEATURES"
-              echo '```'
-            else
-              echo "_Empty string_"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+        if: ${{ contains(toJSON(vars), '"GH_AW_RUNTIME_FEATURES":') }}
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/log_runtime_features_summary.sh"
       - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
