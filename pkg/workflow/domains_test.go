@@ -433,8 +433,10 @@ func TestCodexDefaultDomains(t *testing.T) {
 	// Verify that expected Codex domains are present
 	expectedDomains := []string{
 		"172.30.0.1", // AWF gateway IP - Codex resolves host.docker.internal to this IP
+		"api.github.com",
 		"api.openai.com",
 		"chatgpt.com", // Codex CLI connects to chatgpt.com (and subdomains e.g. ab.chatgpt.com) for auth/telemetry
+		"github.com",
 		"host.docker.internal",
 		"openai.com",
 	}

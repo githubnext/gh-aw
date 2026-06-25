@@ -436,11 +436,22 @@ Test workflow`
 		t.Fatal("Detection job not found in compiled workflow")
 	}
 
-	// The AWF config JSON in the detection job must include Codex's required domains
-	// so that the engine can reach api.openai.com and chatgpt.com inside the sandbox.
-	for _, domain := range []string{"api.openai.com", "chatgpt.com", "openai.com"} {
-		if !strings.Contains(detectionSection, domain) {
-			t.Errorf("Codex external detector AWF config must allow domain %q", domain)
+	allowDomainsLine := ""
+	for line := range strings.SplitSeq(detectionSection, "\n") {
+		if strings.Contains(line, "allowDomains") {
+			allowDomainsLine = line
+			break
+		}
+	}
+	if allowDomainsLine == "" {
+		t.Fatal("Detection job AWF config must include network.allowDomains")
+	}
+
+	// Assert against the specific AWF allowDomains JSON line to avoid false positives
+	// from unrelated occurrences elsewhere in the rendered detection job.
+	for _, domain := range []string{"api.openai.com", "chatgpt.com", "openai.com", "github.com", "api.github.com"} {
+		if !strings.Contains(allowDomainsLine, domain) {
+			t.Errorf("Codex external detector AWF allowDomains must include %q", domain)
 		}
 	}
 }
