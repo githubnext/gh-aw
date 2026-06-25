@@ -382,6 +382,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Non-sandbox mode: pass prompt file path directly
 		copilotCommand = fmt.Sprintf(`%s %s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
 	}
+	// Run Copilot from the repository workspace so root-based discovery (for example
+	// .agents/skills restored by APM) resolves correctly at runtime.
+	copilotCommand = `cd "${GITHUB_WORKSPACE}" && ` + copilotCommand
 
 	// Conditionally wrap with sandbox (AWF only)
 	var command string
