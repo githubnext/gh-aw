@@ -7,6 +7,8 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -326,4 +328,31 @@ func captureUpdateOrgStderr(t *testing.T, fn func()) string {
 	data, err := io.ReadAll(r)
 	require.NoError(t, err)
 	return string(data)
+}
+
+func TestGetLatestWorkflowEditTimeFromCheckout(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tempDir
+		output, err := cmd.CombinedOutput()
+		require.NoError(t, err, "git %v failed: %s", args, string(output))
+	}
+
+	runGit("init")
+	runGit("config", "user.name", "Test User")
+	runGit("config", "user.email", "test@example.com")
+
+	workflowPath := filepath.Join(tempDir, ".github", "workflows", "example.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(workflowPath), 0o755))
+	require.NoError(t, os.WriteFile(workflowPath, []byte("---\nsource: owner/repo/.github/workflows/example.md@v1\n---\n"), 0o644))
+	runGit("add", ".")
+	runGit("commit", "-m", "add workflow")
+
+	got, err := getLatestWorkflowEditTimeFromCheckout(context.Background(), tempDir, workflowPath)
+	require.NoError(t, err)
+	assert.False(t, got.IsZero())
 }
