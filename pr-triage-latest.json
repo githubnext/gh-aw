@@ -1,42 +1,43 @@
 {
-  "run_date": "2026-06-24T18:49:02Z",
-  "run_id": "28121751751",
-  "previous_run_id": "28100407912",
-  "previous_run_date": "2026-06-24T13:05:16Z",
+  "run_date": "2026-06-25T01:18:01Z",
+  "run_id": "28140271642",
+  "previous_run_id": "28121751751",
+  "previous_run_date": "2026-06-24T18:49:02Z",
   "fork_prs": 0,
-  "agent_prs_found": 8,
+  "agent_prs_found": 10,
   "prs_triaged": 0,
   "fork_only_policy": true,
   "open_agent_prs": [
-    {"number": 41269, "title": "feat: omit sudo from generated lock.yml when network-isolation is enabled; bump firewall to v0.27.10 and mcpg to v0.3.30", "draft": false, "is_fork": false, "created_at": "2026-06-24T16:58:17Z", "updated_at": "2026-06-24T18:38:09Z"},
-    {"number": 41262, "title": "fix: UpdateContainerPins wipes containers section on every gh aw update run", "draft": false, "is_fork": false, "created_at": "2026-06-24T16:13:11Z", "updated_at": "2026-06-24T18:48:37Z"},
-    {"number": 41247, "title": "Add organization-wide `gh aw update` mode with dry-run PR previews", "draft": true, "is_fork": false, "created_at": "2026-06-24T15:36:18Z", "updated_at": "2026-06-24T15:36:49Z"},
-    {"number": 41244, "title": "[WIP] Fix CLI command output order for usage and examples", "draft": true, "is_fork": false, "created_at": "2026-06-24T15:29:45Z", "updated_at": "2026-06-24T15:54:13Z"},
-    {"number": 41242, "title": "Fix Codex MCP CLI wrapper resolution for safe outputs", "draft": true, "is_fork": false, "created_at": "2026-06-24T15:29:10Z", "updated_at": "2026-06-24T16:06:11Z"},
-    {"number": 41235, "title": "fix(windows): remove compat import to prevent ConPTY startup crash", "draft": false, "is_fork": false, "created_at": "2026-06-24T14:12:10Z", "updated_at": "2026-06-24T18:12:26Z"},
-    {"number": 41234, "title": "Fix compiler error quality: YAML context offset, import hint, early engine validation", "draft": false, "is_fork": false, "created_at": "2026-06-24T14:10:42Z", "updated_at": "2026-06-24T18:10:41Z"},
-    {"number": 41191, "title": "[WIP] Refactor inline string-truncation reinventions and file-existence idioms", "draft": false, "is_fork": false, "created_at": "2026-06-24T07:17:40Z", "updated_at": "2026-06-24T17:35:43Z"}
+    {"number": 41342, "title": "Remove `private: true` from blog-referenced workflows, issue-monster, q, and ci-coach", "draft": true, "is_fork": false, "created_at": "2026-06-25T01:14:01Z", "updated_at": "2026-06-25T01:14:21Z", "additions": 49, "deletions": 98, "files": 98, "ci": "none", "labels": []},
+    {"number": 41336, "title": "Surface assign-to-agent auth/availability failures in agent failure issues/comments", "draft": false, "is_fork": false, "created_at": "2026-06-25T00:07:49Z", "updated_at": "2026-06-25T01:14:08Z", "additions": 97, "deletions": 45, "files": 4, "ci": "none", "labels": []},
+    {"number": 41335, "title": "feat: add --org to upgrade command", "draft": true, "is_fork": false, "created_at": "2026-06-25T00:07:21Z", "updated_at": "2026-06-25T00:07:49Z", "additions": 314, "deletions": 8, "files": 4, "ci": "none", "labels": []},
+    {"number": 41333, "title": "Reduce YAMLGeneration time by collapsing duplicate run-script scans", "draft": true, "is_fork": false, "created_at": "2026-06-24T23:58:26Z", "updated_at": "2026-06-25T01:13:15Z", "additions": 192, "deletions": 17, "files": 4, "ci": "none", "labels": []},
+    {"number": 41332, "title": "Lower Design Decision Gate runtime cost with Sonnet default and conditional issue lookups", "draft": true, "is_fork": false, "created_at": "2026-06-24T23:58:13Z", "updated_at": "2026-06-25T00:27:12Z", "additions": 12, "deletions": 8, "files": 2, "ci": "none", "labels": []},
+    {"number": 41331, "title": "Add GitHub lockdown guard-policy warning and sync security specs", "draft": true, "is_fork": false, "created_at": "2026-06-24T23:57:54Z", "updated_at": "2026-06-25T00:49:19Z", "additions": 200, "deletions": 21, "files": 9, "ci": "none", "labels": []},
+    {"number": 41330, "title": "test(actionpins): improve assertion quality and add missing coverage in spec_test.go", "draft": true, "is_fork": false, "created_at": "2026-06-24T23:57:34Z", "updated_at": "2026-06-25T00:22:20Z", "additions": 77, "deletions": 4, "files": 1, "ci": "none", "labels": []},
+    {"number": 41329, "title": "Allow Daily Safe Output Integrator to read replace_label.go to prevent denial guardrail aborts", "draft": true, "is_fork": false, "created_at": "2026-06-24T23:57:11Z", "updated_at": "2026-06-24T23:57:11Z", "additions": 5, "deletions": 2, "files": 2, "ci": "none", "labels": []},
+    {"number": 41328, "title": "Bump pinned CLI and Playwright browser versions", "draft": false, "is_fork": false, "created_at": "2026-06-24T23:56:44Z", "updated_at": "2026-06-25T01:18:12Z", "additions": 3007, "deletions": 3002, "files": 257, "ci": "SUCCESS", "labels": ["smoke"]},
+    {"number": 41295, "title": "fix: apply_samples derivePrHeadRef uses target-repo config for siderepo PR lookups", "draft": true, "is_fork": false, "created_at": "2026-06-24T19:34:18Z", "updated_at": "2026-06-24T19:34:18Z", "additions": 68, "deletions": 4, "files": 3, "ci": "SUCCESS", "labels": []}
   ],
   "merged_since_last_run": [
-    {"number": 41155, "title": "fix: treat locked-PR 422 as soft skip with retry in safe_outputs"},
-    {"number": 41159, "title": "Honor GH_HOST in `gh aw trial --clone-repo` repository URLs"},
-    {"number": 41182, "title": "Add SEC-005 exemption for `issue_intents.cjs` false positive"},
-    {"number": 41183, "title": "Allow AgentRx native package installs in Daily AgentRx Trace Optimizer"},
-    {"number": 41184, "title": "Pin Daily Sub-Agent Model Resolution Audit sub-agent to a valid Codex model"},
-    {"number": 41185, "title": "perf: parallelize audit analysis tasks to cut latency for long-running workflows"},
-    {"number": 41186, "title": "fix(footer): render correct trigger type in attribution suffix"},
-    {"number": 41187, "title": "ctxbackground: fix false negative and unsafe autofix for closures"},
-    {"number": 41188, "title": "fix(lenstringsplit): empty raw-string separator escapes non-empty guard — false positive + wrong autofix"},
-    {"number": 41189, "title": "Pin RGS-007 workflow action refs to immutable SHAs"},
-    {"number": 41190, "title": "Add `replace-label` to Safe Output Mapping in agentic workflow designer SKILL.md"}
+    {"number": 41269, "title": "feat: omit sudo from generated lock.yml when network-isolation is enabled; bump firewall to v0.27.10 and mcpg to v0.3.30"},
+    {"number": 41262, "title": "fix: UpdateContainerPins wipes containers section on every gh aw update run"},
+    {"number": 41247, "title": "Add organization-wide `gh aw update` mode with dry-run PR previews"},
+    {"number": 41242, "title": "Fix Codex MCP CLI wrapper resolution for safe outputs"},
+    {"number": 41235, "title": "fix(windows): remove compat import to prevent ConPTY startup crash"},
+    {"number": 41234, "title": "Fix compiler error quality: YAML context offset, import hint, early engine validation"},
+    {"number": 41191, "title": "[WIP] Refactor inline string-truncation reinventions and file-existence idioms"}
+  ],
+  "closed_since_last_run": [
+    {"number": 41244, "title": "[WIP] Fix CLI command output order for usage and examples"}
   ],
   "statistics": {
-    "total_open_copilot_prs": 8,
-    "draft_prs": 3,
-    "ready_prs": 5,
+    "total_open_copilot_prs": 10,
+    "draft_prs": 8,
+    "ready_prs": 2,
     "fork_prs_eligible": 0,
-    "merged_since_last_run": 11,
-    "wip_titled_prs": 2
+    "merged_since_last_run": 7,
+    "closed_since_last_run": 1
   },
-  "notes": "8 open Copilot PRs, all same-repo branches — fork-only triage policy: 0 eligible. 11 PRs from prior run all merged (#41155, #41159, #41182-#41190). 5 ready PRs: #41269, #41262, #41235, #41234 (non-draft, non-WIP), plus #41191 (titled [WIP] but not marked draft). 3 draft WIP PRs: #41247, #41244, #41242. Run [§28121751751](https://github.com/github/gh-aw/actions/runs/28121751751)."
+  "notes": "10 open agent PRs, all same-repo branches by app/copilot-swe-agent — fork-only triage policy: 0 eligible. 7 PRs from prior run merged (#41269, #41262, #41247, #41242, #41235, #41234, #41191), 1 closed (#41244). 2 ready PRs: #41336 (auth failures, no CI), #41328 (version bump, CI passing, smoke label). 8 draft PRs. Run [§28140271642](https://github.com/github/gh-aw/actions/runs/28140271642)."
 }
