@@ -596,6 +596,8 @@ safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
 
 Use the exact field name `issue_number` (underscore). Do **not** use `issue-number` (hyphen), which is invalid and will fail safe-output validation.
 
+**Important**: Only call `assign_to_agent` for **issues**, never for pull requests. The pre-fetched list already contains only issues, so never pass a PR number here. If you are ever unsure whether a number refers to an issue or a PR, call `issue_read` with `method: get` and check: if the response includes a `pull_request` URL field, skip that item.
+
 Do not use GitHub tools for this assignment. The `assign_to_agent` tool will handle the actual assignment.
 
 The Copilot coding agent will:
@@ -641,6 +643,7 @@ Issue Monster runs frequently (every 30 minutes), so keeping each run lean is cr
 - ✅ **Always report outcome**: If no issues are assigned, use the `noop` tool to explain why
 - ✅ **Skip integrity-blocked issues**: If `issue_read` is blocked by integrity policy, skip that issue and continue — never call `missing_data` for integrity errors
 - ❌ **Don't force batching**: If only 1-2 clearly separate issues exist, assign only those
+- ❌ **Never assign pull requests**: `assign_to_agent` is for issues only — never pass a PR number
 
 ## skill: `issue-monster-report-formatting`
 ---

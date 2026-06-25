@@ -1212,6 +1212,34 @@ describe("assign_to_agent", () => {
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
+  it("should skip silently and not post a comment when issue_number resolves to a pull request", async () => {
+    setAgentOutput({
+      items: [{ type: "assign_to_agent", issue_number: 99, agent: "copilot" }],
+      errors: [],
+    });
+
+    // Simulate the issues.get API returning a PR (has pull_request field)
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: {
+        id: 99999,
+        number: 99,
+        assignees: [],
+        html_url: "https://github.com/test-owner/test-repo/pull/99",
+        title: "Some PR",
+        body: "",
+        pull_request: { url: "https://api.github.com/repos/test-owner/test-repo/pulls/99" },
+      },
+    });
+
+    await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
+
+    // Should warn about the PR but not post a comment on it
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("pull request, not an issue"));
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+    // Should not call setFailed — skipping a PR target is not a workflow failure
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
   it("should post failure comment on single failed assignment", async () => {
     setAgentOutput({
       items: [{ type: "assign_to_agent", issue_number: 11, agent: "copilot" }],
