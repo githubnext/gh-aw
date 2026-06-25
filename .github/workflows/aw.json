@@ -1,8 +1,156 @@
 {
-  "utc": "-08:00",
   "auto_upgrade": true,
+  "impact": {
+    "version": 1,
+    "base": 1,
+    "clamp": {
+      "min": 0,
+      "max": 10
+    },
+    "rules": [
+      {
+        "name": "ignore duplicate work",
+        "when": {
+          "any_label": ["duplicate", "invalid", "wontfix"]
+        },
+        "score": 0,
+        "stop": true
+      },
+      {
+        "name": "docs work",
+        "when": {
+          "any_label": ["docs", "documentation"]
+        },
+        "min": 3
+      },
+      {
+        "name": "test coverage work",
+        "when": {
+          "any": [
+            {
+              "any_label": ["test"]
+            },
+            {
+              "any_signal": ["coverage"]
+            }
+          ]
+        },
+        "min": 3
+      },
+      {
+        "name": "maintenance work",
+        "when": {
+          "any_signal": ["dependency", "maintenance", "refactor"]
+        },
+        "min": 4
+      },
+      {
+        "name": "bug work",
+        "when": {
+          "any": [
+            {
+              "any_label": ["bug", "fix"]
+            },
+            {
+              "any_signal": ["regression"]
+            }
+          ]
+        },
+        "min": 5
+      },
+      {
+        "name": "feature work",
+        "when": {
+          "any_label": ["enhancement", "feature"]
+        },
+        "min": 6
+      },
+      {
+        "name": "performance work",
+        "when": {
+          "any_signal": ["performance", "latency"]
+        },
+        "min": 6
+      },
+      {
+        "name": "customer impact work",
+        "when": {
+          "any": [
+            {
+              "any_label": ["customer-impact"]
+            },
+            {
+              "any_signal": ["enterprise", "support-escalation"]
+            }
+          ]
+        },
+        "min": 7
+      },
+      {
+        "name": "security work",
+        "when": {
+          "any": [
+            {
+              "any_label": ["security"]
+            },
+            {
+              "any_signal": ["security", "vulnerability", "credential"]
+            }
+          ]
+        },
+        "min": 7
+      },
+      {
+        "name": "release blocker work",
+        "when": {
+          "any": [
+            {
+              "any_label": ["release-blocker"]
+            },
+            {
+              "any_signal": ["release-blocker"]
+            }
+          ]
+        },
+        "min": 8
+      },
+      {
+        "name": "critical incident work",
+        "when": {
+          "any": [
+            {
+              "any_label": ["critical"]
+            },
+            {
+              "any_signal": ["incident", "sev1", "p0"]
+            }
+          ]
+        },
+        "min": 9
+      },
+      {
+        "name": "sensitive path boost",
+        "when": {
+          "measure_gt": {
+            "sensitive_path_count": 0
+          }
+        },
+        "add": 1
+      },
+      {
+        "name": "broad component boost",
+        "when": {
+          "measure_gte": {
+            "component_count": 3
+          }
+        },
+        "add": 1
+      }
+    ]
+  },
   "maintenance": {
     "action_failure_issue_expires": 12,
     "label_triggers": true
-  }
+  },
+  "utc": "-08:00"
 }

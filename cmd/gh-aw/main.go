@@ -836,6 +836,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	domainsCmd := cli.NewDomainsCommand()
 	experimentsCmd := cli.NewExperimentsCommand()
 	forecastCmd := cli.NewForecastCommand()
+	impactCmd := cli.NewImpactCommand()
 	envCmd := cli.NewEnvCommand()
 
 	// Assign commands to groups
@@ -875,6 +876,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	checksCmd.GroupID = "analysis"
 	experimentsCmd.GroupID = "analysis"
 	forecastCmd.GroupID = "analysis"
+	impactCmd.GroupID = "analysis"
 
 	// Utilities
 	mcpServerCmd.GroupID = "utilities"
@@ -922,6 +924,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(domainsCmd)
 	rootCmd.AddCommand(experimentsCmd)
 	rootCmd.AddCommand(forecastCmd)
+	rootCmd.AddCommand(impactCmd)
 	rootCmd.AddCommand(envCmd)
 
 	// Fix help flag descriptions for all subcommands to be consistent with the

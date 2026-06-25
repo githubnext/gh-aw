@@ -178,6 +178,27 @@ func TestLoadRepoConfig_UnknownProperty(t *testing.T) {
 	assert.Error(t, err, "unknown property should fail schema validation (additionalProperties: false)")
 }
 
+func TestLoadRepoConfig_AllowsImpactPolicy(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{
+  "impact": {
+    "version": 1,
+    "base": 1,
+    "clamp": { "min": 0, "max": 10 },
+    "rules": [
+			{ "name": "ignore not planned", "when": { "any_dimension": { "state_reason": ["not_planned"] } }, "score": 0, "stop": true },
+      { "name": "security work", "when": { "any_label": ["security"] }, "min": 7 }
+    ]
+  }
+}`)
+
+	cfg, err := LoadRepoConfig(dir)
+
+	require.NoError(t, err, "valid aw.json with impact policy should load without error")
+	assert.False(t, cfg.GHES)
+	assert.Nil(t, cfg.Maintenance)
+}
+
 func TestLoadRepoConfig_InvalidActionFailureIssueExpires(t *testing.T) {
 	dir := t.TempDir()
 	writeAWJSON(t, dir, `{"maintenance": {"action_failure_issue_expires": 0}}`)

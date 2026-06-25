@@ -26,6 +26,37 @@
       "description": "When true, the compiler generates agentic-auto-upgrade.yml that runs on a fuzzy weekly schedule and inlines the 'upgrade' operation to check for and report available workflow upgrades via a GitHub issue. Defaults to false (opt-in).",
       "type": "boolean"
     },
+    "impact": {
+      "description": "Repository-specific Impact Score policy. The impact-score dev runner parses this policy into a typed internal representation before scoring work items.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "description": "Impact policy format version.",
+          "type": "integer",
+          "enum": [1]
+        },
+        "base": {
+          "description": "Base score before matching rules are applied.",
+          "type": "number"
+        },
+        "clamp": {
+          "description": "Minimum and maximum score bounds after all matching rules are applied.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "min": { "type": "number" },
+            "max": { "type": "number" }
+          },
+          "required": ["min", "max"]
+        },
+        "rules": {
+          "description": "Ordered Impact Score rules.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/impact_rule" }
+        }
+      }
+    },
     "maintenance": {
       "description": "Configuration for the agentic-maintenance workflow. Set to false to disable maintenance entirely, or provide an object to configure it.",
       "oneOf": [
@@ -92,6 +123,77 @@
           }
         }
       ]
+    }
+  },
+  "definitions": {
+    "impact_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "when": { "$ref": "#/definitions/impact_condition" },
+        "score": { "type": "number" },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "add": { "type": "number" },
+        "stop": { "type": "boolean" },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "support": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mean": { "type": "number" },
+        "baseline": { "type": "number" }
+      }
+    },
+    "impact_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "any_label": { "$ref": "#/definitions/string_list" },
+        "all_label": { "$ref": "#/definitions/string_list" },
+        "any_signal": { "$ref": "#/definitions/string_list" },
+        "all_signal": { "$ref": "#/definitions/string_list" },
+        "any_component": { "$ref": "#/definitions/string_list" },
+        "any_area": { "$ref": "#/definitions/string_list" },
+        "any_source_workflow": { "$ref": "#/definitions/string_list" },
+        "any_dimension": { "$ref": "#/definitions/string_list_map" },
+        "all_dimension": { "$ref": "#/definitions/string_list_map" },
+        "measure_gt": { "$ref": "#/definitions/number_map" },
+        "measure_gte": { "$ref": "#/definitions/number_map" },
+        "measure_lt": { "$ref": "#/definitions/number_map" },
+        "measure_lte": { "$ref": "#/definitions/number_map" },
+        "state": { "$ref": "#/definitions/string_list" },
+        "type": { "$ref": "#/definitions/string_list" },
+        "all": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/impact_condition" }
+        },
+        "any": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/impact_condition" }
+        },
+        "not": { "$ref": "#/definitions/impact_condition" }
+      }
+    },
+    "string_list": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "number_map": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "string_list_map": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/string_list" }
     }
   }
 }
