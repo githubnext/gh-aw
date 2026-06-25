@@ -34,6 +34,10 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	if hasThreatDetectionEngineConfig {
 		engineConfig = data.SafeOutputs.ThreatDetection.EngineConfig
 	}
+	// Preserve the original engine identity before Pi is normalized to Copilot for
+	// detection. Precedence matches runtime engine resolution: explicit
+	// threat-detection.engine.id overrides the main engine config, which overrides
+	// the legacy top-level AI field.
 	originalEngineID := data.AI
 	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
 		originalEngineID = data.EngineConfig.ID
