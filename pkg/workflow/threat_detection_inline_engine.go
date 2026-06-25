@@ -94,7 +94,11 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	if detectionEngineConfig.APITarget == "" && data.EngineConfig != nil && data.EngineConfig.APITarget != "" {
 		detectionEngineConfig.APITarget = data.EngineConfig.APITarget
 	}
-	if detectionEngineConfig.ID == "copilot" && originalEngineID == "pi" {
+	if engineSetting == "copilot" && originalEngineID == "pi" {
+		// Pi requires provider/model syntax (for example "copilot/gpt-5.4"), but the
+		// Copilot CLI expects only the model ID. extractPiModelID preserves bare model
+		// names unchanged, so empty or already-normalized values keep their current
+		// fallback behavior while provider-scoped Pi models become Copilot-compatible.
 		detectionEngineConfig.Model = extractPiModelID(detectionEngineConfig.Model)
 	}
 
