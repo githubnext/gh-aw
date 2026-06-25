@@ -1326,6 +1326,12 @@ describe("handle_agent_failure", () => {
         expect(buildAssignmentErrorsContext("")).toBe("");
       });
 
+      it("returns empty string for whitespace-only input", () => {
+        expect(buildAssignmentErrorsContext("   ")).toBe("");
+        expect(buildAssignmentErrorsContext("\n")).toBe("");
+        expect(buildAssignmentErrorsContext("\n\n")).toBe("");
+      });
+
       it("renders assignment failures with token guidance docs", () => {
         const result = buildAssignmentErrorsContext("issue:42:copilot:Bad credentials\npr:7:copilot:copilot coding agent is not available for this repository");
 
