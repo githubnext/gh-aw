@@ -3,7 +3,10 @@
 package workflow
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -601,6 +604,39 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
+	tools := NewTools(map[string]any{
+		"github": map[string]any{
+			"lockdown":      true,
+			"allowed-repos": "all",
+			"min-integrity": "approved",
+		},
+	})
+
+	require.NoError(t, validateGitHubGuardPolicy(tools, "test-workflow"))
+
+	compiler := NewCompiler()
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+
+	emitGitHubLockdownGuardPolicyWarning(compiler, tools, "test-workflow.md")
+
+	require.NoError(t, w.Close())
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, r)
+	require.NoError(t, err)
+
+	stderrOutput := buf.String()
+	assert.Contains(t, stderrOutput, "tools.github.lockdown: true")
+	assert.Contains(t, stderrOutput, "guard policy fields")
+	assert.Contains(t, stderrOutput, "will be ignored")
+	assert.Equal(t, 1, compiler.GetWarningCount())
 }
 
 func TestValidateReposScopeWithStringSlice(t *testing.T) {

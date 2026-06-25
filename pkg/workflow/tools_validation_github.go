@@ -2,11 +2,14 @@ package workflow
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"strings"
 )
 
 const (
-	githubRepositoryExpression = "${{ github.repository }}"
+	githubRepositoryExpression              = "${{ github.repository }}"
+	githubLockdownGuardPolicyWarningMessage = "'tools.github.lockdown: true' is set; GitHub guard policy fields ('allowed-repos', 'min-integrity', 'blocked-users', 'trusted-users', 'approval-labels') will be ignored.\nGuard policies are only evaluated when lockdown is not active."
 )
 
 // validateGitHubReadOnly validates that read-only: false is not set for the GitHub tool.
@@ -40,6 +43,36 @@ func validateGitHubToolConfig(tools *Tools, workflowName string) error {
 	return nil
 }
 
+func hasGitHubGuardPolicyFields(github *GitHubToolConfig) bool {
+	if github == nil {
+		return false
+	}
+
+	hasRepos := github.AllowedRepos != nil
+	hasMinIntegrity := github.MinIntegrity != ""
+	hasBlockedUsers := len(github.BlockedUsers) > 0 || github.BlockedUsersExpr != ""
+	hasApprovalLabels := len(github.ApprovalLabels) > 0 || github.ApprovalLabelsExpr != ""
+	hasTrustedUsers := len(github.TrustedUsers) > 0 || github.TrustedUsersExpr != ""
+
+	return hasRepos || hasMinIntegrity || hasBlockedUsers || hasApprovalLabels || hasTrustedUsers
+}
+
+func hasGitHubLockdownGuardPolicyConflict(github *GitHubToolConfig) bool {
+	return github != nil && github.Lockdown && hasGitHubGuardPolicyFields(github)
+}
+
+func emitGitHubLockdownGuardPolicyWarning(compiler *Compiler, tools *Tools, markdownPath string) {
+	if tools == nil || tools.GitHub == nil || !hasGitHubLockdownGuardPolicyConflict(tools.GitHub) {
+		return
+	}
+
+	toolsValidationLog.Printf("Emitting lockdown/guard-policy warning for workflow: %s", markdownPath)
+	if compiler != nil {
+		compiler.IncrementWarningCount()
+	}
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", githubLockdownGuardPolicyWarningMessage))
+}
+
 // validateGitHubGuardPolicy validates the GitHub guard policy configuration.
 // Guard policy fields (allowed-repos, min-integrity) are specified flat under github:.
 // Note: 'repos' is a deprecated alias for 'allowed-repos'.
@@ -50,6 +83,10 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	}
 
 	github := tools.GitHub
+	if hasGitHubLockdownGuardPolicyConflict(github) {
+		toolsValidationLog.Printf("lockdown enabled with guard policy fields in workflow: %s", workflowName)
+	}
+
 	// AllowedRepos is populated from either 'allowed-repos' (preferred) or deprecated 'repos' during parsing
 	hasRepos := github.AllowedRepos != nil
 	hasMinIntegrity := github.MinIntegrity != ""
