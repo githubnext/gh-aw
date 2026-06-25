@@ -35,11 +35,12 @@ async function getIssueNodeId(githubClient, owner, repo, issueNumber) {
 
 /**
  * Fetches the available issue types for an organization.
+ * For personal-account owners the query returns null and the call site receives an empty array.
  * @param {Object} githubClient - Authenticated GitHub client
  * @param {string} owner - Organization login
  * @returns {Promise<Array<{id: string, name: string}>>} Issue type nodes
  */
-async function fetchIssueTypesForRepo(githubClient, owner) {
+async function fetchIssueTypesForOrg(githubClient, owner) {
   const result = await githubClient.graphql(
     `query($owner: String!) {
       organization(login: $owner) {
@@ -338,7 +339,7 @@ async function main(config = {}) {
         // GraphQL intent path: resolve the type's node ID from org issue types, then
         // call setIssueTypeById with IssueTypeUpdateInput + the GraphQL-Features header.
         const issueNodeId = await getIssueNodeId(githubClient, owner, repo, issueNumber);
-        const issueTypes = await fetchIssueTypesForRepo(githubClient, owner);
+        const issueTypes = await fetchIssueTypesForOrg(githubClient, owner);
         const typeNode = issueTypes.find(t => t.name.toLowerCase() === resolvedIssueTypeName.toLowerCase());
         if (!typeNode) {
           const availableNames = issueTypes.map(t => t.name).join(", ");
