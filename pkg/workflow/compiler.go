@@ -340,8 +340,9 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 		// needsDisallowedCheck: true when any expression outside the compiler allow-list
 		//                      appears in run: blocks
 		//                      → triggers validateNoGitHubExpressionsInRunScriptsFromParsed
-		needsUnsafeCheck := hasExpressionInRunContent(yamlContent, UnsafeContextPattern)
-		needsDisallowedCheck := hasNonAllowedExpressionInRunContent(yamlContent)
+		scan := scanRunContentExpressions(yamlContent)
+		needsUnsafeCheck := scan.hasUnsafe
+		needsDisallowedCheck := scan.hasDisallowed
 
 		if needsUnsafeCheck || needsDisallowedCheck {
 			workflowLog.Print("Validating for template injection vulnerabilities")

@@ -1507,3 +1507,71 @@ func TestHasNonAllowedExpressionInRunContent(t *testing.T) {
 		})
 	}
 }
+
+func TestScanRunContentExpressions(t *testing.T) {
+	tests := []struct {
+		name           string
+		yaml           string
+		wantUnsafe     bool
+		wantDisallowed bool
+	}{
+		{
+			name: "no expressions",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo hello`,
+			wantUnsafe:     false,
+			wantDisallowed: false,
+		},
+		{
+			name: "allowed run expression only",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: node ${{ runner.temp }}/actions/foo.cjs`,
+			wantUnsafe:     false,
+			wantDisallowed: false,
+		},
+		{
+			name: "unsafe run expression",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo "${{ github.event.issue.title }}"`,
+			wantUnsafe:     true,
+			wantDisallowed: true,
+		},
+		{
+			name: "safe env expression outside run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - env:
+          TITLE: ${{ github.event.issue.title }}
+        run: echo "$TITLE"`,
+			wantUnsafe:     false,
+			wantDisallowed: false,
+		},
+		{
+			name: "regression expression in flow-style run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - { run: "echo ${{ github.actor }}" }`,
+			wantUnsafe:     false,
+			wantDisallowed: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := scanRunContentExpressions(tt.yaml)
+
+			assert.Equal(t, tt.wantUnsafe, got.hasUnsafe)
+			assert.Equal(t, tt.wantDisallowed, got.hasDisallowed)
+			assert.Equal(t, tt.wantUnsafe, hasExpressionInRunContent(tt.yaml, UnsafeContextPattern))
+			assert.Equal(t, tt.wantDisallowed, hasNonAllowedExpressionInRunContent(tt.yaml))
+		})
+	}
+}
