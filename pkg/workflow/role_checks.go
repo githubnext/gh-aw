@@ -623,31 +623,29 @@ func (c *Compiler) extractAllowBotAuthoredTriggerComment(frontmatter map[string]
 	return false
 }
 
-// mergeSkipRoles merges top-level skip-roles with imported skip-roles (union)
-func (c *Compiler) mergeSkipRoles(topSkipRoles []string, importedSkipRoles []string) []string {
-	result := sliceutil.MergeUnique(topSkipRoles, importedSkipRoles...)
+// mergeUniqueLogged merges top-level and imported string slices using a union (deduplication preserving
+// order), logging the result at debug level under the given label.
+func mergeUniqueLogged(label string, top []string, imported []string) []string {
+	result := sliceutil.MergeUnique(top, imported...)
 	if len(result) > 0 {
-		roleLog.Printf("Merged %s: %v (top=%d, imported=%d, total=%d)", "skip-roles", result, len(topSkipRoles), len(importedSkipRoles), len(result))
+		roleLog.Printf("Merged %s: %v (top=%d, imported=%d, total=%d)", label, result, len(top), len(imported), len(result))
 	}
 	return result
+}
+
+// mergeSkipRoles merges top-level skip-roles with imported skip-roles (union)
+func mergeSkipRoles(topSkipRoles []string, importedSkipRoles []string) []string {
+	return mergeUniqueLogged("skip-roles", topSkipRoles, importedSkipRoles)
 }
 
 // mergeSkipBots merges top-level skip-bots with imported skip-bots (union)
-func (c *Compiler) mergeSkipBots(topSkipBots []string, importedSkipBots []string) []string {
-	result := sliceutil.MergeUnique(topSkipBots, importedSkipBots...)
-	if len(result) > 0 {
-		roleLog.Printf("Merged %s: %v (top=%d, imported=%d, total=%d)", "skip-bots", result, len(topSkipBots), len(importedSkipBots), len(result))
-	}
-	return result
+func mergeSkipBots(topSkipBots []string, importedSkipBots []string) []string {
+	return mergeUniqueLogged("skip-bots", topSkipBots, importedSkipBots)
 }
 
 // mergeBots merges top-level bots with imported bots (union)
-func (c *Compiler) mergeBots(topBots []string, importedBots []string) []string {
-	result := sliceutil.MergeUnique(topBots, importedBots...)
-	if len(result) > 0 {
-		roleLog.Printf("Merged %s: %v (top=%d, imported=%d, total=%d)", "bots", result, len(topBots), len(importedBots), len(result))
-	}
-	return result
+func mergeBots(topBots []string, importedBots []string) []string {
+	return mergeUniqueLogged("bots", topBots, importedBots)
 }
 
 // extractActivationGitHubToken extracts the 'github-token' field from the 'on:' section of frontmatter.

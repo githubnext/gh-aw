@@ -153,7 +153,7 @@ timeout-minutes: 10
 strict: true
 sandbox:
   agent:
-    sudo: true
+    sudo: false
 ---
 
 # Poem Bot - A Creative Agentic Workflow

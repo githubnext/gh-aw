@@ -111,6 +111,12 @@ function parseFirewallLogs() {
             continue;
           }
 
+          // Skip non-Squid diagnostic lines (WARNING:, DNS, Accepting, etc.) by
+          // validating that the first field is a numeric Unix timestamp.
+          if (!/^\d+(\.\d+)?$/.test(parts[0])) {
+            continue;
+          }
+
           const domain = parts[SQUID_DOMAIN_INDEX];
           const dest = parts[SQUID_DEST_INDEX];
           const client = parts[SQUID_CLIENT_INDEX] || "";

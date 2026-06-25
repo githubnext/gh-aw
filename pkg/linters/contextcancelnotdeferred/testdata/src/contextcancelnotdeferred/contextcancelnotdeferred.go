@@ -54,3 +54,10 @@ func BadReassignThenGood(parent context.Context) error {
 func BlankIdentifier(parent context.Context) {
 	_, _ = context.WithTimeout(parent, time.Second)
 }
+
+func GoodNoLint(parent context.Context) error {
+	ctx, cancel := context.WithTimeout(parent, time.Second) //nolint:contextcancelnotdeferred
+	_ = ctx
+	cancel()
+	return nil
+}

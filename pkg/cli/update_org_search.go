@@ -36,6 +36,13 @@ var searchOrgWorkflowReposFn = searchOrgWorkflowRepos
 // name, and returns a deterministically sorted slice of "owner/repo" strings.
 func searchOrgWorkflowRepos(ctx context.Context, org string, verbose bool) ([]string, error) {
 	query := fmt.Sprintf(`org:%s path:.github/workflows extension:md "source:"`, org)
+	return searchOrgReposByQuery(ctx, query, verbose)
+}
+
+// searchOrgReposByQuery paginates through GitHub code-search results for the given
+// query, deduplicates by repository full name, and returns a deterministically
+// sorted slice of "owner/repo" strings.
+func searchOrgReposByQuery(ctx context.Context, query string, verbose bool) ([]string, error) {
 	perPage := 100
 	page := 1
 	seen := make(map[string]struct{})

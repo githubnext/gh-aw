@@ -61,7 +61,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: true
+    sudo: false
 ---
 
 # Daily Rendering Scripts Verifier

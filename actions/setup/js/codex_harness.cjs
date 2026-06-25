@@ -58,10 +58,23 @@ const BACKOFF_MULTIPLIER = 2;
 // Maximum delay cap in milliseconds
 const MAX_DELAY_MS = 60000;
 
-// Pattern to detect OpenAI rate-limit errors (HTTP 429).
-// Matches "rate_limit_exceeded" from the OpenAI error type field and the "429" status code
-// that Codex emits when the API rate limit is hit.
-const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError/i;
+// Pattern to detect OpenAI rate-limit errors.
+// Matches the JSON error type field ("rate_limit_exceeded"), the HTTP status code
+// ("429 Too Many Requests"), the client-side exception class ("RateLimitError"), and
+// the human-readable message Codex emits inside "Reconnecting..." / error lines:
+// "Rate limit reached for <model> in organization <org> on tokens per min (TPM): ..."
+const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError|Rate limit reached for [^\s]+(?: in organization [^\s]+)? on tokens per min/i;
+
+// Pattern to detect when Codex's internal stream-reconnect budget is fully spent.
+// Codex emits "Reconnecting... N/N (reason)" where both numbers are the same when
+// the reconnect is the last allowed attempt.  Seeing this pattern together with a
+// rate-limit error means the session cannot make forward progress: every reconnect
+// attempt immediately fails with the same rate-limit, and a fresh harness run will
+// re-encounter the same limit since the same work pattern consumes the same TPM budget.
+//
+// The backreference \1 requires the two numeric parts of "N/N" to be identical —
+// "5/5" matches (exhausted) but "1/5", "3/5", "4/5" do not (still retrying).
+const RECONNECT_EXHAUSTED_PATTERN = /Reconnecting\.\.\.\s+(\d+)\/\1\b/;
 const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?/i;
 
 // Pattern to detect a missing API key at startup — Codex emits this before making any API
@@ -128,6 +141,20 @@ function isServerError(output) {
  */
 function isInvalidModelError(output) {
   return INVALID_MODEL_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output shows that Codex's internal stream-reconnect
+ * retries are exhausted (i.e., the output contains "Reconnecting... N/N" where both
+ * numbers are the same, indicating the last reconnect attempt).
+ *
+ * When this is true together with a rate-limit error, retrying from scratch would
+ * immediately encounter the same rate limit and drain the token budget further.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isReconnectExhaustedError(output) {
+  return RECONNECT_EXHAUSTED_PATTERN.test(output);
 }
 
 /**
@@ -439,11 +466,12 @@ async function main() {
     }
 
     const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
-    if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || nonRetryableGuard.goalAlreadyActive) {
+    if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || nonRetryableGuard.goalAlreadyActive || nonRetryableGuard.maxRunsExceeded) {
       const reasons = [];
       if (nonRetryableGuard.aiCreditsExceeded) reasons.push("AI credits budget exceeded");
       if (nonRetryableGuard.awfAPIProxyBlockingRequests) reasons.push("AWF API proxy is blocking requests");
       if (nonRetryableGuard.goalAlreadyActive) reasons.push("goal is already active for this thread (use update_goal when the current goal is complete)");
+      if (nonRetryableGuard.maxRunsExceeded) reasons.push("maximum LLM invocations exceeded");
       log(`attempt ${attempt + 1}: ${reasons.join(" and ")} — not retrying (non-retryable guard condition)`);
       break;
     }
@@ -467,6 +495,15 @@ async function main() {
       const deniedCommands = extractDeniedCommands(result.output);
       emitMissingToolPermissionIssue({ deniedCommands, logger: log });
       log(`attempt ${attempt + 1}: detected numerous permission-denied issues — not retrying (classified as missing tool/permission issue)`);
+      break;
+    }
+
+    // Codex's internal stream-reconnect retries are exhausted and the root cause is a
+    // rate-limit error.  Each reconnect attempt immediately failed with the same limit,
+    // so a fresh harness run will encounter the same rate-limit at the same point in the
+    // session and drain the token budget further without making progress.
+    if (isRateLimit && isReconnectExhaustedError(result.output)) {
+      log(`attempt ${attempt + 1}: rate-limit with exhausted reconnects — not retrying (fresh run would hit the same rate limit)`);
       break;
     }
 
@@ -504,6 +541,7 @@ if (typeof module !== "undefined" && module.exports) {
     isMissingApiKeyError,
     isServerError,
     isInvalidModelError,
+    isReconnectExhaustedError,
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,
     extractDeniedCommands,

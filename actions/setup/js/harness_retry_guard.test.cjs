@@ -91,4 +91,20 @@ describe("harness_retry_guard.cjs", () => {
     const result = detectNonRetryableHarnessGuard("[codex] cannot create a new goal because this thread already has a goal; use update_goal only when the existing goal is complete\nExit code: 1");
     expect(result.goalAlreadyActive).toBe(true);
   });
+
+  it("detects max_runs_exceeded by JSON error type", () => {
+    const result = detectNonRetryableHarnessGuard('{"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (20 / 20).","invocation_count":20,"max_runs":20}}');
+    expect(result.maxRunsExceeded).toBe(true);
+    expect(result.aiCreditsExceeded).toBe(false);
+  });
+
+  it("detects max_runs_exceeded by human-readable message", () => {
+    const result = detectNonRetryableHarnessGuard("Failed to authenticate. API Error: 403 Maximum LLM invocations exceeded (20 / 20).");
+    expect(result.maxRunsExceeded).toBe(true);
+  });
+
+  it("does not falsely detect max_runs_exceeded for unrelated output", () => {
+    const result = detectNonRetryableHarnessGuard("transient network timeout");
+    expect(result.maxRunsExceeded).toBe(false);
+  });
 });

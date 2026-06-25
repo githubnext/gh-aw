@@ -472,6 +472,19 @@ concurrency:
 
 ---
 
+## Revalidation Cadence
+
+Whenever any of the following occur, re-run this validation:
+
+1. `specs/security-architecture-spec.md` changes any MUST/SHALL-level requirement, compliance-test mapping, or security guarantee wording.
+2. Compiler or runtime changes alter compiled job structure, permission separation, threat-detection placement, timestamp validation, or other `.lock.yml` security behaviors described in this report.
+3. Companion security specifications (`scratchpad/guard-policies-specification.md`, `scratchpad/github-mcp-access-control-specification.md`) add or revise GitHub guard-policy or runtime-access-control behaviors that the top-level security architecture depends on.
+4. Validation evidence files, example workflows, or implementation locations cited in the Detailed Validation table move or change substantially.
+
+For each revalidation pass, reviewers SHOULD rerun the Detailed Validation procedure above, refresh the evidence-location table, update the Minor Discrepancies section, and revise the validation grade if any claim is no longer fully verified.
+
+---
+
 ## Recommendations for Specification Enhancement
 
 ### 1. Add Concrete Job Dependency Diagram

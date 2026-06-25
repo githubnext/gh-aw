@@ -3,13 +3,30 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
 var callWorkflowPermissionsLog = logger.New("workflow:call_workflow_permissions")
+
+type workflowSourceKind string
+
+const (
+	workflowSourceKindLock     workflowSourceKind = "lock"
+	workflowSourceKindYAML     workflowSourceKind = "yaml"
+	workflowSourceKindMarkdown workflowSourceKind = "markdown"
+)
+
+type callWorkflowPermissionImport struct {
+	permissions *Permissions
+	sourcePath  string
+	sourceKind  workflowSourceKind
+}
 
 // permissionLevelRank maps a permission level to a comparable rank where a higher
 // number grants strictly more access (none < read < write). Used to determine
@@ -30,10 +47,6 @@ func permissionLevelRank(level PermissionLevel) int {
 // uncovered when the caller grants a strictly lower level than the worker requires.
 // The result is sorted for deterministic output; an empty result means the caller's
 // declared permissions are sufficient for the worker.
-//
-// This is used to validate (not modify) the caller's permission envelope: callers
-// control their own permission surface, and the compiler only warns when the declared
-// permissions are insufficient for a worker the caller invokes.
 func findUncoveredWorkerPermissions(caller, worker *Permissions) []string {
 	if worker == nil {
 		return nil
@@ -65,6 +78,13 @@ func findUncoveredWorkerPermissions(caller, worker *Permissions) []string {
 
 // extractJobPermissionsFromParsedWorkflow extracts and merges all job-level permissions
 // from a parsed GitHub Actions workflow map. Returns the union of all jobs' permissions.
+//
+// Limitation: only explicit per-job permissions blocks are examined. Jobs that omit
+// a permissions block inherit from the workflow-level permissions key and are therefore
+// not counted here. If a worker workflow relies on workflow-level permissions inheritance
+// instead of declaring permissions on each job, the returned set may be incomplete and
+// the call-* job could still under-grant permissions at runtime. Workers called via
+// call-workflow should declare explicit per-job permissions to ensure reliable extraction.
 func extractJobPermissionsFromParsedWorkflow(workflow map[string]any) *Permissions {
 	merged := NewPermissions()
 
@@ -98,6 +118,10 @@ func extractJobPermissionsFromParsedWorkflow(workflow map[string]any) *Permissio
 	return merged
 }
 
+// extractCallWorkflowPermissions is a compatibility helper used by existing tests.
+// New production code should prefer extractCallWorkflowPermissionImport when it
+// needs both the permissions and their review source metadata.
+//
 // extractCallWorkflowPermissions returns the permission superset required by the worker
 // workflow identified by workflowName. It resolves the file in priority order:
 // .lock.yml > .yml > .md (same-batch compilation target).
@@ -107,13 +131,25 @@ func extractJobPermissionsFromParsedWorkflow(workflow map[string]any) *Permissio
 // permissions field is used as a proxy (the compiler will turn it into per-job
 // permissions when the worker is eventually compiled).
 //
-// This is used purely to VALIDATE the caller's declared permissions against what the
-// worker requires (see findUncoveredWorkerPermissions). The worker's permissions are
-// never written into the caller's lockfile; the caller controls its own permission
-// surface and the compiler only warns when it is insufficient.
+// The result is merged with the caller's declared permissions to form the effective
+// permission envelope for the call-workflow job (see buildCallWorkflowJobs). This ensures
+// the caller job always grants at least what the worker requires, preventing GitHub from
+// rejecting the run at startup when the worker requests a level higher than the caller granted.
 //
-// Returns nil when no workflow file is found or no permissions are declared.
+// Returns nil only when no workflow file is found or (for .md sources) when no
+// permissions are present in the frontmatter. For compiled YAML workers the
+// function always returns a non-nil *Permissions (possibly empty) because
+// extractJobPermissionsFromParsedWorkflow initialises a fresh Permissions map
+// regardless of whether any jobs declare a permissions block.
 func extractCallWorkflowPermissions(workflowName, markdownPath string) (*Permissions, error) {
+	imported, err := extractCallWorkflowPermissionImport(workflowName, markdownPath)
+	if err != nil || imported == nil {
+		return nil, err
+	}
+	return imported.permissions, nil
+}
+
+func extractCallWorkflowPermissionImport(workflowName, markdownPath string) (*callWorkflowPermissionImport, error) {
 	fileResult, err := findWorkflowFile(workflowName, markdownPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find workflow file for '%s': %w", workflowName, err)
@@ -121,20 +157,73 @@ func extractCallWorkflowPermissions(workflowName, markdownPath string) (*Permiss
 
 	// Priority: .lock.yml > .yml > .md
 	if fileResult.lockExists {
-		return extractPermissionsFromYAMLFile(fileResult.lockPath)
+		perms, err := extractPermissionsFromYAMLFile(fileResult.lockPath)
+		if err != nil {
+			return nil, err
+		}
+		return &callWorkflowPermissionImport{
+			permissions: perms,
+			sourcePath:  fileResult.lockPath,
+			sourceKind:  workflowSourceKindLock,
+		}, nil
 	}
 
 	if fileResult.ymlExists {
-		return extractPermissionsFromYAMLFile(fileResult.ymlPath)
+		perms, err := extractPermissionsFromYAMLFile(fileResult.ymlPath)
+		if err != nil {
+			return nil, err
+		}
+		return &callWorkflowPermissionImport{
+			permissions: perms,
+			sourcePath:  fileResult.ymlPath,
+			sourceKind:  workflowSourceKindYAML,
+		}, nil
 	}
 
 	if fileResult.mdExists {
-		return extractPermissionsFromMDFile(fileResult.mdPath)
+		perms, err := extractPermissionsFromMDFile(fileResult.mdPath)
+		if err != nil {
+			return nil, err
+		}
+		if perms == nil {
+			return nil, nil
+		}
+		return &callWorkflowPermissionImport{
+			permissions: perms,
+			sourcePath:  fileResult.mdPath,
+			sourceKind:  workflowSourceKindMarkdown,
+		}, nil
 	}
 
 	// No file found — return nil so the caller omits the permissions block.
 	callWorkflowPermissionsLog.Printf("No workflow file found for '%s', skipping permissions", workflowName)
 	return nil, nil
+}
+
+func buildCallWorkflowPermissionsComment(workflowName string, imported *callWorkflowPermissionImport) string {
+	if imported == nil || imported.permissions == nil {
+		return ""
+	}
+	if imported.permissions.RenderToYAML() == "" {
+		return ""
+	}
+
+	reviewWhat := "job-level permissions"
+	if imported.sourceKind == workflowSourceKindMarkdown {
+		reviewWhat = "frontmatter permissions"
+	}
+
+	return strings.Join([]string{
+		fmt.Sprintf("# Imported from called workflow %q because GitHub requires the caller job to grant permissions requested by reusable workflow jobs.", workflowName),
+		fmt.Sprintf("# Review the called workflow's %s in %s.", reviewWhat, renderWorkflowReviewPath(imported.sourcePath)),
+	}, "\n")
+}
+
+// renderWorkflowReviewPath converts an absolute workflow path to the canonical
+// repo-relative display path used in generated review comments. This assumes
+// workflow files live directly in constants.GetWorkflowDir().
+func renderWorkflowReviewPath(sourcePath string) string {
+	return "./" + filepath.ToSlash(filepath.Join(constants.GetWorkflowDir(), filepath.Base(sourcePath)))
 }
 
 // extractPermissionsFromYAMLFile reads a .lock.yml or .yml workflow file, parses it,

@@ -171,6 +171,7 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	if err := validateGitHubGuardPolicy(workflowData.ParsedTools, workflowData.Name); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
+	emitGitHubLockdownGuardPolicyWarning(c, workflowData.ParsedTools, cleanPath)
 
 	// Validate integrity-reactions feature configuration
 	var gatewayConfig *MCPGatewayRuntimeConfig

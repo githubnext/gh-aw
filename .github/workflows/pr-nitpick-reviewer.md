@@ -36,7 +36,7 @@ timeout-minutes: 15
 
 sandbox:
   agent:
-    sudo: true
+    sudo: false
 ---
 
 > ⚠️ **Deprecated**: This agent is superseded by the [PR Code Quality Reviewer](pr-code-quality-reviewer.md), which consolidates code quality and nitpick reviews into a single pass. Use `/review` instead of `/nit` for new PRs. This agent is kept for backward compatibility but will be removed in a future release.

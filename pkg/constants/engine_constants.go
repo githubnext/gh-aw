@@ -63,7 +63,7 @@ var EngineOptions = []EngineOption{
 		Value:       string(CopilotEngine),
 		Label:       "GitHub Copilot",
 		Description: "GitHub Copilot CLI with agent support",
-		SecretName:  "COPILOT_GITHUB_TOKEN",
+		SecretName:  CopilotGitHubToken,
 		KeyURL:      "https://github.com/settings/personal-access-tokens/new",
 		WhenNeeded:  "Copilot workflows (CLI, engine, agent tasks, etc.)",
 	},
@@ -71,7 +71,7 @@ var EngineOptions = []EngineOption{
 		Value:              string(ClaudeEngine),
 		Label:              "Claude",
 		Description:        "Anthropic Claude Code coding agent",
-		SecretName:         "ANTHROPIC_API_KEY",
+		SecretName:         AnthropicAPIKey,
 		AlternativeSecrets: []string{},
 		KeyURL:             "https://console.anthropic.com/settings/keys",
 		WhenNeeded:         "Claude engine workflows",
@@ -80,8 +80,8 @@ var EngineOptions = []EngineOption{
 		Value:              string(CodexEngine),
 		Label:              "Codex",
 		Description:        "OpenAI Codex/GPT engine",
-		SecretName:         "OPENAI_API_KEY",
-		AlternativeSecrets: []string{"CODEX_API_KEY"},
+		SecretName:         OpenAIAPIKey,
+		AlternativeSecrets: []string{CodexAPIKey},
 		KeyURL:             "https://platform.openai.com/api-keys",
 		WhenNeeded:         "Codex/OpenAI engine workflows",
 	},
@@ -89,7 +89,7 @@ var EngineOptions = []EngineOption{
 		Value:       string(GeminiEngine),
 		Label:       "Gemini",
 		Description: "Google Gemini CLI coding agent",
-		SecretName:  "GEMINI_API_KEY",
+		SecretName:  GeminiAPIKey,
 		KeyURL:      "https://aistudio.google.com/app/apikey",
 		WhenNeeded:  "Gemini engine workflows",
 	},
@@ -97,7 +97,7 @@ var EngineOptions = []EngineOption{
 		Value:       string(AntigravityEngine),
 		Label:       "Antigravity",
 		Description: "Antigravity CLI coding agent",
-		SecretName:  "ANTIGRAVITY_API_KEY",
+		SecretName:  AntigravityAPIKey,
 		KeyURL:      "https://aistudio.google.com/app/apikey",
 		WhenNeeded:  "Antigravity engine workflows",
 	},
@@ -105,8 +105,8 @@ var EngineOptions = []EngineOption{
 		Value:              string(OpenCodeEngine),
 		Label:              "OpenCode",
 		Description:        "OpenCode multi-provider AI coding agent (BYOK)",
-		SecretName:         "COPILOT_GITHUB_TOKEN",
-		AlternativeSecrets: []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY"},
+		SecretName:         CopilotGitHubToken,
+		AlternativeSecrets: []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey},
 		KeyURL:             "https://github.com/anomalyco/opencode",
 		WhenNeeded:         "OpenCode engine workflows (default: Copilot routing)",
 	},
@@ -114,8 +114,8 @@ var EngineOptions = []EngineOption{
 		Value:              string(CrushEngine),
 		Label:              "Crush",
 		Description:        "Crush multi-provider AI coding agent (BYOK)",
-		SecretName:         "COPILOT_GITHUB_TOKEN",
-		AlternativeSecrets: []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY"},
+		SecretName:         CopilotGitHubToken,
+		AlternativeSecrets: []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey},
 		KeyURL:             "https://github.com/charmbracelet/crush#installation",
 		WhenNeeded:         "Crush engine workflows (default: Copilot routing)",
 	},
@@ -123,8 +123,8 @@ var EngineOptions = []EngineOption{
 		Value:              string(PiEngine),
 		Label:              "Pi",
 		Description:        "Pi AI coding agent (experimental)",
-		SecretName:         "COPILOT_GITHUB_TOKEN",
-		AlternativeSecrets: []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY"},
+		SecretName:         CopilotGitHubToken,
+		AlternativeSecrets: []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey},
 		KeyURL:             "https://github.com/settings/personal-access-tokens/new",
 		WhenNeeded:         "Pi engine workflows",
 	},
@@ -206,6 +206,23 @@ func GetAllEngineSecretNames() []string {
 	return secrets
 }
 
+// Primary secret names for each engine — the GitHub secret names that users configure
+// when setting up an engine workflow.
+const (
+	// CopilotGitHubToken is the GitHub token secret name required by the Copilot engine.
+	CopilotGitHubToken = "COPILOT_GITHUB_TOKEN"
+	// AnthropicAPIKey is the API key secret name required by the Claude engine.
+	AnthropicAPIKey = "ANTHROPIC_API_KEY"
+	// CodexAPIKey is the API key secret name used by the Codex engine.
+	CodexAPIKey = "CODEX_API_KEY"
+	// OpenAIAPIKey is the OpenAI API key secret name used by the Codex engine as an alternative.
+	OpenAIAPIKey = "OPENAI_API_KEY"
+	// GeminiAPIKey is the API key secret name required by the Gemini engine.
+	GeminiAPIKey = "GEMINI_API_KEY"
+	// AntigravityAPIKey is the API key secret name required by the Antigravity engine.
+	AntigravityAPIKey = "ANTIGRAVITY_API_KEY"
+)
+
 // Environment variable names for model configuration
 const (
 	// EnvVarModelAgentCopilot configures the default Copilot model for agent execution
@@ -259,6 +276,12 @@ const (
 	// CopilotProviderBearerToken (OPTIONAL) is an alternative to CopilotProviderAPIKey.
 	// Sent as a Bearer token in the Authorization header. Takes precedence over COPILOT_PROVIDER_API_KEY.
 	CopilotProviderBearerToken = "COPILOT_PROVIDER_BEARER_TOKEN"
+
+	// CopilotProviderWireAPI (OPTIONAL) selects the HTTP wire API used when talking to a BYOK provider.
+	// Accepted values: "responses" (OpenAI Responses API), "completions" (legacy Chat Completions API).
+	// The Copilot CLI defaults to "completions" for custom providers; set to "responses" for Azure
+	// o-series models (e.g. o4-mini) that reject the legacy endpoint with HTTP 400.
+	CopilotProviderWireAPI = "COPILOT_PROVIDER_WIRE_API"
 
 	// CopilotCLIIntegrationIDEnvVar is the native environment variable name supported by the Copilot CLI
 	// for identifying the calling integration. This tells the Copilot CLI that it is being invoked

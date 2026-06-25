@@ -1,10 +1,14 @@
 # types Package
 
-The `types` package provides shared type definitions used across multiple `gh-aw` packages to avoid circular dependencies.
+> Shared type definitions for MCP server configuration, token weights, and workflow input parameters — used across multiple `gh-aw` packages to avoid circular imports.
 
 ## Overview
 
-This package defines common data structures that are shared between the `parser` and `workflow` packages. Centralizing these types here allows both packages to reference the same definitions without creating import cycles.
+This package defines common data structures shared between the `parser` and `workflow` packages. Centralizing these types in a dedicated package allows both to reference the same definitions without creating import cycles.
+
+The primary types are `BaseMCPServerConfig` (the foundation for all MCP server configurations), `MCPAuthConfig` (OIDC authentication for HTTP MCP servers), `TokenWeights` with `TokenClassWeights` (AI Credits cost ratio configuration), and `InputDefinition` (workflow dispatch input parameters following the GitHub Actions schema).
+
+All struct fields carry both `json` and `yaml` struct tags, ensuring types can be round-tripped through both serialization formats. `BaseMCPServerConfig` is designed to be embedded rather than used directly — consumer packages (`parser`, `workflow`) add domain-specific fields and validation on top of the shared base.
 
 ## Public API
 

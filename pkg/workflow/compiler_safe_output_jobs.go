@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -170,10 +169,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 //   - `payload` is forwarded as the raw transport only when the worker declares it
 //     (GitHub Actions rejects undeclared inputs)
 //   - inherits all caller secrets via `secrets: inherit`
-//   - includes a job-level `permissions:` block derived from the CALLER's own
-//     declared permissions (not the worker's). The caller controls its own
-//     permission surface; the compiler validates that the declared permissions
-//     cover what the worker requires and warns if they do not.
+//   - includes a job-level `permissions:` block equal to the union of the
+//     caller's declared permissions and the called worker's required permissions
+//   - adds a help comment explaining why imported worker permissions appear on
+//     the call job and where to review them in the worker workflow source
 //
 // Returns the names of all generated jobs so they can be added to the conclusion
 // job's `needs` list.
@@ -292,44 +291,51 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 			callJob.SecretsInherit = true
 		}
 
-		// Derive the call-<worker> job's permission envelope from the CALLER's own
-		// declared permissions, not from the worker. GitHub validates reusable
-		// workflow calls against the caller job's declared permissions, so the caller
-		// must declare a scope that is sufficient for the worker. We never inflate the
-		// caller's permissions to match the worker (doing so would, for example,
-		// materialise speculative scopes like vulnerability-alerts that GitHub rejects).
-		// Instead the caller controls its own surface and we validate it below.
+		// Compute the call-<worker> job's permission envelope as the union of:
+		//   1. The caller's own declared permissions (the base scope the caller controls).
+		//   2. The worker's job-level permissions (the minimum the worker needs to run).
+		// GitHub validates reusable workflow calls against the caller job's declared
+		// permissions and rejects the run at startup when the caller grants less than
+		// the worker requires. Taking the union ensures the call job always holds a
+		// sufficient grant without requiring the caller's markdown to enumerate every
+		// permission the worker needs.
 		callerPerms := data.CachedPermissions
 		if callerPerms == nil {
 			callerPerms = NewPermissionsParser(data.Permissions).ToPermissions()
 		}
-		if callerPerms != nil {
-			rendered := callerPerms.RenderToYAML()
-			if rendered != "" {
-				callJob.Permissions = rendered
-				compilerSafeOutputJobsLog.Printf("Set permissions on call-workflow job '%s' from caller's declared permissions: %s", jobName, rendered)
+
+		effectivePerms := callerPerms
+		var importedPerms *callWorkflowPermissionImport
+		var permErr error
+		if markdownPath != "" {
+			importedPerms, permErr = extractCallWorkflowPermissionImport(workflowName, markdownPath)
+			if permErr != nil {
+				// Non-fatal: log and continue. The worker file may not exist yet (it may be
+				// compiled in the same batch), in which case we fall back to the caller's
+				// own declared permissions.
+				compilerSafeOutputJobsLog.Printf("Could not extract worker permissions for call-workflow job '%s' (falling back to caller-only permissions): %v", jobName, permErr)
+			} else if importedPerms != nil && importedPerms.permissions != nil {
+				// Compute the union by merging caller and worker permissions into a
+				// fresh map-based Permissions. Starting from a blank slate (rather
+				// than a clone of callerPerms) ensures shorthand values like
+				// "read-all" are correctly expanded before the worker's explicit
+				// scopes are merged on top — cloning a shorthand Permissions and then
+				// merging a map into it would clear the shorthand field without first
+				// expanding it, silently dropping the caller's baseline grant.
+				merged := NewPermissions()
+				merged.Merge(callerPerms)
+				merged.Merge(importedPerms.permissions)
+				effectivePerms = merged
+				compilerSafeOutputJobsLog.Printf("Merged caller and worker permissions for call-workflow job '%s'", jobName)
 			}
 		}
 
-		// Validate (without modifying) that the caller's declared permissions cover what
-		// the worker requires. Emit a warning when they do not, so the user can widen the
-		// caller's `permissions:` block. This never alters the compiled permissions.
-		if markdownPath != "" {
-			workerPerms, permErr := extractCallWorkflowPermissions(workflowName, markdownPath)
-			if permErr != nil {
-				// Non-fatal: log and continue. The worker file may not exist yet (it may be
-				// compiled in the same batch), in which case validation is simply skipped.
-				compilerSafeOutputJobsLog.Printf("Could not extract worker permissions for call-workflow job '%s' (validation skipped): %v", jobName, permErr)
-			} else if workerPerms != nil {
-				if missing := findUncoveredWorkerPermissions(callerPerms, workerPerms); len(missing) > 0 {
-					fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
-						fmt.Sprintf("call-workflow target '%s' may require permissions not granted by this workflow: %s.\n"+
-							"GitHub Actions constrains a called workflow's GITHUB_TOKEN to the caller job's permissions, "+
-							"so the worker's jobs may fail. Add the missing scope(s) to this workflow's `permissions:` block.",
-							workflowName, strings.Join(missing, ", "))))
-					c.IncrementWarningCount()
-					compilerSafeOutputJobsLog.Printf("Caller permissions insufficient for worker '%s': missing %s", workflowName, strings.Join(missing, ", "))
-				}
+		if effectivePerms != nil {
+			rendered := effectivePerms.RenderToYAML()
+			if rendered != "" {
+				callJob.PermissionsComment = buildCallWorkflowPermissionsComment(workflowName, importedPerms)
+				callJob.Permissions = rendered
+				compilerSafeOutputJobsLog.Printf("Set permissions on call-workflow job '%s': %s", jobName, rendered)
 			}
 		}
 

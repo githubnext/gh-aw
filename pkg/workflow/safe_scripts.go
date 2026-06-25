@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -104,7 +105,7 @@ func buildCustomSafeOutputScriptsJSON(data *WorkflowData) string {
 	}
 
 	// Sort keys for deterministic output
-	keys := sortedMapKeys(scriptMapping)
+	keys := sliceutil.SortedKeys(scriptMapping)
 
 	ordered := make(map[string]string, len(keys))
 	for _, k := range keys {

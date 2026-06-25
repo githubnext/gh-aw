@@ -32,7 +32,7 @@ timeout-minutes: 10
 
 sandbox:
   agent:
-    sudo: true
+    sudo: false
 ---
 
 # Deployment Incident Monitor

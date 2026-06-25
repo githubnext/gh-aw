@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 func writeJSONStringMapEntries(yaml *strings.Builder, values map[string]string, indent string) {
-	for i, key := range sortedMapKeys(values) {
+	for i, key := range sliceutil.SortedKeys(values) {
 		comma := ","
 		if i == len(values)-1 {
 			comma = ""
@@ -36,7 +38,7 @@ func writeJSONStringMapSection(yaml *strings.Builder, indent, name string, value
 
 func writeTOMLInlineStringMapSection(yaml *strings.Builder, indent, name string, values map[string]string) {
 	fmt.Fprintf(yaml, "%s%s = { ", indent, name)
-	for i, key := range sortedMapKeys(values) {
+	for i, key := range sliceutil.SortedKeys(values) {
 		if i > 0 {
 			yaml.WriteString(", ")
 		}

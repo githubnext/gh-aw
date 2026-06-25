@@ -511,6 +511,17 @@ func pushBranch(branchName string, verbose bool) error {
 	return nil
 }
 
+// hasPendingChanges reports whether the working directory has any uncommitted
+// changes (staged or unstaged). Returns (false, nil) for a clean tree.
+func hasPendingChanges() (bool, error) {
+	cmd := exec.Command("git", "status", "--porcelain")
+	output, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("failed to check git status: %w", err)
+	}
+	return len(strings.TrimSpace(string(output))) > 0, nil
+}
+
 // checkCleanWorkingDirectory checks if there are uncommitted changes
 func checkCleanWorkingDirectory(verbose bool) error {
 	console.LogVerbose(verbose, "Checking for uncommitted changes...")

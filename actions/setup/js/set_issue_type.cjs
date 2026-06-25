@@ -21,6 +21,69 @@ const NO_ISSUE_TYPES_PATTERNS = [/no issue types? (?:are )?available/i, /issue t
 const NO_ISSUE_TYPES_AVAILABLE_ERROR = "No issue types are available for this repository. Issue types must be configured in the repository or organization settings.";
 
 /**
+ * Fetches the node ID of an issue for use in GraphQL mutations.
+ * @param {Object} githubClient - Authenticated GitHub client
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} issueNumber - Issue number
+ * @returns {Promise<string>} Issue node ID
+ */
+async function getIssueNodeId(githubClient, owner, repo, issueNumber) {
+  const { data } = await githubClient.rest.issues.get({ owner, repo, issue_number: issueNumber });
+  return data.node_id;
+}
+
+/**
+ * Fetches the available issue types for an organization.
+ * For personal-account owners the query returns null and the call site receives an empty array.
+ * @param {Object} githubClient - Authenticated GitHub client
+ * @param {string} owner - Organization login
+ * @returns {Promise<Array<{id: string, name: string}>>} Issue type nodes
+ */
+async function fetchIssueTypesForOrg(githubClient, owner) {
+  const result = await githubClient.graphql(
+    `query($owner: String!) {
+      organization(login: $owner) {
+        issueTypes(first: 100) {
+          nodes {
+            id
+            name
+          }
+        }
+      }
+    }`,
+    { owner }
+  );
+  return result?.organization?.issueTypes?.nodes ?? [];
+}
+
+/**
+ * Sets the issue type via GraphQL mutation using `IssueTypeUpdateInput`.
+ * @param {Object} githubClient - Authenticated GitHub client
+ * @param {string} issueNodeId - GraphQL node ID of the issue
+ * @param {string} issueTypeId - GraphQL node ID of the issue type
+ * @param {{ rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} intentMetadata - Intent metadata in GraphQL format
+ * @returns {Promise<void>}
+ */
+async function setIssueTypeById(githubClient, issueNodeId, issueTypeId, intentMetadata) {
+  const issueType = { id: issueTypeId, ...intentMetadata };
+  await githubClient.graphql(
+    `mutation($issueId: ID!, $issueType: IssueTypeUpdateInput!) {
+      updateIssue(input: { id: $issueId, issueType: $issueType }) {
+        issue {
+          id
+        }
+      }
+    }`,
+    {
+      issueId: issueNodeId,
+      issueType,
+      headers: { "GraphQL-Features": "update_issue_suggestions" },
+    }
+  );
+}
+
+/**
  * @param {{ rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} intentMetadata Intent metadata in GraphQL format.
  * @returns {{ rationale?: string, confidence?: "low"|"medium"|"high", suggest?: boolean }} Intent metadata formatted for REST.
  */
@@ -271,13 +334,35 @@ async function main(config = {}) {
     try {
       const { owner, repo } = repoParts;
       const intentMetadata = normalizeIssueIntentMetadata(item);
-      const typeValue = buildIssueTypeValue(isClear, resolvedIssueTypeName, intentMetadata);
-      await githubClient.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        type: typeValue,
-      });
+
+      if (hasIssueIntentsRuntimeFeature() && !isClear) {
+        // GraphQL intent path: resolve the type's node ID from org issue types, then
+        // call setIssueTypeById with IssueTypeUpdateInput + the GraphQL-Features header.
+        core.info(`Using GraphQL intent path (issue_intents runtime feature enabled)`);
+        core.info(`Fetching issue node ID for issue #${issueNumber}`);
+        const issueNodeId = await getIssueNodeId(githubClient, owner, repo, issueNumber);
+        core.info(`Fetching issue types for org ${owner}`);
+        const issueTypes = await fetchIssueTypesForOrg(githubClient, owner);
+        core.info(`Found ${issueTypes.length} issue type(s) for org ${owner}`);
+        const typeNode = issueTypes.find(t => t.name.toLowerCase() === resolvedIssueTypeName.toLowerCase());
+        if (!typeNode) {
+          const availableNames = issueTypes.map(t => t.name).join(", ");
+          const error = availableNames ? `Issue type ${JSON.stringify(resolvedIssueTypeName)} not found. Available types: ${availableNames}` : NO_ISSUE_TYPES_AVAILABLE_ERROR;
+          core.error(`Failed to set issue type on issue #${issueNumber}: ${error}`);
+          return { success: false, error };
+        }
+        core.info(`Resolved issue type ${JSON.stringify(resolvedIssueTypeName)} to node ID ${typeNode.id}`);
+        await setIssueTypeById(githubClient, issueNodeId, typeNode.id, intentMetadata);
+      } else {
+        // REST path: used for the clear case and when the issue_intents feature is off.
+        const typeValue = buildIssueTypeValue(isClear, resolvedIssueTypeName, intentMetadata);
+        await githubClient.rest.issues.update({
+          owner,
+          repo,
+          issue_number: issueNumber,
+          type: typeValue,
+        });
+      }
 
       const successMsg = isClear ? `Successfully cleared issue type on issue #${issueNumber}` : `Successfully set issue type to ${JSON.stringify(resolvedIssueTypeName)} on issue #${issueNumber}`;
       core.info(successMsg);

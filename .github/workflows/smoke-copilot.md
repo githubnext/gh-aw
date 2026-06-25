@@ -145,16 +145,12 @@ safe-outputs:
       run-success: "📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤"
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 15
-strict: false
 experiments:
   caveman: [yes, no]
   subagent_model: [small, large]
 features:
   gh-aw-detection: true
 
-sandbox:
-  agent:
-    sudo: true
 ---
 
 # Smoke Test: Copilot Engine Validation

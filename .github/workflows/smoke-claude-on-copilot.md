@@ -27,9 +27,6 @@ safe-outputs:
     max: 1
     hide-older-comments: true
 timeout-minutes: 10
-sandbox:
-  agent:
-    sudo: true
 ---
 
 # Smoke Test: Claude on GitHub Inference PR Summary

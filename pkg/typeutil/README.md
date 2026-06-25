@@ -1,10 +1,14 @@
 # typeutil Package
 
-The `typeutil` package provides general-purpose type conversion utilities for working with heterogeneous `any` values, particularly those arising from JSON and YAML parsing.
+> General-purpose type conversion utilities for heterogeneous `any` values, particularly those arising from JSON and YAML parsing.
 
 ## Overview
 
 JSON and YAML parsers produce `any` values whose concrete type varies at runtime (`int`, `float64`, `string`, etc.). This package provides safe, well-documented conversion functions that handle the common cases without requiring callers to write their own type switches.
+
+Functions are grouped into three categories: **strict conversions** (return a `(value, ok)` pair to distinguish zero from missing/invalid), **safe overflow conversions** (clamp to zero on overflow instead of panicking), and **lenient conversions** (also handle string inputs, returning zero on failure). A separate group handles token-limit strings with optional `K`/`M` multiplier suffixes.
+
+Choose the right category based on the source: use strict conversions for YAML config fields where the YAML library has already typed the value; use lenient conversions for heterogeneous sources such as JSON metrics or log-parsed data where a zero default on failure is acceptable.
 
 ## Public API
 

@@ -91,11 +91,6 @@ steps:
 description: Analyzes and enhances Go logging practices across the codebase for improved debugging and observability
 emoji: 📝
 engine: claude
-if: needs.pre_activation.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
-jobs:
-  pre-activation:
-    outputs:
-      should_run: ${{ steps.logger_manifest.outputs.should_run }}
 name: Go Logger Enhancement
 timeout-minutes: 15
 tools:

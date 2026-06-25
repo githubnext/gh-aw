@@ -40,9 +40,6 @@ safe-outputs:
 timeout-minutes: 5
 features:
   gh-aw-detection: true
-sandbox:
-  agent:
-    sudo: true
 ---
 
 # Smoke Test: Workflow Call with Inputs

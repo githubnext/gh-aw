@@ -153,7 +153,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
-    sudo: true
+    sudo: false
 ---
 
 # Daily Skill Optimizer Improvements

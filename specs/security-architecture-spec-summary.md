@@ -161,6 +161,15 @@ Key implementation files referenced in the specification:
 - `pkg/workflow/compiler_types.go` - Core types
 - Actions in `actions/setup/js/*.cjs` and `actions/setup/sh/*.sh`
 
+### Spec-to-Lock Sync (v1.0.0)
+
+Summary version **1.0.0** corresponds to the minimum validated `.lock.yml` compiler behaviors recorded in `specs/security-architecture-spec-validation.md`:
+
+- Activation, agent, detection, and safe output jobs remain separated in compiled workflows
+- Agent jobs retain read-only permissions while write permissions remain isolated to safe output jobs
+- Runtime repository/fork validation, timestamp validation, and action pinning remain present in compiled output
+- Concurrency controls and threat-detection job placement are validated against current lock-file generation
+
 ## Next Steps
 
 ### For Security Review
@@ -193,7 +202,11 @@ Key implementation files referenced in the specification:
 | Rerun validation report after Appendix A update | ✅ Done (2026-05-15) | Revalidated against `specs/security-architecture-spec-validation.md`; grade remains pass with job architecture, sanitization, permissions, and threat-detection mappings verified |
 | Update summary to reflect v1.0.2 CTR-012 work | ✅ Done (2026-05-10) | Appendix count updated; security architecture remains at version 1.0.0 |
 | Audit "Next Steps" for stale v1.0.0 tasks | ✅ Done (2026-05-10) | This table replaces the stale untracked list |
-| Add spec-to-lock sync note for security summary consumers | ⏳ Pending | Add a short section mapping security spec summary version to minimum validated `.lock.yml` compiler behavior |
+| Add spec-to-lock sync note for security summary consumers | ✅ Done (2026-06-25) | Added "Spec-to-Lock Sync (v1.0.0)" section mapping summary version to validated `.lock.yml` behaviors |
+| Track pre_activation note from validation doc | ⏳ Pending | Add an explicit note tying role validation to the separate `pre_activation` job in `specs/security-architecture-spec.md` |
+| Track detection job naming note from validation doc | ⏳ Pending | Add an Appendix D example that names the `detection` job explicitly as the runtime threat-detection layer |
+| Track conclusion job note from validation doc | ⏳ Pending | Document optional cleanup/reporting jobs such as `conclusion` without making them normative |
+| Audit trusted-users runtime enforcement coverage | ⏳ Pending | `trusted-users` runtime enforcement is not yet called out in Sections 8-9 of `specs/security-architecture-spec.md`; decide whether to document it there or defer to the companion GitHub MCP access-control spec |
 
 ## Versioning
 

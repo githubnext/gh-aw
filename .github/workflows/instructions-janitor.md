@@ -46,7 +46,7 @@ tools:
     - default
 sandbox:
   agent:
-    sudo: true
+    sudo: false
 ---
 # Instructions Janitor
 

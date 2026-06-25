@@ -353,7 +353,7 @@ func buildSafeOutputsConfigRuntimeEnvVars(safeOutputConfig string) ([]string, ma
 		// Prefix secret env vars to avoid colliding with reserved/known step env var names.
 		addEnvValue(safeOutputsSecretEnvPrefix+k, v)
 	}
-	return sortedMapKeys(envValues), envValues
+	return sliceutil.SortedKeys(envValues), envValues
 }
 
 func buildSafeOutputsConfigRuntimeData(safeOutputConfig string) (string, []string, map[string]string) {

@@ -12,6 +12,7 @@ describe("handle_agent_failure", () => {
   let buildReportIncompleteContext;
   let buildFailureIssueTitle;
   let buildSecretVerificationContext;
+  let buildAssignmentErrorsContext;
   let getActionFailureIssueExpiresHours;
   const ENGINE_RATE_LIMIT_TEMPLATE = "> [!WARNING]\n> **Engine Rate Limited (HTTP 429)**\n> OTLP telemetry\n> {engine_label}\n";
   const ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE = "> [!WARNING]\n> **Engine Max Runs Exceeded**\n> max-runs guardrail\n> {engine_label}\n";
@@ -31,7 +32,16 @@ describe("handle_agent_failure", () => {
 
     // Reset module registry so each test gets a fresh require
     vi.resetModules();
-    ({ main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildReportIncompleteContext, buildFailureIssueTitle, buildSecretVerificationContext, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
+    ({
+      main,
+      buildCodePushFailureContext,
+      buildPushRepoMemoryFailureContext,
+      buildReportIncompleteContext,
+      buildFailureIssueTitle,
+      buildSecretVerificationContext,
+      buildAssignmentErrorsContext,
+      getActionFailureIssueExpiresHours,
+    } = require("./handle_agent_failure.cjs"));
   });
 
   afterEach(() => {
@@ -77,6 +87,7 @@ describe("handle_agent_failure", () => {
       hasDailyAICExceeded: false,
       aiCreditsRateLimitError: false,
       maxAICreditsExceeded: false,
+      hasAssignmentErrors: false,
     };
 
     const cases = [
@@ -93,6 +104,7 @@ describe("handle_agent_failure", () => {
       { flag: "hasMissingSafeOutputs", expected: "[aw] Test Workflow produced no safe outputs" },
       { flag: "hasMissingTool", expected: "[aw] Test Workflow is missing required tool" },
       { flag: "hasMissingData", expected: "[aw] Test Workflow is missing required data" },
+      { flag: "hasAssignmentErrors", expected: "[aw] Test Workflow failed to assign agent" },
     ];
 
     it.each(cases)("returns expected title for isolated $flag", ({ flag, expected }) => {
@@ -1309,6 +1321,30 @@ describe("handle_agent_failure", () => {
       expect(buildSecretVerificationContext("", "copilot")).toBe("");
       expect(buildSecretVerificationContext("success", "copilot")).toBe("");
       expect(buildSecretVerificationContext("", "")).toBe("");
+    });
+
+    describe("buildAssignmentErrorsContext", () => {
+      it("returns empty string when there are no assignment errors", () => {
+        expect(buildAssignmentErrorsContext("")).toBe("");
+      });
+
+      it("returns empty string for whitespace-only input", () => {
+        expect(buildAssignmentErrorsContext("   ")).toBe("");
+        expect(buildAssignmentErrorsContext("\n")).toBe("");
+        expect(buildAssignmentErrorsContext("\n\n")).toBe("");
+      });
+
+      it("renders assignment failures with token guidance docs", () => {
+        const result = buildAssignmentErrorsContext("issue:42:copilot:Bad credentials\npr:7:copilot:copilot coding agent is not available for this repository");
+
+        expect(result).toContain("Agent Assignment Failed");
+        expect(result).toContain("Issue #42 (agent: copilot): Bad credentials");
+        expect(result).toContain("PR #7 (agent: copilot): copilot coding agent is not available for this repository");
+        expect(result).toContain("GH_AW_AGENT_TOKEN");
+        expect(result).toContain("Agent tasks: read and write");
+        expect(result).not.toContain("copilot-requests: write");
+        expect(result).toContain("https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication");
+      });
     });
 
     it("returns generic warning for non-copilot engines when verification failed", () => {

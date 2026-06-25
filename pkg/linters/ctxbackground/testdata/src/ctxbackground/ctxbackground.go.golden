@@ -58,4 +58,10 @@ func DoWorkWithDetachedClosure(ctx context.Context) {
 	_ = ctx
 }
 
+// not flagged: inline nolint suppresses intentional detachment.
+func DoWorkNoLint(ctx context.Context) {
+	_ = context.Background() //nolint:ctxbackground
+	_ = ctx
+}
+
 func handle(f func(context.Context)) { f(nil) }

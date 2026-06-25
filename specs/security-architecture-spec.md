@@ -150,7 +150,7 @@ Implementations are evaluated at three compliance levels:
 
 ### 3.1 Multi-Layered Architecture
 
-The security architecture employs six independent security layers that provide defense-in-depth:
+The security architecture employs seven independent security layers that provide defense-in-depth:
 
 ```text
 ┌─────────────────────────────────────────────────────┐
@@ -1143,6 +1143,14 @@ A conforming implementation MUST provide a compliance test suite covering all MU
 - **T-RS-010**: Verify cancel-in-progress behavior
 - **T-RS-011**: Verify dynamic group identifier generation
 
+#### 12.2.9 Companion GitHub MCP Access-Control Tests
+
+GitHub-tool-specific runtime access-control behaviors are tracked in the companion specifications `scratchpad/github-mcp-access-control-specification.md` and `scratchpad/guard-policies-specification.md`.
+
+- **T-GH-047 to T-GH-060** cover blocked-user enforcement, label-based promotion, minimum-integrity ordering, and related guard-policy runtime decisions for GitHub MCP integrations.
+- These companion test IDs are defined in `scratchpad/github-mcp-access-control-specification.md` Section 11.1.8 (Blocked-User Tests) and Section 11.1.9 (Integrity Level Tests).
+- Dedicated `trusted-users` runtime-enforcement test IDs are not yet mirrored in this top-level suite; maintainers SHOULD consult the companion GitHub MCP access-control specification and implementation tests until they are promoted here.
+
 ### 12.3 Compliance Checklist
 
 | Requirement | Test ID | Level | Status |
@@ -1867,6 +1875,10 @@ roles: [admin, maintainer]  # Restrict to trusted roles
 
 - **[GHA-SECURITY]** "Security hardening for GitHub Actions." GitHub Documentation. https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions
 
+- **[GHAW-GUARD-POLICIES]** "Guard Policies Integration Specification." GitHub Agentic Workflows, version 0.1.0 draft. https://github.com/github/gh-aw/blob/main/scratchpad/guard-policies-specification.md
+
+- **[GHAW-GITHUB-ACCESS]** "GitHub MCP Server Access Control Specification." GitHub Agentic Workflows, version 1.1.0 draft. https://github.com/github/gh-aw/blob/main/scratchpad/github-mcp-access-control-specification.md
+
 ### Informative References
 
 - **[MCP-SPEC]** "Model Context Protocol Specification." Anthropic. https://modelcontextprotocol.io/specification
@@ -1895,7 +1907,7 @@ roles: [admin, maintainer]  # Restrict to trusted roles
 **Status**: Candidate Recommendation
 
 **Initial Release**:
-- Formalized security architecture with six independent layers
+- Formalized security architecture with seven independent layers
 - Defined three conformance classes (Basic, Standard, Complete)
 - Specified input sanitization requirements and procedures
 - Specified output isolation patterns and guarantees

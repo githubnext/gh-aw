@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 // RenderGitHubMCP generates the GitHub MCP server configuration
@@ -189,7 +190,7 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 		)
 
 		// Write environment variables in sorted order for deterministic output
-		envKeys := sortedMapKeys(envVars)
+		envKeys := sliceutil.SortedKeys(envVars)
 
 		writeTOMLInlineStringMapSection(yaml, "          ", "env", envVars)
 

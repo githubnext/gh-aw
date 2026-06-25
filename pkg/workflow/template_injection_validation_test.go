@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -1504,6 +1505,117 @@ func TestHasNonAllowedExpressionInRunContent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := hasNonAllowedExpressionInRunContent(tt.yaml)
 			assert.Equal(t, tt.expected, result, "hasNonAllowedExpressionInRunContent() mismatch")
+		})
+	}
+}
+
+func TestScanRunContentExpressions(t *testing.T) {
+	tests := []struct {
+		name              string
+		yaml              string
+		wantHasUnsafe     bool
+		wantHasDisallowed bool
+	}{
+		{
+			name: "no expressions",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo hello`,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: false,
+		},
+		{
+			name: "allowed run expression only",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: node ${{ runner.temp }}/actions/foo.cjs`,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: false,
+		},
+		{
+			name: "unsafe run expression",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo "${{ github.event.issue.title }}"`,
+			wantHasUnsafe:     true,
+			wantHasDisallowed: true,
+		},
+		{
+			name: "safe env expression outside run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - env:
+          TITLE: ${{ github.event.issue.title }}
+        run: echo "$TITLE"`,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: false,
+		},
+		{
+			name: "disallowed expression in flow-style run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - { run: "echo ${{ github.actor }}" }`,
+			wantHasUnsafe:     false,
+			wantHasDisallowed: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := scanRunContentExpressions(tt.yaml)
+
+			assert.Equal(t, tt.wantHasUnsafe, got.hasUnsafe)
+			assert.Equal(t, tt.wantHasDisallowed, got.hasDisallowed)
+		})
+	}
+}
+
+func TestHasExpressionInRunContent(t *testing.T) {
+	tests := []struct {
+		name              string
+		yaml              string
+		pattern           *regexp.Regexp
+		wantHasExpression bool
+	}{
+		{
+			name: "any expression in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo "${{ github.actor }}"`,
+			pattern:           InlineExpressionPattern,
+			wantHasExpression: true,
+		},
+		{
+			name: "unsafe expression in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - run: echo "${{ github.event.issue.title }}"`,
+			pattern:           UnsafeContextPattern,
+			wantHasExpression: true,
+		},
+		{
+			name: "expression outside run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - env:
+          TITLE: ${{ github.event.issue.title }}
+        run: echo "$TITLE"`,
+			pattern:           InlineExpressionPattern,
+			wantHasExpression: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.wantHasExpression, hasExpressionInRunContent(tt.yaml, tt.pattern))
 		})
 	}
 }

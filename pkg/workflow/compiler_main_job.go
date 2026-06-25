@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"maps"
 	"os"
 	"slices"
 	"sort"
@@ -13,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var compilerMainJobLog = logger.New("workflow:compiler_main_job")
@@ -109,7 +109,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// so the agent job gets them transitively through activation
 	// Custom jobs that depend on agent should run AFTER the agent job, not before it
 	if data.Jobs != nil {
-		for _, jobName := range slices.Sorted(maps.Keys(data.Jobs)) {
+		for _, jobName := range sliceutil.SortedKeys(data.Jobs) {
 			// Skip built-in jobs as they are handled separately and should not become custom dependencies.
 			if isBuiltinJobName(jobName) {
 				continue

@@ -278,6 +278,16 @@ jobs:
           Invoke-CliProcess -FilePath $binary -ArgumentList @("totally-unknown-subcommand-xyz") -TimeoutMs 10000 -ExpectFailure -ExpectedErrorPattern "unknown|not found|invalid|unrecognized" | Out-Null
           Add-Content $env:GITHUB_STEP_SUMMARY "✅ Unknown subcommand fails fast with explicit error output"
 
+      - name: Configure ConPTY
+        shell: pwsh
+        run: |
+          New-Item -Path HKCU:\Console -Force | Out-Null
+          Set-ItemProperty -Path HKCU:\Console -Name ForceV2 -Type DWord -Value 1
+          Set-ItemProperty -Path HKCU:\Console -Name VirtualTerminalLevel -Type DWord -Value 1
+          Add-Content -Path $env:GITHUB_ENV -Value "TERM=xterm"
+          Add-Content -Path $env:GITHUB_ENV -Value "CONEMUANSI=ON"
+          Add-Content $env:GITHUB_STEP_SUMMARY "✅ Configured HKCU\Console for ConPTY (ForceV2=1, VirtualTerminalLevel=1)"
+
       - name: "[ConPTY] startup probe hang detection"
         shell: pwsh
         run: |
@@ -551,7 +561,16 @@ jobs:
             @{ name = "--help"; args = "--help"; expected = "GitHub Agentic Workflows" },
             @{ name = "version"; args = "version"; expected = "gh aw version " }
           )) {
-            $output = [ConPtySmoke]::Run($env:BINARY, $command.args, $conPtyTimeoutMs)
+            try {
+              $output = [ConPtySmoke]::Run($env:BINARY, $command.args, $conPtyTimeoutMs)
+            } catch {
+              $message = $_.Exception.ToString()
+              if ($message -match '(?i)(-1073741502|0xC0000142|STATUS_DLL_INIT_FAILED)') {
+                Add-Content $env:GITHUB_STEP_SUMMARY "⚠️ ConPTY probe skipped for $($command.name): runner returned STATUS_DLL_INIT_FAILED (0xC0000142)"
+                continue
+              }
+              throw
+            }
             $cleanOutput = $output -replace "`e\[[\d;]*[A-Za-z]", ""
             if ($cleanOutput -notmatch [regex]::Escape($command.expected)) {
               throw "Expected ConPTY output for '$($command.name)' to contain '$($command.expected)', got:`n$cleanOutput"

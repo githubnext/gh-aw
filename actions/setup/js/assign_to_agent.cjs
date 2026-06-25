@@ -392,6 +392,24 @@ async function main(config = {}) {
     } catch (error) {
       let errorMessage = getErrorMessage(error);
 
+      // When the agent specified an issue_number that turns out to be a PR, skip
+      // silently without posting a comment — error comments on PRs are confusing.
+      if (/** @type {any} */ error.isPullRequest) {
+        core.warning(`Skipping assign_to_agent for #${number}: target is a pull request, not an issue.`);
+        _allResults.push({
+          issue_number: issueNumber,
+          pull_number: pullNumber,
+          agent: agentName,
+          owner: effectiveOwner,
+          repo: effectiveRepo,
+          pull_request_repo: effectivePullRequestRepoSlug,
+          success: false,
+          skipped: true,
+          error: errorMessage,
+        });
+        return { success: false, skipped: true, error: errorMessage };
+      }
+
       const isAuthError = ["Bad credentials", "Not Authenticated", "Resource not accessible", "Insufficient permissions", "requires authentication"].some(msg => errorMessage.includes(msg));
       const isAvailabilityError = errorMessage.includes("coding agent is not available for this repository");
 
@@ -399,7 +417,17 @@ async function main(config = {}) {
         const errorType = isAuthError ? "authentication/permission" : "agent availability";
         core.warning(`Agent assignment failed for ${agentName} on ${type} #${number} due to ${errorType} error. Skipping due to ignore-if-error=true.`);
         core.info(`Error details: ${errorMessage}`);
-        _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true, skipped: true });
+        _allResults.push({
+          issue_number: issueNumber,
+          pull_number: pullNumber,
+          agent: agentName,
+          owner: effectiveOwner,
+          repo: effectiveRepo,
+          pull_request_repo: effectivePullRequestRepoSlug,
+          success: true,
+          skipped: true,
+          error: errorMessage,
+        });
         return { success: true, skipped: true };
       }
 
@@ -451,18 +479,24 @@ function getAssignToAgentAssigned() {
 
 /**
  * Returns the "assignment_errors" output string for step outputs.
- * Format: "issue:N:agent:error" or "pr:N:agent:error" per failure, newline-separated.
+ * Format: "issue:N:agent:error" or "pr:N:agent:error" per failure/skipped-with-error,
+ * newline-separated.
  * @returns {string}
  */
 function getAssignToAgentErrors() {
-  return _allResults
-    .filter(r => !r.success && !r.skipped)
-    .map(r => {
-      const number = r.issue_number || r.pull_number;
-      const prefix = r.issue_number ? "issue" : "pr";
-      return `${prefix}:${number}:${r.agent}:${r.error}`;
-    })
-    .join("\n");
+  return (
+    _allResults
+      // Include skipped(ignore-if-error) entries that still captured an error so
+      // downstream failure handling can surface assignment problems in issue/comment reports.
+      // Include hard failures (!success) and ignored failures (skipped=true with error).
+      .filter(r => r.error && (r.skipped || !r.success))
+      .map(r => {
+        const number = r.issue_number || r.pull_number;
+        const prefix = r.issue_number ? "issue" : "pr";
+        return `${prefix}:${number}:${r.agent}:${r.error}`;
+      })
+      .join("\n")
+  );
 }
 
 /**

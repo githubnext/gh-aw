@@ -289,6 +289,14 @@ Each safe-output tool type has its own configuration struct parsed from the `saf
 | `UpdateProjectConfig` | struct | Configuration for updating GitHub Projects v2 boards |
 | `UpdatePullRequestsConfig` | struct | Configuration for updating GitHub pull requests |
 | `UpdateReleaseConfig` | struct | Configuration for updating GitHub releases |
+| `UploadArtifactConfig` | struct | Configuration for uploading GitHub Actions artifacts from agent output |
+| `ArtifactFiltersConfig` | struct | Include/exclude glob patterns for artifact file selection |
+| `ArtifactDefaultsConfig` | struct | Default request settings applied when the model omits a field (e.g. `if-no-files`) |
+| `UploadAssetsConfig` | struct | Configuration for publishing assets to an orphaned git branch |
+| `CreateCodeScanningAlertsConfig` | struct | Configuration for creating repository code scanning alerts (SARIF format) |
+| `ReplaceLabelConfig` | struct | Configuration for replacing one label with another on issues/PRs |
+| `LabelTransition` | struct | An allowed label state transition (`from` → `to` pair) |
+| `SafeScriptConfig` | struct | A custom safe-output handler script that runs inside the consolidated safe-outputs job |
 
 ### Sandbox Configuration
 
