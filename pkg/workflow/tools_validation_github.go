@@ -73,6 +73,8 @@ func emitGitHubLockdownGuardPolicyWarning(compiler *Compiler, tools *Tools, mark
 	toolsValidationLog.Printf("Emitting lockdown/guard-policy warning for workflow: %s", markdownPath)
 	if compiler != nil {
 		compiler.IncrementWarningCount()
+	} else {
+		toolsValidationLog.Printf("Compiler is nil; warning count not tracked for workflow: %s", markdownPath)
 	}
 	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", githubLockdownGuardPolicyWarningMessage))
 }

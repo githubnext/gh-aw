@@ -401,7 +401,7 @@ tools:
 3. **How should conflicts between lockdown and guard policies be resolved?**
 
    **Decision**: `lockdown: true` takes **absolute precedence** over guard policies. When `lockdown: true` is set, all tool invocations are blocked regardless of any `allowed-repos` or `min-integrity` configuration. Guard policies are not evaluated when lockdown is active.
-   *Rationale*: Lockdown is an emergency/security stop; it MUST NOT be weakened by other configuration. Guard policies narrow access within an otherwise-open tool session; they do not grant access that lockdown has revoked. The compiler SHOULD warn operators at compilation time when both `lockdown: true` and guard-policy fields (`allowed-repos`, `min-integrity`, `blocked-users`, `trusted-users`, `approval-labels`) are present, as the combination is likely a misconfiguration. This warning is now emitted by `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy()` + compiler warning plumbing).
+   *Rationale*: Lockdown is an emergency/security stop; it MUST NOT be weakened by other configuration. Guard policies narrow access within an otherwise-open tool session; they do not grant access that lockdown has revoked. The compiler SHOULD warn operators at compilation time when both `lockdown: true` and guard-policy fields (`allowed-repos`, `min-integrity`, `blocked-users`, `trusted-users`, `approval-labels`) are present, as the combination is likely a misconfiguration. This warning is now implemented in `pkg/workflow/tools_validation_github.go`, where `validateGitHubGuardPolicy()` detects the conflict and `emitGitHubLockdownGuardPolicyWarning()` surfaces the compiler warning.
 
 4. **Should we add a "dry-run" mode to test policies before enforcement?**
 

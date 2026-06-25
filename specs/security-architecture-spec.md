@@ -1148,6 +1148,7 @@ A conforming implementation MUST provide a compliance test suite covering all MU
 GitHub-tool-specific runtime access-control behaviors are tracked in the companion specifications `scratchpad/github-mcp-access-control-specification.md` and `scratchpad/guard-policies-specification.md`.
 
 - **T-GH-047 to T-GH-060** cover blocked-user enforcement, label-based promotion, minimum-integrity ordering, and related guard-policy runtime decisions for GitHub MCP integrations.
+- These companion test IDs are defined in `scratchpad/github-mcp-access-control-specification.md` Section 11.1.8 (Blocked-User Tests) and Section 11.1.9 (Integrity Level Tests).
 - Dedicated `trusted-users` runtime-enforcement test IDs are not yet mirrored in this top-level suite; maintainers SHOULD consult the companion GitHub MCP access-control specification and implementation tests until they are promoted here.
 
 ### 12.3 Compliance Checklist
