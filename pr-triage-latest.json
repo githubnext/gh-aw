@@ -1,37 +1,32 @@
 {
-  "run_date": "2026-06-25T07:30:07Z",
-  "run_id": "28154125770",
-  "previous_run_id": "28140271642",
-  "previous_run_date": "2026-06-25T01:18:01Z",
+  "run_date": "2026-06-25T13:04:09Z",
+  "run_id": "28171977204",
+  "previous_run_id": "28154125770",
+  "previous_run_date": "2026-06-25T07:30:07Z",
   "fork_prs": 0,
-  "agent_prs_found": 6,
+  "agent_prs_found": 7,
   "prs_triaged": 0,
   "fork_only_policy": true,
   "open_agent_prs": [
-    {"number": 41401, "title": "Remove non-strict override from AOAI API key smoke workflow and restore Copilot BYOK env passthrough", "draft": true, "is_fork": false, "created_at": "2026-06-25T07:01:52Z", "updated_at": "2026-06-25T07:22:04Z", "labels": []},
-    {"number": 41388, "title": "refactor: consolidate triplicate merge helpers and add sliceutil.SortedKeys", "draft": false, "is_fork": false, "created_at": "2026-06-25T05:46:35Z", "updated_at": "2026-06-25T07:13:53Z", "labels": []},
-    {"number": 41387, "title": "fix: use union of caller + worker permissions for call-workflow jobs", "draft": false, "is_fork": false, "created_at": "2026-06-25T05:46:08Z", "updated_at": "2026-06-25T07:21:31Z", "labels": []},
-    {"number": 41385, "title": "fix: stop codex harness retry loop draining tokens on exhausted rate-limit reconnects", "draft": false, "is_fork": false, "created_at": "2026-06-25T05:39:14Z", "updated_at": "2026-06-25T07:15:35Z", "labels": []},
-    {"number": 41358, "title": "Render runtime features only when configured; move output behind details disclosure", "draft": false, "is_fork": false, "created_at": "2026-06-25T03:18:27Z", "updated_at": "2026-06-25T05:21:19Z", "labels": []},
-    {"number": 41295, "title": "fix: apply_samples derivePrHeadRef uses target-repo config for siderepo PR lookups", "draft": true, "is_fork": false, "created_at": "2026-06-24T19:34:18Z", "updated_at": "2026-06-24T19:40:54Z", "labels": []}
+    {"number": 41430, "title": "chore: bump Codex 0.142.1, Copilot SDK 1.0.4", "draft": false, "is_fork": false, "labels": ["smoke","needs-review"], "created_at": "2026-06-25T12:20:03Z", "updated_at": "2026-06-25T13:02:08Z"},
+    {"number": 41429, "title": "fix(firewall): skip non-Squid diagnostic lines in generate_usage_activity_summary", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-25T12:19:30Z", "updated_at": "2026-06-25T12:56:30Z"},
+    {"number": 41428, "title": "Handle known Windows ConPTY runner failure in daily CLI integration", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-25T12:18:38Z", "updated_at": "2026-06-25T13:03:41Z"},
+    {"number": 41425, "title": "Send GraphQL-Features header for issue intent mutations when issue_intents runtime feature is enabled", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-25T12:16:17Z", "updated_at": "2026-06-25T12:58:20Z"},
+    {"number": 41401, "title": "Remove non-strict override from AOAI API key smoke workflow and restore Copilot BYOK env passthrough", "draft": false, "is_fork": false, "labels": ["smoke"], "created_at": "2026-06-25T07:01:52Z", "updated_at": "2026-06-25T13:04:16Z"},
+    {"number": 41358, "title": "Render runtime features only when configured; move output behind details disclosure", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-25T03:18:27Z", "updated_at": "2026-06-25T09:33:32Z"},
+    {"number": 41295, "title": "fix: apply_samples derivePrHeadRef uses target-repo config for siderepo PR lookups", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-24T19:34:18Z", "updated_at": "2026-06-24T19:40:54Z"}
   ],
   "merged_since_last_run": [
-    {"number": 41342, "title": "Remove `private: true` from blog-referenced workflows, issue-monster, q, and ci-coach", "merged_at": "2026-06-25T02:44:10Z"},
-    {"number": 41336, "title": "Surface assign-to-agent auth/availability failures in agent failure issues/comments", "merged_at": "2026-06-25T05:11:41Z"},
-    {"number": 41335, "title": "feat: add --org to upgrade command", "merged_at": "2026-06-25T05:10:26Z"},
-    {"number": 41333, "title": "Reduce YAMLGeneration time by collapsing duplicate run-script scans", "merged_at": "2026-06-25T04:06:57Z"},
-    {"number": 41332, "title": "Lower Design Decision Gate runtime cost with Sonnet default and conditional issue lookups", "merged_at": "2026-06-25T03:59:23Z"},
-    {"number": 41331, "title": "Add GitHub lockdown guard-policy warning and sync security specs", "merged_at": "2026-06-25T04:00:05Z"},
-    {"number": 41330, "title": "test(actionpins): improve assertion quality and add missing coverage in spec_test.go", "merged_at": "2026-06-25T02:33:16Z"},
-    {"number": 41329, "title": "Allow Daily Safe Output Integrator to read replace_label.go to prevent denial guardrail aborts", "merged_at": "2026-06-25T02:31:09Z"},
-    {"number": 41328, "title": "Bump pinned CLI and Playwright browser versions", "merged_at": "2026-06-25T02:54:07Z"}
+    {"number": 41388, "title": "refactor: consolidate triplicate merge helpers and add sliceutil.SortedKeys", "merged_at": "2026-06-25T12:20:45Z"},
+    {"number": 41387, "title": "fix: use union of caller + worker permissions for call-workflow jobs", "merged_at": "2026-06-25T12:22:38Z"},
+    {"number": 41385, "title": "fix: stop codex harness retry loop draining tokens on exhausted rate-limit reconnects", "merged_at": "2026-06-25T12:14:06Z"}
   ],
   "statistics": {
-    "total_open_copilot_prs": 6,
+    "total_open_copilot_prs": 7,
     "draft_prs": 2,
-    "ready_prs": 4,
+    "ready_prs": 5,
     "fork_prs_eligible": 0,
-    "merged_since_last_run": 9
+    "merged_since_last_run": 3
   },
-  "notes": "6 open agent PRs, all same-repo branches — fork-only triage policy: 0 eligible. 9 PRs merged since last run: #41342, #41336, #41335, #41333, #41332, #41331, #41330, #41329, #41328. 4 new PRs since last run: #41401 (draft), #41388, #41387, #41385, #41358. Run [§28154125770](https://github.com/github/gh-aw/actions/runs/28154125770)."
+  "notes": "7 open agent PRs, all same-repo branches — fork-only triage policy: 0 eligible. 3 PRs merged since last run: #41388, #41387, #41385. 4 new PRs since last run: #41430, #41429, #41428, #41425. #41401 transitioned from draft to ready. Run [§28171977204](https://github.com/github/gh-aw/actions/runs/28171977204)."
 }
