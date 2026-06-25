@@ -20,7 +20,8 @@ jobs:
 `
 
 	b.ReportAllocs()
-	for b.Loop() {
+	//nolint:intrange // Use the standard testing.B loop form for broad tool compatibility.
+	for i := 0; i < b.N; i++ {
 		if err := compiler.validateTemplateInjection(yamlContent, "", "", nil); err != nil {
 			b.Fatalf("validateTemplateInjection() error = %v", err)
 		}
