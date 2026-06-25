@@ -268,11 +268,75 @@ func TestExtractCallWorkflowPermissions_FileNotFound(t *testing.T) {
 	assert.Nil(t, perms, "Should return nil when no file exists")
 }
 
+func TestExtractCallWorkflowPermissionImport_MDWithoutPermissionsReturnsNil(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "Failed to create workflows directory")
+
+	mdContent := `---
+on:
+  workflow_call: {}
+engine: copilot
+---
+
+# Worker Without Permissions
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-no-perms.md"), []byte(mdContent), 0644), "Failed to write worker-no-perms.md")
+
+	markdownPath := filepath.Join(workflowsDir, "gateway.md")
+
+	imported, err := extractCallWorkflowPermissionImport("worker-no-perms", markdownPath)
+	require.NoError(t, err, "Should not error when markdown worker has no permissions")
+	assert.Nil(t, imported, "Should treat markdown workers with no permissions like other missing-import cases")
+}
+
+func TestExtractCallWorkflowPermissionImport_TracksReviewSource(t *testing.T) {
+	t.Setenv("GH_AW_WORKFLOWS_DIR", "")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "Failed to create workflows directory")
+
+	lockContent := `name: Worker Lock
+on:
+  workflow_call: {}
+jobs:
+  work:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "lock"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-review.lock.yml"), []byte(lockContent), 0644), "Failed to write worker-review.lock.yml")
+
+	markdownPath := filepath.Join(workflowsDir, "gateway.md")
+
+	imported, err := extractCallWorkflowPermissionImport("worker-review", markdownPath)
+	require.NoError(t, err, "Should extract imported permissions without error")
+	require.NotNil(t, imported, "Should return import metadata")
+	require.NotNil(t, imported.permissions, "Should include permissions")
+	assert.Equal(t, workflowSourceKindLock, imported.sourceKind, "Should track lock workflow source kind")
+	assert.Equal(t, "./.github/workflows/worker-review.lock.yml", renderWorkflowReviewPath(imported.sourcePath),
+		"Should render a repo-relative review path for help comments")
+}
+
+func TestBuildCallWorkflowPermissionsComment_NilInputs(t *testing.T) {
+	assert.Empty(t, buildCallWorkflowPermissionsComment("worker", nil), "Nil import should not emit a comment")
+	assert.Empty(t, buildCallWorkflowPermissionsComment("worker", &callWorkflowPermissionImport{}), "Nil permissions should not emit a comment")
+	assert.Empty(t, buildCallWorkflowPermissionsComment("worker", &callWorkflowPermissionImport{
+		permissions: NewPermissions(),
+		sourceKind:  workflowSourceKindLock,
+	}), "Empty permissions should not emit a comment")
+}
+
 // TestBuildCallWorkflowJobs_SetsPermissionsFromLockYML tests that call-workflow jobs
 // carry the union of caller + worker permissions when a .lock.yml worker file is present.
 // When the caller already covers all of the worker's needs, the effective permissions
 // equal the caller's declared permissions.
 func TestBuildCallWorkflowJobs_SetsPermissionsFromLockYML(t *testing.T) {
+	t.Setenv("GH_AW_WORKFLOWS_DIR", "")
+
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
@@ -326,6 +390,12 @@ jobs:
 
 	job, exists := compiler.jobManager.GetJob("call-worker-docs")
 	require.True(t, exists, "Job should exist in job manager")
+	assert.Contains(t, job.PermissionsComment,
+		`Imported from called workflow "worker-docs" because GitHub requires the caller job to grant permissions requested by reusable workflow jobs.`,
+		"Job should explain why worker permissions are imported")
+	assert.Contains(t, job.PermissionsComment,
+		"Review the called workflow's job-level permissions in ./.github/workflows/worker-docs.lock.yml.",
+		"Job should point reviewers to the compiled worker workflow")
 	assert.NotEmpty(t, job.Permissions, "Job should have permissions set")
 	assert.Contains(t, job.Permissions, "contents: write", "Permissions should include contents: write")
 	assert.Contains(t, job.Permissions, "issues: write", "Permissions should include issues: write")
@@ -337,6 +407,8 @@ jobs:
 // target. When caller and worker declare the same permissions, the effective permissions
 // equal the caller's declared permissions.
 func TestBuildCallWorkflowJobs_SetsPermissionsFromMD(t *testing.T) {
+	t.Setenv("GH_AW_WORKFLOWS_DIR", "")
+
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
@@ -379,6 +451,9 @@ permissions:
 
 	job, exists := compiler.jobManager.GetJob("call-worker-e")
 	require.True(t, exists, "Job should exist in job manager")
+	assert.Contains(t, job.PermissionsComment,
+		"Review the called workflow's frontmatter permissions in ./.github/workflows/worker-e.md.",
+		"Job should point reviewers to the markdown worker when no compiled file exists yet")
 	assert.NotEmpty(t, job.Permissions, "Job should have permissions")
 	assert.Contains(t, job.Permissions, "contents: read", "Permissions should include contents: read")
 	assert.Contains(t, job.Permissions, "issues: write", "Permissions should include issues: write")
@@ -547,6 +622,12 @@ jobs:
 	assert.Contains(t, yamlOutput, "uses: ./.github/workflows/worker-a.lock.yml", "Should contain uses directive")
 	assert.Contains(t, yamlOutput, "secrets: inherit", "Should inherit secrets")
 	assert.Contains(t, yamlOutput, "permissions:", "Should include permissions block")
+	assert.Contains(t, yamlOutput,
+		`# Imported from called workflow "worker-a" because GitHub requires the caller job to grant permissions requested by reusable workflow jobs.`,
+		"Rendered YAML should explain imported workflow_call permissions")
+	assert.Contains(t, yamlOutput,
+		"# Review the called workflow's job-level permissions in ./.github/workflows/worker-a.lock.yml.",
+		"Rendered YAML should point to the worker workflow for review")
 	// The call-* job gets the union of caller + worker permissions. Since the caller
 	// already covers all of the worker's needs, the effective permissions equal the
 	// caller's declared permissions.

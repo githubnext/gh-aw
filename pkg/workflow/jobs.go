@@ -42,6 +42,7 @@ type Job struct {
 	RunsOn                     string
 	If                         string
 	HasWorkflowRunSafetyChecks bool // If true, the job's if condition includes workflow_run safety checks
+	PermissionsComment         string
 	Permissions                string
 	TimeoutMinutes             int
 	TimeoutMinutesExpression   string
@@ -292,6 +293,11 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 	}
 
 	// Add permissions section
+	if job.PermissionsComment != "" {
+		for line := range strings.SplitSeq(strings.TrimRight(job.PermissionsComment, "\n"), "\n") {
+			fmt.Fprintf(b, "    %s\n", line)
+		}
+	}
 	if job.Permissions != "" {
 		fmt.Fprintf(b, "    %s\n", job.Permissions)
 	}
