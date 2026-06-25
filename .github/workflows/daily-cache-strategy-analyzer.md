@@ -20,9 +20,9 @@ engine:
 strict: true
 experiments:
   model_size:
-    variants: [gpt-5.4, gpt-5-mini]
+    variants: [gpt-5.4, gpt-5.4-mini]
     description: "Compares codex-compatible models for cache issue detection quality and efficiency."
-    hypothesis: "H0: no change in issue creation rate or run success rate. H1: gpt-5-mini reduces AI Credits while keeping run success rate >=0.90."
+    hypothesis: "H0: no change in issue creation rate or run success rate. H1: gpt-5.4-mini reduces AI Credits while keeping run success rate >=0.90."
     metric: ai_credits_total
     secondary_metrics: [run_success_rate, run_duration_ms]
     guardrail_metrics:

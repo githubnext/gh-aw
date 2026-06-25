@@ -423,8 +423,8 @@ func TestDailyCacheStrategyAnalyzerUsesCodexCompatibleModelsForExperiment(t *tes
 		t.Fatalf("Expected exactly 2 codex-compatible variants, got %#v", variants)
 	}
 	want := map[string]bool{
-		"gpt-5.4":    true,
-		"gpt-5-mini": true,
+		"gpt-5.4":      true,
+		"gpt-5.4-mini": true,
 	}
 	got := make(map[string]bool, len(variants))
 	for _, v := range variants {
@@ -433,7 +433,7 @@ func TestDailyCacheStrategyAnalyzerUsesCodexCompatibleModelsForExperiment(t *tes
 			t.Fatalf("Expected all variants to be strings, got %T in %#v", v, variants)
 		}
 		if !want[s] {
-			t.Fatalf("Unexpected variant %q; want exactly [gpt-5.4, gpt-5-mini], got %#v", s, variants)
+			t.Fatalf("Unexpected variant %q; want exactly [gpt-5.4, gpt-5.4-mini], got %#v", s, variants)
 		}
 		got[s] = true
 	}
