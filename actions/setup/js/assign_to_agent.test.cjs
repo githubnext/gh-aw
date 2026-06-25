@@ -702,7 +702,7 @@ describe("assign_to_agent", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
   });
 
-  it("should cache agent lookups for multiple assignments", async () => {
+  it("should cache resolved agent logins for multiple assignments", async () => {
     setAgentOutput({
       items: [
         { type: "assign_to_agent", issue_number: 1, agent: "copilot" },

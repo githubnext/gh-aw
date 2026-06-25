@@ -15,6 +15,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @type {Record<string, string[]>}
  */
 const AGENT_LOGIN_NAMES = {
+  // Prefer [bot] aliases first so assignability checks and assignment requests
+  // use the canonical bot login when both plain and [bot] aliases exist.
   copilot: ["copilot-swe-agent[bot]", "copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"],
 };
 
@@ -79,7 +81,7 @@ function getAgentName(assignee) {
 function parseIssueNumber(issueNumber, contextLabel) {
   const parsedIssueNumber = Number(issueNumber);
   if (!Number.isInteger(parsedIssueNumber) || parsedIssueNumber <= 0) {
-    throw new Error(`Invalid issue number for ${contextLabel}: ${String(issueNumber)} (issue number must be a positive integer)`);
+    throw new Error(`Invalid issue number for ${contextLabel}: received '${String(issueNumber)}', expected a positive integer`);
   }
   return parsedIssueNumber;
 }
@@ -125,7 +127,7 @@ async function getAvailableAgentLogins(owner, repo, issueNumber = null, githubCl
 async function validateAssigneeAlias(owner, repo, assignee, issueNumber, githubClient) {
   const parsedIssueNumber = parseIssueNumber(issueNumber, "assignee check");
   if (typeof githubClient?.request !== "function") {
-    throw new Error("GitHub client does not support request() (REST issue assignee checks require an Octokit client with request())");
+    throw new Error("GitHub client does not support request() method required for REST issue assignee checks");
   }
   core.info(`Checking assignee alias ${assignee} via issue-scoped endpoint for ${owner}/${repo}#${parsedIssueNumber}`);
   await githubClient.request("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
