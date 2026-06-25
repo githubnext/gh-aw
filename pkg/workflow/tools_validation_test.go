@@ -622,11 +622,13 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 	os.Stderr = w
+	defer func() {
+		os.Stderr = oldStderr
+	}()
 
 	emitGitHubLockdownGuardPolicyWarning(compiler, tools, "test-workflow.md")
 
 	require.NoError(t, w.Close())
-	os.Stderr = oldStderr
 
 	var buf bytes.Buffer
 	_, err = io.Copy(&buf, r)

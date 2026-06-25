@@ -43,6 +43,9 @@ func validateGitHubToolConfig(tools *Tools, workflowName string) error {
 	return nil
 }
 
+// hasGitHubGuardPolicyFields reports whether any GitHub guard-policy fields are
+// configured on the tool. It is used to detect lockdown/guard-policy
+// combinations that should surface a compile-time warning.
 func hasGitHubGuardPolicyFields(github *GitHubToolConfig) bool {
 	if github == nil {
 		return false
