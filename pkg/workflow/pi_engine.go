@@ -389,7 +389,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	if piModelsJSONSetup != "" {
 		piCommand = piModelsJSONSetup + piCommand
 	}
-	piCommand = workspaceCommandPrefix + piCommand
+	piCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + piCommand
 
 	var command string
 	if firewallEnabled {
@@ -505,6 +505,7 @@ touch %s
 	}
 
 	// Apply custom env overrides from engine.env
+	applyEngineCwdEnv(env, workflowData)
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
 		maps.Copy(env, workflowData.EngineConfig.Env)
 	}

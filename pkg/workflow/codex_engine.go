@@ -293,7 +293,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
 		// Apply workspace prefix here since there is no JS harness to set the cwd.
-		codexCommand = workspaceCommandPrefix + fmt.Sprintf("%s exec%s%s%s%s%s%s \"$INSTRUCTION\"",
+		codexCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + fmt.Sprintf("%s exec%s%s%s%s%s%s \"$INSTRUCTION\"",
 			commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	}
 
@@ -472,6 +472,9 @@ mkdir -p "$CODEX_HOME/logs"
 	} else {
 		env[modelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
 	}
+
+	// Inject GH_AW_ENGINE_CWD when engine.cwd is configured.
+	applyEngineCwdEnv(env, workflowData)
 
 	// Add custom environment variables from engine config
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {

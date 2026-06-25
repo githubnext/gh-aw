@@ -202,7 +202,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Append the prompt arg raw (not through shellJoinArgs) to preserve shell expansion
 	geminiCommand := fmt.Sprintf(`%s %s --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, commandName, shellJoinArgs(geminiArgs))
-	geminiCommand = workspaceCommandPrefix + geminiCommand
+	geminiCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + geminiCommand
 
 	// Build the full command with AWF wrapping if enabled
 	var command string
@@ -332,6 +332,7 @@ touch %s
 	// Add custom environment variables from engine config.
 	// This allows users to override the default engine token expression (e.g.
 	// GEMINI_API_KEY: ${{ secrets.MY_ORG_GEMINI_KEY }}) via engine.env.
+	applyEngineCwdEnv(env, workflowData)
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
 		maps.Copy(env, workflowData.EngineConfig.Env)
 	}

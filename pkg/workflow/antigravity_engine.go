@@ -190,7 +190,7 @@ func (e *AntigravityEngine) GetExecutionSteps(workflowData *WorkflowData, logFil
 
 	// Append the prompt arg raw (not through shellJoinArgs) to preserve shell expansion
 	agyCommand := fmt.Sprintf(`%s %s --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, commandName, shellJoinArgs(agyArgs))
-	agyCommand = workspaceCommandPrefix + agyCommand
+	agyCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + agyCommand
 
 	// Build the full command with AWF wrapping if enabled
 	var command string
@@ -320,6 +320,7 @@ touch %s
 	// Add custom environment variables from engine config.
 	// This allows users to override the default engine token expression (e.g.
 	// ANTIGRAVITY_API_KEY: ${{ secrets.MY_ORG_ANTIGRAVITY_KEY }}) via engine.env.
+	applyEngineCwdEnv(env, workflowData)
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
 		maps.Copy(env, workflowData.EngineConfig.Env)
 	}

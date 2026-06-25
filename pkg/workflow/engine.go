@@ -95,6 +95,13 @@ type EngineConfig struct {
 	// When true the compiler enables a harness-managed Copilot CLI headless sidecar
 	// and sets COPILOT_SDK_URI on child processes so the SDK can connect to it.
 	CopilotSDK bool
+
+	// Cwd is a templatable string that overrides the working directory for the engine's
+	// spawned process. When set, it is passed as GH_AW_ENGINE_CWD to the execution
+	// environment. JS harness engines read this variable in preference to GITHUB_WORKSPACE;
+	// non-harness engines use it as the target of the shell-level cd prefix.
+	// Defaults to the repository workspace (GITHUB_WORKSPACE) when empty.
+	Cwd string
 }
 
 // EngineAuthConfig represents engine.auth frontmatter settings that map to
@@ -553,6 +560,14 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if config.Driver != "" && config.ID == "copilot" && !config.CopilotSDK {
 				config.CopilotSDK = true
 				engineLog.Print("Enabled copilot-sdk because driver is configured for copilot engine")
+			}
+
+			// Extract optional 'cwd' field (templatable string for engine working directory)
+			if cwdVal, hasCwd := engineObj["cwd"]; hasCwd {
+				if cwdStr, ok := cwdVal.(string); ok && cwdStr != "" {
+					config.Cwd = cwdStr
+					engineLog.Printf("Extracted engine.cwd: %s", config.Cwd)
+				}
 			}
 
 			engineLog.Printf("Extracted engine configuration: ID=%s", config.ID)

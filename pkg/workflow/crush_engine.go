@@ -167,7 +167,7 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		commandName = workflowData.EngineConfig.Command
 	}
 	crushCommand := fmt.Sprintf("%s run %s %s", commandName, shellJoinArgs(crushArgs), promptArg)
-	crushCommand = workspaceCommandPrefix + crushCommand
+	crushCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + crushCommand
 
 	// AWF wrapping
 	firewallEnabled := isFirewallEnabled(workflowData)
@@ -249,6 +249,7 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	}
 
 	// Custom env from engine config (allows provider override)
+	applyEngineCwdEnv(env, workflowData)
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
 		maps.Copy(env, workflowData.EngineConfig.Env)
 	}

@@ -410,6 +410,28 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "copilot", CopilotSDK: true, Driver: "custom_copilot_sdk_driver.cjs"},
 		},
 		{
+			name: "object format - cwd literal path",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":  "copilot",
+					"cwd": "/custom/workspace",
+				},
+			},
+			expectedEngineSetting: "copilot",
+			expectedConfig:        &EngineConfig{ID: "copilot", Cwd: "/custom/workspace"},
+		},
+		{
+			name: "object format - cwd github actions expression",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":  "claude",
+					"cwd": "${{ github.workspace }}/subdir",
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", Cwd: "${{ github.workspace }}/subdir"},
+		},
+		{
 			name: "object format - complete with user-agent",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
@@ -483,6 +505,10 @@ func TestExtractEngineConfig(t *testing.T) {
 
 				if config.CopilotSDK != test.expectedConfig.CopilotSDK {
 					t.Errorf("Expected config.CopilotSDK '%v', got '%v'", test.expectedConfig.CopilotSDK, config.CopilotSDK)
+				}
+
+				if config.Cwd != test.expectedConfig.Cwd {
+					t.Errorf("Expected config.Cwd '%s', got '%s'", test.expectedConfig.Cwd, config.Cwd)
 				}
 
 				if len(config.Env) != len(test.expectedConfig.Env) {

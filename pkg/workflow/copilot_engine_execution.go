@@ -677,6 +677,9 @@ touch %s
 		env[constants.CopilotCLIModelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
 	}
 
+	// Inject GH_AW_ENGINE_CWD when engine.cwd is configured.
+	applyEngineCwdEnv(env, workflowData)
+
 	// Add custom environment variables from engine config
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
 		maps.Copy(env, workflowData.EngineConfig.Env)

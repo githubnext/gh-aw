@@ -99,6 +99,17 @@ func engineEnvHasKey(workflowData *WorkflowData, key string) bool {
 	return ok
 }
 
+// applyEngineCwdEnv sets the GH_AW_ENGINE_CWD environment variable in the given env map
+// when engine.cwd is configured. This variable is consumed by JS harness processes (via
+// process_runner.cjs) and by shell-based engine command prefixes so the engine spawns in
+// the user-specified working directory rather than the default GITHUB_WORKSPACE.
+func applyEngineCwdEnv(env map[string]string, workflowData *WorkflowData) {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Cwd == "" {
+		return
+	}
+	env["GH_AW_ENGINE_CWD"] = workflowData.EngineConfig.Cwd
+}
+
 // GenerateMultiSecretValidationStep creates a GitHub Actions step that validates at least one
 // of multiple secrets is available.
 // secretNames: slice of secret names to validate (e.g., []string{"CODEX_API_KEY", "OPENAI_API_KEY"})

@@ -44,9 +44,10 @@ function sleep(ms) {
  * Run a command with the given arguments, transparently forwarding stdin/stdout/stderr.
  * Also collects combined stdout+stderr output for error pattern detection.
  *
- * The child process is spawned with `cwd` set to `process.env.GITHUB_WORKSPACE` when
- * available, so that engines and their skill-discovery paths resolve relative to the
- * repository checkout root rather than the harness working directory.
+ * The child process is spawned with `cwd` set to `process.env.GH_AW_ENGINE_CWD` when
+ * available, falling back to `process.env.GITHUB_WORKSPACE`, so that engines and their
+ * skill-discovery paths resolve relative to the configured or repository checkout root
+ * rather than the harness working directory.
  *
  * @param {{
  *   command: string,
@@ -84,7 +85,7 @@ function runProcess({ command, args, attempt, log, logArgs, env }) {
     const child = spawn(command, args, {
       stdio: ["inherit", "pipe", "pipe"],
       env: env ?? process.env,
-      cwd: process.env.GITHUB_WORKSPACE || undefined,
+      cwd: process.env.GH_AW_ENGINE_CWD || process.env.GITHUB_WORKSPACE || undefined,
     });
 
     log(`attempt ${attempt + 1}: process started (pid=${child.pid ?? "unknown"})`);

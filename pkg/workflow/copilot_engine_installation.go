@@ -34,6 +34,17 @@ type copilotSDKInstallSpec struct {
 
 const workspaceCommandPrefix = `cd "${GITHUB_WORKSPACE}" && `
 
+// getWorkspaceCommandPrefixFor returns the shell cd prefix for engine command generation.
+// When engine.cwd is configured it returns a prefix that changes to ${GH_AW_ENGINE_CWD}
+// (set as an env var by applyEngineCwdEnv). When engine.cwd is not configured it falls
+// back to the default workspace prefix.
+func getWorkspaceCommandPrefixFor(config *EngineConfig) string {
+	if config != nil && config.Cwd != "" {
+		return `cd "${GH_AW_ENGINE_CWD}" && `
+	}
+	return workspaceCommandPrefix
+}
+
 // GetSecretValidationStep returns the secret validation step for the Copilot engine.
 // Returns an empty step if:
 //   - permissions.copilot-requests is set to write (uses GitHub Actions token instead), or

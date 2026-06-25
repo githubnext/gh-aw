@@ -131,7 +131,7 @@ async function startCopilotSDKServer(options) {
   const child = spawnImpl(options.command, args, {
     stdio: ["ignore", "pipe", "pipe"],
     env,
-    cwd: process.env.GITHUB_WORKSPACE || undefined,
+    cwd: process.env.GH_AW_ENGINE_CWD || process.env.GITHUB_WORKSPACE || undefined,
   });
 
   child.stdout.on("data", data => {
