@@ -262,13 +262,14 @@ describe("upload_assets.cjs", () => {
       const assetDir = getAssetsDir();
       fs.mkdirSync(assetDir, { recursive: true });
       const missingSha = crypto.createHash("sha256").update("missing content").digest("hex");
+      const missingItems = [{ type: "upload_asset", fileName: "missing.png", sha: missingSha, size: 7, targetFileName: "missing-uploaded.png", url: "https://example.com/missing.png" }];
       setAgentOutput({
-        items: [{ type: "upload_asset", fileName: "missing.png", sha: missingSha, size: 7, targetFileName: "missing-uploaded.png", url: "https://example.com/missing.png" }],
+        items: missingItems,
       });
       mockBranchMissing();
 
       await executeScript();
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("All 1 declared assets were missing"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(`All ${missingItems.length} declared assets were missing`));
     });
   });
 
