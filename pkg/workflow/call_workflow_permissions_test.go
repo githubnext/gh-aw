@@ -359,7 +359,7 @@ jobs:
 		`Imported from called workflow "worker-docs" because GitHub requires the caller job to grant permissions requested by reusable workflow jobs.`,
 		"Job should explain why worker permissions are imported")
 	assert.Contains(t, job.PermissionsComment,
-		"Review the worker's job-level permissions in ./.github/workflows/worker-docs.lock.yml.",
+		"Review the called workflow's job-level permissions in ./.github/workflows/worker-docs.lock.yml.",
 		"Job should point reviewers to the compiled worker workflow")
 	assert.NotEmpty(t, job.Permissions, "Job should have permissions set")
 	assert.Contains(t, job.Permissions, "contents: write", "Permissions should include contents: write")
@@ -415,7 +415,7 @@ permissions:
 	job, exists := compiler.jobManager.GetJob("call-worker-e")
 	require.True(t, exists, "Job should exist in job manager")
 	assert.Contains(t, job.PermissionsComment,
-		"Review the worker's frontmatter permissions in ./.github/workflows/worker-e.md.",
+		"Review the called workflow's frontmatter permissions in ./.github/workflows/worker-e.md.",
 		"Job should point reviewers to the markdown worker when no compiled file exists yet")
 	assert.NotEmpty(t, job.Permissions, "Job should have permissions")
 	assert.Contains(t, job.Permissions, "contents: read", "Permissions should include contents: read")
@@ -589,7 +589,7 @@ jobs:
 		`# Imported from called workflow "worker-a" because GitHub requires the caller job to grant permissions requested by reusable workflow jobs.`,
 		"Rendered YAML should explain imported workflow_call permissions")
 	assert.Contains(t, yamlOutput,
-		"# Review the worker's job-level permissions in ./.github/workflows/worker-a.lock.yml.",
+		"# Review the called workflow's job-level permissions in ./.github/workflows/worker-a.lock.yml.",
 		"Rendered YAML should point to the worker workflow for review")
 	// The call-* job gets the union of caller + worker permissions. Since the caller
 	// already covers all of the worker's needs, the effective permissions equal the

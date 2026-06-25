@@ -200,7 +200,7 @@ func buildCallWorkflowPermissionsComment(workflowName string, imported *callWork
 
 	return strings.Join([]string{
 		fmt.Sprintf("# Imported from called workflow %q because GitHub requires the caller job to grant permissions requested by reusable workflow jobs.", workflowName),
-		fmt.Sprintf("# Review the worker's %s in %s.", reviewWhat, renderWorkflowReviewPath(imported.sourcePath)),
+		fmt.Sprintf("# Review the called workflow's %s in %s.", reviewWhat, renderWorkflowReviewPath(imported.sourcePath)),
 	}, "\n")
 }
 
