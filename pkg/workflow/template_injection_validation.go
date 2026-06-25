@@ -62,6 +62,8 @@ var (
 	runKeyPattern                   = regexp.MustCompile(`(?:^|[\s{,])(?:run|["']run["']):`)
 )
 
+// runContentExpressionScan captures the two signals needed by the skip-validation
+// template-injection fast path before deciding whether to fall back to YAML parsing.
 type runContentExpressionScan struct {
 	hasUnsafe     bool
 	hasDisallowed bool
