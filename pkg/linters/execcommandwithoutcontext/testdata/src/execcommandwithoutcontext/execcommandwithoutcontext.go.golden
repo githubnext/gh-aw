@@ -67,3 +67,9 @@ func OuterCtxInnerClosure(ctx context.Context) {
 		_ = exec.CommandContext(ctx, "ls") // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
 	}()
 }
+
+// Good: inline nolint suppresses an intentional detached command.
+func GoodNoLint(ctx context.Context, name string) {
+	_ = ctx
+	_ = exec.Command(name) //nolint:execcommandwithoutcontext
+}
