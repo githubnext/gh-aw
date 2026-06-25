@@ -2446,7 +2446,7 @@ func TestCopilotEngineBYOKOmitsCopilotGitHubToken(t *testing.T) {
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
 				Env: map[string]string{
-					constants.CopilotProviderBaseURL: "http://localhost:11434/v1",
+					constants.CopilotProviderBaseURL: "${{ secrets.PROVIDER_BASE_URL }}",
 					constants.CopilotProviderAPIKey:  "${{ secrets.PROVIDER_API_KEY }}",
 				},
 			},
@@ -2469,6 +2469,31 @@ func TestCopilotEngineBYOKOmitsCopilotGitHubToken(t *testing.T) {
 		}
 		if strings.Contains(stepContent, "--exclude-env "+constants.CopilotProviderAPIKey) {
 			t.Errorf("AWF command should not exclude %s in BYOK mode, got:\n%s", constants.CopilotProviderAPIKey, stepContent)
+		}
+	})
+
+	t.Run("AWF command still excludes unsupported BYOK bearer token env var", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					constants.CopilotProviderBaseURL:     "${{ secrets.PROVIDER_BASE_URL }}",
+					constants.CopilotProviderBearerToken: "${{ secrets.PROVIDER_BEARER_TOKEN }}",
+				},
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{Type: SandboxTypeAWF},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(stepContent, "--exclude-env "+constants.CopilotProviderBearerToken) {
+			t.Errorf("AWF command should still exclude unsupported %s in BYOK mode, got:\n%s", constants.CopilotProviderBearerToken, stepContent)
 		}
 	})
 }

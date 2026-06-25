@@ -462,13 +462,13 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			copilotCoreSecrets = []string{"COPILOT_GITHUB_TOKEN"}
 		}
 		excludeEnvVarNames := ComputeAWFExcludeEnvVarNames(workflowData, copilotCoreSecrets)
-		// BYOK provider env vars must remain visible to the Copilot runtime inside AWF.
-		// Excluding them breaks custom provider routing/auth in BYOK workflows.
+		// AWF currently needs the supported BYOK provider env vars to remain visible to the
+		// Copilot runtime inside the sandbox. Excluding them breaks provider routing/auth in
+		// BYOK workflows.
 		if isBYOKMode {
 			byokProviderEnvVars := map[string]struct{}{
-				constants.CopilotProviderBaseURL:     {},
-				constants.CopilotProviderAPIKey:      {},
-				constants.CopilotProviderBearerToken: {},
+				constants.CopilotProviderBaseURL: {},
+				constants.CopilotProviderAPIKey:  {},
 			}
 			filtered := make([]string, 0, len(excludeEnvVarNames))
 			for _, envVarName := range excludeEnvVarNames {
