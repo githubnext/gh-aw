@@ -1270,6 +1270,21 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 			expectedModel:      "gpt-4",
 		},
 		{
+			name: "pi engine threat detection normalizes provider-scoped model for copilot fallback",
+			data: &WorkflowData{
+				AI: "pi",
+				EngineConfig: &EngineConfig{
+					ID:    "pi",
+					Model: "copilot/gpt-5.4",
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			shouldContainModel: true,
+			expectedModel:      "gpt-5.4",
+		},
+		{
 			name: "copilot engine with threat detection engine config with custom model",
 			data: &WorkflowData{
 				AI: "claude",

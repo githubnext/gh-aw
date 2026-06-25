@@ -34,6 +34,13 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	if hasThreatDetectionEngineConfig {
 		engineConfig = data.SafeOutputs.ThreatDetection.EngineConfig
 	}
+	originalEngineID := data.AI
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		originalEngineID = data.EngineConfig.ID
+	}
+	if hasThreatDetectionEngineConfig && data.SafeOutputs.ThreatDetection.EngineConfig.ID != "" {
+		originalEngineID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
+	}
 
 	// Get the engine instance
 	engine, err := c.getAgenticEngine(engineSetting)
@@ -86,6 +93,9 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	// and GHE-specific domains in --allow-domains as the main agent AWF invocation.
 	if detectionEngineConfig.APITarget == "" && data.EngineConfig != nil && data.EngineConfig.APITarget != "" {
 		detectionEngineConfig.APITarget = data.EngineConfig.APITarget
+	}
+	if detectionEngineConfig.ID == "copilot" && originalEngineID == "pi" {
+		detectionEngineConfig.Model = extractPiModelID(detectionEngineConfig.Model)
 	}
 
 	// Create minimal WorkflowData for threat detection.
