@@ -830,18 +830,18 @@ describe("main", () => {
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Detection log file not found"));
     });
 
-    it("should fail when detection execution failed even in warn mode", async () => {
+    it("should warn when detection execution failed in warn mode", async () => {
       process.env.DETECTION_AGENTIC_EXECUTION_OUTCOME = "failure";
       mockExistsSync.mockReturnValue(false);
 
       await mod.main();
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "failure");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "warning");
       expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("reason", "agent_failure");
-      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "failure");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "warning");
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_REASON", "agent_failure");
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Detection log file not found"));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
     // Note: The following tests are skipped because mocking fs for CJS modules

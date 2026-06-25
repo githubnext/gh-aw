@@ -453,7 +453,6 @@ async function main() {
   const runDetection = process.env.RUN_DETECTION;
   const continueOnError = process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR !== "false";
   const detectionExecutionOutcome = process.env.DETECTION_AGENTIC_EXECUTION_OUTCOME || "";
-  const detectionExecutionFailed = detectionExecutionOutcome === "failure";
   const isWarnMode = continueOnError;
 
   /**
@@ -464,10 +463,9 @@ async function main() {
    * @param {string} message - Human-readable error message
    */
   function setDetectionFailure(reason, message) {
-    const mustFail = detectionExecutionFailed && (reason === "agent_failure" || reason === "parse_error");
     core.setOutput("reason", reason);
     core.exportVariable("GH_AW_DETECTION_REASON", reason);
-    if (isWarnMode && !mustFail) {
+    if (isWarnMode) {
       core.warning(`⚠️ ${message}`);
       core.setOutput("conclusion", "warning");
       core.exportVariable("GH_AW_DETECTION_CONCLUSION", "warning");
