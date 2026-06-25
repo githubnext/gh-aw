@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "🏥"
 description: Meta-orchestrator for monitoring and managing health of all agentic workflows in the repository
 on: daily

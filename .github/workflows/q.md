@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "❓"
 name: Q
 description: Intelligent assistant that answers questions, analyzes repositories, and can create PRs for workflow optimizations
