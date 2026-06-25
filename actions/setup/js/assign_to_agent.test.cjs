@@ -432,7 +432,7 @@ describe("assign_to_agent", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned copilot coding agent to issue #42"));
     expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-    expect(mockGithub.request).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ owner: "test-owner", repo: "other-platform-repo" }));
+    expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", expect.objectContaining({ owner: "test-owner", repo: "test-repo", issue_number: 42 }));
   });
 
   it("should process multiple assignments for the same temporary issue ID across different pull_request_repo targets", async () => {
@@ -485,10 +485,10 @@ describe("assign_to_agent", () => {
     expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("copilot is already assigned to issue #6587"));
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned copilot coding agent to issue #6587"));
 
-    const assignmentCalls = mockGithub.request.mock.calls.filter(([route]) => route === "POST /agents/repos/{owner}/{repo}/tasks");
+    const assignmentCalls = mockGithub.request.mock.calls.filter(([route]) => route === "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees");
     expect(assignmentCalls).toHaveLength(2);
-    expect(assignmentCalls[0][1]).toMatchObject({ owner: "test-owner", repo: "ios-repo" });
-    expect(assignmentCalls[1][1]).toMatchObject({ owner: "test-owner", repo: "android-repo" });
+    expect(assignmentCalls[0][1]).toMatchObject({ owner: "test-owner", repo: "test-repo", issue_number: 6587 });
+    expect(assignmentCalls[1][1]).toMatchObject({ owner: "test-owner", repo: "test-repo", issue_number: 6587 });
     expect(mockSleep).toHaveBeenCalledTimes(1);
     expect(mockSleep).toHaveBeenCalledWith(10000);
 
@@ -543,7 +543,7 @@ describe("assign_to_agent", () => {
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("copilot is already assigned to issue #6587"));
-    const assignmentCalls = mockGithub.request.mock.calls.filter(([route]) => route === "POST /agents/repos/{owner}/{repo}/tasks");
+    const assignmentCalls = mockGithub.request.mock.calls.filter(([route]) => route === "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees");
     expect(assignmentCalls).toHaveLength(1);
     expect(mockSleep).toHaveBeenCalledTimes(1);
     expect(mockSleep).toHaveBeenCalledWith(10000);
@@ -573,7 +573,7 @@ describe("assign_to_agent", () => {
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("copilot is already assigned to issue #42"));
-    const assignmentCalls = mockGithub.request.mock.calls.filter(([route]) => route === "POST /agents/repos/{owner}/{repo}/tasks");
+    const assignmentCalls = mockGithub.request.mock.calls.filter(([route]) => route === "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees");
     expect(assignmentCalls).toHaveLength(0);
   });
 
@@ -607,7 +607,7 @@ describe("assign_to_agent", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("copilot is already assigned to issue #42"));
     // Should NOT have called the assignment mutation (only 3 GraphQL calls: repo lookup, find agent, get issue)
     expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(1); // global PR repo lookup
-    const assignmentCalls = mockGithub.request.mock.calls.filter(([route]) => route === "POST /agents/repos/{owner}/{repo}/tasks");
+    const assignmentCalls = mockGithub.request.mock.calls.filter(([route]) => route === "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees");
     expect(assignmentCalls).toHaveLength(0); // no assignment since already assigned
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
@@ -633,7 +633,7 @@ describe("assign_to_agent", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
   });
 
-  it("should handle 502 errors as success", async () => {
+  it("should fail on 502 assignment errors", async () => {
     setAgentOutput({
       items: [
         {
@@ -653,7 +653,7 @@ describe("assign_to_agent", () => {
     });
     // Assignment fails with 502
     mockGithub.request.mockImplementation(route => {
-      if (route === "POST /agents/repos/{owner}/{repo}/tasks") {
+      if (route === "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees") {
         return Promise.reject({
           response: {
             status: 502,
@@ -663,21 +663,15 @@ describe("assign_to_agent", () => {
           },
         });
       }
-      return Promise.resolve({ data: { id: "task-123" } });
+      return Promise.resolve({ status: 204 });
     });
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
-    // Should warn about 502 but treat as success
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Received 502 error from cloud gateway"));
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Treating 502 error as success"));
-    expect(mockCore.setFailed).not.toHaveBeenCalled();
-    expect(mockCore.summary.addRaw).toHaveBeenCalled();
-    const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
-    expect(summaryCall).toContain("Successfully assigned 1 agent(s)");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
   });
 
-  it("should handle 502 errors in message as success", async () => {
+  it("should fail on 502 assignment message errors", async () => {
     setAgentOutput({
       items: [
         {
@@ -697,21 +691,18 @@ describe("assign_to_agent", () => {
     });
     // Assignment fails with 502 message
     mockGithub.request.mockImplementation(route => {
-      if (route === "POST /agents/repos/{owner}/{repo}/tasks") {
+      if (route === "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees") {
         return Promise.reject(new Error("502 Bad Gateway"));
       }
-      return Promise.resolve({ data: { id: "task-123" } });
+      return Promise.resolve({ status: 204 });
     });
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
-    // Should warn about 502 but treat as success
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Received 502 error from cloud gateway"));
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Treating 502 error as success"));
-    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
   });
 
-  it("should cache agent IDs for multiple assignments", async () => {
+  it("should cache agent lookups for multiple assignments", async () => {
     setAgentOutput({
       items: [
         { type: "assign_to_agent", issue_number: 1, agent: "copilot" },
@@ -735,7 +726,8 @@ describe("assign_to_agent", () => {
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
     // Should only look up agent once (cached for second assignment)
-    expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(1);
+    const lookupCalls = mockGithub.request.mock.calls.filter(([route]) => route === "GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}");
+    expect(lookupCalls).toHaveLength(1);
   }, 15000); // Increase timeout to 15 seconds to account for the delay
 
   it("should use target repository when configured", async () => {
@@ -1041,7 +1033,7 @@ describe("assign_to_agent", () => {
 
     // Simulate authentication error - use mockRejectedValueOnce to avoid affecting other tests
     const authError = new Error("Bad credentials");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(authError);
+    mockGithub.request.mockRejectedValueOnce(authError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1079,7 +1071,7 @@ describe("assign_to_agent", () => {
 
     // Simulate authentication error
     const authError = new Error("Bad credentials");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(authError);
+    mockGithub.request.mockRejectedValue(authError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1116,7 +1108,7 @@ describe("assign_to_agent", () => {
 
     // Simulate permission error
     const permError = new Error("Resource not accessible by integration");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(permError);
+    mockGithub.request.mockRejectedValue(permError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1138,12 +1130,10 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    // Simulate agent not available (checkUserCanBeAssigned returns 404)
+    // Simulate agent not available (assignee check returns 404)
     const notFoundError = new Error("Not Found");
     notFoundError.status = 404;
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(notFoundError);
-    // getAvailableAgentLogins also calls checkUserCanBeAssigned - return 404 for that too
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(notFoundError);
+    mockGithub.request.mockRejectedValue(notFoundError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1174,10 +1164,10 @@ describe("assign_to_agent", () => {
     // Simulate a different error (not auth-related) during assignment
     const otherError = new Error("Network timeout");
     mockGithub.request.mockImplementation(route => {
-      if (route === "POST /agents/repos/{owner}/{repo}/tasks") {
+      if (route === "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees") {
         return Promise.reject(otherError);
       }
-      return Promise.resolve({ data: { id: "task-123" } });
+      return Promise.resolve({ status: 204 });
     });
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
@@ -1248,7 +1238,7 @@ describe("assign_to_agent", () => {
 
     // Fail all assignments with auth error
     const authError = new Error("Bad credentials");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(authError);
+    mockGithub.request.mockRejectedValue(authError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1273,7 +1263,7 @@ describe("assign_to_agent", () => {
     // Simulate an error whose message contains an @mention and an HTML comment —
     // both are potentially dangerous if posted unsanitized.
     const dangerousError = new Error("@admin triggered <!-- inject --> error");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(dangerousError);
+    mockGithub.request.mockRejectedValue(dangerousError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1302,7 +1292,7 @@ describe("assign_to_agent", () => {
 
     // Simulate authentication error (will be skipped by ignore-if-error)
     const authError = new Error("Bad credentials");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(authError);
+    mockGithub.request.mockRejectedValue(authError);
 
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
@@ -1323,7 +1313,7 @@ describe("assign_to_agent", () => {
     });
 
     const authError = new Error("Bad credentials");
-    mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(authError);
+    mockGithub.request.mockRejectedValue(authError);
 
     // Simulate failure to post comment
     mockGithub.rest.issues.createComment.mockRejectedValue(new Error("Could not post comment"));
@@ -1482,7 +1472,7 @@ describe("assign_to_agent", () => {
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using pull request repository: test-owner/pull-request-repo"));
-    expect(mockGithub.request).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ owner: "test-owner", repo: "pull-request-repo" }));
+    expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", expect.objectContaining({ owner: "test-owner", repo: "test-repo", issue_number: 42 }));
   });
 
   it("should handle per-item pull_request_repo parameter", async () => {
@@ -1521,7 +1511,7 @@ describe("assign_to_agent", () => {
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using per-item pull request repository: test-owner/item-pull-request-repo"));
 
-    expect(mockGithub.request).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ owner: "test-owner", repo: "item-pull-request-repo" }));
+    expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", expect.objectContaining({ owner: "test-owner", repo: "test-repo", issue_number: 42 }));
   });
 
   it("should reject per-item pull_request_repo not in allowed list", async () => {
@@ -1600,10 +1590,8 @@ describe("assign_to_agent", () => {
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
     expect(mockCore.setFailed).not.toHaveBeenCalled();
-    // Verify the request was called with base_ref set to the explicit base-branch
-    expect(mockGithub.request).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ base_ref: "develop" }));
-    const requestArgs = mockGithub.request.mock.calls[0][1];
-    expect(requestArgs.customInstructions).toBeUndefined();
+    // Assignment uses issue assignees endpoint and does not include base_ref/custom instructions
+    expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", expect.objectContaining({ owner: "test-owner", repo: "test-repo", issue_number: 42 }));
   });
 
   it("should auto-resolve non-main default branch from pull-request-repo and set as baseRef", async () => {
@@ -1624,8 +1612,7 @@ describe("assign_to_agent", () => {
 
     expect(mockCore.setFailed).not.toHaveBeenCalled();
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Resolved pull request repository default branch: develop"));
-    // Verify the request was called with base_ref set to the resolved default branch
-    expect(mockGithub.request).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ base_ref: "develop" }));
+    expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", expect.objectContaining({ owner: "test-owner", repo: "test-repo", issue_number: 42 }));
   });
 
   it("should set baseRef when pull-request-repo default branch is main (no explicit base-branch)", async () => {
@@ -1645,9 +1632,6 @@ describe("assign_to_agent", () => {
     await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
 
     expect(mockCore.setFailed).not.toHaveBeenCalled();
-    // Verify the request was called with base_ref set to the repo's default branch
-    expect(mockGithub.request).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ base_ref: "main" }));
-    const requestArgs = mockGithub.request.mock.calls[0][1];
-    expect(requestArgs.customInstructions).toBeUndefined();
+    expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", expect.objectContaining({ owner: "test-owner", repo: "test-repo", issue_number: 42 }));
   });
 });

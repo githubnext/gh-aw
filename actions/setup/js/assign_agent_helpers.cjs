@@ -15,7 +15,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @type {Record<string, string[]>}
  */
 const AGENT_LOGIN_NAMES = {
-  copilot: ["copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"],
+  copilot: ["copilot-swe-agent[bot]", "copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"],
 };
 
 /**
@@ -111,45 +111,20 @@ async function getAvailableAgentLogins(owner, repo, issueNumber = null, githubCl
 async function validateAssigneeAlias(owner, repo, assignee, issueNumber, githubClient) {
   const parsedIssueNumber = Number(issueNumber);
   const hasValidIssueNumber = Number.isInteger(parsedIssueNumber) && parsedIssueNumber > 0;
-  const hasIssueScopedRequest = typeof githubClient?.request === "function";
-
-  if (issueNumber && hasValidIssueNumber && hasIssueScopedRequest) {
-    core.info(`Checking assignee alias ${assignee} via issue-scoped endpoint for ${owner}/${repo}#${parsedIssueNumber}`);
-    try {
-      const issueScopedResponse = await githubClient.request("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
-        owner,
-        repo,
-        issue_number: parsedIssueNumber,
-        assignee,
-      });
-      const issueScopedStatus = issueScopedResponse && typeof issueScopedResponse === "object" && "status" in issueScopedResponse ? Number(issueScopedResponse.status) : undefined;
-      if (issueScopedStatus !== undefined && Number.isInteger(issueScopedStatus) && issueScopedStatus >= 200 && issueScopedStatus < 300) {
-        core.info(`Assignee alias ${assignee} is assignable via issue-scoped check`);
-        return;
-      }
-      core.info(`Issue-scoped assignee check returned unexpected response for ${assignee} (status ${issueScopedStatus ?? "unknown"}); falling back to repository-scoped check`);
-    } catch (e) {
-      const status = e && typeof e === "object" && "status" in e ? e.status : undefined;
-      // Some coding-agent bot aliases can return 404 on issue-scoped checks even when
-      // assignment may still succeed; use repository-scoped endpoint as fallback.
-      if (status !== 404 && status !== 422) {
-        core.info(`Issue-scoped assignee check failed for ${assignee} with status ${status ?? "unknown"}: ${getErrorMessage(e)}`);
-        throw e;
-      }
-      core.info(`Issue-scoped assignee check returned ${status} for ${assignee}; falling back to repository-scoped check`);
-    }
-  } else if (issueNumber && !hasValidIssueNumber) {
-    core.info(`Skipping issue-scoped assignee check for ${assignee}: invalid issue number ${String(issueNumber)}`);
-  } else if (issueNumber && !hasIssueScopedRequest) {
-    core.info(`Skipping issue-scoped assignee check for ${assignee}: github client does not support request()`);
+  if (!hasValidIssueNumber) {
+    throw new Error(`Invalid issue number for assignee check: ${String(issueNumber)}`);
   }
-  core.info(`Checking assignee alias ${assignee} via repository-scoped endpoint for ${owner}/${repo}`);
-  await githubClient.rest.issues.checkUserCanBeAssigned({
+  if (typeof githubClient?.request !== "function") {
+    throw new Error("GitHub client does not support request()");
+  }
+  core.info(`Checking assignee alias ${assignee} via issue-scoped endpoint for ${owner}/${repo}#${parsedIssueNumber}`);
+  await githubClient.request("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
     owner,
     repo,
+    issue_number: parsedIssueNumber,
     assignee,
   });
-  core.info(`Assignee alias ${assignee} is assignable via repository-scoped check`);
+  core.info(`Assignee alias ${assignee} is assignable via issue-scoped check`);
 }
 
 /**
@@ -199,7 +174,7 @@ async function getAssignableBots(owner, repo, githubClient = github) {
  * @param {string} agentName - Agent name (copilot)
  * @param {number|string|null} [issueNumber] - Optional issue/PR number for issue-scoped assignability check
  * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
- * @returns {Promise<string|null>} Agent ID or null if not found
+ * @returns {Promise<string|null>} Agent login or null if not found
  */
 async function findAgent(owner, repo, agentName, issueNumber = null, githubClient = github) {
   const loginNames = getAgentLogins(agentName);
@@ -233,14 +208,8 @@ async function findAgent(owner, repo, agentName, issueNumber = null, githubClien
       core.info(`Assignee alias ${loginName} was not assignable: ${errorMessage}`);
       continue;
     }
-    // Alias confirmed assignable — resolve the user ID separately
-    try {
-      const { data: agentUser } = await githubClient.rest.users.getByUsername({ username: loginName });
-      core.info(`Resolved ${agentName} agent via assignee alias ${loginName}`);
-      return String(agentUser.id);
-    } catch (lookupError) {
-      core.warning(`Alias ${loginName} is assignable but user lookup failed: ${getErrorMessage(lookupError)}`);
-    }
+    core.info(`Resolved ${agentName} agent via assignee alias ${loginName}`);
+    return loginName;
   }
 
   const bots = await getAssignableBots(owner, repo, githubClient);
@@ -340,7 +309,7 @@ async function getPullRequestDetails(owner, repo, pullNumber, githubClient = git
 /**
  * Start an agent task for issue or pull request context using REST
  * @param {string} assignableId - Synthetic target ID in format owner/repo#issue:N or owner/repo#pull:N
- * @param {string} agentId - Agent login name
+ * @param {string} agentLogin - Agent login name
  * @param {Array<{id: string, login: string}>} currentAssignees - List of current assignees with id and login
  * @param {string} agentName - Agent name for error messages
  * @param {string[]|null} allowedAgents - Optional list of allowed agent names. If provided, filters out non-allowed agents from current assignees.
@@ -355,7 +324,7 @@ async function getPullRequestDetails(owner, repo, pullNumber, githubClient = git
  */
 async function assignAgentToIssue(
   assignableId,
-  agentId,
+  agentLogin,
   currentAssignees,
   agentName,
   allowedAgents = null,
@@ -398,103 +367,25 @@ async function assignAgentToIssue(
     core.error(`Invalid assignment context: ${assignableId}`);
     return false;
   }
-  const sourceOwner = taskContext.owner;
-  const sourceRepo = taskContext.repo;
-  const itemType = taskContext.type === "pull" ? "pull request" : "issue";
-  const itemNumber = String(taskContext.number);
-  const sourceUrl = `https://github.com/${sourceOwner}/${sourceRepo}/${itemType === "pull request" ? "pull" : "issues"}/${itemNumber}`;
-  const targetRepoSlug = pullRequestRepoSlug || `${sourceOwner}/${sourceRepo}`;
-  const targetParts = targetRepoSlug.split("/");
-  if (targetParts.length !== 2) {
-    core.error(`Invalid target repository slug: ${targetRepoSlug}`);
+  const targetOwner = taskContext.owner;
+  const targetRepo = taskContext.repo;
+  const issueNumber = Number(taskContext.number);
+  if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
+    core.error(`Invalid assignment issue number: ${String(taskContext.number)}`);
     return false;
   }
-  const targetOwner = targetParts[0];
-  const targetRepo = targetParts[1];
-  const promptParts = [`Start work for ${itemType} ${sourceOwner}/${sourceRepo}#${itemNumber}.`, `Use this as the primary context: ${sourceUrl}`];
-  if (targetRepoSlug !== `${sourceOwner}/${sourceRepo}`) promptParts.push(`Create the branch and pull request in ${targetRepoSlug}.`);
-  if (customAgent) {
-    core.warning(`customAgent is not a dedicated REST parameter; it will be included as prompt context. If the agent runner does not parse this field, the custom agent selection may be ignored.`);
-    promptParts.push(`Custom agent: ${customAgent}`);
-  }
-  if (customInstructions) promptParts.push(`Additional instructions:\n${customInstructions}`);
-  const prompt = promptParts.join("\n\n");
 
   try {
-    core.info("Starting agent task via REST API");
-    const response = await githubClient.request("POST /agents/repos/{owner}/{repo}/tasks", {
+    core.info(`Assigning via issues assignees REST API with login: ${agentLogin}`);
+    await githubClient.request("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", {
       owner: targetOwner,
       repo: targetRepo,
-      prompt,
-      create_pull_request: true,
-      ...(model ? { model } : {}),
-      ...(baseBranch ? { base_ref: baseBranch } : {}),
-      headers: { "X-GitHub-Api-Version": "2026-03-10" },
+      issue_number: issueNumber,
+      assignees: [agentLogin],
     });
-    if (response?.data?.id) return true;
-    core.error("Unexpected response from GitHub API");
-    return false;
+    return true;
   } catch (error) {
     const errorMessage = getErrorMessage(error);
-
-    const err = /** @type {any} */ error;
-    const is502Error = err?.response?.status === 502 || errorMessage.includes("502 Bad Gateway");
-
-    if (is502Error) {
-      core.warning(`Received 502 error from cloud gateway during agent task creation, but task may have been created`);
-      core.info(`502 error details logged for troubleshooting`);
-
-      try {
-        if (error && typeof error === "object") {
-          const details = {
-            ...(err.errors && { errors: err.errors }),
-            ...(err.response && { response: err.response }),
-            ...(err.data && { data: err.data }),
-          };
-          const serialized = JSON.stringify(details, null, 2);
-          if (serialized !== "{}") {
-            core.info("502 error details (for troubleshooting):");
-            serialized
-              .split("\n")
-              .filter(line => line.trim())
-              .forEach(line => core.info(line));
-          }
-        }
-      } catch (loggingErr) {
-        const loggingErrMsg = loggingErr instanceof Error ? loggingErr.message : String(loggingErr);
-        core.debug(`Failed to serialize 502 error details: ${loggingErrMsg}`);
-      }
-
-      core.info(`Treating 502 error as success - agent task likely created`);
-      return true;
-    }
-
-    // Debug: surface the raw REST error structure for troubleshooting fine-grained permission issues
-    try {
-      core.debug(`Raw REST error message: ${errorMessage}`);
-      if (error && typeof error === "object") {
-        const details = {
-          ...(err.errors && { errors: err.errors }),
-          ...(err.response && { response: err.response }),
-          ...(err.data && { data: err.data }),
-        };
-        if (Array.isArray(err.errors)) {
-          details.compactMessages = err.errors.map(e => e.message).filter(Boolean);
-        }
-        const serialized = JSON.stringify(details, null, 2);
-        if (serialized !== "{}") {
-          core.debug(`Raw REST error details: ${serialized}`);
-          core.error("Raw REST error details (for troubleshooting):");
-          serialized
-            .split("\n")
-            .filter(line => line.trim())
-            .forEach(line => core.error(line));
-        }
-      }
-    } catch (loggingErr) {
-      const loggingErrMsg = loggingErr instanceof Error ? loggingErr.message : String(loggingErr);
-      core.debug(`Failed to serialize REST error details: ${loggingErrMsg}`);
-    }
 
     if (
       errorMessage.includes("Bad credentials") ||
@@ -518,25 +409,20 @@ async function assignAgentToIssue(
 function logPermissionError(agentName) {
   core.error(`Failed to assign ${agentName}: Insufficient permissions`);
   core.error("");
-  core.error("Assigning Copilot coding agent requires:");
+  core.error("Assigning Copilot coding agent requires issues assignment permissions:");
   core.error("  1. Repository permissions:");
-  core.error("     - actions: write");
-  core.error("     - contents: write");
-  core.error("     - agent-tasks: write");
+  core.error("     - issues: write");
   core.error("");
-  core.error("  2. A fine-grained PAT or GitHub App user token with agent-tasks: write");
-  core.error("     (Installation tokens are not supported for agent task creation)");
+  core.error("  2. A token with permission to assign users to issues");
   core.error("");
   core.error("  3. Repository settings:");
-  core.error("     - Actions must have write permissions");
-  core.error("     - Go to: Settings > Actions > General > Workflow permissions");
-  core.error("     - Select: 'Read and write permissions'");
+  core.error("     - Ensure assignee has access to the repository");
   core.error("");
   core.error("  4. Organization/Enterprise settings and Copilot policy:");
   core.error("     - Check if your org restricts bot assignments");
   core.error("     - Verify Copilot is enabled for your repository");
   core.error("");
-  core.info("For more information, see: https://docs.github.com/en/rest/agent-tasks/agent-tasks?apiVersion=2026-03-10#start-a-task");
+  core.info("For more information, see: https://docs.github.com/en/rest/issues/assignees");
 }
 
 /**
@@ -551,24 +437,21 @@ Assigning Copilot coding agent requires **ALL** of these permissions:
 
 \`\`\`yaml
 permissions:
-  actions: write
-  contents: write
-  agent-tasks: write
+  issues: write
 \`\`\`
 
 **Token capability note:**
-- Current token lacks permission for \`POST /agents/repos/{owner}/{repo}/tasks\`.
-- Agent task creation requires a fine-grained PAT or GitHub App user token with **Agent tasks: read and write**.
-- GitHub App installation access tokens are not supported for this endpoint.
+- Current token lacks permission for \`POST /repos/{owner}/{repo}/issues/{issue_number}/assignees\`.
+- Token must be able to assign users to issues in the target repository.
 
 **Recommended remediation paths:**
-1. Use a fine-grained PAT with repository access and **Agent tasks (read/write)**.
-2. Use a GitHub App **user access token** (not installation token) with Agent tasks permission.
-3. Verify Copilot coding agent is enabled for the repository and organization policy allows task creation.
+1. Use a token with repository **Issues: write** permission.
+2. Ensure repository settings allow assignee updates.
+3. Verify Copilot coding agent is enabled for the repository and organization policy allows bot assignments.
 
-**Why this failed:** The token could not create an agent task via the REST API.
+**Why this failed:** The token could not update issue assignees via the REST API.
 
-📖 Reference: https://docs.github.com/en/rest/agent-tasks/agent-tasks?apiVersion=2026-03-10#start-a-task
+📖 Reference: https://docs.github.com/en/rest/issues/assignees
 `;
 }
 
@@ -596,7 +479,7 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
     if (!agentId) {
       return { success: false, error: `${agentName} coding agent is not available for this repository` };
     }
-    core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+    core.info(`Found ${agentName} coding agent (login: ${agentId})`);
 
     // Get issue details and current assignees via REST
     core.info("Getting issue details...");
@@ -609,7 +492,7 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
 
     // Check if agent is already assigned
     const knownLogins = getAgentLogins(agentName);
-    if (issueDetails.currentAssignees.some(a => a.id === agentId || knownLogins.includes(a.login))) {
+    if (issueDetails.currentAssignees.some(a => a.login === agentId || knownLogins.includes(a.login))) {
       core.info(`${agentName} is already assigned to issue #${issueNumber}`);
       return { success: true };
     }
