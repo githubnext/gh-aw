@@ -67,6 +67,14 @@ type runContentExpressionScan struct {
 	hasDisallowed bool
 }
 
+// mayContainInlineExpression is a cheap zero-false-negative precheck for
+// GitHub Actions inline expressions. It intentionally allows false positives:
+// callers still apply InlineExpressionPattern before classifying expressions.
+func mayContainInlineExpression(s string) bool {
+	_, rest, found := strings.Cut(s, "${{")
+	return found && strings.Contains(rest, "}}")
+}
+
 func findRunValue(keyPart string) (string, bool) {
 	loc := runKeyPattern.FindStringIndex(keyPart)
 	if loc == nil {
@@ -156,13 +164,13 @@ func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regex
 // user-controlled expressions and any non-allowlisted expressions. This avoids
 // the duplicate YAML walk used by the skipValidation fast path.
 func scanRunContentExpressions(yamlContent string) runContentExpressionScan {
-	if !strings.Contains(yamlContent, "${{") {
+	if !mayContainInlineExpression(yamlContent) {
 		return runContentExpressionScan{}
 	}
 
 	var scan runContentExpressionScan
 	walkRunBlockLines(yamlContent, func(line string) bool {
-		if !strings.Contains(line, "${{") {
+		if !mayContainInlineExpression(line) {
 			return false
 		}
 
