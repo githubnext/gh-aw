@@ -21,12 +21,12 @@ describe("upload_assets.cjs", () => {
   let uploadAssetsScript;
   let mockExec;
   let tempBase;
-  let tempFilePath;
+  let cwdArtifacts;
 
   const getAssetsDir = () => path.join(tempBase, "safeoutputs", "assets");
 
   const setAgentOutput = data => {
-    tempFilePath = path.join(tempBase, "agent_output.json");
+    const tempFilePath = path.join(tempBase, "agent_output.json");
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
     process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
@@ -47,11 +47,19 @@ describe("upload_assets.cjs", () => {
     return { assetPath, sha, size: fileContent.length };
   };
 
+  const trackCwdArtifact = fileName => {
+    const artifactPath = path.join(process.cwd(), fileName);
+    cwdArtifacts.add(artifactPath);
+    return artifactPath;
+  };
+
+  const isGitCommand = (command, args, subcommand) => command === "git" && Array.isArray(args) && args[0] === subcommand;
+
   /** Configures mockExec so that rev-parse throws (branch missing) and all else succeeds. */
-  const mockBranchMissing = () => {
+  const mockBranchMissing = onExec => {
     mockExec.exec.mockImplementation(async (command, args) => {
-      const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-      if (fullCommand.includes("rev-parse")) throw new Error("Branch does not exist");
+      onExec?.(command, args);
+      if (isGitCommand(command, args, "rev-parse")) throw new Error("Branch does not exist");
       return 0;
     });
   };
@@ -64,6 +72,7 @@ describe("upload_assets.cjs", () => {
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
 
     tempBase = fs.mkdtempSync(path.join("/tmp", "test-gh-aw-"));
+    cwdArtifacts = new Set();
     process.env.GH_AW_ASSETS_DIR = getAssetsDir();
 
     uploadAssetsScript = fs.readFileSync(path.join(__dirname, "upload_assets.cjs"), "utf8");
@@ -74,8 +83,11 @@ describe("upload_assets.cjs", () => {
     if (tempBase && fs.existsSync(tempBase)) {
       fs.rmSync(tempBase, { recursive: true, force: true });
     }
+    for (const artifactPath of cwdArtifacts) {
+      if (fs.existsSync(artifactPath)) fs.unlinkSync(artifactPath);
+    }
+    cwdArtifacts = undefined;
     tempBase = undefined;
-    tempFilePath = undefined;
   });
 
   describe("environment validation", () => {
@@ -129,18 +141,14 @@ describe("upload_assets.cjs", () => {
       });
 
       let orphanBranchCreated = false;
-      mockExec.exec.mockImplementation(async (command, args) => {
-        const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-        if (fullCommand.includes("checkout --orphan")) orphanBranchCreated = true;
-        if (fullCommand.includes("rev-parse")) throw new Error("Branch does not exist");
-        return 0;
+      trackCwdArtifact("test.png");
+      mockBranchMissing((command, args) => {
+        if (isGitCommand(command, args, "checkout") && args[1] === "--orphan") orphanBranchCreated = true;
       });
 
       await executeScript();
       expect(orphanBranchCreated).toBe(true);
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-      if (fs.existsSync(path.join(process.cwd(), "test.png"))) fs.unlinkSync(path.join(process.cwd(), "test.png"));
-      if (fs.existsSync(assetPath)) fs.unlinkSync(assetPath);
     });
 
     it("should fail when trying to create orphaned branch without 'assets/' prefix", async () => {
@@ -154,18 +162,14 @@ describe("upload_assets.cjs", () => {
       });
 
       let orphanBranchCreated = false;
-      mockExec.exec.mockImplementation(async (command, args) => {
-        const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-        if (fullCommand.includes("checkout --orphan")) orphanBranchCreated = true;
-        if (fullCommand.includes("rev-parse")) throw new Error("Branch does not exist");
-        return 0;
+      mockBranchMissing((command, args) => {
+        if (isGitCommand(command, args, "checkout") && args[1] === "--orphan") orphanBranchCreated = true;
       });
 
       await executeScript();
       expect(orphanBranchCreated).toBe(false);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("does not start with the required 'assets/' prefix"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("custom/branch-name"));
-      if (fs.existsSync(assetPath)) fs.unlinkSync(assetPath);
     });
 
     it("should allow using existing branch regardless of prefix", async () => {
@@ -180,10 +184,10 @@ describe("upload_assets.cjs", () => {
 
       let orphanBranchCreated = false;
       let existingBranchCheckedOut = false;
+      trackCwdArtifact("test.png");
       mockExec.exec.mockImplementation(async (command, args) => {
-        const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-        if (fullCommand.includes("checkout --orphan")) orphanBranchCreated = true;
-        if (fullCommand.includes("checkout -B")) existingBranchCheckedOut = true;
+        if (isGitCommand(command, args, "checkout") && args[1] === "--orphan") orphanBranchCreated = true;
+        if (isGitCommand(command, args, "checkout") && args[1] === "-B") existingBranchCheckedOut = true;
         return 0; // rev-parse succeeds (branch exists on origin)
       });
 
@@ -191,8 +195,6 @@ describe("upload_assets.cjs", () => {
       expect(orphanBranchCreated).toBe(false);
       expect(existingBranchCheckedOut).toBe(true);
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-      if (fs.existsSync(path.join(process.cwd(), "test.png"))) fs.unlinkSync(path.join(process.cwd(), "test.png"));
-      if (fs.existsSync(assetPath)) fs.unlinkSync(assetPath);
     });
   });
 
@@ -243,6 +245,7 @@ describe("upload_assets.cjs", () => {
           { type: "upload_asset", fileName: "missing.png", sha: missingSha, size: 7, targetFileName: "missing-uploaded.png", url: "https://example.com/missing.png" },
         ],
       });
+      trackCwdArtifact("present-uploaded.png");
       mockBranchMissing();
 
       await executeScript();
@@ -251,9 +254,6 @@ describe("upload_assets.cjs", () => {
       const uploadCountCall = mockCore.setOutput.mock.calls.find(call => call[0] === "upload_count");
       expect(uploadCountCall).toBeDefined();
       if (uploadCountCall) expect(uploadCountCall[1]).toBe("1");
-
-      if (fs.existsSync(presentPath)) fs.unlinkSync(presentPath);
-      if (fs.existsSync(path.join(process.cwd(), "present-uploaded.png"))) fs.unlinkSync(path.join(process.cwd(), "present-uploaded.png"));
     });
 
     it("should fail when all declared assets are missing", async () => {
@@ -268,7 +268,7 @@ describe("upload_assets.cjs", () => {
       mockBranchMissing();
 
       await executeScript();
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("missing"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("All 1 declared assets were missing"));
     });
   });
 
@@ -284,18 +284,14 @@ describe("upload_assets.cjs", () => {
       });
 
       let pushCalled = false;
-      mockExec.exec.mockImplementation(async (command, args) => {
-        const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-        if (fullCommand.includes("push")) pushCalled = true;
-        if (fullCommand.includes("rev-parse")) throw new Error("Branch does not exist");
-        return 0;
+      trackCwdArtifact("staged-test.png");
+      mockBranchMissing((command, args) => {
+        if (isGitCommand(command, args, "push")) pushCalled = true;
       });
 
       await executeScript();
       expect(pushCalled).toBe(false);
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-      if (fs.existsSync(path.join(process.cwd(), "staged-test.png"))) fs.unlinkSync(path.join(process.cwd(), "staged-test.png"));
-      if (fs.existsSync(assetPath)) fs.unlinkSync(assetPath);
     });
   });
 
@@ -311,11 +307,9 @@ describe("upload_assets.cjs", () => {
       });
 
       let gitCheckoutCalled = false;
-      mockExec.exec.mockImplementation(async (command, args) => {
-        const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-        if (fullCommand.includes("checkout")) gitCheckoutCalled = true;
-        if (fullCommand.includes("rev-parse")) throw new Error("Branch does not exist");
-        return 0;
+      trackCwdArtifact("test.png");
+      mockBranchMissing((command, args) => {
+        if (isGitCommand(command, args, "checkout")) gitCheckoutCalled = true;
       });
 
       await executeScript();
@@ -333,8 +327,6 @@ describe("upload_assets.cjs", () => {
         expect(commitMessage).toContain("[skip-ci]");
         expect(commitMessage).toContain("asset(s)");
       }
-      if (fs.existsSync(assetPath)) fs.unlinkSync(assetPath);
-      if (fs.existsSync(path.join(process.cwd(), "test.png"))) fs.unlinkSync(path.join(process.cwd(), "test.png"));
     });
   });
 
@@ -346,6 +338,7 @@ describe("upload_assets.cjs", () => {
       process.env.GH_AW_ASSETS_DIR = customAssetsDir;
       const { sha, size } = makeAsset(customAssetsDir, "chart.png", "chart content");
       const targetFile = "chart-uploaded.png";
+      trackCwdArtifact(targetFile);
       setAgentOutput({
         items: [{ type: "upload_asset", fileName: "chart.png", sha, size, targetFileName: targetFile, url: "https://example.com/chart.png" }],
       });
@@ -359,7 +352,6 @@ describe("upload_assets.cjs", () => {
         if (uploadCountCall) expect(uploadCountCall[1]).toBe("1");
       } finally {
         if (fs.existsSync(customAssetsDir)) fs.rmSync(customAssetsDir, { recursive: true, force: true });
-        if (fs.existsSync(path.join(process.cwd(), targetFile))) fs.unlinkSync(path.join(process.cwd(), targetFile));
       }
     });
   });

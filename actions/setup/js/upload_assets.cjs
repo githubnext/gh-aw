@@ -79,7 +79,8 @@ async function main() {
   }
 
   // Find all upload-asset items
-  const uploadItems = /** @type {UploadAssetItem[]} */ result.items.filter(item => item.type === "upload_asset");
+  /** @type {UploadAssetItem[]} */
+  const uploadItems = result.items.filter(item => item.type === "upload_asset");
 
   if (uploadItems.length === 0) {
     core.info("No upload-asset items found in agent output");
