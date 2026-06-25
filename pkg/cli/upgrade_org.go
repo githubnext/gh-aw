@@ -10,16 +10,19 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var runUpgradeForTargetRepoFn = runUpgradeForTargetRepo
 var searchOrgAnyWorkflowReposFn = searchOrgAnyWorkflowRepos
+var createIssueForUpgradeOrgRepoFn = createIssueForUpgradeOrgRepo
 
 // runUpgradeForOrg runs the upgrade command across all repositories in an
 // organization that have agentic workflow files. Without --create-pull-request
-// it prints a dry-run preview; with --create-pull-request it checks out each
-// repository, runs the upgrade, and opens a pull request.
-func runUpgradeForOrg(ctx context.Context, org string, repoGlobs []string, opts upgradeOptions, createPR bool, verbose bool) error {
+// or --create-issue it prints a dry-run preview; with --create-pull-request it
+// checks out each repository, runs the upgrade, and opens a pull request; with
+// --create-issue it opens a GitHub issue in each repository.
+func runUpgradeForOrg(ctx context.Context, org string, repoGlobs []string, opts upgradeOptions, createPR bool, createIssue bool, verbose bool) error {
 	if strings.TrimSpace(org) == "" {
 		return errors.New("--org cannot be empty")
 	}
@@ -44,10 +47,22 @@ func runUpgradeForOrg(ctx context.Context, org string, repoGlobs []string, opts 
 		return nil
 	}
 
-	if !createPR {
+	if !createPR && !createIssue {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dry-run preview of upgrade pull requests:"))
 		for _, repo := range repos {
 			fmt.Fprintf(os.Stderr, "- %s\n", repo)
+		}
+		return nil
+	}
+
+	if createIssue {
+		for _, repo := range repos {
+			if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil && verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", repo, err)))
+			}
+			if err := createIssueForUpgradeOrgRepoFn(ctx, repo, verbose); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -124,4 +139,29 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 func searchOrgAnyWorkflowRepos(ctx context.Context, org string, verbose bool) ([]string, error) {
 	query := fmt.Sprintf(`org:%s path:.github/workflows extension:md`, org)
 	return searchOrgReposByQuery(ctx, query, verbose)
+}
+
+// createIssueForUpgradeOrgRepo opens a GitHub issue in the target repository
+// to notify maintainers that agentic workflow upgrades are available. The issue
+// prompts them to run gh aw upgrade locally to apply codemods, update action
+// versions, and recompile workflows.
+func createIssueForUpgradeOrgRepo(ctx context.Context, repo string, verbose bool) error {
+	title := "Upgrade agentic workflows"
+	body := "Agentic workflow files detected in this repository may have upgrades available.\n\n" +
+		"Run `gh aw upgrade` to apply the latest codemods, update GitHub Actions versions, and recompile all workflows.\n"
+
+	endpoint := fmt.Sprintf("/repos/%s/issues", repo)
+	_, err := workflow.RunGHContext(ctx, "Creating issue...",
+		"api",
+		"--method", "POST",
+		endpoint,
+		"-f", "title="+title,
+		"-f", "body="+body,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create issue in %s: %w", repo, err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created issue in "+repo))
+	return nil
 }
