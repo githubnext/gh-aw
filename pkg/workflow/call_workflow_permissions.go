@@ -61,6 +61,13 @@ func findUncoveredWorkerPermissions(caller, worker *Permissions) []string {
 
 // extractJobPermissionsFromParsedWorkflow extracts and merges all job-level permissions
 // from a parsed GitHub Actions workflow map. Returns the union of all jobs' permissions.
+//
+// Limitation: only explicit per-job permissions blocks are examined. Jobs that omit
+// a permissions block inherit from the workflow-level permissions key and are therefore
+// not counted here. If a worker workflow relies on workflow-level permissions inheritance
+// instead of declaring permissions on each job, the returned set may be incomplete and
+// the call-* job could still under-grant permissions at runtime. Workers called via
+// call-workflow should declare explicit per-job permissions to ensure reliable extraction.
 func extractJobPermissionsFromParsedWorkflow(workflow map[string]any) *Permissions {
 	merged := NewPermissions()
 
@@ -108,7 +115,11 @@ func extractJobPermissionsFromParsedWorkflow(workflow map[string]any) *Permissio
 // the caller job always grants at least what the worker requires, preventing GitHub from
 // rejecting the run at startup when the worker requests a level higher than the caller granted.
 //
-// Returns nil when no workflow file is found or no permissions are declared.
+// Returns nil only when no workflow file is found or (for .md sources) when no
+// permissions are present in the frontmatter. For compiled YAML workers the
+// function always returns a non-nil *Permissions (possibly empty) because
+// extractJobPermissionsFromParsedWorkflow initialises a fresh Permissions map
+// regardless of whether any jobs declare a permissions block.
 func extractCallWorkflowPermissions(workflowName, markdownPath string) (*Permissions, error) {
 	fileResult, err := findWorkflowFile(workflowName, markdownPath)
 	if err != nil {

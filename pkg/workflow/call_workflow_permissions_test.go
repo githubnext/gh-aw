@@ -311,7 +311,7 @@ jobs:
 		Permissions: "permissions:\n  contents: write\n  issues: write\n  pull-requests: write",
 		SafeOutputs: &SafeOutputsConfig{
 			CallWorkflow: &CallWorkflowConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: new("1")},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Workflows:            []string{"worker-docs"},
 				WorkflowFiles: map[string]string{
 					"worker-docs": "./.github/workflows/worker-docs.lock.yml",
@@ -364,7 +364,7 @@ permissions:
 		Permissions: "permissions:\n  contents: read\n  issues: write",
 		SafeOutputs: &SafeOutputsConfig{
 			CallWorkflow: &CallWorkflowConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: new("1")},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Workflows:            []string{"worker-e"},
 				WorkflowFiles: map[string]string{
 					"worker-e": "./.github/workflows/worker-e.lock.yml",
@@ -426,7 +426,7 @@ jobs:
 		Permissions: "permissions:\n  contents: read\n  pull-requests: read",
 		SafeOutputs: &SafeOutputsConfig{
 			CallWorkflow: &CallWorkflowConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: new("1")},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Workflows:            []string{"worker-g"},
 				WorkflowFiles: map[string]string{
 					"worker-g": "./.github/workflows/worker-g.lock.yml",
@@ -475,7 +475,7 @@ jobs:
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			CallWorkflow: &CallWorkflowConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: new("1")},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Workflows:            []string{"worker-f"},
 				WorkflowFiles: map[string]string{
 					"worker-f": "./.github/workflows/worker-f.lock.yml",

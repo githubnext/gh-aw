@@ -313,18 +313,15 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 				// own declared permissions.
 				compilerSafeOutputJobsLog.Printf("Could not extract worker permissions for call-workflow job '%s' (falling back to caller-only permissions): %v", jobName, permErr)
 			} else if workerPerms != nil {
-				// Merge worker permissions into a clone of the caller's permissions to
-				// form the effective permissions for the call-workflow job. Worker scopes
-				// that the caller did not declare are automatically added, preventing
-				// GitHub's startup_failure when the worker requires more than the caller
-				// originally declared. Start from an empty base when the caller declares
-				// no permissions of its own.
-				var merged *Permissions
-				if callerPerms != nil {
-					merged = callerPerms.Clone()
-				} else {
-					merged = NewPermissions()
-				}
+				// Compute the union by merging caller and worker permissions into a
+				// fresh map-based Permissions. Starting from a blank slate (rather
+				// than a clone of callerPerms) ensures shorthand values like
+				// "read-all" are correctly expanded before the worker's explicit
+				// scopes are merged on top — cloning a shorthand Permissions and then
+				// merging a map into it would clear the shorthand field without first
+				// expanding it, silently dropping the caller's baseline grant.
+				merged := NewPermissions()
+				merged.Merge(callerPerms)
 				merged.Merge(workerPerms)
 				effectivePerms = merged
 				compilerSafeOutputJobsLog.Printf("Merged caller and worker permissions for call-workflow job '%s'", jobName)
