@@ -26,6 +26,16 @@ import (
 var defaultBranchCache sync.Map
 var branchCommitCache sync.Map
 
+type repoBranchKey struct {
+	repo   string
+	branch string
+}
+
+func clearUpdateResolutionCaches() {
+	defaultBranchCache = sync.Map{}
+	branchCommitCache = sync.Map{}
+}
+
 // UpdateWorkflowsOptions configures workflow update behavior.
 type UpdateWorkflowsOptions struct {
 	WorkflowNames          []string
@@ -46,6 +56,7 @@ type UpdateWorkflowsOptions struct {
 
 // UpdateWorkflows updates workflows from their source repositories
 func UpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error {
+	clearUpdateResolutionCaches()
 	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, noMerge=%v, noCompile=%v, noRedirect=%v, disableSecurityScanner=%v, coolDown=%v", opts.WorkflowsDir, opts.WorkflowNames, opts.NoMerge, opts.NoCompile, opts.NoRedirect, opts.DisableSecurityScanner, opts.CoolDown)
 
 	// Use provided workflows directory or default
@@ -297,7 +308,9 @@ func resolveLatestCommitFromDefaultBranch(ctx context.Context, repo, currentSHA 
 
 func getRepoDefaultBranchCached(ctx context.Context, repo string) (string, error) {
 	if cached, ok := defaultBranchCache.Load(repo); ok {
-		return cached.(string), nil
+		if branch, isString := cached.(string); isString {
+			return branch, nil
+		}
 	}
 
 	branch, err := getRepoDefaultBranch(ctx, repo)
@@ -309,9 +322,11 @@ func getRepoDefaultBranchCached(ctx context.Context, repo string) (string, error
 }
 
 func getLatestBranchCommitSHACached(ctx context.Context, repo, branch string) (string, error) {
-	key := repo + "@" + branch
+	key := repoBranchKey{repo: repo, branch: branch}
 	if cached, ok := branchCommitCache.Load(key); ok {
-		return cached.(string), nil
+		if sha, isString := cached.(string); isString {
+			return sha, nil
+		}
 	}
 
 	sha, err := getLatestBranchCommitSHA(ctx, repo, branch)

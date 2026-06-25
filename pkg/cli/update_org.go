@@ -71,6 +71,8 @@ type orgRepoPreview struct {
 }
 
 func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts UpdateWorkflowsOptions, createPR bool, createIssue bool, verbose bool) error {
+	clearUpdateResolutionCaches()
+
 	if strings.TrimSpace(org) == "" {
 		return errors.New("--org cannot be empty")
 	}
