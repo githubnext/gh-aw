@@ -40,6 +40,7 @@ tools:
   - grep -n "yaml:.*" pkg/workflow/compiler_types.go
   - cat pkg/workflow/compiler_types.go
   - cat pkg/workflow/compiler_safe_outputs_config_test.go
+  - cat pkg/workflow/replace_label.go
   - cat pkg/workflow/safe_outputs_validation_config.go
   - cat pkg/workflow/js/safe_outputs_tools.json
   - cat pkg/parser/schemas/main_workflow_schema.json
