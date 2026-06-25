@@ -260,7 +260,7 @@ cat "$(find ${{ github.workspace }}/docs/adr -name "*.md" 2>/dev/null | sort | t
 ```
 
 ### 3c. Check Linked Issues
-Before making any GitHub issue call, check whether the PR body matches `(?i)\b(fixes|closes|resolves)\s+#\d+\b`.
+Before making any GitHub issue call, check whether the PR body matches `(?i)\b(fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s+(?:#\d+\b|https://github\.com/[^/\s]+/[^/\s]+/issues/\d+\b)`.
 
 - If there is **no** match, skip linked-issue lookup and continue.
 - If there **is** a match, use at most one GitHub tool call to fetch the linked issue body and look for ADR content there.
