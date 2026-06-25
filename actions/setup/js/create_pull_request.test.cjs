@@ -3276,16 +3276,15 @@ describe("create_pull_request - copilot assignee on fallback issues", () => {
     expect(global.github.request).not.toHaveBeenCalled();
   });
 
-  it("should strip copilot from REST assignees for fallback issue but assign via REST task when enabled", async () => {
+  it("should strip copilot from REST assignees for fallback issue but assign via issue assignees REST when enabled", async () => {
     process.env.GH_AW_ASSIGN_COPILOT = "true";
 
     // Mock findAgent → getIssueDetails → assignAgentToIssue
-    global.github.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
-    global.github.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 99999 } });
     global.github.rest.issues.get.mockResolvedValueOnce({
       data: { id: 12345, number: 99, assignees: [], html_url: "", title: "", body: "" },
     });
-    global.github.request.mockResolvedValueOnce({ data: { id: "task-123" } });
+    // GET assignability check + POST assignment
+    global.github.request.mockResolvedValueOnce({ status: 204 }).mockResolvedValueOnce({});
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ assignees: ["copilot", "user1"], allow_empty: true });
@@ -3296,10 +3295,10 @@ describe("create_pull_request - copilot assignee on fallback issues", () => {
     expect(issueCall.assignees).not.toContain("copilot");
     expect(issueCall.assignees).toContain("user1");
 
-    // One request for issue-scoped alias validation and one for REST task creation
+    // One request for issue-scoped alias validation and one for REST assignment
     expect(global.github.request).toHaveBeenCalledTimes(2);
     const requestedRoutes = global.github.request.mock.calls.map(([route]) => route);
-    expect(requestedRoutes).toEqual(expect.arrayContaining(["GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", "POST /agents/repos/{owner}/{repo}/tasks"]));
+    expect(requestedRoutes).toEqual(expect.arrayContaining(["GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees"]));
   });
 
   it("should use configured fallback_labels for fallback issues instead of PR labels", async () => {

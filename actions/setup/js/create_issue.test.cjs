@@ -386,16 +386,16 @@ describe("create_issue", () => {
         },
       });
 
-      // Mock assignAgentToIssue (REST: request)
-      mockGithub.request = vi.fn().mockResolvedValue({ data: { id: "task-123" } });
+      // Mock assignAgentToIssue (REST: request — GET assignability check + POST assignment)
+      mockGithub.request = vi.fn().mockResolvedValue({ status: 204 });
 
       const handler = await main({
         assignees: ["copilot"],
       });
       await handler({ title: "Test" });
 
-      // Verify REST task creation was called
-      expect(mockGithub.request).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ owner: expect.any(String), repo: expect.any(String) }));
+      // Verify REST issue assignee mutation was called
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", expect.objectContaining({ owner: expect.any(String), repo: expect.any(String) }));
     });
   });
 
