@@ -40,9 +40,9 @@ Workflow specifications:
   - Version can be tag, branch, or SHA (for remote workflows)
 
 Note: Requires an interactive terminal. Use 'add' for CI/automation environments.
-Note: In GitHub Enterprise repos, shorthand specs resolve on your enterprise host by default.
-      For github/*, githubnext/*, and microsoft/*, shorthand resolves on github.com.
-      Use full https://github.com/... URLs when sourcing other public github.com workflows.
+Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterprise host by default.
+      For github/*, githubnext/*, and microsoft/* sources, shorthand resolves on github.com.
+      Use full https://github.com/... source URLs for other public github.com workflows.
 Note: To create a new workflow from scratch, use the 'new' command instead.`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics                    # Guided setup for repository-root aw.yml package
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/packages/repo-assist # Guided setup for nested aw.yml package
