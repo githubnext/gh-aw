@@ -87,6 +87,7 @@ describe("handle_agent_failure", () => {
       hasDailyAICExceeded: false,
       aiCreditsRateLimitError: false,
       maxAICreditsExceeded: false,
+      hasAssignmentErrors: false,
     };
 
     const cases = [
@@ -103,6 +104,7 @@ describe("handle_agent_failure", () => {
       { flag: "hasMissingSafeOutputs", expected: "[aw] Test Workflow produced no safe outputs" },
       { flag: "hasMissingTool", expected: "[aw] Test Workflow is missing required tool" },
       { flag: "hasMissingData", expected: "[aw] Test Workflow is missing required data" },
+      { flag: "hasAssignmentErrors", expected: "[aw] Test Workflow failed to assign agent" },
     ];
 
     it.each(cases)("returns expected title for isolated $flag", ({ flag, expected }) => {
@@ -1339,8 +1341,9 @@ describe("handle_agent_failure", () => {
         expect(result).toContain("Issue #42 (agent: copilot): Bad credentials");
         expect(result).toContain("PR #7 (agent: copilot): copilot coding agent is not available for this repository");
         expect(result).toContain("GH_AW_AGENT_TOKEN");
-        expect(result).toContain("copilot-requests: write");
-        expect(result).toContain("https://github.github.com/gh-aw/reference/engines/#github-copilot-default");
+        expect(result).toContain("Agent tasks: read and write");
+        expect(result).not.toContain("copilot-requests: write");
+        expect(result).toContain("https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication");
       });
     });
 
