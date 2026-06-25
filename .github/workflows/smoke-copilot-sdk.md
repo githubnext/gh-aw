@@ -33,7 +33,7 @@ safe-outputs:
     labels: [automation, testing]
 timeout-minutes: 10
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Test: Copilot SDK Engine Validation

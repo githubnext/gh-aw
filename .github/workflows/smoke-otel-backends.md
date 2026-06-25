@@ -46,7 +46,7 @@ imports:
   - shared/grafana.md
   - shared/datadog.md
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke OTEL

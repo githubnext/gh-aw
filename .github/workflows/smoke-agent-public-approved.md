@@ -49,7 +49,7 @@ safe-outputs:
     run-failure: "❌ [{workflow_name}]({run_url}) {status}. Check the logs for details."
 timeout-minutes: 10
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Agent: assign-to-agent with agentic-workflows

@@ -51,7 +51,7 @@ safe-outputs:
     run-failure: "❌ [{workflow_name}]({run_url}) failed to validate workflow_call checkout. Check the logs."
 timeout-minutes: 10
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Test: Workflow Call Checkout Validation

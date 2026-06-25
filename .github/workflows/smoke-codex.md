@@ -88,7 +88,7 @@ checkout:
   - fetch-depth: 2
     current: true
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Test: Codex Engine Validation

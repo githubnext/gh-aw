@@ -71,7 +71,7 @@ safe-outputs:
       run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. Antigravity encountered unexpected challenges..."
 timeout-minutes: 10
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Test: Antigravity Engine Validation

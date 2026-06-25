@@ -90,7 +90,7 @@ experiments:
 imports:
   - shared/otlp.md
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Test: Project Operations Validation

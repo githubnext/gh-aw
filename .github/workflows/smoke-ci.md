@@ -71,7 +71,7 @@ safe-outputs:
 timeout-minutes: 5
 strict: true
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 For all events, call the tools in this exact order:

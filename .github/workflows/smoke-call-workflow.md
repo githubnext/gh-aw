@@ -34,7 +34,7 @@ imports:
 tools:
   cli-proxy: true
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Test: Call Workflow Orchestrator

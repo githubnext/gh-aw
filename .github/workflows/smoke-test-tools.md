@@ -52,7 +52,7 @@ timeout-minutes: 5
 imports:
   - shared/otlp.md
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Test: Agent Container Tools

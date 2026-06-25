@@ -57,7 +57,7 @@ safe-outputs:
       run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. OpenCode encountered unexpected challenges..."
 timeout-minutes: 10
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Test: OpenCode Engine Validation

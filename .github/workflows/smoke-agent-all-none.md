@@ -42,7 +42,7 @@ timeout-minutes: 10
 imports:
   - shared/otlp.md
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Guard Policy Smoke Test: all/none (most permissive)

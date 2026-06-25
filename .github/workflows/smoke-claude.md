@@ -132,7 +132,7 @@ safe-outputs:
           return { success: true, channel: targetChannel, message: text };
 timeout-minutes: 10
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Test: Claude Engine Validation.

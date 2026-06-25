@@ -55,7 +55,7 @@ safe-outputs:
       run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. Crush encountered unexpected challenges..."
 timeout-minutes: 15
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Test: Crush Engine Validation

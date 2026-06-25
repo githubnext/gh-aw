@@ -39,7 +39,7 @@ safe-outputs:
   noop:
 timeout-minutes: 5
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Test: Workflow Call with Inputs

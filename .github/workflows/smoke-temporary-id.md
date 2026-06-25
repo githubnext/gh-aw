@@ -68,7 +68,7 @@ experiments:
     analysis_type: t_test
     tags: [cost-efficiency, sub-agents, smoke-tests]
 features:
-  gh-aw-detection: true
+  gh-aw-detection: false
 ---
 
 # Smoke Test: Temporary ID Functionality
