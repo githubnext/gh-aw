@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -623,6 +624,24 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 	assert.Contains(t, stderrOutput, "guard policy fields")
 	assert.Contains(t, stderrOutput, "will be ignored")
 	assert.Equal(t, 1, compiler.GetWarningCount())
+}
+
+func TestValidateGitHubGuardPolicyLockdownWarningWithoutCompiler(t *testing.T) {
+	tools := NewTools(map[string]any{
+		"github": map[string]any{
+			"lockdown":      true,
+			"allowed-repos": "all",
+			"min-integrity": "approved",
+		},
+	})
+
+	require.NoError(t, validateGitHubGuardPolicy(tools, "test-workflow"))
+
+	stderrOutput := captureStderr(func() {
+		emitGitHubLockdownGuardPolicyWarning(nil, tools, "test-workflow.md")
+	})
+
+	assert.Empty(t, strings.TrimSpace(stderrOutput))
 }
 
 func TestValidateReposScopeWithStringSlice(t *testing.T) {

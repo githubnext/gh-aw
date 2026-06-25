@@ -52,6 +52,9 @@ func hasGitHubGuardPolicyFields(github *GitHubToolConfig) bool {
 		return false
 	}
 
+	// This is a presence check, not a validity check. Explicit but invalid values
+	// (for example an empty string or wrong type injected programmatically) still
+	// count as configured guard-policy fields and are validated later.
 	hasRepos := github.AllowedRepos != nil
 	hasMinIntegrity := github.MinIntegrity != ""
 	hasBlockedUsers := len(github.BlockedUsers) > 0 || github.BlockedUsersExpr != ""
@@ -70,12 +73,13 @@ func emitGitHubLockdownGuardPolicyWarning(compiler *Compiler, tools *Tools, mark
 		return
 	}
 
-	toolsValidationLog.Printf("Emitting lockdown/guard-policy warning for workflow: %s", markdownPath)
-	if compiler != nil {
-		compiler.IncrementWarningCount()
-	} else {
-		toolsValidationLog.Printf("Compiler is nil; warning count not tracked for workflow: %s", markdownPath)
+	if compiler == nil {
+		toolsValidationLog.Printf("Skipping lockdown/guard-policy warning because compiler is nil for workflow: %s", markdownPath)
+		return
 	}
+
+	toolsValidationLog.Printf("Emitting lockdown/guard-policy warning for workflow: %s", markdownPath)
+	compiler.IncrementWarningCount()
 	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", githubLockdownGuardPolicyWarningMessage))
 }
 
