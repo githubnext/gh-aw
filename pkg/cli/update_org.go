@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"slices"
 	"strings"
 	"syscall"
@@ -15,8 +16,8 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -257,83 +258,47 @@ func renderOrgPreviewReport(previewByRepo []orgRepoPreview, applying bool) {
 }
 
 func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
-	workflowsPath := constants.GetWorkflowDir()
-	endpoint := fmt.Sprintf("/repos/%s/contents/%s", repo, workflowsPath)
-	output, err := workflow.RunGHContext(ctx, "Listing workflows...", "api", endpoint)
+	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
-		return orgRepoPreview{}, fmt.Errorf("failed to list workflows: %w", err)
+		return orgRepoPreview{}, fmt.Errorf("--org requires running inside a git repository: %w", err)
 	}
 
-	var entries []struct {
-		Name string `json:"name"`
-		Path string `json:"path"`
-		Type string `json:"type"`
-	}
-	if err := json.Unmarshal(output, &entries); err != nil {
-		return orgRepoPreview{}, fmt.Errorf("failed to parse workflow listing: %w", err)
-	}
-
-	defaultBranch, err := getRepoDefaultBranch(ctx, repo)
+	updatesDir, err := ensureUpdateTargetRepoGitignore(gitRoot)
 	if err != nil {
-		return orgRepoPreview{}, fmt.Errorf("failed to resolve default branch: %w", err)
+		return orgRepoPreview{}, err
 	}
 
-	preview := orgRepoPreview{Repo: repo, Workflows: make([]orgWorkflowPreview, 0, len(entries))}
-	for _, entry := range entries {
-		if entry.Type != "file" || !strings.HasSuffix(entry.Name, ".md") || strings.HasSuffix(entry.Name, ".lock.yml") {
-			continue
-		}
+	checkoutDir := filepath.Join(updatesDir, sanitizeRepoPath(repo))
+	if err := shallowCloneTargetRepo(ctx, repo, checkoutDir); err != nil {
+		return orgRepoPreview{}, err
+	}
 
-		if err := waitForOrgRateLimitFn(ctx, "core", verbose); err != nil {
-			if errors.Is(err, errOrgRateLimitCritical) {
-				orgUpdateLog.Printf("Rate limit critical while previewing %s; stopping workflow scan", repo)
-				break
-			}
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s/%s: %v", repo, entry.Path, err)))
-			}
-		}
+	workflowsDir := filepath.Join(checkoutDir, constants.GetWorkflowDir())
+	workflows, err := findWorkflowsWithSource(workflowsDir, nil, verbose)
+	if err != nil {
+		return orgRepoPreview{}, fmt.Errorf("failed to scan workflows in shallow checkout: %w", err)
+	}
 
-		content, err := downloadWorkflowContentFn(ctx, repo, entry.Path, defaultBranch, verbose)
+	preview := orgRepoPreview{Repo: repo, Workflows: make([]orgWorkflowPreview, 0, len(workflows))}
+	for _, wf := range workflows {
+		sourceSpec, err := parseSourceSpec(wf.SourceSpec)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: failed to download: %v", repo, entry.Path, err)))
-			orgUpdateLog.Printf("Failed to download %s/%s: %v", repo, entry.Path, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: failed to parse source: %v", repo, wf.Path, err)))
+			orgUpdateLog.Printf("Failed to parse source for %s/%s: %v", repo, wf.Path, err)
 			continue
 		}
-		result, err := parser.ExtractFrontmatterFromContent(string(content))
-		if err != nil {
-			// Parsing errors must not abort the run; skip this workflow and continue.
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: failed to parse frontmatter: %v", repo, entry.Path, err)))
-			orgUpdateLog.Printf("Failed to parse frontmatter for %s/%s: %v", repo, entry.Path, err)
-			continue
-		}
-		sourceRaw, ok := result.Frontmatter["source"]
-		if !ok {
-			continue
-		}
-		source, ok := sourceRaw.(string)
-		if !ok || strings.TrimSpace(source) == "" {
-			continue
-		}
-
-		sourceSpec, err := parseSourceSpec(source)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: failed to parse source: %v", repo, entry.Path, err)))
-			orgUpdateLog.Printf("Failed to parse source for %s/%s: %v", repo, entry.Path, err)
-			continue
-		}
-		name := normalizeWorkflowID(entry.Name)
+		name := normalizeWorkflowID(wf.Name)
 		resolved, err := resolveRedirectedUpdateLocation(ctx, name, sourceSpec, opts.AllowMajor, verbose, opts.NoRedirect, opts.CoolDown)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: %v", repo, entry.Path, err)))
-			orgUpdateLog.Printf("Failed to resolve update location for %s/%s: %v", repo, entry.Path, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s/%s: %v", repo, wf.Path, err)))
+			orgUpdateLog.Printf("Failed to resolve update location for %s/%s: %v", repo, wf.Path, err)
 			continue
 		}
 		if resolved.currentRef == resolved.latestRef && len(resolved.redirectHistory) == 0 && !opts.Force {
 			continue
 		}
 
-		editedAt, err := getLatestWorkflowEditTime(ctx, repo, entry.Path)
+		editedAt, err := getLatestWorkflowEditTimeFromCheckout(ctx, checkoutDir, wf.Path)
 		if err == nil {
 			if preview.OldestEdit.IsZero() || editedAt.Before(preview.OldestEdit) {
 				preview.OldestEdit = editedAt
@@ -341,7 +306,7 @@ func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflow
 		}
 		preview.Workflows = append(preview.Workflows, orgWorkflowPreview{
 			Name:       name,
-			Path:       entry.Path,
+			Path:       wf.Path,
 			CurrentRef: resolved.currentRef,
 			LatestRef:  resolved.latestRef,
 			Redirected: len(resolved.redirectHistory) > 0,
@@ -352,27 +317,26 @@ func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflow
 	return preview, nil
 }
 
-func getLatestWorkflowEditTime(ctx context.Context, repo, workflowPath string) (time.Time, error) {
-	endpoint := fmt.Sprintf("/repos/%s/commits?path=%s&per_page=1", repo, url.QueryEscape(workflowPath))
-	output, err := workflow.RunGHContext(ctx, "Fetching workflow history...", "api", endpoint)
+func getLatestWorkflowEditTimeFromCheckout(ctx context.Context, checkoutDir, workflowPath string) (time.Time, error) {
+	relativePath := workflowPath
+	if filepath.IsAbs(workflowPath) {
+		rel, err := filepath.Rel(checkoutDir, workflowPath)
+		if err != nil {
+			return time.Time{}, err
+		}
+		relativePath = rel
+	}
+
+	cmd := exec.CommandContext(ctx, "git", "-C", checkoutDir, "log", "--max-count=1", "--format=%cI", "--", relativePath)
+	output, err := cmd.Output()
 	if err != nil {
 		return time.Time{}, err
 	}
-
-	var commits []struct {
-		Commit struct {
-			Committer struct {
-				Date string `json:"date"`
-			} `json:"committer"`
-		} `json:"commit"`
-	}
-	if err := json.Unmarshal(output, &commits); err != nil {
-		return time.Time{}, err
-	}
-	if len(commits) == 0 || strings.TrimSpace(commits[0].Commit.Committer.Date) == "" {
+	date := strings.TrimSpace(string(output))
+	if date == "" {
 		return time.Time{}, fmt.Errorf("no commit date available for %s", workflowPath)
 	}
-	return time.Parse(time.RFC3339, commits[0].Commit.Committer.Date)
+	return time.Parse(time.RFC3339, date)
 }
 
 func waitForOrgRateLimit(ctx context.Context, resource string, verbose bool) error {

@@ -362,7 +362,7 @@ func shallowCloneTargetRepo(ctx context.Context, repo, destination string) error
 		return fmt.Errorf("failed to shallow clone %s: %w: %s", repo, err, trimmed)
 	}
 
-	sparseArgs := []string{"-C", destination, "sparse-checkout", "set", ".github/workflows", ".github/agents", ".github/aw"}
+	sparseArgs := []string{"-C", destination, "sparse-checkout", "set", ".github"}
 	sparseCmd := exec.CommandContext(ctx, "git", sparseArgs...)
 	output, err = sparseCmd.CombinedOutput()
 	if err != nil {
