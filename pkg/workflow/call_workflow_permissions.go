@@ -3,13 +3,22 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
 var callWorkflowPermissionsLog = logger.New("workflow:call_workflow_permissions")
+
+type callWorkflowPermissionImport struct {
+	permissions *Permissions
+	sourcePath  string
+	sourceKind  string
+}
 
 // permissionLevelRank maps a permission level to a comparable rank where a higher
 // number grants strictly more access (none < read < write). Used to determine
@@ -121,6 +130,14 @@ func extractJobPermissionsFromParsedWorkflow(workflow map[string]any) *Permissio
 // extractJobPermissionsFromParsedWorkflow initialises a fresh Permissions map
 // regardless of whether any jobs declare a permissions block.
 func extractCallWorkflowPermissions(workflowName, markdownPath string) (*Permissions, error) {
+	imported, err := extractCallWorkflowPermissionImport(workflowName, markdownPath)
+	if err != nil || imported == nil {
+		return nil, err
+	}
+	return imported.permissions, nil
+}
+
+func extractCallWorkflowPermissionImport(workflowName, markdownPath string) (*callWorkflowPermissionImport, error) {
 	fileResult, err := findWorkflowFile(workflowName, markdownPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find workflow file for '%s': %w", workflowName, err)
@@ -128,20 +145,67 @@ func extractCallWorkflowPermissions(workflowName, markdownPath string) (*Permiss
 
 	// Priority: .lock.yml > .yml > .md
 	if fileResult.lockExists {
-		return extractPermissionsFromYAMLFile(fileResult.lockPath)
+		perms, err := extractPermissionsFromYAMLFile(fileResult.lockPath)
+		if err != nil {
+			return nil, err
+		}
+		return &callWorkflowPermissionImport{
+			permissions: perms,
+			sourcePath:  fileResult.lockPath,
+			sourceKind:  "compiled",
+		}, nil
 	}
 
 	if fileResult.ymlExists {
-		return extractPermissionsFromYAMLFile(fileResult.ymlPath)
+		perms, err := extractPermissionsFromYAMLFile(fileResult.ymlPath)
+		if err != nil {
+			return nil, err
+		}
+		return &callWorkflowPermissionImport{
+			permissions: perms,
+			sourcePath:  fileResult.ymlPath,
+			sourceKind:  "compiled",
+		}, nil
 	}
 
 	if fileResult.mdExists {
-		return extractPermissionsFromMDFile(fileResult.mdPath)
+		perms, err := extractPermissionsFromMDFile(fileResult.mdPath)
+		if err != nil {
+			return nil, err
+		}
+		return &callWorkflowPermissionImport{
+			permissions: perms,
+			sourcePath:  fileResult.mdPath,
+			sourceKind:  "markdown",
+		}, nil
 	}
 
 	// No file found — return nil so the caller omits the permissions block.
 	callWorkflowPermissionsLog.Printf("No workflow file found for '%s', skipping permissions", workflowName)
 	return nil, nil
+}
+
+func buildCallWorkflowPermissionsComment(workflowName string, imported *callWorkflowPermissionImport) string {
+	if imported == nil || imported.permissions == nil {
+		return ""
+	}
+	if imported.permissions.RenderToYAML() == "" {
+		return ""
+	}
+
+	reviewWhat := "job-level permissions"
+	if imported.sourceKind == "markdown" {
+		reviewWhat = "frontmatter permissions"
+	}
+
+	return strings.Join([]string{
+		fmt.Sprintf("# Imported from called workflow %q because GitHub requires the caller job to grant permissions requested by reusable workflow jobs.", workflowName),
+		fmt.Sprintf("# Review the worker's %s in %s.", reviewWhat, renderWorkflowReviewPath(imported.sourcePath)),
+	}, "\n")
+}
+
+func renderWorkflowReviewPath(sourcePath string) string {
+	return filepath.ToSlash(filepath.Join(".", constants.GetWorkflowDir(), filepath.Base(sourcePath)))
 }
 
 // extractPermissionsFromYAMLFile reads a .lock.yml or .yml workflow file, parses it,
