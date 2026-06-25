@@ -52,6 +52,18 @@ func (e *CrushEngine) GetRequiredSecretNames(workflowData *WorkflowData) []strin
 	return e.GetUniversalRequiredSecretNames(workflowData)
 }
 
+// GetSupportedEnvVarKeys returns the engine.env variable names that the Crush engine
+// supports as defined in the AWF specification. Crush is a multi-provider engine so all
+// provider API keys are valid engine.env overrides.
+func (e *CrushEngine) GetSupportedEnvVarKeys() []string {
+	return []string{
+		constants.CopilotGitHubToken,
+		constants.AnthropicAPIKey,
+		constants.CodexAPIKey,
+		constants.OpenAIAPIKey,
+	}
+}
+
 // GetInstallationSteps returns the GitHub Actions steps needed to install Crush CLI
 func (e *CrushEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	crushLog.Printf("Generating installation steps for Crush engine: workflow=%s", workflowData.Name)

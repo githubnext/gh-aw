@@ -169,10 +169,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 //   - `payload` is forwarded as the raw transport only when the worker declares it
 //     (GitHub Actions rejects undeclared inputs)
 //   - inherits all caller secrets via `secrets: inherit`
-//   - includes a job-level `permissions:` block derived from the CALLER's own
-//     declared permissions (not the worker's). The caller controls its own
-//     permission surface; the compiler validates that the declared permissions
-//     cover what the worker requires and warns if they do not.
+//   - includes a job-level `permissions:` block equal to the union of the
+//     caller's declared permissions and the called worker's required permissions
+//   - adds a help comment explaining why imported worker permissions appear on
+//     the call job and where to review them in the worker workflow source
 //
 // Returns the names of all generated jobs so they can be added to the conclusion
 // job's `needs` list.
@@ -305,14 +305,16 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 		}
 
 		effectivePerms := callerPerms
+		var importedPerms *callWorkflowPermissionImport
+		var permErr error
 		if markdownPath != "" {
-			workerPerms, permErr := extractCallWorkflowPermissions(workflowName, markdownPath)
+			importedPerms, permErr = extractCallWorkflowPermissionImport(workflowName, markdownPath)
 			if permErr != nil {
 				// Non-fatal: log and continue. The worker file may not exist yet (it may be
 				// compiled in the same batch), in which case we fall back to the caller's
 				// own declared permissions.
 				compilerSafeOutputJobsLog.Printf("Could not extract worker permissions for call-workflow job '%s' (falling back to caller-only permissions): %v", jobName, permErr)
-			} else if workerPerms != nil {
+			} else if importedPerms != nil && importedPerms.permissions != nil {
 				// Compute the union by merging caller and worker permissions into a
 				// fresh map-based Permissions. Starting from a blank slate (rather
 				// than a clone of callerPerms) ensures shorthand values like
@@ -322,7 +324,7 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 				// expanding it, silently dropping the caller's baseline grant.
 				merged := NewPermissions()
 				merged.Merge(callerPerms)
-				merged.Merge(workerPerms)
+				merged.Merge(importedPerms.permissions)
 				effectivePerms = merged
 				compilerSafeOutputJobsLog.Printf("Merged caller and worker permissions for call-workflow job '%s'", jobName)
 			}
@@ -331,6 +333,7 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 		if effectivePerms != nil {
 			rendered := effectivePerms.RenderToYAML()
 			if rendered != "" {
+				callJob.PermissionsComment = buildCallWorkflowPermissionsComment(workflowName, importedPerms)
 				callJob.Permissions = rendered
 				compilerSafeOutputJobsLog.Printf("Set permissions on call-workflow job '%s': %s", jobName, rendered)
 			}

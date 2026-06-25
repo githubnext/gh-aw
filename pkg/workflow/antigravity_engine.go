@@ -69,6 +69,14 @@ func (e *AntigravityEngine) GetRequiredSecretNames(workflowData *WorkflowData) [
 	return secrets
 }
 
+// GetSupportedEnvVarKeys returns the engine.env variable names that the Antigravity engine
+// supports as defined in the AWF specification.
+func (e *AntigravityEngine) GetSupportedEnvVarKeys() []string {
+	return []string{
+		constants.AntigravityAPIKey,
+	}
+}
+
 // GetSecretValidationStep returns the secret validation step for the Antigravity engine.
 // Returns an empty step if custom command is specified.
 func (e *AntigravityEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {

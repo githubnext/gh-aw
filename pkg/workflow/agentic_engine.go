@@ -210,6 +210,13 @@ type SecurityProvider interface {
 	// This includes engine-specific auth tokens and the MCP gateway API key when MCP servers are present
 	// Returns: slice of secret names (e.g., ["COPILOT_GITHUB_TOKEN", "MCP_GATEWAY_API_KEY"])
 	GetRequiredSecretNames(workflowData *WorkflowData) []string
+
+	// GetSupportedEnvVarKeys returns the list of engine.env variable names that this engine
+	// explicitly supports as documented in the AWF specification. These keys are allowed to carry
+	// secrets in engine.env without triggering the strict-mode secret-leakage check.
+	// Unlike GetRequiredSecretNames, this list is static and contains only the env var keys
+	// that are purposefully exposed to the engine container via engine.env.
+	GetSupportedEnvVarKeys() []string
 }
 
 // ModelEnvVarProvider is implemented by engines whose CLIs natively read a specific
@@ -362,6 +369,13 @@ func (e *BaseEngine) GetLogFileForParsing() string {
 // GetRequiredSecretNames returns an empty list by default
 // Engines must override this to specify their required secrets
 func (e *BaseEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	return []string{}
+}
+
+// GetSupportedEnvVarKeys returns an empty list by default.
+// Engines should override this to enumerate the engine.env keys they support,
+// as defined in the AWF specification (engine_constants.go).
+func (e *BaseEngine) GetSupportedEnvVarKeys() []string {
 	return []string{}
 }
 

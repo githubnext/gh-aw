@@ -51,6 +51,18 @@ func (e *OpenCodeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []st
 	return e.GetUniversalRequiredSecretNames(workflowData)
 }
 
+// GetSupportedEnvVarKeys returns the engine.env variable names that the OpenCode engine
+// supports as defined in the AWF specification. OpenCode is a multi-provider engine so all
+// provider API keys are valid engine.env overrides.
+func (e *OpenCodeEngine) GetSupportedEnvVarKeys() []string {
+	return []string{
+		constants.CopilotGitHubToken,
+		constants.AnthropicAPIKey,
+		constants.CodexAPIKey,
+		constants.OpenAIAPIKey,
+	}
+}
+
 // GetInstallationSteps returns the GitHub Actions steps needed to install OpenCode CLI
 func (e *OpenCodeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	openCodeLog.Printf("Generating installation steps for OpenCode engine: workflow=%s", workflowData.Name)

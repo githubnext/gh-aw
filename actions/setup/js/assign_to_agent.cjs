@@ -392,6 +392,24 @@ async function main(config = {}) {
     } catch (error) {
       let errorMessage = getErrorMessage(error);
 
+      // When the agent specified an issue_number that turns out to be a PR, skip
+      // silently without posting a comment — error comments on PRs are confusing.
+      if (/** @type {any} */ error.isPullRequest) {
+        core.warning(`Skipping assign_to_agent for #${number}: target is a pull request, not an issue.`);
+        _allResults.push({
+          issue_number: issueNumber,
+          pull_number: pullNumber,
+          agent: agentName,
+          owner: effectiveOwner,
+          repo: effectiveRepo,
+          pull_request_repo: effectivePullRequestRepoSlug,
+          success: false,
+          skipped: true,
+          error: errorMessage,
+        });
+        return { success: false, skipped: true, error: errorMessage };
+      }
+
       const isAuthError = ["Bad credentials", "Not Authenticated", "Resource not accessible", "Insufficient permissions", "requires authentication"].some(msg => errorMessage.includes(msg));
       const isAvailabilityError = errorMessage.includes("coding agent is not available for this repository");
 

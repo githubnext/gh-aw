@@ -85,6 +85,15 @@ func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []strin
 	return append([]string{"CODEX_API_KEY", "OPENAI_API_KEY"}, collectCommonMCPSecrets(workflowData)...)
 }
 
+// GetSupportedEnvVarKeys returns the engine.env variable names that the Codex engine
+// supports as defined in the AWF specification.
+func (e *CodexEngine) GetSupportedEnvVarKeys() []string {
+	return []string{
+		constants.CodexAPIKey,
+		constants.OpenAIAPIKey,
+	}
+}
+
 // GetSecretValidationStep returns the secret validation step for the Codex engine.
 // Returns an empty step if custom command is specified.
 func (e *CodexEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
