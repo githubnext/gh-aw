@@ -25,7 +25,6 @@ max-turns: 100
 engine:
   id: claude
   bare: true
-strict: false
 inlined-imports: true
 imports:
   - shared/gh.md

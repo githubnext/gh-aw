@@ -25,7 +25,6 @@ permissions:
   pull-requests: read
 name: Smoke Codex
 engine: codex
-strict: false
 imports:
   - shared/gh.md
   - shared/reporting-otlp.md

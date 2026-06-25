@@ -663,6 +663,20 @@ func TestValidateEngineEnvSecrets(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "engine.env with COPILOT_PROVIDER_WIRE_API secret is allowed in strict mode (BYOK)",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						"COPILOT_PROVIDER_WIRE_API": "${{ secrets.PROVIDER_WIRE_API }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
 			name: "engine.env with BYOK vars and an unrelated secret still fails in strict mode",
 			frontmatter: map[string]any{
 				"on": "push",

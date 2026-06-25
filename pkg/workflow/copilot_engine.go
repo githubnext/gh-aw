@@ -75,13 +75,9 @@ func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []str
 	copilotLog.Print("Collecting required secrets for Copilot engine")
 	provider := e.ResolveLLMProvider(workflowData)
 	secrets := append([]string{}, llmProviderSecretNames(provider)...)
+	// Always include the BYOK provider keys so that secrets assigned to them via engine.env
+	// pass through the strict-mode validator and FilterEnvForSecrets.
 	secrets = append(secrets,
-		// BYOK provider variables that may carry secrets in engine.env.
-		// Listed unconditionally: checking for their presence in the current workflow's
-		// EngineConfig.Env would add complexity without security benefit, since these
-		// keys only carry secrets when the workflow author explicitly sets them.
-		// Listing them here allows strict-mode validation to recognise them as engine
-		// credentials and lets FilterEnvForSecrets pass their values through to the step.
 		constants.CopilotProviderBaseURL,
 		constants.CopilotProviderAPIKey,
 		constants.CopilotProviderBearerToken,
@@ -121,6 +117,19 @@ func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []str
 
 	copilotLog.Printf("Total required secrets: %d", len(secrets))
 	return secrets
+}
+
+// GetSupportedEnvVarKeys returns the engine.env variable names that the Copilot engine
+// supports as defined in the AWF specification. These cover the primary auth token and
+// all BYOK provider variables that may carry secret values.
+func (e *CopilotEngine) GetSupportedEnvVarKeys() []string {
+	return []string{
+		constants.CopilotGitHubToken,
+		constants.CopilotProviderBaseURL,
+		constants.CopilotProviderAPIKey,
+		constants.CopilotProviderBearerToken,
+		constants.CopilotProviderWireAPI,
+	}
 }
 
 // GetInstallationSteps is implemented in copilot_engine_installation.go
