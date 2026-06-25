@@ -71,6 +71,20 @@ function getAgentName(assignee) {
 }
 
 /**
+ * Parse and validate an issue/PR number for assignee REST endpoints.
+ * @param {number|string|null|undefined} issueNumber
+ * @param {string} contextLabel
+ * @returns {number}
+ */
+function parseIssueNumber(issueNumber, contextLabel) {
+  const parsedIssueNumber = Number(issueNumber);
+  if (!Number.isInteger(parsedIssueNumber) || parsedIssueNumber <= 0) {
+    throw new Error(`Invalid issue number for ${contextLabel}: ${String(issueNumber)} (issue number must be a positive integer)`);
+  }
+  return parsedIssueNumber;
+}
+
+/**
  * Return list of coding agent bot login names that are currently available as assignable actors
  * in this repository, preferring issue-scoped checks when issue/PR context is available
  * and falling back to repository-scoped checks.
@@ -109,13 +123,9 @@ async function getAvailableAgentLogins(owner, repo, issueNumber = null, githubCl
  * @param {Object} githubClient
  */
 async function validateAssigneeAlias(owner, repo, assignee, issueNumber, githubClient) {
-  const parsedIssueNumber = Number(issueNumber);
-  const hasValidIssueNumber = Number.isInteger(parsedIssueNumber) && parsedIssueNumber > 0;
-  if (!hasValidIssueNumber) {
-    throw new Error(`Invalid issue number for assignee check: ${String(issueNumber)}`);
-  }
+  const parsedIssueNumber = parseIssueNumber(issueNumber, "assignee check");
   if (typeof githubClient?.request !== "function") {
-    throw new Error("GitHub client does not support request()");
+    throw new Error("GitHub client does not support request() (REST issue assignee checks require an Octokit client with request())");
   }
   core.info(`Checking assignee alias ${assignee} via issue-scoped endpoint for ${owner}/${repo}#${parsedIssueNumber}`);
   await githubClient.request("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
@@ -369,9 +379,11 @@ async function assignAgentToIssue(
   }
   const targetOwner = taskContext.owner;
   const targetRepo = taskContext.repo;
-  const issueNumber = Number(taskContext.number);
-  if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
-    core.error(`Invalid assignment issue number: ${String(taskContext.number)}`);
+  let issueNumber;
+  try {
+    issueNumber = parseIssueNumber(taskContext.number, "assignment");
+  } catch (e) {
+    core.error(getErrorMessage(e));
     return false;
   }
 
