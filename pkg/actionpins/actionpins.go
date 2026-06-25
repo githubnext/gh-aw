@@ -176,8 +176,8 @@ func buildByRepoIndex(pins []ActionPin) map[string][]ActionPin {
 	for _, pin := range pins {
 		byRepo[pin.Repo] = append(byRepo[pin.Repo], pin)
 	}
-	for _, repoPins := range byRepo {
-		slices.SortFunc(repoPins, func(a, b ActionPin) int {
+	for key := range byRepo {
+		slices.SortFunc(byRepo[key], func(a, b ActionPin) int {
 			v1 := strings.TrimPrefix(a.Version, "v")
 			v2 := strings.TrimPrefix(b.Version, "v")
 			return semverutil.Compare(v2, v1) // descending by semver
