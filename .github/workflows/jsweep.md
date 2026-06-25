@@ -46,7 +46,7 @@ strict: true
 
 sandbox:
   agent:
-    sudo: true
+    sudo: false
 ---
 
 # jsweep - JavaScript Unbloater

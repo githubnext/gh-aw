@@ -154,7 +154,7 @@ features:
 
 sandbox:
   agent:
-    sudo: true
+    sudo: false
 ---
 
 # Smoke Test: Copilot Engine Validation

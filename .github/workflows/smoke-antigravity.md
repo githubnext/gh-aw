@@ -74,7 +74,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: true
+    sudo: false
 ---
 
 # Smoke Test: Antigravity Engine Validation

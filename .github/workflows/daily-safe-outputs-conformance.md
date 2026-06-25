@@ -35,7 +35,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
-    sudo: true
+    sudo: false
 ---
 
 # Daily Safe Outputs Conformance Checker
