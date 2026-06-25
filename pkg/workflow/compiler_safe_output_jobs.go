@@ -317,8 +317,14 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 				// form the effective permissions for the call-workflow job. Worker scopes
 				// that the caller did not declare are automatically added, preventing
 				// GitHub's startup_failure when the worker requires more than the caller
-				// originally declared.
-				merged := callerPerms.Clone()
+				// originally declared. Start from an empty base when the caller declares
+				// no permissions of its own.
+				var merged *Permissions
+				if callerPerms != nil {
+					merged = callerPerms.Clone()
+				} else {
+					merged = NewPermissions()
+				}
 				merged.Merge(workerPerms)
 				effectivePerms = merged
 				compilerSafeOutputJobsLog.Printf("Merged caller and worker permissions for call-workflow job '%s'", jobName)
