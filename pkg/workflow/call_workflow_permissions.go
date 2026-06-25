@@ -205,7 +205,7 @@ func buildCallWorkflowPermissionsComment(workflowName string, imported *callWork
 }
 
 func renderWorkflowReviewPath(sourcePath string) string {
-	return filepath.ToSlash(filepath.Join(".", constants.GetWorkflowDir(), filepath.Base(sourcePath)))
+	return "./" + filepath.ToSlash(filepath.Join(constants.GetWorkflowDir(), filepath.Base(sourcePath)))
 }
 
 // extractPermissionsFromYAMLFile reads a .lock.yml or .yml workflow file, parses it,

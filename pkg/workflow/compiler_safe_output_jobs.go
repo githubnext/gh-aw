@@ -306,8 +306,9 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 
 		effectivePerms := callerPerms
 		var importedPerms *callWorkflowPermissionImport
+		var permErr error
 		if markdownPath != "" {
-			importedPerms, permErr := extractCallWorkflowPermissionImport(workflowName, markdownPath)
+			importedPerms, permErr = extractCallWorkflowPermissionImport(workflowName, markdownPath)
 			if permErr != nil {
 				// Non-fatal: log and continue. The worker file may not exist yet (it may be
 				// compiled in the same batch), in which case we fall back to the caller's
