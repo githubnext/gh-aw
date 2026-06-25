@@ -208,9 +208,9 @@ async function main(config = {}) {
       core.warning(`Bundle file path was provided but file is not present on disk: ${bundleFilePath}; falling back to patch transport`);
     }
 
-    // Always require a patch file for policy enforcement. Bundle is used for apply-time
-    // transport, but allowed-files/protected-files checks must run on patch content
-    // (see validation block below that calls checkFileProtection on patchContent).
+    // Always require a patch file. The patch remains the preview/debug artifact and
+    // the first-pass validation input; bundle transport adds an authoritative
+    // pre-apply git diff check later after the bundle ref has been fetched.
     if (!hasPatchFile) {
       const msg = "No patch file found - cannot push without changes";
 
@@ -788,6 +788,36 @@ async function main(config = {}) {
             }
           }
           core.info(`Fetched bundle to ${bundleRef}`);
+
+          // SECURITY: Use git's own diff against the fetched bundle ref as the
+          // authoritative pre-apply file set for bundle transport. This keeps
+          // bundle pre-check and post-apply verification aligned even when the
+          // patch artifact under-detects files (for example, merge-resolution
+          // content preserved only by the bundle transport).
+          {
+            const bundleDiffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", `${rangeBaseRef}..${bundleRef}`], baseGitOpts);
+            const bundleFiles = bundleDiffResult.stdout
+              .split("\n")
+              .map(f => f.trim())
+              .filter(Boolean);
+            if (bundleFiles.length > 0) {
+              core.info(`Pre-apply bundle verification: ${bundleFiles.length} file(s) detected from bundle transport`);
+              const bundleProtection = checkFileProtectionPostApply(bundleFiles, config);
+              if (bundleProtection.action === "deny") {
+                const filesStr = bundleProtection.files.join(", ");
+                const msg =
+                  bundleProtection.source === "post-apply"
+                    ? `Cannot push to pull request branch: bundle modifies files outside the allowed-files list (${filesStr}). Add the files to the allowed-files configuration field or remove them from the bundle.`
+                    : `Cannot push to pull request branch: bundle modifies protected files (${filesStr}). Add them to the allowed-files configuration field or set protected-files: fallback-to-issue to create a review issue instead.`;
+                core.error(msg);
+                return { success: false, error: msg };
+              }
+              if (bundleProtection.action === "fallback") {
+                core.warning(`Protected file protection triggered (fallback-to-issue): ${bundleProtection.files.join(", ")}. Will create review issue instead of pushing.`);
+                return await createProtectedFilesFallbackIssue(bundleProtection.files);
+              }
+            }
+          }
 
           // Point the checked-out branch at the bundle tip directly. In shallow
           // checkouts, merge --ff-only can fail to discover the ancestry even
