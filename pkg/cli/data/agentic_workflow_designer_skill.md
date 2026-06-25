@@ -151,6 +151,7 @@ Present a structured summary and ask for approval before generation.
 | "store persistent memory comment" | `comment-memory` |
 | "link a sub-issue" | `link-sub-issue` |
 | "add labels", "remove labels" | `add-labels`, `remove-labels` |
+| "replace a label with another" | `replace-label` |
 | "nothing visible", "just analyze" | no safe outputs required |
 
 ### Network Mapping

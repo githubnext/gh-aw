@@ -33,6 +33,9 @@ imports:
 
 
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 ---
 # GitHub MCP Structural Analysis
 

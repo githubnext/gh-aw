@@ -25,6 +25,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var errorHelpersLog = logger.New("workflow:error_helpers")
@@ -63,10 +64,7 @@ func (e *WorkflowValidationError) Error() string {
 
 	if e.Value != "" {
 		// Truncate long values
-		truncatedValue := e.Value
-		if len(truncatedValue) > 100 {
-			truncatedValue = truncatedValue[:97] + "..."
-		}
+		truncatedValue := stringutil.Truncate(e.Value, 100)
 		fmt.Fprintf(&b, "\n\nValue: %s", truncatedValue)
 	}
 
@@ -170,10 +168,7 @@ func (e *ConfigurationError) Error() string {
 
 	if e.Value != "" {
 		// Truncate long values
-		truncatedValue := e.Value
-		if len(truncatedValue) > 100 {
-			truncatedValue = truncatedValue[:97] + "..."
-		}
+		truncatedValue := stringutil.Truncate(e.Value, 100)
 		fmt.Fprintf(&b, "\n\nValue: %s", truncatedValue)
 	}
 

@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "📊"
 description: Weekly portfolio analyst that maps AI Credit spend per workflow from OpenTelemetry telemetry with colorful charts and 30-day trends
 on:
@@ -37,7 +36,6 @@ timeout-minutes: 30
 imports:
   - shared/mcp/sentry.md
   - shared/mcp/grafana.md
-  - shared/python-dataviz.md
   - shared/trends.md
 ---
 

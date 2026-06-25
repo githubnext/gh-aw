@@ -62,6 +62,23 @@ var (
 	runKeyPattern                   = regexp.MustCompile(`(?:^|[\s{,])(?:run|["']run["']):`)
 )
 
+// runContentExpressionScan captures the two signals needed by the skip-validation
+// template-injection fast path before deciding whether to fall back to YAML parsing.
+type runContentExpressionScan struct {
+	hasUnsafe     bool
+	hasDisallowed bool
+}
+
+// mayContainInlineExpression is a cheap zero-false-negative precheck for
+// GitHub Actions inline expressions. It intentionally allows false positives,
+// for example when `${{` and a later `}}` appear in unrelated text without
+// forming a valid expression. Callers still apply InlineExpressionPattern
+// before classifying expressions.
+func mayContainInlineExpression(s string) bool {
+	_, remainder, found := strings.Cut(s, "${{")
+	return found && strings.Contains(remainder, "}}")
+}
+
 func findRunValue(keyPart string) (string, bool) {
 	loc := runKeyPattern.FindStringIndex(keyPart)
 	if loc == nil {
@@ -129,22 +146,7 @@ func walkRunBlockLines(yamlContent string, visit func(line string) bool) bool {
 // used as a fast pre-check for the regression guardrail inside validateTemplateInjection
 // (Path B) to avoid a yaml.Unmarshal when every run-block expression is compiler-owned.
 func hasNonAllowedExpressionInRunContent(yamlContent string) bool {
-	// Fast-path: no inline expressions anywhere → nothing to check.
-	if !InlineExpressionPattern.MatchString(yamlContent) {
-		return false
-	}
-
-	return walkRunBlockLines(yamlContent, func(line string) bool {
-		if !InlineExpressionPattern.MatchString(line) {
-			return false
-		}
-		for _, expr := range InlineExpressionPattern.FindAllString(line, -1) {
-			if !allowedRunScriptExpressionRegex.MatchString(expr) {
-				return true
-			}
-		}
-		return false
-	})
+	return scanRunContentExpressions(yamlContent).hasDisallowed
 }
 
 func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regexp) bool {
@@ -156,6 +158,37 @@ func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regex
 	// Matching expressions exist somewhere; scan for any that appear inside a run: block
 	// without doing a full YAML parse.
 	return walkRunBlockLines(yamlContent, expressionRegex.MatchString)
+}
+
+// scanRunContentExpressions performs a single pass over run: blocks to detect both
+// user-controlled expressions and any non-allowlisted expressions. This avoids
+// the duplicate YAML walk used by the skipValidation fast path.
+func scanRunContentExpressions(yamlContent string) runContentExpressionScan {
+	if !mayContainInlineExpression(yamlContent) {
+		return runContentExpressionScan{}
+	}
+
+	var scan runContentExpressionScan
+	walkRunBlockLines(yamlContent, func(line string) bool {
+		if !mayContainInlineExpression(line) {
+			return false
+		}
+
+		for _, expr := range InlineExpressionPattern.FindAllString(line, -1) {
+			if !scan.hasUnsafe && UnsafeContextPattern.MatchString(expr) {
+				scan.hasUnsafe = true
+			}
+			if !scan.hasDisallowed && !allowedRunScriptExpressionRegex.MatchString(expr) {
+				scan.hasDisallowed = true
+			}
+			if scan.hasUnsafe && scan.hasDisallowed {
+				return true
+			}
+		}
+		return false
+	})
+
+	return scan
 }
 
 // validateNoTemplateInjectionFromParsed checks a pre-parsed workflow map for template

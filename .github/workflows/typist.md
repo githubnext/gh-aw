@@ -1,5 +1,4 @@
 ---
-private: true
 on:
   schedule:
   - cron: daily around 11:00 on weekdays
@@ -57,6 +56,9 @@ tools:
     mode: gh-proxy
     toolsets:
     - default
+sandbox:
+  agent:
+    sudo: false
 ---
 # Typist - Go Type Consistency Analysis
 

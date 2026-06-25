@@ -638,6 +638,32 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 
 		assert.NotContains(t, argsStr, "--allow-host-ports", "Should skip --allow-host-ports for AWF versions below minimum support")
 	})
+
+	t.Run("skips host-access flags when network isolation is enabled", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type:             SandboxTypeAWF,
+						NetworkIsolation: true,
+					},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.NotContains(t, argsStr, "--enable-host-access", "Should skip --enable-host-access in network isolation mode")
+		assert.NotContains(t, argsStr, "--allow-host-ports", "Should skip --allow-host-ports in network isolation mode")
+	})
 }
 
 // TestBuildAWFArgsDiagnosticLogs tests that BuildAWFArgs includes --diagnostic-logs
@@ -1121,6 +1147,36 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		assert.Contains(t, argsStr, "/tmp/gh-aw/difc-proxy-tls/ca.crt", "Should use the correct CA cert path")
 		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include deprecated --enable-cli-proxy")
 		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include deprecated --cli-proxy-policy")
+	})
+
+	t.Run("uses internal cli proxy host when network isolation is enabled", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name: "test-workflow",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true, Version: "v0.26.0"},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type:             SandboxTypeAWF,
+						NetworkIsolation: true,
+					},
+				},
+				Features: map[string]any{"cli-proxy": true},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--difc-proxy-host", "Should include --difc-proxy-host when cli-proxy is enabled")
+		assert.Contains(t, argsStr, "awmg-cli-proxy:18443", "Should use internal awf-net CLI proxy address in isolation mode")
+		assert.NotContains(t, argsStr, "host.docker.internal:18443", "Should not use host.docker.internal in isolation mode")
 	})
 
 	t.Run("does not include cli-proxy flags for copilot by default", func(t *testing.T) {
@@ -1881,4 +1937,64 @@ func TestMainAgentRunUsesStandardCreditsExpressionNotDetectionExpression(t *test
 		"main-agent run should use standard credits expression")
 	assert.NotContains(t, stepContent, "vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS",
 		"main-agent run must not use detection credits expression")
+}
+
+// TestGetAWFCommandPrefixNetworkIsolation tests that GetAWFCommandPrefix returns the
+// rootless "awf" command (without "sudo -E") when sudo: false (network isolation mode).
+func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
+	t.Run("returns awf (no sudo) when sudo is false (network isolation mode)", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:               "awf",
+					NetworkIsolation: true,
+				},
+			},
+		}
+		cmd := GetAWFCommandPrefix(workflowData)
+		assert.Equal(t, "awf", cmd, "Should return rootless 'awf' when sudo is false (network isolation mode)")
+		assert.NotContains(t, cmd, "sudo", "Should not contain sudo when sudo is false (network isolation mode)")
+	})
+
+	t.Run("returns sudo -E awf when sudo is true (normal mode)", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:               "awf",
+					NetworkIsolation: false,
+				},
+			},
+		}
+		cmd := GetAWFCommandPrefix(workflowData)
+		assert.Equal(t, "sudo -E awf", cmd, "Should return 'sudo -E awf' when sudo is true (normal mode)")
+	})
+
+	t.Run("returns sudo -E awf when no sandbox config is set", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+		}
+		cmd := GetAWFCommandPrefix(workflowData)
+		assert.Equal(t, "sudo -E awf", cmd, "Should return 'sudo -E awf' when there is no sandbox config")
+	})
+
+	t.Run("custom command takes precedence over sudo setting", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:               "awf",
+					NetworkIsolation: true,
+					Command:          "custom-awf",
+				},
+			},
+		}
+		cmd := GetAWFCommandPrefix(workflowData)
+		assert.Equal(t, "custom-awf", cmd, "Custom command should take precedence over sudo rootless mode")
+	})
 }

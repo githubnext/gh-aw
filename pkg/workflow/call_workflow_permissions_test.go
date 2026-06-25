@@ -269,7 +269,9 @@ func TestExtractCallWorkflowPermissions_FileNotFound(t *testing.T) {
 }
 
 // TestBuildCallWorkflowJobs_SetsPermissionsFromLockYML tests that call-workflow jobs
-// carry the CALLER's declared permissions, independent of the worker's .lock.yml.
+// carry the union of caller + worker permissions when a .lock.yml worker file is present.
+// When the caller already covers all of the worker's needs, the effective permissions
+// equal the caller's declared permissions.
 func TestBuildCallWorkflowJobs_SetsPermissionsFromLockYML(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
@@ -304,11 +306,12 @@ jobs:
 	markdownPath := filepath.Join(workflowsDir, "gateway.md")
 
 	workflowData := &WorkflowData{
-		// Caller declares its own envelope; the call-* job uses exactly this.
+		// Caller declares its own envelope; the caller already covers all of the worker's
+		// needs so the effective permissions equal the caller's declared permissions.
 		Permissions: "permissions:\n  contents: write\n  issues: write\n  pull-requests: write",
 		SafeOutputs: &SafeOutputsConfig{
 			CallWorkflow: &CallWorkflowConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: new("1")},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Workflows:            []string{"worker-docs"},
 				WorkflowFiles: map[string]string{
 					"worker-docs": "./.github/workflows/worker-docs.lock.yml",
@@ -323,14 +326,16 @@ jobs:
 
 	job, exists := compiler.jobManager.GetJob("call-worker-docs")
 	require.True(t, exists, "Job should exist in job manager")
-	assert.NotEmpty(t, job.Permissions, "Job should have caller's permissions set")
-	assert.Contains(t, job.Permissions, "contents: write", "Permissions should include caller's contents: write")
-	assert.Contains(t, job.Permissions, "issues: write", "Permissions should include caller's issues: write")
-	assert.Contains(t, job.Permissions, "pull-requests: write", "Permissions should include caller's pull-requests: write")
+	assert.NotEmpty(t, job.Permissions, "Job should have permissions set")
+	assert.Contains(t, job.Permissions, "contents: write", "Permissions should include contents: write")
+	assert.Contains(t, job.Permissions, "issues: write", "Permissions should include issues: write")
+	assert.Contains(t, job.Permissions, "pull-requests: write", "Permissions should include pull-requests: write")
 }
 
 // TestBuildCallWorkflowJobs_SetsPermissionsFromMD tests that call-workflow jobs carry the
-// CALLER's declared permissions even when the worker is a same-batch .md compilation target.
+// union of caller + worker permissions even when the worker is a same-batch .md compilation
+// target. When caller and worker declare the same permissions, the effective permissions
+// equal the caller's declared permissions.
 func TestBuildCallWorkflowJobs_SetsPermissionsFromMD(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
@@ -355,11 +360,11 @@ permissions:
 	markdownPath := filepath.Join(workflowsDir, "gateway.md")
 
 	workflowData := &WorkflowData{
-		// Caller declares its own envelope; the call-* job uses exactly this.
+		// Caller and worker declare the same permissions, so the effective permissions equal this.
 		Permissions: "permissions:\n  contents: read\n  issues: write",
 		SafeOutputs: &SafeOutputsConfig{
 			CallWorkflow: &CallWorkflowConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: new("1")},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Workflows:            []string{"worker-e"},
 				WorkflowFiles: map[string]string{
 					"worker-e": "./.github/workflows/worker-e.lock.yml",
@@ -374,9 +379,74 @@ permissions:
 
 	job, exists := compiler.jobManager.GetJob("call-worker-e")
 	require.True(t, exists, "Job should exist in job manager")
-	assert.NotEmpty(t, job.Permissions, "Job should have caller's permissions")
-	assert.Contains(t, job.Permissions, "contents: read", "Permissions should include caller's contents: read")
-	assert.Contains(t, job.Permissions, "issues: write", "Permissions should include caller's issues: write")
+	assert.NotEmpty(t, job.Permissions, "Job should have permissions")
+	assert.Contains(t, job.Permissions, "contents: read", "Permissions should include contents: read")
+	assert.Contains(t, job.Permissions, "issues: write", "Permissions should include issues: write")
+}
+
+// TestBuildCallWorkflowJobs_WorkerPermissionsElevateCallerPermissions tests the core fix:
+// when the caller's declared permissions are insufficient for the worker, the compiler
+// automatically promotes the call-workflow job's permissions to the union of both.
+// This prevents GitHub's startup_failure when a reusable workflow job requests a
+// permission level greater than the caller grants.
+func TestBuildCallWorkflowJobs_WorkerPermissionsElevateCallerPermissions(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "Failed to create workflows directory")
+
+	// Worker needs issues: write and pull-requests: write (typical agentic workflow).
+	workerContent := `name: Worker
+on:
+  workflow_call: {}
+jobs:
+  activation:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "activation"
+  agent:
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "agent"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-g.lock.yml"), []byte(workerContent), 0644), "Failed to write worker-g.lock.yml")
+
+	markdownPath := filepath.Join(workflowsDir, "gateway.md")
+
+	workflowData := &WorkflowData{
+		// Caller declares only contents: read and pull-requests: read — insufficient for
+		// the worker which needs issues: write and pull-requests: write.
+		Permissions: "permissions:\n  contents: read\n  pull-requests: read",
+		SafeOutputs: &SafeOutputsConfig{
+			CallWorkflow: &CallWorkflowConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				Workflows:            []string{"worker-g"},
+				WorkflowFiles: map[string]string{
+					"worker-g": "./.github/workflows/worker-g.lock.yml",
+				},
+			},
+		},
+	}
+
+	jobNames, err := compiler.buildCallWorkflowJobs(workflowData, markdownPath)
+	require.NoError(t, err, "Should build call-workflow jobs without error")
+	assert.Equal(t, []string{"call-worker-g"}, jobNames, "Should generate the job")
+
+	job, exists := compiler.jobManager.GetJob("call-worker-g")
+	require.True(t, exists, "Job should exist in job manager")
+	assert.NotEmpty(t, job.Permissions, "Job should have permissions")
+	// The call-* job must carry the union of caller + worker permissions so that GitHub
+	// does not reject the call at startup:
+	assert.Contains(t, job.Permissions, "contents: read", "Should include contents: read from caller")
+	assert.Contains(t, job.Permissions, "issues: write", "Should include issues: write elevated from worker")
+	assert.Contains(t, job.Permissions, "pull-requests: write", "Should include pull-requests: write elevated from worker (overrides caller's read)")
 }
 
 // TestBuildCallWorkflowJobs_NoPermissionsWhenWorkerHasNone tests that call-workflow
@@ -405,7 +475,7 @@ jobs:
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			CallWorkflow: &CallWorkflowConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: new("1")},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Workflows:            []string{"worker-f"},
 				WorkflowFiles: map[string]string{
 					"worker-f": "./.github/workflows/worker-f.lock.yml",
@@ -424,9 +494,9 @@ jobs:
 }
 
 // TestCallWorkflowJobYAMLOutput_WithPermissions tests that the YAML output of a
-// call-workflow job includes the permissions block derived from the CALLER's own
-// declared permissions (not the worker's). The worker's permissions are only used
-// for validation, never written into the caller's lockfile.
+// call-workflow job includes the union of the caller's declared permissions and the
+// worker's required permissions. When the caller already covers the worker's needs,
+// the effective permissions equal the caller's declared permissions.
 func TestCallWorkflowJobYAMLOutput_WithPermissions(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
@@ -453,7 +523,8 @@ jobs:
 	markdownPath := filepath.Join(workflowsDir, "gateway.md")
 
 	workflowData := &WorkflowData{
-		// Caller's declared permissions — these are what the call-* job must use.
+		// Caller's declared permissions — caller already covers the worker's needs so the
+		// effective permissions equal the caller's declared permissions.
 		Permissions: "permissions:\n  contents: write\n  issues: write\n  pull-requests: write",
 		SafeOutputs: &SafeOutputsConfig{
 			CallWorkflow: &CallWorkflowConfig{
@@ -476,10 +547,12 @@ jobs:
 	assert.Contains(t, yamlOutput, "uses: ./.github/workflows/worker-a.lock.yml", "Should contain uses directive")
 	assert.Contains(t, yamlOutput, "secrets: inherit", "Should inherit secrets")
 	assert.Contains(t, yamlOutput, "permissions:", "Should include permissions block")
-	// The call-* job uses the CALLER's declared permissions.
-	assert.Contains(t, yamlOutput, "contents: write", "Should include caller's contents: write")
-	assert.Contains(t, yamlOutput, "issues: write", "Should include caller's issues: write")
-	assert.Contains(t, yamlOutput, "pull-requests: write", "Should include caller's pull-requests: write")
+	// The call-* job gets the union of caller + worker permissions. Since the caller
+	// already covers all of the worker's needs, the effective permissions equal the
+	// caller's declared permissions.
+	assert.Contains(t, yamlOutput, "contents: write", "Should include contents: write")
+	assert.Contains(t, yamlOutput, "issues: write", "Should include issues: write")
+	assert.Contains(t, yamlOutput, "pull-requests: write", "Should include pull-requests: write")
 
 	// Verify permissions appear before uses in the YAML (job-level ordering)
 	permIdx := strings.Index(yamlOutput, "permissions:")
@@ -535,7 +608,8 @@ jobs:
 }
 
 // TestCallWorkflowPermissions_EndToEnd tests full gateway compilation with permissioned workers —
-// every call-* job must carry the CALLER's declared permissions, never the worker's.
+// every call-* job must carry the union of the caller's declared permissions and the worker's
+// required permissions, so the call job always grants enough scope for the worker to run.
 func TestCallWorkflowPermissions_EndToEnd(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
@@ -650,11 +724,13 @@ Analyse the issue and determine which worker to run.
 	}
 	callASection := yamlOutput[callAStart:callAEnd]
 	assert.Contains(t, callASection, "permissions:", "call-worker-a job must have permissions block")
-	// The call-* job carries the CALLER's declared permissions (contents: read), NOT
-	// the worker's (which would otherwise be contents: write). The worker's broader
-	// requirements are surfaced as a compiler warning, not written into the lockfile.
-	assert.Contains(t, callASection, "contents: read", "call-worker-a permissions should be the caller's contents: read")
-	assert.NotContains(t, callASection, "contents: write", "call-worker-a must NOT inherit the worker's contents: write")
+	// The call-* job carries the union of the caller's declared permissions (contents: read)
+	// and the worker's required permissions (contents: write, issues: write, pull-requests: write,
+	// actions: read). The worker's broader write scope wins over the caller's read for contents.
+	assert.Contains(t, callASection, "contents: write", "call-worker-a permissions should include worker's contents: write")
+	assert.Contains(t, callASection, "issues: write", "call-worker-a permissions should include worker's issues: write")
+	assert.Contains(t, callASection, "pull-requests: write", "call-worker-a permissions should include worker's pull-requests: write")
+	assert.Contains(t, callASection, "actions: read", "call-worker-a permissions should include worker's actions: read")
 
 	// Extract the YAML section for call-worker-b (bounded to just this job, since later
 	// framework jobs such as conclusion legitimately carry issues: write).
@@ -663,13 +739,14 @@ Analyse the issue and determine which worker to run.
 		callBSection = callBSection[:convIdx]
 	}
 	assert.Contains(t, callBSection, "permissions:", "call-worker-b job must have permissions block")
-	assert.Contains(t, callBSection, "contents: read", "call-worker-b permissions should be the caller's contents: read")
-	assert.NotContains(t, callBSection, "issues: write", "call-worker-b must NOT inherit the worker's issues: write")
+	// call-worker-b union: caller's contents: read + worker's issues: write.
+	assert.Contains(t, callBSection, "contents: read", "call-worker-b permissions should include caller's contents: read")
+	assert.Contains(t, callBSection, "issues: write", "call-worker-b permissions should include worker's issues: write")
 }
 
 // TestCallWorkflowPermissions_EndToEnd_YMLWorker tests that when a worker is referenced via a
-// .yml file (not .lock.yml), the generated call-* job still carries the CALLER's declared
-// permissions (the worker's permissions are used only for validation/warnings).
+// .yml file (not .lock.yml), the generated call-* job carries the union of the caller's declared
+// permissions and the worker's required permissions.
 func TestCallWorkflowPermissions_EndToEnd_YMLWorker(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
@@ -734,8 +811,8 @@ Pick the right worker.
 		callSection = callSection[:convIdx]
 	}
 	assert.Contains(t, callSection, "permissions:", "call-worker-plain job must have permissions block")
-	// The call-* job carries the CALLER's declared permissions (contents: read), NOT the
-	// worker's pull-requests: write. The worker's extra requirement is reported as a warning.
-	assert.Contains(t, callSection, "contents: read", "Permissions should be the caller's contents: read")
-	assert.NotContains(t, callSection, "pull-requests: write", "call-worker-plain must NOT inherit the worker's pull-requests: write")
+	// The call-* job carries the union of the caller's declared permissions (contents: read) and
+	// the worker's requirements (contents: read, pull-requests: write).
+	assert.Contains(t, callSection, "contents: read", "Permissions should include caller's contents: read")
+	assert.Contains(t, callSection, "pull-requests: write", "Permissions should include worker's pull-requests: write")
 }

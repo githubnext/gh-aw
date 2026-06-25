@@ -32,6 +32,7 @@ const MANIFEST_FILE = path.join(process.env.RUNNER_TEMP || "/home/runner/work/_t
 const RUNNER_TEMP = process.env.RUNNER_TEMP || "/home/runner/work/_temp";
 const CLI_BIN_DIR = `${RUNNER_TEMP}/gh-aw/mcp-cli/bin`;
 const TOOLS_DIR = `${RUNNER_TEMP}/gh-aw/mcp-cli/tools`;
+const AWF_GATEWAY_IP = "172.30.0.1";
 
 /** MCP servers that are handled differently and should not be user-facing CLIs.
  *  Note: safeoutputs and mcpscripts are NOT excluded — they are always CLI-mounted
@@ -76,8 +77,13 @@ function shellEscapeDoubleQuoted(str) {
  * @returns {string} URL suitable for use inside AWF containers
  */
 function toContainerUrl(rawUrl) {
-  const domain = process.env.MCP_GATEWAY_DOMAIN;
+  let domain = process.env.MCP_GATEWAY_DOMAIN;
   const port = process.env.MCP_GATEWAY_PORT;
+  if (domain === "host.docker.internal") {
+    // The CLI wrappers may run inside a chrooted host environment where
+    // host.docker.internal is not resolvable. Use the AWF gateway IP instead.
+    domain = AWF_GATEWAY_IP;
+  }
   if (domain && port) {
     return rawUrl.replace(/^https?:\/\/[^/]+\/mcp\//, `http://${domain}:${port}/mcp/`);
   }
@@ -447,4 +453,4 @@ async function main() {
   core.setOutput("mounted-servers", mountedServers.join(","));
 }
 
-module.exports = { main, fetchMCPTools, generateCLIWrapperScript, isValidServerName, shellEscapeDoubleQuoted, parseMCPResponseBody };
+module.exports = { AWF_GATEWAY_IP, main, fetchMCPTools, generateCLIWrapperScript, isValidServerName, shellEscapeDoubleQuoted, parseMCPResponseBody, toContainerUrl };

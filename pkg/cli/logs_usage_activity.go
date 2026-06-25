@@ -3,8 +3,10 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 const usageActivitySummarySchema = "usage-activity-summary/v1"
@@ -17,9 +19,12 @@ type usageActivitySummary struct {
 }
 
 type usageActivityFirewall struct {
-	TotalRequests   int `json:"total_requests"`
-	AllowedRequests int `json:"allowed_requests"`
-	BlockedRequests int `json:"blocked_requests"`
+	TotalRequests    int                           `json:"total_requests"`
+	AllowedRequests  int                           `json:"allowed_requests"`
+	BlockedRequests  int                           `json:"blocked_requests"`
+	AllowedDomains   []string                      `json:"allowed_domains,omitempty"`
+	BlockedDomains   []string                      `json:"blocked_domains,omitempty"`
+	RequestsByDomain map[string]DomainRequestStats `json:"requests_by_domain,omitempty"`
 }
 
 type usageActivitySession struct {
@@ -87,11 +92,46 @@ func applyUsageActivitySummaryToResult(summary *usageActivitySummary, result *Do
 	}
 
 	if summary.Firewall != nil && result.FirewallAnalysis == nil {
+		requestsByDomain := maps.Clone(summary.Firewall.RequestsByDomain)
+		if requestsByDomain == nil {
+			requestsByDomain = map[string]DomainRequestStats{}
+		}
+		allowedSet := map[string]struct{}{}
+		blockedSet := map[string]struct{}{}
+		for _, domain := range summary.Firewall.AllowedDomains {
+			allowedSet[domain] = struct{}{}
+		}
+		for _, domain := range summary.Firewall.BlockedDomains {
+			blockedSet[domain] = struct{}{}
+		}
+		for domain, stats := range requestsByDomain {
+			if stats.Allowed > 0 {
+				allowedSet[domain] = struct{}{}
+			}
+			if stats.Blocked > 0 {
+				blockedSet[domain] = struct{}{}
+			}
+		}
+		allowedDomains := make([]string, 0, len(allowedSet))
+		for domain := range allowedSet {
+			allowedDomains = append(allowedDomains, domain)
+		}
+		sort.Strings(allowedDomains)
+		blockedDomains := make([]string, 0, len(blockedSet))
+		for domain := range blockedSet {
+			blockedDomains = append(blockedDomains, domain)
+		}
+		sort.Strings(blockedDomains)
+
 		result.FirewallAnalysis = &FirewallAnalysis{
+			DomainBuckets: DomainBuckets{
+				AllowedDomains: allowedDomains,
+				BlockedDomains: blockedDomains,
+			},
 			TotalRequests:    summary.Firewall.TotalRequests,
 			AllowedRequests:  summary.Firewall.AllowedRequests,
 			BlockedRequests:  summary.Firewall.BlockedRequests,
-			RequestsByDomain: map[string]DomainRequestStats{},
+			RequestsByDomain: requestsByDomain,
 		}
 	}
 

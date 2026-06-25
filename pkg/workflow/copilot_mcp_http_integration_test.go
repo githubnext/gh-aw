@@ -50,15 +50,15 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 		`"type": "http"`,
 		`"url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"`,
 		`"headers": {`,
-		`"DD_API_KEY": "\${DD_API_KEY}"`,
-		`"DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}"`,
-		`"DD_SITE": "\${DD_SITE}"`,
+		`"DD_API_KEY": "\\${DD_API_KEY}"`,
+		`"DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}"`,
+		`"DD_SITE": "\\${DD_SITE}"`,
 		`"tools": [`,
 		`"search_datadog_dashboards"`,
 		`"env": {`,
-		`"DD_API_KEY": "\${DD_API_KEY}"`,
-		`"DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}"`,
-		`"DD_SITE": "\${DD_SITE}"`,
+		`"DD_API_KEY": "\\${DD_API_KEY}"`,
+		`"DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}"`,
+		`"DD_SITE": "\\${DD_SITE}"`,
 	}
 
 	for _, expected := range expectedMCPChecks {

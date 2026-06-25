@@ -632,7 +632,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --start-date -30d --count 1500 --artifacts agent") {
 		t.Errorf("Job forecast_report should not pre-download full logs before running forecast in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "--repo \"${{ github.repository }}\" --timeout 30 --verbose --json") {
+	if !strings.Contains(yaml, "--repo \"$GITHUB_REPOSITORY\" --timeout 30 --verbose --json") {
 		t.Errorf("Job forecast_report gh aw forecast command should include --repo, --timeout, --verbose, and --json in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "shell: bash") {
@@ -644,7 +644,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "DEBUG: \"*\"") {
 		t.Errorf("Job forecast_report should enable DEBUG=* in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast --repo \"${{ github.repository }}\" --timeout 30 --verbose --json > ./.cache/gh-aw/forecast/report.json") {
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast --repo \"$GITHUB_REPOSITORY\" --timeout 30 --verbose --json > ./.cache/gh-aw/forecast/report.json") {
 		t.Errorf("Job forecast_report gh aw forecast command should run in verbose mode and write report output in:\n%s", yaml)
 	}
 	if strings.Contains(yaml, "2> >(grep -Fv \"forecast is an experimental command and may change without notice\" >&2)") {

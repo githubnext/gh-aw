@@ -107,6 +107,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"bash-single-quoted-args-rewrite",
 		"infer-to-disable-model-invocation",
 		"mentions-allow-team-members-to-allowed-collaborators",
+		"engine-copilot-sdk-driver-to-driver",
 	}
 
 	for _, expectedID := range expectedIDs {
@@ -221,5 +222,6 @@ func expectedCodemodOrder() []string {
 		"infer-to-disable-model-invocation",
 		"run-install-scripts-to-runtimes-node",
 		"mentions-allow-team-members-to-allowed-collaborators",
+		"engine-copilot-sdk-driver-to-driver",
 	}
 }

@@ -2,6 +2,8 @@
 package sliceutil
 
 import (
+	"cmp"
+	"maps"
 	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -53,6 +55,13 @@ func FilterMapKeys[K comparable, V any](m map[K]V, predicate func(K, V) bool) []
 		}
 	}
 	return result
+}
+
+// SortedKeys returns the keys of a map in sorted order.
+// K must satisfy cmp.Ordered (e.g. string, int).
+// This is a pure function that does not modify the input map.
+func SortedKeys[K cmp.Ordered, V any](m map[K]V) []K {
+	return slices.Sorted(maps.Keys(m))
 }
 
 // Any returns true if at least one element in the slice satisfies the predicate.

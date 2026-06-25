@@ -550,6 +550,20 @@ engine:
 
 See [AI Engines Reference](/gh-aw/reference/engines/).
 
+### Engine Driver (`engine.driver`)
+
+A Pi engine configuration field that replaces the built-in `pi` CLI with a Node.js driver script. When set, `gh aw` launches the driver with Node.js instead of the `pi` CLI; the driver must emit JSONL compatible with the existing log parser so step summaries and token tracking work unchanged. A bare filename (e.g. `pi_agent_core_driver.cjs`) resolves from the gh-aw setup-action directory; a path containing `/` resolves workspace-relative.
+
+```aw wrap
+engine:
+  id: pi
+  driver: pi_agent_core_driver.cjs
+  # or a custom workspace-relative driver:
+  # driver: .github/drivers/my-driver.cjs
+```
+
+See [AI Engines Reference](/gh-aw/reference/engines/).
+
 ### Experiments (`experiments:`)
 
 A frontmatter section that enables A/B testing of workflow prompt variants across successive runs. Each key in the `experiments:` map names an experiment; the value is either a bare array of variant strings or a rich object with additional fields (`variants`, `description`, `hypothesis`, `metric`, `weight`, `min_samples`, `start_date`, `end_date`). At runtime the activation job selects one variant per experiment using a balanced round-robin counter and exposes the selection as `${{ experiments.<name> }}` for use anywhere in the workflow body.
@@ -741,6 +755,35 @@ on:
 ### Triggers
 
 Events that cause a workflow to run, defined in the `on:` section of frontmatter. Includes issue events, pull requests, schedules, manual runs, and slash commands.
+
+### Bot Filtering (`on.bots:`, `on.skip-bots:`)
+
+An authorization control configuring which GitHub bot accounts can trigger a workflow. `bots:` accepts an allowlist of bot account names; `skip-bots:` is the inverse, allowing all bots except those listed. The `[bot]` suffix is optional — `github-actions` matches `github-actions[bot]` automatically. Can be combined with other trigger types such as `workflow_run`. See [Triggers Reference](/gh-aw/reference/triggers/).
+
+```aw wrap
+on:
+  issues:
+    types: [opened]
+  bots: ["dependabot[bot]", "renovate[bot]"]
+```
+
+### Role Filtering (`on.roles:`, `on.skip-roles:`)
+
+An authorization control restricting which repository access roles can trigger a workflow. `roles:` is an exact-match allowlist — each value must match the actor's role exactly, with no privilege hierarchy. Defaults to `[admin, maintainer, write]`. `skip-roles:` is the inverse.
+
+Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce role checks.
+
+> [!WARNING]
+> `roles` is not a privilege threshold. Setting `roles: [write]` rejects admins and maintainers because `admin !== write`. To accept all typical contributors, list every role explicitly.
+
+See [Triggers Reference](/gh-aw/reference/triggers/).
+
+```aw wrap
+on:
+  issues:
+    types: [opened]
+  roles: [admin, maintainer, write]
+```
 
 ### Skip Author Associations (`on.skip-author-associations`)
 

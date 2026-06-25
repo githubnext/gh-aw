@@ -61,7 +61,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 	var detectedEngine workflow.CodingAgentEngine
 	infoFilePath := filepath.Join(logDir, "aw_info.json")
 	logsMetricsLog.Printf("Checking for aw_info.json at: %s", infoFilePath)
-	if _, err := os.Stat(infoFilePath); err == nil {
+	if fileutil.FileExists(infoFilePath) {
 		logsMetricsLog.Print("Found aw_info.json, extracting engine")
 		// aw_info.json exists, try to extract engine information
 		if engine := extractEngineFromAwInfo(infoFilePath, verbose); engine != nil {
@@ -77,15 +77,23 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 			}
 		}
 	} else {
-		logsMetricsLog.Printf("No aw_info.json found at %s: %v", infoFilePath, err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No aw_info.json found at "+infoFilePath))
+		if _, statErr := os.Stat(infoFilePath); statErr != nil {
+			logsMetricsLog.Printf("No aw_info.json found at %s: %v", infoFilePath, statErr)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No aw_info.json found at %s: %v", infoFilePath, statErr)))
+			}
+		} else {
+			// Path exists but is not a regular file (for example, a directory).
+			logsMetricsLog.Printf("No aw_info.json file found at %s", infoFilePath)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No aw_info.json file found at "+infoFilePath))
+			}
 		}
 	}
 
 	// Check for safe_output.jsonl artifact file
 	awOutputPath := filepath.Join(logDir, "safe_output.jsonl")
-	if _, err := os.Stat(awOutputPath); err == nil {
+	if fileutil.FileExists(awOutputPath) {
 		if verbose {
 			// Report that the agentic output file was found
 			fileInfo, statErr := os.Stat(awOutputPath)
@@ -284,13 +292,19 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 			if stat.IsDir() {
 				// Directory form – look for nested file
 				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
-				if _, nestedErr := os.Stat(nested); nestedErr == nil {
+				if fileutil.FileExists(nested) {
 					resolvedAgentOutputFile = nested
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("agent_output.json is a directory; using nested file "+nested))
 					}
 				} else if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
+					if _, nestedErr := os.Stat(nested); nestedErr != nil {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+							fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
+					} else {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+							"agent_output.json directory present but nested path is not a file"))
+					}
 				}
 			} else {
 				// Regular file
@@ -412,13 +426,19 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 			if stat.IsDir() {
 				// Directory form – look for nested file
 				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
-				if _, nestedErr := os.Stat(nested); nestedErr == nil {
+				if fileutil.FileExists(nested) {
 					resolvedAgentOutputFile = nested
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("agent_output.json is a directory; using nested file "+nested))
 					}
 				} else if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
+					if _, nestedErr := os.Stat(nested); nestedErr != nil {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+							fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
+					} else {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+							"agent_output.json directory present but nested path is not a file"))
+					}
 				}
 			} else {
 				// Regular file
@@ -536,13 +556,19 @@ func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 			if stat.IsDir() {
 				// Directory form – look for nested file
 				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
-				if _, nestedErr := os.Stat(nested); nestedErr == nil {
+				if fileutil.FileExists(nested) {
 					resolvedAgentOutputFile = nested
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("agent_output.json is a directory; using nested file "+nested))
 					}
 				} else if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
+					if _, nestedErr := os.Stat(nested); nestedErr != nil {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+							fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
+					} else {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+							"agent_output.json directory present but nested path is not a file"))
+					}
 				}
 			} else {
 				// Regular file

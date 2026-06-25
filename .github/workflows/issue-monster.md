@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "👾"
 name: Issue Monster
 description: The Cookie Monster of issues - assigns issues to Copilot coding agent one at a time
@@ -77,7 +76,7 @@ on:
                 });
                 
                 const comments = prTimelineResult?.repository?.pullRequest?.timelineItems?.nodes || [];
-                const rateLimitPattern = /rate limit|API rate limit|secondary rate limit|abuse detection|429|too many requests/i;
+                const rateLimitPattern = /rate limit|API rate limit|secondary rate limit|abuse detection|\b429\b|too many requests/i;
                 
                 for (const comment of comments) {
                   if (comment.body && rateLimitPattern.test(comment.body)) {
@@ -395,6 +394,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 
 engine:
   id: pi

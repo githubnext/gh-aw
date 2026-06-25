@@ -240,7 +240,7 @@ The design supports future MCP servers (Jira, WorkIQ) through:
 3. **pkg/workflow/tools_parser.go**
    - Extended `parseGitHubTool()` to extract `allowed-repos` and `min-integrity` directly
 
-4. **pkg/workflow/tools_validation.go**
+4. **pkg/workflow/tools_validation_github.go**
    - Updated `validateGitHubGuardPolicy()` function (validates flat fields)
    - Added `validateReposScope()` function
    - Added `validateRepoPattern()` function
@@ -363,6 +363,12 @@ tools:
    - Add examples to GitHub MCP server documentation
    - Update frontmatter configuration reference
 
+### Documentation Tasks
+
+- [ ] `docs/src/content/docs/reference/mcp-gateway.md` — document how GitHub guard policies map into gateway `guard-policies` and how `lockdown: true` overrides them. **Done when** the page shows the compiled gateway shape and warns that guard-policy fields are ignored under lockdown.
+- [ ] `docs/src/content/docs/reference/github-tools.md` — add frontmatter examples for `allowed-repos`, `min-integrity`, `blocked-users`, `trusted-users`, and `approval-labels`. **Done when** the page includes at least one valid multi-field example and notes the deprecated `repos` alias.
+- [ ] `docs/src/content/docs/reference/frontmatter-full.md` — add schema-level reference entries for the GitHub guard-policy fields. **Done when** each field has a documented type, default/requirement note, and at least one cross-reference to the GitHub/MCP gateway docs.
+
 3. **Runtime Implementation** (Separate from this PR):
    - MCP Gateway enforcement of guard policies
    - Repository pattern matching logic
@@ -395,7 +401,7 @@ tools:
 3. **How should conflicts between lockdown and guard policies be resolved?**
 
    **Decision**: `lockdown: true` takes **absolute precedence** over guard policies. When `lockdown: true` is set, all tool invocations are blocked regardless of any `allowed-repos` or `min-integrity` configuration. Guard policies are not evaluated when lockdown is active.
-   *Rationale*: Lockdown is an emergency/security stop; it MUST NOT be weakened by other configuration. Guard policies narrow access within an otherwise-open tool session; they do not grant access that lockdown has revoked. The compiler SHOULD warn operators at compilation time when both `lockdown: true` and guard-policy fields (`allowed-repos`, `min-integrity`) are present, as the combination is likely a misconfiguration. A future enhancement to `pkg/workflow/tools_validation.go` (`validateGitHubGuardPolicy`) SHOULD add this cross-field validation check.
+   *Rationale*: Lockdown is an emergency/security stop; it MUST NOT be weakened by other configuration. Guard policies narrow access within an otherwise-open tool session; they do not grant access that lockdown has revoked. The compiler SHOULD warn operators at compilation time when both `lockdown: true` and guard-policy fields (`allowed-repos`, `min-integrity`, `blocked-users`, `trusted-users`, `approval-labels`) are present, as the combination is likely a misconfiguration. This warning is now implemented in `pkg/workflow/tools_validation_github.go`, where `validateGitHubGuardPolicy()` detects the conflict and `emitGitHubLockdownGuardPolicyWarning()` surfaces the compiler warning.
 
 4. **Should we add a "dry-run" mode to test policies before enforcement?**
 
@@ -441,3 +447,5 @@ A conforming implementation of the guard policies framework **MUST** satisfy all
 **GP-09**: Implementations SHOULD emit a debug-level log message when a guard policy is derived, identifying the source `allowed-repos` value and the resulting `accept` list.
 
 **GP-10**: When `lockdown: true` is set in the same workflow, implementations MUST treat `lockdown` as taking absolute precedence. Guard policy fields (`allowed-repos`, `min-integrity`) MUST NOT widen access beyond the single triggering repository when lockdown is active. The compiler SHOULD emit a warning when both `lockdown: true` and guard policy fields are present.
+
+**GP-11**: When `allowed-repos` is configured explicitly, implementations MUST require `min-integrity` to be present. In particular, any non-`"all"` `allowed-repos` scope MUST NOT be accepted without `min-integrity`, and implementations MAY enforce the same requirement for explicit `allowed-repos: "all"` for consistency with the general guard-policy validation rule.

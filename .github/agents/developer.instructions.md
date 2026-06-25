@@ -425,7 +425,7 @@ Brief description of the change
 
 ## Scope Hints for Complex Workflows
 
-More upfront constraints → faster, more accurate generated workflow.
+More upfront constraints → faster, more accurate workflow.
 
 ### Workflow-Type Guidance
 
@@ -473,7 +473,7 @@ Create a workflow that compares branches and reports differences.
 
 ### Timeout Prevention Checklist
 
-Before submitting a complex workflow request:
+Before a complex workflow request:
 
 - [ ] **Input path/format** — e.g. `coverage/lcov.info` in lcov format
 - [ ] **Triggering event** — e.g. `pull_request`, `push to main`, `schedule`
@@ -497,19 +497,16 @@ Search closed PRs via GitHub MCP `search_pull_requests`:
 
 ### Prior Failure Analysis
 
-Before any code exploration:
+Before code exploration:
 
-1. Read the closed PR description, review comments, and timeline.
+1. Read closed PR description, review comments, timeline.
 2. Identify **root cause of closure**:
    - Reviewer requested changes → list them
    - CI/test failures → identify failing checks
-   - Scope mismatch → clarify what was actually requested
-   - Duplicate of another fix → link to that fix
+   - Scope mismatch → clarify what was requested
+   - Duplicate of another fix → link to it
 3. Verify the new implementation addresses the root cause.
-4. Add a "## Prior Attempts" section to the new PR:
-   - Link(s) to prior closed PR(s)
-   - Why each closed
-   - What is different this time
+4. Add a "## Prior Attempts" section to the new PR: links to prior closed PRs, why each closed, what is different this time.
 
 **Example:**
 
@@ -525,10 +522,7 @@ Before any code exploration:
 If **two or more** closed PRs exist on the same topic:
 
 1. **Do not open a third PR** without explicit human review.
-2. Comment on the originating issue:
-   - List prior closed PRs and close reasons
-   - Explain what changed in the new approach
-   - Request maintainer approval
+2. Comment on the originating issue: list prior closed PRs and close reasons, explain what changed, request maintainer approval.
 3. Label the issue `copilot-retry-blocked`.
 4. Wait for the maintainer to remove the label or approve.
 

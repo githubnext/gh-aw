@@ -3296,8 +3296,10 @@ describe("create_pull_request - copilot assignee on fallback issues", () => {
     expect(issueCall.assignees).not.toContain("copilot");
     expect(issueCall.assignees).toContain("user1");
 
-    // REST task creation should be called once for copilot assignment
-    expect(global.github.request).toHaveBeenCalledTimes(1);
+    // One request for issue-scoped alias validation and one for REST task creation
+    expect(global.github.request).toHaveBeenCalledTimes(2);
+    const requestedRoutes = global.github.request.mock.calls.map(([route]) => route);
+    expect(requestedRoutes).toEqual(expect.arrayContaining(["GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", "POST /agents/repos/{owner}/{repo}/tasks"]));
   });
 
   it("should use configured fallback_labels for fallback issues instead of PR labels", async () => {

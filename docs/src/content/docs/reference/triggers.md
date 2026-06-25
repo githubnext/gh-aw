@@ -209,6 +209,16 @@ on:
       - develop
 ```
 
+You can also combine `workflow_run` with top-level authorization filters such as `bots:` or `roles:`:
+
+```yaml wrap
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  bots: ["dependabot[bot]"]
+```
+
 Workflows with `workflow_run` triggers include automatic security protections: `workflows` must list at least one non-empty entry (empty or missing values are rejected at compile time, since GitHub silently disables such triggers); the compiler injects repository ID and fork checks to reject cross-repository or fork-triggered runs; and `branches` is recommended to limit triggering branches (the compiler warns when omitted, or errors in strict mode). See the [Security Architecture](/gh-aw/introduction/architecture/) for details.
 
 #### Conclusion Filtering (`conclusion:`)

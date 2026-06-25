@@ -611,25 +611,29 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Print("Added --diagnostic-logs because awf-diagnostic-logs feature flag is enabled")
 	}
 
-	// Always add --enable-host-access: needed for the API proxy sidecar
-	// (to reach host.docker.internal:<port>) and for MCP gateway communication
-	awfArgs = append(awfArgs, "--enable-host-access")
-	awfHelpersLog.Print("Added --enable-host-access for API proxy and MCP gateway")
-
-	// AWF's --enable-host-access defaults to ports 80,443. The MCP gateway now
-	// listens on port 8080 (non-privileged), so we must explicitly allow it
-	// when AWF supports --allow-host-ports.
-	if awfSupportsAllowHostPorts(firewallConfig) {
-		mcpGatewayPort := int(DefaultMCPGatewayPort)
-		if config.WorkflowData != nil && config.WorkflowData.SandboxConfig != nil &&
-			config.WorkflowData.SandboxConfig.MCP != nil && config.WorkflowData.SandboxConfig.MCP.Port > 0 {
-			mcpGatewayPort = config.WorkflowData.SandboxConfig.MCP.Port
-		}
-		hostPorts := fmt.Sprintf("80,443,%d", mcpGatewayPort)
-		awfArgs = append(awfArgs, "--allow-host-ports", hostPorts)
-		awfHelpersLog.Printf("Added --allow-host-ports %s for MCP gateway access", hostPorts)
+	if isAWFNetworkIsolationEnabled(config.WorkflowData) {
+		awfHelpersLog.Print("Skipping host-access flags: sandbox.agent.sudo is false (network isolation mode)")
 	} else {
-		awfHelpersLog.Printf("Skipping --allow-host-ports: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAllowHostPortsMinVersion)
+		// Always add --enable-host-access: needed for the API proxy sidecar
+		// (to reach host.docker.internal:<port>) and for MCP gateway communication
+		awfArgs = append(awfArgs, "--enable-host-access")
+		awfHelpersLog.Print("Added --enable-host-access for API proxy and MCP gateway")
+
+		// AWF's --enable-host-access defaults to ports 80,443. The MCP gateway now
+		// listens on port 8080 (non-privileged), so we must explicitly allow it
+		// when AWF supports --allow-host-ports.
+		if awfSupportsAllowHostPorts(firewallConfig) {
+			mcpGatewayPort := int(DefaultMCPGatewayPort)
+			if config.WorkflowData != nil && config.WorkflowData.SandboxConfig != nil &&
+				config.WorkflowData.SandboxConfig.MCP != nil && config.WorkflowData.SandboxConfig.MCP.Port > 0 {
+				mcpGatewayPort = config.WorkflowData.SandboxConfig.MCP.Port
+			}
+			hostPorts := fmt.Sprintf("80,443,%d", mcpGatewayPort)
+			awfArgs = append(awfArgs, "--allow-host-ports", hostPorts)
+			awfHelpersLog.Printf("Added --allow-host-ports %s for MCP gateway access", hostPorts)
+		} else {
+			awfHelpersLog.Printf("Skipping --allow-host-ports: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAllowHostPortsMinVersion)
+		}
 	}
 
 	// Skip pulling images since they are pre-downloaded
@@ -641,7 +645,11 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	// (firewall v0.25.17+).
 	if isGitHubCLIModeEnabled(config.WorkflowData) {
 		if awfSupportsCliProxy(firewallConfig) {
-			awfArgs = append(awfArgs, "--difc-proxy-host", "host.docker.internal:18443")
+			difcProxyHost := "host.docker.internal:18443"
+			if isAWFNetworkIsolationEnabled(config.WorkflowData) {
+				difcProxyHost = "awmg-cli-proxy:18443"
+			}
+			awfArgs = append(awfArgs, "--difc-proxy-host", difcProxyHost)
 			awfArgs = append(awfArgs, "--difc-proxy-ca-cert", constants.TmpDIFCProxyTLSCACert)
 			awfHelpersLog.Print("Added --difc-proxy-host and --difc-proxy-ca-cert for CLI proxy sidecar")
 		} else {
@@ -703,12 +711,19 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 //   - workflowData: The workflow data containing agent configuration
 //
 // Returns:
-//   - string: The AWF command to use (e.g., "sudo -E awf" or custom command)
+//   - string: The AWF command to use (e.g., "sudo -E awf", "awf", or custom command)
 func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && agentConfig.Command != "" {
 		awfHelpersLog.Printf("Using custom AWF command: %s", agentConfig.Command)
 		return agentConfig.Command
+	}
+
+	// When sudo is false (network isolation mode), AWF runs rootless: no sudo needed.
+	// Strip the "sudo -E " prefix from the default command to get the base binary name.
+	if isAWFNetworkIsolationEnabled(workflowData) {
+		awfHelpersLog.Print("Using rootless AWF command (sudo: false, network isolation mode)")
+		return strings.TrimPrefix(string(constants.AWFDefaultCommand), "sudo -E ")
 	}
 
 	awfHelpersLog.Print("Using standard AWF command")

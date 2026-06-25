@@ -58,7 +58,7 @@ type EngineConfig struct {
 	UserAgent          string
 	Command            string // Custom executable path (when set, skip installation steps)
 	HarnessScript      string // Custom Node.js harness script filename (replaces engine default harness script when supported)
-	CopilotSDKDriver   string // Custom Copilot SDK driver script filename or command (copilot engine only). Setting this field implies copilot-sdk=true. Supports .js/.cjs/.mjs (Node.js), .py (Python), .ts/.mts (TypeScript), .rb (Ruby), or a bare command name for an arbitrary executable in PATH.
+	Driver             string // Custom driver script filename or command. For the copilot engine (engine.copilot-sdk-driver / engine.driver), supports .js/.cjs/.mjs (Node.js), .py (Python), .ts/.mts (TypeScript), .rb (Ruby), or a bare command name. For the pi engine (engine.driver), supports .js/.cjs/.mjs or a bare basename resolved from the setup-action directory.
 	Env                map[string]string
 	Auth               *EngineAuthConfig // Engine-level auth config (mapped to AWF_AUTH_* env vars for API proxy sidecar auth)
 	Config             string
@@ -403,10 +403,18 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
-			// Extract optional 'copilot-sdk-driver' field (string - validated separately)
-			if sdkDriver, hasSDKDriver := engineObj["copilot-sdk-driver"]; hasSDKDriver {
+			// Extract optional 'driver' / 'copilot-sdk-driver' field (string - validated separately).
+			// Both keys map to the shared Driver field. 'copilot-sdk-driver' is accepted for
+			// backward compatibility; 'driver' is the canonical name going forward.
+			if driver, hasDriver := engineObj["driver"]; hasDriver {
+				if driverStr, ok := driver.(string); ok {
+					config.Driver = driverStr
+					engineLog.Printf("Extracted engine.driver: %s", driverStr)
+				}
+			} else if sdkDriver, hasSDKDriver := engineObj["copilot-sdk-driver"]; hasSDKDriver {
 				if sdkDriverStr, ok := sdkDriver.(string); ok {
-					config.CopilotSDKDriver = sdkDriverStr
+					config.Driver = sdkDriverStr
+					engineLog.Printf("Extracted engine.copilot-sdk-driver (→ driver): %s", sdkDriverStr)
 				}
 			}
 
@@ -542,9 +550,9 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					engineLog.Printf("Extracted copilot-sdk: %v", config.CopilotSDK)
 				}
 			}
-			if config.CopilotSDKDriver != "" && !config.CopilotSDK {
+			if config.Driver != "" && config.ID == "copilot" && !config.CopilotSDK {
 				config.CopilotSDK = true
-				engineLog.Print("Enabled copilot-sdk because copilot-sdk-driver is configured")
+				engineLog.Print("Enabled copilot-sdk because driver is configured for copilot engine")
 			}
 
 			engineLog.Printf("Extracted engine configuration: ID=%s", config.ID)

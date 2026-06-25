@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -408,6 +409,22 @@ Test content.`,
 			expectPointer:   true,
 			description:     "missing colon shows formatted output",
 		},
+		{
+			name: "error_on_line_2_included_in_snippet",
+			content: `---
+private
+engine: copilot
+on: push
+---
+
+# Test
+
+Test content.`,
+			expectedLineCol: "[2:1]", // Line 2 in file (first frontmatter line, missing colon)
+			expectedInError: []string{"missing ':' after key", "private"},
+			expectPointer:   true,
+			description:     "error on line 2 (first frontmatter line) must appear in the code snippet",
+		},
 	}
 
 	for _, tt := range tests {
@@ -548,6 +565,100 @@ Content.`,
 				t.Errorf("%s: error should contain 'error:' type indicator, got: %s", tt.description, errorStr)
 			}
 		})
+	}
+}
+
+// TestInvalidEngineReportedBeforeImportErrors verifies that an invalid engine: value
+// is reported immediately, even when imports also fail. Previously the import error
+// would shadow the engine typo.
+func TestInvalidEngineReportedBeforeImportErrors(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-before-import-test")
+
+	content := `---
+engine: copiilot
+imports:
+  - shared/skip-if-issue-open.md
+on: push
+---
+
+# Test
+
+Content.`
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	if err == nil {
+		t.Fatal("expected compilation to fail")
+	}
+
+	errorStr := err.Error()
+
+	// Should report the invalid engine, not the missing import
+	if !strings.Contains(errorStr, "invalid engine") {
+		t.Errorf("error should contain 'invalid engine' (reported before import errors), got: %s", errorStr)
+	}
+
+	// Should include a "Did you mean: copilot?" suggestion
+	if !strings.Contains(errorStr, "Did you mean: copilot?") {
+		t.Errorf("error should include the exact suggestion line, got: %s", errorStr)
+	}
+
+	// Should preserve filename:line:col formatting for editor navigation.
+	if !strings.Contains(errorStr, testFile) {
+		t.Errorf("error should include the source file path, got: %s", errorStr)
+	}
+	if !regexp.MustCompile(regexp.QuoteMeta(testFile) + `:\d+:\d+: error:`).MatchString(errorStr) {
+		t.Errorf("error should have filename:line:col format, got: %s", errorStr)
+	}
+
+	// Should NOT report the missing import (engine error is primary)
+	if strings.Contains(errorStr, "import file not found") {
+		t.Errorf("import error should be suppressed when engine is invalid, got: %s", errorStr)
+	}
+}
+
+// TestImportNotFoundHint verifies that a tailored hint is shown when an import cannot be resolved.
+func TestImportNotFoundHint(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "import-hint-test")
+
+	content := `---
+engine: copilot
+imports:
+  - shared/missing-file.md
+on: push
+---
+
+# Test
+
+Content.`
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	if err == nil {
+		t.Fatal("expected compilation to fail")
+	}
+
+	errorStr := err.Error()
+
+	// Should show the import error
+	if !strings.Contains(errorStr, "import file not found") {
+		t.Errorf("error should contain 'import file not found', got: %s", errorStr)
+	}
+
+	// Should include a helpful hint pointing to the import path
+	if !strings.Contains(errorStr, "hint:") {
+		t.Errorf("error should contain a hint, got: %s", errorStr)
+	}
+	if !strings.Contains(errorStr, "shared/missing-file.md") {
+		t.Errorf("hint should mention the import path 'shared/missing-file.md', got: %s", errorStr)
 	}
 }
 

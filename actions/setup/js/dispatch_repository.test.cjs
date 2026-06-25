@@ -263,6 +263,17 @@ describe("dispatch_repository", () => {
       expect(dispatchEventCalls.length).toBe(0);
     });
 
+    it('should not treat string "false" in tool staged config as staged mode', async () => {
+      const handler = await main({
+        tools: { deploy: { event_type: "deploy", repository: "test-owner/test-repo", max: 5, staged: "false" } },
+      });
+
+      const result = await handler({ tool_name: "deploy" }, {});
+      expect(result.success).toBe(true);
+      expect(result.staged).toBeUndefined();
+      expect(dispatchEventCalls.length).toBe(1);
+    });
+
     it("should parse numeric max from string config", async () => {
       const handler = await main({
         tools: { deploy: { event_type: "deploy", repository: "test-owner/test-repo", max: "3" } },

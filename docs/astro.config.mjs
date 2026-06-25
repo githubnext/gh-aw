@@ -7,6 +7,7 @@ import starlightGitHubAlerts from 'starlight-github-alerts';
 import starlightBlog from 'starlight-blog';
 import mermaid from 'astro-mermaid';
 import { fileURLToPath } from 'node:url';
+import { unified } from '@astrojs/markdown-remark';
 import remarkStripEmojis from './src/lib/remark/stripEmojis.js';
 import remarkTableDataLabels from './src/lib/remark/tableDataLabels.js';
 import rehypeTableWrapper from './src/lib/rehype/tableWrapper.js';
@@ -37,8 +38,10 @@ export default defineConfig({
 	base: '/gh-aw/',
 	trailingSlash: 'always',
 	markdown: {
-		remarkPlugins: [remarkStripEmojis, remarkTableDataLabels],
-		rehypePlugins: [rehypeTableWrapper],
+		processor: unified({
+			remarkPlugins: [remarkStripEmojis, remarkTableDataLabels],
+			rehypePlugins: [rehypeTableWrapper],
+		}),
 	},
 	vite: {
 		server: {

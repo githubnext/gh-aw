@@ -204,6 +204,17 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract sudo (AWF topology egress mode).
+	// Semantics are inverted from the frontmatter field:
+	//   sudo: false  → no sudo = network isolation mode  → NetworkIsolation=true
+	//   sudo: true   → sudo enabled = normal mode        → NetworkIsolation=false
+	//   (omitted)      → sudo enabled = normal mode        → NetworkIsolation=false (zero value)
+	if sudoVal, hasSudo := agentObj["sudo"]; hasSudo {
+		if sudoBool, ok := sudoVal.(bool); ok {
+			agentConfig.NetworkIsolation = !sudoBool
+		}
+	}
+
 	// Extract config for SRT
 	if configVal, hasConfig := agentObj["config"]; hasConfig {
 		agentConfig.Config = c.extractSRTConfig(configVal)

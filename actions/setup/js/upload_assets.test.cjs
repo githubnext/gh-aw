@@ -1,214 +1,359 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
-const mockCore = { debug: vi.fn(), info: vi.fn(), notice: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue(void 0) } };
-((global.core = mockCore),
-  describe("upload_assets.cjs", () => {
-    let uploadAssetsScript, mockExec, tempFilePath, tempBase;
-    const setAgentOutput = data => {
-        tempFilePath = path.join(tempBase, "agent_output.json");
-        const content = "string" == typeof data ? data : JSON.stringify(data);
-        (fs.writeFileSync(tempFilePath, content), (process.env.GH_AW_AGENT_OUTPUT = tempFilePath));
-      },
-      getAssetsDir = () => path.join(tempBase, "safeoutputs", "assets"),
-      executeScript = async () => ((global.core = mockCore), (global.exec = mockExec), await eval(`(async () => { ${uploadAssetsScript}; await main(); })()`));
-    (beforeEach(() => {
-      (vi.clearAllMocks(), delete process.env.GH_AW_ASSETS_BRANCH, delete process.env.GH_AW_AGENT_OUTPUT, delete process.env.GH_AW_ASSETS_DIR, delete process.env.GH_AW_SAFE_OUTPUTS_STAGED);
-      tempBase = fs.mkdtempSync(path.join("/tmp", "test-gh-aw-"));
-      process.env.GH_AW_ASSETS_DIR = path.join(tempBase, "safeoutputs", "assets");
-      const scriptPath = path.join(__dirname, "upload_assets.cjs");
-      ((uploadAssetsScript = fs.readFileSync(scriptPath, "utf8")), (mockExec = { exec: vi.fn().mockResolvedValue(0) }));
-    }),
-      afterEach(() => {
-        tempBase && fs.existsSync(tempBase) && fs.rmSync(tempBase, { recursive: !0, force: !0 });
-        tempBase = void 0;
-        tempFilePath = void 0;
-      }),
-      describe("git commit command - vulnerability fix", () => {
-        it("should not wrap commit message in extra quotes to prevent command injection", async () => {
-          (fs.existsSync("test.png") && fs.unlinkSync("test.png"), (process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow"), (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false"));
-          const assetDir = getAssetsDir();
-          fs.existsSync(assetDir) || fs.mkdirSync(assetDir, { recursive: !0 });
-          const assetPath = path.join(assetDir, "test.png");
-          fs.writeFileSync(assetPath, "fake png data");
-          const crypto = require("crypto"),
-            fileContent = fs.readFileSync(assetPath),
-            agentOutput = {
-              items: [{ type: "upload_asset", fileName: "test.png", sha: crypto.createHash("sha256").update(fileContent).digest("hex"), size: fileContent.length, targetFileName: "test.png", url: "https://example.com/test.png" }],
-            };
-          setAgentOutput(agentOutput);
-          let gitCheckoutCalled = !1;
-          (mockExec.exec.mockImplementation(async (command, args) => {
-            const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-            if ((fullCommand.includes("checkout") && (gitCheckoutCalled = !0), fullCommand.includes("rev-parse"))) throw new Error("Branch does not exist");
-            return 0;
-          }),
-            await executeScript(),
-            expect(gitCheckoutCalled).toBe(!0));
-          const gitCommitCall = mockExec.exec.mock.calls.find(call => !!Array.isArray(call[1]) && "git" === call[0] && call[1].includes("commit"));
-          if ((expect(gitCommitCall).toBeDefined(), gitCommitCall)) {
-            const commitArgs = gitCommitCall[1],
-              messageArgIndex = commitArgs.indexOf("-m"),
-              commitMessage = commitArgs[messageArgIndex + 1];
-            (expect(commitMessage).toBeDefined(),
-              expect(typeof commitMessage).toBe("string"),
-              expect(commitMessage).not.toMatch(/^"/),
-              expect(commitMessage).not.toMatch(/"$/),
-              expect(commitMessage).toContain("[skip-ci]"),
-              expect(commitMessage).toContain("asset(s)"));
-          }
-          (fs.existsSync(assetPath) && fs.unlinkSync(assetPath), fs.existsSync("test.png") && fs.unlinkSync("test.png"));
-        });
-      }),
-      describe("normalizeBranchName function", () => {
-        it("should normalize branch names correctly", async () => {
-          ((process.env.GH_AW_ASSETS_BRANCH = "assets/My Branch!@#$%"), (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false"), setAgentOutput({ items: [] }), await executeScript());
-          const branchNameCall = mockCore.setOutput.mock.calls.find(call => "branch_name" === call[0]);
-          (expect(branchNameCall).toBeDefined(), expect(branchNameCall[1]).toBe("assets/My-Branch"));
-        });
-      }),
-      describe("branch prefix validation", () => {
-        (it("should allow creating orphaned branch with 'assets/' prefix when branch doesn't exist", async () => {
-          (fs.existsSync("test.png") && fs.unlinkSync("test.png"), (process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow"), (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false"));
-          const assetDir = getAssetsDir();
-          fs.existsSync(assetDir) || fs.mkdirSync(assetDir, { recursive: !0 });
-          const assetPath = path.join(assetDir, "test.png");
-          fs.writeFileSync(assetPath, "fake png data");
-          const crypto = require("crypto"),
-            fileContent = fs.readFileSync(assetPath),
-            agentOutput = {
-              items: [{ type: "upload_asset", fileName: "test.png", sha: crypto.createHash("sha256").update(fileContent).digest("hex"), size: fileContent.length, targetFileName: "test.png", url: "https://example.com/test.png" }],
-            };
-          setAgentOutput(agentOutput);
-          let orphanBranchCreated = !1;
-          (mockExec.exec.mockImplementation(async (command, args) => {
-            const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-            if ((fullCommand.includes("checkout --orphan") && (orphanBranchCreated = !0), fullCommand.includes("rev-parse"))) throw new Error("Branch does not exist");
-            return 0;
-          }),
-            await executeScript(),
-            expect(orphanBranchCreated).toBe(!0),
-            expect(mockCore.setFailed).not.toHaveBeenCalled(),
-            fs.existsSync(assetPath) && fs.unlinkSync(assetPath),
-            fs.existsSync("test.png") && fs.unlinkSync("test.png"));
-        }),
-          it("should fail when trying to create orphaned branch without 'assets/' prefix", async () => {
-            ((process.env.GH_AW_ASSETS_BRANCH = "custom/branch-name"), (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false"));
-            const assetDir = getAssetsDir();
-            fs.existsSync(assetDir) || fs.mkdirSync(assetDir, { recursive: !0 });
-            const assetPath = path.join(assetDir, "test.png");
-            fs.writeFileSync(assetPath, "fake png data");
-            const crypto = require("crypto"),
-              fileContent = fs.readFileSync(assetPath),
-              agentOutput = {
-                items: [{ type: "upload_asset", fileName: "test.png", sha: crypto.createHash("sha256").update(fileContent).digest("hex"), size: fileContent.length, targetFileName: "test.png", url: "https://example.com/test.png" }],
-              };
-            setAgentOutput(agentOutput);
-            let orphanBranchCreated = !1;
-            (mockExec.exec.mockImplementation(async (command, args) => {
-              const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-              if ((fullCommand.includes("checkout --orphan") && (orphanBranchCreated = !0), fullCommand.includes("rev-parse"))) throw new Error("Branch does not exist");
-              return 0;
-            }),
-              await executeScript(),
-              expect(orphanBranchCreated).toBe(!1),
-              expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("does not start with the required 'assets/' prefix")),
-              expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("custom/branch-name")),
-              fs.existsSync(assetPath) && fs.unlinkSync(assetPath));
-          }),
-          it("should allow using existing branch regardless of prefix", async () => {
-            (fs.existsSync("test.png") && fs.unlinkSync("test.png"), (process.env.GH_AW_ASSETS_BRANCH = "custom/existing-branch"), (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false"));
-            const assetDir = getAssetsDir();
-            fs.existsSync(assetDir) || fs.mkdirSync(assetDir, { recursive: !0 });
-            const assetPath = path.join(assetDir, "test.png");
-            fs.writeFileSync(assetPath, "fake png data");
-            const crypto = require("crypto"),
-              fileContent = fs.readFileSync(assetPath),
-              agentOutput = {
-                items: [{ type: "upload_asset", fileName: "test.png", sha: crypto.createHash("sha256").update(fileContent).digest("hex"), size: fileContent.length, targetFileName: "test.png", url: "https://example.com/test.png" }],
-              };
-            setAgentOutput(agentOutput);
-            let orphanBranchCreated = !1,
-              existingBranchCheckedOut = !1;
-            (mockExec.exec.mockImplementation(async (command, args) => {
-              const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-              return (fullCommand.includes("checkout --orphan") && (orphanBranchCreated = !0), fullCommand.includes("checkout -B") && (existingBranchCheckedOut = !0), fullCommand.includes("rev-parse"), 0);
-            }),
-              await executeScript(),
-              expect(orphanBranchCreated).toBe(!1),
-              expect(existingBranchCheckedOut).toBe(!0),
-              expect(mockCore.setFailed).not.toHaveBeenCalled(),
-              fs.existsSync(assetPath) && fs.unlinkSync(assetPath),
-              fs.existsSync("test.png") && fs.unlinkSync("test.png"));
-          }));
-        describe("missing asset handling", () => {
-          it("should skip missing assets while uploading present assets", async () => {
-            process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
-            process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
-            const assetDir = getAssetsDir();
-            fs.existsSync(assetDir) || fs.mkdirSync(assetDir, { recursive: !0 });
-            const presentAssetSourcePath = path.join(assetDir, "present.png");
-            fs.writeFileSync(presentAssetSourcePath, "present content");
-            const crypto = require("crypto"),
-              presentFileContent = fs.readFileSync(presentAssetSourcePath),
-              presentFileSha = crypto.createHash("sha256").update(presentFileContent).digest("hex"),
-              missingFileSha = crypto.createHash("sha256").update("missing content").digest("hex"),
-              presentTargetFile = "present-uploaded.png",
-              missingTargetFile = "missing-uploaded.png";
-            setAgentOutput({
-              items: [
-                { type: "upload_asset", fileName: "present.png", sha: presentFileSha, size: presentFileContent.length, targetFileName: presentTargetFile, url: "https://example.com/present.png" },
-                { type: "upload_asset", fileName: "missing.png", sha: missingFileSha, size: 7, targetFileName: missingTargetFile, url: "https://example.com/missing.png" },
-              ],
-            });
-            mockExec.exec.mockImplementation(async (command, args) => {
-              const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-              if (fullCommand.includes("rev-parse")) throw new Error("Branch does not exist");
-              return 0;
-            });
-            await executeScript();
-            expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("missing.png"));
-            expect(mockCore.setFailed).not.toHaveBeenCalled();
-            const uploadCountCall = mockCore.setOutput.mock.calls.find(call => "upload_count" === call[0]);
-            expect(uploadCountCall).toBeDefined();
-            uploadCountCall && expect(uploadCountCall[1]).toBe("1");
-            fs.existsSync(presentAssetSourcePath) && fs.unlinkSync(presentAssetSourcePath);
-            fs.existsSync(path.join(process.cwd(), presentTargetFile)) && fs.unlinkSync(path.join(process.cwd(), presentTargetFile));
-          });
-        });
-        describe("staging directory resolution", () => {
-          it("should read assets from the GH_AW_ASSETS_DIR directory", async () => {
-            process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
-            process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
-            // Point GH_AW_ASSETS_DIR at a custom directory (distinct from the
-            // agent-output dir) to confirm the consumer reads exactly the
-            // directory the download step wrote to — no search, no derivation.
-            const customAssetsDir = fs.mkdtempSync(path.join("/tmp", "test-gh-aw-assets-"));
-            process.env.GH_AW_ASSETS_DIR = customAssetsDir;
-            const assetSourcePath = path.join(customAssetsDir, "chart.png");
-            fs.writeFileSync(assetSourcePath, "chart content");
-            const crypto = require("crypto"),
-              fileContent = fs.readFileSync(assetSourcePath),
-              targetFile = "chart-uploaded.png";
-            setAgentOutput({
-              items: [{ type: "upload_asset", fileName: "chart.png", sha: crypto.createHash("sha256").update(fileContent).digest("hex"), size: fileContent.length, targetFileName: targetFile, url: "https://example.com/chart.png" }],
-            });
-            mockExec.exec.mockImplementation(async (command, args) => {
-              const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-              if (fullCommand.includes("rev-parse")) throw new Error("Branch does not exist");
-              return 0;
-            });
-            try {
-              await executeScript();
-              expect(mockCore.setFailed).not.toHaveBeenCalled();
-              const uploadCountCall = mockCore.setOutput.mock.calls.find(call => "upload_count" === call[0]);
-              expect(uploadCountCall).toBeDefined();
-              uploadCountCall && expect(uploadCountCall[1]).toBe("1");
-            } finally {
-              fs.existsSync(customAssetsDir) && fs.rmSync(customAssetsDir, { recursive: !0, force: !0 });
-              fs.existsSync(path.join(process.cwd(), targetFile)) && fs.unlinkSync(path.join(process.cwd(), targetFile));
-            }
-          });
-        });
-      }));
-  }));
+import crypto from "crypto";
+
+const mockCore = {
+  debug: vi.fn(),
+  info: vi.fn(),
+  notice: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+  summary: {
+    addRaw: vi.fn().mockReturnThis(),
+    write: vi.fn().mockResolvedValue(void 0),
+  },
+};
+
+describe("upload_assets.cjs", () => {
+  let uploadAssetsScript;
+  let mockExec;
+  let tempBase;
+  let cwdArtifacts;
+
+  const getAssetsDir = () => path.join(tempBase, "safeoutputs", "assets");
+
+  const setAgentOutput = data => {
+    const tempFilePath = path.join(tempBase, "agent_output.json");
+    const content = typeof data === "string" ? data : JSON.stringify(data);
+    fs.writeFileSync(tempFilePath, content);
+    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
+  };
+
+  const executeScript = async () => {
+    global.core = mockCore;
+    global.exec = mockExec;
+    await eval(`(async () => { ${uploadAssetsScript}; await main(); })()`);
+  };
+
+  /** Creates an asset file in assetDir and returns its path, sha, and size. */
+  const makeAsset = (assetDir, fileName, content = "fake content") => {
+    const assetPath = path.join(assetDir, fileName);
+    fs.writeFileSync(assetPath, content);
+    const fileContent = fs.readFileSync(assetPath);
+    const sha = crypto.createHash("sha256").update(fileContent).digest("hex");
+    return { assetPath, sha, size: fileContent.length };
+  };
+
+  const trackCwdArtifact = fileName => {
+    const artifactPath = path.join(process.cwd(), fileName);
+    cwdArtifacts.add(artifactPath);
+    return artifactPath;
+  };
+
+  const isGitCommand = (command, args, subcommand) => command === "git" && Array.isArray(args) && args[0] === subcommand;
+
+  /** Configures mockExec so that rev-parse throws (branch missing) and all else succeeds. */
+  const mockBranchMissing = onExec => {
+    mockExec.exec.mockImplementation(async (command, args) => {
+      onExec?.(command, args);
+      if (isGitCommand(command, args, "rev-parse")) throw new Error("Branch does not exist");
+      return 0;
+    });
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete process.env.GH_AW_ASSETS_BRANCH;
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_ASSETS_DIR;
+    delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+
+    tempBase = fs.mkdtempSync(path.join("/tmp", "test-gh-aw-"));
+    cwdArtifacts = new Set();
+    process.env.GH_AW_ASSETS_DIR = getAssetsDir();
+
+    uploadAssetsScript = fs.readFileSync(path.join(__dirname, "upload_assets.cjs"), "utf8");
+    mockExec = { exec: vi.fn().mockResolvedValue(0) };
+  });
+
+  afterEach(() => {
+    if (tempBase && fs.existsSync(tempBase)) {
+      fs.rmSync(tempBase, { recursive: true, force: true });
+    }
+    for (const artifactPath of cwdArtifacts) {
+      if (fs.existsSync(artifactPath)) fs.unlinkSync(artifactPath);
+    }
+    cwdArtifacts = undefined;
+    tempBase = undefined;
+  });
+
+  describe("environment validation", () => {
+    it("should fail when GH_AW_ASSETS_BRANCH is not set", async () => {
+      setAgentOutput({ items: [] });
+      await executeScript();
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_ASSETS_BRANCH"));
+    });
+  });
+
+  describe("no upload items", () => {
+    it("should output upload_count=0 and branch_name when no upload-asset items found", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      setAgentOutput({ items: [] });
+      await executeScript();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("upload_count", "0");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("branch_name", "assets/test-workflow");
+    });
+
+    it("should output upload_count=0 when all items are non-upload_asset types", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      setAgentOutput({ items: [{ type: "some_other_type", data: "irrelevant" }] });
+      await executeScript();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("upload_count", "0");
+    });
+  });
+
+  describe("normalizeBranchName", () => {
+    it("should normalize branch names with special characters", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/My Branch!@#$%";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      setAgentOutput({ items: [] });
+      await executeScript();
+      const branchNameCall = mockCore.setOutput.mock.calls.find(call => call[0] === "branch_name");
+      expect(branchNameCall).toBeDefined();
+      expect(branchNameCall[1]).toBe("assets/My-Branch");
+    });
+  });
+
+  describe("branch prefix validation", () => {
+    it("should allow creating orphaned branch with 'assets/' prefix when branch doesn't exist", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const { assetPath, sha, size } = makeAsset(assetDir, "test.png", "fake png data");
+      setAgentOutput({
+        items: [{ type: "upload_asset", fileName: "test.png", sha, size, targetFileName: "test.png", url: "https://example.com/test.png" }],
+      });
+
+      let orphanBranchCreated = false;
+      trackCwdArtifact("test.png");
+      mockBranchMissing((command, args) => {
+        if (isGitCommand(command, args, "checkout") && args[1] === "--orphan") orphanBranchCreated = true;
+      });
+
+      await executeScript();
+      expect(orphanBranchCreated).toBe(true);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should fail when trying to create orphaned branch without 'assets/' prefix", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "custom/branch-name";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const { assetPath, sha, size } = makeAsset(assetDir, "test.png", "fake png data");
+      setAgentOutput({
+        items: [{ type: "upload_asset", fileName: "test.png", sha, size, targetFileName: "test.png", url: "https://example.com/test.png" }],
+      });
+
+      let orphanBranchCreated = false;
+      mockBranchMissing((command, args) => {
+        if (isGitCommand(command, args, "checkout") && args[1] === "--orphan") orphanBranchCreated = true;
+      });
+
+      await executeScript();
+      expect(orphanBranchCreated).toBe(false);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("does not start with the required 'assets/' prefix"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("custom/branch-name"));
+    });
+
+    it("should allow using existing branch regardless of prefix", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "custom/existing-branch";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const { assetPath, sha, size } = makeAsset(assetDir, "test.png", "fake png data");
+      setAgentOutput({
+        items: [{ type: "upload_asset", fileName: "test.png", sha, size, targetFileName: "test.png", url: "https://example.com/test.png" }],
+      });
+
+      let orphanBranchCreated = false;
+      let existingBranchCheckedOut = false;
+      trackCwdArtifact("test.png");
+      mockExec.exec.mockImplementation(async (command, args) => {
+        if (isGitCommand(command, args, "checkout") && args[1] === "--orphan") orphanBranchCreated = true;
+        if (isGitCommand(command, args, "checkout") && args[1] === "-B") existingBranchCheckedOut = true;
+        return 0; // rev-parse succeeds (branch exists on origin)
+      });
+
+      await executeScript();
+      expect(orphanBranchCreated).toBe(false);
+      expect(existingBranchCheckedOut).toBe(true);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("SHA verification", () => {
+    it("should fail when asset SHA does not match declared SHA", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const assetPath = path.join(assetDir, "test.png");
+      fs.writeFileSync(assetPath, "actual content");
+      setAgentOutput({
+        items: [{ type: "upload_asset", fileName: "test.png", sha: "deadbeefdeadbeef", size: 14, targetFileName: "test.png", url: "https://example.com/test.png" }],
+      });
+      mockBranchMissing();
+
+      await executeScript();
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("SHA mismatch"));
+    });
+  });
+
+  describe("invalid asset entry", () => {
+    it("should fail when asset entry is missing required fields", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      // Missing sha and targetFileName
+      setAgentOutput({ items: [{ type: "upload_asset", fileName: "test.png" }] });
+      mockBranchMissing();
+
+      await executeScript();
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("missing required fields"));
+    });
+  });
+
+  describe("missing asset handling", () => {
+    it("should skip missing assets and upload present ones", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const { assetPath: presentPath, sha: presentSha, size: presentSize } = makeAsset(assetDir, "present.png", "present content");
+      const missingSha = crypto.createHash("sha256").update("missing content").digest("hex");
+      setAgentOutput({
+        items: [
+          { type: "upload_asset", fileName: "present.png", sha: presentSha, size: presentSize, targetFileName: "present-uploaded.png", url: "https://example.com/present.png" },
+          { type: "upload_asset", fileName: "missing.png", sha: missingSha, size: 7, targetFileName: "missing-uploaded.png", url: "https://example.com/missing.png" },
+        ],
+      });
+      trackCwdArtifact("present-uploaded.png");
+      mockBranchMissing();
+
+      await executeScript();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("missing.png"));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      const uploadCountCall = mockCore.setOutput.mock.calls.find(call => call[0] === "upload_count");
+      expect(uploadCountCall).toBeDefined();
+      if (uploadCountCall) expect(uploadCountCall[1]).toBe("1");
+    });
+
+    it("should fail when all declared assets are missing", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const missingSha = crypto.createHash("sha256").update("missing content").digest("hex");
+      const missingItems = [{ type: "upload_asset", fileName: "missing.png", sha: missingSha, size: 7, targetFileName: "missing-uploaded.png", url: "https://example.com/missing.png" }];
+      setAgentOutput({
+        items: missingItems,
+      });
+      mockBranchMissing();
+
+      await executeScript();
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(`All ${missingItems.length} declared assets were missing`));
+    });
+  });
+
+  describe("staged mode", () => {
+    it("should not push to origin when GH_AW_SAFE_OUTPUTS_STAGED=true", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const { assetPath, sha, size } = makeAsset(assetDir, "test.png", "fake png data");
+      setAgentOutput({
+        items: [{ type: "upload_asset", fileName: "test.png", sha, size, targetFileName: "staged-test.png", url: "https://example.com/test.png" }],
+      });
+
+      let pushCalled = false;
+      trackCwdArtifact("staged-test.png");
+      mockBranchMissing((command, args) => {
+        if (isGitCommand(command, args, "push")) pushCalled = true;
+      });
+
+      await executeScript();
+      expect(pushCalled).toBe(false);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("git commit message security", () => {
+    it("should not wrap commit message in extra quotes to prevent command injection", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const { assetPath, sha, size } = makeAsset(assetDir, "test.png", "fake png data");
+      setAgentOutput({
+        items: [{ type: "upload_asset", fileName: "test.png", sha, size, targetFileName: "test.png", url: "https://example.com/test.png" }],
+      });
+
+      let gitCheckoutCalled = false;
+      trackCwdArtifact("test.png");
+      mockBranchMissing((command, args) => {
+        if (isGitCommand(command, args, "checkout")) gitCheckoutCalled = true;
+      });
+
+      await executeScript();
+      expect(gitCheckoutCalled).toBe(true);
+      const gitCommitCall = mockExec.exec.mock.calls.find(call => Array.isArray(call[1]) && call[0] === "git" && call[1].includes("commit"));
+      expect(gitCommitCall).toBeDefined();
+      if (gitCommitCall) {
+        const commitArgs = gitCommitCall[1];
+        const messageArgIndex = commitArgs.indexOf("-m");
+        const commitMessage = commitArgs[messageArgIndex + 1];
+        expect(commitMessage).toBeDefined();
+        expect(typeof commitMessage).toBe("string");
+        expect(commitMessage).not.toMatch(/^"/);
+        expect(commitMessage).not.toMatch(/"$/);
+        expect(commitMessage).toContain("[skip-ci]");
+        expect(commitMessage).toContain("asset(s)");
+      }
+    });
+  });
+
+  describe("assets dir resolution", () => {
+    it("should read assets from the GH_AW_ASSETS_DIR directory", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const customAssetsDir = fs.mkdtempSync(path.join("/tmp", "test-gh-aw-assets-"));
+      process.env.GH_AW_ASSETS_DIR = customAssetsDir;
+      const { sha, size } = makeAsset(customAssetsDir, "chart.png", "chart content");
+      const targetFile = "chart-uploaded.png";
+      trackCwdArtifact(targetFile);
+      setAgentOutput({
+        items: [{ type: "upload_asset", fileName: "chart.png", sha, size, targetFileName: targetFile, url: "https://example.com/chart.png" }],
+      });
+      mockBranchMissing();
+
+      try {
+        await executeScript();
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        const uploadCountCall = mockCore.setOutput.mock.calls.find(call => call[0] === "upload_count");
+        expect(uploadCountCall).toBeDefined();
+        if (uploadCountCall) expect(uploadCountCall[1]).toBe("1");
+      } finally {
+        if (fs.existsSync(customAssetsDir)) fs.rmSync(customAssetsDir, { recursive: true, force: true });
+      }
+    });
+  });
+});

@@ -14,6 +14,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -85,18 +86,23 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 	// Load the action cache.
 	actionsLockPath := filepath.Join(".github", "aw", "actions-lock.json")
 	actionCache := workflow.NewActionCache(".")
-	if _, statErr := os.Stat(actionsLockPath); statErr == nil {
+	if fileutil.FileExists(actionsLockPath) {
 		if loadErr := actionCache.Load(); loadErr != nil {
 			return false, fmt.Errorf("failed to load actions-lock.json: %w", loadErr)
 		}
 	}
 
-	// Build a set of images currently referenced in the compiled lock files so
-	// that stale entries (e.g. superseded AWF versions) can be pruned.
+	// Build a set of base image tags (without @sha256: digest suffix) currently
+	// referenced in the compiled lock files so that stale entries (e.g. superseded
+	// AWF versions) can be pruned. Lock files that were previously compiled may
+	// already embed pinned references (image:tag@sha256:...), so we strip the
+	// digest before comparing against container pin keys, which always use the
+	// base tag as the key.
 	imageSet := make(map[string]struct {
 	}, len(images))
 	for _, img := range images {
-		imageSet[img] = struct {
+		base, _, _ := strings.Cut(img, "@sha256:")
+		imageSet[base] = struct {
 		}{}
 	}
 

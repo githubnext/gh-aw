@@ -61,7 +61,7 @@ func CreateWorkflowMarkdownFile(workflowName string, verbose bool, force bool, e
 	}
 
 	// Check if destination file already exists
-	if _, err := os.Stat(destFile); err == nil && !force {
+	if fileutil.FileExists(destFile) && !force {
 		commandsLog.Printf("Workflow file already exists and force=false: %s", destFile)
 		return fmt.Errorf("workflow file '%s' already exists. Use --force to overwrite", destFile)
 	}

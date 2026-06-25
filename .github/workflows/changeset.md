@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "📋"
 name: Changeset Generator
 description: Automatically creates changeset files when PRs are labeled with 'changeset' or 'smoke' to document changes for release notes
@@ -53,6 +52,9 @@ imports:
 
 
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Changeset Generator

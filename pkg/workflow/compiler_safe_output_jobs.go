@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -96,7 +95,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	// It is separate to avoid the checkout step (needed to restore HEAD to github.sha) from
 	// interfering with other safe-output operations in the consolidated safe_outputs job.
 	if data.SafeOutputs != nil && data.SafeOutputs.CreateCodeScanningAlerts != nil &&
-		!isHandlerStaged(false || data.SafeOutputs.Staged, data.SafeOutputs.CreateCodeScanningAlerts.Staged) {
+		!isHandlerStaged(templatableBoolIsTrue(data.SafeOutputs.Staged), data.SafeOutputs.CreateCodeScanningAlerts.Staged) {
 		compilerSafeOutputJobsLog.Print("Building separate upload_code_scanning_sarif job")
 		codeScanningJob, err := c.buildCodeScanningUploadJob(data)
 		if err != nil {
@@ -245,11 +244,12 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 							with["payload"] = "${{ needs.safe_outputs.outputs.call_workflow_payload }}"
 							continue
 						}
-						with[inputName] = fmt.Sprintf("${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).%s }}", inputName)
+						with[inputName] = buildCallWorkflowInputExpression(inputName)
 						typedInputCount++
 					}
 					compilerSafeOutputJobsLog.Printf("Forwarding %d typed inputs for call-workflow job '%s'", typedInputCount, jobName)
 				}
+
 			}
 		}
 
@@ -291,44 +291,48 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 			callJob.SecretsInherit = true
 		}
 
-		// Derive the call-<worker> job's permission envelope from the CALLER's own
-		// declared permissions, not from the worker. GitHub validates reusable
-		// workflow calls against the caller job's declared permissions, so the caller
-		// must declare a scope that is sufficient for the worker. We never inflate the
-		// caller's permissions to match the worker (doing so would, for example,
-		// materialise speculative scopes like vulnerability-alerts that GitHub rejects).
-		// Instead the caller controls its own surface and we validate it below.
+		// Compute the call-<worker> job's permission envelope as the union of:
+		//   1. The caller's own declared permissions (the base scope the caller controls).
+		//   2. The worker's job-level permissions (the minimum the worker needs to run).
+		// GitHub validates reusable workflow calls against the caller job's declared
+		// permissions and rejects the run at startup when the caller grants less than
+		// the worker requires. Taking the union ensures the call job always holds a
+		// sufficient grant without requiring the caller's markdown to enumerate every
+		// permission the worker needs.
 		callerPerms := data.CachedPermissions
 		if callerPerms == nil {
 			callerPerms = NewPermissionsParser(data.Permissions).ToPermissions()
 		}
-		if callerPerms != nil {
-			rendered := callerPerms.RenderToYAML()
-			if rendered != "" {
-				callJob.Permissions = rendered
-				compilerSafeOutputJobsLog.Printf("Set permissions on call-workflow job '%s' from caller's declared permissions: %s", jobName, rendered)
-			}
-		}
 
-		// Validate (without modifying) that the caller's declared permissions cover what
-		// the worker requires. Emit a warning when they do not, so the user can widen the
-		// caller's `permissions:` block. This never alters the compiled permissions.
+		effectivePerms := callerPerms
 		if markdownPath != "" {
 			workerPerms, permErr := extractCallWorkflowPermissions(workflowName, markdownPath)
 			if permErr != nil {
 				// Non-fatal: log and continue. The worker file may not exist yet (it may be
-				// compiled in the same batch), in which case validation is simply skipped.
-				compilerSafeOutputJobsLog.Printf("Could not extract worker permissions for call-workflow job '%s' (validation skipped): %v", jobName, permErr)
+				// compiled in the same batch), in which case we fall back to the caller's
+				// own declared permissions.
+				compilerSafeOutputJobsLog.Printf("Could not extract worker permissions for call-workflow job '%s' (falling back to caller-only permissions): %v", jobName, permErr)
 			} else if workerPerms != nil {
-				if missing := findUncoveredWorkerPermissions(callerPerms, workerPerms); len(missing) > 0 {
-					fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
-						fmt.Sprintf("call-workflow target '%s' may require permissions not granted by this workflow: %s.\n"+
-							"GitHub Actions constrains a called workflow's GITHUB_TOKEN to the caller job's permissions, "+
-							"so the worker's jobs may fail. Add the missing scope(s) to this workflow's `permissions:` block.",
-							workflowName, strings.Join(missing, ", "))))
-					c.IncrementWarningCount()
-					compilerSafeOutputJobsLog.Printf("Caller permissions insufficient for worker '%s': missing %s", workflowName, strings.Join(missing, ", "))
-				}
+				// Compute the union by merging caller and worker permissions into a
+				// fresh map-based Permissions. Starting from a blank slate (rather
+				// than a clone of callerPerms) ensures shorthand values like
+				// "read-all" are correctly expanded before the worker's explicit
+				// scopes are merged on top — cloning a shorthand Permissions and then
+				// merging a map into it would clear the shorthand field without first
+				// expanding it, silently dropping the caller's baseline grant.
+				merged := NewPermissions()
+				merged.Merge(callerPerms)
+				merged.Merge(workerPerms)
+				effectivePerms = merged
+				compilerSafeOutputJobsLog.Printf("Merged caller and worker permissions for call-workflow job '%s'", jobName)
+			}
+		}
+
+		if effectivePerms != nil {
+			rendered := effectivePerms.RenderToYAML()
+			if rendered != "" {
+				callJob.Permissions = rendered
+				compilerSafeOutputJobsLog.Printf("Set permissions on call-workflow job '%s': %s", jobName, rendered)
 			}
 		}
 
@@ -341,4 +345,44 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 	}
 
 	return jobNames, nil
+}
+
+func buildCallWorkflowInputExpression(inputName string) string {
+	payloadExpr := "fromJSON(needs.safe_outputs.outputs.call_workflow_payload)"
+	if isBareActionsIdentifier(inputName) {
+		return fmt.Sprintf("${{ %s.%s }}", payloadExpr, inputName)
+	}
+
+	escapedInputName := escapeActionsSingleQuotedString(inputName)
+	return fmt.Sprintf("${{ %s['%s'] }}", payloadExpr, escapedInputName)
+}
+
+// escapeActionsSingleQuotedString escapes a value for use inside a GitHub Actions
+// expression single-quoted string literal by doubling single quotes.
+func escapeActionsSingleQuotedString(value string) string {
+	return strings.ReplaceAll(value, "'", "''")
+}
+
+// isBareActionsIdentifier reports whether a name can be safely referenced via
+// dot access in GitHub Actions expressions (letters/underscore followed by
+// letters, digits, or underscore).
+func isBareActionsIdentifier(name string) bool {
+	if name == "" {
+		return false
+	}
+
+	for i, r := range name {
+		if i == 0 {
+			if r != '_' && (r < 'A' || r > 'Z') && (r < 'a' || r > 'z') {
+				return false
+			}
+			continue
+		}
+
+		if r != '_' && (r < 'A' || r > 'Z') && (r < 'a' || r > 'z') && (r < '0' || r > '9') {
+			return false
+		}
+	}
+
+	return true
 }

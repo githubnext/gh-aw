@@ -59,6 +59,9 @@ safe-outputs:
 checkout: false
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # AI Moderator

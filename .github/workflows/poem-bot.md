@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "🎭"
 description: Generates creative poems on specified themes when invoked with /poem-bot command
 # Custom triggers: command with events filter, workflow_dispatch
@@ -152,6 +151,9 @@ safe-outputs:
 # Global timeout
 timeout-minutes: 10
 strict: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Poem Bot - A Creative Agentic Workflow

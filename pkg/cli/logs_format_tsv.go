@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var logsTSVLog = logger.New("cli:logs_format_tsv")
@@ -141,10 +142,7 @@ func renderLogsTSVVerbose(data LogsData) {
 		if classification == "" {
 			classification = "-"
 		}
-		displayTitle := r.DisplayTitle
-		if len(displayTitle) > 50 {
-			displayTitle = displayTitle[:47] + "..."
-		}
+		displayTitle := stringutil.Truncate(r.DisplayTitle, 50)
 
 		fields := []string{
 			strconv.FormatInt(r.RunID, 10),

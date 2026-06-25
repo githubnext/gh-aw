@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "🔧"
 name: Auto-Triage Issues
 description: Automatically labels new and existing unlabeled issues to improve discoverability and triage efficiency
@@ -61,6 +60,9 @@ safe-outputs:
 timeout-minutes: 15
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Auto-Triage Issues Agent 🏷️

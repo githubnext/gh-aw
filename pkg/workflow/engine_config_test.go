@@ -395,7 +395,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "copilot",
-			expectedConfig:        &EngineConfig{ID: "copilot", CopilotSDK: true, CopilotSDKDriver: "custom_copilot_sdk_driver.cjs"},
+			expectedConfig:        &EngineConfig{ID: "copilot", CopilotSDK: true, Driver: "custom_copilot_sdk_driver.cjs"},
 		},
 		{
 			name: "object format - copilot sdk driver implies copilot sdk even when false",
@@ -407,7 +407,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "copilot",
-			expectedConfig:        &EngineConfig{ID: "copilot", CopilotSDK: true, CopilotSDKDriver: "custom_copilot_sdk_driver.cjs"},
+			expectedConfig:        &EngineConfig{ID: "copilot", CopilotSDK: true, Driver: "custom_copilot_sdk_driver.cjs"},
 		},
 		{
 			name: "object format - complete with user-agent",
@@ -477,8 +477,8 @@ func TestExtractEngineConfig(t *testing.T) {
 					t.Errorf("Expected config.HarnessScript '%s', got '%s'", test.expectedConfig.HarnessScript, config.HarnessScript)
 				}
 
-				if config.CopilotSDKDriver != test.expectedConfig.CopilotSDKDriver {
-					t.Errorf("Expected config.CopilotSDKDriver '%s', got '%s'", test.expectedConfig.CopilotSDKDriver, config.CopilotSDKDriver)
+				if config.Driver != test.expectedConfig.Driver {
+					t.Errorf("Expected config.Driver '%s', got '%s'", test.expectedConfig.Driver, config.Driver)
 				}
 
 				if config.CopilotSDK != test.expectedConfig.CopilotSDK {

@@ -28,13 +28,17 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"gopkg.in/yaml.v3"
 )
 
 var templatablesLog = logger.New("workflow:templatables")
+
+const templatableBoolErrorExample = "value must be a boolean or a GitHub Actions expression (e.g. '${{ inputs.flag }}')"
 
 // TemplatableInt32 represents an integer frontmatter field that also accepts
 // GitHub Actions expression strings (e.g. "${{ inputs.timeout }}").  The
@@ -138,6 +142,54 @@ func (t *TemplatableInt32) Ptr() *TemplatableInt32 {
 // "false", expressions verbatim.
 type TemplatableBool string
 
+// UnmarshalJSON allows TemplatableBool to accept both JSON booleans and JSON
+// strings that are GitHub Actions expressions.
+func (t *TemplatableBool) UnmarshalJSON(data []byte) error {
+	var b bool
+	if err := json.Unmarshal(data, &b); err == nil {
+		if b {
+			*t = TemplatableBool("true")
+		} else {
+			*t = TemplatableBool("false")
+		}
+		return nil
+	}
+
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return fmt.Errorf("%s, got %s", templatableBoolErrorExample, data)
+	}
+	if !isExpression(s) {
+		return fmt.Errorf("%s, got string %q", templatableBoolErrorExample, s)
+	}
+	*t = TemplatableBool(s)
+	return nil
+}
+
+// UnmarshalYAML allows TemplatableBool to accept both YAML booleans and GitHub
+// Actions expression strings.
+func (t *TemplatableBool) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		switch node.Tag {
+		case "!!bool":
+			if node.Value == "true" {
+				*t = TemplatableBool("true")
+			} else {
+				*t = TemplatableBool("false")
+			}
+			return nil
+		case "!!str":
+			if !isExpression(node.Value) {
+				return fmt.Errorf("%s, got string %q", templatableBoolErrorExample, node.Value)
+			}
+			*t = TemplatableBool(node.Value)
+			return nil
+		}
+	}
+	return errors.New(templatableBoolErrorExample)
+}
+
 // MarshalJSON emits a JSON boolean for literal values and a JSON string for
 // GitHub Actions expressions.
 func (t *TemplatableBool) MarshalJSON() ([]byte, error) {
@@ -154,6 +206,40 @@ func (t *TemplatableBool) MarshalJSON() ([]byte, error) {
 // String returns the underlying string representation of the value.
 func (t *TemplatableBool) String() string {
 	return string(*t)
+}
+
+func templatableBoolPtrToStringPtr(value *TemplatableBool) *string {
+	if value == nil {
+		return nil
+	}
+	s := value.String()
+	return &s
+}
+
+func templatableBoolIsTrue(value *TemplatableBool) bool {
+	return value != nil && value.String() == "true"
+}
+
+// templatableBoolEnvVarValue returns only staged values that must be preserved
+// in env vars at runtime. Literal false is treated the same as unset, while
+// literal true and GitHub Actions expressions must be propagated.
+func templatableBoolEnvVarValue(value *TemplatableBool) *string {
+	if value == nil {
+		return nil
+	}
+	s := value.String()
+	if s == "true" || isExpression(s) {
+		return &s
+	}
+	return nil
+}
+
+func resolveSafeOutputsStagedValue(trialMode bool, staged *TemplatableBool) *string {
+	if trialMode {
+		s := "true"
+		return &s
+	}
+	return templatableBoolEnvVarValue(staged)
 }
 
 // buildTemplatableEnvVar returns a YAML environment variable entry for a

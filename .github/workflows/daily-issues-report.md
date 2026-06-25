@@ -13,7 +13,7 @@ permissions:
 engine:
   id: copilot
   copilot-sdk: true
-  copilot-sdk-driver: .github/drivers/copilot_sdk_driver_sample_python.py
+  driver: .github/drivers/copilot_sdk_driver_sample_python.py
 runs-on: aw-gpu-runner-T4
 strict: true
 tracker-id: daily-issues-report
@@ -50,14 +50,14 @@ imports:
       title-prefix: "[daily issues] "
   - ../skills/jqschema/SKILL.md
   - shared/issues-data-fetch.md
-  - shared/python-dataviz.md
-  - shared/python-nlp.md
   - shared/trends.md
+  - shared/python-nlp.md
 
   - shared/otlp.md
 features:
   gh-aw-detection: true
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 {{#runtime-import .github/shared/editorial.md}}

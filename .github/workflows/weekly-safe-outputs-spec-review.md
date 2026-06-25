@@ -22,7 +22,9 @@ network:
     - github
 
 sandbox:
-  agent: awf  # Firewall enabled
+  agent:  # Firewall enabled
+    id: awf
+    sudo: false
 
 imports:
   - shared/github-guard-policy.md

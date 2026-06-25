@@ -120,6 +120,57 @@ Test workflow content.`,
 			warningCount:  0,
 		},
 		{
+			name: "workflow_run with sibling bots - strict mode - should pass",
+			frontmatter: `---
+on:
+  bots:
+    - dependabot
+  workflow_run:
+    workflows:
+      - build
+    types:
+      - completed
+    branches:
+      - main
+tools:
+  github:
+    toolsets: [repos]
+---
+
+# Workflow Run With Bots
+Test workflow content.`,
+			filename:      "workflow-run-with-bots-strict.md",
+			strictMode:    true,
+			expectError:   false,
+			expectWarning: false,
+			warningCount:  0,
+		},
+		{
+			name: "workflow_run with sibling roles all - strict mode - should pass",
+			frontmatter: `---
+on:
+  roles: all
+  workflow_run:
+    workflows:
+      - build
+    types:
+      - completed
+    branches:
+      - main
+tools:
+  github:
+    toolsets: [repos]
+---
+
+# Workflow Run With Roles
+Test workflow content.`,
+			filename:      "workflow-run-with-roles-strict.md",
+			strictMode:    true,
+			expectError:   false,
+			expectWarning: false,
+			warningCount:  0,
+		},
+		{
 			name: "workflow_run without workflows - should error",
 			frontmatter: `---
 strict: false

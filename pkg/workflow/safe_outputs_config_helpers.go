@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -23,7 +24,7 @@ func buildNormalizedSortedJSON(names []string, valueFn func(string) string) (str
 		values[normalizedName] = valueFn(normalizedName)
 	}
 
-	keys := sortedMapKeys(values)
+	keys := sliceutil.SortedKeys(values)
 
 	ordered := make(map[string]string, len(keys))
 	for _, k := range keys {

@@ -31,6 +31,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/httpnoctx"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
+	"github.com/github/gh-aw/pkg/linters/lenstringsplit"
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
@@ -44,6 +45,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/sprintferrorsnew"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
+	"github.com/github/gh-aw/pkg/linters/stringreplaceminusone"
 	"github.com/github/gh-aw/pkg/linters/timeafterleak"
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
@@ -79,8 +81,10 @@ func main() {
 		sprintferrdot.Analyzer,
 		sprintferrorsnew.Analyzer,
 		strconvparseignorederror.Analyzer,
+		stringreplaceminusone.Analyzer,
 		jsonmarshalignoredeerror.Analyzer,
 		lenstringzero.Analyzer,
+		lenstringsplit.Analyzer,
 		timeafterleak.Analyzer,
 		timesleepnocontext.Analyzer,
 		tolowerequalfold.Analyzer,

@@ -187,6 +187,14 @@ type AWFNetworkConfig struct {
 	// BlockDomains is the list of explicitly blocked egress domains.
 	// Maps to: --block-domains <comma-separated>
 	BlockDomains []string `json:"blockDomains,omitempty"`
+
+	// Isolation enables topology-based egress isolation mode.
+	// Maps to: --network-isolation
+	Isolation bool `json:"isolation,omitempty"`
+
+	// TopologyAttach lists container names AWF should attach to awf-net.
+	// Maps to: --topology-attach <name> (repeatable)
+	TopologyAttach []string `json:"topologyAttach,omitempty"`
 }
 
 // AWFPlatformConfig is the "platform" section of the AWF config file.
@@ -361,6 +369,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		}
 	}
 
+	if isAWFNetworkIsolationEnabled(config.WorkflowData) {
+		if awfConfig.Network == nil {
+			awfConfig.Network = &AWFNetworkConfig{}
+		}
+		awfConfig.Network.Isolation = true
+		awfConfig.Network.TopologyAttach = buildAWFTopologyAttachList(config.WorkflowData)
+		awfConfigLog.Printf("Network section: isolation enabled with %d topology attachments", len(awfConfig.Network.TopologyAttach))
+	}
+
 	if platformType := extractPlatformType(config.WorkflowData); platformType != "" {
 		awfConfig.Platform = &AWFPlatformConfig{Type: platformType}
 		awfConfigLog.Printf("Platform section: type=%s", platformType)
@@ -501,6 +518,18 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	return jsonStr, nil
+}
+
+// buildAWFTopologyAttachList returns container names that AWF should attach to
+// the internal awf-net network when network isolation mode is enabled.
+// The list always includes the MCP gateway and conditionally includes the
+// host-started CLI proxy sidecar when gh-proxy mode is active.
+func buildAWFTopologyAttachList(workflowData *WorkflowData) []string {
+	targets := []string{"awmg-mcpg"}
+	if isCliProxyNeeded(workflowData) {
+		targets = append(targets, "awmg-cli-proxy")
+	}
+	return targets
 }
 
 // splitDomainList splits a comma-separated domain string into a deduplicated

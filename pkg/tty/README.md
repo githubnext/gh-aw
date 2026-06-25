@@ -1,6 +1,6 @@
 # tty Package
 
-The `tty` package provides TTY (terminal) detection utilities.
+> TTY (terminal) detection utilities for stdout and stderr streams.
 
 ## Overview
 

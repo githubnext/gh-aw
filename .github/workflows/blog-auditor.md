@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "📝"
 description: Verifies that the GitHub Next Agentic Workflows blog page is accessible and contains expected content
 on:
@@ -60,6 +59,9 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 # Blog Auditor
 

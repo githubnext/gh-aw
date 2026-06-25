@@ -22,6 +22,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/sourcegraph/conc/pool"
@@ -467,7 +468,7 @@ func runContainsSafeOutputType(runDir string, safeOutputType string, verbose boo
 	if stat, err := os.Stat(agentOutputPath); err != nil || stat.IsDir() {
 		// Try old structure
 		oldPath := filepath.Join(runDir, constants.AgentOutputArtifactName, constants.AgentOutputArtifactName)
-		if _, err := os.Stat(oldPath); err == nil {
+		if fileutil.FileExists(oldPath) {
 			agentOutputPath = oldPath
 		} else {
 			// No agent_output.json found

@@ -30,10 +30,6 @@ func permissionLevelRank(level PermissionLevel) int {
 // uncovered when the caller grants a strictly lower level than the worker requires.
 // The result is sorted for deterministic output; an empty result means the caller's
 // declared permissions are sufficient for the worker.
-//
-// This is used to validate (not modify) the caller's permission envelope: callers
-// control their own permission surface, and the compiler only warns when the declared
-// permissions are insufficient for a worker the caller invokes.
 func findUncoveredWorkerPermissions(caller, worker *Permissions) []string {
 	if worker == nil {
 		return nil
@@ -65,6 +61,13 @@ func findUncoveredWorkerPermissions(caller, worker *Permissions) []string {
 
 // extractJobPermissionsFromParsedWorkflow extracts and merges all job-level permissions
 // from a parsed GitHub Actions workflow map. Returns the union of all jobs' permissions.
+//
+// Limitation: only explicit per-job permissions blocks are examined. Jobs that omit
+// a permissions block inherit from the workflow-level permissions key and are therefore
+// not counted here. If a worker workflow relies on workflow-level permissions inheritance
+// instead of declaring permissions on each job, the returned set may be incomplete and
+// the call-* job could still under-grant permissions at runtime. Workers called via
+// call-workflow should declare explicit per-job permissions to ensure reliable extraction.
 func extractJobPermissionsFromParsedWorkflow(workflow map[string]any) *Permissions {
 	merged := NewPermissions()
 
@@ -107,12 +110,16 @@ func extractJobPermissionsFromParsedWorkflow(workflow map[string]any) *Permissio
 // permissions field is used as a proxy (the compiler will turn it into per-job
 // permissions when the worker is eventually compiled).
 //
-// This is used purely to VALIDATE the caller's declared permissions against what the
-// worker requires (see findUncoveredWorkerPermissions). The worker's permissions are
-// never written into the caller's lockfile; the caller controls its own permission
-// surface and the compiler only warns when it is insufficient.
+// The result is merged with the caller's declared permissions to form the effective
+// permission envelope for the call-workflow job (see buildCallWorkflowJobs). This ensures
+// the caller job always grants at least what the worker requires, preventing GitHub from
+// rejecting the run at startup when the worker requests a level higher than the caller granted.
 //
-// Returns nil when no workflow file is found or no permissions are declared.
+// Returns nil only when no workflow file is found or (for .md sources) when no
+// permissions are present in the frontmatter. For compiled YAML workers the
+// function always returns a non-nil *Permissions (possibly empty) because
+// extractJobPermissionsFromParsedWorkflow initialises a fresh Permissions map
+// regardless of whether any jobs declare a permissions block.
 func extractCallWorkflowPermissions(workflowName, markdownPath string) (*Permissions, error) {
 	fileResult, err := findWorkflowFile(workflowName, markdownPath)
 	if err != nil {

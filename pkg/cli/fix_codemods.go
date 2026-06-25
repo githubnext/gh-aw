@@ -88,6 +88,7 @@ func GetAllCodemods() []Codemod {
 		getInferToDisableModelInvocationCodemod(),                  // Migrate deprecated 'infer' to 'disable-model-invocation'
 		getRunInstallScriptsToRuntimesNodeCodemod(),                // Move top-level run-install-scripts under runtimes.node
 		getMentionsAllowTeamMembersCodemod(),                       // Rename allow-team-members to allowed-collaborators in safe-outputs.mentions
+		getEngineCopilotSDKDriverToDriverCodemod(),                 // Rename deprecated engine.copilot-sdk-driver to engine.driver
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods

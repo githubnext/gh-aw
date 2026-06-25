@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
@@ -380,7 +381,7 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 	// Firewall logs are uploaded from /tmp/gh-aw/sandbox/firewall/logs/ and the common parent
 	// /tmp/gh-aw/ is stripped during artifact upload, resulting in sandbox/firewall/logs/ after download
 	sandboxFirewallLogsDir := filepath.Join(runDir, "sandbox", "firewall", "logs")
-	if _, err := os.Stat(sandboxFirewallLogsDir); err == nil {
+	if fileutil.DirExists(sandboxFirewallLogsDir) {
 		firewallLogLog.Printf("Found firewall logs directory: sandbox/firewall/logs")
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs directory: sandbox/firewall/logs"))

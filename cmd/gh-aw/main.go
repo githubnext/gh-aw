@@ -121,10 +121,8 @@ When called with a workflow name, creates a template file with comprehensive exa
 - Tools configuration (github, claude, MCPs)
 - All frontmatter options with explanations
 
-` + cli.WorkflowIDExplanation + `
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` new                      # Interactive mode
+` + cli.WorkflowIDExplanation,
+	Example: `  ` + string(constants.CLIExtensionPrefix) + ` new                      # Interactive mode
   ` + string(constants.CLIExtensionPrefix) + ` new my-workflow          # Create template file
   ` + string(constants.CLIExtensionPrefix) + ` new my-workflow.md       # Same as above (.md extension stripped)
   ` + string(constants.CLIExtensionPrefix) + ` new my-workflow --force  # Overwrite if exists
@@ -173,10 +171,8 @@ The workflow-id is the basename of the Markdown file without the .md extension.
 You can provide a substring to match multiple workflows, or a specific workflow-id.
 
 By default, this command also removes orphaned include files that are no longer referenced
-by any workflow. Use --keep-orphans to skip this cleanup.
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow              # Remove specific workflow
+by any workflow. Use --keep-orphans to skip this cleanup.`,
+	Example: `  ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow              # Remove specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` remove test-                    # Remove all workflows containing 'test-' in name
   ` + string(constants.CLIExtensionPrefix) + ` remove old- --keep-orphans      # Remove workflows but keep orphaned includes
   ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow --dir .github/workflows/shared  # Remove from custom directory`,
@@ -196,10 +192,8 @@ var enableCmd = &cobra.Command{
 	Short: "Enable agentic workflows",
 	Long: `Enable one or more workflows by ID, or all workflows if no IDs are provided.
 
-` + cli.WorkflowIDExplanation + `
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` enable                   # Enable all workflows
+` + cli.WorkflowIDExplanation,
+	Example: `  ` + string(constants.CLIExtensionPrefix) + ` enable                   # Enable all workflows
   ` + string(constants.CLIExtensionPrefix) + ` enable ci-doctor         # Enable specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` enable ci-doctor.md      # Enable specific workflow (alternative format)
   ` + string(constants.CLIExtensionPrefix) + ` enable ci-doctor daily   # Enable multiple workflows
@@ -217,10 +211,8 @@ var disableCmd = &cobra.Command{
 
 Any in-progress runs will be cancelled before disabling.
 
-` + cli.WorkflowIDExplanation + `
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` disable                   # Disable all workflows
+` + cli.WorkflowIDExplanation,
+	Example: `  ` + string(constants.CLIExtensionPrefix) + ` disable                   # Disable all workflows
   ` + string(constants.CLIExtensionPrefix) + ` disable ci-doctor         # Disable specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` disable ci-doctor.md      # Disable specific workflow (alternative format)
   ` + string(constants.CLIExtensionPrefix) + ` disable ci-doctor daily   # Disable multiple workflows
@@ -274,10 +266,8 @@ Three flags govern this. --gh-aw-ref is mutually exclusive with the other two;
     Equivalent to --action-mode release --action-tag <resolved-sha>.
     Branch and tag names are resolved via the GitHub API.
     Cannot be combined with --action-tag or --action-mode.
-    Use this when E2E-testing compiled workflows against a specific gh-aw revision.
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` compile                    # Compile all Markdown files
+    Use this when E2E-testing compiled workflows against a specific gh-aw revision.`,
+	Example: `  ` + string(constants.CLIExtensionPrefix) + ` compile                    # Compile all Markdown files
   ` + string(constants.CLIExtensionPrefix) + ` compile ci-doctor          # Compile a specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` compile ci-doctor daily-plan  # Compile multiple workflows
   ` + string(constants.CLIExtensionPrefix) + ` compile workflow.md        # Compile by file path
@@ -428,10 +418,8 @@ The workflows must have been compiled into GitHub Actions YAML files.
 
 This command only works with workflows that have workflow_dispatch triggers.
 
-` + cli.WorkflowIDExplanation + `
-
-Examples:
-  gh aw run                          # Interactive mode
+` + cli.WorkflowIDExplanation,
+	Example: `  gh aw run                          # Interactive mode
   gh aw run daily-perf-improver
   gh aw run daily-perf-improver.md   # Alternative format
   gh aw run daily-perf-improver --ref main  # Run on specific branch
@@ -499,12 +487,10 @@ Examples:
 }
 
 var versionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Print the current version",
-	Long: `Show the installed version of the gh aw extension.
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` version   # Print the current version`,
+	Use:     "version",
+	Short:   "Print the current version",
+	Long:    `Show the installed version of the gh aw extension.`,
+	Example: `  ` + string(constants.CLIExtensionPrefix) + ` version   # Print the current version`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "%s version %s\n", string(constants.CLIExtensionPrefix), version)
 		return nil

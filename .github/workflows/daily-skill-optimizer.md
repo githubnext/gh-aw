@@ -15,7 +15,7 @@ tracker-id: daily-skill-optimizer
 engine:
   id: copilot
   copilot-sdk: true
-  copilot-sdk-driver: .github/drivers/copilot_sdk_driver_sample_typescript.ts
+  driver: .github/drivers/copilot_sdk_driver_sample_typescript.ts
 strict: true
 timeout-minutes: 45
 
@@ -151,6 +151,9 @@ tools:
 
 imports:
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Daily Skill Optimizer Improvements

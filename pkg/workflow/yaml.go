@@ -95,6 +95,7 @@ import (
 	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/goccy/go-yaml"
 )
 
@@ -393,7 +394,7 @@ func recursivelyOrderYAMLValue(value any) any {
 		return orderedData
 	case map[string]string:
 		orderedData := make(yaml.MapSlice, 0, len(v))
-		for _, key := range sortedMapKeys(v) {
+		for _, key := range sliceutil.SortedKeys(v) {
 			orderedData = append(orderedData, yaml.MapItem{Key: key, Value: v[key]})
 		}
 		return orderedData

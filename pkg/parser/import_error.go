@@ -125,6 +125,7 @@ func FormatImportError(err *ImportError, yamlContent string) error {
 		}
 	}
 
+	hint := buildImportErrorHint(message, err.ImportPath)
 	compilerErr := console.CompilerError{
 		Position: console.ErrorPosition{
 			File:   err.FilePath,
@@ -134,12 +135,29 @@ func FormatImportError(err *ImportError, yamlContent string) error {
 		Type:    "error",
 		Message: message,
 		Context: context,
+		Hint:    hint,
 	}
 
 	formattedErr := console.FormatError(compilerErr)
 	// Return a FormattedParserError so callers can detect that this error is already
 	// console-formatted and must not be re-wrapped with additional location context.
 	return &FormattedParserError{formatted: formattedErr, cause: err.Cause}
+}
+
+// buildImportErrorHint returns a tailored fix hint for an import error based on its message and path.
+func buildImportErrorHint(message, importPath string) string {
+	switch {
+	case message == "failed to resolve import reference":
+		return fmt.Sprintf("Verify the ref (branch, tag, or SHA) in `%s` is valid and accessible.", importPath)
+	case strings.Contains(message, "file not found") || strings.Contains(message, "failed to resolve import"):
+		return fmt.Sprintf("Ensure `%s` exists relative to the workflow directory, or check the `imports:` path.", importPath)
+	case strings.Contains(message, "failed to download"):
+		return fmt.Sprintf("Check that the remote import `%s` is accessible and the path is correct.", importPath)
+	case strings.Contains(message, "invalid import specification"):
+		return "Use the format `owner/repo/path@ref` for remote imports (e.g. `github/my-org/shared.md@main`)."
+	default:
+		return fmt.Sprintf("Check the `imports:` configuration for `%s` and review the error details.", importPath)
+	}
 }
 
 // findImportsFieldLocation finds the line and column number of the imports field in YAML content

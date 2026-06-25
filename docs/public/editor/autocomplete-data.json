@@ -1107,11 +1107,6 @@
           "desc": "Enables the experimental GitHub Copilot SDK integration (copilot engine only).",
           "enum": [true, false],
           "leaf": true
-        },
-        "copilot-sdk-driver": {
-          "type": "string",
-          "desc": "Custom Copilot SDK driver script or command (copilot engine only).",
-          "leaf": true
         }
       }
     },

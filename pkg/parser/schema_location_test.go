@@ -167,6 +167,19 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			name: "valid pull_request_target ready_for_review trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request_target": map[string]any{
+						"types": []any{"ready_for_review"},
+					},
+				},
+				"engine": "claude",
+			},
+			filePath: "/test/workflow.md",
+			wantErr:  false,
+		},
+		{
 			name: "invalid workflow frontmatter with location",
 			frontmatter: map[string]any{
 				"on":      "push",

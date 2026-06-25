@@ -1,7 +1,7 @@
 // @ts-check
 import { describe, expect, it } from "vitest";
 
-import { parseMCPResponseBody } from "./mount_mcp_as_cli.cjs";
+import { AWF_GATEWAY_IP, parseMCPResponseBody, toContainerUrl } from "./mount_mcp_as_cli.cjs";
 
 describe("mount_mcp_as_cli.cjs", () => {
   it("parses JSON object responses unchanged", () => {
@@ -37,5 +37,27 @@ describe("mount_mcp_as_cli.cjs", () => {
         ],
       },
     });
+  });
+
+  it("rewrites host.docker.internal to the AWF gateway IP for CLI wrappers", () => {
+    const originalDomain = process.env.MCP_GATEWAY_DOMAIN;
+    const originalPort = process.env.MCP_GATEWAY_PORT;
+    process.env.MCP_GATEWAY_DOMAIN = "host.docker.internal";
+    process.env.MCP_GATEWAY_PORT = "8080";
+
+    try {
+      expect(toContainerUrl("http://0.0.0.0:8080/mcp/safeoutputs")).toBe(`http://${AWF_GATEWAY_IP}:8080/mcp/safeoutputs`);
+    } finally {
+      if (originalDomain === undefined) {
+        delete process.env.MCP_GATEWAY_DOMAIN;
+      } else {
+        process.env.MCP_GATEWAY_DOMAIN = originalDomain;
+      }
+      if (originalPort === undefined) {
+        delete process.env.MCP_GATEWAY_PORT;
+      } else {
+        process.env.MCP_GATEWAY_PORT = originalPort;
+      }
+    }
   });
 });

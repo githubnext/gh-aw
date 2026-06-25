@@ -311,7 +311,7 @@ func cleanupOldPromptFile(promptFileName string, verbose bool) error {
 	oldPath := filepath.Join(gitRoot, ".github", "prompts", promptFileName)
 
 	// Check if the old file exists and remove it
-	if _, err := os.Stat(oldPath); err == nil {
+	if fileutil.FileExists(oldPath) {
 		if err := os.Remove(oldPath); err != nil {
 			return fmt.Errorf("failed to remove old prompt file: %w", err)
 		}
@@ -333,7 +333,7 @@ func deleteSetupAgenticWorkflowsAgent(verbose bool) error {
 	agentPath := filepath.Join(gitRoot, ".github", "agents", "setup-agentic-workflows.agent.md")
 
 	// Check if the file exists and remove it
-	if _, err := os.Stat(agentPath); err == nil {
+	if fileutil.FileExists(agentPath) {
 		if err := os.Remove(agentPath); err != nil {
 			return fmt.Errorf("failed to remove setup-agentic-workflows agent: %w", err)
 		}
@@ -377,7 +377,7 @@ func deleteOldTemplateFiles(verbose bool) error {
 	removedCount := 0
 	for _, file := range templateFiles {
 		path := filepath.Join(templatesDir, file)
-		if _, err := os.Stat(path); err == nil {
+		if fileutil.FileExists(path) {
 			if err := os.Remove(path); err != nil {
 				return fmt.Errorf("failed to remove old template file %s: %w", file, err)
 			}
@@ -432,7 +432,7 @@ func deleteLegacyAgentFiles(verbose bool) error {
 	for subdir, files := range filesToDelete {
 		for _, file := range files {
 			path := filepath.Join(gitRoot, ".github", subdir, file)
-			if _, err := os.Stat(path); err == nil {
+			if fileutil.FileExists(path) {
 				if err := os.Remove(path); err != nil {
 					return fmt.Errorf("failed to remove old %s file %s: %w", subdir, file, err)
 				}

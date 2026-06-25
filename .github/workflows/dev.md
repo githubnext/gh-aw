@@ -34,6 +34,9 @@ tools:
     mode: gh-proxy
   cli-proxy: true
 
+sandbox:
+  agent:
+    sudo: false
 ---
 
 <!--

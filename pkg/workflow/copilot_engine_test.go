@@ -399,8 +399,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKCustomDriver(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			CopilotSDK:       true,
-			CopilotSDKDriver: ".github/drivers/custom_copilot_sdk_driver.cjs",
+			CopilotSDK: true,
+			Driver:     ".github/drivers/custom_copilot_sdk_driver.cjs",
 		},
 	}
 
@@ -448,8 +448,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKPythonDriver(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			CopilotSDK:       true,
-			CopilotSDKDriver: "my_driver.py",
+			CopilotSDK: true,
+			Driver:     "my_driver.py",
 		},
 	}
 
@@ -472,8 +472,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKTypeScriptDriver(t *testing.T)
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			CopilotSDK:       true,
-			CopilotSDKDriver: "my_driver.ts",
+			CopilotSDK: true,
+			Driver:     "my_driver.ts",
 		},
 	}
 
@@ -496,8 +496,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKRubyDriver(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			CopilotSDK:       true,
-			CopilotSDKDriver: "my_driver.rb",
+			CopilotSDK: true,
+			Driver:     "my_driver.rb",
 		},
 	}
 
@@ -520,8 +520,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKArbitraryDriver(t *testing.T) 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			CopilotSDK:       true,
-			CopilotSDKDriver: "my-copilot-driver",
+			CopilotSDK: true,
+			Driver:     "my-copilot-driver",
 		},
 	}
 
@@ -1457,7 +1457,7 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 				`"type": "stdio",`,
 				`"container": "ghcr.io/github/github-mcp-server:` + string(constants.DefaultGitHubMCPServerVersion) + `"`,
 				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_SERVER_TOKEN}"`,
 				`},`,
 			},
 		},
@@ -1472,7 +1472,7 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 				`"type": "stdio",`,
 				`"container": "ghcr.io/github/github-mcp-server:v1.2.3"`,
 				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_SERVER_TOKEN}"`,
 				`}`,
 			},
 		},
@@ -2129,7 +2129,7 @@ func TestCopilotEngineInstallationWithCommandAndCopilotSDK(t *testing.T) {
 			name:          "python command uses pip sdk install",
 			command:       "python3 main.py",
 			expectedName:  "name: Install GitHub Copilot SDK (Python)",
-			expectedRun:   "pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
+			expectedRun:   "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
 			expectedSteps: 1,
 		},
 		{
@@ -2178,14 +2178,14 @@ func TestCopilotEngineInstallationWithCommandAndCopilotSDK(t *testing.T) {
 			name:          "env wrapper command is detected",
 			command:       "env FOO=bar python script.py",
 			expectedName:  "name: Install GitHub Copilot SDK (Python)",
-			expectedRun:   "pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
+			expectedRun:   "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
 			expectedSteps: 1,
 		},
 		{
 			name:          "custom command with firewall keeps awf and sdk installs",
 			command:       "python script.py",
 			expectedName:  "name: Install GitHub Copilot SDK (Python)",
-			expectedRun:   "pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
+			expectedRun:   "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
 			withFirewall:  true,
 			expectedSteps: 2,
 		},
@@ -2249,7 +2249,7 @@ func TestCopilotEngineInstallationWithCopilotSDKDriver(t *testing.T) {
 			name:         "python driver uses pip sdk install",
 			driver:       "my_driver.py",
 			expectedName: "name: Install GitHub Copilot SDK (Python)",
-			expectedRun:  "pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
+			expectedRun:  "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
 		},
 		{
 			name:         "typescript driver installs ts-node toolchain and sdk",
@@ -2275,8 +2275,8 @@ func TestCopilotEngineInstallationWithCopilotSDKDriver(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
 				EngineConfig: &EngineConfig{
-					CopilotSDK:       true,
-					CopilotSDKDriver: tt.driver,
+					CopilotSDK: true,
+					Driver:     tt.driver,
 				},
 			}
 

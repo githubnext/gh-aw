@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var safeOutputsAppLog = logger.New("workflow:safe_outputs_app")
@@ -293,7 +294,7 @@ func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, per
 		}
 
 		// Extract and sort keys for deterministic ordering
-		keys := sortedMapKeys(permissionFields)
+		keys := sliceutil.SortedKeys(permissionFields)
 
 		// Add permissions in sorted order
 		for _, key := range keys {

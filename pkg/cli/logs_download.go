@@ -27,6 +27,7 @@ import (
 	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -129,14 +130,14 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 func findArtifactDir(outputDir, baseName string, legacyName string) string {
 	// First, try exact match
 	exactPath := filepath.Join(outputDir, baseName)
-	if _, err := os.Stat(exactPath); err == nil {
+	if fileutil.DirExists(exactPath) {
 		return exactPath
 	}
 
 	// Try legacy name if provided
 	if legacyName != "" {
 		legacyPath := filepath.Join(outputDir, legacyName)
-		if _, err := os.Stat(legacyPath); err == nil {
+		if fileutil.DirExists(legacyPath) {
 			return legacyPath
 		}
 	}
@@ -244,7 +245,7 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 	// Determine the source path: old structure preserves the tmp/gh-aw/ prefix inside the artifact
 	sourceDir := agentArtifactsDir
 	tmpGhAwPath := filepath.Join(agentArtifactsDir, "tmp", "gh-aw")
-	if _, err := os.Stat(tmpGhAwPath); err == nil {
+	if fileutil.DirExists(tmpGhAwPath) {
 		logsDownloadLog.Printf("Found old artifact structure with tmp/gh-aw prefix")
 		sourceDir = tmpGhAwPath
 	} else {
@@ -826,11 +827,8 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 			// The gh CLI fails when it encounters artifacts that are not valid zip archives.
 			// We warn and continue with any artifacts that were successfully downloaded.
 			if isNonZipArtifactError(output) {
-				// Show a concise warning; the raw output may be verbose so truncate it.
-				msg := string(output)
-				if len(msg) > 200 {
-					msg = msg[:200] + "..."
-				}
+				// Show a concise warning; preserve legacy behavior of 200 chars + "...".
+				msg := stringutil.Truncate(string(output), 203)
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Some artifacts could not be extracted (not a valid zip archive) and were skipped: "+msg))
 				skippedNonZipArtifacts = true
 			} else if isCaseCollisionArtifactError(output) {
@@ -973,7 +971,7 @@ func ensureUsageAwInfoFallback(ctx context.Context, runID int64, outputDir strin
 	}
 
 	awInfoPath := filepath.Join(outputDir, "aw_info.json")
-	if _, err := os.Stat(awInfoPath); err == nil {
+	if fileutil.FileExists(awInfoPath) {
 		return
 	}
 

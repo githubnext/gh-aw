@@ -51,6 +51,9 @@ imports:
 timeout-minutes: 30
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

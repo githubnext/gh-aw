@@ -1,5 +1,4 @@
 ---
-private: true
 on:
   schedule: daily
   workflow_dispatch: null
@@ -95,6 +94,9 @@ tools:
 tracker-id: daily-compiler-quality
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

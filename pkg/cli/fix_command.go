@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/spf13/cobra"
@@ -216,7 +217,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 
 	// Delete deprecated schema file if it exists
 	schemaPath := filepath.Join(".github", "aw", "schemas", "agentic-workflow.json")
-	if _, err := os.Stat(schemaPath); err == nil {
+	if fileutil.FileExists(schemaPath) {
 		fixLog.Printf("Found deprecated schema file at %s", schemaPath)
 		if write {
 			if err := os.Remove(schemaPath); err != nil {

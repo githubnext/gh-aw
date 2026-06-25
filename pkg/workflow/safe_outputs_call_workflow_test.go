@@ -467,6 +467,56 @@ jobs:
 		"payload canonical entry must be the raw step output, not a fromJSON expression")
 }
 
+func TestBuildCallWorkflowJobs_ForwardsHyphenatedInputsFromPayload(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	workerContent := `name: Worker
+on:
+  workflow_call:
+    inputs:
+      task-description:
+        description: Task description
+        type: string
+        required: false
+jobs:
+  work:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Working"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker-a.lock.yml"), []byte(workerContent), 0644))
+
+	gatewayFile := filepath.Join(workflowsDir, "gateway.md")
+	require.NoError(t, os.WriteFile(gatewayFile, []byte("# Gateway"), 0644))
+
+	compiler := NewCompiler(WithVersion("1.0.0"))
+	workflowData := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CallWorkflow: &CallWorkflowConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				Workflows:            []string{"worker-a"},
+				WorkflowFiles: map[string]string{
+					"worker-a": "./.github/workflows/worker-a.lock.yml",
+				},
+			},
+		},
+	}
+
+	jobNames, err := compiler.buildCallWorkflowJobs(workflowData, gatewayFile)
+	require.NoError(t, err, "Should not error building call-workflow jobs")
+	require.Equal(t, []string{"call-worker-a"}, jobNames)
+
+	job, exists := compiler.jobManager.GetJob("call-worker-a")
+	require.True(t, exists, "call-worker-a job should exist")
+
+	assert.Equal(t,
+		"${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload)['task-description'] }}",
+		job.With["task-description"],
+		"Should forward hyphenated input with bracket access")
+}
+
 // TestBuildCallWorkflowJobs_OmitsPayloadWhenNotDeclared verifies that the canonical
 // payload envelope is NOT forwarded in the with: block when the worker does not
 // declare a `payload` workflow_call input. GitHub Actions rejects a `uses:` step

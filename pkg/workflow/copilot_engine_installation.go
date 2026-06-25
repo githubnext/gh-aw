@@ -131,8 +131,8 @@ func buildCopilotSDKInstallStep(workflowData *WorkflowData) GitHubActionStep {
 	// file extension to determine which language SDK to install. This ensures the correct SDK
 	// package manager command is generated (e.g., pip for .py drivers, ruby/gem for .rb drivers).
 	command := workflowData.EngineConfig.Command
-	if command == "" && workflowData.EngineConfig.CopilotSDKDriver != "" {
-		command = sdkDriverInstallCommand(workflowData.EngineConfig.CopilotSDKDriver)
+	if command == "" && workflowData.EngineConfig.Driver != "" {
+		command = sdkDriverInstallCommand(workflowData.EngineConfig.Driver)
 	}
 	spec := getCopilotSDKInstallSpec(command)
 	copilotInstallLog.Printf("copilot-sdk enabled; runtime=%s; install command=%s", spec.runtimeID, spec.command)
@@ -174,7 +174,7 @@ func getCopilotSDKInstallSpec(command string) copilotSDKInstallSpec {
 	switch runtimeID {
 	case "python":
 		spec.stepName = "Install GitHub Copilot SDK (Python)"
-		spec.command = workspaceCommandPrefix + "pip install --disable-pip-version-check github-copilot-sdk==" + version
+		spec.command = workspaceCommandPrefix + "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + version
 	case "typescript":
 		spec.stepName = "Install GitHub Copilot SDK (TypeScript)"
 		spec.command = workspaceCommandPrefix + "npm install --ignore-scripts --no-save @github/copilot-sdk@" + version + " ts-node typescript"
@@ -272,9 +272,19 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 		version = string(constants.DefaultFirewallVersion)
 	}
 
+	installCmd := "bash \"${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh\" " + version
+	// When sudo is false (network isolation mode), AWF runs rootless: pass --rootless
+	// so the install script installs into $HOME/.local/{bin,lib/awf} (always writable,
+	// even on standard GitHub-hosted runners where /usr/local is root-owned) and exports
+	// $GITHUB_PATH so the bare awf invocation in later steps resolves correctly.
+	// Also check Disabled to match isAWFNetworkIsolationEnabled() behavior.
+	if agentConfig != nil && agentConfig.NetworkIsolation && !agentConfig.Disabled {
+		installCmd += " --rootless"
+	}
+
 	stepLines := []string{
 		"      - name: Install AWF binary",
-		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh\" " + version,
+		"        run: " + installCmd,
 	}
 
 	return GitHubActionStep(stepLines)

@@ -89,6 +89,9 @@ Trivial workflow whose only job is to be compiled with --use-samples.
 		if !strings.Contains(lockContent, "apply_samples.cjs") {
 			t.Error("Expected lock file to invoke apply_samples.cjs driver")
 		}
+		if !strings.Contains(lockContent, "node \"${RUNNER_TEMP}/gh-aw/actions/apply_samples.cjs\"") {
+			t.Error("Expected apply_samples.cjs invocation to use RUNNER_TEMP shell variable")
+		}
 		if !strings.Contains(lockContent, "GH_AW_SAMPLES:") {
 			t.Error("Expected GH_AW_SAMPLES env var in lock file")
 		}

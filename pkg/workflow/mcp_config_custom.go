@@ -11,7 +11,6 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
-	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/types"
 )
 
@@ -47,6 +46,39 @@ func renderCustomMCPConfigWrapperWithContext(yaml *strings.Builder, toolName str
 	}
 
 	return nil
+}
+
+// renderCustomMCPEnvVars normalizes custom MCP env values for the target output
+// format before serialization.
+//
+// For TOML output, GitHub Actions template expressions are rewritten to direct
+// ${VAR} references because Codex config expects shell-style environment
+// expansion. For JSON output, Copilot uses escaped \${VAR} passthrough syntax,
+// while non-Copilot engines use bash variable substitution to avoid embedding
+// secret expressions directly in the generated run block.
+func renderCustomMCPEnvVars(env map[string]string, tomlFormat, requiresCopilotFields bool) map[string]string {
+	renderedEnv := make(map[string]string, len(env))
+	for envKey, envValue := range env {
+		if tomlFormat {
+			// Replace template expressions with environment variable references for TOML.
+			// For TOML, we use direct shell variable syntax without backslash.
+			envValue = strings.ReplaceAll(envValue, "${{ secrets.", "${")
+			envValue = strings.ReplaceAll(envValue, "${{ env.", "${")
+			envValue = strings.ReplaceAll(envValue, "${{ github.workspace }}", "${GITHUB_WORKSPACE}")
+			envValue = strings.ReplaceAll(envValue, " }}", "}")
+		} else if requiresCopilotFields {
+			// For Copilot, replace all template expressions with \${VAR} syntax.
+			envValue = ReplaceTemplateExpressionsWithEnvVars(envValue)
+		} else {
+			// For non-Copilot engines, replace secrets with ${VAR} bash expansion so
+			// they are never directly interpolated in the run block (RGS-008). The
+			// env vars are injected into the step env block by collectMCPEnvironmentVariables.
+			envValue = ReplaceSecretsWithBashVars(envValue)
+		}
+		renderedEnv[envKey] = envValue
+	}
+
+	return renderedEnv
 }
 
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
@@ -359,80 +391,21 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 			}
 		case "env":
+			renderedEnv := renderCustomMCPEnvVars(mcpConfig.Env, renderer.Format == "toml", renderer.RequiresCopilotFields)
 			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%senv = { ", renderer.IndentLevel)
-				// Using functional helper to extract map keys
-				envKeys := sliceutil.MapKeys(mcpConfig.Env)
-				sort.Strings(envKeys)
-				for i, envKey := range envKeys {
-					if i > 0 {
-						yaml.WriteString(", ")
-					}
-					// Replace template expressions with environment variable references for TOML
-					envValue := mcpConfig.Env[envKey]
-					// For TOML, we use direct shell variable syntax without backslash
-					envValue = strings.ReplaceAll(envValue, "${{ secrets.", "${")
-					envValue = strings.ReplaceAll(envValue, "${{ env.", "${")
-					envValue = strings.ReplaceAll(envValue, "${{ github.workspace }}", "${GITHUB_WORKSPACE}")
-					envValue = strings.ReplaceAll(envValue, " }}", "}")
-					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", envKey, envValue)
-				}
-				yaml.WriteString(" }\n")
+				writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "env", renderedEnv)
 			} else {
-				comma := ","
-				if isLast {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "%s\"env\": {\n", renderer.IndentLevel)
-
-				// CWE-190: Allocation Size Overflow Prevention
-				// Instead of pre-calculating capacity (len(mcpConfig.Env)+len(headerSecrets)),
-				// which could overflow if the maps are extremely large, we let Go's append
-				// handle capacity growth automatically. This is safe and efficient for
-				// environment variable maps which are typically small in practice.
-				var envKeys []string
-				for key := range mcpConfig.Env {
-					envKeys = append(envKeys, key)
-				}
 				// Add header secrets for passthrough (copilot only)
 				for varName := range headerSecrets {
 					// Only add if not already in env
-					if _, exists := mcpConfig.Env[varName]; !exists {
-						envKeys = append(envKeys, varName)
-					}
-				}
-				sort.Strings(envKeys)
-
-				for envIndex, envKey := range envKeys {
-					envComma := ","
-					if envIndex == len(envKeys)-1 {
-						envComma = ""
-					}
-
-					// Check if this is a header secret (needs passthrough)
-					if _, isHeaderSecret := headerSecrets[envKey]; isHeaderSecret {
+					if _, exists := renderedEnv[varName]; !exists {
 						// SECURITY: use passthrough syntax for all engines so the MCP gateway passes
 						// the env var value to the MCP server rather than the literal secret expression.
 						// Use passthrough syntax: "VAR_NAME": "\\${VAR_NAME}"
-						fmt.Fprintf(yaml, "%s  \"%s\": \"\\${%s}\"%s\n", renderer.IndentLevel, envKey, envKey, envComma)
-					} else {
-						// Replace template expressions with environment variable references
-						// This prevents template injection by using shell variable substitution
-						// instead of GitHub Actions template expansion
-						envValue := mcpConfig.Env[envKey]
-						if renderer.RequiresCopilotFields {
-							// For Copilot, replace all template expressions with \${VAR} syntax
-							envValue = ReplaceTemplateExpressionsWithEnvVars(envValue)
-						} else {
-							// For non-Copilot engines, replace secrets with ${VAR} bash expansion
-							// so they are never directly interpolated in the run block (RGS-008).
-							// The env vars are injected into the step env block by collectMCPEnvironmentVariables.
-							envValue = ReplaceSecretsWithBashVars(envValue)
-						}
-						fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, envKey, envValue, envComma)
+						renderedEnv[varName] = "\\${" + varName + "}"
 					}
 				}
-				fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
+				writeJSONStringMapSection(yaml, renderer.IndentLevel, "env", renderedEnv, !isLast)
 			}
 		case "url":
 			// Rewrite localhost URLs to host.docker.internal when running inside firewall container
@@ -453,44 +426,20 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		case "http_headers":
 			// TOML format for HTTP headers (Codex style)
 			if len(mcpConfig.Headers) > 0 {
-				fmt.Fprintf(yaml, "%shttp_headers = { ", renderer.IndentLevel)
-				// Using functional helper to extract map keys
-				headerKeys := sliceutil.MapKeys(mcpConfig.Headers)
-				sort.Strings(headerKeys)
-				for i, headerKey := range headerKeys {
-					if i > 0 {
-						yaml.WriteString(", ")
-					}
-					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", headerKey, mcpConfig.Headers[headerKey])
-				}
-				yaml.WriteString(" }\n")
+				writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "http_headers", mcpConfig.Headers)
 			}
 		case "headers":
-			comma := ","
-			if isLast {
-				comma = ""
-			}
-			fmt.Fprintf(yaml, "%s\"headers\": {\n", renderer.IndentLevel)
-			// Using functional helper to extract map keys
-			headerKeys := sliceutil.MapKeys(mcpConfig.Headers)
-			sort.Strings(headerKeys)
-			for headerIndex, headerKey := range headerKeys {
-				headerComma := ","
-				if headerIndex == len(headerKeys)-1 {
-					headerComma = ""
-				}
-
+			renderedHeaders := make(map[string]string, len(mcpConfig.Headers))
+			for headerKey, headerValue := range mcpConfig.Headers {
 				// SECURITY: replace secret expressions with env var references for all engines.
 				// This prevents the token value from being embedded directly in the script text,
 				// treating it as data rather than syntax.
-				headerValue := mcpConfig.Headers[headerKey]
 				if len(headerSecrets) > 0 {
 					headerValue = ReplaceSecretsWithEnvVars(headerValue, headerSecrets)
 				}
-
-				fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, headerKey, headerValue, headerComma)
+				renderedHeaders[headerKey] = headerValue
 			}
-			fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
+			writeJSONStringMapSection(yaml, renderer.IndentLevel, "headers", renderedHeaders, !isLast)
 		case "auth":
 			// Auth field - upstream OIDC authentication config (HTTP servers only, JSON format only)
 			// Guard against nil auth (defensive check, existingProperties should have filtered this out)

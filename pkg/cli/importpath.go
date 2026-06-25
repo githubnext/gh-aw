@@ -1,10 +1,10 @@
 package cli
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -120,7 +120,7 @@ func resolveImportPath(importPath, baseDir string, opts importPathResolverOpts) 
 		// matching the original dependency_graph.go behaviour).
 		if !strings.HasPrefix(importPath, "/") {
 			absPath := filepath.Join(baseDir, importPath)
-			if _, err := os.Stat(absPath); err == nil {
+			if fileutil.FileExists(absPath) {
 				return absPath
 			}
 		}

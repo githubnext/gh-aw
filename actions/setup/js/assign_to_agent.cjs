@@ -330,7 +330,7 @@ async function main(config = {}) {
       let agentId = agentCache[agentName];
       if (!agentId) {
         core.info(`Looking for ${agentName} coding agent...`);
-        agentId = await findAgent(effectiveOwner, effectiveRepo, agentName, githubClient);
+        agentId = await findAgent(effectiveOwner, effectiveRepo, agentName, issueNumber || pullNumber, githubClient);
         if (!agentId) {
           throw new Error(`${agentName} coding agent is not available for this repository`);
         }
@@ -399,13 +399,23 @@ async function main(config = {}) {
         const errorType = isAuthError ? "authentication/permission" : "agent availability";
         core.warning(`Agent assignment failed for ${agentName} on ${type} #${number} due to ${errorType} error. Skipping due to ignore-if-error=true.`);
         core.info(`Error details: ${errorMessage}`);
-        _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true, skipped: true });
+        _allResults.push({
+          issue_number: issueNumber,
+          pull_number: pullNumber,
+          agent: agentName,
+          owner: effectiveOwner,
+          repo: effectiveRepo,
+          pull_request_repo: effectivePullRequestRepoSlug,
+          success: true,
+          skipped: true,
+          error: errorMessage,
+        });
         return { success: true, skipped: true };
       }
 
       if (isAvailabilityError) {
         try {
-          const available = await getAvailableAgentLogins(effectiveOwner, effectiveRepo, githubClient);
+          const available = await getAvailableAgentLogins(effectiveOwner, effectiveRepo, issueNumber || pullNumber, githubClient);
           if (available.length > 0) errorMessage += ` (available agents: ${available.join(", ")})`;
         } catch (e) {
           core.debug("Failed to enrich unavailable agent message with available list");
@@ -451,18 +461,24 @@ function getAssignToAgentAssigned() {
 
 /**
  * Returns the "assignment_errors" output string for step outputs.
- * Format: "issue:N:agent:error" or "pr:N:agent:error" per failure, newline-separated.
+ * Format: "issue:N:agent:error" or "pr:N:agent:error" per failure/skipped-with-error,
+ * newline-separated.
  * @returns {string}
  */
 function getAssignToAgentErrors() {
-  return _allResults
-    .filter(r => !r.success && !r.skipped)
-    .map(r => {
-      const number = r.issue_number || r.pull_number;
-      const prefix = r.issue_number ? "issue" : "pr";
-      return `${prefix}:${number}:${r.agent}:${r.error}`;
-    })
-    .join("\n");
+  return (
+    _allResults
+      // Include skipped(ignore-if-error) entries that still captured an error so
+      // downstream failure handling can surface assignment problems in issue/comment reports.
+      // Include hard failures (!success) and ignored failures (skipped=true with error).
+      .filter(r => r.error && (r.skipped || !r.success))
+      .map(r => {
+        const number = r.issue_number || r.pull_number;
+        const prefix = r.issue_number ? "issue" : "pr";
+        return `${prefix}:${number}:${r.agent}:${r.error}`;
+      })
+      .join("\n")
+  );
 }
 
 /**

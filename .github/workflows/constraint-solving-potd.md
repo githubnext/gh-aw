@@ -33,6 +33,9 @@ safe-outputs:
     expires: 7d
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Constraint Solving — Problem of the Day

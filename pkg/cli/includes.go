@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/setutil"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -350,7 +351,7 @@ func fetchFrontmatterImportsRecursive(content, currentBaseDir string, opts front
 		// Check existence before downloading: if the file already exists and force=false,
 		// skip the download entirely (no unnecessary network round-trip).
 		fileExists := false
-		if _, statErr := os.Stat(targetPath); statErr == nil {
+		if fileutil.FileExists(targetPath) {
 			fileExists = true
 			if !opts.force {
 				if opts.verbose {
@@ -472,7 +473,7 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 
 		// Check if file already exists
 		fileExists := false
-		if _, err := os.Stat(targetPath); err == nil {
+		if fileutil.FileExists(targetPath) {
 			fileExists = true
 			if !force {
 				if verbose {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2/tree"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -107,7 +108,7 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 		compiled := "N/A"
 		timeRemaining := "N/A"
 
-		if _, err := os.Stat(lockFile); err == nil {
+		if fileutil.FileExists(lockFile) {
 			// Check if up to date using hash comparison
 			compiled = isCompiledUpToDate(file, lockFile)
 

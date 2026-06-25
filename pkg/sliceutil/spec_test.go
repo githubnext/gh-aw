@@ -81,6 +81,34 @@ func TestSpec_PublicAPI_FilterMapKeys(t *testing.T) {
 	})
 }
 
+// TestSpec_PublicAPI_SortedKeys validates the documented behavior of SortedKeys
+// as described in the sliceutil README.md specification.
+func TestSpec_PublicAPI_SortedKeys(t *testing.T) {
+	t.Run("returns map keys in sorted order", func(t *testing.T) {
+		m := map[string]int{"banana": 2, "apple": 1, "cherry": 3}
+		keys := SortedKeys(m)
+		assert.Equal(t, []string{"apple", "banana", "cherry"}, keys, "SortedKeys should return keys in sorted order")
+	})
+
+	t.Run("returns empty slice for empty map", func(t *testing.T) {
+		m := map[string]int{}
+		keys := SortedKeys(m)
+		assert.Empty(t, keys, "SortedKeys of empty map should return empty slice")
+	})
+
+	t.Run("returns nil for nil map", func(t *testing.T) {
+		var m map[string]int
+		keys := SortedKeys(m)
+		assert.Nil(t, keys, "SortedKeys of nil map should return nil, not an empty slice")
+	})
+
+	t.Run("works with non-string ordered key types", func(t *testing.T) {
+		m := map[int]string{3: "c", 1: "a", 2: "b"}
+		keys := SortedKeys(m)
+		assert.Equal(t, []int{1, 2, 3}, keys, "SortedKeys should sort integer keys numerically")
+	})
+}
+
 // TestSpec_PublicAPI_Any validates the documented behavior of Any as described
 // in the sliceutil README.md specification.
 func TestSpec_PublicAPI_Any(t *testing.T) {

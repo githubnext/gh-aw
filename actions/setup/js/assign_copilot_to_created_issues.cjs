@@ -73,7 +73,7 @@ async function main() {
       // Find agent (reuse cached ID for same repo)
       if (!agentId) {
         core.info(`Looking for ${agentName} coding agent...`);
-        agentId = await findAgent(owner, repo, agentName);
+        agentId = await findAgent(owner, repo, agentName, issueNumber);
         if (!agentId) {
           throw new Error(`${ERR_PERMISSION}: ${agentName} coding agent is not available for this repository`);
         }

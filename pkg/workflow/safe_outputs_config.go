@@ -418,13 +418,17 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			}
 
 			// Handle staged flag
-			if staged, exists := outputMap["staged"]; exists {
-				if stagedBool, ok := staged.(bool); ok {
-					config.Staged = stagedBool
+			if err := preprocessBoolFieldAsString(outputMap, "staged", safeOutputsConfigLog); err != nil {
+				safeOutputsConfigLog.Printf("staged: %v", err)
+			} else if staged, exists := outputMap["staged"]; exists {
+				if stagedStr, ok := staged.(string); ok && stagedStr != "" {
+					value := TemplatableBool(stagedStr)
+					config.Staged = &value
 				}
 			}
 			if c.forceStaged {
-				config.Staged = true
+				value := TemplatableBool("true")
+				config.Staged = &value
 			}
 
 			// Handle env configuration
@@ -836,10 +840,13 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 	}
 
 	// Parse staged flag (per-handler staged mode)
-	if staged, exists := configMap["staged"]; exists {
-		if stagedBool, ok := staged.(bool); ok {
-			safeOutputsConfigLog.Printf("Parsed staged flag: %t", stagedBool)
-			config.Staged = stagedBool
+	if err := preprocessBoolFieldAsString(configMap, "staged", safeOutputsConfigLog); err != nil {
+		safeOutputsConfigLog.Printf("Invalid staged value: %v", err)
+	} else if staged, exists := configMap["staged"]; exists {
+		if stagedStr, ok := staged.(string); ok && stagedStr != "" {
+			safeOutputsConfigLog.Printf("Parsed staged flag: %s", stagedStr)
+			value := TemplatableBool(stagedStr)
+			config.Staged = &value
 		}
 	}
 

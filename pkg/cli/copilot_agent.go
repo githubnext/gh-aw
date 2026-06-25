@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -54,7 +55,7 @@ func (d *CopilotCodingAgentDetector) IsGitHubCopilotCodingAgent() bool {
 
 	// If aw_info.json exists, this is an agentic workflow, NOT a GitHub Copilot coding agent run
 	awInfoPath := filepath.Join(d.runDir, "aw_info.json")
-	if _, err := os.Stat(awInfoPath); err == nil {
+	if fileutil.FileExists(awInfoPath) {
 		copilotCodingAgentLog.Print("Found aw_info.json - this is an agentic workflow, not a GitHub Copilot coding agent")
 		return false
 	}

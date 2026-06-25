@@ -421,15 +421,26 @@ function loadCustomSafeOutputActionHandlers() {
 }
 
 /**
+ * Parse a templatable boolean value that may arrive as a boolean literal or as
+ * the string result of a resolved GitHub Actions expression. Undefined,
+ * null, false, and unresolved expression strings return false.
+ * @param {any} value - Candidate templatable boolean value.
+ * @returns {boolean}
+ */
+function isTemplatableTrue(value) {
+  return value === true || value === "true";
+}
+
+/**
  * Returns true when the current execution is in staged mode.
  * Staged mode is active when either the global GH_AW_SAFE_OUTPUTS_STAGED
- * environment variable is "true" or when the per-handler config has staged: true.
+ * environment variable is "true" or when the per-handler config resolves to true.
  * Use this helper in all handlers to ensure consistent staged mode detection.
- * @param {Object} [config] - Handler configuration object (may have staged: true)
+ * @param {Object} [config] - Handler configuration object (may have staged: true/"true")
  * @returns {boolean}
  */
 function isStagedMode(config) {
-  return process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || (config != null && config.staged === true);
+  return process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || (config != null && isTemplatableTrue(config.staged));
 }
 
 /**
@@ -481,6 +492,7 @@ module.exports = {
   extractAssignees,
   matchesBlockedPattern,
   isUsernameBlocked,
+  isTemplatableTrue,
   isStagedMode,
   logStagedPreviewInfo,
   checkRequiredFilter,

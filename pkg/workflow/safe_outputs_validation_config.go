@@ -105,7 +105,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"add_labels": {
 		DefaultMax: 5,
 		Fields: map[string]FieldValidation{
-			"labels":      {Required: true, Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"labels":      {Required: true, Type: "array"}, // Item-level validation/sanitization handled by JS issue-intent label normalization.
 			"item_number": {IssueNumberOrTemporaryID: true},
 			"repo":        {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
@@ -135,7 +135,10 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"issue_number": {IssueOrPRNumber: true},
 			"issue_type":   {Required: true, Type: "string", Sanitize: true, MaxLength: 128}, // Empty string clears the type
-			"repo":         {Type: "string", MaxLength: 256},                                 // Optional: target repository in format "owner/repo"
+			"rationale":    {Type: "string", Sanitize: true, MaxLength: 1024},
+			"confidence":   {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}},
+			"suggest":      {Type: "boolean"},
+			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"set_issue_field": {
@@ -146,6 +149,9 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"field_name":    {Type: "string", Sanitize: true, MaxLength: 128},
 			"field_node_id": {Type: "string", MaxLength: 256},
 			"value":         {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
+			"rationale":     {Type: "string", Sanitize: true, MaxLength: 1024},
+			"confidence":    {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}},
+			"suggest":       {Type: "boolean"},
 			"repo":          {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
@@ -171,13 +177,13 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	},
 	"update_issue": {
 		DefaultMax:       1,
-		CustomValidation: "requiresOneOf:status,title,body",
+		CustomValidation: "requiresOneOf:status,title,body,labels,assignees,milestone",
 		Fields: map[string]FieldValidation{
 			"status":       {Type: "string", Enum: []string{"open", "closed"}},
 			"title":        {Type: "string", Sanitize: true, MaxLength: 128},
 			"body":         {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"operation":    {Type: "string", Enum: []string{"replace", "append", "prepend", "replace-island"}},
-			"labels":       {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"labels":       {Type: "array"},
 			"assignees":    {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: MaxGitHubUsernameLength},
 			"milestone":    {OptionalPositiveInteger: true},
 			"issue_number": {IssueOrPRNumber: true},
@@ -387,7 +393,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"remove_labels": {
 		DefaultMax: 5,
 		Fields: map[string]FieldValidation{
-			"labels":      {Required: true, Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"labels":      {Required: true, Type: "array"}, // Item-level validation/sanitization handled by JS issue-intent label normalization.
 			"item_number": {IssueNumberOrTemporaryID: true},
 			"repo":        {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},

@@ -15,6 +15,7 @@ const mockGithub = {
     issues: {
       checkUserCanBeAssigned: vi.fn(),
       get: vi.fn(),
+      listAssignees: vi.fn(),
     },
     users: {
       getByUsername: vi.fn(),
@@ -29,7 +30,7 @@ const mockGithub = {
 globalThis.core = mockCore;
 globalThis.github = mockGithub;
 
-const { AGENT_LOGIN_NAMES, getAgentName, getAvailableAgentLogins, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary, assignAgentToIssueByName } =
+const { AGENT_LOGIN_NAMES, getAgentName, getAgentLogins, getAvailableAgentLogins, getAssignableBots, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary, assignAgentToIssueByName } =
   await import("./assign_agent_helpers.cjs");
 
 describe("assign_agent_helpers.cjs", () => {
@@ -38,9 +39,9 @@ describe("assign_agent_helpers.cjs", () => {
   });
 
   describe("AGENT_LOGIN_NAMES", () => {
-    it("should have copilot mapped to copilot-swe-agent", () => {
+    it("should have copilot mapped to known assignee aliases", () => {
       expect(AGENT_LOGIN_NAMES).toEqual({
-        copilot: "copilot-swe-agent",
+        copilot: ["copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"],
       });
     });
   });
@@ -59,6 +60,14 @@ describe("assign_agent_helpers.cjs", () => {
       expect(getAgentName("some-user")).toBeNull();
     });
 
+    it("should return copilot for known copilot assignee aliases", () => {
+      expect(getAgentName("copilot-swe-agent")).toBe("copilot");
+      expect(getAgentName("@github-copilot-enterprise")).toBe("copilot");
+      expect(getAgentName("github-copilot-enterprise[bot]")).toBe("copilot");
+      expect(getAgentName("github-copilot")).toBe("copilot");
+      expect(getAgentName("github-copilot[bot]")).toBe("copilot");
+    });
+
     it("should return null for empty string", () => {
       expect(getAgentName("")).toBeNull();
     });
@@ -69,46 +78,130 @@ describe("assign_agent_helpers.cjs", () => {
     });
   });
 
+  describe("getAgentLogins", () => {
+    it("should return all known copilot aliases", () => {
+      expect(getAgentLogins("copilot")).toEqual(["copilot-swe-agent", "github-copilot-enterprise", "github-copilot-enterprise[bot]", "github-copilot", "github-copilot[bot]"]);
+    });
+
+    it("should return empty array for unknown agents", () => {
+      expect(getAgentLogins("unknown")).toEqual([]);
+    });
+  });
+
   describe("getAvailableAgentLogins", () => {
-    it("should return available agent logins when checkUserCanBeAssigned succeeds", async () => {
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
+    it("should return available agent logins when an alias is assignable", async () => {
+      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404).mockResolvedValueOnce({}).mockRejectedValue(err404);
 
       const result = await getAvailableAgentLogins("owner", "repo");
 
-      expect(result).toEqual(["copilot-swe-agent"]);
+      expect(result).toEqual(["github-copilot-enterprise"]);
       expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledWith({ owner: "owner", repo: "repo", assignee: "copilot-swe-agent" });
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledWith({ owner: "owner", repo: "repo", assignee: "github-copilot-enterprise" });
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(5);
     });
 
-    it("should return empty array when agent is not assignable (404)", async () => {
+    it("should return empty array when no alias is assignable (404)", async () => {
       const err404 = Object.assign(new Error("Not Found"), { status: 404 });
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404);
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(err404);
 
       const result = await getAvailableAgentLogins("owner", "repo");
 
       expect(result).toEqual([]);
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(5);
     });
 
     it("should handle non-404 errors gracefully and return empty array", async () => {
       const err500 = Object.assign(new Error("Server error"), { status: 500 });
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err500);
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(err500);
 
       const result = await getAvailableAgentLogins("owner", "repo");
 
       expect(result).toEqual([]);
-      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to check assignability for copilot-swe-agent"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Failed to check assignability for copilot-swe-agent"));
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(5);
+    });
+
+    it("should use issue-scoped assignee checks when issue number is provided", async () => {
+      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
+      mockGithub.request.mockRejectedValueOnce(err404).mockResolvedValueOnce({ status: 204 }).mockRejectedValue(err404);
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(err404);
+
+      const result = await getAvailableAgentLogins("owner", "repo", 123);
+
+      expect(result).toEqual(["github-copilot-enterprise"]);
+      expect(mockGithub.request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
+        owner: "owner",
+        repo: "repo",
+        issue_number: 123,
+        assignee: "copilot-swe-agent",
+      });
+      expect(mockGithub.request).toHaveBeenCalledTimes(5);
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(4);
+    });
+
+    it("should fall back to repository-scoped checks when issue-scoped check returns 422", async () => {
+      const err422 = Object.assign(new Error("Validation Failed"), { status: 422 });
+      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
+      mockGithub.request.mockRejectedValue(err422);
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404).mockResolvedValueOnce({}).mockRejectedValue(err404);
+
+      const result = await getAvailableAgentLogins("owner", "repo", 123);
+
+      expect(result).toEqual(["github-copilot-enterprise"]);
+      expect(mockGithub.request).toHaveBeenCalledTimes(5);
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(5);
+    });
+  });
+
+  describe("getAssignableBots", () => {
+    it("should return assignable bot logins from repository assignees", async () => {
+      mockGithub.rest.issues.listAssignees.mockResolvedValue({
+        data: [
+          { login: "github-actions[bot]", type: "Bot" },
+          { login: "octocat", type: "User" },
+        ],
+      });
+
+      const result = await getAssignableBots("owner", "repo");
+
+      expect(result).toEqual(["github-actions[bot]"]);
+      expect(mockGithub.rest.issues.listAssignees).toHaveBeenCalledWith({ owner: "owner", repo: "repo", per_page: 100, page: 1 });
+    });
+
+    it("should filter bots by [bot] login suffix when type is not set", async () => {
+      mockGithub.rest.issues.listAssignees.mockResolvedValue({
+        data: [{ login: "dependabot[bot]" }],
+      });
+
+      const result = await getAssignableBots("owner", "repo");
+
+      expect(result).toEqual(["dependabot[bot]"]);
+    });
+
+    it("should return [] and debug-log when listAssignees throws", async () => {
+      mockGithub.rest.issues.listAssignees.mockRejectedValue(new Error("API down"));
+
+      const result = await getAssignableBots("owner", "repo");
+
+      expect(result).toEqual([]);
+      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to list assignable bots"));
     });
   });
 
   describe("findAgent", () => {
-    it("should find copilot agent and return its ID via REST", async () => {
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
+    it("should find copilot agent via a fallback alias and return its ID via REST", async () => {
+      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404).mockResolvedValueOnce({});
       mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 12345 } });
 
       const result = await findAgent("owner", "repo", "copilot");
 
       expect(result).toBe("12345");
       expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledWith({ owner: "owner", repo: "repo", assignee: "copilot-swe-agent" });
-      expect(mockGithub.rest.users.getByUsername).toHaveBeenCalledWith({ username: "copilot-swe-agent" });
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledWith({ owner: "owner", repo: "repo", assignee: "github-copilot-enterprise" });
+      expect(mockGithub.rest.users.getByUsername).toHaveBeenCalledWith({ username: "github-copilot-enterprise" });
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(2);
     });
 
     it("should return null for unknown agent name", async () => {
@@ -118,16 +211,16 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Unknown agent: unknown-agent"));
     });
 
-    it("should return null when copilot is not available (404)", async () => {
+    it("should return null and log bots when no copilot alias is available (404)", async () => {
       const err404 = Object.assign(new Error("Not Found"), { status: 404 });
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404);
-      // getAvailableAgentLogins also calls checkUserCanBeAssigned
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404);
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(err404);
+      mockGithub.rest.issues.listAssignees.mockResolvedValue({ data: [{ login: "github-actions[bot]", type: "Bot" }] });
 
       const result = await findAgent("owner", "repo", "copilot");
 
       expect(result).toBeNull();
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("copilot coding agent (copilot-swe-agent) is not available"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("copilot coding agent aliases are not available"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Assignable bots in this repository: github-actions[bot]"));
     });
 
     it("should handle REST errors and re-throw auth errors", async () => {
@@ -140,13 +233,68 @@ describe("assign_agent_helpers.cjs", () => {
     it("should return null for non-auth errors", async () => {
       const err = new Error("Something unexpected");
       mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err);
-      // getAvailableAgentLogins fallback
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(Object.assign(new Error("Not Found"), { status: 404 }));
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(Object.assign(new Error("Not Found"), { status: 404 }));
+      mockGithub.rest.issues.listAssignees.mockResolvedValue({ data: [] });
 
       const result = await findAgent("owner", "repo", "copilot");
 
       expect(result).toBeNull();
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to find copilot agent"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Assignee alias copilot-swe-agent was not assignable"));
+    });
+
+    it("should prefer issue-scoped assignee checks when issue number is provided", async () => {
+      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
+      mockGithub.request.mockRejectedValueOnce(err404).mockResolvedValueOnce({ status: 204 });
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404);
+      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 12345 } });
+
+      const result = await findAgent("owner", "repo", "copilot", 321);
+
+      expect(result).toBe("12345");
+      expect(mockGithub.request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
+        owner: "owner",
+        repo: "repo",
+        issue_number: 321,
+        assignee: "copilot-swe-agent",
+      });
+      expect(mockGithub.request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", {
+        owner: "owner",
+        repo: "repo",
+        issue_number: 321,
+        assignee: "github-copilot-enterprise",
+      });
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalledTimes(1);
+    });
+
+    it("should fall back to repository-scoped checks when issue number is invalid", async () => {
+      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(err404);
+
+      const result = await findAgent("owner", "repo", "copilot", "not-a-number");
+
+      expect(result).toBeNull();
+      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockGithub.rest.issues.checkUserCanBeAssigned).toHaveBeenCalled();
+    });
+
+    it("should fall back to repository-scoped checks when github client has no request method", async () => {
+      const err404 = Object.assign(new Error("Not Found"), { status: 404 });
+      const clientWithoutRequest = {
+        rest: {
+          issues: {
+            checkUserCanBeAssigned: vi.fn().mockRejectedValue(err404),
+            listAssignees: vi.fn().mockResolvedValue({ data: [] }),
+          },
+          users: {
+            getByUsername: vi.fn(),
+          },
+        },
+      };
+
+      const result = await findAgent("owner", "repo", "copilot", 123, clientWithoutRequest);
+
+      expect(result).toBeNull();
+      expect(clientWithoutRequest.rest.issues.checkUserCanBeAssigned).toHaveBeenCalled();
     });
   });
 
@@ -338,8 +486,8 @@ describe("assign_agent_helpers.cjs", () => {
 
   describe("assignAgentToIssueByName", () => {
     it("should successfully assign copilot agent", async () => {
-      // findAgent: checkUserCanBeAssigned + getByUsername
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
+      // findAgent: issue-scoped assignee check + getByUsername
+      mockGithub.request.mockResolvedValueOnce({ status: 204 });
       mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 999 } });
       // getIssueDetails
       mockGithub.rest.issues.get.mockResolvedValueOnce({
@@ -365,10 +513,9 @@ describe("assign_agent_helpers.cjs", () => {
 
     it("should return error when agent is not available", async () => {
       const err404 = Object.assign(new Error("Not Found"), { status: 404 });
-      // findAgent: checkUserCanBeAssigned throws 404
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404);
-      // getAvailableAgentLogins: also 404
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValueOnce(err404);
+      mockGithub.request.mockRejectedValue(err404);
+      mockGithub.rest.issues.checkUserCanBeAssigned.mockRejectedValue(err404);
+      mockGithub.rest.issues.listAssignees.mockResolvedValue({ data: [] });
 
       const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot");
 
@@ -378,7 +525,7 @@ describe("assign_agent_helpers.cjs", () => {
 
     it("should report already assigned when agent is in assignees", async () => {
       // findAgent
-      mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
+      mockGithub.request.mockResolvedValueOnce({ status: 204 });
       mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 999 } });
       // getIssueDetails - agent already assigned
       mockGithub.rest.issues.get.mockResolvedValueOnce({
@@ -395,6 +542,29 @@ describe("assign_agent_helpers.cjs", () => {
       const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot");
 
       expect(result.success).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith("copilot is already assigned to issue #123");
+    });
+
+    it("should skip assignment when a secondary copilot alias is already assigned", async () => {
+      // findAgent resolves via primary alias with id 999
+      mockGithub.request.mockResolvedValueOnce({ status: 204 });
+      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 999 } });
+      // getIssueDetails - a secondary alias is the current assignee (different id, same agent)
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          id: 1111,
+          number: 123,
+          assignees: [{ id: 888, login: "github-copilot-enterprise" }],
+          html_url: "",
+          title: "",
+          body: "",
+        },
+      });
+
+      const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot");
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.request).toHaveBeenCalledTimes(1);
       expect(mockCore.info).toHaveBeenCalledWith("copilot is already assigned to issue #123");
     });
   });

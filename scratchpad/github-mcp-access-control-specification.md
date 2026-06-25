@@ -582,13 +582,13 @@ tools:
 
 This section defines the three new access control fields introduced by this specification:
 
-#### 4.4.1 repos
+#### 4.4.1 repos (gateway field; frontmatter: `allowed-repos`)
 
 **Type**: Array of strings  
 **Required**: No  
 **Default**: Not specified (all accessible repositories allowed)
 
-The `repos` field restricts GitHub MCP server access to specified repositories. When defined, the GitHub MCP server can ONLY access repositories matching at least one pattern in the list.
+The `repos` field is the gateway-internal repository scope field derived from the workflow frontmatter key `allowed-repos` (with `repos` retained as a deprecated frontmatter alias for backward compatibility). When defined, the GitHub MCP server can ONLY access repositories matching at least one pattern in the list.
 
 **Syntax**:
 - Exact match: `"owner/repo-name"` - matches single repository
@@ -1825,12 +1825,12 @@ This subsection documents how the `lockdown` field (§4.2.8) interacts with guar
 
 #### 9.5.2 Compilation-Time Warning
 
-The compiler SHOULD emit a warning when both `lockdown: true` and one or more guard policy fields (`allowed-repos`, `min-integrity`) are present in the same workflow frontmatter, because the combination is likely a misconfiguration: guard policy fields have no effect under lockdown.
+The compiler SHOULD emit a warning when both `lockdown: true` and one or more guard policy fields (`allowed-repos`, `min-integrity`, `blocked-users`, `trusted-users`, `approval-labels`) are present in the same workflow frontmatter, because the combination is likely a misconfiguration: guard policy fields have no effect under lockdown.
 
 **Example warning message:**
 
 ```
-warning: 'tools.github.lockdown: true' is set; 'allowed-repos' and 'min-integrity' will be ignored.
+warning: 'tools.github.lockdown: true' is set; GitHub guard policy fields ('allowed-repos', 'min-integrity', 'blocked-users', 'trusted-users', 'approval-labels') will be ignored.
 Guard policies are only evaluated when lockdown is not active.
 ```
 
@@ -2654,32 +2654,32 @@ This section maps all seven §4.4 access control extension fields to their imple
 
 | §4.4 Field | Description | Implementation File(s) |
 |---|---|---|
-| §4.4.1 `repos` | Repository scope — wildcard and exact patterns | `pkg/workflow/tools_types.go` (`GitHubReposScope`), `pkg/workflow/tools_parser.go` (`parseGitHubTool()`), `pkg/workflow/tools_validation.go` (`validateReposScope()`, `validateRepoPattern()`) |
+| §4.4.1 `repos` | Repository scope — wildcard and exact patterns | `pkg/workflow/tools_types.go` (`GitHubReposScope`), `pkg/workflow/tools_parser.go` (`parseGitHubTool()`), `pkg/workflow/tools_validation_github.go` (`validateReposScope()`, `validateRepoPattern()`) |
 | §4.4.2 `roles` | Role-based filtering (`read`, `write`, `admin`, `maintain`, `triage`) | `pkg/workflow/tools_types.go` (`GitHubRoles`), `pkg/workflow/tools_validation_github.go` |
 | §4.4.3 `private-repos` | Private repository visibility control | `pkg/workflow/tools_types.go` (`GitHubToolConfig.PrivateRepos`), `pkg/workflow/tools_parser.go` |
-| §4.4.4 `min-integrity` | Minimum content integrity level (`none`/`unapproved`/`approved`/`merged`) | `pkg/workflow/tools_types.go` (`GitHubIntegrityLevel`), `pkg/workflow/tools_validation.go` (`validateGitHubGuardPolicy()`), `pkg/workflow/tools_validation_github_integrity_reactions.go` |
-| §4.4.5 `blocked-users` | Unconditional block list for specific GitHub usernames | `pkg/workflow/tools_types.go` (`GitHubToolConfig.BlockedUsers`), `pkg/workflow/tools_validation.go` (`validateGitHubGuardPolicy()`) |
-| §4.4.6 `trusted-users` | Trusted users promoted above `author_association` baseline | `pkg/workflow/tools_types.go` (`GitHubToolConfig.TrustedUsers`), `pkg/workflow/tools_validation.go` |
-| §4.4.7 `approval-labels` | Labels that promote item integrity to `approved` | `pkg/workflow/tools_types.go` (`GitHubToolConfig.ApprovalLabels`), `pkg/workflow/tools_validation.go` (`validateGitHubGuardPolicy()`) |
+| §4.4.4 `min-integrity` | Minimum content integrity level (`none`/`unapproved`/`approved`/`merged`) | `pkg/workflow/tools_types.go` (`GitHubIntegrityLevel`), `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy()`), `pkg/workflow/tools_validation_github_integrity_reactions.go` |
+| §4.4.5 `blocked-users` | Unconditional block list for specific GitHub usernames | `pkg/workflow/tools_types.go` (`GitHubToolConfig.BlockedUsers`), `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy()`) |
+| §4.4.6 `trusted-users` | Trusted users promoted above `author_association` baseline | `pkg/workflow/tools_types.go` (`GitHubToolConfig.TrustedUsers`), `pkg/workflow/tools_validation_github.go` |
+| §4.4.7 `approval-labels` | Labels that promote item integrity to `approved` | `pkg/workflow/tools_types.go` (`GitHubToolConfig.ApprovalLabels`), `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy()`) |
 
 Sync procedure:
-1. Update this specification when changing any of the above files (`tools_types.go`, `tools_parser.go`, `tools_validation.go`, `tools_validation_github.go`).
+1. Update this specification when changing any of the above files (`tools_types.go`, `tools_parser.go`, `tools_validation_github.go`, `tools_validation_github_integrity_reactions.go`).
 2. Update the §4.4 field definitions and §11 compliance test references in the same change.
 3. Re-run validation tests: `go test ./pkg/workflow/ -run TestValidateGitHub`.
 
 ### Divergence Audit (2026-06-21)
 
-Cross-reference of `scratchpad/github-mcp-access-control-specification.md` and `scratchpad/guard-policies-specification.md` against `pkg/workflow/tools_validation.go` and `pkg/workflow/mcp_github_config.go`:
+Cross-reference of `scratchpad/github-mcp-access-control-specification.md` and `scratchpad/guard-policies-specification.md` against `pkg/workflow/tools_validation_github.go` and `pkg/workflow/mcp_github_config.go`:
 
 | Topic | Spec says | Implementation in code | Status |
 |---|---|---|---|
 | Frontmatter field name for repository scope | `allowed-repos` (§4.4.1 of this spec uses `repos` as the access-control field name, but §4.1 configuration structure example and guard-policies-spec use `allowed-repos` as the frontmatter key) | `pkg/workflow/mcp_github_config.go` reads `allowed-repos` (preferred) with `repos` as deprecated alias; compiled gateway config uses `repos` internally (line ~323) | **Resolved** — frontmatter uses `allowed-repos`; `repos` is a deprecated alias supported for backwards compatibility. Compliance tests in `pkg/workflow/tools_validation_test.go` SHOULD use `allowed-repos`. |
-| `min-integrity` required when `allowed-repos` present | guard-policies-spec §Conformance GP-02 | `pkg/workflow/tools_validation.go` (`validateGitHubGuardPolicy()`) validates `min-integrity` enum values | **Consistent** |
-| Empty `allowed-repos` array rejected | guard-policies-spec §Conformance GP-04 | `pkg/workflow/tools_validation.go` rejects empty arrays | **Consistent** |
+| `min-integrity` required when `allowed-repos` present | guard-policies-spec §Conformance GP-02 and GP-11 | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy()`) validates `min-integrity` enum values | **Consistent** |
+| Empty `allowed-repos` array rejected | guard-policies-spec §Conformance GP-04 | `pkg/workflow/tools_validation_github.go` rejects empty arrays | **Consistent** |
 | Derived safe-outputs `write-sink` policy | guard-policies-spec §5 normative requirements | `pkg/workflow/mcp_github_config.go` `deriveSafeOutputsGuardPolicyFromGitHub()` | **Consistent** |
-| `lockdown: true` takes precedence over guard policies | §9.5.1 (this spec) and guard-policies-spec Open Question #3 decision | No explicit cross-field validation in `validateGitHubGuardPolicy()` yet (noted as future work in guard-policies-spec) | **Partial** — runtime semantics are correct but compile-time warning (§9.5.2) is not yet emitted. Tracked as follow-up. |
+| `lockdown: true` takes precedence over guard policies | §9.5.1 (this spec) and guard-policies-spec Open Question #3 decision | `pkg/workflow/tools_validation_github.go` now emits a compile-time warning when `lockdown: true` co-exists with guard-policy fields while preserving runtime precedence | **Resolved** |
 
-**Remaining field name divergence**: §4.4.1 of this specification still uses `repos` as the section heading and the descriptive field name. This refers to the **access-control layer** field name in the gateway configuration, not the frontmatter key. The frontmatter key is `allowed-repos`. Consumers of this specification SHOULD treat `§4.4.1 repos` as the internal gateway field, distinct from the frontmatter field `allowed-repos`. A future revision of this specification SHOULD align the §4.4 section heading to reduce ambiguity.
+**Heading alignment note**: §4.4.1 now names `repos` as the gateway-internal field and `allowed-repos` as the frontmatter key. Consumers SHOULD use `allowed-repos` in workflow frontmatter; `repos` remains the internal gateway field name and a deprecated frontmatter alias.
 
 ---
 

@@ -10,7 +10,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-const { isStagedMode, logStagedPreviewInfo, checkRequiredFilter } = require("./safe_output_helpers.cjs");
+const { isTemplatableTrue, isStagedMode, logStagedPreviewInfo, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 
 /** @type {string} Safe output type handled by this module */
@@ -59,7 +59,7 @@ async function main(config = {}) {
   }
 
   // Propagate per-handler staged flag to the shared PR review buffer
-  if (config.staged === true) {
+  if (isTemplatableTrue(config.staged)) {
     buffer.setStaged(true);
   }
   if (isStagedMode(config)) {

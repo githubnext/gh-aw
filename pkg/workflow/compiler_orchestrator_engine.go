@@ -47,6 +47,18 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	}
 	engineSetting, engineConfig = c.applyEngineOverride(engineSetting, engineConfig)
 	engineSetting, engineConfig = c.injectBuiltinEngineImportIfNeeded(result.Frontmatter, engineSetting, engineConfig)
+	// Validate the engine name early — before import processing — so that a typo in
+	// `engine:` is always reported, even when imports also fail. The check is skipped
+	// when engineSetting is empty (engine may come from an import) or when a
+	// command-line --engine override is active (it will be validated later).
+	// The resolved value is intentionally discarded here because import defaults can
+	// still mutate engineConfig before the final resolveEngineRuntimeConfig call.
+	if engineSetting != "" && c.engineOverride == "" {
+		if _, err := c.engineCatalog.Resolve(engineSetting, engineConfig); err != nil {
+			orchestratorEngineLog.Printf("Early engine validation failed for %q: %v", engineSetting, err)
+			return nil, err
+		}
+	}
 	importsResult, networkPermissions, err := c.processEngineImportsAndMerge(result, cleanPath, content, markdownDir, engineSetting, networkPermissions)
 	if err != nil {
 		return nil, err

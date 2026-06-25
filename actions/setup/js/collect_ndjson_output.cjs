@@ -180,8 +180,23 @@ async function main() {
       return;
     }
     if (!fs.existsSync(outputFile)) {
-      core.info(`Output file does not exist: ${outputFile}`);
-      core.setOutput("output", "");
+      core.info(`Output file does not exist: ${outputFile} — no safe-output items were emitted; treating as empty collection (graceful no-op)`);
+      const emptyOutput = { items: [], errors: [] };
+      const emptyOutputJson = JSON.stringify(emptyOutput);
+      // Write agent_output.json for consistent downstream handling so the safe_outputs job
+      // always finds a valid (empty) collection file even when the agent emitted nothing.
+      try {
+        fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
+        const agentOutputFile = require("path").join(TMP_GH_AW_PATH, AGENT_OUTPUT_FILENAME);
+        fs.writeFileSync(agentOutputFile, emptyOutputJson, "utf8");
+        core.info(`Stored empty collection to: ${agentOutputFile}`);
+        core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);
+      } catch (writeError) {
+        core.error(`Failed to write empty agent output file: ${getErrorMessage(writeError)}`);
+      }
+      // Always set the step output even if the artifact write failed;
+      // downstream steps reading GH_AW_AGENT_OUTPUT must handle the var being absent.
+      core.setOutput("output", emptyOutputJson);
       core.setOutput("output_types", "");
       core.setOutput("has_patch", "false");
       return;

@@ -54,6 +54,15 @@ import (
 
 var repositoryFeaturesLog = newValidationLogger("repository_features")
 
+// checkRepositoryHasDiscussionsQuery is a hardcoded static GraphQL query template used to check
+// if discussions are enabled for a repository. Declared as a named constant to make clear
+// it is not user-controlled input (CWE-89 / workflow-graphql-static-concat).
+const checkRepositoryHasDiscussionsQuery = `query($owner: String!, $name: String!) {
+	repository(owner: $owner, name: $name) {
+		hasDiscussionsEnabled
+	}
+}`
+
 // RepositoryFeatures holds cached information about repository capabilities
 type RepositoryFeatures struct {
 	HasDiscussions bool
@@ -252,14 +261,6 @@ func checkRepositoryHasDiscussions(repo string, verbose bool) (bool, error) {
 
 // checkRepositoryHasDiscussionsUncached checks if a repository has discussions enabled (no caching)
 func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
-	// Use GitHub GraphQL API to check if discussions are enabled
-	// The hasDiscussionsEnabled field is the canonical way to check this
-	query := `query($owner: String!, $name: String!) {
-		repository(owner: $owner, name: $name) {
-			hasDiscussionsEnabled
-		}
-	}`
-
 	// Split repo into owner and name
 	parts := strings.SplitN(repo, "/", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
@@ -267,7 +268,8 @@ func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
 	}
 	owner, name := parts[0], parts[1]
 
-	// Execute GraphQL query using gh CLI
+	// Execute GraphQL query using gh CLI.
+	// checkRepositoryHasDiscussionsQuery is a package-level constant — not user-controlled.
 	type GraphQLResponse struct {
 		Data struct {
 			Repository struct {
@@ -276,7 +278,7 @@ func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
 		} `json:"data"`
 	}
 
-	stdOut, _, err := gh.Exec("api", "graphql", "-f", "query="+query,
+	stdOut, _, err := gh.Exec("api", "graphql", "-f", "query="+checkRepositoryHasDiscussionsQuery,
 		"-f", "owner="+owner, "-f", "name="+name)
 	if err != nil {
 		return false, fmt.Errorf("failed to query discussions status: %w", err)

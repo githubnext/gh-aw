@@ -76,6 +76,9 @@ steps:
       echo "✅ Quality metrics collected → /tmp/gh-aw/agent/analysis-context.md"
 
 
+sandbox:
+  agent:
+    sudo: false
 ---
 # Repository Quality Improvement Agent
 

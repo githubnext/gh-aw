@@ -22,6 +22,7 @@ permissions:
 max-turns: 20
 engine:
   id: claude
+  model: claude-sonnet-4-6
 safe-outputs:
   add-comment:
     max: 2
@@ -259,7 +260,10 @@ cat "$(find ${{ github.workspace }}/docs/adr -name "*.md" 2>/dev/null | sort | t
 ```
 
 ### 3c. Check Linked Issues
-If the PR body references issues (e.g., "Fixes #123", "Closes #456"), use the GitHub tools to fetch the linked issue body and look for ADR content there.
+Before making any GitHub issue call, check whether the PR body matches `(?i)\b(fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s+(?:#\d+\b|https://github\.com/[^/\s]+/[^/\s]+/issues/\d+\b)`.
+
+- If there is **no** match, skip linked-issue lookup and continue.
+- If there **is** a match, use at most one GitHub tool call to fetch the linked issue body and look for ADR content there.
 
 ### ADR Detection Criteria
 

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -16,7 +17,7 @@ var depsGoModLog = logger.New("cli:deps_go_mod")
 // It first checks the current directory, then falls back to the git root.
 func findGoMod() (string, error) {
 	// Try current directory first
-	if _, err := os.Stat("go.mod"); err == nil {
+	if fileutil.FileExists("go.mod") {
 		absPath, err := filepath.Abs("go.mod")
 		if err == nil {
 			depsGoModLog.Printf("Found go.mod in current directory: %s", absPath)

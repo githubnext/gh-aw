@@ -14,6 +14,7 @@ const {
   isMissingApiKeyError,
   isServerError,
   isInvalidModelError,
+  isReconnectExhaustedError,
   countPermissionDeniedIssues,
   hasNumerousPermissionDeniedIssues,
   extractDeniedCommands,
@@ -95,6 +96,10 @@ describe("codex_harness.cjs", () => {
 
     it("returns true for RateLimitError", () => {
       expect(isRateLimitError("RateLimitError: You exceeded your current quota")).toBe(true);
+    });
+
+    it("returns true for 'Rate limit reached for' human-readable message", () => {
+      expect(isRateLimitError("Rate limit reached for gpt-4o-mini in organization org-xxx on tokens per min (TPM): " + "Limit 200000, Used 166655, Requested 35398. Please try again in 615ms.")).toBe(true);
     });
 
     it("returns false for unrelated errors", () => {
@@ -408,14 +413,14 @@ env_key = "OPENAI_API_KEY"
      */
     function shouldRetry(result, attempt) {
       if (result.exitCode === 0) return false;
-      const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError/i;
-      const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
       if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
       if (isMissingApiKeyError(result.output)) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
       const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
-      if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || nonRetryableGuard.goalAlreadyActive) return false;
-      const isTransient = RATE_LIMIT_ERROR_PATTERN.test(result.output) || SERVER_ERROR_PATTERN.test(result.output);
+      if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || nonRetryableGuard.goalAlreadyActive || nonRetryableGuard.maxRunsExceeded) return false;
+      const isRateLimit = isRateLimitError(result.output);
+      if (isRateLimit && isReconnectExhaustedError(result.output)) return false;
+      const isTransient = isRateLimit || isServerError(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
     }
 
@@ -472,6 +477,73 @@ env_key = "OPENAI_API_KEY"
         output: "cannot create a new goal because this thread already has a goal; use update_goal only when the existing goal is complete",
       };
       expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry when maximum LLM invocations are exceeded", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: true,
+        output: '{"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (20 / 20).","invocation_count":20,"max_runs":20}}',
+      };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("retries on rate limit with format 'Rate limit reached for' without exhausted reconnects", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: false,
+        output: '{"type":"error","message":"Rate limit reached for gpt-4o-mini in organization org-xxx on tokens per min (TPM): Limit 200000, Used 50000, Requested 35000. Please try again in 615ms."}',
+      };
+      expect(shouldRetry(result, 0)).toBe(true);
+    });
+
+    it("does not retry when rate-limit reconnects are exhausted (N/N pattern)", () => {
+      // Simulates the real log format: multiple Reconnecting... lines appear in
+      // the output as codex retries the stream. The final "5/5" line is what
+      // triggers the exhausted-reconnect detection; intermediate lines (1/5, 2/5)
+      // confirm that the function ignores non-final attempts.
+      const output =
+        '{"type":"error","message":"Reconnecting... 1/5 (stream disconnected before completion: Rate limit reached for gpt-4o-mini on tokens per min (TPM): Limit 200000, Used 166655, Requested 35398. Please try again in 615ms.)"}\n' +
+        '{"type":"error","message":"Reconnecting... 2/5 (stream disconnected before completion: Rate limit reached for gpt-4o-mini on tokens per min (TPM): Limit 200000, Used 166655, Requested 35398. Please try again in 615ms.)"}\n' +
+        '{"type":"error","message":"Reconnecting... 5/5 (stream disconnected before completion: Rate limit reached for gpt-4o-mini on tokens per min (TPM): Limit 200000, Used 166655, Requested 35398. Please try again in 615ms.)"}';
+      const result = { exitCode: 1, hasOutput: true, output };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("retries when reconnects are exhausted but no rate-limit error is present", () => {
+      const output =
+        '{"type":"error","message":"Reconnecting... 1/5 (stream disconnected before completion: Connection timed out)"}\n' + '{"type":"error","message":"Reconnecting... 5/5 (stream disconnected before completion: Connection timed out)"}';
+      const result = { exitCode: 1, hasOutput: true, output };
+      expect(shouldRetry(result, 0)).toBe(true);
+    });
+  });
+
+  describe("isReconnectExhaustedError", () => {
+    it("returns true when output contains Reconnecting N/N pattern (same numbers)", () => {
+      expect(isReconnectExhaustedError("Reconnecting... 5/5 (some error)")).toBe(true);
+    });
+
+    it("returns true for last reconnect embedded in JSON output", () => {
+      const output = '{"type":"error","message":"Reconnecting... 5/5 (stream disconnected before completion: Rate limit reached for gpt-4o-mini...)"}';
+      expect(isReconnectExhaustedError(output)).toBe(true);
+    });
+
+    it("returns false when reconnect attempt is not the last (different numbers)", () => {
+      expect(isReconnectExhaustedError("Reconnecting... 1/5 (some error)")).toBe(false);
+      expect(isReconnectExhaustedError("Reconnecting... 3/5 (some error)")).toBe(false);
+    });
+
+    it("returns false when output has no reconnect messages", () => {
+      expect(isReconnectExhaustedError("rate_limit_exceeded")).toBe(false);
+      expect(isReconnectExhaustedError("")).toBe(false);
+    });
+
+    it("returns true for multi-digit N/N", () => {
+      expect(isReconnectExhaustedError("Reconnecting... 10/10 (error)")).toBe(true);
+    });
+
+    it("returns false for N/M where N !== M", () => {
+      expect(isReconnectExhaustedError("Reconnecting... 10/15 (error)")).toBe(false);
     });
   });
 

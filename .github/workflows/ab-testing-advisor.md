@@ -1,5 +1,4 @@
 ---
-private: true
 on:
   schedule:
   - cron: daily around 10:00
@@ -74,6 +73,9 @@ tools:
 tracker-id: ab-testing-advisor
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

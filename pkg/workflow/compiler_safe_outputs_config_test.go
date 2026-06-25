@@ -188,7 +188,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Staged: true,
+						Staged: templatableBoolPtr("true"),
 					},
 					Target:      "*",
 					IfNoChanges: "warn",
@@ -206,7 +206,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 				ClosePullRequests: &ClosePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
 						Max:    strPtr("1"),
-						Staged: true,
+						Staged: templatableBoolPtr("true"),
 					},
 				},
 			},
@@ -2388,7 +2388,7 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Staged: true,
+						Staged: templatableBoolPtr("true"),
 					},
 					Target:      "*",
 					IfNoChanges: "warn",
@@ -2402,7 +2402,7 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 				ClosePullRequests: &ClosePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
 						Max:    strPtr("1"),
-						Staged: true,
+						Staged: templatableBoolPtr("true"),
 					},
 				},
 			},
@@ -2413,7 +2413,7 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Staged: true,
+						Staged: templatableBoolPtr("true"),
 					},
 				},
 			},
@@ -2424,7 +2424,7 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Staged: true,
+						Staged: templatableBoolPtr("true"),
 					},
 				},
 			},
@@ -2435,7 +2435,7 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Staged: true,
+						Staged: templatableBoolPtr("true"),
 					},
 				},
 			},
@@ -2447,7 +2447,7 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 				UpdateIssues: &UpdateIssuesConfig{
 					UpdateEntityConfig: UpdateEntityConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Staged: true,
+							Staged: templatableBoolPtr("true"),
 						},
 					},
 				},
@@ -2460,7 +2460,7 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 				UpdatePullRequests: &UpdatePullRequestsConfig{
 					UpdateEntityConfig: UpdateEntityConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Staged: true,
+							Staged: templatableBoolPtr("true"),
 						},
 					},
 				},
@@ -2473,7 +2473,7 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 				UpdateDiscussions: &UpdateDiscussionsConfig{
 					UpdateEntityConfig: UpdateEntityConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Staged: true,
+							Staged: templatableBoolPtr("true"),
 						},
 					},
 				},
@@ -2485,7 +2485,7 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				AddLabels: &AddLabelsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Staged: true,
+						Staged: templatableBoolPtr("true"),
 					},
 				},
 			},
@@ -2496,7 +2496,7 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				DispatchWorkflow: &DispatchWorkflowConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Staged: true,
+						Staged: templatableBoolPtr("true"),
 					},
 					Workflows: []string{"my-workflow"},
 				},
@@ -2508,7 +2508,7 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CallWorkflow: &CallWorkflowConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Staged: true,
+						Staged: templatableBoolPtr("true"),
 					},
 					Workflows: []string{"my-workflow"},
 				},
@@ -2552,8 +2552,53 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 					assert.Equal(t, true, stagedVal, "staged field should be true")
 				}
 			}
+
 		})
 	}
+}
+
+func TestHandlerConfigStagedExpression(t *testing.T) {
+	t.Parallel()
+
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Staged: templatableBoolPtr("${{ inputs.staged }}"),
+				},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "Steps should not be empty")
+
+	for _, step := range steps {
+		if !strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			continue
+		}
+
+		parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+		require.Len(t, parts, 2, "Should have two parts")
+
+		jsonStr := strings.TrimSpace(parts[1])
+		jsonStr = strings.Trim(jsonStr, "\"")
+		jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+		var config map[string]map[string]any
+		err := json.Unmarshal([]byte(jsonStr), &config)
+		require.NoError(t, err, "Handler config JSON should be valid")
+
+		handlerConfig, ok := config["create_issue"]
+		require.True(t, ok, "Should have create_issue handler")
+		assert.Equal(t, "${{ inputs.staged }}", handlerConfig["staged"], "staged expression should pass through to handler config JSON unchanged")
+		return
+	}
+
+	t.Fatal("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG not found")
 }
 
 // TestAddHandlerManagerConfigEnvVar_CallWorkflow asserts that GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG

@@ -1,5 +1,4 @@
 ---
-private: true
 emoji: "✅"
 description: Inspects the gh-aw CLI to identify inconsistencies, typos, bugs, or documentation gaps by running commands and analyzing output
 on:
@@ -74,6 +73,9 @@ safe-outputs:
 timeout-minutes: 20
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # CLI Consistency Checker

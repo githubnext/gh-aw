@@ -60,6 +60,9 @@ tools:
     - default
     - discussions
 tracker-id: discussion-task-miner
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Discussion Task Miner - Code Quality Improvement Agent
