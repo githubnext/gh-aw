@@ -1,0 +1,40 @@
+{
+  "date": "2026-06-25",
+  "files_analyzed": {
+    "documentation": [
+      "docs/src/content/docs/specs/repository-package-manifest-specification.md",
+      "docs/src/content/docs/blog/2026-06-08-migrating-from-effective-tokens-to-ai-credits.md"
+    ],
+    "cli": [],
+    "messages": [
+      ".github/workflows/discussion-task-miner.md",
+      ".github/workflows/dataflow-pr-discussion-dataset.md"
+    ],
+    "validation": [
+      "pkg/workflow/validation_strict_mcp_network_test.go"
+    ]
+  },
+  "overall_quality": "mixed",
+  "quality_highlights": [
+    {
+      "file": "docs/src/content/docs/specs/repository-package-manifest-specification.md",
+      "aspect": "RFC 2119 normative language used consistently. §11 Norms table consolidates all MUST/SHALL requirements with R-PKG-* IDs. §12 Sync Notes maps spec sections to implementation files with explicit conformance findings."
+    },
+    {
+      "file": "pkg/workflow/strict_mode_network_validation.go",
+      "aspect": "NewValidationError with complete corrected YAML snippet in Suggestion field — includes named field path and failing server name. No guessing required from user."
+    }
+  ],
+  "single_file_improvements": [
+    {
+      "file": "docs/src/content/docs/blog/2026-06-08-migrating-from-effective-tokens-to-ai-credits.md",
+      "priority": "high",
+      "issue": "gh aw fix --write recommendation has no explanation of what it changes or which repositories need it. Metric reference labels ET only as 'deprecated legacy metric' with no compatibility timeline."
+    },
+    {
+      "file": ".github/workflows/dataflow-pr-discussion-dataset.md",
+      "priority": "medium",
+      "issue": "run-success message has three disconnected clauses, vague 'ready!', and trailing 📊 emoji with no information value. No indication of where artifacts can be found."
+    }
+  ]
+}

@@ -1,6 +1,18 @@
 {
-  "last_updated": "2026-06-24",
+  "last_updated": "2026-06-25",
   "pending_tasks": [
+    {
+      "file": "docs/src/content/docs/blog/2026-06-08-migrating-from-effective-tokens-to-ai-credits.md",
+      "created": "2026-06-25",
+      "priority": "high",
+      "title": "Clarify gh aw fix --write recommendation: add one-sentence explanation of what it changes; extend metric reference with ET compatibility timeline"
+    },
+    {
+      "file": ".github/workflows/dataflow-pr-discussion-dataset.md",
+      "created": "2026-06-25",
+      "priority": "medium",
+      "title": "Fix run-success: replace three-clause fragment with single declarative sentence; remove trailing 📊 emoji; add artifact location"
+    },
     {
       "file": ".github/workflows/architecture-guardian.md",
       "created": "2026-06-24",
