@@ -605,25 +605,68 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 }
 
 func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
-	tools := NewTools(map[string]any{
-		"github": map[string]any{
-			"lockdown":      true,
-			"allowed-repos": "all",
-			"min-integrity": "approved",
+	tests := []struct {
+		name     string
+		toolsMap map[string]any
+	}{
+		{
+			name: "allowed-repos and min-integrity",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"lockdown":      true,
+					"allowed-repos": "all",
+					"min-integrity": "approved",
+				},
+			},
 		},
-	})
+		{
+			name: "blocked-users with min-integrity",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"lockdown":      true,
+					"min-integrity": "approved",
+					"blocked-users": []string{"spam-bot"},
+				},
+			},
+		},
+		{
+			name: "trusted-users with min-integrity",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"lockdown":      true,
+					"min-integrity": "approved",
+					"trusted-users": []any{"trusted-user"},
+				},
+			},
+		},
+		{
+			name: "approval-labels with min-integrity",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"lockdown":        true,
+					"min-integrity":   "approved",
+					"approval-labels": []string{"human-reviewed"},
+				},
+			},
+		},
+	}
 
-	require.NoError(t, validateGitHubGuardPolicy(tools, "test-workflow"))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tools := NewTools(tt.toolsMap)
+			require.NoError(t, validateGitHubGuardPolicy(tools, "test-workflow"))
 
-	compiler := NewCompiler()
-	stderrOutput := captureStderr(func() {
-		emitGitHubLockdownGuardPolicyWarning(compiler, tools, "test-workflow.md")
-	})
+			compiler := NewCompiler()
+			stderrOutput := captureStderr(func() {
+				emitGitHubLockdownGuardPolicyWarning(compiler, tools, "test-workflow.md")
+			})
 
-	assert.Contains(t, stderrOutput, "tools.github.lockdown: true")
-	assert.Contains(t, stderrOutput, "guard policy fields")
-	assert.Contains(t, stderrOutput, "will be ignored")
-	assert.Equal(t, 1, compiler.GetWarningCount())
+			assert.Contains(t, stderrOutput, "tools.github.lockdown: true")
+			assert.Contains(t, stderrOutput, "guard policy fields")
+			assert.Contains(t, stderrOutput, "will be ignored")
+			assert.Equal(t, 1, compiler.GetWarningCount())
+		})
+	}
 }
 
 func TestValidateGitHubGuardPolicyLockdownWarningWithoutCompiler(t *testing.T) {
