@@ -150,7 +150,7 @@ func InitRepository(opts InitOptions) error {
 			return fmt.Errorf("failed to create MCP config: %w", err)
 		}
 		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/mcp.json"))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .github/mcp.json"))
 		}
 	}
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
@@ -32,8 +33,7 @@ type MCPConfig struct {
 	Servers map[string]VSCodeMCPServer `json:"servers,omitempty"`
 }
 
-// ensureMCPConfig creates .github/mcp.json with gh-aw MCP server configuration
-// If the file already exists, it renders console instructions instead of editing
+// ensureMCPConfig creates or updates .github/mcp.json with gh-aw MCP server configuration.
 func ensureMCPConfig(verbose bool) error {
 	mcpConfigLog.Print("Creating .github/mcp.json")
 
@@ -52,28 +52,27 @@ func ensureMCPConfig(verbose bool) error {
 	if data, err := os.ReadFile(mcpConfigPath); err == nil {
 		mcpConfigLog.Printf("File already exists: %s", mcpConfigPath)
 
-		// Parse existing config
 		var config MCPConfig
 		if err := json.Unmarshal(data, &config); err != nil {
 			return fmt.Errorf("failed to parse existing mcp.json: %w", err)
 		}
 
-		// Check if the server is already configured correctly
-		if existingConfig, exists := config.MCPServers[ghAwServerName]; exists {
-			existingJSON, _ := json.Marshal(existingConfig) //nolint:jsonmarshalignoredeerror // VSCodeMCPServer contains only JSON-safe types (string, []string)
-			newJSON, _ := json.Marshal(ghAwConfig)          //nolint:jsonmarshalignoredeerror // VSCodeMCPServer contains only JSON-safe types (string, []string)
-			if string(existingJSON) == string(newJSON) {
-				mcpConfigLog.Print("Configuration is identical, skipping")
-				if verbose {
-					fmt.Fprintf(os.Stderr, "MCP server '%s' already configured in %s\n", ghAwServerName, mcpConfigPath)
-				}
-				return nil
+		servers := selectMCPServerMap(&config, ghAwServerName)
+		existingConfig := (*servers)[ghAwServerName]
+		updatedConfig, changed := mergeRequiredMCPServerFields(existingConfig, ghAwConfig)
+		if !changed {
+			mcpConfigLog.Print("Configuration is identical, skipping")
+			if verbose {
+				fmt.Fprintf(os.Stderr, "MCP server '%s' already configured in %s\n", ghAwServerName, mcpConfigPath)
 			}
+			return nil
 		}
+		(*servers)[ghAwServerName] = updatedConfig
 
-		// File exists but needs update - render instructions instead of editing
-		mcpConfigLog.Print("File exists, rendering update instructions instead of editing")
-		renderMCPConfigUpdateInstructions(mcpConfigPath, ghAwServerName, ghAwConfig)
+		if err := writeMCPConfigFile(mcpConfigPath, config); err != nil {
+			return err
+		}
+		mcpConfigLog.Printf("Updated existing file: %s", mcpConfigPath)
 		return nil
 	}
 
@@ -88,7 +87,68 @@ func ensureMCPConfig(verbose bool) error {
 		return fmt.Errorf("failed to create mcp config directory: %w", err)
 	}
 
-	// Write config file with proper indentation
+	if err := writeMCPConfigFile(mcpConfigPath, config); err != nil {
+		return err
+	}
+	mcpConfigLog.Printf("Created new file: %s", mcpConfigPath)
+
+	return nil
+}
+
+func selectMCPServerMap(config *MCPConfig, serverName string) *map[string]VSCodeMCPServer {
+	if config.MCPServers != nil {
+		if _, exists := config.MCPServers[serverName]; exists {
+			return &config.MCPServers
+		}
+	}
+	if config.Servers != nil {
+		if _, exists := config.Servers[serverName]; exists {
+			return &config.Servers
+		}
+	}
+
+	switch {
+	case config.MCPServers != nil:
+		return &config.MCPServers
+	case config.Servers != nil:
+		return &config.Servers
+	default:
+		config.MCPServers = make(map[string]VSCodeMCPServer)
+		return &config.MCPServers
+	}
+}
+
+func mergeRequiredMCPServerFields(existingConfig, requiredConfig VSCodeMCPServer) (VSCodeMCPServer, bool) {
+	updatedConfig := VSCodeMCPServer{
+		Type:    existingConfig.Type,
+		Command: existingConfig.Command,
+		Args:    append([]string(nil), existingConfig.Args...),
+		Tools:   append([]string(nil), existingConfig.Tools...),
+		CWD:     existingConfig.CWD,
+	}
+	changed := false
+
+	if updatedConfig.Type != requiredConfig.Type {
+		updatedConfig.Type = requiredConfig.Type
+		changed = true
+	}
+	if updatedConfig.Command != requiredConfig.Command {
+		updatedConfig.Command = requiredConfig.Command
+		changed = true
+	}
+	if !reflect.DeepEqual(updatedConfig.Args, requiredConfig.Args) {
+		updatedConfig.Args = append([]string(nil), requiredConfig.Args...)
+		changed = true
+	}
+	if !reflect.DeepEqual(updatedConfig.Tools, requiredConfig.Tools) {
+		updatedConfig.Tools = append([]string(nil), requiredConfig.Tools...)
+		changed = true
+	}
+
+	return updatedConfig, changed
+}
+
+func writeMCPConfigFile(mcpConfigPath string, config MCPConfig) error {
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal mcp.json: %w", err)
@@ -97,27 +157,6 @@ func ensureMCPConfig(verbose bool) error {
 	if err := os.WriteFile(mcpConfigPath, data, constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write mcp.json: %w", err)
 	}
-	mcpConfigLog.Printf("Created new file: %s", mcpConfigPath)
 
 	return nil
-}
-
-// renderMCPConfigUpdateInstructions renders console instructions for updating .github/mcp.json
-func renderMCPConfigUpdateInstructions(filePath, serverName string, serverConfig VSCodeMCPServer) {
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "%s %s\n",
-		"ℹ",
-		"Existing file detected: "+filePath)
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "To enable GitHub Copilot Agent MCP server integration, please add the following")
-	fmt.Fprintf(os.Stderr, "to the \"mcpServers\" section of your %s file:\n", filePath)
-	fmt.Fprintln(os.Stderr)
-
-	// Generate the JSON to add
-	serverJSON, _ := json.MarshalIndent(map[string]VSCodeMCPServer{
-		serverName: serverConfig,
-	}, "", "  ")
-
-	fmt.Fprintln(os.Stderr, string(serverJSON))
-	fmt.Fprintln(os.Stderr)
 }

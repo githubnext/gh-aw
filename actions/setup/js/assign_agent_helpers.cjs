@@ -275,6 +275,11 @@ async function getIssueDetails(owner, repo, issueNumber, githubClient = github) 
       core.error("Could not get issue data");
       return null;
     }
+    // GitHub's issues API returns pull requests too; reject them here so callers
+    // never accidentally treat a PR as an assignable issue.
+    if (issue.pull_request) {
+      throw Object.assign(new Error(`#${issueNumber} is a pull request, not an issue — use pull_number instead of issue_number to assign to a pull request`), { isPullRequest: true });
+    }
     const currentAssignees = (issue.assignees || []).map(assignee => ({
       id: String(assignee.id),
       login: assignee.login,
@@ -290,7 +295,9 @@ async function getIssueDetails(owner, repo, issueNumber, githubClient = github) 
     };
   } catch (error) {
     const errorMessage = getErrorMessage(error);
-    core.error(`Failed to get issue details: ${errorMessage}`);
+    if (!(/** @type {any} */ error.isPullRequest)) {
+      core.error(`Failed to get issue details: ${errorMessage}`);
+    }
     throw error;
   }
 }

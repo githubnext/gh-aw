@@ -217,6 +217,7 @@ function buildFailureMatchCategories(options) {
   if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
   if (options.hasStaleLockFileFailed) categories.push("stale_lock_file_failed");
   if (options.hasDailyAICExceeded) categories.push("daily_ai_credits_exceeded");
+  if (options.isAWFFirewallStartupFailed) categories.push("awf_firewall_startup_failed");
 
   if (options.agentConclusion === "failure" && !options.isTimedOut) {
     categories.push("agent_failure");
@@ -2156,6 +2157,46 @@ function hasAgentTerminalReasonCompleted() {
 }
 
 /**
+ * Detect AWF firewall startup failure signals from log content.
+ * Uses specific failure patterns to avoid false positives on successful runs
+ * where container lifecycle lines (e.g., " Container awf-cli-proxy  Started")
+ * also mention awf-cli-proxy.
+ * @param {string} logContent Full content of agent-stdio.log
+ * @param {Set<string>} [errorMessages] Collected error messages from the log parsing loop (optional)
+ * @returns {{ isFirewallFailed: boolean, hasDNSFailure: boolean, hasDNSEAIAgain: boolean }}
+ */
+function detectAWFStartupSignals(logContent, errorMessages = undefined) {
+  const hasFirewallFailedMsg = logContent.includes("AWF firewall failed to start");
+  const hasDependencyFailedMsg = logContent.includes("dependency failed to start: container awf-cli-proxy");
+  const hasErrorMsgWithProxy = errorMessages !== undefined && Array.from(errorMessages).some(msg => msg.includes("awf-cli-proxy"));
+  const isFirewallFailed = hasFirewallFailedMsg || hasDependencyFailedMsg || hasErrorMsgWithProxy;
+
+  const hasDNSEAIAgain = logContent.includes("EAI_AGAIN");
+  const hasDNSDiagnosisUnknown = logContent.includes("diagnosis=unknown") && logContent.includes("awmg-cli-proxy");
+  const hasDNSFailure = isFirewallFailed && (hasDNSEAIAgain || hasDNSDiagnosisUnknown);
+
+  return { isFirewallFailed, hasDNSFailure, hasDNSEAIAgain };
+}
+
+/**
+ * Detect whether the agent-stdio.log contains evidence of an AWF firewall startup failure.
+ * Reads the log file from the path derived from GH_AW_AGENT_OUTPUT, falling back to the
+ * default path. Returns false when the log file does not exist or cannot be read.
+ * @returns {boolean}
+ */
+function detectAWFFirewallStartupFailureFromLog() {
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+  const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
+  try {
+    if (!fs.existsSync(stdioLogPath)) return false;
+    const logContent = fs.readFileSync(stdioLogPath, "utf8");
+    return detectAWFStartupSignals(logContent).isFirewallFailed;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Extract terminal error messages from agent-stdio.log to surface engine failures.
  * First tries to match known error patterns (ERROR:, Error:, Fatal:, panic:, Reconnecting...).
  * Falls back to the last non-empty lines of the log when no patterns match, so that
@@ -2276,6 +2317,25 @@ function buildEngineFailureContext(options = {}) {
         }
       }
 
+      // Check for AWF firewall startup failure (cli-proxy / DIFC proxy could not start)
+      const { isFirewallFailed, hasDNSFailure, hasDNSEAIAgain } = detectAWFStartupSignals(logContent, errorMessages);
+      if (isFirewallFailed) {
+        core.info("Detected AWF firewall startup failure — using dedicated context message");
+        let context = buildWarningAlertLine("AWF Firewall Startup Failure", `The AWF firewall failed to start — the${engineLabel} agent was never invoked.`) + "\n";
+        if (hasDNSFailure) {
+          const dnsDiagnosis = hasDNSEAIAgain
+            ? "**Diagnosis:** DNS resolution of `awmg-cli-proxy` returned `EAI_AGAIN` (temporary DNS failure). The DIFC probe exhausted its retry budget before the name resolved.\n\n"
+            : "**Diagnosis:** The DIFC proxy (`awmg-cli-proxy`) failed to respond (`diagnosis=unknown`). The probe exhausted its retry budget before the service became reachable.\n\n";
+          context += dnsDiagnosis;
+        }
+        context += "\n<details>\n<summary>Error details</summary>\n\n";
+        for (const message of errorMessages) {
+          context += `- ${message}\n`;
+        }
+        context += `\n</details>\n\nSee [Diagnosing AWF Failures](https://github.com/github/gh-aw-firewall/blob/main/docs/diagnosing-awf-failures.md) for troubleshooting guidance.\n\n`;
+        return context;
+      }
+
       let context = buildWarningAlertLine("Engine Failure", `The${engineLabel} engine terminated before producing output.`) + "\n**Error details:**\n";
       for (const message of errorMessages) {
         context += `- ${message}\n`;
@@ -2305,7 +2365,22 @@ function buildEngineFailureContext(options = {}) {
 
     if (agentLines.length === 0) {
       // The log contains only AWF infrastructure lines — the engine exited before producing
-      // any substantive output. This pattern is characteristic of a transient startup failure
+      // any substantive output. Check first if this is an AWF firewall startup failure.
+      const { isFirewallFailed: isAWFFirewallStartupFailedInfra, hasDNSFailure: hasDNSFailureInfra, hasDNSEAIAgain: hasDNSEAIAgainInfra } = detectAWFStartupSignals(logContent);
+      if (isAWFFirewallStartupFailedInfra) {
+        core.info("Detected AWF firewall startup failure in infra-only log — using dedicated context message");
+        let context = buildWarningAlertLine("AWF Firewall Startup Failure", `The AWF firewall failed to start — the${engineLabel} agent was never invoked.`) + "\n";
+        if (hasDNSFailureInfra) {
+          const dnsDiagnosis = hasDNSEAIAgainInfra
+            ? "**Diagnosis:** DNS resolution of `awmg-cli-proxy` returned `EAI_AGAIN` (temporary DNS failure). The DIFC probe exhausted its retry budget before the name resolved.\n\n"
+            : "**Diagnosis:** The DIFC proxy (`awmg-cli-proxy`) failed to respond (`diagnosis=unknown`). The probe exhausted its retry budget before the service became reachable.\n\n";
+          context += dnsDiagnosis;
+        }
+        context += `\nSee [Diagnosing AWF Failures](https://github.com/github/gh-aw-firewall/blob/main/docs/diagnosing-awf-failures.md) for troubleshooting guidance.\n\n`;
+        return context;
+      }
+
+      // This pattern is characteristic of a transient startup failure
       // (e.g., API service unavailable, rate-limiting, token not yet provisioned).
       core.info("agent-stdio.log contains only infrastructure lines — engine likely failed at startup (possible transient failure)");
       const recurringFailureGuidance =
@@ -3020,6 +3095,7 @@ async function main() {
       hasLockdownCheckFailed,
       hasStaleLockFileFailed,
       hasDailyAICExceeded,
+      isAWFFirewallStartupFailed: detectAWFFirewallStartupFailureFromLog(),
     });
 
     // Persist failure categories so the OTLP conclusion span can record them
@@ -3529,6 +3605,7 @@ module.exports = {
   isIssueWritePermissionError,
   buildAssignCopilotFailureContext,
   buildEngineFailureContext,
+  detectAWFFirewallStartupFailureFromLog,
   buildReportIncompleteContext,
   buildMCPPolicyErrorContext,
   buildModelNotSupportedErrorContext,
