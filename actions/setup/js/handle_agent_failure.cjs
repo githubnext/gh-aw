@@ -2157,6 +2157,24 @@ function hasAgentTerminalReasonCompleted() {
 }
 
 /**
+ * Detect AWF firewall startup failure signals from log content.
+ * Uses specific failure patterns to avoid false positives on successful runs
+ * where container lifecycle lines (e.g., " Container awf-cli-proxy  Started")
+ * also mention awf-cli-proxy.
+ * @param {string} logContent Full content of agent-stdio.log
+ * @param {Set<string>} [errorMessages] Collected error messages from the log parsing loop (optional)
+ * @returns {{ isFirewallFailed: boolean, hasDNSFailure: boolean }}
+ */
+function detectAWFStartupSignals(logContent, errorMessages = null) {
+  const isFirewallFailed =
+    logContent.includes("AWF firewall failed to start") || logContent.includes("dependency failed to start: container awf-cli-proxy") || (errorMessages !== null && Array.from(errorMessages).some(msg => msg.includes("awf-cli-proxy")));
+
+  const hasDNSFailure = isFirewallFailed && (logContent.includes("EAI_AGAIN") || (logContent.includes("diagnosis=unknown") && logContent.includes("awmg-cli-proxy")));
+
+  return { isFirewallFailed, hasDNSFailure };
+}
+
+/**
  * Detect whether the agent-stdio.log contains evidence of an AWF firewall startup failure.
  * Reads the log file from the path derived from GH_AW_AGENT_OUTPUT, falling back to the
  * default path. Returns false when the log file does not exist or cannot be read.
@@ -2168,7 +2186,7 @@ function detectAWFFirewallStartupFailureFromLog() {
   try {
     if (!fs.existsSync(stdioLogPath)) return false;
     const logContent = fs.readFileSync(stdioLogPath, "utf8");
-    return logContent.includes("AWF firewall failed to start") || logContent.includes("awf-cli-proxy");
+    return detectAWFStartupSignals(logContent).isFirewallFailed;
   } catch {
     return false;
   }
@@ -2296,10 +2314,9 @@ function buildEngineFailureContext(options = {}) {
       }
 
       // Check for AWF firewall startup failure (cli-proxy / DIFC proxy could not start)
-      const isAWFFirewallStartupFailed = logContent.includes("AWF firewall failed to start") || Array.from(errorMessages).some(msg => msg.includes("awf-cli-proxy"));
-      if (isAWFFirewallStartupFailed) {
+      const { isFirewallFailed, hasDNSFailure } = detectAWFStartupSignals(logContent, errorMessages);
+      if (isFirewallFailed) {
         core.info("Detected AWF firewall startup failure — using dedicated context message");
-        const hasDNSFailure = logContent.includes("EAI_AGAIN") || (logContent.includes("diagnosis=unknown") && logContent.includes("awmg-cli-proxy"));
         let context = buildWarningAlertLine("AWF Firewall Startup Failure", `The AWF firewall failed to start — the${engineLabel} agent was never invoked.`) + "\n";
         if (hasDNSFailure) {
           context += "**Diagnosis:** DNS resolution of `awmg-cli-proxy` returned `EAI_AGAIN` (temporary DNS failure). " + "The DIFC probe exhausted its retry budget before the name resolved.\n\n";
@@ -2342,12 +2359,11 @@ function buildEngineFailureContext(options = {}) {
     if (agentLines.length === 0) {
       // The log contains only AWF infrastructure lines — the engine exited before producing
       // any substantive output. Check first if this is an AWF firewall startup failure.
-      const isAWFFirewallStartupFailedInfra = logContent.includes("AWF firewall failed to start") || logContent.includes("awf-cli-proxy");
+      const { isFirewallFailed: isAWFFirewallStartupFailedInfra, hasDNSFailure: hasDNSFailureInfra } = detectAWFStartupSignals(logContent);
       if (isAWFFirewallStartupFailedInfra) {
         core.info("Detected AWF firewall startup failure in infra-only log — using dedicated context message");
-        const hasDNSFailure = logContent.includes("EAI_AGAIN") || (logContent.includes("diagnosis=unknown") && logContent.includes("awmg-cli-proxy"));
         let context = buildWarningAlertLine("AWF Firewall Startup Failure", `The AWF firewall failed to start — the${engineLabel} agent was never invoked.`) + "\n";
-        if (hasDNSFailure) {
+        if (hasDNSFailureInfra) {
           context += "**Diagnosis:** DNS resolution of `awmg-cli-proxy` returned `EAI_AGAIN` (temporary DNS failure). " + "The DIFC probe exhausted its retry budget before the name resolved.\n\n";
         }
         context += `\nSee [Diagnosing AWF Failures](https://github.com/github/gh-aw-firewall/blob/main/docs/diagnosing-awf-failures.md) for troubleshooting guidance.\n\n`;

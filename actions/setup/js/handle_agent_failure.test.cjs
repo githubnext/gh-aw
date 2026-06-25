@@ -2440,8 +2440,11 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Diagnosis:");
     });
 
-    it("detects AWF firewall startup failure from infra-only log containing awf-cli-proxy", () => {
-      // When the log contains only infra lines but includes awf-cli-proxy signals
+    it("detects AWF firewall startup failure from infra-only log with specific failure signal", () => {
+      // When the log contains only infra lines but includes a specific AWF firewall failure signal.
+      // Note: container lifecycle lines like " Container awf-cli-proxy  Started" are NOT enough —
+      // the detection requires a specific failure pattern ("AWF firewall failed to start" or
+      // "dependency failed to start: container awf-cli-proxy").
       const lines = [
         "[INFO] CLI proxy sidecar enabled - connecting to external DIFC proxy at awmg-cli-proxy:18443",
         "[ERROR] Fatal error: Error: AWF firewall failed to start: awf-cli-proxy could not connect",
@@ -2454,6 +2457,25 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("https://github.com/github/gh-aw-firewall/blob/main/docs/diagnosing-awf-failures.md");
       expect(result).not.toContain("transient infrastructure issue");
       expect(result).not.toContain("Engine Failure");
+    });
+
+    it("does not trigger AWF firewall detection for infra-only log with container lifecycle lines only", () => {
+      // Container lifecycle lines mentioning awf-cli-proxy appear on successful runs too
+      // and must NOT trigger AWF firewall startup failure detection.
+      const lines = [
+        " Container awf-cli-proxy  Starting",
+        " Container awf-cli-proxy  Started",
+        "[INFO] CLI proxy sidecar enabled - connecting to external DIFC proxy at awmg-cli-proxy:18443",
+        "[ERROR] Command completed with exit code: 1",
+        "Process exiting with code: 1",
+      ];
+      fs.writeFileSync(stdioLogPath, lines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      // Should fall through to the generic "transient infrastructure" message
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("transient infrastructure issue");
+      expect(result).not.toContain("AWF Firewall Startup Failure");
+      expect(result).not.toContain("diagnosing-awf-failures");
     });
 
     it("does not trigger AWF firewall detection for unrelated awf-squid dependency failures", () => {
@@ -2518,6 +2540,13 @@ describe("handle_agent_failure", () => {
     it("returns true when log contains awf-cli-proxy reference", () => {
       fs.writeFileSync(stdioLogPath, "dependency failed to start: container awf-cli-proxy is unhealthy\n");
       expect(detectAWFFirewallStartupFailureFromLog()).toBe(true);
+    });
+
+    it("returns false for container lifecycle lines mentioning awf-cli-proxy (false-positive guard)", () => {
+      // Container lifecycle lines appear on successful runs and must not trigger detection
+      const lines = [" Container awf-cli-proxy  Starting", " Container awf-cli-proxy  Started", "[INFO] CLI proxy sidecar enabled - connecting to external DIFC proxy at awmg-cli-proxy:18443"];
+      fs.writeFileSync(stdioLogPath, lines.join("\n") + "\n");
+      expect(detectAWFFirewallStartupFailureFromLog()).toBe(false);
     });
 
     it("returns false when log references other awf containers (e.g., awf-squid)", () => {
