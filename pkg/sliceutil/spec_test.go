@@ -96,6 +96,12 @@ func TestSpec_PublicAPI_SortedKeys(t *testing.T) {
 		assert.Empty(t, keys, "SortedKeys of empty map should return empty slice")
 	})
 
+	t.Run("returns nil for nil map", func(t *testing.T) {
+		var m map[string]int
+		keys := SortedKeys(m)
+		assert.Nil(t, keys, "SortedKeys of nil map should return nil, not an empty slice")
+	})
+
 	t.Run("works with non-string ordered key types", func(t *testing.T) {
 		m := map[int]string{3: "c", 1: "a", 2: "b"}
 		keys := SortedKeys(m)

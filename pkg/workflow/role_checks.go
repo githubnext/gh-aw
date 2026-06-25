@@ -634,17 +634,17 @@ func mergeUniqueLogged(label string, top []string, imported []string) []string {
 }
 
 // mergeSkipRoles merges top-level skip-roles with imported skip-roles (union)
-func (c *Compiler) mergeSkipRoles(topSkipRoles []string, importedSkipRoles []string) []string {
+func mergeSkipRoles(topSkipRoles []string, importedSkipRoles []string) []string {
 	return mergeUniqueLogged("skip-roles", topSkipRoles, importedSkipRoles)
 }
 
 // mergeSkipBots merges top-level skip-bots with imported skip-bots (union)
-func (c *Compiler) mergeSkipBots(topSkipBots []string, importedSkipBots []string) []string {
+func mergeSkipBots(topSkipBots []string, importedSkipBots []string) []string {
 	return mergeUniqueLogged("skip-bots", topSkipBots, importedSkipBots)
 }
 
 // mergeBots merges top-level bots with imported bots (union)
-func (c *Compiler) mergeBots(topBots []string, importedBots []string) []string {
+func mergeBots(topBots []string, importedBots []string) []string {
 	return mergeUniqueLogged("bots", topBots, importedBots)
 }
 

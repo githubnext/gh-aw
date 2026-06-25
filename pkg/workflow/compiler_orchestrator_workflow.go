@@ -428,11 +428,11 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 
 	workflowData.Roles = c.extractRoles(frontmatter)
-	workflowData.Bots = expandBotNames(c.mergeBots(c.extractBots(frontmatter), importsResult.MergedBots))
+	workflowData.Bots = expandBotNames(mergeBots(c.extractBots(frontmatter), importsResult.MergedBots))
 	workflowData.LabelNames = c.extractLabelNames(frontmatter)
 	workflowData.RateLimit = c.extractRateLimitConfig(frontmatter)
-	workflowData.SkipRoles = c.mergeSkipRoles(c.extractSkipRoles(frontmatter), importsResult.MergedSkipRoles)
-	workflowData.SkipBots = expandBotNames(c.mergeSkipBots(c.extractSkipBots(frontmatter), importsResult.MergedSkipBots))
+	workflowData.SkipRoles = mergeSkipRoles(c.extractSkipRoles(frontmatter), importsResult.MergedSkipRoles)
+	workflowData.SkipBots = expandBotNames(mergeSkipBots(c.extractSkipBots(frontmatter), importsResult.MergedSkipBots))
 	workflowData.SkipAuthorAssociations = c.extractSkipAuthorAssociations(frontmatter)
 	workflowData.AllowBotAuthoredTriggerComment = c.extractAllowBotAuthoredTriggerComment(frontmatter)
 	workflowData.ActivationGitHubToken = c.resolveActivationGitHubToken(frontmatter, importsResult)

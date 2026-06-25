@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var secretLog = logger.New("workflow:secret_extraction")
@@ -120,7 +121,7 @@ func ReplaceSecretsWithEnvVars(value string, secrets map[string]string) string {
 	// to both "DD_APPLICATION_KEY" and "DD_APP_KEY"), the alphabetically first key is
 	// processed first and its replacement wins; subsequent keys find the expression
 	// already replaced and are no-ops. This ensures stable lock-file output across runs.
-	for _, varName := range sortedMapKeys(secrets) {
+	for _, varName := range sliceutil.SortedKeys(secrets) {
 		secretExpr := secrets[varName]
 		// Replace ${{ secrets.VAR }} with \${VAR} (backslash-escaped for copilot JSON config)
 		result = strings.ReplaceAll(result, secretExpr, "\\${"+varName+"}")
@@ -138,7 +139,7 @@ func ReplaceSecretsWithBashVars(value string) string {
 	result := value
 	secrets := ExtractSecretsFromValue(value)
 	// Sort keys for deterministic output; see ReplaceSecretsWithEnvVars for rationale.
-	for _, varName := range sortedMapKeys(secrets) {
+	for _, varName := range sliceutil.SortedKeys(secrets) {
 		secretExpr := secrets[varName]
 		result = strings.ReplaceAll(result, secretExpr, "${"+varName+"}")
 	}
@@ -326,14 +327,14 @@ func ReplaceTemplateExpressionsWithEnvVars(value string) string {
 	// Extract and replace secrets — sort keys for deterministic output; see
 	// ReplaceSecretsWithEnvVars for rationale.
 	secrets := ExtractSecretsFromValue(value)
-	for _, varName := range sortedMapKeys(secrets) {
+	for _, varName := range sliceutil.SortedKeys(secrets) {
 		secretExpr := secrets[varName]
 		result = strings.ReplaceAll(result, secretExpr, "\\${"+varName+"}")
 	}
 
 	// Extract and replace env vars — sort keys for deterministic output.
 	envVars := ExtractEnvExpressionsFromValue(value)
-	for _, varName := range sortedMapKeys(envVars) {
+	for _, varName := range sliceutil.SortedKeys(envVars) {
 		envExpr := envVars[varName]
 		result = strings.ReplaceAll(result, envExpr, "\\${"+varName+"}")
 	}

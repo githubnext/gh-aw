@@ -201,8 +201,6 @@ Test workflow content with bot and default roles.`
 
 // TestMergeBots tests the mergeBots helper function
 func TestMergeBots(t *testing.T) {
-	compiler := NewCompiler()
-
 	tests := []struct {
 		name     string
 		top      []string
@@ -243,7 +241,7 @@ func TestMergeBots(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.mergeBots(tt.top, tt.imported)
+			result := mergeBots(tt.top, tt.imported)
 			assert.Equal(t, tt.expected, result, "mergeBots result mismatch")
 		})
 	}
