@@ -461,6 +461,23 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		if !isBYOKMode {
 			copilotCoreSecrets = []string{"COPILOT_GITHUB_TOKEN"}
 		}
+		excludeEnvVarNames := ComputeAWFExcludeEnvVarNames(workflowData, copilotCoreSecrets)
+		// BYOK provider env vars must remain visible to the Copilot runtime inside AWF.
+		// Excluding them breaks custom provider routing/auth in BYOK workflows.
+		if isBYOKMode {
+			byokProviderEnvVars := map[string]struct{}{
+				constants.CopilotProviderBaseURL:    {},
+				constants.CopilotProviderAPIKey:     {},
+				constants.CopilotProviderBearerToken: {},
+			}
+			filtered := make([]string, 0, len(excludeEnvVarNames))
+			for _, envVarName := range excludeEnvVarNames {
+				if _, drop := byokProviderEnvVars[envVarName]; !drop {
+					filtered = append(filtered, envVarName)
+				}
+			}
+			excludeEnvVarNames = filtered
+		}
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "copilot",
 			EngineCommand:  engineCommand,
@@ -485,7 +502,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			PathSetup: pathSetup,
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, copilotCoreSecrets),
+			ExcludeEnvVarNames: excludeEnvVarNames,
 		})
 	} else {
 		// Run copilot command without AWF wrapper.

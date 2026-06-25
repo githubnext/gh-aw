@@ -2441,12 +2441,13 @@ func TestCopilotEngineBYOKOmitsCopilotGitHubToken(t *testing.T) {
 		}
 	})
 
-	t.Run("AWF command omits --exclude-env COPILOT_GITHUB_TOKEN in BYOK mode", func(t *testing.T) {
+	t.Run("AWF command keeps BYOK provider env vars available in BYOK mode", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
 				Env: map[string]string{
 					constants.CopilotProviderBaseURL: "http://localhost:11434/v1",
+					constants.CopilotProviderAPIKey:  "${{ secrets.PROVIDER_API_KEY }}",
 				},
 			},
 			SandboxConfig: &SandboxConfig{
@@ -2462,6 +2463,12 @@ func TestCopilotEngineBYOKOmitsCopilotGitHubToken(t *testing.T) {
 		stepContent := strings.Join([]string(steps[0]), "\n")
 		if strings.Contains(stepContent, "--exclude-env COPILOT_GITHUB_TOKEN") {
 			t.Errorf("AWF command should not exclude COPILOT_GITHUB_TOKEN in BYOK mode, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "--exclude-env "+constants.CopilotProviderBaseURL) {
+			t.Errorf("AWF command should not exclude %s in BYOK mode, got:\n%s", constants.CopilotProviderBaseURL, stepContent)
+		}
+		if strings.Contains(stepContent, "--exclude-env "+constants.CopilotProviderAPIKey) {
+			t.Errorf("AWF command should not exclude %s in BYOK mode, got:\n%s", constants.CopilotProviderAPIKey, stepContent)
 		}
 	})
 }
