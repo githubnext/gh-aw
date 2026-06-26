@@ -24,7 +24,7 @@ Resolution supports two modes:
 | `SHAResolver` | interface | Resolves a SHA for `repo@version` dynamically |
 | `ResolutionErrorType` | string | Classifies unresolved action-ref pinning outcomes for auditing |
 | `ResolutionFailure` | struct | Captures an unresolved action-ref pinning event (repo, ref, error type) |
-| `PinContext` | struct | Runtime context for resolution (resolver, strict mode, warning dedupe map) |
+| `PinContext` | struct | Runtime context for resolution (resolver, strict mode, warning dedupe map, action-pin mappings) |
 
 ### Functions
 
@@ -73,6 +73,23 @@ ctx := &actionpins.PinContext{
 }
 actionpins.ResolveActionPin("unknown/action", "v1", ctx)
 // failures[0].ErrorType == actionpins.ResolutionErrorTypePinNotFound
+```
+
+### Action Pin Mappings
+
+`PinContext.Mappings` redirects `owner/repo@ref` references to replacement references before pin resolution. This is used to substitute private or mirror repositories for well-known public actions (set from `aw.json` `action_pins`).
+
+Keys and values use the format `"owner/repo@ref"`. When a key matches the incoming `actionRepo@version`, resolution proceeds against the mapped value instead. An informational message is emitted once per mapping via `PinContext.Warnings`.
+
+```go
+ctx := &actionpins.PinContext{
+    Warnings: make(map[string]bool),
+    Mappings: map[string]string{
+        "actions/checkout@v4": "acme-corp/checkout@v4",
+    },
+}
+reference, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
+// reference resolves against acme-corp/checkout@v4 pins
 ```
 
 ### Container Pins
