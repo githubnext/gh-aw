@@ -71,8 +71,13 @@ jobs:
         if: always()
         run: |
           if [ -f "super-linter.log" ]; then
-            sudo cp super-linter.log /tmp/super-linter.log 2>/dev/null || cp super-linter.log /tmp/super-linter.log || true
-            sudo chmod 644 /tmp/super-linter.log 2>/dev/null || chmod 644 /tmp/super-linter.log || true
+            if sudo cp super-linter.log /tmp/super-linter.log 2>/dev/null || cp super-linter.log /tmp/super-linter.log; then
+              if ! (sudo chmod 644 /tmp/super-linter.log 2>/dev/null || chmod 644 /tmp/super-linter.log); then
+                echo "::warning::Unable to set permissions on /tmp/super-linter.log"
+              fi
+            else
+              echo "::warning::Unable to copy super-linter.log to /tmp for artifact upload"
+            fi
           fi
       
       - name: Upload super-linter log
