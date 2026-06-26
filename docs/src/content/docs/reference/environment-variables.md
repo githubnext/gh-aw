@@ -235,6 +235,16 @@ See [Tools Reference](/gh-aw/reference/tools/) for complete guard policy documen
 
 ---
 
+## Runtime Policy Variables
+
+These variables enforce runtime policy decisions in compiled workflows without requiring recompilation.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` | `"true"` | Controls whether `safe-outputs.create-pull-request` remains runtime-compliant. When set to `"false"`, the safe-outputs MCP server refuses to start if `create-pull-request` is configured. |
+
+---
+
 ## Precedence Rules
 
 Environment variables follow a **most-specific-wins** model, consistent with GitHub Actions. Variables at more specific scopes completely override variables with the same name at less specific scopes.
