@@ -44,20 +44,20 @@ func TestBannerLogoEmbedded(t *testing.T) {
 }
 
 func TestBannerStyleInitialized(t *testing.T) {
-	// Ensure BannerStyle is properly initialized with expected attributes
+	// Ensure bannerStyle is properly initialized with expected attributes
 	// Test by rendering a test string and verifying the style is applied
 	testString := "test"
-	rendered := BannerStyle.Render(testString)
+	rendered := bannerStyle.Render(testString)
 
-	// When BannerStyle is properly configured with Bold and Foreground color,
+	// When bannerStyle is properly configured with Bold and Foreground color,
 	// the rendered string should differ from the input (contain ANSI codes)
 	// or at minimum, not be empty
 	if rendered == "" {
-		t.Error("BannerStyle.Render should produce non-empty output")
+		t.Error("bannerStyle.Render should produce non-empty output")
 	}
 
 	// Verify Bold is enabled
-	if !BannerStyle.GetBold() {
-		t.Error("BannerStyle should have Bold enabled")
+	if !bannerStyle.GetBold() {
+		t.Error("bannerStyle should have Bold enabled")
 	}
 }

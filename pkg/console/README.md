@@ -40,7 +40,6 @@ The following components and functions are exported by the `console` package:
 | Export | Kind | Description |
 |--------|------|-------------|
 | `NewSpinner` | func | Creates a new animated spinner |
-| `BannerStyle` | var | Shared lipgloss style used by `FormatBanner` and `PrintBanner` |
 | `NewProgressBar` | func | Creates a determinate progress bar |
 | `NewIndeterminateProgressBar` | func | Creates an indeterminate progress bar |
 | `RenderStruct` | func | Renders a Go struct to a styled terminal string |
