@@ -51,9 +51,9 @@ safe-outputs:
   messages:
     footer: "> 🏛️ *Architecture report by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     footer-workflow-recompile: "> 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*"
-    run-started: "🏛️ Architecture Guardian online! [{workflow_name}]({run_url}) is scanning code structure on this {event_type}..."
-    run-success: "✅ Architecture scan complete! [{workflow_name}]({run_url}) has reviewed code structure. Report delivered! 📋"
-    run-failure: "🏛️ Architecture scan failed! [{workflow_name}]({run_url}) {status}. Structure status unknown..."
+    run-started: "🏛️ Architecture Guardian scanning code structure on `{event_type}`. [{workflow_name}]({run_url})"
+    run-success: "✅ Architecture scan complete. [{workflow_name}]({run_url}) reviewed code structure and delivered a report."
+    run-failure: "❌ Architecture scan failed. [{workflow_name}]({run_url}) {status}. Scan did not complete."
 timeout-minutes: 20
 steps:
   - name: Collect architecture metrics
