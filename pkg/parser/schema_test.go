@@ -1860,9 +1860,10 @@ func TestMainWorkflowSchema_SandboxAgentModelFallback(t *testing.T) {
 	}
 }
 
-// TestMainWorkflowSchema_SandboxAgentSudo verifies that sandbox.agent.sudo is
-// accepted by the schema validator (regression for #41679 where the schema was
-// not updated to include the renamed field).
+// TestMainWorkflowSchema_SandboxAgentSudo is a regression guard for #41679.
+// The JSON schema already contains sandbox.agent.sudo; these tests ensure it
+// stays accepted and that the legacy network-isolation field stays rejected,
+// preventing future drift between the Go struct YAML tags and the schema.
 func TestMainWorkflowSchema_SandboxAgentSudo(t *testing.T) {
 	t.Parallel()
 
