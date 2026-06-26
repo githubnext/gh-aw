@@ -74,9 +74,10 @@ func TestLogsCommandFlags(t *testing.T) {
 		t.Errorf("Expected engine flag default value to be empty, got: %s", engineFlag.DefValue)
 	}
 
-	// Test that engine flag has the -e shorthand for consistency with other commands
-	if engineFlag.Shorthand != "e" {
-		t.Errorf("Expected engine flag shorthand to be 'e', got: %s", engineFlag.Shorthand)
+	// Engine filter flag intentionally has no shorthand to avoid conflicting
+	// semantics with override-style --engine/-e flags on mutating commands.
+	if engineFlag.Shorthand != "" {
+		t.Errorf("Expected engine flag shorthand to be empty, got: %s", engineFlag.Shorthand)
 	}
 }
 

@@ -155,7 +155,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("create-issue", false, "Open a GitHub issue in each org repository with agentic workflows (requires --org)")
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
-	cmd.Flags().Bool("pre-releases", false, "Include pre-release versions when checking for extension upgrades; prereleases are installed by exact tag")
+	cmd.Flags().Bool("pre-releases", false, "Include pre-release versions when checking for extension upgrades; pre-releases are installed by exact tag")
 	cmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	cmd.Flags().Bool("skip-extension-upgrade", false, "Skip automatic extension upgrade (used internally to prevent recursion after upgrade)")
 	_ = cmd.Flags().MarkHidden("skip-extension-upgrade")
