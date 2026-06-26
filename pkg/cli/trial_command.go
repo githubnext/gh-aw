@@ -115,7 +115,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().Bool("force-delete-host-repo-before", false, "Force delete the host repository before creation if it already exists")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
 	cmd.Flags().Bool("dry-run", false, "Preview trial execution without applying any changes")
-	cmd.Flags().Int("timeout", 30, "Execution timeout in minutes (default: 30, 0 disables timeout)")
+	cmd.Flags().Int("timeout", 30, "Execution timeout in minutes (set to 0 to disable timeout)")
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
 	cmd.Flags().Int("repeat", 0, "Number of additional times to run after the initial execution (e.g., --repeat 3 runs 4 times total)")
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during trial execution")
