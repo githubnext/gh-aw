@@ -31,8 +31,7 @@ timeout-minutes: 30
 imports:
   - shared/ci-data-analysis.md
   - shared/ci-optimization-strategies.md
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 experiments:
   prompt_style:
     variants: [detailed, concise]

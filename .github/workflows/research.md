@@ -26,9 +26,7 @@ sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 imports:
   - shared/mcp/tavily.md
-  - shared/reporting.md
-
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 safe-outputs:
   create-discussion:
     expires: 1d

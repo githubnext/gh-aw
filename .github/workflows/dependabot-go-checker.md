@@ -43,10 +43,7 @@ tools:
   bash: [":*"]
 
 imports:
-  - shared/reporting.md
-
-
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 
 experiments:
   prompt_style:

@@ -57,10 +57,9 @@ experiments:
 strict: false
 
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 
 # Pre-download SBOM to get accurate dependency information
-  - shared/otlp.md
 steps:
   - name: Download SBOM from GitHub Dependency Graph API
     env:

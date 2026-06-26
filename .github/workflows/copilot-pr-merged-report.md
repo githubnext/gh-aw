@@ -33,7 +33,7 @@ network:
     - api.github.com
 
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[copilot-pr-merged-report] "
@@ -41,7 +41,6 @@ imports:
   - shared/gh.md
   - shared/copilot-pr-analysis-base.md
 
-  - shared/otlp.md
 timeout-minutes: 10
 features:
   gh-aw-detection: true

@@ -9,8 +9,7 @@ permissions:
   issues: read
   pull-requests: read
 imports:
-- shared/reporting.md
-- shared/otlp.md
+- shared/reporting-otlp.md
 safe-outputs:
   create-discussion:
     category: reports

@@ -20,8 +20,7 @@ permissions:
 engine: claude
 imports:
   - shared/safe-output-upload-artifact.md
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 tools:
   cli-proxy: true
   github:

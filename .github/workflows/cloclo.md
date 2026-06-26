@@ -25,8 +25,7 @@ engine:
 imports:
   - ../skills/jqschema/SKILL.md
   - shared/mcp/serena-go.md
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 tools:
   cli-proxy: true
   agentic-workflows:

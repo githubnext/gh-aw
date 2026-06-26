@@ -34,10 +34,9 @@ engine:
 
 # Import shared reporting guidelines
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 
 # Deny all network access
-  - shared/otlp.md
 network: {}
 
 # Tools configuration

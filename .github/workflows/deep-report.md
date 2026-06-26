@@ -77,10 +77,8 @@ imports:
   - shared/discussions-data-fetch.md
   - shared/mcp/agentdb.md
   - shared/weekly-issues-data-fetch.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
 
-
-  - shared/otlp.md
 ---
 
 # DeepReport - Intelligence Gathering Agent

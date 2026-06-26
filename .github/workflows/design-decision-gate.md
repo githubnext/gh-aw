@@ -45,8 +45,7 @@ sandbox:
     keepalive-interval: 60
 imports:
   - ../agents/adr-writer.agent.md
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 tools:
   cli-proxy: true
   github:

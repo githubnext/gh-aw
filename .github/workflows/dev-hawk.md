@@ -38,8 +38,8 @@ imports:
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [pull_requests, actions, repos]
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
+
 ---
 
 # Dev Hawk - Development Workflow Monitor

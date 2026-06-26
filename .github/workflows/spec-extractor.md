@@ -18,10 +18,9 @@ engine: copilot
 strict: true
 
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/go-source-analysis.md
 
-  - shared/otlp.md
 network:
   allowed:
     - defaults

@@ -20,8 +20,7 @@ imports:
     branch-name: memory/discussion-task-miner
     description: Track processed discussions and extracted tasks
 - ../skills/jqschema/SKILL.md
-- shared/reporting.md
-- shared/otlp.md
+- shared/reporting-otlp.md
 safe-outputs:
   add-comment:
     max: 3

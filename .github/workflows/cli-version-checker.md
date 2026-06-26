@@ -16,8 +16,7 @@ network:
    allowed: [defaults, node, go, "api.github.com", "ghcr.io"]
 imports:
   - ../skills/jqschema/SKILL.md
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 tools:
   cli-proxy: true
   web-fetch:

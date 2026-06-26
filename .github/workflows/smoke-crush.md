@@ -24,8 +24,7 @@ engine:
 strict: true
 imports:
   - shared/gh.md
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 network:
   allowed:
     - defaults

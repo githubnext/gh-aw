@@ -44,8 +44,7 @@ network:
     - github
     - go
 imports:
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 features:
   gh-aw-detection: true
 ---
