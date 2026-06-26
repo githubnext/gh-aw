@@ -33,7 +33,7 @@ default_model_copilot: "gpt-5-mini"
 default_model_claude: "claude-haiku-4-5"
 default_model_codex: "gpt-5.4-mini"
 default_detection_model: "gpt-5.5-mini"
-default_utc: "-08:00"
+default_utc: "-08:00" # UTC offset for rendered CLI timestamps
 ```
 
 > [!NOTE]
