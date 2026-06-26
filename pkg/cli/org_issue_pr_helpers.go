@@ -22,7 +22,7 @@ var (
 	getLatestOrgReleaseFunc = getLatestRelease
 )
 
-var errEmptyGHAWReleaseTag = errors.New("latest gh-aw release tag was empty")
+var errEmptyGhawReleaseTag = errors.New("latest gh-aw release tag was empty")
 
 const (
 	// ghawUpgradeMarkerPrefix is the XML marker prefix embedded in upgrade org PRs/issues.
@@ -60,7 +60,7 @@ func getGhawReleaseInfo() (tag, releaseURL string) {
 			return "", err
 		}
 		if tag == "" {
-			return "", errEmptyGHAWReleaseTag
+			return "", errEmptyGhawReleaseTag
 		}
 		return tag, nil
 	})
