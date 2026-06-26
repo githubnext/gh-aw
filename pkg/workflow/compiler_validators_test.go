@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -442,6 +443,32 @@ func TestValidatePermissions_UsesCachedPermissionScopeValidation(t *testing.T) {
 	_, err := compiler.validatePermissions(workflowData, markdownPath)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), cachedErr.Error())
+}
+
+func TestValidatePermissions_EmitsCopilotRequestsTipOncePerMarkdownPath(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "perms-tip-once-test")
+	markdownPath := filepath.Join(tmpDir, "test.md")
+
+	workflowData := &WorkflowData{
+		Name:        "Test",
+		AI:          "copilot",
+		Permissions: "permissions:\n  contents: read\n",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+	}
+
+	compiler := NewCompiler()
+
+	stderr := testutil.CaptureStderr(t, func() {
+		_, err := compiler.validatePermissions(workflowData, markdownPath)
+		require.NoError(t, err)
+		_, err = compiler.validatePermissions(workflowData, markdownPath)
+		require.NoError(t, err)
+	})
+
+	const tipText = "Tip: set permissions.copilot-requests: write to use GitHub Actions token-based inference"
+	assert.Equal(t, 1, strings.Count(stderr, tipText), "copilot-requests tip should be emitted only once per markdown path")
 }
 
 func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError(t *testing.T) {

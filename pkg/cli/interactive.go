@@ -1,13 +1,16 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"charm.land/huh/v2"
@@ -17,6 +20,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/styles"
+	"github.com/github/gh-aw/pkg/tty"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -39,6 +43,7 @@ var commonWorkflowNames = []string{
 // InteractiveWorkflowBuilder collects user input to build an agentic workflow
 type InteractiveWorkflowBuilder struct {
 	ctx           context.Context
+	nonTTYScanner *bufio.Scanner
 	WorkflowName  string
 	Trigger       string
 	Engine        string
@@ -47,6 +52,13 @@ type InteractiveWorkflowBuilder struct {
 	Intent        string
 	NetworkAccess string
 	CustomDomains []string
+}
+
+func (b *InteractiveWorkflowBuilder) ensureNonTTYScanner(r io.Reader) *bufio.Scanner {
+	if b.nonTTYScanner == nil {
+		b.nonTTYScanner = bufio.NewScanner(r)
+	}
+	return b.nonTTYScanner
 }
 
 // CreateWorkflowInteractively prompts the user to build a workflow interactively
@@ -94,6 +106,10 @@ func CreateWorkflowInteractively(ctx context.Context, workflowName string, verbo
 
 // promptForWorkflowName asks the user for a workflow name
 func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
+	if !tty.IsStderrTerminal() {
+		return b.promptForWorkflowNameFrom(os.Stdin)
+	}
+
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
@@ -108,8 +124,34 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
 	return form.RunWithContext(b.ctx)
 }
 
+// promptForWorkflowNameFrom is the non-TTY fallback for promptForWorkflowName.
+// It reads the workflow name from r as plain text. Separated from promptForWorkflowName
+// so it can be exercised in unit tests without a real TTY.
+func (b *InteractiveWorkflowBuilder) promptForWorkflowNameFrom(r io.Reader) error {
+	interactiveLog.Print("Non-TTY detected, using text prompt for workflow name")
+	fmt.Fprintf(os.Stderr, "\nWorkflow name (e.g. issue-triage, code-review-helper): ")
+
+	scanner := b.ensureNonTTYScanner(r)
+	if scanner.Scan() {
+		name := strings.TrimSpace(scanner.Text())
+		if err := ValidateWorkflowName(name); err != nil {
+			return fmt.Errorf("invalid workflow name %q: %w", name, err)
+		}
+		b.WorkflowName = name
+		return nil
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("failed to read workflow name: %w", err)
+	}
+	return errors.New("no workflow name provided")
+}
+
 // promptForConfiguration organizes all prompts into logical groups with titles and descriptions
 func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
+	if !tty.IsStderrTerminal() {
+		return b.promptForConfigurationFrom(os.Stdin)
+	}
+
 	// Prepare trigger options
 	triggerOptions := []huh.Option[string]{
 		huh.NewOption("Manual trigger (workflow_dispatch)", "workflow_dispatch"),
@@ -239,6 +281,200 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 	interactiveLog.Printf("User configuration selected: trigger=%s, engine=%s, tools=%v, safe_outputs=%v", b.Trigger, b.Engine, selectedTools, selectedOutputs)
 
 	return nil
+}
+
+// promptForConfigurationFrom is the non-TTY fallback for promptForConfiguration.
+// It prints numbered option lists for single-select fields and accepts comma-separated
+// values for multi-select fields (tools and safe-outputs). Separated from
+// promptForConfiguration so it can be exercised in unit tests without a real TTY.
+func (b *InteractiveWorkflowBuilder) promptForConfigurationFrom(r io.Reader) error {
+	interactiveLog.Print("Non-TTY detected, using text prompts for configuration")
+	scanner := b.ensureNonTTYScanner(r)
+
+	// --- Trigger (single-select) ---
+	triggerOptions := []struct{ label, value string }{
+		{"Manual trigger (workflow_dispatch)", "workflow_dispatch"},
+		{"Issue opened or reopened", "issues"},
+		{"Pull request opened or synchronized", "pull_request"},
+		{"Push to main branch", "push"},
+		{"Issue comment created", "issue_comment"},
+		{"Schedule (daily, scattered execution time)", "schedule_daily"},
+		{"Schedule (weekly on Monday, scattered execution time)", "schedule_weekly"},
+		{"Command trigger (/bot-name)", "command"},
+	}
+	trigger, err := promptNonInteractiveSelect(scanner, "When should this workflow run?", triggerOptions)
+	if err != nil {
+		return fmt.Errorf("failed to select trigger: %w", err)
+	}
+	b.Trigger = trigger
+
+	// --- Engine (single-select) ---
+	engineOptions := []struct{ label, value string }{
+		{"copilot - GitHub Copilot CLI", "copilot"},
+		{"claude - Anthropic Claude Code coding agent", "claude"},
+		{"codex - OpenAI Codex engine", "codex"},
+		{"gemini - Google Gemini CLI", "gemini"},
+	}
+	engine, err := promptNonInteractiveSelect(scanner, "Which AI engine should process this workflow?", engineOptions)
+	if err != nil {
+		return fmt.Errorf("failed to select engine: %w", err)
+	}
+	b.Engine = engine
+
+	// --- Tools (multi-select) ---
+	toolOptions := []struct{ label, value string }{
+		{"github - GitHub API tools (issues, PRs, comments, repos)", "github"},
+		{"edit - File editing tools", "edit"},
+		{"bash - Shell command tools", "bash"},
+		{"web-fetch - Web content fetching tools", "web-fetch"},
+		{"web-search - Web search tools", "web-search"},
+		{"playwright - Browser automation tools", "playwright"},
+	}
+	tools, err := promptNonInteractiveMultiSelect(scanner, "Which tools should the AI have access to? (comma-separated values or numbers, or leave blank for none)", toolOptions)
+	if err != nil {
+		return fmt.Errorf("failed to select tools: %w", err)
+	}
+	b.Tools = tools
+
+	// --- Safe outputs (multi-select) ---
+	outputOptions := buildSafeOutputOptions()
+	safeOutputItems := make([]struct{ label, value string }, len(outputOptions))
+	for i, opt := range outputOptions {
+		safeOutputItems[i] = struct{ label, value string }{opt.Key, opt.Value}
+	}
+	safeOutputs, err := promptNonInteractiveMultiSelect(scanner, "What outputs should the AI be able to create? (comma-separated values or numbers, or leave blank for none)", safeOutputItems)
+	if err != nil {
+		return fmt.Errorf("failed to select safe outputs: %w", err)
+	}
+	b.SafeOutputs = safeOutputs
+
+	// --- Network access (single-select) ---
+	detectedNetworks := detectNetworkFromRepo()
+	networkItems := []struct{ label, value string }{
+		{"defaults - Basic infrastructure only", "defaults"},
+		{"ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)", "ecosystem"},
+	}
+	if len(detectedNetworks) > 0 {
+		label := "detected - Auto-detected ecosystems: " + strings.Join(detectedNetworks, ", ")
+		value := strings.Join(append([]string{"defaults"}, detectedNetworks...), ",")
+		networkItems = append([]struct{ label, value string }{{label, value}}, networkItems...)
+	}
+	network, err := promptNonInteractiveSelect(scanner, "What network access does the workflow need?", networkItems)
+	if err != nil {
+		return fmt.Errorf("failed to select network access: %w", err)
+	}
+	b.NetworkAccess = network
+
+	// --- Intent / instructions (free text) ---
+	fmt.Fprintf(os.Stderr, "\nDescribe what this workflow should do (enter text, then press Enter):\n> ")
+	if scanner.Scan() {
+		b.Intent = strings.TrimSpace(scanner.Text())
+	} else if err := scanner.Err(); err != nil {
+		return fmt.Errorf("failed to read workflow intent: %w", err)
+	}
+	if err := ValidateWorkflowIntent(b.Intent); err != nil {
+		return fmt.Errorf("invalid workflow intent: %w", err)
+	}
+
+	interactiveLog.Printf("Non-TTY configuration selected: trigger=%s, engine=%s, tools=%v, safe_outputs=%v", b.Trigger, b.Engine, b.Tools, b.SafeOutputs)
+	return nil
+}
+
+// promptNonInteractiveSelect prints a numbered list and reads a single selection.
+// The user may enter a number (1-based index) or the option value directly.
+func promptNonInteractiveSelect(scanner *bufio.Scanner, title string, options []struct{ label, value string }) (string, error) {
+	fmt.Fprintf(os.Stderr, "\n%s\n", title)
+	for i, opt := range options {
+		fmt.Fprintf(os.Stderr, "  %d) %s\n", i+1, opt.label)
+	}
+	fmt.Fprintf(os.Stderr, "Select (1-%d): ", len(options))
+
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return "", fmt.Errorf("failed to read input: %w", err)
+		}
+		return "", errors.New("no input provided")
+	}
+	input := strings.TrimSpace(scanner.Text())
+
+	// Accept a numeric index
+	if idx, err := strconv.Atoi(input); err == nil {
+		if idx < 1 || idx > len(options) {
+			return "", fmt.Errorf("selection out of range (must be 1-%d)", len(options))
+		}
+		return options[idx-1].value, nil
+	}
+
+	// Accept the value directly
+	for _, opt := range options {
+		if opt.value == input {
+			return opt.value, nil
+		}
+	}
+	return "", fmt.Errorf("invalid selection %q", input)
+}
+
+// promptNonInteractiveMultiSelect prints a numbered list and reads comma-separated selections.
+// Each token may be a 1-based index or an option value. An empty input selects nothing.
+func promptNonInteractiveMultiSelect(scanner *bufio.Scanner, title string, options []struct{ label, value string }) ([]string, error) {
+	fmt.Fprintf(os.Stderr, "\n%s\n", title)
+	for i, opt := range options {
+		fmt.Fprintf(os.Stderr, "  %d) %s\n", i+1, opt.label)
+	}
+	fmt.Fprintf(os.Stderr, "Enter comma-separated numbers or values (leave blank for none): ")
+
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return nil, fmt.Errorf("failed to read input: %w", err)
+		}
+		// EOF / empty → no selections
+		return nil, nil
+	}
+	input := strings.TrimSpace(scanner.Text())
+	if input == "" {
+		return nil, nil
+	}
+
+	// Build a lookup map for value-based selection
+	valueSet := make(map[string]string, len(options))
+	for _, opt := range options {
+		valueSet[opt.value] = opt.value
+	}
+
+	tokens := strings.Split(input, ",")
+	seen := make(map[string]struct{}, len(tokens))
+	var selected []string
+	for _, tok := range tokens {
+		tok = strings.TrimSpace(tok)
+		if tok == "" {
+			continue
+		}
+
+		// Try numeric index
+		if idx, err := strconv.Atoi(tok); err == nil {
+			if idx < 1 || idx > len(options) {
+				return nil, fmt.Errorf("selection %d out of range (must be 1-%d)", idx, len(options))
+			}
+			val := options[idx-1].value
+			if _, dup := seen[val]; !dup {
+				seen[val] = struct{}{}
+				selected = append(selected, val)
+			}
+			continue
+		}
+
+		// Try value directly
+		if val, ok := valueSet[tok]; ok {
+			if _, dup := seen[val]; !dup {
+				seen[val] = struct{}{}
+				selected = append(selected, val)
+			}
+			continue
+		}
+
+		return nil, fmt.Errorf("unknown option %q", tok)
+	}
+	return selected, nil
 }
 
 // generateWorkflow creates the markdown workflow file based on user selections

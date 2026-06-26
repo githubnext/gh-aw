@@ -89,9 +89,9 @@ Use [workflow-patterns.md](workflow-patterns.md) for trigger-selection guidance.
 Compact scenario examples:
 
 - **Schema/API review on PRs**: trigger `pull_request` with `paths:` scoped to backend contract files (for example `db/migrate/**`, `migrations/**`, `schema/**`, `openapi/**`, `api/**`), read via `github` (`gh-proxy`), publish findings with `add-comment`, call `noop` when contracts are unchanged.
-- **Visual regression on UI changes**: trigger `pull_request`, use only `playwright` + `cache-memory` (no extra tools), keep network minimal (allowlist only target preview/app hosts if required), publish via `add-comment`, call `noop` when UI paths are unchanged.
-- **Deployment incident triage**: use `deployment_status` for external provider failures and `workflow_run` for GitHub Actions failures, publish incident reports via `create-issue`, call `noop` when a failure self-recovers or is duplicate noise.
-- **Product/stakeholder digest**: use fuzzy `schedule` plus optional `workflow_dispatch`, define an explicit window (for example `last 7 full days ending at run start (UTC)`), publish digest with `create-issue`, call `noop` when there are no updates in that window.
+- **Visual regression on UI changes**: trigger `pull_request`, use only `playwright` + `cache-memory` (no extra tools), keep network minimal (allowlist only target preview/app hosts if required), state the exact baseline source (`cache-memory` key, artifact, or branch path), publish via `add-comment`, call `noop` when UI paths are unchanged.
+- **Deployment incident triage**: use `deployment_status` for external provider failures and `workflow_run` for GitHub Actions failures, publish incident reports via `create-issue`, derive a stable failure key (for example workflow + job + failing step or error signature), and call `noop` when a failure self-recovers or matches an existing open incident.
+- **Product/stakeholder digest**: use fuzzy `schedule` plus optional `workflow_dispatch`, define an explicit window (for example `last 7 full days ending at run start (UTC)`), choose grouping dimensions up front (for example team, service, owner, severity, or status), publish with `create-issue` by default, and call `noop` when there are no updates in that window.
 
 Pattern-specific `noop` examples:
 
@@ -102,7 +102,18 @@ Pattern-specific `noop` examples:
 
 For compact prefetch + duplicate suppression patterns in reporting/incident workflows, follow [workflow-patterns.md](workflow-patterns.md) and [report.md](report.md) instead of embedding long inline instructions.
 
-### 2a. Backend review compact guidance
+### 2a. Reporting and digest compact guidance
+
+For recurring reports, audits, and stakeholder digests:
+
+- default to `create-issue`; use `create-discussion` only when the requester explicitly wants threaded discussion
+- use `add-comment` only when updating an existing issue or pull request instead of creating a new report destination
+- define the report window explicitly (for example `last 7 full days ending at workflow start (UTC)` or `since previous successful run`)
+- define the grouping dimensions explicitly (for example by team, service, owner, severity, status, or repository)
+- add `workflow_dispatch` when manual reruns, backfills, or preview runs should be possible
+- require `noop` when the selected window has no qualifying updates
+
+### 2b. Backend review compact guidance
 
 For backend-focused PR automation (schema migrations and API compatibility):
 
