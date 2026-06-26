@@ -1,31 +1,30 @@
 {
-  "run_date": "2026-06-26T01:20:00Z",
-  "run_id": "28210925990",
-  "previous_run_id": "28193371345",
-  "previous_run_date": "2026-06-25T18:58:20Z",
+  "run_date": "2026-06-26T07:37:00Z",
+  "run_id": "28224135185",
+  "previous_run_id": "28210925990",
+  "previous_run_date": "2026-06-26T01:20:00Z",
   "fork_prs": 0,
-  "agent_prs_found": 3,
+  "agent_prs_found": 6,
   "prs_triaged": 0,
   "fork_only_policy": true,
   "open_agent_prs": [
-    {"number": 41555, "title": "Bump default gh-aw-firewall to v0.27.11 and regenerate pinned workflow artifacts", "draft": true, "is_fork": false, "labels": ["smoke-codex","smoked"], "created_at": "2026-06-26T00:05:01Z", "updated_at": "2026-06-26T01:17:05Z", "additions": 4731, "deletions": 4726, "changed_files": 265, "ci": "action_required", "mergeableState": "blocked"},
-    {"number": 41553, "title": "refactor: extract shared org-wide runner for update and upgrade commands", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-25T23:58:17Z", "updated_at": "2026-06-26T01:14:12Z", "additions": 490, "deletions": 235, "changed_files": 15, "ci": "action_required", "mergeableState": "unstable"},
-    {"number": 41295, "title": "fix: apply_samples derivePrHeadRef uses target-repo config for siderepo PR lookups", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-24T19:34:18Z", "updated_at": "2026-06-24T19:40:54Z", "additions": 68, "deletions": 4, "changed_files": 3, "ci": "success", "mergeableState": "clean"}
+    {"number": 41628, "title": "Enable sandbox.agent.sudo: false on 20 agentic workflows", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-26T07:13:49Z", "updated_at": "2026-06-26T07:14:20Z", "additions": 182, "deletions": 192, "changed_files": 40, "ci": "blocked", "category": "chore", "risk": "medium"},
+    {"number": 41627, "title": "improve update/upgrade --org: version tags, current version display, unified repo discovery", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-26T07:04:33Z", "updated_at": "2026-06-26T07:05:10Z", "additions": 388, "deletions": 64, "changed_files": 6, "ci": "unstable", "category": "feature", "risk": "medium"},
+    {"number": 41625, "title": "fix: replace deprecated gpt-5-mini with gpt-5.4-mini in daily-model-resolution workflow", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-26T06:56:21Z", "updated_at": "2026-06-26T07:11:59Z", "additions": 8, "deletions": 8, "changed_files": 3, "ci": "unstable", "category": "bug", "risk": "low"},
+    {"number": 41623, "title": "Replace AWF runtime Python patch with shared JavaScript helper", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-26T06:50:18Z", "updated_at": "2026-06-26T07:03:37Z", "additions": 396, "deletions": 3418, "changed_files": 266, "ci": "blocked", "category": "refactor", "risk": "high"},
+    {"number": 41617, "title": "Update `gh aw update --org` to support workflow-targeted updates and repo prefiltering", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-26T06:31:20Z", "updated_at": "2026-06-26T07:15:17Z", "additions": 225, "deletions": 13, "changed_files": 5, "ci": "unstable", "category": "feature", "risk": "medium"},
+    {"number": 41295, "title": "fix: apply_samples derivePrHeadRef uses target-repo config for siderepo PR lookups", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-24T19:34:18Z", "updated_at": "2026-06-24T19:40:54Z", "additions": 68, "deletions": 4, "changed_files": 3, "ci": "unknown", "category": "bug", "risk": "medium"}
   ],
   "closed_since_last_run": [
-    {"number": 41472, "title": "feat: detect AWF firewall startup failures and surface them in the agent failure issue", "merged_at": "2026-06-25T19:06:16Z"},
-    {"number": 41462, "title": "Update existing MCP configs with required gh-aw server fields", "merged_at": "2026-06-25T19:03:54Z"},
-    {"number": 41459, "title": "copilot engine: launch from `${GITHUB_WORKSPACE}` to enable APM skill discovery", "merged_at": "2026-06-25T23:35:57Z"},
-    {"number": 41457, "title": "Align safe-outputs bundle pre-check with post-apply file detection", "merged_at": "2026-06-25T20:15:54Z"},
-    {"number": 41358, "title": "Render runtime features only when configured; move output behind details disclosure", "merged_at": "2026-06-25T19:06:41Z"}
+    {"number": 41555, "title": "Bump default gh-aw-firewall to v0.27.11 and regenerate pinned workflow artifacts"},
+    {"number": 41553, "title": "refactor: extract shared org-wide runner for update and upgrade commands"}
   ],
   "statistics": {
-    "total_open_copilot_prs": 3,
-    "draft_prs": 2,
-    "ready_prs": 1,
+    "total_open_copilot_prs": 6,
+    "draft_prs": 4,
+    "ready_prs": 2,
     "fork_prs_eligible": 0,
-    "merged_since_last_run": 5,
-    "closed_without_merge_since_last_run": 0
+    "closed_since_last_run": 2
   },
-  "notes": "3 open agent PRs, all same-repo branches — fork-only triage policy: 0 eligible. 5 PRs merged since last run: #41472, #41462, #41459, #41457, #41358. 2 new PRs since last run: #41555, #41553. Run §28210925990."
+  "notes": "6 open agent PRs, all same-repo branches — fork-only triage policy: 0 eligible. 2 PRs closed since last run: #41555, #41553. 4 new PRs since last run: #41628, #41627, #41625, #41623. Run §28224135185."
 }
