@@ -228,17 +228,17 @@ func FormatCommandMessage(command string) string {
 
 // FormatProgressMessage formats a progress/activity message
 func FormatProgressMessage(message string) string {
-	return applyStyle(styles.Progress, "🔨 ") + message
+	return applyStyle(styles.Progress, "▸ ") + message
 }
 
 // FormatPromptMessage formats a user prompt message
 func FormatPromptMessage(message string) string {
-	return applyStyle(styles.Prompt, "❓ ") + message
+	return applyStyle(styles.Prompt, "? ") + message
 }
 
 // FormatVerboseMessage formats verbose debugging output
 func FormatVerboseMessage(message string) string {
-	return applyStyle(styles.Verbose, "🔍 ") + message
+	return applyStyle(styles.Verbose, "» ") + message
 }
 
 // FormatListItem formats an item in a list

@@ -96,9 +96,9 @@ func TestFormatProgressMessage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FormatProgressMessage(tt.message)
 
-			// Should contain the hammer emoji prefix
-			if !strings.Contains(result, "🔨") {
-				t.Errorf("FormatProgressMessage() should contain 🔨 prefix")
+			// Should contain the triangle prefix
+			if !strings.Contains(result, "▸") {
+				t.Errorf("FormatProgressMessage() should contain ▸ prefix")
 			}
 
 			// Should contain the message text
@@ -136,9 +136,9 @@ func TestFormatPromptMessage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FormatPromptMessage(tt.message)
 
-			// Should contain the question mark emoji prefix
-			if !strings.Contains(result, "❓") {
-				t.Errorf("FormatPromptMessage() should contain ❓ prefix")
+			// Should contain the question mark prefix
+			if !strings.Contains(result, "?") {
+				t.Errorf("FormatPromptMessage() should contain ? prefix")
 			}
 
 			// Should contain the message text
@@ -176,9 +176,9 @@ func TestFormatVerboseMessage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FormatVerboseMessage(tt.message)
 
-			// Should contain the magnifying glass emoji prefix
-			if !strings.Contains(result, "🔍") {
-				t.Errorf("FormatVerboseMessage() should contain 🔍 prefix")
+			// Should contain the double-angle prefix
+			if !strings.Contains(result, "»") {
+				t.Errorf("FormatVerboseMessage() should contain » prefix")
 			}
 
 			// Should contain the message text

@@ -64,8 +64,8 @@ func TestLogVerbose(t *testing.T) {
 			if tt.expected {
 				// Should contain the message
 				assert.Contains(t, output, tt.message, "Output should contain the message when verbose is enabled")
-				// Should contain the verbose icon (🔍)
-				assert.Contains(t, output, "🔍", "Output should contain verbose formatting")
+				// Should contain the verbose prefix (»)
+				assert.Contains(t, output, "»", "Output should contain verbose formatting")
 			} else {
 				// Should be empty
 				assert.Empty(t, output, "Output should be empty when verbose is disabled")
