@@ -677,7 +677,7 @@ func scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host s
 		}
 
 		for _, file := range files {
-			// listWorkflowFilesForHost returns full repo-root-relative paths
+			// listPackageWorkflowFilesForHost returns full repo-root-relative paths
 			// (e.g. "folder/workflows/foo.md" when scanning "folder/workflows/").
 			// isSupportedPackageInstallablePath expects package-relative paths, so
 			// strip the package prefix before validation for nested bundles.
