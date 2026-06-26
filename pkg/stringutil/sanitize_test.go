@@ -659,6 +659,14 @@ func BenchmarkSanitizeForFilename(b *testing.B) {
 	}
 }
 
+func BenchmarkSanitizeNamePreserveSpecialChars(b *testing.B) {
+	opts := &SanitizeOptions{PreserveSpecialChars: []rune{'.', '_'}}
+	name := "My Complex Workflow_Name v1.2.3"
+	for b.Loop() {
+		SanitizeName(name, opts)
+	}
+}
+
 func TestSanitizeName(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -699,6 +707,47 @@ func TestSanitizeName(t *testing.T) {
 				"SanitizeName",
 				fmt.Sprintf("%q, opts=%+v", tt.input, tt.opts),
 				result,
+				tt.expected,
+			)
+		})
+	}
+}
+
+func TestBuildSanitizePreservePattern(t *testing.T) {
+	tests := []struct {
+		name     string
+		preserve []rune
+		expected string
+	}{
+		{
+			name:     "no special chars",
+			expected: "a-z0-9-",
+		},
+		{
+			name:     "dot only",
+			preserve: []rune{'.'},
+			expected: "a-z0-9-.",
+		},
+		{
+			name:     "underscore only",
+			preserve: []rune{'_'},
+			expected: "a-z0-9-_",
+		},
+		{
+			name:     "duplicates and order are canonicalized",
+			preserve: []rune{'_', '.', '_', '.'},
+			expected: "a-z0-9-._",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := &SanitizeOptions{PreserveSpecialChars: tt.preserve}
+			assertSanitizeResultWithContext(
+				t,
+				"buildSanitizePreservePattern",
+				fmt.Sprintf("opts=%+v", opts),
+				buildSanitizePreservePattern(opts),
 				tt.expected,
 			)
 		})
