@@ -14,7 +14,8 @@ import (
 )
 
 var orgIPLog = logger.New("cli:org_issue_pr")
-var ghawReleaseInfoOnce sync.Once
+var ghawReleaseInfoMu sync.Mutex
+var ghawReleaseInfoLoaded bool
 var ghawReleaseTag string
 var ghawReleaseURL string
 
@@ -48,15 +49,21 @@ func buildOrgXMLMarker(prefix, tag string) string {
 // Both values are empty strings when the release cannot be determined; callers must
 // handle this gracefully (e.g. omit the release link rather than failing).
 func getGhawReleaseInfo() (tag, releaseURL string) {
-	ghawReleaseInfoOnce.Do(func() {
-		tag, err := getLatestRelease(false)
-		if err != nil || tag == "" {
-			orgIPLog.Printf("Could not resolve latest gh-aw release: %v", err)
-			return
-		}
-		ghawReleaseTag = tag
-		ghawReleaseURL = fmt.Sprintf("https://github.com/%s/releases/tag/%s", ghawReleaseRepo, tag)
-	})
+	ghawReleaseInfoMu.Lock()
+	defer ghawReleaseInfoMu.Unlock()
+
+	if ghawReleaseInfoLoaded {
+		return ghawReleaseTag, ghawReleaseURL
+	}
+
+	tag, err := getLatestRelease(false)
+	if err != nil || tag == "" {
+		orgIPLog.Printf("Could not resolve latest gh-aw release: %v", err)
+		return "", ""
+	}
+	ghawReleaseTag = tag
+	ghawReleaseURL = fmt.Sprintf("https://github.com/%s/releases/tag/%s", ghawReleaseRepo, tag)
+	ghawReleaseInfoLoaded = true
 	return ghawReleaseTag, ghawReleaseURL
 }
 
@@ -116,7 +123,8 @@ func isLabelValidationError(output []byte, err error) bool {
 	errText := strings.ToLower(err.Error())
 	outText := strings.ToLower(string(output))
 	has422 := strings.Contains(errText, "http 422") || strings.Contains(outText, "http 422")
-	return has422 &&
+	hasValidationFailure := strings.Contains(errText, "validation failed") || strings.Contains(outText, "validation failed")
+	return has422 && hasValidationFailure &&
 		(strings.Contains(errText, "label") || strings.Contains(outText, "label"))
 }
 
