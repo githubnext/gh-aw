@@ -41,6 +41,8 @@ safe-outputs:
     run-failure: "❌ [{workflow_name}]({run_url}) {status} during design decision gate check."
 timeout-minutes: 15
 sandbox:
+  agent:
+    sudo: false
   mcp:
     keepalive-interval: 60
 imports:

@@ -266,10 +266,11 @@ const canWriteDefault = canWriteToDefaultPath();
               (expect(pushTool).toBeDefined(),
                 expect(pushTool.inputSchema.required).toEqual(["message"]),
                 expect(pushTool.inputSchema.required).not.toContain("branch"),
-                // The agent must not be able to specify a branch — it's always
-                // derived from the pull request's head ref. See issue #37835.
-                expect(pushTool.inputSchema.properties.branch).toBeUndefined(),
-                expect(pushTool.description).toMatch(/derived from the pull request/i),
+                // The agent may supply an explicit branch to avoid HEAD-detection races
+                // in batch workflows (fix for issue #41643). The field is optional.
+                expect(pushTool.inputSchema.properties.branch).toBeDefined(),
+                expect(pushTool.inputSchema.properties.branch.type).toBe("string"),
+                expect(pushTool.description).toMatch(/supply.*branch|branch.*explicitly|batch workflow/i),
                 resolve());
             }, 500));
         });

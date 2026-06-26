@@ -27,7 +27,9 @@ network:
     - node
 
 sandbox:
-  agent: awf  # Firewall enabled (migrated from network.firewall)
+  agent:
+    id: awf
+    sudo: false
 imports:
   - uses: shared/daily-audit-base.md
     with:

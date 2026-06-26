@@ -52,6 +52,9 @@ experiments:
     issue: 32335
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # CI Optimization Coach

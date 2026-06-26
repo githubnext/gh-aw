@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -73,6 +74,9 @@ type orgRepoPreview struct {
 
 func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts UpdateWorkflowsOptions, createPR bool, createIssue bool, verbose bool) error {
 	clearUpdateResolutionCaches()
+	searchFn := func(ctx context.Context, org string, verbose bool) ([]string, error) {
+		return searchOrgWorkflowReposFn(ctx, org, opts.WorkflowNames, verbose)
+	}
 
 	// scanFn previews a single repo and decides whether to include it.
 	// It also prints a per-repo workflow summary to stderr.
@@ -94,7 +98,7 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 	}
 
 	return runCommandForOrg(ctx, org, repoGlobs, orgRunCallbacks{
-		SearchFn: searchOrgWorkflowReposFn,
+		SearchFn: searchFn,
 		ScanFn:   scanFn,
 		ReportFn: renderOrgPreviewReport,
 		ApplyFn: func(ctx context.Context, preview orgRepoPreview, v bool) error {
@@ -104,7 +108,7 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 			return createIssueForOrgRepoFn(ctx, preview, v)
 		},
 		DiscoveringMsg:   "Discovering repositories in " + org + " with source-managed workflows...",
-		NoReposMsg:       "No repositories found with source-managed workflows",
+		NoReposMsg:       formatUpdateOrgNoReposMessage(opts.WorkflowNames),
 		ScanLabel:        "Inspecting",
 		ApplyLabel:       "Updating",
 		IssueLabel:       "Creating issue in",
@@ -113,6 +117,32 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 		AllFailApplyMsg:  "failed to update any repository",
 		AllFailIssueMsg:  "failed to create issues in any repository",
 	}, createPR, createIssue, verbose)
+}
+
+func formatUpdateOrgNoReposMessage(workflowNames []string) string {
+	if len(workflowNames) == 0 {
+		return "No repositories found with source-managed workflows"
+	}
+
+	filters := make([]string, 0, len(workflowNames))
+	seen := make(map[string]struct{}, len(workflowNames))
+	for _, workflowName := range workflowNames {
+		normalized := normalizeWorkflowID(workflowName)
+		if normalized == "" || normalized == "." {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		filters = append(filters, normalized)
+	}
+	if len(filters) == 0 {
+		return "No repositories found with source-managed workflows matching the requested workflow filters"
+	}
+
+	slices.Sort(filters)
+	return "No repositories found with source-managed workflows matching: " + strings.Join(filters, ", ")
 }
 
 // renderOrgPreviewReport prints the discovered updates for each repository. It is
@@ -151,7 +181,7 @@ func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflow
 	}
 
 	workflowsDir := filepath.Join(checkoutDir, constants.GetWorkflowDir())
-	workflows, err := findWorkflowsWithSource(workflowsDir, nil, verbose)
+	workflows, err := findWorkflowsWithSource(workflowsDir, opts.WorkflowNames, verbose)
 	if err != nil {
 		return orgRepoPreview{}, fmt.Errorf("failed to scan workflows in shallow checkout: %w", err)
 	}

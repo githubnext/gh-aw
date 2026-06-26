@@ -55,7 +55,9 @@ network:
     - node
 
 sandbox:
-  agent: awf  # Firewall enabled (migrated from network.firewall)
+  agent:
+    id: awf
+    sudo: false
 safe-outputs:
   upload-artifact:
     max-uploads: 3

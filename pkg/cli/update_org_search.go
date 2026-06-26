@@ -29,17 +29,47 @@ type orgSearchResponse struct {
 var searchOrgWorkflowReposFn = searchOrgWorkflowRepos
 
 // searchOrgWorkflowRepos searches an organization's repositories for compiled
-// agentic workflow lock files (.lock.yml) in .github/workflows, which indicates
-// the repository has source-managed agentic workflows eligible for bulk updates.
+// agentic workflow lock files (.lock.yml) in .github/workflows.
 //
 // It paginates through all code-search results, deduplicates by repository full
 // name, and returns a deterministically sorted slice of "owner/repo" strings.
-//
-// The per-repo scan phase (previewOrgRepoUpdates) further filters to only
-// workflows that have a source: field and available updates.
-func searchOrgWorkflowRepos(ctx context.Context, org string, verbose bool) ([]string, error) {
-	query := fmt.Sprintf(`org:%s path:.github/workflows filename:.lock.yml`, org)
+func searchOrgWorkflowRepos(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
+	query := buildOrgWorkflowSearchQuery(org, workflowNames)
 	return searchOrgReposByQuery(ctx, query, verbose)
+}
+
+// buildOrgWorkflowSearchQuery constructs the org-mode code-search query for
+// lock.yml workflow files. When workflowNames is empty, or every candidate
+// normalizes away, it falls back to the base query and relies on the later
+// per-repo workflow scan to enforce any requested filters.
+func buildOrgWorkflowSearchQuery(org string, workflowNames []string) string {
+	base := fmt.Sprintf(`org:%s path:.github/workflows filename:.lock.yml`, org)
+	if len(workflowNames) == 0 {
+		return base
+	}
+
+	filenameFilters := make([]string, 0, len(workflowNames))
+	seen := make(map[string]struct{}, len(workflowNames))
+	for _, workflowName := range workflowNames {
+		normalized := normalizeWorkflowID(workflowName)
+		if normalized == "" || normalized == "." {
+			continue
+		}
+		filename := normalized + ".lock.yml"
+		if _, ok := seen[filename]; ok {
+			continue
+		}
+		seen[filename] = struct{}{}
+		filenameFilters = append(filenameFilters, "filename:"+filename)
+	}
+	if len(filenameFilters) == 0 {
+		// CLI validation already rejects empty workflow names, so this fallback is
+		// primarily a safety net for non-CLI callers and tests.
+		return base
+	}
+
+	slices.Sort(filenameFilters)
+	return base + " (" + strings.Join(filenameFilters, " OR ") + ")"
 }
 
 // searchOrgReposByQuery paginates through GitHub code-search results for the given

@@ -25,7 +25,9 @@ network:
     - python
     - node
 sandbox:
-  agent: awf  # Firewall enabled (migrated from network.firewall)
+  agent:
+    id: awf
+    sudo: false
 tools:
   cli-proxy: true
   edit:

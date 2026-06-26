@@ -1,5 +1,7 @@
 # console Package
 
+> Terminal UI formatting utilities for the `gh-aw` CLI — message formatting, table and struct rendering, interactive prompts, progress bars, and spinners.
+
 ## Overview
 
 The `console` package provides utilities for formatting and rendering terminal output in GitHub Agentic Workflows. It covers message formatting, table and section rendering, interactive prompts, progress bars, spinners, struct rendering, and accessibility support.
@@ -889,6 +891,14 @@ if err != nil || !confirmed {
     return
 }
 ```
+
+## Thread Safety
+
+- **Format\* functions** — all pure string transformations with no shared state; safe for concurrent use from multiple goroutines.
+- **SpinnerWrapper** — thread-safe via Bubble Tea's message-passing model; `Start`, `Stop`, `StopWithMessage`, and `UpdateMessage` MAY be called from any goroutine after `Start` returns.
+- **ProgressBar** — `Update` uses atomic operations and is safe for concurrent calls.
+- **RenderStruct** — stateless reflection-based renderer; safe for concurrent use.
+- **SetTimeLocation / ResetTimeLocation** — NOT goroutine-safe; MUST be called only from a single goroutine (typically the main goroutine, paired with `defer ResetTimeLocation()`).
 
 ## Dependencies
 

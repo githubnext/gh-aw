@@ -30,6 +30,9 @@ function getIssueNumber(payload) {
   return payload?.issue?.number;
 }
 
+/** Event names that are always considered pull request context */
+const PR_EVENTS = ["pull_request", "pull_request_review", "pull_request_review_comment", "pull_request_target"];
+
 /**
  * Check if the current context is a valid pull request context
  * @param {string} eventName - GitHub event name
@@ -37,12 +40,7 @@ function getIssueNumber(payload) {
  * @returns {boolean} Whether context is valid for PR updates
  */
 function isPRContext(eventName, payload) {
-  const isPR = eventName === "pull_request" || eventName === "pull_request_review" || eventName === "pull_request_review_comment" || eventName === "pull_request_target";
-
-  // Also check for issue_comment on a PR
-  const isIssueCommentOnPR = eventName === "issue_comment" && payload?.issue && payload?.issue?.pull_request;
-
-  return isPR || !!isIssueCommentOnPR;
+  return PR_EVENTS.includes(eventName) || (eventName === "issue_comment" && payload?.issue?.pull_request != null);
 }
 
 /**
@@ -55,7 +53,7 @@ function getPRNumber(payload) {
     return payload.pull_request.number;
   }
   // For issue_comment events on PRs, the PR number is in issue.number
-  if (payload?.issue && payload?.issue?.pull_request) {
+  if (payload?.issue?.pull_request) {
     return payload.issue.number;
   }
   return undefined;

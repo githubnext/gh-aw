@@ -34,6 +34,7 @@ tools:
 sandbox:
   agent:
     id: awf
+    sudo: false
     mounts:
       - "/usr/bin/make:/usr/bin/make:ro"
       - "/usr/bin/go:/usr/bin/go:ro"

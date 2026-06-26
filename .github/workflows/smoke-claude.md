@@ -39,6 +39,7 @@ network:
     - playwright
 sandbox:
   agent:
+    sudo: false
     config:
       filesystem:
         allowWrite:

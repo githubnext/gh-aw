@@ -952,20 +952,19 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   /**
    * Handler for push_to_pull_request_branch tool
    * Spec cross-reference: Safe Output Outcome Evaluation §17 (`push_to_pull_request_branch`).
-   * The agent does NOT supply a branch. The source branch is derived from the
-   * current working checkout (the agent must already be on the PR head ref to
-   * have committed onto it). The destination branch is independently derived
-   * by the apply-time push handler from pulls.get(pull_number).head.ref.
+   * The agent SHOULD supply a `branch` argument identifying the local branch it
+   * committed onto. This is required for batch workflows that loop over multiple PRs
+   * and checkout different branches; without it, the source branch would be inferred
+   * from the current git HEAD which may not match the PR being processed. When
+   * `branch` is omitted, it is derived from the current checkout as a fallback.
+   * The destination branch is independently derived by the apply-time push handler
+   * from pulls.get(pull_number).head.ref.
    *
    * Note: Fork PR detection is handled by push_to_pull_request_branch.cjs handler
    * which fetches the PR and calls detectForkPR() with full PR data.
    */
   const pushToPullRequestBranchHandler = async args => {
-    // Defensive strip: the input schema no longer declares a `branch` property,
-    // but an older or non-conforming client could still attempt to pass one.
-    // Drop it so the agent cannot override the derived source branch.
-    const { branch: _agentBranch, ...sanitizedArgs } = args || {};
-    const entry = { ...sanitizedArgs, type: "push_to_pull_request_branch" };
+    const entry = { ...(args || {}), type: "push_to_pull_request_branch" };
     const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
     if (wildcardTargetValidationError) {
       return wildcardTargetValidationError;
@@ -1078,29 +1077,38 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // like issue_comment on PRs targeting non-default branches.
     entry.base_branch = baseBranch;
 
-    // The agent never supplies a branch; the validator already strips it from
-    // args. Derive it from the current checkout: the working tree must be on
-    // the PR head ref because that's what the agent committed onto. The
-    // apply-time push job independently re-derives the destination from
-    // pulls.get(pull_number), so this branch name is used only as the source
-    // ref for the incremental diff against origin/<branch>.
-    try {
-      const detectedBranch = getCurrentBranch(repoCwd);
-      server.debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
-      entry.branch = detectedBranch;
-    } catch (branchErr) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              result: "error",
-              error: `Failed to determine source branch for push_to_pull_request_branch: ${getErrorMessage(branchErr)}. The working tree must be on the pull request's head ref before this tool is called.`,
-            }),
-          },
-        ],
-        isError: true,
-      };
+    // Use the agent-supplied branch if provided; fall back to the current checkout.
+    // The agent-supplied value is authoritative: in multi-PR batch workflows the
+    // working tree may be checked out to a different PR's branch by the time the
+    // MCP handler runs, so relying solely on HEAD can produce a wrong source ref
+    // and cause the apply step to fail with "couldn't find remote ref".
+    // The apply-time push job re-derives the destination from pulls.get(pull_number)
+    // independently, so this branch name is used only as the source ref for the
+    // incremental diff against origin/<branch>.
+    if (entry.branch && typeof entry.branch === "string" && entry.branch.trim()) {
+      entry.branch = entry.branch.trim();
+      server.debug(`Using agent-supplied branch for push_to_pull_request_branch: ${entry.branch}`);
+    } else {
+      // Fallback: derive from the current checkout (backward compat for single-PR workflows
+      // where the working tree is reliably on the PR head ref at call time).
+      try {
+        const detectedBranch = getCurrentBranch(repoCwd);
+        server.debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
+        entry.branch = detectedBranch;
+      } catch (branchErr) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: `Failed to determine source branch for push_to_pull_request_branch: ${getErrorMessage(branchErr)}. Either supply a 'branch' argument explicitly or ensure the working tree is checked out to the pull request's head ref before calling this tool.`,
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
     }
 
     // Reject if the detected branch equals base_branch. This means the workspace

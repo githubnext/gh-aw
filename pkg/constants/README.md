@@ -1,5 +1,7 @@
 # constants Package
 
+> Shared semantic type aliases and named constants for `gh-aw` — AI engine names, feature flags, job names, version strings, URLs, and runtime configuration values.
+
 The `constants` package provides shared semantic type aliases and named constants used across multiple `gh-aw` packages. Centralizing these values ensures consistency and type safety throughout the codebase.
 
 ## Overview

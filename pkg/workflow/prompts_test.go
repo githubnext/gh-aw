@@ -462,8 +462,8 @@ func TestDailyModelResolutionUsesCodexCompatibleSubAgentModel(t *testing.T) {
 		t.Fatal("Expected daily-model-resolution workflow to define the run-analyzer sub-agent")
 	}
 	agentBlock := workflow[agentStart:]
-	if !strings.Contains(agentBlock, "\nmodel: gpt-5-mini\n") {
-		t.Fatal("Expected daily-model-resolution run-analyzer sub-agent to use explicit codex-compatible model gpt-5-mini")
+	if !strings.Contains(agentBlock, "\nmodel: gpt-5.4-mini\n") {
+		t.Fatal("Expected daily-model-resolution run-analyzer sub-agent to use explicit codex-compatible model gpt-5.4-mini")
 	}
 }
 
