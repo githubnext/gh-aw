@@ -86,6 +86,8 @@ safe-outputs:
     max: 10
   submit-pull-request-review:
     max: 1
+  mentions:
+    allowed: ["@copilot"]
   messages:
     footer: "> 🧠 *Reviewed using Matt Pocock's skills by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🧠 [{workflow_name}]({run_url}) is reviewing this {event_type} using Matt Pocock's engineering skills..."
@@ -201,7 +203,7 @@ For each issue found, create a review comment using `create-pull-request-review-
 {
   "path": "path/to/file.ts",
   "line": 42,
-  "body": "**[/tdd]** Missing edge case: `value` is `null` — add a test to prevent this regression.\n\n<details>\n<summary>💡 Suggested test</summary>\n\n```ts\nit('returns default when value is null', () => {\n  expect(fn(null)).toBe(defaultValue);\n});\n```\n\nMissing edge case tests are a common source of regressions.\n\n</details>"
+  "body": "**[/tdd]** Missing edge case: `value` is `null` — add a test to prevent this regression.\n\n<details>\n<summary>💡 Suggested test</summary>\n\n```ts\nit('returns default when value is null', () => {\n  expect(fn(null)).toBe(defaultValue);\n});\n```\n\nMissing edge case tests are a common source of regressions.\n\n</details>\n\n@copilot please address this."
 }
 ```
 
@@ -211,6 +213,7 @@ Guidelines:
 - Wrap code examples, detailed explanations, and multi-step suggestions in `<details><summary>💡 …</summary>` blocks
 - Be specific: file path, line number, exact issue
 - Limit to the **10 most impactful** issues
+- End each inline comment with `@copilot please address this.` to prompt follow-up action
 
 ### Step 6: Submit the Overall Review
 
@@ -250,6 +253,7 @@ Applied **`/tdd`** and **`/zoom-out`** — requesting changes on test coverage g
 
 If the review is complex or the overall findings are significant, post a single `add-comment` with a concise summary for the author. Apply progressive disclosure: one-line outcome visible, details in `<details>` blocks.
 Use `###` or lower for any headers — never `#` or `##`.
+Include `@copilot please address the review comments above.` at the end of the comment body to prompt follow-up action.
 
 ### Scope Rules
 
