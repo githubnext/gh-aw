@@ -49,9 +49,10 @@ func TestRunUpdateForOrgDryRun(t *testing.T) {
 	origPreview := previewOrgRepoUpdatesFn
 	origUpdate := runUpdateForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
-	searchOrgWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
 		return []string{"octo/api", "octo/web"}, nil
 	}
+
 	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
 		if repo == "octo/api" {
 			return orgRepoPreview{
@@ -91,12 +92,45 @@ func TestRunUpdateForOrgDryRun(t *testing.T) {
 	assert.NotContains(t, output, "- octo/web\n")
 }
 
+func TestRunUpdateForOrgPassesWorkflowNameFilters(t *testing.T) {
+	origSearch := searchOrgWorkflowReposFn
+	origPreview := previewOrgRepoUpdatesFn
+	origUpdate := runUpdateForTargetRepoFn
+	origWait := waitForOrgRateLimitFn
+	var gotFilters []string
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
+		gotFilters = append([]string(nil), workflowNames...)
+		return []string{"octo/api"}, nil
+	}
+	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
+		assert.Equal(t, []string{"repo-assist", "triage.md"}, opts.WorkflowNames)
+		return orgRepoPreview{Repo: repo}, nil
+	}
+	runUpdateForTargetRepoFn = func(ctx context.Context, targetRepo string, opts UpdateWorkflowsOptions, createPR bool, verbose bool) error {
+		t.Fatalf("unexpected update call for %s", targetRepo)
+		return nil
+	}
+	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
+	defer func() {
+		searchOrgWorkflowReposFn = origSearch
+		previewOrgRepoUpdatesFn = origPreview
+		runUpdateForTargetRepoFn = origUpdate
+		waitForOrgRateLimitFn = origWait
+	}()
+
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{
+		WorkflowNames: []string{"repo-assist", "triage.md"},
+	}, false, false, false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"repo-assist", "triage.md"}, gotFilters)
+}
+
 func TestRunUpdateForOrgCreatePRSortsOldestFirst(t *testing.T) {
 	origSearch := searchOrgWorkflowReposFn
 	origPreview := previewOrgRepoUpdatesFn
 	origUpdate := runUpdateForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
-	searchOrgWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
 		return []string{"octo/newer", "octo/older"}, nil
 	}
 	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
@@ -139,7 +173,7 @@ func TestRunUpdateForOrgCreateIssueSortsOldestFirst(t *testing.T) {
 	origUpdate := runUpdateForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
 	origCreateIssue := createIssueForOrgRepoFn
-	searchOrgWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
 		return []string{"octo/newer", "octo/older"}, nil
 	}
 	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
@@ -186,7 +220,7 @@ func TestRunUpdateForOrgContinuesAfterPreviewError(t *testing.T) {
 	origPreview := previewOrgRepoUpdatesFn
 	origUpdate := runUpdateForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
-	searchOrgWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
 		return []string{"octo/broken", "octo/good"}, nil
 	}
 	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
@@ -231,7 +265,7 @@ func TestRunUpdateForOrgStopsOnCriticalRateLimit(t *testing.T) {
 	origPreview := previewOrgRepoUpdatesFn
 	origUpdate := runUpdateForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
-	searchOrgWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
 		return []string{"octo/a", "octo/b", "octo/c"}, nil
 	}
 	var previewed []string
@@ -281,7 +315,7 @@ func TestRunUpdateForOrgStopsOnCancellation(t *testing.T) {
 	origPreview := previewOrgRepoUpdatesFn
 	origUpdate := runUpdateForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
-	searchOrgWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
 		return []string{"octo/a", "octo/b"}, nil
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -324,7 +358,7 @@ func TestRunUpdateForOrgCreateIssueReturnsErrorWhenAllIssueCreatesFail(t *testin
 	origUpdate := runUpdateForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
 	origCreateIssue := createIssueForOrgRepoFn
-	searchOrgWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
 		return []string{"octo/a"}, nil
 	}
 	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
@@ -363,7 +397,7 @@ func TestRunUpdateForOrgCreatePRReturnsErrorWhenAllUpdatesFail(t *testing.T) {
 	origPreview := previewOrgRepoUpdatesFn
 	origUpdate := runUpdateForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
-	searchOrgWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
 		return []string{"octo/a"}, nil
 	}
 	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {

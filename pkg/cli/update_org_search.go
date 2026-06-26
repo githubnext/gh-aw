@@ -34,9 +34,37 @@ var searchOrgWorkflowReposFn = searchOrgWorkflowRepos
 //
 // It paginates through all code-search results, deduplicates by repository full
 // name, and returns a deterministically sorted slice of "owner/repo" strings.
-func searchOrgWorkflowRepos(ctx context.Context, org string, verbose bool) ([]string, error) {
-	query := fmt.Sprintf(`org:%s path:.github/workflows extension:md "source:"`, org)
+func searchOrgWorkflowRepos(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
+	query := buildOrgWorkflowSearchQuery(org, workflowNames)
 	return searchOrgReposByQuery(ctx, query, verbose)
+}
+
+func buildOrgWorkflowSearchQuery(org string, workflowNames []string) string {
+	base := fmt.Sprintf(`org:%s path:.github/workflows extension:md "source:"`, org)
+	if len(workflowNames) == 0 {
+		return base
+	}
+
+	filenameFilters := make([]string, 0, len(workflowNames))
+	seen := make(map[string]struct{}, len(workflowNames))
+	for _, workflowName := range workflowNames {
+		normalized := normalizeWorkflowID(workflowName)
+		if normalized == "" {
+			continue
+		}
+		filename := normalized + ".md"
+		if _, ok := seen[filename]; ok {
+			continue
+		}
+		seen[filename] = struct{}{}
+		filenameFilters = append(filenameFilters, "filename:"+filename)
+	}
+	if len(filenameFilters) == 0 {
+		return base
+	}
+
+	slices.Sort(filenameFilters)
+	return base + " (" + strings.Join(filenameFilters, " OR ") + ")"
 }
 
 // searchOrgReposByQuery paginates through GitHub code-search results for the given

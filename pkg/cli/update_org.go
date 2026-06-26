@@ -69,6 +69,9 @@ type orgRepoPreview struct {
 
 func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts UpdateWorkflowsOptions, createPR bool, createIssue bool, verbose bool) error {
 	clearUpdateResolutionCaches()
+	searchFn := func(ctx context.Context, org string, verbose bool) ([]string, error) {
+		return searchOrgWorkflowReposFn(ctx, org, opts.WorkflowNames, verbose)
+	}
 
 	// scanFn previews a single repo and decides whether to include it.
 	// It also prints a per-repo workflow summary to stderr.
@@ -90,7 +93,7 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 	}
 
 	return runCommandForOrg(ctx, org, repoGlobs, orgRunCallbacks{
-		SearchFn: searchOrgWorkflowReposFn,
+		SearchFn: searchFn,
 		ScanFn:   scanFn,
 		ReportFn: renderOrgPreviewReport,
 		ApplyFn: func(ctx context.Context, preview orgRepoPreview, v bool) error {
@@ -145,7 +148,7 @@ func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflow
 	}
 
 	workflowsDir := filepath.Join(checkoutDir, constants.GetWorkflowDir())
-	workflows, err := findWorkflowsWithSource(workflowsDir, nil, verbose)
+	workflows, err := findWorkflowsWithSource(workflowsDir, opts.WorkflowNames, verbose)
 	if err != nil {
 		return orgRepoPreview{}, fmt.Errorf("failed to scan workflows in shallow checkout: %w", err)
 	}
