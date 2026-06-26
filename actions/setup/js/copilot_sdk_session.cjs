@@ -12,6 +12,12 @@
  *   SDK "tool.execution_start"    → JSONL "tool.execution_start"  (toolName, mcpServerName, command?)
  *   SDK "tool.execution_complete" → JSONL "tool.execution_complete" (toolName, mcpServerName, success, result)
  *   SDK "assistant.message"       → JSONL "assistant.message"     (content)
+ *   SDK "assistant.turn_start"    → watchdog disarmed (inAssistantTurn = true)
+ *   SDK "assistant.turn_end"      → watchdog re-enabled (inAssistantTurn = false)
+ *   SDK "session.task_complete"   → JSONL "session.task_complete" (success, summary)
+ *   SDK "subagent.started"        → JSONL "subagent.started"      (agentName, agentDisplayName, toolCallId)
+ *   SDK "subagent.completed"      → JSONL "subagent.completed"    (agentName, toolCallId)
+ *   SDK "subagent.failed"         → JSONL "subagent.failed"       (agentName, toolCallId, error)
  *
  * The JSONL file is written to:
  *   /tmp/gh-aw/sandbox/agent/logs/copilot-session-state/{sessionId}/events.jsonl
@@ -176,6 +182,11 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   let postCompletionWatchdogTriggered = false;
   /** @type {ReturnType<typeof setTimeout> | null} */
   let postCompletionWatchdog = null;
+  // Tracks whether the LLM is mid-inference (between assistant.turn_start and
+  // assistant.turn_end).  The watchdog must not fire during this window because
+  // pendingToolCalls may legitimately be empty before the model dispatches its
+  // first tool call of the new turn.
+  let inAssistantTurn = false;
 
   /**
    * Best-effort write of a driver-level event to events.jsonl and stderr.
@@ -314,6 +325,55 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           break;
         }
 
+        case "assistant.turn_start":
+          // LLM inference started for a new turn. Disarm the watchdog — the model
+          // may not have dispatched any tool calls yet, so pendingToolCalls can be
+          // empty while real work is still in progress.
+          inAssistantTurn = true;
+          if (postCompletionWatchdog) {
+            clearTimeout(postCompletionWatchdog);
+            postCompletionWatchdog = null;
+          }
+          break;
+
+        case "assistant.turn_end":
+          // LLM inference finished. Allow the watchdog to re-arm on the next event
+          // that satisfies the completion conditions.
+          inAssistantTurn = false;
+          break;
+
+        case "session.task_complete":
+          writeEvent("session.task_complete", { success: event.data?.success, summary: event.data?.summary ?? "" }, event.timestamp);
+          break;
+
+        case "subagent.started":
+          writeEvent(
+            "subagent.started",
+            {
+              agentName: event.data?.agentName,
+              agentDisplayName: event.data?.agentDisplayName,
+              toolCallId: event.data?.toolCallId,
+            },
+            event.timestamp
+          );
+          break;
+
+        case "subagent.completed":
+          writeEvent("subagent.completed", { agentName: event.data?.agentName, toolCallId: event.data?.toolCallId }, event.timestamp);
+          break;
+
+        case "subagent.failed":
+          writeEvent(
+            "subagent.failed",
+            {
+              agentName: event.data?.agentName,
+              toolCallId: event.data?.toolCallId,
+              error: event.data?.error,
+            },
+            event.timestamp
+          );
+          break;
+
         default:
           // Other event types are not consumed by unified_timeline.cjs; skip them.
           break;
@@ -321,18 +381,19 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
 
       // After processing each event, update the post-completion watchdog:
       // - Arm (or rearm) the watchdog when the session looks complete: output
-      //   collected and no tool calls still in flight.
+      //   collected, no tool calls still in flight, and not mid-LLM-inference.
       // - Disarm the watchdog whenever the session is still mid-turn (a new
-      //   tool call was just started, or no output yet).
+      //   tool call was just started, LLM inference is in progress, or no output yet).
       // The watchdog fires only if sendAndWait never resolves on its own after
       // the final tool result is returned — the common SDK post-completion hang.
-      if (hasOutput && pendingToolCalls.size === 0) {
+      if (hasOutput && pendingToolCalls.size === 0 && !inAssistantTurn) {
         if (postCompletionWatchdog) clearTimeout(postCompletionWatchdog);
         postCompletionWatchdog = setTimeout(() => {
           postCompletionWatchdog = null;
           // Re-check conditions at fire time: a new tool call could have started
-          // between arming the watchdog and the timer firing (race condition guard).
-          if (!hasOutput || pendingToolCalls.size !== 0 || !session) return;
+          // or a new turn could have begun between arming the watchdog and the
+          // timer firing (race condition guard).
+          if (!hasOutput || pendingToolCalls.size !== 0 || inAssistantTurn || !session) return;
           log(`warning: post-completion idle watchdog fired after ${postCompletionIdleMs}ms — force-disconnecting session`);
           postCompletionWatchdogTriggered = true;
           void session.disconnect().catch(err => {

@@ -613,6 +613,147 @@ describe("copilot_sdk_driver.cjs", () => {
       }
     });
 
+    it("post-completion watchdog is disarmed during assistant.turn_start → turn_end cycle", async () => {
+      // When a new turn starts (assistant.turn_start) after the first output is
+      // produced and all tool calls complete, the watchdog must not fire until
+      // the turn ends (assistant.turn_end). This prevents a premature
+      // force-disconnect while the LLM is still doing inference.
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let onEvent = () => {};
+
+      const session = {
+        sessionId: "session-watchdog-turn-disarm",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          // Produce output and complete all tool calls — watchdog would arm here.
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "first result" },
+          });
+          // New turn starts — must disarm watchdog immediately.
+          onEvent({
+            type: "assistant.turn_start",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { turnId: "turn-2" },
+          });
+          // Turn ends — watchdog may re-arm now.
+          onEvent({
+            type: "assistant.turn_end",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { turnId: "turn-2" },
+          });
+          // Additional output and normal resolution.
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: " second result" },
+          });
+          return { data: { content: " second result" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const prevIdleMs = process.env.GH_AW_SDK_IDLE_MS;
+      // Very short watchdog — if the turn_start guard is missing, the watchdog
+      // would fire before sendAndWait resolves.
+      process.env.GH_AW_SDK_IDLE_MS = "500";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.hasOutput).toBe(true);
+        // Disconnect called once (finally), not twice.
+        expect(disconnect).toHaveBeenCalledTimes(1);
+      } finally {
+        if (prevIdleMs === undefined) delete process.env.GH_AW_SDK_IDLE_MS;
+        else process.env.GH_AW_SDK_IDLE_MS = prevIdleMs;
+      }
+    });
+
+    it("session.task_complete is written to events.jsonl", async () => {
+      // session.task_complete must be serialized to the JSONL log so that
+      // unified_timeline.cjs can surface the agent's task summary.
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let onEvent = () => {};
+      const sessionId = "session-task-complete-jsonl";
+
+      const session = {
+        sessionId,
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "work done" },
+          });
+          onEvent({
+            type: "session.task_complete",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { success: true, summary: "Created 3 issues successfully" },
+          });
+          return { data: { content: "work done" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const result = await runWithCopilotSDK({
+        sdkUri: "http://127.0.0.1:3002",
+        prompt: "test prompt",
+        logger: () => {},
+        sdkModule: {
+          CopilotClient: FakeCopilotClient,
+          RuntimeConnection: { forUri: vi.fn(() => ({})) },
+          approveAll: () => "allow",
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+
+      // Read the JSONL and verify the task_complete entry is present.
+      const eventsPath = path.join(testSessionStateDir, sessionId, "events.jsonl");
+      const lines = fs
+        .readFileSync(eventsPath, "utf8")
+        .trim()
+        .split("\n")
+        .map(l => JSON.parse(l));
+      const taskCompleteEvent = lines.find(e => e.type === "session.task_complete");
+      expect(taskCompleteEvent).toBeDefined();
+      expect(taskCompleteEvent.data.success).toBe(true);
+      expect(taskCompleteEvent.data.summary).toBe("Created 3 issues successfully");
+    });
+
     it("passes custom provider and model through to SDK createSession", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
