@@ -19,6 +19,8 @@ var searchOrgLockWorkflowReposFn = searchOrgLockWorkflowRepos
 var scanUpgradeRepoFn = scanUpgradeRepo
 var createIssueForUpgradeOrgRepoFn = createIssueForUpgradeOrgRepo
 
+const orgUpgradeSkillsDir = constants.GithubDir + "skills"
+
 // runUpgradeForOrg runs the upgrade command across all repositories in an
 // organization that have agentic workflow files. Without --create-pull-request
 // or --create-issue it prints a dry-run preview; with --create-pull-request it
@@ -219,7 +221,7 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 
 	// Extend sparse checkout to include .github/skills; upgrade also updates
 	// the dispatcher skill (ensureAgenticWorkflowsDispatcher) and needs that path present.
-	sparseAddCmd := exec.CommandContext(ctx, "git", "-C", checkoutDir, "sparse-checkout", "add", ".github/skills")
+	sparseAddCmd := exec.CommandContext(ctx, "git", "-C", checkoutDir, "sparse-checkout", "add", orgUpgradeSkillsDir)
 	if output, err := sparseAddCmd.CombinedOutput(); err != nil {
 		trimmed := strings.TrimSpace(string(output))
 		if trimmed == "" {
