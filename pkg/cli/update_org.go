@@ -138,10 +138,7 @@ func formatUpdateOrgNoReposMessage(workflowNames []string) string {
 	}
 
 	slices.Sort(filters)
-	return fmt.Sprintf(
-		"No repositories found with source-managed workflows matching: %s",
-		strings.Join(filters, ", "),
-	)
+	return "No repositories found with source-managed workflows matching: " + strings.Join(filters, ", ")
 }
 
 // renderOrgPreviewReport prints the discovered updates for each repository. It is
