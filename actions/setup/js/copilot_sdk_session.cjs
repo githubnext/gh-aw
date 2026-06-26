@@ -330,11 +330,13 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
         if (postCompletionWatchdog) clearTimeout(postCompletionWatchdog);
         postCompletionWatchdog = setTimeout(() => {
           postCompletionWatchdog = null;
+          // Re-check conditions at fire time: a new tool call could have started
+          // between arming the watchdog and the timer firing (race condition guard).
           if (!hasOutput || pendingToolCalls.size !== 0 || !session) return;
           log(`warning: post-completion idle watchdog fired after ${postCompletionIdleMs}ms — force-disconnecting session`);
           postCompletionWatchdogTriggered = true;
-          void session.disconnect().catch(() => {
-            // best-effort disconnect
+          void session.disconnect().catch(err => {
+            log(`warning: post-completion watchdog disconnect failed: ${err instanceof Error ? err.message : String(err)}`);
           });
         }, postCompletionIdleMs);
       } else {
