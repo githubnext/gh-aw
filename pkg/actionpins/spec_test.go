@@ -411,10 +411,10 @@ func TestSpec_PublicAPI_GetContainerPin(t *testing.T) {
 	})
 
 	t.Run("returns pinned container for known image", func(t *testing.T) {
-		// "alpine:latest" is present in the embedded action_pins.json containers map.
-		pin, ok := actionpins.GetContainerPin("alpine:latest")
+		// "ghcr.io/github/gh-aw-mcpg:v0.3.30" is present in the embedded action_pins.json containers map.
+		pin, ok := actionpins.GetContainerPin("ghcr.io/github/gh-aw-mcpg:v0.3.30")
 		require.True(t, ok, "should return true for a known container image")
-		assert.Equal(t, "alpine:latest", pin.Image, "ContainerPin.Image should match the queried image")
+		assert.Equal(t, "ghcr.io/github/gh-aw-mcpg:v0.3.30", pin.Image, "ContainerPin.Image should match the queried image")
 		assert.NotEmpty(t, pin.Digest, "ContainerPin.Digest should be non-empty for a known image")
 		assert.NotEmpty(t, pin.PinnedImage, "ContainerPin.PinnedImage should be non-empty for a known image")
 		assert.Contains(t, pin.PinnedImage, pin.Digest, "PinnedImage should contain the digest")

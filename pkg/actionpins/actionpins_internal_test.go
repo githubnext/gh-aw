@@ -142,24 +142,14 @@ func TestGetContainerPin_ReturnsPinnedImage(t *testing.T) {
 	assert.Contains(t, pin.PinnedImage, "@sha256:", "Expected pinned image to include digest")
 }
 
-func TestGetContainerPin_MCPGatewayV036IsPinned(t *testing.T) {
-	const image = "ghcr.io/github/gh-aw-mcpg:v0.3.6"
+func TestGetContainerPin_MCPGatewayV0330IsPinned(t *testing.T) {
+	const image = "ghcr.io/github/gh-aw-mcpg:v0.3.30"
 
 	pin, ok := GetContainerPin(image)
 	require.True(t, ok, "Expected embedded container pin for %s", image)
 	assert.Equal(t, image, pin.Image, "Expected image name to match key")
-	assert.Equal(t, "sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c", pin.Digest, "Expected v0.3.6 digest to match")
-	assert.Equal(t, image+"@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c", pin.PinnedImage, "Expected pinned image to include v0.3.6 digest")
-}
-
-func TestGetContainerPin_MCPGatewayV039IsPinned(t *testing.T) {
-	const image = "ghcr.io/github/gh-aw-mcpg:v0.3.9"
-
-	pin, ok := GetContainerPin(image)
-	require.True(t, ok, "Expected embedded container pin for %s", image)
-	assert.Equal(t, image, pin.Image, "Expected image name to match key")
-	assert.Equal(t, "sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388", pin.Digest, "Expected v0.3.9 digest to match")
-	assert.Equal(t, image+"@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388", pin.PinnedImage, "Expected pinned image to include v0.3.9 digest")
+	assert.Equal(t, "sha256:35625d1a2269b1238606078c879f59a91cffc4ac33eb54bf39c6418822c1a8be", pin.Digest, "Expected v0.3.30 digest to match")
+	assert.Equal(t, image+"@sha256:35625d1a2269b1238606078c879f59a91cffc4ac33eb54bf39c6418822c1a8be", pin.PinnedImage, "Expected pinned image to include v0.3.30 digest")
 }
 
 func TestGetContainerPin_DefaultMCPImagesArePinned(t *testing.T) {

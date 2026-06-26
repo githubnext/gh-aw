@@ -12,14 +12,14 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-func TestCompileWorkflow_FirewallImagesPinnedForAWF0270(t *testing.T) {
+func TestCompileWorkflow_FirewallImagesPinnedForAWF02711(t *testing.T) {
 	frontmatter := `---
 on: workflow_dispatch
 engine: claude
 sandbox:
   agent:
     id: awf
-    version: v0.27.0
+    version: v0.27.11
 network:
   allowed:
     - defaults
@@ -50,9 +50,9 @@ Test workflow.`
 	yamlStr := string(yaml)
 
 	expectedPins := map[string]string{
-		"ghcr.io/github/gh-aw-firewall/agent:0.27.0":     "sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248",
-		"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.0": "sha256:f28d2bd3197fb6ef9ec40ef345bbf2bb33e50151a8e72e89abb618fc3d0066eb",
-		"ghcr.io/github/gh-aw-firewall/squid:0.27.0":     "sha256:d6a01d4cf3d928e6a7fc42e34afef228e753dce87646edc91d8a5cd0b612d9a6",
+		"ghcr.io/github/gh-aw-firewall/agent:0.27.11":     "sha256:979723c628182da7729333f2208bb249fd25ddee579645cf9a3892d681a929c7",
+		"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.11": "sha256:807e4831999b44513b0a66e5859d478dc4da7ae74ab1918cec967d513f95bf9d",
+		"ghcr.io/github/gh-aw-firewall/squid:0.27.11":     "sha256:ff27ea0525ad953a6adee28a5fbe9d2e22be47dbec755c15767af4ea3f91df7d",
 	}
 
 	for image, digest := range expectedPins {
@@ -70,10 +70,10 @@ Test workflow.`
 
 	for _, imageTagPart := range []string{
 		`imageTag`,
-		`0.27.0,`,
-		`agent=sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248`,
-		`api-proxy=sha256:f28d2bd3197fb6ef9ec40ef345bbf2bb33e50151a8e72e89abb618fc3d0066eb`,
-		`squid=sha256:d6a01d4cf3d928e6a7fc42e34afef228e753dce87646edc91d8a5cd0b612d9a6`,
+		`0.27.11,`,
+		`agent=sha256:979723c628182da7729333f2208bb249fd25ddee579645cf9a3892d681a929c7`,
+		`api-proxy=sha256:807e4831999b44513b0a66e5859d478dc4da7ae74ab1918cec967d513f95bf9d`,
+		`squid=sha256:ff27ea0525ad953a6adee28a5fbe9d2e22be47dbec755c15767af4ea3f91df7d`,
 	} {
 		if !strings.Contains(yamlStr, imageTagPart) {
 			t.Errorf("Expected AWF config JSON to include %s", imageTagPart)
