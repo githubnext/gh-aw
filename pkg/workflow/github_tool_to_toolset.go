@@ -14,11 +14,11 @@ var githubToolToToolsetLog = logger.New("workflow:github_tool_to_toolset")
 //go:embed data/github_tool_to_toolset.json
 var githubToolToToolsetJSON []byte
 
-var getGitHubToolToToolsetMap = sync.OnceValue(func() map[string]string {
+var getGitHubToolToToolsetMap = sync.OnceValues(func() (map[string]string, error) {
 	var toolToToolsetMap map[string]string
 	if err := json.Unmarshal(githubToolToToolsetJSON, &toolToToolsetMap); err != nil {
-		panic(fmt.Sprintf("failed to load GitHub tool to toolset mapping: %v", err))
+		return nil, fmt.Errorf("failed to load GitHub tool to toolset mapping: %w", err)
 	}
 	githubToolToToolsetLog.Printf("Loaded GitHub tool-to-toolset mapping: %d entries", len(toolToToolsetMap))
-	return toolToToolsetMap
+	return toolToToolsetMap, nil
 })

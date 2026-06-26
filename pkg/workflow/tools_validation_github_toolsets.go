@@ -19,7 +19,10 @@ func validateGitHubToolsAgainstToolsetsCore(allowedTools []string, enabledToolse
 		return nil
 	}
 
-	toolToToolsetMap := getGitHubToolToToolsetMap()
+	toolToToolsetMap, err := getGitHubToolToToolsetMap()
+	if err != nil {
+		return fmt.Errorf("failed to load GitHub tool-to-toolset mapping: %w", err)
+	}
 
 	// Create a set of enabled toolsets for fast lookup
 	enabledSet := make(map[string]struct {

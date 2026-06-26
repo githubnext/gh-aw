@@ -75,10 +75,10 @@ type compiledAPIPathPattern struct {
 	appPermissions []PermissionScope
 }
 
-var getCompiledGHCLIPermissions = sync.OnceValue(func() compiledGHCLIPermissions {
+var getCompiledGHCLIPermissions = sync.OnceValues(func() (compiledGHCLIPermissions, error) {
 	var data ghCLIPermissionsData
 	if err := json.Unmarshal(ghCLIPermissionsJSON, &data); err != nil {
-		panic(fmt.Sprintf("failed to load gh CLI permissions from JSON: %v", err))
+		return compiledGHCLIPermissions{}, fmt.Errorf("failed to load gh CLI permissions from JSON: %w", err)
 	}
 
 	cp := compiledGHCLIPermissions{
@@ -98,7 +98,11 @@ var getCompiledGHCLIPermissions = sync.OnceValue(func() compiledGHCLIPermissions
 	}
 	sort.Strings(groups) // deterministic alternation order
 	subcommandPattern := `(?m)(?:^|[\s|;])gh\s+(` + strings.Join(groups, "|") + `)\s+([\w][\w-]*)\b`
-	cp.subcommandRE = regexp.MustCompile(subcommandPattern)
+	subcommandRE, err := regexp.Compile(subcommandPattern)
+	if err != nil {
+		return compiledGHCLIPermissions{}, fmt.Errorf("invalid gh subcommand pattern %q: %w", subcommandPattern, err)
+	}
+	cp.subcommandRE = subcommandRE
 
 	for group, sg := range data.SubcommandGroups {
 		readPerms := make([]PermissionScope, len(sg.ReadPermissions))
@@ -137,7 +141,7 @@ var getCompiledGHCLIPermissions = sync.OnceValue(func() compiledGHCLIPermissions
 	for _, ap := range data.APIPathPatterns {
 		re, err := regexp.Compile(ap.Pattern)
 		if err != nil {
-			panic(fmt.Sprintf("invalid gh API path pattern %q in gh_cli_permissions.json: %v", ap.Pattern, err))
+			return compiledGHCLIPermissions{}, fmt.Errorf("invalid gh API path pattern %q in gh_cli_permissions.json: %w", ap.Pattern, err)
 		}
 		perms := make([]PermissionScope, len(ap.Permissions))
 		for i, p := range ap.Permissions {
@@ -155,7 +159,7 @@ var getCompiledGHCLIPermissions = sync.OnceValue(func() compiledGHCLIPermissions
 	}
 
 	ghCLIPermissionsLog.Printf("Loaded gh CLI permissions: version=%s, subcommand_groups=%d, api_path_patterns=%d", data.Version, len(data.SubcommandGroups), len(data.APIPathPatterns))
-	return cp
+	return cp, nil
 })
 
 // ghAPICmdRE matches `gh api` at a command boundary, capturing the rest of the line.
@@ -276,8 +280,12 @@ func splitShellTokens(s string) []string {
 // surface write commands as validation errors.
 func inferPermissionsFromShellScripts(scripts []string) map[PermissionScope]PermissionLevel {
 	ghCLIPermissionsLog.Printf("Inferring permissions from %d shell script(s)", len(scripts))
-	ghCLIPermissions := getCompiledGHCLIPermissions()
 	perms := make(map[PermissionScope]PermissionLevel)
+	ghCLIPermissions, err := getCompiledGHCLIPermissions()
+	if err != nil {
+		ghCLIPermissionsLog.Printf("Skipping gh CLI permission inference: %v", err)
+		return perms
+	}
 
 	addScopes := func(scopes []PermissionScope) {
 		for _, scope := range scopes {
@@ -345,7 +353,11 @@ func inferPermissionsFromShellScripts(scripts []string) map[PermissionScope]Perm
 // The slice contains no duplicates and is sorted deterministically in discovery order.
 func detectWriteCommandsInShellScripts(scripts []string) []string {
 	ghCLIPermissionsLog.Printf("Scanning %d shell script(s) for write gh CLI commands", len(scripts))
-	ghCLIPermissions := getCompiledGHCLIPermissions()
+	ghCLIPermissions, err := getCompiledGHCLIPermissions()
+	if err != nil {
+		ghCLIPermissionsLog.Printf("Skipping gh CLI write-command detection: %v", err)
+		return nil
+	}
 	var found []string
 	seen := make(map[string]struct{})
 

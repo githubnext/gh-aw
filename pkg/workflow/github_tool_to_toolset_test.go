@@ -270,7 +270,7 @@ func TestGitHubToolToToolsetMap_Completeness(t *testing.T) {
 	}
 
 	foundToolsets := make(map[string]bool)
-	for _, toolset := range getGitHubToolToToolsetMap() {
+	for _, toolset := range loadGitHubToolToToolsetMap(t) {
 		foundToolsets[toolset] = true
 	}
 
@@ -282,7 +282,7 @@ func TestGitHubToolToToolsetMap_Completeness(t *testing.T) {
 }
 
 func TestGitHubToolToToolsetMap_IncludesDefaultGitHubTools(t *testing.T) {
-	toolToToolsetMap := getGitHubToolToToolsetMap()
+	toolToToolsetMap := loadGitHubToolToToolsetMap(t)
 	for _, tool := range constants.DefaultReadOnlyGitHubTools {
 		if _, exists := toolToToolsetMap[tool]; !exists {
 			t.Errorf("Expected tool %q from constants.DefaultReadOnlyGitHubTools to be in getGitHubToolToToolsetMap()", tool)
@@ -315,7 +315,7 @@ func TestGitHubToolToToolsetMap_ConsistencyWithDocumentation(t *testing.T) {
 		"list_secret_scanning_alerts": "secret_protection",
 	}
 
-	toolToToolsetMap := getGitHubToolToToolsetMap()
+	toolToToolsetMap := loadGitHubToolToToolsetMap(t)
 	for tool, expectedToolset := range expectedMappings {
 		actualToolset, exists := toolToToolsetMap[tool]
 		if !exists {
@@ -326,6 +326,16 @@ func TestGitHubToolToToolsetMap_ConsistencyWithDocumentation(t *testing.T) {
 			t.Errorf("Tool %q: expected toolset %q, got %q", tool, expectedToolset, actualToolset)
 		}
 	}
+}
+
+func loadGitHubToolToToolsetMap(t *testing.T) map[string]string {
+	t.Helper()
+
+	toolToToolsetMap, err := getGitHubToolToToolsetMap()
+	if err != nil {
+		t.Fatalf("getGitHubToolToToolsetMap() error = %v", err)
+	}
+	return toolToToolsetMap
 }
 
 // expandToolsetsForTesting expands "default" and "all" toolsets for testing purposes

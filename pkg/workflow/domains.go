@@ -19,12 +19,12 @@ var domainsLog = logger.New("workflow:domains")
 //go:embed data/ecosystem_domains.json
 var ecosystemDomainsJSON []byte
 
-var getLoadedEcosystemDomains = sync.OnceValue(func() map[string][]string {
+var loadEcosystemDomains = sync.OnceValues(func() (map[string][]string, error) {
 	domainsLog.Print("Loading ecosystem domains from embedded JSON")
 
 	ecosystemDomains := make(map[string][]string)
 	if err := json.Unmarshal(ecosystemDomainsJSON, &ecosystemDomains); err != nil {
-		panic(fmt.Sprintf("failed to load ecosystem domains from JSON: %v", err))
+		return nil, fmt.Errorf("failed to load ecosystem domains from JSON: %w", err)
 	}
 
 	// Pre-sort all domain lists once so getEcosystemDomains only needs to copy, not sort.
@@ -33,8 +33,17 @@ var getLoadedEcosystemDomains = sync.OnceValue(func() map[string][]string {
 	}
 
 	domainsLog.Printf("Loaded %d ecosystem categories", len(ecosystemDomains))
-	return ecosystemDomains
+	return ecosystemDomains, nil
 })
+
+func getLoadedEcosystemDomains() map[string][]string {
+	ecosystemDomains, err := loadEcosystemDomains()
+	if err != nil {
+		domainsLog.Printf("Failed to load ecosystem domains: %v", err)
+		return map[string][]string{}
+	}
+	return ecosystemDomains
+}
 
 // CopilotDefaultDomains are the default domains required for GitHub Copilot CLI authentication and operation
 var CopilotDefaultDomains = []string{
