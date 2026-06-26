@@ -628,3 +628,80 @@ mcp-servers:
 		})
 	}
 }
+
+// TestCustomMCPEnvSecretSingleEscape is a regression test for the double-escape bug
+// introduced in v0.81.2 (PR #41038). Custom MCP server env secrets must be rendered
+// with a single backslash (\${VAR}) in the generated lock file, NOT double-escaped
+// (\\${VAR}). The unquoted heredoc in the generated workflow passes the content
+// through bash, which collapses \$ → $, giving the MCP gateway the literal ${VAR}
+// string it then expands from its own environment. Double backslashes cause bash to
+// produce \<secret-value>, which is an invalid JSON escape character.
+func TestCustomMCPEnvSecretSingleEscape(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  my-server:
+    container: "example/my-server:latest"
+    env:
+      MY_API_TOKEN: "${{ secrets.MY_API_TOKEN }}"
+      PLAIN_VALUE: "hello"
+---
+
+# Test env secret escaping
+
+Do nothing.
+`
+
+	tmpFile, err := os.CreateTemp("", "test-env-escape-*.md")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(workflowContent); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	compiler := NewCompiler()
+	compiler.SetSkipValidation(true)
+
+	workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to parse workflow file: %v", err)
+	}
+
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Locate the my-server block.
+	serverIdx := strings.Index(yamlContent, `"my-server"`)
+	if serverIdx == -1 {
+		t.Fatal("Could not find my-server block in generated YAML")
+	}
+	serverBlock := yamlContent[serverIdx:min(serverIdx+1000, len(yamlContent))]
+
+	// The secret placeholder must appear with a SINGLE backslash.
+	// In a Go raw string literal, \$ is the two-character sequence backslash-dollar,
+	// which is exactly what should be in the generated lock file.
+	if !strings.Contains(serverBlock, `"\${MY_API_TOKEN}"`) {
+		t.Errorf("expected single-backslash placeholder \"\\${MY_API_TOKEN}\" in generated env section; got server block:\n%s", serverBlock)
+	}
+
+	// There must be NO double-escaped form — that is the regression we are guarding against.
+	if strings.Contains(serverBlock, `"\\${MY_API_TOKEN}"`) {
+		t.Errorf("double-escaped placeholder \"\\\\${MY_API_TOKEN}\" found in generated env section (regression); got server block:\n%s", serverBlock)
+	}
+
+	// Plain (non-secret) env values must be rendered as-is.
+	if !strings.Contains(serverBlock, `"PLAIN_VALUE": "hello"`) {
+		t.Errorf("expected plain env value \"PLAIN_VALUE\": \"hello\" in generated env section; got server block:\n%s", serverBlock)
+	}
+}

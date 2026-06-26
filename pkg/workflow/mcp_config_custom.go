@@ -405,7 +405,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 						renderedEnv[varName] = "\\${" + varName + "}"
 					}
 				}
-				writeJSONStringMapSection(yaml, renderer.IndentLevel, "env", renderedEnv, !isLast)
+				// Use raw (non-json.Marshal) writing for env values because they are placed
+				// inside an unquoted heredoc and may contain pre-escaped shell placeholders
+				// like \${VAR}. Passing those through json.Marshal would double-escape the
+				// backslash (\${VAR} → \\${VAR}), producing invalid JSON after bash processing.
+				writeJSONStringMapSectionRaw(yaml, renderer.IndentLevel, "env", renderedEnv, !isLast)
 			}
 		case "url":
 			// Rewrite localhost URLs to host.docker.internal when running inside firewall container
@@ -439,7 +443,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				}
 				renderedHeaders[headerKey] = headerValue
 			}
-			writeJSONStringMapSection(yaml, renderer.IndentLevel, "headers", renderedHeaders, !isLast)
+			// Use raw (non-json.Marshal) writing for header values because they are placed
+			// inside an unquoted heredoc and may contain pre-escaped shell placeholders
+			// like \${VAR}. Passing those through json.Marshal would double-escape the
+			// backslash (\${VAR} → \\${VAR}), producing invalid JSON after bash processing.
+			writeJSONStringMapSectionRaw(yaml, renderer.IndentLevel, "headers", renderedHeaders, !isLast)
 		case "auth":
 			// Auth field - upstream OIDC authentication config (HTTP servers only, JSON format only)
 			// Guard against nil auth (defensive check, existingProperties should have filtered this out)
