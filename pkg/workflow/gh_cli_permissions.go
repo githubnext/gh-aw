@@ -98,6 +98,8 @@ var getCompiledGHCLIPermissions = sync.OnceValues(func() (compiledGHCLIPermissio
 	}
 	sort.Strings(groups) // deterministic alternation order
 	subcommandPattern := `(?m)(?:^|[\s|;])gh\s+(` + strings.Join(groups, "|") + `)\s+([\w][\w-]*)\b`
+	// Defensive check: the pattern is built from embedded JSON keys quoted with
+	// regexp.QuoteMeta, so a compile error would indicate unexpected data corruption.
 	subcommandRE, err := regexp.Compile(subcommandPattern)
 	if err != nil {
 		return compiledGHCLIPermissions{}, fmt.Errorf("invalid gh subcommand pattern %q: %w", subcommandPattern, err)
