@@ -104,6 +104,10 @@ type PinContext struct {
 	// host and fail, so silently falling back to bundled pins would produce unverified
 	// SHA pins and mask the real misconfiguration.
 	SkipHardcodedFallback bool
+	// Mappings redirects action repository@version references to replacement
+	// repository@version references before pin resolution. Keys and values use
+	// the format "owner/repo@ref". Set from aw.json action_pins.
+	Mappings map[string]string
 }
 
 var (
@@ -311,6 +315,9 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 	}
 	actionPinsLog.Printf("Resolving action pin: repo=%s, version=%s, strict_mode=%t", actionRepo, version, ctx.StrictMode)
 
+	// Apply repository/version mapping from aw.json action_pins before resolution.
+	actionRepo, version = applyActionPinMapping(actionRepo, version, ctx)
+
 	isAlreadySHA := gitutil.IsValidFullSHA(version)
 	if pinnedRef, ok := resolveActionPinDynamically(actionRepo, version, isAlreadySHA, ctx); ok {
 		return pinnedRef, nil
@@ -469,4 +476,39 @@ func ResolveLatestActionPin(repo string, ctx *PinContext) string {
 		return getLatestActionPinReference(repo)
 	}
 	return pinnedRef
+}
+
+// applyActionPinMapping checks ctx.Mappings for a redirect of actionRepo@version and
+// returns the (possibly updated) repo and version. An informational message is printed
+// to stderr the first time each mapping is applied (deduplicated via ctx.Warnings).
+func applyActionPinMapping(actionRepo, version string, ctx *PinContext) (string, string) {
+	if len(ctx.Mappings) == 0 {
+		return actionRepo, version
+	}
+
+	cacheKey := FormatCacheKey(actionRepo, version)
+	mapped, ok := ctx.Mappings[cacheKey]
+	if !ok {
+		return actionRepo, version
+	}
+
+	mappedRepo := ExtractRepo(mapped)
+	mappedVersion := ExtractVersion(mapped)
+	if mappedRepo == "" || mappedVersion == "" {
+		actionPinsLog.Printf("Invalid action_pins mapping value %q for key %q (must be in format owner/repo@ref); skipping", mapped, cacheKey)
+		return actionRepo, version
+	}
+
+	// Emit informational message once per source key.
+	initWarnings(ctx)
+	notifyKey := "map:" + cacheKey
+	if !ctx.Warnings[notifyKey] {
+		actionPinsLog.Printf("Action pin mapping applied: %s → %s", cacheKey, mapped)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+			fmt.Sprintf("Action pin mapping applied: %s → %s", cacheKey, mapped),
+		))
+		ctx.Warnings[notifyKey] = true
+	}
+
+	return mappedRepo, mappedVersion
 }

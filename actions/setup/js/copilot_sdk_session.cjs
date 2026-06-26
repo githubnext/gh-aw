@@ -12,6 +12,12 @@
  *   SDK "tool.execution_start"    → JSONL "tool.execution_start"  (toolName, mcpServerName, command?)
  *   SDK "tool.execution_complete" → JSONL "tool.execution_complete" (toolName, mcpServerName, success, result)
  *   SDK "assistant.message"       → JSONL "assistant.message"     (content)
+ *   SDK "assistant.turn_start"    → watchdog disarmed (inAssistantTurn = true)
+ *   SDK "assistant.turn_end"      → watchdog re-enabled (inAssistantTurn = false)
+ *   SDK "session.task_complete"   → JSONL "session.task_complete" (success, summary)
+ *   SDK "subagent.started"        → JSONL "subagent.started"      (agentName, agentDisplayName, toolCallId)
+ *   SDK "subagent.completed"      → JSONL "subagent.completed"    (agentName, toolCallId)
+ *   SDK "subagent.failed"         → JSONL "subagent.failed"       (agentName, toolCallId, error)
  *
  * The JSONL file is written to:
  *   /tmp/gh-aw/sandbox/agent/logs/copilot-session-state/{sessionId}/events.jsonl
@@ -42,6 +48,15 @@ const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
 // "Timeout after <N>ms waiting for session.idle" produced by the Copilot SDK.
 // Keep in sync with SDK_SESSION_IDLE_TIMEOUT_PATTERN in copilot_harness.cjs.
 const SDK_IDLE_TIMEOUT_PATTERN = /Timeout after \d+ms waiting for session\.idle/;
+
+// Default idle period for the post-completion watchdog: 5 minutes.
+// When the agent has produced output and all tracked tool calls have completed,
+// the driver arms a watchdog timer.  If no new SDK events arrive within this
+// window, the driver force-disconnects the session and treats it as a successful
+// completion — covering the SDK driver bug where sendAndWait never resolves after
+// the final tool result is returned.
+// Override via the GH_AW_SDK_IDLE_MS environment variable.
+const SDK_POST_COMPLETION_IDLE_MS_DEFAULT = 5 * 60 * 1000;
 
 /**
  * Extract the prompt text from a resolved args array.
@@ -155,6 +170,23 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
    * @type {Map<string, {toolName: string, mcpServerName: string}>}
    */
   const pendingToolCalls = new Map();
+
+  // Post-completion idle watchdog.
+  // When the agent has produced output and all tracked tool calls have completed,
+  // this timer is armed.  If no new SDK events arrive within GH_AW_SDK_IDLE_MS
+  // (default 5 minutes), the watchdog force-disconnects the session and the catch
+  // block treats the result as a successful completion.  This bounds the damage
+  // from the SDK driver bug where sendAndWait never resolves after the final
+  // tool result is returned.
+  const postCompletionIdleMs = getEnvPositiveIntOrDefault("GH_AW_SDK_IDLE_MS", SDK_POST_COMPLETION_IDLE_MS_DEFAULT);
+  let postCompletionWatchdogTriggered = false;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let postCompletionWatchdog = null;
+  // Tracks whether the LLM is mid-inference (between assistant.turn_start and
+  // assistant.turn_end).  The watchdog must not fire during this window because
+  // pendingToolCalls may legitimately be empty before the model dispatches its
+  // first tool call of the new turn.
+  let inAssistantTurn = false;
 
   /**
    * Best-effort write of a driver-level event to events.jsonl and stderr.
@@ -293,9 +325,86 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           break;
         }
 
+        case "assistant.turn_start":
+          // LLM inference started for a new turn. Disarm the watchdog — the model
+          // may not have dispatched any tool calls yet, so pendingToolCalls can be
+          // empty while real work is still in progress.
+          inAssistantTurn = true;
+          if (postCompletionWatchdog) {
+            clearTimeout(postCompletionWatchdog);
+            postCompletionWatchdog = null;
+          }
+          break;
+
+        case "assistant.turn_end":
+          // LLM inference finished. Allow the watchdog to re-arm on the next event
+          // that satisfies the completion conditions.
+          inAssistantTurn = false;
+          break;
+
+        case "session.task_complete":
+          writeEvent("session.task_complete", { success: event.data?.success, summary: event.data?.summary }, event.timestamp);
+          break;
+
+        case "subagent.started":
+          writeEvent(
+            "subagent.started",
+            {
+              agentName: event.data?.agentName,
+              agentDisplayName: event.data?.agentDisplayName,
+              toolCallId: event.data?.toolCallId,
+            },
+            event.timestamp
+          );
+          break;
+
+        case "subagent.completed":
+          writeEvent("subagent.completed", { agentName: event.data?.agentName, toolCallId: event.data?.toolCallId }, event.timestamp);
+          break;
+
+        case "subagent.failed":
+          writeEvent(
+            "subagent.failed",
+            {
+              agentName: event.data?.agentName,
+              toolCallId: event.data?.toolCallId,
+              error: event.data?.error,
+            },
+            event.timestamp
+          );
+          break;
+
         default:
           // Other event types are not consumed by unified_timeline.cjs; skip them.
           break;
+      }
+
+      // After processing each event, update the post-completion watchdog:
+      // - Arm (or rearm) the watchdog when the session looks complete: output
+      //   collected, no tool calls still in flight, and not mid-LLM-inference.
+      // - Disarm the watchdog whenever the session is still mid-turn (a new
+      //   tool call was just started, LLM inference is in progress, or no output yet).
+      // The watchdog fires only if sendAndWait never resolves on its own after
+      // the final tool result is returned — the common SDK post-completion hang.
+      if (hasOutput && pendingToolCalls.size === 0 && !inAssistantTurn) {
+        if (postCompletionWatchdog) clearTimeout(postCompletionWatchdog);
+        postCompletionWatchdog = setTimeout(() => {
+          postCompletionWatchdog = null;
+          // Re-check conditions at fire time: a new tool call could have started
+          // or a new turn could have begun between arming the watchdog and the
+          // timer firing (race condition guard).
+          if (!hasOutput || pendingToolCalls.size !== 0 || inAssistantTurn || !session) return;
+          log(`warning: post-completion idle watchdog fired after ${postCompletionIdleMs}ms — force-disconnecting session`);
+          postCompletionWatchdogTriggered = true;
+          void session.disconnect().catch(err => {
+            log(`warning: post-completion watchdog disconnect failed: ${err instanceof Error ? err.message : String(err)}`);
+          });
+        }, postCompletionIdleMs);
+      } else {
+        if (postCompletionWatchdog) {
+          clearTimeout(postCompletionWatchdog);
+          postCompletionWatchdog = null;
+        }
       }
     });
 
@@ -326,6 +435,15 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     const failure = catastrophicToolDenialsError ?? (err instanceof Error ? err : new Error(String(err)));
     log(`error: ${failure.message}`);
 
+    // When the post-completion idle watchdog force-disconnected the session, the
+    // agent's work is done — the SDK simply failed to resolve sendAndWait after
+    // the final tool result was returned.  Treat it as a successful completion.
+    if (postCompletionWatchdogTriggered && !catastrophicToolDenialsError && hasOutput && pendingToolCalls.size === 0) {
+      log(`warning: post-completion watchdog triggered disconnect — treating as completed`);
+      log(`session completed: hasOutput=${hasOutput} durationMs=${durationMs}`);
+      return { exitCode: 0, output, hasOutput, durationMs };
+    }
+
     // When sendAndWait times out waiting for session.idle but the agent produced
     // output and all tracked tool calls have already completed, the session work is
     // done — the SDK simply failed to emit the idle signal.  Treat it as a successful
@@ -346,6 +464,11 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
       durationMs,
     };
   } finally {
+    // Clear the post-completion watchdog if it has not already fired.
+    if (postCompletionWatchdog) {
+      clearTimeout(postCompletionWatchdog);
+      postCompletionWatchdog = null;
+    }
     // Snapshot for null-safe cleanup in this scope.
     const stream = eventsStream;
     if (stream) {
@@ -368,4 +491,4 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   }
 }
 
-module.exports = { SDK_SEND_TIMEOUT_MS_DEFAULT, SDK_IDLE_TIMEOUT_PATTERN, extractPromptFromArgs, runWithCopilotSDK };
+module.exports = { SDK_SEND_TIMEOUT_MS_DEFAULT, SDK_POST_COMPLETION_IDLE_MS_DEFAULT, SDK_IDLE_TIMEOUT_PATTERN, extractPromptFromArgs, runWithCopilotSDK };

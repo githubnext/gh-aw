@@ -87,3 +87,26 @@ func TestWorkflowData_PinContext_SkipHardcodedFallback(t *testing.T) {
 		assert.Nil(t, ctx)
 	})
 }
+
+func TestWorkflowData_PinContext_ActionPinMappings(t *testing.T) {
+	t.Run("propagates ActionPinMappings to PinContext", func(t *testing.T) {
+		mappings := map[string]string{
+			"actions/checkout@v4": "acme-corp/checkout@v4",
+		}
+		d := &WorkflowData{ActionPinMappings: mappings}
+
+		ctx := d.PinContext()
+
+		require.NotNil(t, ctx)
+		assert.Equal(t, mappings, ctx.Mappings, "ActionPinMappings should be forwarded to PinContext.Mappings")
+	})
+
+	t.Run("nil ActionPinMappings results in nil Mappings", func(t *testing.T) {
+		d := &WorkflowData{}
+
+		ctx := d.PinContext()
+
+		require.NotNil(t, ctx)
+		assert.Nil(t, ctx.Mappings, "Mappings should be nil when ActionPinMappings is not set")
+	})
+}

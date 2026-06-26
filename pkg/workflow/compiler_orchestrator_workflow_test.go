@@ -1807,9 +1807,9 @@ func TestMergeJobsFromYAMLImports_PreservesJobOrder(t *testing.T) {
 	assert.Contains(t, result, "job-d")
 }
 
-// TestProcessAndMergeSteps_InvalidYAML tests handling of invalid YAML in imported steps
-func TestProcessAndMergeSteps_InvalidYAML(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "invalid-steps-yaml")
+// TestProcessAndMergeSteps_InvalidYAML_MergedSteps tests that malformed MergedSteps YAML returns an error
+func TestProcessAndMergeSteps_InvalidYAML_MergedSteps(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "invalid-merged-steps-yaml")
 	compiler := NewCompiler()
 	actionCache := NewActionCache(tmpDir)
 	actionResolver := NewActionResolver(actionCache)
@@ -1829,12 +1829,73 @@ func TestProcessAndMergeSteps_InvalidYAML(t *testing.T) {
 		MergedSteps: "invalid: [yaml",
 	}
 
-	// Should handle gracefully without panicking
-	require.NoError(t, compiler.processAndMergeSteps(frontmatter, workflowData, importsResult))
+	// Malformed MergedSteps YAML must propagate as an error
+	err := compiler.processAndMergeSteps(frontmatter, workflowData, importsResult)
+	require.Error(t, err, "malformed MergedSteps YAML should return an error")
+	assert.Contains(t, err.Error(), "failed to parse imported steps")
+}
 
-	// Should still have main steps
-	assert.NotEmpty(t, workflowData.CustomSteps)
-	assert.Contains(t, workflowData.CustomSteps, "Main")
+// TestProcessAndMergePreSteps_InvalidYAML tests that malformed imported pre-steps YAML returns an error
+func TestProcessAndMergePreSteps_InvalidYAML(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "invalid-pre-steps-yaml")
+	compiler := NewCompiler()
+	actionCache := NewActionCache(tmpDir)
+	actionResolver := NewActionResolver(actionCache)
+	workflowData := &WorkflowData{
+		ActionCache:    actionCache,
+		ActionResolver: actionResolver,
+	}
+
+	frontmatter := map[string]any{}
+	importsResult := &parser.ImportsResult{
+		MergedPreSteps: "invalid: [yaml",
+	}
+
+	err := compiler.processAndMergePreSteps(frontmatter, workflowData, importsResult)
+	require.Error(t, err, "malformed imported pre-steps YAML should return an error")
+	assert.Contains(t, err.Error(), "failed to parse imported pre-steps")
+}
+
+// TestProcessAndMergePreAgentSteps_InvalidYAML tests that malformed imported pre-agent-steps YAML returns an error
+func TestProcessAndMergePreAgentSteps_InvalidYAML(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "invalid-pre-agent-steps-yaml")
+	compiler := NewCompiler()
+	actionCache := NewActionCache(tmpDir)
+	actionResolver := NewActionResolver(actionCache)
+	workflowData := &WorkflowData{
+		ActionCache:    actionCache,
+		ActionResolver: actionResolver,
+	}
+
+	frontmatter := map[string]any{}
+	importsResult := &parser.ImportsResult{
+		MergedPreAgentSteps: "invalid: [yaml",
+	}
+
+	err := compiler.processAndMergePreAgentSteps(frontmatter, workflowData, importsResult)
+	require.Error(t, err, "malformed imported pre-agent-steps YAML should return an error")
+	assert.Contains(t, err.Error(), "failed to parse imported pre-agent-steps")
+}
+
+// TestProcessAndMergePostSteps_InvalidYAML tests that malformed imported post-steps YAML returns an error
+func TestProcessAndMergePostSteps_InvalidYAML(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "invalid-post-steps-yaml")
+	compiler := NewCompiler()
+	actionCache := NewActionCache(tmpDir)
+	actionResolver := NewActionResolver(actionCache)
+	workflowData := &WorkflowData{
+		ActionCache:    actionCache,
+		ActionResolver: actionResolver,
+	}
+
+	frontmatter := map[string]any{}
+	importsResult := &parser.ImportsResult{
+		MergedPostSteps: "invalid: [yaml",
+	}
+
+	err := compiler.processAndMergePostSteps(frontmatter, workflowData, importsResult)
+	require.Error(t, err, "malformed imported post-steps YAML should return an error")
+	assert.Contains(t, err.Error(), "failed to parse imported post-steps")
 }
 
 // TestProcessAndMergeServices_EmptyImportedServices tests handling of empty imported services

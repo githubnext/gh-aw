@@ -413,45 +413,45 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 	// Parse other imported steps if present (these go after copilot-setup but before main steps)
 	var otherImportedSteps []any
 	if importsResult.MergedSteps != "" {
-		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &otherImportedSteps); err == nil {
-			// Convert to typed steps for action pinning
-			typedOtherSteps, err := SliceToSteps(otherImportedSteps)
-			if err != nil {
-				workflowBuilderLog.Printf("Failed to convert other imported steps to typed steps: %v", err)
-			} else {
-				// Apply action pinning to other imported steps
-				typedOtherSteps, err = applyActionPinsToTypedSteps(typedOtherSteps, workflowData)
-				if err != nil {
-					return fmt.Errorf("imported steps: %w", err)
-				}
-				// Convert back to []any for YAML marshaling
-				otherImportedSteps = StepsToSlice(typedOtherSteps)
-			}
+		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &otherImportedSteps); err != nil {
+			return fmt.Errorf("failed to parse imported steps: %w", err)
 		}
+		// Convert to typed steps for action pinning
+		typedOtherSteps, err := SliceToSteps(otherImportedSteps)
+		if err != nil {
+			return fmt.Errorf("failed to convert imported steps: %w", err)
+		}
+		// Apply action pinning to other imported steps
+		typedOtherSteps, err = applyActionPinsToTypedSteps(typedOtherSteps, workflowData)
+		if err != nil {
+			return fmt.Errorf("imported steps: %w", err)
+		}
+		// Convert back to []any for YAML marshaling
+		otherImportedSteps = StepsToSlice(typedOtherSteps)
 	}
 
 	// If there are main workflow steps, parse them
 	var mainSteps []any
 	if workflowData.CustomSteps != "" {
 		var mainStepsWrapper map[string]any
-		if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
-			if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
-				if steps, ok := mainStepsVal.([]any); ok {
-					mainSteps = steps
-					// Convert to typed steps for action pinning
-					typedMainSteps, err := SliceToSteps(mainSteps)
-					if err != nil {
-						workflowBuilderLog.Printf("Failed to convert main steps to typed steps: %v", err)
-					} else {
-						// Apply action pinning to main steps
-						typedMainSteps, err = applyActionPinsToTypedSteps(typedMainSteps, workflowData)
-						if err != nil {
-							return fmt.Errorf("steps: %w", err)
-						}
-						// Convert back to []any for YAML marshaling
-						mainSteps = StepsToSlice(typedMainSteps)
-					}
+		if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err != nil {
+			return fmt.Errorf("failed to parse custom steps: %w", err)
+		}
+		if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
+			if steps, ok := mainStepsVal.([]any); ok {
+				mainSteps = steps
+				// Convert to typed steps for action pinning
+				typedMainSteps, err := SliceToSteps(mainSteps)
+				if err != nil {
+					return fmt.Errorf("failed to convert main steps: %w", err)
 				}
+				// Apply action pinning to main steps
+				typedMainSteps, err = applyActionPinsToTypedSteps(typedMainSteps, workflowData)
+				if err != nil {
+					return fmt.Errorf("steps: %w", err)
+				}
+				// Convert back to []any for YAML marshaling
+				mainSteps = StepsToSlice(typedMainSteps)
 			}
 		}
 	}
@@ -491,40 +491,38 @@ func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowD
 	var importedPreSteps []any
 	if importsResult.MergedPreSteps != "" {
 		if err := yaml.Unmarshal([]byte(importsResult.MergedPreSteps), &importedPreSteps); err != nil {
-			workflowBuilderLog.Printf("Failed to unmarshal imported pre-steps: %v", err)
-		} else {
-			typedImported, err := SliceToSteps(importedPreSteps)
-			if err != nil {
-				workflowBuilderLog.Printf("Failed to convert imported pre-steps to typed steps: %v", err)
-			} else {
-				typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
-				if err != nil {
-					return fmt.Errorf("imported pre-steps: %w", err)
-				}
-				importedPreSteps = StepsToSlice(typedImported)
-			}
+			return fmt.Errorf("failed to parse imported pre-steps: %w", err)
 		}
+		typedImported, err := SliceToSteps(importedPreSteps)
+		if err != nil {
+			return fmt.Errorf("failed to convert imported pre-steps: %w", err)
+		}
+		typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
+		if err != nil {
+			return fmt.Errorf("imported pre-steps: %w", err)
+		}
+		importedPreSteps = StepsToSlice(typedImported)
 	}
 
 	// Parse main workflow pre-steps if present
 	var mainPreSteps []any
 	if mainPreStepsYAML != "" {
 		var mainWrapper map[string]any
-		if err := yaml.Unmarshal([]byte(mainPreStepsYAML), &mainWrapper); err == nil {
-			if mainVal, ok := mainWrapper["pre-steps"]; ok {
-				if steps, ok := mainVal.([]any); ok {
-					mainPreSteps = steps
-					typedMain, err := SliceToSteps(mainPreSteps)
-					if err != nil {
-						workflowBuilderLog.Printf("Failed to convert main pre-steps to typed steps: %v", err)
-					} else {
-						typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
-						if err != nil {
-							return fmt.Errorf("pre-steps: %w", err)
-						}
-						mainPreSteps = StepsToSlice(typedMain)
-					}
+		if err := yaml.Unmarshal([]byte(mainPreStepsYAML), &mainWrapper); err != nil {
+			return fmt.Errorf("failed to parse pre-steps: %w", err)
+		}
+		if mainVal, ok := mainWrapper["pre-steps"]; ok {
+			if steps, ok := mainVal.([]any); ok {
+				mainPreSteps = steps
+				typedMain, err := SliceToSteps(mainPreSteps)
+				if err != nil {
+					return fmt.Errorf("failed to convert pre-steps: %w", err)
 				}
+				typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
+				if err != nil {
+					return fmt.Errorf("pre-steps: %w", err)
+				}
+				mainPreSteps = StepsToSlice(typedMain)
 			}
 		}
 	}
@@ -554,39 +552,37 @@ func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, work
 	var importedPreAgentSteps []any
 	if importsResult.MergedPreAgentSteps != "" {
 		if err := yaml.Unmarshal([]byte(importsResult.MergedPreAgentSteps), &importedPreAgentSteps); err != nil {
-			workflowBuilderLog.Printf("Failed to unmarshal imported pre-agent-steps: %v", err)
-		} else {
-			typedImported, err := SliceToSteps(importedPreAgentSteps)
-			if err != nil {
-				workflowBuilderLog.Printf("Failed to convert imported pre-agent-steps to typed steps: %v", err)
-			} else {
-				typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
-				if err != nil {
-					return fmt.Errorf("imported pre-agent-steps: %w", err)
-				}
-				importedPreAgentSteps = StepsToSlice(typedImported)
-			}
+			return fmt.Errorf("failed to parse imported pre-agent-steps: %w", err)
 		}
+		typedImported, err := SliceToSteps(importedPreAgentSteps)
+		if err != nil {
+			return fmt.Errorf("failed to convert imported pre-agent-steps: %w", err)
+		}
+		typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
+		if err != nil {
+			return fmt.Errorf("imported pre-agent-steps: %w", err)
+		}
+		importedPreAgentSteps = StepsToSlice(typedImported)
 	}
 
 	var mainPreAgentSteps []any
 	if mainPreAgentStepsYAML != "" {
 		var mainWrapper map[string]any
-		if err := yaml.Unmarshal([]byte(mainPreAgentStepsYAML), &mainWrapper); err == nil {
-			if mainVal, ok := mainWrapper["pre-agent-steps"]; ok {
-				if steps, ok := mainVal.([]any); ok {
-					mainPreAgentSteps = steps
-					typedMain, err := SliceToSteps(mainPreAgentSteps)
-					if err != nil {
-						workflowBuilderLog.Printf("Failed to convert main pre-agent-steps to typed steps: %v", err)
-					} else {
-						typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
-						if err != nil {
-							return fmt.Errorf("pre-agent-steps: %w", err)
-						}
-						mainPreAgentSteps = StepsToSlice(typedMain)
-					}
+		if err := yaml.Unmarshal([]byte(mainPreAgentStepsYAML), &mainWrapper); err != nil {
+			return fmt.Errorf("failed to parse pre-agent-steps: %w", err)
+		}
+		if mainVal, ok := mainWrapper["pre-agent-steps"]; ok {
+			if steps, ok := mainVal.([]any); ok {
+				mainPreAgentSteps = steps
+				typedMain, err := SliceToSteps(mainPreAgentSteps)
+				if err != nil {
+					return fmt.Errorf("failed to convert pre-agent-steps: %w", err)
 				}
+				typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
+				if err != nil {
+					return fmt.Errorf("pre-agent-steps: %w", err)
+				}
+				mainPreAgentSteps = StepsToSlice(typedMain)
 			}
 		}
 	}
@@ -616,40 +612,38 @@ func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflow
 	var importedPostSteps []any
 	if importsResult.MergedPostSteps != "" {
 		if err := yaml.Unmarshal([]byte(importsResult.MergedPostSteps), &importedPostSteps); err != nil {
-			workflowBuilderLog.Printf("Failed to unmarshal imported post-steps: %v", err)
-		} else {
-			typedImported, err := SliceToSteps(importedPostSteps)
-			if err != nil {
-				workflowBuilderLog.Printf("Failed to convert imported post-steps to typed steps: %v", err)
-			} else {
-				typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
-				if err != nil {
-					return fmt.Errorf("imported post-steps: %w", err)
-				}
-				importedPostSteps = StepsToSlice(typedImported)
-			}
+			return fmt.Errorf("failed to parse imported post-steps: %w", err)
 		}
+		typedImported, err := SliceToSteps(importedPostSteps)
+		if err != nil {
+			return fmt.Errorf("failed to convert imported post-steps: %w", err)
+		}
+		typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
+		if err != nil {
+			return fmt.Errorf("imported post-steps: %w", err)
+		}
+		importedPostSteps = StepsToSlice(typedImported)
 	}
 
 	// Parse main workflow post-steps if present
 	var mainPostSteps []any
 	if mainPostStepsYAML != "" {
 		var mainWrapper map[string]any
-		if err := yaml.Unmarshal([]byte(mainPostStepsYAML), &mainWrapper); err == nil {
-			if mainVal, ok := mainWrapper["post-steps"]; ok {
-				if steps, ok := mainVal.([]any); ok {
-					mainPostSteps = steps
-					typedMain, err := SliceToSteps(mainPostSteps)
-					if err != nil {
-						workflowBuilderLog.Printf("Failed to convert main post-steps to typed steps: %v", err)
-					} else {
-						typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
-						if err != nil {
-							return fmt.Errorf("post-steps: %w", err)
-						}
-						mainPostSteps = StepsToSlice(typedMain)
-					}
+		if err := yaml.Unmarshal([]byte(mainPostStepsYAML), &mainWrapper); err != nil {
+			return fmt.Errorf("failed to parse post-steps: %w", err)
+		}
+		if mainVal, ok := mainWrapper["post-steps"]; ok {
+			if steps, ok := mainVal.([]any); ok {
+				mainPostSteps = steps
+				typedMain, err := SliceToSteps(mainPostSteps)
+				if err != nil {
+					return fmt.Errorf("failed to convert post-steps: %w", err)
 				}
+				typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
+				if err != nil {
+					return fmt.Errorf("post-steps: %w", err)
+				}
+				mainPostSteps = StepsToSlice(typedMain)
 			}
 		}
 	}
