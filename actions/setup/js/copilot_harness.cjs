@@ -837,8 +837,6 @@ async function main() {
         const isModelNotSupported = isModelNotSupportedError(result.output);
         const isAuthErr = isNoAuthInfoError(result.output);
         const isAuthenticationFailed = isAuthenticationFailedError(result.output);
-        const providerAuthFailure = parseProviderAuthFailure(result.output);
-        const isAWFProxyAuthenticationFailure = Boolean(providerAuthFailure && isLikelyAWFAPIProxyURL(providerAuthFailure.providerUrl));
         const proxyAuthDiagnostic = buildCopilotProxyAuthFailureDiagnostic(result.output, process.env);
         const retryableProxyAuthenticationFailure = isRetryableProxyAuthenticationFailure(result.output, result.hasOutput);
         const isNullTypeToolCall = isNullTypeToolCallError(result.output);
@@ -908,11 +906,9 @@ async function main() {
             continue;
           }
           if (proxyAuthDiagnostic) {
-            log(`attempt ${attempt + 1}: ${proxyAuthDiagnostic} — not retrying (provider authentication failure is non-retryable after the fresh-run retry is exhausted or when no output was produced)`);
-          } else if (isAWFProxyAuthenticationFailure) {
-            log(`attempt ${attempt + 1}: provider authentication failed — not retrying (provider authentication failure is non-retryable after the fresh-run retry is exhausted or when no output was produced)`);
+            log(`attempt ${attempt + 1}: ${proxyAuthDiagnostic} — not retrying`);
           } else {
-            log(`attempt ${attempt + 1}: authentication failed — not retrying (authentication_failed is non-retryable unless it came from the gh-aw proxy after partial execution on the first attempt)`);
+            log(`attempt ${attempt + 1}: authentication failed — not retrying`);
           }
           break;
         }
