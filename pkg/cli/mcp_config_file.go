@@ -64,7 +64,7 @@ func ensureMCPConfig(verbose bool) error {
 		if !changed {
 			mcpConfigLog.Print("Configuration is identical, skipping")
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("MCP server '%s' already configured in %s", ghAwServerName, mcpConfigPath)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("MCP server '%s' already configured in %s", ghAwServerName, mcpConfigPath)))
 			}
 			return nil
 		}

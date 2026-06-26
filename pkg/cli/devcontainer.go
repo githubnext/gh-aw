@@ -166,7 +166,7 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 		}
 
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated existing devcontainer at "+devcontainerPath))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Updated existing devcontainer at "+devcontainerPath))
 		}
 	} else {
 		// Create new configuration
@@ -193,7 +193,7 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 		}
 
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created new devcontainer at "+devcontainerPath))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Created new devcontainer at "+devcontainerPath))
 		}
 	}
 

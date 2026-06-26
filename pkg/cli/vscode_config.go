@@ -80,7 +80,7 @@ func ensureVSCodeSettings(verbose bool) error {
 	if fileutil.FileExists(settingsPath) {
 		vscodeConfigLog.Print("Settings file already exists, skipping creation")
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Settings file already exists at "+settingsPath))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Settings file already exists at "+settingsPath))
 		}
 		return nil
 	}

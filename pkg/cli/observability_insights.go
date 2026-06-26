@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -331,6 +332,10 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 }
 
 func renderObservabilityInsights(insights []ObservabilityInsight) {
+	renderObservabilityInsightsTo(os.Stderr, insights)
+}
+
+func renderObservabilityInsightsTo(w io.Writer, insights []ObservabilityInsight) {
 	for _, insight := range insights {
 		icon := "[info]"
 		switch insight.Severity {
@@ -344,11 +349,11 @@ func renderObservabilityInsights(insights []ObservabilityInsight) {
 			icon = "[low]"
 		}
 
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader(fmt.Sprintf("%s %s [%s]", icon, insight.Title, insight.Category)))
-		fmt.Fprintln(os.Stderr, console.FormatListItem(insight.Summary))
+		fmt.Fprintln(w, console.FormatSectionHeaderStderr(fmt.Sprintf("%s %s [%s]", icon, insight.Title, insight.Category)))
+		fmt.Fprintln(w, console.FormatListItemStderr(insight.Summary))
 		if strings.TrimSpace(insight.Evidence) != "" {
-			fmt.Fprintln(os.Stderr, console.FormatListItem("Evidence: "+insight.Evidence))
+			fmt.Fprintln(w, console.FormatListItemStderr("Evidence: "+insight.Evidence))
 		}
-		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(w)
 	}
 }

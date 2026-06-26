@@ -217,7 +217,7 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 			if !upgraded {
 				copilotSetupLog.Print("No version upgrade needed")
 				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No version upgrade needed for "+setupStepsPath))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("No version upgrade needed for "+setupStepsPath))
 				}
 				return nil
 			}
@@ -228,7 +228,7 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 			copilotSetupLog.Printf("Upgraded version in file: %s", setupStepsPath)
 
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s with new version %s", setupStepsPath, version)))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(fmt.Sprintf("Updated %s with new version %s", setupStepsPath, version)))
 			}
 			return nil
 		}
@@ -237,7 +237,7 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 		if hasLegacyInstall || hasActionInstall {
 			copilotSetupLog.Print("Extension install step already exists, file is up to date")
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping %s (already has gh-aw extension install step)", setupStepsPath)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Skipping %s (already has gh-aw extension install step)", setupStepsPath)))
 			}
 			return nil
 		}
@@ -260,7 +260,7 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 // renderCopilotSetupUpdateInstructions renders console instructions for updating copilot-setup-steps.yml
 func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) {
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Existing file detected: "+filePath))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Existing file detected: "+filePath))
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "To enable GitHub Copilot Agent integration, please add the following steps")
 	fmt.Fprintln(os.Stderr, "to the 'copilot-setup-steps' job in your .github/workflows/copilot-setup-steps.yml file:")

@@ -3,8 +3,7 @@
 package cli
 
 import (
-	"io"
-	"os"
+	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -200,13 +199,9 @@ func TestBuildAuditDataIncludesObservabilityInsights(t *testing.T) {
 }
 
 func TestRenderObservabilityInsightsUsesConsoleFormatting(t *testing.T) {
-	oldStderr := os.Stderr
-	r, w, err := os.Pipe()
-	require.NoError(t, err, "failed to create stderr pipe")
-	os.Stderr = w
-	t.Cleanup(func() { os.Stderr = oldStderr })
+	var output bytes.Buffer
 
-	renderObservabilityInsights([]ObservabilityInsight{
+	renderObservabilityInsightsTo(&output, []ObservabilityInsight{
 		{
 			Category: "tooling",
 			Severity: "high",
@@ -216,12 +211,11 @@ func TestRenderObservabilityInsightsUsesConsoleFormatting(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, w.Close(), "failed to close stderr writer")
-	output, err := io.ReadAll(r)
-	require.NoError(t, err, "failed to read stderr output")
-	text := string(output)
-
-	assert.Contains(t, text, console.FormatSectionHeader("[high] Capability friction detected [tooling]"))
-	assert.Contains(t, text, console.FormatListItem("The run hit capability gaps."))
-	assert.Contains(t, text, console.FormatListItem("Evidence: missing_tools=1"))
+	text := output.String()
+	lines := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
+	require.GreaterOrEqual(t, len(lines), 4)
+	assert.Equal(t, console.FormatSectionHeaderStderr("[high] Capability friction detected [tooling]"), lines[0])
+	assert.Equal(t, console.FormatListItemStderr("The run hit capability gaps."), lines[1])
+	assert.Equal(t, console.FormatListItemStderr("Evidence: missing_tools=1"), lines[2])
+	assert.Empty(t, lines[3])
 }

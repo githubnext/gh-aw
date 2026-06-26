@@ -42,7 +42,7 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	}
 
 	if c.Verbose && len(c.existingSecrets) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing secret(s) (repository + organization)", len(c.existingSecrets))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Found %d existing secret(s) (repository + organization)", len(c.existingSecrets))))
 	}
 
 	return nil
