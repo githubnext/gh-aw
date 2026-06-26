@@ -359,6 +359,7 @@ func expandToolsetsForTesting(toolsets []string) []string {
 			for _, ex := range GitHubToolsetsExcludedFromAll {
 				excludedMap[ex] = true
 			}
+			toolsetPermissionsMap := getToolsetPermissionsMap()
 			for t := range toolsetPermissionsMap {
 				if excludedMap[t] {
 					continue

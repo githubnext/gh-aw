@@ -77,147 +77,33 @@ steps:
 
 # Python Data Visualization Guide
 
-Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
+Python scientific libraries have been installed and are ready for use. Working directories: `/tmp/gh-aw/python/` (scripts), `/tmp/gh-aw/python/data/` (inputs), `/tmp/gh-aw/python/charts/` (outputs).
 
 ## Data Separation Requirement
 
-**CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
+**CRITICAL**: Never inline data in Python code. Always write data to `/tmp/gh-aw/python/data/` first and load it with `pd.read_csv()`/`pd.read_json()`.
 
-### ❌ PROHIBITED - Inline Data
-```python
-# DO NOT do this
-data = [10, 20, 30, 40, 50]
-labels = ['A', 'B', 'C', 'D', 'E']
-```
+## Chart Generation
 
-### ✅ REQUIRED - External Data Files
-```python
-# Always load data from external files
-import pandas as pd
+**Pattern**: load data from `/tmp/gh-aw/python/data/`, plot with `fig, ax = plt.subplots(figsize=(10,6), dpi=300)` using `sns.set_style("whitegrid")`, save PNG to `/tmp/gh-aw/python/charts/`, upload via `upload_asset` safe-output tool.
 
-# Load data from CSV
-data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-
-# Or from JSON
-data = pd.read_json('/tmp/gh-aw/python/data/data.json')
-```
-
-## Chart Generation Best Practices
-
-### High-Quality Chart Settings
-
-```python
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# Set style for better aesthetics
-sns.set_style("whitegrid")
-sns.set_palette("husl")
-
-# Create figure with high DPI
-fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-
-# Your plotting code here
-# ...
-
-# Save with high quality
-plt.savefig('/tmp/gh-aw/python/charts/chart.png', 
-            dpi=300, 
-            bbox_inches='tight',
-            facecolor='white',
-            edgecolor='none')
-```
-
-### Chart Quality Guidelines
-
-- **DPI**: Use 300 or higher for publication quality
-- **Figure Size**: Standard is 10x6 inches (adjustable based on needs)
-- **Labels**: Always include clear axis labels and titles
-- **Legend**: Add legends when plotting multiple series
-- **Grid**: Enable grid lines for easier reading
-- **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
-
-> **Pattern**: load data from `/tmp/gh-aw/python/data/`, plot with `fig, ax = plt.subplots(figsize=(10,6), dpi=300)`, save to `/tmp/gh-aw/python/charts/`, upload via `upload_asset`.
+**Quality standards**: DPI ≥ 300, clear axis labels and titles, `bbox_inches='tight'`, colorblind-friendly palettes (seaborn defaults).
 
 ## Including Images in Reports
 
-Use this approach to include chart images in reports (issues, discussions, step summaries):
+1. Save chart: `plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')`
+2. Upload: `{ "type": "upload_asset", "path": "/tmp/gh-aw/python/charts/my_chart.png" }`
+3. Embed: `![Description](ASSET_URL_FROM_UPLOAD)` in issue/discussion/step summary
 
-### Upload Asset (Recommended)
-
-Use the `upload_asset` safe output tool to upload individual chart images. The tool returns a persistent asset URL that can be embedded directly in markdown.
-
-#### Step 1: Generate Chart
-```python
-# Generate your chart
-plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
-```
-
-#### Step 2: Upload as Asset
-Use the `upload_asset` tool to upload the chart file and get an embeddable asset URL:
-
-```json
-{ "type": "upload_asset", "path": "/tmp/gh-aw/python/charts/my_chart.png" }
-```
-
-The tool returns a URL to the uploaded asset.
-
-#### Step 3: Render in Markdown
-Use the asset URL in markdown to render the image inline:
-
-```markdown
-## Visualization Results
-
-![Chart Description](ASSET_URL_FROM_UPLOAD)
-
-The chart above shows...
-```
-
-The asset URL points to the published asset file in the configured assets branch.
-
-> **Note**: Asset URLs are persistent and suitable for embedding in issues, pull requests, and discussions.
+Asset URLs are persistent. Up to 5 uploads per run; PNG, JPG, JPEG, SVG allowed.
 
 ## Cache Memory Integration
 
 The cache memory at `/tmp/gh-aw/cache-memory/` is available for reusable helpers. Reuse cached modules when present, and persist stable helpers after successful runs.
 
-## Error Handling
+## Source and Data Artifact
 
-**Check File Existence:**
-```python
-import os
-
-data_file = '/tmp/gh-aw/python/data/data.csv'
-if not os.path.exists(data_file):
-    raise FileNotFoundError(f"Data file not found: {data_file}")
-```
-
-**Validate Data:**
-```python
-# Check for required columns
-required_cols = ['category', 'value']
-missing = set(required_cols) - set(data.columns)
-if missing:
-    raise ValueError(f"Missing columns: {missing}")
-```
-
-## Asset Upload
-
-Chart images are uploaded individually via the `upload_asset` safe-output tool. Each image gets a persistent URL for inline rendering.
-
-**Chart Image Upload:**
-- Tool: `upload_asset` (safe-output)
-- Config: up to 5 uploads per run with image-only extensions
-- Allowed: PNG, JPG, JPEG, SVG files
-- Persistence: stored as persistent assets (not 30-day artifacts)
-- Returns: persistent asset URL with direct link
-
-**Source and Data Artifact:**
-- Name: `python-source-and-data`
-- Contents: Python scripts and data files
-- Retention: 30 days
-
-Source and data files are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
+Python scripts and data files are uploaded as the `python-source-and-data` artifact (30-day retention, `if: always()` condition).
 
 ## Common Data Sources
 

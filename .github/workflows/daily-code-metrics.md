@@ -125,19 +125,27 @@ Generate **6 high-quality charts** to visualize code metrics and trends using Py
 
 ### Required Charts
 
-1. **LOC by Language** (`loc_by_language.png`) — horizontal bar chart of LOC by language (sorted descending, percentage labels, language-type colors, total LOC in title). Save to `/tmp/gh-aw/python/charts/loc_by_language.png`.
-2. **Top Directories** (`top_directories.png`) — horizontal bar chart of top 10 directories by LOC (full paths, LOC and percent, highlight `cmd`/`pkg`/`docs`/`workflows`, distinct directory-type colors). Save to `/tmp/gh-aw/python/charts/top_directories.png`.
-3. **Quality Score Breakdown** (`quality_score_breakdown.png`) — stacked bar or pie breakdown of Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target (100%) with red→green gradient. Save to `/tmp/gh-aw/python/charts/quality_score_breakdown.png`.
-4. **Test Coverage** (`test_coverage.png`) — grouped comparison of test vs source LOC by language, ratio visualization, optional trend indicator, and recommended ratio marker (0.5–1.0). Save to `/tmp/gh-aw/python/charts/test_coverage.png`.
-5. **Code Churn** (`code_churn.png`) — diverging bars for top 10 most changed source files in 7 days; **exclude** `*.lock.yml` and `actions-lock.json`, show added/deleted/net, color by file type, truncate long paths when needed. Save to `/tmp/gh-aw/python/charts/code_churn.png`.
-6. **Historical Trends** (`historical_trends.png`) — multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. Save to `/tmp/gh-aw/python/charts/historical_trends.png`.
-{{else}}
+| # | Filename | Description |
+|---|----------|-------------|
+| 1 | `loc_by_language.png` | Horizontal bar chart of LOC by language (sorted descending, percentage labels, language-type colors, total LOC in title). |
+| 2 | `top_directories.png` | Horizontal bar chart of top 10 directories by LOC (full paths, LOC and percent, highlight `cmd`/`pkg`/`docs`/`workflows`, distinct directory-type colors). |
+| 3 | `quality_score_breakdown.png` | Stacked bar or pie breakdown: Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target with red→green gradient. |
+| 4 | `test_coverage.png` | Grouped comparison of test vs source LOC by language, ratio visualization, optional trend indicator, recommended ratio marker (0.5–1.0). |
+| 5 | `code_churn.png` | Diverging bars for top 10 most changed source files (7d); **exclude** `*.lock.yml` and `actions-lock.json`; show added/deleted/net, color by file type. |
+| 6 | `historical_trends.png` | Multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. |
+
+All charts save to `/tmp/gh-aw/python/charts/<filename>`.
+{{#else}}
 Generate **2 high-quality charts** focusing on the most actionable signals:
 
-### Required Charts (Executive Summary Mode)
+### Required Charts
 
-1. **Quality Score Breakdown** (`quality_score_breakdown.png`) — stacked bar or pie breakdown of Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target (100%) with red→green gradient. Save to `/tmp/gh-aw/python/charts/quality_score_breakdown.png`.
-2. **Historical Trends** (`historical_trends.png`) — multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. Save to `/tmp/gh-aw/python/charts/historical_trends.png`.
+| # | Filename | Description |
+|---|----------|-------------|
+| 1 | `quality_score_breakdown.png` | Stacked bar or pie breakdown: Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target with red→green gradient. |
+| 2 | `historical_trends.png` | Multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. |
+
+All charts save to `/tmp/gh-aw/python/charts/<filename>`.
 {{/if}}
 
 ### Chart Quality Standards

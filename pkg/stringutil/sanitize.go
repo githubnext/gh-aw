@@ -12,6 +12,13 @@ var sanitizeLog = logger.New("stringutil:sanitize")
 
 var multipleHyphens = regexp.MustCompile(`-+`)
 
+var sanitizePatterns = map[string]*regexp.Regexp{
+	"a-z0-9-":   regexp.MustCompile(`[^a-z0-9-]+`),
+	"a-z0-9-.":  regexp.MustCompile(`[^a-z0-9-.]+`),
+	"a-z0-9-_":  regexp.MustCompile(`[^a-z0-9-_]+`),
+	"a-z0-9-._": regexp.MustCompile(`[^a-z0-9-._]+`),
+}
+
 // Regex patterns for detecting potential secret key names
 var (
 	// Match uppercase snake_case identifiers that look like secret names (e.g., MY_SECRET_KEY, GITHUB_TOKEN, API_KEY)
@@ -125,13 +132,24 @@ func normalizeSanitizeSeparators(result string, opts *SanitizeOptions) string {
 
 // buildSanitizePreservePattern builds a regex character class of allowed characters.
 func buildSanitizePreservePattern(opts *SanitizeOptions) string {
-	var preserveChars strings.Builder
-	preserveChars.WriteString("a-z0-9-") // Always preserve alphanumeric and hyphens
+	preserveDot := false
+	preserveUnderscore := false
 	for _, char := range opts.PreserveSpecialChars {
 		switch char {
-		case '.', '_':
-			preserveChars.WriteRune(char)
+		case '.':
+			preserveDot = true
+		case '_':
+			preserveUnderscore = true
 		}
+	}
+
+	var preserveChars strings.Builder
+	preserveChars.WriteString("a-z0-9-") // Always preserve alphanumeric and hyphens
+	if preserveDot {
+		preserveChars.WriteRune('.')
+	}
+	if preserveUnderscore {
+		preserveChars.WriteRune('_')
 	}
 	return preserveChars.String()
 }
@@ -140,7 +158,10 @@ func buildSanitizePreservePattern(opts *SanitizeOptions) string {
 // When the caller has requested preservation of special chars, unwanted chars are
 // replaced with hyphens; otherwise they are removed entirely.
 func applySanitizePattern(result, allowedChars string, preserveSpecialChars bool) string {
-	pattern := regexp.MustCompile(`[^` + allowedChars + `]+`)
+	pattern, ok := sanitizePatterns[allowedChars]
+	if !ok {
+		pattern = regexp.MustCompile(`[^` + allowedChars + `]+`)
+	}
 	if preserveSpecialChars {
 		return pattern.ReplaceAllString(result, "-")
 	}

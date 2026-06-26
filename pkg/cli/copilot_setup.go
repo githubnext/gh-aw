@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
@@ -216,7 +217,7 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 			if !upgraded {
 				copilotSetupLog.Print("No version upgrade needed")
 				if verbose {
-					fmt.Fprintf(os.Stderr, "No version upgrade needed for %s\n", setupStepsPath)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("No version upgrade needed for "+setupStepsPath))
 				}
 				return nil
 			}
@@ -227,7 +228,7 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 			copilotSetupLog.Printf("Upgraded version in file: %s", setupStepsPath)
 
 			if verbose {
-				fmt.Fprintf(os.Stderr, "Updated %s with new version %s\n", setupStepsPath, version)
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(fmt.Sprintf("Updated %s with new version %s", setupStepsPath, version)))
 			}
 			return nil
 		}
@@ -236,7 +237,7 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 		if hasLegacyInstall || hasActionInstall {
 			copilotSetupLog.Print("Extension install step already exists, file is up to date")
 			if verbose {
-				fmt.Fprintf(os.Stderr, "Skipping %s (already has gh-aw extension install step)\n", setupStepsPath)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Skipping %s (already has gh-aw extension install step)", setupStepsPath)))
 			}
 			return nil
 		}
@@ -259,9 +260,7 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 // renderCopilotSetupUpdateInstructions renders console instructions for updating copilot-setup-steps.yml
 func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) {
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "%s %s\n",
-		"ℹ",
-		"Existing file detected: "+filePath)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Existing file detected: "+filePath))
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "To enable GitHub Copilot Agent integration, please add the following steps")
 	fmt.Fprintln(os.Stderr, "to the 'copilot-setup-steps' job in your .github/workflows/copilot-setup-steps.yml file:")
@@ -274,10 +273,10 @@ func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, 
 		actionRepo := "github/gh-aw-actions/setup-cli"
 		fmt.Fprintln(os.Stderr, "      - name: Checkout repository")
 		fmt.Fprintln(os.Stderr, "        uses: actions/checkout@v6")
-		fmt.Fprintf(os.Stderr, "      - name: Install gh-aw extension\n")
-		fmt.Fprintf(os.Stderr, "        uses: %s%s\n", actionRepo, actionRef)
+		fmt.Fprintln(os.Stderr, "      - name: Install gh-aw extension")
+		fmt.Fprintln(os.Stderr, "        uses: "+actionRepo+actionRef)
 		fmt.Fprintln(os.Stderr, "        with:")
-		fmt.Fprintf(os.Stderr, "          version: %s\n", version)
+		fmt.Fprintln(os.Stderr, "          version: "+version)
 	} else {
 		fmt.Fprintln(os.Stderr, "      - name: Install gh-aw extension")
 		fmt.Fprintln(os.Stderr, "        run: |")

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 var permissionsValidationLog = newValidationLogger("permissions")
@@ -31,23 +32,18 @@ type GitHubToolsetsData struct {
 	} `json:"toolsets"`
 }
 
-// toolsetPermissionsMap defines the mapping of GitHub MCP toolsets to required permissions
-// This is loaded from the embedded JSON file at initialization
-var toolsetPermissionsMap map[string]GitHubToolsetPermissions
-
-// init loads the GitHub toolsets and permissions from the embedded JSON
-func init() {
+// getToolsetPermissionsMap returns the mapping of GitHub MCP toolsets to required permissions.
+// It is loaded lazily from the embedded JSON file on first use.
+var getToolsetPermissionsMap = sync.OnceValue(func() map[string]GitHubToolsetPermissions {
 	permissionsValidationLog.Print("Loading GitHub toolsets permissions from embedded JSON")
 
 	var data GitHubToolsetsData
 	if err := json.Unmarshal(githubToolsetsPermissionsJSON, &data); err != nil {
-		panic(fmt.Sprintf("failed to load GitHub toolsets permissions from JSON: %v", err))
+		panic(fmt.Sprintf("BUG: failed to load GitHub toolsets permissions from JSON: %v", err))
 	}
 
-	// Convert JSON data to internal format
-	toolsetPermissionsMap = make(map[string]GitHubToolsetPermissions)
+	toolsetPermissionsMap := make(map[string]GitHubToolsetPermissions)
 	for toolsetName, toolsetData := range data.Toolsets {
-		// Convert string permission names to PermissionScope types
 		readPerms := make([]PermissionScope, len(toolsetData.ReadPermissions))
 		for i, perm := range toolsetData.ReadPermissions {
 			readPerms[i] = PermissionScope(perm)
@@ -66,7 +62,8 @@ func init() {
 	}
 
 	permissionsValidationLog.Printf("Loaded %d GitHub toolsets from JSON", len(toolsetPermissionsMap))
-}
+	return toolsetPermissionsMap
+})
 
 // ValidatableTool represents a tool configuration that can be validated for permissions
 // This interface abstracts the tool configuration structure to enable type-safe permission validation
@@ -101,6 +98,7 @@ func collectRequiredPermissions(toolsets []string, readOnly bool) map[Permission
 		permissionsValidationLog.Printf("Collecting required permissions for %d toolsets, read_only=%t", len(toolsets), readOnly)
 	}
 	required := make(map[PermissionScope]PermissionLevel)
+	toolsetPermissionsMap := getToolsetPermissionsMap()
 
 	for _, toolset := range toolsets {
 		perms, exists := toolsetPermissionsMap[toolset]

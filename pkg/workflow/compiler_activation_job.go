@@ -36,13 +36,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	}
 
 	if err := c.addActivationFeedbackAndValidationSteps(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add activation feedback and validation steps: %w", err)
 	}
 	if err := c.addActivationRepositoryAndOutputSteps(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add activation repository and output steps: %w", err)
 	}
 	if err := c.addActivationCommandAndLabelOutputs(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add activation command and label outputs: %w", err)
 	}
 	ctx.steps = append(ctx.steps, buildRuntimeFeaturesSummaryStep()...)
 
@@ -76,7 +76,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	permissions, err := c.buildActivationPermissions(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build activation permissions: %w", err)
 	}
 
 	return &Job{
