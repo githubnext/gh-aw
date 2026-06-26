@@ -145,19 +145,12 @@ safe-outputs:
       run-success: "📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤"
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 15
-experiments:
-  caveman: [yes, no]
-  subagent_model: [small, large]
 features:
   gh-aw-detection: false
 
 ---
 
 # Smoke Test: Copilot Engine Validation
-
-{{#if experiments.caveman }}
-Talk like a caveman in all your responses and outputs. Use short, broken sentences. Me test. You run.
-{{/if}}
 
 **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 
@@ -222,7 +215,7 @@ If all tests pass and this workflow was triggered by a pull_request event:
 
 ## agent: `file-summarizer`
 ---
-model: ${{ experiments.subagent_model }}
+model: large
 description: Summarizes the content of a file in a few concise sentences
 ---
 You are a file summarization assistant. When given a file path, read the file and return a brief summary (2–4 sentences) describing its purpose and key contents. Be concise and factual.

@@ -65,9 +65,6 @@ safe-outputs:
     group-by-day: true
     expires: 7d
 
-experiments:
-  prompt_style: [concise, verbose]
-
 imports:
   - shared/community-attribution.md
   - shared/otlp.md
@@ -329,7 +326,6 @@ cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md
 
 ## Workflow
 
-{{#if experiments.prompt_style == 'concise'}}
 ### 1. Attribute Issues
 
 Read `attribution_by_author.json` (Tier 0–2, pre-grouped and pre-sorted — do not
@@ -337,24 +333,8 @@ re-derive). For each entry in `tier3_candidates_capped.json` (≤5), apply Tier 
 (one `issue_read` call per issue). Anything unresolved → Tier 4. Issues beyond
 the first 5 in `tier3_candidates.json` are deferred to the next run — do not
 process them.
-{{#else}}
-### 1. Attribute All Resolved Community Issues
 
-**Tier 0, 1, and 2 attributions are already pre-computed and pre-grouped** in
-`attribution_by_author.json` — do not re-derive them. Read this file directly
-(using `cat`); it contains all confirmed attributions grouped by author with
-issues sorted by number descending, ready for use.
 
-For each issue in `tier3_candidates_capped.json` (at most 5 per run), apply **Tier 3** from the
-imported Community Attribution Strategy (GitHub MCP `issue_read` to
-look for indirect linkage via follow-up or split issues).
-
-Any candidate still unresolved after Tier 3 becomes a **Tier 4**
-"needs review" item. Issues in `tier3_candidates.json` beyond the first 5
-are deferred to the next run — do not attempt to process them.
-{{#endif}}
-
-{{#if experiments.prompt_style == 'concise'}}
 ### 2. Update Wiki Page
 
 Read the existing wiki at `/tmp/gh-aw/repo-memory-default/Community-Contributors.md`
@@ -362,146 +342,28 @@ Read the existing wiki at `/tmp/gh-aw/repo-memory-default/Community-Contributors
 entries. Group by author (alphabetical), issues descending. Keep under 9 KB (remove
 oldest entries from most-prolific author if needed). Format:
 `- [#N](url) Title — YYYY-MM-DD — attribution_type`. Write back with edit tool.
-{{#else}}
-### 2. Update the Community Contributors Wiki Page
 
-Read the existing wiki page at
-`/tmp/gh-aw/repo-memory-default/Community-Contributors.md` (empty/missing on
-first run).  Merge all confirmed attributions — both newly found ones and all
-previously recorded ones — without duplicating entries.
 
-> **Wiki page size limit**: Keep `Community-Contributors.md` under **9 KB**
-> (hard limit is 10 KB). Check the byte size with `wc -c` before calling
-> `push_repo_memory`. If the page exceeds 9 KB, remove entries to reduce it:
-> sort all authors by total contribution count (descending), then remove the
-> oldest entry (lowest issue number) from the author with the most entries,
-> and repeat until the page is under 9 KB.
-
-The wiki page uses issue numbers as link text for quick scanning, while `README.md`
-uses issue titles. Both use full GitHub issue URLs.
-
-The wiki page format:
-
-```markdown
-# Community Contributors
-
-### @author
-
-- [#N](https://github.com/OWNER/REPO/issues/N) Issue title — YYYY-MM-DD — direct issue
-- [#N](https://github.com/OWNER/REPO/issues/N) Issue title — YYYY-MM-DD — resolved by #PR
-
-### @author2
-
-- [#N](https://github.com/OWNER/REPO/issues/N) Issue title — YYYY-MM-DD — direct issue
-```
-
-- Group entries by author (alphabetical order)
-- Within each author section, sort by issue number descending (newest first)
-- **`direct issue`** — Tier 0: closed as `COMPLETED`, no PR linkage
-- **`resolved by #PR`** — Tiers 1–3: attributed to a specific merged PR
-- Do not add entries for unresolved or ambiguous candidates (Tier 4)
-
-Write the updated content back to
-`/tmp/gh-aw/repo-memory-default/Community-Contributors.md` using the edit tool.
-{{#endif}}
-
-{{#if experiments.prompt_style == 'concise'}}
 ### 3. Build Community Section
 
 Start from `readme_community_section_tier012.md` (pre-formatted Tier 0-2 content).
 Insert Tier 3 entries (sorted, alphabetical author order). Ignore Tier 4 items
 in `README.md` output. Leave a blank line after `</details>`.
-{{#else}}
-### 3. Build the Community Contributions Section
 
-The pre-step has already produced a formatted starting point in
-`readme_community_section_tier012.md` — read it with `cat`. This file contains
-the complete Tier 0–2 `## 🌍 Community Contributions` section in the correct
-format. If there are Tier 3 attributions, insert them into the bullet list
-(maintaining alphabetical author order and descending issue order within each
-author). Do not re-format the Tier 0–2 entries; only add new lines.
 
-The expected format (for reference):
-
-```markdown
-## 🌍 Community Contributions
-
-<details>
-<summary>Thank you to the community members whose issue reports were resolved in this project! This list is updated automatically and reflects all attributed contributions.</summary>
-
-- @author: #N _(direct issue)_, #N, #N _(via follow-up #M)_
-- @author2: #N, #N
-
-</details>
-
-```
-
-**Important**: always leave a blank line after `</details>` (as shown
-above) so that the next markdown header renders correctly.
-
-- One bullet per author, sorted alphabetically by username
-- Within each author's entry, list issues in descending order (newest first), comma-separated
-- **`_(direct issue)_`** (Tier 0): issue closed as `COMPLETED`, no PR linkage
-- _(no suffix)_ (Tier 1/2): PR closes the issue via native close reference or keyword
-- **`_(via follow-up #M)_`** (Tier 3): indirect chain through a follow-up issue
-- Omit issues that cannot be attributed (Tier 4); do not render an attribution
-  candidates section in `README.md`
-{{#endif}}
-
-{{#if experiments.prompt_style == 'concise'}}
 ### 4. Update README.md
 
 Replace `## 🌍 Community Contributions` in `README.md` with the new content
 (or append after `## Contributing` if absent). Use edit tool.
-{{#else}}
-### 4. Update README.md
 
-Replace the existing `## 🌍 Community Contributions` section in `README.md`
-with the newly generated content, or append it after the `## Contributing`
-section if it does not yet exist.
 
-Use the edit tool to make the change in-place.
-{{#endif}}
-
-{{#if experiments.prompt_style == 'concise'}}
 ### 5. Open Pull Request
 
 If `README.md` or wiki changed: call `create_pull_request` with title
 `[community] Update community contributions in README`. If no changes:
 call `noop`.
-{{#else}}
-### 5. Open a Pull Request
 
-If `README.md` **or** the wiki page changed, call the `create_pull_request`
-safe-output tool to open a PR with the changes.
 
-**PR title**: `[community] Update community contributions in README`
-
-**PR body template**:
-```markdown
-### Community Contributions Update
-
-Automated update to the 🌍 Community Contributions section in `README.md`
-and the Community Contributors wiki page.
-
-#### Changes
-- N community issues newly attributed
-- N attribution candidates flagged for review (if any)
-- Wiki page updated: Y/N
-
-#### Attribution Summary
-[brief summary of what changed and how each was attributed]
-```
-
-**Important**: If no action is needed after completing your analysis, you
-**MUST** call the `noop` safe-output tool with a brief explanation.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation]"}}
-```
-{{#endif}}
-
-{{#if experiments.prompt_style == 'concise'}}
 ## Token Budget
 
 - Read each data file once only; use `cat` on pre-formatted files — no bash pipelines
@@ -510,31 +372,9 @@ and the Community Contributors wiki page.
 - Stop after safe-output call
 - PR body under 400 words
 - Do not access external URLs; use only GitHub MCP `issue_read` for GitHub data
-{{#else}}
-## Token Budget Guidelines
 
-This workflow uses the Copilot engine — max-turns is not available. Follow these rules to avoid runaway token consumption:
 
-- **Use `cat` on pre-formatted files** — `readme_community_section_tier012.md` and `attribution_by_author.json` are ready to use directly; do not run bash pipelines or data-processing scripts on them
-- **Read each data file at most once** — do not re-read `attribution_by_author.json`, `readme_community_section_tier012.md`, or `README_current.md`
-- **Tier 3 cap enforced in pre-step** — `tier3_candidates_capped.json` contains at most 5 issues; process only those, then stop
-- **At most 1 `issue_read` call per Tier 3 candidate** — call `issue_read` with `method: "get_comments"` once per issue to look for indirect linkage; do not chain further lookups from the results
-- **Stop immediately after the safe-output call** — once `create_pull_request` or `noop` is called, halt without any further tool calls or reasoning
-- **Keep the PR body under 400 words** — use `<details>` for any extended attribution summary
-- **Do not access any external URLs** — use only GitHub MCP `issue_read` for GitHub data; do not call `gh api` or any external HTTP endpoints directly
-{{#endif}}
-
-{{#if experiments.prompt_style == 'concise'}}
 ### 6. Report Failures
 
 On error: call `create_issue` safe-output tool with a brief title and body.
 Do not use GitHub MCP `create_issue` directly.
-{{#else}}
-### 6. Report Failures
-
-If you encounter a genuine error that prevents completion (e.g., data fetch failure, unexpected error), report it using the `create_issue` safe-output tool — **never use the GitHub MCP `create_issue` tool directly**. The safe-output tool has built-in deduplication (`group-by-day` and `close-older-issues`) that prevents duplicate failure issues from accumulating.
-
-```json
-{"create_issue": {"title": "Brief description of the failure", "body": "### What failed\n\nDescribe the specific step or data source that failed.\n\n### Error details\n\n(Include the error message or unexpected output here)\n\n### Steps to investigate\n\n1. Check the workflow run logs for the full error message\n2. Verify that community_issues.json and pull_requests.json were fetched successfully\n3. Re-run the workflow manually via workflow_dispatch to see if the failure is transient"}}
-```
-{{#endif}}
