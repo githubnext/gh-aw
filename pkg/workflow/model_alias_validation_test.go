@@ -325,6 +325,16 @@ func TestDetectCircularModelAliases_ProviderScopedNotFollowed(t *testing.T) {
 	assert.NoError(t, err, "provider-scoped entries should not be treated as alias references")
 }
 
+func BenchmarkDetectCircularModelAliases_Builtin(b *testing.B) {
+	aliasMap := BuiltinModelAliases()
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := detectCircularModelAliases(aliasMap, "/fake/path.md"); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 // ─── validateModelAliasMap (integration) ─────────────────────────────────────
 
 func TestValidateModelAliasMap_ValidWorkflow(t *testing.T) {

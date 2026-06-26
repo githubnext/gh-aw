@@ -253,12 +253,18 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 	}
 	sort.Strings(keys)
 
+	state := &dfsState{
+		aliasMap: aliasMap,
+		visited:  visited,
+		onPath:   make(map[string]bool, len(aliasMap)),
+		path:     make([]string, 0, len(aliasMap)),
+	}
+
 	for _, key := range keys {
 		if setutil.Contains(visited, key) {
 			continue
 		}
-		path := []string{} // current DFS path (ordered)
-		if cycle := dfsCycleCheck(key, aliasMap, visited, path); cycle != nil {
+		if cycle := state.dfs(key); cycle != nil {
 			// Format cycle chain for a clear error message.
 			chain := strings.Join(append(cycle, cycle[0]), " → ")
 			return formatCompilerError(markdownPath, "error",
@@ -270,24 +276,6 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 	}
 
 	return nil
-}
-
-// dfsCycleCheck performs a depth-first traversal starting at start.
-// visited tracks fully explored nodes (no cycle reachable from there).
-// Returns the cycle chain (slice of alias names forming the loop) or nil.
-func dfsCycleCheck(
-	start string,
-	aliasMap map[string][]string,
-	visited map[string]struct {
-	}, path []string,
-) []string {
-	state := &dfsState{
-		aliasMap: aliasMap,
-		visited:  visited,
-		onPath:   map[string]bool{},
-		path:     path,
-	}
-	return state.dfs(start)
 }
 
 // dfsState holds the mutable state for a single DFS traversal.
@@ -306,10 +294,10 @@ func (s *dfsState) dfs(node string) []string {
 		// Cycle found — return the chain from node back around.
 		for i, n := range s.path {
 			if n == node {
-				return s.path[i:]
+				return append([]string(nil), s.path[i:]...)
 			}
 		}
-		return s.path // fallback: should not happen
+		return append([]string(nil), s.path...) // fallback: should not happen
 	}
 
 	s.onPath[node] = true
@@ -325,7 +313,7 @@ func (s *dfsState) dfs(node string) []string {
 	}
 
 	s.path = s.path[:len(s.path)-1]
-	s.onPath[node] = false
+	delete(s.onPath, node)
 	s.visited[node] = struct{}{}
 	return nil
 }
