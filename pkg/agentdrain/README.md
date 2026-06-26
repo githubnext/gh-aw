@@ -1,5 +1,7 @@
 # agentdrain Package
 
+> Drain-style log template miner and anomaly detector for structured agent pipeline events — groups log lines into similarity clusters and produces scored anomaly reports.
+
 The `agentdrain` package implements the [Drain](https://jiemingzhu.github.io/pub/pjhe_icws2017.pdf) log template mining algorithm adapted for analyzing structured agent pipeline events. It is used for anomaly detection in agentic workflow runs.
 
 ## Overview
