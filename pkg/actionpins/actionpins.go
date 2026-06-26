@@ -499,12 +499,11 @@ func applyActionPinMapping(actionRepo, version string, ctx *PinContext) (string,
 		return actionRepo, version
 	}
 
-	actionPinsLog.Printf("Action pin mapping applied: %s → %s", cacheKey, mapped)
-
-	// Emit informational message once per unique (source → target) pair.
+	// Emit informational message once per source key.
 	initWarnings(ctx)
 	notifyKey := "map:" + cacheKey
 	if !ctx.Warnings[notifyKey] {
+		actionPinsLog.Printf("Action pin mapping applied: %s → %s", cacheKey, mapped)
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 			fmt.Sprintf("Action pin mapping applied: %s → %s", cacheKey, mapped),
 		))
