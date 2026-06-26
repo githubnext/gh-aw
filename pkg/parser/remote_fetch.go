@@ -624,8 +624,8 @@ func downloadFileViaGit(ctx context.Context, owner, repo, path, ref, host string
 
 	// git archive command: git archive --remote=<repo> <ref> <path>
 	// #nosec G204 -- repoURL, ref, and path are from workflow import configuration authored by the
-	// developer; exec.Command with separate args (not shell execution) prevents shell injection.
-	cmd := exec.Command("git", "archive", "--remote="+repoURL, ref, path)
+	// developer; exec.CommandContext with separate args (not shell execution) prevents shell injection.
+	cmd := exec.CommandContext(ctx, "git", "archive", "--remote="+repoURL, ref, path)
 	archiveOutput, err := cmd.Output()
 	if err != nil {
 		// If git archive fails, try with git clone + git show as a fallback
