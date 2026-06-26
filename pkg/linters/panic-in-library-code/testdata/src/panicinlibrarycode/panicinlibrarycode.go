@@ -43,6 +43,13 @@ func init() {
 	panic("startup registration failure") // should not be flagged
 }
 
+func init() {
+	handler := func() {
+		panic("handler panic outside init flow") // want `avoid panic in library code; return an error instead`
+	}
+	_ = handler
+}
+
 // ok: panic inside a sync.Once.Do callback.
 var once sync.Once
 
@@ -69,6 +76,15 @@ func documentedPreconditionPanics(mode string) {
 	if mode == "" {
 		panic("invalid mode") // should not be flagged — documented panic contract
 	}
+}
+
+// documentedClosureRegistration panics if called with an empty input.
+func documentedClosureRegistration(input string) {
+	callback := func() {
+		panic("callback panic should be reported") // want `avoid panic in library code; return an error instead`
+	}
+	_ = callback
+	_ = input
 }
 
 // ok: method named init is NOT a top-level init; its panic should be flagged.

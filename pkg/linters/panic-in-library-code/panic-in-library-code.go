@@ -179,7 +179,10 @@ func isFmtSprintf(pass *analysis.Pass, call *ast.CallExpr) bool {
 // function. Only top-level (no receiver) init functions are recognized;
 // methods named init are ordinary methods and are not exempt.
 func isInInitFunction(cur inspector.Cursor) bool {
-	for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
+	for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
+		if _, isFuncLit := encl.Node().(*ast.FuncLit); isFuncLit {
+			return false
+		}
 		decl, ok := encl.Node().(*ast.FuncDecl)
 		if !ok {
 			break
@@ -193,7 +196,10 @@ func isInInitFunction(cur inspector.Cursor) bool {
 }
 
 func hasDocumentedPanicContract(cur inspector.Cursor) bool {
-	for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
+	for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
+		if _, isFuncLit := encl.Node().(*ast.FuncLit); isFuncLit {
+			return false
+		}
 		decl, ok := encl.Node().(*ast.FuncDecl)
 		if !ok {
 			break
