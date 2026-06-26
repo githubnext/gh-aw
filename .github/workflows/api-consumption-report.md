@@ -68,9 +68,11 @@ Use the `agentic-workflows` MCP `logs` tool:
 - **Incremental** (history is already rich per the threshold in **Step T1**): `logs(start_date="-1d")`
 - **Backfill** (first run, cache miss, or sparse history per the threshold in **Step T1**): `logs(start_date="-90d")`
 - The `continuation` field is authoritative. If it is missing or `null`, stop paging even if the returned run count exactly matches your requested count.
-- If `continuation` is present, make at most **2** additional continuation calls using the returned parameters. Do **not** invent your own `before_run_id` from the earliest run in the batch.
-- If any continuation call times out, returns `ECONNREFUSED`, or otherwise fails once, stop collecting and proceed with the partial dataset you already have.
-- Never use Bash/CLI pagination loops, sleep-based retries, or ad-hoc count/timeout tuning to chase more pages.
+- Treat the run directories already present under `/tmp/gh-aw/aw-mcp/logs/` as the authoritative collected dataset. Successful continuation calls should add to that dataset; if a later continuation attempt fails, keep using the directories that are already on disk.
+- If `continuation` is present, make at most **2** additional continuation calls using the returned parameters. After each successful continuation call, re-read that response's `continuation` field before deciding whether to continue. Do **not** invent your own `before_run_id` from the earliest run in the batch.
+- If a continuation call times out, returns `ECONNREFUSED`, or otherwise fails with a transient tool/transport error, retry that **same** continuation call up to **2** more times with short backoff (about 15s, then about 45s). Do **not** change the returned pagination parameters, timeout, or count while retrying.
+- If the continuation call still fails after those bounded retries, stop collecting, proceed with the logs already downloaded to `/tmp/gh-aw/aw-mcp/logs/`, and clearly note in the final discussion that continuation retries were exhausted and the dataset may be partial.
+- Never use Bash/CLI pagination loops, unbounded retries, or ad-hoc count/timeout tuning to chase more pages.
 
 Record which mode you used (`incremental` vs `backfill`) and the chosen `start_date` in Step 6 (the discussion "Cache Memory Status" details block).
 
