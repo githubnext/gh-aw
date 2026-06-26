@@ -310,14 +310,15 @@ type FrontmatterConfig struct {
 	Labels             []string          `json:"labels,omitempty"`
 
 	// Configuration sections - using strongly-typed structs
-	Tools            *ToolsConfig       `json:"tools,omitempty"`
-	MCPServers       map[string]any     `json:"mcp-servers,omitempty"` // Legacy field, use Tools instead
-	RuntimesTyped    *RuntimesConfig    `json:"-"`                     // New typed field (not in JSON to avoid conflict)
-	Runtimes         map[string]any     `json:"runtimes,omitempty"`    // Deprecated: use RuntimesTyped
-	Jobs             map[string]any     `json:"jobs,omitempty"`        // Custom workflow jobs (too dynamic to type)
-	SafeOutputs      *SafeOutputsConfig `json:"safe-outputs,omitempty"`
-	MCPScripts       *MCPScriptsConfig  `json:"mcp-scripts,omitempty"`
-	PermissionsTyped *PermissionsConfig `json:"-"` // New typed field (not in JSON to avoid conflict)
+	Tools            *ToolsConfig               `json:"tools,omitempty"`
+	LSP              map[string]LSPServerConfig `json:"lsp,omitempty"`
+	MCPServers       map[string]any             `json:"mcp-servers,omitempty"` // Legacy field, use Tools instead
+	RuntimesTyped    *RuntimesConfig            `json:"-"`                     // New typed field (not in JSON to avoid conflict)
+	Runtimes         map[string]any             `json:"runtimes,omitempty"`    // Deprecated: use RuntimesTyped
+	Jobs             map[string]any             `json:"jobs,omitempty"`        // Custom workflow jobs (too dynamic to type)
+	SafeOutputs      *SafeOutputsConfig         `json:"safe-outputs,omitempty"`
+	MCPScripts       *MCPScriptsConfig          `json:"mcp-scripts,omitempty"`
+	PermissionsTyped *PermissionsConfig         `json:"-"` // New typed field (not in JSON to avoid conflict)
 
 	// Event and trigger configuration
 	On          map[string]any `json:"on,omitempty"`          // Complex trigger config with many variants (too dynamic to type)

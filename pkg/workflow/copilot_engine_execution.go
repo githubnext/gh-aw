@@ -47,22 +47,42 @@ const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
 // other generators (copilot_mcp.go, mcp_setup_generator.go) rely on it the same way.
 const copilotSettingsPath = "$HOME/.copilot/settings.json"
 
-// copilotSettingsContent is the JSON content written to the Copilot CLI settings file.
-// Setting builtInAgents.rubberDuck to false disables the rubber-duck sub-agent, which
-// would otherwise be invoked proactively for non-trivial tasks. In Copilot engine runs
-// this adds unnecessary token overhead and latency with little benefit, since the primary
-// model already has strong reasoning capabilities.
-const copilotSettingsContent = `{"builtInAgents":{"rubberDuck":false}}`
+// copilotSettingsDefaultContent is the default JSON content written to the Copilot CLI
+// settings file when no additional settings are configured.
+const copilotSettingsDefaultContent = `{"builtInAgents":{"rubberDuck":false}}`
+
+type copilotSettings struct {
+	BuiltInAgents map[string]bool            `json:"builtInAgents"`
+	LSPServers    map[string]LSPServerConfig `json:"lspServers,omitempty"`
+}
+
+func buildCopilotSettingsContent(workflowData *WorkflowData) string {
+	settings := copilotSettings{
+		BuiltInAgents: map[string]bool{"rubberDuck": false},
+	}
+	if workflowData != nil {
+		manager := NewLSPManager(workflowData.LSP)
+		settings.LSPServers = manager.CopilotLSPServers()
+	}
+	settingsBytes, err := json.Marshal(settings)
+	if err != nil {
+		return copilotSettingsDefaultContent
+	}
+	return string(settingsBytes)
+}
 
 // buildCopilotSettingsSetup returns shell commands that write the Copilot CLI settings
 // file before the agent runs, disabling the rubber-duck sub-agent.
-func buildCopilotSettingsSetup(fixOwnershipForCustomCommand bool) string {
+func buildCopilotSettingsSetup(settingsContent string, fixOwnershipForCustomCommand bool) string {
+	if settingsContent == "" {
+		settingsContent = copilotSettingsDefaultContent
+	}
 	setup := "mkdir -p \"$HOME/.copilot\"\n"
 	if fixOwnershipForCustomCommand {
 		setup += "sudo chown -R \"$(id -u):$(id -g)\" \"$HOME/.copilot\"\n"
 	}
 	return setup + fmt.Sprintf("printf '%%s' %s > \"%s\"\n",
-		shellEscapeArg(copilotSettingsContent), copilotSettingsPath)
+		shellEscapeArg(settingsContent), copilotSettingsPath)
 }
 
 // buildCopilotSettingsCleanupTrap returns a shell trap command that removes the
@@ -382,6 +402,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Non-sandbox mode: pass prompt file path directly
 		copilotCommand = fmt.Sprintf(`%s %s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
 	}
+	settingsContent := buildCopilotSettingsContent(workflowData)
+
 	// Conditionally wrap with sandbox (AWF only)
 	var command string
 	if isFirewallEnabled(workflowData) {
@@ -451,7 +473,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Write the Copilot settings file before AWF starts. The file is created on the
 		// host and AWF mounts it into the container, where the Copilot CLI reads it to
 		// disable the rubber-duck sub-agent.
-		pathSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + pathSetup
+		pathSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(settingsContent, customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + pathSetup
 		// Build the list of core secret var names to hide from the agent shell tools.
 		// In BYOK mode COPILOT_GITHUB_TOKEN is not injected into the step env at all,
 		// so there is nothing to exclude. Excluding it unconditionally would produce
@@ -495,7 +517,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		}
 		// Write the Copilot settings file before the agent runs to disable the rubber-duck
 		// sub-agent. This reduces token overhead and latency for Copilot engine runs.
-		preCommandSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + preCommandSetup
+		preCommandSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(settingsContent, customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + preCommandSetup
 		command = fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
