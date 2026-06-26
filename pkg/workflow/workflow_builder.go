@@ -419,16 +419,15 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 		// Convert to typed steps for action pinning
 		typedOtherSteps, err := SliceToSteps(otherImportedSteps)
 		if err != nil {
-			workflowBuilderLog.Printf("Failed to convert other imported steps to typed steps: %v", err)
-		} else {
-			// Apply action pinning to other imported steps
-			typedOtherSteps, err = applyActionPinsToTypedSteps(typedOtherSteps, workflowData)
-			if err != nil {
-				return fmt.Errorf("imported steps: %w", err)
-			}
-			// Convert back to []any for YAML marshaling
-			otherImportedSteps = StepsToSlice(typedOtherSteps)
+			return fmt.Errorf("failed to convert imported steps: %w", err)
 		}
+		// Apply action pinning to other imported steps
+		typedOtherSteps, err = applyActionPinsToTypedSteps(typedOtherSteps, workflowData)
+		if err != nil {
+			return fmt.Errorf("imported steps: %w", err)
+		}
+		// Convert back to []any for YAML marshaling
+		otherImportedSteps = StepsToSlice(typedOtherSteps)
 	}
 
 	// If there are main workflow steps, parse them
@@ -444,16 +443,15 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 				// Convert to typed steps for action pinning
 				typedMainSteps, err := SliceToSteps(mainSteps)
 				if err != nil {
-					workflowBuilderLog.Printf("Failed to convert main steps to typed steps: %v", err)
-				} else {
-					// Apply action pinning to main steps
-					typedMainSteps, err = applyActionPinsToTypedSteps(typedMainSteps, workflowData)
-					if err != nil {
-						return fmt.Errorf("steps: %w", err)
-					}
-					// Convert back to []any for YAML marshaling
-					mainSteps = StepsToSlice(typedMainSteps)
+					return fmt.Errorf("failed to convert main steps: %w", err)
 				}
+				// Apply action pinning to main steps
+				typedMainSteps, err = applyActionPinsToTypedSteps(typedMainSteps, workflowData)
+				if err != nil {
+					return fmt.Errorf("steps: %w", err)
+				}
+				// Convert back to []any for YAML marshaling
+				mainSteps = StepsToSlice(typedMainSteps)
 			}
 		}
 	}
@@ -497,14 +495,13 @@ func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowD
 		}
 		typedImported, err := SliceToSteps(importedPreSteps)
 		if err != nil {
-			workflowBuilderLog.Printf("Failed to convert imported pre-steps to typed steps: %v", err)
-		} else {
-			typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
-			if err != nil {
-				return fmt.Errorf("imported pre-steps: %w", err)
-			}
-			importedPreSteps = StepsToSlice(typedImported)
+			return fmt.Errorf("failed to convert imported pre-steps: %w", err)
 		}
+		typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
+		if err != nil {
+			return fmt.Errorf("imported pre-steps: %w", err)
+		}
+		importedPreSteps = StepsToSlice(typedImported)
 	}
 
 	// Parse main workflow pre-steps if present
@@ -519,14 +516,13 @@ func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowD
 				mainPreSteps = steps
 				typedMain, err := SliceToSteps(mainPreSteps)
 				if err != nil {
-					workflowBuilderLog.Printf("Failed to convert main pre-steps to typed steps: %v", err)
-				} else {
-					typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
-					if err != nil {
-						return fmt.Errorf("pre-steps: %w", err)
-					}
-					mainPreSteps = StepsToSlice(typedMain)
+					return fmt.Errorf("failed to convert pre-steps: %w", err)
 				}
+				typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
+				if err != nil {
+					return fmt.Errorf("pre-steps: %w", err)
+				}
+				mainPreSteps = StepsToSlice(typedMain)
 			}
 		}
 	}
@@ -560,14 +556,13 @@ func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, work
 		}
 		typedImported, err := SliceToSteps(importedPreAgentSteps)
 		if err != nil {
-			workflowBuilderLog.Printf("Failed to convert imported pre-agent-steps to typed steps: %v", err)
-		} else {
-			typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
-			if err != nil {
-				return fmt.Errorf("imported pre-agent-steps: %w", err)
-			}
-			importedPreAgentSteps = StepsToSlice(typedImported)
+			return fmt.Errorf("failed to convert imported pre-agent-steps: %w", err)
 		}
+		typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
+		if err != nil {
+			return fmt.Errorf("imported pre-agent-steps: %w", err)
+		}
+		importedPreAgentSteps = StepsToSlice(typedImported)
 	}
 
 	var mainPreAgentSteps []any
@@ -581,14 +576,13 @@ func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, work
 				mainPreAgentSteps = steps
 				typedMain, err := SliceToSteps(mainPreAgentSteps)
 				if err != nil {
-					workflowBuilderLog.Printf("Failed to convert main pre-agent-steps to typed steps: %v", err)
-				} else {
-					typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
-					if err != nil {
-						return fmt.Errorf("pre-agent-steps: %w", err)
-					}
-					mainPreAgentSteps = StepsToSlice(typedMain)
+					return fmt.Errorf("failed to convert pre-agent-steps: %w", err)
 				}
+				typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
+				if err != nil {
+					return fmt.Errorf("pre-agent-steps: %w", err)
+				}
+				mainPreAgentSteps = StepsToSlice(typedMain)
 			}
 		}
 	}
@@ -622,14 +616,13 @@ func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflow
 		}
 		typedImported, err := SliceToSteps(importedPostSteps)
 		if err != nil {
-			workflowBuilderLog.Printf("Failed to convert imported post-steps to typed steps: %v", err)
-		} else {
-			typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
-			if err != nil {
-				return fmt.Errorf("imported post-steps: %w", err)
-			}
-			importedPostSteps = StepsToSlice(typedImported)
+			return fmt.Errorf("failed to convert imported post-steps: %w", err)
 		}
+		typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
+		if err != nil {
+			return fmt.Errorf("imported post-steps: %w", err)
+		}
+		importedPostSteps = StepsToSlice(typedImported)
 	}
 
 	// Parse main workflow post-steps if present
@@ -644,14 +637,13 @@ func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflow
 				mainPostSteps = steps
 				typedMain, err := SliceToSteps(mainPostSteps)
 				if err != nil {
-					workflowBuilderLog.Printf("Failed to convert main post-steps to typed steps: %v", err)
-				} else {
-					typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
-					if err != nil {
-						return fmt.Errorf("post-steps: %w", err)
-					}
-					mainPostSteps = StepsToSlice(typedMain)
+					return fmt.Errorf("failed to convert post-steps: %w", err)
 				}
+				typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
+				if err != nil {
+					return fmt.Errorf("post-steps: %w", err)
+				}
+				mainPostSteps = StepsToSlice(typedMain)
 			}
 		}
 	}
