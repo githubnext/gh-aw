@@ -264,6 +264,8 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 		if setutil.Contains(visited, key) {
 			continue
 		}
+		clear(state.onPath)
+		state.path = state.path[:0]
 		if cycle := state.dfs(key); cycle != nil {
 			// Format cycle chain for a clear error message.
 			chain := strings.Join(append(cycle, cycle[0]), " → ")
