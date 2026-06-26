@@ -5,6 +5,7 @@ package workflow
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // TestSanitizeJSONBlock verifies that sanitizeJSONBlock correctly extracts the JSON object
@@ -24,6 +25,12 @@ func TestSanitizeJSONBlock(t *testing.T) {
 			name: "trailing INFO line",
 			input: `{"key": "value"}
 2026-01-01T00:00:00Z [INFO] --- End of group ---`,
+			want: `{"key": "value"}`,
+		},
+		{
+			name: "trailing INFO line containing brace",
+			input: `{"key": "value"}
+2026-01-01T00:00:00Z [INFO] state: {done}`,
 			want: `{"key": "value"}`,
 		},
 		{
@@ -59,46 +66,43 @@ func TestTruncateOutputSample(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
-		check func(t *testing.T, result string)
+		want  string
 	}{
 		{
 			name:  "short output unchanged",
 			input: "line1\nline2",
-			check: func(t *testing.T, result string) {
-				if result != "line1\nline2" {
-					t.Errorf("expected unchanged, got %q", result)
-				}
-			},
+			want:  "line1\nline2",
 		},
 		{
 			name:  "truncates to max lines",
 			input: "line1\nline2\nline3\nline4\nline5",
-			check: func(t *testing.T, result string) {
-				lines := strings.Split(result, "\n")
-				if len(lines) > outputSampleMaxLines {
-					t.Errorf("expected at most %d lines, got %d", outputSampleMaxLines, len(lines))
-				}
-				if !strings.HasPrefix(result, "line1\nline2\nline3") {
-					t.Errorf("expected first %d lines, got %q", outputSampleMaxLines, result)
-				}
-			},
+			want:  "line1\nline2\nline3",
 		},
 		{
 			name:  "truncates long line with ellipsis",
 			input: strings.Repeat("a", outputSampleMaxLineLen+50),
-			check: func(t *testing.T, result string) {
-				if !strings.HasSuffix(result, "…") {
-					t.Errorf("expected ellipsis suffix, got %q", result)
-				}
-			},
+			want:  strings.Repeat("a", outputSampleMaxLineLen) + "…",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := truncateOutputSample(tt.input)
-			tt.check(t, result)
+			if result != tt.want {
+				t.Errorf("truncateOutputSample(%q) = %q, want %q", tt.input, result, tt.want)
+			}
 		})
+	}
+}
+
+func TestTruncateOutputSampleUTF8Safe(t *testing.T) {
+	input := strings.Repeat("界", outputSampleMaxLineLen+10)
+	got := truncateOutputSample(input)
+	if !utf8.ValidString(got) {
+		t.Fatalf("expected valid UTF-8 output, got %q", got)
+	}
+	if !strings.HasSuffix(got, "…") {
+		t.Fatalf("expected UTF-8 safe truncation suffix, got %q", got)
 	}
 }
 
@@ -308,6 +312,82 @@ func TestCopilotInfoLinesDoNotBreakToolParsing(t *testing.T) {
 
 	if metrics.TokenUsage != 65 {
 		t.Errorf("Expected 65 tokens, got %d", metrics.TokenUsage)
+	}
+}
+
+func TestCopilotWireRequestBeforeDataBlock(t *testing.T) {
+	logContent := `2026-01-01T00:00:00.001Z [DEBUG] Wire request: {
+  "input": [
+    {
+      "type": "function_call",
+      "id": "fc_abc",
+      "call_id": "call_abc",
+      "name": "bash",
+      "arguments": "{\"command\":\"echo hello\"}"
+    },
+    {
+      "type": "function_call_output",
+      "call_id": "call_abc",
+      "output": "hello [INFO] still output\n[DEBUG] still output"
+    }
+  ]
+}
+2026-01-01T00:00:00.002Z [DEBUG] data:
+2026-01-01T00:00:00.002Z [DEBUG] {
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_abc",
+            "type": "function",
+            "function": {
+              "name": "bash",
+              "arguments": "{\"command\":\"echo hello\"}"
+            }
+          }
+        ]
+      },
+      "index": 0,
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 10,
+    "completion_tokens": 5,
+    "total_tokens": 15
+  }
+}
+2026-01-01T00:00:00.003Z [DEBUG] Wire request: {
+  "input": []
+}
+2026-01-01T00:00:00.004Z [DEBUG] Workflow completed`
+
+	engine := NewCopilotEngine()
+	metrics := engine.ParseLogMetrics(logContent, false)
+
+	var bashInfo *ToolCallInfo
+	for i := range metrics.ToolCalls {
+		if metrics.ToolCalls[i].Name == "bash" {
+			bashInfo = &metrics.ToolCalls[i]
+			break
+		}
+	}
+	if bashInfo == nil {
+		t.Fatalf("Expected 'bash' tool call, got tools: %v", toolCallNames(metrics.ToolCalls))
+	}
+	if bashInfo.CallCount != 1 {
+		t.Fatalf("expected CallCount 1, got %d", bashInfo.CallCount)
+	}
+	if bashInfo.MaxInputSize == 0 {
+		t.Fatal("expected MaxInputSize to be populated from data block")
+	}
+	if bashInfo.MaxOutputSize == 0 {
+		t.Fatal("expected MaxOutputSize to be populated from wire request block")
+	}
+	if bashInfo.OutputSample == "" {
+		t.Fatal("expected OutputSample to be populated from wire request block")
 	}
 }
 

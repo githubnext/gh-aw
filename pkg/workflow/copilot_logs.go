@@ -24,7 +24,10 @@ func truncateOutputSample(output string) string {
 	}
 	for i, line := range lines {
 		if len(line) > outputSampleMaxLineLen {
-			lines[i] = line[:outputSampleMaxLineLen] + "…"
+			runes := []rune(line)
+			if len(runes) > outputSampleMaxLineLen {
+				lines[i] = string(runes[:outputSampleMaxLineLen]) + "…"
+			}
 		}
 	}
 	return strings.Join(lines, "\n")
@@ -39,11 +42,73 @@ func sanitizeJSONBlock(s string) string {
 		return ""
 	}
 	open := strings.Index(trimmed, "{")
-	close := strings.LastIndex(trimmed, "}")
-	if open < 0 || close < 0 || close <= open {
+	if open < 0 {
 		return ""
 	}
-	return trimmed[open : close+1]
+
+	depth := 0
+	inString := false
+	escaped := false
+
+	for i := open; i < len(trimmed); i++ {
+		ch := trimmed[i]
+
+		if inString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '"' {
+				inString = false
+			}
+			continue
+		}
+
+		switch ch {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return trimmed[open : i+1]
+			}
+			if depth < 0 {
+				return ""
+			}
+		}
+	}
+
+	return ""
+}
+
+func isTimestampedLogLine(line string) bool {
+	trimmed := strings.TrimLeft(line, " \t")
+	ts, rest, ok := strings.Cut(trimmed, " ")
+	if !ok {
+		return false
+	}
+	if !strings.Contains(ts, "T") || !strings.Contains(ts, ":") {
+		return false
+	}
+	return strings.HasPrefix(rest, "[DEBUG]") || strings.HasPrefix(rest, "[INFO]")
+}
+
+func isTimestampedDebugLine(line string, marker string) bool {
+	trimmed := strings.TrimLeft(line, " \t")
+	ts, rest, ok := strings.Cut(trimmed, " ")
+	if !ok {
+		return false
+	}
+	if !strings.Contains(ts, "T") || !strings.Contains(ts, ":") {
+		return false
+	}
+	return strings.HasPrefix(rest, marker)
 }
 
 var copilotLogsLog = logger.New("workflow:copilot_logs")
@@ -319,7 +384,7 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 
 		// Detect start of a JSON data block from Copilot debug logs.
 		// Format: "YYYY-MM-DDTHH:MM:SS.sssZ [DEBUG] data:"
-		if strings.Contains(line, "[DEBUG] data:") {
+		if isTimestampedDebugLine(line, "[DEBUG] data:") {
 			// End any open wire block before starting a data block.
 			if inWireBlock {
 				flushWireBlock()
@@ -340,10 +405,14 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 
 		// Detect start of a Wire request block (wireApi=responses format).
 		// Format: "YYYY-MM-DDTHH:MM:SS.sssZ [DEBUG] Wire request: {"
-		if strings.Contains(line, "[DEBUG] Wire request:") {
+		if isTimestampedDebugLine(line, "[DEBUG] Wire request:") {
 			// End any open data block before starting a wire block.
 			if inDataBlock {
 				flushDataBlock()
+			}
+			// End any open wire block before starting a new wire block.
+			if inWireBlock {
+				flushWireBlock()
 			}
 			inWireBlock = true
 			currentWireLines = []string{}
@@ -391,10 +460,10 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 		// Wire request JSON is not prefixed per-line; the block ends when any
 		// timestamped log line ([DEBUG] or [INFO]) appears.
 		if inWireBlock {
-			if strings.Contains(line, "[DEBUG]") || strings.Contains(line, "[INFO]") {
+			if isTimestampedLogLine(line) {
 				flushWireBlock()
-				// Fall through: this line may itself start a new block (checked above)
-				// or be a tool-execution line (checked below).
+				// The block-start checks above already evaluated this line (no match);
+				// fall through to the tool-call extraction below.
 			} else {
 				currentWireLines = append(currentWireLines, line)
 			}
@@ -486,7 +555,12 @@ func (e *CopilotEngine) processToolCalls(toolCalls []any, toolCallMap map[string
 
 					// Initialize or update tool call info
 					if toolInfo, exists := toolCallMap[toolName]; exists {
-						toolInfo.CallCount++
+						// If a stub entry was first created from function_call_output in a
+						// Wire request, it already carries evidence of one invocation.
+						// Avoid double-counting when the corresponding tool_call arrives later.
+						if toolInfo.CallCount != 1 || toolInfo.MaxInputSize != 0 || toolInfo.MaxOutputSize <= 0 {
+							toolInfo.CallCount++
+						}
 						// Update max input size if this call is larger
 						if inputSize > toolInfo.MaxInputSize {
 							toolInfo.MaxInputSize = inputSize
@@ -589,6 +663,7 @@ func (e *CopilotEngine) extractWireRequestOutputs(jsonStr string, toolCallMap ma
 			// output sample is not lost (e.g. when wire-request ordering differs from data blocks).
 			toolCallMap[toolName] = &ToolCallInfo{
 				Name:          toolName,
+				CallCount:     1,
 				MaxOutputSize: outputSize,
 				OutputSample:  truncateOutputSample(output),
 			}
