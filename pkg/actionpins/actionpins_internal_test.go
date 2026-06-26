@@ -4,6 +4,7 @@ package actionpins
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -239,4 +240,80 @@ func TestResolveActionPinFromHardcodedPins_SkipHardcodedFallback(t *testing.T) {
 		assert.True(t, ok, "Expected hardcoded pins to be consulted when SkipHardcodedFallback is false")
 		assert.NotEmpty(t, result, "Expected a pinned result when SkipHardcodedFallback is not set")
 	})
+}
+
+func TestApplyActionPinMapping_NoMapping(t *testing.T) {
+	ctx := &PinContext{Warnings: make(map[string]bool)}
+
+	repo, version := applyActionPinMapping("actions/checkout", "v4", ctx)
+
+	assert.Equal(t, "actions/checkout", repo, "repo should be unchanged when no mapping exists")
+	assert.Equal(t, "v4", version, "version should be unchanged when no mapping exists")
+}
+
+func TestApplyActionPinMapping_AppliesMapping(t *testing.T) {
+	ctx := &PinContext{
+		Warnings: make(map[string]bool),
+		Mappings: map[string]string{
+			"actions/checkout@v4": "acme-corp/checkout@v4",
+		},
+	}
+
+	repo, version := applyActionPinMapping("actions/checkout", "v4", ctx)
+
+	assert.Equal(t, "acme-corp/checkout", repo, "repo should be replaced by mapping")
+	assert.Equal(t, "v4", version, "version should be replaced by mapping")
+}
+
+func TestApplyActionPinMapping_OnlyMatchesExact(t *testing.T) {
+	ctx := &PinContext{
+		Warnings: make(map[string]bool),
+		Mappings: map[string]string{
+			"actions/checkout@v4": "acme-corp/checkout@v4",
+		},
+	}
+
+	// Different version — should not match.
+	repo, version := applyActionPinMapping("actions/checkout", "v5", ctx)
+
+	assert.Equal(t, "actions/checkout", repo, "repo should be unchanged when version does not match")
+	assert.Equal(t, "v5", version, "version should be unchanged when version does not match")
+}
+
+func TestApplyActionPinMapping_DeduplicatesInfoMessage(t *testing.T) {
+	ctx := &PinContext{
+		Warnings: make(map[string]bool),
+		Mappings: map[string]string{
+			"actions/checkout@v4": "acme-corp/checkout@v4",
+		},
+	}
+
+	applyActionPinMapping("actions/checkout", "v4", ctx)
+	applyActionPinMapping("actions/checkout", "v4", ctx)
+
+	notifyKey := "map:actions/checkout@v4"
+	assert.True(t, ctx.Warnings[notifyKey], "Expected notification key to be marked as seen")
+	// Count should be exactly one entry (deduplication).
+	mapNotifications := 0
+	for k := range ctx.Warnings {
+		if strings.HasPrefix(k, "map:") {
+			mapNotifications++
+		}
+	}
+	assert.Equal(t, 1, mapNotifications, "Expected exactly one deduplicated mapping notification")
+}
+
+func TestApplyActionPinMapping_InvalidMappingValueSkipped(t *testing.T) {
+	ctx := &PinContext{
+		Warnings: make(map[string]bool),
+		Mappings: map[string]string{
+			"actions/checkout@v4": "no-at-sign", // invalid: missing at sign and version
+		},
+	}
+
+	repo, version := applyActionPinMapping("actions/checkout", "v4", ctx)
+
+	// Invalid value should be silently skipped.
+	assert.Equal(t, "actions/checkout", repo, "repo should be unchanged for invalid mapping value")
+	assert.Equal(t, "v4", version, "version should be unchanged for invalid mapping value")
 }

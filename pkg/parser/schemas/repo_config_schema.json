@@ -7,6 +7,18 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "action_pins": {
+      "description": "Mapping of action repository@version references to replacement repository@version references. Enables enterprises running in a private cloud to redirect actions to internal mirrors. Keys and values must use the format 'owner/repo@ref'.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+@[A-Za-z0-9._/+:-]+$",
+        "description": "Replacement repository@version to use instead of the source action."
+      },
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+@[A-Za-z0-9._/+:-]+$"
+      }
+    },
     "ghes": {
       "description": "Enable GitHub Enterprise Server (GHES) compatibility mode. When true, the compiler emits GHES-compatible artifact action versions (upload-artifact@v3, download-artifact@v3) instead of the latest v7/v8 which are not supported on GHES.",
       "type": "boolean"

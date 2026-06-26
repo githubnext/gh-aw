@@ -332,6 +332,429 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(result.hasOutput).toBe(false);
     });
 
+    it("post-completion idle watchdog fires and treats session as completed", async () => {
+      // Regression test: when sendAndWait hangs after the agent's final tool result
+      // (the SDK post-completion hang), the watchdog must force-disconnect and the
+      // driver must return exitCode 0 with the collected output.
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let onEvent = () => {};
+      // disconnectCalled resolves when the watchdog calls session.disconnect()
+      let resolveDisconnect;
+      const disconnectCalled = new Promise(resolve => {
+        resolveDisconnect = resolve;
+      });
+      const disconnectWithSignal = vi.fn().mockImplementation(() => {
+        resolveDisconnect();
+        return Promise.resolve(undefined);
+      });
+
+      const session = {
+        sessionId: "session-watchdog-fires",
+        on: handler => {
+          onEvent = handler;
+        },
+        // sendAndWait emits events that satisfy completion conditions, then hangs
+        // until the watchdog forces a disconnect.
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          onEvent({
+            type: "tool.execution_start",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { toolName: "create_issue", mcpServerName: "safeoutputs", toolCallId: "call-watchdog" },
+          });
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "Issue filed successfully" },
+          });
+          onEvent({
+            type: "tool.execution_complete",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { toolCallId: "call-watchdog", success: true },
+          });
+          // Simulate sendAndWait hanging — wait until the watchdog disconnects.
+          await disconnectCalled;
+          throw new Error("transport disconnected");
+        }),
+        disconnect: disconnectWithSignal,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const prevIdleMs = process.env.GH_AW_SDK_IDLE_MS;
+      // Use a very short idle timeout so the watchdog fires quickly in tests.
+      process.env.GH_AW_SDK_IDLE_MS = "20";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.hasOutput).toBe(true);
+        expect(result.output).toContain("Issue filed successfully");
+        // disconnect is called twice: once by the watchdog and once in finally.
+        expect(disconnectWithSignal).toHaveBeenCalled();
+        expect(stop).toHaveBeenCalledTimes(1);
+      } finally {
+        if (prevIdleMs === undefined) delete process.env.GH_AW_SDK_IDLE_MS;
+        else process.env.GH_AW_SDK_IDLE_MS = prevIdleMs;
+      }
+    });
+
+    it("post-completion watchdog does not fire when tool calls are still pending", async () => {
+      // When a new tool call starts after the watchdog would have been armed,
+      // the watchdog must be disarmed so it does not fire while work is in progress.
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let onEvent = () => {};
+
+      const session = {
+        sessionId: "session-watchdog-disarmed",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          // First, reach the "post-completion" state that would arm the watchdog.
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "still working" },
+          });
+          // Then start a new tool call — this must disarm the watchdog.
+          onEvent({
+            type: "tool.execution_start",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { toolName: "bash", mcpServerName: "terminal", toolCallId: "call-new" },
+          });
+          // Complete the new tool call and produce more output.
+          onEvent({
+            type: "tool.execution_complete",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { toolCallId: "call-new", success: true },
+          });
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "done now" },
+          });
+          // sendAndWait resolves normally — no disconnect needed.
+          return { data: { content: "done now" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const prevIdleMs = process.env.GH_AW_SDK_IDLE_MS;
+      process.env.GH_AW_SDK_IDLE_MS = "20";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.hasOutput).toBe(true);
+        expect(result.output).toContain("done now");
+        // Only one disconnect: from the finally block (normal completion path).
+        expect(disconnect).toHaveBeenCalledTimes(1);
+      } finally {
+        if (prevIdleMs === undefined) delete process.env.GH_AW_SDK_IDLE_MS;
+        else process.env.GH_AW_SDK_IDLE_MS = prevIdleMs;
+      }
+    });
+
+    it("post-completion watchdog does not trigger when output not yet collected", async () => {
+      // The watchdog must not arm when no output has been collected — only
+      // after the agent has produced real work product.
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let onEvent = () => {};
+
+      const session = {
+        sessionId: "session-watchdog-no-output",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          // Tool completes but no assistant.message yet — watchdog must not arm.
+          onEvent({
+            type: "tool.execution_start",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { toolName: "bash", mcpServerName: "terminal", toolCallId: "call-early" },
+          });
+          onEvent({
+            type: "tool.execution_complete",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { toolCallId: "call-early", success: true },
+          });
+          // Now session produces output and completes normally.
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "here is the result" },
+          });
+          return { data: { content: "here is the result" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const prevIdleMs = process.env.GH_AW_SDK_IDLE_MS;
+      process.env.GH_AW_SDK_IDLE_MS = "20";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.hasOutput).toBe(true);
+        expect(result.output).toContain("here is the result");
+        // Disconnect only once: from the normal finally-block cleanup.
+        expect(disconnect).toHaveBeenCalledTimes(1);
+      } finally {
+        if (prevIdleMs === undefined) delete process.env.GH_AW_SDK_IDLE_MS;
+        else process.env.GH_AW_SDK_IDLE_MS = prevIdleMs;
+      }
+    });
+
+    it("post-completion watchdog does not treat success as failure when sendAndWait resolves before timer fires", async () => {
+      // When sendAndWait resolves normally before the watchdog fires, the session
+      // should complete with exitCode 0 and no disconnect from the watchdog.
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let onEvent = () => {};
+
+      const session = {
+        sessionId: "session-watchdog-not-needed",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "completed normally" },
+          });
+          // sendAndWait resolves before watchdog fires (watchdog idle = 500ms in test —
+          // large enough that normal completion always wins the race on any CI runner).
+          return { data: { content: "completed normally" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const prevIdleMs = process.env.GH_AW_SDK_IDLE_MS;
+      process.env.GH_AW_SDK_IDLE_MS = "500";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.hasOutput).toBe(true);
+        expect(result.output).toContain("completed normally");
+        // Disconnect called once (finally), not twice.
+        expect(disconnect).toHaveBeenCalledTimes(1);
+      } finally {
+        if (prevIdleMs === undefined) delete process.env.GH_AW_SDK_IDLE_MS;
+        else process.env.GH_AW_SDK_IDLE_MS = prevIdleMs;
+      }
+    });
+
+    it("post-completion watchdog is disarmed during assistant.turn_start → turn_end cycle", async () => {
+      // When a new turn starts (assistant.turn_start) after the first output is
+      // produced and all tool calls complete, the watchdog must not fire until
+      // the turn ends (assistant.turn_end). This prevents a premature
+      // force-disconnect while the LLM is still doing inference.
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let onEvent = () => {};
+
+      const session = {
+        sessionId: "session-watchdog-turn-disarm",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          // Produce output and complete all tool calls — watchdog would arm here.
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "first result" },
+          });
+          // New turn starts — must disarm watchdog immediately.
+          onEvent({
+            type: "assistant.turn_start",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { turnId: "turn-2" },
+          });
+          // Turn ends — watchdog may re-arm now.
+          onEvent({
+            type: "assistant.turn_end",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { turnId: "turn-2" },
+          });
+          // Additional output and normal resolution.
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: " second result" },
+          });
+          return { data: { content: " second result" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const prevIdleMs = process.env.GH_AW_SDK_IDLE_MS;
+      // Short watchdog — if the turn_start guard is missing, the watchdog
+      // would fire before sendAndWait resolves. 1000ms gives enough headroom
+      // on slow CI while still detecting a missing guard reliably.
+      process.env.GH_AW_SDK_IDLE_MS = "1000";
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.hasOutput).toBe(true);
+        // Disconnect called once (finally), not twice.
+        expect(disconnect).toHaveBeenCalledTimes(1);
+      } finally {
+        if (prevIdleMs === undefined) delete process.env.GH_AW_SDK_IDLE_MS;
+        else process.env.GH_AW_SDK_IDLE_MS = prevIdleMs;
+      }
+    });
+
+    it("session.task_complete is written to events.jsonl", async () => {
+      // session.task_complete must be serialized to the JSONL log so that
+      // unified_timeline.cjs can surface the agent's task summary.
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      let onEvent = () => {};
+      const sessionId = "session-task-complete-jsonl";
+
+      const session = {
+        sessionId,
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "work done" },
+          });
+          onEvent({
+            type: "session.task_complete",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { success: true, summary: "Created 3 issues successfully" },
+          });
+          return { data: { content: "work done" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      const result = await runWithCopilotSDK({
+        sdkUri: "http://127.0.0.1:3002",
+        prompt: "test prompt",
+        logger: () => {},
+        sdkModule: {
+          CopilotClient: FakeCopilotClient,
+          RuntimeConnection: { forUri: vi.fn(() => ({})) },
+          approveAll: () => "allow",
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+
+      // Read the JSONL and verify the task_complete entry is present.
+      const eventsPath = path.join(testSessionStateDir, sessionId, "events.jsonl");
+      const lines = fs
+        .readFileSync(eventsPath, "utf8")
+        .trim()
+        .split("\n")
+        .map(l => JSON.parse(l));
+      const taskCompleteEvent = lines.find(e => e.type === "session.task_complete");
+      expect(taskCompleteEvent).toBeDefined();
+      expect(taskCompleteEvent.data.success).toBe(true);
+      expect(taskCompleteEvent.data.summary).toBe("Created 3 issues successfully");
+    });
+
     it("passes custom provider and model through to SDK createSession", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
