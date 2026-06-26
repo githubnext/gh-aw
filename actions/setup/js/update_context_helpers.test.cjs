@@ -63,6 +63,15 @@ describe("update_context_helpers", () => {
     it("returns false for issue_comment on issue", () => {
       expect(isPRContext("issue_comment", { issue: { number: 123 } })).toBe(false);
     });
+    it("returns false for issue_comment with null payload", () => {
+      expect(isPRContext("issue_comment", null)).toBe(false);
+    });
+    it("returns false for issue_comment with undefined payload", () => {
+      expect(isPRContext("issue_comment", undefined)).toBe(false);
+    });
+    it("returns false for issue_comment with empty payload", () => {
+      expect(isPRContext("issue_comment", {})).toBe(false);
+    });
     it("returns false for issues event", () => {
       expect(isPRContext("issues", {})).toBe(false);
     });

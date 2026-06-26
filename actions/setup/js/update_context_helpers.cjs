@@ -40,7 +40,7 @@ const PR_EVENTS = ["pull_request", "pull_request_review", "pull_request_review_c
  * @returns {boolean} Whether context is valid for PR updates
  */
 function isPRContext(eventName, payload) {
-  return PR_EVENTS.includes(eventName) || (eventName === "issue_comment" && !!payload?.issue?.pull_request);
+  return PR_EVENTS.includes(eventName) || (eventName === "issue_comment" && payload?.issue?.pull_request != null);
 }
 
 /**
