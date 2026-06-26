@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -343,10 +344,10 @@ func renderObservabilityInsights(insights []ObservabilityInsight) {
 			icon = "[low]"
 		}
 
-		fmt.Fprintf(os.Stderr, "  %s %s [%s]\n", icon, insight.Title, insight.Category)
-		fmt.Fprintf(os.Stderr, "     %s\n", insight.Summary)
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader(fmt.Sprintf("%s %s [%s]", icon, insight.Title, insight.Category)))
+		fmt.Fprintln(os.Stderr, console.FormatListItem(insight.Summary))
 		if strings.TrimSpace(insight.Evidence) != "" {
-			fmt.Fprintf(os.Stderr, "     Evidence: %s\n", insight.Evidence)
+			fmt.Fprintln(os.Stderr, console.FormatListItem("Evidence: "+insight.Evidence))
 		}
 		fmt.Fprintln(os.Stderr)
 	}

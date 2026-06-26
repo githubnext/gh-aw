@@ -3,10 +3,13 @@
 package cli
 
 import (
+	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -194,4 +197,31 @@ func TestBuildAuditDataIncludesObservabilityInsights(t *testing.T) {
 	auditData := buildAuditData(processedRun, metrics, nil)
 	require.NotEmpty(t, auditData.ObservabilityInsights, "audit data should expose observability insights")
 	assert.Equal(t, "execution", auditData.ObservabilityInsights[0].Category)
+}
+
+func TestRenderObservabilityInsightsUsesConsoleFormatting(t *testing.T) {
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "failed to create stderr pipe")
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = oldStderr })
+
+	renderObservabilityInsights([]ObservabilityInsight{
+		{
+			Category: "tooling",
+			Severity: "high",
+			Title:    "Capability friction detected",
+			Summary:  "The run hit capability gaps.",
+			Evidence: "missing_tools=1",
+		},
+	})
+
+	require.NoError(t, w.Close(), "failed to close stderr writer")
+	output, err := io.ReadAll(r)
+	require.NoError(t, err, "failed to read stderr output")
+	text := string(output)
+
+	assert.Contains(t, text, console.FormatSectionHeader("[high] Capability friction detected [tooling]"))
+	assert.Contains(t, text, console.FormatListItem("The run hit capability gaps."))
+	assert.Contains(t, text, console.FormatListItem("Evidence: missing_tools=1"))
 }
