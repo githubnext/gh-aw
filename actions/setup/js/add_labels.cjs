@@ -33,7 +33,7 @@ const { MAX_LABELS } = require("./constants.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
-const { normalizeIssueIntentLabelNames } = require("./issue_intents.cjs");
+const { hasIssueIntentsRuntimeFeature, normalizeIssueIntentLabelNames, normalizeIssueIntentLabelSpecs } = require("./issue_intents.cjs");
 
 /**
  * Main handler factory for add_labels
@@ -92,9 +92,23 @@ const main = createCountGatedHandler({
       const contextType = effectiveContext.eventPayload?.pull_request ? "pull request" : "issue";
       const requestedLabels = message.labels ?? [];
       core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
+      const issueIntentsEnabled = hasIssueIntentsRuntimeFeature();
+      /** @type {Map<string, {name: string, rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean}>} */
+      const requestedLabelSpecByLowerName = new Map();
       let requestedLabelNames;
       try {
-        requestedLabelNames = normalizeIssueIntentLabelNames(requestedLabels);
+        if (issueIntentsEnabled) {
+          const requestedLabelSpecs = normalizeIssueIntentLabelSpecs(requestedLabels);
+          for (const labelSpec of requestedLabelSpecs) {
+            const key = labelSpec.name.toLowerCase();
+            if (!requestedLabelSpecByLowerName.has(key)) {
+              requestedLabelSpecByLowerName.set(key, labelSpec);
+            }
+          }
+          requestedLabelNames = requestedLabelSpecs.map(labelSpec => labelSpec.name);
+        } else {
+          requestedLabelNames = normalizeIssueIntentLabelNames(requestedLabels);
+        }
       } catch (error) {
         const errorMessage = getErrorMessage(error);
         core.warning(`Invalid add_labels payload: ${errorMessage}`);
@@ -172,7 +186,9 @@ const main = createCountGatedHandler({
         };
       }
 
-      core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}: ${JSON.stringify(uniqueLabels)}`);
+      const labelsRequestPayload = issueIntentsEnabled ? uniqueLabels.map(name => requestedLabelSpecByLowerName.get(name.toLowerCase()) ?? { name }) : uniqueLabels;
+
+      core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}: ${JSON.stringify(labelsRequestPayload)}`);
 
       // If in staged mode, preview the labels without adding them
       if (isStaged) {
@@ -197,7 +213,7 @@ const main = createCountGatedHandler({
               owner: repoParts.owner,
               repo: repoParts.repo,
               issue_number: itemNumber,
-              labels: uniqueLabels,
+              labels: labelsRequestPayload,
             }),
           RATE_LIMIT_RETRY_CONFIG,
           `add_labels to ${contextType} #${itemNumber} in ${itemRepo}`
