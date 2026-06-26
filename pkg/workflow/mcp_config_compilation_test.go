@@ -705,3 +705,211 @@ Do nothing.
 		t.Errorf("expected plain env value \"PLAIN_VALUE\": \"hello\" in generated env section; got server block:\n%s", serverBlock)
 	}
 }
+
+// TestHTTPMCPHeaderSecretSingleEscape is a regression test for the double-escape bug
+// applied to HTTP MCP server header secrets.  When a header value contains a secret
+// expression (e.g. "${{ secrets.DD_API_KEY }}"), the compiled lock file must render
+// it as "\${DD_API_KEY}" (single backslash) so that the unquoted heredoc in bash
+// produces "${DD_API_KEY}" for the MCP gateway — not "\\${DD_API_KEY}" which would
+// expand to "\<secret-value>" (an invalid JSON escape character).
+func TestHTTPMCPHeaderSecretSingleEscape(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  datadog:
+    type: http
+    url: https://mcp.datadoghq.com/api/mcp
+    headers:
+      DD_API_KEY: "${{ secrets.DD_API_KEY }}"
+      X-Static-Header: "static-value"
+---
+
+# Test HTTP header secret escaping
+
+Do nothing.
+`
+
+	tmpFile, err := os.CreateTemp("", "test-http-header-escape-*.md")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(workflowContent); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	compiler := NewCompiler()
+	compiler.SetSkipValidation(true)
+
+	workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to parse workflow file: %v", err)
+	}
+
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	serverIdx := strings.Index(yamlContent, `"datadog"`)
+	if serverIdx == -1 {
+		t.Fatal("Could not find datadog block in generated YAML")
+	}
+	serverBlock := yamlContent[serverIdx:min(serverIdx+1000, len(yamlContent))]
+
+	// The header secret must appear with a SINGLE backslash in the headers section.
+	if !strings.Contains(serverBlock, `"DD_API_KEY": "\${DD_API_KEY}"`) {
+		t.Errorf("expected single-backslash placeholder in headers section; got server block:\n%s", serverBlock)
+	}
+
+	// The env passthrough section must also use a single backslash.
+	if !strings.Contains(serverBlock, `"DD_API_KEY": "\${DD_API_KEY}"`) {
+		t.Errorf("expected single-backslash placeholder in env passthrough section; got server block:\n%s", serverBlock)
+	}
+
+	// There must be NO double-escaped form in either section.
+	if strings.Contains(serverBlock, `"\\${DD_API_KEY}"`) {
+		t.Errorf("double-escaped placeholder found in generated server block (regression); got:\n%s", serverBlock)
+	}
+
+	// Static header values must be rendered verbatim (no escaping applied).
+	if !strings.Contains(serverBlock, `"X-Static-Header": "static-value"`) {
+		t.Errorf("expected static header value to be rendered verbatim; got server block:\n%s", serverBlock)
+	}
+}
+
+// TestMCPSecretEscapingAcrossConfigurations is a table-driven regression test covering
+// several MCP server configurations that all involve secret expressions. For each case
+// the compiled lock file must render placeholders with a SINGLE backslash (\${VAR}) and
+// must NOT contain double-escaped placeholders (\\${VAR}).
+func TestMCPSecretEscapingAcrossConfigurations(t *testing.T) {
+	tests := []struct {
+		name            string
+		workflowContent string
+		serverName      string
+		wantSingle      []string // must be present (single backslash form)
+		wantAbsent      []string // must not be present (double backslash form)
+	}{
+		{
+			name: "container env secret - copilot engine",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  api-server:
+    container: "example/api:latest"
+    env:
+      API_TOKEN: "${{ secrets.API_TOKEN }}"
+---
+
+Do nothing.
+`,
+			serverName: `"api-server"`,
+			wantSingle: []string{`"\${API_TOKEN}"`},
+			wantAbsent: []string{`"\\${API_TOKEN}"`},
+		},
+		{
+			name: "HTTP server with header secret - copilot engine",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  api-http:
+    type: http
+    url: https://api.example.com/mcp
+    headers:
+      Authorization: "${{ secrets.API_TOKEN }}"
+---
+
+Do nothing.
+`,
+			serverName: `"api-http"`,
+			wantSingle: []string{`"\${API_TOKEN}"`},
+			wantAbsent: []string{`"\\${API_TOKEN}"`},
+		},
+		{
+			name: "multiple env secrets - copilot engine",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  multi-secret:
+    container: "example/multi:latest"
+    env:
+      TOKEN_A: "${{ secrets.TOKEN_A }}"
+      TOKEN_B: "${{ secrets.TOKEN_B }}"
+      PLAIN: "no-secret"
+---
+
+Do nothing.
+`,
+			serverName: `"multi-secret"`,
+			wantSingle: []string{`"\${TOKEN_A}"`, `"\${TOKEN_B}"`, `"PLAIN": "no-secret"`},
+			wantAbsent: []string{`"\\${TOKEN_A}"`, `"\\${TOKEN_B}"`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpFile, err := os.CreateTemp("", "test-mcp-escape-*.md")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpFile.Name())
+
+			if _, err := tmpFile.WriteString(tt.workflowContent); err != nil {
+				t.Fatalf("Failed to write to temp file: %v", err)
+			}
+			tmpFile.Close()
+
+			compiler := NewCompiler()
+			compiler.SetSkipValidation(true)
+
+			workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to parse workflow file: %v", err)
+			}
+
+			yamlContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to generate YAML: %v", err)
+			}
+
+			serverIdx := strings.Index(yamlContent, tt.serverName)
+			if serverIdx == -1 {
+				t.Fatalf("Could not find server %s in generated YAML", tt.serverName)
+			}
+			serverBlock := yamlContent[serverIdx:min(serverIdx+1500, len(yamlContent))]
+
+			for _, want := range tt.wantSingle {
+				if !strings.Contains(serverBlock, want) {
+					t.Errorf("expected %q in server block but not found; block:\n%s", want, serverBlock)
+				}
+			}
+			for _, absent := range tt.wantAbsent {
+				if strings.Contains(serverBlock, absent) {
+					t.Errorf("unexpected double-escaped placeholder %q found (regression); block:\n%s", absent, serverBlock)
+				}
+			}
+		})
+	}
+}
