@@ -162,7 +162,7 @@ func printCompilationSummary(stats *CompilationStats, showAllErrors bool) {
 			fmt.Fprintln(os.Stderr)
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Failed workflows:"))
 			for _, failure := range stats.FailureDetails {
-				fmt.Fprintln(os.Stderr, console.FormatListItem(filepath.Base(failure.Path)))
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(filepath.Base(failure.Path)))
 			}
 			fmt.Fprintln(os.Stderr)
 
@@ -213,7 +213,7 @@ func printCompilationSummary(stats *CompilationStats, showAllErrors bool) {
 			fmt.Fprintln(os.Stderr)
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Failed workflows:"))
 			for _, wf := range stats.FailedWorkflows {
-				fmt.Fprintln(os.Stderr, console.FormatListItem(wf))
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(wf))
 			}
 			fmt.Fprintln(os.Stderr)
 		}
