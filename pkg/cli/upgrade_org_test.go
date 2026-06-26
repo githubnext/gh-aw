@@ -120,7 +120,7 @@ func TestRunUpgradeForOrgDryRunShowsVersion(t *testing.T) {
 		return []string{"octo/api"}, nil
 	}
 	scanUpgradeRepoFn = func(_ context.Context, repo string, _ bool) (orgRepoPreview, bool, error) {
-		return orgRepoPreview{Repo: repo, TotalWorkflows: 2, CurrentVersion: "1.2.3"}, true, nil
+		return orgRepoPreview{Repo: repo, TotalWorkflows: 2, CurrentVersion: "v1.2.3"}, true, nil
 	}
 	runUpgradeForTargetRepoFn = func(ctx context.Context, repo string, opts upgradeOptions, verbose bool) error {
 		t.Fatalf("unexpected upgrade call for %s", repo)
@@ -141,7 +141,7 @@ func TestRunUpgradeForOrgDryRunShowsVersion(t *testing.T) {
 
 	assert.Contains(t, output, "Dry-run preview of upgrade pull requests")
 	assert.Contains(t, output, "octo/api")
-	assert.Contains(t, output, "v1.2.3")
+	assert.Contains(t, output, "(v1.2.3 -> "+normalizeDisplayVersion(GetVersion())+")")
 }
 
 func TestRunUpgradeForOrgCreatePR(t *testing.T) {

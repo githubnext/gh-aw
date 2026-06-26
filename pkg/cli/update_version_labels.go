@@ -21,6 +21,7 @@ type repoTagEntry struct {
 var (
 	versionLabelMu    sync.Mutex
 	versionLabelCache = make(map[string]map[string]string) // repo -> sha -> tag name
+	runGHVersionLabel = workflow.RunGHContext
 )
 
 // resolveVersionLabel returns a human-readable label for a git ref in the given
@@ -46,7 +47,10 @@ func resolveVersionLabel(ctx context.Context, sourceRepo, ref string) string {
 	}
 	versionLabelMu.Unlock()
 
-	tagMap := loadRepoTagMap(ctx, sourceRepo)
+	tagMap, ok := loadRepoTagMap(ctx, sourceRepo)
+	if !ok {
+		return shortRef(ref)
+	}
 
 	versionLabelMu.Lock()
 	versionLabelCache[sourceRepo] = tagMap
@@ -58,35 +62,53 @@ func resolveVersionLabel(ctx context.Context, sourceRepo, ref string) string {
 	return shortRef(ref)
 }
 
-// loadRepoTagMap fetches the first page of tags for sourceRepo and returns a
-// map from full commit SHA to tag name. On error an empty map is returned so
-// callers gracefully fall back to the short SHA.
-func loadRepoTagMap(ctx context.Context, sourceRepo string) map[string]string {
+// clearVersionLabelCache clears per-run source-repo tag caches.
+func clearVersionLabelCache() {
+	versionLabelMu.Lock()
+	defer versionLabelMu.Unlock()
+	versionLabelCache = make(map[string]map[string]string)
+}
+
+// loadRepoTagMap fetches tags for sourceRepo and returns a map from full commit
+// SHA to tag name. The second return value is false when tag loading fails.
+func loadRepoTagMap(ctx context.Context, sourceRepo string) (map[string]string, bool) {
 	tagMap := make(map[string]string)
 	owner, repoName, ok := splitOwnerRepo(sourceRepo)
 	if !ok {
-		return tagMap
+		return tagMap, false
 	}
 
-	endpoint := fmt.Sprintf("/repos/%s/%s/tags?per_page=100", owner, repoName)
-	output, err := workflow.RunGHContext(ctx, "Fetching version tags...", "api", endpoint)
-	if err != nil {
-		return tagMap
-	}
+	for page := 1; ; page++ {
+		endpoint := fmt.Sprintf("/repos/%s/%s/tags?per_page=100&page=%d", owner, repoName, page)
+		output, err := runGHVersionLabel(ctx, "Fetching version tags...", "api", endpoint)
+		if err != nil {
+			return tagMap, false
+		}
 
-	var tags []repoTagEntry
-	if err := json.Unmarshal(output, &tags); err != nil {
-		return tagMap
-	}
+		var tags []repoTagEntry
+		if err := json.Unmarshal(output, &tags); err != nil {
+			return tagMap, false
+		}
+		if len(tags) == 0 {
+			break
+		}
 
-	for _, t := range tags {
-		sha := strings.TrimSpace(t.Commit.SHA)
-		name := strings.TrimSpace(t.Name)
-		if sha != "" && name != "" {
-			tagMap[sha] = name
+		for _, t := range tags {
+			sha := strings.TrimSpace(t.Commit.SHA)
+			name := strings.TrimSpace(t.Name)
+			if sha == "" || name == "" {
+				continue
+			}
+			// Keep first tag for a SHA so the newest tag (API order) wins.
+			if _, exists := tagMap[sha]; !exists {
+				tagMap[sha] = name
+			}
+		}
+		if len(tags) < 100 {
+			break
 		}
 	}
-	return tagMap
+	return tagMap, true
 }
 
 // splitOwnerRepo splits "owner/repo" into (owner, repo, true). Returns

@@ -105,7 +105,7 @@ func scanUpgradeRepo(ctx context.Context, repo string, verbose bool) (orgRepoPre
 // renderOrgUpgradeReport prints the discovered repositories with their workflow
 // counts and current compiler versions.
 func renderOrgUpgradeReport(results []orgRepoPreview, applying bool) {
-	targetVersion := GetVersion()
+	targetVersion := normalizeDisplayVersion(GetVersion())
 	if applying {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Repositories with agentic workflows (%d):", len(results))))
 	} else {
@@ -113,12 +113,13 @@ func renderOrgUpgradeReport(results []orgRepoPreview, applying bool) {
 	}
 	for _, r := range results {
 		versionPart := ""
-		if r.CurrentVersion != "" {
+		currentVersion := normalizeDisplayVersion(r.CurrentVersion)
+		if currentVersion != "" {
 			target := ""
-			if targetVersion != "" && r.CurrentVersion != targetVersion {
+			if targetVersion != "" && currentVersion != targetVersion {
 				target = " -> " + targetVersion
 			}
-			versionPart = fmt.Sprintf(" (v%s%s)", r.CurrentVersion, target)
+			versionPart = fmt.Sprintf(" (%s%s)", currentVersion, target)
 		} else if r.TotalWorkflows > 0 {
 			versionPart = fmt.Sprintf(" (%d workflow(s))", r.TotalWorkflows)
 		}
@@ -136,7 +137,7 @@ func countWorkflowMDFiles(workflowsDir string) (int, error) {
 	count := 0
 	for _, e := range entries {
 		name := e.Name()
-		if !e.IsDir() && strings.HasSuffix(name, ".md") {
+		if !e.IsDir() && strings.HasSuffix(name, ".md") && !strings.EqualFold(name, "README.md") {
 			count++
 		}
 	}
@@ -182,10 +183,19 @@ func extractCompilerVersionFromLockContent(content string) string {
 // formatCurrentVersionSuffix formats a version string for inline display,
 // e.g. ", compiler: v1.2.3". Returns an empty string when version is empty.
 func formatCurrentVersionSuffix(version string) string {
+	normalized := normalizeDisplayVersion(version)
+	if normalized == "" {
+		return ""
+	}
+	return ", compiler: " + normalized
+}
+
+func normalizeDisplayVersion(version string) string {
+	version = strings.TrimSpace(version)
 	if version == "" {
 		return ""
 	}
-	return ", compiler: v" + version
+	return "v" + strings.TrimPrefix(version, "v")
 }
 
 // runUpgradeForTargetRepo checks out repo to a temporary directory, runs the
