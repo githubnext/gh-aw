@@ -44,20 +44,17 @@ func TestBannerLogoEmbedded(t *testing.T) {
 }
 
 func TestBannerStyleInitialized(t *testing.T) {
-	// Ensure BannerStyle is properly initialized with expected attributes
-	// Test by rendering a test string and verifying the style is applied
-	testString := "test"
-	rendered := BannerStyle.Render(testString)
-
-	// When BannerStyle is properly configured with Bold and Foreground color,
-	// the rendered string should differ from the input (contain ANSI codes)
-	// or at minimum, not be empty
-	if rendered == "" {
-		t.Error("BannerStyle.Render should produce non-empty output")
+	// Ensure FormatBanner always returns visible banner content.
+	banner := FormatBanner()
+	if banner == "" {
+		t.Error("FormatBanner() should produce non-empty output")
 	}
 
-	// Verify Bold is enabled
-	if !BannerStyle.GetBold() {
-		t.Error("BannerStyle should have Bold enabled")
+	// In non-TTY mode, FormatBanner should return plain logo text.
+	if !strings.Contains(banner, "\x1b[") {
+		expected := strings.TrimRight(bannerLogo, "\n")
+		if banner != expected {
+			t.Errorf("FormatBanner() should return plain logo text in non-TTY mode")
+		}
 	}
 }

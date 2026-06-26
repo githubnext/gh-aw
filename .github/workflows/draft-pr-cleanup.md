@@ -208,7 +208,7 @@ Create a summary of actions taken:
 *Draft PR Cleanup workflow run: ${{ github.run_id }}*
 ```
 
-## Important Guidelines
+### Important Guidelines
 
 ### Fair and Transparent
 - Calculate inactivity objectively based on measurable activity
@@ -234,7 +234,7 @@ Create a summary of actions taken:
 - **PR with `stale-draft` but recent activity**: Remove `stale-draft` label if activity < 10 days
 - **Bot-created PRs**: Apply same rules, but consider if bot is still active
 
-## Success Metrics
+### Success Metrics
 
 Effectiveness measured by:
 - **Draft PR rate**: Reduce from 9.6% to <5% over time

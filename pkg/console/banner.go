@@ -15,9 +15,9 @@ import (
 //go:embed assets/logo.txt
 var bannerLogo string
 
-// BannerStyle defines the style for the ASCII banner
+// bannerStyle defines the style for the ASCII banner
 // Uses GitHub's purple color theme
-var BannerStyle = lipgloss.NewStyle().
+var bannerStyle = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(styles.ColorPurple)
 
@@ -25,7 +25,7 @@ var BannerStyle = lipgloss.NewStyle().
 // It applies the purple color styling when running in a terminal (TTY).
 func FormatBanner() string {
 	logo := strings.TrimRight(bannerLogo, "\n")
-	return applyStyle(BannerStyle, logo)
+	return applyStyle(bannerStyle, logo)
 }
 
 // PrintBanner prints the ASCII logo to stderr with purple GitHub color theme.

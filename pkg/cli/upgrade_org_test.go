@@ -25,9 +25,71 @@ func TestNewUpgradeCommandOrgFlags(t *testing.T) {
 	require.NotNil(t, cmd.Flags().Lookup("org"))
 	require.NotNil(t, cmd.Flags().Lookup("repos"))
 	require.NotNil(t, cmd.Flags().Lookup("create-issue"))
+	require.NotNil(t, cmd.Flags().Lookup("yes"))
 	assert.Contains(t, cmd.Example, "--org my-org")
 	assert.Contains(t, cmd.Example, "--repos '*-service'")
 	assert.Contains(t, cmd.Example, "--create-issue")
+	assert.Contains(t, cmd.Example, "--create-pull-request --yes")
+}
+
+func TestRunUpgradeForOrgCreateIssueAutoAcceptsWithYes(t *testing.T) {
+	origSearch := searchOrgLockWorkflowReposFn
+	origScan := scanUpgradeRepoFn
+	origIssue := createIssueForUpgradeOrgRepoFn
+	origWait := waitForOrgRateLimitFn
+	origConfirm := orgConfirmActionFn
+	origIsCI := isRunningInCIFn
+	searchOrgLockWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+		return []string{"octo/api"}, nil
+	}
+	scanUpgradeRepoFn = mockScanUpgradeRepo
+	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
+	orgConfirmActionFn = func(title, affirmative, negative string) (bool, error) {
+		t.Fatalf("confirmation prompt should be skipped when --yes is set")
+		return false, nil
+	}
+	isRunningInCIFn = func() bool { return true }
+	var issued []string
+	createIssueForUpgradeOrgRepoFn = func(ctx context.Context, repo string, verbose bool) error {
+		issued = append(issued, repo)
+		return nil
+	}
+	defer func() {
+		searchOrgLockWorkflowReposFn = origSearch
+		scanUpgradeRepoFn = origScan
+		createIssueForUpgradeOrgRepoFn = origIssue
+		waitForOrgRateLimitFn = origWait
+		orgConfirmActionFn = origConfirm
+		isRunningInCIFn = origIsCI
+	}()
+
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, false, true, false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"octo/api"}, issued)
+}
+
+func TestRunUpgradeForOrgCreateIssueRequiresYesInCI(t *testing.T) {
+	origIsCI := isRunningInCIFn
+	isRunningInCIFn = func() bool { return true }
+	defer func() {
+		isRunningInCIFn = origIsCI
+	}()
+
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, false, true, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--yes")
+}
+
+func TestRunUpgradeForOrgCreatePRRequiresYesInCI(t *testing.T) {
+	origIsCI := isRunningInCIFn
+	isRunningInCIFn = func() bool { return true }
+	defer func() {
+		isRunningInCIFn = origIsCI
+	}()
+
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--yes")
 }
 
 func TestRunUpgradeForOrgEmptyOrg(t *testing.T) {
@@ -166,7 +228,7 @@ func TestRunUpgradeForOrgCreatePR(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, true, false, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/api", "octo/web"}, upgraded)
 }
@@ -193,7 +255,7 @@ func TestRunUpgradeForOrgRepoFilter(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpgradeForOrg(context.Background(), "octo", []string{"*-service"}, upgradeOptions{ctx: context.Background()}, true, false, false)
+	err := runUpgradeForOrg(context.Background(), "octo", []string{"*-service"}, upgradeOptions{ctx: context.Background(), yes: true}, true, false, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/api-service", "octo/worker-service"}, upgraded)
 }
@@ -226,7 +288,7 @@ func TestRunUpgradeForOrgCreateIssue(t *testing.T) {
 		createIssueForUpgradeOrgRepoFn = origIssue
 	}()
 
-	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, false, true, false)
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, false, true, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/api", "octo/web"}, issuedRepos)
 }
@@ -278,7 +340,7 @@ func TestRunUpgradeForOrgSkipsFailedRepos(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, true, false, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to upgrade any repository")
 	assert.Equal(t, []string{"octo/api", "octo/web"}, called, "should attempt all repos and skip failures")
@@ -313,7 +375,7 @@ func TestRunUpgradeForOrgCreateIssueSkipsFailedRepos(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, false, true, false)
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, false, true, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create issues in any repository")
 	assert.Equal(t, []string{"octo/api", "octo/web"}, called, "should attempt all repos and skip failures")
@@ -341,7 +403,7 @@ func TestRunUpgradeForOrgSortsAlphabetically(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, true, false, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/alpha", "octo/middle", "octo/zoo"}, called)
 }
