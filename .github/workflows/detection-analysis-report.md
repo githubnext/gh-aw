@@ -69,7 +69,7 @@ Use the agentic-workflows MCP tool `logs` with parameters:
 Output is saved to: /tmp/gh-aw/aw-mcp/logs
 ```
 
-Each run directory contains `aw_info.json` with fields including `engine_id`, `workflow`, `status`, `tokens`, and feature flags. The `gh-aw-detection` feature flag status comes from the compiled workflow metadata, not from scanning `.lock.yml` files.
+Each run directory contains `aw_info.json` with fields including `engine_id`, `workflow`, `status`, `tokens`, and feature flags. The `gh-aw-detection` feature flag is stored under the `features` key in `aw_info.json` (e.g., `features.gh-aw-detection: true`). Use this field directly — do not infer detection status by scanning `.lock.yml` files.
 
 ### Step 2 — Classify Runs
 
@@ -88,7 +88,7 @@ Collect per-run:
 
 Flag a workflow as **misconfigured** when any of the following apply:
 
-1. **Detection explicitly disabled on an active workflow**: `gh-aw-detection: false` on a workflow that has run more than 3 times in the last 7 days.
+1. **Detection explicitly disabled on an active workflow**: `gh-aw-detection: false` on a workflow that has completed more than 3 total runs (any status) in the last 7 days.
 2. **Detection feature absent on a workflow that is a known audit, analysis, or report workflow**: The workflow name contains keywords such as `audit`, `analyzer`, `report`, `detector`, `monitor`, or `inspector`, but lacks `gh-aw-detection: true`.
 3. **Detection job failures**: The run has `gh-aw-detection: true` but its detection-related job step failed or produced errors (check agent logs for detection-related error patterns).
 4. **Inconsistent detection state**: A workflow alternates between detection-enabled and detection-disabled runs within the same 24-hour window.
@@ -128,7 +128,11 @@ Write a Python script to `/tmp/gh-aw/python/detection_comparison.py` that:
 
 ### Step 6 — Historical Trending
 
-Append today's aggregated metrics to the cache-memory store so future runs can draw a trend line:
+Append today's aggregated metrics to the cache-memory store so future runs can draw a trend line. Create the directory before writing if it does not exist:
+
+```bash
+mkdir -p /tmp/gh-aw/cache-memory/trending/detection-metrics
+```
 
 - File: `/tmp/gh-aw/cache-memory/trending/detection-metrics/history.jsonl`
 - Fields: `timestamp`, `regular_runs`, `detection_runs`, `regular_success_rate`, `detection_success_rate`, `regular_avg_tokens`, `detection_avg_tokens`, `misconfigured_count`
