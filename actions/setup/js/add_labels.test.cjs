@@ -136,6 +136,38 @@ describe("add_labels", () => {
       expect(addLabelsCalls[0].labels).toEqual(["bug"]);
     });
 
+    it("should send structured label metadata when issue_intents runtime feature is enabled", async () => {
+      const previousFeatures = process.env.GH_AW_RUNTIME_FEATURES;
+      process.env.GH_AW_RUNTIME_FEATURES = "issue_intents";
+      try {
+        const handler = await main({ max: 10 });
+        const addLabelsCalls = [];
+
+        mockGithub.rest.issues.addLabels = async params => {
+          addLabelsCalls.push(params);
+          return {};
+        };
+
+        const result = await handler(
+          {
+            item_number: 456,
+            labels: [{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }],
+          },
+          {}
+        );
+
+        expect(result.success).toBe(true);
+        expect(addLabelsCalls).toHaveLength(1);
+        expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }]);
+      } finally {
+        if (previousFeatures === undefined) {
+          delete process.env.GH_AW_RUNTIME_FEATURES;
+        } else {
+          process.env.GH_AW_RUNTIME_FEATURES = previousFeatures;
+        }
+      }
+    });
+
     it("should accept issue_number as an alias for item_number", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];
