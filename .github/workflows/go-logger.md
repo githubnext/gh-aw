@@ -62,9 +62,9 @@ steps:
     done < "$current_files"
 
     jq -n \
-      --argjson files_needing_logger "$(jq -R -s 'split(\"\\n\") | map(select(length > 0))' "$files_needing_logger")" \
-      --argjson missing_logger_import "$(jq -R -s 'split(\"\\n\") | map(select(length > 0))' "$files_missing_logger_import")" \
-      --argjson candidate_call_sites "$(jq -R -s 'split(\"\\n\") | map(select(length > 0) | split(\"\\t\") | {file: .[0], line: (.[1] | tonumber), function: .[2]})' "$call_sites")" \
+      --argjson files_needing_logger "$(jq -R -s 'split("\n") | map(select(length > 0))' "$files_needing_logger")" \
+      --argjson missing_logger_import "$(jq -R -s 'split("\n") | map(select(length > 0))' "$files_missing_logger_import")" \
+      --argjson candidate_call_sites "$(jq -R -s 'split("\n") | map(select(length > 0) | split("\t") | {file: .[0], line: (.[1] | tonumber), function: .[2]})' "$call_sites")" \
       '{files_needing_logger: $files_needing_logger, missing_logger_import: $missing_logger_import, candidate_call_sites: $candidate_call_sites}' \
       > "$out_dir/manifest.json"
 
