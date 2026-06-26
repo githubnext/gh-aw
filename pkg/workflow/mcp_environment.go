@@ -112,6 +112,10 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		// by the gateway from process.env at startup time.
 		envVars["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_CONFIG_PATH }}"
 		envVars["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_TOOLS_PATH }}"
+		// PolicyAllowCreatePullRequest is sourced from vars.* (GitHub repository/environment
+		// configuration variables, not runner env) so that org admins can disable PR creation
+		// without modifying compiled workflow YAML. The || 'true' fallback preserves
+		// backward-compatible default behaviour when the variable is unset.
 		envVars[compilerenv.PolicyAllowCreatePullRequest] = fmt.Sprintf("${{ vars.%s || 'true' }}", compilerenv.PolicyAllowCreatePullRequest)
 		// GITHUB_TOKEN is needed by the safeoutputs container for GitHub API access.
 		// Only set if not already provided (e.g. by hasAgenticWorkflows below).

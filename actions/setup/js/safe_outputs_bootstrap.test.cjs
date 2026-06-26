@@ -180,5 +180,32 @@ describe("safe_outputs_bootstrap", () => {
       };
       assert.doesNotThrow(() => enforceCreatePullRequestRuntimePolicy({}, logger));
     });
+
+    it("throws when create_pull_request is configured and policy is false", () => {
+      process.env.GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST = "false";
+      const logger = {
+        debug: () => {},
+        debugError: () => {},
+      };
+      assert.throws(() => enforceCreatePullRequestRuntimePolicy({ create_pull_request: { enabled: true } }, logger), /create-pull-request is disabled by runtime policy/);
+    });
+
+    it("allows startup when policy is not set", () => {
+      delete process.env.GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST;
+      const logger = {
+        debug: () => {},
+        debugError: () => {},
+      };
+      assert.doesNotThrow(() => enforceCreatePullRequestRuntimePolicy({ create_pull_request: { enabled: true } }, logger));
+    });
+
+    it("allows startup when policy is explicitly true", () => {
+      process.env.GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST = "true";
+      const logger = {
+        debug: () => {},
+        debugError: () => {},
+      };
+      assert.doesNotThrow(() => enforceCreatePullRequestRuntimePolicy({ create_pull_request: { enabled: true } }, logger));
+    });
   });
 });

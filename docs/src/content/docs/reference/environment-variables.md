@@ -241,7 +241,7 @@ These variables enforce runtime policy decisions in compiled workflows without r
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` | `"true"` | Controls whether `safe-outputs.create-pull-request` remains runtime-compliant. When set to `"false"`, the safe-outputs MCP server refuses to start if `create-pull-request` is configured. |
+| `GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` | unset (allow) | Disables `safe-outputs.create-pull-request` at runtime when set to `"false"`. Any other value — including unset — leaves the tool enabled. Set to `"false"` to block PR creation without recompiling the workflow. |
 
 ---
 
