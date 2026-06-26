@@ -23,8 +23,8 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 - **`bots:`** - Bot identifiers allowed to trigger workflow regardless of role permissions (array)
   - Example: `bots: [dependabot[bot], renovate[bot], github-actions[bot]]`
   - Bot must be active (installed) on repository to trigger workflow
-- **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`)
-  - Set `strict: false` to disable enhanced validation
+- **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`; strongly recommended)
+  - Prefer `strict: true`; set `strict: false` only when you intentionally need to disable enhanced validation
 - **`max-turns:`** - AWF turn cap applied consistently across all agentic engines (integer or expression, e.g. `${{ inputs.max-turns }}`). The engine-level `engine.max-turns` is a deprecated alias kept for backward compatibility — prefer this top-level field. Not supported by the `gemini` engine.
 - **`max-runs:`** - Deprecated legacy alias for the AWF invocation cap (`apiProxy.maxRuns`, defaults to `500` when omitted). Use `max-turns` instead; run `gh aw fix` to migrate.
 - **`max-ai-credits:`** - Per-run AI Credits (AIC) budget enforced by the AWF firewall (integer or `K`/`M` short-form string like `100M`; default `1000`). Set a negative value to disable enforcement and token steering. See [token-optimization.md](token-optimization.md).
