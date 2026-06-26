@@ -90,8 +90,9 @@ Common Tasks:
   gh aw new my-workflow       # Create your first workflow
   gh aw compile               # Compile all workflows
   gh aw run my-workflow       # Execute a workflow
+  gh aw status                # Check workflow status
   gh aw logs my-workflow      # View execution logs
-  gh aw audit <run-id-or-url> # Debug a failed run
+  gh aw audit <run-id-or-url> # Audit and compare workflow runs
 
 For detailed help on any command, use:
   gh aw [command] --help`,
@@ -725,14 +726,14 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
 	compileCmd.Flags().Bool("strict", false, "Override frontmatter to enforce strict mode validation for all workflows (enforces action pinning, network config, safe-outputs, refuses write permissions and deprecated fields). Note: Workflows default to strict mode unless frontmatter sets strict: false")
 	compileCmd.Flags().Bool("trial", false, "Enable trial mode compilation (modifies workflows for trial execution)")
-	compileCmd.Flags().String("logical-repo", "", "Repository to simulate workflow execution against (for trial mode)")
+	compileCmd.Flags().StringP("logical-repo", "l", "", "Repository to simulate workflow execution against (for trial mode)")
 	compileCmd.Flags().Bool("use-samples", false, "Hidden: replace the agentic 'Execute coding agent' step with a deterministic driver that replays the workflow's safe-outputs `samples` frontmatter entries through the safe-outputs MCP server. Used to make end-to-end tests deterministic.")
 	_ = compileCmd.Flags().MarkHidden("use-samples")
 	compileCmd.Flags().Bool("dependabot", false, "Generate dependency manifests (package.json, requirements.txt, go.mod) and Dependabot config when dependencies are detected")
-	compileCmd.Flags().Bool("force", false, "Force overwrite of existing dependency files (e.g., dependabot.yml)")
+	compileCmd.Flags().BoolP("force", "f", false, "Force overwrite of existing dependency files (e.g., dependabot.yml)")
 	compileCmd.Flags().Bool("refresh-stop-time", false, "Force regeneration of stop-after times instead of preserving existing values from lock files")
 	compileCmd.Flags().Bool("force-refresh-action-pins", false, "Force refresh of action pins by clearing the cache and resolving all action SHAs from GitHub API")
-	compileCmd.Flags().Bool("allow-action-refs", false, "Allow unresolved action refs and emit warnings instead of failing compilation")
+	compileCmd.Flags().Bool("allow-action-refs", false, "Allow unresolved action refs and emit warnings instead of failing validation")
 	compileCmd.Flags().Bool("zizmor", false, "Run zizmor security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
@@ -808,6 +809,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	auditCmd := cli.NewAuditCommand()
 	viewCmd := cli.NewViewCommand()
 	healthCmd := cli.NewHealthCommand()
+	outcomesCmd := cli.NewOutcomesCommand()
 	mcpServerCmd := cli.NewMCPServerCommand()
 	prCmd := cli.NewPRCommand()
 	secretsCmd := cli.NewSecretsCommand()
@@ -844,8 +846,6 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	mcpCmd.GroupID = "development"
 	fixCmd.GroupID = "development"
 	domainsCmd.GroupID = "development"
-	statusCmd.GroupID = "analysis"
-	listCmd.GroupID = "analysis"
 
 	// Execution Commands
 	runCmd.GroupID = "execution"
@@ -858,7 +858,10 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	auditCmd.GroupID = "analysis"
 	viewCmd.GroupID = "analysis"
 	healthCmd.GroupID = "analysis"
+	outcomesCmd.GroupID = "analysis"
 	checksCmd.GroupID = "analysis"
+	statusCmd.GroupID = "analysis"
+	listCmd.GroupID = "analysis"
 	experimentsCmd.GroupID = "analysis"
 	forecastCmd.GroupID = "analysis"
 
@@ -887,7 +890,6 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(enableCmd)
 	rootCmd.AddCommand(disableCmd)
-	outcomesCmd := cli.NewOutcomesCommand()
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(auditCmd)
 	rootCmd.AddCommand(viewCmd)

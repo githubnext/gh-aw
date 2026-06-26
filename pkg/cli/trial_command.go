@@ -54,7 +54,6 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			logicalRepoSpec, _ := cmd.Flags().GetString("logical-repo")
 			cloneRepoSpec, _ := cmd.Flags().GetString("clone-repo")
 			hostRepoSpec, _ := cmd.Flags().GetString("host-repo")
-			repoSpec, _ := cmd.Flags().GetString("repo")
 			deleteHostRepo, _ := cmd.Flags().GetBool("delete-host-repo-after")
 			forceDeleteHostRepo, _ := cmd.Flags().GetBool("force-delete-host-repo-before")
 			yes, _ := cmd.Flags().GetBool("yes")
@@ -79,11 +78,6 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 				trialLog.Printf("Trial options: dry_run=%v, repeat=%d, timeout_min=%d, auto_merge_prs=%v, logical_repo=%q, clone_repo=%q, host_repo=%q",
 					dryRun, repeatCount, timeout, autoMergePRs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec)
 			}
-			// If --repo was used instead of --host-repo, use its value
-			if repoSpec != "" {
-				hostRepoSpec = repoSpec
-			}
-
 			opts := TrialOptions{
 				Repos: TrialRepoContext{
 					LogicalRepo: logicalRepoSpec,
@@ -117,13 +111,11 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().String("clone-repo", "", "Clone the contents of the specified repository into the host repository before execution (useful for testing against actual repository state)")
 
 	cmd.Flags().String("host-repo", "", "Custom host repository slug (defaults to '<username>/gh-aw-trial'). Use '.' for current repository")
-	cmd.Flags().String("repo", "", "Alias for --host-repo: the repository where workflows are installed and run (note: different semantics from --repo in other commands)")
-	_ = cmd.Flags().MarkHidden("repo") // Hide alias to avoid semantic confusion with --repo in other commands
 	cmd.Flags().Bool("delete-host-repo-after", false, "Delete the host repository after completion (kept by default)")
 	cmd.Flags().Bool("force-delete-host-repo-before", false, "Force delete the host repository before creation if it already exists")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
-	cmd.Flags().Bool("dry-run", false, "Show what would be done without making any changes")
-	cmd.Flags().Int("timeout", 30, "Execution timeout in minutes")
+	cmd.Flags().Bool("dry-run", false, "Preview trial execution without applying any changes")
+	cmd.Flags().Int("timeout", 30, "Execution timeout in minutes (set to 0 to disable timeout)")
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
 	cmd.Flags().Int("repeat", 0, "Number of additional times to run after the initial execution (e.g., --repeat 3 runs 4 times total)")
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during trial execution")
@@ -133,7 +125,6 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
 	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
 	_ = cmd.Flags().MarkHidden("disable-security-scanner")
-	cmd.MarkFlagsMutuallyExclusive("host-repo", "repo")
 	cmd.MarkFlagsMutuallyExclusive("logical-repo", "clone-repo")
 
 	return cmd
