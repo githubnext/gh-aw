@@ -39,8 +39,6 @@ Analyze the issue: ${{ steps.sanitized.outputs.text }}
 	}
 
 	compiler := NewCompiler(WithNoEmit(true))
-	compiler.SetQuiet(true)
-	compiler.SetApprove(true)
 
 	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
 	_ = compiler.CompileWorkflow(testFile)
@@ -103,6 +101,8 @@ Review the pull request: ${{ github.event.pull_request.number }}
 	}
 
 	compiler := NewCompiler(WithNoEmit(true))
+	compiler.SetQuiet(true)
+	compiler.SetApprove(true)
 
 	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
 	_ = compiler.CompileWorkflow(testFile)
@@ -155,6 +155,8 @@ Review and test the pull request with multiple tools.
 	}
 
 	compiler := NewCompiler(WithNoEmit(true))
+	compiler.SetQuiet(true)
+	compiler.SetApprove(true)
 
 	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
 	_ = compiler.CompileWorkflow(testFile)
