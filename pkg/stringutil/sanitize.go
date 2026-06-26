@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -11,6 +12,10 @@ import (
 var sanitizeLog = logger.New("stringutil:sanitize")
 
 var multipleHyphens = regexp.MustCompile(`-+`)
+
+// sanitizePatternCache caches compiled regexp patterns keyed by allowedChars to avoid
+// recompiling the same pattern on every call to applySanitizePattern.
+var sanitizePatternCache sync.Map
 
 // Regex patterns for detecting potential secret key names
 var (
@@ -140,7 +145,12 @@ func buildSanitizePreservePattern(opts *SanitizeOptions) string {
 // When the caller has requested preservation of special chars, unwanted chars are
 // replaced with hyphens; otherwise they are removed entirely.
 func applySanitizePattern(result, allowedChars string, preserveSpecialChars bool) string {
-	pattern := regexp.MustCompile(`[^` + allowedChars + `]+`)
+	cached, ok := sanitizePatternCache.Load(allowedChars)
+	if !ok {
+		compiled := regexp.MustCompile(`[^` + allowedChars + `]+`)
+		cached, _ = sanitizePatternCache.LoadOrStore(allowedChars, compiled)
+	}
+	pattern := cached.(*regexp.Regexp)
 	if preserveSpecialChars {
 		return pattern.ReplaceAllString(result, "-")
 	}
