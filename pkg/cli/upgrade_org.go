@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
-	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var runUpgradeForTargetRepoFn = runUpgradeForTargetRepo
@@ -131,11 +129,30 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 		return nil
 	}
 
+	releaseTag, releaseURL := getGhawReleaseInfo()
+	xmlMarker := buildOrgXMLMarker(ghawUpgradeMarkerPrefix, releaseTag)
+
+	// Close any stale upgrade PRs in the target repo before creating the new one.
+	closeExistingOrgPRsByMarker(ctx, repo, ghawUpgradeMarkerPrefix, verbose)
+
+	var releaseLine string
+	if releaseURL != "" {
+		releaseLine = fmt.Sprintf("\n[View gh-aw release %s](%s)\n", releaseTag, releaseURL)
+	}
 	prBody := "This PR upgrades agentic workflows by applying the latest codemods, " +
-		"updating GitHub Actions versions, and recompiling all workflows."
-	_, err = CreatePRWithChanges("upgrade-agentic-workflows", "chore: upgrade agentic workflows",
+		"updating GitHub Actions versions, and recompiling all workflows." +
+		releaseLine + "\n" + xmlMarker
+
+	prURL, err := CreatePRWithChanges("upgrade-agentic-workflows", "chore: upgrade agentic workflows",
 		"Upgrade agentic workflows", prBody, verbose)
-	return err
+	if err != nil {
+		return err
+	}
+
+	if prURL != "" {
+		addLabelToOrgPR(prURL, agenticWorkflowsLabel, verbose)
+	}
+	return nil
 }
 
 // searchOrgAnyWorkflowRepos searches an organization's repositories for any
@@ -148,53 +165,38 @@ func searchOrgAnyWorkflowRepos(ctx context.Context, org string, verbose bool) ([
 }
 
 // createIssueForUpgradeOrgRepo opens a GitHub issue in the target repository
-// to notify maintainers that agentic workflow upgrades are available. The issue
-// prompts them to run gh aw upgrade locally to apply codemods, update action
-// versions, and recompile workflows. It is idempotent: if an open issue with the
-// same title already exists it logs a skip message instead of creating a duplicate.
+// to notify maintainers that agentic workflow upgrades are available. Any
+// previously-open issues carrying the GHAW-upgrade XML marker are closed first
+// so that only the most recent notification remains.
 func createIssueForUpgradeOrgRepo(ctx context.Context, repo string, verbose bool) error {
-	title := "Upgrade agentic workflows"
+	title := "[aw] Upgrade available"
 
-	// Idempotency guard: skip if an open issue with this title already exists.
-	// Parse the response in Go rather than embedding the title in a jq expression
-	// to avoid any quoting or injection issues.
-	existsOutput, err := workflow.RunGHContext(ctx, "Checking for existing upgrade issue...",
-		"api",
-		fmt.Sprintf("/repos/%s/issues?state=open&per_page=100", repo),
-	)
-	if err == nil {
-		var issues []struct {
-			Title string `json:"title"`
-		}
-		if jsonErr := json.Unmarshal(existsOutput, &issues); jsonErr == nil {
-			for _, issue := range issues {
-				if issue.Title == title {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Skipping "+repo+": upgrade issue already exists"))
-					}
-					return nil
-				}
-			}
-		}
+	releaseTag, releaseURL := getGhawReleaseInfo()
+	xmlMarker := buildOrgXMLMarker(ghawUpgradeMarkerPrefix, releaseTag)
+
+	// Close stale upgrade issues before creating the new one.
+	closeExistingOrgIssuesByMarker(ctx, repo, ghawUpgradeMarkerPrefix, verbose)
+
+	var releaseSection string
+	if releaseURL != "" {
+		releaseSection = fmt.Sprintf("\n[View gh-aw release %s](%s)\n", releaseTag, releaseURL)
 	}
 
 	body := "Agentic workflow files detected in this repository may have upgrades available.\n\n" +
 		"Run `gh aw upgrade` to apply the latest codemods, update GitHub Actions versions, and recompile all workflows.\n\n" +
-		"Review the upgrade output and any generated changes before committing to ensure there are no unexpected modifications.\n"
+		"Review the upgrade output and any generated changes before committing to ensure there are no unexpected modifications.\n" +
+		releaseSection + "\n" +
+		"### How to execute\n\n" +
+		"- **Assign to agent**: Assign this issue to Copilot to automatically apply the upgrade\n" +
+		"- **Via @copilot comment**: Add a comment `@copilot upgrade agentic workflows` on this issue\n" +
+		"- **Via CLI**: Run `gh aw upgrade` in your local checkout\n\n" +
+		xmlMarker + "\n"
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Creating upgrade issue in "+repo+"..."))
 	}
 
-	endpoint := fmt.Sprintf("/repos/%s/issues", repo)
-	_, err = workflow.RunGHContext(ctx, "Creating issue...",
-		"api",
-		"--method", "POST",
-		endpoint,
-		"-f", "title="+title,
-		"-f", "body="+body,
-	)
-	if err != nil {
+	if err := createOrgIssue(ctx, repo, title, body, agenticWorkflowsLabel); err != nil {
 		return fmt.Errorf("failed to create issue in %s: %w", repo, err)
 	}
 

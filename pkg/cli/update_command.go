@@ -312,10 +312,28 @@ func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateW
 	}
 
 	if createPR {
-		prBody := "This PR updates agentic workflows from their source repositories."
-		_, err := CreatePRWithChanges("update-workflows", "chore: update workflows",
+		releaseTag, releaseURL := getGhawReleaseInfo()
+		xmlMarker := buildOrgXMLMarker(ghawUpdateMarkerPrefix, releaseTag)
+
+		// Close any stale update PRs in the target repo before creating the new one.
+		closeExistingOrgPRsByMarker(ctx, targetRepo, ghawUpdateMarkerPrefix, verbose)
+
+		var releaseLine string
+		if releaseURL != "" {
+			releaseLine = fmt.Sprintf("\n[View gh-aw release %s](%s)\n", releaseTag, releaseURL)
+		}
+		prBody := "This PR updates agentic workflows from their source repositories." +
+			releaseLine + "\n" + xmlMarker
+
+		prURL, err := CreatePRWithChanges("update-workflows", "chore: update workflows",
 			"Update workflows from source", prBody, verbose)
-		return err
+		if err != nil {
+			return err
+		}
+		if prURL != "" {
+			addLabelToOrgPR(prURL, agenticWorkflowsLabel, verbose)
+		}
+		return nil
 	}
 	return nil
 }

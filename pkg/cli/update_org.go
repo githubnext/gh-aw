@@ -278,21 +278,19 @@ func waitForOrgRateLimit(ctx context.Context, resource string, verbose bool) err
 }
 
 // createIssueForOrgRepo opens a GitHub issue in the target repository listing
-// the source-managed workflows that have updates available. The issue title and
-// body are formatted so maintainers can act on the report without running
-// gh aw locally first.
+// the source-managed workflows that have updates available. Any previously-open
+// issues carrying the GHAW-update XML marker are closed first so that only the
+// most recent notification remains.
 func createIssueForOrgRepo(ctx context.Context, preview orgRepoPreview, verbose bool) error {
-	title, body := buildOrgUpdateIssue(preview)
+	releaseTag, releaseURL := getGhawReleaseInfo()
+	xmlMarker := buildOrgXMLMarker(ghawUpdateMarkerPrefix, releaseTag)
 
-	endpoint := fmt.Sprintf("/repos/%s/issues", preview.Repo)
-	_, err := workflow.RunGHContext(ctx, "Creating issue...",
-		"api",
-		"--method", "POST",
-		endpoint,
-		"-f", "title="+title,
-		"-f", "body="+body,
-	)
-	if err != nil {
+	// Close stale update issues before creating the new one.
+	closeExistingOrgIssuesByMarker(ctx, preview.Repo, ghawUpdateMarkerPrefix, verbose)
+
+	title, body := buildOrgUpdateIssue(preview, releaseTag, releaseURL, xmlMarker)
+
+	if err := createOrgIssue(ctx, preview.Repo, title, body, agenticWorkflowsLabel); err != nil {
 		return fmt.Errorf("failed to create issue in %s: %w", preview.Repo, err)
 	}
 
@@ -300,7 +298,7 @@ func createIssueForOrgRepo(ctx context.Context, preview orgRepoPreview, verbose 
 	return nil
 }
 
-func buildOrgUpdateIssue(preview orgRepoPreview) (string, string) {
+func buildOrgUpdateIssue(preview orgRepoPreview, releaseTag, releaseURL, xmlMarker string) (string, string) {
 	title := "[aw] Updates available"
 
 	var body strings.Builder
@@ -310,9 +308,14 @@ func buildOrgUpdateIssue(preview orgRepoPreview) (string, string) {
 	for _, wf := range preview.Workflows {
 		fmt.Fprintf(&body, "- `%s`: `%s` -> `%s`\n", wf.Name, shortRef(wf.CurrentRef), shortRef(wf.LatestRef))
 	}
-	body.WriteString("\n### How to apply\n\n")
-	body.WriteString("- **Via @copilot**: Add a comment `@copilot update agentic workflows` on this issue\n")
-	body.WriteString("- **Via CLI**: Run `gh aw update` in your local checkout\n")
+	if releaseURL != "" {
+		fmt.Fprintf(&body, "\n[View gh-aw release %s](%s)\n", releaseTag, releaseURL)
+	}
+	body.WriteString("\n### How to execute\n\n")
+	body.WriteString("- **Assign to agent**: Assign this issue to Copilot to automatically apply the update\n")
+	body.WriteString("- **Via @copilot comment**: Add a comment `@copilot update agentic workflows` on this issue\n")
+	body.WriteString("- **Via CLI**: Run `gh aw update` in your local checkout\n\n")
+	body.WriteString(xmlMarker + "\n")
 
 	return title, body.String()
 }
