@@ -1154,7 +1154,7 @@ func fetchWorkflowRunMetadata(ctx context.Context, runID int64, owner, repo, hos
 	// When the GitHub API returns the workflow file path as the run's name (e.g. for runs
 	// that were cancelled or failed before any jobs started), resolve the actual workflow
 	// display name so that audit output is consistent with 'gh aw logs'.
-	if strings.HasPrefix(run.WorkflowName, ".github/") {
+	if strings.HasPrefix(run.WorkflowName, constants.GithubDir) {
 		if displayName := resolveWorkflowDisplayName(ctx, run.WorkflowPath, owner, repo, hostname); displayName != "" {
 			auditLog.Printf("Resolved workflow display name: %q -> %q", run.WorkflowName, displayName)
 			run.WorkflowName = displayName

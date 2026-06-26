@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -122,7 +123,7 @@ func fetchRemoteWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bool) 
 		// Try with common workflow directory prefixes if the direct path fails.
 		// This handles short workflow names without path separators (e.g. "my-workflow.md").
 		if !strings.HasPrefix(spec.WorkflowPath, "workflows/") && !strings.Contains(spec.WorkflowPath, "/") {
-			for _, prefix := range []string{"workflows/", ".github/workflows/"} {
+			for _, prefix := range []string{"workflows/", constants.WorkflowsDirSlash} {
 				altPath := prefix + spec.WorkflowPath
 				if !strings.HasSuffix(altPath, ".md") {
 					altPath += ".md"

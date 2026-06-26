@@ -119,7 +119,7 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
 
 	openCodeArgs = append(openCodeArgs, "--print-logs", "--log-level", "DEBUG")
-	promptArg := "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\""
+	promptArg := fmt.Sprintf("\"$(cat %s)\"", constants.AwPromptsFile)
 
 	commandName := "opencode"
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
@@ -173,7 +173,7 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 	}
 
 	env := map[string]string{
-		"GH_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GH_AW_PROMPT":     constants.AwPromptsFile,
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
 		"RUNNER_TEMP":      "${{ runner.temp }}",
 		"NO_PROXY":         "localhost,127.0.0.1",

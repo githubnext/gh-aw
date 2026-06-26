@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -464,7 +465,7 @@ func detectFirewallAuditArtifacts(runDir string) (manifestPath, auditJSONLPath s
 			if !checkDir(filepath.Join(agentDir, "sandbox", "firewall", "audit"), agentBase+"/sandbox/firewall/audit") {
 				// Old artifact structure (/tmp/gh-aw/ prefix preserved inside the artifact):
 				//   <agentDir>/tmp/gh-aw/sandbox/firewall/audit/
-				checkDir(filepath.Join(agentDir, "tmp", "gh-aw", "sandbox", "firewall", "audit"), agentBase+"/tmp/gh-aw/sandbox/firewall/audit")
+				checkDir(filepath.Join(agentDir, "tmp", "gh-aw", "sandbox", "firewall", "audit"), agentBase+constants.AWFAuditDir)
 			}
 			if manifestPath != "" && auditJSONLPath != "" {
 				return manifestPath, auditJSONLPath, nil

@@ -10,6 +10,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/semverutil"
@@ -30,7 +31,7 @@ var getRepositoryPackageDefaultBranch = resolveRepositoryPackageDefaultBranch
 var getRepositoryPackageLatestRelease = resolveRepositoryPackageLatestRelease
 var addPackageManifestLog = logger.New("cli:add_package_manifest")
 
-var packageSourceDirectories = []string{"workflows", ".github/workflows"}
+var packageSourceDirectories = []string{"workflows", constants.WorkflowsDir}
 
 const repositoryPackageManifestFileName = "aw.yml"
 const repositoryPackageManifestVersion = "1"
@@ -496,13 +497,13 @@ func isSupportedManifestIncludePath(p string) bool {
 
 func isSupportedSkillDirectoryPrefix(cleaned string) bool {
 	return strings.HasPrefix(cleaned, packageSkillsDirectory+"/") ||
-		strings.HasPrefix(cleaned, ".github/"+packageSkillsDirectory+"/")
+		strings.HasPrefix(cleaned, constants.GithubDir+packageSkillsDirectory+"/")
 }
 
 func skillDirectoryRoot(cleaned string) string {
 	switch {
-	case strings.HasPrefix(cleaned, ".github/"+packageSkillsDirectory+"/"):
-		return ".github/" + packageSkillsDirectory
+	case strings.HasPrefix(cleaned, constants.GithubDir+packageSkillsDirectory+"/"):
+		return constants.GithubDir + packageSkillsDirectory
 	default:
 		return packageSkillsDirectory
 	}
@@ -510,13 +511,13 @@ func skillDirectoryRoot(cleaned string) string {
 
 func isSupportedAgentDirectoryPrefix(cleaned string) bool {
 	return strings.HasPrefix(cleaned, packageAgentsDirectory+"/") ||
-		strings.HasPrefix(cleaned, ".github/"+packageAgentsDirectory+"/")
+		strings.HasPrefix(cleaned, constants.GithubDir+packageAgentsDirectory+"/")
 }
 
 func agentDirectoryRoot(cleaned string) string {
 	switch {
-	case strings.HasPrefix(cleaned, ".github/"+packageAgentsDirectory+"/"):
-		return ".github/" + packageAgentsDirectory
+	case strings.HasPrefix(cleaned, constants.GithubDir+packageAgentsDirectory+"/"):
+		return constants.GithubDir + packageAgentsDirectory
 	default:
 		return packageAgentsDirectory
 	}
@@ -620,7 +621,7 @@ func resolvePackageAgentFiles(owner, repo, packagePath, ref, host string, explic
 	}
 
 	var agentFiles []string
-	for _, root := range []string{packageAgentsDirectory, ".github/" + packageAgentsDirectory} {
+	for _, root := range []string{packageAgentsDirectory, constants.GithubDir + packageAgentsDirectory} {
 		agentsDir := joinRepositoryPackagePath(packagePath, root)
 		files, err := listPackageDirFilesForHost(owner, repo, ref, agentsDir, host)
 		if err != nil {
@@ -642,7 +643,7 @@ func resolvePackageAgentFiles(owner, repo, packagePath, ref, host string, explic
 // of skill subdirectories (those that contain a SKILL.md file).
 func scanPackageSkillDirs(owner, repo, packagePath, ref, host string) ([]string, error) {
 	var skillDirs []string
-	for _, root := range []string{packageSkillsDirectory, ".github/" + packageSkillsDirectory} {
+	for _, root := range []string{packageSkillsDirectory, constants.GithubDir + packageSkillsDirectory} {
 		skillsDir := joinRepositoryPackagePath(packagePath, root)
 		subdirs, err := listPackageDirSubdirsForHost(owner, repo, ref, skillsDir, host)
 		if err != nil {
@@ -755,14 +756,14 @@ func isSupportedPackageInstallablePath(p string) bool {
 	if strings.HasSuffix(lowerCleaned, ".md") {
 		return strings.HasPrefix(cleaned, "workflows/") ||
 			strings.HasPrefix(cleaned, "agentic-workflows/") ||
-			strings.HasPrefix(cleaned, ".github/workflows/")
+			strings.HasPrefix(cleaned, constants.WorkflowsDirSlash)
 	}
 	if isActionWorkflowPath(cleaned) {
-		if !strings.HasPrefix(cleaned, ".github/workflows/") {
+		if !strings.HasPrefix(cleaned, constants.WorkflowsDirSlash) {
 			return false
 		}
 		// Reject nested subdirectories: only direct children of .github/workflows/ are allowed.
-		remaining := strings.TrimPrefix(cleaned, ".github/workflows/")
+		remaining := strings.TrimPrefix(cleaned, constants.WorkflowsDirSlash)
 		return !strings.Contains(remaining, "/")
 	}
 	return false

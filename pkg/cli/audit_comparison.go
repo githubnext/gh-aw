@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -513,7 +514,7 @@ func findPreviousSuccessfulWorkflowRuns(ctx context.Context, current WorkflowRun
 	}
 
 	for index := range runs {
-		if strings.HasPrefix(runs[index].WorkflowName, ".github/") {
+		if strings.HasPrefix(runs[index].WorkflowName, constants.GithubDir) {
 			if displayName := resolveWorkflowDisplayName(ctx, runs[index].WorkflowPath, owner, repo, hostname); displayName != "" {
 				runs[index].WorkflowName = displayName
 			}
