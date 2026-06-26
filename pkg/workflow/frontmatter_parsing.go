@@ -90,10 +90,37 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	// legacy bare-array form and the new object form are available as ExperimentConfig
 	// structs without callers needing to type-assert config.Experiments entries.
 	config.ExperimentConfigs = extractExperimentConfigsFromFrontmatter(frontmatter)
+	config.ModelPolicyAllowed, config.ModelPolicyDisallowed, config.ModelPolicyBlocked = extractModelPolicyFromFrontmatter(frontmatter)
 
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%v", config.Name, config.Engine)
 	return &config, nil
 }
+
+func extractModelPolicyFromFrontmatter(frontmatter map[string]any) ([]string, []string, []string) {
+	modelsRaw, ok := frontmatter["models"].(map[string]any)
+	if !ok {
+		return nil, nil, nil
+	}
+	return parseModelPolicyList(modelsRaw["allowed"]), parseModelPolicyList(modelsRaw["disallowed"]), parseModelPolicyList(modelsRaw["blocked"])
+}
+
+func parseModelPolicyList(value any) []string {
+	values, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	result := make([]string, 0, len(values))
+	for _, v := range values {
+		if s, ok := v.(string); ok && s != "" {
+			result = append(result, s)
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
 func parseOnNeedsConfig(on map[string]any) ([]string, error) {
 	return parseOnNeedsValues(on)
 }

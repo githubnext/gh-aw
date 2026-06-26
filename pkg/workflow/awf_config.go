@@ -71,6 +71,7 @@ import (
 	"github.com/github/gh-aw/pkg/jsonutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 //go:embed schemas/awf-config.schema.json
@@ -242,6 +243,11 @@ type AWFAPIProxyConfig struct {
 	// AWF resolves aliases recursively; loops are not permitted.
 	// Per the AWF config schema, this lives under apiProxy.models.
 	Models map[string][]string `json:"models,omitempty"`
+
+	// AllowedModels is the explicit allowlist policy for model names/patterns.
+	AllowedModels []string `json:"allowedModels,omitempty"`
+	// DisallowedModels is the explicit denylist policy for model names/patterns.
+	DisallowedModels []string `json:"disallowedModels,omitempty"`
 }
 
 // AWFModelFallbackConfig is the "apiProxy.modelFallback" section of the AWF config file.
@@ -492,6 +498,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		apiProxy.Models = config.WorkflowData.ModelMappings
 		awfConfigLog.Printf("Models section: %d alias entries", len(config.WorkflowData.ModelMappings))
 	}
+	allowedModels, disallowedModels := resolveModelPolicyForAWFConfig(config.WorkflowData)
+	if len(allowedModels) > 0 {
+		apiProxy.AllowedModels = allowedModels
+		awfConfigLog.Printf("Models policy: %d allowed model pattern(s)", len(allowedModels))
+	}
+	if len(disallowedModels) > 0 {
+		apiProxy.DisallowedModels = disallowedModels
+		awfConfigLog.Printf("Models policy: %d disallowed model pattern(s)", len(disallowedModels))
+	}
 
 	awfConfig.APIProxy = apiProxy
 
@@ -548,6 +563,24 @@ func splitDomainList(domains string) []string {
 		}
 	}
 	return result
+}
+
+func resolveModelPolicyForAWFConfig(workflowData *WorkflowData) ([]string, []string) {
+	envAllowed, hasAllowedOverride := compilerenv.ResolvePolicyModelsAllowed()
+	envBlocked, hasBlockedOverride := compilerenv.ResolvePolicyModelsBlocked()
+	var allowed []string
+	var blocked []string
+	if hasAllowedOverride {
+		allowed = envAllowed
+	} else if workflowData != nil {
+		allowed = workflowData.ModelPolicyAllowed
+	}
+	if hasBlockedOverride {
+		blocked = envBlocked
+	} else if workflowData != nil {
+		blocked = workflowData.ModelPolicyBlocked
+	}
+	return allowed, blocked
 }
 
 func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {

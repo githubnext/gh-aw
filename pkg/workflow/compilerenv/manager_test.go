@@ -150,3 +150,35 @@ func TestResolveDefaultUTC(t *testing.T) {
 		assert.Equal(t, "-08:00", ResolveDefaultUTC("+00:00"))
 	})
 }
+
+func TestResolvePolicyModelsAllowed(t *testing.T) {
+	t.Run("unset returns no override", func(t *testing.T) {
+		t.Setenv(PolicyModelsAllowed, "")
+		got, ok := ResolvePolicyModelsAllowed()
+		assert.False(t, ok)
+		assert.Nil(t, got)
+	})
+
+	t.Run("comma-separated list is parsed", func(t *testing.T) {
+		t.Setenv(PolicyModelsAllowed, "gpt-5, claude-sonnet, gpt-5")
+		got, ok := ResolvePolicyModelsAllowed()
+		assert.True(t, ok)
+		assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, got)
+	})
+}
+
+func TestResolvePolicyModelsBlocked(t *testing.T) {
+	t.Run("unset returns no override", func(t *testing.T) {
+		t.Setenv(PolicyModelsBlocked, "")
+		got, ok := ResolvePolicyModelsBlocked()
+		assert.False(t, ok)
+		assert.Nil(t, got)
+	})
+
+	t.Run("comma/newline-separated list is parsed", func(t *testing.T) {
+		t.Setenv(PolicyModelsBlocked, "gpt-5-pro,\nclaude-opus")
+		got, ok := ResolvePolicyModelsBlocked()
+		assert.True(t, ok)
+		assert.Equal(t, []string{"gpt-5-pro", "claude-opus"}, got)
+	})
+}

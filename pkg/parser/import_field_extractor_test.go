@@ -699,3 +699,46 @@ func TestExtractConfigFields_FirstWinsAndAccumulates(t *testing.T) {
 	assert.Contains(t, acc.secretMaskingBuilder.String(), "enabled")
 	assert.Contains(t, acc.secretMaskingBuilder.String(), "log-mask")
 }
+
+func TestAppendModelsField_ExtractsModelPolicySets(t *testing.T) {
+	acc := newImportAccumulator()
+	fm := map[string]any{
+		"models": map[string]any{
+			"allowed":    []any{"gpt-5", "claude-sonnet"},
+			"disallowed": []any{"gpt-5-pro"},
+			"blocked":    []any{"claude-opus"},
+		},
+	}
+
+	acc.appendModelsField(fm)
+
+	require.Len(t, acc.modelPolicies, 1, "expected one model policy set")
+	assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, acc.modelPolicies[0]["allowed"])
+	assert.Equal(t, []string{"gpt-5-pro"}, acc.modelPolicies[0]["disallowed"])
+	assert.Equal(t, []string{"claude-opus"}, acc.modelPolicies[0]["blocked"])
+	assert.Empty(t, acc.models, "policy fields should not be interpreted as model aliases")
+}
+
+func TestAppendModelsField_ExtractsModelCostsAndPolicyTogether(t *testing.T) {
+	acc := newImportAccumulator()
+	fm := map[string]any{
+		"models": map[string]any{
+			"allowed": []any{"gpt-5-mini"},
+			"providers": map[string]any{
+				"openai": map[string]any{
+					"models": map[string]any{
+						"gpt-5-mini": map[string]any{
+							"cost": map[string]any{"input": "1e-6"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	acc.appendModelsField(fm)
+
+	require.Len(t, acc.modelCosts, 1, "expected one model cost overlay")
+	require.Len(t, acc.modelPolicies, 1, "expected one model policy set")
+	assert.Equal(t, []string{"gpt-5-mini"}, acc.modelPolicies[0]["allowed"])
+}

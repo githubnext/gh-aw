@@ -50,6 +50,10 @@ const (
 	// PolicyStrict enables runtime enforcement that workflows must be compiled in strict mode
 	// when GH_AW_POLICY_STRICT is set to the string value "true".
 	PolicyStrict = "GH_AW_POLICY_STRICT"
+	// PolicyModelsAllowed centrally overrides models.allowed frontmatter policy.
+	PolicyModelsAllowed = "GHAW_POLICY_MODELS_ALLOWED"
+	// PolicyModelsBlocked centrally overrides models.disallowed/models.blocked frontmatter policy.
+	PolicyModelsBlocked = "GHAW_POLICY_MODELS_BLOCKED"
 )
 
 // ResolveDefaultMaxTurns returns fallback when the env var is unset/invalid,
@@ -160,4 +164,47 @@ func BuildModelOverrideExpression(primaryVar, enterpriseDefaultVar, builtinFallb
 // enterprise default model var, and empty string fallback.
 func BuildModelOverrideExpressionEmptyFallback(primaryVar, enterpriseDefaultVar string) string {
 	return fmt.Sprintf("${{ vars.%s || vars.%s || '' }}", primaryVar, enterpriseDefaultVar)
+}
+
+// ResolvePolicyModelsAllowed returns configured allowed model policy entries.
+// When the env var is unset/empty, ok=false and callers should use frontmatter policy.
+func ResolvePolicyModelsAllowed() ([]string, bool) {
+	return resolveModelListEnv(PolicyModelsAllowed)
+}
+
+// ResolvePolicyModelsBlocked returns configured blocked model policy entries.
+// When the env var is unset/empty, ok=false and callers should use frontmatter policy.
+func ResolvePolicyModelsBlocked() ([]string, bool) {
+	return resolveModelListEnv(PolicyModelsBlocked)
+}
+
+func resolveModelListEnv(name string) ([]string, bool) {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return nil, false
+	}
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r'
+	})
+	if len(parts) == 0 {
+		return nil, false
+	}
+	result := make([]string, 0, len(parts))
+	seen := map[string]struct{}{}
+	for _, part := range parts {
+		model := strings.TrimSpace(part)
+		if model == "" {
+			continue
+		}
+		if _, exists := seen[model]; exists {
+			continue
+		}
+		seen[model] = struct{}{}
+		result = append(result, model)
+	}
+	if len(result) == 0 {
+		return nil, false
+	}
+	managerLog.Printf("Applying model policy override %s with %d model(s)", name, len(result))
+	return result, true
 }

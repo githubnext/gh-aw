@@ -56,6 +56,7 @@ type importAccumulator struct {
 	caches                   []string
 	features                 []map[string]any
 	models                   []map[string][]string // model alias maps from each imported file (appended in import order)
+	modelPolicies            []map[string][]string // model policy sets from each imported file (appended in import order)
 	modelCosts               []map[string]any      // model pricing overlays from each imported file (appended in import order)
 	runInstallScripts        bool                  // true if any imported workflow sets runtimes.node.run-install-scripts: true
 	agentFile                string
@@ -88,6 +89,12 @@ type importAccumulator struct {
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
 	warnings []string
 }
+
+const (
+	modelPolicyAllowedKey    = "allowed"
+	modelPolicyDisallowedKey = "disallowed"
+	modelPolicyBlockedKey    = "blocked"
+)
 
 // newImportAccumulator creates and initializes a new importAccumulator.
 // Maps (botsSet, etc.) are explicitly initialized to prevent nil map panics
@@ -621,6 +628,10 @@ func (acc *importAccumulator) appendModelsField(fm map[string]any) {
 	if jsonErr := json.Unmarshal([]byte(modelsContent), &rawModels); jsonErr != nil {
 		return
 	}
+	if modelPolicy := normalizeModelPolicies(rawModels); len(modelPolicy) > 0 {
+		acc.modelPolicies = append(acc.modelPolicies, modelPolicy)
+		parserLog.Printf("Extracted model policy from import: allowed=%d, disallowed=%d, blocked=%d", len(modelPolicy["allowed"]), len(modelPolicy["disallowed"]), len(modelPolicy["blocked"]))
+	}
 	if _, hasProviders := rawModels["providers"]; hasProviders {
 		acc.modelCosts = append(acc.modelCosts, rawModels)
 		if providers, ok := rawModels["providers"].(map[string]any); ok {
@@ -631,29 +642,74 @@ func (acc *importAccumulator) appendModelsField(fm map[string]any) {
 		return
 	}
 
-	modelsMap := normalizeModelAliases(rawModels)
+	aliasModels := make(map[string]any, len(rawModels))
+	for key, value := range rawModels {
+		if isModelPolicyKey(key) {
+			continue
+		}
+		aliasModels[key] = value
+	}
+	if len(aliasModels) == 0 {
+		return
+	}
+	modelsMap := normalizeModelAliases(aliasModels)
 	if len(modelsMap) > 0 {
 		acc.models = append(acc.models, modelsMap)
 		parserLog.Printf("Extracted model aliases from import: %d entries", len(modelsMap))
 	}
 }
 
+func normalizeModelPolicies(rawModels map[string]any) map[string][]string {
+	parse := func(key string) []string {
+		return parseStringSliceField(rawModels[key], false)
+	}
+	allowed := parse(modelPolicyAllowedKey)
+	disallowed := parse(modelPolicyDisallowedKey)
+	blocked := parse(modelPolicyBlockedKey)
+	if len(allowed) == 0 && len(disallowed) == 0 && len(blocked) == 0 {
+		return nil
+	}
+	return map[string][]string{
+		modelPolicyAllowedKey:    allowed,
+		modelPolicyDisallowedKey: disallowed,
+		modelPolicyBlockedKey:    blocked,
+	}
+}
+
 func normalizeModelAliases(rawModels map[string]any) map[string][]string {
 	modelsMap := make(map[string][]string, len(rawModels))
 	for k, v := range rawModels {
-		patterns, ok := v.([]any)
-		if !ok {
+		strs := parseStringSliceField(v, true)
+		if len(strs) == 0 {
 			continue
-		}
-		strs := make([]string, 0, len(patterns))
-		for _, p := range patterns {
-			if s, ok := p.(string); ok {
-				strs = append(strs, s)
-			}
 		}
 		modelsMap[k] = strs
 	}
 	return modelsMap
+}
+
+func parseStringSliceField(value any, keepEmpty bool) []string {
+	values, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	result := make([]string, 0, len(values))
+	for _, v := range values {
+		if s, ok := v.(string); ok {
+			if s == "" && !keepEmpty {
+				continue
+			}
+			result = append(result, s)
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+func isModelPolicyKey(key string) bool {
+	return key == modelPolicyAllowedKey || key == modelPolicyDisallowedKey || key == modelPolicyBlockedKey
 }
 
 func (acc *importAccumulator) extractRunInstallScripts(fm map[string]any, fullPath string) {
@@ -737,6 +793,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedEnvSources:              acc.envSources,
 		MergedFeatures:                acc.features,
 		MergedModels:                  acc.models,
+		MergedModelPolicies:           acc.modelPolicies,
 		MergedModelCosts:              acc.modelCosts,
 		MergedObservability:           mergeObservabilityConfigs(acc.observabilityConfigs),
 		ImportedFiles:                 topologicalOrder,

@@ -376,6 +376,12 @@ type FrontmatterConfig struct {
 	// so that custom or adjusted cost values are reflected in effective-token accounting.
 	// Structure: {"providers": {"<provider>": {"models": {"<model>": {"cost": {...}}}}}}
 	ModelCosts map[string]any `json:"models,omitempty"`
+	// ModelPolicyAllowed is frontmatter models.allowed (allowlist), merged as a union across imports.
+	ModelPolicyAllowed []string `json:"-"`
+	// ModelPolicyDisallowed is frontmatter models.disallowed (denylist), merged as a union across imports.
+	ModelPolicyDisallowed []string `json:"-"`
+	// ModelPolicyBlocked is frontmatter models.blocked (denylist alias), merged as a union across imports.
+	ModelPolicyBlocked []string `json:"-"`
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"user-rate-limit,omitempty"`
