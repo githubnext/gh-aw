@@ -112,7 +112,25 @@ async function readPdfBytes() {
       throw new Error(`Failed to download slide deck PDF: ${response.status} ${response.statusText}`);
     }
 
+    // Validate the Content-Type header before consuming the body to ensure we
+    // are actually receiving a PDF and not arbitrary data.
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.startsWith("application/pdf") && !contentType.startsWith("application/octet-stream")) {
+      throw new Error(`Unexpected content-type for slide deck: ${contentType}`);
+    }
+
+    // Guard against unexpectedly large downloads.
+    const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+    const contentLength = response.headers.get("content-length");
+    if (contentLength !== null && Number(contentLength) > MAX_BYTES) {
+      throw new Error(`Slide deck download size ${contentLength} exceeds limit of ${MAX_BYTES} bytes`);
+    }
+
     const downloadedBytes = Buffer.from(await response.arrayBuffer());
+    if (downloadedBytes.length > MAX_BYTES) {
+      throw new Error(`Downloaded slide deck size ${downloadedBytes.length} exceeds limit of ${MAX_BYTES} bytes`);
+    }
+
     if (!isPdf(downloadedBytes)) {
       throw new Error(`Downloaded slide deck from ${url} is not a real PDF.`);
     }
