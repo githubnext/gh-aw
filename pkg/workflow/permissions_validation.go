@@ -137,6 +137,7 @@ func checkMissingPermissions(permissions *Permissions, required map[PermissionSc
 			if result.MissingToolsetDetails == nil {
 				result.MissingToolsetDetails = make(map[string][]PermissionScope)
 			}
+			toolsetPermissionsMap := getToolsetPermissionsMap()
 			// Track which toolsets require this permission
 			for _, toolset := range toolsets {
 				perms, exists := toolsetPermissionsMap[toolset]

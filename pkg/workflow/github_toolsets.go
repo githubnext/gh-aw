@@ -75,6 +75,7 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 				excludedMap[ex] = struct {
 				}{}
 			}
+			toolsetPermissionsMap := getToolsetPermissionsMap()
 			for t := range toolsetPermissionsMap {
 				if setutil.Contains(excludedMap, t) {
 					continue
