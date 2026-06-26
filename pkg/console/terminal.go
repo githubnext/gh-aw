@@ -41,7 +41,9 @@ func ClearLine() {
 func ShowWelcomeBanner(description string) {
 	ClearScreen()
 	header := "→ Welcome to GitHub Agentic Workflows!"
-	header = applyStyle(styles.Header, header)
+	if tty.IsStderrTerminal() {
+		header = styles.Header.Render(header)
+	}
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, header)
 	fmt.Fprintln(os.Stderr, "")
