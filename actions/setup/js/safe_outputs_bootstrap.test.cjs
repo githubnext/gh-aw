@@ -127,7 +127,7 @@ describe("safe_outputs_bootstrap", () => {
         debugError: () => {},
       };
 
-      assert.throws(() => bootstrapSafeOutputsServer(logger), /create_pull_request is disabled by runtime policy: GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST=false/);
+      assert.throws(() => bootstrapSafeOutputsServer(logger), /create-pull-request is disabled by runtime policy: GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST=false/);
     });
   });
 

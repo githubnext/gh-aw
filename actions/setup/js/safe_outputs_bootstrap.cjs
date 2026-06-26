@@ -51,7 +51,7 @@ function bootstrapSafeOutputsServer(logger) {
 }
 
 /**
- * Refuse startup when runtime policy disables create_pull_request.
+ * Refuse startup when runtime policy disables create-pull-request.
  * @param {Record<string, any>} config
  * @param {Logger} logger
  */
@@ -59,13 +59,13 @@ function enforceCreatePullRequestRuntimePolicy(config, logger) {
   const policyVarName = "GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST";
   const rawValue = process.env[policyVarName];
   const normalizedValue = typeof rawValue === "string" ? rawValue.trim().toLowerCase() : "";
-  const createPullRequestConfigured = !!config && Object.prototype.hasOwnProperty.call(config, "create_pull_request");
+  const createPullRequestConfigured = !!config && (Object.prototype.hasOwnProperty.call(config, "create_pull_request") || Object.prototype.hasOwnProperty.call(config, "create-pull-request"));
 
   if (!createPullRequestConfigured || normalizedValue !== "false") {
     return;
   }
 
-  const message = `create_pull_request is disabled by runtime policy: ${policyVarName}=false. ` + `Remove safe-outputs.create-pull-request or set ${policyVarName}=true.`;
+  const message = `create-pull-request is disabled by runtime policy: ${policyVarName}=false. ` + `Remove safe-outputs.create-pull-request or set ${policyVarName}=true.`;
   logger.debug(message);
   throw new Error(message);
 }
