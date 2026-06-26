@@ -40,30 +40,67 @@ safe-outputs:
   noop:
 timeout-minutes: 30
 strict: true
+if: needs.yamllint_check.outputs.has_warnings == 'true'
+jobs:
+  yamllint_check:
+    runs-on: ubuntu-latest
+    needs: [activation]
+    permissions:
+      contents: read
+    outputs:
+      has_warnings: ${{ steps.run_yamllint.outputs.has_warnings }}
+      warning_count: ${{ steps.run_yamllint.outputs.warning_count }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.0
+        with:
+          persist-credentials: false
+      - name: Build gh-aw from source
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE"
+          make build
+          echo "gh-aw version: $("$GITHUB_WORKSPACE/gh-aw" --version)"
+      - name: Install yamllint
+        run: |
+          set -e
+          pip3 install yamllint==1.38.0 --quiet
+          yamllint --version
+      - name: Run yamllint on generated lock files
+        id: run_yamllint
+        run: |
+          set -e
+          YAMLLINT_CONFIG='{extends: default, rules: {line-length: disable, document-start: disable, truthy: {check-keys: false}, comments: {require-starting-space: true, min-spaces-from-content: 1}}}'
+          mkdir -p /tmp/gh-aw/agent/yamllint
+          yamllint -d "$YAMLLINT_CONFIG" -f parsable \
+            "$GITHUB_WORKSPACE"/.github/workflows/*.lock.yml 2>&1 \
+            | tee /tmp/gh-aw/agent/yamllint/warnings-before.txt || true
+          WARNING_COUNT=$(wc -l < /tmp/gh-aw/agent/yamllint/warnings-before.txt)
+          echo "Total warnings/errors: $WARNING_COUNT"
+          echo "warning_count=$WARNING_COUNT" >> "$GITHUB_OUTPUT"
+          if [ "$WARNING_COUNT" -gt 0 ]; then
+            echo "has_warnings=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_warnings=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload yamllint results artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: yamllint-results
+          path: /tmp/gh-aw/agent/yamllint/warnings-before.txt
+          if-no-files-found: error
+          retention-days: 3
 steps:
-  - name: Build gh-aw from source
-    run: |
-      set -e
-      cd "$GITHUB_WORKSPACE"
-      make build
-      echo "gh-aw version: $("$GITHUB_WORKSPACE/gh-aw" --version)"
+  - name: Download yamllint results artifact
+    uses: actions/download-artifact@v8.0.1
+    with:
+      name: yamllint-results
+      path: /tmp/gh-aw/agent/yamllint
   - name: Install yamllint
     run: |
       set -e
       pip3 install yamllint==1.38.0 --quiet
       yamllint --version
-  - name: Run yamllint on generated lock files
-    run: |
-      set -e
-      YAMLLINT_CONFIG='{extends: default, rules: {line-length: disable, document-start: disable, truthy: {check-keys: false}, comments: {require-starting-space: true, min-spaces-from-content: 1}}}'
-      mkdir -p /tmp/gh-aw/agent
-      # Run yamllint and capture output; exit code is ignored since errors are expected
-      yamllint -d "$YAMLLINT_CONFIG" -f parsable \
-        "$GITHUB_WORKSPACE"/.github/workflows/*.lock.yml 2>&1 \
-        | tee /tmp/gh-aw/agent/yamllint-before.txt || true
-      echo "---"
-      echo "Total warnings/errors before fix:"
-      wc -l < /tmp/gh-aw/agent/yamllint-before.txt
 imports:
   - shared/otlp.md
 sandbox:
@@ -82,17 +119,22 @@ You are a Go code quality agent. Your mission is to reduce yamllint noise in the
 - **Workspace**: `${{ github.workspace }}`
 - **yamllint config**: `{extends: default, rules: {line-length: disable, document-start: disable, truthy: {check-keys: false}, comments: {require-starting-space: true, min-spaces-from-content: 1}}}`
 
-The pre-steps have already:
-1. Built `gh-aw` from source at `${{ github.workspace }}/gh-aw`
-2. Installed yamllint 1.38.0
-3. Saved a baseline report to `/tmp/gh-aw/agent/yamllint-before.txt`
+The `yamllint_check` job has already:
+1. Built `gh-aw` from source
+2. Run yamllint 1.38.0 and saved a baseline report to `/tmp/gh-aw/agent/yamllint/warnings-before.txt`
+
+The agent job pre-steps have:
+- Downloaded the baseline artifact to `/tmp/gh-aw/agent/yamllint/warnings-before.txt`
+- Installed yamllint 1.38.0 (available on `PATH`)
+
+The agent still needs to build `gh-aw` from source before Phases 3–5 (use `make build` in the workspace).
 
 ## Phase 1: Analyze Baseline
 
-Read `/tmp/gh-aw/agent/yamllint-before.txt` and categorize each warning type:
+Read `/tmp/gh-aw/agent/yamllint/warnings-before.txt` and categorize each warning type:
 
 ```bash
-cat /tmp/gh-aw/agent/yamllint-before.txt | grep -oP '\[.*?\]' | sort | uniq -c | sort -rn
+cat /tmp/gh-aw/agent/yamllint/warnings-before.txt | grep -oP '\[.*?\]' | sort | uniq -c | sort -rn
 ```
 
 Focus on the most frequent categories:
@@ -104,7 +146,7 @@ Focus on the most frequent categories:
 For each category, sample a few affected lines:
 
 ```bash
-grep "trailing-spaces" /tmp/gh-aw/agent/yamllint-before.txt | head -5
+grep "trailing-spaces" /tmp/gh-aw/agent/yamllint/warnings-before.txt | head -5
 ```
 
 Then inspect those lines in the lock file to understand what generates them.
@@ -203,10 +245,10 @@ Run yamllint again with the same config:
 YAMLLINT_CONFIG='{extends: default, rules: {line-length: disable, document-start: disable, truthy: {check-keys: false}, comments: {require-starting-space: true, min-spaces-from-content: 1}}}'
 yamllint -d "$YAMLLINT_CONFIG" -f parsable \
   "$GITHUB_WORKSPACE"/.github/workflows/*.lock.yml 2>&1 \
-  | tee /tmp/gh-aw/agent/yamllint-after.txt || true
+  | tee /tmp/gh-aw/agent/yamllint/warnings-after.txt || true
 
-BEFORE=$(wc -l < /tmp/gh-aw/agent/yamllint-before.txt)
-AFTER=$(wc -l < /tmp/gh-aw/agent/yamllint-after.txt)
+BEFORE=$(wc -l < /tmp/gh-aw/agent/yamllint/warnings-before.txt)
+AFTER=$(wc -l < /tmp/gh-aw/agent/yamllint/warnings-after.txt)
 echo "Before: $BEFORE warnings | After: $AFTER warnings | Reduction: $((BEFORE - AFTER))"
 ```
 
