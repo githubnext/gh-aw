@@ -39,6 +39,46 @@ func isDeadlineExceeded(ctx context.Context) bool {
 	return errors.Is(ctx.Err(), context.DeadlineExceeded)
 }
 
+// noRunsMessage returns a human-readable explanation for why zero workflow runs
+// were returned.  It inspects the startDate filter and the timeoutReached flag
+// so callers receive actionable guidance instead of a silent empty result.
+//
+// Priority order:
+//  1. Timeout – the download was cut short before any run was collected.
+//  2. Future start date – GitHub cannot have runs in the future.
+//  3. Start date older than 90 days – beyond GitHub's default retention window.
+//  4. Generic fallback for any other combination of filters.
+func noRunsMessage(startDate string, timeoutReached bool) string {
+	if timeoutReached {
+		return "No runs found. Timeout reached before any runs could be downloaded."
+	}
+	if startDate != "" {
+		if t, err := parseFilterDate(startDate); err == nil {
+			now := time.Now()
+			if t.After(now) {
+				return fmt.Sprintf("No runs found. The start_date %q is in the future.", startDate)
+			}
+			// GitHub Actions retains logs for 90 days by default.
+			if t.Before(now.AddDate(0, 0, -90)) {
+				return "No runs found. Data may not be available beyond the 90-day retention period."
+			}
+		}
+	}
+	return "No runs found matching the specified criteria."
+}
+
+// parseFilterDate tries to parse a date or datetime string in the formats used
+// by the logs command's --start-date / --end-date flags after date resolution.
+// Both plain dates ("2006-01-02") and RFC 3339 timestamps are accepted.
+func parseFilterDate(s string) (time.Time, error) {
+	for _, layout := range []string{time.RFC3339, "2006-01-02"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unable to parse date %q", s)
+}
+
 // It reads from the GH_AW_MAX_CONCURRENT_DOWNLOADS environment variable if set,
 // validates the value is between 1 and 100, and falls back to the default if invalid.
 func getMaxConcurrentDownloads() int {
@@ -618,6 +658,7 @@ outerLoop:
 		// This prevents stderr messages from corrupting JSON when both streams are redirected together
 		if jsonOutput {
 			logsData := buildLogsData([]ProcessedRun{}, outputDir, nil)
+			logsData.Message = noRunsMessage(startDate, timeoutReached)
 			if err := renderLogsJSON(logsData, verbose); err != nil {
 				return fmt.Errorf("failed to render JSON output: %w", err)
 			}
@@ -974,6 +1015,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 	if len(runs) == 0 {
 		if opts.JSONOutput {
 			logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil)
+			logsData.Message = "No runs found. No valid runs could be loaded from the provided input."
 			if err := renderLogsJSON(logsData, opts.Verbose); err != nil {
 				return fmt.Errorf("failed to render JSON output: %w", err)
 			}
@@ -1147,6 +1189,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 	if len(processedRuns) == 0 {
 		if opts.JSONOutput {
 			logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil)
+			logsData.Message = "No runs found matching the specified criteria."
 			if err := renderLogsJSON(logsData, opts.Verbose); err != nil {
 				return fmt.Errorf("failed to render JSON output: %w", err)
 			}
