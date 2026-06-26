@@ -767,7 +767,6 @@ func printExperimentDetails(d *ExperimentDetails) {
 	fmt.Fprintf(os.Stderr, "  Total runs: %d\n", d.TotalRuns)
 
 	if len(d.Experiments) > 0 {
-		fmt.Fprintln(os.Stderr, "\nExperiments:")
 		for _, exp := range d.Experiments {
 			// Sort variants for deterministic display.
 			type kv struct {
@@ -796,12 +795,15 @@ func printExperimentDetails(d *ExperimentDetails) {
 				}
 				rows = append(rows, []string{p.k, strconv.Itoa(p.v), strconv.Itoa(pct) + "%"})
 			}
-			fmt.Fprint(os.Stderr, console.RenderTable(console.TableConfig{
-				Title:   fmt.Sprintf("%s (total: %d)", exp.Name, exp.Total),
-				Headers: []string{"Variant", "Count", "Percent"},
-				Rows:    rows,
-				TTYFunc: tty.IsStderrTerminal,
-			}))
+			if len(rows) > 0 {
+				fmt.Fprint(os.Stderr, "\n")
+				fmt.Fprint(os.Stderr, console.RenderTable(console.TableConfig{
+					Title:   fmt.Sprintf("%s (total: %d)", exp.Name, exp.Total),
+					Headers: []string{"Variant", "Count", "Percent"},
+					Rows:    rows,
+					TTYFunc: tty.IsStderrTerminal,
+				}))
+			}
 		}
 	} else {
 		fmt.Fprintln(os.Stderr, "\nNo experiment data found (state.json not present or empty).")
