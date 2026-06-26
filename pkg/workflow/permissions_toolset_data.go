@@ -39,7 +39,7 @@ var getToolsetPermissionsMap = sync.OnceValue(func() map[string]GitHubToolsetPer
 
 	var data GitHubToolsetsData
 	if err := json.Unmarshal(githubToolsetsPermissionsJSON, &data); err != nil {
-		panic(fmt.Sprintf("failed to load GitHub toolsets permissions from JSON: %v", err))
+		panic(fmt.Sprintf("BUG: failed to load GitHub toolsets permissions from JSON: %v", err))
 	}
 
 	toolsetPermissionsMap := make(map[string]GitHubToolsetPermissions)
