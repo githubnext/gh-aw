@@ -66,6 +66,8 @@ type orgListItem struct {
 	PullRequest *orgPullRequest `json:"pull_request,omitempty"`
 }
 
+// orgPullRequest is a presence marker for the GitHub issues API, which returns
+// pull requests and issues in the same collection.
 type orgPullRequest struct{}
 
 func runOrgAPI(ctx context.Context, remoteHost, spinnerMessage string, args ...string) ([]byte, error) {
