@@ -24,7 +24,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - Example: `bots: [dependabot[bot], renovate[bot], github-actions[bot]]`
   - Bot must be active (installed) on repository to trigger workflow
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`)
-  - Must be `true`
+  - Set `strict: false` to disable enhanced validation
 - **`max-turns:`** - AWF turn cap applied consistently across all agentic engines (integer or expression, e.g. `${{ inputs.max-turns }}`). The engine-level `engine.max-turns` is a deprecated alias kept for backward compatibility — prefer this top-level field. Not supported by the `gemini` engine.
 - **`max-runs:`** - Deprecated legacy alias for the AWF invocation cap (`apiProxy.maxRuns`, defaults to `500` when omitted). Use `max-turns` instead; run `gh aw fix` to migrate.
 - **`max-ai-credits:`** - Per-run AI Credits (AIC) budget enforced by the AWF firewall (integer or `K`/`M` short-form string like `100M`; default `1000`). Set a negative value to disable enforcement and token steering. See [token-optimization.md](token-optimization.md).
@@ -321,18 +321,9 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
         - "blocked-domain.com"
         - "*.untrusted.com"
         - python                          # Block ecosystem identifiers
-      firewall: true                      # Optional: Enable AWF (Agent Workflow Firewall) for Copilot engine
     ```
 
-  - **Firewall configuration** (Copilot engine only):
-
-    ```yaml
-    network:
-      firewall:
-        version: "v1.0.0"                 # Optional: AWF version (defaults to latest)
-        log-level: debug                  # Optional: debug, info (default), warn, error
-        args: ["--custom-arg", "value"]   # Optional: additional AWF arguments
-    ```
+  - **Firewall (AWF) configuration** is set under `sandbox.agent`, not `network`. Use `sandbox.agent.version` to pin the AWF version (see below). The legacy `network.firewall` field is deprecated; run `gh aw fix` to migrate.
 
 - **`sandbox:`** - Sandbox configuration for AI engines (string or object)
   - String format: `"default"` (default sandbox), `"awf"` (Agent Workflow Firewall)

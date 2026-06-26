@@ -161,6 +161,10 @@ Upgrade the repository's agentic workflows configuration to the latest gh-aw ver
 gh aw upgrade               # Upgrade agent files + codemods + compile
 gh aw upgrade -v            # Verbose output
 gh aw upgrade --no-fix      # Skip codemods and compilation
+gh aw upgrade --create-pull-request         # Open a PR with the upgrade changes (alias: --pr)
+gh aw upgrade --org my-org                  # Preview upgrade PRs across an organization
+gh aw upgrade --org my-org --repos '*-service'  # Limit org mode to matching repos
+gh aw upgrade --org my-org --create-issue   # Open issues in org repos with agentic workflows (requires --org)
 ```
 
 **MCP equivalent**: `upgrade` tool

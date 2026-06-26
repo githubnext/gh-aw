@@ -40,7 +40,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
       max: 10                         # Optional: max assets (default: 10)
   ```
 
-  Publishes files to an orphaned git branch for persistent storage and URL-addressable embedding. Default allowed extensions include common non-executable types. Maximum file size is 50MB (51200 KB). **Use this for images, charts, and screenshots that need embeddable URLs in issues/PRs/discussions.**
+  Publishes files to an orphaned git branch for persistent storage and URL-addressable embedding. Default allowed extensions include common non-executable types. Default max file size is 10MB (10240 KB), configurable via `max-size`. **Use this for images, charts, and screenshots that need embeddable URLs in issues/PRs/discussions.**
 - `upload-artifact:` - Upload files as run-scoped GitHub Actions artifacts (recommended for temporary run artifacts and attachment-style outputs)
 
   ```yaml
