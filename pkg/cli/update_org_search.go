@@ -28,14 +28,17 @@ type orgSearchResponse struct {
 
 var searchOrgWorkflowReposFn = searchOrgWorkflowRepos
 
-// searchOrgWorkflowRepos searches an organization's repositories for workflow
-// markdown files that include a "source:" field, indicating they are
-// source-managed agentic workflows eligible for bulk updates.
+// searchOrgWorkflowRepos searches an organization's repositories for compiled
+// agentic workflow lock files (.lock.yml) in .github/workflows, which indicates
+// the repository has source-managed agentic workflows eligible for bulk updates.
 //
 // It paginates through all code-search results, deduplicates by repository full
 // name, and returns a deterministically sorted slice of "owner/repo" strings.
+//
+// The per-repo scan phase (previewOrgRepoUpdates) further filters to only
+// workflows that have a source: field and available updates.
 func searchOrgWorkflowRepos(ctx context.Context, org string, verbose bool) ([]string, error) {
-	query := fmt.Sprintf(`org:%s path:.github/workflows extension:md "source:"`, org)
+	query := fmt.Sprintf(`org:%s path:.github/workflows filename:.lock.yml`, org)
 	return searchOrgReposByQuery(ctx, query, verbose)
 }
 

@@ -16,6 +16,16 @@ import (
 
 var orgRunnerLog = logger.New("cli:org_runner")
 
+// orgWorkflowCountSuffix returns a parenthetical workflow-count string for use
+// in progress messages, e.g. " (5 workflow(s))". Returns an empty string when
+// the count is zero (e.g. upgrade repos before scanning).
+func orgWorkflowCountSuffix(preview orgRepoPreview) string {
+	if preview.TotalWorkflows <= 0 {
+		return ""
+	}
+	return fmt.Sprintf(" (%d workflow(s))", preview.TotalWorkflows)
+}
+
 // orgRunCallbacks holds the pluggable functions for runCommandForOrg.
 //
 // runCommandForOrg implements the shared algorithm used by both the update and
@@ -254,7 +264,7 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", result.Repo, err)))
 				}
 			}
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s", i+1, len(results), issueLabel, result.Repo)))
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s%s", i+1, len(results), issueLabel, result.Repo, orgWorkflowCountSuffix(result))))
 			if err := cbs.IssueFn(ctx, result, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", result.Repo, err)))
 				orgRunnerLog.Printf("Failed to create issue in %s: %v", result.Repo, err)
@@ -294,7 +304,7 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Continuing after rate limit check failure for %s: %v", result.Repo, err)))
 			}
 		}
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s", i+1, len(results), applyLabel, result.Repo)))
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s%s", i+1, len(results), applyLabel, result.Repo, orgWorkflowCountSuffix(result))))
 		if err := cbs.ApplyFn(ctx, result, verbose); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", result.Repo, err)))
 			orgRunnerLog.Printf("Failed to apply to %s: %v", result.Repo, err)
