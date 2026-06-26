@@ -73,9 +73,13 @@ async function runLogParser(options) {
   }
 
   /**
-   * Checks whether the agent ran at least one turn to completion.
-   * Used to distinguish a post-completion MCP relaunch failure (non-fatal)
-   * from a startup failure where the agent never ran (fatal).
+   * Returns true if the log entries show the agent ran at least one turn.
+   *
+   * "At least one turn" is used (rather than "all work finished") because the
+   * log only records the turn count, not whether every intended task succeeded.
+   * The check is sufficient to distinguish a post-completion MCP relaunch
+   * failure (the agent was already executing) from a startup failure where the
+   * MCP never launched and the agent ran zero turns.
    *
    * Handles both log formats:
    *   - Legacy format (Codex, Copilot, etc.): { type: "result", num_turns: N }
