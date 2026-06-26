@@ -52,8 +52,10 @@ steps:
       candidate_file=/tmp/gh-aw/agent/pr-sous-chef-candidates.json
       eligible_file=/tmp/gh-aw/agent/pr-sous-chef-eligible.json
       sous_chef_nudge_marker='<!-- gh-aw-pr-sous-chef-nudge -->'
+      cooldown_seconds=1800
       filtered_checks_pending=0
       filtered_last_comment_from_sous_chef=0
+      filtered_cooldown=0
 
       gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
         --state open \
@@ -81,18 +83,39 @@ steps:
           continue
         fi
 
+        # Fetch the 10 most-recent issue comments once; used for the skip checks below.
+        recent_comments_json="$(
+          gh api "repos/$EXPR_GITHUB_REPOSITORY/issues/$pr_number/comments?per_page=10&sort=created&direction=desc" \
+            2>/dev/null || echo "[]"
+        )"
+
+        # Skip if the very last comment was posted by pr-sous-chef (never add two in a row).
         last_comment_is_sous_chef="$(
-          gh api "repos/$EXPR_GITHUB_REPOSITORY/issues/$pr_number/comments?per_page=1&sort=created&direction=desc" \
-            --jq '
-              if length == 0 then false
-              else (
-                ((.[0].body // "" | contains($marker)))
-               ) end
-            ' --arg marker "$sous_chef_nudge_marker" 2>/dev/null || echo "false"
+          jq -r --arg marker "$sous_chef_nudge_marker" '
+            if length == 0 then "false"
+            elif (.[0].body // "" | contains($marker)) then "true"
+            else "false"
+            end
+          ' <<<"$recent_comments_json"
         )"
         if [ "$last_comment_is_sous_chef" = "true" ]; then
           filtered_last_comment_from_sous_chef=$((filtered_last_comment_from_sous_chef + 1))
           continue
+        fi
+
+        # Skip if pr-sous-chef commented within the last 30 minutes (cooldown period).
+        last_sous_chef_comment_at="$(
+          jq -r --arg marker "$sous_chef_nudge_marker" '
+            [.[] | select(.body // "" | contains($marker))] | .[0].created_at // ""
+          ' <<<"$recent_comments_json"
+        )"
+        if [ -n "$last_sous_chef_comment_at" ]; then
+          comment_epoch="$(date -d "$last_sous_chef_comment_at" +%s 2>/dev/null || echo 0)"
+          current_epoch="$(date +%s)"
+          if [ $(( current_epoch - comment_epoch )) -lt "$cooldown_seconds" ]; then
+            filtered_cooldown=$((filtered_cooldown + 1))
+            continue
+          fi
         fi
 
         jq --argjson pr "$pr" '. + [$pr]' "$eligible_file" > "${eligible_file}.tmp" && mv "${eligible_file}.tmp" "$eligible_file"
@@ -100,11 +123,13 @@ steps:
       done < <(jq -c '.[]' "$candidate_file")
 
       jq --argjson filtered_checks_pending "$filtered_checks_pending" \
-         --argjson filtered_last_comment_from_sous_chef "$filtered_last_comment_from_sous_chef" '{
+         --argjson filtered_last_comment_from_sous_chef "$filtered_last_comment_from_sous_chef" \
+         --argjson filtered_cooldown "$filtered_cooldown" '{
         fetched: (length),
         generated_at: (now | todate),
         filtered_checks_pending: $filtered_checks_pending,
         filtered_last_comment_from_sous_chef: $filtered_last_comment_from_sous_chef,
+        filtered_cooldown: $filtered_cooldown,
         prs: map({
           number,
           title,
@@ -193,10 +218,14 @@ Before any nudge for a PR:
    - If any check is `queued`, `in_progress`, or `pending`, skip this PR.
 
 2. **Skip when the latest PR comment is from pr-sous-chef itself**
-   - Candidate prefilter already removes PRs when latest comment body includes the hidden marker `<!-- gh-aw-pr-sous-chef-nudge -->`.
+   - Candidate prefilter already removes PRs when the latest issue comment body includes the hidden marker `<!-- gh-aw-pr-sous-chef-nudge -->`.
    - Inspect PR comments ordered by recency.
-   - Treat a comment as from pr-sous-chef only when the latest comment body contains exactly `<!-- gh-aw-pr-sous-chef-nudge -->`.
-   - If true, skip to avoid repetitive nudges.
+   - Treat a comment as from pr-sous-chef only when the latest comment body contains `<!-- gh-aw-pr-sous-chef-nudge -->`.
+   - If true, skip to avoid back-to-back nudges.
+
+3. **Skip during the 30-minute cooldown after a pr-sous-chef comment**
+   - Candidate prefilter already removes PRs where the most recent sous-chef comment was posted within the last 30 minutes.
+   - If any recent comment contains `<!-- gh-aw-pr-sous-chef-nudge -->` and was created less than 30 minutes ago, skip this PR.
 
 ## Required nudges for eligible PRs
 
@@ -218,26 +247,18 @@ For each PR that is not skipped:
      safeoutputs update_pull_request --pull_request_number 12345 --update_branch true --body "<!-- pr-sous-chef branch update -->" --operation append
      ```
 
-2. **Nudge unresolved review feedback**
-   - Check pull request review threads/comments.
-   - If unresolved or active review feedback exists, add a PR comment that includes:
-     - `<!-- gh-aw-pr-sous-chef-nudge -->` as a hidden marker line.
-     - @copilot review all comments
-     - a short sentence asking Copilot to address unresolved review feedback.
+2. **Post exactly one combined nudge comment**
+   - **At most ONE `add_comment` call per PR per run.** Never post two comments to the same PR in a single run.
+   - Inspect PR review threads and comments for unresolved feedback.
+   - Combine all nudges (unresolved review feedback, branch-refresh request, completion plan, etc.) into **one single comment** that includes:
+     - `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line (required — this is how the cooldown and duplicate-comment checks detect sous-chef).
+     - @copilot mention with a concise, actionable instruction covering all relevant nudges in one message.
    - Every `add_comment` must include `pr_number` set to the current PR's numeric `number` from the loop item.
    - Never emit `add_comment` without a numeric target field (`pr_number`/`pull_request_number`/`issue_number`/`item_number`) when `target: "*"` is configured.
    - Example (`add_comment` shell call):
      ```bash
-     safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot review all comments and address unresolved review feedback.'
+     safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot please address the unresolved review comments and rerun checks once the branch is up to date.'
      ```
-
-3. **Apply one additional forward-progress nudge**
-   - Choose one concise nudge to unblock progress, e.g. ask Copilot to:
-     - refresh branch and rerun checks,
-     - summarize remaining blockers,
-     - or post a completion plan for unresolved items.
-   - Include `<!-- gh-aw-pr-sous-chef-nudge -->` in the comment body.
-   - Keep comments brief and actionable.
 
 ### Run summary
 
@@ -245,15 +266,15 @@ At the end, call **exactly one** `noop` with a compact summary including counts 
 - processed
 - skipped_checks_running
 - skipped_last_comment_from_sous_chef
-- nudged_review_comments
-- nudged_other
+- skipped_cooldown
+- nudged
 - branch_update_attempts
 - formatter_pushes (number of PRs that had formatting fixes committed and pushed)
 
 Example (`noop` shell call):
 
 ```bash
-safeoutputs noop --message "processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=2; nudged_review_comments=1; nudged_other=1; branch_update_attempts=0; formatter_pushes=0"
+safeoutputs noop --message "processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=1; skipped_cooldown=1; nudged=2; branch_update_attempts=0; formatter_pushes=0"
 ```
 
 ## Formatting Requirements
@@ -279,11 +300,11 @@ Given one PR number and compact metadata:
 1. Check skip conditions in this order:
    - checks/actions running
    - latest comment contains `<!-- gh-aw-pr-sous-chef-nudge -->`
+   - any recent comment contains `<!-- gh-aw-pr-sous-chef-nudge -->` and was posted within the last 30 minutes
 2. If skipped, return `skip_reason` only.
 3. If not skipped, return:
    - whether branch update should be attempted
-   - whether unresolved review feedback exists
-   - one concise additional progress nudge recommendation
+   - a single combined nudge comment body (covering unresolved review feedback, branch refresh, and any other forward-progress action) — one comment only, never two
 4. Make at most 8 tool calls total. If 8 calls are insufficient to reach a confident decision, set all fields to `null` and set `skip_reason: "insufficient_context"`.
 5. Keep output compact JSON only — a single object, no prose.
 6. If you cannot determine a field, set it to `null`.
