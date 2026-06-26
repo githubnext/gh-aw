@@ -57,8 +57,6 @@ Missing `README.md` causes package validation to fail.
 ## Example
 
 ```yaml
-manifest-version: "1"
-min-version: v0.38.0
 name: Repo Assist
 emoji: 🤖
 description: Friendly repository automation for review and issue triage
