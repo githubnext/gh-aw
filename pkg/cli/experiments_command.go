@@ -796,8 +796,7 @@ func printExperimentDetails(d *ExperimentDetails) {
 				rows = append(rows, []string{p.k, strconv.Itoa(p.v), strconv.Itoa(pct) + "%"})
 			}
 			if len(rows) > 0 {
-				fmt.Fprint(os.Stderr, "\n")
-				fmt.Fprint(os.Stderr, console.RenderTable(console.TableConfig{
+				fmt.Fprintf(os.Stderr, "\n%s", console.RenderTable(console.TableConfig{
 					Title:   fmt.Sprintf("%s (total: %d)", exp.Name, exp.Total),
 					Headers: []string{"Variant", "Count", "Percent"},
 					Rows:    rows,
@@ -820,8 +819,7 @@ func printExperimentDetails(d *ExperimentDetails) {
 			}
 			rows = append(rows, []string{date, run.RunID, formatAssignments(run.Assignments)})
 		}
-		fmt.Fprint(os.Stderr, "\n")
-		fmt.Fprint(os.Stderr, console.RenderTable(console.TableConfig{
+		fmt.Fprintf(os.Stderr, "\n%s", console.RenderTable(console.TableConfig{
 			Title:   "Recent runs",
 			Headers: []string{"Date", "Run ID", "Assignments"},
 			Rows:    rows,
