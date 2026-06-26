@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -26,54 +25,6 @@ type callWorkflowPermissionImport struct {
 	permissions *Permissions
 	sourcePath  string
 	sourceKind  workflowSourceKind
-}
-
-// permissionLevelRank maps a permission level to a comparable rank where a higher
-// number grants strictly more access (none < read < write). Used to determine
-// whether one permission set covers another. Unknown or empty levels rank as 0.
-func permissionLevelRank(level PermissionLevel) int {
-	switch level {
-	case PermissionWrite:
-		return 2
-	case PermissionRead:
-		return 1
-	default: // PermissionNone or empty
-		return 0
-	}
-}
-
-// findUncoveredWorkerPermissions returns the worker permission scopes (formatted as
-// "scope: level") that the caller's declared permissions do not cover. A scope is
-// uncovered when the caller grants a strictly lower level than the worker requires.
-// The result is sorted for deterministic output; an empty result means the caller's
-// declared permissions are sufficient for the worker.
-func findUncoveredWorkerPermissions(caller, worker *Permissions) []string {
-	if worker == nil {
-		return nil
-	}
-
-	scopes := append(GetAllPermissionScopes(), PermissionCopilotRequests)
-	var missing []string
-	for _, scope := range scopes {
-		workerLevel, workerWants := worker.Get(scope)
-		if !workerWants || workerLevel == PermissionNone {
-			continue
-		}
-
-		callerLevel := PermissionNone
-		if caller != nil {
-			if level, has := caller.Get(scope); has {
-				callerLevel = level
-			}
-		}
-
-		if permissionLevelRank(callerLevel) < permissionLevelRank(workerLevel) {
-			missing = append(missing, fmt.Sprintf("%s: %s", scope, workerLevel))
-		}
-	}
-
-	sort.Strings(missing)
-	return missing
 }
 
 // extractJobPermissionsFromParsedWorkflow extracts and merges all job-level permissions
@@ -116,37 +67,6 @@ func extractJobPermissionsFromParsedWorkflow(workflow map[string]any) *Permissio
 	}
 
 	return merged
-}
-
-// extractCallWorkflowPermissions is a compatibility helper used by existing tests.
-// New production code should prefer extractCallWorkflowPermissionImport when it
-// needs both the permissions and their review source metadata.
-//
-// extractCallWorkflowPermissions returns the permission superset required by the worker
-// workflow identified by workflowName. It resolves the file in priority order:
-// .lock.yml > .yml > .md (same-batch compilation target).
-//
-// For compiled files (.lock.yml / .yml), permissions are extracted from each job's
-// permissions block and unioned together. For .md sources, the frontmatter-level
-// permissions field is used as a proxy (the compiler will turn it into per-job
-// permissions when the worker is eventually compiled).
-//
-// The result is merged with the caller's declared permissions to form the effective
-// permission envelope for the call-workflow job (see buildCallWorkflowJobs). This ensures
-// the caller job always grants at least what the worker requires, preventing GitHub from
-// rejecting the run at startup when the worker requests a level higher than the caller granted.
-//
-// Returns nil only when no workflow file is found or (for .md sources) when no
-// permissions are present in the frontmatter. For compiled YAML workers the
-// function always returns a non-nil *Permissions (possibly empty) because
-// extractJobPermissionsFromParsedWorkflow initialises a fresh Permissions map
-// regardless of whether any jobs declare a permissions block.
-func extractCallWorkflowPermissions(workflowName, markdownPath string) (*Permissions, error) {
-	imported, err := extractCallWorkflowPermissionImport(workflowName, markdownPath)
-	if err != nil || imported == nil {
-		return nil, err
-	}
-	return imported.permissions, nil
 }
 
 func extractCallWorkflowPermissionImport(workflowName, markdownPath string) (*callWorkflowPermissionImport, error) {

@@ -28,6 +28,7 @@ tools:
   cli-proxy: true
   github:
     mode: gh-proxy
+    min-integrity: approved
     toolsets: [pull_requests, repos, issues]
   edit:
   bash:
@@ -137,6 +138,7 @@ safe-outputs:
   add-comment:
     max: 20
     target: "*"
+    github-token: ${{ secrets.AWI_MAINTENANCE_TOKEN }}
   update-pull-request:
     title: false
     body: true
