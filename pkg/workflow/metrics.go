@@ -19,6 +19,7 @@ type ToolCallInfo struct {
 	MaxInputSize  int           // Maximum input size in tokens for any call
 	MaxOutputSize int           // Maximum output size in tokens for any call
 	MaxDuration   time.Duration // Maximum execution duration for any call
+	OutputSample  string        // Preview of the largest tool response (first few lines, truncated)
 }
 
 // LogMetrics represents extracted metrics from log files
