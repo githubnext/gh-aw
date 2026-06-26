@@ -17,7 +17,7 @@ func TestNewLogsCommand(t *testing.T) {
 
 	require.NotNil(t, cmd, "NewLogsCommand should not return nil")
 	assert.Equal(t, "logs [workflow]", cmd.Use, "Command use should be 'logs [workflow]'")
-	assert.Equal(t, "Download and analyze agentic workflow logs with aggregated metrics", cmd.Short, "Command short description should match")
+	assert.Equal(t, "Download and analyze agentic workflow logs and artifacts", cmd.Short, "Command short description should match")
 	assert.Contains(t, cmd.Long, "Download and analyze agentic workflow logs", "Command long description should contain expected text")
 	assert.Contains(t, cmd.Example, "logs --cache-before -1w", "Cache maintenance examples should use the cache-before flag name")
 
@@ -40,6 +40,7 @@ func TestNewLogsCommand(t *testing.T) {
 	// Check engine flag
 	engineFlag := flags.Lookup("engine")
 	assert.NotNil(t, engineFlag, "Should have 'engine' flag")
+	assert.Empty(t, engineFlag.Shorthand, "Engine filter flag should not have shorthand")
 
 	// Check firewall flags
 	firewallFlag := flags.Lookup("firewall")

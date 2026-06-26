@@ -17,6 +17,8 @@ import (
 )
 
 var deployLog = logger.New("cli:deploy_command")
+var runDeployFn = runDeploy
+var runDeployForOrgFn = runDeployForOrg
 
 const defaultDeployCooldown = "7d"
 const deployCommitMessage = "chore: deploy agentic workflows"
@@ -31,7 +33,9 @@ func NewDeployCommand(validateEngine func(string) error) *cobra.Command {
 The command clones the target repository, updates existing workflows from source, adds the specified workflows, recompiles lock files with purge enabled, and opens a pull request.`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/ci-doctor --repo owner/repo
   ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/repo-assist githubnext/agentics/ci-doctor --repo owner/repo --force
-  ` + string(constants.CLIExtensionPrefix) + ` deploy ./my-workflow.md --repo owner/repo`,
+  ` + string(constants.CLIExtensionPrefix) + ` deploy ./my-workflow.md --repo owner/repo
+  ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/ci-doctor --org my-org --yes
+  ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/ci-doctor --org my-org --repos '*-service' --yes`,
 		Args: validateDeployArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDeployCommand(cmd, args, validateEngine)
@@ -99,6 +103,9 @@ func registerDeployFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
 	_ = cmd.Flags().MarkHidden("disable-security-scanner")
 	cmd.Flags().String("cool-down", defaultDeployCooldown, coolDownFlagUsage)
+	cmd.Flags().String("org", "", "Deploy workflows across repositories in an organization")
+	cmd.Flags().StringSlice("repos", nil, "Limit --org mode to repositories matching one or more glob patterns")
+	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode deploy confirmations (required in CI)")
 
 	RegisterEngineFlagCompletion(cmd)
 	RegisterDirFlagCompletion(cmd, "dir")
@@ -106,16 +113,30 @@ func registerDeployFlags(cmd *cobra.Command) {
 
 func runDeployCommand(cmd *cobra.Command, workflows []string, validateEngine func(string) error) error {
 	targetRepo, _ := cmd.Flags().GetString("repo")
-	if strings.TrimSpace(targetRepo) == "" {
-		return errors.New("--repo flag is required (target repository in owner/repo format)")
-	}
+	targetOrg, _ := cmd.Flags().GetString("org")
+	repoGlobs, _ := cmd.Flags().GetStringSlice("repos")
+	yes, _ := cmd.Flags().GetBool("yes")
 
 	opts, coolDown, err := parseDeployCommandOptions(cmd, workflows, validateEngine)
 	if err != nil {
 		return err
 	}
 
-	return runDeploy(cmd.Context(), targetRepo, workflows, opts, coolDown)
+	if strings.TrimSpace(targetRepo) != "" && strings.TrimSpace(targetOrg) != "" {
+		return errors.New("cannot specify both --repo and --org")
+	}
+	if len(repoGlobs) > 0 && strings.TrimSpace(targetOrg) == "" {
+		return errors.New("--repos requires --org to be specified")
+	}
+	if strings.TrimSpace(targetRepo) == "" && strings.TrimSpace(targetOrg) == "" {
+		return errors.New("either --repo (owner/repo) or --org must be provided")
+	}
+
+	if strings.TrimSpace(targetOrg) != "" {
+		return runDeployForOrgFn(cmd.Context(), targetOrg, repoGlobs, workflows, opts, coolDown, yes, opts.Verbose)
+	}
+
+	return runDeployFn(cmd.Context(), targetRepo, workflows, opts, coolDown)
 }
 
 func parseDeployCommandOptions(cmd *cobra.Command, workflows []string, validateEngine func(string) error) (AddOptions, time.Duration, error) {

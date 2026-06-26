@@ -3,10 +3,12 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,6 +36,9 @@ func TestNewDeployCommand_RegistersCoreFlags(t *testing.T) {
 
 	expectedFlags := []string{
 		"repo",
+		"org",
+		"repos",
+		"yes",
 		"name",
 		"engine",
 		"force",
@@ -66,11 +71,64 @@ func TestNewDeployCommand_CoolDownFlagUsageMatchesUpdate(t *testing.T) {
 func TestNewDeployCommand_RequiresRepoFlag(t *testing.T) {
 	cmd := NewDeployCommand(func(string) error { return nil })
 	require.NotNil(t, cmd)
-	cmd.SetArgs([]string{"githubnext/agentics/ci-doctor"})
-
-	err := cmd.Execute()
+	err := runDeployCommand(cmd, []string{"githubnext/agentics/ci-doctor"}, func(string) error { return nil })
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--repo flag is required")
+	assert.Contains(t, err.Error(), "either --repo (owner/repo) or --org must be provided")
+}
+
+func TestRunDeployCommand_RejectsRepoAndOrgTogether(t *testing.T) {
+	cmd := NewDeployCommand(func(string) error { return nil })
+	require.NotNil(t, cmd)
+	require.NoError(t, cmd.Flags().Set("repo", "octo/repo"))
+	require.NoError(t, cmd.Flags().Set("org", "octo"))
+	err := runDeployCommand(cmd, []string{"githubnext/agentics/ci-doctor"}, func(string) error { return nil })
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot specify both --repo and --org")
+}
+
+func TestRunDeployCommand_RequiresOrgWhenReposProvided(t *testing.T) {
+	cmd := NewDeployCommand(func(string) error { return nil })
+	require.NotNil(t, cmd)
+	require.NoError(t, cmd.Flags().Set("repos", "api-*"))
+
+	err := runDeployCommand(cmd, []string{"githubnext/agentics/ci-doctor"}, func(string) error { return nil })
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--repos requires --org")
+}
+
+func TestRunDeployCommand_RoutesToOrgRunner(t *testing.T) {
+	cmd := NewDeployCommand(func(string) error { return nil })
+	require.NotNil(t, cmd)
+	require.NoError(t, cmd.Flags().Set("org", "octo"))
+	require.NoError(t, cmd.Flags().Set("repos", "api-*"))
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
+	require.NoError(t, cmd.Flags().Set("cool-down", "24h"))
+
+	origRunDeployForOrg := runDeployForOrgFn
+	origRunDeploy := runDeployFn
+	defer func() {
+		runDeployForOrgFn = origRunDeployForOrg
+		runDeployFn = origRunDeploy
+	}()
+
+	calledOrg := false
+	runDeployForOrgFn = func(ctx context.Context, org string, repoGlobs []string, workflows []string, addOpts AddOptions, coolDown time.Duration, yes bool, verbose bool) error {
+		calledOrg = true
+		assert.Equal(t, "octo", org)
+		assert.Equal(t, []string{"api-*"}, repoGlobs)
+		assert.Equal(t, []string{"githubnext/agentics/ci-doctor"}, workflows)
+		assert.True(t, yes)
+		assert.Equal(t, 24*time.Hour, coolDown)
+		return nil
+	}
+	runDeployFn = func(context.Context, string, []string, AddOptions, time.Duration) error {
+		t.Fatalf("single-repo deploy runner should not be called in --org mode")
+		return nil
+	}
+
+	err := runDeployCommand(cmd, []string{"githubnext/agentics/ci-doctor"}, func(string) error { return nil })
+	require.NoError(t, err)
+	assert.True(t, calledOrg)
 }
 
 func TestBuildDeployPRMetadata_SingleWorkflow(t *testing.T) {

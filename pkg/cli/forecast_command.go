@@ -35,7 +35,7 @@ type ForecastConfig struct {
 func NewForecastCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "forecast [workflow]...",
-		Short: "Forecast AI Credit usage and costs for agentic workflows (experimental)",
+		Short: "[EXPERIMENTAL] Forecast AI Credit (AIC) usage for agentic workflows",
 		Long: `[EXPERIMENTAL] Forecast AI Credit (AIC) usage for agentic workflows by sampling
 recent run history and projecting forward on a per-week or per-month basis.
 

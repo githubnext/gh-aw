@@ -54,6 +54,17 @@ See also: [workflow-editing.md](workflow-editing.md)
 - Limit network and bash access to what the workflow actually needs.
 - For visual regression workflows, explicitly name the baseline source (for example `cache-memory` key, artifact, or branch path). See [visual-regression.md](visual-regression.md).
 
+## Trigger Selection Quick Reference
+
+Use the smallest trigger that matches the requested automation.
+
+| Need | Trigger | Notes |
+|---|---|---|
+| Review pull request changes or UI diffs | `pull_request` | Use for PR-scoped analysis, comments, and optional `playwright`-based visual regression. |
+| React to the result of another GitHub Actions workflow | `workflow_run` | Scope `workflows:` explicitly, use `types: [completed]`, and gate conclusions before creating incidents. |
+| Publish recurring reports or stakeholder digests | `schedule` | Define the exact reporting window and default to `create-issue`; add `workflow_dispatch` when manual reruns are useful. |
+| Run the workflow on demand | `workflow_dispatch` | Use for manual tests, backfills, and operator-invoked runs; often pair with `schedule` or `workflow_run`. |
+
 See also: [workflow-constraints.md](workflow-constraints.md)
 
 ## Reference Files

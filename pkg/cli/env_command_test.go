@@ -43,6 +43,14 @@ func TestNewEnvCommand(t *testing.T) {
 	assert.Contains(t, updateCmd.Long, "--yes")
 	assert.NotNil(t, updateCmd.Flags().Lookup("yes"))
 	assert.NotNil(t, updateCmd.Flags().Lookup("dry-run"))
+
+	getRepoFlag := getCmd.Flags().Lookup("repo")
+	require.NotNil(t, getRepoFlag)
+	assert.Equal(t, "r", getRepoFlag.Shorthand)
+
+	updateRepoFlag := updateCmd.Flags().Lookup("repo")
+	require.NotNil(t, updateRepoFlag)
+	assert.Equal(t, "r", updateRepoFlag.Shorthand)
 }
 
 func TestResolveDefaultsTarget(t *testing.T) {

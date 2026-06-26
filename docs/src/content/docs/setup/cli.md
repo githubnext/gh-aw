@@ -19,8 +19,8 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 | [`gh aw list`](#list) | Quick listing of all workflows |
 | [`gh aw run`](#run) | Execute workflows immediately in GitHub Actions |
 | [`gh aw status`](#status) | Check current state of all workflows |
-| [`gh aw logs`](#logs) | Download and analyze workflow logs |
-| [`gh aw audit`](#audit) | Debug a failed workflow run |
+| [`gh aw logs`](#logs) | Download and analyze agentic workflow logs and artifacts |
+| [`gh aw audit`](#audit) | Audit and compare workflow runs |
 
 ## Installation
 
@@ -168,7 +168,7 @@ Add workflows from The Agentics collection or other repositories to `.github/wor
 ```bash wrap
 gh aw add githubnext/agentics/ci-doctor           # Add single workflow
 gh aw add githubnext/agentics/ci-doctor@v1.0.0   # Add specific version
-gh aw add githubnext/agentics/ci-doctor --dir shared                  # Organize in subdirectory
+gh aw add githubnext/agentics/ci-doctor --dir .github/workflows/shared  # Organize in subdirectory
 gh aw add githubnext/agentics/ci-doctor --create-pull-request        # Create PR instead of commit
 gh aw add https://example.com/workflows/my-workflow.md               # Arbitrary HTTPS URL (markdown)
 gh aw add https://example.com/workflows/my-workflow.json             # Arbitrary HTTPS URL (JSON workflow definition)
@@ -293,7 +293,7 @@ gh aw compile --purge                      # Remove orphaned .lock.yml files
 
 If the repository root contains an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/), `gh aw compile` validates it before compiling workflows.
 
-**Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--fix`, `--force`, `--force-refresh-action-pins`, `--gh-aw-ref`, `--ghes`, `--json/-j`, `--logical-repo`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--show-all`, `--staged`, `--stats`, `--strict`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--zizmor`
+**Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--fix`, `--force/-f`, `--force-refresh-action-pins`, `--gh-aw-ref`, `--ghes`, `--json/-j`, `--logical-repo/-l`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--show-all`, `--staged`, `--stats`, `--strict`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--zizmor`
 
 **`--gh-aw-ref` flag:** Convenience alias for `--action-mode release --action-tag <ref>`. Accepts a branch name, tag, or commit SHA targeting the `github/gh-aw` repository. Branch and tag names are resolved to their full commit SHA at compile time, so the baked-in reference is immutable and reproducible. Useful for E2E-testing workflows compiled against a specific gh-aw revision.
 
@@ -466,7 +466,7 @@ echo "1234567890" | gh aw logs --stdin --engine claude
 cat run-ids.txt | gh aw logs --stdin --repo owner/repo   # required for bare numeric IDs
 ```
 
-**Options:** `--after-run-id`, `--artifacts`, `--before-run-id`, `--cache-before`, `--count/-c`, `--end-date`, `--engine/-e`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--last`, `--no-firewall`, `--no-staged`, `--output/-o`, `--parse`, `--ref`, `--report-file`, `--repo/-r`, `--safe-output`, `--start-date`, `--stdin`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
+**Options:** `--after-run-id`, `--artifacts`, `--before-run-id`, `--cache-before`, `--count/-c`, `--end-date`, `--engine`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--last`, `--no-firewall`, `--no-staged`, `--output/-o`, `--parse`, `--ref`, `--report-file`, `--repo/-r`, `--safe-output`, `--start-date`, `--stdin`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
 
 #### `audit`
 
@@ -591,7 +591,7 @@ Maps PR check rollups to one of the following normalized states: `success`, `fai
 
 #### `forecast` `[EXPERIMENTAL]`
 
-Forecast AI Credit (AIC) usage and costs for agentic workflows using recent run history and Monte Carlo simulation.
+Forecast AI Credit (AIC) usage for agentic workflows using recent run history and Monte Carlo simulation.
 
 ```bash wrap
 gh aw forecast                              # Forecast all workflows (monthly)
@@ -716,7 +716,7 @@ gh aw env get org-defaults.yml --scope org --org my-org
 gh aw env get ent-defaults.yml --scope ent --enterprise my-enterprise
 ```
 
-**Options:** `--scope`, `--repo`, `--org`, `--enterprise`
+**Options:** `--scope`, `--repo/-r`, `--org`, `--enterprise`
 
 ##### `env update [file]`
 
@@ -728,7 +728,7 @@ gh aw env update defaults.yml --scope org --org my-org --dry-run
 gh aw env update defaults.yml --scope ent --enterprise my-enterprise --yes
 ```
 
-**Options:** `--scope` (required), `--repo`, `--org`, `--enterprise`, `--yes/-y`, `--dry-run`
+**Options:** `--scope` (required), `--repo/-r`, `--org`, `--enterprise`, `--yes/-y`, `--dry-run`
 
 ### Advanced
 
