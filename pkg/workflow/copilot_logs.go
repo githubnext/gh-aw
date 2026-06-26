@@ -558,7 +558,7 @@ func (e *CopilotEngine) processToolCalls(toolCalls []any, toolCallMap map[string
 						// If a stub entry was first created from function_call_output in a
 						// Wire request, it already carries evidence of one invocation.
 						// Avoid double-counting when the corresponding tool_call arrives later.
-						if toolInfo.CallCount != 1 || toolInfo.MaxInputSize != 0 || toolInfo.MaxOutputSize <= 0 {
+						if !isWireOutputStub(toolInfo) {
 							toolInfo.CallCount++
 						}
 						// Update max input size if this call is larger
@@ -582,6 +582,10 @@ func (e *CopilotEngine) processToolCalls(toolCalls []any, toolCallMap map[string
 			}
 		}
 	}
+}
+
+func isWireOutputStub(toolInfo *ToolCallInfo) bool {
+	return toolInfo.CallCount == 1 && toolInfo.MaxInputSize == 0 && toolInfo.MaxOutputSize > 0
 }
 
 // extractWireRequestOutputs parses a [DEBUG] Wire request: JSON block and updates

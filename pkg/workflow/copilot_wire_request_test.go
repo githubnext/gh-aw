@@ -389,6 +389,9 @@ func TestCopilotWireRequestBeforeDataBlock(t *testing.T) {
 	if bashInfo.OutputSample == "" {
 		t.Fatal("expected OutputSample to be populated from wire request block")
 	}
+	if !strings.Contains(bashInfo.OutputSample, "[INFO] still output") {
+		t.Fatalf("expected OutputSample to preserve embedded marker text, got %q", bashInfo.OutputSample)
+	}
 }
 
 // toolCallNames returns a slice of tool names for error messages.
