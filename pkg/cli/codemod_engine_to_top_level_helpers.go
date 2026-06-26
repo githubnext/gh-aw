@@ -45,7 +45,9 @@ func migrateEngineFieldToTopLevel(
 			}
 			inlineValue := strings.TrimSpace(strings.TrimPrefix(trimmed, "engine:"))
 			if strings.HasPrefix(inlineValue, "{") && strings.Contains(inlineValue, engineField+":") {
-				log.Print(skipInlineMessage)
+				if log != nil {
+					log.Print(skipInlineMessage)
+				}
 				return lines, false
 			}
 		}
@@ -79,7 +81,9 @@ func migrateEngineFieldToTopLevel(
 		}
 
 		if hasPreservedTopLevelField {
-			log.Print(removedMessage)
+			if log != nil {
+				log.Print(removedMessage)
+			}
 			return result, true
 		}
 
@@ -97,7 +101,9 @@ func migrateEngineFieldToTopLevel(
 		withTopLevel = append(withTopLevel, topLevelLine)
 		withTopLevel = append(withTopLevel, result[insertAt:]...)
 
-		log.Print(migratedMessage)
+		if log != nil {
+			log.Print(migratedMessage)
+		}
 		return withTopLevel, true
 	})
 }

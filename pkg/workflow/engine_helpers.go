@@ -115,6 +115,9 @@ func applyEngineCwdEnv(env map[string]string, workflowData *WorkflowData) {
 
 // applyOptionalEngineToolTimeouts adds optional tool timeout environment variables.
 func applyOptionalEngineToolTimeouts(env map[string]string, workflowData *WorkflowData) {
+	if workflowData == nil {
+		return
+	}
 	if workflowData.ToolsStartupTimeout != "" {
 		env["GH_AW_STARTUP_TIMEOUT"] = workflowData.ToolsStartupTimeout
 	}
@@ -125,7 +128,7 @@ func applyOptionalEngineToolTimeouts(env map[string]string, workflowData *Workfl
 
 // applyEngineMaxTurnsEnv sets GH_AW_MAX_TURNS from engine.max-turns or the default expression.
 func applyEngineMaxTurnsEnv(env map[string]string, workflowData *WorkflowData) {
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
 		return
 	}
@@ -134,6 +137,9 @@ func applyEngineMaxTurnsEnv(env map[string]string, workflowData *WorkflowData) {
 
 // applyEngineAndAgentEnv merges custom environment variables from engine and agent configs.
 func applyEngineAndAgentEnv(env map[string]string, workflowData *WorkflowData, log *logger.Logger) {
+	if workflowData == nil {
+		return
+	}
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
 		maps.Copy(env, workflowData.EngineConfig.Env)
 	}
@@ -148,6 +154,9 @@ func applyEngineAndAgentEnv(env map[string]string, workflowData *WorkflowData, l
 
 // applyMCPScriptsSecretEnv appends mcp-scripts secrets unless already present.
 func applyMCPScriptsSecretEnv(env map[string]string, workflowData *WorkflowData) {
+	if workflowData == nil {
+		return
+	}
 	if !IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		return
 	}
