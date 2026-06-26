@@ -252,12 +252,12 @@ For each PR that is not skipped:
    - Inspect PR review threads and comments for unresolved feedback.
    - Combine all nudges (unresolved review feedback, branch-refresh request, completion plan, etc.) into **one single comment** that includes:
      - `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line (required — this is how the cooldown and duplicate-comment checks detect sous-chef).
-     - @copilot mention with a concise, actionable instruction covering all relevant nudges in one message.
+     - @copilot mention with a concise, actionable instruction covering all relevant nudges in one message, including a direct instruction to run the `pr-finisher` skill.
    - Every `add_comment` must include `pr_number` set to the current PR's numeric `number` from the loop item.
    - Never emit `add_comment` without a numeric target field (`pr_number`/`pull_request_number`/`issue_number`/`item_number`) when `target: "*"` is configured.
    - Example (`add_comment` shell call):
      ```bash
-     safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot please address the unresolved review comments and rerun checks once the branch is up to date.'
+     safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot please run the `pr-finisher` skill, address unresolved review comments, and rerun checks once the branch is up to date.'
      ```
 
 ### Run summary
