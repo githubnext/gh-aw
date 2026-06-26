@@ -123,7 +123,7 @@ func runDeployCommand(cmd *cobra.Command, workflows []string, validateEngine fun
 	}
 
 	if strings.TrimSpace(targetRepo) != "" && strings.TrimSpace(targetOrg) != "" {
-		return errors.New("cannot specify both --repo and --org flags; use --repo for a single repository or --org for organization-wide deploys")
+		return errors.New("cannot specify both --repo and --org")
 	}
 	if len(repoGlobs) > 0 && strings.TrimSpace(targetOrg) == "" {
 		return errors.New("--repos requires --org to be specified")

@@ -71,9 +71,7 @@ func TestNewDeployCommand_CoolDownFlagUsageMatchesUpdate(t *testing.T) {
 func TestNewDeployCommand_RequiresRepoFlag(t *testing.T) {
 	cmd := NewDeployCommand(func(string) error { return nil })
 	require.NotNil(t, cmd)
-	cmd.SetArgs([]string{"githubnext/agentics/ci-doctor"})
-
-	err := cmd.Execute()
+	err := runDeployCommand(cmd, []string{"githubnext/agentics/ci-doctor"}, func(string) error { return nil })
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "either --repo (owner/repo) or --org must be provided")
 }

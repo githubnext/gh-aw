@@ -13,6 +13,8 @@ var searchOrgDeployReposFn = searchOrgLockWorkflowRepos
 var runDeployForTargetRepoFn = runDeploy
 
 func runDeployForOrg(ctx context.Context, org string, repoGlobs []string, workflows []string, addOpts AddOptions, coolDown time.Duration, yes bool, verbose bool) error {
+	const createPR = true
+	const createIssue = false
 	return runCommandForOrg(ctx, org, repoGlobs, orgRunCallbacks{
 		AutoYes: yes,
 		SearchFn: func(ctx context.Context, org string, verbose bool) ([]string, error) {
@@ -26,7 +28,7 @@ func runDeployForOrg(ctx context.Context, org string, repoGlobs []string, workfl
 		NoReposMsg:      "No repositories found with agentic workflows",
 		ApplyLabel:      "Deploying",
 		AllFailApplyMsg: "failed to deploy workflows to any repository",
-	}, true, false, verbose)
+	}, createPR, createIssue, verbose)
 }
 
 func renderOrgDeployReport(results []orgRepoPreview, applying bool) {
