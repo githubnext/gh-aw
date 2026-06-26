@@ -307,7 +307,7 @@ func TestApplyActionPinMapping_InvalidMappingValueSkipped(t *testing.T) {
 	ctx := &PinContext{
 		Warnings: make(map[string]bool),
 		Mappings: map[string]string{
-			"actions/checkout@v4": "no-at-sign", // invalid: missing @version
+			"actions/checkout@v4": "no-at-sign", // invalid: missing at sign and version
 		},
 	}
 

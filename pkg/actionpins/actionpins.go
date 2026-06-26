@@ -495,7 +495,7 @@ func applyActionPinMapping(actionRepo, version string, ctx *PinContext) (string,
 	mappedRepo := ExtractRepo(mapped)
 	mappedVersion := ExtractVersion(mapped)
 	if mappedRepo == "" || mappedVersion == "" {
-		actionPinsLog.Printf("Invalid action_pins mapping value %q for key %q; skipping", mapped, cacheKey)
+		actionPinsLog.Printf("Invalid action_pins mapping value %q for key %q (must be in format owner/repo@ref); skipping", mapped, cacheKey)
 		return actionRepo, version
 	}
 
