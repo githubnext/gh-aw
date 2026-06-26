@@ -51,6 +51,7 @@ type UpdateWorkflowsOptions struct {
 	WorkflowNames          []string
 	AllowMajor             bool
 	Force                  bool
+	Yes                    bool
 	Verbose                bool
 	EngineOverride         string
 	WorkflowsDir           string
