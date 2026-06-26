@@ -174,7 +174,7 @@ func TestFormatInfoMessage(t *testing.T) {
 	if !strings.Contains(output, "processing file") {
 		t.Errorf("Expected output to contain message, got: %s", output)
 	}
-	if !strings.Contains(output, "ℹ") {
+	if !strings.Contains(output, "i ") {
 		t.Errorf("Expected output to contain info icon, got: %s", output)
 	}
 }

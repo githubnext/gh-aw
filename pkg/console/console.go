@@ -150,7 +150,7 @@ func FormatSuccessMessage(message string) string {
 
 // FormatInfoMessage formats an informational message
 func FormatInfoMessage(message string) string {
-	return applyStyle(styles.Info, "ℹ ") + message
+	return applyStyle(styles.Info, "i ") + message
 }
 
 // FormatWarningMessage formats a warning message
@@ -223,7 +223,7 @@ func RenderTable(config TableConfig) string {
 
 // FormatCommandMessage formats a command execution message
 func FormatCommandMessage(command string) string {
-	return applyStyle(styles.Command, "⚡ ") + command
+	return applyStyle(styles.Command, "$ ") + command
 }
 
 // FormatProgressMessage formats a progress/activity message

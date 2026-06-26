@@ -46,9 +46,9 @@ func TestFormatCommandMessage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FormatCommandMessage(tt.command)
 
-			// Should contain the thunderbolt emoji prefix
-			if !strings.Contains(result, "⚡") {
-				t.Errorf("FormatCommandMessage() should contain ⚡ prefix")
+			// Should contain the dollar-sign prefix
+			if !strings.Contains(result, "$") {
+				t.Errorf("FormatCommandMessage() should contain $ prefix")
 			}
 
 			// Should contain the command text
