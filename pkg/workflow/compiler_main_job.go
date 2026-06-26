@@ -398,7 +398,11 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		agentAllScripts = append(agentAllScripts, extractRunScriptsFromJobSection(data.Jobs, agentJobName, "pre-steps")...)
 	}
 	if len(agentAllScripts) > 0 {
-		if writeCmds := detectWriteCommandsInShellScripts(agentAllScripts); len(writeCmds) > 0 {
+		writeCmds, err := detectWriteCommandsInShellScripts(agentAllScripts)
+		if err != nil {
+			return nil, err
+		}
+		if len(writeCmds) > 0 {
 			return nil, fmt.Errorf(
 				"agent job uses write gh command(s) [%s]; write operations are not permitted in agent job steps because the agent job runs with read-only permissions. Use safe-outputs for write operations. See: https://github.github.com/gh-aw/reference/safe-outputs/",
 				strings.Join(writeCmds, ", "),
@@ -410,7 +414,10 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Uses the same exact-string check as tools.go (the YAML parser always normalizes
 		// "permissions: {}" to this canonical form when parsing the frontmatter).
 		if data.Permissions != "permissions: {}" && permissions != "" {
-			inferred := inferPermissionsFromShellScripts(agentAllScripts)
+			inferred, err := inferPermissionsFromShellScripts(agentAllScripts)
+			if err != nil {
+				return nil, err
+			}
 			if len(inferred) > 0 {
 				permissions = mergeInferredIntoPermissionsYAML(permissions, inferred)
 			}

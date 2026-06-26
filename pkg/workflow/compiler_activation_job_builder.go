@@ -64,7 +64,9 @@ func (c *Compiler) newActivationJobBuildContext(
 	}
 
 	ctx := newActivationBuildContext(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename)
-	cacheActivationPreStepPermissions(ctx)
+	if err := cacheActivationPreStepPermissions(ctx); err != nil {
+		return nil, err
+	}
 	c.addActivationSetupAndWorkflowCallSteps(ctx, setupActionRef)
 
 	engine, err := c.getAgenticEngine(data.AI)
@@ -99,7 +101,7 @@ func newActivationBuildContext(data *WorkflowData, preActivationJobCreated bool,
 	return ctx
 }
 
-func cacheActivationPreStepPermissions(ctx *activationJobBuildContext) {
+func cacheActivationPreStepPermissions(ctx *activationJobBuildContext) error {
 	// Cache scripts from setup/pre-steps and inferred permissions once to avoid redundant
 	// extraction and inference calls in buildActivationPermissions and
 	// addActivationFeedbackAndValidationSteps.
@@ -111,8 +113,13 @@ func cacheActivationPreStepPermissions(ctx *activationJobBuildContext) {
 	ctx.activationAllScripts = extractRunScriptsFromJobSection(ctx.data.Jobs, activationJobName, "setup-steps")
 	ctx.activationAllScripts = append(ctx.activationAllScripts, extractRunScriptsFromJobSection(ctx.data.Jobs, activationJobName, "pre-steps")...)
 	if len(ctx.activationAllScripts) > 0 {
-		ctx.activationInferredPerms = inferPermissionsFromShellScripts(ctx.activationAllScripts)
+		inferredPerms, err := inferPermissionsFromShellScripts(ctx.activationAllScripts)
+		if err != nil {
+			return err
+		}
+		ctx.activationInferredPerms = inferredPerms
 	}
+	return nil
 }
 
 func (c *Compiler) addActivationSetupAndWorkflowCallSteps(ctx *activationJobBuildContext, setupActionRef string) {
@@ -855,7 +862,11 @@ func (c *Compiler) addActivationScriptPermissions(permsMap map[PermissionScope]P
 	if len(ctx.activationAllScripts) > 0 {
 		// Detect write commands first — these are not permitted in the activation job
 		// because it intentionally operates with read-only permissions.
-		if writeCmds := detectWriteCommandsInShellScripts(ctx.activationAllScripts); len(writeCmds) > 0 {
+		writeCmds, err := detectWriteCommandsInShellScripts(ctx.activationAllScripts)
+		if err != nil {
+			return err
+		}
+		if len(writeCmds) > 0 {
 			return fmt.Errorf(
 				"activation job uses write gh command(s) [%s]; write operations are not permitted in activation job steps because the activation job runs with read-only permissions. Move write operations to the agent job steps or use safe-outputs. See: https://github.github.com/gh-aw/reference/safe-outputs/",
 				strings.Join(writeCmds, ", "),

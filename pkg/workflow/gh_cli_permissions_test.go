@@ -14,48 +14,66 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func inferPermissionsFromShellScriptsForTest(t *testing.T, scripts []string) map[PermissionScope]PermissionLevel {
+	t.Helper()
+	perms, err := inferPermissionsFromShellScripts(scripts)
+	if err != nil {
+		t.Fatalf("inferPermissionsFromShellScripts() error = %v", err)
+	}
+	return perms
+}
+
+func detectWriteCommandsInShellScriptsForTest(t *testing.T, scripts []string) []string {
+	t.Helper()
+	cmds, err := detectWriteCommandsInShellScripts(scripts)
+	if err != nil {
+		t.Fatalf("detectWriteCommandsInShellScripts() error = %v", err)
+	}
+	return cmds
+}
+
 // TestInferPermissionsFromShellScripts_GhPrDiff verifies that `gh pr diff` in a
 // shell script is recognized as requiring pull-requests: read.
 func TestInferPermissionsFromShellScripts_GhPrDiff(t *testing.T) {
 	scripts := []string{
 		`gh pr diff "$PR_NUMBER" --name-only | awk '/\.md$/' > /tmp/changed.txt`,
 	}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionPullRequests], "gh pr diff should require pull-requests: read")
 }
 
 // TestInferPermissionsFromShellScripts_GhPrView verifies pull-requests: read for gh pr view.
 func TestInferPermissionsFromShellScripts_GhPrView(t *testing.T) {
 	scripts := []string{`gh pr view 123 --json title`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionPullRequests])
 }
 
 // TestInferPermissionsFromShellScripts_GhIssueList verifies issues: read for gh issue list.
 func TestInferPermissionsFromShellScripts_GhIssueList(t *testing.T) {
 	scripts := []string{`gh issue list --label bug --json number`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionIssues])
 }
 
 // TestInferPermissionsFromShellScripts_GhWorkflowList verifies actions: read for gh workflow list.
 func TestInferPermissionsFromShellScripts_GhWorkflowList(t *testing.T) {
 	scripts := []string{`gh workflow list`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionActions])
 }
 
 // TestInferPermissionsFromShellScripts_GhRunView verifies actions: read for gh run view.
 func TestInferPermissionsFromShellScripts_GhRunView(t *testing.T) {
 	scripts := []string{`gh run view $RUN_ID --json conclusion`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionActions])
 }
 
 // TestInferPermissionsFromShellScripts_GhAPI verifies pull-requests: read for gh api pulls endpoint.
 func TestInferPermissionsFromShellScripts_GhAPI(t *testing.T) {
 	scripts := []string{`gh api /repos/owner/repo/pulls/1 --jq .title`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionPullRequests], "gh api /repos/.../pulls should require pull-requests: read")
 }
 
@@ -63,7 +81,7 @@ func TestInferPermissionsFromShellScripts_GhAPI(t *testing.T) {
 // endpoint are skipped, e.g. gh api -H 'Accept: ...' /repos/owner/repo/pulls.
 func TestInferPermissionsFromShellScripts_GhAPIWithHeaderFlag(t *testing.T) {
 	scripts := []string{`gh api -H 'Accept: application/vnd.github+json' /repos/owner/repo/pulls`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionPullRequests],
 		"gh api with -H flag before endpoint should still infer pull-requests: read")
 }
@@ -72,7 +90,7 @@ func TestInferPermissionsFromShellScripts_GhAPIWithHeaderFlag(t *testing.T) {
 // before the endpoint is skipped properly.
 func TestInferPermissionsFromShellScripts_GhAPIWithMethodFlag(t *testing.T) {
 	scripts := []string{`gh api --method GET /repos/owner/repo/issues`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionIssues],
 		"gh api with --method GET before endpoint should still infer issues: read")
 }
@@ -81,7 +99,7 @@ func TestInferPermissionsFromShellScripts_GhAPIWithMethodFlag(t *testing.T) {
 // is correctly extracted, e.g. gh api "/repos/owner/repo/pulls".
 func TestInferPermissionsFromShellScripts_GhAPIQuotedEndpoint(t *testing.T) {
 	scripts := []string{`gh api "/repos/owner/repo/pulls"`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionPullRequests],
 		`gh api with quoted endpoint should infer pull-requests: read`)
 }
@@ -89,7 +107,7 @@ func TestInferPermissionsFromShellScripts_GhAPIQuotedEndpoint(t *testing.T) {
 // TestInferPermissionsFromShellScripts_GhAPIIssues verifies issues: read for gh api issues endpoint.
 func TestInferPermissionsFromShellScripts_GhAPIIssues(t *testing.T) {
 	scripts := []string{`gh api /repos/owner/repo/issues --jq '.[].number'`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionIssues], "gh api /repos/.../issues should require issues: read")
 }
 
@@ -97,7 +115,7 @@ func TestInferPermissionsFromShellScripts_GhAPIIssues(t *testing.T) {
 // there are no gh CLI calls in the script.
 func TestInferPermissionsFromShellScripts_NoGhCommand(t *testing.T) {
 	scripts := []string{`echo "hello" && ls /tmp`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Empty(t, perms, "no gh commands should produce no permission requirements")
 }
 
@@ -108,7 +126,7 @@ func TestInferPermissionsFromShellScripts_MultiLine(t *testing.T) {
   | awk '/\.md$/' \
   > /tmp/gh-aw/docs-review-data/changed-md.txt`,
 	}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionPullRequests], "multi-line gh pr diff should require pull-requests: read")
 }
 
@@ -118,7 +136,7 @@ func TestInferPermissionsFromShellScripts_MultipleCommands(t *testing.T) {
 		`gh pr diff "$PR_NUMBER" --name-only > /tmp/changed.txt
 gh issue view $ISSUE_NUMBER --json body > /tmp/issue.json`,
 	}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionPullRequests], "should infer pull-requests: read")
 	assert.Equal(t, PermissionRead, perms[PermissionIssues], "should infer issues: read")
 }
@@ -241,7 +259,7 @@ engine: copilot
 // TestDetectWriteCommandsInShellScripts_GhPrCreate verifies that `gh pr create` is detected as a write command.
 func TestDetectWriteCommandsInShellScripts_GhPrCreate(t *testing.T) {
 	scripts := []string{`gh pr create --title "Fix bug" --body "details"`}
-	cmds := detectWriteCommandsInShellScripts(scripts)
+	cmds := detectWriteCommandsInShellScriptsForTest(t, scripts)
 	require.Len(t, cmds, 1)
 	assert.Equal(t, "gh pr create", cmds[0])
 }
@@ -249,7 +267,7 @@ func TestDetectWriteCommandsInShellScripts_GhPrCreate(t *testing.T) {
 // TestDetectWriteCommandsInShellScripts_GhIssueClose verifies that `gh issue close` is detected.
 func TestDetectWriteCommandsInShellScripts_GhIssueClose(t *testing.T) {
 	scripts := []string{`gh issue close $ISSUE_NUMBER`}
-	cmds := detectWriteCommandsInShellScripts(scripts)
+	cmds := detectWriteCommandsInShellScriptsForTest(t, scripts)
 	require.Len(t, cmds, 1)
 	assert.Equal(t, "gh issue close", cmds[0])
 }
@@ -258,7 +276,7 @@ func TestDetectWriteCommandsInShellScripts_GhIssueClose(t *testing.T) {
 // (e.g. `gh pr diff`) is NOT flagged as a write command.
 func TestDetectWriteCommandsInShellScripts_ReadCommandNotDetected(t *testing.T) {
 	scripts := []string{`gh pr diff "$PR_NUMBER" --name-only`}
-	cmds := detectWriteCommandsInShellScripts(scripts)
+	cmds := detectWriteCommandsInShellScriptsForTest(t, scripts)
 	assert.Empty(t, cmds, "gh pr diff is a read command and should not be detected as write")
 }
 
@@ -269,7 +287,7 @@ func TestDetectWriteCommandsInShellScripts_Deduplicated(t *testing.T) {
 		`gh pr create --title "Fix 1"
 gh pr create --title "Fix 2"`,
 	}
-	cmds := detectWriteCommandsInShellScripts(scripts)
+	cmds := detectWriteCommandsInShellScriptsForTest(t, scripts)
 	assert.Len(t, cmds, 1, "duplicate write commands should be deduplicated")
 	assert.Equal(t, "gh pr create", cmds[0])
 }
@@ -281,7 +299,7 @@ func TestDetectWriteCommandsInShellScripts_MultipleWriteCommands(t *testing.T) {
 		`gh pr merge $PR_NUMBER --squash
 gh issue comment $ISSUE_NUMBER --body "done"`,
 	}
-	cmds := detectWriteCommandsInShellScripts(scripts)
+	cmds := detectWriteCommandsInShellScriptsForTest(t, scripts)
 	assert.Len(t, cmds, 2)
 	assert.Contains(t, cmds, "gh pr merge")
 	assert.Contains(t, cmds, "gh issue comment")
@@ -290,21 +308,21 @@ gh issue comment $ISSUE_NUMBER --body "done"`,
 // TestInferPermissionsFromShellScripts_GhCacheList verifies actions: read for gh cache list.
 func TestInferPermissionsFromShellScripts_GhCacheList(t *testing.T) {
 	scripts := []string{`gh cache list --json key`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionActions], "gh cache list should require actions: read")
 }
 
 // TestInferPermissionsFromShellScripts_GhRepoView verifies contents: read for gh repo view.
 func TestInferPermissionsFromShellScripts_GhRepoView(t *testing.T) {
 	scripts := []string{`gh repo view owner/repo --json description`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionContents], "gh repo view should require contents: read")
 }
 
 // TestInferPermissionsFromShellScripts_GhLabelList verifies issues: read for gh label list.
 func TestInferPermissionsFromShellScripts_GhLabelList(t *testing.T) {
 	scripts := []string{`gh label list --json name`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionIssues], "gh label list should require issues: read")
 }
 
@@ -313,21 +331,21 @@ func TestInferPermissionsFromShellScripts_GhLabelList(t *testing.T) {
 // in the activation job — the write-command check is separate.
 func TestInferPermissionsFromShellScripts_GhIssueComment(t *testing.T) {
 	scripts := []string{`gh issue comment $ISSUE_NUMBER --body "hello"`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionIssues], "write commands still require at minimum read-level permission for the scope")
 }
 
 // TestInferPermissionsFromShellScripts_GhAPIReleases verifies contents: read for gh api releases.
 func TestInferPermissionsFromShellScripts_GhAPIReleases(t *testing.T) {
 	scripts := []string{`gh api /repos/owner/repo/releases --jq '.[0].tag_name'`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionContents], "gh api /repos/.../releases should require contents: read")
 }
 
 // TestInferPermissionsFromShellScripts_GhAPILabels verifies issues: read for gh api labels endpoint.
 func TestInferPermissionsFromShellScripts_GhAPILabels(t *testing.T) {
 	scripts := []string{`gh api /repos/owner/repo/labels`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionIssues], "gh api /repos/.../labels should require issues: read")
 }
 
@@ -406,7 +424,7 @@ jobs:
 // returns the GitHub App-only codespaces: read permission (no GITHUB_TOKEN equivalent).
 func TestInferPermissionsFromShellScripts_GhCodespaceList(t *testing.T) {
 	scripts := []string{`gh codespace list --json name`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionCodespaces],
 		"gh codespace list should require codespaces: read (GitHub App-only)")
 }
@@ -415,7 +433,7 @@ func TestInferPermissionsFromShellScripts_GhCodespaceList(t *testing.T) {
 // returns the GitHub App-only members: read permission.
 func TestInferPermissionsFromShellScripts_GhAPIOrgsMembers(t *testing.T) {
 	scripts := []string{`gh api /orgs/myorg/members --jq '.[].login'`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionMembers],
 		"gh api /orgs/.../members should require members: read (GitHub App-only)")
 }
@@ -427,7 +445,7 @@ func TestInferPermissionsFromShellScripts_AppAndActionsPermissions(t *testing.T)
 		`gh pr diff "$PR_NUMBER" --name-only
 gh codespace list --json name`,
 	}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionPullRequests],
 		"gh pr diff should require pull-requests: read")
 	assert.Equal(t, PermissionRead, perms[PermissionCodespaces],
@@ -438,7 +456,7 @@ gh codespace list --json name`,
 // (a write command) is still inferred to need administration: read (GitHub App-only) at minimum.
 func TestInferPermissionsFromShellScripts_GhRepoWriteHasAppAdminPerm(t *testing.T) {
 	scripts := []string{`gh repo archive owner/repo`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionAdministration],
 		"gh repo archive (write) should infer administration: read for GitHub App")
 }
@@ -447,7 +465,7 @@ func TestInferPermissionsFromShellScripts_GhRepoWriteHasAppAdminPerm(t *testing.
 // (GitHub App-only) for the environments REST API path.
 func TestInferPermissionsFromShellScripts_GhAPIRepoEnvironments(t *testing.T) {
 	scripts := []string{`gh api /repos/owner/repo/environments --jq '.[].name'`}
-	perms := inferPermissionsFromShellScripts(scripts)
+	perms := inferPermissionsFromShellScriptsForTest(t, scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionEnvironments],
 		"gh api /repos/.../environments should require environments: read (GitHub App-only)")
 }

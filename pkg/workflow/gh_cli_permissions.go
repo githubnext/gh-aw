@@ -278,13 +278,12 @@ func splitShellTokens(s string) []string {
 // Only read-level permissions are inferred here; write-level operations are
 // intentionally not auto-escalated. Use detectWriteCommandsInShellScripts to
 // surface write commands as validation errors.
-func inferPermissionsFromShellScripts(scripts []string) map[PermissionScope]PermissionLevel {
+func inferPermissionsFromShellScripts(scripts []string) (map[PermissionScope]PermissionLevel, error) {
 	ghCLIPermissionsLog.Printf("Inferring permissions from %d shell script(s)", len(scripts))
 	perms := make(map[PermissionScope]PermissionLevel)
 	ghCLIPermissions, err := getCompiledGHCLIPermissions()
 	if err != nil {
-		ghCLIPermissionsLog.Printf("Skipping gh CLI permission inference: %v", err)
-		return perms
+		return nil, fmt.Errorf("load gh CLI permissions: %w", err)
 	}
 
 	addScopes := func(scopes []PermissionScope) {
@@ -345,18 +344,17 @@ func inferPermissionsFromShellScripts(scripts []string) map[PermissionScope]Perm
 	}
 
 	ghCLIPermissionsLog.Printf("Inferred %d permission scope(s) from shell scripts", len(perms))
-	return perms
+	return perms, nil
 }
 
 // detectWriteCommandsInShellScripts returns all write gh CLI commands found in the
 // given scripts, formatted as "gh <group> <action>" (e.g. "gh pr create").
 // The slice contains no duplicates and is sorted deterministically in discovery order.
-func detectWriteCommandsInShellScripts(scripts []string) []string {
+func detectWriteCommandsInShellScripts(scripts []string) ([]string, error) {
 	ghCLIPermissionsLog.Printf("Scanning %d shell script(s) for write gh CLI commands", len(scripts))
 	ghCLIPermissions, err := getCompiledGHCLIPermissions()
 	if err != nil {
-		ghCLIPermissionsLog.Printf("Skipping gh CLI write-command detection: %v", err)
-		return nil
+		return nil, fmt.Errorf("load gh CLI permissions: %w", err)
 	}
 	var found []string
 	seen := make(map[string]struct{})
@@ -380,7 +378,7 @@ func detectWriteCommandsInShellScripts(scripts []string) []string {
 	if len(found) > 0 {
 		ghCLIPermissionsLog.Printf("Detected %d write gh CLI command(s) in shell scripts", len(found))
 	}
-	return found
+	return found, nil
 }
 
 // extractRunScriptsFromSectionYAML parses a step-section YAML string (e.g. as stored in
