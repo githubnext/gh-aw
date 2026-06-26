@@ -5,7 +5,7 @@ const path = require("path");
 const os = require("os");
 const assert = require("assert");
 
-const { bootstrapSafeOutputsServer, cleanupConfigFile } = require("./safe_outputs_bootstrap.cjs");
+const { bootstrapSafeOutputsServer, cleanupConfigFile, enforceCreatePullRequestRuntimePolicy } = require("./safe_outputs_bootstrap.cjs");
 
 describe("safe_outputs_bootstrap", () => {
   let tempDir;
@@ -24,6 +24,7 @@ describe("safe_outputs_bootstrap", () => {
     delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
     delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
     delete process.env.GH_AW_SAFE_OUTPUTS;
+    delete process.env.GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST;
   });
 
   describe("bootstrapSafeOutputsServer", () => {
@@ -109,6 +110,25 @@ describe("safe_outputs_bootstrap", () => {
       assert.ok(result.tools);
       assert.strictEqual(result.tools.length, 0);
     });
+
+    it("should refuse startup when runtime policy disables create_pull_request", () => {
+      const configPath = path.join(tempDir, "config.json");
+      const toolsPath = path.join(tempDir, "tools.json");
+      fs.writeFileSync(configPath, JSON.stringify({ "create-pull-request": { enabled: true } }));
+      fs.writeFileSync(toolsPath, JSON.stringify([{ name: "create_pull_request", description: "Test tool" }]));
+
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+      process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = toolsPath;
+      process.env.GH_AW_SAFE_OUTPUTS = path.join(tempDir, "outputs.jsonl");
+      process.env.GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST = "false";
+
+      const logger = {
+        debug: () => {},
+        debugError: () => {},
+      };
+
+      assert.throws(() => bootstrapSafeOutputsServer(logger), /create-pull-request is disabled by runtime policy: GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST=false/);
+    });
   });
 
   describe("cleanupConfigFile", () => {
@@ -148,6 +168,44 @@ describe("safe_outputs_bootstrap", () => {
       assert.doesNotThrow(() => {
         cleanupConfigFile(logger);
       });
+    });
+  });
+
+  describe("enforceCreatePullRequestRuntimePolicy", () => {
+    it("allows startup when create_pull_request is not configured", () => {
+      process.env.GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST = "false";
+      const logger = {
+        debug: () => {},
+        debugError: () => {},
+      };
+      assert.doesNotThrow(() => enforceCreatePullRequestRuntimePolicy({}, logger));
+    });
+
+    it("throws when create_pull_request is configured and policy is false", () => {
+      process.env.GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST = "false";
+      const logger = {
+        debug: () => {},
+        debugError: () => {},
+      };
+      assert.throws(() => enforceCreatePullRequestRuntimePolicy({ create_pull_request: { enabled: true } }, logger), /create-pull-request is disabled by runtime policy/);
+    });
+
+    it("allows startup when policy is not set", () => {
+      delete process.env.GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST;
+      const logger = {
+        debug: () => {},
+        debugError: () => {},
+      };
+      assert.doesNotThrow(() => enforceCreatePullRequestRuntimePolicy({ create_pull_request: { enabled: true } }, logger));
+    });
+
+    it("allows startup when policy is explicitly true", () => {
+      process.env.GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST = "true";
+      const logger = {
+        debug: () => {},
+        debugError: () => {},
+      };
+      assert.doesNotThrow(() => enforceCreatePullRequestRuntimePolicy({ create_pull_request: { enabled: true } }, logger));
     });
   });
 });

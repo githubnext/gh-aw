@@ -121,6 +121,56 @@ jobs:
         run: gh aw compile
 ```
 
+## Runtime Policy Variables
+
+Policy variables (`GH_AW_POLICY_*`) complement the default variables
+managed by `gh aw env`. Where `GH_AW_DEFAULT_*` variables tune numeric and
+model settings, policy variables enforce capability gates: a single boolean
+value permits or refuses a specific behavior at runtime — without
+recompiling any workflow.
+
+Like default variables, policy variables are set as GitHub Actions variables
+at repository, organization, or enterprise scope and picked up automatically
+at workflow runtime through `vars.*`.
+
+### Disabling `create-pull-request` org-wide
+
+`GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` controls whether agentic workflows
+are allowed to open pull requests. Set it to `"false"` to prevent any
+workflow from creating PRs across every repository in an organization or
+enterprise:
+
+```bash
+gh variable set GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST \
+  --org my-org --body "false"
+```
+
+When the policy is active, the safe-outputs server refuses to start for
+any workflow that has `safe-outputs.create-pull-request` configured:
+
+```text
+create-pull-request is disabled by runtime policy: GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST=false.
+Remove safe-outputs.create-pull-request or set GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST=true.
+```
+
+Any other value — including unset — leaves the tool enabled. To lift the
+restriction at a specific repository scope or re-enable it org-wide, set
+the variable to `"true"` or delete it:
+
+```bash
+# Re-enable for the whole org
+gh variable delete GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST --org my-org
+
+# Override at repository scope only (most-specific-wins)
+gh variable set GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST \
+  --repo owner/repo --body "true"
+```
+
+See [Runtime Policy Variables](/gh-aw/reference/environment-variables/#runtime-policy-variables)
+for the complete list of `GH_AW_POLICY_*` variables.
+
+---
+
 ## Troubleshooting
 
 If `gh aw env update` fails validation:
