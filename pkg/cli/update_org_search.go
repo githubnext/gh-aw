@@ -39,6 +39,10 @@ func searchOrgWorkflowRepos(ctx context.Context, org string, workflowNames []str
 	return searchOrgReposByQuery(ctx, query, verbose)
 }
 
+// buildOrgWorkflowSearchQuery constructs the org-mode code-search query for
+// source-managed workflows. When workflowNames is empty, or every candidate
+// normalizes away, it falls back to the base query and relies on the later
+// per-repo workflow scan to enforce any requested filters.
 func buildOrgWorkflowSearchQuery(org string, workflowNames []string) string {
 	base := fmt.Sprintf(`org:%s path:.github/workflows extension:md "source:"`, org)
 	if len(workflowNames) == 0 {
@@ -60,6 +64,8 @@ func buildOrgWorkflowSearchQuery(org string, workflowNames []string) string {
 		filenameFilters = append(filenameFilters, "filename:"+filename)
 	}
 	if len(filenameFilters) == 0 {
+		// CLI validation already rejects empty workflow names, so this fallback is
+		// primarily a safety net for non-CLI callers and tests.
 		return base
 	}
 
