@@ -898,13 +898,14 @@ async function main() {
           break;
         }
 
+        if (attempt === 0 && retryableProxyAuthenticationFailure) {
+          useContinueOnRetry = false;
+          continueDisabledPermanently = true;
+          log(`attempt ${attempt + 1}: provider authentication failed after partial execution - will retry once as fresh run to avoid losing completed agent work`);
+          continue;
+        }
+
         if (isAuthenticationFailed) {
-          if (attempt === 0 && retryableProxyAuthenticationFailure) {
-            useContinueOnRetry = false;
-            continueDisabledPermanently = true;
-            log(`attempt ${attempt + 1}: provider authentication failed after partial execution - will retry once as fresh run to avoid losing completed agent work`);
-            continue;
-          }
           if (proxyAuthDiagnostic) {
             log(`attempt ${attempt + 1}: ${proxyAuthDiagnostic} — not retrying`);
           } else {

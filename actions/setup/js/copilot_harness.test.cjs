@@ -1249,6 +1249,17 @@ describe("copilot_harness.cjs", () => {
       expect(shouldRetry(result, 1, false)).toBe(false);
     });
 
+    it("retries the first proxy auth failure only once", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: true,
+        output: PROXY_AUTH_FAILURE_OUTPUT,
+      };
+      expect(shouldRetry(result, 0, false)).toBe(true);
+      expect(shouldRetry(result, 1, false)).toBe(false);
+      expect(shouldRetry(result, 2, false)).toBe(false);
+    });
+
     it("retries as fresh run when no-auth failure happens on a --continue attempt", () => {
       // This replicates the fix: attempt 1 ran for 3+ min then failed mid-stream,
       // attempt 2 (--continue) fails with auth error — driver retries once as fresh run.
