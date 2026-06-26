@@ -8,6 +8,113 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
+const (
+	// outputSampleMaxLines is the maximum number of lines to include in a tool output preview.
+	outputSampleMaxLines = 3
+	// outputSampleMaxLineLen is the maximum character length of each line in a tool output preview.
+	outputSampleMaxLineLen = 120
+)
+
+// truncateOutputSample returns the first outputSampleMaxLines lines of output,
+// each truncated to outputSampleMaxLineLen characters.
+func truncateOutputSample(output string) string {
+	lines := strings.SplitN(output, "\n", outputSampleMaxLines+1)
+	if len(lines) > outputSampleMaxLines {
+		lines = lines[:outputSampleMaxLines]
+	}
+	for i, line := range lines {
+		if len(line) > outputSampleMaxLineLen {
+			runes := []rune(line)
+			if len(runes) > outputSampleMaxLineLen {
+				lines[i] = string(runes[:outputSampleMaxLineLen]) + "…"
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// sanitizeJSONBlock extracts a clean JSON object from a string that may contain
+// trailing non-JSON content (e.g. [INFO] log lines appended after the closing brace).
+// Returns an empty string if no valid JSON object boundary is found.
+func sanitizeJSONBlock(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return ""
+	}
+	open := strings.Index(trimmed, "{")
+	if open < 0 {
+		return ""
+	}
+
+	depth := 0
+	inString := false
+	escaped := false
+
+	for i := open; i < len(trimmed); i++ {
+		ch := trimmed[i]
+
+		if inString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '"' {
+				inString = false
+			}
+			continue
+		}
+
+		switch ch {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return trimmed[open : i+1]
+			}
+			if depth < 0 {
+				return ""
+			}
+		}
+	}
+
+	return ""
+}
+
+func timestampedLogRemainder(line string) (string, bool) {
+	trimmed := strings.TrimLeft(line, " \t")
+	ts, rest, ok := strings.Cut(trimmed, " ")
+	if !ok {
+		return "", false
+	}
+	if !strings.Contains(ts, "T") || !strings.Contains(ts, ":") {
+		return "", false
+	}
+	return rest, true
+}
+
+func isTimestampedDebugOrInfoLine(line string) bool {
+	rest, ok := timestampedLogRemainder(line)
+	if !ok {
+		return false
+	}
+	return strings.HasPrefix(rest, "[DEBUG]") || strings.HasPrefix(rest, "[INFO]")
+}
+
+func isTimestampedDebugLine(line string, marker string) bool {
+	rest, ok := timestampedLogRemainder(line)
+	if !ok {
+		return false
+	}
+	return strings.HasPrefix(rest, marker)
+}
+
 var copilotLogsLog = logger.New("workflow:copilot_logs")
 
 // SessionEntry represents a single entry in a Copilot session JSONL file
@@ -207,6 +314,12 @@ func (e *CopilotEngine) parseSessionJSONL(logContent string, verbose bool) (LogM
 // the total token usage will be 3300 (sum of all turns).
 //
 // This matches the behavior of the JavaScript parser in parse_copilot_log.cjs.
+//
+// Wire request block parsing (wireApi=responses format):
+// When the Copilot CLI uses the OpenAI Responses API wire format, each turn is
+// preceded by a [DEBUG] Wire request: block containing the full conversation
+// history, including function_call_output items for completed tool calls.
+// These blocks are parsed to extract tool output sizes and a response preview.
 func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
 	// Try parsing as JSONL session format first
 	if metrics, success := e.parseSessionJSONL(logContent, verbose); success {
@@ -229,15 +342,57 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 	var inDataBlock bool
 	var currentJSONLines []string
 
+	// Track Wire request blocks for tool output extraction
+	var inWireBlock bool
+	var currentWireLines []string
+
+	// flushDataBlock processes and clears the accumulated data block.
+	flushDataBlock := func() {
+		if len(currentJSONLines) == 0 {
+			return
+		}
+		jsonStr := strings.Join(currentJSONLines, "\n")
+		copilotLogsLog.Printf("Parsing JSON block with %d lines (%d bytes)", len(currentJSONLines), len(jsonStr))
+		jsonMetrics := ExtractJSONMetrics(jsonStr, verbose)
+		// Accumulate token usage from all responses (not just max)
+		// This matches the JavaScript parser behavior in parse_copilot_log.cjs
+		if jsonMetrics.TokenUsage > 0 {
+			copilotLogsLog.Printf("Extracted %d tokens from JSON block", jsonMetrics.TokenUsage)
+			totalTokenUsage += jsonMetrics.TokenUsage
+		} else {
+			copilotLogsLog.Printf("No tokens extracted from JSON block (possible format issue)")
+		}
+		if jsonMetrics.EstimatedCost > 0 {
+			metrics.EstimatedCost += jsonMetrics.EstimatedCost
+		}
+		e.extractToolCallSizes(jsonStr, toolCallMap, verbose)
+		inDataBlock = false
+		currentJSONLines = []string{}
+	}
+
+	// flushWireBlock processes and clears the accumulated wire request block.
+	flushWireBlock := func() {
+		if len(currentWireLines) > 0 {
+			wireStr := strings.Join(currentWireLines, "\n")
+			e.extractWireRequestOutputs(wireStr, toolCallMap, verbose)
+		}
+		inWireBlock = false
+		currentWireLines = []string{}
+	}
+
 	for _, line := range lines {
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 
-		// Detect start of a JSON data block from Copilot debug logs
+		// Detect start of a JSON data block from Copilot debug logs.
 		// Format: "YYYY-MM-DDTHH:MM:SS.sssZ [DEBUG] data:"
-		if strings.Contains(line, "[DEBUG] data:") {
+		if isTimestampedDebugLine(line, "[DEBUG] data:") {
+			// End any open wire block before starting a data block.
+			if inWireBlock {
+				flushWireBlock()
+			}
 			inDataBlock = true
 			currentJSONLines = []string{}
 			// Each API response data block represents one LLM conversation turn.
@@ -252,12 +407,32 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 			continue
 		}
 
+		// Detect start of a Wire request block (wireApi=responses format).
+		// Format: "YYYY-MM-DDTHH:MM:SS.sssZ [DEBUG] Wire request: {"
+		if isTimestampedDebugLine(line, "[DEBUG] Wire request:") {
+			// End any open data block before starting a wire block.
+			if inDataBlock {
+				flushDataBlock()
+			}
+			// End any open wire block before starting a new wire block.
+			if inWireBlock {
+				flushWireBlock()
+			}
+			inWireBlock = true
+			currentWireLines = []string{}
+			// Extract the opening { from the same line (Wire request: {)
+			if idx := strings.Index(line, "{"); idx >= 0 {
+				currentWireLines = append(currentWireLines, line[idx:])
+			}
+			continue
+		}
+
 		// While in a data block, accumulate lines
 		if inDataBlock {
-			// Check if this line has a timestamp (indicates it's a log line, not raw JSON)
-			hasTimestamp := strings.Contains(line, "[DEBUG]")
+			// Check if this line has a [DEBUG] prefix (indicates it's a log line, not raw JSON)
+			hasDebug := strings.Contains(line, "[DEBUG]")
 
-			if hasTimestamp {
+			if hasDebug {
 				// Strip the timestamp and [DEBUG] prefix to see what remains
 				// Format: "YYYY-MM-DDTHH:MM:SS.sssZ [DEBUG] {json content}"
 				_, after, ok := strings.Cut(line, "[DEBUG]")
@@ -273,34 +448,28 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 						currentJSONLines = append(currentJSONLines, cleanLine)
 					} else {
 						// This is a new log line (not JSON content) - end of JSON block
-						// Try to parse the accumulated JSON
-						if len(currentJSONLines) > 0 {
-							jsonStr := strings.Join(currentJSONLines, "\n")
-							copilotLogsLog.Printf("Parsing JSON block with %d lines (%d bytes)", len(currentJSONLines), len(jsonStr))
-							jsonMetrics := ExtractJSONMetrics(jsonStr, verbose)
-							// Accumulate token usage from all responses (not just max)
-							// This matches the JavaScript parser behavior in parse_copilot_log.cjs
-							if jsonMetrics.TokenUsage > 0 {
-								copilotLogsLog.Printf("Extracted %d tokens from JSON block", jsonMetrics.TokenUsage)
-								totalTokenUsage += jsonMetrics.TokenUsage
-							} else {
-								copilotLogsLog.Printf("No tokens extracted from JSON block (possible format issue)")
-							}
-							if jsonMetrics.EstimatedCost > 0 {
-								metrics.EstimatedCost += jsonMetrics.EstimatedCost
-							}
-
-							// Extract tool call sizes from the JSON response
-							e.extractToolCallSizes(jsonStr, toolCallMap, verbose)
-						}
-
-						inDataBlock = false
-						currentJSONLines = []string{}
+						flushDataBlock()
 					}
 				}
 			} else {
-				// Line has no timestamp - it's raw JSON, add it
+				// Line has no [DEBUG] prefix — treat as raw JSON content.
+				// Note: [INFO] lines (e.g. "--- End of group ---") also land here but
+				// are harmless: sanitizeJSONBlock in extractToolCallSizes/ExtractJSONMetrics
+				// trims everything after the last closing brace.
 				currentJSONLines = append(currentJSONLines, line)
+			}
+		}
+
+		// While in a wire request block, accumulate raw JSON lines.
+		// Wire request JSON is not prefixed per-line; the block ends when any
+		// timestamped log line ([DEBUG] or [INFO]) appears.
+		if inWireBlock {
+			if isTimestampedDebugOrInfoLine(line) {
+				flushWireBlock()
+				// The block-start checks above already evaluated this line (no match);
+				// fall through to the tool-call extraction below.
+			} else {
+				currentWireLines = append(currentWireLines, line)
 			}
 		}
 
@@ -313,24 +482,12 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 		}
 	}
 
-	// Process any remaining JSON block at the end of file
-	if inDataBlock && len(currentJSONLines) > 0 {
-		jsonStr := strings.Join(currentJSONLines, "\n")
-		copilotLogsLog.Printf("Parsing final JSON block at EOF with %d lines (%d bytes)", len(currentJSONLines), len(jsonStr))
-		jsonMetrics := ExtractJSONMetrics(jsonStr, verbose)
-		// Accumulate token usage from all responses (not just max)
-		if jsonMetrics.TokenUsage > 0 {
-			copilotLogsLog.Printf("Extracted %d tokens from final JSON block", jsonMetrics.TokenUsage)
-			totalTokenUsage += jsonMetrics.TokenUsage
-		} else {
-			copilotLogsLog.Printf("No tokens extracted from final JSON block (possible format issue)")
-		}
-		if jsonMetrics.EstimatedCost > 0 {
-			metrics.EstimatedCost += jsonMetrics.EstimatedCost
-		}
-
-		// Extract tool call sizes from the JSON response
-		e.extractToolCallSizes(jsonStr, toolCallMap, verbose)
+	// Process any remaining blocks at the end of file
+	if inDataBlock {
+		flushDataBlock()
+	}
+	if inWireBlock {
+		flushWireBlock()
 	}
 
 	// Finalize metrics using shared helper
@@ -346,11 +503,20 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 	return metrics
 }
 
-// extractToolCallSizes extracts tool call input and output sizes from Copilot JSON responses
+// extractToolCallSizes extracts tool call input sizes from Copilot JSON responses.
+// It sanitizes the JSON block first to handle trailing non-JSON log lines (e.g.
+// [INFO] lines that are appended after the closing brace in the wireApi=responses format).
 func (e *CopilotEngine) extractToolCallSizes(jsonStr string, toolCallMap map[string]*ToolCallInfo, verbose bool) {
-	// Try to parse the JSON string
+	clean := sanitizeJSONBlock(jsonStr)
+	if clean == "" {
+		if verbose {
+			copilotLogsLog.Printf("No valid JSON object found for tool size extraction")
+		}
+		return
+	}
+
 	var data map[string]any
-	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+	if err := json.Unmarshal([]byte(clean), &data); err != nil {
 		if verbose {
 			copilotLogsLog.Printf("Failed to parse JSON for tool size extraction: %v", err)
 		}
@@ -393,7 +559,12 @@ func (e *CopilotEngine) processToolCalls(toolCalls []any, toolCallMap map[string
 
 					// Initialize or update tool call info
 					if toolInfo, exists := toolCallMap[toolName]; exists {
-						toolInfo.CallCount++
+						// If a stub entry was first created from function_call_output in a
+						// Wire request, it already carries evidence of one invocation.
+						// Avoid double-counting when the corresponding tool_call arrives later.
+						if !isWireOutputStub(toolInfo) {
+							toolInfo.CallCount++
+						}
 						// Update max input size if this call is larger
 						if inputSize > toolInfo.MaxInputSize {
 							toolInfo.MaxInputSize = inputSize
@@ -403,16 +574,112 @@ func (e *CopilotEngine) processToolCalls(toolCalls []any, toolCallMap map[string
 						}
 					} else {
 						toolCallMap[toolName] = &ToolCallInfo{
-							Name:          toolName,
-							CallCount:     1,
-							MaxInputSize:  inputSize,
-							MaxOutputSize: 0, // Output size extraction not yet available in Copilot logs
+							Name:         toolName,
+							CallCount:    1,
+							MaxInputSize: inputSize,
 						}
 						if verbose {
 							copilotLogsLog.Printf("Created tool info for %s with MaxInputSize=%d bytes", toolName, inputSize)
 						}
 					}
 				}
+			}
+		}
+	}
+}
+
+// isWireOutputStub returns true when a ToolCallInfo entry was inferred from a
+// function_call_output item before we observed the corresponding tool_call input.
+// In this state, CallCount is already seeded to 1 based on output evidence.
+func isWireOutputStub(toolInfo *ToolCallInfo) bool {
+	return toolInfo.CallCount == 1 && toolInfo.MaxInputSize == 0 && toolInfo.MaxOutputSize > 0
+}
+
+// extractWireRequestOutputs parses a [DEBUG] Wire request: JSON block and updates
+// MaxOutputSize and OutputSample for each tool that has a function_call_output entry.
+//
+// The wireApi=responses format includes the full conversation history in each request's
+// "input" array. Completed tool calls appear as consecutive function_call / function_call_output
+// pairs, letting us extract both the tool name (from function_call.name) and the tool
+// response (from function_call_output.output) in a single pass.
+func (e *CopilotEngine) extractWireRequestOutputs(jsonStr string, toolCallMap map[string]*ToolCallInfo, verbose bool) {
+	clean := sanitizeJSONBlock(jsonStr)
+	if clean == "" {
+		return
+	}
+
+	var data map[string]any
+	if err := json.Unmarshal([]byte(clean), &data); err != nil {
+		if verbose {
+			copilotLogsLog.Printf("Failed to parse Wire request JSON: %v", err)
+		}
+		return
+	}
+
+	inputs, ok := data["input"].([]any)
+	if !ok {
+		return
+	}
+
+	// Build a local call_id → tool name map from function_call items in this request.
+	// The Wire request contains the full conversation history, so all historical
+	// function_call / function_call_output pairs are present in a single block.
+	callIDToTool := make(map[string]string, len(inputs))
+	for _, item := range inputs {
+		itemMap, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if typ, _ := itemMap["type"].(string); typ == "function_call" {
+			callID, _ := itemMap["call_id"].(string)
+			name, _ := itemMap["name"].(string)
+			if callID != "" && name != "" {
+				callIDToTool[callID] = name
+			}
+		}
+	}
+
+	// Extract output sizes and samples from function_call_output items.
+	for _, item := range inputs {
+		itemMap, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if typ, _ := itemMap["type"].(string); typ != "function_call_output" {
+			continue
+		}
+
+		callID, _ := itemMap["call_id"].(string)
+		output, _ := itemMap["output"].(string)
+		if callID == "" || output == "" {
+			continue
+		}
+
+		toolName := callIDToTool[callID]
+		if toolName == "" {
+			continue
+		}
+
+		outputSize := len(output)
+		if toolInfo, exists := toolCallMap[toolName]; exists {
+			if outputSize > toolInfo.MaxOutputSize {
+				toolInfo.MaxOutputSize = outputSize
+				toolInfo.OutputSample = truncateOutputSample(output)
+				if verbose {
+					copilotLogsLog.Printf("Updated %s MaxOutputSize to %d bytes with sample", toolName, outputSize)
+				}
+			}
+		} else {
+			// Tool entry not yet created by extractToolCallSizes — create a stub so the
+			// output sample is not lost (e.g. when wire-request ordering differs from data blocks).
+			toolCallMap[toolName] = &ToolCallInfo{
+				Name:          toolName,
+				CallCount:     1,
+				MaxOutputSize: outputSize,
+				OutputSample:  truncateOutputSample(output),
+			}
+			if verbose {
+				copilotLogsLog.Printf("Created stub entry for %s from wire request output (%d bytes)", toolName, outputSize)
 			}
 		}
 	}

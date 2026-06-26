@@ -16,9 +16,10 @@ var metricsLog = logger.New("workflow:metrics")
 type ToolCallInfo struct {
 	Name          string        // Prettified tool name (e.g., "github::search_issues", "bash")
 	CallCount     int           // Number of times this tool was called
-	MaxInputSize  int           // Maximum input size in tokens for any call
-	MaxOutputSize int           // Maximum output size in tokens for any call
+	MaxInputSize  int           // Maximum input size for any call (engine-dependent units, often bytes/chars)
+	MaxOutputSize int           // Maximum output size for any call (engine-dependent units, often bytes/chars)
 	MaxDuration   time.Duration // Maximum execution duration for any call
+	OutputSample  string        // Preview of the largest tool response (first few lines, truncated)
 }
 
 // LogMetrics represents extracted metrics from log files
