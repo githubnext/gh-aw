@@ -80,6 +80,12 @@ pre-agent-steps:
     run: |
       cd "$EXPR_GITHUB_WORKSPACE/docs"
       npm install
+  - name: Resolve slide deck PDF
+    env:
+      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
+    run: |
+      cd "$EXPR_GITHUB_WORKSPACE/docs"
+      node ../scripts/ensure-docs-slide-pdf.js
   - name: Start docs server
     env:
       EXPR_GITHUB_RUN_ID: ${{ github.run_id }}
