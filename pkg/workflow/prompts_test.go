@@ -388,6 +388,9 @@ func TestDailySPDDSpecPlannerAllowsReadOnlyFileInspection(t *testing.T) {
 	if !strings.Contains(workflow, `- "sed *"`) {
 		t.Fatal("Expected daily-spdd-spec-planner workflow to allow ranged sed reads")
 	}
+	if !strings.Contains(workflow, `"cat specs/**/*.md"`) {
+		t.Fatal("Expected daily-spdd-spec-planner workflow to allow reading spec files in subdirectories")
+	}
 }
 
 func TestDailyCacheStrategyAnalyzerUsesCodexCompatibleModelsForExperiment(t *testing.T) {

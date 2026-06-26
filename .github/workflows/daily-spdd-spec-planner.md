@@ -38,6 +38,7 @@ tools:
   bash:
     - "find specs docs scratchpad -type f -name \"*.md\""
     - "cat specs/*.md"
+    - "cat specs/**/*.md"
     - "cat docs/src/content/docs/reference/*specification*.md"
     - "cat scratchpad/*specification*.md"
     - "git log --oneline --since=\"14 days ago\" -- specs docs/src/content/docs/reference scratchpad"
@@ -92,6 +93,8 @@ Inspect specification files from:
 
 Use the allowed shell commands above or built-in file inspection tools only for read-only analysis. Do not modify repository files.
 
+**File Discovery**: Use the allowed bash command `find specs docs scratchpad -type f -name "*.md"` to list spec files. Do not use the `glob` tool on the workspace root directory — it will be denied and consume tool-denial budget.
+
 ### Daily Rotation
 
 Use cache-memory at `/tmp/gh-aw/cache-memory/spdd-daily/rotation.json` to rotate through spec files fairly:
@@ -125,6 +128,7 @@ Always create one issue per run with actionable tasks (even if no major gaps are
 ### Output Contract (Required)
 
 1. Emit exactly one `create_issue` item only after the full body is complete.
+   - Call the `create_issue` MCP tool directly with `title` and `body` fields — do not construct JSON payloads via bash, python3, or shell scripts.
 2. Never emit placeholder or draft bodies (for example: `test`, `.`, `todo`, `tbd`, or a single sentence).
 3. Before emitting `create_issue`, verify the body:
    - includes all six required sections: `Summary`, `Priority Work Queue`, `SPDD Checklist`, `Per-Spec Findings`, `Sync Follow-ups`, and `Context`

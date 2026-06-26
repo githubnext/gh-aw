@@ -1057,6 +1057,62 @@ func TestHashCheckTokenPropagation(t *testing.T) {
 // TestInjectIfConditionAfterName verifies the robust line-oriented implementation of
 // injectIfConditionAfterName: it finds "- name:", derives indentation from context,
 // is idempotent, and logs a warning when no name line is found.
+// TestBuildActivationJobWrapsRepositoryStepErrors verifies that errors from
+// addActivationRepositoryAndOutputSteps are wrapped with the expected context prefix,
+// making it easier to attribute compilation failures to that specific sub-step.
+func TestBuildActivationJobWrapsRepositoryStepErrors(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetActionMode(ActionModeDev)
+
+	// Using the crush engine with a malformed model (leading slash → empty provider prefix)
+	// causes computeActivationSanitizationDomains to return an error. NeedsTextOutput must
+	// be true so that addActivationTextOutputStep is reached and the error is triggered.
+	data := &WorkflowData{
+		Name:            "test-workflow",
+		NeedsTextOutput: true,
+		EngineConfig: &EngineConfig{
+			ID:    "crush",
+			Model: "/bad-provider",
+		},
+	}
+
+	_, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+
+	require.Error(t, err, "buildActivationJob should return an error for a malformed model")
+	assert.Contains(t, err.Error(), "failed to add activation repository and output steps:",
+		"error should be wrapped with the repository-steps context prefix")
+}
+
+// TestBuildActivationJobWrapsPermissionsErrors verifies that errors from
+// buildActivationPermissions are wrapped with the expected context prefix,
+// making it easier to attribute compilation failures to the permissions sub-step.
+func TestBuildActivationJobWrapsPermissionsErrors(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetActionMode(ActionModeDev)
+
+	// Activation pre-steps that call a write gh command cause addActivationScriptPermissions
+	// to reject the workflow, producing an error from buildActivationPermissions.
+	data := &WorkflowData{
+		Name: "test-workflow",
+		Jobs: map[string]any{
+			"activation": map[string]any{
+				"pre-steps": []any{
+					map[string]any{
+						"name": "Write step",
+						"run":  `gh pr comment "$PR_URL" --body "Starting..."`,
+					},
+				},
+			},
+		},
+	}
+
+	_, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+
+	require.Error(t, err, "buildActivationJob should return an error for write gh commands in activation pre-steps")
+	assert.Contains(t, err.Error(), "failed to build activation permissions:",
+		"error should be wrapped with the permissions context prefix")
+}
+
 func TestInjectIfConditionAfterName(t *testing.T) {
 	const cond = "some.condition == true"
 
