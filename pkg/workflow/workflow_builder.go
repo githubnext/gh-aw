@@ -168,11 +168,13 @@ func extractLSPConfig(parsedFrontmatter *FrontmatterConfig, frontmatter map[stri
 
 	jsonBytes, err := json.Marshal(rawLSP)
 	if err != nil {
+		workflowBuilderLog.Printf("Failed to marshal lsp frontmatter config: %v", err)
 		return nil
 	}
 
 	var lsp map[string]LSPServerConfig
 	if err := json.Unmarshal(jsonBytes, &lsp); err != nil {
+		workflowBuilderLog.Printf("Failed to unmarshal lsp frontmatter config: %v", err)
 		return nil
 	}
 

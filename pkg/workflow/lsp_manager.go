@@ -5,7 +5,11 @@ import (
 	"maps"
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var lspManagerLog = logger.New("workflow:lsp_manager")
 
 // LSPServerConfig defines a single language server entry under top-level frontmatter "lsp:".
 type LSPServerConfig struct {
@@ -24,6 +28,7 @@ func NewLSPManager(servers map[string]LSPServerConfig) *LSPManager {
 	for key, value := range servers {
 		language := strings.TrimSpace(strings.ToLower(key))
 		if language == "" {
+			lspManagerLog.Printf("Skipping invalid LSP language key: %q", key)
 			continue
 		}
 		config := value
