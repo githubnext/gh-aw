@@ -315,7 +315,7 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 				}
 			}
 			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s%s", i+1, len(results), issueLabel, result.Repo, orgWorkflowCountSuffix(result))))
-			confirmed, err := confirmOrgAction(result, "create an issue for "+result.Repo, cbs.AutoYes)
+			confirmed, err := confirmOrgAction(result, "create an issue", cbs.AutoYes)
 			if err != nil {
 				return err
 			}
@@ -369,7 +369,7 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 			}
 		}
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s%s", i+1, len(results), applyLabel, result.Repo, orgWorkflowCountSuffix(result))))
-		confirmed, err := confirmOrgAction(result, "create a pull request for "+result.Repo, cbs.AutoYes)
+		confirmed, err := confirmOrgAction(result, "create a pull request", cbs.AutoYes)
 		if err != nil {
 			return err
 		}
