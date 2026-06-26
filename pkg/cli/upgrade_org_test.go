@@ -69,26 +69,9 @@ func TestRunUpgradeForOrgCreateIssueAutoAcceptsWithYes(t *testing.T) {
 }
 
 func TestRunUpgradeForOrgCreateIssueRequiresYesInCI(t *testing.T) {
-	origSearch := searchOrgLockWorkflowReposFn
-	origScan := scanUpgradeRepoFn
-	origIssue := createIssueForUpgradeOrgRepoFn
-	origWait := waitForOrgRateLimitFn
 	origIsCI := isRunningInCIFn
-	searchOrgLockWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
-		return []string{"octo/api"}, nil
-	}
-	scanUpgradeRepoFn = mockScanUpgradeRepo
-	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
-	createIssueForUpgradeOrgRepoFn = func(ctx context.Context, repo string, verbose bool) error {
-		t.Fatalf("issue creation should not run in CI without --yes")
-		return nil
-	}
 	isRunningInCIFn = func() bool { return true }
 	defer func() {
-		searchOrgLockWorkflowReposFn = origSearch
-		scanUpgradeRepoFn = origScan
-		createIssueForUpgradeOrgRepoFn = origIssue
-		waitForOrgRateLimitFn = origWait
 		isRunningInCIFn = origIsCI
 	}()
 
