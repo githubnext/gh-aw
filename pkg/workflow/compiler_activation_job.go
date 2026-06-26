@@ -31,6 +31,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if err != nil {
 		return nil, fmt.Errorf("failed to create activation job build context: %w", err)
 	}
+	if !c.effectiveStrictMode(data.RawFrontmatter) {
+		ctx.steps = append(ctx.steps, buildPolicyStrictEnforcementStep()...)
+	}
 
 	if err := c.addActivationFeedbackAndValidationSteps(ctx); err != nil {
 		return nil, err
@@ -42,9 +45,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		return nil, err
 	}
 	ctx.steps = append(ctx.steps, buildRuntimeFeaturesSummaryStep()...)
-	if !c.effectiveStrictMode(data.RawFrontmatter) {
-		ctx.steps = append(ctx.steps, buildPolicyStrictEnforcementStep()...)
-	}
 
 	// Generate experiment selection steps when experiments are declared in the frontmatter.
 	// These steps run before the prompt is built so that experiments.name expressions

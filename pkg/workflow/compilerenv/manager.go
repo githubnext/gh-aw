@@ -48,6 +48,8 @@ const (
 	// DefaultModelCodex is the enterprise override for Codex fallback model selection.
 	DefaultModelCodex = "GH_AW_DEFAULT_MODEL_CODEX"
 	// PolicyStrict enables runtime enforcement that workflows must be compiled in strict mode.
+	// Enforcement is activated by variable presence regardless of value. To disable it,
+	// remove GH_AW_POLICY_STRICT instead of setting it to "false" or "0".
 	PolicyStrict = "GH_AW_POLICY_STRICT"
 )
 
