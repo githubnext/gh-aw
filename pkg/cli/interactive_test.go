@@ -959,10 +959,10 @@ func TestPromptForConfigurationFrom_ByValue(t *testing.T) {
 }
 
 // newScannerFromString creates a bufio.Scanner backed by the given string.
-// The string is treated as if each line was entered interactively.
+// The input must be a complete line terminated by a newline; if it is not
+// (and is non-empty), a trailing newline is appended automatically so that
+// bufio.Scanner.Scan() sees a complete line rather than returning false at EOF.
 func newScannerFromString(s string) *bufio.Scanner {
-	// A non-empty string must end with a newline so the scanner sees it as a
-	// complete line (matching how a real terminal delivers input).
 	if s != "" && !strings.HasSuffix(s, "\n") {
 		s += "\n"
 	}

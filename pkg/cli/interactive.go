@@ -351,11 +351,6 @@ func (b *InteractiveWorkflowBuilder) promptForConfigurationFrom(r io.Reader) err
 		value := strings.Join(append([]string{"defaults"}, detectedNetworks...), ",")
 		networkItems = append([]struct{ label, value string }{{label, value}}, networkItems...)
 	}
-	// Set default network access before prompting
-	b.NetworkAccess = "defaults"
-	if len(detectedNetworks) > 0 {
-		b.NetworkAccess = strings.Join(append([]string{"defaults"}, detectedNetworks...), ",")
-	}
 	network, err := promptNonInteractiveSelect(scanner, "What network access does the workflow need?", networkItems)
 	if err != nil {
 		return fmt.Errorf("failed to select network access: %w", err)
