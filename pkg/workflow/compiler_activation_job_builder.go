@@ -257,6 +257,25 @@ func buildActivationAppTokenPermissions(ctx *activationJobBuildContext) *Permiss
 			statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
 		},
 	)
+	if ctx.data.CommandCentralized && (ctx.hasReaction || ctx.hasStatusComment) {
+		syntheticOn := buildCentralizedCommandOnSection(ctx.data.CommandEvents)
+		if syntheticOn != "" {
+			addActivationInteractionPermissions(
+				appPerms,
+				activationInteractionPermissionsOptions{
+					onSection:                         syntheticOn,
+					hasReaction:                       ctx.hasReaction,
+					reactionIncludesIssues:            ctx.reactionIssues,
+					reactionIncludesPullRequests:      ctx.reactionPullRequests,
+					reactionIncludesDiscussions:       ctx.reactionDiscussions,
+					hasStatusComment:                  ctx.hasStatusComment,
+					statusCommentIncludesIssues:       ctx.statusCommentIssues,
+					statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+					statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+				},
+			)
+		}
+	}
 	if hasWorkflowCallTrigger(ctx.data.On) && (ctx.hasReaction || ctx.hasStatusComment) {
 		addActivationInteractionPermissions(
 			appPerms,

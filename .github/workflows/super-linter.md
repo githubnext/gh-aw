@@ -47,11 +47,11 @@ jobs:
           CREATE_LOG_FILE: "true"
           LOG_FILE: super-linter.log
           DEFAULT_BRANCH: main
-          ENABLE_GITHUB_ACTIONS_STEP_SUMMARY: "true"
           # Only validate Markdown - other linters (Go, JS, YAML, Shell) run in CI
           VALIDATE_MARKDOWN: "true"
           # Disable all other linters to improve performance
           VALIDATE_ALL_CODEBASE: "false"
+          FILTER_REGEX_EXCLUDE: "(^|.*/)super-linter-output/.*"
       
       - name: Check for linting issues
         id: check-results
@@ -67,11 +67,17 @@ jobs:
             echo "needs-linting=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Fix super-linter log permissions
+      - name: Prepare super-linter log for upload
         if: always()
         run: |
           if [ -f "super-linter.log" ]; then
-            chmod 644 super-linter.log
+            if sudo cp super-linter.log /tmp/super-linter.log 2>/dev/null || cp super-linter.log /tmp/super-linter.log; then
+              if ! (sudo chmod 644 /tmp/super-linter.log 2>/dev/null || chmod 644 /tmp/super-linter.log); then
+                echo "::warning::Unable to set permissions on /tmp/super-linter.log"
+              fi
+            else
+              echo "::warning::Unable to copy super-linter.log to /tmp for artifact upload"
+            fi
           fi
       
       - name: Upload super-linter log
@@ -79,7 +85,8 @@ jobs:
         uses: actions/upload-artifact@v7.0.1
         with:
           name: super-linter-log
-          path: super-linter.log
+          path: /tmp/super-linter.log
+          if-no-files-found: ignore
           retention-days: 7
 steps:
   - name: Download super-linter log

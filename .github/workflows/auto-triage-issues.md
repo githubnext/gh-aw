@@ -207,7 +207,7 @@ For the triggering issue (on issue events), you can omit `item_number`:
 }
 ```
 
-## Scheduled Run Report
+### Scheduled Run Report
 
 When running on schedule, create a discussion report following these formatting guidelines:
 
