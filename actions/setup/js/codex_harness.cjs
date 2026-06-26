@@ -44,7 +44,7 @@ const {
   fetchAWFReflect,
   fetchModelsFromUrl,
 } = require("./awf_reflect.cjs");
-const { emitMissingToolPermissionIssue, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
+const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
@@ -492,6 +492,14 @@ async function main() {
     }
 
     if (hasNumerousPermissionDenied) {
+      // If the agent already produced expected safe-outputs, the permission-denied
+      // signals are from optional/exploratory commands — not from the core task work.
+      // Suppress the terminal verdict and exit 0 to avoid a false-red run.
+      if (safeOutputsPath && hasExpectedSafeOutputs(safeOutputsPath, { logger: log })) {
+        log(`attempt ${attempt + 1}: detected numerous permission-denied issues but safe-outputs already contain expected output — suppressing terminal verdict (false-red: core work succeeded)`);
+        lastExitCode = 0;
+        break;
+      }
       const deniedCommands = extractDeniedCommands(result.output);
       emitMissingToolPermissionIssue({ deniedCommands, logger: log });
       log(`attempt ${attempt + 1}: detected numerous permission-denied issues — not retrying (classified as missing tool/permission issue)`);
@@ -553,6 +561,7 @@ if (typeof module !== "undefined" && module.exports) {
     getConfiguredOpenAIPortFromReflect,
     validateCodexOpenAIBaseURLFromReflect,
     hasNoopInSafeOutputs,
+    hasExpectedSafeOutputs,
   };
 }
 

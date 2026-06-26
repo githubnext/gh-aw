@@ -153,6 +153,58 @@ function emitInfrastructureIncomplete(details, options) {
 }
 
 /**
+ * Diagnostic safe-output types that represent infrastructure signals, not task-level work.
+ * Entries with these types are excluded when checking whether expected outputs were produced.
+ */
+const DIAGNOSTIC_SAFE_OUTPUT_TYPES = new Set(["noop", "missing_tool", "report_incomplete"]);
+
+/**
+ * Read the safe-outputs JSONL file and check whether it contains at least one
+ * non-diagnostic entry (i.e. an output that represents real, task-level work).
+ * Returns true when such an entry exists; false otherwise.
+ * Used by harnesses to suppress the terminal "numerous permission-denied" verdict
+ * when the agent already produced the expected output — preventing false-red runs.
+ * @param {string} safeOutputsPath - Path to the safe-outputs JSONL file
+ * @param {{
+ *   logger?: (msg: string) => void,
+ *   readFileSync?: (path: string, encoding: BufferEncoding) => string
+ * }=} options
+ * @returns {boolean}
+ */
+function hasExpectedSafeOutputs(safeOutputsPath, options) {
+  const logger = options && options.logger ? options.logger : defaultLog;
+  const readFile = options && options.readFileSync ? options.readFileSync : fs.readFileSync;
+
+  if (!safeOutputsPath) {
+    return false;
+  }
+
+  let content;
+  try {
+    content = readFile(safeOutputsPath, "utf8");
+  } catch {
+    // File does not exist or is not readable — no expected entries present
+    return false;
+  }
+
+  const lines = content.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && parsed.type && !DIAGNOSTIC_SAFE_OUTPUT_TYPES.has(parsed.type)) {
+        logger(`hasExpectedSafeOutputs: non-diagnostic entry found in ${safeOutputsPath}: type=${parsed.type}`);
+        return true;
+      }
+    } catch {
+      // Skip malformed lines — they do not represent valid entries
+    }
+  }
+  return false;
+}
+
+/**
  * Read the safe-outputs JSONL file and check whether any noop entry has been written.
  * Returns true when at least one {"type":"noop"} line is present; false otherwise.
  * Used by harnesses to skip agent startup or suppress retries when a noop was already
@@ -211,6 +263,7 @@ if (typeof module !== "undefined" && module.exports) {
     buildMissingToolAlternatives,
     emitMissingToolPermissionIssue,
     emitInfrastructureIncomplete,
+    hasExpectedSafeOutputs,
     hasNoopInSafeOutputs,
   };
 }
