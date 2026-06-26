@@ -32,8 +32,8 @@ type GitHubToolsetsData struct {
 	} `json:"toolsets"`
 }
 
-// toolsetPermissionsMap defines the mapping of GitHub MCP toolsets to required permissions
-// This is loaded lazily from the embedded JSON file on first use.
+// getToolsetPermissionsMap returns the mapping of GitHub MCP toolsets to required permissions.
+// It is loaded lazily from the embedded JSON file on first use.
 var getToolsetPermissionsMap = sync.OnceValue(func() map[string]GitHubToolsetPermissions {
 	permissionsValidationLog.Print("Loading GitHub toolsets permissions from embedded JSON")
 
