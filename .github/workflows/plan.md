@@ -13,13 +13,10 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
-engine:
-  id: copilot
-  copilot-sdk: true
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [default, discussions]

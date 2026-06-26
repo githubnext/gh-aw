@@ -9,6 +9,7 @@ permissions:
   pull-requests: read
   copilot-requests: write
 imports:
+- shared/copilot-sdk-engine.md
 - uses: shared/daily-audit-base.md
   with:
     expires: 3d
@@ -26,9 +27,6 @@ safe-outputs:
   noop: null
 description: Daily workflow that inspects test workflows in pkg/cli/workflows for safe-output coverage, detects missing safe-output types, creates test workflows and Go compilation tests for any missing types, then creates a PR or reports NOOP
 emoji: 🔧
-engine:
-  id: copilot
-  copilot-sdk: true
 name: Daily Safe Output Integrator
 strict: true
 timeout-minutes: 20
@@ -51,7 +49,6 @@ tools:
   - git diff --name-only
   - cd * && git diff --name-only
   - python3 *
-  cli-proxy: true
   edit: null
   github:
     mode: gh-proxy

@@ -11,10 +11,9 @@ permissions:
   issues: read
   copilot-requests: write
 engine:
-  id: copilot
-  copilot-sdk: true
   bare: true
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[dead-code] "
@@ -31,7 +30,6 @@ network:
     - defaults
     - go
 tools:
-  cli-proxy: true
   bash:
     - "*"
   edit:

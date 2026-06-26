@@ -11,14 +11,11 @@ permissions:
   pull-requests: read
   # Note: PR write operations handled via safe-outputs
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 strict: true
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [pull_requests, repos]

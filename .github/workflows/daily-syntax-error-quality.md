@@ -12,11 +12,7 @@ permissions:
   pull-requests: read
   copilot-requests: write
 tracker-id: daily-syntax-error-quality
-engine:
-  id: copilot
-  copilot-sdk: true
 tools:
-  cli-proxy: true
   bash: true
 safe-outputs:
   create-issue:
@@ -51,6 +47,7 @@ steps:
       fi
       gh aw --version
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/reporting.md
   - shared/otlp.md
 ---

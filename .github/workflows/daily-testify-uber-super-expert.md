@@ -8,6 +8,7 @@ permissions:
   pull-requests: read
   copilot-requests: write
 imports:
+- shared/copilot-sdk-engine.md
 - uses: shared/skip-if-issue-open.md
   with:
     title-prefix: "[testify-expert]"
@@ -25,12 +26,6 @@ imports:
 - shared/otlp.md
 description: Daily expert that analyzes one test file and creates an issue with testify-based improvements
 emoji: 🧪
-engine:
-  id: copilot
-  copilot-sdk: true
-name: Daily Testify Uber Super Expert
-strict: true
-timeout-minutes: 20
 tools:
   bash:
   - find . -name "*_test.go" -type f
@@ -38,7 +33,6 @@ tools:
   - grep -r "func Test" . --include="*_test.go"
   - go test -v ./...
   - wc -l **/*_test.go
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets:

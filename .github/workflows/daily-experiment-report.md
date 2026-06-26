@@ -15,11 +15,7 @@ permissions:
   discussions: read
 
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 tools:
-  cli-proxy: true
   github:
     toolsets: [default, actions]
 
@@ -31,6 +27,7 @@ steps:
       fi
 
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[experiments] "

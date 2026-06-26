@@ -10,9 +10,6 @@ permissions:
   contents: read
   actions: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 tracker-id: architecture-guardian
 experiments:
   sub_agent_strategy:
@@ -33,6 +30,7 @@ experiments:
     start_date: "2026-06-13"
     issue: 39062
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[architecture-guardian]"
@@ -44,7 +42,6 @@ imports:
       assignees: [copilot]
   - shared/otlp.md
 tools:
-  cli-proxy: true
   bash:
     - "cat:*"
 safe-outputs:

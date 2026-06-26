@@ -13,6 +13,7 @@ network:
   - defaults
   - github
 imports:
+- shared/copilot-sdk-engine.md
 - shared/otlp.md
 safe-outputs:
   create-pull-request:
@@ -30,9 +31,6 @@ cache:
     layout-spec-cache-
 description: Maintains scratchpad/layout.md with patterns of file paths, folder names, and artifact names used in lock.yml files
 emoji: 📐
-engine:
-  id: copilot
-  copilot-sdk: true
 name: Layout Specification Maintainer
 strict: true
 timeout-minutes: 20
@@ -45,7 +43,6 @@ tools:
   - git status
   - git diff scratchpad/layout.md
   - cat scratchpad/layout.md
-  cli-proxy: true
   edit: null
   github:
     mode: gh-proxy

@@ -16,10 +16,6 @@ permissions:
   issues: read
 
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-
 network:
   allowed:
     - defaults
@@ -29,6 +25,7 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[nlp-analysis] "
@@ -68,8 +65,6 @@ steps:
 
 timeout-minutes: 20
 
-tools:
-  cli-proxy: true
 features:
   gh-aw-detection: true
 ---

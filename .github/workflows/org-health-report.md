@@ -10,11 +10,7 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
-engine:
-  id: copilot
-  copilot-sdk: true
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     min-integrity: approved
@@ -43,6 +39,7 @@ network:
     - defaults
     - python
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/github-guard-policy.md
   - shared/python-dataviz.md
   - ../skills/jqschema/SKILL.md

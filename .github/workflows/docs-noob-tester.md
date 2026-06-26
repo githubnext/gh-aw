@@ -10,15 +10,11 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 timeout-minutes: 30
 runtimes:
   node:
     version: "22"
 tools:
-  cli-proxy: true
   timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
   playwright:
     mode: cli
@@ -35,6 +31,7 @@ network:
     - node
 
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[docs-noob-tester] "

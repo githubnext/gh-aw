@@ -12,15 +12,11 @@ permissions:
   actions: read
   copilot-requests: write
 tracker-id: linter-miner
-engine:
-  id: copilot
-  copilot-sdk: true
 network:
   allowed:
     - defaults
     - go
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [default, discussions, issues, repos]
@@ -30,6 +26,7 @@ tools:
     - "*"
   edit:
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/mcp/serena-go.md
   - shared/otlp.md
 pre-agent-steps:

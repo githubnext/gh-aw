@@ -91,13 +91,14 @@ func TestEngineCatalog_BuiltInsPresent(t *testing.T) {
 }
 
 // TestEngineCatalogMatchesSchema asserts that the engine_config schema has the expected
-// structure: a plain-string variant (for built-ins and named catalog entries), an
-// object-with-id variant, and an inline-definition variant (object-with-runtime).
+// structure: a plain-string variant, an object-with-id variant, an inline-definition
+// variant (object-with-runtime), an engine-definition variant, and an id-less fragment
+// variant for shared workflow imports.
 // A failure here means the schema structure has changed unexpectedly.
 func TestEngineCatalogMatchesSchema(t *testing.T) {
 	variants := engineSchemaOneOfVariants(t)
 
-	require.Len(t, variants, 6, "engine_config oneOf should have exactly 6 variants: string, object-with-id, object-with-runtime, engine-definition, mcp-only, model-only")
+	require.Len(t, variants, 5, "engine_config oneOf should have exactly 5 variants: string, object-with-id, object-with-runtime, engine-definition, shared-fragment")
 
 	// Variant 0: plain string (no enum — allows built-ins and custom named catalog entries)
 	assert.Equal(t, "string", variants[0]["type"],
@@ -138,25 +139,21 @@ func TestEngineCatalogMatchesSchema(t *testing.T) {
 	assert.Contains(t, props3, "display-name", "engine definition variant should have a 'display-name' property")
 	assert.Contains(t, props3, "auth", "engine definition variant should have an 'auth' property")
 
-	// Variant 4: mcp-only form for shared workflow imports (no engine id required)
+	// Variant 4: shared fragment form for imported engine defaults (no engine id required)
 	assert.Equal(t, "object", variants[4]["type"],
-		"fifth variant should be type object (mcp-only for shared workflows)")
+		"fifth variant should be type object (shared fragment for imported workflows)")
 	props4, ok := variants[4]["properties"].(map[string]any)
 	require.True(t, ok, "fifth variant should have properties")
 	assert.Contains(t, props4, "mcp",
-		"mcp-only variant should have an 'mcp' property")
+		"shared fragment variant should have an 'mcp' property")
+	assert.Contains(t, props4, "model",
+		"shared fragment variant should have a 'model' property")
+	assert.Contains(t, props4, "driver",
+		"shared fragment variant should allow imported workflows to keep driver settings inline")
+	assert.Contains(t, props4, "bare",
+		"shared fragment variant should allow imported workflows to keep bare mode inline")
 	assert.NotContains(t, props4, "id",
-		"mcp-only variant must NOT have an 'id' property")
-
-	// Variant 5: model-only form — expresses a model preference without specifying an engine id
-	assert.Equal(t, "object", variants[5]["type"],
-		"sixth variant should be type object (model-only preference)")
-	props5, ok := variants[5]["properties"].(map[string]any)
-	require.True(t, ok, "sixth variant should have properties")
-	assert.Contains(t, props5, "model",
-		"model-only variant should have a 'model' property")
-	assert.NotContains(t, props5, "id",
-		"model-only variant must NOT have an 'id' property")
-	assert.NotContains(t, props5, "runtime",
-		"model-only variant must NOT have a 'runtime' property")
+		"shared fragment variant must NOT have an 'id' property")
+	assert.NotContains(t, props4, "runtime",
+		"shared fragment variant must NOT have a 'runtime' property")
 }

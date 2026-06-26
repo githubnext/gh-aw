@@ -21,10 +21,6 @@ permissions:
   copilot-requests: write
 strict: true
 
-engine:
-  id: copilot
-  copilot-sdk: true
-
 timeout-minutes: 60
 
 tracker-id: firewall-escape
@@ -45,9 +41,9 @@ safe-outputs:
     max: 1
 
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets:

@@ -13,13 +13,9 @@ permissions:
   discussions: read
   copilot-requests: write
 tracker-id: daily-geo-optimizer
-engine:
-  id: copilot
-  copilot-sdk: true
 strict: true
 timeout-minutes: 30
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [default]
@@ -102,6 +98,7 @@ steps:
       path: /tmp/gh-aw/agent/geo-optimizer
 
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[geo-optimizer] "

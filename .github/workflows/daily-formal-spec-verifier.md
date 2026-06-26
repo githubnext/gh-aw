@@ -16,13 +16,11 @@ permissions:
   pull-requests: read
   copilot-requests: write
 tracker-id: daily-formal-spec-verifier
-engine:
-  id: copilot
-  copilot-sdk: true
 strict: true
 timeout-minutes: 25
 
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-issue-base.md
     with:
       title-prefix: "[formal-spec] "
@@ -32,7 +30,6 @@ imports:
   - shared/otlp.md
 
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [default, issues, pull_requests]

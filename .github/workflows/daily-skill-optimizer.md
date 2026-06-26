@@ -13,8 +13,6 @@ permissions:
   pull-requests: read
 tracker-id: daily-skill-optimizer
 engine:
-  id: copilot
-  copilot-sdk: true
   driver: .github/drivers/copilot_sdk_driver_sample_typescript.ts
 strict: true
 timeout-minutes: 45
@@ -144,12 +142,12 @@ steps:
       path: /tmp/gh-aw/agent/skill-optimizer-results
 
 tools:
-  cli-proxy: true
   bash:
     - "*"
   edit:
 
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/otlp.md
 sandbox:
   agent:

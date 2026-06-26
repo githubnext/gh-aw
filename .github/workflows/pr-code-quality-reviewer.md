@@ -10,21 +10,18 @@ on:
     strategy: centralized
     name: review
     events: [pull_request_comment, pull_request_review_comment]
-engine:
-  id: copilot
-  copilot-sdk: true
 permissions:
   contents: read
   issues: read
   pull-requests: read
   copilot-requests: write
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
   - shared/otlp.md
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets:

@@ -10,6 +10,7 @@ timeout-minutes: 30
 permissions:
   contents: read
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-sentrux] "
@@ -22,16 +23,11 @@ network:
     - github
 tools:
   bash: true
-  cli-proxy: true
   repo-memory:
     branch-prefix: daily
     description: "Historical sentrux quality signal and architecture metrics"
     file-glob: ["*.json", "*.jsonl"]
     max-file-size: 51200
-engine:
-  id: copilot
-  copilot-sdk: true
-
 ---
 
 # Daily Sentrux Codebase Quality Report

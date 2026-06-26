@@ -35,11 +35,7 @@ permissions:
   pull-requests: read
   copilot-requests: write
 tracker-id: daily-cli-performance
-engine:
-  id: copilot
-  copilot-sdk: true
 tools:
-  cli-proxy: true
   repo-memory:
     branch-name: memory/cli-performance
     description: "Historical CLI compilation performance benchmark results"
@@ -62,6 +58,7 @@ safe-outputs:
 timeout-minutes: 20
 strict: true
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-cli-performance] "

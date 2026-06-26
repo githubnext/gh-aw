@@ -11,6 +11,7 @@ permissions:
   pull-requests: read
   copilot-requests: write
 imports:
+- shared/copilot-sdk-engine.md
 - uses: shared/daily-audit-base.md
   with:
     expires: 1d
@@ -28,9 +29,6 @@ safe-outputs:
     title-prefix: "[daily-compiler-quality] "
 description: Analyzes compiler code daily to assess if it meets human-written quality standards, creates discussion reports, and uses cache memory to avoid re-analyzing unchanged files
 emoji: 📊
-engine:
-  id: copilot
-  copilot-sdk: true
 experiments:
   output_format:
     analysis_type: mann_whitney
@@ -86,7 +84,6 @@ tools:
   - uniq
   - yq
   cache-memory: true
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets:

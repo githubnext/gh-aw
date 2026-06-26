@@ -10,9 +10,6 @@ permissions:
   contents: read
   actions: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 network:
   allowed:
     - defaults
@@ -20,7 +17,6 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
-  cli-proxy: true
   edit:
   bash: true
   github:
@@ -35,6 +31,7 @@ safe-outputs:
 timeout-minutes: 15
 strict: true
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/reporting.md
   - shared/safe-output-app.md
   - shared/otlp.md

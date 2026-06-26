@@ -9,14 +9,11 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
-engine:
-  id: copilot
-  copilot-sdk: true
 tools:
-  cli-proxy: true
   agentic-workflows:
   edit:
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/charts-with-trending.md
   - shared/otlp.md
 safe-outputs:

@@ -10,6 +10,7 @@ permissions:
   pull-requests: read
   security-events: read
 imports:
+- shared/copilot-sdk-engine.md
 - uses: shared/daily-audit-base.md
   with:
     expires: 3d
@@ -27,9 +28,6 @@ safe-outputs:
     title-prefix: "[compiler-threat-spec] "
 description: Daily optimizer that reconciles compiler threat coverage with W3C specification-driven detection rules
 emoji: 🔒
-engine:
-  id: copilot
-  copilot-sdk: true
 name: Daily Compiler Threat Spec Optimizer
 strict: true
 timeout-minutes: 30
@@ -45,7 +43,6 @@ tools:
   - head
   - pwd
   - go
-  cli-proxy: true
   edit: null
   github:
     mode: gh-proxy

@@ -11,6 +11,7 @@ permissions:
   pull-requests: read
   copilot-requests: write
 imports:
+- shared/copilot-sdk-engine.md
 - uses: shared/daily-audit-base.md
   with:
     expires: 3d
@@ -37,9 +38,6 @@ safe-outputs:
     title-prefix: "[concurrency] "
 description: Performs deep-dive concurrency analysis on each safe-outputs MCP server tool to ensure thread-safety and detect race conditions
 emoji: 📊
-engine:
-  id: copilot
-  copilot-sdk: true
 name: Daily MCP Tool Concurrency Analysis
 strict: true
 timeout-minutes: 45
@@ -55,7 +53,6 @@ tools:
   - "git log -1 --format=\"%ai\" -- actions/setup/js/*.cjs"
   - "git log -3 --format=\"%ai %s\" -- actions/setup/js/*.cjs"
   cache-memory: true
-  cli-proxy: true
   edit: null
   github:
     mode: gh-proxy

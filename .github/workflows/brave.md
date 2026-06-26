@@ -13,11 +13,9 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 strict: true
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/mcp/brave.md
   - shared/otlp.md
 safe-outputs:
@@ -30,8 +28,6 @@ safe-outputs:
     run-success: "✅ Research complete. [{workflow_name}]({run_url}) has returned with results."
     run-failure: "❌ Search failed. [{workflow_name}]({run_url}) {status}. Unable to retrieve web sources."
 timeout-minutes: 10
-tools:
-  cli-proxy: true
 features:
   gh-aw-detection: true
 ---

@@ -14,9 +14,6 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: daily-agent-of-the-day-blog-writer
-engine:
-  id: copilot
-  copilot-sdk: true
 strict: true
 timeout-minutes: 45
 network:
@@ -27,7 +24,6 @@ sandbox:
     id: awf
     sudo: false
 tools:
-  cli-proxy: true
   agentic-workflows:
   edit:
   bash:
@@ -68,6 +64,7 @@ safe-outputs:
     max: 3
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/github-guard-policy.md
   - shared/otlp.md
   - shared/noop-reminder.md

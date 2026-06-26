@@ -12,11 +12,7 @@ permissions:
   pull-requests: read
   contents: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [issues, pull_requests, repos]
@@ -26,6 +22,7 @@ safe-outputs:
   add-comment:
     target: "*"
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/otlp.md
 features:
   gh-aw-detection: true

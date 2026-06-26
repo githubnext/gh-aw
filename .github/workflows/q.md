@@ -14,13 +14,10 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
-engine:
-  id: copilot
-  copilot-sdk: true
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
   agentic-workflows:
   github:
     mode: gh-proxy

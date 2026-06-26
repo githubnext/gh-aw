@@ -14,12 +14,10 @@ permissions:
 
   copilot-requests: write
 tracker-id: daily-spdd-spec-planner
-engine:
-  id: copilot
-  copilot-sdk: true
 strict: true
 
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-issue-base.md
     with:
       title-prefix: "[spdd] "
@@ -29,7 +27,6 @@ imports:
 
   - shared/otlp.md
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [default, repos, issues, pull_requests]

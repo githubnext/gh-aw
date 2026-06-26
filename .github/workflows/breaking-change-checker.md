@@ -9,12 +9,8 @@ permissions:
   contents: read
   actions: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 tracker-id: breaking-change-checker
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [repos]
@@ -26,6 +22,7 @@ tools:
     - "grep:*"
   edit:
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[breaking-change]"

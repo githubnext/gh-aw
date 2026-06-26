@@ -14,6 +14,7 @@ network:
   allowed:
   - defaults
 imports:
+- shared/copilot-sdk-engine.md
 - shared/github-guard-policy.md
 - uses: shared/repo-memory-standard.md
   with:
@@ -41,9 +42,6 @@ safe-outputs:
     run-success: ✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊
 description: Scans AI-generated discussions to extract actionable code quality improvement tasks
 emoji: ⛏️
-engine:
-  id: copilot
-  copilot-sdk: true
 strict: true
 timeout-minutes: 20
 tools:
@@ -52,7 +50,6 @@ tools:
   - jq *
   - cat *
   - date *
-  cli-proxy: true
   github:
     min-integrity: approved
     mode: gh-proxy

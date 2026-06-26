@@ -9,10 +9,6 @@ permissions:
   issues: read
   pull-requests: read
 
-engine:
-  id: copilot
-  copilot-sdk: true
-
 network:
   allowed:
     - defaults
@@ -21,9 +17,9 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
   web-fetch:
 
 timeout-minutes: 5

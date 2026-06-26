@@ -13,11 +13,7 @@ permissions:
 
 max-ai-credits: 50000
 tracker-id: ci-coach-daily
-engine:
-  id: copilot
-  copilot-sdk: true
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [issues, pull_requests]
@@ -29,6 +25,7 @@ safe-outputs:
     protected-files: fallback-to-issue
 timeout-minutes: 30
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/ci-data-analysis.md
   - shared/ci-optimization-strategies.md
   - shared/reporting.md

@@ -12238,39 +12238,233 @@
         },
         {
           "type": "object",
-          "description": "MCP gateway configuration for shared workflows. Declares engine.mcp settings (tool-timeout, session-timeout) that consumers inherit during import without specifying an engine identifier. The engine is always inherited from the importing workflow.",
+          "description": "Engine configuration fragment without engine.id or engine.runtime. Use this when the engine selection is inherited from an imported shared workflow, but runtime options such as model, agent, driver, bare mode, or MCP timeouts stay inline in the importing workflow.",
           "properties": {
+            "version": {
+              "type": ["string", "number"],
+              "description": "Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Numeric values are automatically converted to strings at runtime."
+            },
+            "model": {
+              "type": "string",
+              "description": "Optional model preference or specific model identifier to apply to the inherited engine."
+            },
+            "model-provider": {
+              "type": "string",
+              "enum": ["github", "anthropic", "openai"],
+              "description": "Optional inference provider override for the inherited engine."
+            },
+            "permission-mode": {
+              "type": "string",
+              "enum": ["auto", "acceptEdits", "plan", "bypassPermissions"],
+              "description": "Claude permission mode override."
+            },
+            "max-turns": {
+              "$ref": "#/$defs/templatable_integer",
+              "deprecated": true,
+              "description": "Deprecated: use the top-level 'max-turns' field instead."
+            },
+            "max-continuations": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum number of continuations for multi-run autopilot mode."
+            },
+            "concurrency": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Simple concurrency group name."
+                },
+                {
+                  "type": "object",
+                  "description": "GitHub Actions concurrency configuration for the agent job.",
+                  "properties": {
+                    "group": {
+                      "type": "string",
+                      "description": "Concurrency group identifier."
+                    },
+                    "cancel-in-progress": {
+                      "type": "boolean",
+                      "description": "Whether to cancel in-progress runs of the same concurrency group."
+                    },
+                    "queue": {
+                      "type": "string",
+                      "enum": ["single", "max"],
+                      "description": "Pending run queue behavior for this concurrency group."
+                    }
+                  },
+                  "required": ["group"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "user-agent": {
+              "type": "string",
+              "description": "Custom user agent string for GitHub MCP server configuration."
+            },
+            "command": {
+              "type": "string",
+              "description": "Custom executable path for the AI engine CLI."
+            },
+            "harness": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]*\\.(?:js|cjs|mjs)$",
+              "description": "Custom Node.js harness script filename."
+            },
+            "env": {
+              "type": "object",
+              "description": "Custom environment variables to pass to the AI engine.",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "auth": {
+              "type": "object",
+              "description": "Engine-level authentication configuration for AWF API proxy sidecar integration.",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["github-oidc"],
+                  "description": "Authentication type."
+                },
+                "audience": {
+                  "type": "string",
+                  "description": "OIDC audience to request from GitHub Actions for token exchange.",
+                  "format": "uri"
+                },
+                "azure-tenant-id": {
+                  "type": "string",
+                  "description": "Optional Azure tenant ID for token exchange."
+                },
+                "azure-client-id": {
+                  "type": "string",
+                  "description": "Optional Azure client ID for token exchange."
+                },
+                "azure-scope": {
+                  "type": "string",
+                  "description": "Optional Azure OAuth scope."
+                },
+                "azure-cloud": {
+                  "type": "string",
+                  "description": "Optional Azure cloud name."
+                },
+                "provider": {
+                  "type": "string",
+                  "description": "Optional WIF provider discriminator."
+                },
+                "federation-rule-id": {
+                  "type": "string",
+                  "description": "Anthropic WIF federation rule ID."
+                },
+                "organization-id": {
+                  "type": "string",
+                  "description": "Anthropic WIF organization ID."
+                },
+                "service-account-id": {
+                  "type": "string",
+                  "description": "Anthropic WIF service account ID."
+                },
+                "workspace-id": {
+                  "type": "string",
+                  "description": "Anthropic WIF workspace ID."
+                }
+              },
+              "required": ["type"],
+              "additionalProperties": false
+            },
+            "config": {
+              "type": "string",
+              "description": "Additional TOML configuration text appended to the generated engine config."
+            },
+            "agent": {
+              "type": "string",
+              "description": "Agent identifier to pass to copilot --agent."
+            },
+            "api-target": {
+              "type": "string",
+              "description": "Custom API endpoint hostname for the inherited engine."
+            },
+            "token-weights": {
+              "type": "object",
+              "description": "Custom model token weights for AI Credits cost ratio adjustment.",
+              "properties": {
+                "multipliers": {
+                  "type": "object",
+                  "description": "Per-model cost multipliers relative to the reference model.",
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "token-class-weights": {
+                  "type": "object",
+                  "description": "Per-token-class weights applied before the model multiplier.",
+                  "properties": {
+                    "input": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "cached-input": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "output": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "reasoning": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "cache-write": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Optional array of command-line arguments to pass to the AI engine CLI."
+            },
+            "bare": {
+              "type": "boolean",
+              "description": "When true, disables automatic loading of context and custom instructions by the AI engine.",
+              "default": false
+            },
             "mcp": {
               "type": "object",
-              "description": "Engine-level MCP gateway configuration. Settings here apply to the MCP gateway used by this engine.",
+              "description": "Engine-level MCP gateway configuration.",
               "properties": {
                 "session-timeout": {
                   "type": "string",
-                  "description": "Session timeout for MCP gateway sessions as a Go duration string (e.g. \"30m\", \"4h\", \"24h\"). Must be at least 5m (no upper bound). Omitted or empty uses the effective gateway default (precedence: this field > MCP_GATEWAY_SESSION_TIMEOUT env var > built-in default 6h).",
+                  "description": "Session timeout for MCP gateway sessions as a Go duration string (e.g. \"30m\", \"4h\", \"24h\").",
                   "examples": ["30m", "1h", "4h", "6h", "12h"]
                 },
                 "tool-timeout": {
                   "type": "string",
-                  "description": "Timeout for individual MCP tool calls as a Go duration string (e.g. \"30s\", \"2m\", \"10m\"). Must be between 10s and 600s inclusive. Omitted or empty uses the gateway built-in default (60s). Use a higher value for slow MCP backends such as full-text search over large indexes.",
+                  "description": "Timeout for individual MCP tool calls as a Go duration string (e.g. \"30s\", \"2m\", \"10m\").",
                   "examples": ["30s", "2m", "5m", "10m"]
                 }
               },
               "additionalProperties": false
-            }
-          },
-          "required": ["mcp"],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "description": "Engine object with only a model preference (no engine.id). Allows workflow authors to express a model-size hint (e.g. 'small', 'large') without committing to a specific engine. The runtime selects an appropriate engine using its default, and the model preference is applied to it.",
-          "properties": {
-            "model": {
+            },
+            "copilot-sdk": {
+              "type": "boolean",
+              "description": "Enables the experimental GitHub Copilot SDK integration."
+            },
+            "driver": {
               "type": "string",
-              "description": "Model preference or size category (e.g. 'small', 'large', 'gpt-4.1'). Applied to the default engine when engine.id is not specified."
+              "pattern": "^(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*)(?:/(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*))*$",
+              "description": "Custom driver script path or basename for engines that support driver mode."
             }
           },
-          "required": ["model"],
+          "minProperties": 1,
           "additionalProperties": false
         }
       ]

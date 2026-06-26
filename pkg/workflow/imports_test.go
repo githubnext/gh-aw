@@ -314,7 +314,7 @@ permissions:
   issues: read
   pull-requests: read
 engine:
-  model: small
+  bare: true
 ---
 
 # Test Workflow
@@ -373,5 +373,66 @@ This workflow imports a shared file that declares a model preference.
 	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed when imported shared workflow has engine.model without engine.id: %v", err)
+	}
+}
+
+// TestCompileWorkflowWithImportedCopilotSDKEngine verifies that a workflow can
+// import a shared Copilot SDK engine + cli-proxy bundle while keeping
+// additional engine and tool settings inline.
+func TestCompileWorkflowWithImportedCopilotSDKEngine(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	sharedPath := filepath.Join(tempDir, "copilot-sdk-engine.md")
+	sharedContent := `---
+engine:
+  id: copilot
+  copilot-sdk: true
+
+tools:
+  cli-proxy: true
+---
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared workflow file: %v", err)
+	}
+
+	workflowPath := filepath.Join(tempDir, "test-workflow.md")
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine:
+  model: small
+imports:
+  - copilot-sdk-engine.md
+tools:
+  github:
+    mode: gh-proxy
+---
+
+# Test Workflow
+
+This workflow imports shared Copilot SDK engine config.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed when importing shared Copilot SDK engine config: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+	if !strings.Contains(workflowData, "Mount MCP servers as CLIs") {
+		t.Error("Expected compiled workflow to include cli-proxy MCP CLI mounting from imported config")
 	}
 }

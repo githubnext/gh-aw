@@ -28,17 +28,13 @@ permissions:
   pull-requests: read
   discussions: read
 
-engine:
-  id: copilot
-  copilot-sdk: true
-
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/mcp/markitdown.md
   - shared/reporting.md
 
   - shared/otlp.md
 tools:
-  cli-proxy: true
   cache-memory: true
 
 safe-outputs:

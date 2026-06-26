@@ -9,16 +9,13 @@ permissions:
   contents: read
   actions: read
 tracker-id: jsweep-daily
-engine:
-  id: copilot
-  copilot-sdk: true
 runtimes:
   node:
     version: "20"
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [repos]

@@ -17,13 +17,9 @@ permissions:
   actions: read
 
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 strict: false
 
 tools:
-  cli-proxy: true
   github: false
 
 network:
@@ -33,6 +29,7 @@ network:
     - api.github.com
 
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/reporting.md
   - uses: shared/daily-audit-base.md
     with:

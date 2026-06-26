@@ -10,17 +10,14 @@ permissions:
   discussions: read
   actions: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 tools:
-  cli-proxy: true
   bash: [":*"]
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: ["*.json", "*.md"]
     max-file-size: 102400  # 100KB
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [default, actions, repos]

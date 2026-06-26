@@ -15,8 +15,6 @@ permissions:
 
 tracker-id: daily-model-inventory
 engine:
-  id: copilot
-  copilot-sdk: true
   driver: .github/drivers/copilot_sdk_driver_sample_node.cjs
 strict: true
 timeout-minutes: 30
@@ -305,7 +303,6 @@ steps:
       cat "$INVENTORY"
 
 tools:
-  cli-proxy: true
   playwright:
     mode: cli
   bash:
@@ -322,6 +319,7 @@ safe-outputs:
     close-older-issues: true
 
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/otlp.md
 features:
   gh-aw-detection: true

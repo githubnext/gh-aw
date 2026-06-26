@@ -9,9 +9,6 @@ permissions:
   issues: read
   pull-requests: read
   actions: read
-engine:
-  id: copilot
-  copilot-sdk: true
 network:
   allowed:
     - defaults
@@ -24,6 +21,7 @@ sandbox:
 timeout-minutes: 20
 strict: false
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[mcp-inspector] "
@@ -46,7 +44,6 @@ imports:
   - shared/mcp/serena-go.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
   agentic-workflows:
   edit:
   bash: true

@@ -13,13 +13,10 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
   edit:
   bash:
     - "*"

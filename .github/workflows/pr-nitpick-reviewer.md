@@ -11,15 +11,11 @@ permissions:
   contents: read
   pull-requests: read
   actions: read
-engine:
-  id: copilot
-  copilot-sdk: true
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/pr-review-base.md
   - shared/reporting.md
   - shared/otlp.md
-tools:
-  cli-proxy: true
 safe-outputs:
   create-discussion:
     expires: 1d

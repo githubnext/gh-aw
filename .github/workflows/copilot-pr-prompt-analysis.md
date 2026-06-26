@@ -17,10 +17,6 @@ permissions:
   actions: read
 
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-
 network:
   allowed:
     - defaults
@@ -32,6 +28,7 @@ sandbox:
     id: awf
     sudo: false
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[prompt-analysis] "
@@ -45,8 +42,6 @@ imports:
   - shared/otlp.md
 timeout-minutes: 15
 
-tools:
-  cli-proxy: true
 features:
   gh-aw-detection: true
 ---

@@ -15,9 +15,6 @@ permissions:
 
   copilot-requests: write
 tracker-id: daily-workflow-updater
-engine:
-  id: copilot
-  copilot-sdk: true
 strict: true
 
 network:
@@ -35,7 +32,6 @@ safe-outputs:
     protected-files: allowed
 
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [default]
@@ -44,6 +40,7 @@ tools:
 timeout-minutes: 15
 
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/otlp.md
 ---
 

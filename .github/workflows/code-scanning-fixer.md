@@ -12,10 +12,8 @@ permissions:
   pull-requests: read
   security-events: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[code-scanning-fix]"
@@ -29,7 +27,6 @@ imports:
       reviewers: [copilot]
   - shared/otlp.md
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     github-token: "${{ secrets.GITHUB_TOKEN }}"

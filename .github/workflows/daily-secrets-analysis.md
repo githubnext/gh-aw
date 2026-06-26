@@ -10,19 +10,16 @@ permissions:
   pull-requests: read
   discussions: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 strict: true
 tracker-id: daily-secrets-analysis
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [default, discussions]
   bash: true
 timeout-minutes: 20
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily secrets] "

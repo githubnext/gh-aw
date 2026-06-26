@@ -13,16 +13,12 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
-engine:
-  id: copilot
-  copilot-sdk: true
 strict: true
 network:
   allowed:
     - defaults
     - github
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [default]
@@ -43,6 +39,7 @@ safe-outputs:
     title-prefix: "[copilot-opt] "
     close-older-issues: true
 imports:
+  - shared/copilot-sdk-engine.md
   - ../skills/jqschema/SKILL.md
   - shared/copilot-session-data-fetch.md
   - shared/copilot-pr-data-fetch.md

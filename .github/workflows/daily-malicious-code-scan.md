@@ -12,9 +12,6 @@ permissions:
   security-events: read
   copilot-requests: write
 tracker-id: malicious-code-scan
-engine:
-  id: copilot
-  copilot-sdk: true
 safe-outputs:
   create-code-scanning-alert:
     driver: "Malicious Code Scanner"
@@ -22,6 +19,7 @@ safe-outputs:
 timeout-minutes: 15
 strict: true
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/security-analysis-base.md
   - uses: shared/daily-audit-base.md
     with:
@@ -29,8 +27,6 @@ imports:
       expires: 3d
 
   - shared/otlp.md
-tools:
-  cli-proxy: true
 features:
   gh-aw-detection: true
 sandbox:

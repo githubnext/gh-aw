@@ -11,14 +11,11 @@ permissions:
   pull-requests: read
   discussions: read
 engine:
-  id: copilot
-  copilot-sdk: true
   driver: .github/drivers/copilot_sdk_driver_sample_python.py
 runs-on: aw-gpu-runner-T4
 strict: true
 tracker-id: daily-issues-report
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     min-integrity: approved
@@ -44,6 +41,7 @@ experiments:
     analysis_type: mann_whitney
     tags: [output, readability, engagement]
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/github-guard-policy.md
   - uses: shared/daily-audit-base.md
     with:

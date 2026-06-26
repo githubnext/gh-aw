@@ -9,17 +9,14 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine:
-  id: copilot
-  copilot-sdk: true
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/reporting.md
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
   - shared/otlp.md
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [pull_requests, repos, issues, labels]

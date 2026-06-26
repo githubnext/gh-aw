@@ -11,13 +11,9 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
-engine:
-  id: copilot
-  copilot-sdk: true
 strict: true
 tracker-id: daily-performance-summary
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [default, discussions]
@@ -29,6 +25,7 @@ safe-outputs:
     required-title-prefix: "[daily performance] "
 timeout-minutes: 30
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[daily performance] "

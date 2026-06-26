@@ -15,6 +15,7 @@ network:
   - github
   - proxy.golang.org
 imports:
+- shared/copilot-sdk-engine.md
 - uses: shared/daily-audit-base.md
   with:
     title-prefix: "[delight] "
@@ -38,9 +39,6 @@ safe-outputs:
     run-success: ✅ Analysis complete! [{workflow_name}]({run_url}) has identified targeted improvements for user experience.
 description: Targeted scan of user-facing aspects to improve clarity, usability, and professionalism in enterprise software context
 emoji: ✨
-engine:
-  id: copilot
-  copilot-sdk: true
 name: Delight
 pre-agent-steps:
 - name: Sample files and load memory
@@ -74,7 +72,6 @@ tools:
   - awk
   - sed
   - shuf
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets:

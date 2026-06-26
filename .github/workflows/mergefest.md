@@ -11,13 +11,10 @@ permissions:
   contents: read
   pull-requests: read
   actions: read
-engine:
-  id: copilot
-  copilot-sdk: true
 imports:
+  - shared/copilot-sdk-engine.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
   bash:
     - "git fetch"
     - "git checkout"

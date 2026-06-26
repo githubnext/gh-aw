@@ -13,10 +13,6 @@ permissions:
   pull-requests: read
 
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-
 experiments:
   detail_level:
     variants: [brief, comprehensive]
@@ -35,7 +31,6 @@ experiments:
     issue: 31926
 
 tools:
-  cli-proxy: true
   edit:
   bash:
     - "*"
@@ -55,6 +50,7 @@ safe-outputs:
   noop:
 
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[architecture-diagram] "

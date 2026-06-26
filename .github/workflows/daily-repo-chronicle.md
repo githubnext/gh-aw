@@ -13,10 +13,6 @@ permissions:
   discussions: read
   copilot-requests: write
 tracker-id: daily-repo-chronicle
-engine:
-  id: copilot
-  copilot-sdk: true
-
 timeout-minutes: 45
 
 network:
@@ -27,7 +23,6 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
-  cli-proxy: true
   edit:
   bash:
     - "*"
@@ -46,6 +41,7 @@ safe-outputs:
     title-prefix: "📰 "
     close-older-discussions: true
 imports:
+  - shared/copilot-sdk-engine.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[repo-chronicle] "
