@@ -1,6 +1,18 @@
 {
-  "last_updated": "2026-06-25",
+  "last_updated": "2026-06-26",
   "pending_tasks": [
+    {
+      "file": ".github/workflows/smoke-pi.md",
+      "created": "2026-06-26",
+      "priority": "high",
+      "title": "Fix theatrical run messages: replace 'MISSION COMPLETE!' with declarative pass summary; replace 'encountered unexpected challenges...' with 'Review the run log for details.'"
+    },
+    {
+      "file": "docs/src/content/docs/examples/multi-repo/feature-sync.md",
+      "created": "2026-06-26",
+      "priority": "medium",
+      "title": "Reformat 'When to Use' section from dense prose to bulleted list; surface parenthetical '(monorepo alternative)' on its own line"
+    },
     {
       "file": "docs/src/content/docs/blog/2026-06-08-migrating-from-effective-tokens-to-ai-credits.md",
       "created": "2026-06-25",
@@ -38,25 +50,6 @@
       "priority": "high",
       "title": "Move read-only constraint note before GitHub App-Only scope groups; add brief parenthetical group descriptions",
       "issue_temporary_id": "#aw_ux_perm1"
-    },
-    {
-      "file": ".github/workflows/stale-repo-identifier.md",
-      "created": "2026-06-22",
-      "priority": "medium",
-      "title": "Fix run-failure: 'interrupted!' to 'failed.' and frame {status} as elaboration",
-      "issue_temporary_id": "#aw_ux_stale1"
-    },
-    {
-      "file": ".github/workflows/smoke-crush.md",
-      "created": "2026-06-19",
-      "priority": "high",
-      "title": "Replace theatrical status messages with professional, actionable messages (lines 51-55)"
-    },
-    {
-      "file": "docs/src/content/docs/guides/network-configuration.md",
-      "created": "2026-06-17",
-      "priority": "high",
-      "title": "Fix wildcard domain documentation: resolve inconsistency and add point-of-use explanation"
     }
   ]
 }
