@@ -25,7 +25,7 @@ safe-outputs:
     - instructions
     protected-files: allowed
     title-prefix: "[instructions] "
-description: Reviews and cleans up instruction files to ensure clarity, low duplication, and sub-500-line files for agentic consumption
+description: Reviews and cleans up instruction files to ensure clarity, low duplication, and sub-400-line files for agentic consumption
 emoji: 🧹
 engine: claude
 name: Instructions Janitor
@@ -60,15 +60,15 @@ Use small, topic-focused files.
 |---|---|---|
 | `github-agentic-workflows.md` | Compact entry point and reference table | `< 200` lines |
 | `syntax.md` | Schema index only | `< 100` lines |
-| `syntax-*.md` | Focused schema detail files | `< 500` lines each |
+| `syntax-*.md` | Focused schema detail files | `< 400` lines each |
 | `safe-outputs.md` | Safe-output index only | `< 120` lines |
-| `safe-outputs-*.md` | Focused safe-output detail files | `< 500` lines each |
-| `create-agentic-workflow.md` | Creator prompt | `< 500` lines |
+| `safe-outputs-*.md` | Focused safe-output detail files | `< 400` lines each |
+| `create-agentic-workflow.md` | Creator prompt | `< 400` lines |
 | `update-agentic-workflow.md` | Updater prompt | `< 400` lines |
 | `debug-agentic-workflow.md` | Debugger prompt | `< 400` lines |
 | `create-shared-agentic-workflow.md` | Shared-component prompt | `< 400` lines |
 | `charts.md` | Compact charting overview | `< 250` lines |
-| any new `.github/aw/*.md` file | Single focused topic | `< 500` lines |
+| any new `.github/aw/*.md` file | Single focused topic | `< 400` lines |
 
 ## Mission
 
@@ -95,7 +95,7 @@ wc -l .github/aw/*.md
 
 Rules:
 
-- any file over `500` lines must be split or rewritten before the task is considered complete
+- any file over `400` lines must be split or rewritten before the task is considered complete
 - if a file is close to the limit, prefer extracting a dedicated sub-file before adding more content
 - keep index files short and route detail to sub-files
 
