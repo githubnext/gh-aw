@@ -1,24 +1,17 @@
 {
-  "date": "2026-06-23",
+  "date": "2026-06-26",
+  "source": "daily-news-data",
+  "summary_path": "/tmp/gh-aw/agent/daily-news-summary.json",
   "date_range": {
-    "start": "2026-05-25",
-    "end": "2026-06-23"
+    "start": "2026-05-28",
+    "end": "2026-06-26"
   },
-  "counts": {
-    "issues_open": 100,
-    "issues_closed": 100,
-    "prs_open": 5,
-    "prs_merged": 50,
-    "prs_closed": 30,
-    "commits": 100,
-    "discussions": 50,
-    "releases": 30,
-    "changesets": 431
-  },
-  "peaks": {
-    "issues_prs_peak_date": "2026-06-22",
-    "issues_prs_peak_total": 125,
-    "commit_peak_date": "2026-06-22",
-    "commit_peak_count": 44
+  "metrics": {
+    "issue_event_total": 300,
+    "pr_event_total": 140,
+    "commit_total_30d": 100,
+    "active_days_commits": 3,
+    "max_daily_commits": 48,
+    "max_daily_contributors": 3
   }
 }
