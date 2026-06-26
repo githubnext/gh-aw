@@ -14,10 +14,15 @@ import (
 )
 
 var orgIPLog = logger.New("cli:org_issue_pr")
-var ghawReleaseInfoMu sync.Mutex
-var ghawReleaseInfoLoaded bool
-var ghawReleaseTag string
-var ghawReleaseURL string
+
+var (
+	ghawReleaseInfoMu   sync.Mutex
+	ghawReleaseInfoOnce = new(sync.Once)
+	ghawReleaseTag      string
+	ghawReleaseURL      string
+
+	getLatestOrgReleaseFunc = getLatestRelease
+)
 
 const (
 	// ghawUpgradeMarkerPrefix is the XML marker prefix embedded in upgrade org PRs/issues.
@@ -50,20 +55,30 @@ func buildOrgXMLMarker(prefix, tag string) string {
 // handle this gracefully (e.g. omit the release link rather than failing).
 func getGhawReleaseInfo() (tag, releaseURL string) {
 	ghawReleaseInfoMu.Lock()
+	once := ghawReleaseInfoOnce
+	ghawReleaseInfoMu.Unlock()
+
+	once.Do(func() {
+		tag, err := getLatestOrgReleaseFunc(false)
+		if err != nil || tag == "" {
+			orgIPLog.Printf("Could not resolve latest gh-aw release: %v", err)
+			return
+		}
+
+		ghawReleaseInfoMu.Lock()
+		ghawReleaseTag = tag
+		ghawReleaseURL = fmt.Sprintf("https://github.com/%s/releases/tag/%s", ghawReleaseRepo, tag)
+		ghawReleaseInfoMu.Unlock()
+	})
+
+	ghawReleaseInfoMu.Lock()
 	defer ghawReleaseInfoMu.Unlock()
-
-	if ghawReleaseInfoLoaded {
-		return ghawReleaseTag, ghawReleaseURL
-	}
-
-	tag, err := getLatestRelease(false)
-	if err != nil || tag == "" {
-		orgIPLog.Printf("Could not resolve latest gh-aw release: %v", err)
+	if ghawReleaseTag == "" {
+		if ghawReleaseInfoOnce == once {
+			ghawReleaseInfoOnce = new(sync.Once)
+		}
 		return "", ""
 	}
-	ghawReleaseTag = tag
-	ghawReleaseURL = fmt.Sprintf("https://github.com/%s/releases/tag/%s", ghawReleaseRepo, tag)
-	ghawReleaseInfoLoaded = true
 	return ghawReleaseTag, ghawReleaseURL
 }
 

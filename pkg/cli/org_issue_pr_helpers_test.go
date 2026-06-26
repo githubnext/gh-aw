@@ -5,10 +5,12 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"sync"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -33,6 +35,65 @@ func TestBuildOrgXMLMarker(t *testing.T) {
 
 func TestMarkerPrefixesAreDistinct(t *testing.T) {
 	assert.NotEqual(t, ghawUpgradeMarkerPrefix, ghawUpdateMarkerPrefix, "upgrade and update marker prefixes must stay distinct")
+}
+
+func TestGetGhawReleaseInfoCachesSuccessfulLookup(t *testing.T) {
+	originalLookup := getLatestOrgReleaseFunc
+	resetGhawReleaseInfoCacheForTest()
+	t.Cleanup(func() {
+		getLatestOrgReleaseFunc = originalLookup
+		resetGhawReleaseInfoCacheForTest()
+	})
+
+	lookups := 0
+	getLatestOrgReleaseFunc = func(includePrereleases bool) (string, error) {
+		lookups++
+		return "v1.2.3", nil
+	}
+
+	tag, releaseURL := getGhawReleaseInfo()
+	require.Equal(t, "v1.2.3", tag)
+	require.Equal(t, "https://github.com/github/gh-aw/releases/tag/v1.2.3", releaseURL)
+
+	tag, releaseURL = getGhawReleaseInfo()
+	require.Equal(t, "v1.2.3", tag)
+	require.Equal(t, "https://github.com/github/gh-aw/releases/tag/v1.2.3", releaseURL)
+	assert.Equal(t, 1, lookups, "successful release lookups should be cached")
+}
+
+func TestGetGhawReleaseInfoRetriesAfterFailure(t *testing.T) {
+	originalLookup := getLatestOrgReleaseFunc
+	resetGhawReleaseInfoCacheForTest()
+	t.Cleanup(func() {
+		getLatestOrgReleaseFunc = originalLookup
+		resetGhawReleaseInfoCacheForTest()
+	})
+
+	lookups := 0
+	getLatestOrgReleaseFunc = func(includePrereleases bool) (string, error) {
+		lookups++
+		if lookups == 1 {
+			return "", errors.New("temporary failure")
+		}
+		return "v1.2.4", nil
+	}
+
+	tag, releaseURL := getGhawReleaseInfo()
+	require.Empty(t, tag)
+	require.Empty(t, releaseURL)
+
+	tag, releaseURL = getGhawReleaseInfo()
+	require.Equal(t, "v1.2.4", tag)
+	require.Equal(t, "https://github.com/github/gh-aw/releases/tag/v1.2.4", releaseURL)
+	assert.Equal(t, 2, lookups, "failed release lookups should be retried")
+}
+
+func resetGhawReleaseInfoCacheForTest() {
+	ghawReleaseInfoMu.Lock()
+	defer ghawReleaseInfoMu.Unlock()
+	ghawReleaseInfoOnce = new(sync.Once)
+	ghawReleaseTag = ""
+	ghawReleaseURL = ""
 }
 
 func TestCloseExistingOrgIssuesByMarkerSkipsPRsAndPaginates(t *testing.T) {
