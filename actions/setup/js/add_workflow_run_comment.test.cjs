@@ -342,6 +342,38 @@ describe("add_workflow_run_comment", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
+    it("reuses centralized slash-command status comments without updating body", async () => {
+      global.context = {
+        eventName: "workflow_dispatch",
+        runId: 12345,
+        repo: { owner: "workflowowner", repo: "workflowrepo" },
+        payload: {
+          inputs: {
+            aw_context: JSON.stringify({
+              repo: "targetowner/targetrepo",
+              event_type: "discussion_comment",
+              item_type: "discussion",
+              item_number: 789,
+              command_name: "plan",
+              status_comment_id: "DC_kwDOReusable123",
+              status_comment_url: "https://github.com/targetowner/targetrepo/discussions/789#discussioncomment-67890",
+              status_comment_repo: "statusowner/statusrepo",
+            }),
+          },
+        },
+      };
+
+      await runScript();
+
+      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockGithub.graphql).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "DC_kwDOReusable123");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/targetowner/targetrepo/discussions/789#discussioncomment-67890");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "statusowner/statusrepo");
+      expect(mockCore.info).toHaveBeenCalledWith("Skipping reusable status comment body update for centralized slash-command handoff.");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
     it("updates reusable discussion comments via GraphQL", async () => {
       mockGithub.graphql.mockResolvedValue({
         updateDiscussionComment: {
