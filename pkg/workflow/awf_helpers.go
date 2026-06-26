@@ -969,28 +969,20 @@ func awfSupportsChrootConfig(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFChrootConfigMinVersion)
 }
 
-// buildArcDindChrootConfigPatchBody returns the Python heredoc that patches the AWF
+// buildArcDindChrootConfigPatchBody returns the Node.js command that patches the AWF
 // config file with chroot.binariesSourcePath and chroot.identity.*. It is designed to be
 // embedded inside a bash if-block that already guards on DOCKER_HOST=tcp://...
 //
-// The Python is intentionally kept compact to minimise script size and stay within
-// GitHub Actions' 21 KB per-step expression limit.
+// Using the repository JavaScript helper avoids a runtime Python dependency and keeps the
+// patch logic aligned with the rest of the actions/setup/js helpers.
 // Both config paths are updated: ${RUNNER_TEMP}/gh-aw/awf-config.json (read by AWF) and
 // /tmp/gh-aw/awf-config.json (used by the unified agent artifact upload).
 func buildArcDindChrootConfigPatchBody() string {
-	return fmt.Sprintf(`  python3 - <<'PY'
-import json,os,subprocess as sp
-from pathlib import Path
-try:
- p=Path(os.environ["RUNNER_TEMP"])/"gh-aw"/"awf-config.json"
- c=json.loads(p.read_text())
- c["chroot"]={"binariesSourcePath":"%s","identity":{"user":sp.check_output(["id","-un"],text=True).strip(),"uid":int(sp.check_output(["id","-u"],text=True)),"gid":int(sp.check_output(["id","-g"],text=True)),"home":"%s"}}
- out=json.dumps(c,separators=(",",":"),ensure_ascii=False)+"\n"
- p.write_text(out)
- Path("%s/awf-config.json").write_text(out)
-except Exception as e:
- raise SystemExit(f"chroot config patch failed: {e}") from e
-PY`, awfArcDindChrootBinariesSourcePath, awfArcDindChrootIdentityHome, awfArcDindChrootBinariesSourcePath)
+	return fmt.Sprintf(
+		`  GH_AW_CHROOT_BINARIES_SOURCE_PATH=%s GH_AW_CHROOT_IDENTITY_HOME=%s node "${RUNNER_TEMP}/gh-aw/actions/patch_awf_chroot_config.cjs"`,
+		shellEscapeArg(awfArcDindChrootBinariesSourcePath),
+		shellEscapeArg(awfArcDindChrootIdentityHome),
+	)
 }
 
 // buildArcDindChrootConfigPatchBodyBash returns bash commands (using jq) that patch the AWF

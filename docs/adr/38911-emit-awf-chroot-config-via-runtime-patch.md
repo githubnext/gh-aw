@@ -9,7 +9,7 @@ ARC (Actions Runner Controller) runners using Docker-in-Docker (DinD) have a spl
 
 ## Decision
 
-We will emit `chroot.binariesSourcePath` and `chroot.identity.*` by patching the AWF config JSON **at runtime**, rather than at compile time. When the selected AWF version is ≥ v0.27.1 (`AWFChrootConfigMinVersion`) and DinD topology is detected (via `DOCKER_HOST` matching `^tcp://`), a compact Python heredoc embedded in the generated run step reads `${RUNNER_TEMP}/gh-aw/awf-config.json`, injects the `chroot` object — with static `binariesSourcePath`/`home` constants and runtime-resolved `id -un`/`id -u`/`id -g` identity values — and writes it back in place before AWF reads it. The patch body is merged inside the existing `arcDindPrefixProbe` `DOCKER_HOST` `if`-block so the script contains only one `DOCKER_HOST` condition check. Corresponding Go structs (`AWFChrootConfig`, `AWFChrootIdentityConfig`) are added for schema completeness only.
+We will emit `chroot.binariesSourcePath` and `chroot.identity.*` by patching the AWF config JSON **at runtime**, rather than at compile time. When the selected AWF version is ≥ v0.27.1 (`AWFChrootConfigMinVersion`) and DinD topology is detected (via `DOCKER_HOST` matching `^tcp://`), a repository JavaScript helper invoked from the generated run step reads `${RUNNER_TEMP}/gh-aw/awf-config.json`, injects the `chroot` object — with static `binariesSourcePath`/`home` constants and runtime-resolved identity values from the Node runtime — and writes it back in place before AWF reads it. The patch body is merged inside the existing `arcDindPrefixProbe` `DOCKER_HOST` `if`-block so the script contains only one `DOCKER_HOST` condition check. Corresponding Go structs (`AWFChrootConfig`, `AWFChrootIdentityConfig`) are added for schema completeness only.
 
 ## Alternatives Considered
 
@@ -27,12 +27,11 @@ Emit the `chroot` object directly when the Go config file is generated, alongsid
 - The change is version-gated and topology-gated, so non-DinD and older-AWF setups are unaffected.
 
 ### Negative
-- Introduces a runtime dependency on a Python interpreter inside the generated run step; if `python` is absent the patch step fails.
-- The Python is intentionally dense (single-line statements) to fit the 21 KB per-step limit, reducing readability and raising the maintenance cost of future edits.
-- Config is now assembled in two places (compile-time Go builder + runtime Python patch), so the `chroot` shape must be kept in sync across the Go structs and the embedded script by hand.
+- Introduces a runtime dependency on the repository JavaScript helper and Node.js inside the generated run step.
+- Config is now assembled in two places (compile-time Go builder + runtime helper), so the `chroot` shape must be kept in sync across the Go structs and the embedded script by hand.
 
 ### Neutral
-- All engine golden files were regenerated to include the embedded Python patch block.
+- All engine golden files were regenerated to include the runtime helper patch invocation.
 - A standalone `buildArcDindChrootConfigInjectScript` form exists purely for test coverage; production uses the merged in-`if`-block form.
 
 ---

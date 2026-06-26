@@ -958,19 +958,7 @@ jobs:
           GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
           if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then
             GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"
-            python3 - <<'PY'
-          import json,os,subprocess as sp
-          from pathlib import Path
-          try:
-           p=Path(os.environ["RUNNER_TEMP"])/"gh-aw"/"awf-config.json"
-           c=json.loads(p.read_text())
-           c["chroot"]={"binariesSourcePath":"/tmp/gh-aw","identity":{"user":sp.check_output(["id","-un"],text=True).strip(),"uid":int(sp.check_output(["id","-u"],text=True)),"gid":int(sp.check_output(["id","-g"],text=True)),"home":"/tmp/gh-aw/home"}}
-           out=json.dumps(c,separators=(",",":"),ensure_ascii=False)+"\n"
-           p.write_text(out)
-           Path("/tmp/gh-aw/awf-config.json").write_text(out)
-          except Exception as e:
-           raise SystemExit(f"chroot config patch failed: {e}") from e
-          PY
+            GH_AW_CHROOT_BINARIES_SOURCE_PATH=/tmp/gh-aw GH_AW_CHROOT_IDENTITY_HOME=/tmp/gh-aw/home node "${RUNNER_TEMP}/gh-aw/actions/patch_awf_chroot_config.cjs"
           fi
           GH_AW_TOOL_CACHE_MOUNT=""
           GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"

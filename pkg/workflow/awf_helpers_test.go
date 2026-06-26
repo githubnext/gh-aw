@@ -1601,19 +1601,21 @@ func TestBuildAWFCommand_IncludesChrootInjectScript(t *testing.T) {
 			},
 		}
 		command := BuildAWFCommand(config)
-		assert.Contains(t, command, "binariesSourcePath",
-			"command should include chroot inject script reference to binariesSourcePath")
 		assert.Contains(t, command, awfArcDindChrootBinariesSourcePath,
 			"command should include the expected binariesSourcePath constant")
 		assert.Contains(t, command, awfArcDindChrootIdentityHome,
 			"command should include the expected identity.home constant")
+		assert.Contains(t, command, `node "${RUNNER_TEMP}/gh-aw/actions/patch_awf_chroot_config.cjs"`,
+			"command should invoke the repository JavaScript helper for chroot config patching")
+		assert.NotContains(t, command, "python3 - <<'PY'",
+			"command should not inject an inline Python heredoc")
 		assert.Contains(t, command, awfArcDindDockerHostRegex,
 			"chroot inject script should reuse the DinD Docker host regex")
 		// Structural: the chroot injection must appear *after* the DOCKER_HOST guard,
 		// confirming it is nested inside the if-block and not emitted at top level.
 		dockerhostIdx := strings.Index(command, awfArcDindDockerHostRegex)
-		binariesIdx := strings.Index(command, "binariesSourcePath")
-		assert.Greater(t, binariesIdx, dockerhostIdx,
+		helperIdx := strings.Index(command, "patch_awf_chroot_config.cjs")
+		assert.Greater(t, helperIdx, dockerhostIdx,
 			"chroot injection must appear after the DOCKER_HOST guard in the generated script")
 	})
 
