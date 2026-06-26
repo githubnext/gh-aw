@@ -83,7 +83,7 @@ type orgRunCallbacks struct {
 }
 
 func renderOrgActionSummary(preview orgRepoPreview, action string) {
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Ready to %s", action)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Ready to "+action))
 	fmt.Fprintf(os.Stderr, "  - Repository: %s\n", preview.Repo)
 	if preview.TotalWorkflows > 0 {
 		fmt.Fprintf(os.Stderr, "  - Workflows: %d\n", preview.TotalWorkflows)

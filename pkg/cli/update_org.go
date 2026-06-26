@@ -98,7 +98,7 @@ func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts U
 	}
 
 	return runCommandForOrg(ctx, org, repoGlobs, orgRunCallbacks{
-		AutoYes: opts.Yes,
+		AutoYes:  opts.Yes,
 		SearchFn: searchFn,
 		ScanFn:   scanFn,
 		ReportFn: renderOrgPreviewReport,

@@ -203,7 +203,7 @@ func TestRunUpgradeForOrgCreatePR(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, true, false, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/api", "octo/web"}, upgraded)
 }
@@ -230,7 +230,7 @@ func TestRunUpgradeForOrgRepoFilter(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpgradeForOrg(context.Background(), "octo", []string{"*-service"}, upgradeOptions{ctx: context.Background()}, true, false, false)
+	err := runUpgradeForOrg(context.Background(), "octo", []string{"*-service"}, upgradeOptions{ctx: context.Background(), yes: true}, true, false, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/api-service", "octo/worker-service"}, upgraded)
 }
@@ -263,7 +263,7 @@ func TestRunUpgradeForOrgCreateIssue(t *testing.T) {
 		createIssueForUpgradeOrgRepoFn = origIssue
 	}()
 
-	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, false, true, false)
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, false, true, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/api", "octo/web"}, issuedRepos)
 }
@@ -315,7 +315,7 @@ func TestRunUpgradeForOrgSkipsFailedRepos(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, true, false, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to upgrade any repository")
 	assert.Equal(t, []string{"octo/api", "octo/web"}, called, "should attempt all repos and skip failures")
@@ -350,7 +350,7 @@ func TestRunUpgradeForOrgCreateIssueSkipsFailedRepos(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, false, true, false)
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, false, true, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create issues in any repository")
 	assert.Equal(t, []string{"octo/api", "octo/web"}, called, "should attempt all repos and skip failures")
@@ -378,7 +378,7 @@ func TestRunUpgradeForOrgSortsAlphabetically(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, true, false, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/alpha", "octo/middle", "octo/zoo"}, called)
 }

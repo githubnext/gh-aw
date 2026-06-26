@@ -269,7 +269,7 @@ func TestRunUpdateForOrgCreatePRSortsOldestFirst(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, true, false, false)
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{Yes: true}, true, false, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/older", "octo/newer"}, processed)
 }
@@ -317,7 +317,7 @@ func TestRunUpdateForOrgCreateIssueSortsOldestFirst(t *testing.T) {
 		createIssueForOrgRepoFn = origCreateIssue
 	}()
 
-	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, false, true, false)
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{Yes: true}, false, true, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/older", "octo/newer"}, issuedFor)
 }
@@ -495,7 +495,7 @@ func TestRunUpdateForOrgCreateIssueReturnsErrorWhenAllIssueCreatesFail(t *testin
 		createIssueForOrgRepoFn = origCreateIssue
 	}()
 
-	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, false, true, false)
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{Yes: true}, false, true, false)
 	require.EqualError(t, err, "failed to create issues in any repository")
 }
 
@@ -529,7 +529,7 @@ func TestRunUpdateForOrgCreatePRReturnsErrorWhenAllUpdatesFail(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, true, false, false)
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{Yes: true}, true, false, false)
 	require.EqualError(t, err, "failed to update any repository")
 }
 
