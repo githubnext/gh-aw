@@ -1,9 +1,9 @@
 ---
-title: How to Govern Environment Defaults
+title: Governance
 description: Set and manage gh-aw environment defaults across enterprise, organization, and repository scopes with gh aw env.
 ---
 
-# How to Govern Environment Defaults
+# Governance
 
 Use governance defaults when you want consistent model and
 guardrail behavior across many repositories without editing
