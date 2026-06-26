@@ -49,7 +49,7 @@ func buildOrgWorkflowSearchQuery(org string, workflowNames []string) string {
 	seen := make(map[string]struct{}, len(workflowNames))
 	for _, workflowName := range workflowNames {
 		normalized := normalizeWorkflowID(workflowName)
-		if normalized == "" {
+		if normalized == "" || normalized == "." {
 			continue
 		}
 		filename := normalized + ".md"

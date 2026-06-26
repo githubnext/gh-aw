@@ -103,7 +103,7 @@ func TestRunUpdateForOrgPassesWorkflowNameFilters(t *testing.T) {
 		return []string{"octo/api"}, nil
 	}
 	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
-		assert.Equal(t, []string{"repo-assist", "triage.md"}, opts.WorkflowNames)
+		assert.Equal(t, []string{"repo-assist", "triage.md"}, opts.WorkflowNames, "org preview should receive the same workflow filters as org discovery")
 		return orgRepoPreview{Repo: repo}, nil
 	}
 	runUpdateForTargetRepoFn = func(ctx context.Context, targetRepo string, opts UpdateWorkflowsOptions, createPR bool, verbose bool) error {
@@ -122,7 +122,31 @@ func TestRunUpdateForOrgPassesWorkflowNameFilters(t *testing.T) {
 		WorkflowNames: []string{"repo-assist", "triage.md"},
 	}, false, false, false)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"repo-assist", "triage.md"}, gotFilters)
+	assert.Equal(t, []string{"repo-assist", "triage.md"}, gotFilters, "org search should receive the requested workflow filters")
+}
+
+func TestRunUpdateForOrgNoReposIncludesWorkflowFilters(t *testing.T) {
+	origSearch := searchOrgWorkflowReposFn
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
+		return nil, nil
+	}
+	defer func() {
+		searchOrgWorkflowReposFn = origSearch
+	}()
+
+	output := captureUpdateOrgStderr(t, func() {
+		err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{
+			WorkflowNames: []string{"triage.md", "repo-assist"},
+		}, false, false, false)
+		require.NoError(t, err)
+	})
+
+	assert.Contains(
+		t,
+		output,
+		"No repositories found with source-managed workflows matching: repo-assist, triage",
+		"workflow-filtered org discovery should report which requested workflows had no matching repositories",
+	)
 }
 
 func TestRunUpdateForOrgCreatePRSortsOldestFirst(t *testing.T) {
