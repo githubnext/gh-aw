@@ -137,6 +137,11 @@ Prefer option 1: in `header.go`, change the logo-line loop to strip trailing spa
 fmt.Fprintf(&header, "# %s\n", strings.TrimRight(line, " \t"))
 ```
 
+After applying this change, run the logo-specific tests to confirm nothing broke:
+```bash
+cd "$GITHUB_WORKSPACE" && go test ./pkg/workflow/ -run TestLogo -v
+```
+
 ### 2b. Trailing spaces in blank lines within multi-line strings
 
 Multi-line YAML blocks (like heredoc shell scripts) can emit blank lines that carry the
