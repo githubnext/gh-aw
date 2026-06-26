@@ -425,9 +425,9 @@ func buildRuntimeFeaturesSummaryStep() []string {
 func buildPolicyStrictEnforcementStep() []string {
 	return []string{
 		"      - name: Enforce strict mode policy\n",
-		fmt.Sprintf("        if: ${{ contains(toJSON(vars), '\"%s\":') }}\n", compilerenv.PolicyStrict),
+		fmt.Sprintf("        if: ${{ vars.%s == 'true' }}\n", compilerenv.PolicyStrict),
 		"        run: |\n",
-		fmt.Sprintf("          echo \"::error::%s is set but this workflow was not compiled in strict mode. Recompile with --strict or strict: true.\"\n", compilerenv.PolicyStrict),
+		fmt.Sprintf("          echo \"::error::%s=true but this workflow was not compiled in strict mode. Recompile with --strict or strict: true.\"\n", compilerenv.PolicyStrict),
 		"          exit 1\n",
 	}
 }
