@@ -584,6 +584,17 @@ func (e *CopilotEngine) extractWireRequestOutputs(jsonStr string, toolCallMap ma
 					copilotLogsLog.Printf("Updated %s MaxOutputSize to %d bytes with sample", toolName, outputSize)
 				}
 			}
+		} else {
+			// Tool entry not yet created by extractToolCallSizes — create a stub so the
+			// output sample is not lost (e.g. when wire-request ordering differs from data blocks).
+			toolCallMap[toolName] = &ToolCallInfo{
+				Name:          toolName,
+				MaxOutputSize: outputSize,
+				OutputSample:  truncateOutputSample(output),
+			}
+			if verbose {
+				copilotLogsLog.Printf("Created stub entry for %s from wire request output (%d bytes)", toolName, outputSize)
+			}
 		}
 	}
 }
