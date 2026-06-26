@@ -25,6 +25,16 @@ tools:
   edit:
   bash: ["*"]
   cache-memory: true
+lsp:
+  typescript:
+    command: typescript-language-server
+    args: ["--stdio"]
+    fileExtensions:
+      ".js": javascript
+      ".cjs": javascript
+      ".mjs": javascript
+      ".ts": typescript
+      ".tsx": typescriptreact
 steps:
   - name: Install Node.js dependencies
     working-directory: actions/setup/js
