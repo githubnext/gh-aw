@@ -127,3 +127,34 @@ func TestOnceLoaderOverrideError(t *testing.T) {
 		t.Fatalf("expected empty string, got %q", got)
 	}
 }
+
+func TestOnceLoaderReset(t *testing.T) {
+	var loader OnceLoader[string]
+	var calls atomic.Int32
+
+	load := func() (string, error) {
+		call := calls.Add(1)
+		return "value-" + string('0'+call), nil
+	}
+
+	got1, err1 := loader.Get(load)
+	if err1 != nil {
+		t.Fatalf("unexpected error on first Get: %v", err1)
+	}
+	if got1 != "value-1" {
+		t.Fatalf("expected first value %q, got %q", "value-1", got1)
+	}
+
+	loader.Reset()
+
+	got2, err2 := loader.Get(load)
+	if err2 != nil {
+		t.Fatalf("unexpected error on Get after Reset: %v", err2)
+	}
+	if got2 != "value-2" {
+		t.Fatalf("expected value after Reset %q, got %q", "value-2", got2)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("expected loader to be called twice across Reset, got %d", calls.Load())
+	}
+}

@@ -14,16 +14,6 @@ import (
 	"github.com/github/gh-aw/pkg/syncutil"
 )
 
-// SPEC_MISMATCH: The syncutil README.md documents a `Reset` method on
-// OnceLoader[T] ("Clears the cached result and error so that the next Get call
-// re-invokes loader", shown in the Methods table, the Usage Examples section
-// (`cache.Reset()`), and the Design Notes ("Reset acquires the same mutex...")).
-// The implementation in onceloader.go does NOT provide a `Reset` method — only
-// `Get` and `Override` are implemented. No specification test can be written for
-// `Reset` because referencing it would fail to compile. Either the method should
-// be implemented or the README.md should drop the `Reset` documentation. This
-// mismatch is reported in the enforcement PR body rather than tested here.
-
 // TestSpec_Types_OnceLoader validates the documented contract of the
 // OnceLoader[T] type as described in the syncutil README.md.
 //
@@ -167,6 +157,36 @@ func TestSpec_PublicAPI_OnceLoader_Override(t *testing.T) {
 
 		require.ErrorIs(t, err, boom, "documented: Get returns the overridden error")
 		assert.Empty(t, v, "documented: empty string returned alongside overridden error")
+	})
+}
+
+// TestSpec_PublicAPI_OnceLoader_Reset validates the documented behavior of
+// the OnceLoader.Reset method as described in the syncutil README.md.
+//
+// Specification:
+//   - Clears the cached result and error so that the next Get call re-invokes
+//     loader.
+//   - Safe for concurrent use.
+func TestSpec_PublicAPI_OnceLoader_Reset(t *testing.T) {
+	t.Run("documented: Reset clears cached result and re-invokes loader", func(t *testing.T) {
+		var loader syncutil.OnceLoader[string]
+		var calls atomic.Int32
+
+		load := func() (string, error) {
+			call := calls.Add(1)
+			return "value-" + string('0'+call), nil
+		}
+
+		v1, err1 := loader.Get(load)
+		require.NoError(t, err1, "first Get should not error")
+		assert.Equal(t, "value-1", v1, "first Get should return loader result")
+
+		loader.Reset()
+
+		v2, err2 := loader.Get(load)
+		require.NoError(t, err2, "Get after Reset should not error")
+		assert.Equal(t, "value-2", v2, "Reset should force a fresh loader invocation")
+		assert.Equal(t, int32(2), calls.Load(), "loader should be invoked again after Reset")
 	})
 }
 

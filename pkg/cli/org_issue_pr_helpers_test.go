@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"sync"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -89,11 +88,7 @@ func TestGetGhawReleaseInfoRetriesAfterFailure(t *testing.T) {
 }
 
 func resetGhawReleaseInfoCacheForTest() {
-	ghawReleaseInfoMu.Lock()
-	defer ghawReleaseInfoMu.Unlock()
-	ghawReleaseInfoOnce = new(sync.Once)
-	ghawReleaseTag = ""
-	ghawReleaseURL = ""
+	ghawReleaseTagCache.Reset()
 }
 
 func TestCloseExistingOrgIssuesByMarkerSkipsPRsAndPaginates(t *testing.T) {

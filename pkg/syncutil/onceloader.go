@@ -48,3 +48,16 @@ func (o *OnceLoader[T]) Override(result T, err error) {
 	o.err = err
 	o.done = true
 }
+
+// Reset clears the cached result and error so the next Get re-invokes loader.
+// Safe for concurrent use.
+func (o *OnceLoader[T]) Reset() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	syncutilLog.Print("OnceLoader.Reset: clearing cached value")
+	var zero T
+	o.result = zero
+	o.err = nil
+	o.done = false
+}

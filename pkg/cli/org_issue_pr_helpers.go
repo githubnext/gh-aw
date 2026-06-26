@@ -3,26 +3,26 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/syncutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var orgIPLog = logger.New("cli:org_issue_pr")
 
 var (
-	ghawReleaseInfoMu   sync.Mutex
-	ghawReleaseInfoOnce = new(sync.Once)
-	ghawReleaseTag      string
-	ghawReleaseURL      string
+	ghawReleaseTagCache syncutil.OnceLoader[string]
 
 	getLatestOrgReleaseFunc = getLatestRelease
 )
+
+var errEmptyGHAWReleaseTag = errors.New("latest gh-aw release tag was empty")
 
 const (
 	// ghawUpgradeMarkerPrefix is the XML marker prefix embedded in upgrade org PRs/issues.
@@ -54,32 +54,22 @@ func buildOrgXMLMarker(prefix, tag string) string {
 // Both values are empty strings when the release cannot be determined; callers must
 // handle this gracefully (e.g. omit the release link rather than failing).
 func getGhawReleaseInfo() (tag, releaseURL string) {
-	ghawReleaseInfoMu.Lock()
-	once := ghawReleaseInfoOnce
-	ghawReleaseInfoMu.Unlock()
-
-	once.Do(func() {
+	tag, err := ghawReleaseTagCache.Get(func() (string, error) {
 		tag, err := getLatestOrgReleaseFunc(false)
-		if err != nil || tag == "" {
-			orgIPLog.Printf("Could not resolve latest gh-aw release: %v", err)
-			return
+		if err != nil {
+			return "", err
 		}
-
-		ghawReleaseInfoMu.Lock()
-		ghawReleaseTag = tag
-		ghawReleaseURL = fmt.Sprintf("https://github.com/%s/releases/tag/%s", ghawReleaseRepo, tag)
-		ghawReleaseInfoMu.Unlock()
+		if tag == "" {
+			return "", errEmptyGHAWReleaseTag
+		}
+		return tag, nil
 	})
-
-	ghawReleaseInfoMu.Lock()
-	defer ghawReleaseInfoMu.Unlock()
-	if ghawReleaseTag == "" {
-		if ghawReleaseInfoOnce == once {
-			ghawReleaseInfoOnce = new(sync.Once)
-		}
+	if err != nil {
+		orgIPLog.Printf("Could not resolve latest gh-aw release: %v", err)
+		ghawReleaseTagCache.Reset()
 		return "", ""
 	}
-	return ghawReleaseTag, ghawReleaseURL
+	return tag, fmt.Sprintf("https://github.com/%s/releases/tag/%s", ghawReleaseRepo, tag)
 }
 
 type orgListItem struct {
