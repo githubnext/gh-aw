@@ -131,6 +131,78 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.unlinkSync(safeOutputsFile),
             fs.rmdirSync(tmpDir));
         }),
+        it("should warn (non-fatal) when MCP fails but agent ran turns (legacy result entry)", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          try {
+            fs.writeFileSync(logFile, "content");
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            // No safe outputs — simulates a workflow that uses GitHub MCP directly (e.g. creates a
+            // discussion) without writing safe-output file entries.
+            const mockParseLog = vi.fn().mockReturnValue({
+              markdown: "## Result\n",
+              mcpFailures: ["github"],
+              maxTurnsHit: false,
+              logEntries: [
+                { type: "system", subtype: "init", model: "claude-3-7-sonnet" },
+                { type: "assistant", message: { content: [{ type: "text", text: "Analysis complete" }] } },
+                { type: "result", num_turns: 34, duration_ms: 60000 },
+              ],
+            });
+            runLogParser({ parseLog: mockParseLog, parserName: "TestParser" });
+            expect(mockCore.warning).toHaveBeenCalledWith("MCP server(s) failed to launch (github), but agent completed turns — treating as non-fatal post-completion relaunch");
+            expect(mockCore.setFailed).not.toHaveBeenCalled();
+          } finally {
+            fs.unlinkSync(logFile);
+            fs.rmdirSync(tmpDir);
+          }
+        }),
+        it("should warn (non-fatal) when MCP fails but agent ran turns (Copilot event session.result)", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          try {
+            fs.writeFileSync(logFile, "content");
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            // Copilot event format entries (as returned by parse_claude_log.cjs via
+            // convertLegacyLogEntriesToCopilotEvents): session.result with data.numTurns.
+            const mockParseLog = vi.fn().mockReturnValue({
+              markdown: "## Result\n",
+              mcpFailures: ["github"],
+              maxTurnsHit: false,
+              logEntries: [
+                { type: "session.init", data: { model: "claude-opus-4-5" } },
+                { type: "assistant.message", data: { content: "Done" } },
+                { type: "session.result", data: { numTurns: 34, durationMs: 60000 } },
+              ],
+            });
+            runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            expect(mockCore.warning).toHaveBeenCalledWith("MCP server(s) failed to launch (github), but agent completed turns — treating as non-fatal post-completion relaunch");
+            expect(mockCore.setFailed).not.toHaveBeenCalled();
+          } finally {
+            fs.unlinkSync(logFile);
+            fs.rmdirSync(tmpDir);
+          }
+        }),
+        it("should still fail when MCP fails and agent ran no turns", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          try {
+            fs.writeFileSync(logFile, "content");
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            // logEntries has no result entry — agent never ran any turns (startup failure).
+            const mockParseLog = vi.fn().mockReturnValue({
+              markdown: "## Result\n",
+              mcpFailures: ["github"],
+              maxTurnsHit: false,
+              logEntries: [{ type: "system", subtype: "init" }],
+            });
+            runLogParser({ parseLog: mockParseLog, parserName: "TestParser" });
+            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: MCP server(s) failed to launch: github`);
+          } finally {
+            fs.unlinkSync(logFile);
+            fs.rmdirSync(tmpDir);
+          }
+        }),
         it("should handle max-turns limit reached", () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
             logFile = path.join(tmpDir, "test.log");

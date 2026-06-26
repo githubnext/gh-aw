@@ -28,6 +28,7 @@ tools:
   cli-proxy: true
   github:
     mode: gh-proxy
+    min-integrity: approved
     toolsets: [pull_requests, repos, issues]
   edit:
   bash:
@@ -137,6 +138,7 @@ safe-outputs:
   add-comment:
     max: 20
     target: "*"
+    github-token: ${{ secrets.AWI_MAINTENANCE_TOKEN }}
   update-pull-request:
     title: false
     body: true
@@ -237,7 +239,7 @@ For each PR that is not skipped:
    - Include `<!-- gh-aw-pr-sous-chef-nudge -->` in the comment body.
    - Keep comments brief and actionable.
 
-## Run summary
+### Run summary
 
 At the end, call **exactly one** `noop` with a compact summary including counts (this final run-summary `noop` is mandatory and counts as the required safe-output call when no other actions were taken):
 - processed

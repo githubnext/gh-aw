@@ -566,6 +566,41 @@ engine: copilot
 	assert.NotContains(t, activationJobSection, "discussions: write", "activation job should not include discussions:write for slash_command PR comment reactions")
 }
 
+func TestActivationPermissionsCentralizedSlashCommandDiscussionStatusCommentWithGitHubApp(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-centralized-slash-discussion-status-comment-app")
+	testFile := filepath.Join(tmpDir, "centralized-discussion-status-comment-app.md")
+	testContent := `---
+on:
+  slash_command:
+    name: discuss
+    strategy: centralized
+    events: [discussion_comment]
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_KEY }}
+  reaction: none
+  status-comment: true
+engine: copilot
+---
+
+# Centralized slash command status-comment with activation GitHub App
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.Contains(t, activationJobSection, "permission-discussions: write", "activation app token should include permission-discussions: write for centralized slash_command discussion status comments")
+	assert.NotContains(t, activationJobSection, "permission-issues: write", "activation app token should not include permission-issues: write for discussions-only centralized status comments")
+}
+
 // Tests for workflow_call trigger + reaction/status-comment permissions (issue #39372).
 // When a workflow declares workflow_call as its trigger it acts as a reusable workflow and can
 // be called from ANY caller event.  The compiler cannot know the caller's event type at compile

@@ -127,7 +127,7 @@ If **no test files were added or modified**, call `noop`:
 
 Otherwise, collect the list of changed test files and their diffs.
 
-## Step 2: Extract Test Functions
+### Step 2: Extract Test Functions
 
 For each changed test file, extract the individual test functions / test cases that were **added or modified** (not just context lines).
 
@@ -157,7 +157,7 @@ git diff ${{ github.event.pull_request.base.sha }}...HEAD --diff-filter=A --name
 done
 ```
 
-## Step 3: AST-Assisted Structural Analysis
+### Step 3: AST-Assisted Structural Analysis
 
 For each changed test file, run structural checks using available tools.
 
@@ -189,7 +189,7 @@ Key signals for JavaScript tests in this codebase:
 - **Mocking (vitest)**: `vi.mock(module)` for module-level stubs, `vi.spyOn(obj, 'method')` for method observation, `vi.fn()` for standalone stub functions; `vi.clearAllMocks()` / `beforeEach`+`vi.clearAllMocks()` for cleanup
 - **Legitimate mocking targets**: external I/O (`fs`, `path`), GitHub Actions runtime (`global.core`, `process.stderr`), and HTTP clients are acceptable mock targets. Flag only when mocking internal business-logic functions that have no external side-effects.
 
-## Step 4: AI Quality Review of Each Test
+### Step 4: AI Quality Review of Each Test
 
 For each new or modified test function identified in Step 2, answer these three quality questions:
 
