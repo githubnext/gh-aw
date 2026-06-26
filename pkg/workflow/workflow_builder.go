@@ -436,7 +436,7 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 	if workflowData.CustomSteps != "" {
 		var mainStepsWrapper map[string]any
 		if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err != nil {
-			return fmt.Errorf("failed to parse steps: %w", err)
+			return fmt.Errorf("failed to parse custom steps: %w", err)
 		}
 		if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
 			if steps, ok := mainStepsVal.([]any); ok {
@@ -493,18 +493,17 @@ func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowD
 	var importedPreSteps []any
 	if importsResult.MergedPreSteps != "" {
 		if err := yaml.Unmarshal([]byte(importsResult.MergedPreSteps), &importedPreSteps); err != nil {
-			workflowBuilderLog.Printf("Failed to unmarshal imported pre-steps: %v", err)
+			return fmt.Errorf("failed to parse imported pre-steps: %w", err)
+		}
+		typedImported, err := SliceToSteps(importedPreSteps)
+		if err != nil {
+			workflowBuilderLog.Printf("Failed to convert imported pre-steps to typed steps: %v", err)
 		} else {
-			typedImported, err := SliceToSteps(importedPreSteps)
+			typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
 			if err != nil {
-				workflowBuilderLog.Printf("Failed to convert imported pre-steps to typed steps: %v", err)
-			} else {
-				typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
-				if err != nil {
-					return fmt.Errorf("imported pre-steps: %w", err)
-				}
-				importedPreSteps = StepsToSlice(typedImported)
+				return fmt.Errorf("imported pre-steps: %w", err)
 			}
+			importedPreSteps = StepsToSlice(typedImported)
 		}
 	}
 
@@ -557,18 +556,17 @@ func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, work
 	var importedPreAgentSteps []any
 	if importsResult.MergedPreAgentSteps != "" {
 		if err := yaml.Unmarshal([]byte(importsResult.MergedPreAgentSteps), &importedPreAgentSteps); err != nil {
-			workflowBuilderLog.Printf("Failed to unmarshal imported pre-agent-steps: %v", err)
+			return fmt.Errorf("failed to parse imported pre-agent-steps: %w", err)
+		}
+		typedImported, err := SliceToSteps(importedPreAgentSteps)
+		if err != nil {
+			workflowBuilderLog.Printf("Failed to convert imported pre-agent-steps to typed steps: %v", err)
 		} else {
-			typedImported, err := SliceToSteps(importedPreAgentSteps)
+			typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
 			if err != nil {
-				workflowBuilderLog.Printf("Failed to convert imported pre-agent-steps to typed steps: %v", err)
-			} else {
-				typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
-				if err != nil {
-					return fmt.Errorf("imported pre-agent-steps: %w", err)
-				}
-				importedPreAgentSteps = StepsToSlice(typedImported)
+				return fmt.Errorf("imported pre-agent-steps: %w", err)
 			}
+			importedPreAgentSteps = StepsToSlice(typedImported)
 		}
 	}
 
@@ -620,18 +618,17 @@ func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflow
 	var importedPostSteps []any
 	if importsResult.MergedPostSteps != "" {
 		if err := yaml.Unmarshal([]byte(importsResult.MergedPostSteps), &importedPostSteps); err != nil {
-			workflowBuilderLog.Printf("Failed to unmarshal imported post-steps: %v", err)
+			return fmt.Errorf("failed to parse imported post-steps: %w", err)
+		}
+		typedImported, err := SliceToSteps(importedPostSteps)
+		if err != nil {
+			workflowBuilderLog.Printf("Failed to convert imported post-steps to typed steps: %v", err)
 		} else {
-			typedImported, err := SliceToSteps(importedPostSteps)
+			typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
 			if err != nil {
-				workflowBuilderLog.Printf("Failed to convert imported post-steps to typed steps: %v", err)
-			} else {
-				typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
-				if err != nil {
-					return fmt.Errorf("imported post-steps: %w", err)
-				}
-				importedPostSteps = StepsToSlice(typedImported)
+				return fmt.Errorf("imported post-steps: %w", err)
 			}
+			importedPostSteps = StepsToSlice(typedImported)
 		}
 	}
 
