@@ -87,25 +87,29 @@ func sanitizeJSONBlock(s string) string {
 	return ""
 }
 
-func isTimestampedLogLine(line string) bool {
+func timestampedLogRemainder(line string) (string, bool) {
 	trimmed := strings.TrimLeft(line, " \t")
 	ts, rest, ok := strings.Cut(trimmed, " ")
 	if !ok {
-		return false
+		return "", false
 	}
 	if !strings.Contains(ts, "T") || !strings.Contains(ts, ":") {
+		return "", false
+	}
+	return rest, true
+}
+
+func isTimestampedDebugOrInfoLine(line string) bool {
+	rest, ok := timestampedLogRemainder(line)
+	if !ok {
 		return false
 	}
 	return strings.HasPrefix(rest, "[DEBUG]") || strings.HasPrefix(rest, "[INFO]")
 }
 
 func isTimestampedDebugLine(line string, marker string) bool {
-	trimmed := strings.TrimLeft(line, " \t")
-	ts, rest, ok := strings.Cut(trimmed, " ")
+	rest, ok := timestampedLogRemainder(line)
 	if !ok {
-		return false
-	}
-	if !strings.Contains(ts, "T") || !strings.Contains(ts, ":") {
 		return false
 	}
 	return strings.HasPrefix(rest, marker)
@@ -460,7 +464,7 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 		// Wire request JSON is not prefixed per-line; the block ends when any
 		// timestamped log line ([DEBUG] or [INFO]) appears.
 		if inWireBlock {
-			if isTimestampedLogLine(line) {
+			if isTimestampedDebugOrInfoLine(line) {
 				flushWireBlock()
 				// The block-start checks above already evaluated this line (no match);
 				// fall through to the tool-call extraction below.
@@ -584,6 +588,9 @@ func (e *CopilotEngine) processToolCalls(toolCalls []any, toolCallMap map[string
 	}
 }
 
+// isWireOutputStub returns true when a ToolCallInfo entry was inferred from a
+// function_call_output item before we observed the corresponding tool_call input.
+// In this state, CallCount is already seeded to 1 based on output evidence.
 func isWireOutputStub(toolInfo *ToolCallInfo) bool {
 	return toolInfo.CallCount == 1 && toolInfo.MaxInputSize == 0 && toolInfo.MaxOutputSize > 0
 }
