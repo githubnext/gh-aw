@@ -343,7 +343,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           break;
 
         case "session.task_complete":
-          writeEvent("session.task_complete", { success: event.data?.success, summary: event.data?.summary ?? "" }, event.timestamp);
+          writeEvent("session.task_complete", { success: event.data?.success, summary: event.data?.summary }, event.timestamp);
           break;
 
         case "subagent.started":

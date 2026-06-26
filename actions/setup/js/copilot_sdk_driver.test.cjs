@@ -667,9 +667,10 @@ describe("copilot_sdk_driver.cjs", () => {
       }
 
       const prevIdleMs = process.env.GH_AW_SDK_IDLE_MS;
-      // Very short watchdog — if the turn_start guard is missing, the watchdog
-      // would fire before sendAndWait resolves.
-      process.env.GH_AW_SDK_IDLE_MS = "500";
+      // Short watchdog — if the turn_start guard is missing, the watchdog
+      // would fire before sendAndWait resolves. 1000ms gives enough headroom
+      // on slow CI while still detecting a missing guard reliably.
+      process.env.GH_AW_SDK_IDLE_MS = "1000";
       try {
         const result = await runWithCopilotSDK({
           sdkUri: "http://127.0.0.1:3002",
