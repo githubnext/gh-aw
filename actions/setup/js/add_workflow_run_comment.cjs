@@ -15,7 +15,7 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
 /**
  * @typedef {{ owner: string, repo: string }} RepoRef
  * @typedef {{ id: string, url: string, repo: RepoRef }} CommentMetadata
- * @typedef {{ id: string, url: string, repo: RepoRef | null, fromCommandRouter: boolean }} ReusableStatusComment
+ * @typedef {{ id: string, url: string, repo: RepoRef | null }} ReusableStatusComment
  */
 
 /**
@@ -156,8 +156,7 @@ function readReusableStatusComment(rawContext) {
   const rawUrl = awContext.status_comment_url ?? awContext.statusCommentUrl;
   const url = typeof rawUrl === "string" ? rawUrl.trim() : "";
   const repo = parseRepoSlug(awContext.status_comment_repo ?? awContext.statusCommentRepo);
-  const fromCommandRouter = typeof awContext.command_name === "string" && awContext.command_name.trim() !== "";
-  return { id, url, repo, fromCommandRouter };
+  return { id, url, repo };
 }
 
 /**
@@ -240,17 +239,13 @@ async function createOrReuseStatusComment(rawContext = context) {
       core.warning("Reusable status comment repo missing; falling back to the invocation event repo.");
     }
     let reusableCommentUrl = reusableComment.url;
-    if (reusableComment.fromCommandRouter) {
-      core.info("Skipping reusable status comment body update for centralized slash-command handoff.");
-    } else {
-      try {
-        reusableCommentUrl = await updateReusableStatusComment(reusableComment, invocationContext, rawContext);
-        core.info("Updated reusable status comment with current workflow run metadata");
-      } catch (error) {
-        core.warning(`Failed to update reusable status comment body: ${getErrorMessage(error)}`);
-        if (!reusableCommentUrl) {
-          core.warning("No fallback reusable status comment URL available; comment-url output will be empty.");
-        }
+    try {
+      reusableCommentUrl = await updateReusableStatusComment(reusableComment, invocationContext, rawContext);
+      core.info("Updated reusable status comment with current workflow run metadata");
+    } catch (error) {
+      core.warning(`Failed to update reusable status comment body: ${getErrorMessage(error)}`);
+      if (!reusableCommentUrl) {
+        core.warning("No fallback reusable status comment URL available; comment-url output will be empty.");
       }
     }
     const outputs = setCommentOutputs(reusableComment.id, reusableCommentUrl, reusableComment.repo || invocationContext.eventRepo, { logReuse: true });

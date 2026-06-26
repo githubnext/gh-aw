@@ -342,7 +342,15 @@ describe("add_workflow_run_comment", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("reuses centralized slash-command status comments without updating body", async () => {
+    it("updates reusable centralized slash-command discussion comments via GraphQL", async () => {
+      mockGithub.graphql.mockResolvedValue({
+        updateDiscussionComment: {
+          comment: {
+            id: "DC_kwDOReusable123",
+            url: "https://github.com/targetowner/targetrepo/discussions/789#discussioncomment-67890",
+          },
+        },
+      });
       global.context = {
         eventName: "workflow_dispatch",
         runId: 12345,
@@ -365,12 +373,18 @@ describe("add_workflow_run_comment", () => {
 
       await runScript();
 
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("updateDiscussionComment"),
+        expect.objectContaining({
+          commentId: "DC_kwDOReusable123",
+          body: expect.stringContaining("https://github.com/workflowowner/workflowrepo/actions/runs/12345"),
+        })
+      );
       expect(mockGithub.request).not.toHaveBeenCalled();
-      expect(mockGithub.graphql).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "DC_kwDOReusable123");
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/targetowner/targetrepo/discussions/789#discussioncomment-67890");
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "statusowner/statusrepo");
-      expect(mockCore.info).toHaveBeenCalledWith("Skipping reusable status comment body update for centralized slash-command handoff.");
+      expect(mockCore.info).toHaveBeenCalledWith("Updated reusable status comment with current workflow run metadata");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
