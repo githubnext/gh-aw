@@ -5,7 +5,7 @@ import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
+const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 
 describe("safeoutputs_cli.cjs", () => {
   describe("runSafeOutputsCLI", () => {
@@ -152,6 +152,138 @@ describe("safeoutputs_cli.cjs", () => {
       });
       expect(logs.some(m => m.includes("report_incomplete emission failed"))).toBe(true);
       expect(logs.some(m => m.includes("EROFS"))).toBe(true);
+    });
+  });
+
+  describe("hasExpectedSafeOutputs", () => {
+    function makeTempFile(content) {
+      const p = path.join(os.tmpdir(), `safeoutputs-expected-test-${Date.now()}-${Math.random().toString(36).slice(2)}.jsonl`);
+      fs.writeFileSync(p, content, "utf8");
+      return p;
+    }
+
+    it("returns true when the file contains a non-diagnostic entry", () => {
+      const filePath = makeTempFile('{"type":"add_comment","body":"done"}\n');
+      try {
+        expect(hasExpectedSafeOutputs(filePath)).toBe(true);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("returns true for a submit_pull_request_review entry", () => {
+      const filePath = makeTempFile('{"type":"submit_pull_request_review","event":"APPROVE"}\n');
+      try {
+        expect(hasExpectedSafeOutputs(filePath)).toBe(true);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("returns false when all entries are diagnostic types", () => {
+      const filePath = makeTempFile('{"type":"noop","message":"nothing to do"}\n{"type":"missing_tool","tool":"x"}\n{"type":"report_incomplete","reason":"infra"}\n');
+      try {
+        expect(hasExpectedSafeOutputs(filePath)).toBe(false);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("returns false when the file contains only a noop entry", () => {
+      const filePath = makeTempFile('{"type":"noop","message":"nothing to do"}\n');
+      try {
+        expect(hasExpectedSafeOutputs(filePath)).toBe(false);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("returns false when the file contains only a missing_tool entry", () => {
+      const filePath = makeTempFile('{"type":"missing_tool","tool":"tool/permission"}\n');
+      try {
+        expect(hasExpectedSafeOutputs(filePath)).toBe(false);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("returns false when the file contains only a report_incomplete entry", () => {
+      const filePath = makeTempFile('{"type":"report_incomplete","reason":"infrastructure_error"}\n');
+      try {
+        expect(hasExpectedSafeOutputs(filePath)).toBe(false);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("returns true when an expected entry is mixed with diagnostic entries", () => {
+      const filePath = makeTempFile('{"type":"missing_tool","tool":"x"}\n{"type":"add_comment","body":"done"}\n');
+      try {
+        expect(hasExpectedSafeOutputs(filePath)).toBe(true);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("returns false when the file does not exist", () => {
+      expect(hasExpectedSafeOutputs("/tmp/nonexistent-safe-outputs-expected.jsonl")).toBe(false);
+    });
+
+    it("returns false when safeOutputsPath is empty", () => {
+      expect(hasExpectedSafeOutputs("")).toBe(false);
+    });
+
+    it("returns false for an empty file", () => {
+      const filePath = makeTempFile("");
+      try {
+        expect(hasExpectedSafeOutputs(filePath)).toBe(false);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("skips malformed lines and returns false when no valid expected entry exists", () => {
+      const filePath = makeTempFile('not-json\n{"type":"noop"}\n');
+      try {
+        expect(hasExpectedSafeOutputs(filePath)).toBe(false);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("skips malformed lines and returns true when a valid non-diagnostic entry follows them", () => {
+      const filePath = makeTempFile('not-json\n{"type":"add_comment","body":"done"}\n');
+      try {
+        expect(hasExpectedSafeOutputs(filePath)).toBe(true);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
+    it("uses injected readFileSync for testability", () => {
+      const logs = [];
+      const result = hasExpectedSafeOutputs("/fake/path.jsonl", {
+        readFileSync: () => '{"type":"update_pull_request","title":"fix"}\n',
+        logger: m => logs.push(m),
+      });
+      expect(result).toBe(true);
+      expect(logs.some(m => m.includes("non-diagnostic entry found"))).toBe(true);
+    });
+
+    it("returns false when injected readFileSync returns only diagnostic entries", () => {
+      const result = hasExpectedSafeOutputs("/fake/path.jsonl", {
+        readFileSync: () => '{"type":"noop","message":"nothing"}\n',
+      });
+      expect(result).toBe(false);
+    });
+
+    it("returns false when injected readFileSync throws", () => {
+      const result = hasExpectedSafeOutputs("/fake/path.jsonl", {
+        readFileSync: () => {
+          throw new Error("ENOENT");
+        },
+      });
+      expect(result).toBe(false);
     });
   });
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 // activationJobBuildContext carries mutable state while composing the activation job.
@@ -418,6 +419,16 @@ func buildRuntimeFeaturesSummaryStep() []string {
 		"      - name: Log runtime features\n",
 		"        if: ${{ contains(toJSON(vars), '\"GH_AW_RUNTIME_FEATURES\":') }}\n",
 		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/log_runtime_features_summary.sh\"\n",
+	}
+}
+
+func buildPolicyStrictEnforcementStep() []string {
+	return []string{
+		"      - name: Enforce strict mode policy\n",
+		fmt.Sprintf("        if: ${{ vars.%s == 'true' }}\n", compilerenv.PolicyStrict),
+		"        run: |\n",
+		fmt.Sprintf("          echo \"::error::%s=true but this workflow was not compiled in strict mode. Recompile with --strict or strict: true.\"\n", compilerenv.PolicyStrict),
+		"          exit 1\n",
 	}
 }
 

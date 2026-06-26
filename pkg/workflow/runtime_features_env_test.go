@@ -101,3 +101,88 @@ func TestActivationJobIncludesRuntimeFeatureSummaryStep(t *testing.T) {
 		t.Fatal("expected shared shell script to write to GITHUB_STEP_SUMMARY")
 	}
 }
+
+func TestActivationJobIncludesPolicyStrictEnforcementStepForNonStrictWorkflows(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.repoConfigLoaded = true
+	compiler.repoConfig = &RepoConfig{}
+
+	job, err := compiler.buildActivationJob(&WorkflowData{
+		RawFrontmatter: map[string]any{
+			"strict": false,
+		},
+	}, false, "", "test.lock.yml")
+	if err != nil {
+		t.Fatalf("buildActivationJob() error = %v", err)
+	}
+
+	steps := strings.Join(job.Steps, "\n")
+	if !strings.Contains(steps, "name: Enforce strict mode policy") {
+		t.Fatal("expected activation job to include strict mode policy enforcement step for non-strict workflows")
+	}
+	if !strings.Contains(steps, "GH_AW_POLICY_STRICT") {
+		t.Fatal("expected strict mode policy enforcement step to reference GH_AW_POLICY_STRICT")
+	}
+	if !strings.Contains(steps, "if: ${{ vars.GH_AW_POLICY_STRICT == 'true' }}") {
+		t.Fatal("expected strict mode policy enforcement step to use vars.GH_AW_POLICY_STRICT == 'true' condition")
+	}
+}
+
+func TestActivationJobDoesNotIncludePolicyStrictEnforcementStepForStrictWorkflows(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.repoConfigLoaded = true
+	compiler.repoConfig = &RepoConfig{}
+
+	job, err := compiler.buildActivationJob(&WorkflowData{
+		RawFrontmatter: map[string]any{
+			"strict": true,
+		},
+	}, false, "", "test.lock.yml")
+	if err != nil {
+		t.Fatalf("buildActivationJob() error = %v", err)
+	}
+
+	steps := strings.Join(job.Steps, "\n")
+	if strings.Contains(steps, "name: Enforce strict mode policy") {
+		t.Fatal("expected activation job to skip strict mode policy enforcement step for strict workflows")
+	}
+}
+
+func TestActivationJobDoesNotIncludePolicyStrictEnforcementStepForDefaultStrictness(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.repoConfigLoaded = true
+	compiler.repoConfig = &RepoConfig{}
+
+	job, err := compiler.buildActivationJob(&WorkflowData{
+		RawFrontmatter: map[string]any{},
+	}, false, "", "test.lock.yml")
+	if err != nil {
+		t.Fatalf("buildActivationJob() error = %v", err)
+	}
+
+	steps := strings.Join(job.Steps, "\n")
+	if strings.Contains(steps, "name: Enforce strict mode policy") {
+		t.Fatal("expected activation job to skip strict mode policy enforcement step when strict is not set (defaults to strict mode)")
+	}
+}
+
+func TestActivationJobDoesNotIncludePolicyStrictEnforcementStepWhenCLIStrictFlagSet(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.repoConfigLoaded = true
+	compiler.repoConfig = &RepoConfig{}
+	compiler.strictMode = true
+
+	job, err := compiler.buildActivationJob(&WorkflowData{
+		RawFrontmatter: map[string]any{
+			"strict": false,
+		},
+	}, false, "", "test.lock.yml")
+	if err != nil {
+		t.Fatalf("buildActivationJob() error = %v", err)
+	}
+
+	steps := strings.Join(job.Steps, "\n")
+	if strings.Contains(steps, "name: Enforce strict mode policy") {
+		t.Fatal("expected enforcement step to be absent when CLI --strict flag is set")
+	}
+}

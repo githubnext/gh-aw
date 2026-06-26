@@ -28,9 +28,8 @@ type orgSearchResponse struct {
 
 var searchOrgWorkflowReposFn = searchOrgWorkflowRepos
 
-// searchOrgWorkflowRepos searches an organization's repositories for workflow
-// markdown files that include a "source:" field, indicating they are
-// source-managed agentic workflows eligible for bulk updates.
+// searchOrgWorkflowRepos searches an organization's repositories for compiled
+// agentic workflow lock files (.lock.yml) in .github/workflows.
 //
 // It paginates through all code-search results, deduplicates by repository full
 // name, and returns a deterministically sorted slice of "owner/repo" strings.
@@ -40,11 +39,11 @@ func searchOrgWorkflowRepos(ctx context.Context, org string, workflowNames []str
 }
 
 // buildOrgWorkflowSearchQuery constructs the org-mode code-search query for
-// source-managed workflows. When workflowNames is empty, or every candidate
+// lock.yml workflow files. When workflowNames is empty, or every candidate
 // normalizes away, it falls back to the base query and relies on the later
 // per-repo workflow scan to enforce any requested filters.
 func buildOrgWorkflowSearchQuery(org string, workflowNames []string) string {
-	base := fmt.Sprintf(`org:%s path:.github/workflows extension:md "source:"`, org)
+	base := fmt.Sprintf(`org:%s path:.github/workflows filename:.lock.yml`, org)
 	if len(workflowNames) == 0 {
 		return base
 	}
@@ -56,7 +55,7 @@ func buildOrgWorkflowSearchQuery(org string, workflowNames []string) string {
 		if normalized == "" || normalized == "." {
 			continue
 		}
-		filename := normalized + ".md"
+		filename := normalized + ".lock.yml"
 		if _, ok := seen[filename]; ok {
 			continue
 		}

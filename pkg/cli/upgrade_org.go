@@ -9,11 +9,14 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var runUpgradeForTargetRepoFn = runUpgradeForTargetRepo
-var searchOrgAnyWorkflowReposFn = searchOrgAnyWorkflowRepos
+var searchOrgLockWorkflowReposFn = searchOrgLockWorkflowRepos
+var scanUpgradeRepoFn = scanUpgradeRepo
 var createIssueForUpgradeOrgRepoFn = createIssueForUpgradeOrgRepo
 
 // runUpgradeForOrg runs the upgrade command across all repositories in an
@@ -27,33 +30,172 @@ var createIssueForUpgradeOrgRepoFn = createIssueForUpgradeOrgRepo
 // sorting, and per-repo error recovery.
 func runUpgradeForOrg(ctx context.Context, org string, repoGlobs []string, opts upgradeOptions, createPR bool, createIssue bool, verbose bool) error {
 	return runCommandForOrg(ctx, org, repoGlobs, orgRunCallbacks{
-		SearchFn: searchOrgAnyWorkflowReposFn,
-		// ScanFn is nil: all discovered repos are upgrade candidates and no
-		// per-repo API scan is required to determine that.
-		ScanFn: nil,
-		ReportFn: func(results []orgRepoPreview, applying bool) {
-			if applying {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Repositories with agentic workflows (%d):", len(results))))
-			} else {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dry-run preview of upgrade pull requests:"))
-			}
-			for _, r := range results {
-				fmt.Fprintf(os.Stderr, "- %s\n", r.Repo)
-			}
+		SearchFn: searchOrgLockWorkflowReposFn,
+		ScanFn: func(ctx context.Context, repo string, v bool) (orgRepoPreview, bool, error) {
+			return scanUpgradeRepoFn(ctx, repo, v)
 		},
+		ReportFn: renderOrgUpgradeReport,
 		ApplyFn: func(ctx context.Context, preview orgRepoPreview, v bool) error {
 			return runUpgradeForTargetRepoFn(ctx, preview.Repo, opts, v)
 		},
 		IssueFn: func(ctx context.Context, preview orgRepoPreview, v bool) error {
 			return createIssueForUpgradeOrgRepoFn(ctx, preview.Repo, v)
 		},
-		DiscoveringMsg:  "Discovering repositories in " + org + " with agentic workflows...",
-		NoReposMsg:      "No repositories found with agentic workflows",
-		ApplyLabel:      "Upgrading",
-		IssueLabel:      "Creating issue in",
-		AllFailApplyMsg: "failed to upgrade any repository",
-		AllFailIssueMsg: "failed to create issues in any repository",
+		DiscoveringMsg:   "Discovering repositories in " + org + " with agentic workflows...",
+		NoReposMsg:       "No repositories found with agentic workflows",
+		ScanLabel:        "Inspecting",
+		ApplyLabel:       "Upgrading",
+		IssueLabel:       "Creating issue in",
+		NoResultsMsg:     "No repositories with agentic workflows found",
+		NoResultsStopMsg: "No repositories found before processing stopped",
+		AllFailApplyMsg:  "failed to upgrade any repository",
+		AllFailIssueMsg:  "failed to create issues in any repository",
 	}, createPR, createIssue, verbose)
+}
+
+// scanUpgradeRepo shallow-clones repo, counts agentic workflow files, and
+// extracts the current compiler version from the first lock file it finds.
+// It returns (preview, true, nil) when the repo has workflows, or
+// (orgRepoPreview{}, false, nil) when none are found.
+func scanUpgradeRepo(ctx context.Context, repo string, verbose bool) (orgRepoPreview, bool, error) {
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return orgRepoPreview{}, false, fmt.Errorf("--org requires running inside a git repository: %w", err)
+	}
+
+	updatesDir, err := ensureUpdateTargetRepoGitignore(gitRoot)
+	if err != nil {
+		return orgRepoPreview{}, false, err
+	}
+
+	checkoutDir := filepath.Join(updatesDir, sanitizeRepoPath(repo))
+	if err := shallowCloneTargetRepo(ctx, repo, checkoutDir); err != nil {
+		return orgRepoPreview{}, false, err
+	}
+
+	workflowsDir := filepath.Join(checkoutDir, constants.GetWorkflowDir())
+
+	// Count .md workflow files (excluding lock files).
+	mdCount, err := countWorkflowMDFiles(workflowsDir)
+	if err != nil && !os.IsNotExist(err) {
+		return orgRepoPreview{}, false, fmt.Errorf("failed to scan workflows in %s: %w", repo, err)
+	}
+
+	if mdCount == 0 {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Skipping "+repo+": no agentic workflow files found"))
+		}
+		return orgRepoPreview{}, false, nil
+	}
+
+	// Extract compiler version from lock file metadata.
+	currentVersion := extractCompilerVersionFromWorkflowsDir(workflowsDir)
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+		fmt.Sprintf("%s: %d workflow(s)%s", repo, mdCount, formatCurrentVersionSuffix(currentVersion)),
+	))
+
+	return orgRepoPreview{
+		Repo:           repo,
+		TotalWorkflows: mdCount,
+		CurrentVersion: currentVersion,
+	}, true, nil
+}
+
+// renderOrgUpgradeReport prints the discovered repositories with their workflow
+// counts and current compiler versions.
+func renderOrgUpgradeReport(results []orgRepoPreview, applying bool) {
+	targetVersion := normalizeDisplayVersion(GetVersion())
+	if applying {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Repositories with agentic workflows (%d):", len(results))))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dry-run preview of upgrade pull requests:"))
+	}
+	for _, r := range results {
+		versionPart := ""
+		currentVersion := normalizeDisplayVersion(r.CurrentVersion)
+		if currentVersion != "" {
+			target := ""
+			if targetVersion != "" && currentVersion != targetVersion {
+				target = " -> " + targetVersion
+			}
+			versionPart = fmt.Sprintf(" (%s%s)", currentVersion, target)
+		} else if r.TotalWorkflows > 0 {
+			versionPart = fmt.Sprintf(" (%d workflow(s))", r.TotalWorkflows)
+		}
+		fmt.Fprintf(os.Stderr, "- %s%s\n", r.Repo, versionPart)
+	}
+}
+
+// countWorkflowMDFiles returns the number of .md files (excluding .lock.yml)
+// in workflowsDir.
+func countWorkflowMDFiles(workflowsDir string) (int, error) {
+	entries, err := os.ReadDir(workflowsDir)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, e := range entries {
+		name := e.Name()
+		if !e.IsDir() && strings.HasSuffix(name, ".md") && !strings.EqualFold(name, "README.md") {
+			count++
+		}
+	}
+	return count, nil
+}
+
+// extractCompilerVersionFromWorkflowsDir reads the first .lock.yml file in
+// workflowsDir and extracts the compiler_version from its gh-aw-metadata
+// comment. Returns an empty string if no lock file is found or parsing fails.
+func extractCompilerVersionFromWorkflowsDir(workflowsDir string) string {
+	entries, err := os.ReadDir(workflowsDir)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".lock.yml") {
+			continue
+		}
+		lockPath := filepath.Join(workflowsDir, e.Name())
+		content, err := os.ReadFile(lockPath)
+		if err != nil {
+			continue
+		}
+		version := extractCompilerVersionFromLockContent(string(content))
+		if version != "" {
+			return version
+		}
+	}
+	return ""
+}
+
+// extractCompilerVersionFromLockContent parses the gh-aw-metadata JSON comment
+// from a lock file and returns the compiler_version field value.
+// Returns empty string if not found or on parse error.
+func extractCompilerVersionFromLockContent(content string) string {
+	meta, _, err := workflow.ExtractMetadataFromLockFile(content)
+	if err != nil || meta == nil {
+		return ""
+	}
+	return meta.CompilerVersion
+}
+
+// formatCurrentVersionSuffix formats a version string for inline display,
+// e.g. ", compiler: v1.2.3". Returns an empty string when version is empty.
+func formatCurrentVersionSuffix(version string) string {
+	normalized := normalizeDisplayVersion(version)
+	if normalized == "" {
+		return ""
+	}
+	return ", compiler: " + normalized
+}
+
+func normalizeDisplayVersion(version string) string {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return ""
+	}
+	return "v" + strings.TrimPrefix(version, "v")
 }
 
 // runUpgradeForTargetRepo checks out repo to a temporary directory, runs the
@@ -155,12 +297,12 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 	return nil
 }
 
-// searchOrgAnyWorkflowRepos searches an organization's repositories for any
-// agentic workflow markdown files in .github/workflows, returning a sorted
-// deduplicated slice of "owner/repo" strings. README.md is excluded so that
-// repos containing only documentation are not treated as having workflows.
-func searchOrgAnyWorkflowRepos(ctx context.Context, org string, verbose bool) ([]string, error) {
-	query := fmt.Sprintf(`org:%s path:.github/workflows extension:md NOT filename:README`, org)
+// searchOrgLockWorkflowRepos searches an organization's repositories for
+// compiled agentic workflow lock files (.lock.yml) in .github/workflows.
+// This is the same discovery strategy used by the update command so both
+// commands operate on the same set of repositories.
+func searchOrgLockWorkflowRepos(ctx context.Context, org string, verbose bool) ([]string, error) {
+	query := fmt.Sprintf(`org:%s path:.github/workflows filename:.lock.yml`, org)
 	return searchOrgReposByQuery(ctx, query, verbose)
 }
 

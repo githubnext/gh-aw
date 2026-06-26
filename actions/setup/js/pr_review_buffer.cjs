@@ -25,6 +25,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
 const { attachExecutionState, fetchPullRequestReviewState } = require("./safe_output_execution_metadata.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG, isTransientError, sleep } = require("./error_recovery.cjs");
+const { ERR_API } = require("./error_codes.cjs");
 
 const SUPERSEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
 const MAX_SUPERSEDE_REVIEW_PAGES = 10;
@@ -126,7 +127,7 @@ function createReviewBuffer() {
       return await fetchPullRequestReviewState(github, repoParts, pullRequestNumber);
     } catch (error) {
       if (!isTransientError(error)) {
-        throw new Error(`Failed to capture ${phase} PR review state for #${pullRequestNumber}: ${getErrorMessage(error)} (non-transient)`, { cause: error });
+        throw new Error(`${ERR_API}: Failed to capture ${phase} PR review state for #${pullRequestNumber}: ${getErrorMessage(error)} (non-transient)`, { cause: error });
       }
       core.warning(`Failed to capture ${phase} PR review state for #${pullRequestNumber}: ${getErrorMessage(error)}. Continuing without execution-state metadata.`);
       return null;

@@ -47,6 +47,9 @@ const (
 	DefaultModelClaude = "GH_AW_DEFAULT_MODEL_CLAUDE"
 	// DefaultModelCodex is the enterprise override for Codex fallback model selection.
 	DefaultModelCodex = "GH_AW_DEFAULT_MODEL_CODEX"
+	// PolicyStrict enables runtime enforcement that workflows must be compiled in strict mode
+	// when GH_AW_POLICY_STRICT is set to the string value "true".
+	PolicyStrict = "GH_AW_POLICY_STRICT"
 )
 
 // ResolveDefaultMaxTurns returns fallback when the env var is unset/invalid,

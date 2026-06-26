@@ -13,6 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mockScanUpgradeRepo returns a simple scan stub that includes every repo with
+// one workflow. Use it to isolate upgrade-org tests from real checkout logic.
+func mockScanUpgradeRepo(_ context.Context, repo string, _ bool) (orgRepoPreview, bool, error) {
+	return orgRepoPreview{Repo: repo, TotalWorkflows: 1}, true, nil
+}
+
 func TestNewUpgradeCommandOrgFlags(t *testing.T) {
 	cmd := NewUpgradeCommand()
 
@@ -37,11 +43,11 @@ func TestRunUpgradeForOrgInvalidRepoGlob(t *testing.T) {
 }
 
 func TestRunUpgradeForOrgNoReposFound(t *testing.T) {
-	origSearch := searchOrgAnyWorkflowReposFn
-	searchOrgAnyWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	origSearch := searchOrgLockWorkflowReposFn
+	searchOrgLockWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
 		return nil, nil
 	}
-	defer func() { searchOrgAnyWorkflowReposFn = origSearch }()
+	defer func() { searchOrgLockWorkflowReposFn = origSearch }()
 
 	output := captureUpgradeOrgStderr(t, func() {
 		err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, false, false, false)
@@ -52,11 +58,19 @@ func TestRunUpgradeForOrgNoReposFound(t *testing.T) {
 }
 
 func TestRunUpgradeForOrgNoReposMatchFilter(t *testing.T) {
-	origSearch := searchOrgAnyWorkflowReposFn
-	searchOrgAnyWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	origSearch := searchOrgLockWorkflowReposFn
+	origScan := scanUpgradeRepoFn
+	origWait := waitForOrgRateLimitFn
+	searchOrgLockWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
 		return []string{"octo/api"}, nil
 	}
-	defer func() { searchOrgAnyWorkflowReposFn = origSearch }()
+	scanUpgradeRepoFn = mockScanUpgradeRepo
+	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
+	defer func() {
+		searchOrgLockWorkflowReposFn = origSearch
+		scanUpgradeRepoFn = origScan
+		waitForOrgRateLimitFn = origWait
+	}()
 
 	output := captureUpgradeOrgStderr(t, func() {
 		err := runUpgradeForOrg(context.Background(), "octo", []string{"nomatch-*"}, upgradeOptions{ctx: context.Background()}, false, false, false)
@@ -67,19 +81,22 @@ func TestRunUpgradeForOrgNoReposMatchFilter(t *testing.T) {
 }
 
 func TestRunUpgradeForOrgDryRun(t *testing.T) {
-	origSearch := searchOrgAnyWorkflowReposFn
+	origSearch := searchOrgLockWorkflowReposFn
+	origScan := scanUpgradeRepoFn
 	origUpgrade := runUpgradeForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
-	searchOrgAnyWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	searchOrgLockWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
 		return []string{"octo/api", "octo/web"}, nil
 	}
+	scanUpgradeRepoFn = mockScanUpgradeRepo
 	runUpgradeForTargetRepoFn = func(ctx context.Context, repo string, opts upgradeOptions, verbose bool) error {
 		t.Fatalf("unexpected upgrade call for %s", repo)
 		return nil
 	}
 	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
 	defer func() {
-		searchOrgAnyWorkflowReposFn = origSearch
+		searchOrgLockWorkflowReposFn = origSearch
+		scanUpgradeRepoFn = origScan
 		runUpgradeForTargetRepoFn = origUpgrade
 		waitForOrgRateLimitFn = origWait
 	}()
@@ -94,13 +111,48 @@ func TestRunUpgradeForOrgDryRun(t *testing.T) {
 	assert.Contains(t, output, "octo/web")
 }
 
-func TestRunUpgradeForOrgCreatePR(t *testing.T) {
-	origSearch := searchOrgAnyWorkflowReposFn
+func TestRunUpgradeForOrgDryRunShowsVersion(t *testing.T) {
+	origSearch := searchOrgLockWorkflowReposFn
+	origScan := scanUpgradeRepoFn
 	origUpgrade := runUpgradeForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
-	searchOrgAnyWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	searchOrgLockWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+		return []string{"octo/api"}, nil
+	}
+	scanUpgradeRepoFn = func(_ context.Context, repo string, _ bool) (orgRepoPreview, bool, error) {
+		return orgRepoPreview{Repo: repo, TotalWorkflows: 2, CurrentVersion: "v1.2.3"}, true, nil
+	}
+	runUpgradeForTargetRepoFn = func(ctx context.Context, repo string, opts upgradeOptions, verbose bool) error {
+		t.Fatalf("unexpected upgrade call for %s", repo)
+		return nil
+	}
+	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
+	defer func() {
+		searchOrgLockWorkflowReposFn = origSearch
+		scanUpgradeRepoFn = origScan
+		runUpgradeForTargetRepoFn = origUpgrade
+		waitForOrgRateLimitFn = origWait
+	}()
+
+	output := captureUpgradeOrgStderr(t, func() {
+		err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, false, false, false)
+		require.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "Dry-run preview of upgrade pull requests")
+	assert.Contains(t, output, "octo/api")
+	assert.Contains(t, output, "(v1.2.3 -> "+normalizeDisplayVersion(GetVersion())+")")
+}
+
+func TestRunUpgradeForOrgCreatePR(t *testing.T) {
+	origSearch := searchOrgLockWorkflowReposFn
+	origScan := scanUpgradeRepoFn
+	origUpgrade := runUpgradeForTargetRepoFn
+	origWait := waitForOrgRateLimitFn
+	searchOrgLockWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
 		return []string{"octo/api", "octo/web"}, nil
 	}
+	scanUpgradeRepoFn = mockScanUpgradeRepo
 	var upgraded []string
 	runUpgradeForTargetRepoFn = func(ctx context.Context, repo string, opts upgradeOptions, verbose bool) error {
 		upgraded = append(upgraded, repo)
@@ -108,7 +160,8 @@ func TestRunUpgradeForOrgCreatePR(t *testing.T) {
 	}
 	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
 	defer func() {
-		searchOrgAnyWorkflowReposFn = origSearch
+		searchOrgLockWorkflowReposFn = origSearch
+		scanUpgradeRepoFn = origScan
 		runUpgradeForTargetRepoFn = origUpgrade
 		waitForOrgRateLimitFn = origWait
 	}()
@@ -119,12 +172,14 @@ func TestRunUpgradeForOrgCreatePR(t *testing.T) {
 }
 
 func TestRunUpgradeForOrgRepoFilter(t *testing.T) {
-	origSearch := searchOrgAnyWorkflowReposFn
+	origSearch := searchOrgLockWorkflowReposFn
+	origScan := scanUpgradeRepoFn
 	origUpgrade := runUpgradeForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
-	searchOrgAnyWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	searchOrgLockWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
 		return []string{"octo/api-service", "octo/web", "octo/worker-service"}, nil
 	}
+	scanUpgradeRepoFn = mockScanUpgradeRepo
 	var upgraded []string
 	runUpgradeForTargetRepoFn = func(ctx context.Context, repo string, opts upgradeOptions, verbose bool) error {
 		upgraded = append(upgraded, repo)
@@ -132,7 +187,8 @@ func TestRunUpgradeForOrgRepoFilter(t *testing.T) {
 	}
 	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
 	defer func() {
-		searchOrgAnyWorkflowReposFn = origSearch
+		searchOrgLockWorkflowReposFn = origSearch
+		scanUpgradeRepoFn = origScan
 		runUpgradeForTargetRepoFn = origUpgrade
 		waitForOrgRateLimitFn = origWait
 	}()
@@ -143,13 +199,15 @@ func TestRunUpgradeForOrgRepoFilter(t *testing.T) {
 }
 
 func TestRunUpgradeForOrgCreateIssue(t *testing.T) {
-	origSearch := searchOrgAnyWorkflowReposFn
+	origSearch := searchOrgLockWorkflowReposFn
+	origScan := scanUpgradeRepoFn
 	origUpgrade := runUpgradeForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
 	origIssue := createIssueForUpgradeOrgRepoFn
-	searchOrgAnyWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+	searchOrgLockWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
 		return []string{"octo/api", "octo/web"}, nil
 	}
+	scanUpgradeRepoFn = mockScanUpgradeRepo
 	runUpgradeForTargetRepoFn = func(ctx context.Context, repo string, opts upgradeOptions, verbose bool) error {
 		t.Fatalf("unexpected upgrade call for %s", repo)
 		return nil
@@ -161,7 +219,8 @@ func TestRunUpgradeForOrgCreateIssue(t *testing.T) {
 	}
 	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
 	defer func() {
-		searchOrgAnyWorkflowReposFn = origSearch
+		searchOrgLockWorkflowReposFn = origSearch
+		scanUpgradeRepoFn = origScan
 		runUpgradeForTargetRepoFn = origUpgrade
 		waitForOrgRateLimitFn = origWait
 		createIssueForUpgradeOrgRepoFn = origIssue
@@ -197,12 +256,14 @@ func TestRunUpgradeCommandReposRequiresOrg(t *testing.T) {
 }
 
 func TestRunUpgradeForOrgSkipsFailedRepos(t *testing.T) {
-	origSearch := searchOrgAnyWorkflowReposFn
+	origSearch := searchOrgLockWorkflowReposFn
+	origScan := scanUpgradeRepoFn
 	origUpgrade := runUpgradeForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
-	searchOrgAnyWorkflowReposFn = func(_ context.Context, _ string, _ bool) ([]string, error) {
+	searchOrgLockWorkflowReposFn = func(_ context.Context, _ string, _ bool) ([]string, error) {
 		return []string{"octo/api", "octo/web"}, nil
 	}
+	scanUpgradeRepoFn = mockScanUpgradeRepo
 	boom := errors.New("upgrade failed")
 	var called []string
 	runUpgradeForTargetRepoFn = func(_ context.Context, repo string, _ upgradeOptions, _ bool) error {
@@ -211,7 +272,8 @@ func TestRunUpgradeForOrgSkipsFailedRepos(t *testing.T) {
 	}
 	waitForOrgRateLimitFn = func(_ context.Context, _ string, _ bool) error { return nil }
 	defer func() {
-		searchOrgAnyWorkflowReposFn = origSearch
+		searchOrgLockWorkflowReposFn = origSearch
+		scanUpgradeRepoFn = origScan
 		runUpgradeForTargetRepoFn = origUpgrade
 		waitForOrgRateLimitFn = origWait
 	}()
@@ -223,13 +285,15 @@ func TestRunUpgradeForOrgSkipsFailedRepos(t *testing.T) {
 }
 
 func TestRunUpgradeForOrgCreateIssueSkipsFailedRepos(t *testing.T) {
-	origSearch := searchOrgAnyWorkflowReposFn
+	origSearch := searchOrgLockWorkflowReposFn
+	origScan := scanUpgradeRepoFn
 	origUpgrade := runUpgradeForTargetRepoFn
 	origIssue := createIssueForUpgradeOrgRepoFn
 	origWait := waitForOrgRateLimitFn
-	searchOrgAnyWorkflowReposFn = func(_ context.Context, _ string, _ bool) ([]string, error) {
+	searchOrgLockWorkflowReposFn = func(_ context.Context, _ string, _ bool) ([]string, error) {
 		return []string{"octo/api", "octo/web"}, nil
 	}
+	scanUpgradeRepoFn = mockScanUpgradeRepo
 	runUpgradeForTargetRepoFn = func(_ context.Context, repo string, _ upgradeOptions, _ bool) error {
 		t.Fatalf("unexpected upgrade call for %s", repo)
 		return nil
@@ -242,7 +306,8 @@ func TestRunUpgradeForOrgCreateIssueSkipsFailedRepos(t *testing.T) {
 	}
 	waitForOrgRateLimitFn = func(_ context.Context, _ string, _ bool) error { return nil }
 	defer func() {
-		searchOrgAnyWorkflowReposFn = origSearch
+		searchOrgLockWorkflowReposFn = origSearch
+		scanUpgradeRepoFn = origScan
 		runUpgradeForTargetRepoFn = origUpgrade
 		createIssueForUpgradeOrgRepoFn = origIssue
 		waitForOrgRateLimitFn = origWait
@@ -254,13 +319,15 @@ func TestRunUpgradeForOrgCreateIssueSkipsFailedRepos(t *testing.T) {
 	assert.Equal(t, []string{"octo/api", "octo/web"}, called, "should attempt all repos and skip failures")
 }
 
-func TestRunUpgradeForOrgSortsAlphabeticallyWhenScanDisabled(t *testing.T) {
-	origSearch := searchOrgAnyWorkflowReposFn
+func TestRunUpgradeForOrgSortsAlphabetically(t *testing.T) {
+	origSearch := searchOrgLockWorkflowReposFn
+	origScan := scanUpgradeRepoFn
 	origUpgrade := runUpgradeForTargetRepoFn
 	origWait := waitForOrgRateLimitFn
-	searchOrgAnyWorkflowReposFn = func(_ context.Context, _ string, _ bool) ([]string, error) {
+	searchOrgLockWorkflowReposFn = func(_ context.Context, _ string, _ bool) ([]string, error) {
 		return []string{"octo/zoo", "octo/alpha", "octo/middle"}, nil
 	}
+	scanUpgradeRepoFn = mockScanUpgradeRepo
 	var called []string
 	runUpgradeForTargetRepoFn = func(_ context.Context, repo string, _ upgradeOptions, _ bool) error {
 		called = append(called, repo)
@@ -268,7 +335,8 @@ func TestRunUpgradeForOrgSortsAlphabeticallyWhenScanDisabled(t *testing.T) {
 	}
 	waitForOrgRateLimitFn = func(_ context.Context, _ string, _ bool) error { return nil }
 	defer func() {
-		searchOrgAnyWorkflowReposFn = origSearch
+		searchOrgLockWorkflowReposFn = origSearch
+		scanUpgradeRepoFn = origScan
 		runUpgradeForTargetRepoFn = origUpgrade
 		waitForOrgRateLimitFn = origWait
 	}()

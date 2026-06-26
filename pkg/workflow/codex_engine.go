@@ -443,23 +443,8 @@ mkdir -p "$CODEX_HOME/logs"
 		maps.Copy(env, getGitIdentityEnvVars())
 	}
 
-	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
-	// Supports both literal integers and GitHub Actions expressions (e.g. "${{ inputs.startup-timeout }}")
-	if workflowData.ToolsStartupTimeout != "" {
-		env["GH_AW_STARTUP_TIMEOUT"] = workflowData.ToolsStartupTimeout
-	}
-
-	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
-	// Supports both literal integers and GitHub Actions expressions (e.g. "${{ inputs.tool-timeout }}")
-	if workflowData.ToolsTimeout != "" {
-		env["GH_AW_TOOL_TIMEOUT"] = workflowData.ToolsTimeout
-	}
-
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
-	} else {
-		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
-	}
+	applyOptionalEngineToolTimeouts(env, workflowData)
+	applyEngineMaxTurnsEnv(env, workflowData)
 
 	// Set the model environment variable.
 	// Codex has no native model env var, so model selection always goes through
@@ -473,31 +458,9 @@ mkdir -p "$CODEX_HOME/logs"
 		env[modelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
 	}
 
-	// Inject GH_AW_ENGINE_CWD when engine.cwd is configured.
 	applyEngineCwdEnv(env, workflowData)
-
-	// Add custom environment variables from engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		maps.Copy(env, workflowData.EngineConfig.Env)
-	}
-
-	// Add custom environment variables from agent config
-	agentConfig := getAgentConfig(workflowData)
-	if agentConfig != nil && len(agentConfig.Env) > 0 {
-		maps.Copy(env, agentConfig.Env)
-		codexEngineLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
-	}
-
-	// Add mcp-scripts secrets to env for passthrough to MCP servers
-	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
-		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
-		for varName, secretExpr := range mcpScriptsSecrets {
-			// Only add if not already in env
-			if _, exists := env[varName]; !exists {
-				env[varName] = secretExpr
-			}
-		}
-	}
+	applyEngineAndAgentEnv(env, workflowData, codexEngineLog)
+	applyMCPScriptsSecretEnv(env, workflowData)
 
 	// Generate the step for Codex execution
 	stepName := "Execute Codex CLI"

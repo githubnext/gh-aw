@@ -58,7 +58,7 @@ const {
   fetchModelsFromUrl,
   resolveCopilotSDKCustomProviderFromReflect,
 } = require("./awf_reflect.cjs");
-const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
+const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
 const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
@@ -916,6 +916,14 @@ async function main() {
         }
 
         if (hasNumerousPermissionDenied) {
+          // If the agent already produced expected safe-outputs, the permission-denied
+          // signals are from optional/exploratory commands — not from the core task work.
+          // Suppress the terminal verdict and exit 0 to avoid a false-red run.
+          if (safeOutputsPath && hasExpectedSafeOutputs(safeOutputsPath, { logger: log })) {
+            log(`attempt ${attempt + 1}: detected numerous permission-denied issues but safe-outputs already contain expected output — suppressing terminal verdict (false-red: core work succeeded)`);
+            lastExitCode = 0;
+            break;
+          }
           const deniedCommands = extractDeniedCommands(result.output);
           emitMissingToolPermissionIssue({ deniedCommands, logger: log });
           log(`attempt ${attempt + 1}: detected numerous permission-denied issues — not retrying (classified as missing tool/permission issue)`);
@@ -1059,6 +1067,7 @@ if (typeof module !== "undefined" && module.exports) {
     buildCopilotSDKServerArgs,
     getCopilotSDKServerPort,
     hasNoopInSafeOutputs,
+    hasExpectedSafeOutputs,
     isDetectionPhase,
     isModelAvailableInReflectData,
     isModelAvailableInReflectFile,

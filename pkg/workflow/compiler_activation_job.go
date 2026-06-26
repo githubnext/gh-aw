@@ -31,6 +31,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if err != nil {
 		return nil, fmt.Errorf("failed to create activation job build context: %w", err)
 	}
+	if !c.effectiveStrictMode(data.RawFrontmatter) {
+		ctx.steps = append(ctx.steps, buildPolicyStrictEnforcementStep()...)
+	}
 
 	if err := c.addActivationFeedbackAndValidationSteps(ctx); err != nil {
 		return nil, err

@@ -27,6 +27,7 @@ const {
   extractDeniedCommands,
   hasNumerousPermissionDeniedIssues,
   hasNoopInSafeOutputs,
+  hasExpectedSafeOutputs,
   INFERENCE_ACCESS_ERROR_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
   isDetectionPhase,
@@ -1953,6 +1954,71 @@ process.exit(1);`,
       // Harness exits 0 because noop means the work is done
       expect(result.status).toBe(0);
       expect(result.stderr).toContain("noop message found in safe-outputs — not retrying");
+    });
+  });
+
+  describe("permission-denied suppression when expected safe-outputs already produced", () => {
+    it("exits 0 and suppresses terminal verdict when numerous permission-denied occurs after expected safe-output was written", () => {
+      const tempDir = makeHarnessTempDir("copilot-perm-denied-suppression-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub writes an expected safe-output then fails with numerous permission-denied output.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+fs.appendFileSync(safeOutputsPath, JSON.stringify({type:"add_comment",body:"Report posted"}) + "\\n");
+process.stdout.write("permission denied\\npermission denied\\npermission denied\\nEACCES: permission denied\\nEPERM operation not permitted\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "fix the bug", "utf8");
+
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: { ...process.env, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      // Only one attempt — no retries when permission-denied is suppressed
+      expect(callCount).toBe(1);
+      // Harness exits 0 because the core work (add_comment) already succeeded
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("suppressing terminal verdict (false-red: core work succeeded)");
+    });
+
+    it("exits 1 and emits missing_tool when numerous permission-denied occurs with no expected safe-outputs", () => {
+      const tempDir = makeHarnessTempDir("copilot-perm-denied-no-outputs-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub fails with numerous permission-denied but writes no expected safe-output.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.stdout.write("permission denied\\npermission denied\\npermission denied\\nEACCES: permission denied\\nEPERM operation not permitted\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "fix the bug", "utf8");
+
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: { ...process.env, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath, GH_AW_SAFEOUTPUTS_CLI: "true" },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      // Harness exits 1 because no expected output was produced
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("detected numerous permission-denied issues — not retrying");
     });
   });
 });

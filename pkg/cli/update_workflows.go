@@ -43,6 +43,7 @@ func clearUpdateResolutionCaches() {
 		branchCommitCache.Delete(key)
 		return true
 	})
+	clearVersionLabelCache()
 }
 
 // UpdateWorkflowsOptions configures workflow update behavior.

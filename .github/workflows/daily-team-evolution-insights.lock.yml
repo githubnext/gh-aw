@@ -160,6 +160,11 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs');
             await main(core, context);
+      - name: Enforce strict mode policy
+        if: ${{ contains(toJSON(vars), '"GH_AW_POLICY_STRICT":') }}
+        run: |
+          echo "::error::GH_AW_POLICY_STRICT is set but this workflow was not compiled in strict mode. Recompile with --strict or strict: true."
+          exit 1
       - name: Restore daily AIC usage cache
         id: restore-daily-aic-cache
         if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}

@@ -66,6 +66,10 @@ type orgRepoPreview struct {
 	TotalWorkflows int
 	Workflows      []orgWorkflowPreview
 	OldestEdit     time.Time
+	// CurrentVersion holds the compiler version extracted from the repo's lock
+	// files and is populated by the upgrade scan phase. It is empty for repos
+	// discovered by the update command.
+	CurrentVersion string
 }
 
 func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts UpdateWorkflowsOptions, createPR bool, createIssue bool, verbose bool) error {
@@ -153,7 +157,9 @@ func renderOrgPreviewReport(previewByRepo []orgRepoPreview, applying bool) {
 	for _, repo := range previewByRepo {
 		fmt.Fprintf(os.Stderr, "- %s (%d workflow(s))\n", repo.Repo, repo.TotalWorkflows)
 		for _, wf := range repo.Workflows {
-			fmt.Fprintf(os.Stderr, "  - %s: %s -> %s\n", wf.Name, shortRef(wf.CurrentRef), shortRef(wf.LatestRef))
+			// CurrentRef and LatestRef are already resolved to version labels
+			// (tags or short SHAs) by previewOrgRepoUpdates.
+			fmt.Fprintf(os.Stderr, "  - %s: %s -> %s\n", wf.Name, wf.CurrentRef, wf.LatestRef)
 		}
 	}
 }
@@ -209,11 +215,15 @@ func previewOrgRepoUpdates(ctx context.Context, repo string, opts UpdateWorkflow
 				preview.OldestEdit = editedAt
 			}
 		}
+		// Resolve SHAs to version-tag labels so the preview shows human-readable
+		// identifiers (e.g. v1.2.3) instead of bare short SHAs when possible.
+		currentLabel := resolveVersionLabel(ctx, resolved.sourceSpec.Repo, resolved.currentRef)
+		latestLabel := resolveVersionLabel(ctx, resolved.sourceSpec.Repo, resolved.latestRef)
 		preview.Workflows = append(preview.Workflows, orgWorkflowPreview{
 			Name:       name,
 			Path:       wf.Path,
-			CurrentRef: resolved.currentRef,
-			LatestRef:  resolved.latestRef,
+			CurrentRef: currentLabel,
+			LatestRef:  latestLabel,
 			Redirected: len(resolved.redirectHistory) > 0,
 			EditedAt:   editedAt,
 		})
@@ -336,7 +346,8 @@ func buildOrgUpdateIssue(preview orgRepoPreview, releaseTag, releaseURL, xmlMark
 	body.WriteString("The `gh aw update` command found source-managed workflow updates for this repository.\n\n")
 	body.WriteString("**Workflows with updates:**\n\n")
 	for _, wf := range preview.Workflows {
-		fmt.Fprintf(&body, "- `%s`: `%s` -> `%s`\n", wf.Name, shortRef(wf.CurrentRef), shortRef(wf.LatestRef))
+		// CurrentRef and LatestRef are already resolved to version labels.
+		fmt.Fprintf(&body, "- `%s`: `%s` -> `%s`\n", wf.Name, wf.CurrentRef, wf.LatestRef)
 	}
 	if releaseURL != "" {
 		fmt.Fprintf(&body, "\n[View gh-aw release %s](%s)\n", releaseTag, releaseURL)

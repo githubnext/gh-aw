@@ -31,12 +31,15 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
-	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var engineHelpersLog = logger.New("workflow:engine_helpers")
@@ -108,6 +111,61 @@ func applyEngineCwdEnv(env map[string]string, workflowData *WorkflowData) {
 		return
 	}
 	env["GH_AW_ENGINE_CWD"] = workflowData.EngineConfig.Cwd
+}
+
+// applyOptionalEngineToolTimeouts adds optional tool timeout environment variables.
+func applyOptionalEngineToolTimeouts(env map[string]string, workflowData *WorkflowData) {
+	if workflowData == nil {
+		return
+	}
+	if workflowData.ToolsStartupTimeout != "" {
+		env["GH_AW_STARTUP_TIMEOUT"] = workflowData.ToolsStartupTimeout
+	}
+	if workflowData.ToolsTimeout != "" {
+		env["GH_AW_TOOL_TIMEOUT"] = workflowData.ToolsTimeout
+	}
+}
+
+// applyEngineMaxTurnsEnv sets GH_AW_MAX_TURNS from engine.max-turns or the default expression.
+func applyEngineMaxTurnsEnv(env map[string]string, workflowData *WorkflowData) {
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+		return
+	}
+	env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
+}
+
+// applyEngineAndAgentEnv merges custom environment variables from engine and agent configs.
+func applyEngineAndAgentEnv(env map[string]string, workflowData *WorkflowData, log *logger.Logger) {
+	if workflowData == nil {
+		return
+	}
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+		maps.Copy(env, workflowData.EngineConfig.Env)
+	}
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil && len(agentConfig.Env) > 0 {
+		maps.Copy(env, agentConfig.Env)
+		if log != nil {
+			log.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
+		}
+	}
+}
+
+// applyMCPScriptsSecretEnv appends mcp-scripts secrets unless already present.
+func applyMCPScriptsSecretEnv(env map[string]string, workflowData *WorkflowData) {
+	if workflowData == nil {
+		return
+	}
+	if !IsMCPScriptsEnabled(workflowData.MCPScripts) {
+		return
+	}
+	mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
+	for varName, secretExpr := range mcpScriptsSecrets {
+		if _, exists := env[varName]; !exists {
+			env[varName] = secretExpr
+		}
+	}
 }
 
 // GenerateMultiSecretValidationStep creates a GitHub Actions step that validates at least one
@@ -239,14 +297,7 @@ func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[str
 	// Add environment variables
 	if len(env) > 0 {
 		stepLines = append(stepLines, "        env:")
-		// Sort environment keys for consistent output
-		envKeys := make([]string, 0, len(env))
-		for key := range env {
-			envKeys = append(envKeys, key)
-		}
-		sort.Strings(envKeys)
-
-		for _, key := range envKeys {
+		for _, key := range sliceutil.SortedKeys(env) {
 			value := env[key]
 			stepLines = appendEnvVarLine(stepLines, key, value)
 		}
