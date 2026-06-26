@@ -901,7 +901,7 @@ async function main() {
         }
 
         if (isAuthenticationFailed) {
-          if (attempt === 0 && retryableProxyAuthenticationFailure && attempt < MAX_RETRIES) {
+          if (attempt === 0 && retryableProxyAuthenticationFailure) {
             useContinueOnRetry = false;
             continueDisabledPermanently = true;
             log(`attempt ${attempt + 1}: provider authentication failed after partial execution` + " — retrying once as fresh run (discarding partial session state to avoid losing completed agent work)");

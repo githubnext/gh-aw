@@ -1201,7 +1201,7 @@ describe("copilot_harness.cjs", () => {
       // MCP policy errors are persistent — never retry
       if (MCP_POLICY_BLOCKED_PATTERN.test(result.output)) return false;
       if (isAuthenticationFailedError(result.output)) {
-        return attempt === 0 && isRetryableProxyAuthenticationFailure(result.output, result.hasOutput) && attempt < MAX_RETRIES;
+        return attempt === 0 && isRetryableProxyAuthenticationFailure(result.output, result.hasOutput);
       }
       // Auth error on --continue: fall back to fresh run once; on fresh run: bail
       if (NO_AUTH_INFO_PATTERN.test(result.output)) {
