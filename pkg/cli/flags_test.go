@@ -59,6 +59,14 @@ func TestShortFlagConsistency(t *testing.T) {
 			shouldExist:  true,
 			description:  "update should have force short flag",
 		},
+		{
+			name:         "compile command has -f for --force",
+			shortFlag:    "f",
+			longFlag:     "force",
+			commandSetup: func() *cobra.Command { return createCompileCommandStub() },
+			shouldExist:  true,
+			description:  "compile should have force short flag",
+		},
 
 		// -F flag (raw-field in run command)
 		{
@@ -147,6 +155,14 @@ func TestShortFlagConsistency(t *testing.T) {
 			shouldExist:  true,
 			description:  "update should have dir short flag",
 		},
+		{
+			name:         "compile command has -l for --logical-repo",
+			shortFlag:    "l",
+			longFlag:     "logical-repo",
+			commandSetup: func() *cobra.Command { return createCompileCommandStub() },
+			shouldExist:  true,
+			description:  "compile should have logical-repo short flag",
+		},
 
 		// -c flag (count) - should only be in logs command
 		{
@@ -174,6 +190,14 @@ func TestShortFlagConsistency(t *testing.T) {
 			commandSetup: func() *cobra.Command { return createDisableCommandStub() },
 			shouldExist:  true,
 			description:  "disable should have repo short flag",
+		},
+		{
+			name:         "logs command does not have -e for --engine",
+			shortFlag:    "e",
+			longFlag:     "engine",
+			commandSetup: func() *cobra.Command { return NewLogsCommand() },
+			shouldExist:  false,
+			description:  "logs should not have engine short flag",
 		},
 
 		// -w flag (watch)
@@ -233,8 +257,10 @@ func TestShortFlagConsistency(t *testing.T) {
 func createCompileCommandStub() *cobra.Command {
 	cmd := &cobra.Command{Use: "compile"}
 	cmd.Flags().StringP("engine", "e", "", "Override AI engine")
+	cmd.Flags().BoolP("force", "f", false, "Force overwrite")
 	cmd.Flags().BoolP("watch", "w", false, "Watch for changes")
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory")
+	cmd.Flags().StringP("logical-repo", "l", "", "Repository to simulate")
 	cmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 	return cmd
 }

@@ -82,7 +82,7 @@ all steps and additionally:
 	cmd.Flags().Bool("write", false, "Write changes to files (without this flag, no changes are made)")
 	cmd.Flags().Bool("list-codemods", false, "List all available codemods and exit")
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
-	cmd.Flags().StringSlice("disable-codemod", nil, "Disable specific codemod IDs (repeatable)")
+	cmd.Flags().StringSlice("disable-codemod", nil, "Disable specific codemod IDs during the fix step (repeatable)")
 
 	// Register completions
 	cmd.ValidArgsFunction = CompleteWorkflowNames

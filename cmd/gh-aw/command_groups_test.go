@@ -46,7 +46,11 @@ func TestCommandGroupAssignments(t *testing.T) {
 		{name: "status command in analysis group", commandName: "status", expectedGroup: "analysis", shouldHaveGroup: true},
 		{name: "list command in analysis group", commandName: "list", expectedGroup: "analysis", shouldHaveGroup: true},
 		{name: "health command in analysis group", commandName: "health", expectedGroup: "analysis", shouldHaveGroup: true},
+		{name: "outcomes command in analysis group", commandName: "outcomes", expectedGroup: "analysis", shouldHaveGroup: true},
 		{name: "checks command in analysis group", commandName: "checks", expectedGroup: "analysis", shouldHaveGroup: true},
+		// Hidden commands should still be grouped so they appear in the correct
+		// section when explicitly shown (for example in full help/test contexts).
+		{name: "view command in analysis group", commandName: "view", expectedGroup: "analysis", shouldHaveGroup: true},
 		{name: "experiments command in analysis group", commandName: "experiments", expectedGroup: "analysis", shouldHaveGroup: true},
 
 		// Utilities
