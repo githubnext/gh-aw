@@ -898,6 +898,7 @@ async function main() {
           break;
         }
 
+        // attempt === 0 makes this a one-time fresh-run recovery path.
         if (attempt === 0 && retryableProxyAuthenticationFailure) {
           useContinueOnRetry = false;
           continueDisabledPermanently = true;

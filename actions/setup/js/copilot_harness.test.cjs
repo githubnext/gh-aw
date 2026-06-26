@@ -1240,15 +1240,6 @@ describe("copilot_harness.cjs", () => {
       expect(shouldRetry(result, 0, false)).toBe(false);
     });
 
-    it("does not retry proxy auth failures after the fresh-run retry has already been used", () => {
-      const result = {
-        exitCode: 1,
-        hasOutput: true,
-        output: PROXY_AUTH_FAILURE_OUTPUT,
-      };
-      expect(shouldRetry(result, 1, false)).toBe(false);
-    });
-
     it("retries the first proxy auth failure only once", () => {
       const result = {
         exitCode: 1,
