@@ -1,35 +1,28 @@
-# Shared Alerts — 2026-06-25T13:27Z (updated by Agent Performance Analyzer)
+# Shared Alerts — 2026-06-26T05:52Z (updated by Workflow Health Manager)
 
 ## P1 🚨
-- **Code Simplifier — PERSISTENT (#41365 OPEN)**: Error type SHIFTED Jun 25: tool denial (8 denied cmds) vs Jun 24 HTTP 403 auth. 5th failure in 5 days. DO NOT RE-FILE.
-- **Tool Denial Cluster — SYSTEMIC**: 7+ workflows. Code Simplifier, PR Description Updater, and others. DO NOT RE-FILE separately.
-- **Daily Safe Output Integrator — Day 16+** (#39477): tool denial + ECONNREFUSED. Still failing. DO NOT RE-FILE.
-- **Daily BYOK Ollama Test — Day 16+** (#39476, #40417): api-proxy cap. Still failing. DO NOT RE-FILE.
-- **upload_artifact malformed 400** (#38998): Smoke Copilot ~75-95% failure. Still continuing. DO NOT RE-FILE.
-- **Daily Cache Strategy Analyzer** (#39451): Alternating pattern. DO NOT RE-FILE.
-- **Daily Compiler Threat Spec Optimizer (#39343)**: Fails every ~7 days. Next ~Jun 29. DO NOT RE-FILE.
+- **Code Simplifier — PERSISTENT (#41603 OPEN)**: Jun 26 error: engine failure after completing work (3 files changed, branch created, ~1.9M tokens — engine exits in final output phase). 4th consecutive failure since Jun 22. DO NOT RE-FILE. Comment added Jun 26.
+- **Auto-Triage Issues — ESCALATED P2→P1 (#41570 OPEN)**: 2nd consecutive failure (Jun 25 #41450 closed, Jun 26 #41570). Pi engine agent_failure. Impacts issue routing. DO NOT RE-FILE. Comment added Jun 26.
+- **Daily Safe Output Integrator (#41518 OPEN)**: Exceeded tool denial limit (5/5 git-branch denials). DO NOT RE-FILE.
+- **Daily BYOK Ollama Test (#41550 OPEN)**: Copilot engine failure. DO NOT RE-FILE.
+- **upload_artifact malformed 400** (#38998): Smoke Copilot ~75-95% failure. Continuing. DO NOT RE-FILE.
 
 ## P2 ⚠️ (Monitor)
-- **Auto-Triage Issues REGRESSION** (#41450 auto-filed Jun 25): Was STABLE Jun 24. Single failure. Monitor Jun 26 before escalating.
-- **Smoke Engines (Codex, Pi, Antigravity, Copilot AOAI Entra, Copilot)**: Multiple engine failures Jun 25 - missing tools/data. Multiple auto-filed issues. Monitor for pattern.
-- **Issue Monster "Copilot agent unavailable" (#41381)**: Workflow succeeds; assignment fails for some issues. Normal operational behavior.
-- **Daily Rendering Scripts Verifier**: Failed Jun 24. Monitor Jun 25 run.
-- **Daily Sub-Agent Model Resolution Audit**: Failed Jun 24. Monitor Jun 25 run.
-- **GitHub Remote MCP Auth Test**: Failed Jun 24. Monitor Jun 25 run.
+- **AI Moderator no safe outputs (#41601 OPEN)**: Single occurrence Jun 26. Expires Jun 26 PM. Monitor Jun 27 before escalating.
+- **Smoke Engines (Codex, Pi, Antigravity, Copilot AOAI Entra, Copilot)**: Multiple engine failures — multiple auto-filed issues. Monitor for pattern.
+- **Daily Cache Strategy Analyzer** (#39451 CLOSED): Alternating pattern — watch for new issue. Monitor.
+- **Daily Compiler Threat Spec Optimizer (#39343 CLOSED)**: Fails every ~7 days. Next run ~Jun 29.
 
-## Confirmed Resolved ✅
-- **LintMonster (#40936)**: CONFIRMED RECOVERED ✅
-- **Auto-Triage Issues**: was STABLE; NEW REGRESSION Jun 25 (#41450) — moved to P2 Monitor
-- **PR Sous Chef** (#40548/#40586): CONFIRMED STABLE ✅ (6+ streak)
-- **Daily Safe Outputs Git Simulator**: CONFIRMED STABLE ✅
+## Confirmed Stable ✅
+- **LintMonster**: STABLE ✅
+- **PR Sous Chef**: STABLE ✅ (7+ streak Jun 26)
+- **Daily Safe Outputs Git Simulator**: STABLE ✅
 - **Avenger**: STABLE ✅
-- **Daily News** (#40190): STABLE ✅
-- **AI Moderator #41156**: RESOLVED. action_required runs are normal GitHub behavior. ✅
+- **Daily News**: STABLE ✅
+- **Safe Output Health Monitor**: STABLE ✅
 
-## Agent Performance Scores (Jun 25 final)
-- Quality: 60/100 (→ stable)
-- Effectiveness: 60/100 (→ stable)
-- Health: 87/100 (→ stable)
-- Copilot SWE merge rate: 76% (19/25 settled, Jun 25 window)
-- AIC 30d: 6,906 (↓21% from Jun 24)
-- Stale PRs (>7d): 0 ✅
+## Health Scores (Jun 26)
+- Compilation: 252/252 ✅
+- Overall Health Score: 87/100 (→ stable)
+- Copilot engine failures (Jun 26): Code Simplifier, BYOK Ollama
+- Pi engine failures (Jun 26): Auto-Triage Issues
