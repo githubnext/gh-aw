@@ -401,7 +401,8 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					if _, exists := renderedEnv[varName]; !exists {
 						// SECURITY: use passthrough syntax for all engines so the MCP gateway passes
 						// the env var value to the MCP server rather than the literal secret expression.
-						// Use passthrough syntax: "VAR_NAME": "\\${VAR_NAME}"
+						// The lock-file value is \${VAR_NAME} (single backslash); bash collapses \$ → $
+						// so the heredoc delivers ${VAR_NAME} to the gateway for env-var expansion.
 						renderedEnv[varName] = "\\${" + varName + "}"
 					}
 				}

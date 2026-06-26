@@ -18,14 +18,14 @@ func writeJSONStringMapEntries(yaml *strings.Builder, values map[string]string, 
 	}
 }
 
-// writeJSONStringMapEntriesRaw writes JSON object entries where values are quoted
-// verbatim without JSON encoding. Use this for sections inside unquoted heredocs
-// where values are pre-escaped shell placeholders (e.g., \${VAR}) that must not
-// be passed through json.Marshal — doing so would double-escape the backslash,
-// turning "\${VAR}" into "\\${VAR}" and producing invalid JSON after bash processing.
-//
-// Keys are still JSON-encoded for safety. Only use this helper when values are
-// already in their final heredoc-safe form (secret placeholders, env-var references, URLs).
+// writeJSONStringMapEntriesRaw writes JSON object entries for unquoted heredoc MCP
+// config sections where values may contain pre-escaped shell placeholders such as
+// \${VAR}.  Keys are JSON-encoded normally.  Values are JSON-encoded first (so that
+// plain chars like `"`, `\`, or newlines remain safe), then the one double-escape
+// that json.Marshal introduces for shell placeholders is undone: the sequence `\\${`
+// (json.Marshal encoding of the single-backslash placeholder prefix `\${`) is
+// restored to `\${` so that bash processes the unquoted heredoc correctly — turning
+// `\$` into `$` — and delivers `${VAR}` to the MCP gateway for env-var expansion.
 func writeJSONStringMapEntriesRaw(yaml *strings.Builder, values map[string]string, indent string) {
 	keys := sliceutil.SortedKeys(values)
 	for i, key := range keys {
@@ -33,13 +33,20 @@ func writeJSONStringMapEntriesRaw(yaml *strings.Builder, values map[string]strin
 		if i == len(keys)-1 {
 			comma = ""
 		}
-		fmt.Fprintf(yaml, "%s%s: \"%s\"%s\n", indent, mustMarshalJSONString(key), values[key], comma)
+		// JSON-encode to handle special characters (quotes, newlines, etc.),
+		// then undo json.Marshal's double-escaping of pre-formed shell placeholders.
+		// json.Marshal turns \${VAR} into \\${VAR}; restore to the single-backslash
+		// form so the unquoted heredoc produces ${VAR} for the MCP gateway.
+		encoded := mustMarshalJSONString(values[key])
+		encoded = strings.ReplaceAll(encoded, `\\${`, `\${`)
+		fmt.Fprintf(yaml, "%s%s: %s%s\n", indent, mustMarshalJSONString(key), encoded, comma)
 	}
 }
 
-// writeJSONStringMapSectionRaw writes a JSON object section where values are written
-// verbatim (see writeJSONStringMapEntriesRaw). Use this for env and headers sections
-// in unquoted heredoc MCP configs to avoid double-escaping pre-escaped shell placeholders.
+// writeJSONStringMapSectionRaw writes a JSON object section using writeJSONStringMapEntriesRaw.
+// Use this for env and headers sections in unquoted heredoc MCP configs.  Values are
+// JSON-encoded (so special chars remain safe) with the double-escape of shell
+// placeholders (\${VAR} → \\${VAR}) undone so bash can process them correctly.
 func writeJSONStringMapSectionRaw(yaml *strings.Builder, indent, name string, values map[string]string, trailingComma bool) {
 	fmt.Fprintf(yaml, "%s\"%s\": {\n", indent, name)
 	writeJSONStringMapEntriesRaw(yaml, values, indent+"  ")
