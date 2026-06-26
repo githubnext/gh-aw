@@ -129,6 +129,16 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 				Run1Blocked: stats1.Blocked,
 				Run1Status:  classifyFirewallDomainStatus(stats1),
 			}
+			// Anomaly: the removed domain was denied in the base run.  This indicates a
+			// transient firewall block that prevented the agent from reaching an MCP server
+			// (e.g. awmg-mcpg:8080) — even though the domain is absent from the comparison
+			// run (and therefore looks "normal"), its prior denial is worth surfacing so
+			// post-completion relaunch failures are detectable in audit diffs.
+			if stats1.Blocked > 0 {
+				entry.IsAnomaly = true
+				entry.AnomalyNote = "denied in base run — absent from comparison run"
+				anomalyCount++
+			}
 			diff.RemovedDomains = append(diff.RemovedDomains, entry)
 		} else {
 			// Domain exists in both runs - check for changes
