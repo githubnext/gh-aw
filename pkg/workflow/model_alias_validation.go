@@ -256,8 +256,8 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 	state := &dfsState{
 		aliasMap: aliasMap,
 		visited:  visited,
-		onPath:   make(map[string]bool, len(aliasMap)),
-		path:     make([]string, 0, len(aliasMap)),
+		onPath:   make(map[string]bool, 16),
+		path:     make([]string, 0, 16),
 	}
 
 	for _, key := range keys {
