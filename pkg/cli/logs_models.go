@@ -43,7 +43,13 @@ const (
 	RateLimitThreshold = 10
 	// rateLimitResetBuffer is the extra duration added on top of the computed wait time
 	// after a rate-limit reset to avoid resuming right on the boundary.
-	rateLimitResetBuffer = 2 * time.Second
+
+	// GitHubActionsRetentionDays is GitHub's default log-retention window for
+	// GitHub Actions workflow runs.  Runs older than this threshold are unlikely
+	// to have artifacts available, so the logs tool uses it to produce a helpful
+	// "beyond retention period" message when no results are found.
+	GitHubActionsRetentionDays = 90
+	rateLimitResetBuffer       = 2 * time.Second
 )
 
 // WorkflowRun represents a GitHub Actions workflow run with metrics

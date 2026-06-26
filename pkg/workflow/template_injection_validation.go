@@ -137,29 +137,6 @@ func walkRunBlockLines(yamlContent string, visit func(line string) bool) bool {
 	return false
 }
 
-// hasNonAllowedExpressionInRunContent performs a fast line-by-line text scan to
-// determine whether any GitHub Actions expression (${{ ... }}) that is NOT in the
-// compiler-owned allow-list appears inside a YAML run: block.
-//
-// Unlike hasAnyExpressionInRunContent, this function skips expressions that match
-// allowedRunScriptExpressionRegex (e.g. ${{ runner.temp }}, ${{ env.FOO }}). It is
-// used as a fast pre-check for the regression guardrail inside validateTemplateInjection
-// (Path B) to avoid a yaml.Unmarshal when every run-block expression is compiler-owned.
-func hasNonAllowedExpressionInRunContent(yamlContent string) bool {
-	return scanRunContentExpressions(yamlContent).hasDisallowed
-}
-
-func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regexp) bool {
-	// Fast-path: no matching expressions anywhere → definitely no violation.
-	if !expressionRegex.MatchString(yamlContent) {
-		return false
-	}
-
-	// Matching expressions exist somewhere; scan for any that appear inside a run: block
-	// without doing a full YAML parse.
-	return walkRunBlockLines(yamlContent, expressionRegex.MatchString)
-}
-
 // scanRunContentExpressions performs a single pass over run: blocks to detect both
 // user-controlled expressions and any non-allowlisted expressions. This avoids
 // the duplicate YAML walk used by the skipValidation fast path.

@@ -30,6 +30,7 @@ var createIssueForUpgradeOrgRepoFn = createIssueForUpgradeOrgRepo
 // sorting, and per-repo error recovery.
 func runUpgradeForOrg(ctx context.Context, org string, repoGlobs []string, opts upgradeOptions, createPR bool, createIssue bool, verbose bool) error {
 	return runCommandForOrg(ctx, org, repoGlobs, orgRunCallbacks{
+		AutoYes:  opts.yes,
 		SearchFn: searchOrgLockWorkflowReposFn,
 		ScanFn: func(ctx context.Context, repo string, v bool) (orgRepoPreview, bool, error) {
 			return scanUpgradeRepoFn(ctx, repo, v)

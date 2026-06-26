@@ -15,6 +15,8 @@ import (
 )
 
 var orgRunnerLog = logger.New("cli:org_runner")
+var orgConfirmActionFn = console.ConfirmAction
+var isRunningInCIFn = IsRunningInCI
 
 // orgWorkflowCountSuffix returns a parenthetical workflow-count string for use
 // in progress messages, e.g. " (5 workflow(s))". Returns an empty string when
@@ -35,6 +37,9 @@ func orgWorkflowCountSuffix(preview orgRepoPreview) string {
 // the command or opens issues, all with rate-limit awareness and graceful
 // cancellation support.
 type orgRunCallbacks struct {
+	// AutoYes auto-accepts per-repository confirmations in apply/issue phases.
+	AutoYes bool
+
 	// SearchFn returns candidate repos in the org. Required.
 	SearchFn func(ctx context.Context, org string, verbose bool) ([]string, error)
 
@@ -77,6 +82,47 @@ type orgRunCallbacks struct {
 	AllFailIssueMsg string
 }
 
+func renderOrgActionSummary(preview orgRepoPreview, action string) {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Ready to "+action))
+	fmt.Fprintf(os.Stderr, "  - Repository: %s\n", preview.Repo)
+	if preview.TotalWorkflows > 0 {
+		fmt.Fprintf(os.Stderr, "  - Workflows: %d\n", preview.TotalWorkflows)
+	}
+	if len(preview.Workflows) > 0 {
+		fmt.Fprintln(os.Stderr, "  - Pending workflow updates:")
+		for _, wf := range preview.Workflows {
+			fmt.Fprintf(os.Stderr, "    - %s: %s -> %s\n", wf.Name, wf.CurrentRef, wf.LatestRef)
+		}
+	}
+	currentVersion := normalizeDisplayVersion(preview.CurrentVersion)
+	targetVersion := normalizeDisplayVersion(GetVersion())
+	if currentVersion != "" {
+		if targetVersion != "" && targetVersion != currentVersion {
+			fmt.Fprintf(os.Stderr, "  - Compiler version: %s -> %s\n", currentVersion, targetVersion)
+		} else {
+			fmt.Fprintf(os.Stderr, "  - Compiler version: %s\n", currentVersion)
+		}
+	}
+}
+
+func confirmOrgAction(preview orgRepoPreview, action string, autoYes bool) (bool, error) {
+	renderOrgActionSummary(preview, action)
+	if autoYes {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-accepted because --yes was provided"))
+		return true, nil
+	}
+
+	confirmed, err := orgConfirmActionFn(
+		"Proceed with this repository?",
+		"Accept",
+		"Skip",
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to confirm %s for %s: %w", action, preview.Repo, err)
+	}
+	return confirmed, nil
+}
+
 // runCommandForOrg is the shared org-wide runner used by both the update and
 // upgrade commands. It:
 //  1. Validates org and repoGlobs inputs.
@@ -110,6 +156,9 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 	}
 	if createIssue && cbs.IssueFn == nil {
 		return errors.New("orgRunCallbacks.IssueFn is required when createIssue is true")
+	}
+	if (createPR || createIssue) && !cbs.AutoYes && isRunningInCIFn() {
+		return errors.New("confirmation is required for --org create operations in CI; re-run with --yes to auto-accept")
 	}
 
 	// Handle Ctrl-C / SIGTERM so an interrupted run still renders the report
@@ -248,6 +297,7 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 			issueLabel = "Creating issue in"
 		}
 		processed := 0
+		attempted := 0
 		for i, result := range results {
 			if ctx.Err() != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; created issues for %d/%d repositories", processed, len(results))))
@@ -265,12 +315,25 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 				}
 			}
 			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s%s", i+1, len(results), issueLabel, result.Repo, orgWorkflowCountSuffix(result))))
+			confirmed, err := confirmOrgAction(result, "create an issue", cbs.AutoYes)
+			if err != nil {
+				return err
+			}
+			if !confirmed {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipped "+result.Repo))
+				continue
+			}
+			attempted++
 			if err := cbs.IssueFn(ctx, result, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", result.Repo, err)))
 				orgRunnerLog.Printf("Failed to create issue in %s: %v", result.Repo, err)
 				continue
 			}
 			processed++
+		}
+		if attempted == 0 {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No repositories were accepted for issue creation"))
+			return nil
 		}
 		if processed == 0 {
 			msg := cbs.AllFailIssueMsg
@@ -288,6 +351,7 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 		applyLabel = "Processing"
 	}
 	processed := 0
+	attempted := 0
 	for i, result := range results {
 		if ctx.Err() != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; processed %d/%d repositories", processed, len(results))))
@@ -305,12 +369,25 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 			}
 		}
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("[%d/%d] %s %s%s", i+1, len(results), applyLabel, result.Repo, orgWorkflowCountSuffix(result))))
+		confirmed, err := confirmOrgAction(result, "create a pull request", cbs.AutoYes)
+		if err != nil {
+			return err
+		}
+		if !confirmed {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipped "+result.Repo))
+			continue
+		}
+		attempted++
 		if err := cbs.ApplyFn(ctx, result, verbose); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", result.Repo, err)))
 			orgRunnerLog.Printf("Failed to apply to %s: %v", result.Repo, err)
 			continue
 		}
 		processed++
+	}
+	if attempted == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No repositories were accepted for pull request creation"))
+		return nil
 	}
 	if processed == 0 {
 		msg := cbs.AllFailApplyMsg
