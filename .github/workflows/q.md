@@ -8,6 +8,9 @@ on:
     name: q
   reaction: rocket
   status-comment: true
+concurrency:
+  group: agentic-${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
 permissions:
   contents: read
   actions: read

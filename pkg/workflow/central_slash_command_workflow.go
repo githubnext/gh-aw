@@ -380,6 +380,10 @@ on:
 `)
 	writeCentralSlashEventsYAML(&b, mergedEvents)
 	b.WriteString(`
+concurrency:
+  group: agentic-${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
 permissions: {}
 
 jobs:
