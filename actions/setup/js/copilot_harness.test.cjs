@@ -1157,11 +1157,11 @@ describe("copilot_harness.cjs", () => {
 
   describe("isRetryableProxyAuthenticationFailure", () => {
     it("returns true for gh-aw proxy auth failures after partial execution", () => {
-      expect(isRetryableProxyAuthenticationFailure("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", true)).toBe(true);
+      expect(isRetryableProxyAuthenticationFailure("Authentication failed with provider at http://api-proxy:10002 (HTTP 403).", true)).toBe(true);
     });
 
     it("returns false when the auth failure happened before any output was produced", () => {
-      expect(isRetryableProxyAuthenticationFailure("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).", false)).toBe(false);
+      expect(isRetryableProxyAuthenticationFailure("Authentication failed with provider at http://api-proxy:10002 (HTTP 403).", false)).toBe(false);
     });
 
     it("returns false for non-proxy authentication failures", () => {
@@ -1219,7 +1219,7 @@ describe("copilot_harness.cjs", () => {
       const result = {
         exitCode: 1,
         hasOutput: true,
-        output: "Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).",
+        output: "Authentication failed with provider at http://api-proxy:10002 (HTTP 403).",
       };
       expect(shouldRetry(result, 0, false)).toBe(true);
     });
@@ -1228,7 +1228,7 @@ describe("copilot_harness.cjs", () => {
       const result = {
         exitCode: 1,
         hasOutput: false,
-        output: "Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).",
+        output: "Authentication failed with provider at http://api-proxy:10002 (HTTP 403).",
       };
       expect(shouldRetry(result, 0, false)).toBe(false);
     });
@@ -1242,7 +1242,7 @@ describe("copilot_harness.cjs", () => {
       const result = {
         exitCode: 1,
         hasOutput: true,
-        output: "Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).",
+        output: "Authentication failed with provider at http://api-proxy:10002 (HTTP 403).",
       };
       expect(shouldRetry(result, 1, false)).toBe(false);
     });
