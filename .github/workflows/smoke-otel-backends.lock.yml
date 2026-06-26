@@ -810,16 +810,16 @@ jobs:
           
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_1577612428ca6630_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_60120ca06d2e1e96_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "datadog": {
                 "type": "http",
                 "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp?toolsets=core",
                 "headers": {
-                  "DD_API_KEY": "\\${DD_API_KEY}",
-                  "DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}",
-                  "DD_SITE": "\\${DD_SITE}"
+                  "DD_API_KEY": "\${DD_API_KEY}",
+                  "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
+                  "DD_SITE": "\${DD_SITE}"
                 },
                 "tools": [
                   "search_datadog_spans",
@@ -830,10 +830,10 @@ jobs:
                   "get_datadog_metric"
                 ],
                 "env": {
-                  "DD_API_KEY": "\\${DD_API_KEY}",
-                  "DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}",
-                  "DD_APP_KEY": "\\${DD_APP_KEY}",
-                  "DD_SITE": "\\${DD_SITE}"
+                  "DD_API_KEY": "\${DD_API_KEY}",
+                  "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
+                  "DD_APP_KEY": "\${DD_APP_KEY}",
+                  "DD_SITE": "\${DD_SITE}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -861,8 +861,8 @@ jobs:
                   "tempo_docs-traceql"
                 ],
                 "env": {
-                  "GRAFANA_SERVICE_ACCOUNT_TOKEN": "\\${GRAFANA_SERVICE_ACCOUNT_TOKEN}",
-                  "GRAFANA_URL": "\\${GRAFANA_URL}"
+                  "GRAFANA_SERVICE_ACCOUNT_TOKEN": "\${GRAFANA_SERVICE_ACCOUNT_TOKEN}",
+                  "GRAFANA_URL": "\${GRAFANA_URL}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -929,9 +929,9 @@ jobs:
                   "get_doc"
                 ],
                 "env": {
-                  "OPENAI_API_KEY": "\\${SENTRY_OPENAI_API_KEY}",
-                  "SENTRY_ACCESS_TOKEN": "\\${SENTRY_ACCESS_TOKEN}",
-                  "SENTRY_HOST": "\\${SENTRY_HOST}"
+                  "OPENAI_API_KEY": "\${SENTRY_OPENAI_API_KEY}",
+                  "SENTRY_ACCESS_TOKEN": "\${SENTRY_ACCESS_TOKEN}",
+                  "SENTRY_HOST": "\${SENTRY_HOST}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -954,7 +954,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_1577612428ca6630_EOF
+          GH_AW_MCP_CONFIG_60120ca06d2e1e96_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
