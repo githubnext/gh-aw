@@ -41,6 +41,14 @@ pull-requests: read`,
 			wantErr: false,
 		},
 		{
+			name: "issue-fields read is a valid scope",
+			yaml: `permissions:
+  contents: read
+  issues: read
+  issue-fields: read`,
+			wantErr: false,
+		},
+		{
 			name:        "typo in scope name suggests correction",
 			yaml:        `contnts: read`,
 			wantErr:     true,

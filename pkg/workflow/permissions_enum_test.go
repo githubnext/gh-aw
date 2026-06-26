@@ -365,6 +365,7 @@ func TestPermissionsScopeEnumValidation(t *testing.T) {
 		"deployments",
 		"discussions",
 		"id-token",
+		"issue-fields",
 		"issues",
 		"packages",
 		"pages",

@@ -24,6 +24,7 @@ Key read permission scopes include:
 
 - `contents` (code access)
 - `issues` (issue management)
+- `issue-fields` (org issue field definitions and values — see below)
 - `pull-requests` (PR management)
 - `discussions` (discussions and comments)
 - `actions` (workflow control)
@@ -39,6 +40,27 @@ See [GitHub's permissions reference](https://docs.github.com/en/actions/using-jo
 
 - **`read-all`**: Read access to all scopes (useful for inspection workflows)
 - **`{}`**: No permissions (for computation-only workflows)
+
+### Permission: `issue-fields: read`
+
+The `issue-fields: read` permission grants read access to organization issue field definitions and issue-specific field values. It is required when your workflow uses the GitHub API to:
+
+- Query org-scoped issue field metadata (e.g., `list_issue_fields`, `list_issue_types`)
+- Read issue field values for a specific issue (e.g., `GET /repos/{owner}/{repo}/issues/{issue_number}/issue-field-values`)
+
+Without this permission, those API calls will return empty results or permission errors even when `issues: read` is present.
+
+```yaml wrap
+# Example: Read issue field definitions and values
+permissions:
+  contents: read
+  issues: read
+  issue-fields: read
+```
+
+> **Least-privilege guidance:** Only request `issue-fields: read` when the workflow needs to discover or read org issue field definitions or values. For workflows that only manage issue text, labels, or comments, `issues: read` or `issues: write` is sufficient.
+
+See [GitHub's documentation on issue fields](https://docs.github.com/en/rest/orgs/issue-fields) for the REST API reference.
 
 ### GitHub App-Only Permissions
 
