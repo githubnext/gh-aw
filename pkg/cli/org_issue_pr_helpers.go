@@ -12,7 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-var orgIPLog = logger.New("cli:org_ip")
+var orgIPLog = logger.New("cli:org_issue_pr")
 
 const (
 	// ghawUpgradeMarkerPrefix is the XML marker prefix embedded in upgrade org PRs/issues.
