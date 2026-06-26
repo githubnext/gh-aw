@@ -702,7 +702,7 @@ jobs:
           
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_ad0cafc5fd1ea2a8_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_f8b0577b4a216088_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -755,13 +755,13 @@ jobs:
                 "type": "http",
                 "url": "https://mcp.tavily.com/mcp/",
                 "headers": {
-                  "Authorization": "Bearer \\${TAVILY_API_KEY}"
+                  "Authorization": "Bearer \${TAVILY_API_KEY}"
                 },
                 "tools": [
                   "*"
                 ],
                 "env": {
-                  "TAVILY_API_KEY": "\\${TAVILY_API_KEY}"
+                  "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -784,7 +784,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_ad0cafc5fd1ea2a8_EOF
+          GH_AW_MCP_CONFIG_f8b0577b4a216088_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

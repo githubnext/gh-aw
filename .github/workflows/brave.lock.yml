@@ -749,7 +749,7 @@ jobs:
           
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_d8dc4ec84642b9a3_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_195c19de79e91501_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "brave-search": {
@@ -759,7 +759,7 @@ jobs:
                   "*"
                 ],
                 "env": {
-                  "BRAVE_API_KEY": "\\${BRAVE_API_KEY}"
+                  "BRAVE_API_KEY": "\${BRAVE_API_KEY}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -828,7 +828,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_d8dc4ec84642b9a3_EOF
+          GH_AW_MCP_CONFIG_195c19de79e91501_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
