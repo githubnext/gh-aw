@@ -44,6 +44,8 @@ func TestActionFriendlyGitHubToolsets(t *testing.T) {
 }
 
 func TestParseGitHubToolsets(t *testing.T) {
+	toolsetPermissionsMap := getToolsetPermissionsMap()
+
 	tests := []struct {
 		name     string
 		input    string
@@ -168,6 +170,8 @@ func TestParseGitHubToolsetsPreservesOrder(t *testing.T) {
 }
 
 func TestParseGitHubToolsetsDeduplication(t *testing.T) {
+	toolsetPermissionsMap := getToolsetPermissionsMap()
+
 	tests := []struct {
 		name     string
 		input    string

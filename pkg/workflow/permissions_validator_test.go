@@ -320,6 +320,8 @@ func TestFormatValidationMessage(t *testing.T) {
 }
 
 func TestToolsetPermissionsMapping(t *testing.T) {
+	toolsetPermissionsMap := getToolsetPermissionsMap()
+
 	// Verify that all toolsets are properly defined
 	expectedToolsets := []string{
 		"context", "repos", "issues", "pull_requests", "actions",
