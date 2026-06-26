@@ -958,6 +958,34 @@ func TestPromptForConfigurationFrom_ByValue(t *testing.T) {
 	}
 }
 
+func TestPromptForWorkflowNameFrom_ThenConfigurationFrom_SharedReader(t *testing.T) {
+	input := strings.NewReader(
+		"my-workflow\n" +
+			"workflow_dispatch\n" +
+			"copilot\n" +
+			"github,edit\n" +
+			"\n" +
+			"defaults\n" +
+			"This is a test workflow description with at least 20 chars\n",
+	)
+	b := &InteractiveWorkflowBuilder{}
+	if err := b.promptForWorkflowNameFrom(input); err != nil {
+		t.Fatalf("unexpected workflow name error: %v", err)
+	}
+	if err := b.promptForConfigurationFrom(input); err != nil {
+		t.Fatalf("unexpected configuration error: %v", err)
+	}
+	if b.WorkflowName != "my-workflow" {
+		t.Errorf("WorkflowName = %q, want my-workflow", b.WorkflowName)
+	}
+	if b.Trigger != "workflow_dispatch" {
+		t.Errorf("Trigger = %q, want workflow_dispatch", b.Trigger)
+	}
+	if b.Engine != "copilot" {
+		t.Errorf("Engine = %q, want copilot", b.Engine)
+	}
+}
+
 // newScannerFromString creates a bufio.Scanner backed by the given string.
 // The input must be a complete line terminated by a newline; if it is not
 // (and is non-empty), a trailing newline is appended automatically so that

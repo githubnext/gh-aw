@@ -43,6 +43,7 @@ var commonWorkflowNames = []string{
 // InteractiveWorkflowBuilder collects user input to build an agentic workflow
 type InteractiveWorkflowBuilder struct {
 	ctx           context.Context
+	nonTTYScanner *bufio.Scanner
 	WorkflowName  string
 	Trigger       string
 	Engine        string
@@ -51,6 +52,13 @@ type InteractiveWorkflowBuilder struct {
 	Intent        string
 	NetworkAccess string
 	CustomDomains []string
+}
+
+func (b *InteractiveWorkflowBuilder) ensureNonTTYScanner(r io.Reader) *bufio.Scanner {
+	if b.nonTTYScanner == nil {
+		b.nonTTYScanner = bufio.NewScanner(r)
+	}
+	return b.nonTTYScanner
 }
 
 // CreateWorkflowInteractively prompts the user to build a workflow interactively
@@ -123,7 +131,7 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowNameFrom(r io.Reader) erro
 	interactiveLog.Print("Non-TTY detected, using text prompt for workflow name")
 	fmt.Fprintf(os.Stderr, "\nWorkflow name (e.g. issue-triage, code-review-helper): ")
 
-	scanner := bufio.NewScanner(r)
+	scanner := b.ensureNonTTYScanner(r)
 	if scanner.Scan() {
 		name := strings.TrimSpace(scanner.Text())
 		if err := ValidateWorkflowName(name); err != nil {
@@ -281,7 +289,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 // promptForConfiguration so it can be exercised in unit tests without a real TTY.
 func (b *InteractiveWorkflowBuilder) promptForConfigurationFrom(r io.Reader) error {
 	interactiveLog.Print("Non-TTY detected, using text prompts for configuration")
-	scanner := bufio.NewScanner(r)
+	scanner := b.ensureNonTTYScanner(r)
 
 	// --- Trigger (single-select) ---
 	triggerOptions := []struct{ label, value string }{
