@@ -222,6 +222,62 @@ func TestRunUpgradeForOrgSkipsFailedRepos(t *testing.T) {
 	assert.Equal(t, []string{"octo/api", "octo/web"}, called, "should attempt all repos and skip failures")
 }
 
+func TestRunUpgradeForOrgCreateIssueSkipsFailedRepos(t *testing.T) {
+	origSearch := searchOrgAnyWorkflowReposFn
+	origUpgrade := runUpgradeForTargetRepoFn
+	origIssue := createIssueForUpgradeOrgRepoFn
+	origWait := waitForOrgRateLimitFn
+	searchOrgAnyWorkflowReposFn = func(_ context.Context, _ string, _ bool) ([]string, error) {
+		return []string{"octo/api", "octo/web"}, nil
+	}
+	runUpgradeForTargetRepoFn = func(_ context.Context, repo string, _ upgradeOptions, _ bool) error {
+		t.Fatalf("unexpected upgrade call for %s", repo)
+		return nil
+	}
+	boom := errors.New("issue failed")
+	var called []string
+	createIssueForUpgradeOrgRepoFn = func(_ context.Context, repo string, _ bool) error {
+		called = append(called, repo)
+		return boom
+	}
+	waitForOrgRateLimitFn = func(_ context.Context, _ string, _ bool) error { return nil }
+	defer func() {
+		searchOrgAnyWorkflowReposFn = origSearch
+		runUpgradeForTargetRepoFn = origUpgrade
+		createIssueForUpgradeOrgRepoFn = origIssue
+		waitForOrgRateLimitFn = origWait
+	}()
+
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, false, true, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create issues in any repository")
+	assert.Equal(t, []string{"octo/api", "octo/web"}, called, "should attempt all repos and skip failures")
+}
+
+func TestRunUpgradeForOrgSortsAlphabeticallyWhenScanDisabled(t *testing.T) {
+	origSearch := searchOrgAnyWorkflowReposFn
+	origUpgrade := runUpgradeForTargetRepoFn
+	origWait := waitForOrgRateLimitFn
+	searchOrgAnyWorkflowReposFn = func(_ context.Context, _ string, _ bool) ([]string, error) {
+		return []string{"octo/zoo", "octo/alpha", "octo/middle"}, nil
+	}
+	var called []string
+	runUpgradeForTargetRepoFn = func(_ context.Context, repo string, _ upgradeOptions, _ bool) error {
+		called = append(called, repo)
+		return nil
+	}
+	waitForOrgRateLimitFn = func(_ context.Context, _ string, _ bool) error { return nil }
+	defer func() {
+		searchOrgAnyWorkflowReposFn = origSearch
+		runUpgradeForTargetRepoFn = origUpgrade
+		waitForOrgRateLimitFn = origWait
+	}()
+
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"octo/alpha", "octo/middle", "octo/zoo"}, called)
+}
+
 func captureUpgradeOrgStderr(t *testing.T, fn func()) string {
 	t.Helper()
 	orig := os.Stderr

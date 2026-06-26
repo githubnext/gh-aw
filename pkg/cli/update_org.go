@@ -70,11 +70,8 @@ type orgRepoPreview struct {
 func runUpdateForOrg(ctx context.Context, org string, repoGlobs []string, opts UpdateWorkflowsOptions, createPR bool, createIssue bool, verbose bool) error {
 	clearUpdateResolutionCaches()
 
-	orgUpdateLog.Printf("Previewing updates for repositories in %s", org)
-
 	// scanFn previews a single repo and decides whether to include it.
-	// It also prints per-repo progress to stderr so the user can see which
-	// workflows are being inspected.
+	// It also prints a per-repo workflow summary to stderr.
 	scanFn := func(ctx context.Context, repo string, v bool) (orgRepoPreview, bool, error) {
 		preview, err := previewOrgRepoUpdatesFn(ctx, repo, opts, v)
 		if err != nil {
