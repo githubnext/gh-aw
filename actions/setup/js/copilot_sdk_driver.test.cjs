@@ -336,7 +336,6 @@ describe("copilot_sdk_driver.cjs", () => {
       // Regression test: when sendAndWait hangs after the agent's final tool result
       // (the SDK post-completion hang), the watchdog must force-disconnect and the
       // driver must return exitCode 0 with the collected output.
-      const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
       let onEvent = () => {};
       // disconnectCalled resolves when the watchdog calls session.disconnect()
@@ -577,7 +576,8 @@ describe("copilot_sdk_driver.cjs", () => {
             timestamp: new Date().toISOString(),
             data: { content: "completed normally" },
           });
-          // sendAndWait resolves before watchdog fires (watchdog idle = 20ms in test).
+          // sendAndWait resolves before watchdog fires (watchdog idle = 500ms in test —
+          // large enough that normal completion always wins the race on any CI runner).
           return { data: { content: "completed normally" } };
         }),
         disconnect,
@@ -589,7 +589,7 @@ describe("copilot_sdk_driver.cjs", () => {
       }
 
       const prevIdleMs = process.env.GH_AW_SDK_IDLE_MS;
-      process.env.GH_AW_SDK_IDLE_MS = "20";
+      process.env.GH_AW_SDK_IDLE_MS = "500";
       try {
         const result = await runWithCopilotSDK({
           sdkUri: "http://127.0.0.1:3002",
