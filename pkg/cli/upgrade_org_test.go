@@ -83,7 +83,9 @@ func TestRunUpgradeForOrgCreateIssueRequiresYesInCI(t *testing.T) {
 func TestRunUpgradeForOrgCreatePRRequiresYesInCI(t *testing.T) {
 	origIsCI := isRunningInCIFn
 	isRunningInCIFn = func() bool { return true }
-	defer func() { isRunningInCIFn = origIsCI }()
+	defer func() {
+		isRunningInCIFn = origIsCI
+	}()
 
 	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
 	require.Error(t, err)
