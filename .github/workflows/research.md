@@ -23,7 +23,9 @@ network:
     - node
 
 sandbox:
-  agent: awf  # Firewall enabled (migrated from network.firewall)
+  agent:
+    id: awf
+    sudo: false
 imports:
   - shared/mcp/tavily.md
   - shared/reporting.md

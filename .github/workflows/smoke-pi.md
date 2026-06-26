@@ -24,6 +24,7 @@ engine:
 strict: true
 sandbox:
   agent:
+    sudo: false
     config:
       filesystem:
         allowWrite:

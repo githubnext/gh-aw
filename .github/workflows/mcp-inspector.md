@@ -20,7 +20,9 @@ network:
     - node-cdns
     - fonts
 sandbox:
-  agent: awf  # Firewall enabled (migrated from network.firewall)
+  agent:
+    id: awf
+    sudo: false
 timeout-minutes: 20
 strict: false
 imports:
