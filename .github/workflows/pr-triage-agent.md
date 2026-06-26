@@ -64,7 +64,7 @@ You triage open agent-created PRs: categorize, score risk/priority, recommend ac
 
 - Load prior state from `/tmp/gh-aw/repo-memory/default/` when present.
 - Fetch open PRs authored by `app/github-copilot`.
-- Keep **fork PRs only** (`head.repo.full_name != base.repo.full_name`).
+- Keep PRs authored by `app/github-copilot`, including same-repo branches and forks.
 - Capture number/title/body/files/CI/age/labels/review status/comments and optional agent-quality metadata.
 
 ### Phase 2: Classify and assess risk
@@ -133,7 +133,7 @@ Write `/tmp/gh-aw/repo-memory/default/pr-triage-latest.json` containing run meta
 
 ## Success Criteria
 
-- 100% of eligible open fork PRs triaged.
+- 100% of eligible open `app/github-copilot` PRs triaged.
 - Every triaged PR has labels + recommendation.
 - Report is easy to act on and concise.
 
