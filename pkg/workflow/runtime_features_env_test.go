@@ -126,6 +126,9 @@ func TestActivationJobIncludesPolicyStrictEnforcementStepForNonStrictWorkflows(t
 	if !strings.Contains(steps, "contains(toJSON(vars),") {
 		t.Fatal("expected strict mode policy enforcement step to use contains(toJSON(vars)) detection")
 	}
+	if !strings.Contains(steps, "'\"GH_AW_POLICY_STRICT\":'") {
+		t.Fatal("expected strict mode policy enforcement condition to check for GH_AW_POLICY_STRICT presence")
+	}
 }
 
 func TestActivationJobDoesNotIncludePolicyStrictEnforcementStepForStrictWorkflows(t *testing.T) {
