@@ -136,7 +136,7 @@ func countWorkflowMDFiles(workflowsDir string) (int, error) {
 	count := 0
 	for _, e := range entries {
 		name := e.Name()
-		if !e.IsDir() && strings.HasSuffix(name, ".md") && !strings.HasSuffix(name, ".lock.yml") {
+		if !e.IsDir() && strings.HasSuffix(name, ".md") {
 			count++
 		}
 	}
