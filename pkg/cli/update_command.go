@@ -54,6 +54,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
   ` + string(constants.CLIExtensionPrefix) + ` update --org my-org --repos '*-service'  # Limit org mode to matching repositories
   ` + string(constants.CLIExtensionPrefix) + ` update --org my-org --create-issue  # Open issues in repos with pending updates
   ` + string(constants.CLIExtensionPrefix) + ` update --org my-org --create-issue --yes  # Auto-accept per-repo confirmations (required in CI)
+  ` + string(constants.CLIExtensionPrefix) + ` update --org my-org --create-pull-request --yes  # Auto-accept per-repo confirmations for PR creation (required in CI)
   ` + string(constants.CLIExtensionPrefix) + ` update --no-merge         # Override local changes with upstream
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist --major # Allow major version updates
   ` + string(constants.CLIExtensionPrefix) + ` update --force            # Force update even if no changes

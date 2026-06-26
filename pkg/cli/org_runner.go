@@ -157,6 +157,9 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 	if createIssue && cbs.IssueFn == nil {
 		return errors.New("orgRunCallbacks.IssueFn is required when createIssue is true")
 	}
+	if (createPR || createIssue) && !cbs.AutoYes && isRunningInCIFn() {
+		return errors.New("confirmation is required for --org create operations in CI; re-run with --yes to auto-accept")
+	}
 
 	// Handle Ctrl-C / SIGTERM so an interrupted run still renders the report
 	// gathered so far instead of exiting abruptly.
@@ -286,9 +289,6 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 
 	if !createPR && !createIssue {
 		return nil
-	}
-	if !cbs.AutoYes && isRunningInCIFn() {
-		return errors.New("confirmation is required for --org create operations in CI; re-run with --yes to auto-accept")
 	}
 
 	if createIssue {

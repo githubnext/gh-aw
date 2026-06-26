@@ -66,6 +66,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org       # Preview upgrade pull requests across an organization
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org --repos '*-service'  # Limit org mode to matching repositories
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org --create-pull-request  # Open upgrade pull requests in org repositories
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org --create-pull-request --yes  # Auto-accept per-repo confirmations for PR creation (required in CI)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org --create-issue  # Open issues in org repos with agentic workflows
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org --create-issue --yes  # Auto-accept per-repo confirmations (required in CI)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit           # Check dependency health without upgrading

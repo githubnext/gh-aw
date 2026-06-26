@@ -43,6 +43,7 @@ func TestNewUpdateCommandOrgFlags(t *testing.T) {
 	assert.Contains(t, cmd.Example, "--org my-org")
 	assert.Contains(t, cmd.Example, "--repos '*-service'")
 	assert.Contains(t, cmd.Example, "--create-issue")
+	assert.Contains(t, cmd.Example, "--create-pull-request --yes")
 }
 
 func TestRunUpdateForOrgCreateIssueRequiresYesInCI(t *testing.T) {

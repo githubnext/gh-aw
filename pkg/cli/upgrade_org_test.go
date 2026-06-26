@@ -29,6 +29,7 @@ func TestNewUpgradeCommandOrgFlags(t *testing.T) {
 	assert.Contains(t, cmd.Example, "--org my-org")
 	assert.Contains(t, cmd.Example, "--repos '*-service'")
 	assert.Contains(t, cmd.Example, "--create-issue")
+	assert.Contains(t, cmd.Example, "--create-pull-request --yes")
 }
 
 func TestRunUpgradeForOrgCreateIssueAutoAcceptsWithYes(t *testing.T) {
@@ -65,6 +66,35 @@ func TestRunUpgradeForOrgCreateIssueAutoAcceptsWithYes(t *testing.T) {
 	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, false, true, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/api"}, issued)
+}
+
+func TestRunUpgradeForOrgCreateIssueRequiresYesInCI(t *testing.T) {
+	origSearch := searchOrgLockWorkflowReposFn
+	origScan := scanUpgradeRepoFn
+	origIssue := createIssueForUpgradeOrgRepoFn
+	origWait := waitForOrgRateLimitFn
+	origIsCI := isRunningInCIFn
+	searchOrgLockWorkflowReposFn = func(ctx context.Context, org string, verbose bool) ([]string, error) {
+		return []string{"octo/api"}, nil
+	}
+	scanUpgradeRepoFn = mockScanUpgradeRepo
+	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
+	createIssueForUpgradeOrgRepoFn = func(ctx context.Context, repo string, verbose bool) error {
+		t.Fatalf("issue creation should not run in CI without --yes")
+		return nil
+	}
+	isRunningInCIFn = func() bool { return true }
+	defer func() {
+		searchOrgLockWorkflowReposFn = origSearch
+		scanUpgradeRepoFn = origScan
+		createIssueForUpgradeOrgRepoFn = origIssue
+		waitForOrgRateLimitFn = origWait
+		isRunningInCIFn = origIsCI
+	}()
+
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, false, true, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--yes")
 }
 
 func TestRunUpgradeForOrgEmptyOrg(t *testing.T) {
