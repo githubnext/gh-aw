@@ -1860,6 +1860,112 @@ func TestMainWorkflowSchema_SandboxAgentModelFallback(t *testing.T) {
 	}
 }
 
+// TestMainWorkflowSchema_SandboxAgentSudo verifies that sandbox.agent.sudo is
+// accepted by the schema validator (regression for #41679 where the schema was
+// not updated to include the renamed field).
+func TestMainWorkflowSchema_SandboxAgentSudo(t *testing.T) {
+	t.Parallel()
+
+	t.Run("sudo: false is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"id":   "awf",
+					"sudo": false,
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-sudo-false-test.md")
+		if err != nil {
+			t.Fatalf("expected sandbox.agent.sudo: false to pass schema validation, got: %v", err)
+		}
+	})
+
+	t.Run("sudo: true is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"id":   "awf",
+					"sudo": true,
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-sudo-true-test.md")
+		if err != nil {
+			t.Fatalf("expected sandbox.agent.sudo: true to pass schema validation, got: %v", err)
+		}
+	})
+
+	t.Run("sudo without id is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"sudo": false,
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-sudo-no-id-test.md")
+		if err != nil {
+			t.Fatalf("expected sandbox.agent.sudo: false (without id) to pass schema validation, got: %v", err)
+		}
+	})
+
+	t.Run("network-isolation (old field) is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"id":                "awf",
+					"network-isolation": true,
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-network-isolation-test.md")
+		if err == nil {
+			t.Error("expected sandbox.agent.network-isolation to be rejected (field was renamed to sudo)")
+		}
+	})
+
+	t.Run("non-boolean sudo is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"id":   "awf",
+					"sudo": "false",
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-sudo-string-test.md")
+		if err == nil {
+			t.Error("expected sandbox.agent.sudo with string value to be rejected by schema validation")
+		}
+	})
+}
+
 // TestValidateWithSchema_YAMLIntegerTypes verifies that validateWithSchema accepts
 // YAML-native integer types (uint64/int64) when the schema expects number/integer.
 func TestValidateWithSchema_YAMLIntegerTypes(t *testing.T) {
