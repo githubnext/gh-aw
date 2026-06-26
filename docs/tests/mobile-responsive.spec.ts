@@ -199,4 +199,44 @@ test.describe('Mobile and Responsive Layout', () => {
 
     await context.close();
   });
+
+  // Verify mobile navigation toggle: hamburger menu nav links become visible on narrow viewports.
+  // Addresses the manual verification recommendation from the 2026-06-24 multi-device docs test report.
+  test('mobile nav toggle shows nav links on narrow viewports', async ({ browser }) => {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      javaScriptEnabled: true,
+    });
+    const page = await context.newPage();
+
+    await page.goto('/gh-aw/introduction/overview/');
+    await page.waitForLoadState('networkidle');
+
+    // The hamburger button must be present and focusable on a narrow mobile viewport.
+    const hamburgerBtn = page.locator('.hamburger-btn');
+    await expect(hamburgerBtn).toBeVisible();
+    await expect(hamburgerBtn).toHaveAttribute('aria-expanded', 'false');
+
+    // The dropdown must be hidden before the button is clicked.
+    const dropdown = page.locator('.tablet-dropdown');
+    await expect(dropdown).toBeHidden();
+
+    // Click the button; the dropdown must become visible and contain nav links.
+    await hamburgerBtn.click();
+    await expect(hamburgerBtn).toHaveAttribute('aria-expanded', 'true');
+    await expect(dropdown).toBeVisible();
+
+    const navLinks = dropdown.locator('.dropdown-link');
+    await expect(navLinks).toHaveCount(7);
+    for (const link of await navLinks.all()) {
+      await expect(link).toBeVisible();
+    }
+
+    // A second click must close the dropdown.
+    await hamburgerBtn.click();
+    await expect(hamburgerBtn).toHaveAttribute('aria-expanded', 'false');
+    await expect(dropdown).toBeHidden();
+
+    await context.close();
+  });
 });
