@@ -24,14 +24,28 @@ type LSPManager struct {
 }
 
 func NewLSPManager(servers map[string]LSPServerConfig) *LSPManager {
+	// Sort keys for deterministic normalization order so that when two keys
+	// collapse to the same lowercase value (e.g. "TypeScript" and "typescript"),
+	// the lexicographically first original key always wins and the duplicate is
+	// logged rather than silently lost.
+	keys := make([]string, 0, len(servers))
+	for k := range servers {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	normalized := make(map[string]LSPServerConfig, len(servers))
-	for key, value := range servers {
+	for _, key := range keys {
 		language := strings.TrimSpace(strings.ToLower(key))
 		if language == "" {
 			lspManagerLog.Printf("Skipping invalid LSP language key: %q", key)
 			continue
 		}
-		config := value
+		if _, exists := normalized[language]; exists {
+			lspManagerLog.Printf("Duplicate LSP language key %q (normalizes to %q): entry ignored", key, language)
+			continue
+		}
+		config := servers[key]
 		config.Command = strings.TrimSpace(config.Command)
 		normalized[language] = config
 	}

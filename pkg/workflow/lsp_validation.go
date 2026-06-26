@@ -12,10 +12,7 @@ func (c *Compiler) validateLSPSupport(workflowData *WorkflowData) error {
 		return err
 	}
 
-	engineID := workflowData.AI
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
-		engineID = workflowData.EngineConfig.ID
-	}
+	engineID := ResolveEngineID(workflowData)
 	if engineID == "" {
 		engineID = "copilot"
 	}

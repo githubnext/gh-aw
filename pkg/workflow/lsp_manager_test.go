@@ -30,6 +30,30 @@ func TestLSPManagerValidate(t *testing.T) {
 	require.Error(t, invalid.Validate())
 }
 
+func TestLSPManagerDuplicateKeyNormalization(t *testing.T) {
+	// "TypeScript" and "typescript" both normalize to "typescript".
+	// Sorted order puts "TypeScript" first (uppercase < lowercase in ASCII),
+	// so the "TypeScript" entry should win deterministically.
+	manager := NewLSPManager(map[string]LSPServerConfig{
+		"TypeScript": {
+			Command: "first-server",
+			FileExtensions: map[string]string{
+				".ts": "typescript",
+			},
+		},
+		"typescript": {
+			Command: "second-server",
+			FileExtensions: map[string]string{
+				".ts": "typescript",
+			},
+		},
+	})
+
+	servers := manager.CopilotLSPServers()
+	require.Len(t, servers, 1)
+	assert.Equal(t, "first-server", servers["typescript"].Command)
+}
+
 func TestLSPManagerGenerateInstallSteps(t *testing.T) {
 	manager := NewLSPManager(map[string]LSPServerConfig{
 		"typescript": {
