@@ -342,6 +342,52 @@ describe("add_workflow_run_comment", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
+    it("updates reusable centralized slash-command discussion comments via GraphQL", async () => {
+      mockGithub.graphql.mockResolvedValue({
+        updateDiscussionComment: {
+          comment: {
+            id: "DC_kwDOReusable123",
+            url: "https://github.com/targetowner/targetrepo/discussions/789#discussioncomment-67890",
+          },
+        },
+      });
+      global.context = {
+        eventName: "workflow_dispatch",
+        runId: 12345,
+        repo: { owner: "workflowowner", repo: "workflowrepo" },
+        payload: {
+          inputs: {
+            aw_context: JSON.stringify({
+              repo: "targetowner/targetrepo",
+              event_type: "discussion_comment",
+              item_type: "discussion",
+              item_number: 789,
+              command_name: "plan",
+              status_comment_id: "DC_kwDOReusable123",
+              status_comment_url: "https://github.com/targetowner/targetrepo/discussions/789#discussioncomment-67890",
+              status_comment_repo: "statusowner/statusrepo",
+            }),
+          },
+        },
+      };
+
+      await runScript();
+
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("updateDiscussionComment"),
+        expect.objectContaining({
+          commentId: "DC_kwDOReusable123",
+          body: expect.stringContaining("https://github.com/workflowowner/workflowrepo/actions/runs/12345"),
+        })
+      );
+      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "DC_kwDOReusable123");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/targetowner/targetrepo/discussions/789#discussioncomment-67890");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "statusowner/statusrepo");
+      expect(mockCore.info).toHaveBeenCalledWith("Updated reusable status comment with current workflow run metadata");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
     it("updates reusable discussion comments via GraphQL", async () => {
       mockGithub.graphql.mockResolvedValue({
         updateDiscussionComment: {

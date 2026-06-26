@@ -26,6 +26,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/httpnoctx"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
+	"github.com/github/gh-aw/pkg/linters/lenstringsplit"
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
@@ -35,8 +36,11 @@ import (
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/seenmapbool"
 	"github.com/github/gh-aw/pkg/linters/sortslice"
+	"github.com/github/gh-aw/pkg/linters/sprintferrdot"
+	"github.com/github/gh-aw/pkg/linters/sprintferrorsnew"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
+	"github.com/github/gh-aw/pkg/linters/stringreplaceminusone"
 	"github.com/github/gh-aw/pkg/linters/timeafterleak"
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
@@ -57,7 +61,7 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 31 analyzer
+// "Public API > Subpackages" table. The README documents 35 analyzers
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
@@ -65,10 +69,11 @@ type docAnalyzer struct {
 //
 //	contextcancelnotdeferred, ctxbackground, deferinloop, errorfwrapv, excessivefuncparams, errormessage,
 //	errstringmatch, execcommandwithoutcontext, fileclosenotdeferred, fmterrorfnoverbs, fprintlnsprintf,
-//	hardcodedfilepath, httpnoctx, jsonmarshalignoredeerror, largefunc, lenstringzero,
+//	hardcodedfilepath, httpnoctx, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
 //	manualmutexunlock, osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
-//	regexpcompileinfunction, seenmapbool, sortslice, ssljson, strconvparseignorederror,
-//	timeafterleak, timesleepnocontext, tolowerequalfold, uncheckedtypeassertion, wgdonenotdeferred
+//	regexpcompileinfunction, seenmapbool, sortslice, sprintferrdot, sprintferrorsnew, ssljson,
+//	strconvparseignorederror, stringreplaceminusone, timeafterleak, timesleepnocontext,
+//	tolowerequalfold, uncheckedtypeassertion, wgdonenotdeferred
 func documentedAnalyzers() []docAnalyzer {
 	return []docAnalyzer{
 		{"contextcancelnotdeferred", contextcancelnotdeferred.Analyzer},
@@ -86,6 +91,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"httpnoctx", httpnoctx.Analyzer},
 		{"jsonmarshalignoredeerror", jsonmarshalignoredeerror.Analyzer},
 		{"largefunc", largefunc.Analyzer},
+		{"lenstringsplit", lenstringsplit.Analyzer},
 		{"lenstringzero", lenstringzero.Analyzer},
 		{"manualmutexunlock", manualmutexunlock.Analyzer},
 		{"osexitinlibrary", osexitinlibrary.Analyzer},
@@ -95,8 +101,11 @@ func documentedAnalyzers() []docAnalyzer {
 		{"regexpcompileinfunction", regexpcompileinfunction.Analyzer},
 		{"seenmapbool", seenmapbool.Analyzer},
 		{"sortslice", sortslice.Analyzer},
+		{"sprintferrdot", sprintferrdot.Analyzer},
+		{"sprintferrorsnew", sprintferrorsnew.Analyzer},
 		{"ssljson", ssljson.Analyzer},
 		{"strconvparseignorederror", strconvparseignorederror.Analyzer},
+		{"stringreplaceminusone", stringreplaceminusone.Analyzer},
 		{"timeafterleak", timeafterleak.Analyzer},
 		{"timesleepnocontext", timesleepnocontext.Analyzer},
 		{"tolowerequalfold", tolowerequalfold.Analyzer},

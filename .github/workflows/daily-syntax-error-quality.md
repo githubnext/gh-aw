@@ -114,7 +114,7 @@ cat /tmp/gh-aw/agent/candidates.txt
 1. Simple workflow (< 100 lines, minimal config)
 2. Complex workflow (> 300 lines, many tools/features)
 
-## Phase 2: Generate Syntax Errors
+### Phase 2: Generate Syntax Errors
 
 For each selected workflow, create exactly **1 test case** with a different error type:
 
@@ -177,7 +177,7 @@ For each workflow:
    }
    ```
 
-## Phase 3: Run Compiler and Capture Output
+### Phase 3: Run Compiler and Capture Output
 
 For each test case:
 
@@ -225,7 +225,7 @@ test-1 | <workflow> | <error type> | clarity:<n>/25 actionability:<n>/25 context
 
 Collect key strengths (1–2 bullets) and improvement suggestions (1–2 bullets) per test. Do **not** reproduce the full compiler output in your report — reference file:line only.
 
-## Phase 6: Create Issue with Suggestions
+### Phase 6: Create Issue with Suggestions
 
 **Only create an issue if**:
 - Average score < 65 across all test cases, OR

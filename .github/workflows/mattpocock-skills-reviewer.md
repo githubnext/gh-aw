@@ -251,7 +251,7 @@ Applied **`/tdd`** and **`/zoom-out`** — requesting changes on test coverage g
 If the review is complex or the overall findings are significant, post a single `add-comment` with a concise summary for the author. Apply progressive disclosure: one-line outcome visible, details in `<details>` blocks.
 Use `###` or lower for any headers — never `#` or `##`.
 
-## Scope Rules
+### Scope Rules
 
 - **Review changed lines only** — do not critique unchanged code
 - **Prioritise impact** — security > correctness > maintainability > style
@@ -259,7 +259,7 @@ Use `###` or lower for any headers — never `#` or `##`.
 - **Skip auto-generated files** — lock files, generated code, build artifacts
 - **Be constructive** — suggest improvements, not just problems
 
-## Tone
+### Tone
 
 - Professional and collegial — not grumpy, not sycophantic
 - Reference skills by name so the author can learn more
