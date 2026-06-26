@@ -76,6 +76,40 @@ func TestComputeFirewallDiff_RemovedDomains(t *testing.T) {
 	assert.Equal(t, "allowed", diff.RemovedDomains[0].Run1Status, "Domain was allowed in run 1")
 	assert.Equal(t, 8, diff.RemovedDomains[0].Run1Allowed, "Domain had 8 allowed requests")
 	assert.Equal(t, 1, diff.Summary.RemovedDomainCount, "Summary should show 1 removed domain")
+	// An allowed-only removed domain must NOT be an anomaly.
+	assert.False(t, diff.RemovedDomains[0].IsAnomaly, "Allowed removed domain should not be an anomaly")
+	assert.False(t, diff.Summary.HasAnomalies, "No anomalies expected for an allowed removed domain")
+}
+
+// TestComputeFirewallDiff_RemovedDeniedDomain verifies that a domain which was denied in
+// the base run but is absent from the comparison run is flagged as an anomaly.  This
+// covers the false-red scenario where awmg-mcpg:8080 is blocked in the failed run but
+// is simply absent (no traffic) in the green run — the block should still be surfaced.
+func TestComputeFirewallDiff_RemovedDeniedDomain(t *testing.T) {
+	run1 := &FirewallAnalysis{
+		RequestsByDomain: map[string]DomainRequestStats{
+			"api.github.com:443": {Allowed: 10, Blocked: 0},
+			"awmg-mcpg:8080":     {Allowed: 0, Blocked: 1},
+		},
+	}
+	run2 := &FirewallAnalysis{
+		RequestsByDomain: map[string]DomainRequestStats{
+			"api.github.com:443": {Allowed: 10, Blocked: 0},
+		},
+	}
+
+	diff := computeFirewallDiff(100, 200, run1, run2)
+
+	assert.Len(t, diff.RemovedDomains, 1, "Should have 1 removed domain")
+	entry := diff.RemovedDomains[0]
+	assert.Equal(t, "awmg-mcpg:8080", entry.Domain)
+	assert.Equal(t, "removed", entry.Status)
+	assert.Equal(t, "denied", entry.Run1Status, "Domain was denied in run 1")
+	assert.Equal(t, 1, entry.Run1Blocked, "Domain had 1 blocked request")
+	assert.True(t, entry.IsAnomaly, "Denied removed domain should be an anomaly")
+	assert.NotEmpty(t, entry.AnomalyNote, "Anomaly note should be set")
+	assert.True(t, diff.Summary.HasAnomalies, "Summary should report anomalies")
+	assert.Equal(t, 1, diff.Summary.AnomalyCount, "Should have 1 anomaly")
 }
 
 func TestComputeFirewallDiff_StatusChanges(t *testing.T) {

@@ -72,6 +72,32 @@ async function runLogParser(options) {
     return count;
   }
 
+  /**
+   * Checks whether the agent ran at least one turn to completion.
+   * Used to distinguish a post-completion MCP relaunch failure (non-fatal)
+   * from a startup failure where the agent never ran (fatal).
+   *
+   * Handles both log formats:
+   *   - Legacy format (Codex, Copilot, etc.): { type: "result", num_turns: N }
+   *   - Copilot event format (Claude): { type: "session.result", data: { numTurns: N } }
+   *
+   * @param {Array|null|undefined} entries
+   * @returns {boolean}
+   */
+  function agentRanToCompletion(entries) {
+    if (!entries || !Array.isArray(entries) || entries.length === 0) {
+      return false;
+    }
+    return entries.some(e => {
+      if (!e || typeof e !== "object") return false;
+      // Legacy format
+      if (e.type === "result" && typeof e.num_turns === "number" && e.num_turns > 0) return true;
+      // Copilot event format (Claude)
+      if (e.type === "session.result" && e.data && typeof e.data.numTurns === "number" && e.data.numTurns > 0) return true;
+      return false;
+    });
+  }
+
   try {
     const logPath = process.env.GH_AW_AGENT_OUTPUT;
     if (!logPath) {
@@ -309,6 +335,13 @@ async function runLogParser(options) {
       const failedServers = mcpFailures.join(", ");
       if (safeOutputEntriesCount > 0) {
         core.warning(`MCP server(s) failed to launch (${failedServers}), but agent completed with ${safeOutputEntriesCount} safe output ${safeOutputEntriesCount === 1 ? "entry" : "entries"}`);
+      } else if (agentRanToCompletion(logEntries)) {
+        // The agent ran turns to completion even though an MCP server failed to launch.
+        // This is a post-completion relaunch/health-probe failure — the MCP server was
+        // healthy during execution (the agent used it throughout the run) and the failure
+        // occurred after the work was done.  Treat as non-fatal so genuine task success
+        // is not masked by a transient infrastructure event.
+        core.warning(`MCP server(s) failed to launch (${failedServers}), but agent completed turns — treating as non-fatal post-completion relaunch`);
       } else {
         core.setFailed(`${ERR_API}: MCP server(s) failed to launch: ${failedServers}`);
       }
