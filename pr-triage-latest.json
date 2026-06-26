@@ -1,30 +1,38 @@
 {
-  "run_date": "2026-06-26T07:37:00Z",
-  "run_id": "28224135185",
-  "previous_run_id": "28210925990",
-  "previous_run_date": "2026-06-26T01:20:00Z",
+  "run_date": "2026-06-26T12:59:42Z",
+  "run_id": "28239513901",
+  "previous_run_id": "28224135185",
+  "previous_run_date": "2026-06-26T07:37:00Z",
   "fork_prs": 0,
-  "agent_prs_found": 6,
+  "agent_prs_found": 11,
   "prs_triaged": 0,
   "fork_only_policy": true,
   "open_agent_prs": [
-    {"number": 41628, "title": "Enable sandbox.agent.sudo: false on 20 agentic workflows", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-26T07:13:49Z", "updated_at": "2026-06-26T07:14:20Z", "additions": 182, "deletions": 192, "changed_files": 40, "ci": "blocked", "category": "chore", "risk": "medium"},
-    {"number": 41627, "title": "improve update/upgrade --org: version tags, current version display, unified repo discovery", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-26T07:04:33Z", "updated_at": "2026-06-26T07:05:10Z", "additions": 388, "deletions": 64, "changed_files": 6, "ci": "unstable", "category": "feature", "risk": "medium"},
-    {"number": 41625, "title": "fix: replace deprecated gpt-5-mini with gpt-5.4-mini in daily-model-resolution workflow", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-26T06:56:21Z", "updated_at": "2026-06-26T07:11:59Z", "additions": 8, "deletions": 8, "changed_files": 3, "ci": "unstable", "category": "bug", "risk": "low"},
-    {"number": 41623, "title": "Replace AWF runtime Python patch with shared JavaScript helper", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-26T06:50:18Z", "updated_at": "2026-06-26T07:03:37Z", "additions": 396, "deletions": 3418, "changed_files": 266, "ci": "blocked", "category": "refactor", "risk": "high"},
-    {"number": 41617, "title": "Update `gh aw update --org` to support workflow-targeted updates and repo prefiltering", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-26T06:31:20Z", "updated_at": "2026-06-26T07:15:17Z", "additions": 225, "deletions": 13, "changed_files": 5, "ci": "unstable", "category": "feature", "risk": "medium"},
-    {"number": 41295, "title": "fix: apply_samples derivePrHeadRef uses target-repo config for siderepo PR lookups", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-24T19:34:18Z", "updated_at": "2026-06-24T19:40:54Z", "additions": 68, "deletions": 4, "changed_files": 3, "ci": "unknown", "category": "bug", "risk": "medium"}
+    {"number": 41695, "title": "[WIP] Debug workflow failure for Go Logger Enhancement", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-26T12:47:43Z", "updated_at": "2026-06-26T12:58:18Z", "additions": 0, "deletions": 0, "changed_files": 0, "ci": "unknown", "category": "chore", "risk": "unknown"},
+    {"number": 41694, "title": "chore: verify all 15 drifted network ecosystem identifiers are present in designer SKILL.md", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-26T12:47:30Z", "updated_at": "2026-06-26T13:00:18Z", "additions": 0, "deletions": 0, "changed_files": 0, "ci": "unknown", "category": "chore", "risk": "low"},
+    {"number": 41693, "title": "[WIP] Fix empty message field in logs for future/old dates", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-26T12:46:31Z", "updated_at": "2026-06-26T12:46:31Z", "additions": 0, "deletions": 0, "changed_files": 0, "ci": "unknown", "category": "bug", "risk": "unknown"},
+    {"number": 41692, "title": "[WIP] Update handlers to use standardized error codes", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-26T12:45:07Z", "updated_at": "2026-06-26T12:45:07Z", "additions": 0, "deletions": 0, "changed_files": 0, "ci": "unknown", "category": "refactor", "risk": "unknown"},
+    {"number": 41691, "title": "[WIP] Update GitHub Actions versions to latest compatible releases", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-26T12:44:32Z", "updated_at": "2026-06-26T12:52:25Z", "additions": 0, "deletions": 0, "changed_files": 0, "ci": "unknown", "category": "chore", "risk": "low"},
+    {"number": 41682, "title": "Enforce `GH_AW_POLICY_STRICT` at runtime for non-strict compiled workflows", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-26T12:04:46Z", "updated_at": "2026-06-26T12:57:49Z", "additions": 103, "deletions": 0, "changed_files": 4, "ci": "unknown", "category": "feature", "risk": "medium"},
+    {"number": 41681, "title": "parser: add schema validation tests for sandbox.agent.sudo (regression guard for #41679)", "draft": true, "is_fork": false, "labels": [], "created_at": "2026-06-26T12:03:37Z", "updated_at": "2026-06-26T12:21:09Z", "additions": 106, "deletions": 0, "changed_files": 1, "ci": "unknown", "category": "test", "risk": "low"},
+    {"number": 41675, "title": "fix(harness): exit 0 when expected safe-outputs already produced despite numerous permission-denied", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-26T11:59:55Z", "updated_at": "2026-06-26T12:52:10Z", "additions": 282, "deletions": 4, "changed_files": 6, "ci": "unknown", "category": "bug", "risk": "medium"},
+    {"number": 41674, "title": "Refactor duplicated key sorting, engine env assembly, and engine max-* codemods", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-26T11:59:41Z", "updated_at": "2026-06-26T12:49:22Z", "additions": 250, "deletions": 292, "changed_files": 8, "ci": "unknown", "category": "refactor", "risk": "medium"},
+    {"number": 41627, "title": "improve update/upgrade --org: version tags, current version display, unified repo discovery", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-26T07:04:33Z", "updated_at": "2026-06-26T12:51:04Z", "additions": 571, "deletions": 71, "changed_files": 10, "ci": "unknown", "category": "feature", "risk": "medium"},
+    {"number": 41295, "title": "fix: apply_samples derivePrHeadRef uses target-repo config for siderepo PR lookups", "draft": false, "is_fork": false, "labels": [], "created_at": "2026-06-24T19:34:18Z", "updated_at": "2026-06-26T12:18:27Z", "additions": 68, "deletions": 4, "changed_files": 3, "ci": "unknown", "category": "bug", "risk": "medium"}
   ],
   "closed_since_last_run": [
-    {"number": 41555, "title": "Bump default gh-aw-firewall to v0.27.11 and regenerate pinned workflow artifacts"},
-    {"number": 41553, "title": "refactor: extract shared org-wide runner for update and upgrade commands"}
+    {"number": 41628, "title": "Enable sandbox.agent.sudo: false on 20 agentic workflows"},
+    {"number": 41625, "title": "fix: replace deprecated gpt-5-mini with gpt-5.4-mini in daily-model-resolution workflow"},
+    {"number": 41623, "title": "Replace AWF runtime Python patch with shared JavaScript helper"},
+    {"number": 41617, "title": "Update `gh aw update --org` to support workflow-targeted updates and repo prefiltering"}
   ],
   "statistics": {
-    "total_open_copilot_prs": 6,
-    "draft_prs": 4,
-    "ready_prs": 2,
+    "total_open_copilot_prs": 11,
+    "draft_prs": 7,
+    "ready_prs": 4,
     "fork_prs_eligible": 0,
-    "closed_since_last_run": 2
+    "closed_since_last_run": 4,
+    "new_since_last_run": 9
   },
-  "notes": "6 open agent PRs, all same-repo branches — fork-only triage policy: 0 eligible. 2 PRs closed since last run: #41555, #41553. 4 new PRs since last run: #41628, #41627, #41625, #41623. Run §28224135185."
+  "notes": "11 open agent PRs, all same-repo branches — fork-only triage policy: 0 eligible. 4 PRs closed/merged since last run: #41628, #41625, #41623, #41617. 9 new PRs since last run: #41695, #41694, #41693, #41692, #41691, #41682, #41681, #41675, #41674. Run §28239513901."
 }
