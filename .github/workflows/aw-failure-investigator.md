@@ -392,9 +392,9 @@ Each new sub-issue must include:
 
 {{#if experiments.tone_variant == 'assertive'}}
 Tone instruction: Write in assertive, action-first style. Open every section with a direct imperative recommendation (e.g., "Fix the retry loop in workflow X — it causes 40% of P0 failures"). Keep rationale to one sentence. Prioritize brevity and actionability over completeness.
-{{else if experiments.tone_variant == 'narrative'}}
+{{#elseif experiments.tone_variant == 'narrative'}}
 Tone instruction: Write in narrative style. Use flowing prose paragraphs to explain what happened, why it matters, and what the broader context is. Readers should finish each section with a clear mental model of the failure, not just a list of facts.
-{{else}}
+{{#else}}
 Tone instruction: Write in clinical, neutral style. Use numbered lists, avoid editorializing, and anchor every claim to a metric or log reference. This is the baseline behavior.
 {{/if}}
 
