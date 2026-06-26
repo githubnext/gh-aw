@@ -448,6 +448,21 @@ function buildCopilotProxyAuthFailureDiagnostic(output, env = process.env, optio
 }
 
 /**
+ * Determine whether an authentication_failed error came from the gh-aw API proxy after
+ * partial execution, making a one-time fresh-run retry worthwhile.
+ * @param {string} output
+ * @param {boolean} hasOutput
+ * @returns {boolean}
+ */
+function isRetryableProxyAuthenticationFailure(output, hasOutput) {
+  if (!hasOutput || !isAuthenticationFailedError(output)) {
+    return false;
+  }
+  const authFailure = parseProviderAuthFailure(output);
+  return Boolean(authFailure && isLikelyAWFAPIProxyURL(authFailure.providerUrl));
+}
+
+/**
  * Detect known Copilot error patterns for workflow outputs.
  * @param {string} output
  * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean }}
@@ -822,7 +837,10 @@ async function main() {
         const isModelNotSupported = isModelNotSupportedError(result.output);
         const isAuthErr = isNoAuthInfoError(result.output);
         const isAuthenticationFailed = isAuthenticationFailedError(result.output);
+        const providerAuthFailure = parseProviderAuthFailure(result.output);
+        const isAWFProxyAuthenticationFailure = Boolean(providerAuthFailure && isLikelyAWFAPIProxyURL(providerAuthFailure.providerUrl));
         const proxyAuthDiagnostic = buildCopilotProxyAuthFailureDiagnostic(result.output, process.env);
+        const retryableProxyAuthenticationFailure = isRetryableProxyAuthenticationFailure(result.output, result.hasOutput);
         const isNullTypeToolCall = isNullTypeToolCallError(result.output);
         const isSDKSessionIdleTimeout = isSDKSessionIdleTimeoutError(result.output);
         const isMCPGatewayShutdown = isMCPGatewayShutdownError(result.output);
@@ -882,11 +900,19 @@ async function main() {
           break;
         }
 
-        if (attempt === 0 && isAuthenticationFailed) {
+        if (isAuthenticationFailed) {
+          if (attempt === 0 && retryableProxyAuthenticationFailure && attempt < MAX_RETRIES) {
+            useContinueOnRetry = false;
+            continueDisabledPermanently = true;
+            log(`attempt ${attempt + 1}: provider authentication failed after partial execution` + " — retrying once as fresh run (discarding partial session state to avoid losing completed agent work)");
+            continue;
+          }
           if (proxyAuthDiagnostic) {
-            log(`attempt ${attempt + 1}: ${proxyAuthDiagnostic} — not retrying (first-attempt auth failure is non-retryable)`);
+            log(`attempt ${attempt + 1}: ${proxyAuthDiagnostic} — not retrying (provider authentication failure is non-retryable after the fresh-run retry is exhausted or when no output was produced)`);
+          } else if (isAWFProxyAuthenticationFailure) {
+            log(`attempt ${attempt + 1}: provider authentication failed — not retrying (provider authentication failure is non-retryable after the fresh-run retry is exhausted or when no output was produced)`);
           } else {
-            log(`attempt ${attempt + 1}: authentication failed — not retrying (first-attempt auth failure is non-retryable)`);
+            log(`attempt ${attempt + 1}: authentication failed — not retrying (authentication_failed is non-retryable unless it came from the gh-aw proxy after partial execution on the first attempt)`);
           }
           break;
         }
@@ -1043,6 +1069,7 @@ if (typeof module !== "undefined" && module.exports) {
     detectCopilotErrors,
     classifyCopilotFailure,
     extractOutputTail,
+    isRetryableProxyAuthenticationFailure,
     hasNumerousPermissionDeniedIssues,
     INFERENCE_ACCESS_ERROR_PATTERN,
     AGENTIC_ENGINE_TIMEOUT_PATTERN,
