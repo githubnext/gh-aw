@@ -56,6 +56,17 @@ tools:
     mode: gh-proxy
     toolsets:
     - default
+safe-outputs:
+  create-issue:
+    expires: 7d
+    title-prefix: "[typist-task] "
+    labels: [typing, refactoring, automation]
+    assignees: copilot
+    max: 1
+  assign-to-agent:
+    target: "*"
+    allowed: [copilot]
+    max: 1
 sandbox:
   agent:
     sudo: false
@@ -191,6 +202,12 @@ Using the type definitions from Phase 1 and the untyped usages from Phase 2:
 ### Phase 4: Generate Refactoring Discussion
 
 Create a comprehensive discussion with your findings.
+
+Before creating the discussion:
+1. Create one implementation issue with `temporary_id: aw_typist_tasks` that contains the actionable refactoring plan.
+2. Include concrete file paths and line numbers for each task so Copilot can execute without re-running this analysis.
+3. Assign that issue to Copilot using `assign_to_agent` with `issue_number: "aw_typist_tasks"` and `agent: "copilot"`.
+4. Link to the created issue from the discussion body and keep the discussion focused on findings (do not inline a flat implementation checklist in the discussion).
 
 **Report Formatting**: Use h3 (`###`) or lower for all headers in the discussion to maintain proper document hierarchy. Wrap verbose tables and long sections in `<details><summary>Section Name</summary>` blocks.
 
@@ -422,16 +439,14 @@ Here's my suggested action plan, prioritized by impact. Let's start with the big
 
 ---
 
-#### Implementation Checklist
+#### Implementation Tasks
 
-- [ ] Review all identified duplicates and prioritize
-- [ ] Create shared types package (if needed)
-- [ ] Consolidate Priority 1 duplicated types
-- [ ] Replace `interface{}` with specific types (Priority 2)
-- [ ] Add types to constants (Priority 3)
-- [ ] Update tests to verify refactoring
-- [ ] Run full test suite
-- [ ] Document new type structure
+- **Execution issue**: #aw_typist_tasks (assigned to @copilot)
+- Include 5-10 concrete tasks in that issue with:
+  - precise file paths and line ranges
+  - expected code changes
+  - verification steps per task
+- Keep only a concise summary here; the full task checklist belongs in the issue.
 
 #### Analysis Metadata
 
