@@ -4,6 +4,7 @@ package syncutil_test
 
 import (
 	"errors"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -174,7 +175,7 @@ func TestSpec_PublicAPI_OnceLoader_Reset(t *testing.T) {
 
 		load := func() (string, error) {
 			call := calls.Add(1)
-			return "value-" + string('0'+call), nil
+			return "value-" + strconv.Itoa(int(call)), nil
 		}
 
 		v1, err1 := loader.Get(load)

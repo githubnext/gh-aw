@@ -4,6 +4,7 @@ package syncutil
 
 import (
 	"errors"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -134,7 +135,7 @@ func TestOnceLoaderReset(t *testing.T) {
 
 	load := func() (string, error) {
 		call := calls.Add(1)
-		return "value-" + string('0'+call), nil
+		return "value-" + strconv.Itoa(int(call)), nil
 	}
 
 	got1, err1 := loader.Get(load)
