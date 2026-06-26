@@ -607,6 +607,7 @@ type WorkflowData struct {
 	KnownActionCredentialEnvVars   map[string]struct{}             // env vars for clean_known_action_credentials.sh; keyed by GH_AW_CLEAN_* names; nil when no known credential-leaking actions are detected
 	ModelMappings                  map[string][]string             // merged model alias map (builtins + imported workflow aliases + main frontmatter overrides, in priority order); NOT yet emitted to AWF config JSON — pending AWF firewall support (config.models)
 	ModelCosts                     map[string]any                  // model pricing data from frontmatter `models` field (providers structure); merged with built-in models.json at runtime by generate_aw_info.cjs
+	ActionPinMappings              map[string]string               // action-pin redirect table from aw.json action_pins: maps "owner/repo@version" → "owner/repo@version"
 }
 
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.
@@ -625,6 +626,7 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 		EnforcePinned:   true,
 		AllowActionRefs: d.AllowActionRefs,
 		Warnings:        d.ActionPinWarnings,
+		Mappings:        d.ActionPinMappings,
 		RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
 			d.ActionResolutionFailures = append(d.ActionResolutionFailures, GHAWManifestResolutionFailure{
 				Repo:      f.Repo,

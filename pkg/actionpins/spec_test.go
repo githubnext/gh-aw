@@ -590,3 +590,44 @@ func TestSpec_PublicAPI_RecordResolutionFailure_WarningDedup(t *testing.T) {
 	assert.Len(t, failures, 2, "second call should append another resolution failure")
 	assert.True(t, ctx.Warnings[cacheKey], "warning dedup key should remain set after second call")
 }
+
+// TestSpec_PublicAPI_ResolveActionPin_AppliesMapping validates that ctx.Mappings redirects
+// action resolution to the mapped repository and version.
+func TestSpec_PublicAPI_ResolveActionPin_AppliesMapping(t *testing.T) {
+	// actions/checkout is in the embedded pins; acme-corp/checkout is not.
+	// After mapping, resolution should succeed using the mapped repo's pins.
+	checkoutPins := actionpins.GetActionPinsByRepo("actions/checkout")
+	require.NotEmpty(t, checkoutPins, "prerequisite: embedded pins for actions/checkout must exist")
+
+	t.Run("mapping redirects to a known pinned repo", func(t *testing.T) {
+		ctx := &actionpins.PinContext{
+			Warnings: make(map[string]bool),
+			Mappings: map[string]string{
+				"actions/setup-node@v4": "actions/checkout@v4",
+			},
+		}
+		// Request setup-node@v4 which is mapped to checkout@v4 — both exist in embedded pins.
+		result, err := actionpins.ResolveActionPin("actions/setup-node", "v4", ctx)
+		require.NoError(t, err)
+		assert.Contains(t, result, "actions/checkout@", "result should reference the mapped repo")
+	})
+
+	t.Run("mapping notification key is recorded in warnings", func(t *testing.T) {
+		ctx := &actionpins.PinContext{
+			Warnings: make(map[string]bool),
+			Mappings: map[string]string{
+				"actions/setup-node@v4": "actions/checkout@v4",
+			},
+		}
+		_, _ = actionpins.ResolveActionPin("actions/setup-node", "v4", ctx)
+		assert.True(t, ctx.Warnings["map:actions/setup-node@v4"], "mapping notification key should be set in warnings")
+	})
+
+	t.Run("no mapping leaves resolution unchanged", func(t *testing.T) {
+		ctx := &actionpins.PinContext{Warnings: make(map[string]bool)}
+
+		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
+		require.NoError(t, err)
+		assert.Contains(t, result, "actions/checkout@", "result should reference the original repo when no mapping exists")
+	})
+}

@@ -188,6 +188,7 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	workflowData.ActionCache = actionCache
 	workflowData.ActionResolver = actionResolver
 	workflowData.ActionPinWarnings = c.actionPinWarnings
+	workflowData.ActionPinMappings = c.getActionPinMappings()
 
 	// Extract YAML configuration sections
 	if err := c.extractYAMLSections(parseResult.frontmatterResult.Frontmatter, workflowData); err != nil {

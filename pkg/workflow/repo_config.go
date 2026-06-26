@@ -144,6 +144,12 @@ type RepoConfig struct {
 	// and an object was provided (nil when maintenance is not configured or is
 	// disabled).
 	Maintenance *MaintenanceConfig
+
+	// ActionPins maps action repository@version references to replacement
+	// repository@version references. Enterprises running in a private cloud
+	// can use this to redirect actions to internal mirrors. Keys and values
+	// must use the format "owner/repo@ref".
+	ActionPins map[string]string
 }
 
 // IsAutoUpgradeEnabled returns true only when auto_upgrade is explicitly set to true.
@@ -160,11 +166,12 @@ func (r *RepoConfig) IsAutoUpgradeEnabled() bool {
 func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	// Use an intermediate struct with json.RawMessage to defer maintenance parsing.
 	var raw struct {
-		GHES        bool            `json:"ghes,omitempty"`
-		HelpCommand *bool           `json:"help_command,omitempty"` // nil = use default (enabled)
-		UTC         string          `json:"utc,omitempty"`
-		AutoUpgrade *bool           `json:"auto_upgrade,omitempty"`
-		Maintenance json.RawMessage `json:"maintenance,omitempty"`
+		GHES        bool              `json:"ghes,omitempty"`
+		HelpCommand *bool             `json:"help_command,omitempty"` // nil = use default (enabled)
+		UTC         string            `json:"utc,omitempty"`
+		AutoUpgrade *bool             `json:"auto_upgrade,omitempty"`
+		Maintenance json.RawMessage   `json:"maintenance,omitempty"`
+		ActionPins  map[string]string `json:"action_pins,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -174,6 +181,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	r.HelpCommand = raw.HelpCommand
 	r.UTC = strings.TrimSpace(raw.UTC)
 	r.AutoUpgrade = raw.AutoUpgrade
+	r.ActionPins = raw.ActionPins
 
 	if len(raw.Maintenance) == 0 || string(raw.Maintenance) == "null" {
 		return nil

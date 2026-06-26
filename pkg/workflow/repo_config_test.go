@@ -317,6 +317,57 @@ func TestIsAutoUpgradeEnabled_NilConfig(t *testing.T) {
 	assert.False(t, r.IsAutoUpgradeEnabled(), "IsAutoUpgradeEnabled should return false for nil RepoConfig")
 }
 
+func TestLoadRepoConfig_ActionPins(t *testing.T) {
+	t.Run("loads action_pins mapping", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"action_pins": {"actions/checkout@v4": "acme-corp/checkout@v4"}}`)
+
+		cfg, err := LoadRepoConfig(dir)
+		require.NoError(t, err, "valid aw.json with action_pins should load without error")
+		require.NotNil(t, cfg.ActionPins, "action_pins should be populated")
+		assert.Equal(t, "acme-corp/checkout@v4", cfg.ActionPins["actions/checkout@v4"])
+	})
+
+	t.Run("allows multiple mappings", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"action_pins": {
+			"actions/checkout@v4": "acme-corp/checkout@v4",
+			"actions/setup-node@v4": "acme-corp/setup-node@v4"
+		}}`)
+
+		cfg, err := LoadRepoConfig(dir)
+		require.NoError(t, err)
+		assert.Len(t, cfg.ActionPins, 2)
+		assert.Equal(t, "acme-corp/checkout@v4", cfg.ActionPins["actions/checkout@v4"])
+		assert.Equal(t, "acme-corp/setup-node@v4", cfg.ActionPins["actions/setup-node@v4"])
+	})
+
+	t.Run("action_pins absent results in nil map", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{}`)
+
+		cfg, err := LoadRepoConfig(dir)
+		require.NoError(t, err)
+		assert.Nil(t, cfg.ActionPins, "action_pins should be nil when not specified")
+	})
+
+	t.Run("rejects key without version", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"action_pins": {"actions/checkout": "acme-corp/checkout@v4"}}`)
+
+		_, err := LoadRepoConfig(dir)
+		assert.Error(t, err, "key without @version should fail schema validation")
+	})
+
+	t.Run("rejects value without version", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"action_pins": {"actions/checkout@v4": "acme-corp/checkout"}}`)
+
+		_, err := LoadRepoConfig(dir)
+		assert.Error(t, err, "value without @version should fail schema validation")
+	})
+}
+
 // writeAWJSON creates .github/workflows/aw.json with the given JSON content.
 func writeAWJSON(t *testing.T, gitRoot, content string) {
 	t.Helper()
