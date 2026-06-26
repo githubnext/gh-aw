@@ -53,6 +53,8 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
   ` + string(constants.CLIExtensionPrefix) + ` update --org my-org       # Preview workflow updates across an organization
   ` + string(constants.CLIExtensionPrefix) + ` update --org my-org --repos '*-service'  # Limit org mode to matching repositories
   ` + string(constants.CLIExtensionPrefix) + ` update --org my-org --create-issue  # Open issues in repos with pending updates
+  ` + string(constants.CLIExtensionPrefix) + ` update --org my-org --create-issue --yes  # Auto-accept per-repo confirmations (required in CI)
+  ` + string(constants.CLIExtensionPrefix) + ` update --org my-org --create-pull-request --yes  # Auto-accept per-repo confirmations for PR creation (required in CI)
   ` + string(constants.CLIExtensionPrefix) + ` update --no-merge         # Override local changes with upstream
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist --major # Allow major version updates
   ` + string(constants.CLIExtensionPrefix) + ` update --force            # Force update even if no changes
@@ -85,6 +87,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
 			createIssue, _ := cmd.Flags().GetBool("create-issue")
+			yes, _ := cmd.Flags().GetBool("yes")
 			coolDownStr, _ := cmd.Flags().GetString("cool-down")
 			targetRepo, _ := cmd.Flags().GetString("repo")
 			targetOrg, _ := cmd.Flags().GetString("org")
@@ -121,6 +124,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 				WorkflowNames:          args,
 				AllowMajor:             majorFlag,
 				Force:                  forceFlag,
+				Yes:                    yes,
 				Verbose:                verbose,
 				EngineOverride:         engineOverride,
 				WorkflowsDir:           workflowDir,
@@ -177,6 +181,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the update changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	cmd.Flags().Bool("create-issue", false, "Open a GitHub issue in each org repository that has pending workflow updates (requires --org)")
+	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode create confirmations (required in CI)")
 	cmd.Flags().String("cool-down", "7d", coolDownFlagUsage)
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 

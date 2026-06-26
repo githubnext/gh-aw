@@ -66,7 +66,9 @@ This command always upgrades all Markdown files in .github/workflows.`,
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org       # Preview upgrade pull requests across an organization
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org --repos '*-service'  # Limit org mode to matching repositories
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org --create-pull-request  # Open upgrade pull requests in org repositories
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org --create-pull-request --yes  # Auto-accept per-repo confirmations for PR creation (required in CI)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org --create-issue  # Open issues in org repos with agentic workflows
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org --create-issue --yes  # Auto-accept per-repo confirmations (required in CI)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit           # Check dependency health without upgrading
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit --json    # Output audit results in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --pre-releases    # Include prerelease versions when self-upgrading the extension (stable releases are the default)`,
@@ -79,6 +81,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
 			createIssue, _ := cmd.Flags().GetBool("create-issue")
+			yes, _ := cmd.Flags().GetBool("yes")
 			noActions, _ := cmd.Flags().GetBool("no-actions")
 			noCompile, _ := cmd.Flags().GetBool("no-compile")
 			auditFlag, _ := cmd.Flags().GetBool("audit")
@@ -118,6 +121,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 				skipExtensionUpgrade: skipExtensionUpgrade,
 				approve:              approveUpgrade,
 				preReleases:          preReleases,
+				yes:                  yes,
 			}
 
 			if targetOrg != "" {
@@ -154,6 +158,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("create-issue", false, "Open a GitHub issue in each org repository with agentic workflows (requires --org)")
+	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode create confirmations (required in CI)")
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
 	cmd.Flags().Bool("pre-releases", false, "Include pre-release versions when checking for extension upgrades; prereleases are installed by exact tag")
 	cmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
@@ -200,6 +205,7 @@ type upgradeOptions struct {
 	skipExtensionUpgrade bool
 	approve              bool
 	preReleases          bool
+	yes                  bool
 }
 
 // runUpgradeCommand executes the upgrade process

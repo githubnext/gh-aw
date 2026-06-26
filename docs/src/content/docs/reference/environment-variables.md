@@ -279,6 +279,7 @@ jobs:
 ## Related Documentation
 
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
+- [Governance Guide](/gh-aw/guides/governance/) - Roll out and manage defaults across enterprise, organization, and repository scopes
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output environment configuration
 - [Sandbox](/gh-aw/reference/sandbox/) - Sandbox environment variables
 - [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/) - Enterprise defaults for timeout, max-turns, detection model, model fallback, and max-ai-credits guardrails

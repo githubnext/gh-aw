@@ -312,6 +312,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Agentic Authoring', link: '/guides/agentic-authoring/' },
 						{ label: 'Editing Workflows', link: '/guides/editing-workflows/' },
+						{ label: 'Governance', link: '/guides/governance/' },
 						{ label: 'Reusing Workflows', link: '/guides/reusing-workflows/' },
 						{ label: 'Upgrading Workflows', link: '/guides/upgrading/' },
 						{ label: 'Using MCPs', link: '/guides/mcps/' },

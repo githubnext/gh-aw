@@ -108,6 +108,7 @@ type Compiler struct {
 	ghesCompatFromCLI       bool                     // If true, GHES compat was requested via --ghes CLI flag (takes precedence over aw.json)
 	ghesArtifactCompat      bool                     // If true, emit GHES-compatible v3.x pins for artifact actions instead of the latest v7/v8
 	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login; not goroutine-safe (Compiler is used sequentially)
+	copilotRequestsTipShown map[string]bool          // Tracks markdown paths that already emitted the copilot-requests enable tip in this compiler instance
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
@@ -123,21 +124,22 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 
 	// Create compiler with defaults
 	c := &Compiler{
-		ctx:               context.Background(), // Default context; override with WithContext
-		verbose:           false,
-		engineOverride:    "",
-		version:           version,
-		skipValidation:    true,                      // Skip validation by default for now since existing workflows don't fully comply
-		actionMode:        DetectActionMode(version), // Auto-detect action mode based on version
-		jobManager:        NewJobManager(),
-		engineRegistry:    GetGlobalEngineRegistry(),
-		engineCatalog:     NewEngineCatalog(GetGlobalEngineRegistry()),
-		stepOrderTracker:  NewStepOrderTracker(),
-		artifactManager:   NewArtifactManager(),
-		actionPinWarnings: make(map[string]bool), // Initialize warning cache
-		priorManifests:    make(map[string]*GHAWManifest),
-		ownerTypeCache:    make(map[string]string), // Initialize owner-type cache (keyed by owner login)
-		gitRoot:           gitRoot,                 // Auto-detected git root
+		ctx:                     context.Background(), // Default context; override with WithContext
+		verbose:                 false,
+		engineOverride:          "",
+		version:                 version,
+		skipValidation:          true,                      // Skip validation by default for now since existing workflows don't fully comply
+		actionMode:              DetectActionMode(version), // Auto-detect action mode based on version
+		jobManager:              NewJobManager(),
+		engineRegistry:          GetGlobalEngineRegistry(),
+		engineCatalog:           NewEngineCatalog(GetGlobalEngineRegistry()),
+		stepOrderTracker:        NewStepOrderTracker(),
+		artifactManager:         NewArtifactManager(),
+		actionPinWarnings:       make(map[string]bool), // Initialize warning cache
+		priorManifests:          make(map[string]*GHAWManifest),
+		ownerTypeCache:          make(map[string]string), // Initialize owner-type cache (keyed by owner login)
+		copilotRequestsTipShown: make(map[string]bool),   // Initialize one-time tip tracking (keyed by markdown path)
+		gitRoot:                 gitRoot,                 // Auto-detected git root
 	}
 
 	// Apply functional options
