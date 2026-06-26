@@ -37,24 +37,19 @@ func resolveVersionLabel(ctx context.Context, sourceRepo, ref string) string {
 		return ref
 	}
 
-	versionLabelMu.Lock()
-	if tagMap, ok := versionLabelCache[sourceRepo]; ok {
-		versionLabelMu.Unlock()
+	if tagMap, ok := getVersionLabelCache(sourceRepo); ok {
 		if tag, ok := tagMap[ref]; ok {
 			return tag
 		}
 		return shortRef(ref)
 	}
-	versionLabelMu.Unlock()
 
 	tagMap, ok := loadRepoTagMap(ctx, sourceRepo)
 	if !ok {
 		return shortRef(ref)
 	}
 
-	versionLabelMu.Lock()
-	versionLabelCache[sourceRepo] = tagMap
-	versionLabelMu.Unlock()
+	setVersionLabelCache(sourceRepo, tagMap)
 
 	if tag, ok := tagMap[ref]; ok {
 		return tag
@@ -67,6 +62,19 @@ func clearVersionLabelCache() {
 	versionLabelMu.Lock()
 	defer versionLabelMu.Unlock()
 	versionLabelCache = make(map[string]map[string]string)
+}
+
+func getVersionLabelCache(sourceRepo string) (map[string]string, bool) {
+	versionLabelMu.Lock()
+	defer versionLabelMu.Unlock()
+	tagMap, ok := versionLabelCache[sourceRepo]
+	return tagMap, ok
+}
+
+func setVersionLabelCache(sourceRepo string, tagMap map[string]string) {
+	versionLabelMu.Lock()
+	defer versionLabelMu.Unlock()
+	versionLabelCache[sourceRepo] = tagMap
 }
 
 // loadRepoTagMap fetches tags for sourceRepo and returns a map from full commit
