@@ -176,12 +176,15 @@ If **drift is detected**, create an issue with:
 **Body structure**:
 
 ```
-## Designer Drift Report — <date>
+### Designer Drift Report — <date>
 
 ### Summary
 <1-2 sentence overview: X drift items found across Y categories>
 
 ### Drift Items
+
+<details>
+<summary><b>View Drift Items by Category</b></summary>
 
 #### <Category> (e.g., "Missing Safe Output Types")
 - **Source**: `<reference-doc-path>`
@@ -190,6 +193,8 @@ If **drift is detected**, create an issue with:
 - **Suggested fix**: <concrete action>
 
 ...repeat for each drift item...
+
+</details>
 
 ### No Drift
 <list categories that passed with ✅>

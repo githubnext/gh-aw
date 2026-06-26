@@ -39,9 +39,93 @@ func TestNewUpdateCommandOrgFlags(t *testing.T) {
 	require.NotNil(t, cmd.Flags().Lookup("org"))
 	require.NotNil(t, cmd.Flags().Lookup("repos"))
 	require.NotNil(t, cmd.Flags().Lookup("create-issue"))
+	require.NotNil(t, cmd.Flags().Lookup("yes"))
 	assert.Contains(t, cmd.Example, "--org my-org")
 	assert.Contains(t, cmd.Example, "--repos '*-service'")
 	assert.Contains(t, cmd.Example, "--create-issue")
+	assert.Contains(t, cmd.Example, "--create-pull-request --yes")
+}
+
+func TestRunUpdateForOrgCreateIssueRequiresYesInCI(t *testing.T) {
+	origSearch := searchOrgWorkflowReposFn
+	origPreview := previewOrgRepoUpdatesFn
+	origWait := waitForOrgRateLimitFn
+	origCreateIssue := createIssueForOrgRepoFn
+	origIsCI := isRunningInCIFn
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
+		return []string{"octo/api"}, nil
+	}
+	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
+		return orgRepoPreview{
+			Repo:           repo,
+			TotalWorkflows: 1,
+			Workflows: []orgWorkflowPreview{{
+				Name: "repo-assist", CurrentRef: "v1.0.0", LatestRef: "v1.1.0",
+			}},
+		}, nil
+	}
+	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
+	createIssueForOrgRepoFn = func(ctx context.Context, preview orgRepoPreview, verbose bool) error {
+		t.Fatalf("issue creation should not run in CI without --yes")
+		return nil
+	}
+	isRunningInCIFn = func() bool { return true }
+	defer func() {
+		searchOrgWorkflowReposFn = origSearch
+		previewOrgRepoUpdatesFn = origPreview
+		waitForOrgRateLimitFn = origWait
+		createIssueForOrgRepoFn = origCreateIssue
+		isRunningInCIFn = origIsCI
+	}()
+
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, false, true, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--yes")
+}
+
+func TestRunUpdateForOrgCreateIssueSkipsWhenDeclined(t *testing.T) {
+	origSearch := searchOrgWorkflowReposFn
+	origPreview := previewOrgRepoUpdatesFn
+	origWait := waitForOrgRateLimitFn
+	origCreateIssue := createIssueForOrgRepoFn
+	origConfirm := orgConfirmActionFn
+	origIsCI := isRunningInCIFn
+	searchOrgWorkflowReposFn = func(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
+		return []string{"octo/api"}, nil
+	}
+	previewOrgRepoUpdatesFn = func(ctx context.Context, repo string, opts UpdateWorkflowsOptions, verbose bool) (orgRepoPreview, error) {
+		return orgRepoPreview{
+			Repo:           repo,
+			TotalWorkflows: 1,
+			Workflows: []orgWorkflowPreview{{
+				Name: "repo-assist", CurrentRef: "v1.0.0", LatestRef: "v1.1.0",
+			}},
+		}, nil
+	}
+	waitForOrgRateLimitFn = func(ctx context.Context, resource string, verbose bool) error { return nil }
+	createIssueForOrgRepoFn = func(ctx context.Context, preview orgRepoPreview, verbose bool) error {
+		t.Fatalf("issue creation should be skipped when confirmation is declined")
+		return nil
+	}
+	orgConfirmActionFn = func(title, affirmative, negative string) (bool, error) { return false, nil }
+	isRunningInCIFn = func() bool { return false }
+	defer func() {
+		searchOrgWorkflowReposFn = origSearch
+		previewOrgRepoUpdatesFn = origPreview
+		waitForOrgRateLimitFn = origWait
+		createIssueForOrgRepoFn = origCreateIssue
+		orgConfirmActionFn = origConfirm
+		isRunningInCIFn = origIsCI
+	}()
+
+	output := captureUpdateOrgStderr(t, func() {
+		err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, false, true, false)
+		require.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "Repository: octo/api")
+	assert.Contains(t, output, "repo-assist: v1.0.0 -> v1.1.0")
+	assert.Contains(t, output, "Skipped octo/api")
 }
 
 func TestRunUpdateForOrgDryRun(t *testing.T) {
@@ -186,7 +270,7 @@ func TestRunUpdateForOrgCreatePRSortsOldestFirst(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, true, false, false)
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{Yes: true}, true, false, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/older", "octo/newer"}, processed)
 }
@@ -234,7 +318,7 @@ func TestRunUpdateForOrgCreateIssueSortsOldestFirst(t *testing.T) {
 		createIssueForOrgRepoFn = origCreateIssue
 	}()
 
-	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, false, true, false)
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{Yes: true}, false, true, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/older", "octo/newer"}, issuedFor)
 }
@@ -412,7 +496,7 @@ func TestRunUpdateForOrgCreateIssueReturnsErrorWhenAllIssueCreatesFail(t *testin
 		createIssueForOrgRepoFn = origCreateIssue
 	}()
 
-	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, false, true, false)
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{Yes: true}, false, true, false)
 	require.EqualError(t, err, "failed to create issues in any repository")
 }
 
@@ -446,7 +530,7 @@ func TestRunUpdateForOrgCreatePRReturnsErrorWhenAllUpdatesFail(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, true, false, false)
+	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{Yes: true}, true, false, false)
 	require.EqualError(t, err, "failed to update any repository")
 }
 

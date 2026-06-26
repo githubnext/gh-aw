@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"os"
 	"strings"
@@ -732,4 +733,266 @@ func TestGenerateToolsConfig_UsesToolsets(t *testing.T) {
 	if strings.Contains(config, "allowed:") {
 		t.Errorf("generateToolsConfig() should not use allowed list for github tool\ngot:\n%s", config)
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Non-TTY fallback tests
+// ---------------------------------------------------------------------------
+
+func TestPromptNonInteractiveSelect_ByNumber(t *testing.T) {
+	opts := []struct{ label, value string }{
+		{"Option A", "a"},
+		{"Option B", "b"},
+		{"Option C", "c"},
+	}
+
+	for _, tt := range []struct {
+		input   string
+		wantVal string
+		wantErr bool
+	}{
+		{"1", "a", false},
+		{"2", "b", false},
+		{"3", "c", false},
+		{"0", "", true},
+		{"4", "", true},
+	} {
+		t.Run("input="+tt.input, func(t *testing.T) {
+			scanner := newScannerFromString(tt.input)
+			got, err := promptNonInteractiveSelect(scanner, "Pick one", opts)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("promptNonInteractiveSelect(%q) error=%v, wantErr=%v", tt.input, err, tt.wantErr)
+			}
+			if err == nil && got != tt.wantVal {
+				t.Errorf("promptNonInteractiveSelect(%q) = %q, want %q", tt.input, got, tt.wantVal)
+			}
+		})
+	}
+}
+
+func TestPromptNonInteractiveSelect_ByValue(t *testing.T) {
+	opts := []struct{ label, value string }{
+		{"copilot option", "copilot"},
+		{"claude option", "claude"},
+	}
+
+	scanner := newScannerFromString("claude")
+	got, err := promptNonInteractiveSelect(scanner, "Pick engine", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "claude" {
+		t.Errorf("got %q, want %q", got, "claude")
+	}
+}
+
+func TestPromptNonInteractiveSelect_InvalidValue(t *testing.T) {
+	opts := []struct{ label, value string }{
+		{"Option A", "a"},
+	}
+	scanner := newScannerFromString("z")
+	_, err := promptNonInteractiveSelect(scanner, "Pick one", opts)
+	if err == nil {
+		t.Fatal("expected error for unknown value, got nil")
+	}
+}
+
+func TestPromptNonInteractiveSelect_EOF(t *testing.T) {
+	opts := []struct{ label, value string }{{"Option A", "a"}}
+	scanner := newScannerFromString("") // empty = EOF immediately
+	_, err := promptNonInteractiveSelect(scanner, "Pick one", opts)
+	if err == nil {
+		t.Fatal("expected error on EOF, got nil")
+	}
+}
+
+func TestPromptNonInteractiveMultiSelect_ByNumber(t *testing.T) {
+	opts := []struct{ label, value string }{
+		{"github tools", "github"},
+		{"edit tools", "edit"},
+		{"bash tools", "bash"},
+	}
+
+	scanner := newScannerFromString("1,3")
+	got, err := promptNonInteractiveMultiSelect(scanner, "Pick tools", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 2 || got[0] != "github" || got[1] != "bash" {
+		t.Errorf("got %v, want [github bash]", got)
+	}
+}
+
+func TestPromptNonInteractiveMultiSelect_ByValue(t *testing.T) {
+	opts := []struct{ label, value string }{
+		{"github tools", "github"},
+		{"edit tools", "edit"},
+		{"bash tools", "bash"},
+	}
+
+	scanner := newScannerFromString("edit,bash")
+	got, err := promptNonInteractiveMultiSelect(scanner, "Pick tools", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 2 || got[0] != "edit" || got[1] != "bash" {
+		t.Errorf("got %v, want [edit bash]", got)
+	}
+}
+
+func TestPromptNonInteractiveMultiSelect_Empty(t *testing.T) {
+	opts := []struct{ label, value string }{{"Option A", "a"}}
+	scanner := newScannerFromString("")
+	got, err := promptNonInteractiveMultiSelect(scanner, "Pick tools", opts)
+	if err != nil {
+		t.Fatalf("unexpected error on blank input: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("expected empty slice, got %v", got)
+	}
+}
+
+func TestPromptNonInteractiveMultiSelect_Deduplication(t *testing.T) {
+	opts := []struct{ label, value string }{
+		{"github tools", "github"},
+		{"edit tools", "edit"},
+	}
+	scanner := newScannerFromString("1,1,github")
+	got, err := promptNonInteractiveMultiSelect(scanner, "Pick tools", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0] != "github" {
+		t.Errorf("expected deduplication: got %v", got)
+	}
+}
+
+func TestPromptNonInteractiveMultiSelect_OutOfRange(t *testing.T) {
+	opts := []struct{ label, value string }{{"Option A", "a"}}
+	scanner := newScannerFromString("99")
+	_, err := promptNonInteractiveMultiSelect(scanner, "Pick tools", opts)
+	if err == nil {
+		t.Fatal("expected error for out-of-range index, got nil")
+	}
+}
+
+func TestPromptNonInteractiveMultiSelect_UnknownValue(t *testing.T) {
+	opts := []struct{ label, value string }{{"Option A", "a"}}
+	scanner := newScannerFromString("zzz")
+	_, err := promptNonInteractiveMultiSelect(scanner, "Pick tools", opts)
+	if err == nil {
+		t.Fatal("expected error for unknown value, got nil")
+	}
+}
+
+func TestPromptForWorkflowNameFrom_Valid(t *testing.T) {
+	b := &InteractiveWorkflowBuilder{}
+	err := b.promptForWorkflowNameFrom(strings.NewReader("my-workflow\n"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if b.WorkflowName != "my-workflow" {
+		t.Errorf("WorkflowName = %q, want %q", b.WorkflowName, "my-workflow")
+	}
+}
+
+func TestPromptForWorkflowNameFrom_Invalid(t *testing.T) {
+	b := &InteractiveWorkflowBuilder{}
+	err := b.promptForWorkflowNameFrom(strings.NewReader("invalid name!\n"))
+	if err == nil {
+		t.Fatal("expected error for invalid workflow name, got nil")
+	}
+}
+
+func TestPromptForWorkflowNameFrom_Empty(t *testing.T) {
+	b := &InteractiveWorkflowBuilder{}
+	// Empty reader → EOF without any text
+	err := b.promptForWorkflowNameFrom(strings.NewReader(""))
+	if err == nil {
+		t.Fatal("expected error on empty input, got nil")
+	}
+}
+
+func TestPromptForConfigurationFrom_Basic(t *testing.T) {
+	// Simulate non-TTY input: trigger=1, engine=1, tools=1,2, safe-outputs="" (blank),
+	// network=1, intent="This is a test workflow description with at least 20 chars"
+	input := "1\n1\n1,2\n\n1\nThis is a test workflow description with at least 20 chars\n"
+	b := &InteractiveWorkflowBuilder{}
+	err := b.promptForConfigurationFrom(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if b.Trigger != "workflow_dispatch" {
+		t.Errorf("Trigger = %q, want workflow_dispatch", b.Trigger)
+	}
+	if b.Engine != "copilot" {
+		t.Errorf("Engine = %q, want copilot", b.Engine)
+	}
+	if len(b.Tools) != 2 || b.Tools[0] != "github" || b.Tools[1] != "edit" {
+		t.Errorf("Tools = %v, want [github edit]", b.Tools)
+	}
+	if len(b.SafeOutputs) != 0 {
+		t.Errorf("SafeOutputs = %v, want empty", b.SafeOutputs)
+	}
+	if b.Intent == "" {
+		t.Error("Intent should not be empty")
+	}
+}
+
+func TestPromptForConfigurationFrom_ByValue(t *testing.T) {
+	// Use values instead of numbers for engine and tools
+	input := "issues\nclaude\ngithub,bash\ncreate-issue\ndefaults\nThis is a test workflow that does something useful and important\n"
+	b := &InteractiveWorkflowBuilder{}
+	err := b.promptForConfigurationFrom(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if b.Trigger != "issues" {
+		t.Errorf("Trigger = %q, want issues", b.Trigger)
+	}
+	if b.Engine != "claude" {
+		t.Errorf("Engine = %q, want claude", b.Engine)
+	}
+	if len(b.Tools) != 2 || b.Tools[0] != "github" || b.Tools[1] != "bash" {
+		t.Errorf("Tools = %v, want [github bash]", b.Tools)
+	}
+}
+
+func TestPromptForWorkflowNameFrom_ThenConfigurationFrom_SharedReader(t *testing.T) {
+	input := strings.NewReader(
+		"my-workflow\n" +
+			"workflow_dispatch\n" +
+			"copilot\n" +
+			"github,edit\n" +
+			"\n" +
+			"defaults\n" +
+			"This is a test workflow description with at least 20 chars\n",
+	)
+	b := &InteractiveWorkflowBuilder{}
+	if err := b.promptForWorkflowNameFrom(input); err != nil {
+		t.Fatalf("unexpected workflow name error: %v", err)
+	}
+	if err := b.promptForConfigurationFrom(input); err != nil {
+		t.Fatalf("unexpected configuration error: %v", err)
+	}
+	if b.WorkflowName != "my-workflow" {
+		t.Errorf("WorkflowName = %q, want my-workflow", b.WorkflowName)
+	}
+	if b.Trigger != "workflow_dispatch" {
+		t.Errorf("Trigger = %q, want workflow_dispatch", b.Trigger)
+	}
+	if b.Engine != "copilot" {
+		t.Errorf("Engine = %q, want copilot", b.Engine)
+	}
+}
+
+// newScannerFromString creates a bufio.Scanner backed by the given string.
+// The input must be a complete line terminated by a newline; if it is not
+// (and is non-empty), a trailing newline is appended automatically so that
+// bufio.Scanner.Scan() sees a complete line rather than returning false at EOF.
+func newScannerFromString(s string) *bufio.Scanner {
+	if s != "" && !strings.HasSuffix(s, "\n") {
+		s += "\n"
+	}
+	return bufio.NewScanner(strings.NewReader(s))
 }
