@@ -61,10 +61,12 @@ func getGhawReleaseInfo() (tag, releaseURL string) {
 }
 
 type orgListItem struct {
-	Number      int       `json:"number"`
-	Body        string    `json:"body"`
-	PullRequest *struct{} `json:"pull_request,omitempty"`
+	Number      int             `json:"number"`
+	Body        string          `json:"body"`
+	PullRequest *orgPullRequest `json:"pull_request,omitempty"`
 }
+
+type orgPullRequest struct{}
 
 func runOrgAPI(ctx context.Context, remoteHost, spinnerMessage string, args ...string) ([]byte, error) {
 	ghArgs := append([]string{"api", "--hostname", remoteHost}, args...)
@@ -79,8 +81,15 @@ func runOrgAPICombined(ctx context.Context, remoteHost, spinnerMessage string, a
 func listOpenOrgItems(ctx context.Context, repo, collection string) ([]orgListItem, error) {
 	remoteHost := getHostFromOriginRemote()
 	items := make([]orgListItem, 0)
+	spinnerMessage := "Checking for existing items..."
+	switch collection {
+	case "issues":
+		spinnerMessage = "Checking for existing issues..."
+	case "pulls":
+		spinnerMessage = "Checking for existing PRs..."
+	}
 	for page := 1; ; page++ {
-		output, err := runOrgAPI(ctx, remoteHost, "Checking for existing items...",
+		output, err := runOrgAPI(ctx, remoteHost, spinnerMessage,
 			fmt.Sprintf("/repos/%s/%s?state=open&per_page=100&page=%d", repo, collection, page),
 		)
 		if err != nil {

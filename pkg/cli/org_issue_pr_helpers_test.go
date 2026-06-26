@@ -45,7 +45,7 @@ func TestCloseExistingOrgIssuesByMarkerSkipsPRsAndPaginates(t *testing.T) {
 	page1Items = append(page1Items,
 		orgListItem{Number: 1, Body: "<!-- gh-aw-update: v1.2.3 -->"},
 		orgListItem{Number: 2, Body: "no marker"},
-		orgListItem{Number: 3, Body: "<!-- gh-aw-update: v1.2.3 -->", PullRequest: &struct{}{}},
+		orgListItem{Number: 3, Body: "<!-- gh-aw-update: v1.2.3 -->", PullRequest: &orgPullRequest{}},
 	)
 	for i := 4; i <= 100; i++ {
 		page1Items = append(page1Items, orgListItem{Number: i, Body: "no marker"})
