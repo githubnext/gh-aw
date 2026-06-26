@@ -52,6 +52,9 @@ experiments:
     weight: [50, 50]
     start_date: "2026-06-04"
 timeout-minutes: 45
+sandbox:
+  agent:
+    sudo: false
 tools:
   bash:
   - find docs -name "*.md" -o -name "*.mdx"

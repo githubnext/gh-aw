@@ -23,6 +23,9 @@ network:
   allowed:
     - defaults
 
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

@@ -22,6 +22,9 @@ engine:
   copilot-sdk: true
 strict: false
 
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github: false

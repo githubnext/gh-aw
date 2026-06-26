@@ -13,6 +13,9 @@ permissions:
   discussions: read
 tracker-id: api-consumption-report-daily
 engine: claude
+sandbox:
+  agent:
+    sudo: false
 tools:
   cache-memory: true
   cli-proxy: true

@@ -16,6 +16,9 @@ tracker-id: daily-aw-cross-repo-compile-check
 max-turns: 140
 engine:
   id: claude
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

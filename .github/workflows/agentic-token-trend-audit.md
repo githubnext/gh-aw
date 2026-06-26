@@ -28,6 +28,9 @@ safe-outputs:
   upload-asset:
     max: 5
     allowed-exts: [.png, .jpg, .jpeg, .svg]
+sandbox:
+  agent:
+    sudo: false
 tools:
   agentic-workflows:
   bash:

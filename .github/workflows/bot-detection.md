@@ -14,6 +14,9 @@ permissions:
   actions: read
 imports:
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:
@@ -831,7 +834,6 @@ safe-outputs:
   threat-detection: false
 timeout-minutes: 10
 strict: true
-
 
 ---
 

@@ -30,6 +30,9 @@ engine: claude
 strict: true
 network:
   allowed: [defaults, python-native, github]
+sandbox:
+  agent:
+    sudo: false
 tools:
   agentic-workflows: true
   bash: true

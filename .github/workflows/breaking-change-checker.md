@@ -13,6 +13,9 @@ engine:
   id: copilot
   copilot-sdk: true
 tracker-id: breaking-change-checker
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

@@ -33,6 +33,9 @@ network:
   allowed:
     - go
 
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:
@@ -140,7 +143,6 @@ steps:
 
 timeout-minutes: 30
 strict: true
-
 ---
 
 # Code Simplifier Agent
