@@ -274,9 +274,9 @@ func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, 
 		fmt.Fprintln(os.Stderr, "      - name: Checkout repository")
 		fmt.Fprintln(os.Stderr, "        uses: actions/checkout@v6")
 		fmt.Fprintln(os.Stderr, "      - name: Install gh-aw extension")
-		_, _ = os.Stderr.WriteString("        uses: " + actionRepo + actionRef + "\n")
+		fmt.Fprintln(os.Stderr, "        uses: "+actionRepo+actionRef)
 		fmt.Fprintln(os.Stderr, "        with:")
-		_, _ = os.Stderr.WriteString("          version: " + version + "\n")
+		fmt.Fprintln(os.Stderr, "          version: "+version)
 	} else {
 		fmt.Fprintln(os.Stderr, "      - name: Install gh-aw extension")
 		fmt.Fprintln(os.Stderr, "        run: |")
