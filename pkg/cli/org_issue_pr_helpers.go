@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -13,6 +14,9 @@ import (
 )
 
 var orgIPLog = logger.New("cli:org_issue_pr")
+var ghawReleaseInfoOnce sync.Once
+var ghawReleaseTag string
+var ghawReleaseURL string
 
 const (
 	// ghawUpgradeMarkerPrefix is the XML marker prefix embedded in upgrade org PRs/issues.
@@ -44,45 +48,81 @@ func buildOrgXMLMarker(prefix, tag string) string {
 // Both values are empty strings when the release cannot be determined; callers must
 // handle this gracefully (e.g. omit the release link rather than failing).
 func getGhawReleaseInfo() (tag, releaseURL string) {
-	tag, err := getLatestRelease(false)
-	if err != nil || tag == "" {
-		orgIPLog.Printf("Could not resolve latest gh-aw release: %v", err)
-		return "", ""
+	ghawReleaseInfoOnce.Do(func() {
+		tag, err := getLatestRelease(false)
+		if err != nil || tag == "" {
+			orgIPLog.Printf("Could not resolve latest gh-aw release: %v", err)
+			return
+		}
+		ghawReleaseTag = tag
+		ghawReleaseURL = fmt.Sprintf("https://github.com/%s/releases/tag/%s", ghawReleaseRepo, tag)
+	})
+	return ghawReleaseTag, ghawReleaseURL
+}
+
+type orgListItem struct {
+	Number      int       `json:"number"`
+	Body        string    `json:"body"`
+	PullRequest *struct{} `json:"pull_request,omitempty"`
+}
+
+func runOrgAPI(ctx context.Context, remoteHost, spinnerMessage string, args ...string) ([]byte, error) {
+	ghArgs := append([]string{"api", "--hostname", remoteHost}, args...)
+	return workflow.RunGHContext(ctx, spinnerMessage, ghArgs...)
+}
+
+func runOrgAPICombined(ctx context.Context, remoteHost, spinnerMessage string, args ...string) ([]byte, error) {
+	ghArgs := append([]string{"api", "--hostname", remoteHost}, args...)
+	return workflow.RunGHCombinedContext(ctx, spinnerMessage, ghArgs...)
+}
+
+func listOpenOrgItems(ctx context.Context, repo, collection string) ([]orgListItem, error) {
+	remoteHost := getHostFromOriginRemote()
+	items := make([]orgListItem, 0)
+	for page := 1; ; page++ {
+		output, err := runOrgAPI(ctx, remoteHost, "Checking for existing items...",
+			fmt.Sprintf("/repos/%s/%s?state=open&per_page=100&page=%d", repo, collection, page),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		var pageItems []orgListItem
+		if err := json.Unmarshal(output, &pageItems); err != nil {
+			return nil, err
+		}
+		items = append(items, pageItems...)
+		if len(pageItems) < 100 {
+			return items, nil
+		}
 	}
-	releaseURL = fmt.Sprintf("https://github.com/%s/releases/tag/%s", ghawReleaseRepo, tag)
-	return tag, releaseURL
 }
 
-type orgListIssue struct {
-	Number int    `json:"number"`
-	Body   string `json:"body"`
-}
-
-type orgListPR struct {
-	Number int    `json:"number"`
-	Body   string `json:"body"`
+func isLabelValidationError(output []byte, err error) bool {
+	if err == nil {
+		return false
+	}
+	errText := strings.ToLower(err.Error())
+	outText := strings.ToLower(string(output))
+	has422 := strings.Contains(errText, "http 422") || strings.Contains(outText, "http 422")
+	return has422 &&
+		(strings.Contains(errText, "label") || strings.Contains(outText, "label"))
 }
 
 // closeExistingOrgIssuesByMarker finds all open issues in repo whose body contains
 // the given marker prefix string and closes them as not_planned. Errors are
 // non-fatal: a warning is logged and the function continues.
 func closeExistingOrgIssuesByMarker(ctx context.Context, repo, markerPrefix string, verbose bool) {
-	output, err := workflow.RunGHContext(ctx, "Checking for existing issues...",
-		"api",
-		fmt.Sprintf("/repos/%s/issues?state=open&per_page=100", repo),
-	)
+	issues, err := listOpenOrgItems(ctx, repo, "issues")
 	if err != nil {
 		orgIPLog.Printf("Failed to list open issues in %s: %v", repo, err)
 		return
 	}
 
-	var issues []orgListIssue
-	if err := json.Unmarshal(output, &issues); err != nil {
-		orgIPLog.Printf("Failed to parse issue list for %s: %v", repo, err)
-		return
-	}
-
 	for _, issue := range issues {
+		if issue.PullRequest != nil {
+			continue
+		}
 		if !strings.Contains(issue.Body, markerPrefix) {
 			continue
 		}
@@ -91,8 +131,8 @@ func closeExistingOrgIssuesByMarker(ctx context.Context, repo, markerPrefix stri
 				fmt.Sprintf("Closing outdated issue #%d in %s", issue.Number, repo),
 			))
 		}
-		if _, closeErr := workflow.RunGHContext(ctx, "Closing outdated issue...",
-			"api", "--method", "PATCH",
+		if _, closeErr := runOrgAPI(ctx, getHostFromOriginRemote(), "Closing outdated issue...",
+			"--method", "PATCH",
 			fmt.Sprintf("/repos/%s/issues/%d", repo, issue.Number),
 			"-f", "state=closed",
 			"-f", "state_reason=not_planned",
@@ -105,18 +145,9 @@ func closeExistingOrgIssuesByMarker(ctx context.Context, repo, markerPrefix stri
 // closeExistingOrgPRsByMarker finds all open PRs in repo whose body contains the
 // given marker prefix string and closes them. Errors are non-fatal.
 func closeExistingOrgPRsByMarker(ctx context.Context, repo, markerPrefix string, verbose bool) {
-	output, err := workflow.RunGHContext(ctx, "Checking for existing PRs...",
-		"api",
-		fmt.Sprintf("/repos/%s/pulls?state=open&per_page=100", repo),
-	)
+	prs, err := listOpenOrgItems(ctx, repo, "pulls")
 	if err != nil {
 		orgIPLog.Printf("Failed to list open PRs in %s: %v", repo, err)
-		return
-	}
-
-	var prs []orgListPR
-	if err := json.Unmarshal(output, &prs); err != nil {
-		orgIPLog.Printf("Failed to parse PR list for %s: %v", repo, err)
 		return
 	}
 
@@ -129,8 +160,8 @@ func closeExistingOrgPRsByMarker(ctx context.Context, repo, markerPrefix string,
 				fmt.Sprintf("Closing outdated PR #%d in %s", pr.Number, repo),
 			))
 		}
-		if _, closeErr := workflow.RunGHContext(ctx, "Closing outdated PR...",
-			"api", "--method", "PATCH",
+		if _, closeErr := runOrgAPI(ctx, getHostFromOriginRemote(), "Closing outdated PR...",
+			"--method", "PATCH",
 			fmt.Sprintf("/repos/%s/pulls/%d", repo, pr.Number),
 			"-f", "state=closed",
 		); closeErr != nil {
@@ -141,9 +172,9 @@ func closeExistingOrgPRsByMarker(ctx context.Context, repo, markerPrefix string,
 
 // addLabelToOrgPR adds a label to a PR identified by URL using gh pr edit.
 // Errors are non-fatal and emitted as warnings.
-func addLabelToOrgPR(prURL, label string, verbose bool) {
+func addLabelToOrgPR(ctx context.Context, prURL, label string, verbose bool) {
 	remoteHost := getHostFromOriginRemote()
-	if _, err := workflow.RunGHWithHost("Adding label to PR...", remoteHost, "pr", "edit", prURL, "--add-label", label); err != nil {
+	if _, err := workflow.RunGHContextWithHost(ctx, "Adding label to PR...", remoteHost, "pr", "edit", prURL, "--add-label", label); err != nil {
 		orgIPLog.Printf("Failed to add label %q to PR %s: %v", label, prURL, err)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
@@ -158,8 +189,8 @@ func addLabelToOrgPR(prURL, label string, verbose bool) {
 // the label so the issue is always created.
 func createOrgIssue(ctx context.Context, repo, title, body, label string) error {
 	endpoint := fmt.Sprintf("/repos/%s/issues", repo)
-	_, err := workflow.RunGHContext(ctx, "Creating issue...",
-		"api",
+	remoteHost := getHostFromOriginRemote()
+	output, err := runOrgAPICombined(ctx, remoteHost, "Creating issue...",
 		"--method", "POST",
 		endpoint,
 		"-f", "title="+title,
@@ -169,10 +200,12 @@ func createOrgIssue(ctx context.Context, repo, title, body, label string) error 
 	if err == nil {
 		return nil
 	}
+	if !isLabelValidationError(output, err) {
+		return err
+	}
 	// Label may not exist; retry without it so the issue is always created.
 	orgIPLog.Printf("Failed to create issue with label %q, retrying without: %v", label, err)
-	_, err = workflow.RunGHContext(ctx, "Creating issue...",
-		"api",
+	_, err = runOrgAPI(ctx, remoteHost, "Creating issue...",
 		"--method", "POST",
 		endpoint,
 		"-f", "title="+title,

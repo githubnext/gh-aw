@@ -150,7 +150,7 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 	}
 
 	if prURL != "" {
-		addLabelToOrgPR(prURL, agenticWorkflowsLabel, verbose)
+		addLabelToOrgPR(ctx, prURL, agenticWorkflowsLabel, verbose)
 	}
 	return nil
 }

@@ -331,7 +331,7 @@ func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateW
 			return err
 		}
 		if prURL != "" {
-			addLabelToOrgPR(prURL, agenticWorkflowsLabel, verbose)
+			addLabelToOrgPR(ctx, prURL, agenticWorkflowsLabel, verbose)
 		}
 		return nil
 	}

@@ -449,6 +449,7 @@ func TestBuildOrgUpdateIssue(t *testing.T) {
 	assert.Equal(t, "[aw] Updates available", title)
 	assert.Contains(t, body, "## Agentic Workflows Update Available")
 	assert.Contains(t, body, "- `repo-assist`: `1111111` -> `2222222`")
+	assert.Contains(t, body, "Assign this issue to Copilot")
 	assert.Contains(t, body, "@copilot update agentic workflows")
 	assert.Contains(t, body, "Run `gh aw update`")
 	assert.Contains(t, body, "<!-- gh-aw-update: v1.2.3 -->")
