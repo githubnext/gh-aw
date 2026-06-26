@@ -70,7 +70,7 @@ func TestNoRunsMessage(t *testing.T) {
 			name:           "old date beyond retention",
 			startDate:      oldDate,
 			timeoutReached: false,
-			wantContains:   "90-day retention",
+			wantContains:   "retention period",
 		},
 		{
 			name:           "recent date within retention",

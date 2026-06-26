@@ -43,10 +43,11 @@ func isDeadlineExceeded(ctx context.Context) bool {
 // were returned.  It inspects the startDate filter and the timeoutReached flag
 // so callers receive actionable guidance instead of a silent empty result.
 //
-// Priority order:
+// Priority order (timeout is checked first because it is the most definitive
+// cause — the date filter may still be valid but no data was collected):
 //  1. Timeout – the download was cut short before any run was collected.
 //  2. Future start date – GitHub cannot have runs in the future.
-//  3. Start date older than 90 days – beyond GitHub's default retention window.
+//  3. Start date older than GitHubActionsRetentionDays – beyond GitHub's default retention window.
 //  4. Generic fallback for any other combination of filters.
 func noRunsMessage(startDate string, timeoutReached bool) string {
 	if timeoutReached {
@@ -58,9 +59,9 @@ func noRunsMessage(startDate string, timeoutReached bool) string {
 			if t.After(now) {
 				return fmt.Sprintf("No runs found. The start_date %q is in the future.", startDate)
 			}
-			// GitHub Actions retains logs for 90 days by default.
-			if t.Before(now.AddDate(0, 0, -90)) {
-				return "No runs found. Data may not be available beyond the 90-day retention period."
+			// GitHub Actions retains logs for GitHubActionsRetentionDays by default.
+			if t.Before(now.AddDate(0, 0, -GitHubActionsRetentionDays)) {
+				return fmt.Sprintf("No runs found. Data may not be available beyond the %d-day retention period.", GitHubActionsRetentionDays)
 			}
 		}
 	}
