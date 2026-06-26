@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -18,8 +19,22 @@ var domainsLog = logger.New("workflow:domains")
 //go:embed data/ecosystem_domains.json
 var ecosystemDomainsJSON []byte
 
-// ecosystemDomains holds the loaded domain data
-var ecosystemDomains map[string][]string
+var getLoadedEcosystemDomains = sync.OnceValue(func() map[string][]string {
+	domainsLog.Print("Loading ecosystem domains from embedded JSON")
+
+	ecosystemDomains := make(map[string][]string)
+	if err := json.Unmarshal(ecosystemDomainsJSON, &ecosystemDomains); err != nil {
+		panic(fmt.Sprintf("failed to load ecosystem domains from JSON: %v", err))
+	}
+
+	// Pre-sort all domain lists once so getEcosystemDomains only needs to copy, not sort.
+	for key := range ecosystemDomains {
+		sort.Strings(ecosystemDomains[key])
+	}
+
+	domainsLog.Printf("Loaded %d ecosystem categories", len(ecosystemDomains))
+	return ecosystemDomains
+})
 
 // CopilotDefaultDomains are the default domains required for GitHub Copilot CLI authentication and operation
 var CopilotDefaultDomains = []string{
@@ -318,25 +333,6 @@ var PlaywrightDomains = []string{
 	"playwright.download.prss.microsoft.com",
 }
 
-// init loads the ecosystem domains from the embedded JSON and pre-sorts each list.
-// Pre-sorting at startup avoids the per-call sort.Strings in getEcosystemDomains,
-// which is called on every compilation and previously allocated + sorted each list
-// on every invocation.
-func init() {
-	domainsLog.Print("Loading ecosystem domains from embedded JSON")
-
-	if err := json.Unmarshal(ecosystemDomainsJSON, &ecosystemDomains); err != nil {
-		panic(fmt.Sprintf("failed to load ecosystem domains from JSON: %v", err))
-	}
-
-	// Pre-sort all domain lists once so getEcosystemDomains only needs to copy, not sort.
-	for key := range ecosystemDomains {
-		sort.Strings(ecosystemDomains[key])
-	}
-
-	domainsLog.Printf("Loaded %d ecosystem categories", len(ecosystemDomains))
-}
-
 // compoundEcosystems defines ecosystem identifiers that expand to the union of multiple
 // component ecosystems. These are resolved at lookup time, so they stay in sync with
 // any future changes to the component ecosystems.
@@ -364,6 +360,7 @@ func getEcosystemDomains(category string) []string {
 		return result
 	}
 
+	ecosystemDomains := getLoadedEcosystemDomains()
 	domains, exists := ecosystemDomains[category]
 	if !exists {
 		return []string{}
@@ -586,7 +583,7 @@ func GetDomainEcosystem(domain string) string {
 
 	// Fall back to any ecosystems not in the priority list, sorted for determinism
 	remaining := make([]string, 0)
-	for ecosystem := range ecosystemDomains {
+	for ecosystem := range getLoadedEcosystemDomains() {
 		if _, ok := checked[ecosystem]; !ok {
 			remaining = append(remaining, ecosystem)
 		}

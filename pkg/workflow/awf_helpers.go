@@ -173,6 +173,7 @@ func injectMaxAICreditsExpression(awfConfigJSON string, expr string) string {
 }
 
 func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
+	ecosystemDomains := getLoadedEcosystemDomains()
 	ecosystemMap := make(map[string][]string, safeAllocationCapacity(len(ecosystemDomains), len(compoundEcosystems)))
 	for ecosystem := range ecosystemDomains {
 		ecosystemMap[ecosystem] = getEcosystemDomains(ecosystem)
