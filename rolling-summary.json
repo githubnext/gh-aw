@@ -329,5 +329,11 @@
     "total_aic": 6906.526,
     "total_runs": 100,
     "total_action_minutes": 1076.0
+  },
+  {
+    "date": "2026-06-26",
+    "total_aic": 6812.027,
+    "total_runs": 100,
+    "total_action_minutes": 1103
   }
 ]
