@@ -13,13 +13,13 @@ import (
 
 func validateGitHubToolsAgainstToolsetsCore(allowedTools []string, enabledToolsets []string) error {
 	githubToolToToolsetLog.Printf("Validating GitHub tools against toolsets: allowed_tools=%d, enabled_toolsets=%d", len(allowedTools), len(enabledToolsets))
-	toolToToolsetMap := getGitHubToolToToolsetMap()
-
 	if len(allowedTools) == 0 {
 		githubToolToToolsetLog.Print("No tools to validate, skipping")
 		// No specific tools restricted, validation not needed
 		return nil
 	}
+
+	toolToToolsetMap := getGitHubToolToToolsetMap()
 
 	// Create a set of enabled toolsets for fast lookup
 	enabledSet := make(map[string]struct {
