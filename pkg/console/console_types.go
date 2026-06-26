@@ -23,6 +23,10 @@ type TableConfig struct {
 	Title     string
 	ShowTotal bool
 	TotalRow  []string
+	// TTYFunc overrides the default stdout TTY check used to determine whether
+	// to apply styling. Set this when the rendered string will be written to a
+	// file descriptor other than stdout (e.g. tty.IsStderrTerminal for stderr).
+	TTYFunc func() bool
 }
 
 // TreeNode represents a node in a hierarchical tree structure

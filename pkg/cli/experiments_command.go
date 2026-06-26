@@ -22,6 +22,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/tty"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -799,6 +800,7 @@ func printExperimentDetails(d *ExperimentDetails) {
 				Title:   fmt.Sprintf("%s (total: %d)", exp.Name, exp.Total),
 				Headers: []string{"Variant", "Count", "Percent"},
 				Rows:    rows,
+				TTYFunc: tty.IsStderrTerminal,
 			}))
 		}
 	} else {
@@ -816,10 +818,12 @@ func printExperimentDetails(d *ExperimentDetails) {
 			}
 			rows = append(rows, []string{date, run.RunID, formatAssignments(run.Assignments)})
 		}
+		fmt.Fprint(os.Stderr, "\n")
 		fmt.Fprint(os.Stderr, console.RenderTable(console.TableConfig{
 			Title:   "Recent runs",
 			Headers: []string{"Date", "Run ID", "Assignments"},
 			Rows:    rows,
+			TTYFunc: tty.IsStderrTerminal,
 		}))
 	}
 }

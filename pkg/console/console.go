@@ -166,6 +166,14 @@ func RenderTable(config TableConfig) string {
 	}
 
 	consoleLog.Printf("Rendering table: title=%s, columns=%d, rows=%d", config.Title, len(config.Headers), len(config.Rows))
+
+	// Use caller-supplied TTY detector when provided (e.g. tty.IsStderrTerminal
+	// for tables written to stderr), otherwise fall back to stdout detection.
+	ttyCheck := isTTY
+	if config.TTYFunc != nil {
+		ttyCheck = config.TTYFunc
+	}
+
 	var output strings.Builder
 
 	if config.Title != "" {
@@ -181,7 +189,7 @@ func RenderTable(config TableConfig) string {
 	dataRowCount := len(config.Rows)
 
 	styleFunc := func(row, col int) lipgloss.Style {
-		if !isTTY() {
+		if !ttyCheck() {
 			return lipgloss.NewStyle()
 		}
 		if row == table.HeaderRow {
@@ -204,7 +212,7 @@ func RenderTable(config TableConfig) string {
 	}
 
 	borderStyle := lipgloss.NewStyle()
-	if isTTY() {
+	if ttyCheck() {
 		borderStyle = styles.TableBorder
 	}
 
