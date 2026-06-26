@@ -97,6 +97,16 @@ func TestRunUpgradeForOrgCreateIssueRequiresYesInCI(t *testing.T) {
 	assert.Contains(t, err.Error(), "--yes")
 }
 
+func TestRunUpgradeForOrgCreatePRRequiresYesInCI(t *testing.T) {
+	origIsCI := isRunningInCIFn
+	isRunningInCIFn = func() bool { return true }
+	defer func() { isRunningInCIFn = origIsCI }()
+
+	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--yes")
+}
+
 func TestRunUpgradeForOrgEmptyOrg(t *testing.T) {
 	err := runUpgradeForOrg(context.Background(), "  ", nil, upgradeOptions{ctx: context.Background()}, false, false, false)
 	require.Error(t, err)
