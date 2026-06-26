@@ -76,7 +76,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	permissions, err := c.buildActivationPermissions(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build activation permissions: %w", err)
 	}
 
 	return &Job{
