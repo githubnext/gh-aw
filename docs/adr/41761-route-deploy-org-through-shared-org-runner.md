@@ -1,7 +1,7 @@
 # ADR-41761: Route `deploy --org` Through Shared Org Runner
 
 **Date**: 2026-06-26
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
@@ -40,5 +40,3 @@ Introduce a separate top-level subcommand (e.g., `gh aw deploy-org`) instead of 
 - Repository search reuses `searchOrgLockWorkflowRepos`, coupling deploy org discovery to the lock command's search logic; divergence in search criteria would require splitting this function.
 
 ---
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
