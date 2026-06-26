@@ -279,7 +279,7 @@ func waitForOrgRateLimit(ctx context.Context, resource string, verbose bool) err
 
 // createIssueForOrgRepo opens a GitHub issue in the target repository listing
 // the source-managed workflows that have updates available. Any previously-open
-// issues carrying the GHAW-update XML marker are closed first so that only the
+// issues carrying the gh-aw-update XML marker are closed first so that only the
 // most recent notification remains.
 func createIssueForOrgRepo(ctx context.Context, preview orgRepoPreview, verbose bool) error {
 	releaseTag, releaseURL := getGhawReleaseInfo()

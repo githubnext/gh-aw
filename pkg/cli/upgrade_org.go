@@ -166,7 +166,7 @@ func searchOrgAnyWorkflowRepos(ctx context.Context, org string, verbose bool) ([
 
 // createIssueForUpgradeOrgRepo opens a GitHub issue in the target repository
 // to notify maintainers that agentic workflow upgrades are available. Any
-// previously-open issues carrying the GHAW-upgrade XML marker are closed first
+// previously-open issues carrying the gh-aw-upgrade XML marker are closed first
 // so that only the most recent notification remains.
 func createIssueForUpgradeOrgRepo(ctx context.Context, repo string, verbose bool) error {
 	title := "[aw] Upgrade available"

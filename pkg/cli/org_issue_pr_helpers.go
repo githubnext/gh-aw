@@ -16,12 +16,12 @@ var orgIPLog = logger.New("cli:org_issue_pr")
 
 const (
 	// ghawUpgradeMarkerPrefix is the XML marker prefix embedded in upgrade org PRs/issues.
-	// Full marker format: <!-- GHAW-upgrade: vX.Y.Z -->
-	ghawUpgradeMarkerPrefix = "<!-- GHAW-upgrade:"
+	// Full marker format: <!-- gh-aw-upgrade: vX.Y.Z -->
+	ghawUpgradeMarkerPrefix = "<!-- gh-aw-upgrade:"
 
 	// ghawUpdateMarkerPrefix is the XML marker prefix embedded in update org PRs/issues.
-	// Full marker format: <!-- GHAW-update: vX.Y.Z -->
-	ghawUpdateMarkerPrefix = "<!-- GHAW-update:"
+	// Full marker format: <!-- gh-aw-update: vX.Y.Z -->
+	ghawUpdateMarkerPrefix = "<!-- gh-aw-update:"
 
 	// ghawReleaseRepo is the GitHub repository for gh-aw releases.
 	ghawReleaseRepo = "github/gh-aw"
@@ -31,7 +31,7 @@ const (
 )
 
 // buildOrgXMLMarker builds a full XML comment marker string for a given prefix and release tag.
-// Example: buildOrgXMLMarker("<!-- GHAW-upgrade:", "v1.2.3") → "<!-- GHAW-upgrade: v1.2.3 -->"
+// Example: buildOrgXMLMarker("<!-- gh-aw-upgrade:", "v1.2.3") → "<!-- gh-aw-upgrade: v1.2.3 -->"
 // If tag is empty the marker is still written with a placeholder so it remains searchable.
 func buildOrgXMLMarker(prefix, tag string) string {
 	if tag == "" {
