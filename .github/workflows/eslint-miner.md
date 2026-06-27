@@ -15,6 +15,15 @@ tracker-id: eslint-miner
 engine:
   id: copilot
   copilot-sdk: true
+lsp:
+  typescript:
+    command: typescript-language-server
+    args: ["--stdio"]
+    fileExtensions:
+      ".ts": typescript
+      ".js": javascript
+      ".cjs": javascript
+      ".mjs": javascript
 network:
   allowed:
     - defaults
