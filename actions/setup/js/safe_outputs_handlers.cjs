@@ -195,9 +195,12 @@ function resolvePatchWorkspacePath(workspacePath) {
 }
 
 /**
- * Ensure the current git checkout path is trusted in this process HOME context.
- * This prevents "detected dubious ownership in repository" failures when safe
- * outputs run via a bridge process using a different HOME than the container.
+ * Ensure the current git checkout path is trusted in this process context.
+ * Injects safe.directory via GIT_CONFIG_COUNT/KEY/VALUE env vars so that all
+ * subsequent git commands in this process inherit the trust without writing to
+ * ~/.gitconfig (no persistent global git config side effects).
+ *
+ * GIT_CONFIG_COUNT/KEY/VALUE is supported since git 2.31.
  *
  * @param {string} gitCwd
  * @param {{ debug: (message: string) => void }} server
@@ -205,23 +208,21 @@ function resolvePatchWorkspacePath(workspacePath) {
  */
 function ensureSafeDirectoryTrust(gitCwd, server) {
   if (!gitCwd) return;
-  try {
-    const existingEntries = execGitSync(["config", "--global", "--get-all", "safe.directory"], { suppressLogs: true })
-      .split("\n")
-      .map(value => value.trim())
-      .filter(Boolean);
-    if (existingEntries.includes(gitCwd)) {
+
+  // Check if gitCwd is already present in the injected env-var config to avoid
+  // duplicate entries when the handler is called more than once in the same process.
+  const existingCount = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10);
+  for (let i = 0; i < existingCount; i++) {
+    if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory" && process.env[`GIT_CONFIG_VALUE_${i}`] === gitCwd) {
       return;
     }
-  } catch {
-    // `git config --get-all` exits non-zero when no values are configured yet.
   }
-  try {
-    execGitSync(["config", "--global", "--add", "safe.directory", gitCwd], { suppressLogs: true });
-    server.debug(`Configured git safe.directory for bridge context: ${gitCwd}`);
-  } catch (error) {
-    server.debug(`Failed to configure git safe.directory '${gitCwd}': ${getErrorMessage(error)}`);
-  }
+
+  const idx = existingCount;
+  process.env.GIT_CONFIG_COUNT = String(existingCount + 1);
+  process.env[`GIT_CONFIG_KEY_${idx}`] = "safe.directory";
+  process.env[`GIT_CONFIG_VALUE_${idx}`] = gitCwd;
+  server.debug(`Configured git safe.directory for bridge context: ${gitCwd}`);
 }
 
 /**

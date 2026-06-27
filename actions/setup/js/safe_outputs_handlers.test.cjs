@@ -739,11 +739,12 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
-    it("adds GITHUB_WORKSPACE to git safe.directory in the current HOME context before branch pinning", async () => {
-      const testHome = path.join(testWorkspaceDir, "home-safe-directory-create-pr");
-      fs.mkdirSync(testHome, { recursive: true });
-      const previousHome = process.env.HOME;
-      process.env.HOME = testHome;
+    it("injects GITHUB_WORKSPACE into GIT_CONFIG env vars for safe.directory before branch pinning", async () => {
+      const prevCount = process.env.GIT_CONFIG_COUNT;
+      const prevKeys = Object.fromEntries(Object.entries(process.env).filter(([k]) => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k)));
+      // Clear any pre-existing GIT_CONFIG_COUNT so the injection starts at index 0.
+      delete process.env.GIT_CONFIG_COUNT;
+      for (const key of Object.keys(prevKeys)) delete process.env[key];
       try {
         await handlers.createPullRequestHandler({
           branch: "feature-branch",
@@ -751,18 +752,23 @@ describe("safe_outputs_handlers", () => {
           body: "Test description",
         });
 
-        const safeDirectories = execSync("git config --global --get-all safe.directory", {
-          env: { ...process.env, HOME: testHome },
-          stdio: "pipe",
-        })
-          .toString()
-          .split("\n")
-          .map(line => line.trim())
-          .filter(Boolean);
-        expect(safeDirectories).toContain(testWorkspaceDir);
+        const count = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10);
+        const injected = [];
+        for (let i = 0; i < count; i++) {
+          if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory") {
+            injected.push(process.env[`GIT_CONFIG_VALUE_${i}`]);
+          }
+        }
+        expect(injected).toContain(testWorkspaceDir);
       } finally {
-        if (previousHome === undefined) delete process.env.HOME;
-        else process.env.HOME = previousHome;
+        // Restore original env state.
+        if (prevCount === undefined) delete process.env.GIT_CONFIG_COUNT;
+        else process.env.GIT_CONFIG_COUNT = prevCount;
+        // Remove any GIT_CONFIG_KEY/VALUE vars added during the test, then restore originals.
+        for (const key of Object.keys(process.env).filter(k => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k))) {
+          delete process.env[key];
+        }
+        for (const [key, value] of Object.entries(prevKeys)) process.env[key] = value;
       }
     });
 
@@ -1235,28 +1241,34 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
-    it("adds GITHUB_WORKSPACE to git safe.directory in the current HOME context before push branch pinning", async () => {
-      const testHome = path.join(testWorkspaceDir, "home-safe-directory-push-pr-branch");
-      fs.mkdirSync(testHome, { recursive: true });
-      const previousHome = process.env.HOME;
-      process.env.HOME = testHome;
+    it("injects GITHUB_WORKSPACE into GIT_CONFIG env vars for safe.directory before push branch pinning", async () => {
+      const prevCount = process.env.GIT_CONFIG_COUNT;
+      const prevKeys = Object.fromEntries(Object.entries(process.env).filter(([k]) => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k)));
+      // Clear any pre-existing GIT_CONFIG_COUNT so the injection starts at index 0.
+      delete process.env.GIT_CONFIG_COUNT;
+      for (const key of Object.keys(prevKeys)) delete process.env[key];
       try {
         await handlers.pushToPullRequestBranchHandler({
           branch: "feature-branch",
         });
 
-        const safeDirectories = execSync("git config --global --get-all safe.directory", {
-          env: { ...process.env, HOME: testHome },
-          stdio: "pipe",
-        })
-          .toString()
-          .split("\n")
-          .map(line => line.trim())
-          .filter(Boolean);
-        expect(safeDirectories).toContain(testWorkspaceDir);
+        const count = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10);
+        const injected = [];
+        for (let i = 0; i < count; i++) {
+          if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory") {
+            injected.push(process.env[`GIT_CONFIG_VALUE_${i}`]);
+          }
+        }
+        expect(injected).toContain(testWorkspaceDir);
       } finally {
-        if (previousHome === undefined) delete process.env.HOME;
-        else process.env.HOME = previousHome;
+        // Restore original env state.
+        if (prevCount === undefined) delete process.env.GIT_CONFIG_COUNT;
+        else process.env.GIT_CONFIG_COUNT = prevCount;
+        // Remove any GIT_CONFIG_KEY/VALUE vars added during the test, then restore originals.
+        for (const key of Object.keys(process.env).filter(k => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k))) {
+          delete process.env[key];
+        }
+        for (const [key, value] of Object.entries(prevKeys)) process.env[key] = value;
       }
     });
 
