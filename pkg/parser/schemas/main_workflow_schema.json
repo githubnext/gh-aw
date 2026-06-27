@@ -10303,13 +10303,7 @@
         "report-failure-as-issue": {
           "oneOf": [
             {
-              "type": "boolean",
-              "description": "When false, disables creating failure tracking issues when workflows fail. When true, all failures trigger issues. Defaults to true."
-            },
-            {
-              "type": "string",
-              "pattern": "^\\$\\{\\{.*\\}\\}$",
-              "description": "GitHub Actions expression that resolves to a boolean at runtime (for example: '${{ inputs.report-failure-as-issue }}')."
+              "$ref": "#/$defs/templatable_boolean"
             },
             {
               "type": "array",
