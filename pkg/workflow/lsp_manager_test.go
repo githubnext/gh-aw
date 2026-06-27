@@ -31,27 +31,57 @@ func TestLSPManagerValidate(t *testing.T) {
 }
 
 func TestLSPManagerDuplicateKeyNormalization(t *testing.T) {
-	// "TypeScript" and "typescript" both normalize to "typescript".
-	// Sorted order puts "TypeScript" first (uppercase < lowercase in ASCII),
-	// so the "TypeScript" entry should win deterministically.
-	manager := NewLSPManager(map[string]LSPServerConfig{
-		"TypeScript": {
-			Command: "first-server",
-			FileExtensions: map[string]string{
-				".ts": "typescript",
+	tests := []struct {
+		name     string
+		servers  map[string]LSPServerConfig
+		expected string
+	}{
+		{
+			name: "uppercase sorts before lowercase",
+			servers: map[string]LSPServerConfig{
+				"TypeScript": {
+					Command: "first-server",
+					FileExtensions: map[string]string{
+						".ts": "typescript",
+					},
+				},
+				"typescript": {
+					Command: "second-server",
+					FileExtensions: map[string]string{
+						".ts": "typescript",
+					},
+				},
 			},
+			expected: "first-server",
 		},
-		"typescript": {
-			Command: "second-server",
-			FileExtensions: map[string]string{
-				".ts": "typescript",
+		{
+			name: "lexicographically first lowercase variant wins",
+			servers: map[string]LSPServerConfig{
+				"TYPESCRIPT": {
+					Command: "second-server",
+					FileExtensions: map[string]string{
+						".ts": "typescript",
+					},
+				},
+				"typescript": {
+					Command: "first-server",
+					FileExtensions: map[string]string{
+						".ts": "typescript",
+					},
+				},
 			},
+			expected: "second-server",
 		},
-	})
+	}
 
-	servers := manager.CopilotLSPServers()
-	require.Len(t, servers, 1)
-	assert.Equal(t, "first-server", servers["typescript"].Command)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := NewLSPManager(tt.servers)
+			servers := manager.CopilotLSPServers()
+			require.Len(t, servers, 1)
+			assert.Equal(t, tt.expected, servers["typescript"].Command)
+		})
+	}
 }
 
 func TestLSPManagerGenerateInstallSteps(t *testing.T) {

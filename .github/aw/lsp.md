@@ -168,4 +168,4 @@ The compiler enforces these rules at compile time:
 - `lsp` requires `engine: copilot` — any other engine causes an error.
 - Each language entry must have a non-empty `command`.
 - Each language entry must define at least one `fileExtensions` mapping.
-- Language keys are case-insensitive and trimmed; duplicate keys that collapse to the same lowercase value cause nondeterministic behavior and should be avoided.
+- Language keys are case-insensitive and trimmed; duplicate keys that collapse to the same lowercase value are normalized deterministically with the lexicographically first original key winning, but should still be avoided because the result may be surprising.
