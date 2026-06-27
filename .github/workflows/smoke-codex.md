@@ -24,7 +24,9 @@ permissions:
   issues: read
   pull-requests: read
 name: Smoke Codex
-engine: codex
+engine:
+  id: copilot
+  copilot-sdk: true
 imports:
   - shared/gh.md
   - shared/reporting-otlp.md
@@ -48,9 +50,21 @@ tools:
   bash:
     - "*"
   web-fetch:
+lsp:
+  typescript:
+    command: typescript-language-server
+    args: ["--stdio"]
+    fileExtensions:
+      ".js": javascript
+      ".cjs": javascript
+      ".mjs": javascript
+      ".ts": typescript
+      ".tsx": typescriptreact
 runtimes:
   go:
     version: "1.26"
+  node:
+    version: "20"
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     add-comment:
@@ -124,6 +138,10 @@ features:
       - date field → `YYYY-MM-DD`
       - single-select field → an existing option name
     - If no editable issue fields are available, report this test as skipped with reason
+11. **LSP TypeScript Testing**: Use the TypeScript language server (configured via `lsp.typescript` frontmatter) to count the number of functions in `${{ github.workspace }}/actions/setup/js/safe_output_helpers.cjs`:
+    - Open the file `${{ github.workspace }}/actions/setup/js/safe_output_helpers.cjs` via LSP
+    - Use LSP document symbols to list all symbols in the file and count functions
+    - Report the total function count as ✅ if at least 1 function is found, ❌ otherwise
 
 ## Output
 
@@ -131,7 +149,7 @@ features:
 - Title: "Smoke Test: Codex - ${{ github.run_id }}"
 - Declare `temporary_id: aw_smoke_issue` on this `create_issue` output so that the `set_issue_field` message (test #10) can reference it via `issue_number: '#aw_smoke_issue'`
 - Body should include:
-  - Test results (✅ or ❌ for each test, including test #9 Cache Memory and test #10 Set Issue Field)
+  - Test results (✅ or ❌ for each test, including test #9 Cache Memory, test #10 Set Issue Field, and test #11 LSP TypeScript)
   - Overall status: PASS or FAIL
   - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   - Timestamp
