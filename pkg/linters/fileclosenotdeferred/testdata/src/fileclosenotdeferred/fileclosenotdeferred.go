@@ -112,3 +112,19 @@ func SuppressedManualClose() error {
 	f.Close()
 	return nil
 }
+
+// not flagged: suppression directive suppresses the reassignment-path violation
+// (exercises the nolint check inside trackFileOpenAssignment).
+func SuppressedReopenManualClose() error {
+	f, err := os.Open("first.txt") //nolint:fileclosenotdeferred
+	if err != nil {
+		return err
+	}
+	f.Close()
+	f, err = os.Open("second.txt")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return nil
+}
