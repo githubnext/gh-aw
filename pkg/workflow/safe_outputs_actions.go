@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/goccy/go-yaml"
 )
@@ -419,11 +420,7 @@ func generateActionToolDefinition(actionName string, config *SafeOutputActionCon
 	}
 
 	// Sort for deterministic output
-	inputNames := make([]string, 0, len(config.Inputs))
-	for k := range config.Inputs {
-		inputNames = append(inputNames, k)
-	}
-	sort.Strings(inputNames)
+	inputNames := sliceutil.SortedKeys(config.Inputs)
 
 	for _, inputName := range inputNames {
 		inputDef := config.Inputs[inputName]
@@ -501,11 +498,7 @@ func (c *Compiler) buildActionSteps(data *WorkflowData) []string {
 	}
 
 	// Sort action names for deterministic output
-	actionNames := make([]string, 0, len(data.SafeOutputs.Actions))
-	for name := range data.SafeOutputs.Actions {
-		actionNames = append(actionNames, name)
-	}
-	sort.Strings(actionNames)
+	actionNames := sliceutil.SortedKeys(data.SafeOutputs.Actions)
 
 	var steps []string
 
@@ -538,11 +531,7 @@ func (c *Compiler) buildActionSteps(data *WorkflowData) []string {
 		// Build optional env: block for per-action environment variables
 		if len(config.Env) > 0 {
 			steps = append(steps, "        env:\n")
-			envKeys := make([]string, 0, len(config.Env))
-			for k := range config.Env {
-				envKeys = append(envKeys, k)
-			}
-			sort.Strings(envKeys)
+			envKeys := sliceutil.SortedKeys(config.Env)
 			for _, envKey := range envKeys {
 				steps = append(steps, fmt.Sprintf("          %s: %s\n", envKey, config.Env[envKey]))
 			}

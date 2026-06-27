@@ -713,6 +713,132 @@ jobs:
           sbom: true
           provenance: mode=max
 
+  comment_release_prs:
+    needs: ["agent", "config", "release"]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Comment on pull requests included in release
+        uses: actions/github-script@v9.0.0
+        env:
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+          RELEASE_ID: ${{ needs.release.outputs.release_id }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const releaseTag = process.env.RELEASE_TAG;
+            const releaseId = Number(process.env.RELEASE_ID);
+
+            if (!releaseTag || Number.isNaN(releaseId)) {
+              core.setFailed(`Missing or invalid release context: RELEASE_TAG=${releaseTag}, RELEASE_ID=${process.env.RELEASE_ID}`);
+              return;
+            }
+
+            const { data: currentRelease } = await github.rest.repos.getRelease({
+              owner,
+              repo,
+              release_id: releaseId
+            });
+
+            const { data: releases } = await github.rest.repos.listReleases({
+              owner,
+              repo,
+              per_page: 100
+            });
+
+            const currentPublishedAt = new Date(currentRelease.published_at);
+            const previousRelease = releases.find((release) =>
+              release.id !== currentRelease.id &&
+              !release.draft &&
+              release.published_at &&
+              new Date(release.published_at) < currentPublishedAt
+            );
+
+            if (!previousRelease) {
+              core.info(`No previous release found before ${releaseTag}; skipping PR comments.`);
+              return;
+            }
+
+            const query = [
+              `repo:${owner}/${repo}`,
+              "is:pr",
+              "is:merged",
+              `merged:${previousRelease.published_at}..${currentRelease.published_at}`
+            ].join(" ");
+
+            const mergedPrs = await github.paginate(github.rest.search.issuesAndPullRequests, {
+              q: query,
+              per_page: 100
+            });
+
+            if (mergedPrs.length === 0) {
+              core.info(`No merged PRs found between ${previousRelease.tag_name} and ${releaseTag}.`);
+              return;
+            }
+
+            const marker = `<!-- gh-aw-release:${releaseTag} -->`;
+            const releaseUrl = currentRelease.html_url;
+            const commentBody = [
+              "🎉 This pull request is included in a new release.",
+              "",
+              `Release: [\`${releaseTag}\`](${releaseUrl})`,
+              "",
+              marker
+            ].join("\n");
+
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+            const withRetry = async (fn, label) => {
+              const maxAttempts = 3;
+              for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                try {
+                  return await fn();
+                } catch (error) {
+                  if (attempt === maxAttempts) throw error;
+                  core.warning(`${label} failed on attempt ${attempt}/${maxAttempts}: ${error.message}`);
+                  await sleep(attempt * 1000);
+                }
+              }
+            };
+
+            let commentedCount = 0;
+            let skippedCount = 0;
+
+            for (const pr of mergedPrs) {
+              const comments = await withRetry(
+                () =>
+                  github.paginate(github.rest.issues.listComments, {
+                    owner,
+                    repo,
+                    issue_number: pr.number,
+                    per_page: 100
+                  }),
+                `Listing comments for #${pr.number}`
+              );
+
+              const alreadyCommented = comments.some((comment) => comment.body?.includes(marker));
+              if (alreadyCommented) {
+                skippedCount += 1;
+                continue;
+              }
+
+              await withRetry(
+                () =>
+                  github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: pr.number,
+                    body: commentBody
+                  }),
+                `Creating release comment for #${pr.number}`
+              );
+              commentedCount += 1;
+            }
+
+            core.info(`Release PR commenting complete: commented=${commentedCount}, skipped=${skippedCount}, total=${mergedPrs.length}`);
+
 steps:
   - name: Setup release environment
     env:

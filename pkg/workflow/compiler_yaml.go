@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
@@ -205,11 +205,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		yaml.WriteString("#\n")
 		yaml.WriteString("# Frontmatter env variables:\n")
 		// Sort keys for deterministic output
-		keys := make([]string, 0, len(data.EnvSources))
-		for k := range data.EnvSources {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
+		keys := sliceutil.SortedKeys(data.EnvSources)
 		for _, k := range keys {
 			fmt.Fprintf(yaml, "#   - %s: %s\n", k, data.EnvSources[k])
 		}
@@ -724,11 +720,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 		// Convert back to slice in sorted order (by environment variable name) for deterministic output
 		allExpressionMappings = make([]*ExpressionMapping, 0, len(expressionMap))
 		// Get all keys and sort them
-		envVarNames := make([]string, 0, len(expressionMap))
-		for envVar := range expressionMap {
-			envVarNames = append(envVarNames, envVar)
-		}
-		sort.Strings(envVarNames)
+		envVarNames := sliceutil.SortedKeys(expressionMap)
 		// Add mappings in sorted order
 		for _, envVar := range envVarNames {
 			allExpressionMappings = append(allExpressionMappings, expressionMap[envVar])

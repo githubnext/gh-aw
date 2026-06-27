@@ -3,8 +3,9 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 // SampleEntry is the per-call payload consumed by apply_samples.cjs.
@@ -29,11 +30,7 @@ func collectSampleEntries(config *SafeOutputsConfig) []SampleEntry {
 		return nil
 	}
 
-	fieldNames := make([]string, 0, len(safeOutputFieldMapping))
-	for fieldName := range safeOutputFieldMapping {
-		fieldNames = append(fieldNames, fieldName)
-	}
-	sort.Strings(fieldNames)
+	fieldNames := sliceutil.SortedKeys(safeOutputFieldMapping)
 
 	var entries []SampleEntry
 	for _, fieldName := range fieldNames {

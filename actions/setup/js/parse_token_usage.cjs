@@ -16,7 +16,10 @@ const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp
 
 const TOKEN_USAGE_AUDIT_PATH = "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl";
 const TOKEN_USAGE_PATH = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
-const TOKEN_USAGE_PATHS = [TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_PATH];
+// AWF v0.27.7+ may write token-usage.jsonl under --audit-dir as well as --proxy-logs-dir.
+// Include this path so the agent job captures token data regardless of which dir AWF chose.
+const TOKEN_USAGE_AWF_AUDIT_PATH = "/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl";
+const TOKEN_USAGE_PATHS = [TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_AWF_AUDIT_PATH, TOKEN_USAGE_PATH];
 const AGENT_USAGE_PATH = "/tmp/gh-aw/agent_usage.json";
 const DEFAULT_SUMMARY_TITLE = "Token Usage";
 
@@ -223,6 +226,7 @@ if (typeof module !== "undefined" && module.exports) {
     renderTokenTableAsPlainText,
     TOKEN_USAGE_AUDIT_PATH,
     TOKEN_USAGE_PATH,
+    TOKEN_USAGE_AWF_AUDIT_PATH,
     TOKEN_USAGE_PATHS,
     AGENT_USAGE_PATH,
     DEFAULT_SUMMARY_TITLE,

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"maps"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
@@ -621,11 +621,7 @@ func (e *CodexEngine) getShellEnvironmentPolicyVars(tools map[string]any, mcpToo
 		}
 	}
 
-	var sortedEnvVars []string
-	for envVar := range envVars {
-		sortedEnvVars = append(sortedEnvVars, envVar)
-	}
-	sort.Strings(sortedEnvVars)
+	sortedEnvVars := sliceutil.SortedKeys(envVars)
 
 	// Codex expects regex patterns for shell_environment_policy.include_only, not literal names.
 	// Anchor each variable name to avoid accidental substring matches (for example "PATH" matching "PATH_SUFFIX").

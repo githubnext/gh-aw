@@ -3,13 +3,13 @@ package workflow
 import (
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var orchestratorToolsLog = logger.New("workflow:compiler_orchestrator_tools")
@@ -391,11 +391,7 @@ func mergeAndSortIncludedFiles(files1 []string, files2 []string) []string {
 		allIncludedFilesMap[file] = struct {
 		}{}
 	}
-	allIncludedFiles := make([]string, 0, len(allIncludedFilesMap))
-	for file := range allIncludedFilesMap {
-		allIncludedFiles = append(allIncludedFiles, file)
-	}
-	sort.Strings(allIncludedFiles)
+	allIncludedFiles := sliceutil.SortedKeys(allIncludedFilesMap)
 	return allIncludedFiles
 }
 

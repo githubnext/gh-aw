@@ -504,17 +504,9 @@ func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntr
 		}
 	}
 
-	commands := make([]string, 0, len(byCommand))
-	for command := range byCommand {
-		commands = append(commands, command)
-	}
-	sort.Strings(commands)
+	commands := sliceutil.SortedKeys(byCommand)
 
-	labels := make([]string, 0, len(byLabel))
-	for labelName := range byLabel {
-		labels = append(labels, labelName)
-	}
-	sort.Strings(labels)
+	labels := sliceutil.SortedKeys(byLabel)
 
 	entries := make([]helpCommandEntry, 0, len(commands)+len(labels))
 	for _, command := range commands {
@@ -554,11 +546,7 @@ func writeCentralRouteTypeSummary(b *strings.Builder, routesByTrigger map[string
 		return
 	}
 
-	triggers := make([]string, 0, len(routesByTrigger))
-	for trigger := range routesByTrigger {
-		triggers = append(triggers, trigger)
-	}
-	sort.Strings(triggers)
+	triggers := sliceutil.SortedKeys(routesByTrigger)
 
 	for _, trigger := range triggers {
 		routes := slices.Clone(routesByTrigger[trigger])
@@ -654,11 +642,7 @@ func buildCommandsHeaderMetadata(slashRoutesByCommand map[string][]slashCommandR
 		}
 	}
 	sort.Strings(commands)
-	workflows := make([]string, 0, len(workflowSet))
-	for workflowID := range workflowSet {
-		workflows = append(workflows, workflowID)
-	}
-	sort.Strings(workflows)
+	workflows := sliceutil.SortedKeys(workflowSet)
 	metadataCompilerVersion := "dev"
 	if IsRelease() && strings.TrimSpace(GetVersion()) != "" {
 		metadataCompilerVersion = GetVersion()
@@ -742,11 +726,7 @@ func writeCentralSlashEventsYAML(b *strings.Builder, mergedEvents map[string]map
 		if len(typeSet) == 0 {
 			continue
 		}
-		types := make([]string, 0, len(typeSet))
-		for t := range typeSet {
-			types = append(types, t)
-		}
-		sort.Strings(types)
+		types := sliceutil.SortedKeys(typeSet)
 		b.WriteString("  " + eventName + ":\n")
 		b.WriteString("    types: [" + strings.Join(types, ", ") + "]\n")
 	}

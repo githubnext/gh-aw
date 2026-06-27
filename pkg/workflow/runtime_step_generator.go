@@ -3,9 +3,9 @@ package workflow
 import (
 	"fmt"
 	"maps"
-	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var runtimeStepGeneratorLog = logger.New("workflow:runtime_step_generator")
@@ -131,11 +131,7 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 		for k, v := range req.ExtraFields {
 			allGoModExtraFields[k] = formatYAMLValue(v)
 		}
-		var extraKeys []string
-		for key := range allGoModExtraFields {
-			extraKeys = append(extraKeys, key)
-		}
-		sort.Strings(extraKeys)
+		extraKeys := sliceutil.SortedKeys(allGoModExtraFields)
 		for _, key := range extraKeys {
 			step = append(step, fmt.Sprintf("          %s: %s", key, allGoModExtraFields[key]))
 		}
@@ -168,11 +164,7 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 	}
 
 	// Output merged extra fields in sorted key order for stable output
-	var allKeys []string
-	for key := range allExtraFields {
-		allKeys = append(allKeys, key)
-	}
-	sort.Strings(allKeys)
+	allKeys := sliceutil.SortedKeys(allExtraFields)
 	for _, key := range allKeys {
 		step = append(step, fmt.Sprintf("          %s: %s", key, allExtraFields[key]))
 		workflowLog.Printf("  Added extra field to runtime setup: %s = %s", key, allExtraFields[key])

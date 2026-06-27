@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -96,12 +95,17 @@ func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string)
 		"          [ -f /tmp/gh-aw/agent_usage.jsonl ] && cp /tmp/gh-aw/agent_usage.jsonl /tmp/gh-aw/usage/agent_usage.jsonl || true\n",
 		"          [ -f /tmp/gh-aw/detection_usage.jsonl ] && cp /tmp/gh-aw/detection_usage.jsonl /tmp/gh-aw/usage/detection_usage.jsonl || true\n",
 		"          [ -f /tmp/gh-aw/github_rate_limits.jsonl ] && cp /tmp/gh-aw/github_rate_limits.jsonl /tmp/gh-aw/usage/github_rate_limits.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/agent/token_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/agent/token_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/agent/token_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/detection/token_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/detection/token_usage.jsonl || true\n",
-		"          [ -f /tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/detection/token_usage.jsonl || true\n",
+		// Agent token usage: copy in ascending priority order (last non-empty source wins).
+		// firewall/logs/ is the authoritative proxy-logs dir and goes last so it always wins
+		// over the legacy firewall-audit-logs/ path and the AWF audit dir (firewall/audit/).
+		// Using [ -s ] (non-empty) prevents an empty stub file from zeroing out valid data.
+		"          [ -s /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/agent/token_usage.jsonl || true\n",
+		"          [ -s /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/agent/token_usage.jsonl || true\n",
+		"          [ -s /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/agent/token_usage.jsonl || true\n",
+		// Detection token usage: same priority ordering as agent.
+		"          [ -s /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/threat-detection/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/detection/token_usage.jsonl || true\n",
+		"          [ -s /tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/detection/token_usage.jsonl || true\n",
+		"          [ -s /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ] && cp /tmp/gh-aw/threat-detection/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/detection/token_usage.jsonl || true\n",
 		"          [ -f /tmp/gh-aw/usage/agent/token_usage.jsonl ] || : > /tmp/gh-aw/usage/agent/token_usage.jsonl\n",
 		"          [ -f /tmp/gh-aw/usage/detection/token_usage.jsonl ] || : > /tmp/gh-aw/usage/detection/token_usage.jsonl\n",
 		"          mkdir -p /tmp/gh-aw/usage/activity\n",
@@ -213,142 +217,5 @@ func parseGroupConcurrencyQueueFeatureValue(value any) bool {
 		}
 	default:
 		return true
-	}
-}
-
-// systemSafeOutputJobNames contains job names that are built-in system jobs and should not be
-// treated as custom safe output job types in the GH_AW_SAFE_OUTPUT_JOBS mapping.
-// The safe output handler manager uses this mapping to determine which message types are
-// handled by custom job steps (and therefore should be silently skipped rather than flagged
-// as "no handler loaded").
-var systemSafeOutputJobNames = map[string]bool{
-	"safe_outputs":  true, // consolidated safe outputs job
-	"upload_assets": true, // upload assets job
-}
-
-// buildSafeOutputJobsEnvVars creates environment variables for safe output job URLs
-// Returns both a JSON mapping and the actual environment variable declarations.
-// The mapping includes:
-//   - Built-in jobs with known URL outputs (e.g., create_issue → issue_url)
-//   - Custom safe-output jobs (from safe-outputs.jobs) with an empty URL key, so the handler
-//     manager knows those message types are handled by a dedicated job step and should be
-//     skipped gracefully rather than reported as "No handler loaded".
-func buildSafeOutputJobsEnvVars(jobNames []string) (string, []string) {
-	// Map job names to their expected URL output keys
-	jobOutputMapping := make(map[string]string)
-	var envVars []string
-
-	for _, jobName := range jobNames {
-		var urlKey string
-		switch jobName {
-		case "create_issue":
-			urlKey = "issue_url"
-		case "add_comment":
-			urlKey = "comment_url"
-		case "create_pull_request":
-			urlKey = "pull_request_url"
-		case "create_discussion":
-			urlKey = "discussion_url"
-		case "create_pr_review_comment":
-			urlKey = "review_comment_url"
-		case "close_issue":
-			urlKey = "issue_url"
-		case "close_pull_request":
-			urlKey = "pull_request_url"
-		case "close_discussion":
-			urlKey = "discussion_url"
-		case "create_agent_session":
-			urlKey = "task_url"
-		case "push_to_pull_request_branch":
-			urlKey = "commit_url"
-		default:
-			if !systemSafeOutputJobNames[jobName] {
-				// Custom safe-output job: include in the mapping with an empty URL key so the
-				// handler manager can silently skip messages of this type.
-				jobOutputMapping[jobName] = ""
-			}
-			continue
-		}
-
-		jobOutputMapping[jobName] = urlKey
-
-		// Add environment variable for this job's URL output
-		envVarName := fmt.Sprintf("GH_AW_OUTPUT_%s_%s",
-			toEnvVarCase(jobName),
-			toEnvVarCase(urlKey))
-		envVars = append(envVars,
-			fmt.Sprintf("          %s: ${{ needs.%s.outputs.%s }}\n",
-				envVarName, jobName, urlKey))
-	}
-
-	if len(jobOutputMapping) == 0 {
-		return "", nil
-	}
-
-	jsonBytes, err := json.Marshal(jobOutputMapping)
-	if err != nil {
-		notifyCommentLog.Printf("Warning: failed to marshal safe output jobs info: %v", err)
-		return "", nil
-	}
-
-	return string(jsonBytes), envVars
-}
-
-// toEnvVarCase converts a string to uppercase environment variable case
-func toEnvVarCase(s string) string {
-	// Convert to uppercase and keep underscores
-	var result strings.Builder
-	for _, ch := range s {
-		if ch >= 'a' && ch <= 'z' {
-			result.WriteRune(ch - 32) // Convert to uppercase
-		} else if ch >= 'A' && ch <= 'Z' {
-			result.WriteRune(ch)
-		} else if ch == '_' {
-			result.WriteString("_")
-		}
-	}
-	return result.String()
-}
-
-// getEngineAPIHosts returns the primary AI inference API hostnames for the given engine and
-// workflow data. These are the hosts that appear in the firewall audit log when the engine
-// makes authenticated API calls. The returned slice is used to populate GH_AW_ENGINE_API_HOSTS
-// so the failure handler can detect credential authentication rejections without relying solely
-// on hardcoded host patterns.
-//
-// Resolution order (per engine):
-//   - engine.api-target (explicit GHES / enterprise override) takes precedence
-//   - Default public API hostname(s) for the engine
-func getEngineAPIHosts(data *WorkflowData, engine CodingAgentEngine) []string {
-	if engine == nil {
-		return nil
-	}
-
-	// Explicit api-target overrides the engine-specific default for all engine types.
-	if data != nil && data.EngineConfig != nil && data.EngineConfig.APITarget != "" {
-		return []string{data.EngineConfig.APITarget}
-	}
-
-	switch engine.(type) {
-	case *CopilotEngine:
-		// Return the full set of known Copilot inference endpoints so that any variant
-		// (enterprise, business, individual, or the routing hub) is covered.
-		return []string{
-			"api.enterprise.githubcopilot.com",
-			"api.githubcopilot.com",
-			"api.business.githubcopilot.com",
-			"api.individual.githubcopilot.com",
-		}
-	case *ClaudeEngine:
-		return []string{"api.anthropic.com"}
-	case *CodexEngine:
-		return []string{"api.openai.com"}
-	case *GeminiEngine:
-		return []string{DefaultGeminiAPITarget}
-	case *AntigravityEngine:
-		return []string{DefaultAntigravityAPITarget}
-	default:
-		// Custom or unknown engine — no known API hosts without explicit api-target.
-		return nil
 	}
 }

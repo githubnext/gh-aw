@@ -383,11 +383,7 @@ func recursivelyOrderYAMLValue(value any) any {
 	switch v := value.(type) {
 	case map[string]any:
 		orderedData := make(yaml.MapSlice, 0, len(v))
-		var keys []string
-		for key := range v {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
+		keys := sliceutil.SortedKeys(v)
 		for _, key := range keys {
 			orderedData = append(orderedData, yaml.MapItem{Key: key, Value: recursivelyOrderYAMLValue(v[key])})
 		}
