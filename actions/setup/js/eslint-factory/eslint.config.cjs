@@ -13,6 +13,7 @@ module.exports = [
     },
     rules: {
       "gh-aw-custom/require-json-parse-try-catch": "warn",
+      "gh-aw-custom/require-parseInt-radix": "warn",
     },
   },
   {
