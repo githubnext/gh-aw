@@ -321,6 +321,26 @@ func TestValidateWorkflowEngineSettings_PreservesLegacyErrorOrder(t *testing.T) 
 	assert.NotContains(t, err.Error(), "engine.harness")
 }
 
+func TestValidateWorkflowEngineSettings_LSPRequiresCopilot(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		AI: "codex",
+		LSP: map[string]LSPServerConfig{
+			"go": {
+				Command: "gopls",
+				Args:    []string{"serve"},
+				FileExtensions: map[string]string{
+					".go": "go",
+				},
+			},
+		},
+	}
+
+	err := compiler.validateWorkflowEngineSettings("workflow.md", workflowData)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "workflow.md: lsp is currently only supported for engine: copilot")
+}
+
 func TestMergeRawOTLPEndpoints_DedupesAndCountsSources(t *testing.T) {
 	mainObs := map[string]any{
 		"otlp": map[string]any{
