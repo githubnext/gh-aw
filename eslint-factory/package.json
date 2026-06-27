@@ -2,14 +2,14 @@
   "name": "@github/gh-aw-eslint-factory",
   "version": "0.1.0",
   "private": true,
-  "description": "Custom ESLint rule factory for actions/setup/js",
+  "description": "Custom ESLint rule factory for gh-aw JavaScript runtime code",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
-    "lint:setup-js": "npm run build && cd .. && ./eslint-factory/node_modules/.bin/eslint --config eslint-factory/eslint.config.cjs .",
-    "lint:setup-js:changed": "npm run build && cd .. && ./eslint-factory/node_modules/.bin/eslint --config eslint-factory/eslint.config.cjs '*.cjs'",
+    "lint:setup-js": "npm run build && cd ../actions/setup/js && \"$INIT_CWD\"/node_modules/.bin/eslint --config \"$INIT_CWD\"/eslint.config.cjs .",
+    "lint:setup-js:changed": "npm run build && cd ../actions/setup/js && \"$INIT_CWD\"/node_modules/.bin/eslint --config \"$INIT_CWD\"/eslint.config.cjs '*.cjs'",
     "test": "vitest run"
   },
   "devDependencies": {

@@ -244,13 +244,21 @@ test-impacted-js: build-js
 		echo "Set BASE_REF explicitly, for example: make test-impacted-js BASE_REF=origin/main"; \
 		exit 1; \
 	fi; \
-	CHANGED_JS_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"..HEAD -- actions/setup/js | grep -E '\.(cjs|js|mjs|ts)$$' || true); \
+	CHANGED_JS_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"..HEAD -- actions/setup/js eslint-factory | grep -E '\.(cjs|js|mjs|ts)$$' || true); \
 	if [ -z "$$CHANGED_JS_FILES" ]; then \
-		echo "No changed JavaScript/TypeScript files under actions/setup/js; skipping impacted JS tests."; \
+		echo "No changed JavaScript/TypeScript files under actions/setup/js or eslint-factory; skipping impacted JS tests."; \
 		exit 0; \
 	fi; \
-	echo "Running impacted JavaScript unit tests for changed files: $$CHANGED_JS_FILES"; \
-	cd actions/setup/js && printf '%s\n' "$$CHANGED_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' '\0' | xargs -0 -r npm run test:js -- --no-file-parallelism --passWithNoTests $(JS_IMPACTED_TEST_EXCLUDES)
+	CHANGED_SETUP_JS_FILES=$$(printf '%s\n' "$$CHANGED_JS_FILES" | grep '^actions/setup/js/' || true); \
+	CHANGED_ESLINT_FACTORY_FILES=$$(printf '%s\n' "$$CHANGED_JS_FILES" | grep '^eslint-factory/' || true); \
+	if [ -n "$$CHANGED_SETUP_JS_FILES" ]; then \
+		echo "Running impacted JavaScript unit tests in actions/setup/js for changed files: $$CHANGED_SETUP_JS_FILES"; \
+		cd actions/setup/js && printf '%s\n' "$$CHANGED_SETUP_JS_FILES" | sed 's|^actions/setup/js/||' | tr '\n' '\0' | xargs -0 -r npm run test:js -- --no-file-parallelism --passWithNoTests $(JS_IMPACTED_TEST_EXCLUDES); \
+	fi; \
+	if [ -n "$$CHANGED_ESLINT_FACTORY_FILES" ]; then \
+		echo "Running eslint-factory tests for changed files: $$CHANGED_ESLINT_FACTORY_FILES"; \
+		cd eslint-factory && npm test; \
+	fi
 
 # Test impacted Go unit tests only (excluding integration tests)
 .PHONY: test-impacted-go
@@ -407,6 +415,7 @@ test-impacted: test-impacted-js test-impacted-go
 .PHONY: deps-js
 deps-js: check-node-version
 	cd actions/setup/js && npm ci
+	cd eslint-factory && npm ci
 
 .PHONY: build-js
 build-js: deps-js
@@ -766,11 +775,12 @@ fmt-go:
 	@go fmt ./...
 	@echo "✓ Go code formatted"
 
-# Format JavaScript (.cjs and .js) and JSON files in actions/setup/js directory
+# Format JavaScript (.cjs and .js), TypeScript, and JSON files in runtime + eslint-factory directories
 .PHONY: fmt-cjs
 fmt-cjs:
 	@echo "→ Formatting JavaScript files..."
 	@cd actions/setup/js && npm run format:cjs --silent >/dev/null 2>&1
+	@cd eslint-factory && npx prettier --write '**/*.cjs' '**/*.ts' '**/*.json' --ignore-path ../.prettierignore --log-level=error 2>&1
 	@npx prettier --write 'scripts/**/*.js' --ignore-path .prettierignore --log-level=error 2>&1
 	@echo "✓ JavaScript files formatted"
 
@@ -792,10 +802,11 @@ fmt-check:
 		exit 1; \
 	fi
 
-# Check JavaScript (.cjs and .js) and JSON file formatting in actions/setup/js directory
+# Check JavaScript (.cjs and .js), TypeScript, and JSON file formatting in runtime + eslint-factory directories
 .PHONY: fmt-check-cjs
 fmt-check-cjs:
 	cd actions/setup/js && npm run lint:cjs
+	cd eslint-factory && npx prettier --check '**/*.cjs' '**/*.ts' '**/*.json' --ignore-path ../.prettierignore
 	npx prettier --check 'scripts/**/*.js' --ignore-path .prettierignore
 
 # Check JSON file formatting in pkg directory (excluding actions/setup/js, which is handled by npm script)
@@ -1107,12 +1118,12 @@ help:
 	@echo "  golint-incremental - Run golangci-lint incrementally (only changed files, requires BASE_REF)"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
-	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) and JSON files in actions/setup/js"
+	@echo "  fmt-cjs          - Format JavaScript/TypeScript/JSON files in actions/setup/js and eslint-factory"
 	@echo "  fmt-json         - Format JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  fmt-check        - Check code formatting"
-	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) and JSON file formatting in actions/setup/js"
+	@echo "  fmt-check-cjs    - Check JavaScript/TypeScript/JSON formatting in actions/setup/js and eslint-factory"
 	@echo "  fmt-check-json   - Check JSON file formatting in pkg directory (excluding actions/setup/js)"
-	@echo "  lint-cjs         - Lint JavaScript (.cjs) and JSON files in actions/setup/js"
+	@echo "  lint-cjs         - Lint JavaScript/TypeScript/JSON formatting in actions/setup/js and eslint-factory"
 	@echo "  lint-json        - Lint JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  lint-errors      - Lint error messages for quality compliance"
 	@echo "  validate-otel-contract - Validate the gh-aw OpenTelemetry compatibility contract"

@@ -19,11 +19,7 @@ const esmRuleTester = new RuleTester({
 describe("require-json-parse-try-catch", () => {
   it("valid: JSON.parse inside try block passes (CommonJS)", () => {
     cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
-      valid: [
-        `try { const x = JSON.parse(str); } catch (e) {}`,
-        `try { return JSON.parse(str); } catch (e) {}`,
-        `function f() { try { JSON.parse(str); } catch (e) {} }`,
-      ],
+      valid: [`try { const x = JSON.parse(str); } catch (e) {}`, `try { return JSON.parse(str); } catch (e) {}`, `function f() { try { JSON.parse(str); } catch (e) {} }`],
       invalid: [],
     });
   });

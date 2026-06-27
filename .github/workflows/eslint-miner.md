@@ -1,6 +1,6 @@
 ---
 name: ESLint Miner
-description: Daily workflow that mines JavaScript/TypeScript patterns in actions/setup/js and creates new TypeScript-based ESLint rules in actions/setup/js/eslint-factory
+description: Daily workflow that mines JavaScript/TypeScript patterns in actions/setup/js and creates new TypeScript-based ESLint rules in eslint-factory
 on:
   schedule: daily
   workflow_dispatch:
@@ -47,7 +47,7 @@ safe-outputs:
     expires: 7d
     if-no-changes: warn
     allowed-files:
-      - "actions/setup/js/eslint-factory/**"
+      - "eslint-factory/**"
     protected-files: fallback-to-issue
   noop:
 timeout-minutes: 120
@@ -76,14 +76,14 @@ Out of scope:
 
 1. Mine issues/discussions from the last 14 days for recurring JavaScript/TypeScript failures in `actions/setup/js`.
 2. Scan `actions/setup/js` for recurring patterns that should be enforced automatically.
-3. Read existing rules in `actions/setup/js/eslint-factory/src/rules`.
+3. Read existing rules in `eslint-factory/src/rules`.
 4. Choose one net-new rule idea with low false-positive risk.
-5. Implement the rule in TypeScript under `actions/setup/js/eslint-factory/src/rules` and register it in `src/index.ts`.
-6. Update `actions/setup/js/eslint-factory/eslint.config.cjs` only if needed to enable the new rule.
+5. Implement the rule in TypeScript under `eslint-factory/src/rules` and register it in `src/index.ts`.
+6. Update `eslint-factory/eslint.config.cjs` only if needed to enable the new rule.
 7. Validate with:
-   - `cd actions/setup/js/eslint-factory && npm install`
-   - `cd actions/setup/js/eslint-factory && npm run build`
-   - `cd actions/setup/js/eslint-factory && npm run lint:setup-js`
+   - `cd eslint-factory && npm install`
+   - `cd eslint-factory && npm run build`
+   - `cd eslint-factory && npm run lint:setup-js`
 8. Open one draft PR with evidence and rationale.
 
 ## Rule quality bar
@@ -92,7 +92,7 @@ Out of scope:
 - Must include a clear diagnostic message.
 - Must target behavior observed in `actions/setup/js`.
 - Must avoid stylistic-only opinions.
-- Must not require changing files outside `actions/setup/js` and `actions/setup/js/eslint-factory`.
+- Must not require changing files outside `actions/setup/js` and `eslint-factory`.
 
 ## Final action
 
