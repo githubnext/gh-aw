@@ -5,22 +5,9 @@ sidebar:
   order: 801
 ---
 
-This page is the primary reference for pull-request-focused safe outputs:
+This page covers pull-request-focused safe outputs: [`create-pull-request`](#pull-request-creation-create-pull-request), [`update-pull-request`](#pull-request-updates-update-pull-request), [`close-pull-request`](#close-pull-request-close-pull-request), [`merge-pull-request`](#merge-pull-request-merge-pull-request) (experimental), [`create-pull-request-review-comment`](#pr-review-comments-create-pull-request-review-comment), [`submit-pull-request-review`](#submit-pr-review-submit-pull-request-review), [`reply-to-pull-request-review-comment`](#reply-to-pr-review-comment-reply-to-pull-request-review-comment), [`resolve-pull-request-review-thread`](#resolve-pr-review-thread-resolve-pull-request-review-thread), [`push-to-pull-request-branch`](#push-to-pr-branch-push-to-pull-request-branch), and [`add-reviewer`](#add-reviewer-add-reviewer).
 
-- [`create-pull-request`](#pull-request-creation-create-pull-request)
-- [`update-pull-request`](#pull-request-updates-update-pull-request)
-- [`close-pull-request`](#close-pull-request-close-pull-request)
-- [`merge-pull-request`](#merge-pull-request-merge-pull-request) (experimental)
-- [`create-pull-request-review-comment`](#pr-review-comments-create-pull-request-review-comment)
-- [`submit-pull-request-review`](#submit-pr-review-submit-pull-request-review)
-- [`reply-to-pull-request-review-comment`](#reply-to-pr-review-comment-reply-to-pull-request-review-comment)
-- [`resolve-pull-request-review-thread`](#resolve-pr-review-thread-resolve-pull-request-review-thread)
-- [`push-to-pull-request-branch`](#push-to-pr-branch-push-to-pull-request-branch)
-- [`add-reviewer`](#add-reviewer-add-reviewer)
-
-Code-writing types (`create-pull-request` and `push-to-pull-request-branch`) enforce [Protected Files](#protected-files) by default.
-
-For all other safe-output types see [Safe Outputs](/gh-aw/reference/safe-outputs/).
+Code-writing types (`create-pull-request` and `push-to-pull-request-branch`) enforce [Protected Files](#protected-files) by default. For all other safe-output types, see [Safe Outputs](/gh-aw/reference/safe-outputs/).
 
 ## Pull Request Creation (`create-pull-request:`)
 
@@ -81,12 +68,9 @@ By default a random hex suffix is appended to the agent-provided branch name to 
 
 ### Other notes
 
-- `draft` is a **policy**, not a default — the agent cannot override it at runtime.
-- `auto-close-issue` (default `true`) appends `Fixes #N` to the PR description when the workflow is triggered from an issue. Set to `false` for partial-work or multi-PR flows.
-- `normalize-closing-keywords` strips wrapping backticks from recognized issue-closing keywords in the PR body (for example, `` `Closes #123` `` → `Closes #123`).
-- When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
-- PRs do not trigger CI by default. See [Triggering CI](/gh-aw/reference/triggering-ci/).
-- `create-pull-request` can be disabled at runtime without recompiling by setting the `GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` GitHub Actions variable to `"false"` at repository, organization, or enterprise scope. See [Governance](/gh-aw/guides/governance/#disabling-create-pull-request-org-wide).
+`draft` is a **policy**, not a default, so the agent cannot override it at runtime. `auto-close-issue` (default `true`) appends `Fixes #N` to the PR description when the workflow is triggered from an issue; set it to `false` for partial-work or multi-PR flows. `normalize-closing-keywords` strips wrapping backticks from recognized issue-closing keywords in the PR body (for example, `` `Closes #123` `` → `Closes #123`).
+
+When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled. PRs do not trigger CI by default; see [Triggering CI](/gh-aw/reference/triggering-ci/). You can also disable `create-pull-request` at runtime without recompiling by setting the `GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` GitHub Actions variable to `"false"` at repository, organization, or enterprise scope. See [Governance](/gh-aw/guides/governance/#disabling-create-pull-request-org-wide).
 
 ### How it works
 
@@ -241,13 +225,7 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
-The `footer` field controls whether AI-generated footers are added to PR review comments:
-
-- `"always"` (default) - Always include footer on review comments
-- `"none"` - Never include footer on review comments
-- `"if-body"` - Only include footer when the review has a body text
-
-With `footer: "if-body"`, approval reviews without body text appear clean without the AI-generated footer, while reviews with explanatory text still include the footer for attribution.
+The `footer` field controls AI-generated footers on PR review comments: `"always"` (default) always includes one, `"none"` never does, and `"if-body"` adds one only when the review includes body text. With `footer: "if-body"`, approval reviews without body text stay clean while reviews with explanatory text still include attribution.
 
 ## Resolve PR Review Thread (`resolve-pull-request-review-thread:`)
 
@@ -600,7 +578,7 @@ safe-outputs:
 
 ### Protected Files
 
-Protection covers three categories:
+Protection covers four categories:
 
 **1. Runtime dependency manifests** — matched by filename anywhere in the repository:
 
@@ -627,12 +605,7 @@ Protection covers three categories:
 | Claude | `CLAUDE.md` | `.claude/` |
 | Codex | `AGENTS.md` | `.codex/` |
 
-**3. Repository security configuration** — matched by path prefix:
-
-- `.github/` — covers all GitHub Actions workflows, Dependabot config, and other repository-level security settings.
-- `.agents/` — covers generic agent instruction and configuration files stored in the `.agents/` directory.
-- `.githooks/` — covers repository-tracked git hook scripts.
-- `.husky/` — covers Husky-managed git hook scripts.
+**3. Repository security configuration** — matched by path prefix: `.github/` for GitHub Actions workflows, Dependabot, and other repository-level security settings; `.agents/` for generic agent instructions and configuration; `.githooks/` for repository-tracked git hook scripts; and `.husky/` for Husky-managed hooks.
 
 **4. Repository governance files** — matched by filename anywhere in the repository:
 
@@ -642,4 +615,4 @@ Protection covers three categories:
 | `DESIGN.md` | Defines persistent design-system guidance for coding agents |
 
 > [!NOTE]
-> Runtime manifests and governance files (`CODEOWNERS`, `DESIGN.md`) are matched by **basename only** (the filename without its directory path), so they are protected regardless of where they appear in the repository. Path-prefix rules (`.github/`, `.agents/`, `.githooks/`, `.husky/`, `.claude/`, `.codex/`) match the full relative path from the repository root.
+> Runtime manifests and governance files (`CODEOWNERS`, `DESIGN.md`) are matched by **basename only**, so they are protected regardless of where they appear in the repository. Path-prefix rules (`.github/`, `.agents/`, `.githooks/`, `.husky/`, `.claude/`, `.codex/`) match the full relative path from the repository root.
