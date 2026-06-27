@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyOTLPIgnoreIfMissing, detectEngineType, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders, resolveCopilotConfigPaths } from "./start_mcp_gateway.cjs";
+import { applyOTLPIgnoreIfMissing, detectEngineType, getJSONParseErrorContext, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders, resolveCopilotConfigPaths } from "./start_mcp_gateway.cjs";
 
 describe("start_mcp_gateway OTLP if-missing helpers", () => {
   let originalWarning;
@@ -195,5 +195,29 @@ describe("start_mcp_gateway detectEngineType", () => {
     const env = { HOME: "/var/lib/actions runner" };
     const existsSync = vi.fn(p => p === "/var/lib/actions runner/.copilot");
     expect(detectEngineType(configDir, env, existsSync)).toBe("copilot");
+  });
+});
+
+describe("start_mcp_gateway getJSONParseErrorContext", () => {
+  it("extracts line/column and key for invalid escape values", () => {
+    const invalidConfig = `{
+  "mcpServers": {
+    "github": {
+      "env": {
+        "GITHUB_HOST": "\\https://github.com"
+      }
+    }
+  }
+}`;
+    let parseErrorMessage = "";
+    try {
+      JSON.parse(invalidConfig);
+    } catch (err) {
+      parseErrorMessage = /** @type {Error} */ err.message;
+    }
+    const context = getJSONParseErrorContext(invalidConfig, parseErrorMessage);
+    expect(context).toBeTruthy();
+    expect(context?.key).toBe("GITHUB_HOST");
+    expect(context?.lineText).toContain(`"GITHUB_HOST"`);
   });
 });
