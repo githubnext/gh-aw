@@ -40,3 +40,21 @@ if [ -d "${tmpDir}" ]; then
     echo "Warning: failed to clean up ${tmpDir}" >&2
   fi
 fi
+
+# Remove AWF chroot home directories under /tmp (e.g. /tmp/awf-*-chroot-home).
+# These are created by AWF when running with --enable-host-access on GitHub-hosted runners.
+# Files inside may be owned by root (written by Docker containers or privileged AWF processes),
+# causing EACCES failures if cleanup is attempted without sudo.
+if awf_chroot_home_dirs="$(sudo find /tmp -maxdepth 1 -name 'awf-*-chroot-home' -type d -print 2>/dev/null)"; then
+  if [ -n "${awf_chroot_home_dirs}" ]; then
+    if sudo find /tmp -maxdepth 1 -name 'awf-*-chroot-home' -type d -exec rm -rf -- {} + 2>/dev/null; then
+      echo "Cleaned up /tmp/awf-*-chroot-home directories (sudo)"
+    else
+      echo "Warning: failed to clean /tmp/awf-*-chroot-home directories" >&2
+    fi
+  else
+    echo "No /tmp/awf-*-chroot-home directories found"
+  fi
+else
+  echo "Warning: unable to inspect /tmp/awf-*-chroot-home directories with sudo" >&2
+fi
