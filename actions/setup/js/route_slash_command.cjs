@@ -320,8 +320,79 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
       core.info(`Skipping workflow '${workflowId}' because it is disabled.`);
       return false;
     }
+    if (isMissingWorkflowDispatchRefError(error)) {
+      const fallbackRef = await resolveDefaultBranchRef(ref);
+      if (!fallbackRef) {
+        throw new Error(`Failed to dispatch workflow '${workflowId}': ref '${ref}' was not found and no usable fallback ref (missing or identical) was available: ${String(error)}`);
+      }
+      core.warning(`Dispatch ref '${ref}' was not found for '${workflowId}'; retrying with fallback ref '${fallbackRef}'.`);
+      await github.rest.actions.createWorkflowDispatch({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        workflow_id: workflowId,
+        ref: fallbackRef,
+        inputs,
+        headers: {
+          "X-GitHub-Api-Version": GITHUB_API_VERSION,
+        },
+      });
+      return true;
+    }
     throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${String(error)}`);
   }
+}
+
+/**
+ * Resolves a fallback dispatch ref when the original ref is unavailable.
+ * Prefers the event payload default branch, then repository metadata, then main.
+ * Returns an empty string when no usable fallback differs from the original ref.
+ * @param {string} ref
+ * @returns {Promise<string>}
+ */
+async function resolveDefaultBranchRef(ref) {
+  const payloadDefaultBranch = context.payload?.repository?.default_branch;
+  if (typeof payloadDefaultBranch === "string" && payloadDefaultBranch.trim()) {
+    return resolveFallbackRefFromBranchName(ref, payloadDefaultBranch);
+  }
+
+  try {
+    const response = await github.rest.repos.get({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      headers: {
+        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+      },
+    });
+    const apiDefaultBranch = response?.data?.default_branch;
+    if (typeof apiDefaultBranch === "string") {
+      return resolveFallbackRefFromBranchName(ref, apiDefaultBranch);
+    }
+  } catch (repoError) {
+    core.warning(`Failed to resolve default branch for dispatch fallback: ${String(repoError)}`);
+  }
+
+  return resolveFallbackRefFromBranchName(ref, "main");
+}
+
+/**
+ * Normalizes a branch name into a dispatch ref and returns it only when usable as fallback.
+ * @param {string} ref
+ * @param {string} branchName
+ * @returns {string}
+ */
+function resolveFallbackRefFromBranchName(ref, branchName) {
+  const defaultBranchRef = normalizeDispatchRef(branchName);
+  return isUsableFallbackRef(ref, defaultBranchRef) ? defaultBranchRef : "";
+}
+
+/**
+ * Returns true when a candidate ref can be used as a fallback for dispatch.
+ * @param {string} ref
+ * @param {string} candidateRef
+ * @returns {boolean}
+ */
+function isUsableFallbackRef(ref, candidateRef) {
+  return Boolean(candidateRef) && candidateRef !== ref;
 }
 
 function isBuiltinHelpEnabled() {
@@ -515,6 +586,25 @@ function isDisabledWorkflowDispatchError(error) {
   }
 
   return message.includes("workflow is disabled") || message.includes("workflow was disabled") || message.includes("disabled workflow");
+}
+
+/**
+ * Returns true when the dispatch failure indicates the requested ref does not exist.
+ * @param {any} error
+ * @returns {boolean}
+ */
+function isMissingWorkflowDispatchRefError(error) {
+  const status = error?.status ?? error?.response?.status;
+  const message = [error?.message, error?.response?.data?.message]
+    .filter(value => typeof value === "string" && value.trim())
+    .join(" ")
+    .toLowerCase();
+
+  if (status !== 422 || !message) {
+    return false;
+  }
+
+  return message.includes("no ref found for");
 }
 
 /**

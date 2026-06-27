@@ -474,6 +474,32 @@ describe("route_slash_command", () => {
     expect(dispatchCalls[0].ref).toBe("refs/heads/feature/pr-branch");
   });
 
+  it("retries dispatch on default branch when PR head ref is not available in target repo", async () => {
+    globals.context.payload.repository = { default_branch: "main" };
+    globals.context.payload.issue.pull_request = { url: "https://example.test/pr/1" };
+    globals.context.payload.issue.number = 1;
+    globals.context.payload.comment.body = "/archie please";
+    globals.github.rest.actions.createWorkflowDispatch = vi.fn(async params => {
+      if (params.ref === "refs/heads/feature/pr-branch") {
+        throw Object.assign(new Error("No ref found for: refs/heads/feature/pr-branch"), {
+          status: 422,
+          response: {
+            status: 422,
+            data: { message: "No ref found for: refs/heads/feature/pr-branch" },
+          },
+        });
+      }
+      dispatchCalls.push(params);
+    });
+
+    await main();
+
+    expect(globals.github.rest.actions.createWorkflowDispatch).toHaveBeenCalledTimes(2);
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].ref).toBe("refs/heads/main");
+    expect(globals.core.warning).toHaveBeenCalledWith(expect.stringContaining("retrying with fallback ref 'refs/heads/main'"));
+  });
+
   it("does not add immediate reaction when no valid route reaction is configured", async () => {
     process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
       archie: [{ workflow: "archie", events: ["issue_comment"], ai_reaction: "none" }],
