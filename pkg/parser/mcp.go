@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/types"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -570,11 +571,7 @@ func appendContainerEnv(config *RegistryMCPServerConfig, envValue any) {
 	if !ok {
 		return
 	}
-	var envKeys []string
-	for key := range envMap {
-		envKeys = append(envKeys, key)
-	}
-	sort.Strings(envKeys)
+	envKeys := sliceutil.SortedKeys(envMap)
 	for _, key := range envKeys {
 		if valueStr, ok := envMap[key].(string); ok {
 			config.Args = append(config.Args, "-e", key)

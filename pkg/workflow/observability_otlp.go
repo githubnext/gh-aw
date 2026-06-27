@@ -6,11 +6,11 @@ import (
 	"maps"
 	"net/url"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var otlpLog = logger.New("workflow:observability_otlp")
@@ -33,11 +33,7 @@ func normalizeOTLPHeadersForEndpoint(raw any, endpoint string) string {
 			return ""
 		}
 		// Sort keys for deterministic output
-		keys := make([]string, 0, len(v))
-		for k := range v {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
+		keys := sliceutil.SortedKeys(v)
 		var parts []string
 		for _, k := range keys {
 			val, ok := v[k].(string)
@@ -856,11 +852,7 @@ func otelResourceAttributes(workflowData *WorkflowData) string {
 	}
 	resourceAttrs := getOTLPResourceAttributes(workflowData)
 	if len(resourceAttrs) > 0 {
-		keys := make([]string, 0, len(resourceAttrs))
-		for key := range resourceAttrs {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
+		keys := sliceutil.SortedKeys(resourceAttrs)
 		for _, key := range keys {
 			attrs = append(attrs, formatOTELResourceAttribute(key, resourceAttrs[key]))
 		}

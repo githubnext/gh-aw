@@ -12,16 +12,14 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
-	"sort"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/setutil"
-
-	"github.com/goccy/go-yaml"
-
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/goccy/go-yaml"
 )
 
 var dependabotLog = logger.New("workflow:dependabot")
@@ -798,11 +796,7 @@ func (c *Compiler) generateRequirementsTxt(path string, deps []PipDependency, fo
 	}
 
 	// Sort dependencies by name
-	var sortedNames []string
-	for name := range reqMap {
-		sortedNames = append(sortedNames, name)
-	}
-	sort.Strings(sortedNames)
+	sortedNames := sliceutil.SortedKeys(reqMap)
 
 	// Build requirements.txt content
 	var lines []string

@@ -15,12 +15,12 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var mcpValidationLog = newValidationLogger("mcp_config")
@@ -48,11 +48,7 @@ var builtInToolNames = map[string]bool{
 // builtInToolNamesForError is the sorted, comma-separated list of built-in tool names
 // used in error messages, derived once from builtInToolNames.
 var builtInToolNamesForError = func() string {
-	names := make([]string, 0, len(builtInToolNames))
-	for name := range builtInToolNames {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := sliceutil.SortedKeys(builtInToolNames)
 	return strings.Join(names, ", ")
 }()
 
@@ -63,11 +59,7 @@ func ValidateMCPConfigs(tools map[string]any) error {
 	mcpValidationLog.Printf("Validating MCP configurations for %d tools", len(tools))
 
 	// Collect and sort tool names for deterministic error messages
-	toolNames := make([]string, 0, len(tools))
-	for name := range tools {
-		toolNames = append(toolNames, name)
-	}
-	sort.Strings(toolNames)
+	toolNames := sliceutil.SortedKeys(tools)
 
 	for _, toolName := range toolNames {
 		toolConfig := tools[toolName]
@@ -128,11 +120,7 @@ func ValidateToolsSection(tools map[string]any) error {
 	}
 
 	// Collect and sort names for deterministic error messages
-	toolNames := make([]string, 0, len(tools))
-	for name := range tools {
-		toolNames = append(toolNames, name)
-	}
-	sort.Strings(toolNames)
+	toolNames := sliceutil.SortedKeys(tools)
 
 	for _, toolName := range toolNames {
 		if !builtInToolNames[toolName] {
@@ -197,11 +185,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 	for field := range toolConfig {
 		if !setutil.Contains(knownToolFields, field) {
 			// Build list of valid fields for the error message
-			validFields := []string{}
-			for k := range knownToolFields {
-				validFields = append(validFields, k)
-			}
-			sort.Strings(validFields)
+			validFields := sliceutil.SortedKeys(knownToolFields)
 			maxFields := min(10, len(validFields))
 			return nil, fmt.Errorf("unknown property '%s' in tool configuration. Valid properties include: %s.\n\nExample:\ntools:\n  my-tool:\n    command: \"node server.js\"\n    args: [\"--verbose\"]\n\nSee: %s", field, strings.Join(validFields[:maxFields], ", "), constants.DocsToolsURL)
 		}

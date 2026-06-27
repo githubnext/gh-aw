@@ -8,11 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -466,11 +466,7 @@ func collectMCPFailureServers(failures []MCPFailureReport) []string {
 		serverSet[failure.ServerName] = struct{}{}
 	}
 
-	servers := make([]string, 0, len(serverSet))
-	for server := range serverSet {
-		servers = append(servers, server)
-	}
-	sort.Strings(servers)
+	servers := sliceutil.SortedKeys(serverSet)
 	return servers
 }
 

@@ -485,11 +485,7 @@ func (c *Compiler) ensureConclusionIsLastJob() error {
 
 	// Iterate over all jobs in alphabetical order for deterministic output
 	allJobs := c.jobManager.GetAllJobs()
-	jobNames := make([]string, 0, len(allJobs))
-	for name := range allJobs {
-		jobNames = append(jobNames, name)
-	}
-	sort.Strings(jobNames)
+	jobNames := sliceutil.SortedKeys(allJobs)
 
 	for _, jobName := range jobNames {
 		if setutil.Contains(exclude, jobName) || setutil.Contains(currentNeeds, jobName) {

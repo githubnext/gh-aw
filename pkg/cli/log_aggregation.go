@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var logAggregationLog = logger.New("cli:log_aggregation")
@@ -107,17 +107,9 @@ func aggregateLogFiles[T MutableLogAnalysis](
 	}
 
 	// Convert maps to sorted slices
-	allowedDomains := make([]string, 0, len(allAllowedDomains))
-	for domain := range allAllowedDomains {
-		allowedDomains = append(allowedDomains, domain)
-	}
-	sort.Strings(allowedDomains)
+	allowedDomains := sliceutil.SortedKeys(allAllowedDomains)
 
-	blockedDomains := make([]string, 0, len(allBlockedDomains))
-	for domain := range allBlockedDomains {
-		blockedDomains = append(blockedDomains, domain)
-	}
-	sort.Strings(blockedDomains)
+	blockedDomains := sliceutil.SortedKeys(allBlockedDomains)
 
 	// Set the sorted domain lists
 	aggregated.SetAllowedDomains(allowedDomains)

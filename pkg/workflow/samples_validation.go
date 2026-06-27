@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"sort"
 	"strings"
 	"sync"
 
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
@@ -110,11 +110,7 @@ func validateSafeOutputsSamples(config *SafeOutputsConfig) error {
 		return nil
 	}
 
-	fieldNames := make([]string, 0, len(safeOutputFieldMapping))
-	for fieldName := range safeOutputFieldMapping {
-		fieldNames = append(fieldNames, fieldName)
-	}
-	sort.Strings(fieldNames)
+	fieldNames := sliceutil.SortedKeys(safeOutputFieldMapping)
 
 	for _, fieldName := range fieldNames {
 		toolName := safeOutputFieldMapping[fieldName]

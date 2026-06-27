@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var toolGraphLog = logger.New("cli:tool_graph")
@@ -74,11 +74,7 @@ func (g *ToolGraph) GenerateMermaidGraph() string {
 
 	// Add tool states with normalized names for Mermaid
 	toolToStateMap := make(map[string]string)
-	var tools []string
-	for tool := range g.Tools {
-		tools = append(tools, tool)
-	}
-	sort.Strings(tools)
+	tools := sliceutil.SortedKeys(g.Tools)
 
 	for i, tool := range tools {
 		stateId := fmt.Sprintf("tool%d", i)

@@ -3,8 +3,8 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -36,11 +36,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 		safeOutputsConfigLog.Printf("Adding %d custom job tools", len(data.SafeOutputs.Jobs))
 
 		// Sort job names for deterministic output
-		jobNames := make([]string, 0, len(data.SafeOutputs.Jobs))
-		for jobName := range data.SafeOutputs.Jobs {
-			jobNames = append(jobNames, jobName)
-		}
-		sort.Strings(jobNames)
+		jobNames := sliceutil.SortedKeys(data.SafeOutputs.Jobs)
 
 		for _, jobName := range jobNames {
 			jobConfig := data.SafeOutputs.Jobs[jobName]
@@ -54,11 +50,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 	if len(data.SafeOutputs.Scripts) > 0 {
 		safeOutputsConfigLog.Printf("Adding %d custom script tools to dynamic tools", len(data.SafeOutputs.Scripts))
 
-		scriptNames := make([]string, 0, len(data.SafeOutputs.Scripts))
-		for scriptName := range data.SafeOutputs.Scripts {
-			scriptNames = append(scriptNames, scriptName)
-		}
-		sort.Strings(scriptNames)
+		scriptNames := sliceutil.SortedKeys(data.SafeOutputs.Scripts)
 
 		for _, scriptName := range scriptNames {
 			scriptConfig := data.SafeOutputs.Scripts[scriptName]
@@ -75,11 +67,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 	if len(data.SafeOutputs.Actions) > 0 {
 		safeOutputsConfigLog.Printf("Adding %d custom action tools to dynamic tools", len(data.SafeOutputs.Actions))
 
-		actionNames := make([]string, 0, len(data.SafeOutputs.Actions))
-		for actionName := range data.SafeOutputs.Actions {
-			actionNames = append(actionNames, actionName)
-		}
-		sort.Strings(actionNames)
+		actionNames := sliceutil.SortedKeys(data.SafeOutputs.Actions)
 
 		for _, actionName := range actionNames {
 			actionConfig := data.SafeOutputs.Actions[actionName]
@@ -146,11 +134,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 		safeOutputsConfigLog.Printf("Adding %d dispatch_repository tools to dynamic tools", len(data.SafeOutputs.DispatchRepository.Tools))
 
 		// Sort tool keys for deterministic output
-		toolKeys := make([]string, 0, len(data.SafeOutputs.DispatchRepository.Tools))
-		for toolKey := range data.SafeOutputs.DispatchRepository.Tools {
-			toolKeys = append(toolKeys, toolKey)
-		}
-		sort.Strings(toolKeys)
+		toolKeys := sliceutil.SortedKeys(data.SafeOutputs.DispatchRepository.Tools)
 
 		for _, toolKey := range toolKeys {
 			toolConfig := data.SafeOutputs.DispatchRepository.Tools[toolKey]

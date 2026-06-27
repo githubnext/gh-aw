@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var redactedDomainsLog = logger.New("cli:redacted_domains")
@@ -62,11 +62,7 @@ func parseRedactedDomainsLog(logPath string, verbose bool) (*RedactedDomainsAnal
 	}
 
 	// Convert set to sorted slice
-	var domains []string
-	for domain := range domainsSet {
-		domains = append(domains, domain)
-	}
-	sort.Strings(domains)
+	domains := sliceutil.SortedKeys(domainsSet)
 
 	analysis := &RedactedDomainsAnalysis{
 		TotalDomains: len(domains),

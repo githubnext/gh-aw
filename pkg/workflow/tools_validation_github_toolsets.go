@@ -3,11 +3,11 @@ package workflow
 import (
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -51,11 +51,7 @@ func validateGitHubToolsAgainstToolsetsCore(allowedTools []string, enabledToolse
 			githubToolToToolsetLog.Printf("Tool %s not found in mapping, checking for typo", tool)
 
 			// Get all valid tool names for suggestion
-			validTools := make([]string, 0, len(toolToToolsetMap))
-			for validTool := range toolToToolsetMap {
-				validTools = append(validTools, validTool)
-			}
-			sort.Strings(validTools)
+			validTools := sliceutil.SortedKeys(toolToToolsetMap)
 
 			// Try to find close matches
 			matches := parser.FindClosestMatches(tool, validTools, 1)
@@ -93,11 +89,7 @@ func validateGitHubToolsAgainstToolsetsCore(allowedTools []string, enabledToolse
 		}
 
 		// Show a few examples of valid tools
-		validTools := make([]string, 0, len(toolToToolsetMap))
-		for tool := range toolToToolsetMap {
-			validTools = append(validTools, tool)
-		}
-		sort.Strings(validTools)
+		validTools := sliceutil.SortedKeys(toolToToolsetMap)
 
 		exampleCount := min(10, len(validTools))
 		fmt.Fprintf(&errMsg, "Valid GitHub tools include: %s\n\n", stringutil.FormatList(validTools[:exampleCount]))

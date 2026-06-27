@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -107,11 +106,7 @@ func extractAcceptedFieldsFromSchema(schemaDoc any, jsonPath string) []string {
 
 	// Extract properties from the target schema
 	if properties, ok := targetSchema["properties"].(map[string]any); ok {
-		var fields []string
-		for fieldName := range properties {
-			fields = append(fields, fieldName)
-		}
-		sort.Strings(fields) // Sort for consistent output
+		fields := sliceutil.SortedKeys(properties) // Sort for consistent output
 		return fields
 	}
 

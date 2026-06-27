@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var jobLog = logger.New("workflow:jobs")
@@ -325,11 +326,7 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 	if len(env) > 0 {
 		b.WriteString("    env:\n")
 		// Sort environment variable keys for consistent output
-		envKeys := make([]string, 0, len(env))
-		for key := range env {
-			envKeys = append(envKeys, key)
-		}
-		sort.Strings(envKeys)
+		envKeys := sliceutil.SortedKeys(env)
 
 		for _, key := range envKeys {
 			fmt.Fprintf(b, "      %s: %s\n", key, env[key])
@@ -340,11 +337,7 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 	if len(job.Outputs) > 0 {
 		b.WriteString("    outputs:\n")
 		// Sort output keys for consistent output
-		outputKeys := make([]string, 0, len(job.Outputs))
-		for key := range job.Outputs {
-			outputKeys = append(outputKeys, key)
-		}
-		sort.Strings(outputKeys)
+		outputKeys := sliceutil.SortedKeys(job.Outputs)
 
 		for _, key := range outputKeys {
 			fmt.Fprintf(b, "      %s: %s\n", key, job.Outputs[key])
@@ -361,11 +354,7 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 		if len(job.With) > 0 {
 			b.WriteString("    with:\n")
 			// Sort keys for consistent output
-			withKeys := make([]string, 0, len(job.With))
-			for key := range job.With {
-				withKeys = append(withKeys, key)
-			}
-			sort.Strings(withKeys)
+			withKeys := sliceutil.SortedKeys(job.With)
 
 			for _, key := range withKeys {
 				value := job.With[key]
@@ -389,11 +378,7 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 		} else if len(job.Secrets) > 0 {
 			b.WriteString("    secrets:\n")
 			// Sort secret keys for consistent output
-			secretKeys := make([]string, 0, len(job.Secrets))
-			for key := range job.Secrets {
-				secretKeys = append(secretKeys, key)
-			}
-			sort.Strings(secretKeys)
+			secretKeys := sliceutil.SortedKeys(job.Secrets)
 
 			for _, key := range secretKeys {
 				fmt.Fprintf(b, "      %s: %s\n", key, job.Secrets[key])
