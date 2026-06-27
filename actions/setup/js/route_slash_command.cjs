@@ -80,9 +80,38 @@ function normalizeDispatchRef(ref) {
   return ref.startsWith("refs/") ? ref : `refs/heads/${ref}`;
 }
 
+/**
+ * Resolves pull request number for issue-backed PR events.
+ * Falls back to parsing the pull request API URL when issue.number is unavailable.
+ * @returns {number} Pull request number, or 0 when missing/invalid.
+ */
+function resolveIssueBackedPullNumber() {
+  const issueNumber = context.payload?.issue?.number;
+  if (typeof issueNumber === "number" && Number.isInteger(issueNumber) && issueNumber > 0) {
+    return issueNumber;
+  }
+  if (typeof issueNumber === "string" && /^\d+$/.test(issueNumber)) {
+    const parsed = Number(issueNumber);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  const pullRequestURL = context.payload?.issue?.pull_request?.url;
+  if (typeof pullRequestURL !== "string") {
+    return 0;
+  }
+  const match = pullRequestURL.match(/\/pulls\/(\d+)(?:$|[/?#])/);
+  if (!match) {
+    return 0;
+  }
+  const parsed = Number(match[1]);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
 async function resolveIssueBackedPRHeadRef() {
   const isIssueBackedPullRequest = context.payload?.issue?.pull_request;
-  const pullNumber = context.payload?.issue?.number;
+  const pullNumber = resolveIssueBackedPullNumber();
   if (!isIssueBackedPullRequest || !pullNumber) {
     return "";
   }

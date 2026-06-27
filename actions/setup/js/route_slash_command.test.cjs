@@ -474,6 +474,24 @@ describe("route_slash_command", () => {
     expect(dispatchCalls[0].ref).toBe("refs/heads/feature/pr-branch");
   });
 
+  it("dispatches slash commands from issue comments on PRs when PR number is only in pull_request.url", async () => {
+    globals.context.payload.issue.pull_request = { url: "https://api.github.com/repos/github/gh-aw/pulls/42" };
+    globals.context.payload.comment.body = "/archie please";
+
+    await main();
+
+    expect(globals.github.rest.pulls.get).toHaveBeenCalledWith({
+      owner: "github",
+      repo: "gh-aw",
+      pull_number: 42,
+      headers: {
+        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+      },
+    });
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].ref).toBe("refs/heads/feature/pr-branch");
+  });
+
   it("retries dispatch on default branch when PR head ref is not available in target repo", async () => {
     globals.context.payload.repository = { default_branch: "main" };
     globals.context.payload.issue.pull_request = { url: "https://example.test/pr/1" };
