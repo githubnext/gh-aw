@@ -7,13 +7,11 @@ export const requireParseIntRadixRule = createRule({
   meta: {
     type: "problem",
     docs: {
-      description:
-        "Require parseInt() calls in actions/setup/js scripts to include an explicit radix argument to avoid implicit octal or hexadecimal parsing",
+      description: "Require parseInt() calls in actions/setup/js scripts to include an explicit radix argument to avoid implicit base detection (e.g., 0x prefix silently parsed as hexadecimal)",
     },
     schema: [],
     messages: {
-      requireRadix:
-        "parseInt() must be called with an explicit radix (e.g., parseInt(str, 10)) to avoid implicit octal/hex parsing in actions/setup/js.",
+      requireRadix: "parseInt() must be called with an explicit radix (e.g., parseInt(str, 10)) to avoid implicit base detection in actions/setup/js.",
     },
   },
   defaultOptions: [],
@@ -21,11 +19,7 @@ export const requireParseIntRadixRule = createRule({
     return {
       CallExpression(node) {
         // Global parseInt(x) — missing radix
-        if (
-          node.callee.type === "Identifier" &&
-          node.callee.name === "parseInt" &&
-          node.arguments.length < 2
-        ) {
+        if (node.callee.type === "Identifier" && node.callee.name === "parseInt" && node.arguments.length < 2) {
           context.report({ node, messageId: "requireRadix" });
           return;
         }
