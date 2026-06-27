@@ -305,7 +305,7 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 			yaml,
 			"                ",
 			"env",
-			buildGitHubMCPEnvVars("\\${GITHUB_MCP_SERVER_TOKEN}", "\\${GITHUB_SERVER_URL}", false, false, ""),
+			buildGitHubMCPEnvVars("${GITHUB_MCP_SERVER_TOKEN}", "${GITHUB_SERVER_URL}", false, false, ""),
 			hasGuardPolicies,
 		)
 	}

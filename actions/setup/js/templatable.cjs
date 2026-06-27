@@ -22,6 +22,8 @@
  *  - boolean `false`       → `false`
  *  - string `"true"`       → `true`
  *  - string `"false"`      → `false`
+ *  - string variants that normalize to `"false"` after trim/lowercase
+ *    (for example `" False "`) → `false`
  *  - any other string (e.g. a resolved GitHub Actions expression value
  *    that was not "false") → `true`
  *
@@ -32,7 +34,7 @@
  */
 function parseBoolTemplatable(value, defaultValue = true) {
   if (value === undefined || value === null) return defaultValue;
-  return String(value) !== "false";
+  return String(value).trim().toLowerCase() !== "false";
 }
 
 /**

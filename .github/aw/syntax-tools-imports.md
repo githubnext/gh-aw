@@ -51,18 +51,84 @@ Cache steps are auto-added to the workflow job; cache config is removed from the
 
 ## Tool Configuration
 
-### General Tools
+The `tools:` field configures which tools the coding agent may use.
 
-```yaml
-tools:
-  edit:           # File editing (required to write to files)
-  web-fetch:       # Web content fetching
-  web-search:      # Web searching
-  bash:           # Shell commands
-  - "gh label list:*"
-  - "gh label view:*"
-  - "git status"
-```
+### GitHub Tools (`tools.github`)
+
+- `allowed:` - Array of allowed GitHub API functions. Each entry is either a string tool name (e.g., `issue_read`) or an object `{ name: <tool>, max-calls: <n> }` to cap how many times that tool may be called per run. Colon shorthand (`"issue_read:1"`) is **not** a call-limit form.
+
+  ```yaml
+  tools:
+    github:
+      allowed:
+        - { name: issue_read, max-calls: 1 }
+        - list_labels
+        - pull_request_read
+  ```
+- `mode:` - GitHub access mode. **Prefer `"gh-proxy"`** — it is faster (no MCP server startup) and lets the agent use `gh` shell commands directly for all GitHub reads (issues, PRs, discussions, commits, etc.):
+  - `"gh-proxy"` (**preferred**) — pre-authenticated `gh` CLI available in bash; no GitHub MCP server is registered. Use `gh` commands for all GitHub reads.
+  - `"local"` (default) — Docker-based GitHub MCP Server; use GitHub MCP tools for reads, `gh` is not authenticated.
+  - **do NOT use `"remote"`** — it does not work with the GitHub Actions token; use `"gh-proxy"` instead.
+- `version:` - MCP server version (local mode only)
+- `args:` - Additional command-line arguments (local mode only)
+- `read-only:` - The GitHub MCP server always operates in read-only mode; this field is accepted but has no effect
+- `github-token:` - Custom GitHub token
+- `lockdown:` - Enable lockdown mode to limit content surfaced from public repositories to items authored by users with push access (boolean, default: false)
+- `github-app:` - GitHub App configuration for token minting; when set, mints an installation access token at workflow start that overrides `github-token`
+  - `client-id:` - GitHub App client ID (required, e.g., `${{ vars.APP_ID }}`). Use `app-id:` for legacy compatibility.
+  - `private-key:` - GitHub App private key (required, e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
+  - `owner:` - Optional installation owner (defaults to current repository owner)
+  - `repositories:` - Optional list of repositories to grant access to (array)
+  - `permissions:` - Optional extra permissions to include in the minted token for org-level API access (object)
+    - Example: `permissions: { members: read, organization-administration: read }` — required when calling org-level APIs (e.g., `orgs`, `users` toolsets) since the default GITHUB_TOKEN does not have org-scoped permissions
+- `min-integrity:` - Minimum integrity level for MCP Gateway guard policy; controls which content the agent may act on based on author trust (`none`, `unapproved`, `approved`, `merged`)
+- `blocked-users:` - Usernames whose content is unconditionally blocked (array or GitHub Actions expression); these users receive integrity below `none` and are always denied
+- `approval-labels:` - Label names that elevate a content item's integrity to `approved` when present (array or GitHub Actions expression); does not override `blocked-users`
+- `trusted-users:` - Usernames elevated to `approved` integrity regardless of `author_association` (array or GitHub Actions expression); takes precedence over `min-integrity` but not over `blocked-users`; requires `min-integrity` to be set
+- `toolsets:` - Enable specific GitHub toolset groups (array only)
+  - **Default toolsets** (when unspecified): `context`, `repos`, `issues`, `pull_requests` (excludes `users` as GitHub Actions tokens don't support user operations)
+  - **Group aliases**: `default` (recommended action-friendly set), `action-friendly` (action-safe toolsets, excludes `users`), `all` (everything)
+  - **Individual toolsets**: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
+  - Examples: `toolsets: [default]`, `toolsets: [default, discussions]`, `toolsets: [repos, issues]`
+  - **Recommended**: Prefer `toolsets:` over `allowed:` for better organization and reduced configuration verbosity
+
+### Other Built-in Tools
+
+- `agentic-workflows:` - GitHub Agentic Workflows MCP server for workflow introspection. Provides `status`, `compile`, `logs`, `audit`, and `checks` tools so agents can analyze run traces and improve workflows. Enable with `agentic-workflows: true`.
+- `edit:` - File editing tools (required to write to files in the repository)
+- `web-fetch:` - Web content fetching tools
+- `web-search:` - Web search tools
+- `bash:` - Shell command tools
+  - **Bash allowlist decision rule:**
+    - **PR-triggered workflows** processing **untrusted input** (issue/PR body, comment text, user-provided filenames): use a **narrow allowlist** (e.g. `[find, cat, grep, wc, jq]`). This limits blast radius if shell injection is embedded in untrusted content.
+    - **`schedule` or `workflow_dispatch` workflows** with **no untrusted input** (only trusted API data or internal state): `["*"]` is acceptable.
+    - **Rule of thumb**: If the workflow reads issue/PR bodies, comment text, or other user-provided strings, use a narrow list. Otherwise `["*"]` is acceptable.
+
+  ```yaml
+  # PR-triggered workflow reading untrusted user text
+  on:
+    pull_request:
+  tools:
+    bash: [find, cat, grep, wc, jq]
+
+  # Internal scheduled workflow reading only trusted/internal data
+  on:
+    schedule:
+      - cron: "0 * * * *"
+  tools:
+    bash: ["*"]
+  ```
+- `playwright:` - Browser automation for visual regression, accessibility, and end-to-end testing. Use `mode: cli` (recommended) — no Docker, runs `playwright-cli <command>` in bash, `localhost` reaches local servers directly. `mode: mcp` is deprecated (Docker-based). Pin a version with `version:` and restrict network to `local` + `playwright`.
+
+  ```yaml
+  tools:
+    playwright:
+      mode: cli          # recommended: token-efficient CLI mode
+      version: "0.1.11"  # optional: @playwright/cli npm package version
+  ```
+- `timeout:` - Per-operation timeout in seconds for all tool and MCP calls (integer or expression). Defaults vary by engine (Claude: 60 s, Codex: 120 s).
+- `startup-timeout:` - Timeout in seconds for MCP server initialization (integer or expression, default: 120).
+- `cli-proxy:` - Mount each user-facing MCP server as a standalone CLI tool on `PATH` (boolean, default: `false`). When enabled, the agent can call MCP servers via shell (e.g. `github issue_read --method get ...`).
 
 ### Custom MCP Tools
 
@@ -102,119 +168,23 @@ mcp-servers:
       audience: "https://myserver.example.com"          # Optional: custom OIDC audience
 ```
 
-`auth.type: github-oidc` uses GitHub Actions OIDC tokens for secure server-to-server authentication without static credentials. The `audience` field is optional and defaults to the server URL when omitted.
+`auth.type: github-oidc` uses GitHub Actions OIDC tokens for secure server-to-server authentication without static credentials. The `audience` field defaults to the server URL when omitted.
 
 ### Engine Network Permissions
 
-Control network access via the top-level `network:` field. Defaults to `network: defaults` (basic infrastructure only) if unspecified.
+Control network access via the top-level `network:` field (defaults to `network: defaults` — basic infrastructure only). For workflows that build, test, or install packages, always add the language ecosystem alongside `defaults`:
 
 ```yaml
-engine:
-  id: copilot
-
-# Basic infrastructure only (default)
-network: defaults
-
-# Use ecosystem identifiers for common development tools
 network:
   allowed:
-    - defaults         # Basic infrastructure
-    - python          # Python/PyPI ecosystem
-    - node            # Node.js/NPM ecosystem
-    - containers      # Container registries
+    - defaults         # Basic infrastructure (CAs, Ubuntu verification, JSON schema)
+    - node             # Node.js / npm ecosystem
     - "api.custom.com" # Custom domain
-    - "https://secure.api.com" # Protocol-specific domain
   blocked:
-    - "tracking.com"   # Block specific domains
     - "*.ads.com"      # Block domain patterns
-    - ruby             # Block ecosystem identifiers
-  firewall: true      # Enable AWF (Copilot engine only)
-
-# Or allow specific domains only
-network:
-  allowed:
-    - "api.github.com"
-    - "*.trusted-domain.com"
-    - "example.com"
-
-# Or deny all network access
-network: {}
 ```
 
-**Important Notes:**
-
-- Network permissions apply to AI engines' WebFetch and WebSearch tools
-- Uses top-level `network:` field (not nested under engine permissions)
-- `defaults` now includes only basic infrastructure (certificates, JSON schema, Ubuntu, etc.)
-- Use ecosystem identifiers (`python`, `node`, `java`, etc.) for language-specific tools
-- When custom permissions are specified with `allowed:` list, deny-by-default policy is enforced
-- Supports exact domain matches and wildcard patterns (where `*` matches any characters, including nested subdomains)
-- **Protocol-specific filtering**: Prefix domains with `http://` or `https://` for protocol restrictions
-- **Domain blocklist**: Use `blocked:` field to explicitly deny domains or ecosystem identifiers
-- **Firewall support**: Copilot engine supports AWF (Agent Workflow Firewall) for domain-based access control
-- Claude engine uses hooks for enforcement; Codex support planned
-
-**Permission Modes:**
-
-1. **Basic infrastructure**: `network: defaults` or no `network:` field (certificates, JSON schema, Ubuntu only)
-2. **Ecosystem access**: `network: { allowed: [defaults, python, node, ...] }` (development tool ecosystems)
-3. **No network access**: `network: {}` (deny all)
-4. **Specific domains**: `network: { allowed: ["api.example.com", ...] }` (granular access control)
-5. **Block specific domains**: `network: { blocked: ["tracking.com", "*.ads.com", ...] }` (deny-list)
-
-**Available Ecosystem Identifiers:**
-
-Each identifier enables network access to that language's package manager domains. For workflows with package management, builds, or tests, **always include the ecosystem matching the repository's primary language** plus `defaults`.
-
-| Identifier | Runtimes / Languages | Package Manager / Domains |
-|---|---|---|
-| `defaults` | All (always include) | Certificates, JSON schema, Ubuntu mirrors, Microsoft sources |
-| `github` | Any | GitHub domains (`github.com`, `*.githubusercontent.com`, `codeload.github.com`, etc.) |
-| `local` | Any | Loopback (`localhost`, `127.0.0.1`, `::1`) |
-| `dev-tools` | Any | CI/CD services (Codecov, Shields.io, Snyk, Renovate, CircleCI, etc.) |
-| `default-safe-outputs` | Any | Compound: `defaults` + `dev-tools` + `github` + `local` — recommended for `safe-outputs.allowed-domains` |
-| `containers` | Docker, OCI | Docker Hub, GHCR, Quay, GCR, MCR (`registry.hub.docker.com`, `ghcr.io`, etc.) |
-| `linux-distros` | Any | apt, yum/dnf (Debian, Alpine, Fedora, `deb.debian.org`, `dl-cdn.alpinelinux.org`, etc.) |
-| `playwright` | Any | Playwright browser automation (`cdn.playwright.dev`, `playwright.download.prss.microsoft.com`) |
-| `chrome` | Any | Headless Chrome/Puppeteer (`*.google.com`, `*.googleapis.com`, `*.gvt1.com`) |
-| `fonts` | Any | Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) |
-| `terraform` | Terraform, OpenTofu | HashiCorp registry (`registry.terraform.io`, `releases.hashicorp.com`) |
-| `bazel` | Any | Bazel build system (`releases.bazel.build`, `bcr.bazel.build`) |
-| `clojure` | Clojure | Clojars (`clojars.org`) |
-| `dart` | Dart, Flutter | pub.dev (`pub.dev`, `storage.googleapis.com`) |
-| `deno` | JavaScript, TypeScript | Deno runtime (`deno.land`, `jsr.io`, `googleapis.deno.dev`) |
-| `dotnet` | C#, F#, VB.NET | NuGet (`nuget.org`, `api.nuget.org`, `dotnetcli.blob.core.windows.net`, etc.) |
-| `elixir` | Elixir | Hex (`hex.pm`, `cdn.hex.pm`) |
-| `go` | Go | Go modules (`proxy.golang.org`, `sum.golang.org`, `pkg.go.dev`) |
-| `haskell` | Haskell | Hackage, GHCup (`hackage.haskell.org`, `get-ghcup.haskell.org`, `downloads.haskell.org`) |
-| `java` | Java, Groovy | Maven, Gradle (`repo1.maven.org`, `plugins.gradle.org`, `api.adoptium.net`, etc.) |
-| `julia` | Julia | Julia packages (`pkg.julialang.org`, `storage.julialang.net`) |
-| `kotlin` | Kotlin | JetBrains packages (`download.jetbrains.com`, `packages.jetbrains.team`) |
-| `latex` | LaTeX, TeX | CTAN, TUG, MiKTeX (`ctan.org`, `tug.org`, `packages.miktex.org`) — **note**: TeX Live `tlmgr` uses redirected CTAN mirrors not reachable through the firewall; prefer `apt-get install texlive-full` (via `defaults`) or MiKTeX |
-| `lean` | Lean | Lean packages (`lean-lang.org`, `reservoir.lean-lang.org`) |
-| `lua` | Lua | LuaRocks (`luarocks.org`) |
-| `node` | Node.js, JavaScript, TypeScript | npm, yarn, pnpm, Bun (`registry.npmjs.org`, `yarnpkg.com`, `bun.sh`, etc.) |
-| `node-cdns` | JavaScript, TypeScript | Node.js CDN assets (jsDelivr, jQuery CDN — `cdn.jsdelivr.net`, `code.jquery.com`) |
-| `ocaml` | OCaml | opam (`opam.ocaml.org`) |
-| `perl` | Perl | CPAN (`cpan.org`, `metacpan.org`) |
-| `php` | PHP | Composer, Packagist (`packagist.org`, `getcomposer.org`) |
-| `powershell` | PowerShell | PowerShell Gallery (`powershellgallery.com`) |
-| `python` | Python | pip, conda, PyPI (`pypi.org`, `files.pythonhosted.org`, `conda.anaconda.org`, etc.) |
-| `python-native` | Python (native extensions) | PyPI + crates.io — for pyo3/maturin builds |
-| `r` | R | CRAN (`cran.r-project.org`, `cloud.r-project.org`) |
-| `ruby` | Ruby | RubyGems, Bundler (`rubygems.org`, `api.rubygems.org`, etc.) |
-| `rust` | Rust | Cargo, crates.io (`crates.io`, `static.crates.io`, `sh.rustup.rs`) |
-| `scala` | Scala | sbt, JitPack (`repo.scala-sbt.org`, `jitpack.io`) |
-| `swift` | Swift | Swift Package Manager, CocoaPods (`swift.org`, `download.swift.org`, `cocoapods.org`) |
-| `zig` | Zig | Zig packages (`ziglang.org`) |
-
-**Network Inference Rule:** When a workflow will run `dotnet restore`, `pip install`, `npm install`, `go mod download`, `mvn install`, etc., infer the ecosystem from the repository language and include it. Examples:
-
-- `.NET` repository (`.csproj`, `.fsproj`, `*.sln`, `*.slnx`) → `network: { allowed: [defaults, dotnet] }`
-- Python repository (`requirements.txt`, `pyproject.toml`) → `network: { allowed: [defaults, python] }`
-- Node.js repository (`package.json`) → `network: { allowed: [defaults, node] }`
-- Go repository (`go.mod`) → `network: { allowed: [defaults, go] }`
-- Java repository (`pom.xml`, `build.gradle`) → `network: { allowed: [defaults, java] }`
+> **Full reference**: valid ecosystem identifiers, invalid shorthands, wildcard/protocol rules, and per-language inference live in [network.md](network.md). Do not restate the ecosystem table here.
 
 ## Imports Field
 

@@ -258,7 +258,7 @@ This is a test workflow for GitHub remote mode configuration.
 						if !strings.Contains(lockContent, `"Authorization": "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"`) {
 							t.Errorf("Expected Authorization header with ${GITHUB_PERSONAL_ACCESS_TOKEN} syntax but didn't find it in:\n%s", lockContent)
 						}
-						if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}"`) {
+						if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_SERVER_TOKEN}"`) {
 							t.Errorf("Expected env section with GITHUB_PERSONAL_ACCESS_TOKEN passthrough but didn't find it in:\n%s", lockContent)
 						}
 					} else {
@@ -460,7 +460,7 @@ This tests that GITHUB_PERSONAL_ACCESS_TOKEN is exported and passed to Docker.
 	}
 
 	// Check that the env section still defines the variable
-	if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}"`) {
+	if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_SERVER_TOKEN}"`) {
 		t.Errorf("Expected env section with GITHUB_PERSONAL_ACCESS_TOKEN but didn't find it in lock file")
 	}
 }

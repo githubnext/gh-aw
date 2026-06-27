@@ -44,55 +44,23 @@ Cost wins come from architecture and selective execution, not model tier alone.
 
 ## Pull Context, Do Not Push Context
 
-Avoid front-loading large raw context when data can be fetched on demand. Prefer:
-
-- deterministic pre-steps that materialize compact files under `/tmp/gh-aw/`
-- `gh` + filtering commands (`jq`, `grep`, focused selectors) before context is exposed to the model
-- pre-aggregated summaries instead of full API payloads
-- directed tool calls issued after the agent forms a hypothesis
-
-Anchoring warning: preselecting raw logs too early can make the model over-focus and miss the actual cause.
+Avoid front-loading large raw context when data can be fetched on demand. Prefer deterministic pre-steps that materialize compact files under `/tmp/gh-aw/`, `gh` + filtering (`jq`, `grep`) before context reaches the model, pre-aggregated summaries over full API payloads, and directed tool calls issued only after the agent forms a hypothesis. Anchoring warning: preselecting raw logs too early can make the model over-focus and miss the actual cause.
 
 ---
 
 ## How to Measure Token Usage
 
-### Single-run audit
+`gh aw audit` reports per-run cost. See [cli-commands.md](cli-commands.md#gh-aw-audit) for full command syntax (single run, `--json`, multi-run diff) and the MCP `audit` equivalent.
 
-```bash
-gh aw audit <run-id> --json
-```
-
-Key fields in the output:
+Token-specific fields in `gh aw audit <run-id> --json`:
 
 - `agent_usage.aic` — AI Credits (AIC), the normalized cost metric (1 AIC = $0.01; accounts for model price differences and cache discounts)
 - `agent_usage.input_tokens` / `agent_usage.output_tokens` — raw token counts
 - `agent_usage.cache_read_tokens` / `agent_usage.cache_write_tokens` — tokens served from the prompt cache
 
-Equivalent via MCP: `audit` tool with `run_id: <run-id>`.
+For per-call detail, `gh aw audit <run-id>` downloads artifacts into `logs/run-<run-id>/`; read `firewall-audit-logs/api-proxy-logs/token-usage.jsonl` (one API call per line, with `model` and token counts) to find the most expensive calls. Diff two runs with `gh aw audit <base-id> <optimized-id>` to detect AI-credit regressions.
 
 Treat optimization as successful only when quality remains acceptable. A quality regression is a failure even if AI Credits decrease.
-
-### Comparing two runs (regression detection)
-
-```bash
-gh aw audit <base-run-id> <optimized-run-id> --json
-# Or compare multiple variants at once:
-gh aw audit <base-run-id> <variant-a-run-id> <variant-b-run-id> --json
-```
-
-The diff highlights changes in AI credits, tool calls, and safe outputs between runs. Equivalent via MCP: `audit` tool with `run_ids_or_urls: ["<base-run-id>", "<optimized-run-id>"]`.
-
-### Per-request token detail
-
-`gh aw audit <run-id>` downloads all artifacts into `logs/run-<run-id>/`. Read the per-call breakdown from there:
-
-```bash
-gh aw audit <run-id>
-cat logs/run-<run-id>/firewall-audit-logs/api-proxy-logs/token-usage.jsonl
-```
-
-Each line is one API call with `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, and `cache_write_tokens` — useful for finding the most expensive calls.
 
 ---
 
@@ -152,8 +120,6 @@ safe-outputs:
 Read the pre-computed stats at `/tmp/gh-aw/data/stats.json` and `/tmp/gh-aw/data/prs.json`.
 Create a concise weekly PR summary discussion.
 ```
-
-Shell steps run outside the AI sandbox (zero tokens); the agent reads compact aggregated JSON.
 
 **Best practices:**
 

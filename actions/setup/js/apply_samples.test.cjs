@@ -543,6 +543,172 @@ describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_re
     }
   });
 
+  it("prefers explicit arguments.repo over safe-outputs target-repo when deriving PR branch", async () => {
+    const workspace = makeTempDir("gh-aw-prestage-push-explicit-repo-");
+    initRepo(workspace, "main");
+
+    const headRef = "feat/explicit-repo-pr";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ head: { ref: headRef } }),
+    });
+
+    const configPath = path.join(workspace, "config.json");
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        push_to_pull_request_branch: { "target-repo": "githubnext/gh-aw-side-repo" },
+      })
+    );
+
+    const prevBase = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    const prevEvent = process.env.GITHUB_EVENT_PATH;
+    const prevRepo = process.env.GITHUB_REPOSITORY;
+    const prevConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+    delete process.env.GITHUB_EVENT_PATH;
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
+    process.env.GITHUB_REPOSITORY = "githubnext/gh-aw-test";
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+    try {
+      const entry = {
+        tool: "push_to_pull_request_branch",
+        arguments: {
+          message: "Push update",
+          pull_request_number: 88,
+          repo: "owner/explicit-repo",
+        },
+        sidecars: { patch: newFileDiff("explicit-repo.txt", "explicit repo wins\n") },
+      };
+      await preStagePatch(entry, 0, workspace);
+      expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe(headRef);
+      expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("/repos/owner/explicit-repo/pulls/88"), expect.anything());
+      expect(fetchSpy).not.toHaveBeenCalledWith(expect.stringContaining("/repos/githubnext/gh-aw-side-repo/pulls/88"), expect.anything());
+    } finally {
+      fetchSpy.mockRestore();
+      if (prevBase === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prevBase;
+      if (prevEvent !== undefined) process.env.GITHUB_EVENT_PATH = prevEvent;
+      if (prevRepo === undefined) delete process.env.GITHUB_REPOSITORY;
+      else process.env.GITHUB_REPOSITORY = prevRepo;
+      if (prevConfig === undefined) delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+      else process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = prevConfig;
+    }
+  });
+
+  it("derives push_to_pull_request_branch branch using target-repo from safe-outputs config (issue #41292 siderepo workflow_dispatch)", async () => {
+    // Reproduces the siderepo failure: a workflow_dispatch provides
+    // `pull_request_number` but no `repo` override in the sample arguments.
+    // The safe-outputs config carries `target-repo: "githubnext/gh-aw-side-repo"`,
+    // which derivePrHeadRef must use when building the PR fetch URL.
+    const workspace = makeTempDir("gh-aw-prestage-push-siderepo-");
+    initRepo(workspace, "main");
+
+    const headRef = "feat/siderepo-pr-branch";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ head: { ref: headRef } }),
+    });
+
+    const configPath = path.join(workspace, "config.json");
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        push_to_pull_request_branch: { "target-repo": "githubnext/gh-aw-side-repo" },
+      })
+    );
+
+    const prevBase = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    const prevEvent = process.env.GITHUB_EVENT_PATH;
+    const prevRepo = process.env.GITHUB_REPOSITORY;
+    const prevConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+    delete process.env.GITHUB_EVENT_PATH; // no event; rely on config
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
+    process.env.GITHUB_REPOSITORY = "githubnext/gh-aw-test"; // host repo (wrong repo)
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+    try {
+      const entry = {
+        tool: "push_to_pull_request_branch",
+        // No `repo` override — agent emits only pull_request_number.
+        arguments: { message: "Multi-commit test push from Copilot in side repo", pull_request_number: 447 },
+        sidecars: { patch: newFileDiff("src/siderepo-feature.py", "# side repo\n") },
+      };
+      await preStagePatch(entry, 0, workspace);
+      expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe(headRef);
+      // Must fetch from the side repo, NOT the host repo.
+      expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("/repos/githubnext/gh-aw-side-repo/pulls/447"), expect.anything());
+      expect(fetchSpy).not.toHaveBeenCalledWith(expect.stringContaining("/repos/githubnext/gh-aw-test/pulls/447"), expect.anything());
+    } finally {
+      fetchSpy.mockRestore();
+      if (prevBase === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prevBase;
+      if (prevEvent !== undefined) process.env.GITHUB_EVENT_PATH = prevEvent;
+      if (prevRepo === undefined) delete process.env.GITHUB_REPOSITORY;
+      else process.env.GITHUB_REPOSITORY = prevRepo;
+      if (prevConfig === undefined) delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+      else process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = prevConfig;
+    }
+  });
+
+  it("derives PR-linked issue payload branch using target-repo from safe-outputs config", async () => {
+    const workspace = makeTempDir("gh-aw-prestage-push-issue-siderepo-");
+    initRepo(workspace, "main");
+
+    const headRef = "feat/issue-side-repo";
+    const eventPath = path.join(workspace, "event.json");
+    fs.writeFileSync(
+      eventPath,
+      JSON.stringify({
+        issue: { number: 42, pull_request: { url: "https://api.github.com/repos/githubnext/gh-aw-side-repo/pulls/42" } },
+      })
+    );
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ head: { ref: headRef } }),
+    });
+
+    const configPath = path.join(workspace, "config.json");
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        push_to_pull_request_branch: { "target-repo": "githubnext/gh-aw-side-repo" },
+      })
+    );
+
+    const prevBase = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    const prevEvent = process.env.GITHUB_EVENT_PATH;
+    const prevRepo = process.env.GITHUB_REPOSITORY;
+    const prevConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
+    process.env.GITHUB_EVENT_PATH = eventPath;
+    process.env.GITHUB_REPOSITORY = "githubnext/gh-aw-test";
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+    try {
+      const entry = {
+        tool: "push_to_pull_request_branch",
+        arguments: { message: "Push update" },
+        sidecars: { patch: newFileDiff("issue-side-repo.txt", "issue side repo\n") },
+      };
+      await preStagePatch(entry, 0, workspace);
+      expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe(headRef);
+      expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("/repos/githubnext/gh-aw-side-repo/pulls/42"), expect.anything());
+      expect(fetchSpy).not.toHaveBeenCalledWith(expect.stringContaining("/repos/githubnext/gh-aw-test/pulls/42"), expect.anything());
+    } finally {
+      fetchSpy.mockRestore();
+      if (prevBase === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prevBase;
+      if (prevEvent === undefined) delete process.env.GITHUB_EVENT_PATH;
+      else process.env.GITHUB_EVENT_PATH = prevEvent;
+      if (prevRepo === undefined) delete process.env.GITHUB_REPOSITORY;
+      else process.env.GITHUB_REPOSITORY = prevRepo;
+      if (prevConfig === undefined) delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+      else process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = prevConfig;
+    }
+  });
+
   it("is a no-op when the sample tool isn't in the patch-sidecar set", async () => {
     // We assert this at the driver level (PATCH_SIDECAR_TOOLS gate in main()),
     // but preStagePatch itself should also be a no-op when called with an

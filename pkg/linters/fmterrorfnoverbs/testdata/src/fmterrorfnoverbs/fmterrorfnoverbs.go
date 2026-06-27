@@ -47,3 +47,19 @@ func localShadowNotFlagged() error {
 	fmt := shadowFormatter{}
 	return fmt.Errorf("not fmt package")
 }
+
+// escapePercentOnly has only %% (escaped literal percent) and no real verb;
+// it should be flagged like a plain string.
+func escapePercentOnly() error {
+	return fmtalias.Errorf("disk usage exceeds 90%% limit") // want `fmt\.Errorf called with no format verbs; use errors\.New`
+}
+
+// realVerbWithEscapePercent has a real verb (%d) alongside %%; must NOT be flagged.
+func realVerbWithEscapePercent(n int) error {
+	return fmtalias.Errorf("%d%% done", n)
+}
+
+// multipleEscapePercents has multiple %% sequences but no real verb; should be flagged.
+func multipleEscapePercents() error {
+	return fmtalias.Errorf("between 50%% and 90%% utilised") // want `fmt\.Errorf called with no format verbs; use errors\.New`
+}

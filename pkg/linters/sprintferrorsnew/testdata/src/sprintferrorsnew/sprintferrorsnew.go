@@ -31,3 +31,8 @@ func goodVariable() error {
 func goodPlainString() error {
 	return errors.New("something went wrong")
 }
+
+// suppressed keeps the shape intentionally and suppresses this style diagnostic.
+func suppressed() error {
+	return errors.New(fmt.Sprintf("invalid engine: %s", "claude")) //nolint:sprintferrorsnew
+}

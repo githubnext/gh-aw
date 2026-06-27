@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the os-setenv-in-library analysis pass.
@@ -33,6 +34,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "ossetenvlibrary")
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -50,6 +52,10 @@ func run(pass *analysis.Pass) (any, error) {
 
 		fn, ok := calledOSFunc(pass, call)
 		if !ok {
+			return
+		}
+		position := pass.Fset.PositionFor(call.Pos(), false)
+		if nolint.HasDirective(position, noLintLinesByFile) {
 			return
 		}
 		switch fn.Name() {

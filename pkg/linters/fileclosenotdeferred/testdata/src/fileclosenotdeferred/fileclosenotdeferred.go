@@ -102,3 +102,29 @@ func ReopenWithManualCloseThenDefer() error {
 	defer f.Close() // deferred — ok for second open
 	return nil
 }
+
+// not flagged: suppression directive on violating line.
+func SuppressedManualClose() error {
+	f, err := os.Open("suppressed.txt") //nolint:fileclosenotdeferred
+	if err != nil {
+		return err
+	}
+	f.Close()
+	return nil
+}
+
+// not flagged: suppression directive suppresses the reassignment-path violation
+// (exercises the nolint check inside trackFileOpenAssignment).
+func SuppressedReopenManualClose() error {
+	f, err := os.Open("first.txt") //nolint:fileclosenotdeferred
+	if err != nil {
+		return err
+	}
+	f.Close()
+	f, err = os.Open("second.txt")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return nil
+}
