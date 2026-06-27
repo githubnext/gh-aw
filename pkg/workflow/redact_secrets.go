@@ -2,10 +2,10 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var secretMaskingLog = logger.New("workflow:secret_masking")
@@ -65,13 +65,7 @@ func CollectSecretReferences(yamlContent string) []string {
 	}
 
 	// Convert map to sorted slice for consistent ordering
-	secrets := make([]string, 0, len(secretsMap))
-	for secret := range secretsMap {
-		secrets = append(secrets, secret)
-	}
-
-	// Sort for consistent output
-	sort.Strings(secrets)
+	secrets := sliceutil.SortedKeys(secretsMap)
 
 	secretMaskingLog.Printf("Found %d unique secret reference(s) in workflow", len(secrets))
 
@@ -141,11 +135,7 @@ func CollectActionReferences(yamlContent string) []string {
 		}{}
 	}
 
-	actions := make([]string, 0, len(actionsMap))
-	for action := range actionsMap {
-		actions = append(actions, action)
-	}
-	sort.Strings(actions)
+	actions := sliceutil.SortedKeys(actionsMap)
 
 	secretMaskingLog.Printf("Found %d unique external action reference(s) in workflow", len(actions))
 	return actions

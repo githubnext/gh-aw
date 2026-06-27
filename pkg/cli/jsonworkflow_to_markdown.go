@@ -5,14 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
-
-	"github.com/goccy/go-yaml"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/goccy/go-yaml"
 )
 
 var jsonWorkflowLog = logger.New("cli:jsonworkflow_to_markdown")
@@ -271,11 +270,7 @@ func ConvertJSONWorkflowToMarkdown(a *JSONWorkflow, opts ConvertOptions) (*Gener
 				fm.WriteString("\n")
 			}
 			// Sort keys for deterministic warning output.
-			extraKeys := make([]string, 0, len(a.Extra))
-			for k := range a.Extra {
-				extraKeys = append(extraKeys, k)
-			}
-			sort.Strings(extraKeys)
+			extraKeys := sliceutil.SortedKeys(a.Extra)
 			for _, k := range extraKeys {
 				warnings = append(warnings, fmt.Sprintf("field %q has no gh-aw frontmatter equivalent and was preserved as a comment", k))
 			}
@@ -576,11 +571,7 @@ func convertToolsToConfig(tools []string) (map[string]any, []string) {
 	}
 
 	if len(toolsets) > 0 {
-		sorted := make([]string, 0, len(toolsets))
-		for ts := range toolsets {
-			sorted = append(sorted, ts)
-		}
-		sort.Strings(sorted)
+		sorted := sliceutil.SortedKeys(toolsets)
 		config["github"] = map[string]any{"toolsets": sorted}
 	}
 	if needsBash {

@@ -2,9 +2,9 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var callWorkflowSecretsLog = logger.New("workflow:call_workflow_secrets")
@@ -80,10 +80,6 @@ func extractWorkflowCallSecretsFromParsed(workflow map[string]any) []string {
 		return nil
 	}
 
-	names := make([]string, 0, len(secretsMap))
-	for name := range secretsMap {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := sliceutil.SortedKeys(secretsMap)
 	return names
 }

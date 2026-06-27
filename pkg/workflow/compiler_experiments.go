@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"math"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var experimentsLog = logger.New("workflow:compiler_experiments")
@@ -519,11 +519,7 @@ func ExperimentExpressionMappings(experiments map[string][]string) []*Expression
 
 // sortedExperimentNames returns the experiment names in sorted order for deterministic output.
 func sortedExperimentNames(experiments map[string][]string) []string {
-	names := make([]string, 0, len(experiments))
-	for name := range experiments {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := sliceutil.SortedKeys(experiments)
 	return names
 }
 

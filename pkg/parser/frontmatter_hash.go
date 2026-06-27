@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/jsonutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/typeutil"
 )
 
@@ -65,11 +66,7 @@ func marshalSortedMap(v map[string]any) string {
 		return "{}"
 	}
 
-	keys := make([]string, 0, len(v))
-	for key := range v {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := sliceutil.SortedKeys(v)
 
 	var result strings.Builder
 	result.WriteString("{")

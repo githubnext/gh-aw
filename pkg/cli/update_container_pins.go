@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -239,11 +239,10 @@ func collectImagesFromLockFiles(workflowDir string) ([]string, error) {
 		}
 	}
 
-	images := make([]string, 0, len(imageSet))
-	for img := range imageSet {
-		images = append(images, img)
+	images := sliceutil.SortedKeys(imageSet)
+	if images == nil {
+		images = []string{}
 	}
-	sort.Strings(images)
 
 	containerPinsLog.Printf("Collected %d unique container image(s) from lock files in %s", len(images), workflowDir)
 	return images, nil

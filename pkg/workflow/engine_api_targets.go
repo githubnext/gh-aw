@@ -264,3 +264,46 @@ func GetGeminiAPITarget(workflowData *WorkflowData, engineName string) string {
 	awfHelpersLog.Print("No Gemini API target configured (engine is not gemini and no custom URL)")
 	return ""
 }
+
+// getEngineAPIHosts returns the primary AI inference API hostnames for the given engine and
+// workflow data. These are the hosts that appear in the firewall audit log when the engine
+// makes authenticated API calls. The returned slice is used to populate GH_AW_ENGINE_API_HOSTS
+// so the failure handler can detect credential authentication rejections without relying solely
+// on hardcoded host patterns.
+//
+// Resolution order (per engine):
+//   - engine.api-target (explicit GHES / enterprise override) takes precedence
+//   - Default public API hostname(s) for the engine
+func getEngineAPIHosts(data *WorkflowData, engine CodingAgentEngine) []string {
+	if engine == nil {
+		return nil
+	}
+
+	// Explicit api-target overrides the engine-specific default for all engine types.
+	if data != nil && data.EngineConfig != nil && data.EngineConfig.APITarget != "" {
+		return []string{data.EngineConfig.APITarget}
+	}
+
+	switch engine.(type) {
+	case *CopilotEngine:
+		// Return the full set of known Copilot inference endpoints so that any variant
+		// (enterprise, business, individual, or the routing hub) is covered.
+		return []string{
+			"api.enterprise.githubcopilot.com",
+			"api.githubcopilot.com",
+			"api.business.githubcopilot.com",
+			"api.individual.githubcopilot.com",
+		}
+	case *ClaudeEngine:
+		return []string{"api.anthropic.com"}
+	case *CodexEngine:
+		return []string{"api.openai.com"}
+	case *GeminiEngine:
+		return []string{DefaultGeminiAPITarget}
+	case *AntigravityEngine:
+		return []string{DefaultAntigravityAPITarget}
+	default:
+		// Custom or unknown engine — no known API hosts without explicit api-target.
+		return nil
+	}
+}

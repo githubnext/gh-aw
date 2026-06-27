@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/setutil"
-
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var actionCacheLog = logger.New("workflow:action_cache")
@@ -266,11 +266,7 @@ func (c *ActionCache) Save() error {
 // marshalSorted marshals the cache with entries sorted by key
 func (c *ActionCache) marshalSorted() ([]byte, error) {
 	// Extract and sort the entry keys
-	keys := make([]string, 0, len(c.Entries))
-	for key := range c.Entries {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := sliceutil.SortedKeys(c.Entries)
 
 	// Manually construct JSON with sorted keys
 	var result []byte
@@ -300,11 +296,7 @@ func (c *ActionCache) marshalSorted() ([]byte, error) {
 
 	// Add containers section if non-empty
 	if len(c.ContainerPins) > 0 {
-		pinKeys := make([]string, 0, len(c.ContainerPins))
-		for k := range c.ContainerPins {
-			pinKeys = append(pinKeys, k)
-		}
-		sort.Strings(pinKeys)
+		pinKeys := sliceutil.SortedKeys(c.ContainerPins)
 
 		result = append(result, []byte(",\n  \"containers\": {\n")...)
 		for i, k := range pinKeys {

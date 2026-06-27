@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/types"
 )
 
@@ -574,11 +574,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryM
 		if !setutil.Contains(knownProperties, key) {
 			mcpCustomLog.Printf("Unknown property '%s' in MCP config for tool '%s'", key, toolName)
 			// Build list of valid properties
-			validProps := []string{}
-			for prop := range knownProperties {
-				validProps = append(validProps, prop)
-			}
-			sort.Strings(validProps)
+			validProps := sliceutil.SortedKeys(knownProperties)
 			return nil, fmt.Errorf(
 				"unknown property '%s' in MCP configuration for tool '%s'. Valid properties are: %s. "+
 					"Example:\n"+

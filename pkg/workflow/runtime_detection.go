@@ -1,12 +1,12 @@
 package workflow
 
 import (
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/semverutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var runtimeSetupLog = logger.New("workflow:runtime_setup")
@@ -75,11 +75,7 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 
 	// Convert map to sorted slice (alphabetically by runtime ID)
 	var result []RuntimeRequirement
-	var runtimeIDs []string
-	for id := range requirements {
-		runtimeIDs = append(runtimeIDs, id)
-	}
-	sort.Strings(runtimeIDs)
+	runtimeIDs := sliceutil.SortedKeys(requirements)
 
 	for _, id := range runtimeIDs {
 		result = append(result, *requirements[id])

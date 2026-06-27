@@ -153,11 +153,7 @@ func (f *FirewallAnalysis) AddMetrics(other LogAnalysis) {
 			for _, d := range otherFirewall.BlockedDomains {
 				domainSet[d] = struct{}{}
 			}
-			merged := make([]string, 0, len(domainSet))
-			for d := range domainSet {
-				merged = append(merged, d)
-			}
-			sort.Strings(merged)
+			merged := sliceutil.SortedKeys(domainSet)
 			f.SetBlockedDomains(merged)
 		}
 
@@ -170,11 +166,7 @@ func (f *FirewallAnalysis) AddMetrics(other LogAnalysis) {
 			for _, d := range otherFirewall.AllowedDomains {
 				domainSet[d] = struct{}{}
 			}
-			merged := make([]string, 0, len(domainSet))
-			for d := range domainSet {
-				merged = append(merged, d)
-			}
-			sort.Strings(merged)
+			merged := sliceutil.SortedKeys(domainSet)
 			f.SetAllowedDomains(merged)
 		}
 
@@ -498,11 +490,7 @@ func extractFirewallFromAgentLog(logsPath string, verbose bool) *FirewallAnalysi
 		return nil
 	}
 
-	blockedDomains := make([]string, 0, len(blockedDomainsSet))
-	for d := range blockedDomainsSet {
-		blockedDomains = append(blockedDomains, d)
-	}
-	sort.Strings(blockedDomains)
+	blockedDomains := sliceutil.SortedKeys(blockedDomainsSet)
 
 	analysis := &FirewallAnalysis{
 		TotalRequests:    len(blockedDomains),

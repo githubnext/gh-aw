@@ -1,10 +1,10 @@
 package cli
 
 import (
-	"sort"
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stats"
 )
 
@@ -327,11 +327,7 @@ func buildCrossRunMCPHealth(mcpServerMap map[string]*crossRunMCPServerAgg, total
 
 	auditCrossRunLog.Printf("Building MCP health for %d server(s) across %d run(s)", len(mcpServerMap), totalRuns)
 
-	sortedServers := make([]string, 0, len(mcpServerMap))
-	for name := range mcpServerMap {
-		sortedServers = append(sortedServers, name)
-	}
-	sort.Strings(sortedServers)
+	sortedServers := sliceutil.SortedKeys(mcpServerMap)
 
 	health := make([]MCPServerCrossRunHealth, 0, len(sortedServers))
 	for _, name := range sortedServers {
@@ -370,11 +366,7 @@ func buildCrossRunDomainInventory(
 	domainMap map[string]*crossRunDomainAgg,
 	runIDs []int64,
 ) {
-	sortedDomains := make([]string, 0, len(domainMap))
-	for domain := range domainMap {
-		sortedDomains = append(sortedDomains, domain)
-	}
-	sort.Strings(sortedDomains)
+	sortedDomains := sliceutil.SortedKeys(domainMap)
 
 	auditCrossRunLog.Printf("Building domain inventory: %d unique domain(s) across %d run(s)", len(sortedDomains), len(runIDs))
 

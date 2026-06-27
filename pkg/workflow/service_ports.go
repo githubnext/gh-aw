@@ -11,11 +11,11 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/goccy/go-yaml"
 )
 
@@ -90,11 +90,7 @@ func ExtractServicePortExpressions(servicesYAML string) (string, []string) {
 	var warnings []string
 
 	// Sort service IDs for deterministic output
-	serviceIDs := make([]string, 0, len(wrapper.Services))
-	for id := range wrapper.Services {
-		serviceIDs = append(serviceIDs, id)
-	}
-	sort.Strings(serviceIDs)
+	serviceIDs := sliceutil.SortedKeys(wrapper.Services)
 
 	for _, serviceID := range serviceIDs {
 		svc := wrapper.Services[serviceID]

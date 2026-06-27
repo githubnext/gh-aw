@@ -9,11 +9,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/goccy/go-yaml"
-
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/goccy/go-yaml"
 )
 
 // PermissionsValidationResult contains the result of permissions validation
@@ -242,11 +242,7 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 			toolsetsMap[toolset] = struct {
 			}{}
 		}
-		var toolsetsList []string
-		for toolset := range toolsetsMap {
-			toolsetsList = append(toolsetsList, toolset)
-		}
-		sort.Strings(toolsetsList)
+		toolsetsList := sliceutil.SortedKeys(toolsetsMap)
 
 		for _, toolset := range toolsetsList {
 			lines = append(lines, "  - "+toolset)

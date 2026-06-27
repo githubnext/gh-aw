@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var auditDiffLog = logger.New("cli:audit_diff")
@@ -92,11 +92,7 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 	}
 
 	// Sorted domain list for deterministic output
-	sortedDomains := make([]string, 0, len(allDomains))
-	for domain := range allDomains {
-		sortedDomains = append(sortedDomains, domain)
-	}
-	sort.Strings(sortedDomains)
+	sortedDomains := sliceutil.SortedKeys(allDomains)
 
 	anomalyCount := 0
 
@@ -444,11 +440,7 @@ func computeMCPToolsDiff(run1, run2 *MCPToolUsageData) *MCPToolsDiff {
 		allKeys[k] = struct{}{}
 	}
 
-	sortedKeys := make([]string, 0, len(allKeys))
-	for k := range allKeys {
-		sortedKeys = append(sortedKeys, k)
-	}
-	sort.Strings(sortedKeys)
+	sortedKeys := sliceutil.SortedKeys(allKeys)
 
 	diff := &MCPToolsDiff{}
 	anomalyCount := 0
@@ -649,11 +641,7 @@ func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
 		allNames[k] = struct{}{}
 	}
 
-	sortedNames := make([]string, 0, len(allNames))
-	for k := range allNames {
-		sortedNames = append(sortedNames, k)
-	}
-	sort.Strings(sortedNames)
+	sortedNames := sliceutil.SortedKeys(allNames)
 
 	diff := &ToolCallsDiff{}
 	var run1Total, run2Total int
@@ -756,11 +744,7 @@ func computeBashCommandsDiff(run1Tools, run2Tools map[string]ToolCallInfo) *Bash
 		return nil
 	}
 
-	sortedNames := make([]string, 0, len(allNames))
-	for k := range allNames {
-		sortedNames = append(sortedNames, k)
-	}
-	sort.Strings(sortedNames)
+	sortedNames := sliceutil.SortedKeys(allNames)
 
 	bashDiff := &BashCommandsDiff{}
 	for _, name := range sortedNames {

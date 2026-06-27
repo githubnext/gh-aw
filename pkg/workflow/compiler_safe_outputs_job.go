@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -911,11 +912,7 @@ func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig) ([]string,
 	}
 
 	// Sort script names for deterministic output
-	scriptNames := make([]string, 0, len(scripts))
-	for name := range scripts {
-		scriptNames = append(scriptNames, name)
-	}
-	sort.Strings(scriptNames)
+	scriptNames := sliceutil.SortedKeys(scripts)
 
 	var steps []string
 	steps = append(steps, "      - name: Configure Safe Outputs Custom Scripts\n")

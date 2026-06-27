@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -130,11 +130,7 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 	}
 
 	// Collect variant names in alphabetical order for deterministic output.
-	variantNames := make([]string, 0, len(exp.Variants))
-	for name := range exp.Variants {
-		variantNames = append(variantNames, name)
-	}
-	sort.Strings(variantNames)
+	variantNames := sliceutil.SortedKeys(exp.Variants)
 
 	// Compute expected proportions (weighted or equal split).
 	expectedPcts := expectedProportions(variantNames, cfg)
