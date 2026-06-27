@@ -26,3 +26,8 @@ func LocalVarNamedOS() {
 	os := fakeOS{}
 	os.Setenv("KEY", "val")
 }
+
+// SuppressedSetenv uses a nolint directive and should not be flagged.
+func SuppressedSetenv() {
+	os.Setenv("KEY", "val") //nolint:ossetenvlibrary
+}

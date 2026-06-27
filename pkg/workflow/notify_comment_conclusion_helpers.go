@@ -311,18 +311,42 @@ func buildAgentFailureReportingPolicyVars(data *WorkflowData) []string {
 	}
 	if data.SafeOutputs.ReportFailureAsIssue == nil {
 		envVars = append(envVars, "          GH_AW_FAILURE_REPORT_AS_ISSUE: \"true\"\n")
-	} else if reportBool, ok := data.SafeOutputs.ReportFailureAsIssue.(bool); ok && !reportBool {
-		envVars = append(envVars, "          GH_AW_FAILURE_REPORT_AS_ISSUE: \"false\"\n")
 	} else {
-		envVars = append(envVars, "          GH_AW_FAILURE_REPORT_AS_ISSUE: \"true\"\n")
-		if len(data.SafeOutputs.ReportFailureAsIssueCategories) > 0 {
-			if categoriesJSON, err := json.Marshal(data.SafeOutputs.ReportFailureAsIssueCategories); err == nil {
-				envVars = append(envVars, fmt.Sprintf("          GH_AW_FAILURE_CATEGORIES_FILTER: %q\n", string(categoriesJSON)))
-			}
+		appendReportFailureEnvVar := func(enabled bool) {
+			envVars = append(envVars, fmt.Sprintf("          GH_AW_FAILURE_REPORT_AS_ISSUE: %q\n", strconv.FormatBool(enabled)))
 		}
-		if len(data.SafeOutputs.ReportFailureAsIssueExcludedCategories) > 0 {
-			if excludedJSON, err := json.Marshal(data.SafeOutputs.ReportFailureAsIssueExcludedCategories); err == nil {
-				envVars = append(envVars, fmt.Sprintf("          GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER: %q\n", string(excludedJSON)))
+		shouldIncludeCategoryFilters := true
+		switch reportSetting := data.SafeOutputs.ReportFailureAsIssue.(type) {
+		case bool:
+			appendReportFailureEnvVar(reportSetting)
+			shouldIncludeCategoryFilters = reportSetting
+		case string:
+			reportExpression := reportSetting
+			switch reportExpression {
+			case "true":
+				appendReportFailureEnvVar(true)
+			case "false":
+				appendReportFailureEnvVar(false)
+				shouldIncludeCategoryFilters = false
+			default:
+				envVars = append(envVars, buildTemplatableBoolEnvVar("GH_AW_FAILURE_REPORT_AS_ISSUE", &reportExpression)...)
+				shouldIncludeCategoryFilters = false
+			}
+		case []any:
+			appendReportFailureEnvVar(true)
+		default:
+			appendReportFailureEnvVar(true)
+		}
+		if shouldIncludeCategoryFilters {
+			if len(data.SafeOutputs.ReportFailureAsIssueCategories) > 0 {
+				if categoriesJSON, err := json.Marshal(data.SafeOutputs.ReportFailureAsIssueCategories); err == nil {
+					envVars = append(envVars, fmt.Sprintf("          GH_AW_FAILURE_CATEGORIES_FILTER: %q\n", string(categoriesJSON)))
+				}
+			}
+			if len(data.SafeOutputs.ReportFailureAsIssueExcludedCategories) > 0 {
+				if excludedJSON, err := json.Marshal(data.SafeOutputs.ReportFailureAsIssueExcludedCategories); err == nil {
+					envVars = append(envVars, fmt.Sprintf("          GH_AW_FAILURE_EXCLUDED_CATEGORIES_FILTER: %q\n", string(excludedJSON)))
+				}
 			}
 		}
 	}

@@ -6,7 +6,6 @@ package fmterrorfnoverbs
 import (
 	"go/ast"
 	"go/token"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -60,7 +59,7 @@ func run(pass *analysis.Pass) (any, error) {
 			val = val[1 : len(val)-1]
 		}
 
-		if !strings.Contains(val, "%") {
+		if !hasRealFormatVerb(val) {
 			position := pass.Fset.PositionFor(call.Pos(), false)
 			if nolint.HasDirective(position, noLintLinesByFile) {
 				return
@@ -70,4 +69,28 @@ func run(pass *analysis.Pass) (any, error) {
 	})
 
 	return nil, nil
+}
+
+// hasRealFormatVerb reports whether val (the raw content between the surrounding
+// quotes of a Go string literal) contains at least one format verb that is not
+// an escaped percent pair (%%). The sequence %% renders as a literal % at
+// runtime and does not consume an argument, so it is not a real verb.
+func hasRealFormatVerb(val string) bool {
+	for i := 0; i < len(val); i++ {
+		if val[i] != '%' {
+			continue
+		}
+		i++
+		if i >= len(val) {
+			// Trailing lone % is a malformed verb directive; treat it as present
+			// rather than suggesting errors.New for a broken format string.
+			return true
+		}
+		if val[i] == '%' {
+			// %% is an escaped percent, not a verb; skip the second % and continue.
+			continue
+		}
+		return true
+	}
+	return false
 }

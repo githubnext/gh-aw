@@ -66,6 +66,38 @@ function sleep(ms) {
 }
 
 /**
+ * Builds targeted context for a JSON.parse error so logs can point at the likely key.
+ *
+ * @param {string} jsonText
+ * @param {string} parseErrorMessage
+ * @returns {{line: number, column: number, lineText: string, key: string | null} | null}
+ */
+function getJSONParseErrorContext(jsonText, parseErrorMessage) {
+  const posMatch = parseErrorMessage.match(/position\s+(\d+)/i);
+  if (!posMatch) {
+    return null;
+  }
+
+  const pos = Number(posMatch[1]);
+  if (!Number.isFinite(pos) || pos < 0) {
+    return null;
+  }
+
+  const safePos = Math.min(pos, Math.max(0, jsonText.length - 1));
+  const before = jsonText.slice(0, safePos);
+  const line = before.split("\n").length;
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const lineEnd = jsonText.indexOf("\n", safePos);
+  const resolvedLineEnd = lineEnd === -1 ? jsonText.length : lineEnd;
+  const lineText = jsonText.slice(lineStart, resolvedLineEnd);
+  const column = safePos - lineStart + 1;
+  const keyMatch = lineText.match(/"([^"]+)"\s*:/);
+  const key = keyMatch ? keyMatch[1] : null;
+
+  return { line, column, lineText, key };
+}
+
+/**
  * Normalizes GH_AW_OTLP_IF_MISSING to a supported mode.
  * @param {string | undefined} value
  * @returns {"error" | "warn" | "ignore"}
@@ -367,7 +399,16 @@ async function main() {
     core.error("ERROR: Configuration is not valid JSON");
     core.error("");
     core.error("JSON validation error:");
-    core.error(/** @type {Error} */ err.message);
+    const parseMessage = /** @type {Error} */ err.message;
+    core.error(parseMessage);
+    const parseContext = getJSONParseErrorContext(mcpConfig, parseMessage);
+    if (parseContext) {
+      core.error(`Likely offending location: line ${parseContext.line}, column ${parseContext.column}`);
+      if (parseContext.key) {
+        core.error(`Likely offending key: ${parseContext.key}`);
+      }
+      core.error(`Context line: ${parseContext.lineText}`);
+    }
     core.error("");
     core.error("Configuration content:");
     const lines = mcpConfig.split("\n");
@@ -909,5 +950,6 @@ module.exports = {
   getOTLPIfMissingMode,
   hasNonEmptyOTLPHeaders,
   isOTLPIfMissingIgnore,
+  getJSONParseErrorContext,
   resolveCopilotConfigPaths,
 };

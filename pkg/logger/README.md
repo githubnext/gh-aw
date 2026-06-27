@@ -1,5 +1,7 @@
 # logger Package
 
+> Namespace-based debug logging with zero overhead when disabled, following the pattern of the [debug npm package](https://www.npmjs.com/package/debug).
+
 ## Overview
 
 A simple, debug-style logging framework for Go that follows the pattern matching syntax of the [debug npm package](https://www.npmjs.com/package/debug).
@@ -15,6 +17,13 @@ A simple, debug-style logging framework for Go that follows the pattern matching
 - **Thread-safe**: Safe for concurrent use
 
 ## Public API
+
+### Types
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `Logger` | struct | Namespace-based debug logger; enabled state and namespace label are computed once at construction time |
+| `SlogHandler` | struct | Implements `slog.Handler` by delegating to a `Logger`; allows libraries that expect a standard `slog.Logger` to use the gh-aw logger |
 
 ### `Logger`
 

@@ -33,6 +33,11 @@ describe("templatable.cjs", () => {
       expect(parseBoolTemplatable("false")).toBe(false);
     });
 
+    it("handles normalized false string variants", () => {
+      expect(parseBoolTemplatable("False")).toBe(false);
+      expect(parseBoolTemplatable(" false ")).toBe(false);
+    });
+
     it("treats a resolved expression value other than false as truthy", () => {
       // GitHub Actions expressions that resolve to something other than "false"
       // (e.g. "yes", "1", an empty object representation) should be truthy.

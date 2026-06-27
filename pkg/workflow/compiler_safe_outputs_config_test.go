@@ -3398,6 +3398,7 @@ func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
 		name                     string
 		reportValue              any
 		expectBool               *bool
+		expectString             string
 		expectCategories         []string
 		expectExcludedCategories []string
 	}{
@@ -3410,6 +3411,11 @@ func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
 			name:        "boolean false",
 			reportValue: false,
 			expectBool:  boolPtr(false),
+		},
+		{
+			name:         "templatable expression",
+			reportValue:  "${{ inputs.report-failure-as-issue }}",
+			expectString: "${{ inputs.report-failure-as-issue }}",
 		},
 		{
 			name:             "array of categories",
@@ -3453,6 +3459,11 @@ func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
 				reportBool, ok := config.ReportFailureAsIssue.(bool)
 				require.True(t, ok, "ReportFailureAsIssue should be bool")
 				assert.Equal(t, *tt.expectBool, reportBool, "Boolean value should match")
+			}
+			if tt.expectString != "" {
+				reportString, ok := config.ReportFailureAsIssue.(string)
+				require.True(t, ok, "ReportFailureAsIssue should be string")
+				assert.Equal(t, tt.expectString, reportString, "String value should match")
 			}
 
 			if len(tt.expectCategories) > 0 {

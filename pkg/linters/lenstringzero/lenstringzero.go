@@ -14,6 +14,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 var Analyzer = &analysis.Analyzer{
@@ -31,6 +32,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "lenstringzero")
 	lenStringAliases := collectLenStringAliases(pass)
 
 	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
@@ -48,6 +50,9 @@ func run(pass *analysis.Pass) (any, error) {
 
 		pos := pass.Fset.PositionFor(expr.Pos(), false)
 		if filecheck.IsTestFile(pos.Filename) {
+			return
+		}
+		if nolint.HasDirective(pos, noLintLinesByFile) {
 			return
 		}
 

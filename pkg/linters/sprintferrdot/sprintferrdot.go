@@ -16,6 +16,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 var errorIface = universeErrorInterface()
@@ -47,6 +48,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "sprintferrdot")
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -90,6 +92,9 @@ func run(pass *analysis.Pass) (any, error) {
 				continue
 			}
 			if isErrorDotCall(pass, arg) {
+				if nolint.HasDirective(pass.Fset.PositionFor(arg.Pos(), false), noLintLinesByFile) {
+					continue
+				}
 				pass.Reportf(arg.Pos(),
 					"redundant .Error() call: pass the error value directly with %%%c", verbs[i])
 			}

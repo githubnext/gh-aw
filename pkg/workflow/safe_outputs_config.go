@@ -630,13 +630,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
-			// Handle report-failure-as-issue flag or array of categories
+			// Handle report-failure-as-issue as templatable bool or array of categories.
 			if reportFailureAsIssue, exists := outputMap["report-failure-as-issue"]; exists {
-				// Support both bool (legacy) and []any (new with categories filter)
-				if reportFailureAsIssueBool, ok := reportFailureAsIssue.(bool); ok {
-					config.ReportFailureAsIssue = reportFailureAsIssueBool
-					safeOutputsConfigLog.Printf("Report failure as issue: %t", reportFailureAsIssueBool)
-				} else if categoriesList, ok := reportFailureAsIssue.([]any); ok {
+				// Support []any category filters.
+				if categoriesList, ok := reportFailureAsIssue.([]any); ok {
 					// Parse as array of category strings, separating included (no prefix) and excluded (! prefix)
 					includedCategories := make([]string, 0, len(categoriesList))
 					excludedCategories := make([]string, 0, len(categoriesList))
@@ -660,6 +657,26 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						safeOutputsConfigLog.Printf("Report failure as issue with include filter: %v", includedCategories)
 					} else if len(excludedCategories) > 0 {
 						safeOutputsConfigLog.Printf("Report failure as issue with exclude filter: %v", excludedCategories)
+					}
+				} else {
+					// Support bool and templatable string values.
+					if err := preprocessBoolFieldAsString(outputMap, "report-failure-as-issue", safeOutputsConfigLog); err != nil {
+						safeOutputsConfigLog.Printf("Failed to preprocess report-failure-as-issue field: %v (ignoring invalid value and leaving field unset)", err)
+					} else {
+						if reportFailureAsIssueStr, ok := outputMap["report-failure-as-issue"].(string); ok {
+							switch reportFailureAsIssueStr {
+							case "true":
+								config.ReportFailureAsIssue = true
+							case "false":
+								config.ReportFailureAsIssue = false
+							default:
+								config.ReportFailureAsIssue = reportFailureAsIssueStr
+							}
+							safeOutputsConfigLog.Printf("Report failure as issue: %v", config.ReportFailureAsIssue)
+						} else if reportFailureAsIssueBool, ok := outputMap["report-failure-as-issue"].(bool); ok {
+							config.ReportFailureAsIssue = reportFailureAsIssueBool
+							safeOutputsConfigLog.Printf("Report failure as issue: %t", reportFailureAsIssueBool)
+						}
 					}
 				}
 			}

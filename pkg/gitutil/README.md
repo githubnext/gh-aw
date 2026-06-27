@@ -24,7 +24,7 @@ The `gitutil` package contains helpers for:
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `IsRateLimitError` | `func(errMsg string) bool` | Returns `true` when `errMsg` indicates a GitHub API rate-limit error (case-insensitive match against "api rate limit exceeded", "rate limit exceeded", or "secondary rate limit") |
-| `IsAuthError` | `func(errMsg string) bool` | Returns `true` when `errMsg` indicates an authentication or authorization failure (`GH_TOKEN`, `GITHUB_TOKEN`, `unauthorized`, `forbidden`, SAML enforcement, etc.) |
+| `IsAuthError` | `func(errMsg string) bool` | Returns `true` when `errMsg` indicates an authentication or authorization failure (case-insensitive match against `GH_TOKEN`, `GITHUB_TOKEN`, `authentication`, `not logged into`, `unauthorized`, `forbidden`, `permission denied`, or `SAML enforcement`) |
 | `IsHexString` | `func(s string) bool` | Returns `true` if `s` consists entirely of hexadecimal characters (`0–9`, `a–f`, `A–F`); returns `false` for the empty string |
 | `IsValidFullSHA` | `func(s string) bool` | Returns `true` if `s` is a valid 40-character lowercase hexadecimal SHA (matches `^[0-9a-f]{40}$`) |
 | `ExtractBaseRepo` | `func(repoPath string) string` | Extracts the `owner/repo` portion from an action path that may include a sub-folder (e.g. `github/codeql-action/upload-sarif` → `github/codeql-action`) |
@@ -35,6 +35,7 @@ The `gitutil` package contains helpers for:
 **Behavioral contracts**:
 
 - `IsRateLimitError` and `IsAuthError` MUST perform case-insensitive string matching.
+- `IsAuthError` MUST return `true` for messages containing any of: `gh_token`, `github_token`, `authentication`, `not logged into`, `unauthorized`, `forbidden`, `permission denied`, or `saml enforcement`.
 - `IsHexString` MUST return `false` for the empty string.
 - `IsValidFullSHA` MUST require exactly 40 lowercase hexadecimal characters; mixed-case or shorter strings MUST return `false`.
 - `FindGitRoot` and `FindGitRootFrom` MUST return `ErrNotGitRepository` (not a wrapped error) when the filesystem root is reached without finding a `.git` entry.

@@ -348,90 +348,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 
   - **Strict mode**: `sandbox.agent` blocks without an explicit `id: awf` are rejected in strict mode. Any non-nil, non-disabled agent config without `id`/`type` defaults to AWF at runtime.
 
-- **`tools:`** - Tool configuration for coding agent
-  - `github:` - GitHub API tools
-    - `allowed:` - Array of allowed GitHub API functions. Each entry is either a string tool name (e.g., `issue_read`) or an object `{ name: <tool>, max-calls: <n> }` to cap how many times that tool may be called per run. Colon shorthand (`"issue_read:1"`) is **not** a call-limit form.
-
-      ```yaml
-      tools:
-        github:
-          allowed:
-            - { name: issue_read, max-calls: 1 }
-            - list_labels
-            - pull_request_read
-      ```
-    - `mode:` - GitHub access mode. **Prefer `"gh-proxy"`** — it is faster (no MCP server startup) and lets the agent use `gh` shell commands directly for all GitHub reads (issues, PRs, discussions, commits, etc.):
-      - `"gh-proxy"` (**preferred**) — pre-authenticated `gh` CLI available in bash; no GitHub MCP server is registered. Use `gh` commands for all GitHub reads.
-      - `"local"` (default) — Docker-based GitHub MCP Server; use GitHub MCP tools for reads, `gh` is not authenticated.
-      - **do NOT use `"remote"`** — it does not work with the GitHub Actions token; use `"gh-proxy"` instead.
-    - `version:` - MCP server version (local mode only)
-    - `args:` - Additional command-line arguments (local mode only)
-    - `read-only:` - The GitHub MCP server always operates in read-only mode; this field is accepted but has no effect
-    - `github-token:` - Custom GitHub token
-    - `lockdown:` - Enable lockdown mode to limit content surfaced from public repositories to items authored by users with push access (boolean, default: false)
-    - `github-app:` - GitHub App configuration for token minting; when set, mints an installation access token at workflow start that overrides `github-token`
-      - `client-id:` - GitHub App client ID (required, e.g., `${{ vars.APP_ID }}`). Use `app-id:` for legacy compatibility.
-      - `private-key:` - GitHub App private key (required, e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
-      - `owner:` - Optional installation owner (defaults to current repository owner)
-      - `repositories:` - Optional list of repositories to grant access to (array)
-      - `permissions:` - Optional extra permissions to include in the minted token for org-level API access (object)
-        - Example: `permissions: { members: read, organization-administration: read }` — required when calling org-level APIs (e.g., `orgs`, `users` toolsets) since the default GITHUB_TOKEN does not have org-scoped permissions
-    - `min-integrity:` - Minimum integrity level for MCP Gateway guard policy; controls which content the agent may act on based on author trust (`none`, `unapproved`, `approved`, `merged`)
-    - `blocked-users:` - Usernames whose content is unconditionally blocked (array or GitHub Actions expression); these users receive integrity below `none` and are always denied
-    - `approval-labels:` - Label names that elevate a content item's integrity to `approved` when present (array or GitHub Actions expression); does not override `blocked-users`
-    - `trusted-users:` - Usernames elevated to `approved` integrity regardless of `author_association` (array or GitHub Actions expression); useful for contractors who need elevated access without becoming repo collaborators; takes precedence over `min-integrity` but not over `blocked-users`; requires `min-integrity` to be set
-    - `toolsets:` - Enable specific GitHub toolset groups (array only)
-      - **Default toolsets** (when unspecified): `context`, `repos`, `issues`, `pull_requests` (excludes `users` as GitHub Actions tokens don't support user operations)
-      - **All toolsets**: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
-      - Use `[default]` for recommended toolsets, `[all]` to enable everything
-      - Examples: `toolsets: [default]`, `toolsets: [default, discussions]`, `toolsets: [repos, issues]`
-      - **Recommended**: Prefer `toolsets:` over `allowed:` for better organization and reduced configuration verbosity
-  - `agentic-workflows:` - GitHub Agentic Workflows MCP server for workflow introspection
-    - Provides tools for:
-      - `status` - Show status of workflow files in the repository
-      - `compile` - Compile markdown workflows to YAML
-      - `logs` - Download and analyze workflow run logs
-      - `audit` - Investigate workflow run failures and generate reports
-      - `checks` - Classify CI check state for a pull request (returns normalized verdict: `success`, `failed`, `pending`, `no_checks`, `policy_blocked`)
-    - **Use case**: Enable AI agents to analyze GitHub Actions traces and improve workflows based on execution history
-    - **Example**: Configure with `agentic-workflows: true` or `agentic-workflows:` (no additional configuration needed)
-  - `edit:` - File editing tools (required to write to files in the repository)
-  - `web-fetch:` - Web content fetching tools
-  - `web-search:` - Web search tools
-  - `bash:` - Shell command tools
-    - **Bash allowlist decision rule:**
-      - **PR-triggered workflows** processing **untrusted input** (issue/PR body, comment text, user-provided filenames): use a **narrow allowlist** (for example: `[find, cat, grep, wc, jq]`). This limits blast radius if shell injection attempts are embedded in untrusted content.
-      - **`schedule` or `workflow_dispatch` workflows** with **no untrusted input** (only trusted API data or internal state): `["*"]` is acceptable.
-      - **Rule of thumb**: If the workflow reads issue/PR bodies, comment text, or other user-provided strings, use a narrow list. If it only reads trusted API responses or workflow artifacts, `["*"]` is acceptable.
-    - **Examples:**
-
-      ```yaml
-      # PR-triggered workflow reading untrusted user text
-      on:
-        pull_request:
-      tools:
-        bash: [find, cat, grep, wc, jq]
-
-      # Internal scheduled workflow reading only trusted/internal data
-      on:
-        schedule:
-          - cron: "0 * * * *"
-      tools:
-        bash: ["*"]
-      ```
-  - `playwright:` - Browser automation tools for visual regression, accessibility testing, and end-to-end testing. Use `mode: cli` (recommended) — no Docker, runs `playwright-cli <command>` in bash, `localhost` reaches local servers directly. `mode: mcp` is deprecated (Docker-based; requires bridge IP detection for local server access). Pin a specific version with `version:` and restrict network access to `local` + `playwright` for security. See [`visual-regression-checker.md`](../../.github/workflows/visual-regression-checker.md) for a minimal pull-request example.
-
-    ```yaml
-    tools:
-      playwright:
-        mode: cli          # recommended: token-efficient CLI mode
-        version: "0.1.11"  # optional: @playwright/cli npm package version
-    ```
-  - Custom tool names for MCP servers
-  - `timeout:` - Per-operation timeout in seconds for all tool and MCP server calls (integer or GitHub Actions expression). Defaults vary by engine (Claude: 60 s, Codex: 120 s).
-  - `startup-timeout:` - Timeout in seconds for MCP server initialization (integer or GitHub Actions expression, default: 120). Useful in `workflow_call` reusable workflows: `startup-timeout: ${{ inputs.startup-timeout }}`
-  - `cli-proxy:` - Mount each user-facing MCP server as a standalone CLI tool on `PATH` (boolean, default: `false`). When enabled, the agent can call MCP servers via shell commands (e.g. `github issue_read --method get ...`). CLI-mounted servers remain in the MCP gateway so their containers start normally.
-
+- **`tools:`** - Tool configuration for the coding agent (`github`, `agentic-workflows`, `edit`, `web-fetch`, `web-search`, `bash`, `playwright`, custom MCP server names, plus `timeout`/`startup-timeout`/`cli-proxy`). See [syntax-tools-imports.md](syntax-tools-imports.md#tool-configuration) for the full schema (GitHub `mode`/`toolsets`/integrity fields, bash allowlist decision rule, Playwright CLI mode).
 
 - **`safe-outputs:`** - Safe output processing configuration. See [safe-outputs.md](safe-outputs.md) for complete documentation of all output types: `create-issue`, `create-discussion`, `add-comment`, `create-pull-request`, `push-to-pull-request-branch`, `close-issue`, `close-discussion`, `update-issue`, `update-pull-request`, `add-labels`, `remove-labels`, `replace-label`, `dispatch-workflow`, `call-workflow`, `create-code-scanning-alert`, `upload-asset`, `upload-artifact`, `assign-to-agent`, `assign-to-user`, and more.
 
@@ -458,21 +375,13 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
       search-issues:
         description: "Search GitHub issues using API"
         inputs:
-          query:
-            type: string
-            description: "Search query"
-            required: true
-          limit:
-            type: number
-            description: "Max results"
-            default: 10
+          query: { type: string, description: "Search query", required: true }
         script: |
           const { Octokit } = require('@octokit/rest');
           const octokit = new Octokit({ auth: process.env.GH_TOKEN });
-          const r = await octokit.search.issuesAndPullRequests({ q: inputs.query, per_page: inputs.limit });
+          const r = await octokit.search.issuesAndPullRequests({ q: inputs.query });
           return r.data.items;
-        dependencies:
-          - "@octokit/rest@21.0.2"
+        dependencies: ["@octokit/rest@21.0.2"]
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     ```

@@ -485,6 +485,34 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).not.toHaveBeenCalled();
     });
 
+    it("skips failure issue creation when the runtime report flag resolves to false", async () => {
+      const searchMock = vi.fn();
+      const createCommentMock = vi.fn();
+      const createIssueMock = vi.fn();
+      process.env.GH_AW_FAILURE_REPORT_AS_ISSUE = " False ";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: searchMock,
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(searchMock).not.toHaveBeenCalled();
+      expect(createCommentMock).not.toHaveBeenCalled();
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(global.core.info).toHaveBeenCalledWith("Failure issue reporting is disabled (report-failure-as-issue: false), skipping failure issue creation");
+    });
+
     it("adds a comment when existing issue metadata contains commas in free-form values", async () => {
       const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
       const createIssueMock = vi.fn();

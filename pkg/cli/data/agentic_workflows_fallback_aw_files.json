@@ -18,6 +18,7 @@
   "llms.md",
   "loop.md",
   "mcp-clis.md",
+  "memory-stateful-patterns.md",
   "memory.md",
   "messages.md",
   "network.md",
