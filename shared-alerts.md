@@ -1,29 +1,28 @@
-# Shared Alerts — 2026-06-26T13:23Z (updated by Agent Performance Analyzer)
+# Shared Alerts — 2026-06-27T05:43Z (updated by Workflow Health Manager)
 
 ## P1 🚨
-- **Code Simplifier — PERSISTENT (#41603 OPEN)**: 5th consecutive failure (Jun 22 last success). Engine exits AFTER completing work (~1.9M tokens consumed, branch created). DO NOT RE-FILE. Monitor.
-- **Daily Safe Output Integrator (#41518 OPEN)**: Exceeded tool denial limit. DO NOT RE-FILE.
-- **Daily BYOK Ollama Test (#41550 OPEN)**: Copilot engine failure. DO NOT RE-FILE.
-- **upload_artifact malformed 400** (#38998): Smoke Copilot ~75-95% failure. DO NOT RE-FILE.
+- **Code Simplifier (#41842 OPEN, WIP PR #41852)**: 6th consecutive failure (last success Jun 22). Engine exits AFTER completing work. WIP fix in `copilot/aw-fix-code-simplifier-failure`. DO NOT RE-FILE.
+- **Daily Safe Output Integrator (#41788 OPEN)**: 6+ consecutive failures (Jun 22-27). Tool denial limit. DO NOT RE-FILE.
+- **Daily BYOK Ollama Test (#41827+#41811 OPEN)**: 8+ consecutive failures. api-proxy returns 503 on /v1/models. Detailed root cause in #41827. DO NOT RE-FILE.
+- **CI Regression (#41844 OPEN)**: CI schedule failing Jun 27 (01:02, 03:15 UTC). Root cause: nolint-suppression parity gap (#41844). WIP PR `copilot/fix-nolint-suppression-gap`. DO NOT RE-FILE.
 
 ## P2 ⚠️ (Monitor)
-- **Auto-Triage Issues (#41570 OPEN) — RECOVERING**: Was P1 Jun 25-26 morning. 5/5 runs SUCCESS Jun 26 (07:44, 09:30, 12:02, 13:12 UTC). Issue still open — monitor Jun 27, close if stable.
-- **AI Moderator (#41601 OPEN, single occurrence)**: "No safe outputs" Jun 26. Expires Jun 26 PM. Monitor Jun 27 — if no recurrence, stable.
-- **CGO single failure**: 1/5 runs failed Jun 26. Monitor for pattern.
-- **Daily Cache Strategy Analyzer** (#39451 CLOSED): Alternating pattern — watch for new issue.
-- **Daily Compiler Threat Spec Optimizer (#39343 CLOSED)**: Fails every ~7 days. Next run ~Jun 29.
+- **Go Logger Enhancement (#41839 OPEN)**: 2 consecutive failures (Jun 26, 27). Monitor pattern.
+- **Agentic Workflow Audit Agent (#41807 OPEN)**: 1 failure Jun 26. Likely transient, monitor Jun 27.
+- **Daily Cache Strategy Analyzer (#41787 OPEN)**: Alternating pattern (fail/success). Monitor.
+- **Daily yamllint Fixer (#41825 OPEN)**: 1 failure Jun 27 dispatch. Monitor.
+- **Design Decision Gate (#41832 OPEN)**: PR-triggered failure. Monitor.
 
 ## Confirmed Stable ✅
-- **LintMonster**: STABLE ✅
-- **PR Sous Chef**: STABLE ✅ (7+ streak Jun 26)
+- **Auto-Triage Issues**: FULLY RECOVERED ✅ (5+ successes Jun 26, 1 Jun 27 01:20) — promote to STABLE
+- **Compilation**: 253/253 ✅ STABLE
+- **PR Sous Chef**: STABLE ✅
 - **Daily Safe Outputs Git Simulator**: STABLE ✅
 - **Avenger**: STABLE ✅
-- **Daily News**: STABLE ✅
-- **Safe Output Health Monitor**: STABLE ✅
-- **Auto-Triage Issues**: RECOVERING (5/5 today) — promote to STABLE Jun 27 if clean
 
-## Health Scores (Jun 26 13:23Z)
-- Compilation: 252/252 ✅
-- Overall Health Score: 87/100 (→ stable)
-- AIC: 6,812 total (−1.4% DoD) | 60 active workflows
-- Copilot SWE merge rate: 89% (16/18 settled)
+## Health Scores (Jun 27 05:43Z)
+- Compilation: 253/253 ✅
+- Overall Health Score: 84/100 (↓3 from 87 Jun 26)
+- P1 issues: 4 (Code Simplifier, BYOK Ollama, Safe Output Integrator, CI Regression)
+- P2 issues: 4-5 monitored
+- Recoveries: Auto-Triage fully stable ✅
