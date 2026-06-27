@@ -5,8 +5,9 @@ set +o histexpand
 # This script starts the awmg proxy container so AWF's cli-proxy container
 # can connect to it via host.docker.internal:18443 for gh CLI access.
 #
-# Unlike start_difc_proxy.sh (which is for pre-agent steps), this proxy
-# runs alongside AWF and does NOT modify GH_HOST or GITHUB_ENV.
+# This script exports GH_HOST (and related vars) within the script for use when
+# launching the proxy container, but does NOT write to $GITHUB_ENV and the
+# exports do not persist beyond this script.
 #
 # Environment:
 #   CLI_PROXY_POLICY    - JSON guard policy string
@@ -43,7 +44,7 @@ derive_proxy_upstream_env() {
     github_host="github.com"
   fi
 
-  export GH_HOST="${GH_HOST:-$github_host}"
+  export GH_HOST="$github_host"
 
   if [ "$github_host" != "github.com" ]; then
     export GITHUB_HOST="${GITHUB_HOST:-$github_host}"

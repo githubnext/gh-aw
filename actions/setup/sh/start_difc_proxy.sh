@@ -46,7 +46,7 @@ derive_proxy_upstream_env() {
     github_host="github.com"
   fi
 
-  export GH_HOST="${GH_HOST:-$github_host}"
+  export GH_HOST="$github_host"
 
   if [ "$github_host" != "github.com" ]; then
     export GITHUB_HOST="${GITHUB_HOST:-$github_host}"
