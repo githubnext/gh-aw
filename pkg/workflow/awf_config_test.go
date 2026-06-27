@@ -1629,8 +1629,8 @@ func TestBuildAWFConfigJSON_EmitsModelPolicyFromWorkflowData(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
-			ModelPolicyAllowed: []string{"gpt-5", "claude-sonnet"},
-			ModelPolicyBlocked: []string{"gpt-5-pro", "claude-opus"},
+			ModelPolicyAllowed:    []string{"gpt-5", "claude-sonnet"},
+			ModelPolicyDisallowed: []string{"gpt-5-pro", "claude-opus"},
 		},
 	}
 
@@ -1642,7 +1642,7 @@ func TestBuildAWFConfigJSON_EmitsModelPolicyFromWorkflowData(t *testing.T) {
 
 func TestBuildAWFConfigJSON_ModelPolicyEnvOverridePrecedence(t *testing.T) {
 	t.Setenv(compilerenv.PolicyModelsAllowed, "gemini-pro,gpt-5-mini")
-	t.Setenv(compilerenv.PolicyModelsBlocked, "claude-opus, gpt-5-pro")
+	t.Setenv(compilerenv.PolicyModelsDisallowed, "claude-opus, gpt-5-pro")
 
 	config := AWFCommandConfig{
 		EngineName:     "copilot",
@@ -1652,8 +1652,8 @@ func TestBuildAWFConfigJSON_ModelPolicyEnvOverridePrecedence(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
-			ModelPolicyAllowed: []string{"frontmatter-allowed"},
-			ModelPolicyBlocked: []string{"frontmatter-blocked"},
+			ModelPolicyAllowed:    []string{"frontmatter-allowed"},
+			ModelPolicyDisallowed: []string{"frontmatter-disallowed"},
 		},
 	}
 
@@ -1662,5 +1662,5 @@ func TestBuildAWFConfigJSON_ModelPolicyEnvOverridePrecedence(t *testing.T) {
 	assert.Contains(t, jsonStr, `"allowedModels":["gemini-pro","gpt-5-mini"]`)
 	assert.Contains(t, jsonStr, `"disallowedModels":["claude-opus","gpt-5-pro"]`)
 	assert.NotContains(t, jsonStr, "frontmatter-allowed")
-	assert.NotContains(t, jsonStr, "frontmatter-blocked")
+	assert.NotContains(t, jsonStr, "frontmatter-disallowed")
 }

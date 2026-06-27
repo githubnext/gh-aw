@@ -706,7 +706,6 @@ func TestAppendModelsField_ExtractsModelPolicySets(t *testing.T) {
 		"models": map[string]any{
 			"allowed":    []any{"gpt-5", "claude-sonnet"},
 			"disallowed": []any{"gpt-5-pro"},
-			"blocked":    []any{"claude-opus"},
 		},
 	}
 
@@ -715,7 +714,6 @@ func TestAppendModelsField_ExtractsModelPolicySets(t *testing.T) {
 	require.Len(t, acc.modelPolicies, 1, "expected one model policy set")
 	assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, acc.modelPolicies[0]["allowed"])
 	assert.Equal(t, []string{"gpt-5-pro"}, acc.modelPolicies[0]["disallowed"])
-	assert.Equal(t, []string{"claude-opus"}, acc.modelPolicies[0]["blocked"])
 	assert.Empty(t, acc.models, "policy fields should not be interpreted as model aliases")
 }
 
@@ -743,7 +741,7 @@ func TestAppendModelsField_ExtractsModelCostsAndPolicyTogether(t *testing.T) {
 	assert.Equal(t, []string{"gpt-5-mini"}, acc.modelPolicies[0]["allowed"])
 	assert.Contains(t, acc.modelCosts[0], "providers")
 	assert.Len(t, acc.modelCosts[0], 1)
-	for _, key := range []string{"allowed", "disallowed", "blocked"} {
+	for _, key := range []string{"allowed", "disallowed"} {
 		_, present := acc.modelCosts[0][key]
 		assert.Falsef(t, present, "model cost overlay should not contain policy key %q", key)
 	}

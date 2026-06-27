@@ -9,26 +9,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMergeModelPolicyOverlays_UnionizesAllowedAndBlocked(t *testing.T) {
+func TestMergeModelPolicyOverlays_UnionizesAllowedAndDisallowed(t *testing.T) {
 	imported := []map[string][]string{
 		{
 			"allowed":    {"gpt-5", "claude-sonnet"},
 			"disallowed": {"gpt-5-pro"},
 		},
 		{
-			"allowed": {"gpt-5-mini"},
-			"blocked": {"claude-opus"},
+			"allowed":    {"gpt-5-mini"},
+			"disallowed": {"claude-opus"},
 		},
 	}
 	main := map[string][]string{
 		"allowed":    {"gpt-5"},
 		"disallowed": {"gemini-pro"},
-		"blocked":    {"claude-opus"},
 	}
 
-	allowed, blocked := mergeModelPolicyOverlays(imported, main)
+	allowed, disallowed := mergeModelPolicyOverlays(imported, main)
 	assert.Equal(t, []string{"claude-sonnet", "gpt-5", "gpt-5-mini"}, allowed)
-	assert.Equal(t, []string{"claude-opus", "gemini-pro", "gpt-5-pro"}, blocked)
+	assert.Equal(t, []string{"claude-opus", "gemini-pro", "gpt-5-pro"}, disallowed)
 }
 
 func TestExtractMainModelPolicyOverlay_UsesParsedFrontmatterWhenPresent(t *testing.T) {
@@ -36,7 +35,6 @@ func TestExtractMainModelPolicyOverlay_UsesParsedFrontmatterWhenPresent(t *testi
 		parsedFrontmatter: &FrontmatterConfig{
 			ModelPolicyAllowed:    []string{"gpt-5"},
 			ModelPolicyDisallowed: []string{"gpt-5-pro"},
-			ModelPolicyBlocked:    []string{"claude-opus"},
 		},
 	}
 
@@ -44,22 +42,21 @@ func TestExtractMainModelPolicyOverlay_UsesParsedFrontmatterWhenPresent(t *testi
 	require.NotNil(t, policy)
 	assert.Equal(t, []string{"gpt-5"}, policy["allowed"])
 	assert.Equal(t, []string{"gpt-5-pro"}, policy["disallowed"])
-	assert.Equal(t, []string{"claude-opus"}, policy["blocked"])
 }
 
 func TestExtractMainModelPolicyOverlay_FallsBackToRawFrontmatter(t *testing.T) {
 	toolsResult := &toolsProcessingResult{}
 	frontmatter := map[string]any{
 		"models": map[string]any{
-			"allowed": []any{"gpt-5-mini"},
-			"blocked": []any{"claude-opus"},
+			"allowed":    []any{"gpt-5-mini"},
+			"disallowed": []any{"claude-opus"},
 		},
 	}
 
 	policy := extractMainModelPolicyOverlay(toolsResult, frontmatter)
 	require.NotNil(t, policy)
 	assert.Equal(t, []string{"gpt-5-mini"}, policy["allowed"])
-	assert.Equal(t, []string{"claude-opus"}, policy["blocked"])
+	assert.Equal(t, []string{"claude-opus"}, policy["disallowed"])
 }
 
 func TestExtractMainModelCostsOverlay_ExtractsNilWhenModelCostsHasOnlyPolicyKeys(t *testing.T) {

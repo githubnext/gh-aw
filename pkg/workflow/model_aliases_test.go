@@ -338,7 +338,6 @@ func TestFrontmatterModelsField(t *testing.T) {
 			"models": map[string]any{
 				"allowed":    []any{"gpt-5", "claude-sonnet"},
 				"disallowed": []any{"gpt-5-pro"},
-				"blocked":    []any{"claude-opus"},
 			},
 		}
 
@@ -347,6 +346,5 @@ func TestFrontmatterModelsField(t *testing.T) {
 		require.NotNil(t, config, "parsed config should not be nil")
 		assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, config.ModelPolicyAllowed)
 		assert.Equal(t, []string{"gpt-5-pro"}, config.ModelPolicyDisallowed)
-		assert.Equal(t, []string{"claude-opus"}, config.ModelPolicyBlocked)
 	})
 }

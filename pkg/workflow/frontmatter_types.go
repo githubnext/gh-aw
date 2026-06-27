@@ -380,8 +380,6 @@ type FrontmatterConfig struct {
 	ModelPolicyAllowed []string `json:"-"`
 	// ModelPolicyDisallowed is frontmatter models.disallowed (denylist), merged as a union across imports.
 	ModelPolicyDisallowed []string `json:"-"`
-	// ModelPolicyBlocked is frontmatter models.blocked (denylist alias), merged as a union across imports.
-	ModelPolicyBlocked []string `json:"-"`
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"user-rate-limit,omitempty"`

@@ -2693,7 +2693,7 @@
       ]
     },
     "models": {
-      "description": "Model policy and optional pricing configuration. The policy fields (allowed/disallowed/blocked) are merged as unions across imports. The providers field is optional and supplies pricing data merged by provider/model key.",
+      "description": "Model policy and optional pricing configuration. The policy fields (allowed/disallowed) are merged as unions across imports. The providers field is optional and supplies pricing data merged by provider/model key.",
       "type": "object",
       "properties": {
         "allowed": {
@@ -2706,13 +2706,6 @@
         "disallowed": {
           "type": "array",
           "description": "Denylist of model names/patterns. Mapped to AWF apiProxy.disallowedModels.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "blocked": {
-          "type": "array",
-          "description": "Alias denylist of model names/patterns. Unioned with disallowed and mapped to AWF apiProxy.disallowedModels.",
           "items": {
             "type": "string"
           }

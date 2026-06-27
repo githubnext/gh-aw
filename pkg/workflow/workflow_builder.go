@@ -153,12 +153,12 @@ func (c *Compiler) buildInitialWorkflowData(
 		workflowData.ModelCosts = mergedModelCosts
 	}
 	mainModelPolicy := extractMainModelPolicyOverlay(toolsResult, result.Frontmatter)
-	allowedModels, blockedModels := mergeModelPolicyOverlays(importsResult.MergedModelPolicies, mainModelPolicy)
+	allowedModels, disallowedModels := mergeModelPolicyOverlays(importsResult.MergedModelPolicies, mainModelPolicy)
 	if len(allowedModels) > 0 {
 		workflowData.ModelPolicyAllowed = allowedModels
 	}
-	if len(blockedModels) > 0 {
-		workflowData.ModelPolicyBlocked = blockedModels
+	if len(disallowedModels) > 0 {
+		workflowData.ModelPolicyDisallowed = disallowedModels
 	}
 
 	return workflowData
@@ -265,9 +265,8 @@ func extractMainModelPolicyOverlay(toolsResult *toolsProcessingResult, frontmatt
 		mainPolicy := map[string][]string{
 			"allowed":    toolsResult.parsedFrontmatter.ModelPolicyAllowed,
 			"disallowed": toolsResult.parsedFrontmatter.ModelPolicyDisallowed,
-			"blocked":    toolsResult.parsedFrontmatter.ModelPolicyBlocked,
 		}
-		if len(mainPolicy["allowed"]) > 0 || len(mainPolicy["disallowed"]) > 0 || len(mainPolicy["blocked"]) > 0 {
+		if len(mainPolicy["allowed"]) > 0 || len(mainPolicy["disallowed"]) > 0 {
 			return mainPolicy
 		}
 	}
@@ -278,9 +277,8 @@ func extractMainModelPolicyOverlay(toolsResult *toolsProcessingResult, frontmatt
 	mainPolicy := map[string][]string{
 		"allowed":    parseModelPolicyList(modelsMap["allowed"]),
 		"disallowed": parseModelPolicyList(modelsMap["disallowed"]),
-		"blocked":    parseModelPolicyList(modelsMap["blocked"]),
 	}
-	if len(mainPolicy["allowed"]) == 0 && len(mainPolicy["disallowed"]) == 0 && len(mainPolicy["blocked"]) == 0 {
+	if len(mainPolicy["allowed"]) == 0 && len(mainPolicy["disallowed"]) == 0 {
 		return nil
 	}
 	return mainPolicy
@@ -297,7 +295,7 @@ func mergeModelPolicyOverlays(importedPolicies []map[string][]string, mainPolicy
 	}
 
 	allowedSet := map[string]struct{}{}
-	blockedSet := map[string]struct{}{}
+	disallowedSet := map[string]struct{}{}
 	for _, overlay := range overlays {
 		for _, model := range overlay["allowed"] {
 			if model != "" {
@@ -306,12 +304,7 @@ func mergeModelPolicyOverlays(importedPolicies []map[string][]string, mainPolicy
 		}
 		for _, model := range overlay["disallowed"] {
 			if model != "" {
-				blockedSet[model] = struct{}{}
-			}
-		}
-		for _, model := range overlay["blocked"] {
-			if model != "" {
-				blockedSet[model] = struct{}{}
+				disallowedSet[model] = struct{}{}
 			}
 		}
 	}
@@ -320,13 +313,13 @@ func mergeModelPolicyOverlays(importedPolicies []map[string][]string, mainPolicy
 	for model := range allowedSet {
 		allowedModels = append(allowedModels, model)
 	}
-	blockedModels := make([]string, 0, len(blockedSet))
-	for model := range blockedSet {
-		blockedModels = append(blockedModels, model)
+	disallowedModels := make([]string, 0, len(disallowedSet))
+	for model := range disallowedSet {
+		disallowedModels = append(disallowedModels, model)
 	}
 	sort.Strings(allowedModels)
-	sort.Strings(blockedModels)
-	return allowedModels, blockedModels
+	sort.Strings(disallowedModels)
+	return allowedModels, disallowedModels
 }
 
 // resolveInlinedImports returns true if inlined-imports is enabled.

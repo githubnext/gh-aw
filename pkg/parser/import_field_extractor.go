@@ -93,7 +93,6 @@ type importAccumulator struct {
 const (
 	modelPolicyAllowedKey    = "allowed"
 	modelPolicyDisallowedKey = "disallowed"
-	modelPolicyBlockedKey    = "blocked"
 )
 
 // newImportAccumulator creates and initializes a new importAccumulator.
@@ -630,7 +629,7 @@ func (acc *importAccumulator) appendModelsField(fm map[string]any) {
 	}
 	if modelPolicy := normalizeModelPolicies(rawModels); len(modelPolicy) > 0 {
 		acc.modelPolicies = append(acc.modelPolicies, modelPolicy)
-		parserLog.Printf("Extracted model policy from import: allowed=%d, disallowed=%d, blocked=%d", len(modelPolicy["allowed"]), len(modelPolicy["disallowed"]), len(modelPolicy["blocked"]))
+		parserLog.Printf("Extracted model policy from import: allowed=%d, disallowed=%d", len(modelPolicy["allowed"]), len(modelPolicy["disallowed"]))
 	}
 	if providers, hasProviders := rawModels["providers"]; hasProviders {
 		acc.modelCosts = append(acc.modelCosts, map[string]any{"providers": providers})
@@ -665,14 +664,12 @@ func normalizeModelPolicies(rawModels map[string]any) map[string][]string {
 	}
 	allowed := parse(modelPolicyAllowedKey)
 	disallowed := parse(modelPolicyDisallowedKey)
-	blocked := parse(modelPolicyBlockedKey)
-	if len(allowed) == 0 && len(disallowed) == 0 && len(blocked) == 0 {
+	if len(allowed) == 0 && len(disallowed) == 0 {
 		return nil
 	}
 	return map[string][]string{
 		modelPolicyAllowedKey:    allowed,
 		modelPolicyDisallowedKey: disallowed,
-		modelPolicyBlockedKey:    blocked,
 	}
 }
 
@@ -709,7 +706,7 @@ func parseStringSliceField(value any, keepEmpty bool) []string {
 }
 
 func isModelPolicyKey(key string) bool {
-	return key == modelPolicyAllowedKey || key == modelPolicyDisallowedKey || key == modelPolicyBlockedKey
+	return key == modelPolicyAllowedKey || key == modelPolicyDisallowedKey
 }
 
 func (acc *importAccumulator) extractRunInstallScripts(fm map[string]any, fullPath string) {

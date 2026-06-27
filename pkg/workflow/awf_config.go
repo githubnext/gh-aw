@@ -567,20 +567,20 @@ func splitDomainList(domains string) []string {
 
 func resolveModelPolicyForAWFConfig(workflowData *WorkflowData) ([]string, []string) {
 	envAllowed, hasAllowedOverride := compilerenv.ResolvePolicyModelsAllowed()
-	envBlocked, hasBlockedOverride := compilerenv.ResolvePolicyModelsBlocked()
+	envDisallowed, hasDisallowedOverride := compilerenv.ResolvePolicyModelsDisallowed()
 	var allowed []string
-	var blocked []string
+	var disallowed []string
 	if hasAllowedOverride {
 		allowed = envAllowed
 	} else if workflowData != nil {
 		allowed = workflowData.ModelPolicyAllowed
 	}
-	if hasBlockedOverride {
-		blocked = envBlocked
+	if hasDisallowedOverride {
+		disallowed = envDisallowed
 	} else if workflowData != nil {
-		blocked = workflowData.ModelPolicyBlocked
+		disallowed = workflowData.ModelPolicyDisallowed
 	}
-	return allowed, blocked
+	return allowed, disallowed
 }
 
 func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
