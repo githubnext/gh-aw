@@ -35,21 +35,24 @@ Each key under `lsp` is a language identifier (lowercase, alphanumeric, hyphens,
 | `command` | **yes** | Executable name or path for the language server |
 | `args` | no | Command-line arguments passed to the server on startup |
 | `fileExtensions` | **yes** | Map of file extension (with leading `.`) to LSP language ID |
+| `version` | no | Package version to install (e.g. `"5.8.3"`). Overrides the built-in pinned default for known servers. |
 
 ## Built-in Servers
 
-For the languages below, the compiler automatically injects an install step — no manual `steps:` entry is needed.
+For the languages below, the compiler automatically injects an install step — no manual `steps:` entry is needed. Each server is pinned to a known-good release by default; use the `version` field to override.
 
-| Language key | Install command | Example `command` |
-|---|---|---|
-| `bash` | `npm install -g --ignore-scripts bash-language-server` | `bash-language-server` |
-| `go` | `go install golang.org/x/tools/gopls@latest` | `gopls` |
-| `php` | `npm install -g --ignore-scripts intelephense` | `intelephense` |
-| `python` | `npm install -g --ignore-scripts pyright` | `pyright-langserver` |
-| `ruby` | `gem install solargraph` | `solargraph` |
-| `rust` | `rustup component add rust-analyzer` | `rust-analyzer` |
-| `typescript` | `npm install -g --ignore-scripts typescript typescript-language-server` | `typescript-language-server` |
-| `yaml` | `npm install -g --ignore-scripts yaml-language-server` | `yaml-language-server` |
+| Language key | Default version | Install command | Example `command` |
+|---|---|---|---|
+| `bash` | `5.4.0` | `npm install -g --ignore-scripts bash-language-server@5.4.0` | `bash-language-server` |
+| `go` | `0.18.1` | `go install golang.org/x/tools/gopls@v0.18.1` | `gopls` |
+| `php` | `1.14.1` | `npm install -g --ignore-scripts intelephense@1.14.1` | `intelephense` |
+| `python` | `1.1.399` | `npm install -g --ignore-scripts pyright@1.1.399` | `pyright-langserver` |
+| `ruby` | `0.50.0` | `gem install solargraph -v 0.50.0` | `solargraph` |
+| `rust` | n/a | `rustup component add rust-analyzer` | `rust-analyzer` |
+| `typescript` | `5.8.3` / `4.3.3` | `npm install -g --ignore-scripts typescript@5.8.3 typescript-language-server@4.3.3` | `typescript-language-server` |
+| `yaml` | `1.15.0` | `npm install -g --ignore-scripts yaml-language-server@1.15.0` | `yaml-language-server` |
+
+> The `version` field overrides the pinned version for the primary language server package (the last package in the install list). For `typescript`, it controls `typescript-language-server`; `typescript` itself stays at its hardcoded companion version (`5.8.3`).
 
 Language keys not in this table still work — the compiler simply skips the auto-install step. Add a manual `steps:` entry to install the server yourself.
 

@@ -70,12 +70,12 @@ func TestLSPManagerGenerateInstallSteps(t *testing.T) {
 		},
 	})
 
-	// Default: --ignore-scripts + cooldown enabled
+	// Default: --ignore-scripts + cooldown enabled + pinned versions
 	steps := manager.GenerateInstallSteps(nil)
 	require.Len(t, steps, 1)
 	content := strings.Join(steps[0], "\n")
 	assert.Contains(t, content, "Install TypeScript LSP dependencies")
-	assert.Contains(t, content, "npm install -g --ignore-scripts typescript typescript-language-server")
+	assert.Contains(t, content, "npm install -g --ignore-scripts typescript@5.8.3 typescript-language-server@4.3.3")
 	assert.Contains(t, content, "NPM_CONFIG_MIN_RELEASE_AGE")
 }
 
@@ -95,7 +95,7 @@ func TestLSPManagerGenerateInstallSteps_RunInstallScripts(t *testing.T) {
 	steps := manager.GenerateInstallSteps(workflowData)
 	require.Len(t, steps, 1)
 	content := strings.Join(steps[0], "\n")
-	assert.Contains(t, content, "npm install -g typescript typescript-language-server")
+	assert.Contains(t, content, "npm install -g typescript@5.8.3 typescript-language-server@4.3.3")
 	assert.NotContains(t, content, "--ignore-scripts")
 }
 
@@ -122,6 +122,94 @@ func TestLSPManagerGenerateInstallSteps_CooldownDisabled(t *testing.T) {
 	content := strings.Join(steps[0], "\n")
 	assert.Contains(t, content, "--ignore-scripts")
 	assert.NotContains(t, content, "NPM_CONFIG_MIN_RELEASE_AGE")
+}
+
+func TestLSPManagerGenerateInstallSteps_DefaultVersionPinning(t *testing.T) {
+	// Default pinned versions are injected for known npm-based servers.
+	manager := NewLSPManager(map[string]LSPServerConfig{
+		"yaml": {
+			Command:        "yaml-language-server",
+			FileExtensions: map[string]string{".yaml": "yaml"},
+		},
+	})
+	steps := manager.GenerateInstallSteps(nil)
+	require.Len(t, steps, 1)
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "yaml-language-server@1.15.0")
+}
+
+func TestLSPManagerGenerateInstallSteps_VersionOverride(t *testing.T) {
+	// A Version field in the frontmatter overrides the pinned default for the primary package.
+	manager := NewLSPManager(map[string]LSPServerConfig{
+		"typescript": {
+			Command:        "typescript-language-server",
+			Version:        "5.0.0",
+			FileExtensions: map[string]string{".ts": "typescript"},
+		},
+	})
+	steps := manager.GenerateInstallSteps(nil)
+	require.Len(t, steps, 1)
+	content := strings.Join(steps[0], "\n")
+	// typescript-language-server is the primary (last) package; its version is overridden.
+	assert.Contains(t, content, "typescript-language-server@5.0.0")
+	// typescript (secondary package) retains its default version.
+	assert.Contains(t, content, "typescript@5.8.3")
+}
+
+func TestLSPManagerGenerateInstallSteps_GoDefaultVersion(t *testing.T) {
+	// gopls is installed with its pinned default version.
+	manager := NewLSPManager(map[string]LSPServerConfig{
+		"go": {Command: "gopls", FileExtensions: map[string]string{".go": "go"}},
+	})
+	steps := manager.GenerateInstallSteps(nil)
+	require.Len(t, steps, 1)
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "go install golang.org/x/tools/gopls@v0.18.1")
+}
+
+func TestLSPManagerGenerateInstallSteps_GoVersionOverride(t *testing.T) {
+	// A Version field overrides gopls install version.
+	manager := NewLSPManager(map[string]LSPServerConfig{
+		"go": {Command: "gopls", Version: "0.17.0", FileExtensions: map[string]string{".go": "go"}},
+	})
+	steps := manager.GenerateInstallSteps(nil)
+	require.Len(t, steps, 1)
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "go install golang.org/x/tools/gopls@v0.17.0")
+}
+
+func TestLSPManagerGenerateInstallSteps_GoVersionOverride_VPrefix(t *testing.T) {
+	// A Version field with a leading 'v' prefix must not produce '@vv...' in the command.
+	manager := NewLSPManager(map[string]LSPServerConfig{
+		"go": {Command: "gopls", Version: "v0.17.0", FileExtensions: map[string]string{".go": "go"}},
+	})
+	steps := manager.GenerateInstallSteps(nil)
+	require.Len(t, steps, 1)
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "go install golang.org/x/tools/gopls@v0.17.0")
+	assert.NotContains(t, content, "@vv")
+}
+
+func TestLSPManagerGenerateInstallSteps_RubyDefaultVersion(t *testing.T) {
+	// solargraph is installed with its pinned default version.
+	manager := NewLSPManager(map[string]LSPServerConfig{
+		"ruby": {Command: "solargraph", FileExtensions: map[string]string{".rb": "ruby"}},
+	})
+	steps := manager.GenerateInstallSteps(nil)
+	require.Len(t, steps, 1)
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "gem install solargraph -v 0.50.0")
+}
+
+func TestLSPManagerGenerateInstallSteps_RubyVersionOverride(t *testing.T) {
+	// A Version field overrides solargraph gem install version.
+	manager := NewLSPManager(map[string]LSPServerConfig{
+		"ruby": {Command: "solargraph", Version: "0.48.0", FileExtensions: map[string]string{".rb": "ruby"}},
+	})
+	steps := manager.GenerateInstallSteps(nil)
+	require.Len(t, steps, 1)
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "gem install solargraph -v 0.48.0")
 }
 
 func TestLSPManagerRuntimeRequirements_NodeBased(t *testing.T) {

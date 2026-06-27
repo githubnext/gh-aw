@@ -16,6 +16,11 @@ type LSPServerConfig struct {
 	Command        string            `json:"command,omitempty"`
 	Args           []string          `json:"args,omitempty"`
 	FileExtensions map[string]string `json:"fileExtensions,omitempty"`
+	// Version pins the package version for the language server. When set, it overrides the
+	// built-in default version for known LSP servers. Accepts standard semver version strings
+	// (e.g. "5.3.0") without a leading "v". Has no effect for custom servers not in the
+	// built-in install spec table.
+	Version string `json:"version,omitempty"`
 }
 
 // LSPManager handles LSP configuration normalization, validation, and generation.
@@ -120,6 +125,12 @@ func (m *LSPManager) GenerateInstallSteps(workflowData *WorkflowData) []GitHubAc
 			continue
 		}
 
+		// Resolve effective version: frontmatter overrides the spec default.
+		// Strip any leading 'v' prefix so both "0.17.0" and "v0.17.0" are handled
+		// consistently, avoiding malformed version strings like "@vv0.17.0".
+		config := m.servers[language]
+		effectiveVersion := strings.TrimPrefix(config.Version, "v")
+
 		var step GitHubActionStep
 		if len(spec.NpmPackages) > 0 {
 			// npm-based LSP server: build install command from runtime-manager settings.
@@ -127,7 +138,21 @@ func (m *LSPManager) GenerateInstallSteps(workflowData *WorkflowData) []GitHubAc
 			if !runInstallScripts {
 				args = append(args, "--ignore-scripts")
 			}
-			args = append(args, spec.NpmPackages...)
+			// Pin each npm package to its version. The primary (last) package is the
+			// LSP server binary itself; its version can be overridden via the frontmatter
+			// 'version' field. All other packages use their hardcoded default version.
+			primaryPkg := spec.NpmPackages[len(spec.NpmPackages)-1]
+			for _, pkg := range spec.NpmPackages {
+				ver := spec.NpmPackageVersions[pkg]
+				if pkg == primaryPkg && effectiveVersion != "" {
+					ver = effectiveVersion
+				}
+				if ver != "" {
+					args = append(args, pkg+"@"+ver)
+				} else {
+					args = append(args, pkg)
+				}
+			}
 			installCmd := strings.Join(args, " ")
 			step = GitHubActionStep{
 				"      - name: " + spec.StepName,
@@ -141,10 +166,35 @@ func (m *LSPManager) GenerateInstallSteps(workflowData *WorkflowData) []GitHubAc
 			}
 			step = append(step, "        timeout-minutes: 10")
 		} else {
-			// Non-npm LSP server (go install, gem install, rustup): use raw command.
+			// Non-npm LSP server (go install, gem install, rustup): build versioned command.
+			var installCmd string
+			switch language {
+			case "go":
+				ver := spec.DefaultVersion
+				if effectiveVersion != "" {
+					ver = effectiveVersion
+				}
+				if ver != "" {
+					installCmd = "go install golang.org/x/tools/gopls@v" + ver
+				} else {
+					installCmd = "go install golang.org/x/tools/gopls@latest"
+				}
+			case "ruby":
+				ver := spec.DefaultVersion
+				if effectiveVersion != "" {
+					ver = effectiveVersion
+				}
+				if ver != "" {
+					installCmd = "gem install solargraph -v " + ver
+				} else {
+					installCmd = "gem install solargraph"
+				}
+			default:
+				installCmd = "rustup component add rust-analyzer"
+			}
 			step = GitHubActionStep{
 				"      - name: " + spec.StepName,
-				"        run: " + spec.Command,
+				"        run: " + installCmd,
 				"        timeout-minutes: 10",
 			}
 		}
@@ -206,51 +256,59 @@ func (m *LSPManager) RuntimeRequirements() []RuntimeRequirement {
 }
 
 type lspInstallSpec struct {
-	StepName    string
-	NpmPackages []string // Non-nil: install these packages globally via npm (respects RunInstallScripts + cooldown)
-	Command     string   // Non-empty: raw install command for non-npm runtimes (go, gem, rustup)
-	RuntimeID   string   // runtime manager ID for the runtime needed to run this LSP server
+	StepName           string
+	NpmPackages        []string          // Non-nil: install these packages globally via npm (respects RunInstallScripts + cooldown)
+	NpmPackageVersions map[string]string // Default pinned version for each npm package; key = package name
+	DefaultVersion     string            // Default pinned version for non-npm installs (go, gem)
+	RuntimeID          string            // runtime manager ID for the runtime needed to run this LSP server
 }
 
 var lspInstallSpecs = map[string]lspInstallSpec{
 	"bash": {
-		StepName:    "Install Bash LSP dependencies",
-		NpmPackages: []string{"bash-language-server"},
-		RuntimeID:   "node",
+		StepName:           "Install Bash LSP dependencies",
+		NpmPackages:        []string{"bash-language-server"},
+		NpmPackageVersions: map[string]string{"bash-language-server": "5.4.0"},
+		RuntimeID:          "node",
 	},
 	"go": {
-		StepName:  "Install Go LSP dependencies",
-		Command:   "go install golang.org/x/tools/gopls@latest",
-		RuntimeID: "go",
+		StepName:       "Install Go LSP dependencies",
+		DefaultVersion: "0.18.1",
+		RuntimeID:      "go",
 	},
 	"php": {
-		StepName:    "Install PHP LSP dependencies",
-		NpmPackages: []string{"intelephense"},
-		RuntimeID:   "node",
+		StepName:           "Install PHP LSP dependencies",
+		NpmPackages:        []string{"intelephense"},
+		NpmPackageVersions: map[string]string{"intelephense": "1.14.1"},
+		RuntimeID:          "node",
 	},
 	"python": {
-		StepName:    "Install Python LSP dependencies",
-		NpmPackages: []string{"pyright"},
-		RuntimeID:   "node",
+		StepName:           "Install Python LSP dependencies",
+		NpmPackages:        []string{"pyright"},
+		NpmPackageVersions: map[string]string{"pyright": "1.1.399"},
+		RuntimeID:          "node",
 	},
 	"ruby": {
-		StepName:  "Install Ruby LSP dependencies",
-		Command:   "gem install solargraph",
-		RuntimeID: "ruby",
+		StepName:       "Install Ruby LSP dependencies",
+		DefaultVersion: "0.50.0",
+		RuntimeID:      "ruby",
 	},
 	"rust": {
 		StepName:  "Install Rust LSP dependencies",
-		Command:   "rustup component add rust-analyzer",
 		RuntimeID: "", // Rust is not in knownRuntimes; runtime setup is done via rustup
 	},
 	"typescript": {
 		StepName:    "Install TypeScript LSP dependencies",
 		NpmPackages: []string{"typescript", "typescript-language-server"},
-		RuntimeID:   "node",
+		NpmPackageVersions: map[string]string{
+			"typescript":                 "5.8.3",
+			"typescript-language-server": "4.3.3",
+		},
+		RuntimeID: "node",
 	},
 	"yaml": {
-		StepName:    "Install YAML LSP dependencies",
-		NpmPackages: []string{"yaml-language-server"},
-		RuntimeID:   "node",
+		StepName:           "Install YAML LSP dependencies",
+		NpmPackages:        []string{"yaml-language-server"},
+		NpmPackageVersions: map[string]string{"yaml-language-server": "1.15.0"},
+		RuntimeID:          "node",
 	},
 }
