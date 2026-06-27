@@ -1,0 +1,154 @@
+[2026-06-27T19:48:09.727Z] [INFO] [startup] MCPG Proxy starting: listen=0.0.0.0:18443, guard=/guards/github/00-github-guard.wasm, mode=filter, tls=true
+[2026-06-27T19:48:09.727Z] [DEBUG] [cmd:root] WASM cache dir resolved from default (logDir="/home/runner/work/gh-aw/gh-aw/.proxy-work/mcp-logs"): "/home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache"
+[2026-06-27T19:48:09.728Z] [DEBUG] [cmd:root] Configuring WASM compilation cache: resolvedDir="/home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache", flagChanged=false
+[2026-06-27T19:48:09.728Z] [DEBUG] [guard:wasm] Configuring global compilation cache: dir="/home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache"
+[2026-06-27T19:48:09.729Z] [DEBUG] [guard:wasm] Creating disk-backed compilation cache: dir=/home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache
+[2026-06-27T19:48:09.729Z] [DEBUG] [cmd:root] Disk-backed WASM cache failed, falling back to in-memory: dir="/home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache", err=create directory /home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache: mkdir /home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache: permission denied
+[2026-06-27T19:48:09.729Z] [WARN] [startup] Falling back to in-memory WASM compilation cache after "/home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache" failed: create directory /home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache: mkdir /home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache: permission denied
+[2026-06-27T19:48:09.730Z] [DEBUG] [guard:wasm] Configuring global compilation cache: dir=""
+[2026-06-27T19:48:09.730Z] [DEBUG] [guard:wasm] Creating in-memory compilation cache
+[2026-06-27T19:48:09.730Z] [DEBUG] [guard:wasm] Global compilation cache replaced successfully
+[2026-06-27T19:48:09.731Z] [DEBUG] [cmd:root] WASM compilation cache fallback configured: mode=in-memory
+[2026-06-27T19:48:09.731Z] [INFO] [startup] WASM compilation cache directory: 
+[2026-06-27T19:48:09.731Z] [DEBUG] [cmd:root] Initializing tracing provider
+[2026-06-27T19:48:09.732Z] [DEBUG] [tracing:provider] Registering global W3C TraceContext+Baggage text map propagator
+[2026-06-27T19:48:09.732Z] [DEBUG] [tracing:provider] Tracing disabled: no OTLP endpoint configured
+[2026-06-27T19:48:09.732Z] [DEBUG] [cmd:root] Tracing provider initialized successfully
+[2026-06-27T19:48:09.733Z] [DEBUG] [envutil:github] Looking up GitHub token: checking 4 candidate env vars
+[2026-06-27T19:48:09.733Z] [DEBUG] [envutil:github] GitHub token not found in any candidate env var
+[2026-06-27T19:48:09.733Z] [INFO] [startup] No fallback token — proxy will forward client Authorization headers
+[2026-06-27T19:48:09.734Z] [DEBUG] [envutil:github] GitHub API URL from GITHUB_API_URL: https://api.github.com
+[2026-06-27T19:48:09.734Z] [INFO] [startup] Upstream GitHub API URL: https://api.github.com
+[2026-06-27T19:48:09.734Z] [DEBUG] [cmd:proxy] Resolved GitHub API URL: https://api.github.com, explicit flag=false
+[2026-06-27T19:48:09.735Z] [DEBUG] [cmd:proxy] Creating proxy server: guard=/guards/github/00-github-guard.wasm, hasPolicy=false, mode=filter, trustedBots=4, trustedUsers=0
+[2026-06-27T19:48:09.735Z] [DEBUG] [proxy:proxy] Creating proxy server: wasmPath=/guards/github/00-github-guard.wasm, apiURL=https://api.github.com, difcMode=filter, hasToken=false, hasPolicy=false
+[2026-06-27T19:48:09.736Z] [DEBUG] [proxy:proxy] Using upstream GitHub API URL: https://api.github.com
+[2026-06-27T19:48:09.736Z] [DEBUG] [difc:agent] Creating agent registry with defaults: secrecyTags=0, integrityTags=0
+[2026-06-27T19:48:09.736Z] [DEBUG] [difc:capabilities] Creating new capabilities set
+[2026-06-27T19:48:09.737Z] [DEBUG] [proxy:proxy] Enforcement mode resolved: filter
+[2026-06-27T19:48:09.737Z] [DEBUG] [proxy:proxy] Loading WASM guard from: /guards/github/00-github-guard.wasm
+[2026-06-27T19:48:09.737Z] [DEBUG] [guard:wasm] Creating WASM guard: name=github, path=/guards/github/00-github-guard.wasm
+[2026-06-27T19:48:09.738Z] [DEBUG] [guard:wasm] Creating WASM guard from bytes: name=github, size=301060
+[2026-06-27T19:48:09.739Z] [DEBUG] [guard:wasm] Instantiating WASM host functions: guard=github
+[2026-06-27T19:48:09.740Z] [DEBUG] [guard:wasm] WASM host functions instantiated: guard=github (call_backend, host_log)
+[2026-06-27T19:48:09.850Z] [DEBUG] [guard:wasm] WASM guard created successfully: name=github
+[2026-06-27T19:48:09.850Z] [DEBUG] [proxy:proxy] WASM guard loaded successfully
+[2026-06-27T19:48:09.851Z] [DEBUG] [proxy:proxy] No guard policy configured, running without policy enforcement
+[2026-06-27T19:48:09.851Z] [DEBUG] [proxy:proxy] Proxy server created successfully: mode=filter
+[2026-06-27T19:48:09.851Z] [DEBUG] [cmd:proxy] Proxy server created successfully
+[2026-06-27T19:48:09.852Z] [DEBUG] [cmd:proxy] Generating TLS certificates in: /home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls
+[2026-06-27T19:48:09.852Z] [DEBUG] [proxy:tls] generating self-signed TLS certificates for localhost
+[2026-06-27T19:48:09.853Z] [DEBUG] [proxy:tls] CA certificate created: serial=320588533366526025628638205220566437616, notBefore=2026-06-27T18:48:09Z, notAfter=2026-06-28T18:48:09Z
+[2026-06-27T19:48:09.853Z] [DEBUG] [proxy:tls] server certificate created: dnsNames=[localhost], ipAddresses=[127.0.0.1 ::1]
+[2026-06-27T19:48:09.854Z] [DEBUG] [proxy:tls] TLS certificate files written: caCert=/home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls/ca.crt, cert=/home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls/server.crt, key=/home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls/server.key
+[2026-06-27T19:48:09.854Z] [DEBUG] [proxy:tls] TLS key pair loaded successfully
+[2026-06-27T19:48:09.855Z] [DEBUG] [proxy:tls] TLS certificates generated in /home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls (valid 24h)
+[2026-06-27T19:48:09.855Z] [DEBUG] [cmd:proxy] Configuring TLS trust environment: caCertPath=/home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls/ca.crt, envVars=[NODE_EXTRA_CA_CERTS SSL_CERT_FILE GIT_SSL_CAINFO CURL_CA_BUNDLE REQUESTS_CA_BUNDLE]
+[2026-06-27T19:48:09.855Z] [DEBUG] [cmd:proxy] TLS trust environment configured successfully: 5 env vars set
+[2026-06-27T19:48:09.856Z] [INFO] [startup] TLS certificates generated: ca=/home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls/ca.crt
+[2026-06-27T19:48:09.856Z] [DEBUG] [cmd:proxy] Creating HTTP server: addr=0.0.0.0:18443, tls=true
+[2026-06-27T19:48:09.856Z] [DEBUG] [tracing:provider] Registering HTTP handler with OTel span: span=proxy.request, extraAttrs=0
+[2026-06-27T19:48:09.857Z] [DEBUG] [cmd:proxy] Applying TLS configuration to HTTP server
+[2026-06-27T19:48:09.857Z] [DEBUG] [cmd:root] Starting HTTP server: addr=0.0.0.0:18443, shutdownTimeout=5s
+[2026-06-27T19:48:09.857Z] [INFO] [startup] Proxy listening on https://[::]:18443
+[2026-06-27T19:48:10.735Z] [DEBUG] [tracing:provider] Handling request: span=proxy.request, method=GET, path=/api/v3/health, remoteParent=false
+[2026-06-27T19:48:10.736Z] [DEBUG] [tracing:provider] Span started: span=proxy.request, traceID=00000000000000000000000000000000
+[2026-06-27T19:48:10.736Z] [DEBUG] [proxy:router] StripGHHostPrefix: stripping /api/v3 prefix from "/api/v3/health" -> "/health"
+[2026-06-27T19:48:10.737Z] [DEBUG] [proxy:handler] incoming GET /health
+[2026-06-27T19:48:10.737Z] [DEBUG] [httputil:httputil] Writing JSON response: statusCode=200
+[2026-06-27T19:48:10.738Z] [DEBUG] [httputil:httputil] JSON response body size: 15 bytes
+[2026-06-27T19:48:17.890Z] [DEBUG] [tracing:provider] Handling request: span=proxy.request, method=GET, path=/api/v3/rate_limit, remoteParent=false
+[2026-06-27T19:48:17.891Z] [DEBUG] [tracing:provider] Span started: span=proxy.request, traceID=00000000000000000000000000000000
+[2026-06-27T19:48:17.891Z] [DEBUG] [proxy:router] StripGHHostPrefix: stripping /api/v3 prefix from "/api/v3/rate_limit" -> "/rate_limit"
+[2026-06-27T19:48:17.891Z] [DEBUG] [proxy:handler] incoming GET /rate_limit
+[2026-06-27T19:48:17.892Z] [DEBUG] [proxy:handler] passthrough GET /rate_limit
+[2026-06-27T19:48:17.892Z] [DEBUG] [proxy:handler] forwardAndReadBody: GET /rate_limit
+[2026-06-27T19:48:17.892Z] [DEBUG] [proxy:proxy] forwarding GET /rate_limit → https://api.github.com/rate_limit
+[2026-06-27T19:48:17.893Z] [DEBUG] [httputil:httputil] Applying GitHub API headers: method="GET", path="/rate_limit", hasAuth=true
+[2026-06-27T19:48:17.897Z] [DEBUG] [proxy:handler] forwardAndReadBody: upstream request failed: method=GET path=/rate_limit err=Get "https://api.github.com/rate_limit": tls: failed to verify certificate: x509: certificate signed by unknown authority
+[2026-06-27T19:48:17.897Z] [DEBUG] [httputil:httputil] Writing JSON response: statusCode=502
+[2026-06-27T19:48:17.897Z] [DEBUG] [httputil:httputil] JSON response body size: 59 bytes
+[2026-06-27T19:48:17.898Z] [DEBUG] [tracing:provider] Recording span error: msg=Bad Gateway, err=Bad Gateway
+[2026-06-27T19:48:27.229Z] [INFO] [startup] MCPG Proxy starting: listen=0.0.0.0:18443, guard=/guards/github/00-github-guard.wasm, mode=filter, tls=true
+[2026-06-27T19:48:27.229Z] [DEBUG] [cmd:root] WASM cache dir resolved from default (logDir="/home/runner/work/gh-aw/gh-aw/.proxy-work/mcp-logs"): "/home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache"
+[2026-06-27T19:48:27.230Z] [DEBUG] [cmd:root] Configuring WASM compilation cache: resolvedDir="/home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache", flagChanged=false
+[2026-06-27T19:48:27.230Z] [DEBUG] [guard:wasm] Configuring global compilation cache: dir="/home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache"
+[2026-06-27T19:48:27.230Z] [DEBUG] [guard:wasm] Creating disk-backed compilation cache: dir=/home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache
+[2026-06-27T19:48:27.231Z] [DEBUG] [cmd:root] Disk-backed WASM cache failed, falling back to in-memory: dir="/home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache", err=create directory /home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache: mkdir /home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache: permission denied
+[2026-06-27T19:48:27.231Z] [WARN] [startup] Falling back to in-memory WASM compilation cache after "/home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache" failed: create directory /home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache: mkdir /home/runner/work/gh-aw/gh-aw/.proxy-work/wazero-cache: permission denied
+[2026-06-27T19:48:27.231Z] [DEBUG] [guard:wasm] Configuring global compilation cache: dir=""
+[2026-06-27T19:48:27.231Z] [DEBUG] [guard:wasm] Creating in-memory compilation cache
+[2026-06-27T19:48:27.232Z] [DEBUG] [guard:wasm] Global compilation cache replaced successfully
+[2026-06-27T19:48:27.232Z] [DEBUG] [cmd:root] WASM compilation cache fallback configured: mode=in-memory
+[2026-06-27T19:48:27.232Z] [INFO] [startup] WASM compilation cache directory: 
+[2026-06-27T19:48:27.233Z] [DEBUG] [cmd:root] Initializing tracing provider
+[2026-06-27T19:48:27.233Z] [DEBUG] [tracing:provider] Registering global W3C TraceContext+Baggage text map propagator
+[2026-06-27T19:48:27.233Z] [DEBUG] [tracing:provider] Tracing disabled: no OTLP endpoint configured
+[2026-06-27T19:48:27.234Z] [DEBUG] [cmd:root] Tracing provider initialized successfully
+[2026-06-27T19:48:27.234Z] [DEBUG] [envutil:github] Looking up GitHub token: checking 4 candidate env vars
+[2026-06-27T19:48:27.234Z] [DEBUG] [envutil:github] GitHub token found: source=GH_TOKEN
+[2026-06-27T19:48:27.234Z] [INFO] [startup] Fallback GitHub token configured from flag/env
+[2026-06-27T19:48:27.235Z] [DEBUG] [envutil:github] GitHub API URL from GITHUB_API_URL: https://api.github.com
+[2026-06-27T19:48:27.235Z] [INFO] [startup] Upstream GitHub API URL: https://api.github.com
+[2026-06-27T19:48:27.235Z] [DEBUG] [cmd:proxy] Resolved GitHub API URL: https://api.github.com, explicit flag=false
+[2026-06-27T19:48:27.235Z] [DEBUG] [cmd:proxy] Creating proxy server: guard=/guards/github/00-github-guard.wasm, hasPolicy=false, mode=filter, trustedBots=4, trustedUsers=0
+[2026-06-27T19:48:27.236Z] [DEBUG] [proxy:proxy] Creating proxy server: wasmPath=/guards/github/00-github-guard.wasm, apiURL=https://api.github.com, difcMode=filter, hasToken=true, hasPolicy=false
+[2026-06-27T19:48:27.236Z] [DEBUG] [proxy:proxy] Using upstream GitHub API URL: https://api.github.com
+[2026-06-27T19:48:27.236Z] [DEBUG] [difc:agent] Creating agent registry with defaults: secrecyTags=0, integrityTags=0
+[2026-06-27T19:48:27.237Z] [DEBUG] [difc:capabilities] Creating new capabilities set
+[2026-06-27T19:48:27.237Z] [DEBUG] [proxy:proxy] Enforcement mode resolved: filter
+[2026-06-27T19:48:27.237Z] [DEBUG] [proxy:proxy] Loading WASM guard from: /guards/github/00-github-guard.wasm
+[2026-06-27T19:48:27.238Z] [DEBUG] [guard:wasm] Creating WASM guard: name=github, path=/guards/github/00-github-guard.wasm
+[2026-06-27T19:48:27.238Z] [DEBUG] [guard:wasm] Creating WASM guard from bytes: name=github, size=301060
+[2026-06-27T19:48:27.239Z] [DEBUG] [guard:wasm] Instantiating WASM host functions: guard=github
+[2026-06-27T19:48:27.240Z] [DEBUG] [guard:wasm] WASM host functions instantiated: guard=github (call_backend, host_log)
+[2026-06-27T19:48:27.355Z] [DEBUG] [guard:wasm] WASM guard created successfully: name=github
+[2026-06-27T19:48:27.355Z] [DEBUG] [proxy:proxy] WASM guard loaded successfully
+[2026-06-27T19:48:27.356Z] [DEBUG] [proxy:proxy] No guard policy configured, running without policy enforcement
+[2026-06-27T19:48:27.356Z] [DEBUG] [proxy:proxy] Proxy server created successfully: mode=filter
+[2026-06-27T19:48:27.356Z] [DEBUG] [cmd:proxy] Proxy server created successfully
+[2026-06-27T19:48:27.357Z] [DEBUG] [cmd:proxy] Generating TLS certificates in: /home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls
+[2026-06-27T19:48:27.357Z] [DEBUG] [proxy:tls] generating self-signed TLS certificates for localhost
+[2026-06-27T19:48:27.357Z] [DEBUG] [proxy:tls] CA certificate created: serial=198283522998031953694802910213698568969, notBefore=2026-06-27T18:48:27Z, notAfter=2026-06-28T18:48:27Z
+[2026-06-27T19:48:27.358Z] [DEBUG] [proxy:tls] server certificate created: dnsNames=[localhost], ipAddresses=[127.0.0.1 ::1]
+[2026-06-27T19:48:27.359Z] [DEBUG] [proxy:tls] TLS certificate files written: caCert=/home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls/ca.crt, cert=/home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls/server.crt, key=/home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls/server.key
+[2026-06-27T19:48:27.359Z] [DEBUG] [proxy:tls] TLS key pair loaded successfully
+[2026-06-27T19:48:27.360Z] [DEBUG] [proxy:tls] TLS certificates generated in /home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls (valid 24h)
+[2026-06-27T19:48:27.360Z] [DEBUG] [cmd:proxy] Configuring TLS trust environment: caCertPath=/home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls/ca.crt, envVars=[NODE_EXTRA_CA_CERTS SSL_CERT_FILE GIT_SSL_CAINFO CURL_CA_BUNDLE REQUESTS_CA_BUNDLE]
+[2026-06-27T19:48:27.360Z] [DEBUG] [cmd:proxy] TLS trust environment configured successfully: 5 env vars set
+[2026-06-27T19:48:27.361Z] [INFO] [startup] TLS certificates generated: ca=/home/runner/work/gh-aw/gh-aw/.proxy-work/cli-proxy-tls/ca.crt
+[2026-06-27T19:48:27.361Z] [DEBUG] [cmd:proxy] Creating HTTP server: addr=0.0.0.0:18443, tls=true
+[2026-06-27T19:48:27.362Z] [DEBUG] [tracing:provider] Registering HTTP handler with OTel span: span=proxy.request, extraAttrs=0
+[2026-06-27T19:48:27.362Z] [DEBUG] [cmd:proxy] Applying TLS configuration to HTTP server
+[2026-06-27T19:48:27.362Z] [DEBUG] [cmd:root] Starting HTTP server: addr=0.0.0.0:18443, shutdownTimeout=5s
+[2026-06-27T19:48:27.363Z] [INFO] [startup] Proxy listening on https://[::]:18443
+[2026-06-27T19:48:28.244Z] [DEBUG] [tracing:provider] Handling request: span=proxy.request, method=GET, path=/api/v3/health, remoteParent=false
+[2026-06-27T19:48:28.245Z] [DEBUG] [tracing:provider] Span started: span=proxy.request, traceID=00000000000000000000000000000000
+[2026-06-27T19:48:28.245Z] [DEBUG] [proxy:router] StripGHHostPrefix: stripping /api/v3 prefix from "/api/v3/health" -> "/health"
+[2026-06-27T19:48:28.245Z] [DEBUG] [proxy:handler] incoming GET /health
+[2026-06-27T19:48:28.246Z] [DEBUG] [httputil:httputil] Writing JSON response: statusCode=200
+[2026-06-27T19:48:28.246Z] [DEBUG] [httputil:httputil] JSON response body size: 15 bytes
+[2026-06-27T19:48:31.322Z] [DEBUG] [tracing:provider] Handling request: span=proxy.request, method=GET, path=/api/v3/rate_limit, remoteParent=false
+[2026-06-27T19:48:31.322Z] [DEBUG] [tracing:provider] Span started: span=proxy.request, traceID=00000000000000000000000000000000
+[2026-06-27T19:48:31.323Z] [DEBUG] [proxy:router] StripGHHostPrefix: stripping /api/v3 prefix from "/api/v3/rate_limit" -> "/rate_limit"
+[2026-06-27T19:48:31.323Z] [DEBUG] [proxy:handler] incoming GET /rate_limit
+[2026-06-27T19:48:31.323Z] [DEBUG] [proxy:handler] passthrough GET /rate_limit
+[2026-06-27T19:48:31.324Z] [DEBUG] [proxy:handler] forwardAndReadBody: GET /rate_limit
+[2026-06-27T19:48:31.324Z] [DEBUG] [proxy:proxy] forwarding GET /rate_limit → https://api.github.com/rate_limit
+[2026-06-27T19:48:31.324Z] [DEBUG] [httputil:httputil] Applying GitHub API headers: method="GET", path="/rate_limit", hasAuth=true
+[2026-06-27T19:48:31.330Z] [DEBUG] [proxy:handler] forwardAndReadBody: upstream request failed: method=GET path=/rate_limit err=Get "https://api.github.com/rate_limit": tls: failed to verify certificate: x509: certificate signed by unknown authority
+[2026-06-27T19:48:31.331Z] [DEBUG] [httputil:httputil] Writing JSON response: statusCode=502
+[2026-06-27T19:48:31.331Z] [DEBUG] [httputil:httputil] JSON response body size: 59 bytes
+[2026-06-27T19:48:31.331Z] [DEBUG] [tracing:provider] Recording span error: msg=Bad Gateway, err=Bad Gateway
+[2026-06-27T19:48:49.214Z] [DEBUG] [tracing:provider] Handling request: span=proxy.request, method=GET, path=/api/v3/rate_limit, remoteParent=false
+[2026-06-27T19:48:49.214Z] [DEBUG] [tracing:provider] Span started: span=proxy.request, traceID=00000000000000000000000000000000
+[2026-06-27T19:48:49.215Z] [DEBUG] [proxy:router] StripGHHostPrefix: stripping /api/v3 prefix from "/api/v3/rate_limit" -> "/rate_limit"
+[2026-06-27T19:48:49.215Z] [DEBUG] [proxy:handler] incoming GET /rate_limit
+[2026-06-27T19:48:49.215Z] [DEBUG] [proxy:handler] passthrough GET /rate_limit
+[2026-06-27T19:48:49.216Z] [DEBUG] [proxy:handler] forwardAndReadBody: GET /rate_limit
+[2026-06-27T19:48:49.216Z] [DEBUG] [proxy:proxy] forwarding GET /rate_limit → https://api.github.com/rate_limit
+[2026-06-27T19:48:49.216Z] [DEBUG] [httputil:httputil] Applying GitHub API headers: method="GET", path="/rate_limit", hasAuth=true
+[2026-06-27T19:48:49.220Z] [DEBUG] [proxy:handler] forwardAndReadBody: upstream request failed: method=GET path=/rate_limit err=Get "https://api.github.com/rate_limit": tls: failed to verify certificate: x509: certificate signed by unknown authority
+[2026-06-27T19:48:49.221Z] [DEBUG] [httputil:httputil] Writing JSON response: statusCode=502
+[2026-06-27T19:48:49.221Z] [DEBUG] [httputil:httputil] JSON response body size: 59 bytes
+[2026-06-27T19:48:49.221Z] [DEBUG] [tracing:provider] Recording span error: msg=Bad Gateway, err=Bad Gateway
