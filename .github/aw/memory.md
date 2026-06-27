@@ -6,7 +6,7 @@ description: Guide for choosing the right persistent memory strategy in agentic 
 
 For workflows that **persist state across runs** — deduplication, incremental processing, cross-run context, or knowledge accumulation.
 
-> ⚠️ **`repo-memory` does NOT mean "cache-memory"**. They are two distinct tools with different backends, tradeoffs, and use cases. `cache-memory` is almost always the right first choice.
+> ⚠️ **`repo-memory` is NOT a synonym for `cache-memory`**. Different backends, different tradeoffs. `cache-memory` is almost always the right first choice.
 
 ---
 
@@ -35,33 +35,33 @@ Before writing new persistent files, check whether GitHub and Git already expose
 
 | Goal | Built-in source | Caching strategy |
 |---|---|---|
-| Skip stale files in docs/code scans | Git history (`git log` / last modified commit per file) | Cache either a single repo watermark SHA or per-file SHAs, then compare changed paths in newer commits |
-| Avoid reopening known incidents | Issue/PR history (recent open + closed items by label/title prefix) | Cache only canonical identifiers (issue numbers, advisory IDs), not full issue payloads |
-| Process incrementally across repo activity | PR merge history (`merged_at`, base branch) | Cache the last merged PR number or merge timestamp and fetch only newer merges |
-| Keep nightly triage focused | Issue timeline (`updated_at`, comments) | Cache the last scan cursor (`updated_at` watermark) and only inspect newer updates |
-| Reuse expensive relationship lookups | GitHub graph links (issue ↔ PR ↔ commit references) | Cache normalized link maps keyed by stable node IDs and refresh selectively |
+| Skip stale files in docs/code scans | Git history (`git log` / last modified commit per file) | Cache a repo watermark SHA or per-file SHAs; compare changed paths in newer commits |
+| Avoid reopening known incidents | Issue/PR history (open + closed by label/title prefix) | Cache only canonical identifiers (issue numbers, advisory IDs) |
+| Process incrementally across repo activity | PR merge history (`merged_at`, base branch) | Cache last merged PR number/timestamp; fetch only newer merges |
+| Keep nightly triage focused | Issue timeline (`updated_at`, comments) | Cache last scan cursor (`updated_at` watermark); inspect only newer updates |
+| Reuse expensive relationship lookups | GitHub graph links (issue ↔ PR ↔ commit) | Cache normalized link maps keyed by stable node IDs |
 
 ### Design guidance
 
-- Prefer **stable identifiers** from GitHub graph data (`node_id`, issue/PR number, commit SHA) over mutable text fields.
-- Persist **watermarks** (last seen timestamp, commit SHA, PR number) instead of full snapshots when possible.
-- Use built-in history as the source of truth; use memory tools to store only incremental state needed to resume efficiently.
-- If history queries are cheap and deterministic (for example, bounded to recent activity like the latest 20-100 items), recompute from GitHub/git instead of storing large derived datasets.
+- Prefer **stable identifiers** (`node_id`, issue/PR number, commit SHA) over mutable text.
+- Persist **watermarks** (timestamp, commit SHA, PR number) instead of full snapshots.
+- Treat built-in history as source of truth; store only incremental resume state.
+- For cheap bounded queries (latest 20-100 items), recompute from GitHub/git instead of storing derived datasets.
 
 ---
 
 ## `cache-memory` — First Choice
 
-Uses GitHub Actions cache (`actions/cache`) to persist a local filesystem directory populated by the `@modelcontextprotocol/server-memory` MCP server. The directory lives at `/tmp/gh-aw/cache-memory/`.
+GitHub Actions cache (`actions/cache`) persisting `/tmp/gh-aw/cache-memory/` via `@modelcontextprotocol/server-memory` MCP.
 
 ### When to use
 
-- **Deduplication**: Track which items (issues, PRs, URLs, IDs) have already been processed
-- **Round-robin / incremental processing**: Remember where you left off across scheduled runs
-- **Ephemeral structured state**: JSON blobs, processing queues, intermediate analysis results
-- **Metric baseline comparison**: Store a coverage %, score, or count and compare on the next run (see [Stateful Analysis / Baseline Comparison](#stateful-analysis--baseline-comparison) below)
-- **Visual regression baselines**: Store screenshots between PR runs (see `visual-regression.md`)
-- **Tool call caching**: Avoid redundant expensive API calls across runs
+- **Deduplication**: track processed items (issues, PRs, URLs, IDs)
+- **Round-robin / incremental**: remember position across scheduled runs
+- **Ephemeral structured state**: JSON blobs, queues, intermediate results
+- **Metric baseline comparison**: store coverage/score/count, compare next run (see [Stateful Analysis](#stateful-analysis--baseline-comparison))
+- **Visual regression baselines**: screenshots between PR runs (see `visual-regression.md`)
+- **Tool call caching**: avoid redundant API calls
 
 ### Configuration
 
@@ -70,7 +70,7 @@ tools:
   cache-memory: true
 ```
 
-Advanced — custom key:
+Custom key:
 
 ```yaml
 tools:
@@ -99,11 +99,9 @@ tools:
 
 ### Branch scoping
 
-Caches are **branch-scoped**: a run restores from caches saved on the same branch, with GitHub Actions also allowing fallback restore from the default branch (typically `main`). A non-default branch's first restore usually comes from the default branch; subsequent saves fork a branch-local lineage. For workflows that depend on warmed state, prefer scheduling on the default branch so each run reuses and updates one lineage instead of fragmenting state across feature branches.
+Caches are **branch-scoped** with default-branch fallback restore. A feature branch's first restore comes from `main`; subsequent saves fork a branch-local lineage. For warmed-state workflows, schedule on the default branch to reuse one lineage instead of fragmenting state.
 
 ### Deduplication example (scheduled workflow)
-
-The following pattern lets a scheduled workflow skip items it has already processed:
 
 ```markdown
 ---
@@ -127,21 +125,16 @@ timeout-minutes: 15
 
 Fetch the 20 most recently updated open issues.
 
-Load `/tmp/gh-aw/cache-memory/processed.json` if it exists; it contains an array of
-issue numbers already included in past digests.
+Load `/tmp/gh-aw/cache-memory/processed.json` if it exists; it contains issue numbers from past digests. Skip any whose number already appears.
 
-Skip any issue whose number already appears in that array.
+Summarize remaining (new) issues. If none, use the `noop` safe output.
 
-Summarize the remaining (new) issues. If there are none, use the `noop` safe output.
-
-Before finishing, write the updated full list of processed issue numbers back to
-`/tmp/gh-aw/cache-memory/processed.json` using a filesystem-safe timestamp:
-`YYYY-MM-DD-HH-MM-SS` (no colons, no `T`, no `Z`).
+Before finishing, write the updated processed-issue list back to `/tmp/gh-aw/cache-memory/processed.json` using filesystem-safe timestamp `YYYY-MM-DD-HH-MM-SS` (no colons, no `T`, no `Z`).
 ```
 
 ### Stateful Analysis / Baseline Comparison
 
-Persist a baseline metric between runs (coverage %, build time, benchmark score, audit count) and alert when it regresses. A cache miss simply means "no comparison this run" and the baseline is silently refreshed — tolerable for short-lived quality gates. If a lost baseline would cause serious side-effects (e.g. duplicate security issues), use `repo-memory` instead (see [Stateful Scanning Pattern (repo-memory)](#stateful-scanning-pattern-repo-memory)).
+Persist a baseline metric (coverage %, build time, benchmark score, audit count) and alert on regression. Cache miss → "no comparison this run" and baseline refreshes silently — tolerable for short-lived quality gates. If a lost baseline causes serious side-effects (e.g. duplicate security issues), use `repo-memory` instead (see [Stateful Scanning Pattern (repo-memory)](#stateful-scanning-pattern-repo-memory)).
 
 > **Worked example** (coverage delta on every PR, with key design decisions): [memory-stateful-patterns.md](memory-stateful-patterns.md#baseline-comparison-cache-memory).
 
@@ -157,18 +150,17 @@ Persist a baseline metric between runs (coverage %, build time, benchmark score,
 
 ### Filename safety
 
-Cache-memory files are uploaded as GitHub Actions artifacts. **Artifact filenames must not contain colons** (NTFS limitation on Windows-hosted runners).
+Cache-memory files upload as Actions artifacts. **Filenames must not contain colons** (NTFS limitation).
 
 ```bash
-# ✅ GOOD — filesystem-safe timestamp
+# ✅ GOOD
 /tmp/gh-aw/cache-memory/state-2026-02-12-11-20-45.json
 
-# ❌ BAD — colon in timestamp breaks artifact upload
+# ❌ BAD — colon breaks artifact upload
 /tmp/gh-aw/cache-memory/state-2026-02-12T11:20:45Z.json
 ```
 
-When instructing the agent to write timestamped files, say explicitly:
-> "Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS` (no colons, no `T`, no `Z`)."
+When instructing the agent for timestamped files, say: "Use `YYYY-MM-DD-HH-MM-SS` (no colons, no `T`, no `Z`)."
 
 ---
 
@@ -178,25 +170,25 @@ Uses a dedicated Git branch (default: `memory/agent-notes`) to store files that 
 
 ### When to use
 
-- The knowledge needs to survive cache expiration
-- You want the memory to be **visible in the repository** (auditable via Git history)
-- The workflow accumulates a knowledge base that grows over time (e.g., architecture notes, known issues)
-- You need changes to appear in diffs and be reviewable
+- Knowledge must survive cache expiration
+- Memory should be **visible in the repository** (auditable via Git history)
+- Knowledge base grows over time (architecture notes, known issues)
+- Changes need to appear in diffs and be reviewable
 
 ### Configuration
 
 ```yaml
 tools:
   repo-memory:
-    branch-name: memory/agent-notes   # Optional: custom branch name
+    branch-name: memory/agent-notes   # Optional
     target-repo: owner/other-repo     # Optional: store in another repo
     allowed-extensions: [".json", ".md"]
-    format-json: true                 # Optional: pretty-print committed .json files (2-space indent) for readable diffs (default: false)
+    format-json: true                 # Optional: pretty-print .json (default: false)
     max-file-size: 10240              # bytes
     max-file-count: 100
 ```
 
-The compiler automatically creates a separate `push_repo_memory` job with `contents: write` permission. The main agent job retains read-only permissions.
+Compiler creates a separate `push_repo_memory` job with `contents: write`; main agent job stays read-only.
 
 ### Tradeoffs
 
@@ -212,13 +204,13 @@ The compiler automatically creates a separate `push_repo_memory` job with `conte
 
 ## `repo-memory` with `wiki: true` — GitHub Wiki Backend
 
-A variant of `repo-memory` that stores files in the **GitHub Wiki** (a separate Git repository at `<repo>.wiki.git`) instead of a branch.
+`repo-memory` variant that stores files in the **GitHub Wiki** (`<repo>.wiki.git`) instead of a branch.
 
 ### When to use
 
-- You want structured, human-readable documentation pages
-- The knowledge is intended for **human consumption** (wikis are browsable)
-- You're building a living knowledge base or FAQ
+- Structured, human-readable documentation pages
+- Knowledge for **human consumption** (browsable wikis)
+- Living knowledge base or FAQ
 
 ### Configuration
 
@@ -229,9 +221,9 @@ tools:
     allowed-extensions: [".md"]
 ```
 
-The compiler automatically creates a separate `push_repo_memory` job with `contents: write` permission. The main agent job retains read-only permissions.
+The compiler creates a separate `push_repo_memory` job with `contents: write`; the main agent job stays read-only.
 
-Files follow GitHub Wiki Markdown conventions: use `[[Page Name]]` syntax for internal links, name files with hyphens instead of spaces.
+Use GitHub Wiki conventions: `[[Page Name]]` for internal links, hyphens instead of spaces in filenames.
 
 ### Tradeoffs
 
@@ -246,15 +238,15 @@ Files follow GitHub Wiki Markdown conventions: use `[[Page Name]]` syntax for in
 
 ## `comment-memory` — Managed Comment Persistence
 
-Uses a dedicated `<gh-aw-comment-memory>` XML block in an issue or PR comment as persistent memory. The agent edits plain markdown files under `/tmp/gh-aw/comment-memory/`; the safe-output processor syncs the changes back to the managed comment.
+Uses a `<gh-aw-comment-memory>` XML block in an issue/PR comment as persistent memory. The agent edits markdown files under `/tmp/gh-aw/comment-memory/`; the safe-output processor syncs changes back to the managed comment.
 
 ### When to use
 
-- Persist workflow notes or statuses visible inline on the triggering issue or PR
-- State tied to the lifecycle of a specific issue or PR
-- Structured running track records (status tables, checklists, summaries) the team can read without leaving the issue
+- Workflow notes/statuses visible inline on the triggering issue or PR
+- State tied to a specific issue or PR lifecycle
+- Running track records (status tables, checklists, summaries) readable without leaving the issue
 
-Do NOT use `comment-memory` for high-volume ephemeral state (use `cache-memory`), long-lived knowledge bases (use `repo-memory`), or data that must survive across issues/PRs.
+Do NOT use for high-volume ephemeral state (use `cache-memory`), long-lived knowledge bases (use `repo-memory`), or cross-issue data.
 
 ### Configuration
 
@@ -277,11 +269,11 @@ tools:
 
 ### How it works
 
-1. **Pre-agent setup**: Reads `<gh-aw-comment-memory id="<memory-id>">` from the target comment and writes content to `/tmp/gh-aw/comment-memory/<memory_id>.md`.
-2. **Agent**: Edits the markdown file directly — no explicit safe-output tool call needed.
-3. **Post-agent**: The safe-output processor reads the edited file and upserts the managed comment, replacing only the XML-fenced block.
+1. **Pre-agent**: reads `<gh-aw-comment-memory id="<memory-id>">` and writes to `/tmp/gh-aw/comment-memory/<memory_id>.md`.
+2. **Agent**: edits the markdown file directly — no safe-output tool call needed.
+3. **Post-agent**: processor reads edited file and upserts the managed comment, replacing only the XML-fenced block.
 
-Multiple memory IDs are supported in a single comment; each maps to a separate `*.md` file.
+Multiple memory IDs in one comment are supported; each maps to a separate `*.md` file.
 
 ### Tradeoffs
 
@@ -296,7 +288,7 @@ Multiple memory IDs are supported in a single comment; each maps to a separate `
 
 ## Stateful Scanning Pattern (repo-memory)
 
-Persist a baseline JSON file between scheduled runs so the workflow only alerts on *new* findings — vulnerability scans, dependency audits, licence checks, or any "track changes over time" scenario. Unlike `cache-memory`, the baseline survives cache expiry, so a missed cycle does not flood the repo with duplicate issues. Store only stable identifiers (advisory IDs), cap output with `max:`, and treat a missing baseline as `[]` on the first run. `repo-memory` requires Claude or a custom engine — not Copilot.
+Persist a baseline JSON file between runs to alert only on *new* findings — vulnerability scans, dependency audits, licence checks. Unlike `cache-memory`, the baseline survives cache expiry, so a missed cycle won't flood the repo with duplicate issues. Store only stable identifiers (advisory IDs), cap output with `max:`, treat missing baseline as `[]`. Requires Claude or custom engine — not Copilot.
 
 > **Worked example** (nightly npm vulnerability scan, with key design decisions): [memory-stateful-patterns.md](memory-stateful-patterns.md#stateful-scanning-repo-memory).
 
