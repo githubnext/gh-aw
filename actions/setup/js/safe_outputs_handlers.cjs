@@ -195,6 +195,36 @@ function resolvePatchWorkspacePath(workspacePath) {
 }
 
 /**
+ * Ensure the current git checkout path is trusted in this process HOME context.
+ * This prevents "detected dubious ownership in repository" failures when safe
+ * outputs run via a bridge process using a different HOME than the container.
+ *
+ * @param {string} gitCwd
+ * @param {{ debug: (message: string) => void }} server
+ * @returns {void}
+ */
+function ensureSafeDirectoryTrust(gitCwd, server) {
+  if (!gitCwd) return;
+  try {
+    const existingEntries = execGitSync(["config", "--global", "--get-all", "safe.directory"], { suppressLogs: true })
+      .split("\n")
+      .map(value => value.trim())
+      .filter(Boolean);
+    if (existingEntries.includes(gitCwd)) {
+      return;
+    }
+  } catch {
+    // `git config --get-all` exits non-zero when no values are configured yet.
+  }
+  try {
+    execGitSync(["config", "--global", "--add", "safe.directory", gitCwd], { suppressLogs: true });
+    server.debug(`Configured git safe.directory for bridge context: ${gitCwd}`);
+  } catch (error) {
+    server.debug(`Failed to configure git safe.directory '${gitCwd}': ${getErrorMessage(error)}`);
+  }
+}
+
+/**
  * Create handlers for safe output tools
  * @param {Object} server - The MCP server instance for logging
  * @param {Function} appendSafeOutput - Function to append entries to the output file
@@ -752,6 +782,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // This prevents TOCTOU races where the agent flips the ref between patch and bundle
     // generation, causing the two to represent different commit sets.
     const gitCwd = repoCwd || process.env.GITHUB_WORKSPACE || process.cwd();
+    ensureSafeDirectoryTrust(gitCwd, server);
     let pinnedSha;
     try {
       pinnedSha = execGitSync(["rev-parse", "--verify", `refs/heads/${entry.branch}^{commit}`], { cwd: gitCwd })
@@ -1196,6 +1227,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // This prevents TOCTOU races where the agent flips the ref between patch and bundle
     // generation, causing the two to represent different commit sets.
     const pushGitCwd = repoCwd || process.env.GITHUB_WORKSPACE || process.cwd();
+    ensureSafeDirectoryTrust(pushGitCwd, server);
     let pushPinnedSha;
     try {
       pushPinnedSha = execGitSync(["rev-parse", "--verify", `refs/heads/${entry.branch}^{commit}`], { cwd: pushGitCwd })

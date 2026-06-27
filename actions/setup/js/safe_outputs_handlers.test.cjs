@@ -739,6 +739,33 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
+    it("adds GITHUB_WORKSPACE to git safe.directory in the current HOME context before branch pinning", async () => {
+      const testHome = path.join(testWorkspaceDir, "home-safe-directory-create-pr");
+      fs.mkdirSync(testHome, { recursive: true });
+      const previousHome = process.env.HOME;
+      process.env.HOME = testHome;
+      try {
+        await handlers.createPullRequestHandler({
+          branch: "feature-branch",
+          title: "Test PR",
+          body: "Test description",
+        });
+
+        const safeDirectories = execSync("git config --global --get-all safe.directory", {
+          env: { ...process.env, HOME: testHome },
+          stdio: "pipe",
+        })
+          .toString()
+          .split("\n")
+          .map(line => line.trim())
+          .filter(Boolean);
+        expect(safeDirectories).toContain(testWorkspaceDir);
+      } finally {
+        if (previousHome === undefined) delete process.env.HOME;
+        else process.env.HOME = previousHome;
+      }
+    });
+
     it("should include helpful details in error response", async () => {
       const args = {
         branch: "test-branch",
@@ -1206,6 +1233,31 @@ describe("safe_outputs_handlers", () => {
 
       // Should not have appended to safe output since patch generation failed
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("adds GITHUB_WORKSPACE to git safe.directory in the current HOME context before push branch pinning", async () => {
+      const testHome = path.join(testWorkspaceDir, "home-safe-directory-push-pr-branch");
+      fs.mkdirSync(testHome, { recursive: true });
+      const previousHome = process.env.HOME;
+      process.env.HOME = testHome;
+      try {
+        await handlers.pushToPullRequestBranchHandler({
+          branch: "feature-branch",
+        });
+
+        const safeDirectories = execSync("git config --global --get-all safe.directory", {
+          env: { ...process.env, HOME: testHome },
+          stdio: "pipe",
+        })
+          .toString()
+          .split("\n")
+          .map(line => line.trim())
+          .filter(Boolean);
+        expect(safeDirectories).toContain(testWorkspaceDir);
+      } finally {
+        if (previousHome === undefined) delete process.env.HOME;
+        else process.env.HOME = previousHome;
+      }
     });
 
     it("should require explicit pull_request_number when push_to_pull_request_branch target is '*'", async () => {
