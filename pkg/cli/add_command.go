@@ -564,17 +564,15 @@ func applySourceAndIncludeModifications(content string, workflowSpec *WorkflowSp
 		commitSHA = sourceInfo.CommitSHA
 	}
 	sourceString := buildSourceStringWithCommitSHA(workflowSpec, commitSHA)
-	if sourceString == "" {
-		return content, nil
-	}
-
-	updatedContent, err := addSourceToWorkflow(content, sourceString)
-	if err != nil {
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add source field: %v", err)))
+	if sourceString != "" {
+		updatedContent, err := addSourceToWorkflow(content, sourceString)
+		if err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add source field: %v", err)))
+			}
+		} else {
+			content = updatedContent
 		}
-	} else {
-		content = updatedContent
 	}
 
 	// Note: frontmatter 'imports:' are intentionally kept as relative paths here.
@@ -586,6 +584,9 @@ func applySourceAndIncludeModifications(content string, workflowSpec *WorkflowSp
 	// Pass githubWorkflowsDir as localWorkflowDir so that any body-level import
 	// whose target already exists locally is preserved as a local reference rather
 	// than being rewritten to a cross-repo workflowspec.
+	if workflowSpec.RepoSlug == "" || workflowSpec.WorkflowPath == "" {
+		return content, nil
+	}
 	includeSourceDir := ""
 	if sourceInfo != nil && sourceInfo.IsLocal {
 		includeSourceDir = filepath.Dir(workflowSpec.WorkflowPath)
