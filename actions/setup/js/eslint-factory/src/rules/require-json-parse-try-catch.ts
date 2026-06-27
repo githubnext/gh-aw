@@ -2,6 +2,9 @@ import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils"
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/actions/setup/js/eslint-factory#${name}`);
 
+// Statement node types that can be directly wrapped in a try/catch block.
+const WRAPPABLE_STATEMENT_TYPES = new Set<AST_NODE_TYPES>([AST_NODE_TYPES.ExpressionStatement, AST_NODE_TYPES.VariableDeclaration, AST_NODE_TYPES.ReturnStatement, AST_NODE_TYPES.ThrowStatement]);
+
 export const requireJsonParseTryCatchRule = createRule({
   name: "require-json-parse-try-catch",
   meta: {
@@ -31,12 +34,11 @@ export const requireJsonParseTryCatchRule = createRule({
       });
     }
 
-    const WRAPPABLE_STATEMENT_TYPES = new Set<AST_NODE_TYPES>([AST_NODE_TYPES.ExpressionStatement, AST_NODE_TYPES.VariableDeclaration, AST_NODE_TYPES.ReturnStatement, AST_NODE_TYPES.ThrowStatement]);
-
     function findEnclosingStatement(node: TSESTree.Node): TSESTree.Statement | null {
       const ancestors = sourceCode.getAncestors(node);
       for (let i = ancestors.length - 1; i >= 0; i--) {
         const ancestor = ancestors[i];
+        // Safe cast: WRAPPABLE_STATEMENT_TYPES only contains statement node types.
         if (WRAPPABLE_STATEMENT_TYPES.has(ancestor.type)) {
           return ancestor as TSESTree.Statement;
         }
@@ -80,6 +82,7 @@ export const requireJsonParseTryCatchRule = createRule({
                   const stmt = findEnclosingStatement(node);
                   if (!stmt) return null;
                   const stmtText = sourceCode.getText(stmt);
+                  // loc.start.line is 1-based; convert to 0-based array index.
                   const startLine = stmt.loc?.start.line;
                   const stmtLine = startLine !== undefined ? (sourceCode.lines[startLine - 1] ?? "") : "";
                   const indent = stmtLine.match(/^(\s*)/)?.[1] ?? "";
