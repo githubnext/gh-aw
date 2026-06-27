@@ -4,6 +4,8 @@ description: Language Server Protocol (LSP) configuration reference for gh-aw Co
 
 # LSP Configuration
 
+> ⚠️ **Experimental feature.** The `lsp` frontmatter field is experimental. Using it will emit a compile-time warning. The interface may change in future releases.
+
 The `lsp` frontmatter field lets Copilot-engine workflows declare language servers. At compile time, the compiler:
 
 1. Validates the configuration and rejects the workflow if `lsp` is used with a non-Copilot engine.
