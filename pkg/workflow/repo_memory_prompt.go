@@ -2,10 +2,10 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var repoMemoryPromptLog = logger.New("workflow:repo_memory_prompt")
@@ -147,11 +147,7 @@ func buildRepoMemoryPromptSection(config *RepoMemoryConfig) *PromptSection {
 			}
 		}
 		// Convert set to sorted slice for consistent output
-		var allExtensions []string
-		for ext := range extensionSet {
-			allExtensions = append(allExtensions, ext)
-		}
-		sort.Strings(allExtensions)
+		allExtensions := sliceutil.SortedKeys(extensionSet)
 		allowedExtsText = strings.Join(allExtensions, "`, `")
 	}
 

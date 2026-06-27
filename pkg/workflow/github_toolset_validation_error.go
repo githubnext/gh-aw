@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var githubToolsetValidationLog = logger.New("workflow:github_toolset_validation_error")
@@ -35,11 +36,7 @@ func (e *GitHubToolsetValidationError) Error() string {
 	lines = append(lines, "")
 
 	// Sort toolsets for consistent output
-	var toolsets []string
-	for toolset := range e.MissingToolsets {
-		toolsets = append(toolsets, toolset)
-	}
-	sort.Strings(toolsets)
+	toolsets := sliceutil.SortedKeys(e.MissingToolsets)
 
 	// List each missing toolset and the tools that need it
 	for _, toolset := range toolsets {

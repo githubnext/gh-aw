@@ -140,15 +140,9 @@ func canonicalReposScope(repos GitHubReposScope) string {
 				strs = append(strs, strings.ToLower(s))
 			}
 		}
+		strs = sliceutil.Deduplicate(strs)
 		sort.Strings(strs)
-		// Deduplicate
-		deduped := strs[:0]
-		for i, s := range strs {
-			if i == 0 || s != strs[i-1] {
-				deduped = append(deduped, s)
-			}
-		}
-		return strings.Join(deduped, "\n")
+		return strings.Join(strs, "\n")
 
 	case []string:
 		// Typed string slice
@@ -156,15 +150,9 @@ func canonicalReposScope(repos GitHubReposScope) string {
 		for i, s := range v {
 			strs[i] = strings.ToLower(s)
 		}
+		strs = sliceutil.Deduplicate(strs)
 		sort.Strings(strs)
-		// Deduplicate
-		deduped := strs[:0]
-		for i, s := range strs {
-			if i == 0 || s != strs[i-1] {
-				deduped = append(deduped, s)
-			}
-		}
-		return strings.Join(deduped, "\n")
+		return strings.Join(strs, "\n")
 
 	default:
 		// Unexpected type: return empty string for deterministic hash computation

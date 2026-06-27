@@ -2,9 +2,9 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var ghAwSetupLog = logger.New("workflow:gh_aw_setup_steps")
@@ -58,11 +58,7 @@ func generateGhAwSetupStep(config ghAwSetupStepConfig) (GitHubActionStep, error)
 	step = append(step, "        with:")
 	step = append(step, fmt.Sprintf("          version: '%s'", config.cliVersion))
 
-	var keys []string
-	for key := range config.withFields {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := sliceutil.SortedKeys(config.withFields)
 	for _, key := range keys {
 		step = append(step, fmt.Sprintf("          %s: %s", key, config.withFields[key]))
 	}

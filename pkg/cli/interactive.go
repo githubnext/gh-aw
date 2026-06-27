@@ -9,16 +9,15 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
 	"charm.land/huh/v2"
-
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -847,10 +846,6 @@ func detectNetworkFromRepo() []string {
 		}
 	}
 
-	buckets := make([]string, 0, len(seen))
-	for b := range seen {
-		buckets = append(buckets, b)
-	}
-	sort.Strings(buckets)
+	buckets := sliceutil.SortedKeys(seen)
 	return buckets
 }

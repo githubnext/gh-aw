@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -241,10 +242,6 @@ func sortedMissingPermissionKeys(missing map[workflow.PermissionScope]workflow.P
 }
 
 func sortedRemainingPermissionKeys(remaining map[string]workflow.PermissionLevel) []string {
-	keys := make([]string, 0, len(remaining))
-	for key := range remaining {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := sliceutil.SortedKeys(remaining)
 	return keys
 }

@@ -15,6 +15,7 @@ const {
   renderTokenTableAsPlainText,
   TOKEN_USAGE_AUDIT_PATH,
   TOKEN_USAGE_PATH,
+  TOKEN_USAGE_AWF_AUDIT_PATH,
   TOKEN_USAGE_PATHS,
   AGENT_USAGE_PATH,
   DEFAULT_SUMMARY_TITLE,
@@ -45,8 +46,12 @@ describe("parse_token_usage", () => {
       expect(TOKEN_USAGE_PATH).toBe("/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl");
     });
 
-    test("TOKEN_USAGE_PATHS includes audit and legacy paths", () => {
-      expect(TOKEN_USAGE_PATHS).toEqual([TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_PATH]);
+    test("TOKEN_USAGE_AWF_AUDIT_PATH points to firewall AWF audit log file", () => {
+      expect(TOKEN_USAGE_AWF_AUDIT_PATH).toBe("/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl");
+    });
+
+    test("TOKEN_USAGE_PATHS includes legacy, AWF audit, and proxy log paths", () => {
+      expect(TOKEN_USAGE_PATHS).toEqual([TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_AWF_AUDIT_PATH, TOKEN_USAGE_PATH]);
     });
 
     test("AGENT_USAGE_PATH points to agent_usage.json", () => {

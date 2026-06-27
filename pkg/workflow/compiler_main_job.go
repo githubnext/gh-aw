@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -178,11 +177,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Exception: skip any built-in that is already in `depends` (e.g., `activation`),
 	// as those expressions are valid and will evaluate correctly.
 	if engineEnvContent != "" {
-		builtinNames := make([]string, 0, len(constants.KnownBuiltInJobNames))
-		for name := range constants.KnownBuiltInJobNames {
-			builtinNames = append(builtinNames, name)
-		}
-		sort.Strings(builtinNames)
+		builtinNames := sliceutil.SortedKeys(constants.KnownBuiltInJobNames)
 		builtinsWarned := make(map[string]struct {
 		})
 		for _, builtinJobName := range builtinNames {

@@ -1,11 +1,11 @@
 package workflow
 
 import (
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var mcpScriptsRendererLog = logger.New("workflow:mcp_scripts_renderer")
@@ -22,20 +22,12 @@ func collectMCPScriptsSecrets(mcpScripts *MCPScriptsConfig) map[string]string {
 	mcpScriptsRendererLog.Printf("Collecting secrets from %d mcp-scripts tools", len(mcpScripts.Tools))
 
 	// Sort tool names for consistent behavior when same env var appears in multiple tools
-	toolNames := make([]string, 0, len(mcpScripts.Tools))
-	for toolName := range mcpScripts.Tools {
-		toolNames = append(toolNames, toolName)
-	}
-	sort.Strings(toolNames)
+	toolNames := sliceutil.SortedKeys(mcpScripts.Tools)
 
 	for _, toolName := range toolNames {
 		toolConfig := mcpScripts.Tools[toolName]
 		// Sort env var names for consistent order within each tool
-		envNames := make([]string, 0, len(toolConfig.Env))
-		for envName := range toolConfig.Env {
-			envNames = append(envNames, envName)
-		}
-		sort.Strings(envNames)
+		envNames := sliceutil.SortedKeys(toolConfig.Env)
 
 		for _, envName := range envNames {
 			secrets[envName] = toolConfig.Env[envName]

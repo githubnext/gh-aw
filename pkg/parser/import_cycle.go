@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 // findCyclePath uses DFS to find a complete cycle path in the dependency graph.
@@ -17,11 +18,7 @@ func findCyclePath(cycleNodes map[string]struct {
 
 	// Pick any node in the cycle as a starting point (use sorted order for determinism)
 	var startNode string
-	sortedNodes := make([]string, 0, len(cycleNodes))
-	for node := range cycleNodes {
-		sortedNodes = append(sortedNodes, node)
-	}
-	sort.Strings(sortedNodes)
+	sortedNodes := sliceutil.SortedKeys(cycleNodes)
 	if len(sortedNodes) > 0 {
 		startNode = sortedNodes[0]
 	} else {

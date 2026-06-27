@@ -2,11 +2,11 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -323,11 +323,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	allExpressionMappings := make([]*ExpressionMapping, 0, len(expressionMappingsMap))
 
 	// Sort the keys to ensure stable output
-	sortedKeys := make([]string, 0, len(expressionMappingsMap))
-	for key := range expressionMappingsMap {
-		sortedKeys = append(sortedKeys, key)
-	}
-	sort.Strings(sortedKeys)
+	sortedKeys := sliceutil.SortedKeys(expressionMappingsMap)
 
 	// Add mappings in sorted order
 	for _, key := range sortedKeys {
@@ -344,11 +340,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	}
 
 	// Add all environment variables in sorted order for consistency
-	var envKeys []string
-	for key := range allEnvVars {
-		envKeys = append(envKeys, key)
-	}
-	sort.Strings(envKeys)
+	envKeys := sliceutil.SortedKeys(allEnvVars)
 	for _, key := range envKeys {
 		fmt.Fprintf(yaml, "          %s: %s\n", key, allEnvVars[key])
 	}
@@ -681,11 +673,7 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 
 	// Add custom job tools from SafeOutputs.Jobs (sorted for deterministic output).
 	if len(safeOutputs.Jobs) > 0 {
-		jobNames := make([]string, 0, len(safeOutputs.Jobs))
-		for jobName := range safeOutputs.Jobs {
-			jobNames = append(jobNames, jobName)
-		}
-		sort.Strings(jobNames)
+		jobNames := sliceutil.SortedKeys(safeOutputs.Jobs)
 		for _, jobName := range jobNames {
 			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(jobName))
 		}
@@ -693,11 +681,7 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 
 	// Add custom script tools from SafeOutputs.Scripts (sorted for deterministic output).
 	if len(safeOutputs.Scripts) > 0 {
-		scriptNames := make([]string, 0, len(safeOutputs.Scripts))
-		for scriptName := range safeOutputs.Scripts {
-			scriptNames = append(scriptNames, scriptName)
-		}
-		sort.Strings(scriptNames)
+		scriptNames := sliceutil.SortedKeys(safeOutputs.Scripts)
 		for _, scriptName := range scriptNames {
 			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(scriptName))
 		}
@@ -705,11 +689,7 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 
 	// Add custom action tools from SafeOutputs.Actions (sorted for deterministic output).
 	if len(safeOutputs.Actions) > 0 {
-		actionNames := make([]string, 0, len(safeOutputs.Actions))
-		for actionName := range safeOutputs.Actions {
-			actionNames = append(actionNames, actionName)
-		}
-		sort.Strings(actionNames)
+		actionNames := sliceutil.SortedKeys(safeOutputs.Actions)
 		for _, actionName := range actionNames {
 			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(actionName))
 		}

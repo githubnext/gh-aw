@@ -24,12 +24,12 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var modelAliasValidationLog = newValidationLogger("model_alias")
@@ -247,11 +247,7 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 	}{}
 
 	// Iterate keys in deterministic order for reproducible error messages.
-	keys := make([]string, 0, len(aliasMap))
-	for k := range aliasMap {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	keys := sliceutil.SortedKeys(aliasMap)
 
 	state := &dfsState{
 		aliasMap: aliasMap,

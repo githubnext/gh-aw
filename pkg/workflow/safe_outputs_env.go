@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -296,4 +297,82 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 	}
 
 	// Note: All handler configuration is read from the config.json file at runtime.
+}
+
+// systemSafeOutputJobNames contains job names that are built-in system jobs and should not be
+// treated as custom safe output job types in the GH_AW_SAFE_OUTPUT_JOBS mapping.
+// The safe output handler manager uses this mapping to determine which message types are
+// handled by custom job steps (and therefore should be silently skipped rather than flagged
+// as "no handler loaded").
+var systemSafeOutputJobNames = map[string]bool{
+	"safe_outputs":  true, // consolidated safe outputs job
+	"upload_assets": true, // upload assets job
+}
+
+// buildSafeOutputJobsEnvVars creates environment variables for safe output job URLs
+// Returns both a JSON mapping and the actual environment variable declarations.
+// The mapping includes:
+//   - Built-in jobs with known URL outputs (e.g., create_issue → issue_url)
+//   - Custom safe-output jobs (from safe-outputs.jobs) with an empty URL key, so the handler
+//     manager knows those message types are handled by a dedicated job step and should be
+//     skipped gracefully rather than reported as "No handler loaded".
+func buildSafeOutputJobsEnvVars(jobNames []string) (string, []string) {
+	// Map job names to their expected URL output keys
+	jobOutputMapping := make(map[string]string)
+	var envVars []string
+
+	for _, jobName := range jobNames {
+		var urlKey string
+		switch jobName {
+		case "create_issue":
+			urlKey = "issue_url"
+		case "add_comment":
+			urlKey = "comment_url"
+		case "create_pull_request":
+			urlKey = "pull_request_url"
+		case "create_discussion":
+			urlKey = "discussion_url"
+		case "create_pr_review_comment":
+			urlKey = "review_comment_url"
+		case "close_issue":
+			urlKey = "issue_url"
+		case "close_pull_request":
+			urlKey = "pull_request_url"
+		case "close_discussion":
+			urlKey = "discussion_url"
+		case "create_agent_session":
+			urlKey = "task_url"
+		case "push_to_pull_request_branch":
+			urlKey = "commit_url"
+		default:
+			if !systemSafeOutputJobNames[jobName] {
+				// Custom safe-output job: include in the mapping with an empty URL key so the
+				// handler manager can silently skip messages of this type.
+				jobOutputMapping[jobName] = ""
+			}
+			continue
+		}
+
+		jobOutputMapping[jobName] = urlKey
+
+		// Add environment variable for this job's URL output
+		envVarName := fmt.Sprintf("GH_AW_OUTPUT_%s_%s",
+			normalizeJobNameForEnvVar(jobName),
+			normalizeJobNameForEnvVar(urlKey))
+		envVars = append(envVars,
+			fmt.Sprintf("          %s: ${{ needs.%s.outputs.%s }}\n",
+				envVarName, jobName, urlKey))
+	}
+
+	if len(jobOutputMapping) == 0 {
+		return "", nil
+	}
+
+	jsonBytes, err := json.Marshal(jobOutputMapping)
+	if err != nil {
+		safeOutputsEnvLog.Printf("Warning: failed to marshal safe output jobs info: %v", err)
+		return "", nil
+	}
+
+	return string(jsonBytes), envVars
 }

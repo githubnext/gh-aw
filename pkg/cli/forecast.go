@@ -29,6 +29,7 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -796,11 +797,7 @@ func extractTriggerNames(cfg *workflow.FrontmatterConfig) []string {
 	if cfg.On == nil {
 		return nil
 	}
-	names := make([]string, 0, len(cfg.On))
-	for k := range cfg.On {
-		names = append(names, k)
-	}
-	sort.Strings(names)
+	names := sliceutil.SortedKeys(cfg.On)
 	return names
 }
 
