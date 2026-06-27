@@ -407,8 +407,6 @@ func TestBuiltInEngineAuthUnchanged(t *testing.T) {
 		{"codex", "CODEX_API_KEY"},
 		{"copilot", "COPILOT_GITHUB_TOKEN"},
 		{"gemini", "GEMINI_API_KEY"},
-		{"opencode", "COPILOT_GITHUB_TOKEN"},
-		{"crush", "COPILOT_GITHUB_TOKEN"},
 		{"pi", "COPILOT_GITHUB_TOKEN"},
 	}
 

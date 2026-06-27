@@ -886,7 +886,7 @@
       "children": {
         "id": {
           "type": "string",
-          "desc": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog...",
+          "desc": "AI engine identifier: built-in ('antigravity', 'claude', 'codex', 'copilot', 'gemini', 'pi') or a named catalog...",
           "leaf": true
         },
         "version": {

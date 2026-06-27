@@ -308,7 +308,6 @@ func (c *Compiler) validateEngineToolRequirements(frontmatter map[string]any, ag
 		func() error { return c.validateMaxTurnsSupport(frontmatter, agenticEngine) },
 		func() error { return c.validateMaxContinuationsSupport(frontmatter, agenticEngine) },
 		func() error { return c.validateMaxToolDenialsSupport(frontmatter, agenticEngine) },
-		func() error { return c.validateUniversalLLMConsumerModel(frontmatter, agenticEngine) },
 		func() error { return c.validatePiEngineRequirements(NewTools(tools), agenticEngine) },
 	}
 	for _, validator := range validators {

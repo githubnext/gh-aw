@@ -101,7 +101,7 @@ func TestAgenticEngines(t *testing.T) {
 		t.Error("AgenticEngines should not be empty")
 	}
 
-	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
+	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "pi"}
 	if len(AgenticEngines) != len(expectedEngines) {
 		t.Errorf("AgenticEngines length = %d, want %d", len(AgenticEngines), len(expectedEngines))
 	}
@@ -690,8 +690,6 @@ func TestEngineOptions_MultiProviderAlternatives(t *testing.T) {
 		engine string
 		want   []string
 	}{
-		{"opencode", []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY"}},
-		{"crush", []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY"}},
 		{"pi", []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY"}},
 	}
 

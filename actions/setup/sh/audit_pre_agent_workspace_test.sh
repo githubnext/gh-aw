@@ -68,8 +68,6 @@ assert "Contains workspace copilot header" "grep -q 'Workspace copilot' /tmp/gh-
 assert "Contains workspace claude header"  "grep -q 'Workspace claude' /tmp/gh-aw/pre-agent-audit.txt"
 assert "Contains workspace codex header"   "grep -q 'Workspace codex' /tmp/gh-aw/pre-agent-audit.txt"
 assert "Contains workspace gemini header"  "grep -q 'Workspace gemini' /tmp/gh-aw/pre-agent-audit.txt"
-assert "Contains workspace crush header"   "grep -q 'Workspace crush' /tmp/gh-aw/pre-agent-audit.txt"
-assert "Contains workspace opencode header" "grep -q 'Workspace opencode' /tmp/gh-aw/pre-agent-audit.txt"
 assert "Contains workspace pi header"      "grep -q 'Workspace pi' /tmp/gh-aw/pre-agent-audit.txt"
 assert "Contains agent user home header"   "grep -q 'Agent user home' /tmp/gh-aw/pre-agent-audit.txt"
 assert "Contains gh extensions header"     "grep -q 'gh extensions' /tmp/gh-aw/pre-agent-audit.txt"

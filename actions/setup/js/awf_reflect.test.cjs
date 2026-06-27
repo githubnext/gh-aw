@@ -105,7 +105,7 @@ describe("awf_reflect.cjs", () => {
 
     it("does nothing when models_url is null", async () => {
       const reflectData = {
-        endpoints: [{ provider: "opencode", configured: true, models: null, models_url: null }],
+        endpoints: [],
       };
       const logger = () => {};
       await enrichReflectModels(reflectData, 1000, logger);

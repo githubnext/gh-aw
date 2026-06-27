@@ -50,14 +50,7 @@ const SAMPLE_REFLECT = {
       models: null,
       models_url: "http://api-proxy:10003/v1beta/models",
     },
-    {
-      provider: "opencode",
-      port: 10004,
-      base_url: "http://api-proxy:10004",
-      configured: true,
-      models: null,
-      models_url: null,
-    },
+    { port: 10004, base_url: "http://api-proxy:10004", configured: true, models: null, models_url: null },
   ],
   models_fetch_complete: true,
 };

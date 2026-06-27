@@ -428,10 +428,6 @@ case "$ENGINE_TYPE" in
     echo "Using Gemini converter..."
     node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_gemini.cjs"
     ;;
-  crush)
-    echo "Using Crush converter..."
-    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_crush.sh
-    ;;
   *)
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
     echo "Using gateway output directly"

@@ -17,8 +17,6 @@ set +o histexpand
 #   $GITHUB_WORKSPACE/.claude/              - Claude engine config
 #   $GITHUB_WORKSPACE/.codex/               - Codex engine config
 #   $GITHUB_WORKSPACE/.gemini/              - Gemini engine config
-#   $GITHUB_WORKSPACE/.crush/               - Crush engine config
-#   $GITHUB_WORKSPACE/.opencode/            - OpenCode engine config
 #   $GITHUB_WORKSPACE/.pi/                  - Pi engine config
 #
 # Directories scanned (user home):
@@ -85,8 +83,6 @@ list_dir() {
   list_dir "Workspace claude"        "${GITHUB_WORKSPACE}/.claude"
   list_dir "Workspace codex"         "${GITHUB_WORKSPACE}/.codex"
   list_dir "Workspace gemini"        "${GITHUB_WORKSPACE}/.gemini"
-  list_dir "Workspace crush"         "${GITHUB_WORKSPACE}/.crush"
-  list_dir "Workspace opencode"      "${GITHUB_WORKSPACE}/.opencode"
   list_dir "Workspace pi"            "${GITHUB_WORKSPACE}/.pi"
 
   echo "--- User home ---"

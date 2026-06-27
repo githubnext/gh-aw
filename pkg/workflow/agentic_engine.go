@@ -483,8 +483,6 @@ func NewEngineRegistry() *EngineRegistry {
 		NewCopilotEngine(),
 		NewGeminiEngine(),
 		NewAntigravityEngine(),
-		NewOpenCodeEngine(),
-		NewCrushEngine(),
 		NewPiEngine(),
 	}
 	for _, engine := range builtins {

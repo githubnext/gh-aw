@@ -2,7 +2,7 @@ package constants
 
 import "github.com/github/gh-aw/pkg/setutil"
 
-// EngineName represents an AI engine name identifier (copilot, claude, codex, custom).
+// EngineName represents an AI engine name identifier (copilot, claude, codex, gemini, antigravity, pi, custom).
 // This semantic type distinguishes engine names from arbitrary strings,
 // making engine selection explicit and type-safe.
 //
@@ -24,10 +24,6 @@ const (
 	GeminiEngine EngineName = "gemini"
 	// AntigravityEngine is the Antigravity engine identifier
 	AntigravityEngine EngineName = "antigravity"
-	// OpenCodeEngine is the OpenCode engine identifier
-	OpenCodeEngine EngineName = "opencode"
-	// CrushEngine is the Crush engine identifier
-	CrushEngine EngineName = "crush"
 	// PiEngine is the Pi engine identifier (experimental)
 	PiEngine EngineName = "pi"
 
@@ -40,7 +36,7 @@ const (
 // Deprecated: Use workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs() for a
 // catalog-derived list. This slice is maintained for backward compatibility and must
 // stay in sync with the built-in engines registered in NewEngineCatalog.
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(AntigravityEngine), string(OpenCodeEngine), string(CrushEngine), string(PiEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(AntigravityEngine), string(PiEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -100,24 +96,6 @@ var EngineOptions = []EngineOption{
 		SecretName:  AntigravityAPIKey,
 		KeyURL:      "https://aistudio.google.com/app/apikey",
 		WhenNeeded:  "Antigravity engine workflows",
-	},
-	{
-		Value:              string(OpenCodeEngine),
-		Label:              "OpenCode",
-		Description:        "OpenCode multi-provider AI coding agent (BYOK)",
-		SecretName:         CopilotGitHubToken,
-		AlternativeSecrets: []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey},
-		KeyURL:             "https://github.com/anomalyco/opencode",
-		WhenNeeded:         "OpenCode engine workflows (default: Copilot routing)",
-	},
-	{
-		Value:              string(CrushEngine),
-		Label:              "Crush",
-		Description:        "Crush multi-provider AI coding agent (BYOK)",
-		SecretName:         CopilotGitHubToken,
-		AlternativeSecrets: []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey},
-		KeyURL:             "https://github.com/charmbracelet/crush#installation",
-		WhenNeeded:         "Crush engine workflows (default: Copilot routing)",
 	},
 	{
 		Value:              string(PiEngine),
@@ -237,8 +215,6 @@ const (
 	EnvVarModelAgentGemini = "GH_AW_MODEL_AGENT_GEMINI"
 	// EnvVarModelAgentAntigravity configures the default Antigravity model for agent execution
 	EnvVarModelAgentAntigravity = "GH_AW_MODEL_AGENT_ANTIGRAVITY"
-	// EnvVarModelAgentOpenCode configures the default OpenCode model for agent execution
-	EnvVarModelAgentOpenCode = "GH_AW_MODEL_AGENT_OPENCODE"
 	// EnvVarModelDetectionCopilot configures the default Copilot model for detection
 	EnvVarModelDetectionCopilot = "GH_AW_MODEL_DETECTION_COPILOT"
 	// EnvVarModelDetectionClaude configures the default Claude model for detection
@@ -249,12 +225,6 @@ const (
 	EnvVarModelDetectionGemini = "GH_AW_MODEL_DETECTION_GEMINI"
 	// EnvVarModelDetectionAntigravity configures the default Antigravity model for detection
 	EnvVarModelDetectionAntigravity = "GH_AW_MODEL_DETECTION_ANTIGRAVITY"
-	// EnvVarModelDetectionOpenCode configures the default OpenCode model for detection
-	EnvVarModelDetectionOpenCode = "GH_AW_MODEL_DETECTION_OPENCODE"
-	// EnvVarModelAgentCrush configures the default Crush model for agent execution
-	EnvVarModelAgentCrush = "GH_AW_MODEL_AGENT_CRUSH"
-	// EnvVarModelDetectionCrush configures the default Crush model for detection
-	EnvVarModelDetectionCrush = "GH_AW_MODEL_DETECTION_CRUSH"
 	// EnvVarModelAgentPi configures the default Pi model for agent execution
 	EnvVarModelAgentPi = "GH_AW_MODEL_AGENT_PI"
 
@@ -350,14 +320,6 @@ const (
 	// AntigravityCLIModelEnvVar is the native environment variable name supported by the Antigravity CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	AntigravityCLIModelEnvVar = "ANTIGRAVITY_MODEL"
-
-	// CrushCLIModelEnvVar is the native environment variable name for Crush model selection.
-	// Crush uses provider/model format (e.g., "anthropic/claude-sonnet-4-20250514").
-	CrushCLIModelEnvVar = "CRUSH_MODEL"
-
-	// OpenCodeCLIModelEnvVar is the native environment variable name for OpenCode model selection.
-	// OpenCode uses provider/model format (e.g., "anthropic/claude-sonnet-4-20250514").
-	OpenCodeCLIModelEnvVar = "OPENCODE_MODEL"
 
 	// PiCLIModelEnvVar is the native environment variable name for Pi model selection.
 	// Setting PI_MODEL is equivalent to passing --model to the Pi CLI.
