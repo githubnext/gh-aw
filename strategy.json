@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "last_run": "2026-06-27",
+  "scope": "actions/setup/js/eslint-factory",
+  "rules_inventory": [
+    {
+      "name": "require-json-parse-try-catch",
+      "type": "problem",
+      "severity_in_config": "warn",
+      "summary": "Flags JSON.parse(...) calls not lexically inside a try block.",
+      "known_gaps": [
+        "Only matches direct JSON.parse member calls; misses computed access JSON['parse'](), destructured { parse } = JSON, and aliased const p = JSON.parse.",
+        "isInsideTryBlock uses lexical ancestry; unsound for deferred callbacks (.then/.catch/addEventListener/.on/setTimeout/setInterval/queueMicrotask/Promise executor) defined in a try but invoked later.",
+        "Generic diagnostic, no hasSuggestions/suggest fix, does not reference canonical safe-parse helpers already in the repo (parseJsonWithRepair, parseJsonlContent)."
+      ]
+    }
+  ],
+  "codebase_signals": {
+    "non_test_cjs_files": 360,
+    "files_using_json_parse": 107,
+    "deferred_api_call_sites": 104,
+    "indirect_json_parse_found": 0,
+    "existing_safe_parse_helpers": [
+      "collect_ndjson_output.cjs:parseJsonWithRepair",
+      "jsonl_helpers.cjs:parseJsonlContent"
+    ]
+  },
+  "refinement_priorities": [
+    "P1 false-negative: indirect/computed JSON.parse access invisible to rule",
+    "P2 false-negative: lexical try-ancestry unsound for deferred callbacks",
+    "P3 diagnostic-quality: add ESLint suggestion + reference canonical helpers"
+  ],
+  "next_run_notes": [
+    "Live lint could not be run: npm/network blocked in sandbox, no node_modules/dist. Rely on static analysis of rule source vs real cjs patterns.",
+    "Repo-memory dir not readable via fs tools in sandbox; treat each run as append-only via push_repo_memory.",
+    "No pre-existing eslint/refiner issues in repo as of this run; future runs should re-check before creating duplicates."
+  ]
+}
