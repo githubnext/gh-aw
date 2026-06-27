@@ -211,9 +211,9 @@ func TestRenderSharedMCPConfig_HTTPWithHeaderSecrets(t *testing.T) {
 	// Check that headers use env var references instead of secret expressions
 	expectedHeaderChecks := []string{
 		`"headers": {`,
-		`"DD_API_KEY": "\\${DD_API_KEY}"`,
-		`"DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}"`,
-		`"DD_SITE": "\\${DD_SITE}"`,
+		`"DD_API_KEY": "\${DD_API_KEY}"`,
+		`"DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}"`,
+		`"DD_SITE": "\${DD_SITE}"`,
 	}
 
 	for _, expected := range expectedHeaderChecks {
@@ -225,9 +225,9 @@ func TestRenderSharedMCPConfig_HTTPWithHeaderSecrets(t *testing.T) {
 	// Check that env passthrough section is present
 	expectedEnvChecks := []string{
 		`"env": {`,
-		`"DD_API_KEY": "\\${DD_API_KEY}"`,
-		`"DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}"`,
-		`"DD_SITE": "\\${DD_SITE}"`,
+		`"DD_API_KEY": "\${DD_API_KEY}"`,
+		`"DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}"`,
+		`"DD_SITE": "\${DD_SITE}"`,
 	}
 
 	for _, expected := range expectedEnvChecks {

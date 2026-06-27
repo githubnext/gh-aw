@@ -101,7 +101,7 @@ tools:
   - make build
   - make fmt
   - make recompile
-  - ./gh-aw compile *
+  - ./gh-aw compile
   - git
   cache-memory: null
   cli-proxy: true

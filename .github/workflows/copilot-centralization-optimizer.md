@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
   copilot-requests: write
+sandbox:
+  agent:
+    sudo: false
 tools:
   repo-memory:
     branch-name: memory/copilot-centralization-optimizer

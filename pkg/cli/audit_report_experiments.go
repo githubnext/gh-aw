@@ -10,11 +10,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var experimentDataLog = logger.New("cli:audit_report_experiments")
@@ -112,11 +112,7 @@ func extractExperimentData(logsPath string) *ExperimentData {
 	// Derive this-run assignments: the variant selected on the most-recent run is
 	// the one with the maximum count (ties resolved by sorted order).
 	assignments := make(map[string]string, len(state.Counts))
-	names := make([]string, 0, len(state.Counts))
-	for name := range state.Counts {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := sliceutil.SortedKeys(state.Counts)
 
 	for _, name := range names {
 		variantCounts := state.Counts[name]
@@ -145,11 +141,7 @@ func formatExperimentLabel(exp *ExperimentData) string {
 		return ""
 	}
 
-	names := make([]string, 0, len(exp.Assignments))
-	for name := range exp.Assignments {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := sliceutil.SortedKeys(exp.Assignments)
 
 	parts := make([]string, 0, len(names))
 	for _, name := range names {
@@ -196,11 +188,7 @@ func deriveLastSelectedVariant(variantCounts map[string]int) string {
 		return ""
 	}
 
-	variants := make([]string, 0, len(variantCounts))
-	for v := range variantCounts {
-		variants = append(variants, v)
-	}
-	sort.Strings(variants)
+	variants := sliceutil.SortedKeys(variantCounts)
 
 	selected := variants[0]
 	maxCount := variantCounts[selected]

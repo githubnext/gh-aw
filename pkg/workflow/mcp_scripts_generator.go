@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -44,11 +45,7 @@ func GenerateMCPScriptsToolsConfig(mcpScripts *MCPScriptsConfig) string {
 	}
 
 	// Sort tool names for stable output
-	toolNames := make([]string, 0, len(mcpScripts.Tools))
-	for toolName := range mcpScripts.Tools {
-		toolNames = append(toolNames, toolName)
-	}
-	sort.Strings(toolNames)
+	toolNames := sliceutil.SortedKeys(mcpScripts.Tools)
 
 	for _, toolName := range toolNames {
 		toolConfig := mcpScripts.Tools[toolName]
@@ -67,11 +64,7 @@ func GenerateMCPScriptsToolsConfig(mcpScripts *MCPScriptsConfig) string {
 		var required []string
 
 		// Sort input names for stable output
-		inputNames := make([]string, 0, len(toolConfig.Inputs))
-		for paramName := range toolConfig.Inputs {
-			inputNames = append(inputNames, paramName)
-		}
-		sort.Strings(inputNames)
+		inputNames := sliceutil.SortedKeys(toolConfig.Inputs)
 
 		for _, paramName := range inputNames {
 			param := toolConfig.Inputs[paramName]
@@ -112,11 +105,7 @@ func GenerateMCPScriptsToolsConfig(mcpScripts *MCPScriptsConfig) string {
 		if len(toolConfig.Env) > 0 {
 			envRefs = make(map[string]string)
 			// Sort env var names for stable output
-			envVarNames := make([]string, 0, len(toolConfig.Env))
-			for envVarName := range toolConfig.Env {
-				envVarNames = append(envVarNames, envVarName)
-			}
-			sort.Strings(envVarNames)
+			envVarNames := sliceutil.SortedKeys(toolConfig.Env)
 
 			for _, envVarName := range envVarNames {
 				// Store just the environment variable name without $ prefix or secret value
@@ -206,11 +195,7 @@ func GenerateMCPScriptJavaScriptToolScript(toolConfig *MCPScriptToolConfig) stri
 	sb.WriteString(" * " + toolConfig.Description + "\n")
 	sb.WriteString(" * @param {Object} inputs - Input parameters\n")
 	// Sort input names for stable code generation in JSDoc
-	inputNamesForDoc := make([]string, 0, len(toolConfig.Inputs))
-	for paramName := range toolConfig.Inputs {
-		inputNamesForDoc = append(inputNamesForDoc, paramName)
-	}
-	sort.Strings(inputNamesForDoc)
+	inputNamesForDoc := sliceutil.SortedKeys(toolConfig.Inputs)
 	for _, paramName := range inputNamesForDoc {
 		param := toolConfig.Inputs[paramName]
 		fmt.Fprintf(&sb, " * @param {%s} inputs.%s - %s\n", param.Type, paramName, param.Description)
@@ -292,11 +277,7 @@ func GenerateMCPScriptPythonToolScript(toolConfig *MCPScriptToolConfig) string {
 	if len(toolConfig.Inputs) > 0 {
 		sb.WriteString("# Input parameters available in 'inputs' dictionary:\n")
 		// Sort input names for stable code generation
-		inputNames := make([]string, 0, len(toolConfig.Inputs))
-		for paramName := range toolConfig.Inputs {
-			inputNames = append(inputNames, paramName)
-		}
-		sort.Strings(inputNames)
+		inputNames := sliceutil.SortedKeys(toolConfig.Inputs)
 		for _, paramName := range inputNames {
 			param := toolConfig.Inputs[paramName]
 			defaultValue := ""
@@ -350,11 +331,7 @@ func GenerateMCPScriptGoToolScript(toolConfig *MCPScriptToolConfig) string {
 	if len(toolConfig.Inputs) > 0 {
 		sb.WriteString("\t// Input parameters available in 'inputs' map:\n")
 		// Sort input names for stable code generation
-		inputNames := make([]string, 0, len(toolConfig.Inputs))
-		for paramName := range toolConfig.Inputs {
-			inputNames = append(inputNames, paramName)
-		}
-		sort.Strings(inputNames)
+		inputNames := sliceutil.SortedKeys(toolConfig.Inputs)
 		for _, paramName := range inputNames {
 			param := toolConfig.Inputs[paramName]
 			fmt.Fprintf(&sb, "\t// %s := inputs[\"%s\"]  // %s\n", stringutil.SanitizePythonVariableName(paramName), paramName, param.Description)

@@ -14,6 +14,9 @@ permissions:
 engine:
   id: copilot
 strict: true
+sandbox:
+  agent:
+    sudo: false
 timeout-minutes: 5
 network: {}
 safe-outputs:

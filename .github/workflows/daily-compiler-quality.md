@@ -26,6 +26,7 @@ safe-outputs:
     max: 1
     min-body-length: 200
     title-prefix: "[daily-compiler-quality] "
+  noop:
 description: Analyzes compiler code daily to assess if it meets human-written quality standards, creates discussion reports, and uses cache memory to avoid re-analyzing unchanged files
 emoji: 📊
 engine:
@@ -376,6 +377,7 @@ Generate a comprehensive discussion report with findings.
 4. Only call `create_discussion` after the final report body is complete and fully rendered.
 5. If you cannot produce a valid discussion body, or decide no discussion should be created, call `noop` directly with a brief explanation instead of returning plain text.
 6. The workflow enforces a **minimum 200-character body length**, so very short outputs (placeholder or otherwise) will fail safe-outputs.
+7. **Before finishing, confirm you called either `create_discussion` or `noop`.** If not, call `noop` immediately with a short explanation. Never end the run with plain text only.
 
 ### Direct Tool Call Examples
 

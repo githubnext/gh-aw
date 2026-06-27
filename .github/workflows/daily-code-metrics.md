@@ -12,6 +12,9 @@ permissions:
   pull-requests: read
 tracker-id: daily-code-metrics
 engine: claude
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

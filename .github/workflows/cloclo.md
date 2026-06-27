@@ -27,6 +27,9 @@ imports:
   - shared/mcp/serena-go.md
   - shared/reporting.md
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   agentic-workflows:

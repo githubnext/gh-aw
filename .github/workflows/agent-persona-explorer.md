@@ -35,6 +35,9 @@ experiments:
 # - Output limits: Concise documentation (<1000 words with progressive disclosure)
 # - Target: 30-50% token reduction while maintaining quality
 # Note: max-turns not available for default Copilot engine (Claude only)
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

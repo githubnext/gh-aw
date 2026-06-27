@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 // topologicalSortImports sorts imports in topological order using Kahn's algorithm.
@@ -131,11 +132,7 @@ func calculateInDegree(imports []string, dependencies map[string][]string, allIm
 }
 
 func sortedDependencyKeys(dependencies map[string][]string) []string {
-	sortedImports := make([]string, 0, len(dependencies))
-	for imp := range dependencies {
-		sortedImports = append(sortedImports, imp)
-	}
-	sort.Strings(sortedImports)
+	sortedImports := sliceutil.SortedKeys(dependencies)
 	return sortedImports
 }
 

@@ -30,6 +30,9 @@ safe-outputs:
     run-success: "✅ Research complete. [{workflow_name}]({run_url}) has returned with results."
     run-failure: "❌ Search failed. [{workflow_name}]({run_url}) {status}. Unable to retrieve web sources."
 timeout-minutes: 10
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
 features:

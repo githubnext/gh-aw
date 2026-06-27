@@ -137,10 +137,6 @@ func convertEffectiveTokensToAICredits(effectiveTokens int) (string, bool) {
 	return strconv.Itoa(aiCredits), true
 }
 
-func isExpressionValue(value string) bool {
-	return strings.Contains(value, "${{") && strings.Contains(value, "}}")
-}
-
 func rewriteTopLevelScalarLine(line, newKey, normalizedValue string) string {
 	indent := getIndentation(line)
 	parts := strings.SplitN(line, ":", 2)

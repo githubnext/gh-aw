@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/types"
 )
 
@@ -401,11 +401,16 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					if _, exists := renderedEnv[varName]; !exists {
 						// SECURITY: use passthrough syntax for all engines so the MCP gateway passes
 						// the env var value to the MCP server rather than the literal secret expression.
-						// Use passthrough syntax: "VAR_NAME": "\\${VAR_NAME}"
+						// The lock-file value is \${VAR_NAME} (single backslash); bash collapses \$ → $
+						// so the heredoc delivers ${VAR_NAME} to the gateway for env-var expansion.
 						renderedEnv[varName] = "\\${" + varName + "}"
 					}
 				}
-				writeJSONStringMapSection(yaml, renderer.IndentLevel, "env", renderedEnv, !isLast)
+				// Use raw (non-json.Marshal) writing for env values because they are placed
+				// inside an unquoted heredoc and may contain pre-escaped shell placeholders
+				// like \${VAR}. Passing those through json.Marshal would double-escape the
+				// backslash (\${VAR} → \\${VAR}), producing invalid JSON after bash processing.
+				writeJSONStringMapSectionRaw(yaml, renderer.IndentLevel, "env", renderedEnv, !isLast)
 			}
 		case "url":
 			// Rewrite localhost URLs to host.docker.internal when running inside firewall container
@@ -439,7 +444,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				}
 				renderedHeaders[headerKey] = headerValue
 			}
-			writeJSONStringMapSection(yaml, renderer.IndentLevel, "headers", renderedHeaders, !isLast)
+			// Use raw (non-json.Marshal) writing for header values because they are placed
+			// inside an unquoted heredoc and may contain pre-escaped shell placeholders
+			// like \${VAR}. Passing those through json.Marshal would double-escape the
+			// backslash (\${VAR} → \\${VAR}), producing invalid JSON after bash processing.
+			writeJSONStringMapSectionRaw(yaml, renderer.IndentLevel, "headers", renderedHeaders, !isLast)
 		case "auth":
 			// Auth field - upstream OIDC authentication config (HTTP servers only, JSON format only)
 			// Guard against nil auth (defensive check, existingProperties should have filtered this out)
@@ -565,11 +574,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryM
 		if !setutil.Contains(knownProperties, key) {
 			mcpCustomLog.Printf("Unknown property '%s' in MCP config for tool '%s'", key, toolName)
 			// Build list of valid properties
-			validProps := []string{}
-			for prop := range knownProperties {
-				validProps = append(validProps, prop)
-			}
-			sort.Strings(validProps)
+			validProps := sliceutil.SortedKeys(knownProperties)
 			return nil, fmt.Errorf(
 				"unknown property '%s' in MCP configuration for tool '%s'. Valid properties are: %s. "+
 					"Example:\n"+

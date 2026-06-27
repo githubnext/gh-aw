@@ -11,19 +11,18 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/spf13/cobra"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/tty"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/spf13/cobra"
 )
 
 var experimentsLog = logger.New("cli:experiments_command")
@@ -833,11 +832,7 @@ func formatAssignments(assignments map[string]string) string {
 	if len(assignments) == 0 {
 		return "-"
 	}
-	keys := make([]string, 0, len(assignments))
-	for k := range assignments {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	keys := sliceutil.SortedKeys(assignments)
 	parts := make([]string, 0, len(keys))
 	for _, k := range keys {
 		parts = append(parts, k+"="+assignments[k])

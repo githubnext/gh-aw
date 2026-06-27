@@ -43,6 +43,9 @@ engine:
 name: Daily MCP Tool Concurrency Analysis
 strict: true
 timeout-minutes: 45
+sandbox:
+  agent:
+    sudo: false
 tools:
   bash:
   - cat pkg/workflow/js/safe_outputs_tools.json

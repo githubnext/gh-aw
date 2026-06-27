@@ -7,12 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -662,10 +662,6 @@ func extractMCPServerNamesFromAwInfo(logsPath string) ([]string, bool) {
 		return nil, false
 	}
 
-	names := make([]string, 0, len(servers))
-	for name := range servers {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := sliceutil.SortedKeys(servers)
 	return names, len(names) > 0
 }

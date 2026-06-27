@@ -29,6 +29,9 @@ experiments:
     analysis_type: mann_whitney
     tags: [tone, output-quality, triage]
     issue: 36105
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

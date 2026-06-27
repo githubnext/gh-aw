@@ -6,7 +6,8 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
-	"sort"
+
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 const usageActivitySummarySchema = "usage-activity-summary/v1"
@@ -112,16 +113,8 @@ func applyUsageActivitySummaryToResult(summary *usageActivitySummary, result *Do
 				blockedSet[domain] = struct{}{}
 			}
 		}
-		allowedDomains := make([]string, 0, len(allowedSet))
-		for domain := range allowedSet {
-			allowedDomains = append(allowedDomains, domain)
-		}
-		sort.Strings(allowedDomains)
-		blockedDomains := make([]string, 0, len(blockedSet))
-		for domain := range blockedSet {
-			blockedDomains = append(blockedDomains, domain)
-		}
-		sort.Strings(blockedDomains)
+		allowedDomains := sliceutil.SortedKeys(allowedSet)
+		blockedDomains := sliceutil.SortedKeys(blockedSet)
 
 		result.FirewallAnalysis = &FirewallAnalysis{
 			DomainBuckets: DomainBuckets{

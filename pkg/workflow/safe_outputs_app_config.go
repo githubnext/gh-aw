@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -511,11 +510,7 @@ func (c *Compiler) buildActivationAppTokenMintStep(app *GitHubAppConfig, permiss
 	if permissions != nil {
 		permissionFields := convertPermissionsToAppTokenFields(permissions)
 
-		keys := make([]string, 0, len(permissionFields))
-		for key := range permissionFields {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
+		keys := sliceutil.SortedKeys(permissionFields)
 
 		for _, key := range keys {
 			steps = append(steps, fmt.Sprintf("          %s: %s\n", key, permissionFields[key]))

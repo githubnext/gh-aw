@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var agenticEngineLog = logger.New("workflow:agentic_engine")
@@ -540,11 +541,7 @@ func (r *EngineRegistry) GetEngine(id string) (CodingAgentEngine, error) {
 // GetSupportedEngines returns a list of all supported engine IDs
 func (r *EngineRegistry) GetSupportedEngines() []string {
 	agenticEngineLog.Print("Getting list of supported engines")
-	var engines []string
-	for id := range r.engines {
-		engines = append(engines, id)
-	}
-	sort.Strings(engines)
+	engines := sliceutil.SortedKeys(r.engines)
 	return engines
 }
 

@@ -30,12 +30,12 @@ package workflow
 import (
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var engineCatalogLog = logger.New("workflow:engine_definition")
@@ -210,11 +210,7 @@ func (c *EngineCatalog) Get(id string) *EngineDefinition {
 
 // IDs returns a sorted list of all engine IDs in the catalog.
 func (c *EngineCatalog) IDs() []string {
-	ids := make([]string, 0, len(c.definitions))
-	for id := range c.definitions {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
+	ids := sliceutil.SortedKeys(c.definitions)
 	return ids
 }
 

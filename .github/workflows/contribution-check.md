@@ -23,6 +23,9 @@ engine:
 
 imports:
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

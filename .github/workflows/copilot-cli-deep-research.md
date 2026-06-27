@@ -32,6 +32,9 @@ engine:
   copilot-sdk: true
 strict: true
 timeout-minutes: 20
+sandbox:
+  agent:
+    sudo: false
 tools:
   bash:
   - "*"

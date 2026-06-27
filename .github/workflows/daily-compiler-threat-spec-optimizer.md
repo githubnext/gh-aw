@@ -33,6 +33,9 @@ engine:
 name: Daily Compiler Threat Spec Optimizer
 strict: true
 timeout-minutes: 30
+sandbox:
+  agent:
+    sudo: false
 tools:
   bash:
   - git

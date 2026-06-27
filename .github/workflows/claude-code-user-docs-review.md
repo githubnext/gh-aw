@@ -26,6 +26,9 @@ network:
     - defaults
     - github
 
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   cache-memory: true

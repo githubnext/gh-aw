@@ -907,9 +907,10 @@ jobs:
     # Only run benchmarks on main branch for performance tracking
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: read
+      actions: read
     concurrency:
       group: ci-${{ github.ref }}-bench
       cancel-in-progress: true
@@ -959,8 +960,92 @@ jobs:
     - name: Verify dependencies
       run: go mod verify
 
+    - name: Install benchstat
+      run: go install golang.org/x/perf/cmd/benchstat@v0.0.0-20260615155930-9e4b9ddef5b6
+
+    - name: Download previous benchmark baseline
+      id: baseline
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set +e
+        echo "Looking for previous benchmark-results artifact..."
+        # The bench job only runs on main, so any benchmark-results artifact is from main.
+        # The artifacts API includes workflow_run.head_branch; filter for main as an extra safeguard.
+        artifact_id=$(gh api \
+          "repos/$GITHUB_REPOSITORY/actions/artifacts?name=benchmark-results&per_page=10" \
+          --jq '[.artifacts[] | select(.workflow_run.head_branch? == "main")] | .[0].id // empty' 2>/dev/null)
+
+        if [ -n "$artifact_id" ]; then
+          echo "Found artifact ID: $artifact_id"
+          mkdir -p baseline
+          if gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
+            --output baseline.zip 2>/dev/null; then
+            if unzip -q baseline.zip -d baseline 2>/dev/null && [ -f baseline/bench_results.txt ]; then
+              echo "✅ Downloaded baseline benchmark results"
+              echo "has_baseline=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "⚠️ Failed to extract baseline artifact or bench_results.txt not found"
+              echo "has_baseline=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "⚠️ Failed to download baseline artifact"
+            echo "has_baseline=false" >> "$GITHUB_OUTPUT"
+          fi
+        else
+          echo "ℹ️ No previous benchmark results found — skipping regression check on first run"
+          echo "has_baseline=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Run benchmarks
       run: make bench
+
+    - name: Run benchstat regression check
+      if: steps.baseline.outputs.has_baseline == 'true'
+      run: |
+        echo "## 📈 Benchmark Regression Check" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if ! benchstat_out=$(benchstat baseline/bench_results.txt bench_results.txt 2>&1); then
+          echo "$benchstat_out"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$benchstat_out" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "❌ **benchstat failed to compare benchmark results.** Check the output above." >> $GITHUB_STEP_SUMMARY
+          echo "::error::benchstat failed to compare benchmark results"
+          exit 1
+        fi
+
+        echo "$benchstat_out"
+
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "$benchstat_out" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+
+        # Fail if any benchmark regresses by more than 10%.
+        # benchstat uses + for slower time (regression) and - for faster time (improvement).
+        REGRESSION=false
+        while IFS= read -r line; do
+          if [[ "$line" =~ \+([0-9]+(\.[0-9]+)?)% ]]; then
+            pct="${BASH_REMATCH[1]}"
+            if awk -v p="$pct" 'BEGIN {exit !(p > 10)}'; then
+              echo "❌ Regression: $line"
+              REGRESSION=true
+            fi
+          fi
+        done <<< "$benchstat_out"
+
+        if [ "$REGRESSION" = "true" ]; then
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "❌ **Performance regression >10% detected.** See comparison above." >> $GITHUB_STEP_SUMMARY
+          echo "::error::Performance regression >10% detected — see benchstat output above"
+          exit 1
+        else
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ No significant performance regressions detected." >> $GITHUB_STEP_SUMMARY
+          echo "✅ No regressions detected"
+        fi
 
     - name: Display benchmark summary
       run: |
