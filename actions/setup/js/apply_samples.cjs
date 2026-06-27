@@ -230,7 +230,12 @@ async function derivePrHeadRef(entry) {
   //      for the tool — covers siderepo workflow_dispatch where the sample arguments
   //      carry `pull_request_number` but not a `repo` override (issue #41292).
   //   c. GITHUB_REPOSITORY — host repo fallback.
-  const repoSlug = (typeof entry.arguments.repo === "string" && entry.arguments.repo.trim()) || readConfiguredTargetRepo(entry.tool) || process.env.GITHUB_REPOSITORY || "";
+  let repoSlug = "";
+  if (typeof entry.arguments.repo === "string" && entry.arguments.repo.trim()) {
+    repoSlug = entry.arguments.repo.trim();
+  } else {
+    repoSlug = readConfiguredTargetRepo(entry.tool) || process.env.GITHUB_REPOSITORY || "";
+  }
   const [owner, repo] = repoSlug.split("/");
   if (!owner || !repo) return null;
 
