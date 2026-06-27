@@ -139,7 +139,7 @@ func appendCopilotLSPInstallSteps(steps []GitHubActionStep, workflowData *Workfl
 		return steps
 	}
 	manager := NewLSPManager(workflowData.LSP)
-	lspSteps := manager.GenerateInstallSteps()
+	lspSteps := manager.GenerateInstallSteps(workflowData)
 	if len(lspSteps) == 0 {
 		return steps
 	}

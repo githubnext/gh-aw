@@ -70,11 +70,58 @@ func TestLSPManagerGenerateInstallSteps(t *testing.T) {
 		},
 	})
 
-	steps := manager.GenerateInstallSteps()
+	// Default: --ignore-scripts + cooldown enabled
+	steps := manager.GenerateInstallSteps(nil)
 	require.Len(t, steps, 1)
 	content := strings.Join(steps[0], "\n")
 	assert.Contains(t, content, "Install TypeScript LSP dependencies")
 	assert.Contains(t, content, "npm install -g --ignore-scripts typescript typescript-language-server")
+	assert.Contains(t, content, "NPM_CONFIG_MIN_RELEASE_AGE")
+}
+
+func TestLSPManagerGenerateInstallSteps_RunInstallScripts(t *testing.T) {
+	// When run-install-scripts is enabled, --ignore-scripts must be omitted.
+	manager := NewLSPManager(map[string]LSPServerConfig{
+		"typescript": {
+			Command: "typescript-language-server",
+			FileExtensions: map[string]string{
+				".ts": "typescript",
+			},
+		},
+	})
+	workflowData := &WorkflowData{
+		RunInstallScripts: true,
+	}
+	steps := manager.GenerateInstallSteps(workflowData)
+	require.Len(t, steps, 1)
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "npm install -g typescript typescript-language-server")
+	assert.NotContains(t, content, "--ignore-scripts")
+}
+
+func TestLSPManagerGenerateInstallSteps_CooldownDisabled(t *testing.T) {
+	// When runtimes.node.cooldown: false, NPM_CONFIG_MIN_RELEASE_AGE must not appear.
+	manager := NewLSPManager(map[string]LSPServerConfig{
+		"yaml": {
+			Command: "yaml-language-server",
+			FileExtensions: map[string]string{
+				".yaml": "yaml",
+			},
+		},
+	})
+	falseVal := false
+	workflowData := &WorkflowData{
+		ParsedFrontmatter: &FrontmatterConfig{
+			RuntimesTyped: &RuntimesConfig{
+				Node: &RuntimeConfig{Cooldown: &falseVal},
+			},
+		},
+	}
+	steps := manager.GenerateInstallSteps(workflowData)
+	require.Len(t, steps, 1)
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "--ignore-scripts")
+	assert.NotContains(t, content, "NPM_CONFIG_MIN_RELEASE_AGE")
 }
 
 func TestLSPManagerRuntimeRequirements_NodeBased(t *testing.T) {

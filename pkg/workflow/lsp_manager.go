@@ -80,9 +80,31 @@ func (m *LSPManager) CopilotLSPServers() map[string]LSPServerConfig {
 	return result
 }
 
-func (m *LSPManager) GenerateInstallSteps() []GitHubActionStep {
+// GenerateInstallSteps generates GitHub Actions steps that install the LSP server
+// binary dependencies for all configured LSP servers.
+//
+// For npm-based servers the generated install command respects the workflow's
+// runtime-manager settings:
+//   - workflowData.RunInstallScripts (runtimes.node.run-install-scripts) controls
+//     whether --ignore-scripts is omitted (default: scripts disabled).
+//   - resolveRuntimeCooldown (runtimes.node.cooldown) controls whether
+//     NPM_CONFIG_MIN_RELEASE_AGE is injected (default: cooldown enabled).
+//
+// Pass nil for workflowData to get secure defaults (--ignore-scripts, cooldown on).
+func (m *LSPManager) GenerateInstallSteps(workflowData *WorkflowData) []GitHubActionStep {
 	if !m.HasServers() {
 		return nil
+	}
+
+	// Determine npm install flags from runtime-manager settings.
+	// Defaults match the runtime manager's secure defaults:
+	//   - --ignore-scripts ON (supply-chain protection)
+	//   - cooldown ON (NPM_CONFIG_MIN_RELEASE_AGE)
+	runInstallScripts := false
+	cooldownEnabled := true
+	if workflowData != nil {
+		runInstallScripts = workflowData.RunInstallScripts
+		cooldownEnabled = resolveRuntimeCooldown(workflowData, "node")
 	}
 
 	langs := make([]string, 0, len(m.servers))
@@ -97,10 +119,34 @@ func (m *LSPManager) GenerateInstallSteps() []GitHubActionStep {
 		if !ok {
 			continue
 		}
-		step := GitHubActionStep{
-			"      - name: " + spec.StepName,
-			"        run: " + spec.Command,
-			"        timeout-minutes: 10",
+
+		var step GitHubActionStep
+		if len(spec.NpmPackages) > 0 {
+			// npm-based LSP server: build install command from runtime-manager settings.
+			args := []string{"npm", "install", "-g"}
+			if !runInstallScripts {
+				args = append(args, "--ignore-scripts")
+			}
+			args = append(args, spec.NpmPackages...)
+			installCmd := strings.Join(args, " ")
+			step = GitHubActionStep{
+				"      - name: " + spec.StepName,
+				"        run: " + installCmd,
+			}
+			if cooldownEnabled {
+				step = append(step,
+					"        env:",
+					fmt.Sprintf("          NPM_CONFIG_MIN_RELEASE_AGE: '%d'", npmDefaultCooldownDays),
+				)
+			}
+			step = append(step, "        timeout-minutes: 10")
+		} else {
+			// Non-npm LSP server (go install, gem install, rustup): use raw command.
+			step = GitHubActionStep{
+				"      - name: " + spec.StepName,
+				"        run: " + spec.Command,
+				"        timeout-minutes: 10",
+			}
 		}
 		steps = append(steps, step)
 	}
@@ -160,16 +206,17 @@ func (m *LSPManager) RuntimeRequirements() []RuntimeRequirement {
 }
 
 type lspInstallSpec struct {
-	StepName  string
-	Command   string
-	RuntimeID string // runtime manager ID for the runtime needed to run this LSP server
+	StepName    string
+	NpmPackages []string // Non-nil: install these packages globally via npm (respects RunInstallScripts + cooldown)
+	Command     string   // Non-empty: raw install command for non-npm runtimes (go, gem, rustup)
+	RuntimeID   string   // runtime manager ID for the runtime needed to run this LSP server
 }
 
 var lspInstallSpecs = map[string]lspInstallSpec{
 	"bash": {
-		StepName:  "Install Bash LSP dependencies",
-		Command:   "npm install -g --ignore-scripts bash-language-server",
-		RuntimeID: "node",
+		StepName:    "Install Bash LSP dependencies",
+		NpmPackages: []string{"bash-language-server"},
+		RuntimeID:   "node",
 	},
 	"go": {
 		StepName:  "Install Go LSP dependencies",
@@ -177,14 +224,14 @@ var lspInstallSpecs = map[string]lspInstallSpec{
 		RuntimeID: "go",
 	},
 	"php": {
-		StepName:  "Install PHP LSP dependencies",
-		Command:   "npm install -g --ignore-scripts intelephense",
-		RuntimeID: "node",
+		StepName:    "Install PHP LSP dependencies",
+		NpmPackages: []string{"intelephense"},
+		RuntimeID:   "node",
 	},
 	"python": {
-		StepName:  "Install Python LSP dependencies",
-		Command:   "npm install -g --ignore-scripts pyright",
-		RuntimeID: "node",
+		StepName:    "Install Python LSP dependencies",
+		NpmPackages: []string{"pyright"},
+		RuntimeID:   "node",
 	},
 	"ruby": {
 		StepName:  "Install Ruby LSP dependencies",
@@ -197,13 +244,13 @@ var lspInstallSpecs = map[string]lspInstallSpec{
 		RuntimeID: "", // Rust is not in knownRuntimes; runtime setup is done via rustup
 	},
 	"typescript": {
-		StepName:  "Install TypeScript LSP dependencies",
-		Command:   "npm install -g --ignore-scripts typescript typescript-language-server",
-		RuntimeID: "node",
+		StepName:    "Install TypeScript LSP dependencies",
+		NpmPackages: []string{"typescript", "typescript-language-server"},
+		RuntimeID:   "node",
 	},
 	"yaml": {
-		StepName:  "Install YAML LSP dependencies",
-		Command:   "npm install -g --ignore-scripts yaml-language-server",
-		RuntimeID: "node",
+		StepName:    "Install YAML LSP dependencies",
+		NpmPackages: []string{"yaml-language-server"},
+		RuntimeID:   "node",
 	},
 }
