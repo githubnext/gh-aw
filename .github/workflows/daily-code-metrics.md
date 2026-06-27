@@ -32,7 +32,6 @@ imports:
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-code-metrics] "
-  - shared/python-dataviz.md
   - shared/trends.md
 
 
@@ -151,90 +150,14 @@ Generate **2 high-quality charts** focusing on the most actionable signals:
 All charts save to `/tmp/gh-aw/python/charts/<filename>`.
 {{/if}}
 
-### Chart Quality Standards
+### Python Script
 
-All charts must meet these quality standards:
+Use `figsize=(12, 7)`, DPI 300, `ax.grid(True, alpha=0.3)` (see `python-dataviz.md` for full chart setup and upload pattern). Create a script that:
 
-- **DPI**: 300 minimum for publication quality
-- **Figure Size**: 12x7 inches (consistent with daily-issues-report)
-- **Labels**: Clear titles, axis labels, and legends
-- **Grid Lines**: Enable for readability (`ax.grid(True, alpha=0.3)`)
-- **Save Format**: PNG with `bbox_inches='tight'` for proper cropping
-
-### Python Script Structure
-
-Create a Python script to collect data, analyze metrics, and generate the charts required for the selected output format variant:
-
-Read the selected variant from environment variable `GH_AW_EXPERIMENTS_OUTPUT_FORMAT` and branch chart generation logic accordingly.
-
-```python
-#!/usr/bin/env python3
-"""
-Daily Code Metrics Analysis and Visualization
-Generates code metrics charts for the selected output format variant
-"""
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from datetime import datetime, timedelta
-import json
-from pathlib import Path
-
-# Apply canonical chart setup (see python-dataviz.md Chart Generation Best Practices)
-
-# Load historical data from repo-memory
-history_file = Path('/tmp/gh-aw/repo-memory/default/history.jsonl')
-historical_data = []
-if history_file.exists():
-    with open(history_file, 'r') as f:
-        for line in f:
-            historical_data.append(json.loads(line))
-
-# Load current metrics from data files
-# (Collect metrics using bash commands and save to JSON first)
-current_metrics = json.load(open('/tmp/gh-aw/python/data/current_metrics.json'))
-
-# Generate required charts for selected variant
-# Chart: Quality Score Breakdown
-# ... implementation ...
-
-# Chart: Historical Trends
-# ... implementation ...
-
-print("All charts generated successfully")
-```
-
-### Chart Upload and Embedding
-
-After generating charts:
-
-1. **Upload each chart as an asset**:
-   - Use the `upload asset` safe-output tool for each PNG file
-   - Collect the returned URLs for embedding
-
-2. **Embed in discussion report**:
-   ```markdown
-   ## 📊 Visualizations
-   
-   ### LOC Distribution by Language
-   ![LOC by Language](URL_FROM_UPLOAD_ASSET_1)
-   
-   ### Top Directories by LOC
-   ![Top Directories](URL_FROM_UPLOAD_ASSET_2)
-   
-   ### Quality Score Breakdown
-   ![Quality Score](URL_FROM_UPLOAD_ASSET_3)
-   
-   ### Test Coverage Analysis
-   ![Test Coverage](URL_FROM_UPLOAD_ASSET_4)
-   
-   ### Code Churn (7 Days)
-   ![Code Churn](URL_FROM_UPLOAD_ASSET_5)
-   
-   ### Historical Trends (30 Days)
-   ![Historical Trends](URL_FROM_UPLOAD_ASSET_6)
-   ```
+1. Reads variant from `GH_AW_EXPERIMENTS_OUTPUT_FORMAT`
+2. Loads historical data from `/tmp/gh-aw/repo-memory/default/history.jsonl` and current metrics from `/tmp/gh-aw/python/data/current_metrics.json`
+3. Generates the required charts for the selected variant, saves to `/tmp/gh-aw/python/charts/`
+4. Uploads each chart via the `upload asset` safe-output tool and embeds the returned URLs in the discussion report
 
 ## Trend Calculation
 
