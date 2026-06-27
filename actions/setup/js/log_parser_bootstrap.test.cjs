@@ -221,6 +221,7 @@ describe("log_parser_bootstrap.cjs", () => {
           } finally {
             fs.unlinkSync(logFile);
             fs.unlinkSync(safeOutputsFile);
+            delete process.env.GH_AW_SAFE_OUTPUTS;
             fs.rmdirSync(tmpDir);
           }
         }),
@@ -252,9 +253,49 @@ describe("log_parser_bootstrap.cjs", () => {
             runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
             const infoCalls = mockCore.info.mock.calls.map(c => c[0]);
             expect(infoCalls.some(msg => msg.includes("Claude log parsed successfully"))).toBe(false);
+            expect(mockCore.setFailed).not.toHaveBeenCalled();
+            expect(mockCore.warning).toHaveBeenCalledWith("Claude produced no structured log entries, but agent completed with 1 safe output entry — treating as non-fatal post-completion infrastructure failure");
           } finally {
             fs.unlinkSync(logFile);
             fs.unlinkSync(safeOutputsFile);
+            delete process.env.GH_AW_SAFE_OUTPUTS;
+            fs.rmdirSync(tmpDir);
+          }
+        }),
+        it("should treat logEntries: null as missing entries for Claude guardrail (no safe outputs → setFailed)", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          try {
+            fs.writeFileSync(logFile, "some raw content");
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            delete process.env.GH_AW_SAFE_OUTPUTS;
+            const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: null });
+            runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
+          } finally {
+            fs.unlinkSync(logFile);
+            delete process.env.GH_AW_AGENT_OUTPUT;
+            fs.rmdirSync(tmpDir);
+          }
+        }),
+        it("should treat logEntries: null as missing entries for Claude guardrail (safe outputs → warning)", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          const safeOutputsFile = path.join(tmpDir, "safe-outputs.jsonl");
+          try {
+            fs.writeFileSync(logFile, "some raw content");
+            fs.writeFileSync(safeOutputsFile, JSON.stringify({ type: "create_issue", title: "Test", body: "Test body" }));
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            process.env.GH_AW_SAFE_OUTPUTS = safeOutputsFile;
+            const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: null });
+            runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            expect(mockCore.setFailed).not.toHaveBeenCalled();
+            expect(mockCore.warning).toHaveBeenCalledWith("Claude produced no structured log entries, but agent completed with 1 safe output entry — treating as non-fatal post-completion infrastructure failure");
+          } finally {
+            fs.unlinkSync(logFile);
+            fs.unlinkSync(safeOutputsFile);
+            delete process.env.GH_AW_AGENT_OUTPUT;
+            delete process.env.GH_AW_SAFE_OUTPUTS;
             fs.rmdirSync(tmpDir);
           }
         }),
