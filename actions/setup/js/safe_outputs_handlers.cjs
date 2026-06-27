@@ -211,7 +211,9 @@ function ensureSafeDirectoryTrust(gitCwd, server) {
 
   // Check if gitCwd is already present in the injected env-var config to avoid
   // duplicate entries when the handler is called more than once in the same process.
-  const existingCount = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10);
+  // The `|| 0` guard converts NaN (from a malformed pre-existing GIT_CONFIG_COUNT) to 0,
+  // preventing GIT_CONFIG_KEY_NaN/VALUE_NaN entries that would corrupt the env-var config chain.
+  const existingCount = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10) || 0;
   for (let i = 0; i < existingCount; i++) {
     if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory" && process.env[`GIT_CONFIG_VALUE_${i}`] === gitCwd) {
       return;
