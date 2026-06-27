@@ -51,56 +51,18 @@ const SECRET_DOCS = {
  * @param {string} hostname
  * @param {string} path
  * @param {Object} headers
- * @param {string} method
+ * @param {string} [method]
+ * @param {string} [body]
  * @returns {Promise<{statusCode: number, data: string}>}
  */
-function makeRequest(hostname, path, headers, method = "GET") {
+function makeRequest(hostname, path, headers, method = "GET", body = "") {
   return new Promise((resolve, reject) => {
+    const extraHeaders = body ? { "Content-Length": Buffer.byteLength(body) } : {};
     const options = {
       hostname,
       path,
       method,
-      headers,
-    };
-
-    const req = https.request(options, res => {
-      let data = "";
-      res.on("data", chunk => {
-        data += chunk;
-      });
-      res.on("end", () => {
-        resolve({ statusCode: res.statusCode || 0, data });
-      });
-    });
-
-    req.on("error", err => {
-      reject(err);
-    });
-
-    req.setTimeout(10000, () => {
-      req.destroy();
-      reject(new Error("Request timeout"));
-    });
-
-    req.end();
-  });
-}
-
-/**
- * Make an HTTPS POST request
- * @param {string} hostname
- * @param {string} path
- * @param {Object} headers
- * @param {string} body
- * @returns {Promise<{statusCode: number, data: string}>}
- */
-function makePostRequest(hostname, path, headers, body) {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname,
-      path,
-      method: "POST",
-      headers: { ...headers, "Content-Length": Buffer.byteLength(body) },
+      headers: { ...headers, ...extraHeaders },
     };
 
     const req = https.request(options, res => {
@@ -118,9 +80,22 @@ function makePostRequest(hostname, path, headers, body) {
       req.destroy();
       reject(new Error("Request timeout"));
     });
-    req.write(body);
+
+    if (body) req.write(body);
     req.end();
   });
+}
+
+/**
+ * Make an HTTPS POST request
+ * @param {string} hostname
+ * @param {string} path
+ * @param {Object} headers
+ * @param {string} body
+ * @returns {Promise<{statusCode: number, data: string}>}
+ */
+function makePostRequest(hostname, path, headers, body) {
+  return makeRequest(hostname, path, headers, "POST", body);
 }
 
 /**
@@ -294,7 +269,7 @@ async function testCopilotCLI(token) {
       message: "Copilot CLI is available",
       details: { cliPath: stdout.trim() },
     };
-  } catch (error) {
+  } catch {
     return {
       status: Status.SKIPPED,
       message: "Copilot CLI check skipped",
@@ -550,13 +525,14 @@ function generateMarkdownReport(results) {
   };
 
   // Create a summary table
+  const pct = (/** @type {number} */ n) => (summary.total > 0 ? Math.round((n / summary.total) * 100) : 0);
   report += `| Status | Count | Percentage |\n`;
   report += `|--------|-------|------------|\n`;
-  report += `| ✅ Successful | ${summary.success} | ${Math.round((summary.success / summary.total) * 100)}% |\n`;
-  report += `| ❌ Failed | ${summary.failure} | ${Math.round((summary.failure / summary.total) * 100)}% |\n`;
-  report += `| ⚪ Not Set | ${summary.notSet} | ${Math.round((summary.notSet / summary.total) * 100)}% |\n`;
+  report += `| ✅ Successful | ${summary.success} | ${pct(summary.success)}% |\n`;
+  report += `| ❌ Failed | ${summary.failure} | ${pct(summary.failure)}% |\n`;
+  report += `| ⚪ Not Set | ${summary.notSet} | ${pct(summary.notSet)}% |\n`;
   if (summary.skipped > 0) {
-    report += `| ⏭️ Skipped | ${summary.skipped} | ${Math.round((summary.skipped / summary.total) * 100)}% |\n`;
+    report += `| ⏭️ Skipped | ${summary.skipped} | ${pct(summary.skipped)}% |\n`;
   }
   report += `| **Total** | **${summary.total}** | **100%** |\n\n`;
 
@@ -777,6 +753,7 @@ module.exports = {
   isForkRepository,
   statusEmoji,
   Status,
+  makeRequest,
   makePostRequest,
   testGitHubRESTAPI,
   testGitHubGraphQLAPI,

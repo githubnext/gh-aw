@@ -4,6 +4,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import https from "https";
 import { EventEmitter } from "events";
 import {
+  makeRequest,
   makePostRequest,
   testGitHubRESTAPI,
   testGitHubGraphQLAPI,
@@ -20,6 +21,39 @@ import {
 } from "./validate_secrets.cjs";
 
 describe("validate_secrets", () => {
+  /** @type {(EventEmitter & {setTimeout: any, destroy: any, write: any, end: any, timeoutCallback?: () => void})|null} */
+  let mockRequest = null;
+  /** @type {(EventEmitter & {statusCode: number})|null} */
+  let mockResponse = null;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    mockRequest = null;
+    mockResponse = null;
+  });
+
+  /**
+   * @param {((data?: string) => void)|null} onEnd
+   * @param {number} [statusCode]
+   */
+  function setupHttpsMock(onEnd, statusCode = 200) {
+    mockResponse = Object.assign(new EventEmitter(), { statusCode });
+    mockRequest = Object.assign(new EventEmitter(), {
+      setTimeout: vi.fn().mockImplementation((_ms, cb) => {
+        /** @type {any} */ mockRequest.timeoutCallback = cb;
+      }),
+      destroy: vi.fn(),
+      write: vi.fn(),
+      end: vi.fn().mockImplementation(() => {
+        if (onEnd) onEnd();
+      }),
+    });
+    vi.spyOn(https, "request").mockImplementation((_options, callback) => {
+      process.nextTick(() => callback?.(/** @type {any} */ mockResponse));
+      return /** @type {any} */ mockRequest;
+    });
+  }
+
   describe("testGitHubRESTAPI", () => {
     it("should return NOT_SET when token is not provided", async () => {
       const result = await testGitHubRESTAPI("", "owner", "repo");
@@ -38,6 +72,40 @@ describe("validate_secrets", () => {
       expect(result.status).toBe("not_set");
       expect(result.message).toBe("Token not set");
     });
+
+    it("should return SUCCESS on 200 response", async () => {
+      const body = JSON.stringify({ full_name: "owner/repo", private: false });
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", body);
+          mockResponse?.emit("end");
+        });
+      });
+      const result = await testGitHubRESTAPI("token", "owner", "repo");
+      expect(result.status).toBe("success");
+      expect(result.details?.repoName).toBe("owner/repo");
+    });
+
+    it("should return FAILURE on non-200 response", async () => {
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", "");
+          mockResponse?.emit("end");
+        });
+      }, 401);
+      const result = await testGitHubRESTAPI("bad-token", "owner", "repo");
+      expect(result.status).toBe("failure");
+      expect(result.message).toContain("401");
+    });
+
+    it("should return FAILURE on network error", async () => {
+      setupHttpsMock(null);
+      const promise = testGitHubRESTAPI("token", "owner", "repo");
+      process.nextTick(() => mockRequest?.emit("error", new Error("ECONNREFUSED")));
+      const result = await promise;
+      expect(result.status).toBe("failure");
+      expect(result.message).toContain("ECONNREFUSED");
+    });
   });
 
   describe("testGitHubGraphQLAPI", () => {
@@ -45,6 +113,44 @@ describe("validate_secrets", () => {
       const result = await testGitHubGraphQLAPI("", "owner", "repo");
       expect(result.status).toBe("not_set");
       expect(result.message).toBe("Token not set");
+    });
+
+    it("should return SUCCESS on 200 response with valid data", async () => {
+      const body = JSON.stringify({ data: { repository: { name: "repo", owner: { login: "owner" }, isPrivate: false } } });
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", body);
+          mockResponse?.emit("end");
+        });
+      });
+      const result = await testGitHubGraphQLAPI("token", "owner", "repo");
+      expect(result.status).toBe("success");
+      expect(result.details?.repoName).toBe("repo");
+    });
+
+    it("should return FAILURE when GraphQL response contains errors", async () => {
+      const body = JSON.stringify({ errors: [{ message: "Not found" }] });
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", body);
+          mockResponse?.emit("end");
+        });
+      });
+      const result = await testGitHubGraphQLAPI("token", "owner", "repo");
+      expect(result.status).toBe("failure");
+      expect(result.message).toContain("errors");
+    });
+
+    it("should return FAILURE on non-200 response", async () => {
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", "");
+          mockResponse?.emit("end");
+        });
+      }, 403);
+      const result = await testGitHubGraphQLAPI("token", "owner", "repo");
+      expect(result.status).toBe("failure");
+      expect(result.message).toContain("403");
     });
   });
 
@@ -94,6 +200,41 @@ describe("validate_secrets", () => {
       expect(result.status).toBe("not_set");
       expect(result.message).toBe("API key not set");
     });
+
+    it("should return SUCCESS on 200 response", async () => {
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", "{}");
+          mockResponse?.emit("end");
+        });
+      });
+      const result = await testAnthropicAPI("valid-key");
+      expect(result.status).toBe("success");
+    });
+
+    it("should return FAILURE on 401 invalid key", async () => {
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", "");
+          mockResponse?.emit("end");
+        });
+      }, 401);
+      const result = await testAnthropicAPI("bad-key");
+      expect(result.status).toBe("failure");
+      expect(result.message).toContain("Invalid Anthropic API key");
+    });
+
+    it("should return FAILURE on unexpected status code", async () => {
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", "");
+          mockResponse?.emit("end");
+        });
+      }, 429);
+      const result = await testAnthropicAPI("key");
+      expect(result.status).toBe("failure");
+      expect(result.message).toContain("429");
+    });
   });
 
   describe("testOpenAIAPI", () => {
@@ -101,6 +242,18 @@ describe("validate_secrets", () => {
       const result = await testOpenAIAPI("");
       expect(result.status).toBe("not_set");
       expect(result.message).toBe("API key not set");
+    });
+
+    it("should return FAILURE on 401 invalid key", async () => {
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", "");
+          mockResponse?.emit("end");
+        });
+      }, 401);
+      const result = await testOpenAIAPI("bad-key");
+      expect(result.status).toBe("failure");
+      expect(result.message).toContain("Invalid OpenAI API key");
     });
   });
 
@@ -110,6 +263,18 @@ describe("validate_secrets", () => {
       expect(result.status).toBe("not_set");
       expect(result.message).toBe("API key not set");
     });
+
+    it("should return FAILURE on 403 invalid key", async () => {
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", "");
+          mockResponse?.emit("end");
+        });
+      }, 403);
+      const result = await testBraveSearchAPI("bad-key");
+      expect(result.status).toBe("failure");
+      expect(result.message).toContain("Invalid Brave Search API key");
+    });
   });
 
   describe("testNotionAPI", () => {
@@ -118,41 +283,66 @@ describe("validate_secrets", () => {
       expect(result.status).toBe("not_set");
       expect(result.message).toBe("Token not set");
     });
+
+    it("should return FAILURE on 401 invalid token", async () => {
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", "");
+          mockResponse?.emit("end");
+        });
+      }, 401);
+      const result = await testNotionAPI("bad-token");
+      expect(result.status).toBe("failure");
+      expect(result.message).toContain("Invalid Notion API token");
+    });
+  });
+
+  describe("makeRequest", () => {
+    it("resolves with statusCode and data for GET requests", async () => {
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", '{"status":"ok"}');
+          mockResponse?.emit("end");
+        });
+      });
+      const result = await makeRequest("api.example.com", "/v1/test", { Accept: "application/json" });
+      expect(result.statusCode).toBe(200);
+      expect(result.data).toBe('{"status":"ok"}');
+    });
+
+    it("does not call write for GET requests", async () => {
+      setupHttpsMock(() => {
+        process.nextTick(() => {
+          mockResponse?.emit("data", "");
+          mockResponse?.emit("end");
+        });
+      });
+      await makeRequest("api.example.com", "/v1/test", {});
+      expect(mockRequest?.write).not.toHaveBeenCalled();
+    });
+
+    it("rejects on request error", async () => {
+      setupHttpsMock(null);
+      const promise = makeRequest("api.example.com", "/v1/test", {});
+      process.nextTick(() => mockRequest?.emit("error", new Error("ENOTFOUND")));
+      await expect(promise).rejects.toThrow("ENOTFOUND");
+    });
+
+    it("rejects with timeout error after 10 s", async () => {
+      setupHttpsMock(null);
+      const promise = makeRequest("api.example.com", "/v1/test", {});
+      process.nextTick(() => /** @type {any} */ mockRequest?.timeoutCallback?.());
+      await expect(promise).rejects.toThrow("Request timeout");
+      expect(mockRequest?.destroy).toHaveBeenCalled();
+    });
   });
 
   describe("makePostRequest", () => {
-    /** @type {EventEmitter & {setTimeout: any, destroy: any, write: any, end: any, timeoutCallback?: () => void}} */
-    let mockRequest;
-    /** @type {EventEmitter & {statusCode: number}} */
-    let mockResponse;
-
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
-    function setupHttpsMock(onEnd) {
-      mockResponse = Object.assign(new EventEmitter(), { statusCode: 200 });
-      mockRequest = Object.assign(new EventEmitter(), {
-        setTimeout: vi.fn().mockImplementation((ms, cb) => {
-          mockRequest.timeoutCallback = cb;
-        }),
-        destroy: vi.fn(),
-        write: vi.fn(),
-        end: vi.fn().mockImplementation(() => {
-          if (onEnd) onEnd();
-        }),
-      });
-      vi.spyOn(https, "request").mockImplementation((_options, callback) => {
-        process.nextTick(() => callback?.(/** @type {any} */ mockResponse));
-        return /** @type {any} */ mockRequest;
-      });
-    }
-
     it("resolves with statusCode and data on success", async () => {
       setupHttpsMock(() => {
         process.nextTick(() => {
-          mockResponse.emit("data", '{"ok":true}');
-          mockResponse.emit("end");
+          mockResponse?.emit("data", '{"ok":true}');
+          mockResponse?.emit("end");
         });
       });
 
@@ -166,7 +356,7 @@ describe("validate_secrets", () => {
       const networkError = new Error("connection refused");
 
       const promise = makePostRequest("api.example.com", "/v1/test", {}, "{}");
-      process.nextTick(() => mockRequest.emit("error", networkError));
+      process.nextTick(() => mockRequest?.emit("error", networkError));
 
       await expect(promise).rejects.toThrow("connection refused");
     });
@@ -176,10 +366,10 @@ describe("validate_secrets", () => {
 
       const promise = makePostRequest("api.example.com", "/v1/test", {}, "{}");
       // Trigger the timeout callback registered via req.setTimeout
-      process.nextTick(() => mockRequest.timeoutCallback?.());
+      process.nextTick(() => /** @type {any} */ mockRequest?.timeoutCallback?.());
 
       await expect(promise).rejects.toThrow("Request timeout");
-      expect(mockRequest.destroy).toHaveBeenCalled();
+      expect(mockRequest?.destroy).toHaveBeenCalled();
     });
   });
 
@@ -279,6 +469,9 @@ describe("validate_secrets", () => {
 
       expect(report).toContain("📊 Summary");
       expect(report).toContain("| **Total** | **0** | **100%** |");
+      // Percentages should be 0%, not NaN%
+      expect(report).toContain("| ✅ Successful | 0 | 0% |");
+      expect(report).not.toContain("NaN");
     });
 
     it("should handle skipped tests", () => {
