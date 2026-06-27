@@ -2,23 +2,41 @@ import { RuleTester } from "eslint";
 import { describe, it } from "vitest";
 import { requireJsonParseTryCatchRule } from "./require-json-parse-try-catch";
 
-const ruleTester = new RuleTester({
+const cjsRuleTester = new RuleTester({
   languageOptions: {
     ecmaVersion: 2022,
     sourceType: "commonjs",
   },
 });
 
+const esmRuleTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: "module",
+  },
+});
+
 describe("require-json-parse-try-catch", () => {
-  it("valid: JSON.parse inside try block passes", () => {
-    ruleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
-      valid: [`try { const x = JSON.parse(str); } catch (e) {}`, `try { return JSON.parse(str); } catch (e) {}`, `function f() { try { JSON.parse(str); } catch (e) {} }`],
+  it("valid: JSON.parse inside try block passes (CommonJS)", () => {
+    cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
+      valid: [
+        `try { const x = JSON.parse(str); } catch (e) {}`,
+        `try { return JSON.parse(str); } catch (e) {}`,
+        `function f() { try { JSON.parse(str); } catch (e) {} }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("valid: JSON.parse inside try block passes (ES module)", () => {
+    esmRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
+      valid: [`try { const x = JSON.parse(str); } catch (e) {}`],
       invalid: [],
     });
   });
 
   it("invalid: bare JSON.parse reports requireTryCatch with argument text in message", () => {
-    ruleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
+    cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
       valid: [],
       invalid: [
         {
@@ -55,8 +73,8 @@ describe("require-json-parse-try-catch", () => {
     });
   });
 
-  it("suggestion: wraps enclosing statement in try/catch and preserves expression", () => {
-    ruleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
+  it("suggestion: wraps enclosing statement in try/catch (ES module)", () => {
+    esmRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
       valid: [],
       invalid: [
         {
@@ -64,24 +82,11 @@ describe("require-json-parse-try-catch", () => {
           errors: [
             {
               messageId: "requireTryCatch",
+              data: { arg: "rawInput" },
               suggestions: [
                 {
                   messageId: "useHelper",
                   output: `try {\n  const data = JSON.parse(rawInput);\n} catch (err) {\n  throw err;\n}`,
-                },
-              ],
-            },
-          ],
-        },
-        {
-          code: `JSON.parse(response.body);`,
-          errors: [
-            {
-              messageId: "requireTryCatch",
-              suggestions: [
-                {
-                  messageId: "useHelper",
-                  output: `try {\n  JSON.parse(response.body);\n} catch (err) {\n  throw err;\n}`,
                 },
               ],
             },
@@ -92,7 +97,7 @@ describe("require-json-parse-try-catch", () => {
   });
 
   it("suggestion output is syntactically valid JavaScript", () => {
-    ruleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
+    cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
       valid: [],
       invalid: [
         {

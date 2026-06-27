@@ -82,7 +82,9 @@ export const requireJsonParseTryCatchRule = createRule({
                   const stmt = findEnclosingStatement(node);
                   if (!stmt) return null;
                   const stmtText = sourceCode.getText(stmt);
-                  // loc.start.line is 1-based; convert to 0-based array index.
+                  // ESLint always sets loc on parsed nodes; the optional chain guards
+                  // against hypothetical missing loc. loc.start.line is 1-based, so
+                  // subtract 1 for the 0-based lines array index.
                   const startLine = stmt.loc?.start.line;
                   const stmtLine = startLine !== undefined ? (sourceCode.lines[startLine - 1] ?? "") : "";
                   const indent = stmtLine.match(/^(\s*)/)?.[1] ?? "";
