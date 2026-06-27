@@ -1,41 +1,26 @@
 {
-  "run_date": "2026-06-27T12:44:41Z",
-  "run_id": "28289524040",
-  "previous_run_id": "28282332784",
-  "previous_run_date": "2026-06-27T07:21:31Z",
-  "agent_prs_found": 10,
-  "prs_triaged": 10,
+  "run_date": "2026-06-27T18:38:26Z",
+  "run_id": "28298156610",
+  "previous_run_id": "28289524040",
+  "previous_run_date": "2026-06-27T12:44:41Z",
+  "agent_prs_found": 5,
+  "prs_triaged": 5,
   "open_agent_prs": [
     {
-      "number": 41777,
-      "title": "Add Copilot-only `lsp` frontmatter support with schema, codegen, engine guardrails, and LSP instructions",
+      "number": 41912,
+      "title": "Propagate enterprise host context into curated DIFC/CLI proxy env",
       "draft": false,
-      "additions": 984,
-      "deletions": 29,
-      "changed_files": 21,
-      "category": "feature",
-      "risk": "high",
-      "priority": "high",
-      "score": 70,
-      "action": "batch_review",
-      "batch": "feature-promo",
-      "age_hours": 18.1
-    },
-    {
-      "number": 41821,
-      "title": "Enable templatable `report-failure-as-issue` and shared-workflow propagation",
-      "draft": false,
-      "additions": 148,
-      "deletions": 22,
-      "changed_files": 13,
-      "category": "feature",
+      "additions": 171,
+      "deletions": 4,
+      "changed_files": 5,
+      "category": "bug",
       "risk": "medium",
-      "priority": "medium",
-      "score": 55,
-      "action": "batch_review",
-      "batch": "feature-promo",
-      "age_hours": 12.0,
-      "notes": "label_conflict: stale defer+active-drafts labels"
+      "priority": "high",
+      "score": 76,
+      "action": "fast_track",
+      "age_hours": 0.87,
+      "ci": "11_pass_15_skip_3_in_progress",
+      "notes": "new PR; production fix for GHE tenants - enterprise host context dropped from DIFC/CLI proxy"
     },
     {
       "number": 41824,
@@ -47,11 +32,11 @@
       "category": "feature",
       "risk": "high",
       "priority": "high",
-      "score": 70,
+      "score": 69,
       "action": "fast_track",
       "batch": "feature-promo",
-      "age_hours": 11.8,
-      "notes": "label_conflict: stale defer+active-drafts labels"
+      "age_hours": 17.7,
+      "notes": "stale labels pr-action:defer and pr-batch:active-drafts remain; bot-approved, prior CHANGES_REQUESTED dismissed"
     },
     {
       "number": 41830,
@@ -63,144 +48,89 @@
       "category": "bug",
       "risk": "medium",
       "priority": "high",
-      "score": 65,
+      "score": 64,
       "action": "fast_track",
-      "age_hours": 10.2,
-      "review_decision": "CHANGES_REQUESTED",
-      "notes": "bot CHANGES_REQUESTED; approach revised from HOME-based to process-scoped"
+      "age_hours": 16.2,
+      "notes": "bot APPROVED; prior CHANGES_REQUESTED dismissed; no CI checks; ready to merge"
     },
     {
-      "number": 41835,
-      "title": "Handle missing PR-head refs in centralized slash-command dispatch",
-      "draft": true,
-      "additions": 164,
-      "deletions": 1,
-      "changed_files": 2,
-      "category": "bug",
-      "risk": "medium",
-      "priority": "medium",
-      "score": 42,
-      "action": "defer",
-      "age_hours": 9.3
-    },
-    {
-      "number": 41849,
-      "title": "Add nolint suppression parity for 5 remaining gh-aw analyzers",
+      "number": 41777,
+      "title": "Add Copilot-only `lsp` frontmatter support with schema, codegen, engine guardrails, and LSP instructions",
       "draft": false,
-      "additions": 79,
-      "deletions": 8,
-      "changed_files": 11,
-      "category": "chore",
-      "risk": "low",
-      "priority": "medium",
-      "score": 43,
-      "action": "auto_merge",
-      "age_hours": 7.2,
-      "ci": "no_checks"
+      "additions": 984,
+      "deletions": 29,
+      "changed_files": 21,
+      "category": "feature",
+      "risk": "high",
+      "priority": "high",
+      "score": 61,
+      "action": "batch_review",
+      "batch": "feature-promo",
+      "age_hours": 24.0,
+      "ci": "in_progress",
+      "notes": "reviewer commented, no approve/block; CI in-progress"
     },
     {
-      "number": 41850,
-      "title": "fix(fmterrorfnoverbs): treat %% as escaped literal, not a real verb",
+      "number": 41906,
+      "title": "[formal-spec] Add OTEL observability formal compatibility test suite (v0.4.0 L1/L2)",
       "draft": false,
-      "additions": 41,
-      "deletions": 2,
+      "additions": 289,
+      "deletions": 0,
       "changed_files": 2,
-      "category": "bug",
+      "category": "test",
       "risk": "low",
       "priority": "medium",
-      "score": 49,
-      "action": "auto_merge",
-      "age_hours": 7.2,
-      "ci": "14_pass_16_skip"
-    },
-    {
-      "number": 41852,
-      "title": "fix(setup): clean up root-owned /tmp/awf-*-chroot-home directories",
-      "draft": true,
-      "additions": 36,
-      "deletions": 4,
-      "changed_files": 4,
-      "category": "bug",
-      "risk": "medium",
-      "priority": "medium",
-      "score": 40,
-      "action": "defer",
-      "age_hours": 7.2
-    },
-    {
-      "number": 41864,
-      "title": "Fix invalid JSON escapes in GitHub remote MCP gateway config generation",
-      "draft": true,
-      "additions": 81,
-      "deletions": 15,
-      "changed_files": 6,
-      "category": "bug",
-      "risk": "medium",
-      "priority": "medium",
-      "score": 58,
-      "action": "defer",
-      "age_hours": 4.4,
-      "notes": "new PR; escalate to fast_track once draft lifted"
-    },
-    {
-      "number": 41865,
-      "title": "Bump Claude Code to 2.1.195 and Codex to 0.142.3",
-      "draft": true,
-      "additions": 841,
-      "deletions": 841,
-      "changed_files": 78,
-      "category": "chore",
-      "risk": "low",
-      "priority": "medium",
-      "score": 33,
-      "action": "defer",
-      "age_hours": 4.4,
-      "notes": "new PR; routine version bump, mostly generated artifacts"
+      "score": 41,
+      "action": "fast_track",
+      "age_hours": 2.4,
+      "ci": "1_pass",
+      "otel": true,
+      "notes": "new PR; OTEL flag - labeled otel, @mnkeifer mentioned; pure test additions + ADR doc"
     }
   ],
   "closed_since_last_run": [
-    {
-      "number": 41295,
-      "title": "fix: apply_samples derivePrHeadRef uses target-repo config for siderepo PR lookups",
-      "outcome": "merged"
-    }
+    {"number": 41821, "title": "Enable templatable `report-failure-as-issue` and shared-workflow propagation", "outcome": "merged"},
+    {"number": 41849, "title": "Add nolint suppression parity for 5 remaining gh-aw analyzers", "outcome": "merged"},
+    {"number": 41850, "title": "fix(fmterrorfnoverbs): treat %% as escaped literal, not a real verb", "outcome": "merged"},
+    {"number": 41864, "title": "Fix invalid JSON escapes in GitHub remote MCP gateway config generation", "outcome": "merged"},
+    {"number": 41865, "title": "Bump Claude Code to 2.1.195 and Codex to 0.142.3", "outcome": "merged"},
+    {"number": 41852, "title": "fix(setup): clean up root-owned /tmp/awf-*-chroot-home directories", "outcome": "merged"},
+    {"number": 41835, "title": "Handle missing PR-head refs in centralized slash-command dispatch", "outcome": "closed"}
   ],
   "statistics": {
-    "total_open_copilot_prs": 10,
-    "draft_prs": 4,
-    "ready_prs": 6,
+    "total_open_copilot_prs": 5,
+    "draft_prs": 0,
+    "ready_prs": 5,
     "by_action": {
-      "fast_track": 2,
-      "batch_review": 2,
-      "auto_merge": 2,
-      "defer": 4
+      "fast_track": 4,
+      "batch_review": 1
     },
     "by_category": {
-      "feature": 3,
-      "bug": 5,
-      "chore": 2
+      "bug": 2,
+      "feature": 2,
+      "test": 1
     },
     "by_risk": {
       "high": 2,
-      "medium": 5,
-      "low": 3
+      "medium": 2,
+      "low": 1
     },
     "by_priority": {
-      "high": 3,
-      "medium": 7,
+      "high": 4,
+      "medium": 1,
       "low": 0
     },
-    "closed_since_last_run": 1,
+    "closed_since_last_run": 7,
     "new_since_last_run": 2,
-    "carried_over": 8,
-    "merges_since_last_run": 1
+    "carried_over": 3,
+    "merges_since_last_run": 6
   },
   "batches": {
-    "feature-promo": [41824, 41777, 41821]
+    "feature-promo": [41824, 41777]
   },
   "label_conflicts": [
-    {"pr": 41824, "stale_labels": ["pr-action:defer", "pr-batch:active-drafts"]},
-    {"pr": 41821, "stale_labels": ["pr-action:defer", "pr-batch:active-drafts"]}
+    {"pr": 41824, "stale_labels": ["pr-action:defer", "pr-batch:active-drafts"]}
   ],
-  "notes": "10 open agent PRs. 1 merged (#41295 after 75h+). 2 new PRs: #41865 (chore bump, draft), #41864 (MCP gateway bug, draft). #41830 approach revised, bot CHANGES_REQUESTED. #41824 additions increased 483→536. feature-promo batch: #41824+#41777+#41821. Auto-merge: #41850 (CI green), #41849 (pending CI). Run §28289524040."
+  "otel_prs": [41906],
+  "notes": "5 open agent PRs. 6 merged since last run (#41821, #41849, #41850, #41864, #41865, #41852). 1 closed (#41835). 2 new: #41912 (GHE proxy bug, fast_track), #41906 (OTEL test, fast_track, @mnkeifer). feature-promo batch: #41824+#41777. #41830 bot-approved, ready to merge. Run §28298156610."
 }
