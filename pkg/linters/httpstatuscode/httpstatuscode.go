@@ -6,6 +6,7 @@ package httpstatuscode
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 	"strconv"
 
 	"golang.org/x/tools/go/analysis"
@@ -97,46 +98,66 @@ func run(pass *analysis.Pass) (any, error) {
 
 	nodeFilter := []ast.Node{
 		(*ast.BinaryExpr)(nil),
+		(*ast.SwitchStmt)(nil),
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		expr, ok := n.(*ast.BinaryExpr)
-		if !ok {
-			return
+		switch node := n.(type) {
+		case *ast.BinaryExpr:
+			if node.Op != token.EQL && node.Op != token.NEQ {
+				return
+			}
+			lit, other := extractStatusLiteral(node)
+			if lit == nil {
+				return
+			}
+			if !isHTTPStatusContext(pass, other) {
+				return
+			}
+			checkAndReport(pass, lit, noLintLinesByFile)
+		case *ast.SwitchStmt:
+			if node.Tag == nil || !isHTTPStatusContext(pass, node.Tag) {
+				return
+			}
+			for _, s := range node.Body.List {
+				cc, ok := s.(*ast.CaseClause)
+				if !ok {
+					continue
+				}
+				for _, caseExpr := range cc.List {
+					lit, ok := caseExpr.(*ast.BasicLit)
+					if !ok || lit.Kind != token.INT {
+						continue
+					}
+					checkAndReport(pass, lit, noLintLinesByFile)
+				}
+			}
 		}
-		if expr.Op != token.EQL && expr.Op != token.NEQ {
-			return
-		}
-
-		lit, other := extractStatusLiteral(expr)
-		if lit == nil {
-			return
-		}
-
-		code, err := strconv.Atoi(lit.Value)
-		if err != nil || code < 100 || code > 599 {
-			return
-		}
-		if !isHTTPStatusContext(other) {
-			return
-		}
-
-		pos := pass.Fset.PositionFor(lit.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
-			return
-		}
-		if nolint.HasDirective(pos, noLintLinesByFile) {
-			return
-		}
-
-		if name, ok := httpStatusNames[code]; ok {
-			pass.Reportf(lit.Pos(), "use %s instead of magic HTTP status code %d", name, code)
-			return
-		}
-		pass.Reportf(lit.Pos(), "use http.Status* constant instead of magic HTTP status code %d", code)
 	})
 
 	return nil, nil
+}
+
+func checkAndReport(pass *analysis.Pass, lit *ast.BasicLit, noLintLinesByFile map[string]map[int]struct{}) {
+	code64, err := strconv.ParseInt(lit.Value, 0, 64)
+	if err != nil || code64 < 100 || code64 > 599 {
+		return
+	}
+	code := int(code64)
+
+	pos := pass.Fset.PositionFor(lit.Pos(), false)
+	if filecheck.IsTestFile(pos.Filename) {
+		return
+	}
+	if nolint.HasDirective(pos, noLintLinesByFile) {
+		return
+	}
+
+	if name, ok := httpStatusNames[code]; ok {
+		pass.Reportf(lit.Pos(), "use %s instead of magic HTTP status code %d", name, code)
+		return
+	}
+	pass.Reportf(lit.Pos(), "use http.Status* constant instead of magic HTTP status code %d", code)
 }
 
 func extractStatusLiteral(expr *ast.BinaryExpr) (*ast.BasicLit, ast.Expr) {
@@ -149,12 +170,29 @@ func extractStatusLiteral(expr *ast.BinaryExpr) (*ast.BasicLit, ast.Expr) {
 	return nil, nil
 }
 
-func isHTTPStatusContext(expr ast.Expr) bool {
+func isHTTPStatusContext(pass *analysis.Pass, expr ast.Expr) bool {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		return e.Name == "status" || e.Name == "statusCode"
 	case *ast.SelectorExpr:
-		return e.Sel.Name == "StatusCode"
+		if e.Sel.Name != "StatusCode" {
+			return false
+		}
+		sel, ok := pass.TypesInfo.Selections[e]
+		if ok {
+			basic, ok := sel.Type().Underlying().(*types.Basic)
+			return ok && basic.Info()&types.IsInteger != 0
+		}
+		obj, ok := pass.TypesInfo.Uses[e.Sel]
+		if !ok {
+			return false
+		}
+		field, ok := obj.(*types.Var)
+		if !ok || !field.IsField() {
+			return false
+		}
+		basic, ok := field.Type().Underlying().(*types.Basic)
+		return ok && basic.Info()&types.IsInteger != 0
 	}
 	return false
 }
