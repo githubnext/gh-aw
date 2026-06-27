@@ -961,7 +961,7 @@ jobs:
       run: go mod verify
 
     - name: Install benchstat
-      run: go install golang.org/x/perf/cmd/benchstat@latest
+      run: go install golang.org/x/perf/cmd/benchstat@v0.0.0-20260615155930-9e4b9ddef5b6
 
     - name: Download previous benchmark baseline
       id: baseline
@@ -974,7 +974,7 @@ jobs:
         # The artifacts API includes workflow_run.head_branch; filter for main as an extra safeguard.
         artifact_id=$(gh api \
           "repos/$GITHUB_REPOSITORY/actions/artifacts?name=benchmark-results&per_page=10" \
-          --jq '[.artifacts[] | select((.workflow_run.head_branch // "main") == "main")] | .[0].id // empty' 2>/dev/null)
+          --jq '[.artifacts[] | select(.workflow_run.head_branch? == "main")] | .[0].id // empty' 2>/dev/null)
 
         if [ -n "$artifact_id" ]; then
           echo "Found artifact ID: $artifact_id"
@@ -1006,7 +1006,17 @@ jobs:
         echo "## 📈 Benchmark Regression Check" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
 
-        benchstat_out=$(benchstat baseline/bench_results.txt bench_results.txt 2>&1)
+        if ! benchstat_out=$(benchstat baseline/bench_results.txt bench_results.txt 2>&1); then
+          echo "$benchstat_out"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$benchstat_out" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "❌ **benchstat failed to compare benchmark results.** Check the output above." >> $GITHUB_STEP_SUMMARY
+          echo "::error::benchstat failed to compare benchmark results"
+          exit 1
+        fi
+
         echo "$benchstat_out"
 
         echo '```' >> $GITHUB_STEP_SUMMARY
