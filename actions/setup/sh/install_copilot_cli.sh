@@ -50,7 +50,7 @@ sudo chown -R "$(id -u):$(id -g)" "$COPILOT_DIR"
 # subsequent runs, which reports as "engine terminated unexpectedly".
 # Remove them here before the agent starts so the runner is in a clean state.
 echo "Cleaning up stale AWF chroot home directories..."
-sudo find /tmp -maxdepth 1 -name 'awf-*-chroot-home' -type d -exec sudo rm -rf {} + 2>/dev/null || true
+sudo find /tmp -maxdepth 1 -name 'awf-*-chroot-home' -type d -exec rm -rf {} + 2>/dev/null || true
 
 # Detect OS and architecture
 OS="$(uname -s)"

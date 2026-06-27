@@ -125,10 +125,10 @@ function listTmpGhAwFiles(tmpDir, maxDepth, maxFiles) {
   // Files inside may be owned by root (written by Docker containers or privileged AWF processes),
   // causing EACCES failures if cleanup is attempted without sudo.  We use sudo rm -rf to handle
   // these root-owned remnants; failures are non-fatal since cleanup is best-effort.
-  const awfChrootHomeCleanup = spawnSync("sudo", ["sh", "-c", "rm -rf /tmp/awf-*-chroot-home"], { stdio: "inherit" });
-  if (awfChrootHomeCleanup.status === 0) {
+  const awfChrootHomeCleanupResult = spawnSync("sudo", ["sh", "-c", "rm -rf /tmp/awf-*-chroot-home"], { stdio: "inherit" });
+  if (awfChrootHomeCleanupResult.status === 0) {
     console.log("Cleaned up /tmp/awf-*-chroot-home");
   } else {
-    console.log("No /tmp/awf-*-chroot-home directories to clean (or sudo unavailable)");
+    console.log("Failed to clean /tmp/awf-*-chroot-home or no directories found");
   }
 })();
