@@ -14,7 +14,7 @@ const { spawnSync } = require("child_process");
 const fs = require("fs");
 
 function isDebugModeEnabled() {
-  const toBool = (value) => {
+  const toBool = value => {
     const normalized = String(value || "").toLowerCase();
     return normalized === "1" || normalized === "true";
   };
@@ -64,9 +64,7 @@ function listTmpGhAwFiles(tmpDir, maxDepth, maxFiles) {
   walk(tmpDir, 0);
 
   const truncated = files.length >= maxFiles;
-  console.log(
-    `[debug] listing files under ${tmpDir} (max depth ${maxDepth}, max files ${maxFiles})`,
-  );
+  console.log(`[debug] listing files under ${tmpDir} (max depth ${maxDepth}, max files ${maxFiles})`);
   if (files.length === 0) {
     console.log("[debug] no files found");
   } else {
@@ -120,5 +118,17 @@ function listTmpGhAwFiles(tmpDir, maxDepth, maxFiles) {
       // Log but do not fail — cleanup is best-effort
       console.error(`Warning: failed to clean up ${tmpDir}: ${err.message}`);
     }
+  }
+
+  // Clean up AWF chroot home directories under /tmp (e.g. /tmp/awf-*-chroot-home).
+  // These are created by AWF when running with --enable-host-access on GitHub-hosted runners.
+  // Files inside may be owned by root (written by Docker containers or privileged AWF processes),
+  // causing EACCES failures if cleanup is attempted without sudo.  We use sudo rm -rf to handle
+  // these root-owned remnants; failures are non-fatal since cleanup is best-effort.
+  const awfChrootHomeCleanup = spawnSync("sudo", ["sh", "-c", "rm -rf /tmp/awf-*-chroot-home"], { stdio: "inherit" });
+  if (awfChrootHomeCleanup.status === 0) {
+    console.log("Cleaned up /tmp/awf-*-chroot-home");
+  } else {
+    console.log("No /tmp/awf-*-chroot-home directories to clean (or sudo unavailable)");
   }
 })();
