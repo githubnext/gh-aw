@@ -108,42 +108,102 @@ func (m *LSPManager) GenerateInstallSteps() []GitHubActionStep {
 	return steps
 }
 
+// RuntimeRequirements returns the set of runtime requirements for all configured LSP
+// servers. These are returned as [RuntimeRequirement] values so that the caller can
+// feed them into the standard runtime manager (DetectRuntimeRequirements /
+// GenerateRuntimeSetupSteps), which emits properly SHA-pinned setup actions.
+//
+// Only languages that have a matching entry in knownRuntimes are included; languages
+// whose runtime is not tracked by the runtime manager (e.g. "rust") are silently
+// skipped — their install commands still appear in GenerateInstallSteps.
+//
+// Note: Node.js-based LSP servers (bash, php, python, typescript, yaml) map to the
+// "node" runtime, but the Copilot engine already sets up Node.js unconditionally via
+// BuildNpmEngineInstallStepsWithAWF. Returning "node" here is correct and harmless:
+// DetectRuntimeRequirements deduplicates by runtime ID, so at most one Node.js setup
+// step is emitted regardless of how many node-based LSP servers are configured.
+func (m *LSPManager) RuntimeRequirements() []RuntimeRequirement {
+	if !m.HasServers() {
+		return nil
+	}
+
+	seen := make(map[string]bool)
+	var result []RuntimeRequirement
+
+	langs := make([]string, 0, len(m.servers))
+	for language := range m.servers {
+		langs = append(langs, language)
+	}
+	sort.Strings(langs)
+
+	for _, language := range langs {
+		spec, ok := lspInstallSpecs[language]
+		if !ok || spec.RuntimeID == "" {
+			continue
+		}
+		if seen[spec.RuntimeID] {
+			continue
+		}
+		seen[spec.RuntimeID] = true
+		runtime := findRuntimeByID(spec.RuntimeID)
+		if runtime == nil {
+			lspManagerLog.Printf("LSP language %q specifies unknown runtime ID %q; skipping runtime requirement", language, spec.RuntimeID)
+			continue
+		}
+		result = append(result, RuntimeRequirement{
+			Runtime:  runtime,
+			Version:  "",
+			Cooldown: true,
+		})
+	}
+	return result
+}
+
 type lspInstallSpec struct {
-	StepName string
-	Command  string
+	StepName  string
+	Command   string
+	RuntimeID string // runtime manager ID for the runtime needed to run this LSP server
 }
 
 var lspInstallSpecs = map[string]lspInstallSpec{
 	"bash": {
-		StepName: "Install Bash LSP dependencies",
-		Command:  "npm install -g --ignore-scripts bash-language-server",
+		StepName:  "Install Bash LSP dependencies",
+		Command:   "npm install -g --ignore-scripts bash-language-server",
+		RuntimeID: "node",
 	},
 	"go": {
-		StepName: "Install Go LSP dependencies",
-		Command:  "go install golang.org/x/tools/gopls@latest",
+		StepName:  "Install Go LSP dependencies",
+		Command:   "go install golang.org/x/tools/gopls@latest",
+		RuntimeID: "go",
 	},
 	"php": {
-		StepName: "Install PHP LSP dependencies",
-		Command:  "npm install -g --ignore-scripts intelephense",
+		StepName:  "Install PHP LSP dependencies",
+		Command:   "npm install -g --ignore-scripts intelephense",
+		RuntimeID: "node",
 	},
 	"python": {
-		StepName: "Install Python LSP dependencies",
-		Command:  "npm install -g --ignore-scripts pyright",
+		StepName:  "Install Python LSP dependencies",
+		Command:   "npm install -g --ignore-scripts pyright",
+		RuntimeID: "node",
 	},
 	"ruby": {
-		StepName: "Install Ruby LSP dependencies",
-		Command:  "gem install solargraph",
+		StepName:  "Install Ruby LSP dependencies",
+		Command:   "gem install solargraph",
+		RuntimeID: "ruby",
 	},
 	"rust": {
-		StepName: "Install Rust LSP dependencies",
-		Command:  "rustup component add rust-analyzer",
+		StepName:  "Install Rust LSP dependencies",
+		Command:   "rustup component add rust-analyzer",
+		RuntimeID: "", // Rust is not in knownRuntimes; runtime setup is done via rustup
 	},
 	"typescript": {
-		StepName: "Install TypeScript LSP dependencies",
-		Command:  "npm install -g --ignore-scripts typescript typescript-language-server",
+		StepName:  "Install TypeScript LSP dependencies",
+		Command:   "npm install -g --ignore-scripts typescript typescript-language-server",
+		RuntimeID: "node",
 	},
 	"yaml": {
-		StepName: "Install YAML LSP dependencies",
-		Command:  "npm install -g --ignore-scripts yaml-language-server",
+		StepName:  "Install YAML LSP dependencies",
+		Command:   "npm install -g --ignore-scripts yaml-language-server",
+		RuntimeID: "node",
 	},
 }
