@@ -23,7 +23,7 @@ safe-outputs:
     patch-format: bundle
     commit-title-suffix: " [skip-ci]"
     allowed-files:
-      - .changeset/**
+      - .changeset/*.md
     protected-files:
       policy: blocked
       exclude:
