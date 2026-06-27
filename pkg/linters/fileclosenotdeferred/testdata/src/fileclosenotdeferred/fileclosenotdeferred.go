@@ -102,3 +102,13 @@ func ReopenWithManualCloseThenDefer() error {
 	defer f.Close() // deferred — ok for second open
 	return nil
 }
+
+// not flagged: suppression directive on violating line.
+func SuppressedManualClose() error {
+	f, err := os.Open("suppressed.txt") //nolint:fileclosenotdeferred
+	if err != nil {
+		return err
+	}
+	f.Close()
+	return nil
+}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the file-close-not-deferred analysis pass.
@@ -28,19 +29,20 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "fileclosenotdeferred")
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		inspectFileFuncDecl(pass, n)
+		inspectFileFuncDecl(pass, n, noLintLinesByFile)
 	})
 
 	return nil, nil
 }
 
-func inspectFileFuncDecl(pass *analysis.Pass, n ast.Node) {
+func inspectFileFuncDecl(pass *analysis.Pass, n ast.Node, noLintLinesByFile map[string]map[int]struct{}) {
 	fn, ok := n.(*ast.FuncDecl)
 	if !ok || fn.Body == nil {
 		return
@@ -58,12 +60,12 @@ func inspectFileFuncDecl(pass *analysis.Pass, n ast.Node) {
 	// Walk all statements in the function body, including nested blocks,
 	// but stop at function literals so closures are analysed independently.
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
-		return analyzeASTNodeForFileClosePatterns(pass, fileVars, node)
+		return analyzeASTNodeForFileClosePatterns(pass, fileVars, node, noLintLinesByFile)
 	})
 
 	// Report files with manual close but no defer
 	for _, state := range fileVars {
-		if state.hasManualClose && !state.hasDefer {
+		if state.hasManualClose && !state.hasDefer && !nolint.HasDirective(pass.Fset.PositionFor(state.openPos, false), noLintLinesByFile) {
 			pass.Report(analysis.Diagnostic{
 				Pos:     state.openPos,
 				Message: "file Close() should be deferred immediately after successful open to prevent resource leaks",
@@ -72,7 +74,7 @@ func inspectFileFuncDecl(pass *analysis.Pass, n ast.Node) {
 	}
 }
 
-func analyzeASTNodeForFileClosePatterns(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, node ast.Node) bool {
+func analyzeASTNodeForFileClosePatterns(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, node ast.Node, noLintLinesByFile map[string]map[int]struct{}) bool {
 	if node == nil {
 		return false
 	}
@@ -85,7 +87,7 @@ func analyzeASTNodeForFileClosePatterns(pass *analysis.Pass, fileVars map[types.
 
 	// Look for assignments like: file, err := os.Open(...)
 	if assign, ok := node.(*ast.AssignStmt); ok {
-		trackFileOpenAssignment(pass, fileVars, assign)
+		trackFileOpenAssignment(pass, fileVars, assign, noLintLinesByFile)
 	}
 
 	// Look for defer file.Close()
@@ -116,7 +118,7 @@ func analyzeASTNodeForFileClosePatterns(pass *analysis.Pass, fileVars map[types.
 	return true
 }
 
-func trackFileOpenAssignment(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, assign *ast.AssignStmt) {
+func trackFileOpenAssignment(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, assign *ast.AssignStmt, noLintLinesByFile map[string]map[int]struct{}) {
 	for i, rhs := range assign.Rhs {
 		call, ok := rhs.(*ast.CallExpr)
 		if !ok || !isFileOpenCall(call) {
@@ -136,7 +138,7 @@ func trackFileOpenAssignment(pass *analysis.Pass, fileVars map[types.Object]*fil
 		// If this object was already tracked from a prior open on the
 		// same binding (plain = reassignment), report any unresolved
 		// violation immediately before overwriting the state.
-		if prev, exists := fileVars[obj]; exists && prev.hasManualClose && !prev.hasDefer {
+		if prev, exists := fileVars[obj]; exists && prev.hasManualClose && !prev.hasDefer && !nolint.HasDirective(pass.Fset.PositionFor(prev.openPos, false), noLintLinesByFile) {
 			pass.Report(analysis.Diagnostic{
 				Pos:     prev.openPos,
 				Message: "file Close() should be deferred immediately after successful open to prevent resource leaks",

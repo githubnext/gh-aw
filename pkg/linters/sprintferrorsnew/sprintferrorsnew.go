@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the sprintferrorsnew analysis pass.
@@ -26,6 +27,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "sprintferrorsnew")
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -66,6 +68,10 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
+		position := pass.Fset.PositionFor(call.Pos(), false)
+		if nolint.HasDirective(position, noLintLinesByFile) {
+			return
+		}
 		pass.Reportf(call.Pos(), "use fmt.Errorf instead of errors.New(fmt.Sprintf(...))")
 	})
 
