@@ -1,96 +1,25 @@
 {
-  "run_date": "2026-06-27T07:21:31Z",
-  "run_id": "28282332784",
-  "previous_run_id": "28274054425",
-  "previous_run_date": "2026-06-27T01:15:27Z",
-  "agent_prs_found": 9,
-  "prs_triaged": 9,
+  "run_date": "2026-06-27T12:44:41Z",
+  "run_id": "28289524040",
+  "previous_run_id": "28282332784",
+  "previous_run_date": "2026-06-27T07:21:31Z",
+  "agent_prs_found": 10,
+  "prs_triaged": 10,
   "open_agent_prs": [
-    {
-      "number": 41295,
-      "title": "fix: apply_samples derivePrHeadRef uses target-repo config for siderepo PR lookups",
-      "draft": false,
-      "additions": 236,
-      "deletions": 4,
-      "changed_files": 4,
-      "category": "bug",
-      "risk": "medium",
-      "priority": "high",
-      "score": 71,
-      "action": "fast_track",
-      "age_hours": 75.8
-    },
-    {
-      "number": 41830,
-      "title": "safe_outputs: set git safe.directory in bridge HOME before bundle branch pinning",
-      "draft": false,
-      "additions": 84,
-      "deletions": 0,
-      "changed_files": 2,
-      "category": "bug",
-      "risk": "medium",
-      "priority": "high",
-      "score": 67,
-      "action": "fast_track",
-      "age_hours": 4.9
-    },
-    {
-      "number": 41824,
-      "title": "Add model policy frontmatter + import unioning + env policy overrides",
-      "draft": false,
-      "additions": 483,
-      "deletions": 11,
-      "changed_files": 14,
-      "category": "feature",
-      "risk": "high",
-      "priority": "high",
-      "score": 67,
-      "action": "fast_track",
-      "batch": "feature-promo",
-      "age_hours": 6.4
-    },
     {
       "number": 41777,
       "title": "Add Copilot-only `lsp` frontmatter support with schema, codegen, engine guardrails, and LSP instructions",
       "draft": false,
-      "additions": 991,
-      "deletions": 32,
-      "changed_files": 22,
+      "additions": 984,
+      "deletions": 29,
+      "changed_files": 21,
       "category": "feature",
       "risk": "high",
       "priority": "high",
-      "score": 62,
+      "score": 70,
       "action": "batch_review",
       "batch": "feature-promo",
-      "age_hours": 12.7
-    },
-    {
-      "number": 41835,
-      "title": "Handle missing PR-head refs in centralized slash-command dispatch",
-      "draft": true,
-      "additions": 164,
-      "deletions": 1,
-      "changed_files": 2,
-      "category": "bug",
-      "risk": "medium",
-      "priority": "medium",
-      "score": 53,
-      "action": "defer",
-      "age_hours": 3.9
-    },
-    {
-      "number": 41850,
-      "title": "fix(fmterrorfnoverbs): treat %% as escaped literal, not a real verb",
-      "draft": false,
-      "additions": 41,
-      "deletions": 2,
-      "changed_files": 2,
-      "category": "bug",
-      "risk": "low",
-      "priority": "medium",
-      "score": 52,
-      "action": "auto_merge",
-      "age_hours": 1.8
+      "age_hours": 18.1
     },
     {
       "number": 41821,
@@ -102,10 +31,87 @@
       "category": "feature",
       "risk": "medium",
       "priority": "medium",
-      "score": 52,
+      "score": 55,
       "action": "batch_review",
       "batch": "feature-promo",
-      "age_hours": 6.6
+      "age_hours": 12.0,
+      "notes": "label_conflict: stale defer+active-drafts labels"
+    },
+    {
+      "number": 41824,
+      "title": "Add model policy frontmatter + import unioning + env policy overrides",
+      "draft": false,
+      "additions": 536,
+      "deletions": 18,
+      "changed_files": 14,
+      "category": "feature",
+      "risk": "high",
+      "priority": "high",
+      "score": 70,
+      "action": "fast_track",
+      "batch": "feature-promo",
+      "age_hours": 11.8,
+      "notes": "label_conflict: stale defer+active-drafts labels"
+    },
+    {
+      "number": 41830,
+      "title": "safe_outputs: set git safe.directory via process-scoped env vars before bundle branch pinning",
+      "draft": false,
+      "additions": 97,
+      "deletions": 0,
+      "changed_files": 2,
+      "category": "bug",
+      "risk": "medium",
+      "priority": "high",
+      "score": 65,
+      "action": "fast_track",
+      "age_hours": 10.2,
+      "review_decision": "CHANGES_REQUESTED",
+      "notes": "bot CHANGES_REQUESTED; approach revised from HOME-based to process-scoped"
+    },
+    {
+      "number": 41835,
+      "title": "Handle missing PR-head refs in centralized slash-command dispatch",
+      "draft": true,
+      "additions": 164,
+      "deletions": 1,
+      "changed_files": 2,
+      "category": "bug",
+      "risk": "medium",
+      "priority": "medium",
+      "score": 42,
+      "action": "defer",
+      "age_hours": 9.3
+    },
+    {
+      "number": 41849,
+      "title": "Add nolint suppression parity for 5 remaining gh-aw analyzers",
+      "draft": false,
+      "additions": 79,
+      "deletions": 8,
+      "changed_files": 11,
+      "category": "chore",
+      "risk": "low",
+      "priority": "medium",
+      "score": 43,
+      "action": "auto_merge",
+      "age_hours": 7.2,
+      "ci": "no_checks"
+    },
+    {
+      "number": 41850,
+      "title": "fix(fmterrorfnoverbs): treat %% as escaped literal, not a real verb",
+      "draft": false,
+      "additions": 41,
+      "deletions": 2,
+      "changed_files": 2,
+      "category": "bug",
+      "risk": "low",
+      "priority": "medium",
+      "score": 49,
+      "action": "auto_merge",
+      "age_hours": 7.2,
+      "ci": "14_pass_16_skip"
     },
     {
       "number": 41852,
@@ -117,88 +123,84 @@
       "category": "bug",
       "risk": "medium",
       "priority": "medium",
-      "score": 48,
+      "score": 40,
       "action": "defer",
-      "age_hours": 1.8
+      "age_hours": 7.2
     },
     {
-      "number": 41849,
-      "title": "Add nolint suppression parity for 5 remaining gh-aw analyzers",
-      "draft": false,
-      "additions": 63,
-      "deletions": 8,
-      "changed_files": 11,
+      "number": 41864,
+      "title": "Fix invalid JSON escapes in GitHub remote MCP gateway config generation",
+      "draft": true,
+      "additions": 81,
+      "deletions": 15,
+      "changed_files": 6,
+      "category": "bug",
+      "risk": "medium",
+      "priority": "medium",
+      "score": 58,
+      "action": "defer",
+      "age_hours": 4.4,
+      "notes": "new PR; escalate to fast_track once draft lifted"
+    },
+    {
+      "number": 41865,
+      "title": "Bump Claude Code to 2.1.195 and Codex to 0.142.3",
+      "draft": true,
+      "additions": 841,
+      "deletions": 841,
+      "changed_files": 78,
       "category": "chore",
       "risk": "low",
       "priority": "medium",
-      "score": 47,
-      "action": "auto_merge",
-      "age_hours": 1.8
+      "score": 33,
+      "action": "defer",
+      "age_hours": 4.4,
+      "notes": "new PR; routine version bump, mostly generated artifacts"
     }
   ],
   "closed_since_last_run": [
     {
-      "number": 41823,
-      "title": "fix(token-usage): restore fleet-wide TokenUsage collection via non-empty copy guard",
+      "number": 41295,
+      "title": "fix: apply_samples derivePrHeadRef uses target-repo config for siderepo PR lookups",
       "outcome": "merged"
-    },
-    {
-      "number": 41815,
-      "title": "fix(security): pin govulncheck to go.mod version in CI, add local SARIF target",
-      "outcome": "merged"
-    },
-    {
-      "number": 41813,
-      "title": "Add benchstat regression gate to CI bench job",
-      "outcome": "merged"
-    },
-    {
-      "number": 41822,
-      "title": "Honor GH host resolution in `gh aw trial` clone paths",
-      "outcome": "closed"
-    },
-    {
-      "number": 41814,
-      "title": "[WIP] Restore fleet-wide token_usage collection after 6 days of gap",
-      "outcome": "closed"
     }
   ],
   "statistics": {
-    "total_open_copilot_prs": 9,
-    "draft_prs": 2,
-    "ready_prs": 7,
+    "total_open_copilot_prs": 10,
+    "draft_prs": 4,
+    "ready_prs": 6,
     "by_action": {
-      "fast_track": 3,
+      "fast_track": 2,
       "batch_review": 2,
       "auto_merge": 2,
-      "defer": 2
+      "defer": 4
     },
     "by_category": {
       "feature": 3,
       "bug": 5,
-      "chore": 1
+      "chore": 2
     },
     "by_risk": {
       "high": 2,
       "medium": 5,
-      "low": 2
+      "low": 3
     },
     "by_priority": {
-      "high": 4,
-      "medium": 5,
+      "high": 3,
+      "medium": 7,
       "low": 0
     },
-    "closed_since_last_run": 5,
-    "new_since_last_run": 5,
-    "carried_over": 4,
-    "merges_since_last_run": 3
+    "closed_since_last_run": 1,
+    "new_since_last_run": 2,
+    "carried_over": 8,
+    "merges_since_last_run": 1
   },
   "batches": {
-    "feature-promo": [
-      41824,
-      41821,
-      41777
-    ]
+    "feature-promo": [41824, 41777, 41821]
   },
-  "notes": "9 open agent PRs. 5 closed since last run (3 merged: token-usage, govulncheck, benchstat; 2 closed w/o merge). 5 new PRs. PRs #41824 and #41821 promoted from draft. Feature batch feature-promo: #41824+#41821+#41777. Auto-merge candidates: #41850+#41849 (CI green). Fast-track: #41295 (75h+, 3 approvals), #41830 (production fix), #41824 (model policy). Run \u00a728282332784."
+  "label_conflicts": [
+    {"pr": 41824, "stale_labels": ["pr-action:defer", "pr-batch:active-drafts"]},
+    {"pr": 41821, "stale_labels": ["pr-action:defer", "pr-batch:active-drafts"]}
+  ],
+  "notes": "10 open agent PRs. 1 merged (#41295 after 75h+). 2 new PRs: #41865 (chore bump, draft), #41864 (MCP gateway bug, draft). #41830 approach revised, bot CHANGES_REQUESTED. #41824 additions increased 483→536. feature-promo batch: #41824+#41777+#41821. Auto-merge: #41850 (CI green), #41849 (pending CI). Run §28289524040."
 }
