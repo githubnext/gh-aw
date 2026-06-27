@@ -1,16 +1,9 @@
 ---
-description: Deep research synthesis of loop-engineering workflow patterns from githubnext/autoloop, githubnext/goal, and githubnext/crane, with implementation guidance for gh-aw workflows.
+description: Loop-engineering workflow patterns and implementation guidance for gh-aw workflows.
 ---
 
 # Loop Engineering Patterns
 
-Distills loop patterns from:
-
-- https://raw.githubusercontent.com/githubnext/autoloop/main/workflows/autoloop.md
-- https://raw.githubusercontent.com/githubnext/goal/main/workflows/goal.md
-- https://raw.githubusercontent.com/githubnext/crane/main/workflows/crane.md
-
-Sources track `main`; re-check upstream before adopting.
 Use as a playbook for long-running iterative workflows.
 
 ## What “loop engineering” means
