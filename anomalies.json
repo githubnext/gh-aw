@@ -1,17 +1,17 @@
 {
- "updated": "2026-06-25",
+ "updated": "2026-06-27",
  "anomalies": [
   {
    "id": "anom-avenger-resumed-after-pause-2026-06-24",
    "first_seen": "2026-06-24",
-   "last_seen": "2026-06-24",
+   "last_seen": "2026-06-27",
    "wf": "Avenger",
    "run": "28068396181,28070295852",
    "kind": "err-config-no-structured-logs",
-   "persistence": 1,
-   "escalation": "RE-ESCALATE",
+   "persistence": 2,
+   "escalation": "ESCALATE-MAX",
    "status": "ACTIVE",
-   "detail": "Avenger RESUMED after 2-day absence (06-22,06-23) and immediately failed 2/2 (claude, 0-tok, 14.6m+15.7m). Confirms the 06-22/23 streak break was a PAUSE, not a fix \u2014 err-config/no-structured-logs root cause (open since ~06-08, issue recur 15) persists. Pause appears lifted. Owner action per rec-avenger-fix-err-config still required.",
+   "detail": "Avenger RESUMED after 2-day absence (06-22,06-23) and immediately failed 2/2 (claude, 0-tok, 14.6m+15.7m). Confirms the 06-22/23 streak break was a PAUSE, not a fix \u2014 err-config/no-structured-logs root cause (open since ~06-08, issue recur 15) persists. Pause appears lifted. Owner action per rec-avenger-fix-err-config still required. | 06-27 ESCALATION: Avenger now 10/10 hard-fail in 24h (up from 2/2 on 06-24), ~every 90min, 173 action-min/day wasted. Pause fully lifted; chronic 100%-fail resumed. err-config root cause untouched. Single largest reliability drain on the fleet.",
    "linked_issue": "avenger-err-config-no-structured-logs"
   },
   {
@@ -47,36 +47,6 @@
    "escalation": "PERSISTING-ESCALATE",
    "detail": "RECUR 3rd consecutive day: 404 'Model not found gpt-5-codex-alpha-2025-11-07' (run 27101492605) on prod main schedule. Model id ROTATED from adelie-alpha-2026-02-19 but STILL 404 \u2014 chasing a moving en\u2026",
    "status": "ACTIVE"
-  },
-  {
-   "id": "anom-ai-credits-cap-429",
-   "first_seen": "2026-06-09",
-   "last_seen": "2026-06-14",
-   "persistence": 2,
-   "state": "new",
-   "severity": "high",
-   "note": "Daily Ambient Context Optimizer prod-main hit account daily AI-credits cap 429 (1026.78/1000) at turn 57, 3.0M tokens wasted. Watch whether this recurs as he...",
-   "escalation": "WATCH",
-   "date": "2026-06-10",
-   "detail": " | 06-10: Ambient 1003/1000 AIC recurred. | 06-14: prod-main Ambient CLEAN under-cap; 429 resurfaced ONLY on a PR Smoke Copilot probe (1015/1000, 3.9M tok). Account-wide cap can be tripped by heavy PR probes."
-  },
-  {
-   "id": "smoke-copilot-aoai-token-blowout",
-   "date": "2026-06-11",
-   "metric": "tokens",
-   "value": 2152350,
-   "persistence_score": 1,
-   "escalation": "watch",
-   "desc": "Smoke Copilot - AOAI (apikey) o4-mini-aw burned 2.15M tokens / 73 turns in a transient-API-error retry loop then FAILED. Largest single failed-run token spend this window. See known-issue aoai-apikey-\u2026"
-  },
-  {
-   "id": "matt-pocock-skills-reviewer-5M-tokens",
-   "date": "2026-06-11",
-   "metric": "tokens",
-   "value": 5039029,
-   "persistence_score": 1,
-   "escalation": "watch",
-   "desc": "Matt Pocock Skills Reviewer SUCCEEDED but consumed 5.04M tokens (66 turns) \u2014 top token consumer this window, ~20% of all tokens in one run. Not a failure but a cost outlier worth tracking for budget."
   },
   {
    "id": "anom-avenger-6x-redden",
@@ -201,6 +171,19 @@
    "status": "ACTIVE",
    "detail": "Auto-Triage Issues (pi engine, model copilot/gpt-5.4 experimental) 5/6 fail. 0-tok/0-turn agent:failure ~2-6min, surrounding jobs green. Top single-wf prod-main offender this window. NEW. Likely experimental pi/gpt-5.4 driver or model-availability issue.",
    "linked_issue": "pi-gpt54-0tok-agentjob-fail"
+  },
+  {
+   "id": "anom-avenger-10x-100pct-2026-06-27",
+   "first_seen": "2026-06-27",
+   "last_seen": "2026-06-27",
+   "wf": "Avenger",
+   "run": "28301247575 (+9 more)",
+   "kind": "err-config-no-structured-logs-100pct",
+   "persistence": 1,
+   "escalation": "ESCALATE",
+   "status": "ACTIVE",
+   "detail": "Avenger 10/10 fail this 24h window (claude, model='agent', Turns=0, ~14-19m). Accounts for 38% of all prod-main fails. Removing Avenger lifts prod-main from 86.3% to 91.2%.",
+   "linked_issue": "avenger-err-config-no-structured-logs"
   }
  ]
 }

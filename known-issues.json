@@ -1,5 +1,5 @@
 {
- "updated": "2026-06-25",
+ "updated": "2026-06-27",
  "issues": [
   {
    "id": "model-param-config-incompatibility",
@@ -8,14 +8,14 @@
    "severity": "HIGH",
    "new": false,
    "first_seen": "2026-06-05",
-   "last_seen": "2026-06-13",
-   "recurrence": "RECUR 2026-06-13 (count 4): Daily Cache Strategy Analyzer codex 28x 'Model not found' gpt-5-codex-alpha \u2014 SAME wf, SAME signature as 06-11/06-05. Still unfixed.",
+   "last_seen": "2026-06-27",
+   "recurrence": "RECUR 2026-06-27 (count5): Daily Cache Strategy Analyzer (codex) fails again 7.4m \u2014 SAME wf, unfixed since 06-05.",
    "affected": [
     "Daily Caveman Optimizer",
     "Daily Cache Strategy Analyzer"
    ],
    "note": "Two variants: (a) Daily Caveman Optimizer [claude] -> 400 invalid_request_error 'This model does not support the effort parameter' (claude model pinned with a r\u2026",
-   "recurrence_count": 4
+   "recurrence_count": 5
   },
   {
    "id": "safe-output-partial-failure-intolerance",
@@ -23,8 +23,8 @@
    "status": "OPEN",
    "severity": "HIGH",
    "first_seen": "2026-05",
-   "last_seen": "2026-06-23",
-   "recurrence": "RECUR 2026-06-23 (count 6): PR Sous Chef 2/6 fails (33% hotspot per observability) \u2014 1x 0-tok startup (6.2m) + 1x ran $43/9.8m. Mixed sdk-startup + safe-output signature.",
+   "last_seen": "2026-06-27",
+   "recurrence": "RECUR 2026-06-27 (count7): PR Sous Chef 2 fails again (9.4m+9.1m, aic 51+93).",
    "affected": [
     "Contribution Check",
     "PR Sous Chef",
@@ -32,7 +32,7 @@
     "Smoke Claude"
    ],
    "note": "06-18 PR Sous Chef (625K/31-turn agent SUCCESS) + Smoke Copilot (1.57M/28-turn agent SUCCESS) both reddened by safe_outputs job failure only",
-   "recurrence_count": 6
+   "recurrence_count": 7
   },
   {
    "id": "copilot-sdk-driver-failures",
@@ -40,8 +40,8 @@
    "status": "recurring",
    "severity": "HIGH",
    "first_seen": "2026-06-02",
-   "last_seen": "2026-06-25",
-   "recurrence": "RECUR 2026-06-20 (count 14)",
+   "last_seen": "2026-06-27",
+   "recurrence": "RECUR 2026-06-27 (recur18): LONG-RUN-0turn variant persists \u2014 Daily SPDD Spec Planner(26m), Daily Safe Output Integrator(25m), Daily Firewall Logs Collector(33m). All copilot, Turns=0, fail after real compute.",
    "affected": [
     "Daily SPDD Spec Planner",
     "Daily Safe Output Integrator",
@@ -50,28 +50,10 @@
     "PR Code Quality Reviewer"
    ],
    "note": "06-19 x3 prod/PR tool-perm-lockout (Safe Output Integrator, SPDD, PR CQR)",
-   "recurrence_count": 17,
+   "recurrence_count": 18,
    "count": 16,
    "summary": "2 tool-perm-lockout 0-tok fails: Daily Safe Output Integrator (27880811834, 24min, 1-turn) + PR Code Quality Reviewer (PR branch). Day14 of chronic copilot-sdk path.",
    "recur": "RECUR 2026-06-25 (count 19): LONG-RUN variant persists \u2014 Daily Safe Output Integrator 25.4m ($85) + Daily SPDD Spec Planner 24.4m ($100), both copilot agent-job fails after 24-25min real work. Day23+ chronic, still the dominant 'ran-work' prod-main fail family."
-  },
-  {
-   "id": "daily-ai-credits-cap-429",
-   "title": "429 Maximum AI credits exceeded (account/daily credit cap ~1000) aborts heavy prod-main run mid-flight",
-   "status": "recurring",
-   "severity": "high",
-   "new": false,
-   "first_seen": "2026-06-09",
-   "last_seen": "2026-06-14",
-   "recurrence": 2,
-   "engines": [
-    "copilot"
-   ],
-   "affected": [
-    "Daily Ambient Context Optimizer"
-   ],
-   "note": "Daily Ambient Context Optimizer (copilot, prod-main, run 27233269431) ran 57 turns / 3.0M tokens then the Copilot API returned CAPIError 429 'Maximum AI credits\u2026",
-   "fix": "Add a soft pre-cap credit guard that checks remaining daily AI credits before the heaviest aggregation turns and degrades gracefully (emit partial output + noop) instead of 429-aborting; or raise the cap for the few heavy prod-main aggregators; or shard Ambient's work across smaller runs."
   },
   {
    "id": "aoai-apikey-persistent-transient-api-error",
@@ -94,10 +76,10 @@
    "severity": "high",
    "new": true,
    "first_seen": "2026-06-12",
-   "last_seen": "2026-06-25",
-   "recurrence_count": 7,
+   "last_seen": "2026-06-27",
+   "recurrence_count": 8,
    "title": "Copilot CLI requires Node.js but 'node' not available inside AWF chroot \u2014 agent never starts",
-   "recurrence": "RECUR 2026-06-13 (count 2): Daily Issues Report Generator exit 127 command-not-found (workflow_dispatch). Confirms 06-12 chroot-node onset is recurring.",
+   "recurrence": "RECUR 2026-06-27 (count8): Daily Issues Report Generator (copilot) fail 9.2m \u2014 likely same node-in-chroot entrypoint abort.",
    "affected_workflows": [
     "Daily Issues Report Generator"
    ],
@@ -111,9 +93,9 @@
    "severity": "HIGH",
    "new": false,
    "first_seen": "2026-06-13",
-   "last_seen": "2026-06-25",
-   "recurrence_count": 15,
-   "recurrence": "RESUMED 2026-06-24 (count 15): After 2-day absence (06-22,06-23, suspected pause), Avenger FIRED 2x and FAILED 2x (claude, 0-tok, 14.6m + 15.7m, runs 28068396181/28070295852). Streak did NOT break by fix \u2014 pause lifted and same err-config/0-tok agent:failure signature returns. Root cause CONFIRMED unfixed.",
+   "last_seen": "2026-06-27",
+   "recurrence_count": 16,
+   "recurrence": "RE-ESCALATE 2026-06-27 (recur16): Avenger 10/10 hard-fail (claude, model='agent', Turns=0/Tok=0/ErrorCount=0, ~14-19m each, 173 action-min wasted). DOMINANT prod-main drag = 38% of 26 prod-main fails. Resumed fully after 06-22/23 pause; pause now clearly lifted, runs ~every 90min and fails every time. Owner fix still required.",
    "affected": [
     "Avenger"
    ],
@@ -189,33 +171,19 @@
    "fix": "Make upload_assets non-fatal to overall run conclusion (skip-and-warn) OR add retry/validation so a transient asset upload failure does not red a successful agent run."
   },
   {
-   "id": "skillet-100pct-fail-on-push-fleet-wide",
-   "status": "RESOLVED-DEESCALATED",
-   "first_seen": "2026-06-20",
-   "last_seen": "2026-06-22",
-   "recurrence": "DE-ESCALATION COMPLETE: 103 fails (06-20) -> 4 (06-21) -> 0 (06-22). Skillet absent from failures this window. Marking RESOLVED-DEESCALATED; reopen if push-triggered 0-tok fails resurface.",
-   "count": 3,
-   "affected_workflows": [
-    "Skillet"
-   ],
-   "engine": "copilot",
-   "summary": "NEW workflow Skillet (merged HEAD 894b94c, private:true) fired on push across every branch incl main and failed 100% (103/103 runs in 24h), 0-tok/null-turn pre-activation failures (agent never runs). Source declares slash_command(centralized) trigger yet runs carry event=push. Single-handedly dropped fleet overall success 94.2%->69.6%. Active dev in flight (many copilot/* branches) but also reddening main.",
-   "detail": "103 fails: ~81 concentrated 13:00-21:16Z dev-activity window. Lock at HEAD has only workflow_dispatch trigger; mismatch with observed push-triggered runs suggests activation/trigger misconfig or central-dispatcher misfire.",
-   "recur": "DE-ESCALATING 2026-06-21 (count 2): 103 fails 06-20 -> 4 fails 06-21. Still event=null/ref=null 0-tok pre-activation failures but volume collapsed (likely dev-branch c..."
-  },
-  {
    "id": "claude-agent-job-fail-longrun",
    "first_seen": "2026-06-21",
-   "last_seen": "2026-06-23",
+   "last_seen": "2026-06-27",
    "count": 3,
-   "status": "WATCH",
+   "status": "recurring",
    "affected": [
     "Claude Code User Documentation Review",
     "Workflow Portfolio Analyst",
     "[aw] Failure Investigator (6h)",
     "Daily Rendering Scripts Verifier"
    ],
-   "recur": "RECUR 2026-06-24 (count 4): Daily Rendering Scripts Verifier (claude 32.0m, agent-job fail, run 28086187098) \u2014 NEW affected wf, LONG 32min variant. Claude-engine long-run agent-job fails keep rotating across wfs (now 4 distinct wfs over 4 days)."
+   "recur": "RECUR 2026-06-24 (count 4): Daily Rendering Scripts Verifier (claude 32.0m, agent-job fail, run 28086187098) \u2014 NEW affected wf, LONG 32min variant. Claude-engine long-run agent-job fails keep rotating across wfs (now 4 distinct wfs over 4 days).",
+   "note": " | 06-27: cross-engine confirmed \u2014 Daily Rendering Scripts Verifier(claude 25m) + Daily yamllint Fixer(claude 19m) both 0-turn longrun-fail, SAME signature as copilot SDK-longrun. The longrun-0turn-then-fail pattern now spans claude AND copilot engines."
   },
   {
    "id": "diverse-single-occurrence-fails-2026-06-22",

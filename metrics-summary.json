@@ -1,132 +1,33 @@
 {
- "updated": "2026-06-25",
- "date": "2026-06-25",
+ "updated": "2026-06-27",
+ "date": "2026-06-27",
  "partial": false,
- "latest_window": "2026-06-24T21:42Z..2026-06-25T21:18Z (~23.5h, 5 stitched batches)",
+ "latest_window": "2026-06-26T21:52Z..2026-06-27T21:24Z (~23.5h, 5 stitched batches, 320 runs; 06-26 audit-day was MISSED/unrecorded)",
  "totals": {
-  "r": 382,
-  "s": 326,
-  "f": 56,
-  "rate": 85.3,
-  "prod_main_rate": 81.0,
-  "prod_main_ex_intentional": 81.8,
-  "action_min": 3972,
-  "github_api": 4245,
-  "aic": 24173,
+  "r": 320,
+  "s": 291,
+  "f": 29,
+  "rate": 90.9,
+  "prod_main_rate": 86.3,
+  "prod_main_ex_intentional": 87.3,
+  "action_min": 3412,
+  "github_api": 3530,
+  "aic": 23272,
   "tok": null,
   "missing_tools": 0,
   "missing_data": 0,
   "mcp_failures": 0
  },
  "engines": {
-  "copilot": 227,
-  "claude": 64,
-  "pi": 43,
-  "codex": 23,
-  "antigravity": 6,
-  "gemini": 6,
-  "null_metadata": 0
+  "copilot": 210,
+  "claude": 69,
+  "pi": 26,
+  "codex": 10,
+  "antigravity": 2,
+  "gemini": 2,
+  "null_metadata": 1
  },
  "history": [
-  {
-   "d": "2026-05-25",
-   "r": 174,
-   "s": 162,
-   "rate": 94.7,
-   "$": 26.2265,
-   "tok": 56839455
-  },
-  {
-   "d": "2026-05-26",
-   "r": 49,
-   "s": 42,
-   "rate": 85.7,
-   "$": 26.366459,
-   "tok": 54489070
-  },
-  {
-   "d": "2026-05-27",
-   "r": 37,
-   "s": 30,
-   "rate": 90.9,
-   "$": 12.0,
-   "tok": 17283384,
-   "partial": true
-  },
-  {
-   "d": "2026-05-28",
-   "r": 64,
-   "s": 47,
-   "rate": 81.0,
-   "$": 29.354164,
-   "tok": 48923104,
-   "partial": true
-  },
-  {
-   "d": "2026-05-29",
-   "r": 21,
-   "s": 17,
-   "rate": 89.5,
-   "$": 7.18,
-   "tok": 14553338,
-   "partial": true,
-   "note": "small mid-cycle window; $ is claude-only"
-  },
-  {
-   "d": "2026-05-30",
-   "r": 56,
-   "s": 51,
-   "rate": 91.1,
-   "$": 24.55,
-   "tok": 49889280,
-   "note": "full window; $ claude-measured (copilot/codex cost not reported)"
-  },
-  {
-   "d": "2026-05-31",
-   "r": 59,
-   "s": 53,
-   "rate": 89.8,
-   "$": 31.63,
-   "tok": 68838688,
-   "note": "full window; $ claude-measured. Cost up on Go Logger Enhancement $8.30 outlier (success)."
-  },
-  {
-   "d": "2026-06-01",
-   "r": 53,
-   "s": 51,
-   "rate": 96.2,
-   "$": 15.62,
-   "tok": 38076235,
-   "note": "full window; $ claude-measured. BEST success rate in 14-day window. Both failures = same safe-output target=* class."
-  },
-  {
-   "d": "2026-06-02",
-   "r": 57,
-   "s": 48,
-   "rate": 84.2,
-   "$": 15.05,
-   "tok": 32731221,
-   "note": "full window; $ claude-measured. Success DOWN from 96.2% peak. 9 failures/3 classes: token-budget-429 RE-ESCALATED (2 wf over 25M cap), sa..."
-  },
-  {
-   "d": "2026-06-03",
-   "r": 17,
-   "s": 13,
-   "rate": 76.5,
-   "$": 6.75,
-   "tok": 6839253,
-   "note": "window since 06-02 night audit (17 completed/19, 2 in-prog). $ claude-measured. 4 failures: 3x copilot-sdk-session-auth (100% of sdk-driv..."
-  },
-  {
-   "d": "2026-06-04",
-   "r": 64,
-   "s": 57,
-   "rate": 89.1,
-   "$": 19.23,
-   "tok": 31739017,
-   "partial": true,
-   "note": "PARTIAL ~4h window (logs timeout). 7 fail: token-budget-429 RECUR prod main + safe-output target=* x2 (Contribution Check/PR Sous Chef) +..."
-  },
   {
    "d": "2026-06-05",
    "r": 53,
@@ -320,6 +221,15 @@
    "tok": null,
    "partial": false,
    "note": "DEGRADED 85.3% overall / prod-main 81.0% (81.8% ex-2-intentional) \u2014 worst prod-main since ~06-18; UNLIKE 06-20 NOT skewed by one wf. 32/40 prod-main fails are 0-tok/0-turn agent-job fails across 4 engines (copilot15/pi7/claude6/codex2/null2), spread evenly over 24h + across gh-aw versions = aggregation of independent agent-startup fails, not one regression. NEW hotspots: Auto-Triage(pi/gpt-5.4)5/6, Code Scanning Fixer(copilot)3/4, Typist(claude)2/2. Avenger absent again. copilot-sdk-longrun persists. 0 missing-tools/data/mcp."
+  },
+  {
+   "d": "2026-06-27",
+   "r": 320,
+   "s": 291,
+   "rate": 90.9,
+   "aic": 23272,
+   "tok": null,
+   "note": "RECOVERED to 90.9% (prod-main 86.3%, 87.3% ex-2-intentional) from 06-25 trough. Avenger 10/10 fail DOMINANT (38% of prod-main fails); ex-Avenger prod-main=91.2%. copilot/claude longrun-0turn persists (SPDD/SafeOutInteg/Firewall/RenderVerifier/yamllint). 06-26 audit-day missed. 0 missing-tools/data/mcp."
   }
  ]
 }
