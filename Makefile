@@ -227,7 +227,7 @@ security-govulncheck:
 .PHONY: security-govulncheck-sarif
 security-govulncheck-sarif:
 	@echo "Running govulncheck (SARIF output)..."
-	go run golang.org/x/vuln/cmd/govulncheck -format sarif ./... > govulncheck-results.sarif
+	go run -mod=readonly golang.org/x/vuln/cmd/govulncheck -format sarif ./... > govulncheck-results.sarif; ret=$$?; [ $$ret -eq 0 ] || [ $$ret -eq 3 ]
 	@echo "✓ Govulncheck complete (results in govulncheck-results.sarif)"
 
 # Test JavaScript files

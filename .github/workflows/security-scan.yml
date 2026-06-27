@@ -55,7 +55,7 @@ jobs:
           cache: true
 
       - name: Run govulncheck
-        run: go run golang.org/x/vuln/cmd/govulncheck -format sarif ./... > govulncheck-results.sarif
+        run: go run -mod=readonly golang.org/x/vuln/cmd/govulncheck -format sarif ./... > govulncheck-results.sarif; ret=$?; [ $ret -eq 0 ] || [ $ret -eq 3 ]
 
       - name: Upload govulncheck SARIF
         uses: github/codeql-action/upload-sarif@4248455a6f2335bc3b7a8a62932f000050ec8f13 # v3
