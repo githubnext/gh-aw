@@ -728,6 +728,12 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 			envVars["GH_AW_COMMAND_PLACEHOLDER"] = fmt.Sprintf("%q", data.CommandPlaceholder)
 		}
 	}
+	// Add label command metadata so safe output handlers can render run-again footer hints.
+	if len(data.LabelCommand) > 0 {
+		if labelCommandsJSON, err := json.Marshal(data.LabelCommand); err == nil {
+			envVars["GH_AW_LABEL_COMMANDS"] = fmt.Sprintf("%q", string(labelCommandsJSON))
+		}
+	}
 
 	// Add safe output job environment variables (staged/target repo)
 	if data.SafeOutputs != nil {
