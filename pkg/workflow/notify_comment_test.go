@@ -1277,6 +1277,20 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(allSteps, "/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl") {
 		t.Errorf("Expected usage artifact collection to include firewall audit token usage path for agent.\nGenerated steps:\n%s", allSteps)
 	}
+	// Verify non-empty check (-s) is used for token-usage copies so empty stub files from
+	// AWF's audit dir cannot zero out valid data written by the primary proxy-logs dir.
+	if !strings.Contains(allSteps, "[ -s /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ]") {
+		t.Errorf("Expected usage artifact collection to use non-empty (-s) check for firewall/logs token-usage copy.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "[ -s /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl ]") {
+		t.Errorf("Expected usage artifact collection to use non-empty (-s) check for firewall/audit token-usage copy.\nGenerated steps:\n%s", allSteps)
+	}
+	// Verify firewall/logs/ copy appears after firewall/audit/ copy so it wins (last non-empty wins).
+	logsIdx := strings.Index(allSteps, "[ -s /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ]")
+	auditIdx := strings.Index(allSteps, "[ -s /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl ]")
+	if logsIdx > 0 && auditIdx > 0 && logsIdx <= auditIdx {
+		t.Errorf("Expected firewall/logs token-usage copy to appear AFTER firewall/audit copy (logs = higher priority).\nGenerated steps:\n%s", allSteps)
+	}
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/detection/token_usage.jsonl") {
 		t.Errorf("Expected usage artifact to include detection token usage path.\nGenerated steps:\n%s", allSteps)
 	}
