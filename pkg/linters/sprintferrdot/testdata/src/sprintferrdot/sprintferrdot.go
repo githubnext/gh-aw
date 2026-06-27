@@ -60,3 +60,8 @@ func goodNonErrorDot(f *os.File) string {
 func goodNilErr() string {
 	return fmt.Sprintf("sentinel: %s", sentinel)
 }
+
+// suppressedSprintfS intentionally keeps err.Error() with suppression.
+func suppressedSprintfS(err error) string {
+	return fmt.Sprintf("operation failed: %s", err.Error()) //nolint:sprintferrdot
+}

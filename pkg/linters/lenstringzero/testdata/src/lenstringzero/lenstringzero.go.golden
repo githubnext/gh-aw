@@ -135,3 +135,6 @@ func arrayAliasNotFlagged(s [1]byte) bool {
 	return n == 0
 }
 
+func suppressedEmpty(s string) bool {
+	return len(s) == 0 //nolint:lenstringzero
+}

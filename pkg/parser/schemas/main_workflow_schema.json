@@ -10303,8 +10303,7 @@
         "report-failure-as-issue": {
           "oneOf": [
             {
-              "type": "boolean",
-              "description": "When false, disables creating failure tracking issues when workflows fail. When true, all failures trigger issues. Defaults to true."
+              "$ref": "#/$defs/templatable_boolean"
             },
             {
               "type": "array",
@@ -10318,7 +10317,7 @@
             }
           ],
           "default": true,
-          "examples": [false, true, ["agent_failure", "missing_safe_outputs"], ["!inference_access_error", "!ai_credits_rate_limit_error"]]
+          "examples": [false, true, "${{ inputs.report-failure-as-issue }}", ["agent_failure", "missing_safe_outputs"], ["!inference_access_error", "!ai_credits_rate_limit_error"]]
         },
         "failure-issue-repo": {
           "type": "string",
