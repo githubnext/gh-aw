@@ -74,5 +74,5 @@ func TestLSPManagerGenerateInstallSteps(t *testing.T) {
 	require.Len(t, steps, 1)
 	content := strings.Join(steps[0], "\n")
 	assert.Contains(t, content, "Install TypeScript LSP dependencies")
-	assert.Contains(t, content, "npm install -g typescript typescript-language-server")
+	assert.Contains(t, content, "npm install -g --ignore-scripts typescript typescript-language-server")
 }

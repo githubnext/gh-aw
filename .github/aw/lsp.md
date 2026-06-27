@@ -40,14 +40,14 @@ For the languages below, the compiler automatically injects an install step — 
 
 | Language key | Install command | Example `command` |
 |---|---|---|
-| `bash` | `npm install -g bash-language-server` | `bash-language-server` |
+| `bash` | `npm install -g --ignore-scripts bash-language-server` | `bash-language-server` |
 | `go` | `go install golang.org/x/tools/gopls@latest` | `gopls` |
-| `php` | `npm install -g intelephense` | `intelephense` |
-| `python` | `npm install -g pyright` | `pyright-langserver` |
+| `php` | `npm install -g --ignore-scripts intelephense` | `intelephense` |
+| `python` | `npm install -g --ignore-scripts pyright` | `pyright-langserver` |
 | `ruby` | `gem install solargraph` | `solargraph` |
 | `rust` | `rustup component add rust-analyzer` | `rust-analyzer` |
-| `typescript` | `npm install -g typescript typescript-language-server` | `typescript-language-server` |
-| `yaml` | `npm install -g yaml-language-server` | `yaml-language-server` |
+| `typescript` | `npm install -g --ignore-scripts typescript typescript-language-server` | `typescript-language-server` |
+| `yaml` | `npm install -g --ignore-scripts yaml-language-server` | `yaml-language-server` |
 
 Language keys not in this table still work — the compiler simply skips the auto-install step. Add a manual `steps:` entry to install the server yourself.
 

@@ -116,7 +116,7 @@ type lspInstallSpec struct {
 var lspInstallSpecs = map[string]lspInstallSpec{
 	"bash": {
 		StepName: "Install Bash LSP dependencies",
-		Command:  "npm install -g bash-language-server",
+		Command:  "npm install -g --ignore-scripts bash-language-server",
 	},
 	"go": {
 		StepName: "Install Go LSP dependencies",
@@ -124,11 +124,11 @@ var lspInstallSpecs = map[string]lspInstallSpec{
 	},
 	"php": {
 		StepName: "Install PHP LSP dependencies",
-		Command:  "npm install -g intelephense",
+		Command:  "npm install -g --ignore-scripts intelephense",
 	},
 	"python": {
 		StepName: "Install Python LSP dependencies",
-		Command:  "npm install -g pyright",
+		Command:  "npm install -g --ignore-scripts pyright",
 	},
 	"ruby": {
 		StepName: "Install Ruby LSP dependencies",
@@ -140,10 +140,10 @@ var lspInstallSpecs = map[string]lspInstallSpec{
 	},
 	"typescript": {
 		StepName: "Install TypeScript LSP dependencies",
-		Command:  "npm install -g typescript typescript-language-server",
+		Command:  "npm install -g --ignore-scripts typescript typescript-language-server",
 	},
 	"yaml": {
 		StepName: "Install YAML LSP dependencies",
-		Command:  "npm install -g yaml-language-server",
+		Command:  "npm install -g --ignore-scripts yaml-language-server",
 	},
 }

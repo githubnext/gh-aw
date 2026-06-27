@@ -310,7 +310,7 @@ func TestCopilotEngineInstallationSteps_WithLSPConfig(t *testing.T) {
 	if !strings.Contains(allLinesStr, "Install Python LSP dependencies") {
 		t.Fatalf("Expected Python LSP install step, got:\n%s", allLinesStr)
 	}
-	if !strings.Contains(allLinesStr, "npm install -g pyright") {
+	if !strings.Contains(allLinesStr, "npm install -g --ignore-scripts pyright") {
 		t.Fatalf("Expected pyright install command, got:\n%s", allLinesStr)
 	}
 }
