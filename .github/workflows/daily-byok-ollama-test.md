@@ -42,6 +42,28 @@ steps:
   - name: Pull small model
     run: |
       ollama pull qwen2.5:0.5b
+  - name: Verify Ollama BYOK readiness
+    env:
+      OLLAMA_MODEL: "qwen2.5:0.5b"
+    run: |
+      echo "Checking Ollama model availability..."
+      if ! ollama list | grep -Fq "$OLLAMA_MODEL"; then
+        echo "::error::Required model '$OLLAMA_MODEL' is not available in Ollama."
+        exit 1
+      fi
+
+      echo "Waiting for Ollama OpenAI-compatible endpoint..."
+      MAX_WAIT_SECONDS=30
+      for i in $(seq 1 "$MAX_WAIT_SECONDS"); do
+        if curl -sf http://localhost:11434/v1/models > /dev/null 2>&1; then
+          echo "Ollama /v1/models is ready"
+          exit 0
+        fi
+        sleep 1
+      done
+
+      echo "::error::Ollama /v1/models did not become ready in ${MAX_WAIT_SECONDS}s."
+      exit 1
 network:
   allowed:
     - defaults
