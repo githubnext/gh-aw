@@ -661,5 +661,129 @@ This is a test workflow to verify description field rendering.
 	}
 }
 
+// TestMCPWorkflowWithSecretsGeneratesValidYAML verifies that compiled Copilot workflows
+// containing MCP server env and HTTP header secrets produce valid YAML output and do not
+// contain double-escaped shell placeholders (\\${VAR}).  This is a regression guard for
+// the bug introduced in v0.81.2 where two escaping layers were applied to the same value,
+// producing \\${VAR} instead of the correct \${VAR} in the unquoted heredoc section.
+func TestMCPWorkflowWithSecretsGeneratesValidYAML(t *testing.T) {
+	tests := []struct {
+		name            string
+		workflowContent string
+	}{
+		{
+			name: "copilot engine with container env secrets",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  my-server:
+    container: "example/my-server:latest"
+    env:
+      MY_API_TOKEN: "${{ secrets.MY_API_TOKEN }}"
+      PLAIN_VALUE: "hello"
+---
+
+# Test env secret escaping
+
+Do nothing.
+`,
+		},
+		{
+			name: "copilot engine with HTTP header secrets",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  datadog:
+    type: http
+    url: https://mcp.datadoghq.com/api/mcp
+    headers:
+      Authorization: "${{ secrets.DD_API_KEY }}"
+      X-Static: "static-value"
+---
+
+# Test HTTP header secret escaping
+
+Do nothing.
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpFile, err := os.CreateTemp("", "test-mcp-yaml-valid-*.md")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpFile.Name())
+
+			if _, err := tmpFile.WriteString(tt.workflowContent); err != nil {
+				t.Fatalf("Failed to write to temp file: %v", err)
+			}
+			tmpFile.Close()
+
+			compiler := NewCompiler()
+			compiler.SetSkipValidation(true)
+
+			workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to parse workflow file: %v", err)
+			}
+
+			yamlContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to generate YAML: %v", err)
+			}
+
+			// The generated YAML must parse without errors.
+			var parsedWorkflow map[string]any
+			if err := yaml.Unmarshal([]byte(yamlContent), &parsedWorkflow); err != nil {
+				t.Fatalf("Generated YAML is not valid YAML: %v\nYAML (first 2000 chars):\n%s", err, yamlContent[:min(2000, len(yamlContent))])
+			}
+
+			// The generated YAML must NOT contain double-escaped shell placeholders.
+			// \\${ in the Go string literal represents the two-character sequence \\ followed
+			// by ${ which, if present in the lock file, means bash would produce \<value>
+			// instead of the intended var-expansion placeholder — causing invalid JSON in the gateway.
+			if strings.Contains(yamlContent, `\\${`) {
+				t.Errorf("Generated YAML contains double-escaped shell placeholders (\\\\${); this is a regression.\n"+
+					"Occurrences found — first 200 chars around each:\n%s",
+					findAllOccurrences(yamlContent, `\\${`, 200))
+			}
+		})
+	}
+}
+
+// findAllOccurrences returns a string summarising up to 5 occurrences of needle in
+// haystack, each surrounded by contextChars characters of context.
+func findAllOccurrences(haystack, needle string, contextChars int) string {
+	var sb strings.Builder
+	start := 0
+	count := 0
+	for count < 5 {
+		idx := strings.Index(haystack[start:], needle)
+		if idx == -1 {
+			break
+		}
+		idx += start
+		lo := max(0, idx-contextChars)
+		hi := min(len(haystack), idx+len(needle)+contextChars)
+		sb.WriteString(haystack[lo:hi])
+		sb.WriteString("\n---\n")
+		start = idx + len(needle)
+		count++
+	}
+	return sb.String()
+}
+
 // TestOnSectionWithQuotes tests that the "on" keyword IS quoted in the generated YAML
 // to prevent YAML parsers from interpreting it as a boolean value

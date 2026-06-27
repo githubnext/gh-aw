@@ -52,6 +52,10 @@ func buildToolUsageInfo(metrics LogMetrics) []ToolUsageInfo {
 			}
 			if toolCall.MaxOutputSize > existing.MaxOutputSize {
 				existing.MaxOutputSize = toolCall.MaxOutputSize
+				// Keep the sample from the call with the largest output.
+				if toolCall.OutputSample != "" {
+					existing.OutputSample = toolCall.OutputSample
+				}
 			}
 			if toolCall.MaxDuration > 0 {
 				maxDuration := timeutil.FormatDuration(toolCall.MaxDuration)
@@ -67,6 +71,7 @@ func buildToolUsageInfo(metrics LogMetrics) []ToolUsageInfo {
 			CallCount:     toolCall.CallCount,
 			MaxInputSize:  toolCall.MaxInputSize,
 			MaxOutputSize: toolCall.MaxOutputSize,
+			OutputSample:  toolCall.OutputSample,
 		}
 		if toolCall.MaxDuration > 0 {
 			info.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)

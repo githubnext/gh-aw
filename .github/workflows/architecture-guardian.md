@@ -43,6 +43,9 @@ imports:
       labels: [architecture, automated-analysis, cookie]
       assignees: [copilot]
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   bash:

@@ -559,6 +559,38 @@ files:
 		assert.Equal(t, "packages/repo-assist/README.md", pkg.DocsPath)
 		assert.Equal(t, []string{"packages/repo-assist/workflows/review.md"}, pkg.InstallationSource)
 	})
+
+	t.Run("nested bundle github workflows paths are repo-root-relative", func(t *testing.T) {
+		// When a nested bundle manifest (at "dependabot/aw.yml") lists a
+		// ".github/workflows/" path, it must resolve to the repo-root path
+		// ".github/workflows/foo.md" — NOT to "dependabot/.github/workflows/foo.md".
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "dependabot/aw.yml":
+				return []byte(`name: Dependabot
+files:
+  - workflows/review.md
+  - .github/workflows/dependabot-orchestrator.md
+`), nil
+			case "dependabot/README.md":
+				return []byte("# Dependabot\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected scan of %s", workflowPath)
+			return nil, nil
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo", PackagePath: "dependabot"}, "")
+		require.NoError(t, err)
+		// workflows/ path is package-relative; .github/workflows/ is repo-root-relative.
+		assert.Equal(t, []string{
+			"dependabot/workflows/review.md",
+			".github/workflows/dependabot-orchestrator.md",
+		}, pkg.InstallationSource)
+	})
 }
 
 func TestResolveWorkflows_RepositoryPackage(t *testing.T) {
@@ -727,6 +759,128 @@ files:
 	require.NoError(t, err)
 	require.Len(t, resolved.Workflows, 1)
 	assert.Equal(t, "folder/workflows/review.md", resolved.Workflows[0].Spec.WorkflowPath)
+}
+
+// TestResolveWorkflows_NestedRepositoryPackage_GithubWorkflowsPathIsRepoRoot reproduces
+// the bug reported in gh-aw#41789: a ".github/workflows/" path listed in the manifest of
+// a nested bundle (e.g. "dependabot/aw.yml") must resolve to the repository-root path
+// ".github/workflows/foo.md", not to "dependabot/.github/workflows/foo.md".
+func TestResolveWorkflows_NestedRepositoryPackage_GithubWorkflowsPathIsRepoRoot(t *testing.T) {
+	originalFetchFn := fetchWorkflowFromSourceWithContextFn
+	originalDownload := downloadPackageFileFromGitHubForHost
+	originalList := listPackageWorkflowFilesForHost
+	originalDirFiles := listPackageDirFilesForHost
+	originalDirSubdirs := listPackageDirSubdirsForHost
+	originalDefaultBranch := getRepositoryPackageDefaultBranch
+	t.Cleanup(func() {
+		fetchWorkflowFromSourceWithContextFn = originalFetchFn
+		downloadPackageFileFromGitHubForHost = originalDownload
+		listPackageWorkflowFilesForHost = originalList
+		listPackageDirFilesForHost = originalDirFiles
+		listPackageDirSubdirsForHost = originalDirSubdirs
+		getRepositoryPackageDefaultBranch = originalDefaultBranch
+	})
+	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		return "main", nil
+	}
+	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		return nil, createRepositoryPackageNotFoundError(dirPath)
+	}
+	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		return nil, createRepositoryPackageNotFoundError(dirPath)
+	}
+
+	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		switch path {
+		case "dependabot/aw.yml":
+			return []byte(`name: Dependabot Workflows
+files:
+  - .github/workflows/dependabot-orchestrator.md
+`), nil
+		case "dependabot/README.md":
+			return []byte("# Dependabot Workflows\n"), nil
+		}
+		return nil, createRepositoryPackageNotFoundError(path)
+	}
+	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		t.Fatalf("unexpected scan of %s", workflowPath)
+		return nil, nil
+	}
+	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
+		return &FetchedWorkflow{
+			Content:    []byte("---\nname: Dependabot Orchestrator\non: push\n---\n"),
+			CommitSHA:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			IsLocal:    false,
+			SourcePath: spec.WorkflowPath,
+		}, nil
+	}
+
+	resolved, err := ResolveWorkflows(context.Background(), []string{"owner/repo/dependabot"}, false)
+	require.NoError(t, err)
+	require.Len(t, resolved.Workflows, 1)
+	// Must be the repo-root path, NOT "dependabot/.github/workflows/dependabot-orchestrator.md".
+	assert.Equal(t, ".github/workflows/dependabot-orchestrator.md", resolved.Workflows[0].Spec.WorkflowPath)
+}
+
+// TestResolveWorkflows_NestedRepositoryPackage_AutoScan tests that auto-scan (no explicit
+// files: in the manifest) finds workflows inside a nested bundle's own directories.
+func TestResolveWorkflows_NestedRepositoryPackage_AutoScan(t *testing.T) {
+	originalFetchFn := fetchWorkflowFromSourceWithContextFn
+	originalDownload := downloadPackageFileFromGitHubForHost
+	originalList := listPackageWorkflowFilesForHost
+	originalDirFiles := listPackageDirFilesForHost
+	originalDirSubdirs := listPackageDirSubdirsForHost
+	originalDefaultBranch := getRepositoryPackageDefaultBranch
+	t.Cleanup(func() {
+		fetchWorkflowFromSourceWithContextFn = originalFetchFn
+		downloadPackageFileFromGitHubForHost = originalDownload
+		listPackageWorkflowFilesForHost = originalList
+		listPackageDirFilesForHost = originalDirFiles
+		listPackageDirSubdirsForHost = originalDirSubdirs
+		getRepositoryPackageDefaultBranch = originalDefaultBranch
+	})
+	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		return "main", nil
+	}
+	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		return nil, createRepositoryPackageNotFoundError(dirPath)
+	}
+	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		return nil, createRepositoryPackageNotFoundError(dirPath)
+	}
+
+	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		switch path {
+		case "mypkg/aw.yml":
+			return []byte("name: My Package\n"), nil
+		case "mypkg/README.md":
+			return []byte("# My Package\n"), nil
+		}
+		return nil, createRepositoryPackageNotFoundError(path)
+	}
+	// Auto-scan returns full repo-root-relative paths, as the GitHub API does.
+	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		switch workflowPath {
+		case "mypkg/workflows":
+			return []string{"mypkg/workflows/pr-review.md"}, nil
+		default:
+			return nil, createRepositoryPackageNotFoundError(workflowPath)
+		}
+	}
+	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
+		return &FetchedWorkflow{
+			Content:    []byte("---\nname: PR Review\non: push\n---\n"),
+			CommitSHA:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			IsLocal:    false,
+			SourcePath: spec.WorkflowPath,
+		}, nil
+	}
+
+	resolved, err := ResolveWorkflows(context.Background(), []string{"owner/repo/mypkg"}, false)
+	require.NoError(t, err)
+	require.Len(t, resolved.Workflows, 1)
+	// Auto-scanned path must be the full repo-root path returned by the API.
+	assert.Equal(t, "mypkg/workflows/pr-review.md", resolved.Workflows[0].Spec.WorkflowPath)
 }
 
 func TestResolveWorkflows_FallsBackToWorkflowWhenNestedManifestMissing(t *testing.T) {

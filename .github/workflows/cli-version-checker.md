@@ -18,6 +18,9 @@ imports:
   - ../skills/jqschema/SKILL.md
   - shared/reporting.md
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   web-fetch:

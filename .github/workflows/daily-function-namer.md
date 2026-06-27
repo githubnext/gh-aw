@@ -35,6 +35,9 @@ safe-outputs:
     max: 1
     close-older-issues: true
 
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   cache-memory: true

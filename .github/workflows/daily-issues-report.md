@@ -17,6 +17,9 @@ engine:
 runs-on: aw-gpu-runner-T4
 strict: true
 tracker-id: daily-issues-report
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

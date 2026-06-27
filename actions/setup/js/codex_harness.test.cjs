@@ -291,6 +291,12 @@ env_key = "OPENAI_API_KEY"
         expect(isInvalidModelError("model 'claude-3-5-sonnet@20241022' not found")).toBe(true);
       });
 
+      it("returns true for AIC api-proxy 404 standalone Model not found shape", () => {
+        expect(isInvalidModelError("404 Not Found: Model not found")).toBe(true);
+        expect(isInvalidModelError("ResponseError: 404 Not Found: Model not found")).toBe(true);
+        expect(isInvalidModelError("Error: 404 Model not found")).toBe(true);
+      });
+
       it("returns false for unrelated errors", () => {
         expect(isInvalidModelError("rate_limit_exceeded")).toBe(false);
         expect(isInvalidModelError("unknown model behavior detected")).toBe(false);

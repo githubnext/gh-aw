@@ -54,6 +54,9 @@ imports:
   - shared/otlp.md
 timeout-minutes: 15
 
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

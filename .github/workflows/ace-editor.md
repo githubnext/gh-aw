@@ -42,9 +42,11 @@ jobs:
             });
 imports:
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
-
 ---
 
 Classic action that generates an ACE editor session link on pull request comment slash command.

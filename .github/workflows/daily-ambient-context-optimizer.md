@@ -16,6 +16,9 @@ strict: true
 max-daily-ai-credits: 10000
 network:
   allowed: [defaults, github]
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

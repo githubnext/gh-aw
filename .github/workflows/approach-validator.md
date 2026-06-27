@@ -22,6 +22,9 @@ imports:
   - shared/safe-output-upload-artifact.md
   - shared/reporting.md
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

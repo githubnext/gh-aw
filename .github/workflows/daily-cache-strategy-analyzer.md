@@ -37,6 +37,9 @@ network:
   allowed:
     - "github.com"
     - "api.github.com"
+sandbox:
+  agent:
+    sudo: false
 tools:
   cache-memory: true
 safe-outputs:

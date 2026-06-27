@@ -304,6 +304,9 @@ steps:
       echo "Combined inventory written to $INVENTORY"
       cat "$INVENTORY"
 
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   playwright:

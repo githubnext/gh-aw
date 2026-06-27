@@ -158,6 +158,7 @@ type ToolUsageInfo struct {
 	MaxInputSize  int    `json:"max_input_size,omitempty" console:"header:Max Input,format:number,omitempty"`
 	MaxOutputSize int    `json:"max_output_size,omitempty" console:"header:Max Output,format:number,omitempty"`
 	MaxDuration   string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
+	OutputSample  string `json:"output_sample,omitempty" console:"header:Response Preview,omitempty"`
 }
 
 // MCPToolUsageData contains detailed MCP tool usage statistics and individual call records

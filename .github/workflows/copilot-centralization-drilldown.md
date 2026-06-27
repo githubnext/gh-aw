@@ -156,6 +156,9 @@ steps:
             report_style: "Use issue sections with visible summary and one fenced draft block."
           }
         ' > /tmp/gh-aw/data/derived-plan.json
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Copilot Centralization Drilldown

@@ -50,6 +50,10 @@ const (
 	// PolicyStrict enables runtime enforcement that workflows must be compiled in strict mode
 	// when GH_AW_POLICY_STRICT is set to the string value "true".
 	PolicyStrict = "GH_AW_POLICY_STRICT"
+	// PolicyAllowCreatePullRequest controls whether create-pull-request safe-outputs
+	// remain runtime-compliant. Set to the string value "false" to disable the
+	// create_pull_request safe-output tool at runtime.
+	PolicyAllowCreatePullRequest = "GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST"
 )
 
 // ResolveDefaultMaxTurns returns fallback when the env var is unset/invalid,

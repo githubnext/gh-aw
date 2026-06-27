@@ -14,6 +14,9 @@ engine:
   id: pi
   model: copilot/gpt-5.4
 strict: true
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:
