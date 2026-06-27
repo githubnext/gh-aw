@@ -9,13 +9,15 @@
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
     "lint:setup-js": "npm run build && cd .. && ./eslint-factory/node_modules/.bin/eslint --config eslint-factory/eslint.config.cjs .",
-    "lint:setup-js:changed": "npm run build && cd .. && ./eslint-factory/node_modules/.bin/eslint --config eslint-factory/eslint.config.cjs '*.cjs'"
+    "lint:setup-js:changed": "npm run build && cd .. && ./eslint-factory/node_modules/.bin/eslint --config eslint-factory/eslint.config.cjs '*.cjs'",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/eslint": "^9.6.1",
     "@types/node": "^24.0.13",
     "@typescript-eslint/utils": "^8.46.2",
     "eslint": "^9.31.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.9"
   }
 }
