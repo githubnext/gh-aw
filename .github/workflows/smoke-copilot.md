@@ -55,9 +55,21 @@ tools:
     mode: cli
   web-fetch:
   cli-proxy: true
+lsp:
+  typescript:
+    command: typescript-language-server
+    args: ["--stdio"]
+    fileExtensions:
+      ".js": javascript
+      ".cjs": javascript
+      ".mjs": javascript
+      ".ts": typescript
+      ".tsx": typescriptreact
 runtimes:
   go:
     version: "1.26"
+  node:
+    version: "20"
 models:
   providers:
     anthropic:
@@ -189,6 +201,10 @@ Run these checks and mark each as ✅/❌:
 13. Comment memory: append an original 3-line haiku to `/tmp/gh-aw/comment-memory/*.md`.
 14. Sub-agent: use `file-summarizer` on `README.md`.
 15. Check run: call `create_check_run` with `conclusion=success`, title `Smoke Copilot - Run ${{ github.run_id }}`, summary `All smoke tests completed.`, text `Detailed results attached.`
+16. **LSP TypeScript Testing**: Use the TypeScript language server (configured via `lsp.typescript` frontmatter) to count the number of functions in `${{ github.workspace }}/actions/setup/js/safe_output_helpers.cjs`:
+    - Open the file `${{ github.workspace }}/actions/setup/js/safe_output_helpers.cjs` via LSP
+    - Use LSP document symbols to list all symbols in the file and count functions
+    - Report the total function count as ✅ if at least 1 function is found, ❌ otherwise
 
 ## Output
 
@@ -196,7 +212,7 @@ Run these checks and mark each as ✅/❌:
    - Use the temporary ID `aw_smoke1` for the issue so you can reference it later
    - Title: "Smoke Test: Copilot - ${{ github.run_id }}"
    - Body should include:
-     - Test results (✅ or ❌ for each test)
+     - Test results (✅ or ❌ for each test, including test #16 LSP TypeScript)
      - Overall status: PASS or FAIL
      - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
      - Timestamp
