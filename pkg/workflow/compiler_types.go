@@ -505,7 +505,8 @@ type WorkflowData struct {
 	Container                      string // container setting for the main job
 	Services                       string // services setting for the main job
 	Tools                          map[string]any
-	ParsedTools                    *Tools // Structured tools configuration (NEW: parsed from Tools map)
+	LSP                            map[string]LSPServerConfig // top-level LSP server configuration for Copilot CLI
+	ParsedTools                    *Tools                     // Structured tools configuration (NEW: parsed from Tools map)
 	MarkdownContent                string
 	AI                             string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig                   *EngineConfig // Extended engine configuration
