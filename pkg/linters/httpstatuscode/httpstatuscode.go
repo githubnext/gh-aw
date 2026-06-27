@@ -178,10 +178,8 @@ func isHTTPStatusContext(pass *analysis.Pass, expr ast.Expr) bool {
 		if e.Sel.Name != "StatusCode" {
 			return false
 		}
-		sel, ok := pass.TypesInfo.Selections[e]
-		if ok {
-			basic, ok := sel.Type().Underlying().(*types.Basic)
-			return ok && basic.Info()&types.IsInteger != 0
+		if sel, ok := pass.TypesInfo.Selections[e]; ok {
+			return isIntegerType(sel.Type())
 		}
 		obj, ok := pass.TypesInfo.Uses[e.Sel]
 		if !ok {
@@ -191,8 +189,12 @@ func isHTTPStatusContext(pass *analysis.Pass, expr ast.Expr) bool {
 		if !ok || !field.IsField() {
 			return false
 		}
-		basic, ok := field.Type().Underlying().(*types.Basic)
-		return ok && basic.Info()&types.IsInteger != 0
+		return isIntegerType(field.Type())
 	}
 	return false
+}
+
+func isIntegerType(t types.Type) bool {
+	basic, ok := t.Underlying().(*types.Basic)
+	return ok && basic.Info()&types.IsInteger != 0
 }
