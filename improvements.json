@@ -1,55 +1,41 @@
 {
-  "last_updated": "2026-06-26",
+  "last_updated": "2026-06-27",
   "pending_tasks": [
+    {
+      "file": ".github/workflows/smoke-gemini.md",
+      "created": "2026-06-27",
+      "priority": "high",
+      "title": "Fix theatrical run messages: replace 'Gemini awakens/MISSION COMPLETE!/encountered unexpected challenges' with declarative pass/fail/start summaries"
+    },
+    {
+      "file": "docs/src/content/docs/reference/repo-memory.md",
+      "created": "2026-06-27",
+      "priority": "medium",
+      "title": "Reformat Security section from two prose sentences into bulleted list; surface target-repo and branch protection as explicit bullets"
+    },
     {
       "file": ".github/workflows/smoke-pi.md",
       "created": "2026-06-26",
       "priority": "high",
-      "title": "Fix theatrical run messages: replace 'MISSION COMPLETE!' with declarative pass summary; replace 'encountered unexpected challenges...' with 'Review the run log for details.'"
-    },
-    {
-      "file": "docs/src/content/docs/examples/multi-repo/feature-sync.md",
-      "created": "2026-06-26",
-      "priority": "medium",
-      "title": "Reformat 'When to Use' section from dense prose to bulleted list; surface parenthetical '(monorepo alternative)' on its own line"
+      "title": "Fix theatrical run messages: 'MISSION COMPLETE!' → declarative pass; 'encountered unexpected challenges...' → 'Review the run log for details.'"
     },
     {
       "file": "docs/src/content/docs/blog/2026-06-08-migrating-from-effective-tokens-to-ai-credits.md",
       "created": "2026-06-25",
       "priority": "high",
-      "title": "Clarify gh aw fix --write recommendation: add one-sentence explanation of what it changes; extend metric reference with ET compatibility timeline"
-    },
-    {
-      "file": ".github/workflows/dataflow-pr-discussion-dataset.md",
-      "created": "2026-06-25",
-      "priority": "medium",
-      "title": "Fix run-success: replace three-clause fragment with single declarative sentence; remove trailing 📊 emoji; add artifact location"
+      "title": "Clarify gh aw fix --write recommendation; extend ET metric reference with compatibility timeline"
     },
     {
       "file": ".github/workflows/architecture-guardian.md",
       "created": "2026-06-24",
       "priority": "high",
-      "title": "Fix theatrical status messages: 'Guardian online!' → declarative; 'Report delivered! 📋' → remove redundancy; 'Structure status unknown...' → 'Scan did not complete.' with ❌ emoji on failure",
-      "issue_temporary_id": "#aw_ux_arch1"
+      "title": "Fix theatrical status messages: 'Guardian online!' → declarative; 'Structure status unknown...' → 'Scan did not complete.'"
     },
     {
       "file": "docs/src/content/docs/reference/measuring-impact.md",
       "created": "2026-06-23",
       "priority": "high",
       "title": "Add starter metrics table to 'A Practical Measurement Model' section; consolidate three repeated prose metric lists"
-    },
-    {
-      "file": ".github/workflows/discussion-task-miner.md",
-      "created": "2026-06-23",
-      "priority": "medium",
-      "title": "Fix run-failure: 'interrupted!' to 'failed.' and frame {status} as elaboration"
-    },
-    {
-      "file": "docs/src/content/docs/reference/permissions.md",
-      "created": "2026-06-22",
-      "priority": "high",
-      "title": "Move read-only constraint note before GitHub App-Only scope groups; add brief parenthetical group descriptions",
-      "issue_temporary_id": "#aw_ux_perm1"
     }
   ]
 }

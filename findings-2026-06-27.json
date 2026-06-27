@@ -1,0 +1,17 @@
+{
+  "date": "2026-06-27",
+  "files_analyzed": {
+    "documentation": ["docs/src/content/docs/reference/repo-memory.md","docs/src/content/docs/guides/mcps.md"],
+    "messages": [".github/workflows/smoke-gemini.md",".github/workflows/ci-doctor.md"],
+    "validation": ["pkg/workflow/github_app_permissions_validation.go"]
+  },
+  "overall_quality": "mixed",
+  "quality_highlights": [
+    {"file": "pkg/workflow/github_app_permissions_validation.go", "aspect": "Error messages list offending scopes with complete YAML fix examples for both tools.github.github-app and safe-outputs.github-app paths."},
+    {"file": "docs/src/content/docs/guides/mcps.md", "aspect": "5-minute Quick Start, segmented server types, shared configurations table, comprehensive related docs section."}
+  ],
+  "single_file_improvements": [
+    {"file": ".github/workflows/smoke-gemini.md", "priority": "high", "issue": "Theatrical messages lines 69-71: poetic start, all-caps success, vague failure. Same anti-pattern as smoke-pi.md (2026-06-26)."},
+    {"file": "docs/src/content/docs/reference/repo-memory.md", "priority": "medium", "issue": "Security section: two run-on prose sentences; target-repo and branch protection buried in comma list."}
+  ]
+}
