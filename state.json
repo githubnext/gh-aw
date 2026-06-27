@@ -1,7 +1,7 @@
 {
   "counts": {
     "log_fetch_strategy": {
-      "lazy": 6,
+      "lazy": 7,
       "eager": 6
     }
   },
@@ -88,6 +88,13 @@
       "timestamp": "2026-06-26T21:15:51.601Z",
       "assignments": {
         "log_fetch_strategy": "eager"
+      }
+    },
+    {
+      "run_id": "28301930270",
+      "timestamp": "2026-06-27T21:13:04.132Z",
+      "assignments": {
+        "log_fetch_strategy": "lazy"
       }
     }
   ]
