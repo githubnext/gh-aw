@@ -11,6 +11,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func assertProxyCuratedUpstreamEnv(t *testing.T, result string) {
+	t.Helper()
+	assert.Contains(t, result, "GITHUB_SERVER_URL: ${{ github.server_url }}", "proxy step should forward github.server_url")
+	assert.Contains(t, result, "GITHUB_API_URL: ${{ github.api_url }}", "proxy step should forward github.api_url")
+	assert.Contains(t, result, "GH_HOST: ${{ env.GH_HOST }}", "proxy step should forward GH_HOST into the curated env")
+	assert.Contains(t, result, "GITHUB_HOST: ${{ env.GITHUB_HOST }}", "proxy step should forward GITHUB_HOST into the curated env")
+	assert.Contains(t, result, "GITHUB_ENTERPRISE_HOST: ${{ env.GITHUB_ENTERPRISE_HOST }}", "proxy step should forward GITHUB_ENTERPRISE_HOST into the curated env")
+	assert.Contains(t, result, "GITHUB_GRAPHQL_URL: ${{ env.GITHUB_GRAPHQL_URL }}", "proxy step should forward GITHUB_GRAPHQL_URL into the curated env")
+	assert.Contains(t, result, "GITHUB_COPILOT_BASE_URL: ${{ env.GITHUB_COPILOT_BASE_URL }}", "proxy step should forward or preserve a custom Copilot base URL")
+}
+
 // TestHasDIFCProxyNeeded verifies that DIFC proxy injection is triggered only
 // when guard policies are configured AND pre-agent steps have GH_TOKEN.
 func TestHasDIFCProxyNeeded(t *testing.T) {
@@ -337,7 +348,7 @@ func TestGenerateStartDIFCProxyStep(t *testing.T) {
 		require.NotEmpty(t, result, "should generate proxy start step")
 		assert.Contains(t, result, "Start DIFC Proxy", "step name should be present")
 		assert.Contains(t, result, "GH_TOKEN:", "step should include GH_TOKEN env var")
-		assert.Contains(t, result, "GITHUB_SERVER_URL:", "step should include GITHUB_SERVER_URL env var")
+		assertProxyCuratedUpstreamEnv(t, result)
 		assert.Contains(t, result, "DIFC_PROXY_POLICY:", "step should include policy as env var")
 		assert.Contains(t, result, "DIFC_PROXY_IMAGE:", "step should include image as env var")
 		assert.Contains(t, result, "start_difc_proxy.sh", "step should call the proxy script")
@@ -902,7 +913,7 @@ func TestBuildStartCliProxyStepYAML(t *testing.T) {
 		result := c.buildStartCliProxyStepYAML(data)
 		assert.Contains(t, result, "name: Start CLI Proxy", "should have correct step name")
 		assert.Contains(t, result, "GH_TOKEN:", "should include GH_TOKEN")
-		assert.Contains(t, result, "GITHUB_SERVER_URL:", "should include GITHUB_SERVER_URL")
+		assertProxyCuratedUpstreamEnv(t, result)
 		assert.Contains(t, result, "CLI_PROXY_IMAGE:", "should include CLI_PROXY_IMAGE")
 		assert.Contains(t, result, "start_cli_proxy.sh", "should reference the start script")
 	})

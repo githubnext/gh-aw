@@ -19,6 +19,65 @@ set +o histexpand
 
 set -e
 
+normalize_github_host() {
+  local host="$1"
+
+  host="${host%/}"
+  if [[ "$host" =~ ^https?:// ]]; then
+    host="${host#http://}"
+    host="${host#https://}"
+    host="${host%%/*}"
+  fi
+
+  echo "$host"
+}
+
+derive_proxy_upstream_env() {
+  local server_url="${GITHUB_SERVER_URL:-https://github.com}"
+  local server_host
+  local github_host="${GH_HOST:-${GITHUB_HOST:-${GITHUB_ENTERPRISE_HOST:-}}}"
+
+  server_url="${server_url%/}"
+  server_host="$(normalize_github_host "$server_url")"
+  if [ -z "$github_host" ] || { [ "$server_host" != "github.com" ] && [ "$github_host" = "github.com" ]; }; then
+    github_host="$server_host"
+  fi
+  if [ -z "$github_host" ]; then
+    github_host="github.com"
+  fi
+
+  export GH_HOST="${GH_HOST:-$github_host}"
+
+  if [ "$github_host" != "github.com" ]; then
+    export GITHUB_HOST="${GITHUB_HOST:-$github_host}"
+    export GITHUB_ENTERPRISE_HOST="${GITHUB_ENTERPRISE_HOST:-$github_host}"
+  fi
+
+  if [ -z "${GITHUB_API_URL:-}" ] || { [ "$github_host" != "github.com" ] && [ "${GITHUB_API_URL}" = "https://api.github.com" ]; }; then
+    if [ "$github_host" = "github.com" ]; then
+      export GITHUB_API_URL="https://api.github.com"
+    elif [[ "$github_host" == *.ghe.com ]]; then
+      export GITHUB_API_URL="https://api.${github_host}"
+    else
+      export GITHUB_API_URL="${server_url}/api/v3"
+    fi
+  fi
+
+  if [ -z "${GITHUB_GRAPHQL_URL:-}" ] || { [ "$github_host" != "github.com" ] && [ "${GITHUB_GRAPHQL_URL}" = "https://api.github.com/graphql" ]; }; then
+    if [ "$github_host" = "github.com" ]; then
+      export GITHUB_GRAPHQL_URL="https://api.github.com/graphql"
+    elif [[ "$github_host" == *.ghe.com ]]; then
+      export GITHUB_GRAPHQL_URL="https://api.${github_host}/graphql"
+    else
+      export GITHUB_GRAPHQL_URL="${server_url}/api/graphql"
+    fi
+  fi
+
+  if [ -z "${GITHUB_COPILOT_BASE_URL:-}" ] && [[ "$github_host" == *.ghe.com ]]; then
+    export GITHUB_COPILOT_BASE_URL="https://copilot-api.${github_host}"
+  fi
+}
+
 POLICY="${DIFC_PROXY_POLICY:-}"
 CONTAINER_IMAGE="${DIFC_PROXY_IMAGE:-}"
 
@@ -37,7 +96,10 @@ MCP_LOG_DIR=/tmp/gh-aw/mcp-logs
 
 mkdir -p "$PROXY_LOG_DIR" "$MCP_LOG_DIR"
 
+derive_proxy_upstream_env
+
 echo "Starting DIFC proxy container: $CONTAINER_IMAGE"
+echo "Using DIFC proxy upstream host: ${GH_HOST} (API: ${GITHUB_API_URL})"
 
 # Remove any existing container to avoid name conflicts on cancelled/retried jobs.
 docker rm -f awmg-proxy 2>/dev/null || true
@@ -50,7 +112,13 @@ fi
 docker run -d --name awmg-proxy "${DOCKER_NETWORK_ARGS[@]}" \
   --user "$(id -u):$(id -g)" \
   -e GH_TOKEN \
+  -e GH_HOST \
+  -e GITHUB_HOST \
+  -e GITHUB_ENTERPRISE_HOST \
   -e GITHUB_SERVER_URL \
+  -e GITHUB_API_URL \
+  -e GITHUB_GRAPHQL_URL \
+  -e GITHUB_COPILOT_BASE_URL \
   -e DEBUG='*' \
   -v "$PROXY_LOG_DIR:$PROXY_LOG_DIR" \
   -v "$MCP_LOG_DIR:$MCP_LOG_DIR" \
