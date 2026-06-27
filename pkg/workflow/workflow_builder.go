@@ -53,6 +53,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		IncludedFiles:         toolsResult.allIncludedFiles,
 		ImportInputs:          importsResult.ImportInputs,
 		Tools:                 toolsResult.tools,
+		LSP:                   extractLSPConfig(toolsResult.parsedFrontmatter, result.Frontmatter),
 		ParsedTools:           NewTools(toolsResult.tools),
 		Runtimes:              toolsResult.runtimes,
 		RunInstallScripts:     toolsResult.runInstallScripts,
@@ -153,6 +154,34 @@ func (c *Compiler) buildInitialWorkflowData(
 	}
 
 	return workflowData
+}
+
+func extractLSPConfig(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any) map[string]LSPServerConfig {
+	if parsedFrontmatter != nil && len(parsedFrontmatter.LSP) > 0 {
+		return parsedFrontmatter.LSP
+	}
+
+	rawLSP, ok := frontmatter["lsp"]
+	if !ok {
+		return nil
+	}
+
+	jsonBytes, err := json.Marshal(rawLSP)
+	if err != nil {
+		workflowBuilderLog.Printf("Failed to marshal lsp frontmatter config: %v", err)
+		return nil
+	}
+
+	var lsp map[string]LSPServerConfig
+	if err := json.Unmarshal(jsonBytes, &lsp); err != nil {
+		workflowBuilderLog.Printf("Failed to unmarshal lsp frontmatter config: %v", err)
+		return nil
+	}
+
+	if len(lsp) == 0 {
+		return nil
+	}
+	return lsp
 }
 
 func extractMainModelCostsOverlay(toolsResult *toolsProcessingResult, frontmatter map[string]any) map[string]any {

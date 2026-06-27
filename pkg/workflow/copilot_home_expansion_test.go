@@ -74,7 +74,7 @@ func TestBuildCopilotSettingsSetup_UsesHomeExpansion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildCopilotSettingsSetup(tt.fixOwnershipForCustom)
+			got := buildCopilotSettingsSetup(copilotSettingsDefaultContent, tt.fixOwnershipForCustom)
 
 			// Must reference $HOME, never the literal /home/runner.
 			assert.Contains(t, got, `mkdir -p "$HOME/.copilot"`,
@@ -304,7 +304,7 @@ func TestBashIntegration_SettingsSetupAndCleanupTrap(t *testing.T) {
 	// The setup helper unconditionally tries to run `sudo` if the chown flag
 	// is true; the second variant covers the no-sudo path so the test does not
 	// depend on sudoers being configured.
-	setup := buildCopilotSettingsSetup(false)
+	setup := buildCopilotSettingsSetup(copilotSettingsDefaultContent, false)
 	trap := buildCopilotSettingsCleanupTrap()
 
 	for _, hv := range homeValuesUnderTest {

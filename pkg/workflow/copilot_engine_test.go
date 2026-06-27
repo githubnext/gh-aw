@@ -248,14 +248,70 @@ func TestCopilotEngineDisablesRubberDuck(t *testing.T) {
 	if !strings.Contains(stepContent, "mkdir -p \"$HOME/.copilot\"") {
 		t.Errorf("Expected 'mkdir -p \"$HOME/.copilot\"' in step content:\n%s", stepContent)
 	}
-	if !strings.Contains(stepContent, copilotSettingsContent) {
-		t.Errorf("Expected copilot settings content %q in step content:\n%s", copilotSettingsContent, stepContent)
+	if !strings.Contains(stepContent, copilotSettingsDefaultContent) {
+		t.Errorf("Expected copilot settings content %q in step content:\n%s", copilotSettingsDefaultContent, stepContent)
 	}
 	if !strings.Contains(stepContent, copilotSettingsPath) {
 		t.Errorf("Expected copilot settings path %q in step content:\n%s", copilotSettingsPath, stepContent)
 	}
 	if !strings.Contains(stepContent, "rm -f \""+copilotSettingsPath+"\"") {
 		t.Errorf("Expected cleanup command to remove copilot settings path %q in step content:\n%s", copilotSettingsPath, stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionSteps_WithLSPConfig(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		LSP: map[string]LSPServerConfig{
+			"typescript": {
+				Command: "typescript-language-server",
+				Args:    []string{"--stdio"},
+				FileExtensions: map[string]string{
+					".ts": "typescript",
+				},
+			},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, `"lspServers":{"typescript":{"command":"typescript-language-server","args":["--stdio"],"fileExtensions":{".ts":"typescript"}}}`) {
+		t.Fatalf("Expected lspServers config in step content, got:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineInstallationSteps_WithLSPConfig(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		LSP: map[string]LSPServerConfig{
+			"python": {
+				Command: "pyright-langserver",
+				Args:    []string{"--stdio"},
+				FileExtensions: map[string]string{
+					".py": "python",
+				},
+			},
+		},
+	}
+
+	steps := engine.GetInstallationSteps(workflowData)
+	var allLines strings.Builder
+	for _, step := range steps {
+		allLines.WriteString(strings.Join(step, "\n"))
+		allLines.WriteByte('\n')
+	}
+	allLinesStr := allLines.String()
+	if !strings.Contains(allLinesStr, "Install Python LSP dependencies") {
+		t.Fatalf("Expected Python LSP install step, got:\n%s", allLinesStr)
+	}
+	if !strings.Contains(allLinesStr, "npm install -g --ignore-scripts pyright") {
+		t.Fatalf("Expected pyright install command, got:\n%s", allLinesStr)
 	}
 }
 

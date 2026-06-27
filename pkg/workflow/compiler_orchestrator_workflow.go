@@ -145,6 +145,7 @@ func (c *Compiler) validateWorkflowEngineSettings(cleanPath string, workflowData
 		c.validateRunInstallScripts,
 		c.validateEngineVersion,
 		c.validatePlaywrightMode,
+		c.validateLSPSupport,
 		c.validateEngineHarnessScript,
 		c.validateEngineDriver,
 		c.validateEngineMCPSessionTimeout,

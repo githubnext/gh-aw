@@ -96,14 +96,14 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 			if len(sdkInstallStep) > 0 {
 				steps = append(steps, sdkInstallStep)
 			}
-			return BuildNpmEngineInstallStepsWithAWF(steps, workflowData)
+			return appendCopilotLSPInstallSteps(BuildNpmEngineInstallStepsWithAWF(steps, workflowData), workflowData)
 		}
 		if len(sdkInstallStep) > 0 {
 			copilotInstallLog.Printf("Skipping Copilot CLI installation: custom command specified (%s); keeping Copilot SDK install step", workflowData.EngineConfig.Command)
-			return []GitHubActionStep{sdkInstallStep}
+			return appendCopilotLSPInstallSteps([]GitHubActionStep{sdkInstallStep}, workflowData)
 		}
 		copilotInstallLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return []GitHubActionStep{}
+		return appendCopilotLSPInstallSteps([]GitHubActionStep{}, workflowData)
 	}
 
 	// Copilot CLI is pinned to the default version constant.
@@ -131,7 +131,20 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	}
 	steps := BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 
-	return steps
+	return appendCopilotLSPInstallSteps(steps, workflowData)
+}
+
+func appendCopilotLSPInstallSteps(steps []GitHubActionStep, workflowData *WorkflowData) []GitHubActionStep {
+	if workflowData == nil {
+		return steps
+	}
+	manager := NewLSPManager(workflowData.LSP)
+	lspSteps := manager.GenerateInstallSteps(workflowData)
+	if len(lspSteps) == 0 {
+		return steps
+	}
+	copilotInstallLog.Printf("Adding %d LSP dependency installation step(s)", len(lspSteps))
+	return append(steps, lspSteps...)
 }
 
 func buildCopilotSDKInstallStep(workflowData *WorkflowData) GitHubActionStep {
