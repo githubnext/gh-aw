@@ -224,6 +224,12 @@ security-govulncheck:
 	go run golang.org/x/vuln/cmd/govulncheck ./...
 	@echo "✓ Govulncheck complete"
 
+.PHONY: security-govulncheck-sarif
+security-govulncheck-sarif:
+	@echo "Running govulncheck (SARIF output)..."
+	go run -mod=readonly golang.org/x/vuln/cmd/govulncheck -format sarif ./... > govulncheck-results.sarif; ret=$$?; [ $$ret -eq 0 ] || [ $$ret -eq 3 ]
+	@echo "✓ Govulncheck complete (results in govulncheck-results.sarif)"
+
 # Test JavaScript files
 .PHONY: test-js
 test-js: build-js
@@ -1116,6 +1122,7 @@ help:
 	@echo "  security-scan    - Run all security scans (gosec, govulncheck)"
 	@echo "  security-gosec   - Run gosec Go security scanner"
 	@echo "  security-govulncheck - Run govulncheck for known vulnerabilities"
+	@echo "  security-govulncheck-sarif - Run govulncheck and output SARIF report (govulncheck-results.sarif)"
 	@echo "  actionlint       - Validate workflows with actionlint (depends on build)"
 	@echo "  lint-lock        - Run lock-file-only lint with gh aw lint (depends on build)"
 	@echo "  validate-workflows - Validate compiled workflow lock files (depends on build)"

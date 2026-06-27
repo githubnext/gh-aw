@@ -1402,7 +1402,7 @@ jobs:
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
-      activated: ${{ steps.check_skip_roles.outputs.skip_roles_ok == 'true' && steps.check_skip_bots.outputs.skip_bots_ok == 'true' && steps.check_rate_limit.outputs.rate_limit_ok == 'true' }}
+      activated: ${{ steps.check_rate_limit.outputs.rate_limit_ok == 'true' && steps.check_skip_roles.outputs.skip_roles_ok == 'true' && steps.check_skip_bots.outputs.skip_bots_ok == 'true' }}
       matched_command: ''
       setup-parent-span-id: ${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}
       setup-span-id: ${{ steps.setup.outputs.span-id }}
