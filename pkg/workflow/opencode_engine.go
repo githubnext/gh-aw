@@ -2,11 +2,9 @@ package workflow
 
 import (
 	"fmt"
-	"maps"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var openCodeLog = logger.New("workflow:opencode_engine")
@@ -110,118 +108,16 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 	openCodeLog.Printf("Generating execution steps for OpenCode engine: workflow=%s, firewall=%v",
 		workflowData.Name, isFirewallEnabled(workflowData))
 
-	var steps []GitHubActionStep
-
-	configStep := e.generateOpenCodeConfigStep(workflowData)
-	steps = append(steps, configStep)
-
-	var openCodeArgs []string
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-
-	openCodeArgs = append(openCodeArgs, "--print-logs", "--log-level", "DEBUG")
-	promptArg := fmt.Sprintf("\"$(cat %s)\"", constants.AwPromptsFile)
-
-	commandName := "opencode"
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		commandName = workflowData.EngineConfig.Command
-	}
-	openCodeCommand := fmt.Sprintf("%s run %s %s", commandName, shellJoinArgs(openCodeArgs), promptArg)
-	openCodeCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + openCodeCommand
-
-	firewallEnabled := isFirewallEnabled(workflowData)
-	var command string
-	if firewallEnabled {
-		model := ""
-		if modelConfigured {
-			model = workflowData.EngineConfig.Model
-		}
-		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
-		// re-running the expensive map+sort operation. Note: opencode uses model-specific
-		// domains; the cache is populated with the same model during compilation.
-		var allowedDomains string
-		if workflowData.CachedAllowedDomainsComputed {
-			allowedDomains = workflowData.CachedAllowedDomainsStr
-		} else {
-			// The model was validated by validateUniversalLLMConsumerModel before reaching here,
-			// so a malformed model (e.g. leading slash) must never occur. Panic is the correct
-			// response to an internal invariant violation.
-			allowedDomains = mustGetAllowedDomainsForEngineWithModel(
-				constants.OpenCodeEngine,
-				model,
-				workflowData.NetworkPermissions,
-				workflowData.Tools,
-				workflowData.Runtimes,
-			)
-		}
-
-		npmPathSetup := GetNpmBinPathSetup()
-		openCodeCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, openCodeCommand)
-		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
-			openCodeCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, openCodeCommandWithPath)
-		}
-
-		command = BuildAWFCommand(AWFCommandConfig{
-			EngineName:     "opencode",
-			EngineCommand:  openCodeCommandWithPath,
-			LogFile:        logFile,
-			WorkflowData:   workflowData,
-			UsesTTY:        false,
-			AllowedDomains: allowedDomains,
-		})
-	} else {
-		command = fmt.Sprintf("set -o pipefail\n%s 2>&1 | tee -a %s", openCodeCommand, logFile)
-	}
-
-	env := map[string]string{
-		"GH_AW_PROMPT":     constants.AwPromptsFile,
-		"GITHUB_WORKSPACE": "${{ github.workspace }}",
-		"RUNNER_TEMP":      "${{ runner.temp }}",
-		"NO_PROXY":         "localhost,127.0.0.1",
-	}
-	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
-	e.ApplyUniversalProviderEnv(env, workflowData, firewallEnabled)
-
-	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/opencode.jsonc"
-	}
-
-	applySafeOutputEnvToMap(env, workflowData)
-
-	// Propagate W3C trace context so engine spans nest under the gh-aw.agent.setup span.
-	applyTraceContextEnvToMap(env)
-
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
-	} else {
-		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
-	}
-
-	if modelConfigured {
-		openCodeLog.Printf("Setting %s env var for model: %s",
-			constants.OpenCodeCLIModelEnvVar, workflowData.EngineConfig.Model)
-		env[constants.OpenCodeCLIModelEnvVar] = workflowData.EngineConfig.Model
-	}
-
-	applyEngineCwdEnv(env, workflowData)
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		maps.Copy(env, workflowData.EngineConfig.Env)
-	}
-
-	agentConfig := getAgentConfig(workflowData)
-	if agentConfig != nil && len(agentConfig.Env) > 0 {
-		maps.Copy(env, agentConfig.Env)
-	}
-
-	stepLines := []string{
-		"      - name: Execute OpenCode CLI",
-		"        id: agentic_execution",
-	}
-	allowedSecrets := e.GetRequiredSecretNames(workflowData)
-	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
-
-	steps = append(steps, GitHubActionStep(stepLines))
-	return steps
+	return e.BuildCLIEngineExecutionSteps(workflowData, logFile, UniversalCLIEngineExecutionConfig{
+		EngineConstant:     constants.OpenCodeEngine,
+		DefaultCommandName: "opencode",
+		ExtraCLIArgs:       []string{"--print-logs", "--log-level", "DEBUG"},
+		MCPConfigFile:      "opencode.jsonc",
+		StepName:           "Execute OpenCode CLI",
+		ConfigStep:         e.generateOpenCodeConfigStep(workflowData),
+		ModelEnvVarName:    constants.OpenCodeCLIModelEnvVar,
+		WriteTimestamp:     false,
+	})
 }
 
 // generateOpenCodeConfigStep writes opencode.jsonc with all permissions set to allow

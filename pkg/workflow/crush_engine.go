@@ -2,11 +2,9 @@ package workflow
 
 import (
 	"fmt"
-	"maps"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var crushLog = logger.New("workflow:crush_engine")
@@ -143,134 +141,16 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	crushLog.Printf("Generating execution steps for Crush engine: workflow=%s, firewall=%v",
 		workflowData.Name, isFirewallEnabled(workflowData))
 
-	var steps []GitHubActionStep
-
-	// Step 1: Write .crush.json config (permissions)
-	configStep := e.generateCrushConfigStep(workflowData)
-	steps = append(steps, configStep)
-
-	// Step 2: Build CLI arguments
-	var crushArgs []string
-
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-
-	// Enable verbose logging for debugging in CI
-	crushArgs = append(crushArgs, "--verbose")
-
-	// Prompt from file (positional argument to `crush run`).
-	// Keep this outside shellJoinArgs so command substitution expands at runtime.
-	promptArg := "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\""
-
-	// Build command name
-	commandName := "crush"
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		commandName = workflowData.EngineConfig.Command
-	}
-	crushCommand := fmt.Sprintf("%s run %s %s", commandName, shellJoinArgs(crushArgs), promptArg)
-	crushCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + crushCommand
-
-	// AWF wrapping
-	firewallEnabled := isFirewallEnabled(workflowData)
-	var command string
-	if firewallEnabled {
-		// Resolve model for provider-specific domain allowlisting
-		model := ""
-		if modelConfigured {
-			model = workflowData.EngineConfig.Model
-		}
-		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
-		// re-running the expensive map+sort operation. Note: crush uses model-specific
-		// domains; the cache is populated with the same model during compilation.
-		var allowedDomains string
-		if workflowData.CachedAllowedDomainsComputed {
-			allowedDomains = workflowData.CachedAllowedDomainsStr
-		} else {
-			// The model was validated by validateUniversalLLMConsumerModel before reaching here,
-			// so a malformed model (e.g. leading slash) must never occur. Panic is the correct
-			// response to an internal invariant violation.
-			allowedDomains = mustGetAllowedDomainsForEngineWithModel(
-				constants.CrushEngine,
-				model,
-				workflowData.NetworkPermissions,
-				workflowData.Tools,
-				workflowData.Runtimes,
-			)
-		}
-
-		npmPathSetup := GetNpmBinPathSetup()
-		crushCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, crushCommand)
-		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
-			crushCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, crushCommandWithPath)
-		}
-
-		command = BuildAWFCommand(AWFCommandConfig{
-			EngineName:     "crush",
-			EngineCommand:  crushCommandWithPath,
-			LogFile:        logFile,
-			WorkflowData:   workflowData,
-			UsesTTY:        false,
-			AllowedDomains: allowedDomains,
-		})
-	} else {
-		command = fmt.Sprintf("set -o pipefail\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s 2>&1 | tee -a %s", AgentCLIStartMsPath, crushCommand, logFile)
-	}
-
-	env := map[string]string{
-		"GH_AW_PROMPT":     constants.AwPromptsFile,
-		"GITHUB_WORKSPACE": "${{ github.workspace }}",
-		"RUNNER_TEMP":      "${{ runner.temp }}",
-		"NO_PROXY":         "localhost,127.0.0.1",
-	}
-	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
-	e.ApplyUniversalProviderEnv(env, workflowData, firewallEnabled)
-
-	// MCP config path
-	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/.crush.json"
-	}
-
-	// Safe outputs env
-	applySafeOutputEnvToMap(env, workflowData)
-
-	// Propagate W3C trace context so engine spans nest under the gh-aw.agent.setup span.
-	applyTraceContextEnvToMap(env)
-
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
-	} else {
-		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
-	}
-
-	// Model env var (only when explicitly configured)
-	if modelConfigured {
-		crushLog.Printf("Setting %s env var for model: %s",
-			constants.CrushCLIModelEnvVar, workflowData.EngineConfig.Model)
-		env[constants.CrushCLIModelEnvVar] = workflowData.EngineConfig.Model
-	}
-
-	// Custom env from engine config (allows provider override)
-	applyEngineCwdEnv(env, workflowData)
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		maps.Copy(env, workflowData.EngineConfig.Env)
-	}
-
-	// Agent config env
-	agentConfig := getAgentConfig(workflowData)
-	if agentConfig != nil && len(agentConfig.Env) > 0 {
-		maps.Copy(env, agentConfig.Env)
-	}
-
-	// Build execution step
-	stepLines := []string{
-		"      - name: Execute Crush CLI",
-		"        id: agentic_execution",
-	}
-	allowedSecrets := e.GetRequiredSecretNames(workflowData)
-	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
-
-	steps = append(steps, GitHubActionStep(stepLines))
-	return steps
+	return e.BuildCLIEngineExecutionSteps(workflowData, logFile, UniversalCLIEngineExecutionConfig{
+		EngineConstant:     constants.CrushEngine,
+		DefaultCommandName: "crush",
+		ExtraCLIArgs:       []string{"--verbose"},
+		MCPConfigFile:      ".crush.json",
+		StepName:           "Execute Crush CLI",
+		ConfigStep:         e.generateCrushConfigStep(workflowData),
+		ModelEnvVarName:    constants.CrushCLIModelEnvVar,
+		WriteTimestamp:     true,
+	})
 }
 
 // generateCrushConfigStep writes .crush.json with all permissions set to allow
