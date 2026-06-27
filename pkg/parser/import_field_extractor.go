@@ -632,10 +632,10 @@ func (acc *importAccumulator) appendModelsField(fm map[string]any) {
 		acc.modelPolicies = append(acc.modelPolicies, modelPolicy)
 		parserLog.Printf("Extracted model policy from import: allowed=%d, disallowed=%d, blocked=%d", len(modelPolicy["allowed"]), len(modelPolicy["disallowed"]), len(modelPolicy["blocked"]))
 	}
-	if _, hasProviders := rawModels["providers"]; hasProviders {
-		acc.modelCosts = append(acc.modelCosts, rawModels)
-		if providers, ok := rawModels["providers"].(map[string]any); ok {
-			parserLog.Printf("Extracted model costs from import: providers=%d", len(providers))
+	if providers, hasProviders := rawModels["providers"]; hasProviders {
+		acc.modelCosts = append(acc.modelCosts, map[string]any{"providers": providers})
+		if providerMap, ok := providers.(map[string]any); ok {
+			parserLog.Printf("Extracted model costs from import: providers=%d", len(providerMap))
 		} else {
 			parserLog.Printf("Extracted model costs from import")
 		}

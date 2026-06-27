@@ -61,3 +61,39 @@ func TestExtractMainModelPolicyOverlay_FallsBackToRawFrontmatter(t *testing.T) {
 	assert.Equal(t, []string{"gpt-5-mini"}, policy["allowed"])
 	assert.Equal(t, []string{"claude-opus"}, policy["blocked"])
 }
+
+func TestExtractMainModelCostsOverlay_ExtractsNilWhenModelCostsHasOnlyPolicyKeys(t *testing.T) {
+	toolsResult := &toolsProcessingResult{
+		parsedFrontmatter: &FrontmatterConfig{
+			ModelCosts: map[string]any{
+				"allowed": []any{"gpt-5"},
+			},
+		},
+	}
+
+	costs := extractMainModelCostsOverlay(toolsResult, map[string]any{})
+	assert.Nil(t, costs)
+}
+
+func TestExtractMainModelCostsOverlay_ExtractsOnlyProvidersAndExcludesPolicyKeys(t *testing.T) {
+	toolsResult := &toolsProcessingResult{}
+	frontmatter := map[string]any{
+		"models": map[string]any{
+			"allowed": []any{"gpt-5"},
+			"providers": map[string]any{
+				"openai": map[string]any{
+					"models": map[string]any{
+						"gpt-5": map[string]any{
+							"cost": map[string]any{"input": "1e-6"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	costs := extractMainModelCostsOverlay(toolsResult, frontmatter)
+	require.NotNil(t, costs)
+	assert.Contains(t, costs, "providers")
+	assert.NotContains(t, costs, "allowed")
+}

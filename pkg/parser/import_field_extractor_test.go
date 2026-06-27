@@ -741,4 +741,10 @@ func TestAppendModelsField_ExtractsModelCostsAndPolicyTogether(t *testing.T) {
 	require.Len(t, acc.modelCosts, 1, "expected one model cost overlay")
 	require.Len(t, acc.modelPolicies, 1, "expected one model policy set")
 	assert.Equal(t, []string{"gpt-5-mini"}, acc.modelPolicies[0]["allowed"])
+	assert.Contains(t, acc.modelCosts[0], "providers")
+	assert.Len(t, acc.modelCosts[0], 1)
+	for _, key := range []string{"allowed", "disallowed", "blocked"} {
+		_, present := acc.modelCosts[0][key]
+		assert.Falsef(t, present, "model cost overlay should not contain policy key %q", key)
+	}
 }

@@ -168,7 +168,10 @@ func extractMainModelCostsOverlay(toolsResult *toolsProcessingResult, frontmatte
 	// Fall back to raw frontmatter when ParseFrontmatterConfig failed (e.g. due to unrecognized
 	// tool config shapes like bash: ["*"]).
 	if toolsResult.parsedFrontmatter != nil && len(toolsResult.parsedFrontmatter.ModelCosts) > 0 {
-		return toolsResult.parsedFrontmatter.ModelCosts
+		if providers, hasProviders := toolsResult.parsedFrontmatter.ModelCosts["providers"]; hasProviders {
+			return map[string]any{"providers": providers}
+		}
+		return nil
 	}
 
 	rawModels, ok := frontmatter["models"]
@@ -179,10 +182,11 @@ func extractMainModelCostsOverlay(toolsResult *toolsProcessingResult, frontmatte
 	if !ok {
 		return nil
 	}
-	if _, hasProviders := modelsMap["providers"]; !hasProviders {
+	providers, hasProviders := modelsMap["providers"]
+	if !hasProviders {
 		return nil
 	}
-	return modelsMap
+	return map[string]any{"providers": providers}
 }
 
 func mergeModelCostOverlays(importedOverlays []map[string]any, mainOverlay map[string]any) map[string]any {
