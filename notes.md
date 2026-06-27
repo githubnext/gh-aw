@@ -1,12 +1,13 @@
 # Copilot Session Insights — repo memory
 
-## 2026-06-25 snapshot
-- 50 sessions; **8% completion** (4 success, 46 action_required, 0 failure) — uptick **+6pts** from 06-24 (2%); recent-7d (06-19..25) avg **9.1%** (saw-tooth: 6,0,24,4,20,2,8)
-- **GATE-SWEEP**: 46/50 zero-duration; 36-min window 06:47–07:22Z; 4 nonzero = the 4 successes (14.6/14.6/16.2/29.8m)
-- All 4 successes = `Addressing comment on PR #41385/41387/41388/41401` (Copilot cloud-agent PR-comment runs), one per distinct copilot/* branch → **provenance_inversion holds**
-- 6 branches, **all copilot/***; top-2 retry-loop-drained-tokens-2 (21, 42%) + remove-strict-false-and-fix-env-support (15, 30%) = **72%**
-- Orphans: **0**; 6 open PRs all Copilot-assigned, only `main` has active runs → 0% (vs 40% baseline, NORMAL, ~35th healthy day)
-- Conversation logs empty/OAuth **32nd+ day**; standard run (roll=68)
+## 2026-06-27 snapshot
+- 50 sessions; **40% completion** (20 success, 27 action_required, 2 skipped, 1 cancelled) — **sharp +38pt upturn** from 06-26 (2%); highest since 05-26 (46%). Saw-tooth recovery spike, not yet sustained.
+- **Bimodal**: 27/50 zero-dur gate sweeps; median 0 vs mean 3.83m; real-work cluster = 11 sessions ≥5min, 2 ≥15min, max 45.7m.
+- **High concentration**: only 6 unique branches; top-2 `fix-nolint-suppression-gap` (13) + `fix-fmterrorfnoverbs-false-negative` (13) = **52%**. Concentration coincided with the completion upturn (matches concentrated_branch_activity).
+- Orphans: **0**; 10 open PRs, only 4 in-progress runs (max 2 gates/branch, on `main`) → 0% (vs 40% baseline, NORMAL, ~37th healthy day). 0 escalation candidates.
+- Conversation logs still empty (0 files) **30+ consecutive days**; standard run (roll=88).
+
+_(Per-day detail before 2026-06-27 lives in session-trends.jsonl / session-analysis-history.json.)_
 
 ## Active patterns
 - provenance_inversion (06-07): successes come from agentic runs (PR-comment / cloud-agent), never from gate sweeps. Holds 06-25 (all 4 = PR-comment).
