@@ -1222,6 +1222,34 @@ func TestConclusionJobCategoriesFilterQuoting(t *testing.T) {
 	})
 }
 
+func TestConclusionJobReportFailureAsIssueTemplatableExpression(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			NoOp:                           &NoOpConfig{},
+			ReportFailureAsIssue:           "${{ inputs.report-failure-as-issue }}",
+			ReportFailureAsIssueCategories: []string{"agent_failure"},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	jobYAML := strings.Join(job.Steps, "")
+	if !strings.Contains(jobYAML, "GH_AW_FAILURE_REPORT_AS_ISSUE:") || !strings.Contains(jobYAML, "${{ inputs.report-failure-as-issue }}") {
+		t.Errorf("Expected templatable GH_AW_FAILURE_REPORT_AS_ISSUE env var in generated conclusion job YAML.\nGenerated YAML:\n%s", jobYAML)
+	}
+	if strings.Contains(jobYAML, "GH_AW_FAILURE_CATEGORIES_FILTER:") {
+		t.Errorf("Expected category filters to be omitted when report-failure-as-issue is templatable.\nGenerated YAML:\n%s", jobYAML)
+	}
+}
+
 func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	compiler := NewCompiler()
 	workflowData := &WorkflowData{

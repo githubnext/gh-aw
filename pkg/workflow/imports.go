@@ -476,6 +476,11 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if !result.GroupReports && importedConfig.GroupReports {
 		result.GroupReports = true
 	}
+	if result.ReportFailureAsIssue == nil && importedConfig.ReportFailureAsIssue != nil {
+		result.ReportFailureAsIssue = importedConfig.ReportFailureAsIssue
+		result.ReportFailureAsIssueCategories = importedConfig.ReportFailureAsIssueCategories
+		result.ReportFailureAsIssueExcludedCategories = importedConfig.ReportFailureAsIssueExcludedCategories
+	}
 	if result.FailureIssueRepo == "" && importedConfig.FailureIssueRepo != "" {
 		result.FailureIssueRepo = importedConfig.FailureIssueRepo
 	}

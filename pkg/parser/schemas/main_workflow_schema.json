@@ -10307,6 +10307,11 @@
               "description": "When false, disables creating failure tracking issues when workflows fail. When true, all failures trigger issues. Defaults to true."
             },
             {
+              "type": "string",
+              "pattern": "^\\$\\{\\{.*\\}\\}$",
+              "description": "GitHub Actions expression that resolves to a boolean at runtime (for example: '${{ inputs.report-failure-as-issue }}')."
+            },
+            {
               "type": "array",
               "description": "List of failure categories that should trigger issue creation. Categories can be prefixed with '!' to exclude them (e.g., '!inference_access_error'). If only non-prefixed categories are specified, only those categories trigger issues. If only prefixed (excluded) categories are specified, all categories except those trigger issues. If both are specified, categories must match included AND not match excluded. Common categories: agent_failure, timed_out, missing_safe_outputs, report_incomplete, missing_tool, missing_data, inference_access_error, mcp_policy_error, ai_credits_rate_limit_error, max_ai_credits_exceeded.",
               "items": {
@@ -10318,7 +10323,7 @@
             }
           ],
           "default": true,
-          "examples": [false, true, ["agent_failure", "missing_safe_outputs"], ["!inference_access_error", "!ai_credits_rate_limit_error"]]
+          "examples": [false, true, "${{ inputs.report-failure-as-issue }}", ["agent_failure", "missing_safe_outputs"], ["!inference_access_error", "!ai_credits_rate_limit_error"]]
         },
         "failure-issue-repo": {
           "type": "string",

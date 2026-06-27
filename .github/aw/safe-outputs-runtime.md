@@ -203,8 +203,9 @@ Fields that influence permission computation (`add-comment.discussions`, `create
   - Increase this limit for long-running branches that touch many files
 - `group-reports:` - Group workflow failure reports as sub-issues (boolean, default: `false`)
   - When `true`, creates a parent `[aw] Failed runs` issue that tracks all workflow failures as sub-issues; useful for larger repositories
-- `report-failure-as-issue:` - Control whether workflow failures are reported as GitHub issues (boolean, default: `true`)
+- `report-failure-as-issue:` - Control whether workflow failures are reported as GitHub issues (boolean, expression, or category array; default: `true`)
   - When `false`, suppresses automatic failure issue creation for this workflow
+  - Supports templatable boolean expressions, e.g. `report-failure-as-issue: ${{ inputs.report-failure-as-issue }}`
   - Use to silence noisy failure reports for workflows where failures are expected or handled externally
 - `failure-issue-repo:` - Repository to create failure tracking issues in (string, format: `"owner/repo"`)
   - Defaults to the current repository when not specified

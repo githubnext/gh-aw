@@ -726,6 +726,7 @@ safe-outputs:
   allowed-domains:
     - "example.com"
     - "api.example.com"
+  report-failure-as-issue: ${{ inputs.report-failure-as-issue }}
   staged: true
   env:
     TEST_VAR: "test_value"
@@ -785,6 +786,7 @@ This workflow uses the imported meta configuration.
 	assert.True(t, templatableBoolIsTrue(workflowData.SafeOutputs.Staged), "Staged should be imported and set to true")
 	assert.Equal(t, map[string]string{"TEST_VAR": "test_value"}, workflowData.SafeOutputs.Env, "Env should be imported")
 	assert.Equal(t, "${{ secrets.CUSTOM_TOKEN }}", workflowData.SafeOutputs.GitHubToken, "GitHubToken should be imported")
+	assert.Equal(t, "${{ inputs.report-failure-as-issue }}", workflowData.SafeOutputs.ReportFailureAsIssue, "ReportFailureAsIssue should be imported as templatable bool")
 	// Note: When main workflow has safe-outputs section, extractSafeOutputsConfig sets MaximumPatchSize default (4096)
 	// before merge happens, so imported value is not used. User should specify max-patch-size in main workflow.
 	assert.Equal(t, 4096, workflowData.SafeOutputs.MaximumPatchSize, "MaximumPatchSize defaults to 4096 when main has safe-outputs")
@@ -806,6 +808,7 @@ func TestSafeOutputsImportMetaFieldsMainTakesPrecedence(t *testing.T) {
 safe-outputs:
   allowed-domains:
     - "shared.example.com"
+  report-failure-as-issue: false
   github-token: "${{ secrets.SHARED_TOKEN }}"
   max-patch-size: 1024
 ---
@@ -827,6 +830,7 @@ imports:
 safe-outputs:
   allowed-domains:
     - "main.example.com"
+  report-failure-as-issue: ${{ inputs.report-failure-as-issue }}
   github-token: "${{ secrets.MAIN_TOKEN }}"
   max-patch-size: 2048
   create-issue:
@@ -856,6 +860,7 @@ This workflow has its own meta configuration that should take precedence.
 
 	// Verify main workflow meta fields take precedence
 	assert.Equal(t, []string{"main.example.com"}, workflowData.SafeOutputs.AllowedDomains, "AllowedDomains from main should take precedence")
+	assert.Equal(t, "${{ inputs.report-failure-as-issue }}", workflowData.SafeOutputs.ReportFailureAsIssue, "ReportFailureAsIssue from main should take precedence")
 	assert.Equal(t, "${{ secrets.MAIN_TOKEN }}", workflowData.SafeOutputs.GitHubToken, "GitHubToken from main should take precedence")
 	assert.Equal(t, 2048, workflowData.SafeOutputs.MaximumPatchSize, "MaximumPatchSize from main should take precedence")
 }
