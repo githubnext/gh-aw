@@ -223,10 +223,19 @@ async function derivePrHeadRef(entry) {
     return directRef.trim();
   }
 
-  // Determine the target repo for any API lookups. Prefer the entry's repo if
-  // the sample sets one (cross-repo workflows), otherwise fall back to
-  // GITHUB_REPOSITORY.
-  const repoSlug = (typeof entry.arguments.repo === "string" && entry.arguments.repo.trim()) || process.env.GITHUB_REPOSITORY || "";
+  // Determine the target repo for any API lookups.
+  // Resolution order:
+  //   a. entry.arguments.repo — explicit per-sample override (cross-repo workflows).
+  //   b. target-repo from the safe-outputs config file (GH_AW_SAFE_OUTPUTS_CONFIG_PATH)
+  //      for the tool — covers siderepo workflow_dispatch where the sample arguments
+  //      carry `pull_request_number` but not a `repo` override (issue #41292).
+  //   c. GITHUB_REPOSITORY — host repo fallback.
+  let repoSlug = "";
+  if (typeof entry.arguments.repo === "string" && entry.arguments.repo.trim()) {
+    repoSlug = entry.arguments.repo.trim();
+  } else {
+    repoSlug = readConfiguredTargetRepo(entry.tool) || process.env.GITHUB_REPOSITORY || "";
+  }
   const [owner, repo] = repoSlug.split("/");
   if (!owner || !repo) return null;
 
