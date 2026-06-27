@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -211,4 +212,19 @@ func TestCollectMCPEnvironmentVariables_NonCodexEngineExcludesCODEXHOME(t *testi
 				"CODEX_HOME should not be set for %s engine", engine)
 		})
 	}
+}
+
+func TestCollectMCPEnvironmentVariables_SafeOutputsIncludesCreatePullRequestPolicy(t *testing.T) {
+	tools := map[string]any{
+		"safe-outputs": map[string]any{},
+	}
+	mcpTools := []string{"safe-outputs"}
+	workflowData := &WorkflowData{SafeOutputs: &SafeOutputsConfig{}}
+
+	envVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, false)
+
+	assert.Equal(t,
+		"${{ vars."+compilerenv.PolicyAllowCreatePullRequest+" || 'true' }}",
+		envVars[compilerenv.PolicyAllowCreatePullRequest],
+	)
 }

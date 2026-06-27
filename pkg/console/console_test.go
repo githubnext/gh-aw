@@ -189,6 +189,34 @@ func TestFormatWarningMessage(t *testing.T) {
 	}
 }
 
+func TestFormatHelpersWithTTYCheck(t *testing.T) {
+	t.Run("plain output when tty check is false", func(t *testing.T) {
+		if got := formatInfoMessageWithTTY("processing file", func() bool { return false }); got != "i processing file" {
+			t.Fatalf("expected unstyled info message, got %q", got)
+		}
+		if got := formatSuccessMessageWithTTY("done", func() bool { return false }); got != "✓ done" {
+			t.Fatalf("expected unstyled success message, got %q", got)
+		}
+		if got := formatListItemWithTTY("item", func() bool { return false }); got != "  • item" {
+			t.Fatalf("expected unstyled list item, got %q", got)
+		}
+		if got := formatSectionHeaderWithTTY("Header", func() bool { return false }); got != "Header" {
+			t.Fatalf("expected unstyled header, got %q", got)
+		}
+	})
+
+	t.Run("tty check is consulted", func(t *testing.T) {
+		calls := 0
+		_ = formatInfoMessageWithTTY("x", func() bool {
+			calls++
+			return false
+		})
+		if calls != 1 {
+			t.Fatalf("expected tty check to be called once, got %d", calls)
+		}
+	})
+}
+
 func TestRenderTable(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -24,6 +24,9 @@ network:
     - github
     - python
 
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

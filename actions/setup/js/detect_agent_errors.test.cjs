@@ -108,6 +108,17 @@ describe("detect_agent_errors.cjs", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("model 'claude-3-5-sonnet@20241022' not found")).toBe(true);
     });
 
+    it("matches AIC api-proxy 404 standalone 'Model not found' shape", () => {
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("404 Not Found: Model not found")).toBe(true);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("ResponseError: 404 Not Found: Model not found")).toBe(true);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("Error: 404 Model not found")).toBe(true);
+    });
+
+    it("matches 404 model-not-found when embedded in larger log output", () => {
+      const log = "Some output\n[codex-harness] attempt 2: exitCode=1 isInvalidModelError=false\nError 404 Not Found: Model not found\nall 3 retries exhausted — giving up";
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(log)).toBe(true);
+    });
+
     it("does not match unrelated invalid/unknown model wording", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("Error: invalid model response format")).toBe(false);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("Error: invalid model schema definition")).toBe(false);

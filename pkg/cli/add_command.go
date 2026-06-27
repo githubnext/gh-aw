@@ -19,6 +19,50 @@ import (
 
 var addLog = logger.New("cli:add_command")
 
+var (
+	addCommandLong = `Add one or more agentic workflows from repositories to .github/workflows.
+
+This command adds workflows directly without interactive prompts. Use 'add-wizard'
+for a guided setup that configures secrets, creates a pull request, and more.
+
+Workflow specifications:
+  - Two parts: "owner/repo[@version]" (loads repository-root aw.yml package)
+  - Three+ parts without .md: "owner/repo/folder[@version]" (loads nested aw.yml package when present)
+  - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
+  - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
+  - GitHub URL: "https://github.com/owner/repo/blob/branch/path/to/workflow.md"
+  - Arbitrary URL: "https://example.com/workflow.md" (fetches and dispatches on Content-Type)
+    - text/markdown → treated as a gh-aw workflow markdown file
+    - application/json → converted from a JSON workflow definition
+  - Local file: "./path/to/workflow.md" (adds a workflow from local filesystem)
+  - Local wildcard: "./*.md" or "./dir/*.md" (adds all .md files matching pattern)
+  - Version can be tag, branch, or SHA (for remote workflows)
+
+The -n flag allows you to specify a custom name for the workflow file (not allowed when adding multiple workflows at once).
+The --dir flag allows you to specify the workflow directory (default: .github/workflows).
+The --create-pull-request flag creates a pull request with the workflow changes.
+The --force flag overwrites existing workflow files.
+
+Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterprise host by default.
+      For github/*, githubnext/*, and microsoft/* sources, shorthand resolves on github.com.
+      Use full https://github.com/... source URLs for other public github.com workflows.
+Note: To create a new workflow from scratch, use the 'new' command instead.
+Note: For guided interactive setup, use the 'add-wizard' command instead.`
+	addCommandExample = `  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/daily-repo-status        # Add workflow directly
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/repo-assist              # Add package from repository root aw.yml
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/packages/repo-assist     # Add package from nested aw.yml
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/workflows/ci-doctor.md@main
+  ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
+  ` + string(constants.CLIExtensionPrefix) + ` add https://example.com/my-workflow.md           # Add workflow from any HTTPS URL
+  ` + string(constants.CLIExtensionPrefix) + ` add https://example.com/workflow.json            # Import JSON workflow definition
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create-pull-request --force
+  ` + string(constants.CLIExtensionPrefix) + ` add ./my-workflow.md                             # Add local workflow
+  ` + string(constants.CLIExtensionPrefix) + ` add ./*.md                                       # Add all local workflows
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir .github/workflows/shared   # Add to .github/workflows/shared/
+`
+)
+
 // AddOptions contains all configuration options for adding workflows
 type AddOptions struct {
 	Verbose                bool
@@ -53,49 +97,10 @@ type AddWorkflowsResult struct {
 // NewAddCommand creates the add command
 func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add <workflow>...",
-		Short: "Add agentic workflows from repositories or local files to .github/workflows",
-		Long: `Add one or more agentic workflows from repositories to .github/workflows.
-
-This command adds workflows directly without interactive prompts. Use 'add-wizard'
-for a guided setup that configures secrets, creates a pull request, and more.
-
-Workflow specifications:
-  - Two parts: "owner/repo[@version]" (loads repository-root aw.yml package)
-  - Three+ parts without .md: "owner/repo/folder[@version]" (loads nested aw.yml package when present)
-  - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
-  - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
-  - GitHub URL: "https://github.com/owner/repo/blob/branch/path/to/workflow.md"
-  - Arbitrary URL: "https://example.com/workflow.md" (fetches and dispatches on Content-Type)
-    - text/markdown → treated as a gh-aw workflow markdown file
-    - application/json → converted from a JSON workflow definition
-  - Local file: "./path/to/workflow.md" (adds a workflow from local filesystem)
-  - Local wildcard: "./*.md" or "./dir/*.md" (adds all .md files matching pattern)
-  - Version can be tag, branch, or SHA (for remote workflows)
-
-The -n flag allows you to specify a custom name for the workflow file (not allowed when adding multiple workflows at once).
-The --dir flag allows you to specify the workflow directory (default: .github/workflows).
-The --create-pull-request flag creates a pull request with the workflow changes.
-The --force flag overwrites existing workflow files.
-
-Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterprise host by default.
-      For github/*, githubnext/*, and microsoft/* sources, shorthand resolves on github.com.
-      Use full https://github.com/... source URLs for other public github.com workflows.
-Note: To create a new workflow from scratch, use the 'new' command instead.
-Note: For guided interactive setup, use the 'add-wizard' command instead.`,
-		Example: `  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/daily-repo-status        # Add workflow directly
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/repo-assist              # Add package from repository root aw.yml
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/packages/repo-assist     # Add package from nested aw.yml
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/workflows/ci-doctor.md@main
-  ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
-  ` + string(constants.CLIExtensionPrefix) + ` add https://example.com/my-workflow.md           # Add workflow from any HTTPS URL
-  ` + string(constants.CLIExtensionPrefix) + ` add https://example.com/workflow.json            # Import JSON workflow definition
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create-pull-request --force
-  ` + string(constants.CLIExtensionPrefix) + ` add ./my-workflow.md                             # Add local workflow
-  ` + string(constants.CLIExtensionPrefix) + ` add ./*.md                                       # Add all local workflows
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir .github/workflows/shared   # Add to .github/workflows/shared/
-`,
+		Use:     "add <workflow>...",
+		Short:   "Add agentic workflows from repositories or local files to .github/workflows",
+		Long:    addCommandLong,
+		Example: addCommandExample,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow>...\n\nExamples:\n  %[1]s githubnext/agentics/daily-repo-status      Add from repository\n  %[1]s ./my-workflow.md                           Add local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
@@ -103,49 +108,55 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			workflows := args
-			engineOverride, _ := cmd.Flags().GetString("engine")
-			nameFlag, _ := cmd.Flags().GetString("name")
-			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
-			prFlagAlias, _ := cmd.Flags().GetBool("pr")
-			prFlag := createPRFlag || prFlagAlias // Support both --create-pull-request and --pr
-			forceFlag, _ := cmd.Flags().GetBool("force")
-			appendText, _ := cmd.Flags().GetString("append")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
-			workflowDir, _ := cmd.Flags().GetString("dir")
-			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
-			stopAfter, _ := cmd.Flags().GetString("stop-after")
-			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
-			disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
-			disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
-
-			if nameFlag != "" && len(workflows) > 1 {
-				return errors.New("--name flag cannot be used when adding multiple workflows at once")
-			}
-
-			if err := validateEngine(engineOverride); err != nil {
-				return err
-			}
-
-			opts := AddOptions{
-				Verbose:                verbose,
-				EngineOverride:         engineOverride,
-				Name:                   nameFlag,
-				Force:                  forceFlag,
-				AppendText:             appendText,
-				CreatePR:               prFlag,
-				NoGitattributes:        noGitattributes,
-				WorkflowDir:            workflowDir,
-				NoStopAfter:            noStopAfter,
-				StopAfter:              stopAfter,
-				DisableSecurityScanner: disableSecurityScanner,
-			}
-			_, err := AddWorkflows(cmd.Context(), workflows, opts)
-			return err
+			return runAddCommand(cmd, args, validateEngine)
 		},
 	}
 
+	registerAddCommandFlags(cmd)
+	return cmd
+}
+
+func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string) error) error {
+	engineOverride, _ := cmd.Flags().GetString("engine")
+	nameFlag, _ := cmd.Flags().GetString("name")
+	createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
+	prFlagAlias, _ := cmd.Flags().GetBool("pr")
+	forceFlag, _ := cmd.Flags().GetBool("force")
+	appendText, _ := cmd.Flags().GetString("append")
+	verbose, _ := cmd.Flags().GetBool("verbose")
+	noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
+	workflowDir, _ := cmd.Flags().GetString("dir")
+	noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
+	stopAfter, _ := cmd.Flags().GetString("stop-after")
+	disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
+	disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
+	disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
+
+	if nameFlag != "" && len(args) > 1 {
+		return errors.New("--name flag cannot be used when adding multiple workflows at once")
+	}
+	if err := validateEngine(engineOverride); err != nil {
+		return err
+	}
+
+	opts := AddOptions{
+		Verbose:                verbose,
+		EngineOverride:         engineOverride,
+		Name:                   nameFlag,
+		Force:                  forceFlag,
+		AppendText:             appendText,
+		CreatePR:               createPRFlag || prFlagAlias,
+		NoGitattributes:        noGitattributes,
+		WorkflowDir:            workflowDir,
+		NoStopAfter:            noStopAfter,
+		StopAfter:              stopAfter,
+		DisableSecurityScanner: disableSecurityScanner,
+	}
+	_, err := AddWorkflows(cmd.Context(), args, opts)
+	return err
+}
+
+func registerAddCommandFlags(cmd *cobra.Command) {
 	// Add name flag to add command
 	cmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
 
@@ -190,8 +201,6 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 	// Register completions for add command
 	RegisterEngineFlagCompletion(cmd)
 	RegisterDirFlagCompletion(cmd, "dir")
-
-	return cmd
 }
 
 // AddWorkflows adds one or more workflows from components to .github/workflows
@@ -313,22 +322,113 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 	sourceContent := resolved.Content
 	sourceInfo := resolved.SourceInfo
 
-	addLog.Printf("Adding workflow: name=%s, content_size=%d bytes", workflowSpec.WorkflowName, len(sourceContent))
-
-	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding workflow: "+workflowSpec.String()))
-		if opts.Force {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Force flag enabled: will overwrite existing files"))
-		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using pre-fetched workflow content (%d bytes)", len(sourceContent))))
+	reportAddWorkflowStart(workflowSpec, sourceContent, opts)
+	if err := validateWorkflowSecurity(resolved, opts); err != nil {
+		return err
+	}
+	gitRoot, githubWorkflowsDir, err := resolveWorkflowTargetDir(opts)
+	if err != nil {
+		return err
 	}
 
-	// Security scan: reject workflows containing malicious or dangerous content
+	workflowName := workflowSpec.WorkflowName
+	if opts.Name != "" {
+		workflowName = opts.Name
+	}
+	// Action workflow files (.yml) are copied as-is to .github/workflows/ without any
+	// frontmatter processing, dependency fetching, or compilation.
+	if resolved.IsActionWorkflow {
+		return addActionWorkflowWithTracking(resolved, tracker, opts, githubWorkflowsDir, workflowName)
+	}
+	// Package skill files are copied as-is to the agentic engine skill directory.
+	if resolved.IsPackageSkillFile {
+		return addSkillFileWithTracking(resolved, tracker, opts, gitRoot)
+	}
+	// Package agent files are copied as-is to the agentic engine agents directory.
+	if resolved.IsPackageAgentFile {
+		return addAgentFileWithTracking(resolved, tracker, opts, gitRoot)
+	}
+	skip, err := validateWorkflowDestination(githubWorkflowsDir, workflowName, opts)
+	if err != nil {
+		return err
+	}
+	if skip {
+		return nil
+	}
+	if err := fetchWorkflowDependencies(ctx, workflowSpec, sourceInfo, sourceContent, githubWorkflowsDir, tracker, opts); err != nil {
+		return err
+	}
+
+	destFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
+	fileExists := fileutil.FileExists(destFile)
+	if fileExists {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing file: "+destFile))
+	}
+	workflowSpec = resolvedWorkflowSpec(workflowSpec, sourceInfo)
+	content, err := processWorkflowContentModifications(string(sourceContent), workflowSpec, sourceInfo, githubWorkflowsDir, opts)
+	if err != nil {
+		return err
+	}
+	if err := trackAndWriteWorkflowFile(destFile, content, fileExists, opts, tracker); err != nil {
+		return err
+	}
+	compileAddedWorkflow(ctx, destFile, workflowSpec, githubWorkflowsDir, tracker, opts)
+	return nil
+}
+
+func reportAddWorkflowStart(workflowSpec *WorkflowSpec, sourceContent []byte, opts AddOptions) {
+	addLog.Printf("Adding workflow: name=%s, content_size=%d bytes", workflowSpec.WorkflowName, len(sourceContent))
+	if !opts.Verbose {
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding workflow: "+workflowSpec.String()))
+	if opts.Force {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Force flag enabled: will overwrite existing files"))
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using pre-fetched workflow content (%d bytes)", len(sourceContent))))
+}
+
+func validateWorkflowDestination(githubWorkflowsDir, workflowName string, opts AddOptions) (bool, error) {
+	existingFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
+	if !fileutil.FileExists(existingFile) || opts.Force {
+		return false, nil
+	}
+	if opts.FromWildcard {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow '%s' already exists in .github/workflows/. Skipping.", workflowName)))
+		return true, nil
+	}
+	return false, fmt.Errorf("workflow '%s' already exists in .github/workflows/. Use a different name with -n flag, remove the existing workflow first, or use --force to overwrite", workflowName)
+}
+
+func compileAddedWorkflow(ctx context.Context, destFile string, workflowSpec *WorkflowSpec, githubWorkflowsDir string, tracker *FileTracker, opts AddOptions) {
+	// For remote workflows: now that the main workflow and all its imports are on disk,
+	// parse the fully merged safe-outputs configuration to discover any dispatch workflows
+	// that originate from imported shared workflows (not visible in the raw frontmatter).
+	if !isLocalWorkflowPath(workflowSpec.WorkflowPath) {
+		fetchAndSaveDispatchWorkflowsFromParsedFile(destFile, workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker)
+	}
+	// Compile any dispatch-workflow .md dependencies that were just fetched and lack a
+	// .lock.yml. The dispatch-workflow validator requires every .md dispatch target to be
+	// compiled before the main workflow can be validated.
+	compileDispatchWorkflowDependencies(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker)
+	// Compile the workflow
+	if tracker != nil {
+		if err := compileWorkflowWithTracking(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker); err != nil {
+			printCompilationError(err, opts.Quiet)
+		}
+		return
+	}
+	if err := compileWorkflow(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride); err != nil {
+		printCompilationError(err, opts.Quiet)
+	}
+}
+
+func validateWorkflowSecurity(resolved *ResolvedWorkflow, opts AddOptions) error {
 	if !opts.DisableSecurityScanner {
-		if findings := workflow.ScanMarkdownSecurity(string(sourceContent)); len(findings) > 0 {
+		if findings := workflow.ScanMarkdownSecurity(string(resolved.Content)); len(findings) > 0 {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Security scan failed for workflow"))
-			fmt.Fprintln(os.Stderr, workflow.FormatSecurityFindings(findings, workflowSpec.WorkflowPath))
-			return fmt.Errorf("workflow '%s' failed security scan: %d issue(s) detected", workflowSpec.WorkflowPath, len(findings))
+			fmt.Fprintln(os.Stderr, workflow.FormatSecurityFindings(findings, resolved.Spec.WorkflowPath))
+			return fmt.Errorf("workflow '%s' failed security scan: %d issue(s) detected", resolved.Spec.WorkflowPath, len(findings))
 		}
 		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Security scan passed"))
@@ -336,99 +436,90 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 	} else if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Security scanning disabled"))
 	}
+	return nil
+}
 
-	// Find git root to ensure consistent placement
-	gitRoot, err := gitutil.FindGitRoot()
+func resolveWorkflowTargetDir(opts AddOptions) (gitRoot, githubWorkflowsDir string, err error) {
+	gitRoot, err = gitutil.FindGitRoot()
 	if err != nil {
-		return fmt.Errorf("add workflow requires being in a git repository: %w", err)
+		return "", "", fmt.Errorf("add workflow requires being in a git repository: %w", err)
 	}
-
-	// Determine the target workflow directory
-	var githubWorkflowsDir string
 	if opts.WorkflowDir != "" {
 		if filepath.IsAbs(opts.WorkflowDir) {
-			return fmt.Errorf("workflow directory must be a relative path, got: %s", opts.WorkflowDir)
+			return "", "", fmt.Errorf("workflow directory must be a relative path, got: %s", opts.WorkflowDir)
 		}
-		opts.WorkflowDir = filepath.Clean(opts.WorkflowDir)
-		githubWorkflowsDir = filepath.Join(gitRoot, opts.WorkflowDir)
+		githubWorkflowsDir = filepath.Join(gitRoot, filepath.Clean(opts.WorkflowDir))
 	} else {
 		githubWorkflowsDir = filepath.Join(gitRoot, constants.GetWorkflowDir())
 	}
-
-	// Ensure the target directory exists
 	if err := os.MkdirAll(githubWorkflowsDir, constants.DirPermPublic); err != nil {
-		return fmt.Errorf("failed to create workflow directory %s: %w", githubWorkflowsDir, err)
+		return "", "", fmt.Errorf("failed to create workflow directory %s: %w", githubWorkflowsDir, err)
 	}
+	return gitRoot, githubWorkflowsDir, nil
+}
 
-	// Determine the workflowName to use
-	var workflowName string
-	if opts.Name != "" {
-		workflowName = opts.Name
-	} else {
-		workflowName = workflowSpec.WorkflowName
-	}
-
-	// Action workflow files (.yml) are copied as-is to .github/workflows/ without any
-	// frontmatter processing, dependency fetching, or compilation.
-	if resolved.IsActionWorkflow {
-		return addActionWorkflowWithTracking(resolved, tracker, opts, githubWorkflowsDir, workflowName)
-	}
-
-	// Package skill files are copied as-is to the agentic engine skill directory.
-	if resolved.IsPackageSkillFile {
-		return addSkillFileWithTracking(resolved, tracker, opts, gitRoot)
-	}
-
-	// Package agent files are copied as-is to the agentic engine agents directory.
-	if resolved.IsPackageAgentFile {
-		return addAgentFileWithTracking(resolved, tracker, opts, gitRoot)
-	}
-
-	// Check if a workflow with this name already exists
-	existingFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
-	if fileutil.FileExists(existingFile) && !opts.Force {
-		if opts.FromWildcard {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow '%s' already exists in .github/workflows/. Skipping.", workflowName)))
-			return nil
-		}
-		return fmt.Errorf("workflow '%s' already exists in .github/workflows/. Use a different name with -n flag, remove the existing workflow first, or use --force to overwrite", workflowName)
-	}
-
+func fetchWorkflowDependencies(ctx context.Context, workflowSpec *WorkflowSpec, sourceInfo *FetchedWorkflow, sourceContent []byte, githubWorkflowsDir string, tracker *FileTracker, opts AddOptions) error {
 	// For remote workflows, fetch and save all dependencies (includes, imports, dispatch workflows, resources)
 	if workflowSpec.RawURL != "" {
 		// Generic URL imports carry no GitHub repo context; dependency fetching is skipped.
-	} else if !isLocalWorkflowPath(workflowSpec.WorkflowPath) {
-		if err := fetchAllRemoteDependencies(ctx, string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
-			return err
-		}
-	} else if sourceInfo != nil && sourceInfo.IsLocal {
-		// For local workflows, collect and copy include dependencies from local paths
-		// The source directory is derived from the workflow's path
-		sourceDir := filepath.Dir(workflowSpec.WorkflowPath)
-		includeDeps, err := collectLocalIncludeDependencies(string(sourceContent), sourceDir, opts.Verbose)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to collect include dependencies: %v", err)))
-		}
-		if err := copyIncludeDependenciesFromPackageWithForce(includeDeps, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy include dependencies: %v", err)))
-		}
+		return nil
+	}
+	if !isLocalWorkflowPath(workflowSpec.WorkflowPath) {
+		return fetchAllRemoteDependencies(ctx, string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker)
+	}
+	if sourceInfo == nil || !sourceInfo.IsLocal {
+		return nil
 	}
 
-	// Process the workflow
-	destFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
-
-	fileExists := false
-	if fileutil.FileExists(destFile) {
-		fileExists = true
-		if !opts.Force {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Destination file '%s' already exists, skipping.", destFile)))
-			return nil
-		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing file: "+destFile))
+	// For local workflows, collect and copy include dependencies from local paths
+	// The source directory is derived from the workflow's path
+	sourceDir := filepath.Dir(workflowSpec.WorkflowPath)
+	includeDeps, err := collectLocalIncludeDependencies(string(sourceContent), sourceDir, opts.Verbose)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to collect include dependencies: %v", err)))
 	}
+	if err := copyIncludeDependenciesFromPackageWithForce(includeDeps, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy include dependencies: %v", err)))
+	}
+	return nil
+}
 
-	content := string(sourceContent)
+// When the fetch used a fallback path (e.g. .github/workflows/my-workflow.md instead
+// of the short-form my-workflow.md), SourcePath holds the actual repo-root-relative
+// path. Propagate it to workflowSpec so all downstream processing (source field,
+// include/import resolution) uses the canonical path.
+func resolvedWorkflowSpec(workflowSpec *WorkflowSpec, sourceInfo *FetchedWorkflow) *WorkflowSpec {
+	if sourceInfo == nil || sourceInfo.IsLocal || sourceInfo.SourcePath == "" || sourceInfo.SourcePath == workflowSpec.WorkflowPath {
+		return workflowSpec
+	}
+	specCopy := *workflowSpec
+	specCopy.WorkflowPath = sourceInfo.SourcePath
+	return &specCopy
+}
 
+func processWorkflowContentModifications(content string, workflowSpec *WorkflowSpec, sourceInfo *FetchedWorkflow, githubWorkflowsDir string, opts AddOptions) (string, error) {
+	content, err := applyEngineAndPermissionModifications(content, opts)
+	if err != nil {
+		return content, err
+	}
+	content, err = applySourceAndIncludeModifications(content, workflowSpec, sourceInfo, githubWorkflowsDir, opts)
+	if err != nil {
+		return content, err
+	}
+	content, err = applyStopAfterModifications(content, opts)
+	if err != nil {
+		return content, err
+	}
+	if opts.AppendText != "" {
+		if !strings.HasSuffix(content, "\n") {
+			content += "\n"
+		}
+		content += "\n" + opts.AppendText
+	}
+	return content, nil
+}
+
+func applyEngineAndPermissionModifications(content string, opts AddOptions) (string, error) {
 	// Handle engine override - add/update the engine field in frontmatter before source so
 	// the engine declaration appears above the source field in the final file.
 	// The default engine is omitted to avoid unnecessary noise and prevent conflicts during
@@ -463,20 +554,14 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 			}
 		}
 	}
+	return content, nil
+}
 
+func applySourceAndIncludeModifications(content string, workflowSpec *WorkflowSpec, sourceInfo *FetchedWorkflow, githubWorkflowsDir string, opts AddOptions) (string, error) {
 	// Add source field to frontmatter
 	commitSHA := ""
 	if sourceInfo != nil {
 		commitSHA = sourceInfo.CommitSHA
-	}
-	// When the fetch used a fallback path (e.g. .github/workflows/my-workflow.md instead
-	// of the short-form my-workflow.md), SourcePath holds the actual repo-root-relative
-	// path. Propagate it to workflowSpec so all downstream processing (source field,
-	// include/import resolution) uses the canonical path.
-	if sourceInfo != nil && !sourceInfo.IsLocal && sourceInfo.SourcePath != "" && sourceInfo.SourcePath != workflowSpec.WorkflowPath {
-		specCopy := *workflowSpec
-		specCopy.WorkflowPath = sourceInfo.SourcePath
-		workflowSpec = &specCopy
 	}
 	sourceString := buildSourceStringWithCommitSHA(workflowSpec, commitSHA)
 	if sourceString != "" {
@@ -488,30 +573,35 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 		} else {
 			content = updatedContent
 		}
-
-		// Note: frontmatter 'imports:' are intentionally kept as relative paths here.
-		// fetchAndSaveRemoteFrontmatterImports already downloaded those files locally, so
-		// the compiler can resolve them from disk without any GitHub API calls.
-
-		// Process @include directives and replace with workflowspec.
-		// For local workflows, use the workflow's directory as the package source path.
-		// Pass githubWorkflowsDir as localWorkflowDir so that any body-level import
-		// whose target already exists locally is preserved as a local reference rather
-		// than being rewritten to a cross-repo workflowspec.
-		includeSourceDir := ""
-		if sourceInfo != nil && sourceInfo.IsLocal {
-			includeSourceDir = filepath.Dir(workflowSpec.WorkflowPath)
-		}
-		processedContent, err := processIncludesWithWorkflowSpec(content, workflowSpec, commitSHA, includeSourceDir, githubWorkflowsDir, opts.Verbose)
-		if err != nil {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))
-			}
-		} else {
-			content = processedContent
-		}
 	}
 
+	// Note: frontmatter 'imports:' are intentionally kept as relative paths here.
+	// fetchAndSaveRemoteFrontmatterImports already downloaded those files locally, so
+	// the compiler can resolve them from disk without any GitHub API calls.
+
+	// Process @include directives and replace with workflowspec.
+	// For local workflows, use the workflow's directory as the package source path.
+	// Pass githubWorkflowsDir as localWorkflowDir so that any body-level import
+	// whose target already exists locally is preserved as a local reference rather
+	// than being rewritten to a cross-repo workflowspec.
+	if workflowSpec.RepoSlug == "" || workflowSpec.WorkflowPath == "" {
+		return content, nil
+	}
+	includeSourceDir := ""
+	if sourceInfo != nil && sourceInfo.IsLocal {
+		includeSourceDir = filepath.Dir(workflowSpec.WorkflowPath)
+	}
+	processedContent, err := processIncludesWithWorkflowSpec(content, workflowSpec, commitSHA, includeSourceDir, githubWorkflowsDir, opts.Verbose)
+	if err != nil {
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))
+		}
+		return content, nil
+	}
+	return processedContent, nil
+}
+
+func applyStopAfterModifications(content string, opts AddOptions) (string, error) {
 	// Handle stop-after field modifications
 	if opts.NoStopAfter {
 		cleanedContent, err := RemoveFieldFromOnTrigger(content, "stop-after")
@@ -519,35 +609,31 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 			if opts.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove stop-after field: %v", err)))
 			}
-		} else {
-			content = cleanedContent
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed stop-after field from workflow"))
-			}
+			return content, nil
 		}
-	} else if opts.StopAfter != "" {
-		updatedContent, err := SetFieldInOnTrigger(content, "stop-after", opts.StopAfter)
-		if err != nil {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set stop-after field: %v", err)))
-			}
-		} else {
-			content = updatedContent
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Set stop-after field to: "+opts.StopAfter))
-			}
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed stop-after field from workflow"))
 		}
+		return cleanedContent, nil
+	}
+	if opts.StopAfter == "" {
+		return content, nil
 	}
 
-	// Append text if provided
-	if opts.AppendText != "" {
-		if !strings.HasSuffix(content, "\n") {
-			content += "\n"
+	updatedContent, err := SetFieldInOnTrigger(content, "stop-after", opts.StopAfter)
+	if err != nil {
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set stop-after field: %v", err)))
 		}
-		content += "\n" + opts.AppendText
+		return content, nil
 	}
+	if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Set stop-after field to: "+opts.StopAfter))
+	}
+	return updatedContent, nil
+}
 
-	// Track the file
+func trackAndWriteWorkflowFile(destFile string, content string, fileExists bool, opts AddOptions, tracker *FileTracker) error {
 	if tracker != nil {
 		if fileExists {
 			tracker.TrackModified(destFile)
@@ -555,22 +641,18 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 			tracker.TrackCreated(destFile)
 		}
 	}
-
-	// Write the file
 	if err := os.WriteFile(destFile, []byte(content), constants.FilePermSensitive); err != nil {
 		return fmt.Errorf("failed to write destination file '%s': %w", destFile, err)
 	}
+
 	// Read back the just-written file to ensure downstream processing (including
 	// frontmatter hash computation) uses the exact bytes on disk and avoids parity drift.
 	writtenContent, err := os.ReadFile(destFile)
 	if err != nil {
 		return fmt.Errorf("failed to read back destination file '%s': %w", destFile, err)
 	}
-
-	// Show output
 	if !opts.Quiet {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added workflow: "+filepath.Base(destFile)))
-
 		if opts.Verbose {
 			if description := ExtractWorkflowDescription(string(writtenContent)); description != "" {
 				fmt.Fprintln(os.Stderr, "")
@@ -579,30 +661,6 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 			}
 		}
 	}
-
-	// For remote workflows: now that the main workflow and all its imports are on disk,
-	// parse the fully merged safe-outputs configuration to discover any dispatch workflows
-	// that originate from imported shared workflows (not visible in the raw frontmatter).
-	if !isLocalWorkflowPath(workflowSpec.WorkflowPath) {
-		fetchAndSaveDispatchWorkflowsFromParsedFile(destFile, workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker)
-	}
-
-	// Compile any dispatch-workflow .md dependencies that were just fetched and lack a
-	// .lock.yml. The dispatch-workflow validator requires every .md dispatch target to be
-	// compiled before the main workflow can be validated.
-	compileDispatchWorkflowDependencies(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker)
-
-	// Compile the workflow
-	if tracker != nil {
-		if err := compileWorkflowWithTracking(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker); err != nil {
-			printCompilationError(err, opts.Quiet)
-		}
-	} else {
-		if err := compileWorkflow(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride); err != nil {
-			printCompilationError(err, opts.Quiet)
-		}
-	}
-
 	return nil
 }
 
@@ -655,7 +713,58 @@ func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTrac
 func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, gitRoot string) error {
 	engineSkillDir := workflow.GetEngineSkillDir(opts.EngineOverride)
 	skillDir := filepath.Join(gitRoot, engineSkillDir, resolved.SkillName)
+	relPath, err := resolveSkillRelativePath(resolved)
+	if err != nil {
+		return err
+	}
 
+	destFile := filepath.Join(skillDir, relPath)
+	relToSkillDir, err := filepath.Rel(skillDir, destFile)
+	if err != nil {
+		return fmt.Errorf("failed to validate destination path %q for skill %q: %w", destFile, resolved.SkillName, err)
+	}
+	if relToSkillDir == ".." || strings.HasPrefix(relToSkillDir, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("skill file path %q escapes destination skill directory %q", relPath, skillDir)
+	}
+
+	// Ensure the destination directory exists (handles nested subdirectories).
+	if err := os.MkdirAll(filepath.Dir(destFile), constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create skill directory %s: %w", filepath.Dir(destFile), err)
+	}
+
+	addLog.Printf("Adding skill file: dest=%s, skill=%s, content_size=%d bytes", destFile, resolved.SkillName, len(resolved.Content))
+	if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding skill file to %s: %s", engineSkillDir+"/"+resolved.SkillName, relPath)))
+	}
+
+	fileExists := false
+	if fileutil.FileExists(destFile) {
+		fileExists = true
+		if !opts.Force {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skill file '%s' already exists. Skipping.", destFile)))
+			}
+			return nil
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing skill file: "+destFile))
+	}
+	if tracker != nil {
+		if fileExists {
+			tracker.TrackModified(destFile)
+		} else {
+			tracker.TrackCreated(destFile)
+		}
+	}
+	if err := os.WriteFile(destFile, resolved.Content, constants.FilePermPublic); err != nil {
+		return fmt.Errorf("failed to write skill file '%s': %w", destFile, err)
+	}
+	if !opts.Quiet {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added skill file: %s/%s/%s", engineSkillDir, resolved.SkillName, relPath)))
+	}
+	return nil
+}
+
+func resolveSkillRelativePath(resolved *ResolvedWorkflow) (string, error) {
 	// Determine the relative path under the skill directory so nested files preserve
 	// structure (e.g. "scripts/query.sh"). Match a skill-name path component that is
 	// immediately under skills/ or .github/skills/ to avoid accidental first matches.
@@ -678,62 +787,13 @@ func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, 
 		}
 	}
 	if len(relParts) == 0 {
-		return fmt.Errorf("failed to determine relative path for skill %q from source path %q", resolved.SkillName, resolved.Spec.WorkflowPath)
+		return "", fmt.Errorf("failed to determine relative path for skill %q from source path %q", resolved.SkillName, resolved.Spec.WorkflowPath)
 	}
 	relPath := filepath.Clean(filepath.Join(relParts...))
 	if relPath == "." || relPath == "" || relPath == string(os.PathSeparator) {
-		return fmt.Errorf("invalid relative skill path %q from source path %q", relPath, resolved.Spec.WorkflowPath)
+		return "", fmt.Errorf("invalid relative skill path %q from source path %q", relPath, resolved.Spec.WorkflowPath)
 	}
-
-	destFile := filepath.Join(skillDir, relPath)
-	relToSkillDir, err := filepath.Rel(skillDir, destFile)
-	if err != nil {
-		return fmt.Errorf("failed to validate destination path %q for skill %q: %w", destFile, resolved.SkillName, err)
-	}
-	if relToSkillDir == ".." || strings.HasPrefix(relToSkillDir, ".."+string(os.PathSeparator)) {
-		return fmt.Errorf("skill file path %q escapes destination skill directory %q", relPath, skillDir)
-	}
-
-	// Ensure the destination directory exists (handles nested subdirectories).
-	if err := os.MkdirAll(filepath.Dir(destFile), constants.DirPermPublic); err != nil {
-		return fmt.Errorf("failed to create skill directory %s: %w", filepath.Dir(destFile), err)
-	}
-
-	addLog.Printf("Adding skill file: dest=%s, skill=%s, content_size=%d bytes", destFile, resolved.SkillName, len(resolved.Content))
-
-	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding skill file to %s: %s", engineSkillDir+"/"+resolved.SkillName, relPath)))
-	}
-
-	fileExists := false
-	if fileutil.FileExists(destFile) {
-		fileExists = true
-		if !opts.Force {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skill file '%s' already exists. Skipping.", destFile)))
-			}
-			return nil
-		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing skill file: "+destFile))
-	}
-
-	if tracker != nil {
-		if fileExists {
-			tracker.TrackModified(destFile)
-		} else {
-			tracker.TrackCreated(destFile)
-		}
-	}
-
-	if err := os.WriteFile(destFile, resolved.Content, constants.FilePermPublic); err != nil {
-		return fmt.Errorf("failed to write skill file '%s': %w", destFile, err)
-	}
-
-	if !opts.Quiet {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added skill file: %s/%s/%s", engineSkillDir, resolved.SkillName, relPath)))
-	}
-
-	return nil
+	return relPath, nil
 }
 
 // addAgentFileWithTracking installs a single agent file from a package to the agentic engine

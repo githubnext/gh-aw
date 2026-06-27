@@ -34,6 +34,9 @@ experiments:
     tags: [output-format, cost, latency]
     issue: 31926
 
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   edit:

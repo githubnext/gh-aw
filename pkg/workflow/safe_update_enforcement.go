@@ -130,20 +130,6 @@ var ghAwActionPrefixes = []string{
 	"github/gh-aw-actions/",
 }
 
-// runtimeActionRepos is the set of action repos used by the runtime manager.
-// These are populated from knownRuntimes at init time so the trusted-action
-// list stays in sync with runtime_definitions.go automatically.
-var runtimeActionRepos map[string]bool
-
-func init() {
-	runtimeActionRepos = make(map[string]bool, len(knownRuntimes))
-	for _, rt := range knownRuntimes {
-		if rt.ActionRepo != "" {
-			runtimeActionRepos[rt.ActionRepo] = true
-		}
-	}
-}
-
 // isTrustedActionRepo reports whether a repo string belongs to a trusted org or project.
 // Trusted repos include the "actions/" GitHub org, gh-aw's own infrastructure actions,
 // and actions used by the runtime manager (e.g. ruby/setup-ruby, oven-sh/setup-bun).
@@ -156,7 +142,8 @@ func isTrustedActionRepo(repo string) bool {
 			return true
 		}
 	}
-	return runtimeActionRepos[repo]
+	_, ok := actionRepoToRuntime[repo]
+	return ok
 }
 
 // collectActionViolations compares the new action refs against the previous manifest

@@ -3,10 +3,12 @@
 package cli
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -194,4 +196,26 @@ func TestBuildAuditDataIncludesObservabilityInsights(t *testing.T) {
 	auditData := buildAuditData(processedRun, metrics, nil)
 	require.NotEmpty(t, auditData.ObservabilityInsights, "audit data should expose observability insights")
 	assert.Equal(t, "execution", auditData.ObservabilityInsights[0].Category)
+}
+
+func TestRenderObservabilityInsightsUsesConsoleFormatting(t *testing.T) {
+	var output bytes.Buffer
+
+	renderObservabilityInsightsTo(&output, []ObservabilityInsight{
+		{
+			Category: "tooling",
+			Severity: "high",
+			Title:    "Capability friction detected",
+			Summary:  "The run hit capability gaps.",
+			Evidence: "missing_tools=1",
+		},
+	})
+
+	text := output.String()
+	lines := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
+	require.GreaterOrEqual(t, len(lines), 4)
+	assert.Equal(t, console.FormatSectionHeaderStderr("[high] Capability friction detected [tooling]"), lines[0])
+	assert.Equal(t, console.FormatListItemStderr("The run hit capability gaps."), lines[1])
+	assert.Equal(t, console.FormatListItemStderr("Evidence: missing_tools=1"), lines[2])
+	assert.Empty(t, lines[3])
 }

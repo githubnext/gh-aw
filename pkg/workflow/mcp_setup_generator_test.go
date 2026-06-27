@@ -713,6 +713,8 @@ Test that GH_AW_SAFE_OUTPUTS is passed to the HTTP server startup step.
 		"Safe outputs MCP server should receive the runtime config path")
 	assert.Contains(t, yamlStr, `"GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}"`,
 		"Safe outputs MCP server should receive the runtime tools path")
+	assert.Contains(t, yamlStr, `"GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST": "\${GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST}"`,
+		"Safe outputs MCP server should receive the runtime create-pull-request policy")
 	assert.Contains(t, yamlStr, `"RUNNER_TEMP": "\${RUNNER_TEMP}"`,
 		"Safe outputs MCP server should receive RUNNER_TEMP for staging helpers")
 	assert.NotContains(t, yamlStr, "Start Safe Outputs MCP HTTP Server",

@@ -677,7 +677,15 @@ func scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host s
 		}
 
 		for _, file := range files {
-			if !isSupportedPackageInstallablePath(file) {
+			// listPackageWorkflowFilesForHost returns full repo-root-relative paths
+			// (e.g. "folder/workflows/foo.md" when scanning "folder/workflows/").
+			// isSupportedPackageInstallablePath expects package-relative paths, so
+			// strip the package prefix before validation for nested bundles.
+			pathToValidate := file
+			if packagePath != "" {
+				pathToValidate = strings.TrimPrefix(file, packagePath+"/")
+			}
+			if !isSupportedPackageInstallablePath(pathToValidate) {
 				continue
 			}
 			if _, exists := seen[file]; exists {
@@ -718,7 +726,16 @@ func normalizePackageInstallablePaths(paths []string, packagePath string) []stri
 		if !isSupportedPackageInstallablePath(path) {
 			continue
 		}
-		path = joinRepositoryPackagePath(packagePath, path)
+		// Paths under .github/ are treated as repo-root-relative even in nested
+		// bundles (e.g. a bundle at "dependabot/" with ".github/workflows/foo.md"
+		// refers to the repository-root ".github/workflows/foo.md", not to
+		// "dependabot/.github/workflows/foo.md"). All other paths (e.g. workflows/,
+		// agentic-workflows/) remain relative to the package root.
+		if packagePath != "" && strings.HasPrefix(path, constants.GithubDir) {
+			path = filepath.ToSlash(path)
+		} else {
+			path = joinRepositoryPackagePath(packagePath, path)
+		}
 		if _, exists := seen[path]; exists {
 			continue
 		}

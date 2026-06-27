@@ -18,6 +18,9 @@ engine:
   copilot-sdk: true
 imports:
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   edit:

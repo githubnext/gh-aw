@@ -15,6 +15,9 @@ permissions:
 engine:
   id: copilot
   copilot-sdk: true
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:

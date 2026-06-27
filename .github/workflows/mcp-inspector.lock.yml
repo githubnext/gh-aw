@@ -873,6 +873,7 @@ jobs:
           DD_APPLICATION_KEY: ${{ secrets.DD_APPLICATION_KEY || secrets.DD_APP_KEY }}
           DD_APP_KEY: ${{ secrets.DD_APPLICATION_KEY || secrets.DD_APP_KEY }}
           DD_SITE: ${{ secrets.DD_SITE || 'datadoghq.com' }}
+          GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST: ${{ vars.GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST || 'true' }}
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_CONFIG_PATH }}
           GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_TOOLS_PATH }}
@@ -911,11 +912,11 @@ jobs:
             * ) DOCKER_SOCK_PATH=/var/run/docker.sock ;;
           esac
           DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network bridge -p 127.0.0.1:'"${MCP_GATEWAY_PORT}"':'"${MCP_GATEWAY_PORT}"' --name awmg-mcpg --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -e AZURE_CLIENT_ID -e AZURE_CLIENT_SECRET -e AZURE_TENANT_ID -e BRAVE_API_KEY -e CONTEXT7_API_KEY -e DD_API_KEY -e DD_APPLICATION_KEY -e DD_APP_KEY -e DD_SITE -e NOTION_API_TOKEN -e SENTRY_ACCESS_TOKEN -e SENTRY_HOST -e SENTRY_OPENAI_API_KEY -e TAVILY_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw -v '"${RUNNER_TEMP}"'/gh-aw/safeoutputs:'"${RUNNER_TEMP}"'/gh-aw/safeoutputs:rw ghcr.io/github/gh-aw-mcpg:v0.3.30'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network bridge -p 127.0.0.1:'"${MCP_GATEWAY_PORT}"':'"${MCP_GATEWAY_PORT}"' --name awmg-mcpg --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -e AZURE_CLIENT_ID -e AZURE_CLIENT_SECRET -e AZURE_TENANT_ID -e BRAVE_API_KEY -e CONTEXT7_API_KEY -e DD_API_KEY -e DD_APPLICATION_KEY -e DD_APP_KEY -e DD_SITE -e NOTION_API_TOKEN -e SENTRY_ACCESS_TOKEN -e SENTRY_HOST -e SENTRY_OPENAI_API_KEY -e TAVILY_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw -v '"${RUNNER_TEMP}"'/gh-aw/safeoutputs:'"${RUNNER_TEMP}"'/gh-aw/safeoutputs:rw ghcr.io/github/gh-aw-mcpg:v0.3.30'
           
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_13d5e63b0cb929be_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_baedb14ae7e16e78_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -974,7 +975,7 @@ jobs:
                   "*"
                 ],
                 "env": {
-                  "BRAVE_API_KEY": "\\${BRAVE_API_KEY}"
+                  "BRAVE_API_KEY": "\${BRAVE_API_KEY}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -992,7 +993,7 @@ jobs:
                   "resolve-library-id"
                 ],
                 "env": {
-                  "CONTEXT7_API_KEY": "\\${CONTEXT7_API_KEY}"
+                  "CONTEXT7_API_KEY": "\${CONTEXT7_API_KEY}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -1006,9 +1007,9 @@ jobs:
                 "type": "http",
                 "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp?toolsets=core",
                 "headers": {
-                  "DD_API_KEY": "\\${DD_API_KEY}",
-                  "DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}",
-                  "DD_SITE": "\\${DD_SITE}"
+                  "DD_API_KEY": "\${DD_API_KEY}",
+                  "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
+                  "DD_SITE": "\${DD_SITE}"
                 },
                 "tools": [
                   "search_datadog_spans",
@@ -1019,10 +1020,10 @@ jobs:
                   "get_datadog_metric"
                 ],
                 "env": {
-                  "DD_API_KEY": "\\${DD_API_KEY}",
-                  "DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}",
-                  "DD_APP_KEY": "\\${DD_APP_KEY}",
-                  "DD_SITE": "\\${DD_SITE}"
+                  "DD_API_KEY": "\${DD_API_KEY}",
+                  "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
+                  "DD_APP_KEY": "\${DD_APP_KEY}",
+                  "DD_SITE": "\${DD_SITE}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -1071,9 +1072,9 @@ jobs:
                   "get_eventstream_definition"
                 ],
                 "env": {
-                  "AZURE_CLIENT_ID": "\\${AZURE_CLIENT_ID}",
-                  "AZURE_CLIENT_SECRET": "\\${AZURE_CLIENT_SECRET}",
-                  "AZURE_TENANT_ID": "\\${AZURE_TENANT_ID}"
+                  "AZURE_CLIENT_ID": "\${AZURE_CLIENT_ID}",
+                  "AZURE_CLIENT_SECRET": "\${AZURE_CLIENT_SECRET}",
+                  "AZURE_TENANT_ID": "\${AZURE_TENANT_ID}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -1158,7 +1159,7 @@ jobs:
                   "query_database"
                 ],
                 "env": {
-                  "NOTION_API_TOKEN": "\\${NOTION_API_TOKEN}"
+                  "NOTION_API_TOKEN": "\${NOTION_API_TOKEN}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -1185,6 +1186,7 @@ jobs:
                   "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
                   "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}",
                   "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}",
+                  "GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST": "\${GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST}",
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
                   "GITHUB_TOKEN": "\${GITHUB_TOKEN}",
                   "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
@@ -1224,9 +1226,9 @@ jobs:
                   "get_doc"
                 ],
                 "env": {
-                  "OPENAI_API_KEY": "\\${SENTRY_OPENAI_API_KEY}",
-                  "SENTRY_ACCESS_TOKEN": "\\${SENTRY_ACCESS_TOKEN}",
-                  "SENTRY_HOST": "\\${SENTRY_HOST}"
+                  "OPENAI_API_KEY": "\${SENTRY_OPENAI_API_KEY}",
+                  "SENTRY_ACCESS_TOKEN": "\${SENTRY_ACCESS_TOKEN}",
+                  "SENTRY_HOST": "\${SENTRY_HOST}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -1269,13 +1271,13 @@ jobs:
                 "type": "http",
                 "url": "https://mcp.tavily.com/mcp/",
                 "headers": {
-                  "Authorization": "Bearer \\${TAVILY_API_KEY}"
+                  "Authorization": "Bearer \${TAVILY_API_KEY}"
                 },
                 "tools": [
                   "*"
                 ],
                 "env": {
-                  "TAVILY_API_KEY": "\\${TAVILY_API_KEY}"
+                  "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -1298,7 +1300,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_13d5e63b0cb929be_EOF
+          GH_AW_MCP_CONFIG_baedb14ae7e16e78_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

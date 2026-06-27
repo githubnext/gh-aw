@@ -7,6 +7,8 @@ import (
 )
 
 func TestToolsetPermissionsLoadedFromJSON(t *testing.T) {
+	toolsetPermissionsMap := getToolsetPermissionsMap()
+
 	// Test that toolsetPermissionsMap is populated from JSON
 	if len(toolsetPermissionsMap) == 0 {
 		t.Fatal("toolsetPermissionsMap is empty - JSON loading failed")

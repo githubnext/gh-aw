@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 
@@ -63,7 +64,7 @@ func ensureMCPConfig(verbose bool) error {
 		if !changed {
 			mcpConfigLog.Print("Configuration is identical, skipping")
 			if verbose {
-				fmt.Fprintf(os.Stderr, "MCP server '%s' already configured in %s\n", ghAwServerName, mcpConfigPath)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("MCP server '%s' already configured in %s", ghAwServerName, mcpConfigPath)))
 			}
 			return nil
 		}
