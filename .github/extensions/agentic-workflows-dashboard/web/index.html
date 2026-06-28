@@ -10,16 +10,6 @@
         min-height: 100vh;
         background: var(--bgColor-default, #ffffff);
       }
-      .awd-grid {
-        display: grid;
-        gap: 16px;
-        grid-template-columns: 1fr;
-      }
-      @media (min-width: 960px) {
-        .awd-grid {
-          grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.2fr) minmax(360px, 1.2fr);
-        }
-      }
       .awd-scroll {
         max-height: 55vh;
         overflow: auto;
@@ -49,14 +39,12 @@
         </div>
         <nav class="UnderlineNav mt-3" aria-label="Repository">
           <div class="UnderlineNav-body">
-            <a class="UnderlineNav-item selected" href="#" onclick="return false;">
-              Workflows
-              <span class="Counter" x-text="definitions.length"></span>
-            </a>
-            <a class="UnderlineNav-item" href="#" onclick="return false;">
-              Runs
-              <span class="Counter" x-text="runs.length"></span>
-            </a>
+            <template x-for="tab in tabs" :key="tab.id">
+              <a class="UnderlineNav-item" href="#" onclick="return false;" :class="isActiveTab(tab.id) ? 'selected' : ''" @click="setActiveTab(tab.id)">
+                <span x-text="tab.label"></span>
+                <span class="Counter" x-show="tab.counter" x-text="tabCount(tab)"></span>
+              </a>
+            </template>
           </div>
         </nav>
       </header>
@@ -64,7 +52,7 @@
       <main class="px-4 py-3">
         <div class="flash mt-2" :class="flashKind === 'error' ? 'flash-error' : (flashKind === 'warn' ? 'flash-warn' : 'flash-success')" x-show="flashMessage" x-text="flashMessage"></div>
 
-        <section class="awd-grid mt-3">
+        <section class="mt-3" x-show="isActiveTab('definitions')">
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
               <h2 class="Box-title">Workflow definitions <span class="Counter" x-text="definitionsPaged.totalItems"></span></h2>
@@ -90,13 +78,15 @@
               <button class="btn btn-sm" :disabled="!definitionsPaged.hasNextPage" @click="loadDefinitionPage(definitionsPaged.page + 1)">Next</button>
             </div>
           </div>
+        </section>
 
+        <section class="mt-3" x-show="isActiveTab('runs')">
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
               <h2 class="Box-title">Workflow runs <span class="Counter" x-text="runsPaged.totalItems"></span></h2>
             </div>
             <div class="Box-body p-0 awd-scroll">
-              <div class="Box-row awd-run-row" x-for="run in runsPaged.items" :key="run.id" :class="selectedRun && selectedRun.id === run.id ? 'is-selected' : ''" @click="selectRun(run.id)">
+              <div class="Box-row awd-run-row" x-for="run in runsPaged.items" :key="run.id" :class="selectedRun && selectedRun.id === run.id ? 'is-selected' : ''" @click="viewRunDetails(run.id)">
                 <div class="d-flex flex-justify-between flex-items-start gap-2">
                   <div>
                     <div class="text-bold" x-text="run.id"></div>
@@ -113,48 +103,50 @@
               <button class="btn btn-sm" :disabled="!runsPaged.hasNextPage" @click="loadRunPage(runsPaged.page + 1)">Next</button>
             </div>
           </div>
+        </section>
 
-          <div class="d-flex flex-column gap-3">
-            <div class="Box">
-              <div class="Box-header">
-                <h2 class="Box-title">Run details</h2>
-              </div>
-              <div class="Box-body" x-show="selectedRun">
-                <div class="d-flex flex-wrap gap-2 flex-items-center mb-2">
-                  <span class="text-bold" x-text="selectedRun ? selectedRun.id : ''"></span>
-                  <span :class="selectedRun ? runStatusClass(selectedRun.status) : 'Label Label--secondary'" x-text="selectedRun ? selectedRun.status : 'n/a'"></span>
-                </div>
-                <div class="color-fg-muted text-small mb-3" x-show="selectedRun">Created: <span x-text="selectedRun ? formatDate(selectedRun.createdAt) : ''"></span></div>
-                <div class="Box border rounded-2">
-                  <div class="Box-row" x-for="step in (selectedRun ? selectedRun.steps : [])" :key="step.id">
-                    <div class="d-flex flex-items-center flex-justify-between mb-2">
-                      <span class="text-bold" x-text="step.title"></span>
-                      <span :class="stepStatusClass(step.status)" x-text="step.status"></span>
-                    </div>
-                    <div class="markdown-body text-small" x-html="renderMarkdown(step.summaryMarkdown)"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="Box-body color-fg-muted" x-show="!selectedRun">Select a workflow run to review step summaries.</div>
+        <section class="mt-3" x-show="isActiveTab('details')">
+          <div class="Box">
+            <div class="Box-header">
+              <h2 class="Box-title">Run details</h2>
             </div>
+            <div class="Box-body" x-show="selectedRun">
+              <div class="d-flex flex-wrap gap-2 flex-items-center mb-2">
+                <span class="text-bold" x-text="selectedRun ? selectedRun.id : ''"></span>
+                <span :class="selectedRun ? runStatusClass(selectedRun.status) : 'Label Label--secondary'" x-text="selectedRun ? selectedRun.status : 'n/a'"></span>
+              </div>
+              <div class="color-fg-muted text-small mb-3" x-show="selectedRun">Created: <span x-text="selectedRun ? formatDate(selectedRun.createdAt) : ''"></span></div>
+              <div class="Box border rounded-2">
+                <div class="Box-row" x-for="step in (selectedRun ? selectedRun.steps : [])" :key="step.id">
+                  <div class="d-flex flex-items-center flex-justify-between mb-2">
+                    <span class="text-bold" x-text="step.title"></span>
+                    <span :class="stepStatusClass(step.status)" x-text="step.status"></span>
+                  </div>
+                  <div class="markdown-body text-small" x-html="renderMarkdown(step.summaryMarkdown)"></div>
+                </div>
+              </div>
+            </div>
+            <div class="Box-body color-fg-muted" x-show="!selectedRun">Select a workflow run to review step summaries.</div>
+          </div>
+        </section>
 
-            <div class="Box">
-              <div class="Box-header">
-                <h2 class="Box-title">Command panel</h2>
+        <section class="mt-3" x-show="isActiveTab('commands')">
+          <div class="Box">
+            <div class="Box-header">
+              <h2 class="Box-title">Command panel</h2>
+            </div>
+            <div class="Box-body">
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                <button class="btn btn-sm" @click="commandQuickFill('gh aw logs')">gh aw logs</button>
+                <button class="btn btn-sm" @click="commandQuickFill(selectedRun ? `gh aw logs --run ${selectedRun.id}` : 'gh aw logs --run run-00001')">gh aw logs --run</button>
+                <button class="btn btn-sm" @click="commandQuickFill('gh aw audit')">gh aw audit</button>
+                <button class="btn btn-sm" @click="commandQuickFill(selectedRun ? `gh aw audit --run ${selectedRun.id}` : 'gh aw audit --run run-00001')">gh aw audit --run</button>
               </div>
-              <div class="Box-body">
-                <div class="d-flex flex-wrap gap-2 mb-2">
-                  <button class="btn btn-sm" @click="commandQuickFill('gh aw logs')">gh aw logs</button>
-                  <button class="btn btn-sm" @click="commandQuickFill(selectedRun ? `gh aw logs --run ${selectedRun.id}` : 'gh aw logs --run run-00001')">gh aw logs --run</button>
-                  <button class="btn btn-sm" @click="commandQuickFill('gh aw audit')">gh aw audit</button>
-                  <button class="btn btn-sm" @click="commandQuickFill(selectedRun ? `gh aw audit --run ${selectedRun.id}` : 'gh aw audit --run run-00001')">gh aw audit --run</button>
-                </div>
-                <div class="input-group mb-2">
-                  <input class="form-control" type="text" x-model="commandInput" aria-label="Command input" />
-                  <button class="btn" @click="runCommand()">Run</button>
-                </div>
-                <pre class="Box p-2 awd-command-output" x-text="commandOutput"></pre>
+              <div class="input-group mb-2">
+                <input class="form-control" type="text" x-model="commandInput" aria-label="Command input" />
+                <button class="btn" @click="runCommand()">Run</button>
               </div>
+              <pre class="Box p-2 awd-command-output" x-text="commandOutput"></pre>
             </div>
           </div>
         </section>

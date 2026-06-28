@@ -4,11 +4,15 @@ import { paginate } from "./pagination.js";
 type CommandResult = { command: string; output: string };
 
 type FlashKind = "success" | "warn" | "error";
+type DashboardTabId = "definitions" | "runs" | "details" | "commands";
+type DashboardTab = { id: DashboardTabId; label: string; counter?: "definitions" | "runs" };
 declare const Alpine: {
   data: (name: string, callback: () => DashboardState) => void;
 };
 
 interface DashboardState {
+  tabs: DashboardTab[];
+  activeTab: DashboardTabId;
   definitionPage: number;
   runPage: number;
   pageSize: number;
@@ -23,9 +27,13 @@ interface DashboardState {
   flashMessage: string;
   flashKind: FlashKind;
   init(): void;
+  setActiveTab(tab: DashboardTabId): void;
+  isActiveTab(tab: DashboardTabId): boolean;
+  tabCount(tab: DashboardTab): number;
   loadDefinitionPage(page: number): void;
   loadRunPage(page: number): void;
   selectRun(id: string): void;
+  viewRunDetails(id: string): void;
   dispatchSelectedWorkflow(): void;
   runCommand(): void;
   commandQuickFill(value: string): void;
@@ -37,6 +45,12 @@ interface DashboardState {
 
 const definitionCount = 240;
 const runCount = 420;
+const dashboardTabs: DashboardTab[] = [
+  { id: "definitions", label: "Workflows", counter: "definitions" },
+  { id: "runs", label: "Runs", counter: "runs" },
+  { id: "details", label: "Run details" },
+  { id: "commands", label: "Commands" },
+];
 
 function isoHoursAgo(hours: number): string {
   return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
@@ -241,6 +255,8 @@ const runs = buildRuns(runCount, definitions);
 
 document.addEventListener("alpine:init", () => {
   Alpine.data("dashboardApp", () => ({
+    tabs: dashboardTabs,
+    activeTab: "definitions",
     definitionPage: 1,
     runPage: 1,
     pageSize: 20,
@@ -263,6 +279,24 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    setActiveTab(tab) {
+      this.activeTab = tab;
+    },
+
+    isActiveTab(tab) {
+      return this.activeTab === tab;
+    },
+
+    tabCount(tab) {
+      if (tab.counter === "definitions") {
+        return this.definitions.length;
+      }
+      if (tab.counter === "runs") {
+        return this.runs.length;
+      }
+      return 0;
+    },
+
     loadDefinitionPage(page) {
       this.definitionPage = page;
       this.definitionsPaged = paginate(this.definitions, page, this.pageSize);
@@ -278,6 +312,11 @@ document.addEventListener("alpine:init", () => {
 
     selectRun(id) {
       this.selectedRun = this.runs.find(run => run.id === id) ?? null;
+    },
+
+    viewRunDetails(id) {
+      this.selectRun(id);
+      this.setActiveTab("details");
     },
 
     dispatchSelectedWorkflow() {
@@ -302,6 +341,7 @@ document.addEventListener("alpine:init", () => {
       this.runs = [newRun, ...this.runs];
       this.loadRunPage(1);
       this.selectRun(newRun.id);
+      this.setActiveTab("runs");
 
       this.flashKind = "success";
       this.flashMessage = `Dispatched ${definition.name} as ${newRun.id}.`;
