@@ -1347,6 +1347,8 @@ Use `call-workflow` for deterministic fan-out where actor attribution and zero A
 
 Triggers [`repository_dispatch`](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#repository_dispatch) events in external repositories. Unlike `dispatch-workflow` (same-repo only), `dispatch_repository` is designed for cross-repository orchestration.
 
+The compiler accepts both `dispatch_repository` (underscore, preferred) and `dispatch-repository` (dash, alias) as the safe-output key. Either spelling produces the same behavior.
+
 Each key under `dispatch_repository:` defines a named tool exposed to the agent:
 
 ```yaml wrap
