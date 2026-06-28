@@ -1917,6 +1917,26 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("  Cost: $0.0023");
     });
 
+    it("should use a safe outer fence when agent output contains fenced code", async () => {
+      const { generateCopilotCliStyleSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "Here is code:\n```js\nconsole.log('hi')\n```" }],
+          },
+        },
+      ];
+
+      const result = generateCopilotCliStyleSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toMatch(/^````\n/);
+      expect(result).toMatch(/\n````$/);
+      expect(result).toContain("```js");
+      expect(result).toContain("console.log('hi')");
+    });
+
     it("should show error icon for failed tools", async () => {
       const { generateCopilotCliStyleSummary } = await import("./log_parser_shared.cjs");
 

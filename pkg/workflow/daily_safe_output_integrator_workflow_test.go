@@ -45,6 +45,8 @@ func TestDailySafeOutputIntegratorIncludesTempCoverageScriptAllowlist(t *testing
 	lockContentStr := string(lockContent)
 	for _, expected := range []string{
 		"shell(cat > /tmp/gh-aw/agent/*.py)",
+		"shell(git diff:*)",
+		"shell(git status:*)",
 		"{{#runtime-import .github/workflows/daily-safe-output-integrator.md}}",
 	} {
 		if !strings.Contains(lockContentStr, expected) {

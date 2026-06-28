@@ -250,6 +250,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 			"*.githubusercontent.com",
 			"raw.githubusercontent.com",
 			"objects.githubusercontent.com",
+			"patchdiff.githubusercontent.com",
 			"patch-diff.githubusercontent.com",
 			"lfs.github.com",
 			"github.githubassets.com",

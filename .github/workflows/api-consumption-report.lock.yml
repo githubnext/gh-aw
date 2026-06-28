@@ -771,7 +771,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Setup Python environment
-        run: "mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}\n# Create a virtual environment for proper package isolation (avoids --break-system-packages)\nif [ ! -d /tmp/gh-aw/agent/venv ]; then\n  python3 -m venv /tmp/gh-aw/agent/venv\nfi\necho \"/tmp/gh-aw/agent/venv/bin\" >> \"$GITHUB_PATH\"\n/tmp/gh-aw/agent/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy\n"
+        run: "mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}\n# Create a virtual environment for proper package isolation (avoids --break-system-packages)\nif [ ! -d /tmp/gh-aw/agent/venv ]; then\n  python3 -m venv /tmp/gh-aw/agent/venv\nfi\necho \"/tmp/gh-aw/agent/venv/bin\" >> \"$GITHUB_PATH\"\n# Reinstall chart libraries every run so chart generation never depends on stale state.\n/tmp/gh-aw/agent/venv/bin/pip install --quiet --upgrade --force-reinstall numpy pandas matplotlib seaborn scipy\n/tmp/gh-aw/agent/venv/bin/python3 -c \"import numpy,pandas,matplotlib,seaborn,scipy;print('chart-libraries-ready')\"\n"
       - if: always()
         name: Upload source files and data
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -26,6 +26,10 @@ tools:
     max-file-size: 102400  # 100KB
     max-patch-size: 131072  # 128KB - increased from 50KB to prevent history.jsonl truncation failures
   bash: true
+safe-outputs:
+  upload-asset:
+    max: 6
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
 timeout-minutes: 30
 strict: true
 imports:
