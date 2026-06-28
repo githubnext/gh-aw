@@ -165,6 +165,13 @@ func TestResolvePolicyModelsAllowed(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, got)
 	})
+
+	t.Run("space-separated list is rejected", func(t *testing.T) {
+		t.Setenv(PolicyModelsAllowed, "gpt-5 claude-sonnet")
+		got, ok := ResolvePolicyModelsAllowed()
+		assert.False(t, ok)
+		assert.Nil(t, got)
+	})
 }
 
 func TestResolvePolicyModelsDisallowed(t *testing.T) {

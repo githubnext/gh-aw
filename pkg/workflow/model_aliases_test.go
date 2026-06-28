@@ -347,4 +347,20 @@ func TestFrontmatterModelsField(t *testing.T) {
 		assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, config.ModelPolicyAllowed)
 		assert.Equal(t, []string{"gpt-5-pro"}, config.ModelPolicyDisallowed)
 	})
+
+	t.Run("models policy fields ignore invalid entries but keep valid strings", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name": "test-workflow",
+			"models": map[string]any{
+				"allowed":    []any{"gpt-5", 123, ""},
+				"disallowed": []any{"claude-opus", false},
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		require.NoError(t, err, "ParseFrontmatterConfig should succeed with mixed policy entries")
+		require.NotNil(t, config, "parsed config should not be nil")
+		assert.Equal(t, []string{"gpt-5"}, config.ModelPolicyAllowed)
+		assert.Equal(t, []string{"claude-opus"}, config.ModelPolicyDisallowed)
+	})
 }

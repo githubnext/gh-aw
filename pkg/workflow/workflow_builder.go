@@ -296,6 +296,8 @@ func mergeModelCostOverlayPair(base, overlay map[string]any) map[string]any {
 	return result
 }
 
+// extractMainModelPolicyOverlay returns only models.allowed/disallowed policy
+// entries and never treats providers data as policy.
 func extractMainModelPolicyOverlay(toolsResult *toolsProcessingResult, frontmatter map[string]any) map[string][]string {
 	if toolsResult.parsedFrontmatter != nil {
 		mainPolicy := map[string][]string{
@@ -379,6 +381,9 @@ func modelConflictsWithDisallowedPolicy(model string, disallowedSet map[string]s
 			return true
 		}
 		if modelPolicyPatternMatches(disallowed, model) {
+			return true
+		}
+		if modelPolicyPatternMatches(model, disallowed) {
 			return true
 		}
 	}

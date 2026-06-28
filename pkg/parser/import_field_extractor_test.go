@@ -761,8 +761,9 @@ func TestAppendModelsField_InvalidPolicyAndProviders_EmitsWarningsAndSkipsCosts(
 	assert.Empty(t, acc.modelPolicies)
 	assert.Empty(t, acc.modelCosts)
 	require.NotEmpty(t, acc.warnings)
-	assert.Contains(t, acc.warnings[0], "models.allowed")
-	assert.Contains(t, acc.warnings[1], "models.providers")
+	warningsText := strings.Join(acc.warnings, "\n")
+	assert.Contains(t, warningsText, "models.allowed")
+	assert.Contains(t, warningsText, "models.providers")
 }
 
 func TestAppendModelsField_InvalidModelsShape_EmitsWarning(t *testing.T) {
@@ -776,7 +777,7 @@ func TestAppendModelsField_InvalidModelsShape_EmitsWarning(t *testing.T) {
 	assert.Empty(t, acc.modelPolicies)
 	assert.Empty(t, acc.modelCosts)
 	require.NotEmpty(t, acc.warnings)
-	assert.Contains(t, acc.warnings[0], "models field is not a valid object")
+	assert.Contains(t, strings.Join(acc.warnings, "\n"), "models field is not a valid object")
 }
 
 func TestAppendModelsField_ProvidersPolicyKeysAreExcludedFromModelCosts(t *testing.T) {
@@ -806,4 +807,28 @@ func TestAppendModelsField_ProvidersPolicyKeysAreExcludedFromModelCosts(t *testi
 	assert.NotContains(t, providers, "disallowed")
 	require.NotEmpty(t, acc.warnings)
 	assert.Contains(t, strings.Join(acc.warnings, "\n"), "models.providers.allowed is reserved for policy")
+}
+
+func TestAppendModelsField_ProvidersAndAliasesBothExtracted(t *testing.T) {
+	acc := newImportAccumulator()
+	fm := map[string]any{
+		"models": map[string]any{
+			"providers": map[string]any{
+				"openai": map[string]any{
+					"models": map[string]any{
+						"gpt-5": map[string]any{
+							"cost": map[string]any{"input": "1e-6"},
+						},
+					},
+				},
+			},
+			"agent": []any{"gpt-5"},
+		},
+	}
+
+	acc.appendModelsField(fm, "import-f.md")
+
+	require.Len(t, acc.modelCosts, 1)
+	require.Len(t, acc.models, 1)
+	assert.Equal(t, []string{"gpt-5"}, acc.models[0]["agent"])
 }

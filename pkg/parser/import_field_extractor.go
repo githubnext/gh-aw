@@ -637,12 +637,11 @@ func (acc *importAccumulator) appendModelsField(fm map[string]any, importPath st
 			acc.modelCosts = append(acc.modelCosts, map[string]any{"providers": providerMap})
 			parserLog.Printf("Extracted model costs from import: providers=%d", len(providerMap))
 		}
-		return
 	}
 
 	aliasModels := make(map[string]any, len(rawModels))
 	for key, value := range rawModels {
-		if isModelPolicyKey(key) {
+		if key == "providers" || isModelPolicyKey(key) {
 			continue
 		}
 		aliasModels[key] = value

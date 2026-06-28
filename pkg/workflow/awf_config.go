@@ -565,6 +565,9 @@ func splitDomainList(domains string) []string {
 	return result
 }
 
+// resolveModelPolicyForAWFConfig applies policy precedence independently per list:
+// each env override replaces only its matching list (allowed or disallowed),
+// while the other list continues to use workflow-derived policy.
 func resolveModelPolicyForAWFConfig(workflowData *WorkflowData) ([]string, []string) {
 	envAllowed, hasAllowedOverride := compilerenv.ResolvePolicyModelsAllowed()
 	envDisallowed, hasDisallowedOverride := compilerenv.ResolvePolicyModelsDisallowed()

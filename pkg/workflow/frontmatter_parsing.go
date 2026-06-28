@@ -107,13 +107,23 @@ func extractModelPolicyFromFrontmatter(frontmatter map[string]any) ([]string, []
 func parseModelPolicyList(value any) []string {
 	values, ok := value.([]any)
 	if !ok {
+		if value != nil {
+			frontmatterTypesLog.Printf("Skipping model policy list: expected array, got %T", value)
+		}
 		return nil
 	}
 	result := make([]string, 0, len(values))
 	for _, v := range values {
-		if s, ok := v.(string); ok && s != "" {
-			result = append(result, s)
+		s, ok := v.(string)
+		if !ok {
+			frontmatterTypesLog.Printf("Skipping model policy entry: expected string, got %T", v)
+			continue
 		}
+		if s == "" {
+			frontmatterTypesLog.Printf("Skipping model policy entry: empty string")
+			continue
+		}
+		result = append(result, s)
 	}
 	if len(result) == 0 {
 		return nil

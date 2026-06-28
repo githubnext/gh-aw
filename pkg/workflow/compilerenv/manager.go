@@ -50,9 +50,11 @@ const (
 	// PolicyStrict enables runtime enforcement that workflows must be compiled in strict mode
 	// when GH_AW_POLICY_STRICT is set to the string value "true".
 	PolicyStrict = "GH_AW_POLICY_STRICT"
-	// PolicyModelsAllowed centrally overrides models.allowed frontmatter policy.
+	// PolicyModelsAllowed overrides only models.allowed policy values (it does not
+	// change models.disallowed unless PolicyModelsDisallowed is also set).
 	PolicyModelsAllowed = "GHAW_POLICY_MODELS_ALLOWED"
-	// PolicyModelsDisallowed centrally overrides models.disallowed frontmatter policy.
+	// PolicyModelsDisallowed overrides only models.disallowed policy values (it
+	// does not change models.allowed unless PolicyModelsAllowed is also set).
 	PolicyModelsDisallowed = "GHAW_POLICY_MODELS_DISALLOWED"
 	// PolicyAllowCreatePullRequest controls whether create-pull-request safe-outputs
 	// remain runtime-compliant. Set to the string value "false" to disable the
@@ -198,6 +200,10 @@ func resolveModelListEnv(name string) ([]string, bool) {
 	for _, part := range parts {
 		model := strings.TrimSpace(part)
 		if model == "" {
+			continue
+		}
+		if strings.ContainsAny(model, " \t") {
+			managerLog.Printf("Skipping invalid model policy entry in %s: %q (use comma/newline separators)", name, model)
 			continue
 		}
 		if _, exists := seen[model]; exists {

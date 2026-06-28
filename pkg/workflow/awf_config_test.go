@@ -1665,6 +1665,29 @@ func TestBuildAWFConfigJSON_ModelPolicyEnvOverridePrecedence(t *testing.T) {
 	assert.NotContains(t, jsonStr, "frontmatter-disallowed")
 }
 
+func TestBuildAWFConfigJSON_ModelPolicyEnvOverride_IsPerList(t *testing.T) {
+	t.Setenv(compilerenv.PolicyModelsAllowed, "gemini-pro")
+	t.Setenv(compilerenv.PolicyModelsDisallowed, "")
+
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		AllowedDomains: "github.com",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			ModelPolicyAllowed:    []string{"frontmatter-allowed"},
+			ModelPolicyDisallowed: []string{"frontmatter-disallowed"},
+		},
+	}
+
+	jsonStr, err := BuildAWFConfigJSON(config)
+	require.NoError(t, err)
+	assert.Contains(t, jsonStr, `"allowedModels":["gemini-pro"]`)
+	assert.Contains(t, jsonStr, `"disallowedModels":["frontmatter-disallowed"]`)
+}
+
 func TestBuildAWFConfigJSON_ModelPolicyConflictDisallowedWins(t *testing.T) {
 	config := AWFCommandConfig{
 		EngineName:     "copilot",
