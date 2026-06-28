@@ -19,7 +19,7 @@ const esmRuleTester = new RuleTester({
 describe("require-json-parse-try-catch", () => {
   it("valid: JSON.parse inside try block passes (CommonJS)", () => {
     cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
-      valid: [`try { const x = JSON.parse(str); } catch (e) {}`, `try { return JSON.parse(str); } catch (e) {}`, `function f() { try { JSON.parse(str); } catch (e) {} }`],
+      valid: [`try { const x = JSON.parse(str); } catch (e) {}`, `try { return JSON.parse(str); } catch (e) {}`, `function f() { try { JSON.parse(str); } catch (e) {} }`, `try { const x = JSON["parse"](str); } catch (e) {}`],
       invalid: [],
     });
   });
@@ -105,6 +105,44 @@ describe("require-json-parse-try-catch", () => {
                 {
                   messageId: "useHelper",
                   output: `try {\n  const result = JSON.parse(text);\n} catch (err) {\n  throw err;\n}`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('invalid: computed JSON["parse"] access is flagged when not in try block', () => {
+    cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const data = JSON["parse"](rawInput);`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { arg: "rawInput" },
+              suggestions: [
+                {
+                  messageId: "useHelper",
+                  output: `try {\n  const data = JSON["parse"](rawInput);\n} catch (err) {\n  throw err;\n}`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `JSON["parse"](response.body);`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { arg: "response.body" },
+              suggestions: [
+                {
+                  messageId: "useHelper",
+                  output: `try {\n  JSON["parse"](response.body);\n} catch (err) {\n  throw err;\n}`,
                 },
               ],
             },
