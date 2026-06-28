@@ -11,6 +11,11 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+
+sandbox:
+  agent:
+    sudo: false
+
 strict: true
 tracker-id: daily-regulatory
 max-ai-credits: 1000

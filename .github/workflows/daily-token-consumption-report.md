@@ -8,6 +8,11 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+
+sandbox:
+  agent:
+    sudo: false
+
 tracker-id: daily-token-consumption-report
 engine: claude
 strict: true

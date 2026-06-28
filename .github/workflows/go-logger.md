@@ -7,6 +7,11 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+
+sandbox:
+  agent:
+    sudo: false
+
 imports:
 - shared/otlp.md
 safe-outputs:

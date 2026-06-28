@@ -13,6 +13,10 @@ permissions:
   issues: read
   pull-requests: read
 
+sandbox:
+  agent:
+    sudo: false
+
 network:
   allowed:
     - "pkg.go.dev"

@@ -16,6 +16,11 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+
+sandbox:
+  agent:
+    sudo: false
+
 name: "Smoke Agent: public/approved"
 engine: claude
 strict: true

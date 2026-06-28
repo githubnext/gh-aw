@@ -11,6 +11,11 @@ permissions:
   issues: read
   discussions: read
   pull-requests: read
+
+sandbox:
+  agent:
+    sudo: false
+
 tracker-id: lint-monster
 engine:
   id: pi

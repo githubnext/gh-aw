@@ -36,6 +36,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
+	"github.com/github/gh-aw/pkg/linters/osgetenvlibrary"
 	"github.com/github/gh-aw/pkg/linters/ossetenvlibrary"
 	panicinlibrarycode "github.com/github/gh-aw/pkg/linters/panic-in-library-code"
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
@@ -73,6 +74,7 @@ func main() {
 		largefunc.Analyzer,
 		manualmutexunlock.Analyzer,
 		osexitinlibrary.Analyzer,
+		osgetenvlibrary.Analyzer,
 		ossetenvlibrary.Analyzer,
 		panicinlibrarycode.Analyzer,
 		rawloginlib.Analyzer,
