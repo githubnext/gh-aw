@@ -164,9 +164,10 @@ func compareSwitchFieldHTTPStatus(c httpClientInfo) {
 	}
 }
 
-// JobState is a non-HTTP integer enum (state machine). Comparisons against
-// HTTP-range integers must not be flagged: the type name lacks both "http"
-// and "status", so isHTTPStatusTypeName returns false.
+// JobState is a non-HTTP integer enum (state machine). Integer literals that
+// happen to fall in the HTTP status-code range (100-599) must not be flagged:
+// the type name lacks both "http" and "status", so isHTTPStatusTypeName returns
+// false regardless of the variable name.
 type JobState int
 
 const (
@@ -190,8 +191,12 @@ func compareSwitchNonHTTPJobState(state JobState) {
 }
 
 func compareNonStatusNamedLocal(resp *http.Response) {
-	// False negative: plain int local with non-status name requires flow analysis.
-	// No want comment = analysistest ensures this remains unflagged.
+	// False negative: plain int local with non-status name requires flow analysis
+	// to detect, which is out of scope for this linter (tracking value origins
+	// across assignments would require SSA/dataflow infrastructure). The trade-off
+	// is documented here intentionally. No want comment = analysistest ensures
+	// this remains unflagged (any future regression that starts flagging it
+	// would fail the test).
 	code := resp.StatusCode
 	if code == 404 {
 	}
