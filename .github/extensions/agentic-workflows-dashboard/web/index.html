@@ -40,10 +40,10 @@
         <nav class="UnderlineNav mt-3" aria-label="Repository">
           <div class="UnderlineNav-body">
             <template x-for="tab in tabs" :key="tab.id">
-              <a class="UnderlineNav-item" href="#" onclick="return false;" :class="isActiveTab(tab.id) ? 'selected' : ''" @click="setActiveTab(tab.id)">
+              <button type="button" class="UnderlineNav-item" :class="isActiveTab(tab.id) ? 'selected' : ''" @click="setActiveTab(tab.id)">
                 <span x-text="tab.label"></span>
                 <span class="Counter" x-show="tab.counter" x-text="tabCount(tab)"></span>
-              </a>
+              </button>
             </template>
           </div>
         </nav>

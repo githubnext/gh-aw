@@ -280,7 +280,9 @@ document.addEventListener("alpine:init", () => {
     },
 
     setActiveTab(tab) {
-      this.activeTab = tab;
+      if (this.tabs.some(item => item.id === tab)) {
+        this.activeTab = tab;
+      }
     },
 
     isActiveTab(tab) {
@@ -340,8 +342,7 @@ document.addEventListener("alpine:init", () => {
 
       this.runs = [newRun, ...this.runs];
       this.loadRunPage(1);
-      this.selectRun(newRun.id);
-      this.setActiveTab("runs");
+      this.viewRunDetails(newRun.id);
 
       this.flashKind = "success";
       this.flashMessage = `Dispatched ${definition.name} as ${newRun.id}.`;
