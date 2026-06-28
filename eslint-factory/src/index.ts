@@ -1,4 +1,5 @@
 import { requireJsonParseTryCatchRule } from "./rules/require-json-parse-try-catch";
+import { requireParseIntRadixRule } from "./rules/require-parseInt-radix";
 
 const plugin = {
   meta: {
@@ -7,6 +8,7 @@ const plugin = {
   },
   rules: {
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,
+    "require-parseInt-radix": requireParseIntRadixRule,
   },
 };
 
