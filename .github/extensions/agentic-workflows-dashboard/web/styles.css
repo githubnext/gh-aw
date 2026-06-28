@@ -1,7 +1,7 @@
 .awd-shell {
   min-height: 100vh;
   background: var(--bgColor-default, #ffffff);
-  padding: 0.75rem;
+  padding: var(--base-size-16, 1rem);
 }
 
 .awd-scroll {

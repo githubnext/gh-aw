@@ -148,8 +148,14 @@ function runGhCommand(command, runs) {
     }
     if (normalized.startsWith("gh aw audit-diff")) {
         const referencedRuns = normalized.match(/run-\d{5}/g) ?? [];
-        const baseRun = runs.find(item => item.id === (referencedRuns[0] ?? runs[1]?.id));
-        const compareRun = runs.find(item => item.id === (referencedRuns[1] ?? runs[0]?.id));
+        if (referencedRuns.length < 2) {
+            return {
+                command: normalized,
+                output: "Need two valid runs for diff. Example: gh aw audit-diff run-00002 run-00003",
+            };
+        }
+        const baseRun = runs.find(item => item.id === referencedRuns[0]);
+        const compareRun = runs.find(item => item.id === referencedRuns[1]);
         if (!baseRun || !compareRun) {
             return {
                 command: normalized,
@@ -292,6 +298,16 @@ document.addEventListener("alpine:init", () => {
         commandQuickFill(value) {
             this.commandInput = value;
             this.runCommand();
+        },
+        auditDiffQuickFill() {
+            const selectedId = this.selectedRun?.id;
+            if (!selectedId) {
+                return "gh aw audit-diff run-00001 run-00002";
+            }
+            const firstRunId = this.runs[0]?.id ?? "run-00001";
+            const secondRunId = this.runs[1]?.id ?? "run-00002";
+            const compareId = selectedId === firstRunId ? secondRunId : firstRunId;
+            return `gh aw audit-diff ${selectedId} ${compareId}`;
         },
         renderMarkdown(markdown) {
             return renderSafeMarkdown(markdown);

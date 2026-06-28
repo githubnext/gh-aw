@@ -183,8 +183,15 @@ function runGhAwCompile(args = "") {
 function runGhAwAuditDiff(args = "") {
   const argsText = typeof args === "string" ? args : JSON.stringify(args);
   const referencedRuns = argsText.match(/run-\d{5}/g) ?? [];
-  const baseRun = findRun(referencedRuns[0] ?? runs[1]?.id ?? "");
-  const compareRun = findRun(referencedRuns[1] ?? runs[0]?.id ?? "");
+  if (referencedRuns.length < 2) {
+    return {
+      command: `gh aw audit-diff ${argsText}`.trim(),
+      output: "Need two valid runs for diff. Example: gh aw audit-diff run-00002 run-00003",
+    };
+  }
+
+  const baseRun = findRun(referencedRuns[0]);
+  const compareRun = findRun(referencedRuns[1]);
 
   if (!baseRun || !compareRun) {
     return {

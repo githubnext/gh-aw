@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agentic Workflows Dashboard</title>
     <link rel="stylesheet" href="https://unpkg.com/@primer/css@21/dist/primer.css" />
-    <link rel="stylesheet" href="./styles.css" />
     <style>
       /*__APP_CSS__*/
     </style>
@@ -125,7 +124,7 @@
                 <button class="btn btn-sm" @click="commandQuickFill('gh aw compile')">gh aw compile</button>
                 <button class="btn btn-sm" @click="commandQuickFill('gh aw audit')">gh aw audit</button>
                 <button class="btn btn-sm" @click="commandQuickFill(selectedRun ? `gh aw audit --run ${selectedRun.id}` : 'gh aw audit --run run-00001')">gh aw audit --run</button>
-                <button class="btn btn-sm" @click="commandQuickFill(selectedRun ? `gh aw audit-diff ${runs[1]?.id ?? 'run-00002'} ${selectedRun.id}` : 'gh aw audit-diff run-00001 run-00002')">gh aw audit-diff</button>
+                <button class="btn btn-sm" @click="commandQuickFill(auditDiffQuickFill())">gh aw audit-diff</button>
               </div>
               <div class="input-group mb-2">
                 <input class="form-control" type="text" x-model="commandInput" aria-label="Command input" />
