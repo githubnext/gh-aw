@@ -85,6 +85,14 @@ const MISSING_API_KEY_PATTERN = /Missing environment variable:\s*`?(?:CODEX_API_
 // Pattern to detect OpenAI server-side errors (HTTP 500, 503).
 // These are transient infrastructure failures that may resolve on retry.
 const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
+// Captures model IDs from AIC proxy 404 payloads like:
+//   "404 Not Found: Model not found gpt-5-codex-alpha-2025-11-07"
+const MODEL_NOT_FOUND_AIC_PATTERN = /Model\s+not\s+found\s+([a-z0-9._:@/-]+)/i;
+// Captures model IDs from generic invalid-model payloads like:
+//   "model 'gpt-foo' not found"
+//   "model gpt-bar is not available"
+const MODEL_NOT_FOUND_GENERIC_PATTERN = /model(?:\s+name)?\s+['"`]?([a-z0-9._:@/-]+)['"`]?\s+(?:not found|is not available|unavailable)/i;
+const KNOWN_UNAVAILABLE_MODEL_IDS = ["gpt-5-codex-alpha-2025-11-07"];
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
@@ -141,6 +149,50 @@ function isServerError(output) {
  */
 function isInvalidModelError(output) {
   return INVALID_MODEL_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Extract a model identifier from invalid-model output when available.
+ * @param {string} output
+ * @returns {string|null}
+ */
+function extractOffendingModelName(output) {
+  if (!output || typeof output !== "string") return null;
+  const aicMatch = output.match(MODEL_NOT_FOUND_AIC_PATTERN);
+  if (aicMatch && aicMatch[1]) return aicMatch[1];
+  const genericMatch = output.match(MODEL_NOT_FOUND_GENERIC_PATTERN);
+  if (genericMatch && genericMatch[1]) return genericMatch[1];
+  return null;
+}
+
+/**
+ * Detect known-unavailable model IDs in codex arguments/prompt content.
+ * @param {string[]} args
+ * @returns {string|null}
+ */
+function detectKnownUnavailableModel(args) {
+  for (const arg of args) {
+    if (!arg || typeof arg !== "string") continue;
+    for (const modelID of KNOWN_UNAVAILABLE_MODEL_IDS) {
+      if (arg.includes(modelID)) return modelID;
+    }
+  }
+  return null;
+}
+
+/**
+ * Best-effort append to step summary.
+ * @param {string} message
+ */
+function appendStepSummary(message) {
+  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+  if (!summaryPath || !message) return;
+  try {
+    fs.appendFileSync(summaryPath, `${message}\n`);
+  } catch (error) {
+    const err = /** @type {Error} */ error;
+    process.stderr.write(`[codex-harness] failed to append GITHUB_STEP_SUMMARY: ${err.message}\n`);
+  }
 }
 
 /**
@@ -390,6 +442,18 @@ async function main() {
   const hadPromptFile = args.includes("--prompt-file");
   const safeArgs = hadPromptFile && resolvedArgs.length > 0 ? [...resolvedArgs.slice(0, -1), "<prompt omitted>"] : resolvedArgs;
 
+  const knownUnavailableModel = detectKnownUnavailableModel(resolvedArgs);
+  if (knownUnavailableModel) {
+    const message =
+      `pre-flight: known-unavailable model "${knownUnavailableModel}" detected in workflow/sub-agent configuration — refusing to run codex; ` +
+      "replace with a supported GA Codex model (for example gpt-5.4-mini) in workflow and sub-agent frontmatter";
+    log(`fatal: ${message}`);
+    appendStepSummary(
+      `### ❌ Codex model preflight failed\n\n- Offending model: \`${knownUnavailableModel}\`\n- Reason: known-unavailable model is pinned in workflow or sub-agent configuration.\n- Remediation: update workflow/sub-agent \`model:\` fields to a supported GA Codex model (for example \`gpt-5.4-mini\`).`
+    );
+    process.exit(1);
+  }
+
   // Inject --json after `exec` to stream structured JSONL events to stdout, making
   // Codex output machine-readable in CI without affecting the stderr progress stream.
   resolvedArgs = injectJsonFlag(resolvedArgs);
@@ -487,7 +551,14 @@ async function main() {
     }
 
     if (isInvalidModel) {
-      log(`attempt ${attempt + 1}: invalid/unsupported model configuration — not retrying (specify a valid engine model name in workflow frontmatter)`);
+      const offendingModel = extractOffendingModelName(result.output);
+      if (offendingModel) {
+        appendStepSummary(`### ❌ Codex model configuration error\n\n- Offending model: \`${offendingModel}\`\n- Reason: model is invalid/unsupported or not available in the configured API proxy.`);
+        log(`attempt ${attempt + 1}: invalid/unsupported model configuration (${offendingModel}) — not retrying (specify a valid engine/sub-agent model in workflow frontmatter)`);
+      } else {
+        appendStepSummary("### ❌ Codex model configuration error\n\n- Reason: model is invalid/unsupported or not available in the configured API proxy.");
+        log(`attempt ${attempt + 1}: invalid/unsupported model configuration — not retrying (specify a valid engine/sub-agent model in workflow frontmatter)`);
+      }
       break;
     }
 
@@ -549,6 +620,8 @@ if (typeof module !== "undefined" && module.exports) {
     isMissingApiKeyError,
     isServerError,
     isInvalidModelError,
+    extractOffendingModelName,
+    detectKnownUnavailableModel,
     isReconnectExhaustedError,
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,

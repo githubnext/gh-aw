@@ -14,6 +14,8 @@ const {
   isMissingApiKeyError,
   isServerError,
   isInvalidModelError,
+  extractOffendingModelName,
+  detectKnownUnavailableModel,
   isReconnectExhaustedError,
   countPermissionDeniedIssues,
   hasNumerousPermissionDeniedIssues,
@@ -277,6 +279,30 @@ env_key = "OPENAI_API_KEY"
   describe("isServerError", () => {
     it("returns true for InternalServerError", () => {
       expect(isServerError("InternalServerError: The server had an error processing your request")).toBe(true);
+    });
+
+    describe("extractOffendingModelName", () => {
+      it("extracts model name from AIC api-proxy 404 output", () => {
+        expect(extractOffendingModelName("unexpected status 404 Not Found: Model not found gpt-5-codex-alpha-2025-11-07")).toBe("gpt-5-codex-alpha-2025-11-07");
+      });
+
+      it("extracts model name from generic model-not-found output", () => {
+        expect(extractOffendingModelName("model 'gpt-foo' not found")).toBe("gpt-foo");
+      });
+
+      it("returns null when no model id is present", () => {
+        expect(extractOffendingModelName("ServiceUnavailableError")).toBeNull();
+      });
+    });
+
+    describe("detectKnownUnavailableModel", () => {
+      it("detects blocked alpha snapshot in prompt content", () => {
+        expect(detectKnownUnavailableModel(["exec", "use model gpt-5-codex-alpha-2025-11-07 for sub-agent"])).toBe("gpt-5-codex-alpha-2025-11-07");
+      });
+
+      it("returns null when blocked model is absent", () => {
+        expect(detectKnownUnavailableModel(["exec", "model gpt-5.4-mini"])).toBeNull();
+      });
     });
 
     describe("isInvalidModelError", () => {
@@ -620,6 +646,38 @@ process.exit(1);`,
       // Harness exits 0 because noop means the work is done
       expect(result.status).toBe(0);
       expect(result.stderr).toContain("noop message found in safe-outputs — not retrying");
+    });
+
+    it("fails fast before spawning codex when known-unavailable model is present in prompt", () => {
+      const tempDir = makeHarnessTempDir("codex-preflight-known-unavailable-model-");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.CODEX_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.exit(0);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "Use gpt-5-codex-alpha-2025-11-07 for the run-analyzer sub-agent.", "utf8");
+
+      const result = spawnSync(process.execPath, ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+        env: {
+          ...process.env,
+          CODEX_HARNESS_STUB_CALLS: callsPath,
+          CODEX_API_KEY: "fake-key-for-test",
+        },
+        encoding: "utf8",
+        timeout: 10000,
+      });
+      const stubCallCount = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length : 0;
+      expect(stubCallCount).toBe(0);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('known-unavailable model "gpt-5-codex-alpha-2025-11-07"');
     });
   });
 });

@@ -470,6 +470,29 @@ func TestDailyModelResolutionUsesCodexCompatibleSubAgentModel(t *testing.T) {
 	}
 }
 
+func TestWorkflowSourcesDoNotPinKnownUnavailableCodexAlphaSnapshot(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFiles, err := filepath.Glob(filepath.Join(repoRoot, ".github", "workflows", "*.md"))
+	if err != nil {
+		t.Fatalf("Failed to list workflow markdown files: %v", err)
+	}
+
+	const blockedModel = "gpt-5-codex-alpha-2025-11-07"
+	for _, workflowFile := range workflowFiles {
+		content, err := os.ReadFile(workflowFile)
+		if err != nil {
+			t.Fatalf("Failed to read workflow file %s: %v", workflowFile, err)
+		}
+		if strings.Contains(string(content), blockedModel) {
+			t.Fatalf("Workflow file %s must not reference known-unavailable Codex alpha snapshot %q", workflowFile, blockedModel)
+		}
+	}
+}
+
 // ============================================================================
 // Playwright Prompt Tests
 // ============================================================================
