@@ -1379,7 +1379,7 @@ jobs:
           [ -f /tmp/gh-aw/usage/agent/token_usage.jsonl ] || : > /tmp/gh-aw/usage/agent/token_usage.jsonl
           [ -f /tmp/gh-aw/usage/detection/token_usage.jsonl ] || : > /tmp/gh-aw/usage/detection/token_usage.jsonl
           mkdir -p /tmp/gh-aw/usage/activity
-          node ${{ runner.temp }}/gh-aw/actions/generate_usage_activity_summary.cjs
+          node ${RUNNER_TEMP}/gh-aw/actions/generate_usage_activity_summary.cjs
           find /tmp/gh-aw/usage -type f -print | sort
       - name: Upload usage artifact
         if: always()
