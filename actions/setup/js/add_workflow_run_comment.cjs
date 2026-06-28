@@ -172,6 +172,18 @@ function reportCommentError(rawContext, message) {
 }
 
 /**
+ * @param {Record<string, any>|null} awContext
+ * @param {string} key
+ * @returns {string}
+ */
+function readAwContextString(awContext, key) {
+  if (!awContext || typeof awContext[key] !== "string") {
+    return "";
+  }
+  return awContext[key].trim();
+}
+
+/**
  * @param {ReusableStatusComment} reusableComment
  * @param {{
  *   source: "native" | "workflow_dispatch" | "repository_dispatch";
@@ -184,8 +196,11 @@ function reportCommentError(rawContext, message) {
  * @returns {Promise<string>}
  */
 async function updateReusableStatusComment(reusableComment, invocationContext, rawContext) {
-  const runUrl = buildWorkflowRunUrl(rawContext, invocationContext.workflowRepo);
-  const commentBody = buildCommentBody(invocationContext.eventName, runUrl);
+  const awContext = extractAwContextFromPayload(rawContext?.payload);
+  const dispatchedRunUrl = readAwContextString(awContext, "dispatched_run_url");
+  const dispatchedWorkflowName = readAwContextString(awContext, "dispatched_workflow_name");
+  const runUrl = dispatchedRunUrl || buildWorkflowRunUrl(rawContext, invocationContext.workflowRepo);
+  const commentBody = buildCommentBody(invocationContext.eventName, runUrl, dispatchedWorkflowName || undefined);
 
   // Discussion comments use GraphQL node IDs and a dedicated update mutation.
   if (reusableComment.id.startsWith("DC_")) {
@@ -337,10 +352,13 @@ async function main() {
  * Sanitizes the content and appends all required markers.
  * @param {string} eventName - The event type
  * @param {string} runUrl - The URL of the workflow run
+ * @param {string} [workflowNameOverride] - Optional dispatched workflow name override
  * @returns {string} The assembled comment body
  */
-function buildCommentBody(eventName, runUrl) {
-  const workflowName = process.env.GH_AW_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "Workflow";
+function buildCommentBody(eventName, runUrl, workflowNameOverride) {
+  // Whitespace-only overrides are treated as absent and fall back to env defaults.
+  const normalizedWorkflowNameOverride = workflowNameOverride?.trim();
+  const workflowName = normalizedWorkflowNameOverride || process.env.GH_AW_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "Workflow";
   const eventTypeDescription = EVENT_TYPE_DESCRIPTIONS[eventName] ?? "event";
 
   // Sanitize before adding markers (defense in depth for custom message templates)

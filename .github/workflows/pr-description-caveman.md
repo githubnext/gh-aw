@@ -67,6 +67,8 @@ safe-outputs:
     max: 1
   noop:
 timeout-minutes: 15
+imports:
+  - shared/reporting.md
 ---
 
 # PR Description Updater

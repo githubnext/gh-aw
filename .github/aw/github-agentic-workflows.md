@@ -67,6 +67,20 @@ Use the smallest trigger that matches the requested automation.
 
 See also: [workflow-constraints.md](workflow-constraints.md)
 
+## PR Checks with Linked References
+
+When a PR analysis requires verifying or attaching a linked artifact (design doc, policy link, architecture decision record, or approval), follow this compact pattern:
+
+1. **Read the linked reference** from the PR body or comments (for example, a URL, a markdown link, or an ADR reference token like `ADR-NN`) using `gh pr view`.
+2. **Validate the link** — confirm the document exists and is accessible before assessing compliance.
+3. **Classify the result**:
+   - Link present and satisfies requirement → `add-comment` with a ✅ summary
+   - Link present but does not satisfy requirement → `add-comment` flagging the specific gap
+   - Link missing → `add-comment` requesting it, or `create-issue` if policy requires a blocking escalation
+4. **Call `noop`** when the PR is not in scope (for example `paths:` guard excludes all changed files).
+
+Permissions: `pull-requests: read` only; all writes route through `add-comment` safe output.
+
 ## Reference Files
 
 | Topic | File |

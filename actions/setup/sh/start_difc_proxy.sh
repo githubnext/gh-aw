@@ -19,6 +19,10 @@ set +o histexpand
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=proxy_env_lib.sh
+source "${SCRIPT_DIR}/proxy_env_lib.sh"
+
 POLICY="${DIFC_PROXY_POLICY:-}"
 CONTAINER_IMAGE="${DIFC_PROXY_IMAGE:-}"
 
@@ -37,7 +41,10 @@ MCP_LOG_DIR=/tmp/gh-aw/mcp-logs
 
 mkdir -p "$PROXY_LOG_DIR" "$MCP_LOG_DIR"
 
+derive_proxy_upstream_env
+
 echo "Starting DIFC proxy container: $CONTAINER_IMAGE"
+echo "Using DIFC proxy upstream host: ${GH_HOST} (API: ${GITHUB_API_URL})"
 
 # Remove any existing container to avoid name conflicts on cancelled/retried jobs.
 docker rm -f awmg-proxy 2>/dev/null || true
@@ -50,7 +57,13 @@ fi
 docker run -d --name awmg-proxy "${DOCKER_NETWORK_ARGS[@]}" \
   --user "$(id -u):$(id -g)" \
   -e GH_TOKEN \
+  -e GH_HOST \
+  -e GITHUB_HOST \
+  -e GITHUB_ENTERPRISE_HOST \
   -e GITHUB_SERVER_URL \
+  -e GITHUB_API_URL \
+  -e GITHUB_GRAPHQL_URL \
+  -e GITHUB_COPILOT_BASE_URL \
   -e DEBUG='*' \
   -v "$PROXY_LOG_DIR:$PROXY_LOG_DIR" \
   -v "$MCP_LOG_DIR:$MCP_LOG_DIR" \
