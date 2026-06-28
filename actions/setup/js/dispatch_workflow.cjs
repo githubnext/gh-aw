@@ -235,7 +235,7 @@ async function main(config = {}) {
         return {
           success: false,
           reportOnly: true,
-          error: `Validation failed for dispatch_workflow "${workflowName}": missing required input "${missingRequiredInput}". Include it under dispatch_workflow.inputs.${missingRequiredInput}.`,
+          error: `Validation failed for dispatch_workflow "${workflowName}": missing required input "${missingRequiredInput}". Include it under inputs.${missingRequiredInput}.`,
         };
       }
 
@@ -304,7 +304,7 @@ async function main(config = {}) {
             return {
               success: false,
               reportOnly: true,
-              error: `Validation failed for dispatch_workflow "${workflowName}": missing required input "${missingInputMatch[1]}". Include it under dispatch_workflow.inputs.${missingInputMatch[1]}.`,
+              error: `Validation failed for dispatch_workflow "${workflowName}": missing required input "${missingInputMatch[1]}". Include it under inputs.${missingInputMatch[1]}.`,
             };
           }
           throw err;

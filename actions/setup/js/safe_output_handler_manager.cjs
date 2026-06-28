@@ -827,6 +827,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           messageIndex: i,
           success: false,
           error: errorMsg,
+          ...(result.reportOnly === true ? { reportOnly: true } : {}),
         });
         // Track code-push failures for fail-fast behaviour
         if (CODE_PUSH_TYPES.has(messageType)) {
@@ -997,6 +998,9 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           if (resultIndex >= 0) {
             results[resultIndex].success = false;
             results[resultIndex].error = errorMsg;
+            if (result.reportOnly === true) {
+              results[resultIndex].reportOnly = true;
+            }
           }
           continue;
         }
