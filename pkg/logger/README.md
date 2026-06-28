@@ -12,7 +12,7 @@ A simple, debug-style logging framework for Go that follows the pattern matching
 - **Pattern matching**: Enable/disable loggers using wildcards and exclusions via the `DEBUG` environment variable
 - **Printf interface**: Standard printf-style formatting
 - **Time diff display**: Shows time elapsed since last log call (like debug npm package)
-- **Automatic color coding**: Each namespace gets a unique color when stderr is a TTY
+- **Automatic color coding**: Each namespace gets a unique color, determined by `DEBUG_COLORS` and rendered by lipgloss
 - **Zero overhead**: Logger enabled state is computed once at construction time
 - **Thread-safe**: Safe for concurrent use
 
@@ -37,6 +37,17 @@ The `Logger` type provides namespace-based debug logging with pattern matching, 
 | `(*Logger).Enabled` | `func() bool` | Returns `true` if the logger matches the active `DEBUG` pattern |
 | `NewSlogHandler` | `func(logger *Logger) *SlogHandler` | Creates a `slog.Handler` wrapping the given `Logger` |
 | `NewSlogLoggerWithHandler` | `func(logger *Logger) *slog.Logger` | Creates a `slog.Logger` backed by the given `Logger` |
+
+**Behavioral contracts**:
+
+- `New` MUST compute the enabled state exactly once at construction time from the `DEBUG` environment variable (or `ACTIONS_RUNNER_DEBUG=true` as a fallback); subsequent changes to those variables MUST NOT affect already-constructed `Logger` instances.
+- `Logger.Printf` and `Logger.Print` MUST be no-ops (return immediately before any string formatting or I/O) when `Enabled()` returns `false`.
+- `Logger.Printf` and `Logger.Print` MUST write all output to `os.Stderr` and MUST append a trailing newline to every message.
+- `Logger.Printf` and `Logger.Print` MUST include a `+<duration>` suffix showing elapsed time since the previous call on the same instance.
+- `Logger.Printf` and `Logger.Print` MUST acquire an internal mutex before updating the `lastLog` timestamp; concurrent callers MUST receive independent, accurate time-diff values without data races.
+- `SlogHandler.Enabled` MUST return `false` when the underlying `Logger.Enabled()` is `false`, preventing attribute collection overhead for disabled loggers.
+- `SlogHandler.WithAttrs` and `SlogHandler.WithGroup` MUST return the receiver unchanged; attributes and groups are not accumulated across calls.
+- Color styling MUST be disabled when `DEBUG_COLORS=0`; when enabled, actual color rendering is delegated to lipgloss which adapts to the output terminal's capabilities.
 
 ## Usage Examples
 
@@ -111,11 +122,9 @@ DEBUG=workflow:*,cli:*,-workflow:test
 
 ## Color Support
 
-Colors are automatically assigned to each namespace when:
-- Stderr is a TTY (terminal)
-- `DEBUG_COLORS` is not set to `0`
+Color styling is enabled when `DEBUG_COLORS` is not set to `0`. The [lipgloss](https://github.com/charmbracelet/lipgloss) library handles actual color rendering and adapts to the output terminal's capabilities; colors are typically suppressed when piping output to a non-TTY stream.
 
-Each namespace gets a consistent color based on a hash of its name. This makes it easy to visually distinguish between different loggers.
+Each namespace gets a consistent color based on a FNV-1a hash of its name. This makes it easy to visually distinguish between different loggers.
 
 ### Disabling Colors
 

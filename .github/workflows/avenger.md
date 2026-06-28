@@ -92,7 +92,7 @@ steps:
       sudo apt-get update
       sudo apt-get install -y make
   - name: Setup Go
-    uses: actions/setup-go@v6.4.0
+    uses: actions/setup-go@v6.5.0
     with:
       go-version-file: go.mod
       cache: true

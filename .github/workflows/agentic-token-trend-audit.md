@@ -37,7 +37,7 @@ tools:
     - "*"
 steps:
   - name: Setup Python
-    uses: actions/setup-python@v6.2.0
+    uses: actions/setup-python@v6.3.0
     with:
       python-version: "3.12"
   - name: Setup local chart workspace

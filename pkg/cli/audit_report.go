@@ -299,6 +299,9 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		ErrorCount:   run.ErrorCount,
 		WarningCount: run.WarningCount,
 	}
+	if run.Conclusion == "failure" && metricsData.ErrorCount == 0 {
+		metricsData.ErrorCount = 1
+	}
 
 	needsFallbackMetrics := metricsData.TokenUsage == 0 || metricsData.Turns == 0
 	needsFallbackEngineConfig := run.LogsPath != "" && findAwInfoPath(run.LogsPath) == ""

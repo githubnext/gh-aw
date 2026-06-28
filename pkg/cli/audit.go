@@ -747,6 +747,9 @@ func applyAuditMetrics(run WorkflowRun, results auditAnalysisResults) WorkflowRu
 	run.TokenUsage = results.metrics.TokenUsage
 	run.Turns = results.metrics.Turns
 	run.ErrorCount = results.failedJobCount
+	if run.Conclusion == "failure" && run.ErrorCount == 0 {
+		run.ErrorCount = 1
+	}
 	run.WarningCount = 0
 	run.SafeItemsCount = results.safeItemsCount
 	return run

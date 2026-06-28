@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -243,10 +244,10 @@ func parseFirewallLogLine(line string) *FirewallLogEntry {
 func isRequestAllowed(decision, status string) bool {
 	// Check status code first
 	if statusCode, err := strconv.Atoi(status); err == nil {
-		if statusCode == 200 || statusCode == 206 || statusCode == 304 {
+		if statusCode == http.StatusOK || statusCode == http.StatusPartialContent || statusCode == http.StatusNotModified {
 			return true
 		}
-		if statusCode == 403 || statusCode == 407 {
+		if statusCode == http.StatusForbidden || statusCode == http.StatusProxyAuthRequired {
 			return false
 		}
 	}

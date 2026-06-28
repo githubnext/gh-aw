@@ -213,3 +213,24 @@ func BenchmarkSplitRepoSlug_Invalid(b *testing.B) {
 		_, _, _ = SplitRepoSlug(slug)
 	}
 }
+
+func TestNormalizeRepoForAPI(t *testing.T) {
+	tests := []struct {
+		name          string
+		repo          string
+		wantOwnerRepo string
+		wantHost      string
+	}{
+		{"plain owner/repo", "owner/repo", "owner/repo", ""},
+		{"GHES HOST/owner/repo", "myhost.com/owner/repo", "owner/repo", "myhost.com"},
+		{"github.com/owner/repo treated as host prefix", "github.com/owner/repo", "owner/repo", "github.com"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ownerRepo, host := NormalizeRepoForAPI(tt.repo)
+			assert.Equal(t, tt.wantOwnerRepo, ownerRepo, "owner/repo portion")
+			assert.Equal(t, tt.wantHost, host, "host portion")
+		})
+	}
+}

@@ -584,18 +584,18 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 		shouldFallback bool // Whether we expect to fall back to highest version
 	}{
 		{
-			name:           "fallback for setup-go v6.2.0 resolves to v6.4.0",
+			name:           "fallback for setup-go v6.2.0 resolves to v6.5.0",
 			repo:           "actions/setup-go",
 			requestedVer:   "v6.2.0",
-			expectedVer:    "v6.4.0",
+			expectedVer:    "v6.5.0",
 			strictMode:     false,
 			shouldFallback: true,
 		},
 		{
-			name:           "fallback for setup-go v6.2.0 from hardcoded pins resolves to v6.4.0",
+			name:           "fallback for setup-go v6.2.0 from hardcoded pins resolves to v6.5.0",
 			repo:           "actions/setup-go",
 			requestedVer:   "v6.2.0",
-			expectedVer:    "v6.4.0",
+			expectedVer:    "v6.5.0",
 			strictMode:     false,
 			shouldFallback: true,
 		},

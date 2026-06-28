@@ -153,6 +153,12 @@ func escapeYAMLSingleQuoted(value string) string {
 	return strings.ReplaceAll(value, "'", "''")
 }
 
+// escapeActionsSingleQuotedString escapes a value for use inside a GitHub Actions
+// expression single-quoted string literal by doubling single quotes.
+func escapeActionsSingleQuotedString(value string) string {
+	return escapeYAMLSingleQuoted(value)
+}
+
 // GenerateHeredocDelimiterFromContent creates a stable heredoc delimiter derived from the
 // content it wraps. The 16-character hex tag is an FNV-1a checksum of the content and name,
 // used only for deterministic identifier generation so the delimiter stays stable across
