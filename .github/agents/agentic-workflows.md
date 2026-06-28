@@ -8,9 +8,10 @@ disable-model-invocation: true
 
 This agent helps you work with **GitHub Agentic Workflows (gh-aw)**, a CLI extension for creating AI-powered workflows in natural language using markdown files.
 
-## Repository-Specific Instruction Overlay
+## Repository Instructions Overlay
 
-If `.github/aw/instructions.md` exists, load and apply `@.github/aw/instructions.md` for all workflow authoring, editing, reviewing, and upgrade tasks.
+If `.github/aw/instructions.md` exists, load it with:
+@.github/aw/instructions.md
 
 Precedence: repository overlay instructions override defaults in this agent when they conflict.
 
