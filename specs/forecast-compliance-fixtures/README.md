@@ -61,7 +61,7 @@ To add a fixture covering a specific compliance scenario:
 2. Name the fixture descriptively (e.g., `run_summary_zero_et.json` for T-FC-022).
 3. Document the fixture purpose and the test IDs it covers in this README.
 
-### Recommended Additional Fixtures
+### Available Additional Fixtures
 
 | Fixture Name | Purpose | Test IDs |
 |---|---|---|

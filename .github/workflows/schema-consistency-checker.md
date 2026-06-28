@@ -134,6 +134,35 @@ pre-agent-steps:
           in_used_not_schema: (.field_gaps.in_used_not_schema | length)
         }
       }' /tmp/gh-aw/agent/schema-diff.json
+
+      echo "=== AWF config source drift pre-check (gh-aw-firewall) ==="
+      if [ -n "${GH_TOKEN:-${GITHUB_TOKEN:-}}" ]; then
+        gh api /repos/github/gh-aw-firewall/contents/docs/awf-config.schema.json \
+          --jq '.content' | base64 -d > /tmp/gh-aw/agent/awf-config.schema.json
+        gh api /repos/github/gh-aw-firewall/contents/docs/awf-config-spec.md \
+          --jq '.content' | base64 -d > /tmp/gh-aw/agent/awf-config-spec.md
+
+        jq -r '.properties | keys[]' /tmp/gh-aw/agent/awf-config.schema.json | sort -u \
+          > /tmp/gh-aw/agent/awf-config-top-level.txt
+        rg --no-heading --no-filename 'apiProxy|container|sandbox|auth|network' pkg/workflow actions/setup \
+          | head -200 > /tmp/gh-aw/agent/awf-config-ghaw-refs.txt || true
+
+        jq -n \
+          --arg spec_path "docs/awf-config-spec.md" \
+          --arg schema_path "docs/awf-config.schema.json" \
+          --arg top_level_count "$(wc -l < /tmp/gh-aw/agent/awf-config-top-level.txt | tr -d ' ')" \
+          --arg refs_sample_count "$(wc -l < /tmp/gh-aw/agent/awf-config-ghaw-refs.txt | tr -d ' ')" \
+          '{
+            source_repo: "github/gh-aw-firewall",
+            canonical_spec: $spec_path,
+            canonical_schema: $schema_path,
+            top_level_property_count: ($top_level_count | tonumber),
+            ghaw_reference_sample_count: ($refs_sample_count | tonumber)
+          }' > /tmp/gh-aw/agent/awf-config-drift.json
+        echo "✓ AWF config source pre-check artifacts written under /tmp/gh-aw/agent/"
+      else
+        echo "⚠️ Skipping AWF config source pre-check: GH_TOKEN/GITHUB_TOKEN is not set"
+      fi
 sandbox:
   agent:
     sudo: false
