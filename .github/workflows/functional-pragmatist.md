@@ -13,6 +13,10 @@ permissions:
   issues: read
   pull-requests: read
 
+sandbox:
+  agent:
+    sudo: false
+
 tracker-id: functional-pragmatist
 
 network:

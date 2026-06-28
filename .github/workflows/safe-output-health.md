@@ -10,6 +10,11 @@ permissions:
    issues: read
    pull-requests: read
    actions: read
+
+sandbox:
+  agent:
+    sudo: false
+
 engine: claude
 max-ai-credits: 1500
 tools:

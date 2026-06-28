@@ -11,6 +11,11 @@ permissions:
   discussions: read
   pull-requests: read
   issues: read
+
+sandbox:
+  agent:
+    sudo: false
+
 network:
   allowed:
     - defaults

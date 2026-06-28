@@ -11,6 +11,11 @@ permissions:
   pull-requests: read
   issues: read
   actions: read
+
+sandbox:
+  agent:
+    sudo: false
+
 engine: claude
 strict: true
 

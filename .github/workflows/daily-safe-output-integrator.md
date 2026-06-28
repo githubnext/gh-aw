@@ -8,6 +8,11 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
+
+sandbox:
+  agent:
+    sudo: false
+
 imports:
 - uses: shared/daily-audit-base.md
   with:

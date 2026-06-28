@@ -17,9 +17,13 @@ const KNOWN_FILES_UPDATE = [".github/aw/actions-lock.json"];
  */
 const KNOWN_FILES_UPGRADE = [
   ".github/aw/actions-lock.json",
+  ".github/aw/instructions.md",
   ".github/skills/agentic-workflows/SKILL.md",
-  ".github/agents/agentic-workflows.agent.md",
+  ".github/skills/agentic-workflow-designer/SKILL.md",
+  ".github/agents/agentic-workflows.md",
+  ".github/agents/interactive-agent-designer.agent.md",
   // Old agent files that may be deleted by deleteOldAgentFiles:
+  ".github/agents/agentic-workflows.agent.md",
   ".github/agents/create-agentic-workflow.agent.md",
   ".github/agents/debug-agentic-workflow.agent.md",
   ".github/agents/create-shared-agentic-workflow.agent.md",
@@ -112,7 +116,7 @@ async function main() {
   const knownFiles = isUpgrade ? KNOWN_FILES_UPGRADE : KNOWN_FILES_UPDATE;
   for (const file of knownFiles) {
     try {
-      await exec.exec("git", ["add", "--", file]);
+      await exec.exec("git", ["add", "-A", "--", file]);
     } catch (error) {
       core.warning(`Failed to stage '${file}': ${getErrorMessage(error)}`);
     }

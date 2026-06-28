@@ -54,6 +54,14 @@ See also: [workflow-editing.md](workflow-editing.md)
 - Limit network and bash access to what the workflow actually needs.
 - For visual regression workflows, explicitly name the baseline source (for example `cache-memory` key, artifact, or branch path). See [visual-regression.md](visual-regression.md).
 
+## Repository-Specific Instructions
+
+Use `@.github/aw/instructions.md` as the canonical repository-local overlay for workflow authoring standards.
+
+- This file is optional and repository-owned.
+- Installed gh-aw agents should load and apply it automatically when present.
+- Precedence: apply upstream defaults first, then apply repository overlay rules; when they conflict, repository overlay rules win.
+
 ## Trigger Selection Quick Reference
 
 Use the smallest trigger that matches the requested automation.

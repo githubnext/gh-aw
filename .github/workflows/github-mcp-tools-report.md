@@ -11,6 +11,11 @@ permissions:
   issues: read
   pull-requests: read
   security-events: read
+
+sandbox:
+  agent:
+    sudo: false
+
 engine: claude
 tools:
   cli-proxy: true

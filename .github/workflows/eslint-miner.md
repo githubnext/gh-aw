@@ -11,6 +11,11 @@ permissions:
   pull-requests: read
   actions: read
   copilot-requests: write
+
+sandbox:
+  agent:
+    sudo: false
+
 tracker-id: eslint-miner
 engine:
   id: copilot

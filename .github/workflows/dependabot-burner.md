@@ -21,6 +21,11 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+
+sandbox:
+  agent:
+    sudo: false
+
 concurrency:
   group: dependabot-burner
   cancel-in-progress: false

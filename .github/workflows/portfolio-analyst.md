@@ -10,6 +10,11 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+
+sandbox:
+  agent:
+    sudo: false
+
 tracker-id: portfolio-analyst
 engine: claude
 max-turns: 20

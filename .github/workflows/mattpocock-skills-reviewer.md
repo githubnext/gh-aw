@@ -13,6 +13,11 @@ permissions:
   contents: read
   pull-requests: read
   copilot-requests: write
+
+sandbox:
+  agent:
+    sudo: false
+
 engine:
   id: copilot
   model: claude-sonnet-4.6

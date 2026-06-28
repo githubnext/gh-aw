@@ -13,6 +13,10 @@ permissions:
   pull-requests: read
   actions: read
 
+sandbox:
+  agent:
+    sudo: false
+
 engine: claude
 safe-outputs:
   create-issue:

@@ -134,6 +134,108 @@ pre-agent-steps:
           in_used_not_schema: (.field_gaps.in_used_not_schema | length)
         }
       }' /tmp/gh-aw/agent/schema-diff.json
+
+      echo "=== AWF config source drift pre-check (gh-aw-firewall) ==="
+      AWF_SNAPSHOT_DIR=/tmp/gh-aw/cache-memory/awf-config-sources
+      mkdir -p "$AWF_SNAPSHOT_DIR"
+      AWF_CANONICAL_FETCH_DEGRADED=false
+      AWF_USING_SNAPSHOT=false
+      AWF_FETCH_FAILED_SOURCES=""
+
+      fetch_awf_source() {
+        local source_path="$1"
+        local target_path="$2"
+        if ! gh api -H "Accept: application/vnd.github.raw" "/repos/github/gh-aw-firewall/contents/${source_path}" > "$target_path"; then
+          AWF_CANONICAL_FETCH_DEGRADED=true
+          AWF_FETCH_FAILED_SOURCES="${AWF_FETCH_FAILED_SOURCES}${source_path}\n"
+          rm -f "$target_path"
+          return 1
+        fi
+      }
+
+      if [ -n "${GH_TOKEN:-${GITHUB_TOKEN:-}}" ]; then
+        fetch_awf_source docs/awf-config.schema.json /tmp/gh-aw/agent/awf-config.schema.json || true
+        fetch_awf_source src/awf-config-schema.json /tmp/gh-aw/agent/awf-config-runtime.schema.json || true
+        fetch_awf_source docs/awf-config-spec.md /tmp/gh-aw/agent/awf-config-spec.md || true
+      else
+        AWF_CANONICAL_FETCH_DEGRADED=true
+        AWF_FETCH_FAILED_SOURCES="docs/awf-config.schema.json\nsrc/awf-config-schema.json\ndocs/awf-config-spec.md\n"
+        echo "⚠️ AWF canonical source fetch degraded: GH_TOKEN/GITHUB_TOKEN is not set"
+      fi
+
+      for source_path in docs/awf-config.schema.json src/awf-config-schema.json docs/awf-config-spec.md; do
+        source_file=$(basename "$source_path")
+        if [ "$source_path" = "src/awf-config-schema.json" ]; then
+          target_path=/tmp/gh-aw/agent/awf-config-runtime.schema.json
+          source_file=awf-config-runtime.schema.json
+        else
+          target_path=/tmp/gh-aw/agent/"$source_file"
+        fi
+
+        if [ ! -s "$target_path" ] && [ -s "$AWF_SNAPSHOT_DIR/$source_file" ]; then
+          cp "$AWF_SNAPSHOT_DIR/$source_file" "$target_path"
+          AWF_USING_SNAPSHOT=true
+          echo "⚠️ Using last-known AWF snapshot for $source_path"
+        fi
+      done
+
+      if [ -s /tmp/gh-aw/agent/awf-config.schema.json ] && [ -s /tmp/gh-aw/agent/awf-config-runtime.schema.json ] && [ -s /tmp/gh-aw/agent/awf-config-spec.md ]; then
+        cp /tmp/gh-aw/agent/awf-config.schema.json "$AWF_SNAPSHOT_DIR/awf-config.schema.json"
+        cp /tmp/gh-aw/agent/awf-config-runtime.schema.json "$AWF_SNAPSHOT_DIR/awf-config-runtime.schema.json"
+        cp /tmp/gh-aw/agent/awf-config-spec.md "$AWF_SNAPSHOT_DIR/awf-config-spec.md"
+
+        jq -r '.properties | keys[]' /tmp/gh-aw/agent/awf-config.schema.json | sort -u \
+          > /tmp/gh-aw/agent/awf-config-top-level.txt
+        jq -r '.properties | keys[]' /tmp/gh-aw/agent/awf-config-runtime.schema.json | sort -u \
+          > /tmp/gh-aw/agent/awf-config-runtime-top-level.txt
+        rg --no-heading --no-filename 'apiProxy|container|sandbox|auth|network' pkg/workflow actions/setup \
+          | head -200 > /tmp/gh-aw/agent/awf-config-ghaw-refs.txt || true
+
+        FAILED_SOURCES_JSON=$(printf "%b" "$AWF_FETCH_FAILED_SOURCES" | sed '/^$/d' | sort -u | jq -Rsc 'split("\n") | map(select(length > 0))')
+        jq -n \
+          --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          --arg spec_path "docs/awf-config-spec.md" \
+          --arg schema_path "docs/awf-config.schema.json" \
+          --arg runtime_schema_path "src/awf-config-schema.json" \
+          --arg top_level_count "$(wc -l < /tmp/gh-aw/agent/awf-config-top-level.txt | tr -d ' ')" \
+          --arg runtime_top_level_count "$(wc -l < /tmp/gh-aw/agent/awf-config-runtime-top-level.txt | tr -d ' ')" \
+          --arg refs_sample_count "$(wc -l < /tmp/gh-aw/agent/awf-config-ghaw-refs.txt | tr -d ' ')" \
+          --arg degraded "$AWF_CANONICAL_FETCH_DEGRADED" \
+          --arg using_snapshot "$AWF_USING_SNAPSHOT" \
+          --argjson failed_sources "$FAILED_SOURCES_JSON" \
+          '{
+            generated_at: $generated_at,
+            source_repo: "github/gh-aw-firewall",
+            canonical_spec: $spec_path,
+            canonical_schema: $schema_path,
+            canonical_runtime_schema: $runtime_schema_path,
+            top_level_property_count: ($top_level_count | tonumber),
+            runtime_top_level_property_count: ($runtime_top_level_count | tonumber),
+            ghaw_reference_sample_count: ($refs_sample_count | tonumber),
+            degraded: ($degraded == "true"),
+            using_snapshot: ($using_snapshot == "true"),
+            failed_sources: $failed_sources
+          }' > /tmp/gh-aw/agent/awf-config-drift.json
+        if [ "$AWF_CANONICAL_FETCH_DEGRADED" = true ]; then
+          echo "⚠️ AWF canonical source fetch degraded; continuing in non-fatal mode"
+        else
+          echo "✓ AWF config source pre-check artifacts written under /tmp/gh-aw/agent/"
+        fi
+      else
+        AWF_CANONICAL_FETCH_DEGRADED=true
+        FAILED_SOURCES_JSON=$(printf "%b" "$AWF_FETCH_FAILED_SOURCES" | sed '/^$/d' | sort -u | jq -Rsc 'split("\n") | map(select(length > 0))')
+        jq -n \
+          --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          --argjson failed_sources "$FAILED_SOURCES_JSON" \
+          '{
+            generated_at: $generated_at,
+            source_repo: "github/gh-aw-firewall",
+            degraded: true,
+            warning: "canonical source retrieval failed; skipping destructive AWF drift actions",
+            failed_sources: $failed_sources
+          }' > /tmp/gh-aw/agent/awf-config-drift.json
+        echo "⚠️ AWF canonical source fetch failed; run marked degraded (non-fatal)"
+      fi
 sandbox:
   agent:
     sudo: false
