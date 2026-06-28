@@ -23,7 +23,7 @@ tools:
 
 mcp-scripts:
   hippo:
-    description: "Execute any hippo-memory CLI command. Accessible as 'mcpscripts-hippo'. Provide arguments after 'hippo'. Examples: args 'learn --git' to extract lessons from git commits, 'sleep' for full consolidation, 'recall \"api errors\" --budget 2000' to retrieve relevant memories."
+    description: "Execute any hippo-memory CLI command via `mcpscripts hippo --args \"...\"`. Provide arguments after 'hippo'. Examples: args 'learn --git' to extract lessons from git commits, 'sleep' for full consolidation, 'recall \"api errors\" --budget 2000' to retrieve relevant memories."
     inputs:
       args:
         type: string
@@ -91,36 +91,36 @@ steps:
       fi
 ---
 
-**IMPORTANT**: Always use the `mcpscripts-hippo` tool for all hippo-memory commands.
+**IMPORTANT**: Run all hippo-memory commands via `mcpscripts` in bash using the `hippo` tool.
 
 ## Hippo Memory Tools
 
-Use the `mcpscripts-hippo` tool with the following command patterns:
+Use `mcpscripts hippo --args "<command>"` with the following command patterns:
 
 ### Learning from the Repository
 
 ```
-mcpscripts-hippo args: "learn --git"          # Extract lessons from recent git commits
-mcpscripts-hippo args: "sleep"                # Full cycle: learn, import MEMORY.md, dedup, share
-mcpscripts-hippo args: "sleep --no-share"     # Consolidate without promoting to global store
+mcpscripts hippo --args "learn --git"          # Extract lessons from recent git commits
+mcpscripts hippo --args "sleep"                # Full cycle: learn, import MEMORY.md, dedup, share
+mcpscripts hippo --args "sleep --no-share"     # Consolidate without promoting to global store
 ```
 
 ### Recalling and Storing Memories
 
 ```
-mcpscripts-hippo args: 'recall "build errors" --budget 3000'     # Retrieve relevant memories
-mcpscripts-hippo args: 'remember "always run make fmt" --tag rule'  # Store a new memory
-mcpscripts-hippo args: 'list'                                     # List all memories
-mcpscripts-hippo args: 'export'                                   # Export all memories as JSON
-mcpscripts-hippo args: 'export --format markdown'                 # Export as markdown
+mcpscripts hippo --args 'recall "build errors" --budget 3000'     # Retrieve relevant memories
+mcpscripts hippo --args 'remember "always run make fmt" --tag rule'  # Store a new memory
+mcpscripts hippo --args 'list'                                     # List all memories
+mcpscripts hippo --args 'export'                                   # Export all memories as JSON
+mcpscripts hippo --args 'export --format markdown'                 # Export as markdown
 ```
 
 ### Inspection and Session State
 
 ```
-mcpscripts-hippo args: 'current show'          # Show active session context
-mcpscripts-hippo args: 'inspect <id>'          # Inspect a specific memory entry
-mcpscripts-hippo args: 'last-sleep'            # Show output of the previous sleep run
+mcpscripts hippo --args 'current show'          # Show active session context
+mcpscripts hippo --args 'inspect <id>'          # Inspect a specific memory entry
+mcpscripts hippo --args 'last-sleep'            # Show output of the previous sleep run
 ```
 
 ## Persistence
