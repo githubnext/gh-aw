@@ -21,10 +21,8 @@ engine: claude
 strict: false
 network:
   allowed:
-    - "github.com"
-    - "api.github.com"
-    - "anthropic.com"
-    - "api.anthropic.com"
+    - defaults
+    - github
 tools:
   cli-proxy: true
   github:

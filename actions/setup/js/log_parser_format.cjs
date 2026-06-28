@@ -58,6 +58,28 @@ function createLogParserFormatters(deps) {
 
   const INTERNAL_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"];
 
+  /**
+   * Selects an outer markdown code fence that is longer than any backtick run
+   * present in the rendered content, so nested code fences in agent output
+   * cannot prematurely close the wrapper fence.
+   * @param {string[]} contentLines
+   * @returns {string}
+   */
+  function buildSafeOuterCodeFence(contentLines) {
+    let maxBacktickRun = 0;
+    for (const line of contentLines) {
+      const text = String(line ?? "");
+      const runRe = /`+/g;
+      let match;
+      while ((match = runRe.exec(text)) !== null) {
+        if (match[0].length > maxBacktickRun) {
+          maxBacktickRun = match[0].length;
+        }
+      }
+    }
+    return "`".repeat(Math.max(3, maxBacktickRun + 1));
+  }
+
   function normalizeEntriesForRendering(logEntries) {
     if (isCopilotEventLogEntries(logEntries)) {
       return convertCopilotEventsToLegacyLogEntries(logEntries);
@@ -623,14 +645,12 @@ function createLogParserFormatters(deps) {
    */
   function generateCopilotCliStyleSummary(logEntries, options = {}) {
     const lines = [];
+    const bodyLines = ["Conversation:", "", ...generateSummaryLines(logEntries)];
+    const fence = buildSafeOuterCodeFence(bodyLines);
 
-    lines.push("```");
-    lines.push("Conversation:");
-    lines.push("");
-
-    lines.push(...generateSummaryLines(logEntries));
-
-    lines.push("```");
+    lines.push(fence);
+    lines.push(...bodyLines);
+    lines.push(fence);
 
     return lines.join("\n");
   }
