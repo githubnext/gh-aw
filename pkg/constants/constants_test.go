@@ -260,6 +260,7 @@ func TestConstantValues(t *testing.T) {
 		{"UploadCodeScanningJobName", string(UploadCodeScanningJobName), "upload_code_scanning_sarif"},
 		{"ConclusionJobName", string(ConclusionJobName), "conclusion"},
 		{"UnlockJobName", string(UnlockJobName), "unlock"},
+		{"EvalJobName", string(EvalJobName), "eval"},
 		{"SafeOutputArtifactName", SafeOutputArtifactName, "safe-output"},
 		{"AgentOutputArtifactName", AgentOutputArtifactName, "agent-output"},
 		{"SafeOutputItemsArtifactName", SafeOutputItemsArtifactName, "safe-outputs-items"},
@@ -301,6 +302,7 @@ func TestKnownBuiltInJobNamesContainsAllKnownJobs(t *testing.T) {
 		string(UploadCodeScanningJobName),
 		string(ConclusionJobName),
 		string(UnlockJobName),
+		string(EvalJobName),
 	}
 
 	for _, jobName := range knownJobs {

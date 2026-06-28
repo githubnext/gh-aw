@@ -67,6 +67,7 @@ const UploadAssetsJobName JobName = "upload_assets"
 const UploadCodeScanningJobName JobName = "upload_code_scanning_sarif"
 const ConclusionJobName JobName = "conclusion"
 const UnlockJobName JobName = "unlock"
+const EvalJobName JobName = "eval"
 
 // KnownBuiltInJobNames contains all known built-in workflow job names (including aliases).
 // It is used for O(1) membership checks when validating or filtering user-defined job
@@ -84,6 +85,7 @@ var KnownBuiltInJobNames = map[string]struct{}{
 	string(UploadCodeScanningJobName):  {},
 	string(ConclusionJobName):          {},
 	string(UnlockJobName):              {},
+	string(EvalJobName):                {},
 }
 
 // Artifact name constants
@@ -96,6 +98,12 @@ const AgentArtifactName = "agent"
 
 // DetectionArtifactName is the artifact name for the threat detection log.
 const DetectionArtifactName = "detection"
+
+// EvalArtifactName is the artifact name for BinEval evaluation results.
+const EvalArtifactName = "eval"
+
+// EvalResultsFilename is the filename of the evaluation results JSON written to /tmp/gh-aw/evals/.
+const EvalResultsFilename = "eval_results.json"
 
 // LegacyDetectionArtifactName is the old artifact name used before the rename.
 // Kept for backward compatibility when downloading artifacts from older workflow runs.

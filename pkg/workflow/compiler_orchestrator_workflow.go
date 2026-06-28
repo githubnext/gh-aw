@@ -544,6 +544,9 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.Experiments = experimentVariantsFromConfigs(workflowData.ExperimentConfigs)
 	workflowData.ExperimentsStorage = extractExperimentsStorageFromFrontmatter(frontmatter)
 
+	// Extract BinEval evaluation definitions.
+	workflowData.Evals = extractEvalsFromFrontmatter(frontmatter)
+
 	return nil
 }
 

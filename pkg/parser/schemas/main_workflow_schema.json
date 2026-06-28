@@ -2947,6 +2947,35 @@
         }
       }
     },
+    "evals": {
+      "description": "(Experimental) BinEval evaluation questions. Each entry defines a binary question to be evaluated independently by an LLM after the agent job completes. Questions must have unique IDs and non-empty text. Results are aggregated into a pass rate summary and uploaded as a workflow artifact.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "question"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$",
+            "description": "Unique identifier for this evaluation question. Used in results to correlate questions with outcomes."
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Binary evaluation question phrased to elicit a yes/no answer from an LLM (e.g. 'Does the generated code compile?')."
+          }
+        },
+        "additionalProperties": false
+      },
+      "examples": [
+        [
+          { "id": "builds", "question": "Does the generated code compile?" },
+          { "id": "tests", "question": "Are all tests passing?" },
+          { "id": "focused", "question": "Is the implementation limited to the requested change?" }
+        ]
+      ]
+    },
     "secrets": {
       "description": "Secret values passed to workflow execution. Secrets can be defined as simple strings (GitHub Actions expressions) or objects with 'value' and 'description' properties. Typically used to provide secrets to MCP servers or custom engines. Note: For passing secrets to reusable workflows, use the jobs.<job_id>.secrets field instead.",
       "type": "object",

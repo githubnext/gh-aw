@@ -212,6 +212,11 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
 	}
 
+	// Build eval job if BinEval questions are declared
+	if err := c.buildAndAddEvalJob(data); err != nil {
+		return fmt.Errorf("failed to build eval job: %w", err)
+	}
+
 	// Apply jobs.<builtin-job>.pre-steps customizations to already-created built-in jobs
 	// before processing non-built-in custom jobs.
 	if err := c.applyBuiltinJobPreSteps(data); err != nil {

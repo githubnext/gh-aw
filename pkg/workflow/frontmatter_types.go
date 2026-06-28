@@ -120,6 +120,54 @@ type GuardrailMetric struct {
 	Threshold string `json:"threshold"`
 }
 
+// EvalDefinition represents a single BinEval evaluation question declared in the workflow.
+// Each question is evaluated independently after agent execution, producing a binary
+// pass/fail result with an optional rationale.
+type EvalDefinition struct {
+	// ID is a unique identifier for this evaluation question.
+	// Must be non-empty and unique within the workflow's evals list.
+	ID string `json:"id"`
+
+	// Question is the binary evaluation question to be answered by the LLM.
+	// Must be non-empty and should be phrased to elicit a yes/no response.
+	Question string `json:"question"`
+}
+
+// EvalResult represents the outcome of evaluating a single BinEval question.
+// It is produced by the eval harness and aggregated into a workflow summary.
+type EvalResult struct {
+	// ID matches the EvalDefinition.ID that produced this result.
+	ID string `json:"id"`
+
+	// Passed indicates whether the evaluation question was answered affirmatively.
+	Passed bool `json:"passed"`
+
+	// Rationale is an optional brief explanation for the result from the LLM.
+	Rationale string `json:"rationale,omitempty"`
+
+	// Confidence is an optional confidence score in the range [0, 1].
+	Confidence *float64 `json:"confidence,omitempty"`
+}
+
+// EvalSummary aggregates individual EvalResult entries into workflow-level statistics.
+type EvalSummary struct {
+	// Total is the number of evaluation questions evaluated.
+	Total int `json:"total"`
+
+	// Passed is the number of questions that received a passing result.
+	Passed int `json:"passed"`
+
+	// Failed is the number of questions that received a failing result.
+	Failed int `json:"failed"`
+
+	// PassRate is the fraction of questions that passed (Passed / Total).
+	// Zero when Total is zero.
+	PassRate float64 `json:"pass_rate"`
+
+	// Results holds the individual evaluation results in declaration order.
+	Results []EvalResult `json:"results"`
+}
+
 // ExperimentNotify specifies where to post significance alerts when an experiment reaches
 // statistical significance.
 type ExperimentNotify struct {
@@ -370,6 +418,10 @@ type FrontmatterConfig struct {
 	// ExperimentConfigs holds the fully-typed experiment metadata, populated alongside
 	// Experiments during frontmatter parsing.  Keys match those of Experiments.
 	ExperimentConfigs map[string]*ExperimentConfig `json:"-"`
+
+	// Evals holds the BinEval evaluation questions declared in the workflow.
+	// Each entry defines a binary question that is evaluated after the agent job completes.
+	Evals []EvalDefinition `json:"evals,omitempty"`
 
 	// ModelCosts holds model pricing data in the same structure as models.json.
 	// Declared in frontmatter as the `models` field (json:"models,omitempty") using a top-level
