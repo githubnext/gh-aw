@@ -130,7 +130,7 @@ async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef)
 function isWorkflowsScopeRejection(stderr) {
   if (!stderr) return false;
   const lower = stderr.toLowerCase();
-  return lower.includes("`workflows` scope") || lower.includes("workflow can be created or updated");
+  return lower.includes("`workflows` scope") || lower.includes("workflow can be created or updated due to timeout");
 }
 
 /**
@@ -142,17 +142,12 @@ function isWorkflowsScopeRejection(stderr) {
  * @returns {{ success: false, error_type: "workflows_scope_required", error: string }}
  */
 function buildWorkflowsScopeError(context, core) {
-  core.error(`${context} push rejected: the branch includes changes to workflow files ` + "(.github/workflows/**) that require the 'workflows' scope on the push token.");
-  core.error("To allow this workflow to push workflow file changes, configure " + "'push-to-pull-request-branch.allow-workflows: true' together with a GitHub App " + "in 'safe-outputs.github-app'.");
+  core.error(`${context} push rejected: the branch includes changes to workflow files (.github/workflows/**) that require the 'workflows' scope on the push token.`);
+  core.error("To allow this workflow to push workflow file changes, configure 'push-to-pull-request-branch.allow-workflows: true' together with a GitHub App in 'safe-outputs.github-app'.");
   return {
     success: false,
     error_type: "workflows_scope_required",
-    error:
-      `${context} push rejected: the branch includes changes to workflow files ` +
-      "(.github/workflows/**) requiring the 'workflows' scope. The token used for the " +
-      "safe-outputs checkout does not have this scope. Fix: configure " +
-      "'push-to-pull-request-branch.allow-workflows: true' with a GitHub App in " +
-      "'safe-outputs.github-app', or exclude workflow files from the changeset.",
+    error: `${context} push rejected: the branch includes changes to workflow files (.github/workflows/**) requiring the 'workflows' scope. The token used for the safe-outputs checkout does not have this scope. Fix: configure 'push-to-pull-request-branch.allow-workflows: true' with a GitHub App in 'safe-outputs.github-app', or exclude workflow files from the changeset.`,
   };
 }
 
