@@ -119,6 +119,7 @@ safe-outputs:
 timeout-minutes: 45
 imports:
   - ../agents/ci-cleaner.agent.md
+  - shared/reporting.md
   - shared/otlp.md
 features:
   gh-aw-detection: true
