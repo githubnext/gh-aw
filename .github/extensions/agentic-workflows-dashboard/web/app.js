@@ -1,3 +1,4 @@
+import Alpine from "https://cdn.jsdelivr.net/npm/alpinejs@3.15.0/+esm";
 import { paginate } from "./pagination.js";
 const definitionCount = 240;
 const runCount = 420;
@@ -209,8 +210,7 @@ function stepStatusClass(status) {
 }
 const definitions = buildDefinitions(definitionCount);
 const runs = buildRuns(runCount, definitions);
-document.addEventListener("alpine:init", () => {
-    Alpine.data("dashboardApp", () => ({
+Alpine.data("dashboardApp", () => ({
         tabs: dashboardTabs,
         activeTab: "definitions",
         definitionPage: 1,
@@ -315,5 +315,5 @@ document.addEventListener("alpine:init", () => {
         formatDate,
         runStatusClass: statusClass,
         stepStatusClass,
-    }));
-});
+}));
+Alpine.start();
