@@ -212,6 +212,11 @@ For each new or modified test function identified in Step 2, answer these three 
 7. **No assertions**: A test function with zero assert/expect/check calls (only calls functions and discards results)
 8. **Missing assertion messages in Go** *(guideline violation)*: Go tests must always pass a descriptive message to assertion calls. Flag tests that use bare `assert.Equal(t, want, got)` or `t.Errorf("expected %v")` without enough context for a reader to understand what failed.
 
+Scope for this step:
+- Analyze only new/changed Go (`*_test.go`) and JavaScript (`*.test.cjs`, `*.test.js`) tests; note other languages without scoring.
+- Treat Go mocking with `gomock`, `testify/mock`, `.EXPECT()`, or `.On()` as a hard violation.
+- JavaScript vitest mocks for external I/O are acceptable unless business logic is mocked without output assertions.
+
 ## Step 5: Count Lines in Test Files vs. Production Files
 
 Calculate the test inflation ratio for each changed test file using the pre-fetched `/tmp/gh-aw/agent/diff-numstat.txt`.
@@ -265,6 +270,7 @@ Guideline violations always trigger `REQUEST_CHANGES` regardless of the quality 
 ## Step 7: Post PR Comment with Results
 
 Post a comment to the pull request with the full analysis using the `add-comment` safe-output tool (tool call, not shell). Use the `tqs-report-template` skill for the exact comment format.
+Use `###` or lower report headers and progressive disclosure (`<details><summary>…</summary>`). Required structure: visible score headline + one-sentence summary → `<details>` metrics table + classification table → `<details>` flagged tests (omit if empty) → visible verdict.
 
 Use this shape:
 
@@ -310,10 +316,6 @@ After posting the comment, submit a pull request review based on the verdict. **
 ```
 
 ## Guidelines
-
-**Report Formatting**: Use `###` or lower for all headers in reports. Apply **progressive disclosure**: keep the immediately visible text brief; wrap verbose sections in `<details><summary>…</summary>` tags. Required structure: visible score headline + one-sentence summary → `<details>` metrics table + classification table → `<details>` flagged tests (omit if empty) → visible verdict.
-
-**Analysis Scope**: Focus only on new and changed tests. Support Go (`*_test.go`) and JavaScript (`*.test.cjs`, `*.test.js`) as primary targets; note other languages but don't score them. Go uses no mock libraries — any `gomock`, `testify/mock`, `.EXPECT()`, or `.On()` is a hard red flag. JavaScript uses vitest — mocking external I/O (`fs`, `process.stderr`, `global.core`) is acceptable; flag only when business-logic functions are mocked without behavioral assertion on outputs. A test inside `integration/` is expected to exercise more real dependencies than a unit test.
 
 **Calibration**:
 - **Generous for edge case credit**: If a Go test has even one `assert.Error`/`require.Error`, `t.Fatalf` on an error return, or an `expectError: true` table row, count it as having edge case coverage. For JavaScript, `.toThrow()`, `.toThrowError()`, or `.rejects` qualifies.

@@ -23,6 +23,11 @@ permissions:
   pull-requests: read
   actions: read
   issues: read
+
+sandbox:
+  agent:
+    sudo: false
+
 engine: copilot
 timeout-minutes: 20
 network:

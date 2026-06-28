@@ -220,68 +220,17 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 <details>
 <summary>📈 Detailed Metrics</summary>
 
-### Size Metrics
-| Language | LOC | % of Total | Change (7d) |
-|----------|-----|------------|-------------|
-| Go | X,XXX | XX% | ⬆️ +X% |
-| JavaScript | X,XXX | XX% | ➡️ 0% |
-| ... | ... | ... | ... |
+### Detailed Metrics
+Use one compact table per category (same placeholder style as below), then brief bullets for interpretation:
 
-| Directory | LOC | % of Total | Files |
-|-----------|-----|------------|-------|
-| pkg/ | X,XXX | XX% | XXX |
-| cmd/ | X,XXX | XX% | XX |
-| ... | ... | ... | ... |
-
-### Quality Indicators
-
-- **Average File Size**: XXX lines
-- **Large Files (>500 LOC)**: XX files
-- **Function Count**: X,XXX functions
-- **Comment Lines**: X,XXX lines (XX% ratio)
-- **Comment Density**: XX%
-
-### Test Coverage
-
-- **Test Files**: XX files
-- **Test LOC** (`test_lines_of_code`): X,XXX lines
-- **Source LOC**: X,XXX lines  
-- **Test-to-Source Ratio** (`test_to_source_ratio`): X.XX
-- **Trend (7d)**: ⬆️ +X%
-- **Trend (30d)**: ⬆️ +X%
-
-### Code Churn (Last 7 Days)
-
-- **Files Modified**: XXX files
-- **Commits**: XXX commits
-- **Lines Added**: +X,XXX lines
-- **Lines Deleted**: -X,XXX lines
-- **Net Change**: +/-X,XXX lines
-
-**Most Active Source Files**: path/to/file.go (+XXX/-XXX), path/to/file.js (+XXX/-XXX), ...
-
-### Generated File Churn (*.lock.yml and actions-lock.json)
-
-- **Generated Files Modified**: XXX files
-- **Lines Added**: +X,XXX lines
-- **Lines Deleted**: -X,XXX lines
-- **Net Change**: +/-X,XXX lines
-
-**Note**: Generated file churn (`.lock.yml` and `actions-lock.json`) is reported separately and excluded from quality score calculations to avoid noise from code-generated files.
-
-### Workflow Metrics
-
-- **Total Workflow Files (.md)** (`total_workflows`): XXX files
-- **Compiled Workflows (.lock.yml)**: XXX files
-- **Average Workflow Size**: XXX lines
-- **Growth (7d)**: ⬆️ +X%
-
-### Documentation
-
-- **Doc Files (docs/)**: XXX files
-- **Doc LOC**: X,XXX lines
-- **Code-to-Docs Ratio**: X.XX:1
-- **Documentation Coverage**: XX%
+| Category | Key Fields | Example |
+|----------|------------|---------|
+| Size | language LOC, directory LOC | `Go: X,XXX (XX%)`, `pkg/: X,XXX LOC` |
+| Quality | avg file size, large files, function count, comment ratio | `Large files: XX`, `Comment density: XX%` |
+| Tests | `test_lines_of_code`, `test_to_source_ratio`, 7d/30d trend | `Ratio: X.XX`, `Trend (7d): ⬆️ +X%` |
+| Churn (source) | files modified, commits, added/deleted/net | `+X,XXX / -X,XXX`, most active files |
+| Churn (generated) | `.lock.yml` + `actions-lock.json` stats | keep separate from quality score |
+| Workflows/Docs | `total_workflows`, compiled count, docs LOC, code-to-docs ratio | `Workflows: XXX`, `Code-to-docs: X.XX:1` |
 
 ### Quality Score: XX/100
 - **Test Coverage (30%)**: XX/30 points

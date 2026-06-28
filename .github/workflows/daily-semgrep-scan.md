@@ -17,6 +17,11 @@ permissions:
   pull-requests: read
   security-events: read
   copilot-requests: write
+
+sandbox:
+  agent:
+    sudo: false
+
 safe-outputs:
   create-code-scanning-alert:
     driver: "Semgrep Security Scanner"

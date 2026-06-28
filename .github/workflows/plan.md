@@ -13,6 +13,11 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
+
+sandbox:
+  agent:
+    sudo: false
+
 engine:
   id: copilot
   copilot-sdk: true

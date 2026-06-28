@@ -7,6 +7,11 @@ on:
   workflow_dispatch:
 permissions:
   issues: read
+
+sandbox:
+  agent:
+    sudo: false
+
 tools:
   cli-proxy: true
   github:

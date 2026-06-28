@@ -9,6 +9,11 @@ on:
 timeout-minutes: 30
 permissions:
   contents: read
+
+sandbox:
+  agent:
+    sudo: false
+
 imports:
   - uses: shared/daily-audit-base.md
     with:

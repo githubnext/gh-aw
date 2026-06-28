@@ -923,15 +923,42 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
         }
 
         const success = typeof data.success === "boolean" ? data.success : !data.error;
+        // Order of precedence for structured result payloads:
+        // 1) direct text/content fields
+        // 2) json payloads
+        // 3) serialized object fallback
+        const extractResultContentText = value => {
+          if (typeof value === "string") return value;
+          if (!value || typeof value !== "object") return "";
+          if (typeof value.text === "string") return value.text;
+          if (typeof value.content === "string") return value.content;
+          if (value.type === "json" && value.json !== undefined) {
+            try {
+              return JSON.stringify(value.json, null, 2);
+            } catch {
+              return String(value.json);
+            }
+          }
+          try {
+            return JSON.stringify(value, null, 2);
+          } catch {
+            return String(value);
+          }
+        };
+
         let output = "";
         if (typeof data.output === "string") {
           output = data.output;
         } else if (typeof data.result === "string") {
           output = data.result;
-        } else if (data.result && typeof data.result.content === "string") {
+        } else if (data.result && data.result.content !== undefined && data.result.content !== null) {
           // Native Copilot CLI events.jsonl format: result.content is the concise
-          // tool result text sent to the LLM (may be truncated for token efficiency).
-          output = data.result.content;
+          // tool result payload sent to the LLM (may be truncated for token efficiency).
+          if (Array.isArray(data.result.content)) {
+            output = data.result.content.map(extractResultContentText).filter(Boolean).join("\n");
+          } else if (typeof data.result.content === "string" || typeof data.result.content === "object") {
+            output = extractResultContentText(data.result.content);
+          }
         } else if (data.error) {
           output = typeof data.error === "object" && typeof data.error.message === "string" ? data.error.message : String(data.error);
         } else if (success) {
