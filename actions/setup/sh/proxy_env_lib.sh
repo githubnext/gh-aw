@@ -24,7 +24,8 @@ normalize_github_host() {
   fi
 
   # Strip port number (e.g. myghes.corp:8443 → myghes.corp).
-  # Skip this for IPv6 bracket notation ([::1]) to avoid corruption.
+  # The regex matches "one or more non-[ chars, then :digits at end-of-string",
+  # which catches host:port notation while skipping IPv6 bracket notation ([::1]).
   if [[ "$host" =~ ^[^\[]+:[0-9]+$ ]]; then
     host="${host%:*}"
   fi

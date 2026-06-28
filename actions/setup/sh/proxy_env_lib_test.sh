@@ -126,7 +126,7 @@ echo "------------------------------------------------------------------------"
 
 unset GH_HOST GITHUB_HOST GITHUB_ENTERPRISE_HOST GITHUB_API_URL GITHUB_GRAPHQL_URL
 export GITHUB_SERVER_URL="https://myorg.ghe.com"
-GITHUB_COPILOT_BASE_URL="https://custom-copilot.example.com"
+export GITHUB_COPILOT_BASE_URL="https://custom-copilot.example.com"
 derive_proxy_upstream_env
 assert_eq "explicit GITHUB_COPILOT_BASE_URL not overridden" \
   "https://custom-copilot.example.com" "$GITHUB_COPILOT_BASE_URL"
