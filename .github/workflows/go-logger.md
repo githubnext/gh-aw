@@ -61,11 +61,20 @@ steps:
       done < <(grep -nE "^[[:space:]]*func[[:space:]]+[A-Za-z0-9_]+" "$rel" || true)
     done < "$current_files"
 
+    # Write each JSON payload to a file to avoid exceeding ARG_MAX with large datasets.
+    jq -R -s 'split("\n") | map(select(length > 0))' "$files_needing_logger" \
+      > "$out_dir/files-needing-logger.json"
+    jq -R -s 'split("\n") | map(select(length > 0))' "$files_missing_logger_import" \
+      > "$out_dir/files-missing-logger-import.json"
+    jq -R -s 'split("\n") | map(select(length > 0) | split("\t") | {file: .[0], line: (.[1] | tonumber), function: .[2]})' "$call_sites" \
+      > "$out_dir/candidate-call-sites.json"
+
+    # Build manifest by reading files via --slurpfile (no large args on argv).
     jq -n \
-      --argjson files_needing_logger "$(jq -R -s 'split("\n") | map(select(length > 0))' "$files_needing_logger")" \
-      --argjson missing_logger_import "$(jq -R -s 'split("\n") | map(select(length > 0))' "$files_missing_logger_import")" \
-      --argjson candidate_call_sites "$(jq -R -s 'split("\n") | map(select(length > 0) | split("\t") | {file: .[0], line: (.[1] | tonumber), function: .[2]})' "$call_sites")" \
-      '{files_needing_logger: $files_needing_logger, missing_logger_import: $missing_logger_import, candidate_call_sites: $candidate_call_sites}' \
+      --slurpfile files_needing_logger "$out_dir/files-needing-logger.json" \
+      --slurpfile missing_logger_import "$out_dir/files-missing-logger-import.json" \
+      --slurpfile candidate_call_sites "$out_dir/candidate-call-sites.json" \
+      '{files_needing_logger: $files_needing_logger[0], missing_logger_import: $missing_logger_import[0], candidate_call_sites: $candidate_call_sites[0]}' \
       > "$out_dir/manifest.json"
 
     should_run=true
