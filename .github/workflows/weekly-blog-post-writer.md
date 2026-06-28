@@ -11,7 +11,9 @@ permissions:
   pull-requests: read
   actions: read
 tracker-id: weekly-blog-post-writer
-engine: copilot
+engine:
+  id: copilot
+  max-continuations: 2
 strict: true
 timeout-minutes: 30
 experiments:

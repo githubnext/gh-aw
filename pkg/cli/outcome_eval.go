@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/github"
 	"github.com/github/gh-aw/pkg/intent"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -220,21 +221,9 @@ func ComputeOutcomeSummary(reports []OutcomeReport, mapping *github.ObjectiveMap
 	return s
 }
 
-// normalizeRepoForAPI splits a repo string of the form "[HOST/]owner/repo" into
-// the owner/repo portion and an optional host. Most callers pass plain "owner/repo",
-// but GHES and Proxima installs may supply "HOST/owner/repo".
-func normalizeRepoForAPI(repo string) (ownerRepo string, host string) {
-	parts := strings.SplitN(repo, "/", 3)
-	if len(parts) == 3 {
-		// HOST/owner/repo
-		return parts[1] + "/" + parts[2], parts[0]
-	}
-	return repo, ""
-}
-
 // ghAPIGet calls the GitHub REST API via gh cli and returns the parsed JSON.
 func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
-	ownerRepo, host := normalizeRepoForAPI(repo)
+	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
 	outcomeEvalLog.Printf("gh api GET: repo=%s, endpoint=%s, host=%q", ownerRepo, endpoint, host)
 	args := []string{"api", fmt.Sprintf("repos/%s/%s", ownerRepo, endpoint)}
 	var output []byte
@@ -257,7 +246,7 @@ func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
 
 // ghAPIGetArray calls the GitHub REST API and returns a JSON array.
 func ghAPIGetArray(endpoint string, repo string) ([]map[string]any, error) {
-	ownerRepo, host := normalizeRepoForAPI(repo)
+	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
 	args := []string{"api", fmt.Sprintf("repos/%s/%s", ownerRepo, endpoint)}
 	var output []byte
 	var err error
@@ -278,7 +267,7 @@ func ghAPIGetArray(endpoint string, repo string) ([]map[string]any, error) {
 
 // ghAPIGraphQL calls the GitHub GraphQL API via gh cli and returns the parsed JSON.
 func ghAPIGraphQL(query string, repo string) (map[string]any, error) {
-	ownerRepo, host := normalizeRepoForAPI(repo)
+	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
 	args := []string{"api", "graphql", "-f", "query=" + query}
 	var output []byte
 	var err error
@@ -474,7 +463,7 @@ func resolvePullRequestIntent(report OutcomeReport, repo string, resolver intent
 
 func loadPullRequestIntentData(report OutcomeReport, repo string) (intent.PullRequestData, error) {
 	prNumber := report.ObjectNumber
-	ownerRepo, _ := normalizeRepoForAPI(repo)
+	ownerRepo, _ := repoutil.NormalizeRepoForAPI(repo)
 	owner, name, found := strings.Cut(ownerRepo, "/")
 	if !found || owner == "" || name == "" {
 		return intent.PullRequestData{}, fmt.Errorf("invalid repo for root tracing: %s", repo)

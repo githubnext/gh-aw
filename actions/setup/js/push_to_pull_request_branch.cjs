@@ -120,6 +120,38 @@ async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef)
 }
 
 /**
+ * Checks if a git push stderr output indicates that the 'workflows' scope is required.
+ * GitHub rejects branch pushes that contain .github/workflows/** changes when the token
+ * lacks the 'workflows' scope, producing one of two known error message variants.
+ *
+ * @param {string} stderr - The captured stderr from a failed git push
+ * @returns {boolean} true when the rejection is due to missing 'workflows' scope
+ */
+function isWorkflowsScopeRejection(stderr) {
+  if (!stderr) return false;
+  const lower = stderr.toLowerCase();
+  return lower.includes("`workflows` scope") || lower.includes("workflow can be created or updated due to timeout");
+}
+
+/**
+ * Builds the typed result and logs actionable guidance when a branch push fails
+ * because the token lacks the 'workflows' scope.
+ *
+ * @param {string} context - Short label identifying the push path (e.g. "Review branch", "Fallback branch")
+ * @param {typeof core} core - Actions core logger
+ * @returns {{ success: false, error_type: "workflows_scope_required", error: string }}
+ */
+function buildWorkflowsScopeError(context, core) {
+  core.error(`${context} push rejected: the branch includes changes to workflow files (.github/workflows/**) that require the 'workflows' scope on the push token.`);
+  core.error("To allow this workflow to push workflow file changes, configure 'push-to-pull-request-branch.allow-workflows: true' together with a GitHub App in 'safe-outputs.github-app'.");
+  return {
+    success: false,
+    error_type: "workflows_scope_required",
+    error: `${context} push rejected: the branch includes changes to workflow files (.github/workflows/**) requiring the 'workflows' scope. The token used for the safe-outputs checkout does not have this scope. Fix: configure 'push-to-pull-request-branch.allow-workflows: true' with a GitHub App in 'safe-outputs.github-app', or exclude workflow files from the changeset.`,
+  };
+}
+
+/**
  * Main handler factory for push_to_pull_request_branch
  * Returns a message handler function that processes individual push_to_pull_request_branch messages
  * @type {HandlerFactoryFunction}
@@ -1013,11 +1045,24 @@ async function main(config = {}) {
           await exec.exec("git", ["checkout", "-b", reviewBranchName], baseGitOpts);
           core.info(`Created review branch: ${reviewBranchName}`);
 
-          // Push the review branch
-          await exec.exec("git", ["push", "origin", reviewBranchName], {
+          // Push the review branch — use getExecOutput to capture stderr so we
+          // can detect GitHub's "workflows scope required" rejection and surface
+          // a typed, actionable error instead of a bare git exit-1.
+          const reviewPushOutput = await exec.getExecOutput("git", ["push", "origin", reviewBranchName], {
             env: { ...process.env, ...gitAuthEnv },
             ...baseGitOpts,
+            ignoreReturnCode: true,
           });
+          if (reviewPushOutput.exitCode !== 0) {
+            const reviewPushStderr = (reviewPushOutput.stderr || "").trim();
+            // GitHub rejects pushes to branches containing .github/workflows/** changes
+            // when the token lacks the 'workflows' scope.  Surface this as a typed
+            // error so the caller can distinguish it from a generic push failure.
+            if (isWorkflowsScopeRejection(reviewPushStderr)) {
+              return buildWorkflowsScopeError("Review branch", core);
+            }
+            throw new Error(`git push origin ${reviewBranchName} failed (exit code ${reviewPushOutput.exitCode}): ${reviewPushStderr}`);
+          }
           core.info(`Pushed review branch: ${reviewBranchName}`);
 
           // Create PR from review branch to original branch
@@ -1166,10 +1211,19 @@ async function main(config = {}) {
           core.warning(`Non-fast-forward push detected; creating fallback pull request from '${fallbackBranchName}' to '${branchName}'`);
           try {
             await exec.exec("git", ["checkout", "-b", fallbackBranchName], baseGitOpts);
-            await exec.exec("git", ["push", "origin", fallbackBranchName], {
+            // Use getExecOutput to capture stderr for 'workflows' scope diagnostics
+            const fallbackPushOutput = await exec.getExecOutput("git", ["push", "origin", fallbackBranchName], {
               env: { ...process.env, ...gitAuthEnv },
               ...baseGitOpts,
+              ignoreReturnCode: true,
             });
+            if (fallbackPushOutput.exitCode !== 0) {
+              const fallbackPushStderr = (fallbackPushOutput.stderr || "").trim();
+              if (isWorkflowsScopeRejection(fallbackPushStderr)) {
+                return buildWorkflowsScopeError("Fallback branch", core);
+              }
+              throw new Error(`git push origin ${fallbackBranchName} failed (exit code ${fallbackPushOutput.exitCode}): ${fallbackPushStderr}`);
+            }
 
             const fallbackBody = [
               "> [!NOTE]",

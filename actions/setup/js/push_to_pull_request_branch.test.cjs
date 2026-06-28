@@ -1187,6 +1187,68 @@ index 0000000..abc1234
       expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
     });
 
+    it("should return typed workflows_scope_required error when fallback branch push is rejected for missing workflows scope", async () => {
+      createPatchFile("fallback-branch-workflows-scope-rejection");
+
+      mockExec.exec.mockResolvedValueOnce(0); // fetch
+      mockExec.exec.mockResolvedValueOnce(0); // rev-parse
+      mockExec.exec.mockResolvedValueOnce(0); // checkout
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "before-sha\n", stderr: "" }); // git rev-parse HEAD (before patch)
+
+      mockExec.exec.mockResolvedValueOnce(0); // git am
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (argList[0] === "rev-parse" && argList[1] === "origin/feature-branch^{commit}") {
+          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list" && argList[1] === "--merges") {
+          return { exitCode: 0, stdout: "0\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list" && argList[1] === "--parents") {
+          return {
+            exitCode: 0,
+            stdout: "2222222222222222222222222222222222222222 1111111111111111111111111111111111111111\n",
+            stderr: "",
+          };
+        }
+        if (argList[0] === "ls-remote" && argList[2] === "refs/heads/feature-branch") {
+          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\trefs/heads/feature-branch\n", stderr: "" };
+        }
+        if (argList[0] === "log") {
+          return { exitCode: 0, stdout: "Test commit\n", stderr: "" };
+        }
+        if (argList[0] === "diff-tree") {
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          return {
+            exitCode: 1,
+            stdout: "",
+            stderr: "! [remote rejected] branch -> branch (`workflows` scope may be required.)",
+          };
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      // GraphQL call fails, triggering fallback to git push
+      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: branch protection"));
+      // Git push fails with non-fast-forward, triggering fallback branch creation
+      mockExec.exec.mockRejectedValueOnce(new Error("! [rejected] feature-branch -> feature-branch (non-fast-forward)"));
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "fallback-branch-workflows-scope-rejection" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error_type).toBe("workflows_scope_required");
+      expect(result.error).toContain("'workflows' scope");
+      expect(result.error).toContain("allow-workflows");
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("'workflows' scope"));
+    });
+
     it("should diagnose deleted branch when push fails", async () => {
       const patchPath = createPatchFile("should-diagnose-deleted-branch-when-push-fails");
 
@@ -1281,6 +1343,102 @@ index 0000000..abc1234
 
       // The push proceeds - force-push detection would need to be added
       expect(mockGithub.rest.pulls.get).toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Threat Detection: Review Branch Push
+  // ──────────────────────────────────────────────────────
+
+  describe("threat detection: review branch push", () => {
+    let savedGetExecOutput;
+
+    beforeEach(() => {
+      savedGetExecOutput = mockExec.getExecOutput;
+    });
+
+    afterEach(() => {
+      mockExec.getExecOutput = savedGetExecOutput;
+    });
+
+    it("should return typed workflows_scope_required error when review branch push is rejected for missing workflows scope (timeout variant)", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      createPatchFile("review-branch-workflows-scope-timeout");
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          return {
+            exitCode: 1,
+            stdout: "",
+            stderr: "remote: error: Unable to determine if workflow can be created or updated due to timeout\n" + "error: failed to push some refs to 'https://github.com/test-owner/test-repo.git'",
+          };
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "review-branch-workflows-scope-timeout" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error_type).toBe("workflows_scope_required");
+      expect(result.error).toContain("'workflows' scope");
+      expect(result.error).toContain("allow-workflows");
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("'workflows' scope"));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("allow-workflows"));
+      // Should NOT fall through to the generic "Failed to create review PR" catch message
+      const errorCalls = mockCore.error.mock.calls.map(c => c[0]);
+      expect(errorCalls.some(msg => msg.includes("Failed to create review PR"))).toBe(false);
+    });
+
+    it("should return typed workflows_scope_required error when review branch push is rejected with backtick workflows scope message", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      createPatchFile("review-branch-workflows-scope-backtick");
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          return {
+            exitCode: 1,
+            stdout: "",
+            stderr: "! [remote rejected] branch -> branch (`workflows` scope may be required.)",
+          };
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "review-branch-workflows-scope-backtick" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error_type).toBe("workflows_scope_required");
+    });
+
+    it("should wrap generic review branch push failure in actionable error message", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      createPatchFile("review-branch-generic-push-failure");
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          return { exitCode: 1, stdout: "", stderr: "error: authentication failed for 'https://github.com/test-owner/test-repo.git'" };
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "review-branch-generic-push-failure" }, {});
+
+      expect(result.success).toBe(false);
+      // Generic push failure should NOT be typed as workflows_scope_required
+      expect(result.error_type).toBeUndefined();
+      expect(result.error).toContain("Failed to create review PR");
     });
   });
 

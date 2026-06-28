@@ -16,13 +16,15 @@ func getEngineMaxRunsToTopLevelCodemod() Codemod {
 			return migrateEngineFieldToTopLevel(
 				content,
 				frontmatter,
-				"max-runs",
-				"max-turns",
-				[]string{"max-runs", "max-turns"},
-				engineMaxRunsCodemodLog,
-				"Skipping engine.max-runs migration for inline-map engine syntax; migrate to top-level max-turns manually",
-				"Removed deprecated engine.max-runs (top-level max-runs/max-turns already present)",
-				"Migrated engine.max-runs to top-level max-turns",
+				migrateEngineFieldToTopLevelOptions{
+					engineField:            "max-runs",
+					targetTopLevelField:    "max-turns",
+					preserveTopLevelFields: []string{"max-runs", "max-turns"},
+					log:                    engineMaxRunsCodemodLog,
+					skipInlineMessage:      "Skipping engine.max-runs migration for inline-map engine syntax; migrate to top-level max-turns manually",
+					removedMessage:         "Removed deprecated engine.max-runs (top-level max-runs/max-turns already present)",
+					migratedMessage:        "Migrated engine.max-runs to top-level max-turns",
+				},
 			)
 		},
 	}

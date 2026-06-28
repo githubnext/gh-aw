@@ -78,10 +78,10 @@ surfacing actionable lessons for the team.
 
 ## Step 1 — Learn from recent commits
 
-Use the `mcpscripts-hippo` tool:
+Use `mcpscripts` from bash with the `hippo` tool:
 
 ```
-mcpscripts-hippo args: "learn --git"
+mcpscripts hippo --args "learn --git"
 ```
 
 This scans recent git commits and extracts structural lessons (migrations, breaking
@@ -90,7 +90,7 @@ changes, recurring patterns) into the memory store without a full consolidation 
 ## Step 2 — Full consolidation
 
 ```
-mcpscripts-hippo args: "sleep"
+mcpscripts hippo --args "sleep"
 ```
 
 This runs the complete cycle: learn from commits, import any `MEMORY.md` files,
@@ -103,7 +103,7 @@ Keep the vector index current so semantic recall stays sharp. Run after every sl
 cycle to embed any memories that were added or updated since the last embed pass:
 
 ```
-mcpscripts-hippo args: "embed"
+mcpscripts hippo --args "embed"
 ```
 
 This is fast for incremental updates (only unembedded memories are processed).
@@ -113,16 +113,16 @@ This is fast for incremental updates (only unembedded memories are processed).
 Recall memories across these four lenses (run each separately):
 
 ```
-mcpscripts-hippo args: 'recall "errors and bugs" --budget 3000'
-mcpscripts-hippo args: 'recall "code quality and refactoring" --budget 3000'
-mcpscripts-hippo args: 'recall "CI and workflow improvements" --budget 3000'
-mcpscripts-hippo args: 'recall "architectural decisions" --budget 2000'
+mcpscripts hippo --args 'recall "errors and bugs" --budget 3000'
+mcpscripts hippo --args 'recall "code quality and refactoring" --budget 3000'
+mcpscripts hippo --args 'recall "CI and workflow improvements" --budget 3000'
+mcpscripts hippo --args 'recall "architectural decisions" --budget 2000'
 ```
 
 Also export a full snapshot for analysis:
 
 ```
-mcpscripts-hippo args: "export"
+mcpscripts hippo --args "export"
 ```
 
 ## Step 4 — Analyse and suggest improvements
@@ -166,7 +166,7 @@ function names, or workflow names where the memory store provides them.
 
 ### Memory Health
 Any stale, very-low-confidence, or duplicated memories worth pruning. Run
-`mcpscripts-hippo args: "list"` to get counts.
+`mcpscripts hippo --args "list"` to get counts.
 
 ---
 

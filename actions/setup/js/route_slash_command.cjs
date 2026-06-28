@@ -296,15 +296,28 @@ async function addImmediateStatusComment() {
 }
 
 /**
+ * @param {Array<unknown>} values
+ * @returns {string}
+ */
+function firstNonEmptyString(values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+  return "";
+}
+
+/**
  * Dispatches a workflow with the API version header required by GitHub REST.
  * @param {string} workflowId
  * @param {string} ref
  * @param {Record<string, string>} inputs
- * @returns {Promise<boolean>}
+ * @returns {Promise<{ dispatched: boolean, run_id?: number, run_url?: string }>}
  */
 async function dispatchWorkflow(workflowId, ref, inputs) {
   try {
-    await github.rest.actions.createWorkflowDispatch({
+    const dispatchArgs = {
       owner: context.repo.owner,
       repo: context.repo.repo,
       workflow_id: workflowId,
@@ -313,14 +326,88 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
       headers: {
         "X-GitHub-Api-Version": GITHUB_API_VERSION,
       },
-    });
-    return true;
+    };
+
+    /** @type {{ data?: any }} */
+    let response;
+    try {
+      response = await github.request("POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches", {
+        ...dispatchArgs,
+        return_run_details: true,
+      });
+    } catch (dispatchError) {
+      /** @type {any} */
+      const err = dispatchError;
+      const status = err && typeof err === "object" ? err.status : undefined;
+      const message = typeof err?.response?.data?.message === "string" ? err.response.data.message : String(dispatchError);
+      const isValidationStatus = status === 400 || status === 422;
+      const mentionsReturnRunDetails = typeof message === "string" && message.toLowerCase().includes("return_run_details");
+      if (!(isValidationStatus && mentionsReturnRunDetails)) {
+        throw err;
+      }
+      core.info("Workflow dispatch endpoint rejected 'return_run_details' (common on older GHES versions); retrying without it.");
+      response = await github.request("POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches", dispatchArgs);
+    }
+
+    const responseData = response?.data || {};
+    // GitHub may return run metadata in either shape:
+    // - flat: { workflow_run_id, workflow_run_url }  (workflow_run_url is a REST API URL)
+    // - nested: { workflow_run: { id, html_url, url } }  (url is a REST API URL; html_url is the Actions page URL)
+    const parsedRunId = Number(responseData?.workflow_run_id ?? responseData?.workflow_run?.id);
+    const runId = Number.isFinite(parsedRunId) && parsedRunId > 0 ? parsedRunId : undefined;
+    const serverUrl = context.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
+    // Prefer the constructed HTML URL when runId is available — it is always the Actions run page URL.
+    // Avoid workflow_run_url and workflow_run.url which are REST API URLs, not Actions run page URLs.
+    const runUrlFromRunId = runId ? `${serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}` : undefined;
+    const runUrlFromResponse = firstNonEmptyString([responseData?.workflow_run?.html_url]);
+    const runUrl = runUrlFromRunId || runUrlFromResponse;
+    return {
+      dispatched: true,
+      ...(runId ? { run_id: runId } : {}),
+      ...(runUrl ? { run_url: runUrl } : {}),
+    };
   } catch (error) {
     if (isDisabledWorkflowDispatchError(error)) {
       core.info(`Skipping workflow '${workflowId}' because it is disabled.`);
-      return false;
+      return { dispatched: false };
     }
     throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${String(error)}`);
+  }
+}
+
+/**
+ * Update the shared status comment with dispatched workflow run metadata.
+ * @param {{ status_comment_id: string, status_comment_url?: string, status_comment_repo?: string }} statusCommentContext
+ * @param {string} eventName
+ * @param {string} workflowId
+ * @param {string|undefined} runUrl
+ */
+async function updateStatusCommentWithDispatch(statusCommentContext, eventName, workflowId, runUrl) {
+  if (!statusCommentContext?.status_comment_id) {
+    return;
+  }
+  if (!runUrl) {
+    return;
+  }
+  try {
+    await createOrReuseStatusComment({
+      ...context,
+      eventName: "workflow_dispatch",
+      payload: {
+        inputs: {
+          event_name: eventName,
+          event_payload: JSON.stringify(context.payload || {}),
+          aw_context: JSON.stringify({
+            ...statusCommentContext,
+            dispatched_workflow_name: workflowId.replace(/\.lock\.yml$/, ""),
+            dispatched_run_url: runUrl,
+          }),
+        },
+      },
+      nonFatalStatusCommentErrors: true,
+    });
+  } catch (error) {
+    core.warning(`Failed to update immediate status comment with dispatched run details: ${String(error)}`);
   }
 }
 
@@ -602,7 +689,7 @@ async function main() {
       const dispatched = await dispatchWorkflow(workflowID, ref, {
         aw_context: JSON.stringify(awContext),
       });
-      if (dispatched) {
+      if (dispatched.dispatched) {
         core.info(`Dispatched '${workflowID}' for label '${labelName}'`);
       }
     }
@@ -669,8 +756,11 @@ async function main() {
     const dispatched = await dispatchWorkflow(workflowID, ref, {
       aw_context: JSON.stringify(awContext),
     });
-    if (dispatched) {
+    if (dispatched.dispatched) {
       core.info(`Dispatched '${workflowID}' for '/${commandName}'`);
+      if (maintainsStatusComment(route) && statusCommentContext) {
+        await updateStatusCommentWithDispatch(statusCommentContext, identifier, workflowID, dispatched.run_url);
+      }
     }
   }
   core.info(`Completed centralized routing for '/${commandName}'.`);

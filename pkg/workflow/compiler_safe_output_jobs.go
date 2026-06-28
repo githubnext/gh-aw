@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -358,12 +357,6 @@ func buildCallWorkflowInputExpression(inputName string) string {
 
 	escapedInputName := escapeActionsSingleQuotedString(inputName)
 	return fmt.Sprintf("${{ %s['%s'] }}", payloadExpr, escapedInputName)
-}
-
-// escapeActionsSingleQuotedString escapes a value for use inside a GitHub Actions
-// expression single-quoted string literal by doubling single quotes.
-func escapeActionsSingleQuotedString(value string) string {
-	return strings.ReplaceAll(value, "'", "''")
 }
 
 // isBareActionsIdentifier reports whether a name can be safely referenced via

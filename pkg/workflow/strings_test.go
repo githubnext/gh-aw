@@ -282,6 +282,11 @@ func TestEscapeYAMLSingleQuoted(t *testing.T) {
 	assert.Equal(t, "plain", escapeYAMLSingleQuoted("plain"))
 }
 
+func TestEscapeActionsSingleQuotedString(t *testing.T) {
+	assert.Equal(t, "owner''s workflow", escapeActionsSingleQuotedString("owner's workflow"))
+	assert.Equal(t, "plain", escapeActionsSingleQuotedString("plain"))
+}
+
 func TestSanitizeName(t *testing.T) {
 	tests := []struct {
 		name     string

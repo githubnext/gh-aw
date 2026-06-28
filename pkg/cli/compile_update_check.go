@@ -127,31 +127,7 @@ func shouldRunCompileUpdateCheck(noCheckUpdate bool) bool {
 	}
 
 	lastCheckFile := getCompileUpdateCheckFilePath()
-	if lastCheckFile == "" {
-		compileUpdateCheckLog.Print("Could not determine compile update check file path")
-		return false
-	}
-
-	data, err := os.ReadFile(lastCheckFile)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			compileUpdateCheckLog.Printf("Error reading compile update check file: %v", err)
-		}
-		return true
-	}
-
-	lastCheck, err := time.Parse(time.RFC3339, strings.TrimSpace(string(data)))
-	if err != nil {
-		compileUpdateCheckLog.Printf("Error parsing compile update check time: %v", err)
-		return true
-	}
-
-	elapsed := time.Since(lastCheck)
-	if elapsed < compileUpdateCheckInterval {
-		compileUpdateCheckLog.Printf("Last compile update check was %v ago, skipping", elapsed)
-		return false
-	}
-	return true
+	return shouldRunUpdateCheckAtPath(lastCheckFile, compileUpdateCheckInterval, "compile update check", compileUpdateCheckLog)
 }
 
 func waitForCompileUpdateNotification(ctx context.Context, results <-chan *compileUpdateNotification, timeout time.Duration) *compileUpdateNotification {
@@ -292,19 +268,11 @@ func getCompileUpdateCheckFilePath() string {
 }
 
 func getCompileUpdateCheckFilePathImpl() string {
-	return getLastCheckFilePathFor(compileUpdateCheckFileName)
+	return getUpdateCheckFilePathFor(compileUpdateCheckFileName, compileUpdateCheckLog)
 }
 
 func updateCompileUpdateCheckTime() {
-	lastCheckFile := getCompileUpdateCheckFilePath()
-	if lastCheckFile == "" {
-		return
-	}
-
-	timestamp := time.Now().Format(time.RFC3339)
-	if err := os.WriteFile(lastCheckFile, []byte(timestamp), constants.FilePermSensitive); err != nil {
-		compileUpdateCheckLog.Printf("Error writing compile update check time: %v", err)
-	}
+	writeUpdateCheckTime(getCompileUpdateCheckFilePath(), constants.FilePermSensitive, "compile update check", compileUpdateCheckLog)
 }
 
 func isMinorVersionBehind(currentVersion string, latestVersion string) bool {

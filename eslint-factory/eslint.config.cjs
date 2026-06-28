@@ -12,6 +12,7 @@ module.exports = [
       "gh-aw-custom": plugin,
     },
     rules: {
+      "gh-aw-custom/no-unsafe-catch-error-property": "warn",
       "gh-aw-custom/require-json-parse-try-catch": "warn",
       "gh-aw-custom/require-parseInt-radix": "warn",
     },

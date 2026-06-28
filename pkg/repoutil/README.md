@@ -4,7 +4,7 @@ The `repoutil` package provides utility functions for working with GitHub reposi
 
 ## Overview
 
-This package offers a single focused helper for parsing and validating `owner/repo` repository slug strings, which are used throughout the codebase wherever GitHub repositories are referenced.
+This package offers focused helpers for parsing and normalizing repository identifiers, which are used throughout the codebase wherever GitHub repositories are referenced.
 
 ## Public API
 
@@ -13,6 +13,7 @@ This package offers a single focused helper for parsing and validating `owner/re
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `SplitRepoSlug` | `func(slug string) (owner, repo string, err error)` | Splits a repository slug of the form `owner/repo` into its two components; returns an error when the slug does not contain exactly one `/` or when either component is empty |
+| `NormalizeRepoForAPI` | `func(repo string) (ownerRepo string, host string)` | Splits a repository string of the form `[HOST/]owner/repo` into the `owner/repo` portion and an optional host name for GHES/Proxima API calls |
 
 ## Usage Examples
 

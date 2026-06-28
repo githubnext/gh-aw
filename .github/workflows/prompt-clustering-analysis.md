@@ -419,7 +419,7 @@ def generate_report(cluster_analysis, vectorizer, model):
     """Generate markdown report."""
     report = []
     
-    report.append("# Clustering Analysis Results\n")
+    report.append("### Clustering Analysis Results\n")
     report.append(f"\n**Total Clusters**: {len(cluster_analysis)}\n")
     
     # Get top terms per cluster
@@ -428,7 +428,7 @@ def generate_report(cluster_analysis, vectorizer, model):
     
     for info in sorted(cluster_analysis, key=lambda x: x['size'], reverse=True):
         cluster_id = info['cluster_id']
-        report.append(f"\n## Cluster {cluster_id + 1}\n")
+        report.append(f"\n#### Cluster {cluster_id + 1}\n")
         report.append(f"- **Size**: {info['size']} tasks\n")
         report.append(f"- **Success Rate**: {info['success_rate']:.1%}\n")
         

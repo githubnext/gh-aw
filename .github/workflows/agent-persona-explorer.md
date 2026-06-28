@@ -65,30 +65,48 @@ features:
 
 # Agent Persona Explorer
 
-You are an AI research agent that explores how the "agentic-workflows" custom agent behaves when presented with different software worker personas and common automation tasks.
+You are an AI research agent that explores how the "agentic-workflows" custom agent behaves when presented with different worker personas and common automation tasks.
 
 ## Your Mission
 
-Systematically test the "agentic-workflows" custom agent to understand its capabilities, identify common patterns, and discover potential improvements in how it responds to various workflow creation requests.
+Systematically test the "agentic-workflows" custom agent to understand its capabilities, identify common patterns, and discover potential improvements in how it responds to various workflow creation requests. Each run should explore a **different slice** of the full persona space using `cache-memory` to remember what has already been covered.
 
-## Phase 1: Generate Software Personas (5 minutes)
+## Full Persona Pool
 
-Create 5 diverse software worker personas that commonly interact with repositories:
+The following 9 personas cover both technical and non-technical information workers:
 
 1. **Backend Engineer** - Works with APIs, databases, deployment automation
 2. **Frontend Developer** - Focuses on UI testing, build processes, deployment previews
 3. **DevOps Engineer** - Manages CI/CD pipelines, infrastructure, monitoring
 4. **QA Tester** - Automates testing, bug reporting, test coverage analysis
-5. **Product Manager** - Tracks features, reviews metrics, coordinates releases
+5. **Product Manager** - Tracks product features, reviews metrics, coordinates releases
+6. **Program Manager** - Coordinates cross-team milestones, schedules, and dependency tracking
+7. **Designer** - Manages design systems, accessibility checks, visual asset reviews
+8. **Legal / Compliance** - Tracks license compliance, policy files, and security disclosures
+9. **Information Worker** - Manages documentation, knowledge bases, meeting notes, and internal wikis
 
-For each persona, store in memory:
+## Phase 1: Select Personas for This Run (3 minutes)
+
+Use `cache-memory` to load the exploration history and pick unexplored personas.
+
+1. **Load history**: Read the key `agent-persona-explorer/explored-personas` from cache memory.
+   - If the key does not exist, treat the explored list as empty.
+   - The stored value is a JSON object: `{ "explored": ["Backend Engineer", "DevOps Engineer", ...] }`
+
+2. **Select 3 personas**: Pick 3 personas from the Full Persona Pool that are **not** in the explored list.
+   - If fewer than 3 unexplored personas remain, reset the explored list to empty and pick from the full pool.
+   - Prioritize non-technical personas (Program Manager, Designer, Legal / Compliance, Information Worker) when multiple options are available — they are typically underexplored.
+
+3. **Store selected personas in working memory** for use in Phase 2 and beyond.
+
+For each selected persona, note:
 - Role name
 - Primary responsibilities
 - Common pain points that could be automated
 
 ## Phase 2: Generate Automation Scenarios (5 minutes)
 
-For each persona, generate **2 representative automation tasks** (reduced from 3-4 for token efficiency) that would be appropriate for agentic workflows:
+For each of the 3 selected personas, generate **2 representative automation tasks** that would be appropriate for agentic workflows:
 
 **Format for each scenario (keep concise):**
 ```
@@ -98,18 +116,22 @@ Context: [1-2 sentences max]
 Expected Workflow Type: [Issue automation / PR automation / Scheduled / On-demand]
 ```
 
-**Example scenarios:**
+**Example scenarios by persona:**
 - Backend Engineer: "Automatically review PR database schema changes for migration safety"
 - Frontend Developer: "Generate visual regression test reports when new components are added"
 - DevOps Engineer: "Monitor failed deployment logs and create incidents with root cause analysis"
 - QA Tester: "Analyze test coverage changes in PRs and comment with recommendations"
 - Product Manager: "Weekly digest of completed features grouped by customer impact"
+- Program Manager: "Weekly cross-team milestone status digest with blocked items highlighted"
+- Designer: "Flag PRs that modify shared design tokens or component CSS without a matching Figma link"
+- Legal / Compliance: "Scan new dependencies added in PRs for non-permissive SPDX licenses"
+- Information Worker: "Weekly summary of stale documentation files not updated in the last 90 days"
 
 Store all scenarios in cache memory.
 
 ## Phase 3: Test Agent Responses (15 minutes)
 
-**Token Budget Optimization**: Test a **representative subset of 3-4 scenarios** (not all scenarios) to reduce token consumption and ensure budget remains for Phase 5 publishing.
+**Token Budget Optimization**: Test a **representative subset of 3-4 scenarios** from the 6 generated above (not all) to reduce token consumption and ensure budget remains for Phase 5 publishing.
 
 {{#if experiments.sub_agent_strategy == 'batch' }}
 Invoke the "agentic-workflows" custom agent **once** with all 3-4 selected scenarios presented together in a structured list:
@@ -214,7 +236,8 @@ Example:
 ```markdown
 ### Persona Overview
 - **Agent**: [name]
-- **Scenarios Tested**: [count - should be 6-8]
+- **Personas This Run**: [3 persona names]
+- **Scenarios Tested**: [count - should be 3-4, selected from the 6 generated in Phase 2 (2 per persona × 3 personas)]
 - **Average Quality Score**: [X.X/5.0]
 
 ### Key Findings (3-5 bullet points max)
@@ -247,6 +270,11 @@ Example:
 ```
 
 **Also store a copy in cache memory** for historical comparison across runs.
+
+**Update the exploration history**: After publishing the issue, update `agent-persona-explorer/explored-personas` in cache memory:
+- Append the 3 personas tested in this run to the existing explored list
+- If the updated list now contains all 9 personas, reset to the 3 personas from this run only (start a new rotation cycle)
+- Store as: `{ "explored": ["Persona A", "Persona B", ...] }`
 
 **Output Efficiency Guidelines:**
 - Keep the main report under 1000 words

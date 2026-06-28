@@ -201,7 +201,7 @@ To build and test repository custom linters:
 - @shubhamtanwar23: #39206 _(direct issue)_, #39205 _(direct issue)_, #39202 _(direct issue)_
 - @stefankrzyz: #27260 _(direct issue)_
 - @straub: #24569 _(direct issue)_
-- @strawgate: #33597 _(direct issue)_, #24422 _(direct issue)_
+- @strawgate: #33597 _(direct issue)_
 - @susmahad: #26276 _(direct issue)_, #25866 _(direct issue)_, #25710 _(direct issue)_
 - @szabta89: #29064 _(direct issue)_, #29063 _(direct issue)_
 - @tadelesh: #26001 _(direct issue)_

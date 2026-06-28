@@ -17,7 +17,7 @@ tracker-id: avenger-ci
 max-turns: 50
 engine:
   id: claude
-  agent: ci-cleaner
+  model: claude-haiku-4.5
 network:
   allowed:
     - defaults
@@ -92,7 +92,7 @@ steps:
       sudo apt-get update
       sudo apt-get install -y make
   - name: Setup Go
-    uses: actions/setup-go@v6.4.0
+    uses: actions/setup-go@v6.5.0
     with:
       go-version-file: go.mod
       cache: true
@@ -118,7 +118,6 @@ safe-outputs:
   missing-tool:
 timeout-minutes: 45
 imports:
-  - ../agents/ci-cleaner.agent.md
   - shared/otlp.md
 features:
   gh-aw-detection: true
@@ -242,7 +241,8 @@ Your pull request should:
 - Title: briefly describe what was fixed (e.g., "Fix formatting, lint, and wasm golden files")
 - Body: list what CI failures were found, what fixes were applied, and confirmation that `make fmt`, `make lint`, `make test-unit` all pass locally
 - The title will be automatically prefixed with `[avenger] `
+- Use `##` for the PR title, then use `###` (or lower) headers for body sections. Keep long detail inside `<details>` blocks.
 
 **Do NOT commit or include any files under `.github/workflows/`** — that directory is protected and excluded by the safe-outputs configuration.
 
-{{#runtime-import shared/noop-reminder.md}}
+**Important**: If no action is needed (CI already passing, no fixable failures found, or no meaningful changes), you **MUST** call the `noop` safe-output tool with a brief explanation.

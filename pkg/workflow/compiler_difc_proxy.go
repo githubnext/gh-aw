@@ -219,6 +219,20 @@ func resolveProxyContainerImage(gatewayConfig *MCPGatewayRuntimeConfig) string {
 	return gatewayConfig.Container + ":" + version
 }
 
+// writeProxyUpstreamEnv writes the curated upstream GitHub env passed to DIFC/CLI
+// proxy containers. These containers do not inherit the job env wholesale, so we
+// must explicitly forward the enterprise host context they need for github.com,
+// *.ghe.com data residency, and GHES routing.
+func writeProxyUpstreamEnv(sb *strings.Builder) {
+	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
+	sb.WriteString("          GITHUB_API_URL: ${{ github.api_url }}\n")
+	sb.WriteString("          GH_HOST: ${{ env.GH_HOST }}\n")
+	sb.WriteString("          GITHUB_HOST: ${{ env.GITHUB_HOST }}\n")
+	sb.WriteString("          GITHUB_ENTERPRISE_HOST: ${{ env.GITHUB_ENTERPRISE_HOST }}\n")
+	sb.WriteString("          GITHUB_GRAPHQL_URL: ${{ env.GITHUB_GRAPHQL_URL }}\n")
+	sb.WriteString("          GITHUB_COPILOT_BASE_URL: ${{ env.GITHUB_COPILOT_BASE_URL }}\n")
+}
+
 // buildStartDIFCProxyStepYAML returns the YAML for the "Start DIFC proxy" step,
 // or an empty string if proxy injection is not needed or the policy cannot be built.
 // This is the shared implementation used by both the main job and the indexing job.
@@ -248,7 +262,7 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	sb.WriteString("      - name: Start DIFC Proxy\n")
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
-	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
+	writeProxyUpstreamEnv(&sb)
 	if isAWFNetworkIsolationEnabled(data) {
 		sb.WriteString("          GH_AW_NETWORK_ISOLATION: 'true'\n")
 	}
@@ -521,7 +535,7 @@ func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 	sb.WriteString("      - name: Start CLI Proxy\n")
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
-	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
+	writeProxyUpstreamEnv(&sb)
 	if isAWFNetworkIsolationEnabled(data) {
 		sb.WriteString("          GH_AW_NETWORK_ISOLATION: 'true'\n")
 	}

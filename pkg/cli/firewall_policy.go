@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -234,10 +235,10 @@ func isEntryHTTPS(entry AuditLogEntry) bool {
 // This mirrors the classification logic used by the firewall log parser.
 func isEntryAllowed(entry AuditLogEntry) bool {
 	status := entry.Status
-	if status == 200 || status == 206 || status == 304 {
+	if status == http.StatusOK || status == http.StatusPartialContent || status == http.StatusNotModified {
 		return true
 	}
-	if status == 403 || status == 407 {
+	if status == http.StatusForbidden || status == http.StatusProxyAuthRequired {
 		return false
 	}
 	decision := entry.Decision
