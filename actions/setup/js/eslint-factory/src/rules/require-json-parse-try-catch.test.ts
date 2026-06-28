@@ -19,19 +19,43 @@ const esmRuleTester = new RuleTester({
 describe("require-json-parse-try-catch", () => {
   it("valid: JSON.parse inside try block passes (CommonJS)", () => {
     cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
-      valid: [
-        `try { const x = JSON.parse(str); } catch (e) {}`,
-        `try { return JSON.parse(str); } catch (e) {}`,
-        `function f() { try { JSON.parse(str); } catch (e) {} }`,
-      ],
+      valid: [`try { const x = JSON.parse(str); } catch (e) {}`, `try { return JSON.parse(str); } catch (e) {}`, `function f() { try { JSON.parse(str); } catch (e) {} }`],
       invalid: [],
     });
   });
 
   it("valid: JSON.parse inside try block passes (ES module)", () => {
     esmRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
-      valid: [`try { const x = JSON.parse(str); } catch (e) {}`],
+      valid: [`try { const x = JSON.parse(str); } catch (e) {}`, `try { lines.map(line => JSON.parse(line)); } catch (e) {}`, `try { (function () { JSON.parse(str); })(); } catch (e) {}`],
       invalid: [],
+    });
+  });
+
+  it("invalid: deferred callback inside try block is still reported", () => {
+    cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { emitter.on("data", chunk => { const msg = JSON.parse(chunk); handle(msg); }); } catch (e) {}`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { arg: "chunk" },
+              suggestions: [
+                {
+                  messageId: "useHelper",
+                  output:
+                    `try { emitter.on("data", chunk => { try {\n` +
+                    `  const msg = JSON.parse(chunk);\n` +
+                    `} catch (err) {\n` +
+                    `  throw err;\n` +
+                    `} handle(msg); }); } catch (e) {}`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
     });
   });
 
