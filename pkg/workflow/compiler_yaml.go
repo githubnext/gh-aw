@@ -1034,6 +1034,11 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 			fmt.Fprintf(yaml, "          GH_AW_COMMAND_PLACEHOLDER: %q\n", data.CommandPlaceholder)
 		}
 	}
+	if len(data.LabelCommand) > 0 {
+		if labelCommandsJSON, err := json.Marshal(data.LabelCommand); err == nil {
+			fmt.Fprintf(yaml, "          GH_AW_LABEL_COMMANDS: %q\n", string(labelCommandsJSON))
+		}
+	}
 
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")

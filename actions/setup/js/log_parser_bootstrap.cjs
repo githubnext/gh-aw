@@ -297,8 +297,13 @@ async function runLogParser(options) {
 
         core.summary.addRaw(fullMarkdown).write();
       } else {
-        // Fallback: just log success message for parsers without log entries
-        core.info(`${parserName} log parsed successfully`);
+        // Fallback path: markdown exists but no structured log entries were parsed.
+        // Suppress the "parsed successfully" message for Claude since it always produces
+        // logEntries when healthy — absence of entries means the parse fell back and is
+        // about to emit a guardrail warning/failure below.
+        if (parserName !== "Claude") {
+          core.info(`${parserName} log parsed successfully`);
+        }
 
         // Add safe outputs preview to core.info (fallback path)
         if (safeOutputsContent) {
@@ -330,8 +335,17 @@ async function runLogParser(options) {
 
     // Claude-specific guardrail: if no structured log entries were parsed, treat as execution failure.
     // This catches silent startup failures where Claude exits before producing JSON tool activity.
+    // Exception: when safeOutputEntriesCount > 0 the agent demonstrably completed and emitted
+    // safe outputs — treat as a non-fatal post-completion infrastructure failure (e.g. sandbox
+    // teardown race leaving agent-stdio.log unreadable) and downgrade to a warning.
     if (parserName === "Claude" && (!logEntries || logEntries.length === 0)) {
-      core.setFailed(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
+      if (safeOutputEntriesCount > 0) {
+        core.warning(
+          `Claude produced no structured log entries, but agent completed with ${safeOutputEntriesCount} safe output ${safeOutputEntriesCount === 1 ? "entry" : "entries"} — treating as non-fatal post-completion infrastructure failure`
+        );
+      } else {
+        core.setFailed(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
+      }
     }
 
     // Handle MCP server failures if present

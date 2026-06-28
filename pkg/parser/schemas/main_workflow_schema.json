@@ -4710,6 +4710,46 @@
       },
       "additionalProperties": false
     },
+    "lsp": {
+      "type": "object",
+      "description": "⚠️ Experimental. Top-level Language Server Protocol (LSP) configuration for Copilot CLI. Each key is a language identifier and each value defines the server command, args, and file extension mappings. Using this field emits a compile-time warning.",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Executable command for the language server"
+            },
+            "args": {
+              "type": "array",
+              "description": "Optional command-line arguments passed to the language server executable",
+              "items": {
+                "type": "string"
+              }
+            },
+            "fileExtensions": {
+              "type": "object",
+              "description": "Map of file extension to language id, for example {\".ts\": \"typescript\"}",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Package version to install for this language server (e.g. \"5.8.3\"). Overrides the built-in pinned default. Has no effect for custom servers not in the built-in install spec table."
+            }
+          },
+          "required": ["command", "fileExtensions"],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "cache": {
       "description": "Cache configuration for workflow (uses actions/cache syntax)",
       "oneOf": [

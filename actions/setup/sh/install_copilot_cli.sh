@@ -43,6 +43,15 @@ echo "Ensuring correct ownership of $COPILOT_DIR..."
 mkdir -p "$COPILOT_DIR"
 sudo chown -R "$(id -u):$(id -g)" "$COPILOT_DIR"
 
+# Clean up any stale AWF chroot home directories left by previous runs.
+# When AWF ran with `sudo -E awf --enable-host-access`, it created
+# /tmp/awf-*-chroot-home directories with root-owned files.  These cause
+# EACCES failures in the Copilot CLI cleanup path (rimrafSync) on the same or
+# subsequent runs, which reports as "engine terminated unexpectedly".
+# Remove them here before the agent starts so the runner is in a clean state.
+echo "Cleaning up stale AWF chroot home directories..."
+sudo find /tmp -maxdepth 1 -name 'awf-*-chroot-home' -type d -exec rm -rf -- {} + 2>/dev/null || true
+
 # Detect OS and architecture
 OS="$(uname -s)"
 ARCH="$(uname -m)"

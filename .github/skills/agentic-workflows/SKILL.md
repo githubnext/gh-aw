@@ -29,6 +29,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/github-mcp-server.md`
 - `.github/aw/llms.md`
 - `.github/aw/loop.md`
+- `.github/aw/lsp.md`
 - `.github/aw/mcp-clis.md`
 - `.github/aw/memory-stateful-patterns.md`
 - `.github/aw/memory.md`

@@ -14,46 +14,35 @@ MCP CLI exposes mounted MCP servers as shell commands on `PATH`. Enabled by `too
 
 ## How to use
 
-Each server is a standalone executable on `PATH`. Invoke it from bash:
+Each server is a standalone executable on `PATH`. Invoke from bash with `--name value` pairs:
 
 ```bash
-# Call a tool — pass arguments as --name value pairs
 <server-name> <tool-name> --param1 value1 --param2 value2
 ```
 
-**Example** — using the `playwright` CLI:
+**Examples:**
 ```bash
-playwright --help                                  # list all browser tools
+playwright --help
 playwright browser_navigate --url https://example.com
-playwright browser_snapshot                        # capture page accessibility tree
-```
+playwright browser_snapshot
 
-**Example** — using the `safeoutputs` CLI (safe outputs) when you are ready to emit the final real action:
-```bash
 safeoutputs add_comment --item_number 42 --body "Analysis complete"
-```
 
-**Example** — using the `mcpscripts` CLI (mcp-scripts):
-```bash
-mcpscripts --help                                  # list all script tools
+mcpscripts --help
 mcpscripts mcpscripts-gh --args "pr list --repo owner/repo --limit 5"
 ```
 
-Passing multiple or complex arguments (preferred):
-
-Supply a JSON object on stdin using `.` as the sentinel. The bridge parses stdin as the argument object, preserving native types (numbers, booleans, arrays) without shell-quoting issues.
+For multiple/complex arguments, pipe JSON on stdin using `.` as sentinel (preserves native types, avoids shell quoting):
 
 ```bash
-# Full argument payload as JSON via printf pipe
 printf '{"item_number":42,"body":"### Title\n\nBody paragraph one.\n\nBody paragraph two."}' \
   | safeoutputs add_comment .
 
-# Works with any tool — just match the parameter names from <server> <tool> --help
 printf '{"title":"Fix: something","body":"Details here","labels":["bug","priority-high"]}' \
   | safeoutputs create_issue .
 ```
 
-If pipes are blocked, write JSON to a file and use redirection with `.` (e.g. `safeoutputs create_pull_request . < /tmp/payload.json`).
+If pipes are blocked, use file redirection: `safeoutputs create_pull_request . < /tmp/payload.json`.
 
 ## Notes
 

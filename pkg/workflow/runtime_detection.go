@@ -52,6 +52,15 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		}
 	}
 
+	// Detect runtimes required by LSP server configurations.
+	// Each known LSP server declares the runtime it needs (e.g. "go" for gopls,
+	// "ruby" for solargraph). Feeding these through the runtime manager ensures
+	// the runtime is set up via a properly SHA-pinned setup action rather than
+	// relying on whatever version happens to be pre-installed on the runner.
+	if len(workflowData.LSP) > 0 {
+		detectFromLSPServers(workflowData.LSP, requirements)
+	}
+
 	// Apply runtime overrides from frontmatter
 	if workflowData.Runtimes != nil {
 		applyRuntimeOverrides(workflowData.Runtimes, requirements)
@@ -230,6 +239,23 @@ func detectFromMCPScripts(mcpScripts *MCPScriptsConfig, requirements map[string]
 				updateRequiredRuntime(runtime, "", requirements)
 			}
 		}
+	}
+}
+
+// detectFromLSPServers adds runtime requirements for the runtimes needed by configured
+// LSP servers. Each entry in lspInstallSpecs declares the runtime ID it needs (e.g.
+// "go" for gopls, "ruby" for solargraph, "node" for npm-based servers). Feeding these
+// through the runtime manager ensures that the runtime is set up via a properly
+// SHA-pinned setup action (e.g. actions/setup-go, ruby/setup-ruby) and with a pinned
+// version, rather than relying on whatever happens to be pre-installed on the runner.
+func detectFromLSPServers(lsp map[string]LSPServerConfig, requirements map[string]*RuntimeRequirement) {
+	if len(lsp) == 0 {
+		return
+	}
+	manager := NewLSPManager(lsp)
+	for _, req := range manager.RuntimeRequirements() {
+		runtimeSetupLog.Printf("LSP server requires runtime: %s", req.Runtime.ID)
+		updateRequiredRuntime(req.Runtime, req.Version, requirements)
 	}
 }
 

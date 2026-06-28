@@ -491,6 +491,29 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ToolsEditBoolean(t
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_LSPConfig(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on":     "push",
+		"engine": "copilot",
+		"lsp": map[string]any{
+			"typescript": map[string]any{
+				"command": "typescript-language-server",
+				"args":    []any{"--stdio"},
+				"fileExtensions": map[string]any{
+					".ts": "typescript",
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/lsp-config-test.md")
+	if err != nil {
+		t.Fatalf("expected valid lsp configuration to pass schema validation, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowExpressions(t *testing.T) {
 	t.Parallel()
 

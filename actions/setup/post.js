@@ -14,7 +14,7 @@ const { spawnSync } = require("child_process");
 const fs = require("fs");
 
 function isDebugModeEnabled() {
-  const toBool = (value) => {
+  const toBool = value => {
     const normalized = String(value || "").toLowerCase();
     return normalized === "1" || normalized === "true";
   };
@@ -64,9 +64,7 @@ function listTmpGhAwFiles(tmpDir, maxDepth, maxFiles) {
   walk(tmpDir, 0);
 
   const truncated = files.length >= maxFiles;
-  console.log(
-    `[debug] listing files under ${tmpDir} (max depth ${maxDepth}, max files ${maxFiles})`,
-  );
+  console.log(`[debug] listing files under ${tmpDir} (max depth ${maxDepth}, max files ${maxFiles})`);
   if (files.length === 0) {
     console.log("[debug] no files found");
   } else {
@@ -119,6 +117,54 @@ function listTmpGhAwFiles(tmpDir, maxDepth, maxFiles) {
     } catch (err) {
       // Log but do not fail — cleanup is best-effort
       console.error(`Warning: failed to clean up ${tmpDir}: ${err.message}`);
+    }
+  }
+
+  // Clean up AWF chroot home directories under /tmp (e.g. /tmp/awf-*-chroot-home).
+  // These are created by AWF when running with --enable-host-access on GitHub-hosted runners.
+  // Files inside may be owned by root (written by Docker containers or privileged AWF processes),
+  // causing EACCES failures if cleanup is attempted without sudo.
+  const awfChrootHomeFindResult = spawnSync(
+    "sudo",
+    ["find", "/tmp", "-maxdepth", "1", "-name", "awf-*-chroot-home", "-type", "d", "-print"],
+    { encoding: "utf8" }
+  );
+  if (awfChrootHomeFindResult.status !== 0) {
+    console.log("Failed to inspect /tmp/awf-*-chroot-home directories");
+  } else {
+    const awfChrootHomeDirs = awfChrootHomeFindResult.stdout
+      .split("\n")
+      .map(line => line.trim())
+      .filter(Boolean);
+    if (awfChrootHomeDirs.length === 0) {
+      console.log("No /tmp/awf-*-chroot-home directories found");
+    } else {
+      const awfChrootHomeCleanupResult = spawnSync(
+        "sudo",
+        [
+          "find",
+          "/tmp",
+          "-maxdepth",
+          "1",
+          "-name",
+          "awf-*-chroot-home",
+          "-type",
+          "d",
+          "-exec",
+          "rm",
+          "-rf",
+          "--",
+          "{}",
+          "+"
+        ],
+        { stdio: "inherit" }
+      );
+      if (awfChrootHomeCleanupResult.status === 0) {
+        const awfChrootHomeNoun = awfChrootHomeDirs.length === 1 ? "directory" : "directories";
+        console.log(`Cleaned up ${awfChrootHomeDirs.length} /tmp/awf-*-chroot-home ${awfChrootHomeNoun}`);
+      } else {
+        console.log("Failed to clean /tmp/awf-*-chroot-home directories");
+      }
     }
   }
 })();

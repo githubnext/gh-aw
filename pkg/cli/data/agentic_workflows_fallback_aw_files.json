@@ -17,6 +17,7 @@
   "github-mcp-server.md",
   "llms.md",
   "loop.md",
+  "lsp.md",
   "mcp-clis.md",
   "memory-stateful-patterns.md",
   "memory.md",
