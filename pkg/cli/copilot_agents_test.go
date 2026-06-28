@@ -295,6 +295,8 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 	if strings.Contains(content, ".github/skills/agentic-workflows/SKILL.md") {
 		t.Fatalf("expected generated agent content to avoid skill cross-references:\n%s", content)
 	}
+	assert.Contains(t, content, ".github/aw/instructions.md")
+	assert.Contains(t, content, "repository overlay instructions override defaults in this agent when they conflict")
 }
 
 func TestCheckedInAgenticWorkflowsAgentMatchesGeneratedContent(t *testing.T) {
@@ -422,6 +424,21 @@ func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
 	if strings.TrimSpace(string(actual)) != strings.TrimSpace(expected) {
 		t.Fatalf("Checked-in skill file is out of sync with generated content\nexpected:\n%s\nactual:\n%s", expected, string(actual))
 	}
+}
+
+func TestCheckedInInteractiveAgentDesignerMentionsRepoOverlay(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("Failed to locate test file")
+	}
+
+	gitRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	actual, err := os.ReadFile(filepath.Join(gitRoot, ".github", "agents", "interactive-agent-designer.agent.md"))
+	require.NoError(t, err, "Failed to read checked-in interactive agent designer file")
+
+	content := string(actual)
+	assert.Contains(t, content, ".github/aw/instructions.md")
+	assert.Contains(t, content, "repository overlay instructions override defaults in this agent when they conflict")
 }
 
 // TestFallbackAWFilesMatchesLocalAWDirectory validates that the embedded fallback file list

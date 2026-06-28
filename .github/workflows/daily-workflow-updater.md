@@ -14,6 +14,11 @@ permissions:
   issues: read
 
   copilot-requests: write
+
+sandbox:
+  agent:
+    sudo: false
+
 tracker-id: daily-workflow-updater
 engine:
   id: copilot

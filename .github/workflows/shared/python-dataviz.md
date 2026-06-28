@@ -96,15 +96,3 @@ Python scientific libraries have been installed and are ready for use. Working d
 3. Embed: `![Description](ASSET_URL_FROM_UPLOAD)` in issue/discussion/step summary
 
 Asset URLs are persistent. Up to 5 uploads per run; PNG, JPG, JPEG, SVG allowed.
-
-## Cache Memory Integration
-
-The cache memory at `/tmp/gh-aw/cache-memory/` is available for reusable helpers. Reuse cached modules when present, and persist stable helpers after successful runs.
-
-## Source and Data Artifact
-
-Python scripts and data files are uploaded as the `python-source-and-data` artifact (30-day retention, `if: always()` condition).
-
-## Common Data Sources
-
-Typical inputs include repository statistics, workflow metrics, and generated sample datasets saved under `/tmp/gh-aw/python/data/` before plotting.

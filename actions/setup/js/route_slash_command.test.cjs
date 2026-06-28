@@ -98,8 +98,17 @@ describe("route_slash_command", () => {
       summary: summaryMock,
     };
     globals.github = {
-      request: vi.fn(async (...args) => {
-        reactionCalls.push(args);
+      request: vi.fn(async (route, params) => {
+        if (String(route).includes("/dispatches")) {
+          dispatchCalls.push(params);
+          return {
+            data: {
+              workflow_run_id: 123456,
+              workflow_run_url: "https://github.com/github/gh-aw/actions/runs/123456",
+            },
+          };
+        }
+        reactionCalls.push([route, params]);
         return { data: { id: 1 } };
       }),
       graphql: vi.fn(async () => ({ repository: { discussion: { id: "D_node" } }, addReaction: { reaction: { id: "R_1" } } })),
@@ -114,9 +123,7 @@ describe("route_slash_command", () => {
               ],
             },
           })),
-          createWorkflowDispatch: vi.fn(async params => {
-            dispatchCalls.push(params);
-          }),
+          createWorkflowDispatch: vi.fn(),
         },
         pulls: {
           get: vi.fn(async ({ pull_number }) => ({
@@ -216,6 +223,15 @@ describe("route_slash_command", () => {
           },
         };
       }
+      if (String(route).includes("/dispatches")) {
+        dispatchCalls.push(params);
+        return {
+          data: {
+            workflow_run_id: 444,
+            workflow_run_url: "https://github.com/github/gh-aw/actions/runs/444",
+          },
+        };
+      }
       reactionCalls.push([route, params]);
       return { data: { id: 1 } };
     });
@@ -230,6 +246,9 @@ describe("route_slash_command", () => {
     expect(JSON.parse(dispatchCalls[1].inputs.aw_context).status_comment_id).toBe("999");
     expect(globals.github.request.mock.calls.filter(([route]) => String(route).includes("/reactions"))).toHaveLength(1);
     expect(globals.github.request.mock.calls.filter(([route]) => /\/issues\/77\/comments$/.test(String(route)))).toHaveLength(1);
+    const statusUpdateCalls = globals.github.request.mock.calls.filter(([route]) => String(route).startsWith("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}"));
+    expect(statusUpdateCalls.length).toBeGreaterThan(0);
+    expect(statusUpdateCalls[0][1].body).toContain("[archie](https://github.com/github/gh-aw/actions/runs/444)");
     expect(globals.github.request).toHaveBeenCalledWith(
       expect.stringContaining("/issues/77/comments"),
       expect.objectContaining({
@@ -260,9 +279,13 @@ describe("route_slash_command", () => {
     });
     globals.context.payload.issue.number = 77;
     globals.context.payload.comment.body = "/archie please";
-    globals.github.request = vi.fn(async route => {
+    globals.github.request = vi.fn(async (route, params) => {
       if (String(route).includes("/comments")) {
         throw new Error("comment API down");
+      }
+      if (String(route).includes("/dispatches")) {
+        dispatchCalls.push(params);
+        return { data: {} };
       }
       reactionCalls.push([route]);
       return { data: { id: 1 } };
@@ -628,7 +651,7 @@ describe("route_slash_command", () => {
   });
 
   it("skips slash routes when target workflow is disabled", async () => {
-    globals.github.rest.actions.createWorkflowDispatch = vi.fn(async () => {
+    globals.github.request = vi.fn(async () => {
       throw Object.assign(new Error("Workflow was disabled"), {
         status: 422,
         response: { status: 422, data: { message: "Workflow was disabled" } },
@@ -644,7 +667,7 @@ describe("route_slash_command", () => {
   });
 
   it("skips label routes when target workflow is disabled", async () => {
-    globals.github.rest.actions.createWorkflowDispatch = vi.fn(async () => {
+    globals.github.request = vi.fn(async () => {
       throw Object.assign(new Error("Workflow is disabled"), {
         status: 422,
         response: { status: 422, data: { message: "Workflow is disabled" } },
@@ -668,7 +691,10 @@ describe("route_slash_command", () => {
   });
 
   it("ignores disabled workflow_dispatch failures for disabled label routes", async () => {
-    globals.github.rest.actions.createWorkflowDispatch = vi.fn(async params => {
+    globals.github.request = vi.fn(async (route, params) => {
+      if (!String(route).includes("/dispatches")) {
+        return { data: { id: 1 } };
+      }
       if (params.workflow_id === "smoke-otel-backends.lock.yml") {
         throw Object.assign(new Error("Cannot trigger a 'workflow_dispatch' on a disabled workflow"), {
           status: 422,
@@ -676,6 +702,7 @@ describe("route_slash_command", () => {
         });
       }
       dispatchCalls.push(params);
+      return { data: {} };
     });
     globals.context.eventName = "pull_request";
     globals.context.payload = {

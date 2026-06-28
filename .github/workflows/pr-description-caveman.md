@@ -10,6 +10,11 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
+
+sandbox:
+  agent:
+    sudo: false
+
 strict: true
 tools:
   github:
@@ -67,6 +72,8 @@ safe-outputs:
     max: 1
   noop:
 timeout-minutes: 15
+imports:
+  - shared/reporting.md
 ---
 
 # PR Description Updater

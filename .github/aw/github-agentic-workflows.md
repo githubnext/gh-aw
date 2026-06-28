@@ -54,6 +54,14 @@ See also: [workflow-editing.md](workflow-editing.md)
 - Limit network and bash access to what the workflow actually needs.
 - For visual regression workflows, explicitly name the baseline source (for example `cache-memory` key, artifact, or branch path). See [visual-regression.md](visual-regression.md).
 
+## Repository-Specific Instructions
+
+Use `@.github/aw/instructions.md` as the canonical repository-local overlay for workflow authoring standards.
+
+- This file is optional and repository-owned.
+- Installed gh-aw agents should load and apply it automatically when present.
+- Precedence: apply upstream defaults first, then apply repository overlay rules; when they conflict, repository overlay rules win.
+
 ## Trigger Selection Quick Reference
 
 Use the smallest trigger that matches the requested automation.
@@ -66,6 +74,20 @@ Use the smallest trigger that matches the requested automation.
 | Run the workflow on demand | `workflow_dispatch` | Use for manual tests, backfills, and operator-invoked runs; often pair with `schedule` or `workflow_run`. |
 
 See also: [workflow-constraints.md](workflow-constraints.md)
+
+## PR Checks with Linked References
+
+When a PR analysis requires verifying or attaching a linked artifact (design doc, policy link, architecture decision record, or approval), follow this compact pattern:
+
+1. **Read the linked reference** from the PR body or comments (for example, a URL, a markdown link, or an ADR reference token like `ADR-NN`) using `gh pr view`.
+2. **Validate the link** — confirm the document exists and is accessible before assessing compliance.
+3. **Classify the result**:
+   - Link present and satisfies requirement → `add-comment` with a ✅ summary
+   - Link present but does not satisfy requirement → `add-comment` flagging the specific gap
+   - Link missing → `add-comment` requesting it, or `create-issue` if policy requires a blocking escalation
+4. **Call `noop`** when the PR is not in scope (for example `paths:` guard excludes all changed files).
+
+Permissions: `pull-requests: read` only; all writes route through `add-comment` safe output.
 
 ## Reference Files
 

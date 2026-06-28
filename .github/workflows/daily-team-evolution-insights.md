@@ -11,15 +11,18 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+
+sandbox:
+  agent:
+    sudo: false
+
 tracker-id: daily-team-evolution-insights
 engine: claude
 strict: false
 network:
   allowed:
-    - "github.com"
-    - "api.github.com"
-    - "anthropic.com"
-    - "api.anthropic.com"
+    - defaults
+    - github
 tools:
   cli-proxy: true
   github:

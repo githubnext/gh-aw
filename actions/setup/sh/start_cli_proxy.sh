@@ -5,8 +5,9 @@ set +o histexpand
 # This script starts the awmg proxy container so AWF's cli-proxy container
 # can connect to it via host.docker.internal:18443 for gh CLI access.
 #
-# Unlike start_difc_proxy.sh (which is for pre-agent steps), this proxy
-# runs alongside AWF and does NOT modify GH_HOST or GITHUB_ENV.
+# This script exports GH_HOST (and related vars) within the script for use when
+# launching the proxy container, but does NOT write to $GITHUB_ENV and the
+# exports do not persist beyond this script.
 #
 # Environment:
 #   CLI_PROXY_POLICY    - JSON guard policy string
@@ -15,6 +16,10 @@ set +o histexpand
 #   GITHUB_SERVER_URL   - GitHub server URL for upstream routing
 
 set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=proxy_env_lib.sh
+source "${SCRIPT_DIR}/proxy_env_lib.sh"
 
 POLICY="${CLI_PROXY_POLICY:-}"
 CONTAINER_IMAGE="${CLI_PROXY_IMAGE:-}"
@@ -29,10 +34,13 @@ MCP_LOG_DIR=/tmp/gh-aw/mcp-logs
 
 mkdir -p "$TLS_DIR" "$MCP_LOG_DIR"
 
+derive_proxy_upstream_env
+
 # Remove any leftover container from a prior run (e.g., cancelled job on a self-hosted runner)
 docker rm -f awmg-cli-proxy 2>/dev/null || true
 
 echo "Starting CLI proxy container: $CONTAINER_IMAGE"
+echo "Using CLI proxy upstream host: ${GH_HOST} (API: ${GITHUB_API_URL})"
 
 # Build docker run command arguments
 POLICY_ARGS=()
@@ -48,7 +56,13 @@ fi
 docker run -d --name awmg-cli-proxy "${DOCKER_NETWORK_ARGS[@]}" \
   --user "$(id -u):$(id -g)" \
   -e GH_TOKEN \
+  -e GH_HOST \
+  -e GITHUB_HOST \
+  -e GITHUB_ENTERPRISE_HOST \
   -e GITHUB_SERVER_URL \
+  -e GITHUB_API_URL \
+  -e GITHUB_GRAPHQL_URL \
+  -e GITHUB_COPILOT_BASE_URL \
   -e DEBUG='*' \
   -v "$TLS_DIR:$TLS_DIR" \
   -v "$MCP_LOG_DIR:$MCP_LOG_DIR" \

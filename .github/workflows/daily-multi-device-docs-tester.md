@@ -15,6 +15,11 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+
+sandbox:
+  agent:
+    sudo: false
+
 tracker-id: daily-multi-device-docs-tester
 max-turns: 80  # 10 devices × ~5 turns each + setup/report overhead
 engine:

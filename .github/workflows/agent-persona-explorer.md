@@ -89,8 +89,8 @@ The following 9 personas cover both technical and non-technical information work
 
 Use `cache-memory` to load the exploration history and pick unexplored personas.
 
-1. **Load history**: Read the key `agent-persona-explorer/explored-personas` from cache memory.
-   - If the key does not exist, treat the explored list as empty.
+1. **Load history**: Read `/tmp/gh-aw/cache-memory/agent-persona-explorer/explored-personas.json`.
+   - If the file does not exist, treat the explored list as empty.
    - The stored value is a JSON object: `{ "explored": ["Backend Engineer", "DevOps Engineer", ...] }`
 
 2. **Select 3 personas**: Pick 3 personas from the Full Persona Pool that are **not** in the explored list.
@@ -271,7 +271,7 @@ Example:
 
 **Also store a copy in cache memory** for historical comparison across runs.
 
-**Update the exploration history**: After publishing the issue, update `agent-persona-explorer/explored-personas` in cache memory:
+**Update the exploration history**: After publishing the issue, update `/tmp/gh-aw/cache-memory/agent-persona-explorer/explored-personas.json`:
 - Append the 3 personas tested in this run to the existing explored list
 - If the updated list now contains all 9 personas, reset to the 3 personas from this run only (start a new rotation cycle)
 - Store as: `{ "explored": ["Persona A", "Persona B", ...] }`

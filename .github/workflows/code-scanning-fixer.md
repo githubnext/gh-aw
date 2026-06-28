@@ -62,7 +62,7 @@ You are a security-focused code analysis agent that automatically fixes code sca
 - The workflow will retry automatically on the next scheduled run
 
 **Tool Usage**: Use the pre-authenticated `gh` CLI for all GitHub read operations, and the `edit` tool for code changes:
-- List code scanning alerts: `gh api "repos/githubnext/gh-aw/code-scanning/alerts?state=open&severity=critical%2Chigh&per_page=100"`
+- List code scanning alerts: `gh api "repos/githubnext/gh-aw/code-scanning/alerts?state=open&per_page=100"`
 - Get alert details: `gh api "repos/githubnext/gh-aw/code-scanning/alerts/{alert_number}"`
 - Read file contents: `gh api "repos/githubnext/gh-aw/contents/{path}" --jq '.content' | base64 -d`
 - Edit files: use the `edit` tool
@@ -72,8 +72,8 @@ You are a security-focused code analysis agent that automatically fixes code sca
 
 Your goal is to:
 1. **Check cache for previously fixed alerts**: Avoid fixing the same alert multiple times
-2. **List open high-risk alerts**: Find open critical/high code scanning alerts (prioritizing critical over high)
-3. **Select an unfixed alert**: Pick the highest severity unfixed alert that hasn't been fixed recently
+2. **List all open alerts**: Find every open code scanning alert and rank them in reverse importance/severity priority (highest first)
+3. **Select an unfixed alert**: Pick the highest-priority unfixed alert that hasn't been fixed recently
 4. **Analyze the vulnerability**: Understand the security issue and its context
 5. **Generate a fix**: Create code changes that address the security issue
 6. **Create Pull Request**: Submit a pull request with the fix
@@ -92,19 +92,20 @@ Before selecting an alert, check the cache memory to see which alerts have been 
 ### 2. List All Open Alerts
 
 Use the `gh` CLI to list all open code scanning alerts:
-- Run: `gh api "repos/githubnext/gh-aw/code-scanning/alerts?state=open&severity=critical%2Chigh&per_page=100"`
-- Medium/low/warning/note/error are intentionally excluded in this workflow so each run stays within context limits
-- Sort the results by severity (prioritize: critical > high > medium > low > warning > note > error)
-- If no open alerts are found, log "No unfixed security alerts found. All alerts have been addressed!" and exit gracefully
+- Run: `gh api "repos/githubnext/gh-aw/code-scanning/alerts?state=open&per_page=100"`
+- Sort the results in reverse importance/severity priority (highest first)
+- Use `rule.security_severity_level` when available (`critical > high > medium > low`)
+- Fall back to alert/rule severity when no security severity is present (`error > warning > note`)
+- If no open alerts are found, log "No unfixed code scanning alerts found. All alerts have been addressed!" and exit gracefully
 - If you encounter tool errors, report them clearly and exit gracefully rather than trying workarounds
-- Create a list of alert numbers from the results, sorted by severity (highest first)
+- Create a list of alert numbers from the results, sorted highest priority first
 
 ### 3. Select an Unfixed Alert
 
-From the list of open high-risk alerts (sorted by severity):
+From the list of open alerts (sorted highest priority first):
 - Exclude any alert numbers that are in the cache (already fixed)
-- Select the first alert from the filtered list (highest severity unfixed alert)
-- If no unfixed alerts remain, exit gracefully with message: "No unfixed security alerts found. All alerts have been addressed!"
+- Select the first alert from the filtered list (highest-priority unfixed alert)
+- If no unfixed alerts remain, exit gracefully with message: "No unfixed code scanning alerts found. All alerts have been addressed!"
 
 ### 4. Get Alert Details
 
@@ -154,7 +155,7 @@ create-pull-request:
 # Security Fix: [Brief Description]
 
 **Alert Number**: #[alert-number]
-**Severity**: [Critical/High]
+**Severity**: [Severity]
 **Rule**: [rule-id]
 **CWE**: [cwe-id]
 
