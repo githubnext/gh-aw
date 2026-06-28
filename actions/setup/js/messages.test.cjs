@@ -694,7 +694,7 @@ describe("messages.cjs", () => {
       });
 
       expect(result).toContain("<details>");
-      expect(result).toContain("<summary>Add this agentic workflows to your repo</summary>");
+      expect(result).toContain("<summary><sub>Add this agentic workflow to your repo</sub></summary>");
       expect(result).toContain("To install this agentic workflow, run");
       expect(result).toContain("gh aw add owner/repo/workflow.md@main");
       expect(result).toContain("</details>");
