@@ -641,6 +641,8 @@ func (acc *importAccumulator) appendModelsField(fm map[string]any, importPath st
 
 	aliasModels := make(map[string]any, len(rawModels))
 	for key, value := range rawModels {
+		// providers is reserved for model-cost overlays and should not be treated
+		// as an alias key, even when aliases and providers coexist.
 		if key == "providers" || isModelPolicyKey(key) {
 			continue
 		}

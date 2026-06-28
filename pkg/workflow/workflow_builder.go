@@ -383,6 +383,8 @@ func modelConflictsWithDisallowedPolicy(model string, disallowedSet map[string]s
 		if modelPolicyPatternMatches(disallowed, model) {
 			return true
 		}
+		// Also check the inverse direction so an allowed wildcard pattern (for example
+		// "*opus*") conflicts with a disallowed exact entry ("claude-opus").
 		if modelPolicyPatternMatches(model, disallowed) {
 			return true
 		}
