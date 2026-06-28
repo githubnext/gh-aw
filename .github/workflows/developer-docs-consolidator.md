@@ -34,6 +34,8 @@ name: Developer Documentation Consolidator
 strict: true
 timeout-minutes: 30
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - find specs -name "*.md"
   - cat scratchpad/*.md

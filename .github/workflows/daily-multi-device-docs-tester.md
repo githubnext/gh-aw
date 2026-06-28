@@ -26,6 +26,7 @@ runtimes:
   node:
     version: "24"
 tools:
+  startup-timeout: 60
   cli-proxy: true
   github:
     mode: gh-proxy

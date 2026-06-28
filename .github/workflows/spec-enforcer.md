@@ -40,6 +40,8 @@ name: Package Specification Enforcer
 strict: true
 timeout-minutes: 30
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - cat pkg/*/README.md
   - find pkg -maxdepth 1 -type d

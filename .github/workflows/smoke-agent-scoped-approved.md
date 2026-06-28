@@ -23,6 +23,8 @@ imports:
   - shared/github-guard-policy.md
   - shared/otlp.md
 tools:
+  timeout: 120
+  startup-timeout: 60
   github:
     mode: local
     allowed-repos:

@@ -8,6 +8,8 @@ permissions:
   contents: read
   copilot-requests: write
 tools:
+  timeout: 120
+  startup-timeout: 60
   github:
     toolsets: [repos, code_security]
   bash: true

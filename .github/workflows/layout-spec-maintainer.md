@@ -37,6 +37,8 @@ name: Layout Specification Maintainer
 strict: true
 timeout-minutes: 20
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - find .github/workflows -name "*.lock.yml"
   - yq ".*" .github/workflows/*.lock.yml

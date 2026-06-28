@@ -25,6 +25,8 @@ imports:
       min-integrity: approved
   - shared/otlp.md
 tools:
+  timeout: 120
+  startup-timeout: 60
   github:
     mode: gh-proxy
     toolsets: [pull_requests, repos]

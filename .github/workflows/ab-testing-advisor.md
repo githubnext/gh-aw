@@ -39,6 +39,8 @@ engine:
 strict: true
 timeout-minutes: 30
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - find .github/workflows -maxdepth 1 -name "*.md" ! -name "shared" -type f
   - grep -l "experiments:" .github/workflows/*.md

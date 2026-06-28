@@ -59,6 +59,8 @@ experiments:
     start_date: "2026-06-04"
 timeout-minutes: 45
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - find docs -name "*.md" -o -name "*.mdx"
   - cat .github/workflows/daily-doc-updater.md

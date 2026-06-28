@@ -30,6 +30,8 @@ checkout:
     github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
 
 tools:
+  timeout: 120
+  startup-timeout: 60
   edit:
   bash:
     - "*"

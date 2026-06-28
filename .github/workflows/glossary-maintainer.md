@@ -38,6 +38,8 @@ safe-outputs:
     draft: false
 
 tools:
+  timeout: 120
+  startup-timeout: 60
   cli-proxy: true
   cache-memory: true
   repo-memory:

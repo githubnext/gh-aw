@@ -33,6 +33,8 @@ checkout:
     fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
 
 tools:
+  timeout: 120
+  startup-timeout: 60
   edit:
   cache-memory: true
   bash:

@@ -6,6 +6,8 @@ permissions:
 # Provides: GitHub PR tools and review comment safe-outputs
 
 tools:
+  timeout: 120
+  startup-timeout: 60
   github:
     toolsets: [pull_requests, repos]
 

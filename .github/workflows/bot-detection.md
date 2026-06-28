@@ -18,6 +18,8 @@ sandbox:
   agent:
     sudo: false
 tools:
+  timeout: 120
+  startup-timeout: 60
   cli-proxy: true
   github:
     mode: local

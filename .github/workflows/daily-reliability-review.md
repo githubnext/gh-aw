@@ -14,6 +14,8 @@ tracker-id: daily-reliability-review
 engine: claude
 strict: true
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash: true
   cli-proxy: true
   github:

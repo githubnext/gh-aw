@@ -4,6 +4,8 @@
 # community contributors to bypass the min-integrity check when the
 # GitHub MCP server performs tool calls.
 tools:
+  timeout: 120
+  startup-timeout: 60
   github:
     approval-labels: [cookie, community]
 ---

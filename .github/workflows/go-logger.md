@@ -103,6 +103,8 @@ engine: claude
 name: Go Logger Enhancement
 timeout-minutes: 15
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - cat /tmp/gh-aw/agent/go-logger/preflight.json
   - cat /tmp/gh-aw/agent/go-logger/manifest.json

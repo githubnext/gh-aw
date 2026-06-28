@@ -34,6 +34,8 @@ name: Daily File Diet
 strict: true
 timeout-minutes: 20
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - "find pkg -name \"*.go\" ! -name \"*_test.go\" -type f -exec wc -l {} \\; | sort -rn"
   cli-proxy: true

@@ -52,6 +52,8 @@ imports:
       reviewers: [copilot]
   - shared/otlp.md
 tools:
+  timeout: 120
+  startup-timeout: 60
   edit:
   cli-proxy: true
   github:

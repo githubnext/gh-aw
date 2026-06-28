@@ -13,6 +13,8 @@ engine:
   id: copilot
   model: gpt-4.1
 tools:
+  timeout: 120
+  startup-timeout: 60
   cli-proxy: true
   github:
     mode: remote

@@ -24,6 +24,8 @@ engine:
   bare: true
 strict: true
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash: true
   cli-proxy: true
   github:

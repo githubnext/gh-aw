@@ -51,6 +51,8 @@ name: Package Specification Librarian
 strict: true
 timeout-minutes: 25
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - find pkg -name "README.md" -type f
   - find pkg -maxdepth 1 -type d

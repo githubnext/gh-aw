@@ -1,5 +1,7 @@
 ---
 tools:
+  timeout: 120
+  startup-timeout: 60
   github:
     toolsets: [default]
   edit:

@@ -28,6 +28,7 @@ sandbox:
   agent:
     sudo: false
 tools:
+  startup-timeout: 60
   cli-proxy: true
   github:
     mode: gh-proxy

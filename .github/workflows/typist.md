@@ -41,6 +41,8 @@ experiments:
       issue: 34032
 timeout-minutes: 20
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - find pkg -name "*.go" ! -name "*_test.go" -type f
   - find pkg -type f -name "*.go" ! -name "*_test.go"

@@ -59,6 +59,8 @@ sandbox:
 name: Step Name Alignment
 timeout-minutes: 30
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - yq*
   - find .github/workflows -name "*.lock.yml" -type f

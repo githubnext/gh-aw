@@ -30,6 +30,8 @@ imports:
   - shared/otlp.md
   - shared/reporting.md
 tools:
+  timeout: 120
+  startup-timeout: 60
   github:
     mode: gh-proxy
   cli-proxy: true

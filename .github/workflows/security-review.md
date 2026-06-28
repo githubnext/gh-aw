@@ -16,6 +16,8 @@ permissions:
   security-events: read
   copilot-requests: write
 tools:
+  timeout: 120
+  startup-timeout: 60
   github:
     toolsets: [all]
   agentic-workflows:

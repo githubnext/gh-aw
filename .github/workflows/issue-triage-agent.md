@@ -8,6 +8,8 @@ on:
 permissions:
   issues: read
 tools:
+  timeout: 120
+  startup-timeout: 60
   cli-proxy: true
   github:
     min-integrity: approved

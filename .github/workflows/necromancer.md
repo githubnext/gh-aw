@@ -19,6 +19,8 @@ timeout-minutes: 25
 network:
   allowed: [defaults, github, node, go]
 tools:
+  timeout: 120
+  startup-timeout: 60
   cli-proxy: true
   github:
     mode: gh-proxy

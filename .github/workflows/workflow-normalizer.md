@@ -18,6 +18,8 @@ network:
     - python
     - node
 tools:
+  timeout: 120
+  startup-timeout: 60
   agentic-workflows:
   github:
     toolsets: [default]

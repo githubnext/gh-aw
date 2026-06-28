@@ -36,6 +36,8 @@ sandbox:
   agent:
     sudo: false
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - "*"
   - find .github -name "*.md"

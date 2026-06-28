@@ -45,6 +45,8 @@ sandbox:
         allowWrite:
           - /tmp/gh-aw/agent
 tools:
+  timeout: 120
+  startup-timeout: 60
   agentic-workflows:
   cli-proxy: true
   cache-memory: true

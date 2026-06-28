@@ -47,6 +47,8 @@ engine:
 strict: true
 timeout-minutes: 20
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - find .github -name "*.md"
   - jq *

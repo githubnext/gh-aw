@@ -32,6 +32,8 @@ name: Ubuntu Actions Image Analyzer
 strict: true
 timeout-minutes: 30
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - find .github/workflows -name "*.lock.yml" -type f
   - cat research/ubuntulatest.md

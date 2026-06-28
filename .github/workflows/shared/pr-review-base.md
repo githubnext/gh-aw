@@ -23,6 +23,8 @@ permissions:
   pull-requests: read
 
 tools:
+  timeout: 120
+  startup-timeout: 60
   cli-proxy: true
   github:
     min-integrity: ${{ github.aw.import-inputs.min-integrity }}

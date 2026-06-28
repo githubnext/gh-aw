@@ -33,6 +33,8 @@ name: Daily Safe Output Integrator
 strict: true
 timeout-minutes: 20
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - find pkg/cli/workflows -name "test-*.md" -type f
   - ls pkg/cli/workflows/

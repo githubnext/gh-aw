@@ -35,6 +35,8 @@ engine:
 imports:
   - shared/otlp.md
 tools:
+  timeout: 120
+  startup-timeout: 60
   cache-memory: true
   comment-memory: true
   repo-memory:

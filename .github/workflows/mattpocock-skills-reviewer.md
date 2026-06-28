@@ -75,6 +75,8 @@ pre-agent-steps:
         > /tmp/gh-aw/agent/pr-meta.json
       echo "Pre-fetched PR diff (${LINES} lines) and metadata"
 tools:
+  timeout: 120
+  startup-timeout: 60
   cli-proxy: true
   github:
     mode: gh-proxy

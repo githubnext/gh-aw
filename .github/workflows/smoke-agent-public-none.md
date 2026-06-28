@@ -20,6 +20,8 @@ name: "Smoke Agent: public/none"
 engine: claude
 strict: true
 tools:
+  timeout: 120
+  startup-timeout: 60
   github:
     mode: local
     allowed-repos: "public"

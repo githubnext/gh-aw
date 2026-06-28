@@ -47,6 +47,8 @@ network:
     - github
     - playwright
 tools:
+  timeout: 120
+  startup-timeout: 60
   agentic-workflows:
   cache-memory: true
   comment-memory: true

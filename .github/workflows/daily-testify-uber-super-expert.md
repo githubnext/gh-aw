@@ -32,6 +32,8 @@ name: Daily Testify Uber Super Expert
 strict: true
 timeout-minutes: 20
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - find . -name "*_test.go" -type f
   - cat **/*_test.go

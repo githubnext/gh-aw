@@ -47,6 +47,8 @@ sandbox:
   agent:
     sudo: false
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - cat pkg/workflow/js/safe_outputs_tools.json
   - jq -r ".[].name" pkg/workflow/js/safe_outputs_tools.json

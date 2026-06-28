@@ -26,6 +26,7 @@ imports:
   - shared/mcp/ruflo.md
 
 tools:
+  timeout: 120
   startup-timeout: 300
   cli-proxy: true
   github:

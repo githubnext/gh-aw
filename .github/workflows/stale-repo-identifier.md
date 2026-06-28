@@ -64,6 +64,8 @@ safe-outputs:
     run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}."
 
 tools:
+  timeout: 120
+  startup-timeout: 60
   cli-proxy: true
   github:
     mode: gh-proxy

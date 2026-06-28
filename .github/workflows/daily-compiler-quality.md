@@ -64,6 +64,8 @@ name: Daily Compiler Quality Check
 strict: true
 timeout-minutes: 30
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - set
   - find

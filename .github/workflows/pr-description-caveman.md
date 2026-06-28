@@ -12,6 +12,8 @@ permissions:
   issues: read
 strict: true
 tools:
+  timeout: 120
+  startup-timeout: 60
   github:
     mode: gh-proxy
     toolsets: [default]

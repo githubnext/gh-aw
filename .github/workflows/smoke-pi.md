@@ -41,6 +41,8 @@ network:
     - defaults
     - github
 tools:
+  timeout: 120
+  startup-timeout: 60
   cache-memory: true
   github:
     toolsets: [repos, pull_requests]

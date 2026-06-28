@@ -56,6 +56,8 @@ sandbox:
   agent:
     sudo: false
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - find docs -name "*.md" -o -name "*.mdx"
   - find docs -maxdepth 1 -ls

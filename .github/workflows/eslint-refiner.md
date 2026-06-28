@@ -33,6 +33,8 @@ name: ESLint Refiner
 strict: true
 timeout-minutes: 45
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - cat eslint-factory/package.json
   - find actions/setup/js -name "*.cjs" -type f

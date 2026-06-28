@@ -14,6 +14,8 @@ engine:
   model: copilot/gpt-5.4
 max-ai-credits: 1500
 tools:
+  timeout: 120
+  startup-timeout: 60
   cli-proxy: true
   edit:
   bash: ["*"]

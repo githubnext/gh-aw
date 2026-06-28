@@ -32,6 +32,8 @@ name: Instructions Janitor
 strict: true
 timeout-minutes: 20
 tools:
+  timeout: 120
+  startup-timeout: 60
   bash:
   - cat .github/aw/*.md
   - wc -l .github/aw/*.md
