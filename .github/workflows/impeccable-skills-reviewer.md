@@ -44,19 +44,12 @@ pre-agent-steps:
       set -euo pipefail
       SKILLS_SRC="needex/skills"
       SKILLS_DST="${RUNNER_TEMP}/gh-aw/impeccable-skills"
-      SKILLS_LIST="${RUNNER_TEMP}/gh-aw/impeccable-skills-list.txt"
       mkdir -p "${SKILLS_DST}"
 
-      # Discover available skills and install each one individually.
+      # Install all published skills in one step.
       # External skill repositories may be unavailable; continue with a best-effort review.
-      if gh api "repos/${SKILLS_SRC}/contents/skills" --jq '[.[] | select(.type == "dir") | .name] | .[]' > "${SKILLS_LIST}"; then
-        while IFS= read -r skill; do
-          if ! gh skill install "${SKILLS_SRC}" "$skill" --dir "${SKILLS_DST}" --force; then
-            echo "::warning::Failed to install skill '${skill}' from ${SKILLS_SRC}; continuing."
-          fi
-        done < "${SKILLS_LIST}"
-      else
-        echo "::warning::Failed to discover skills from ${SKILLS_SRC}; continuing without external skills."
+      if ! gh skill install "${SKILLS_SRC}" --all --dir "${SKILLS_DST}" --force; then
+        echo "::warning::Failed to install skills from ${SKILLS_SRC}; continuing without external skills."
       fi
 
       SKILL_COUNT=$(find "${SKILLS_DST}" -name "SKILL.md" | wc -l)
