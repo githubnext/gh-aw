@@ -42,6 +42,18 @@ func TestMergeModelPolicyOverlays_DisallowedWinsOnConflict(t *testing.T) {
 	assert.Equal(t, []string{"gpt-5"}, disallowed)
 }
 
+func TestMergeModelPolicyOverlays_DisallowedWildcardWinsOnConflict(t *testing.T) {
+	imported := []map[string][]string{
+		{
+			"allowed":    {"claude-opus", "claude-sonnet"},
+			"disallowed": {"*opus*"},
+		},
+	}
+	allowed, disallowed := mergeModelPolicyOverlays(imported, nil)
+	assert.Equal(t, []string{"claude-sonnet"}, allowed)
+	assert.Equal(t, []string{"*opus*"}, disallowed)
+}
+
 func TestExtractMainModelPolicyOverlay_UsesParsedFrontmatterWhenPresent(t *testing.T) {
 	toolsResult := &toolsProcessingResult{
 		parsedFrontmatter: &FrontmatterConfig{

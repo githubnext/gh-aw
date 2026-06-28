@@ -625,6 +625,7 @@ func (acc *importAccumulator) appendModelsField(fm map[string]any, importPath st
 	}
 	var rawModels map[string]any
 	if jsonErr := json.Unmarshal([]byte(modelsContent), &rawModels); jsonErr != nil {
+		acc.warnings = append(acc.warnings, fmt.Sprintf("import %q: models field is not a valid object; skipping invalid value", importPath))
 		return
 	}
 	if modelPolicy := normalizeModelPolicies(rawModels, importPath, &acc.warnings); len(modelPolicy) > 0 {
@@ -722,7 +723,19 @@ func sanitizeModelProvidersForCosts(providers any, importPath string, warnings *
 		*warnings = append(*warnings, fmt.Sprintf("import %q: models.providers must be a non-empty object; skipping invalid value", importPath))
 		return nil, false
 	}
-	return providerMap, true
+	sanitizedProviders := make(map[string]any, len(providerMap))
+	for providerName, providerValue := range providerMap {
+		if isModelPolicyKey(providerName) || providerName == "blocked" {
+			*warnings = append(*warnings, fmt.Sprintf("import %q: models.providers.%s is reserved for policy and ignored in cost data", importPath, providerName))
+			continue
+		}
+		sanitizedProviders[providerName] = providerValue
+	}
+	if len(sanitizedProviders) == 0 {
+		*warnings = append(*warnings, fmt.Sprintf("import %q: models.providers must contain at least one non-policy provider key", importPath))
+		return nil, false
+	}
+	return sanitizedProviders, true
 }
 
 func parseStringSliceField(value any, keepEmpty bool) []string {

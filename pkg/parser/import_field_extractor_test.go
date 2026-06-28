@@ -764,3 +764,46 @@ func TestAppendModelsField_InvalidPolicyAndProviders_EmitsWarningsAndSkipsCosts(
 	assert.Contains(t, acc.warnings[0], "models.allowed")
 	assert.Contains(t, acc.warnings[1], "models.providers")
 }
+
+func TestAppendModelsField_InvalidModelsShape_EmitsWarning(t *testing.T) {
+	acc := newImportAccumulator()
+	fm := map[string]any{
+		"models": []any{"not-an-object"},
+	}
+
+	acc.appendModelsField(fm, "import-d.md")
+
+	assert.Empty(t, acc.modelPolicies)
+	assert.Empty(t, acc.modelCosts)
+	require.NotEmpty(t, acc.warnings)
+	assert.Contains(t, acc.warnings[0], "models field is not a valid object")
+}
+
+func TestAppendModelsField_ProvidersPolicyKeysAreExcludedFromModelCosts(t *testing.T) {
+	acc := newImportAccumulator()
+	fm := map[string]any{
+		"models": map[string]any{
+			"providers": map[string]any{
+				"allowed": []any{"gpt-5"},
+				"openai": map[string]any{
+					"models": map[string]any{
+						"gpt-5": map[string]any{
+							"cost": map[string]any{"input": "1e-6"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	acc.appendModelsField(fm, "import-e.md")
+
+	require.Len(t, acc.modelCosts, 1)
+	providers, ok := acc.modelCosts[0]["providers"].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, providers, "openai")
+	assert.NotContains(t, providers, "allowed")
+	assert.NotContains(t, providers, "disallowed")
+	require.NotEmpty(t, acc.warnings)
+	assert.Contains(t, strings.Join(acc.warnings, "\n"), "models.providers.allowed is reserved for policy")
+}

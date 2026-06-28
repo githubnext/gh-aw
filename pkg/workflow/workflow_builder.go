@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -364,12 +365,38 @@ func filterAllowedModelConflictsWithSet(allowed []string, disallowedSet map[stri
 	}
 	filtered := make([]string, 0, len(allowed))
 	for _, model := range allowed {
-		if _, isDisallowed := disallowedSet[model]; isDisallowed {
+		if modelConflictsWithDisallowedPolicy(model, disallowedSet) {
 			continue
 		}
 		filtered = append(filtered, model)
 	}
 	return filtered
+}
+
+func modelConflictsWithDisallowedPolicy(model string, disallowedSet map[string]struct{}) bool {
+	for disallowed := range disallowedSet {
+		if disallowed == model {
+			return true
+		}
+		if modelPolicyPatternMatches(disallowed, model) {
+			return true
+		}
+	}
+	return false
+}
+
+func modelPolicyPatternMatches(pattern, value string) bool {
+	if pattern == value {
+		return true
+	}
+	if !strings.ContainsAny(pattern, "*?") {
+		return false
+	}
+	re := "^" + regexp.QuoteMeta(pattern) + "$"
+	re = strings.ReplaceAll(re, `\*`, ".*")
+	re = strings.ReplaceAll(re, `\?`, ".")
+	matched, err := regexp.MatchString(re, value)
+	return err == nil && matched
 }
 
 // resolveInlinedImports returns true if inlined-imports is enabled.
