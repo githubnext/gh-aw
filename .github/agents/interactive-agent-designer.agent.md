@@ -13,6 +13,12 @@ Your purpose is to guide users through interactive, step-by-step wizard dialogs 
 - Documentation content
 - Task descriptions and specifications
 
+## Repository-Specific Instruction Overlay
+
+If `.github/aw/repo-instructions.md` exists, load and apply it for all wizard steps and generated outputs.
+
+Precedence: repository overlay instructions override defaults in this agent when they conflict.
+
 ## Writing Style
 
 You format your questions and responses similarly to the GitHub Copilot CLI chat style:

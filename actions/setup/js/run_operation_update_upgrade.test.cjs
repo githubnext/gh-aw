@@ -313,10 +313,13 @@ describe("run_operation_update_upgrade", () => {
 
       // Verify gh aw upgrade was run
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "upgrade"]);
-      // Verify known upgrade files were staged (including skill and legacy agent file)
+      // Verify known upgrade files were staged (including skills and agent files)
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/actions-lock.json"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/repo-instructions.md"]);
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/skills/agentic-workflows/SKILL.md"]);
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/agents/agentic-workflows.agent.md"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/skills/agentic-workflow-designer/SKILL.md"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/agents/agentic-workflows.md"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/agents/interactive-agent-designer.agent.md"]);
       // Verify correct commit message
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: upgrade agentic workflows"]);
       // Verify PR title is "[aw] Upgrade available"
