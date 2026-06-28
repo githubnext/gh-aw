@@ -1,5 +1,5 @@
 # gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"375f6474ae21f8b625f17901cc43c512496306cc98a1e6c08bde14a3f6fae730","body_hash":"a13876411448bd11c97a456387470b0f60ff28cfee436da38ec13d1abdbd7584","strict":true,"agent_id":"copilot","agent_model":"o4-mini-aw","engine_versions":{"copilot":"1.0.65"}}
-# gh-aw-manifest: {"version":1,"secrets":["FOUNDRY_API_KEY","FOUNDRY_OPENAI_ENDPOINT","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0","version":"v7.0.0"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"f9f3042f7e2789586610d6e8b85c8f03e5195baf","version":"v7.2.0"},{"repo":"docker/setup-buildx-action","sha":"d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5","version":"v4.1.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.12","digest":"sha256:a3911ae633bfc49a96be10e660d447b65023731850fee3de8a074ff8861ffde3","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.12@sha256:a3911ae633bfc49a96be10e660d447b65023731850fee3de8a074ff8861ffde3"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.12","digest":"sha256:2329aff5e54bb5bf466ad94182eebbdfe4a4db497a9dfbe87442eb3400aa4a86","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.12@sha256:2329aff5e54bb5bf466ad94182eebbdfe4a4db497a9dfbe87442eb3400aa4a86"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.12","digest":"sha256:7d267199839cc0f23c01fd39f8c050a5d86cb6cc5058aa829cd472f405fb1a1d","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.12@sha256:7d267199839cc0f23c01fd39f8c050a5d86cb6cc5058aa829cd472f405fb1a1d"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.12","digest":"sha256:f5d9403364543b23a8510278854cf5517345419daed19de044a7130c03388484","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.12@sha256:f5d9403364543b23a8510278854cf5517345419daed19de044a7130c03388484"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.31","digest":"sha256:3147d7332939aeb2bc6a4220d96f6a0ca600b5cc0971200eca3d1e948fc8122a","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.31@sha256:3147d7332939aeb2bc6a4220d96f6a0ca600b5cc0971200eca3d1e948fc8122a"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b","pinned_image":"ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},{"image":"ghcr.io/github/github-mcp-server:v1.4.0","digest":"sha256:2afb26356481d1a350e14544a6e160f7f7ec1561a1ea309b823665abf0309036","pinned_image":"ghcr.io/github/github-mcp-server:v1.4.0@sha256:2afb26356481d1a350e14544a6e160f7f7ec1561a1ea309b823665abf0309036"},{"image":"ghcr.io/github/serena-mcp-server:latest","digest":"sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5","pinned_image":"ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5"}]}
+# gh-aw-manifest: {"version":1,"secrets":["FOUNDRY_API_KEY","FOUNDRY_OPENAI_ENDPOINT","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0","version":"v7.0.0"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"924ae3a1cded613372ab5595356fb5720e22ba16","version":"v6.5.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"f9f3042f7e2789586610d6e8b85c8f03e5195baf","version":"v7.2.0"},{"repo":"docker/setup-buildx-action","sha":"d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5","version":"v4.1.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.12","digest":"sha256:a3911ae633bfc49a96be10e660d447b65023731850fee3de8a074ff8861ffde3","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.12@sha256:a3911ae633bfc49a96be10e660d447b65023731850fee3de8a074ff8861ffde3"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.12","digest":"sha256:2329aff5e54bb5bf466ad94182eebbdfe4a4db497a9dfbe87442eb3400aa4a86","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.12@sha256:2329aff5e54bb5bf466ad94182eebbdfe4a4db497a9dfbe87442eb3400aa4a86"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.12","digest":"sha256:7d267199839cc0f23c01fd39f8c050a5d86cb6cc5058aa829cd472f405fb1a1d","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.12@sha256:7d267199839cc0f23c01fd39f8c050a5d86cb6cc5058aa829cd472f405fb1a1d"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.12","digest":"sha256:f5d9403364543b23a8510278854cf5517345419daed19de044a7130c03388484","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.12@sha256:f5d9403364543b23a8510278854cf5517345419daed19de044a7130c03388484"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.31","digest":"sha256:3147d7332939aeb2bc6a4220d96f6a0ca600b5cc0971200eca3d1e948fc8122a","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.31@sha256:3147d7332939aeb2bc6a4220d96f6a0ca600b5cc0971200eca3d1e948fc8122a"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b","pinned_image":"ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},{"image":"ghcr.io/github/github-mcp-server:v1.4.0","digest":"sha256:2afb26356481d1a350e14544a6e160f7f7ec1561a1ea309b823665abf0309036","pinned_image":"ghcr.io/github/github-mcp-server:v1.4.0@sha256:2afb26356481d1a350e14544a6e160f7f7ec1561a1ea309b823665abf0309036"},{"image":"ghcr.io/github/serena-mcp-server:latest","digest":"sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5","pinned_image":"ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5"}]}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _      
@@ -47,12 +47,12 @@
 #   - GITHUB_TOKEN
 #
 # Custom actions used:
-#   - actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-#   - actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+#   - actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+#   - actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
 #   - actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 #   - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-#   - actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+#   - actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
 #   - actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
 #   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
 #   - docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
@@ -186,7 +186,7 @@ jobs:
         id: restore-daily-aic-cache
         if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         continue-on-error: true
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: agentic-workflow-usage-smokecopilotaoaiapikey-${{ github.run_id }}
           restore-keys: agentic-workflow-usage-smokecopilotaoaiapikey-
@@ -612,7 +612,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Go for CLI build
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: go.mod
           cache: true
@@ -642,7 +642,7 @@ jobs:
           build-args: |
             BINARY=dist/gh-aw-linux-amd64
       - name: Setup Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: '1.26'
           cache: false
@@ -659,7 +659,7 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
       - name: Restore cache-memory file share data
         id: restore_cache_memory_0
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: memory-approved-a3cea483-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
@@ -2245,7 +2245,7 @@ jobs:
         id: restore-daily-aic-cache-conclusion
         if: always()
         continue-on-error: true
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: agentic-workflow-usage-smokecopilotaoaiapikey-${{ github.run_id }}
           restore-keys: agentic-workflow-usage-smokecopilotaoaiapikey-
@@ -2266,7 +2266,7 @@ jobs:
         id: save-daily-aic-cache
         if: always()
         continue-on-error: true
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: agentic-workflow-usage-smokecopilotaoaiapikey-${{ github.run_id }}
           path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
@@ -3029,7 +3029,7 @@ jobs:
           fi
       - name: Save cache-memory to cache (default)
         if: steps.check_cache_default.outputs.has_content == 'true'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: memory-approved-a3cea483-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
