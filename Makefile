@@ -779,7 +779,7 @@ lint-lock: build
 
 # Format code
 .PHONY: fmt
-fmt: fmt-go fmt-cjs fmt-json
+fmt: fmt-go fmt-cjs fmt-json fmt-canvas-extension
 	@echo "✓ Code formatted successfully"
 
 .PHONY: fmt-go
@@ -902,7 +902,7 @@ lint-action-sh:
 
 # Validate all project files
 .PHONY: lint
-lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh
+lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh lint-canvas-extension
 	@echo "✓ All validations passed"
 
 # Install the binary locally
