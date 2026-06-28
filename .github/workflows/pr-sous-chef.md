@@ -244,8 +244,9 @@ For each PR that is not skipped:
    - Return to the original branch: `git checkout -`
    - Skip this step silently if `make fmt` exits non-zero (tools unavailable)
 
-1. **Update branch if possible**
-   - If the PR is behind its base branch (or otherwise indicates branch update needed), attempt `update_pull_request` with `update_branch: true`.
+1. **Update branch if possible (skip for CONFLICTING branches)**
+   - If `mergeStateStatus` is `CONFLICTING`, **skip this step entirely** — a branch-update API call would be futile on a branch with merge conflicts.
+   - Otherwise, if the PR is behind its base branch (or otherwise indicates branch update needed), attempt `update_pull_request` with `update_branch: true`.
    - Use a minimal append body marker so maintainers can trace the action, including `pr-sous-chef` and the run URL.
    - Example (`update_pull_request` shell call):
      ```bash
@@ -254,14 +255,22 @@ For each PR that is not skipped:
 
 2. **Post exactly one combined nudge comment**
    - **At most ONE `add_comment` call per PR per run.** Never post two comments to the same PR in a single run.
-   - Inspect PR review threads and comments for unresolved feedback.
-   - If unresolved PR reviews exist, include an explicit unresolved-reviews list in the nudge comment (reviewer + direct link for each unresolved review thread, newest first).
-   - Combine all nudges (unresolved review feedback, branch-refresh request, completion plan, etc.) into **one single comment** that includes:
-     - `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line (required — this is how the cooldown and duplicate-comment checks detect sous-chef).
-     - @copilot mention with a concise, actionable instruction covering all relevant nudges in one message, including a direct instruction to run the `pr-finisher` skill.
+   - **If `mergeStateStatus` is `CONFLICTING`**: post a targeted merge-main nudge instead of the generic pr-finisher nudge:
+     - Include `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line.
+     - @copilot mention with an explicit instruction to run `make merge-main` to resolve the merge conflicts.
+     - Increment the `merge_main_scheduled` counter.
+     - Example (`add_comment` shell call):
+       ```bash
+       safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot this branch has merge conflicts. Please run `make merge-main` to merge the latest main branch and resolve any conflicts, then push the result.'
+       ```
+   - **Otherwise**: inspect PR review threads and comments for unresolved feedback.
+     - If unresolved PR reviews exist, include an explicit unresolved-reviews list in the nudge comment (reviewer + direct link for each unresolved review thread, newest first).
+     - Combine all nudges (unresolved review feedback, branch-refresh request, completion plan, etc.) into **one single comment** that includes:
+       - `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line (required — this is how the cooldown and duplicate-comment checks detect sous-chef).
+       - @copilot mention with a concise, actionable instruction covering all relevant nudges in one message, including a direct instruction to run the `pr-finisher` skill.
    - Every `add_comment` must include `pr_number` set to the current PR's numeric `number` from the loop item.
    - Never emit `add_comment` without a numeric target field (`pr_number`/`pull_request_number`/`issue_number`/`item_number`) when `target: "*"` is configured.
-   - Example (`add_comment` shell call):
+   - Example (`add_comment` shell call for non-CONFLICTING):
      ```bash
      safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot please run the `pr-finisher` skill, address unresolved review comments, and rerun checks once the branch is up to date.'
      ```
@@ -276,11 +285,12 @@ At the end, call **exactly one** `noop` with a compact summary including counts 
 - nudged
 - branch_update_attempts
 - formatter_pushes (number of PRs that had formatting fixes committed and pushed)
+- merge_main_scheduled (number of PRs with CONFLICTING status that received a merge-main nudge)
 
 Example (`noop` shell call):
 
 ```bash
-safeoutputs noop --message "processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=1; skipped_cooldown=1; nudged=2; branch_update_attempts=0; formatter_pushes=0"
+safeoutputs noop --message "processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=1; skipped_cooldown=1; nudged=2; branch_update_attempts=0; formatter_pushes=0; merge_main_scheduled=1"
 ```
 
 ## Formatting Requirements
@@ -309,8 +319,11 @@ Given one PR number and compact metadata:
    - any recent comment contains `<!-- gh-aw-pr-sous-chef-nudge -->` and was posted within the last 30 minutes
 2. If skipped, return `skip_reason` only.
 3. If not skipped, return:
-   - whether branch update should be attempted
-   - a single combined nudge comment body (covering unresolved review feedback, branch refresh, and any other forward-progress action) — one comment only, never two; if unresolved PR reviews exist, include an explicit unresolved-reviews list (reviewer + direct link per unresolved review thread)
+   - `conflicting`: true if `mergeStateStatus` is `CONFLICTING` (indicates the branch has merge conflicts)
+   - whether branch update should be attempted (always false when `conflicting` is true)
+   - a single combined nudge comment body:
+     - if `conflicting` is true: a targeted nudge asking `@copilot` to run `make merge-main` to resolve conflicts
+     - otherwise: a combined nudge covering unresolved review feedback, branch refresh, and any other forward-progress action including a direct instruction to run the `pr-finisher` skill — one comment only, never two; if unresolved PR reviews exist, include an explicit unresolved-reviews list (reviewer + direct link per unresolved review thread)
 4. Make at most 8 tool calls total. If 8 calls are insufficient to reach a confident decision, set all fields to `null` and set `skip_reason: "insufficient_context"`.
 5. Keep output compact JSON only — a single object, no prose.
 6. If you cannot determine a field, set it to `null`.
