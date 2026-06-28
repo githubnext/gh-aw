@@ -4,15 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"golang.org/x/mod/semver"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -64,31 +63,7 @@ func shouldCheckForUpdate(noCheckUpdate bool) bool {
 
 	// Check if we've already checked recently
 	lastCheckFile := getLastCheckFilePath()
-	if lastCheckFile == "" {
-		updateCheckLog.Print("Could not determine last check file path")
-		return false
-	}
-
-	// Read last check time
-	data, err := os.ReadFile(lastCheckFile)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			updateCheckLog.Printf("Error reading last check file: %v", err)
-		}
-		// File doesn't exist or error reading - perform check
-		return true
-	}
-
-	lastCheck, err := time.Parse(time.RFC3339, strings.TrimSpace(string(data)))
-	if err != nil {
-		updateCheckLog.Printf("Error parsing last check time: %v", err)
-		// Invalid timestamp - perform check
-		return true
-	}
-
-	// Check if enough time has passed
-	if time.Since(lastCheck) < checkInterval {
-		updateCheckLog.Printf("Last check was %v ago, skipping", time.Since(lastCheck))
+	if !shouldRunUpdateCheckAtPath(lastCheckFile, checkInterval, "update check", updateCheckLog) {
 		return false
 	}
 
@@ -115,38 +90,12 @@ func getLastCheckFilePath() string {
 
 // getLastCheckFilePathImpl is the actual implementation
 func getLastCheckFilePathImpl() string {
-	return getLastCheckFilePathFor(lastCheckFileName)
-}
-
-func getLastCheckFilePathFor(fileName string) string {
-	// Use OS temp directory for cross-platform compatibility
-	tmpDir := os.TempDir()
-	if tmpDir == "" {
-		updateCheckLog.Print("Could not determine temp directory")
-		return ""
-	}
-
-	// Create a gh-aw subdirectory in temp
-	ghAwTmpDir := filepath.Join(tmpDir, "gh-aw")
-	if err := os.MkdirAll(ghAwTmpDir, constants.DirPermPublic); err != nil {
-		updateCheckLog.Printf("Error creating gh-aw temp directory: %v", err)
-		return ""
-	}
-
-	return filepath.Join(ghAwTmpDir, fileName)
+	return getUpdateCheckFilePathFor(lastCheckFileName, updateCheckLog)
 }
 
 // updateLastCheckTime updates the timestamp of the last update check
 func updateLastCheckTime() {
-	lastCheckFile := getLastCheckFilePath()
-	if lastCheckFile == "" {
-		return
-	}
-
-	timestamp := time.Now().Format(time.RFC3339)
-	if err := os.WriteFile(lastCheckFile, []byte(timestamp), constants.FilePermPublic); err != nil {
-		updateCheckLog.Printf("Error writing last check time: %v", err)
-	}
+	writeUpdateCheckTime(getLastCheckFilePath(), constants.FilePermPublic, "update check", updateCheckLog)
 }
 
 // checkForUpdates checks if a newer version of gh-aw is available

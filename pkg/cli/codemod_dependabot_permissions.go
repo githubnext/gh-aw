@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -234,10 +233,9 @@ func findPermissionsInsertIndex(lines []string) int {
 
 func sortedMissingPermissionKeys(missing map[workflow.PermissionScope]workflow.PermissionLevel) []string {
 	keys := make([]string, 0, len(missing))
-	for scope := range missing {
+	for _, scope := range sliceutil.SortedKeys(missing) {
 		keys = append(keys, string(scope))
 	}
-	sort.Strings(keys)
 	return keys
 }
 
