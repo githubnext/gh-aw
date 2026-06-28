@@ -18,6 +18,39 @@ List available skills before choosing a strategy.
 
 ---
 
+## Strategy 0 — Agent Finder (Discovery First)
+
+**Use when**: the relevant skill is not obvious, the repository may not contain the right skill yet, or you want to discover installable skills before loading local ones.
+
+Query **GitHub Agent Finder** directly through its built-in REST API:
+
+```bash
+curl -s https://agentfinder.github.com/api/v1/search \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"text":"<the user task, in plain language>"},"pageSize":10}'
+```
+
+The request body should follow the ARD search shape with a `query.text` field. Add `query.filter` when you need to narrow by resource type.
+
+For example, to search specifically for skills:
+
+```bash
+curl -s https://agentfinder.github.com/api/v1/search \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"text":"<the user task, in plain language>","filter":{"type":["application/ai-skill"]}},"pageSize":10}'
+```
+
+After discovery:
+
+- Prefer repository-local skills when they satisfy the task.
+- If you use a discovered skill, extract only the specific guidance you need.
+- Do not load or paste entire skills when a fragment is enough.
+- Do not install or enable returned resources automatically; that requires explicit user choice.
+
+Agent Finder helps locate candidates; **skill fusion** keeps the final prompt small.
+
+---
+
 ## Inline Skills (Fusion at Authoring Time)
 
 **Use when**: keeping the main prompt compact while shipping task-specific skill guidance with the workflow.
