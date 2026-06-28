@@ -9,19 +9,19 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var evalsLog = logger.New("workflow:compiler_evals")
 
 // evalsWorkDir is the runtime directory where eval inputs and outputs are stored.
-const evalsWorkDir = "/tmp/gh-aw/evals"
-
-// evalDefaultModel is the default GitHub Models choice for evals when no model is configured.
-// Evals deliberately use a small, low-latency, cost-efficient model because each
-// question is a lightweight yes/no classification task rather than open-ended generation.
-const evalDefaultModel = "gpt-4o-mini"
+const evalsWorkDir = constants.EvalDir
 
 const evalJobConditionTemplate = "always() && !cancelled() && needs.%s.result != 'skipped'"
+
+// evalStepCondition is the condition used on each engine execution step in the eval job.
+// It mirrors detectionStepCondition: always run so that the parse step can report failures.
+const evalStepCondition = "always()"
 
 // extractEvalsFromFrontmatter reads the "evals" array from the frontmatter map
 // and returns a slice of typed EvalDefinition values.
@@ -95,8 +95,26 @@ func buildEvalSpecJSON(evals []EvalDefinition) string {
 	return string(b)
 }
 
+// getEvalEngineID returns the effective engine ID for the eval job.
+// Defaults to "claude" (same as detection) and normalises Pi → Copilot.
+func (c *Compiler) getEvalEngineID(data *WorkflowData) string {
+	engineID := data.AI
+	if engineID == "" && data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		engineID = data.EngineConfig.ID
+	}
+	if engineID == "" {
+		engineID = "claude"
+	}
+	// Pi is not supported in eval; normalise to Copilot.
+	if engineID == "pi" {
+		return "copilot"
+	}
+	return engineID
+}
+
 // buildEvalJob creates the eval job that runs after the agent (and detection, if present)
-// to execute all declared BinEval questions and upload the results artifact.
+// to execute all declared BinEval questions via the configured agentic engine inside AWF,
+// and uploads the results artifact.
 // Returns nil when no evals are declared.
 func (c *Compiler) buildEvalJob(data *WorkflowData) (*Job, error) {
 	if len(data.Evals) == 0 {
@@ -108,22 +126,41 @@ func (c *Compiler) buildEvalJob(data *WorkflowData) (*Job, error) {
 
 	var steps []string
 
-	// Setup action (same as detection job — sets up runtime tools)
+	// Setup action (same as detection job — sets up runtime tools).
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" || c.actionMode.IsScript() {
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
-		// Eval job shares the agent trace ID for cohesive OTLP traces.
 		evalTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
 		evalParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
 		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, evalTraceID, evalParentSpanID)...)
 	}
 
-	// Download agent output artifact for context (prompt, agent_output.json, patches).
+	// Download agent output artifact for context (prompt, agent_output.json).
 	agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
 	steps = append(steps, buildAgentOutputDownloadStepsForEval(agentArtifactPrefix, c.getActionPin)...)
 
-	// Run the eval harness via github-script.
-	steps = append(steps, c.buildEvalHarnessStep(data)...)
+	// Clean stale firewall files from the agent artifact download (same as detection job).
+	steps = append(steps, c.buildCleanFirewallDirsStep()...)
+
+	// Pull AWF container images so the eval engine runs inside AWF.
+	steps = append(steps, c.buildPullAWFContainersStep(data)...)
+
+	// Clear MCP config so the eval engine runs without MCP servers.
+	steps = append(steps, buildClearMCPConfigForEvalStep()...)
+
+	// Setup eval: create the prompt file for the engine.
+	steps = append(steps, c.buildSetupEvalStep(data)...)
+
+	// Engine installation and execution inside AWF.
+	engineSteps, err := c.buildEvalEngineExecutionSteps(data)
+	if err != nil {
+		evalsLog.Printf("Warning: failed to build eval engine steps: %v", err)
+	} else {
+		steps = append(steps, engineSteps...)
+	}
+
+	// Parse eval results from the engine log and write eval_results.json.
+	steps = append(steps, c.buildParseEvalResultsStep(data)...)
 
 	// Upload eval results artifact.
 	steps = append(steps, c.buildEvalArtifactUploadStep(data)...)
@@ -131,8 +168,7 @@ func (c *Compiler) buildEvalJob(data *WorkflowData) (*Job, error) {
 	// The eval job always depends on the agent and activation jobs.
 	needs := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
 
-	// When threat detection is enabled, eval also depends on detection so that
-	// detection conclusions are visible in the artifact download path.
+	// When threat detection is enabled, eval also depends on detection.
 	if data.SafeOutputs != nil && IsDetectionJobEnabled(data.SafeOutputs) {
 		needs = append(needs, string(constants.DetectionJobName))
 	}
@@ -151,8 +187,7 @@ func (c *Compiler) buildEvalJob(data *WorkflowData) (*Job, error) {
 }
 
 // buildAgentOutputDownloadStepsForEval creates steps to download the agent output
-// artifact into the evals working directory.  It mirrors the detection job download
-// but writes to evalsWorkDir instead of the threat-detection directory.
+// artifact into the evals working directory.
 func buildAgentOutputDownloadStepsForEval(artifactPrefix string, pinAction func(string) string) []string {
 	downloadAction := pinAction("actions/download-artifact")
 	return []string{
@@ -166,25 +201,181 @@ func buildAgentOutputDownloadStepsForEval(artifactPrefix string, pinAction func(
 	}
 }
 
-// buildEvalHarnessStep generates the github-script step that invokes eval_harness.cjs.
-func (c *Compiler) buildEvalHarnessStep(data *WorkflowData) []string {
+// buildClearMCPConfigForEvalStep creates a step that removes MCP configuration files
+// so the eval engine runs without any MCP servers.
+func buildClearMCPConfigForEvalStep() []string {
+	return []string{
+		"      - name: Clear MCP config for eval\n",
+		"        run: |\n",
+		"          rm -f \"${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json\"\n",
+		"          rm -f \"$HOME/.copilot/mcp-config.json\"\n",
+	}
+}
+
+// buildSetupEvalStep generates the github-script step that calls setup_eval.cjs,
+// which writes the eval prompt to /tmp/gh-aw/aw-prompts/prompt.txt.
+func (c *Compiler) buildSetupEvalStep(data *WorkflowData) []string {
 	specJSON := buildEvalSpecJSON(data.Evals)
-	// Escape single quotes for YAML single-quoted scalar embedding (YAML §7.3.3).
 	escapedSpec := strings.ReplaceAll(specJSON, "'", "''")
 
 	return []string{
-		"      - name: Run BinEval evaluations\n",
-		"        id: run-evals\n",
+		"      - name: Setup BinEval prompt\n",
+		"        id: setup-eval\n",
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 		fmt.Sprintf("          GH_AW_EVAL_SPEC: '%s'\n", escapedSpec),
 		fmt.Sprintf("          GH_AW_EVAL_WORK_DIR: %s\n", evalsWorkDir),
-		fmt.Sprintf("          GH_AW_EVAL_MODEL: %s\n", evalDefaultModel),
 		"        with:\n",
 		"          script: |\n",
 		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
 		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
-		"            const { main } = require('" + SetupActionDestination + "/eval_harness.cjs');\n",
+		"            const { main } = require('" + SetupActionDestination + "/setup_eval.cjs');\n",
+		"            await main();\n",
+	}
+}
+
+// buildEvalEngineExecutionSteps generates the engine installation and execution steps
+// for the eval job. The engine runs inside AWF with no MCP servers and limited network
+// access (only the inference API), similar to the inline threat detection path.
+func (c *Compiler) buildEvalEngineExecutionSteps(data *WorkflowData) ([]string, error) {
+	engineSetting := c.getEvalEngineID(data)
+
+	engine, err := c.getAgenticEngine(engineSetting)
+	if err != nil {
+		return nil, fmt.Errorf("eval engine %q not found: %w", engineSetting, err)
+	}
+
+	// Build eval engine config: inherit from the main engine config but apply
+	// eval-specific overrides (credits cap, no MaxTurns/Concurrency).
+	evalEngineConfig := data.EngineConfig
+	if evalEngineConfig == nil {
+		evalEngineConfig = &EngineConfig{ID: engineSetting}
+	} else {
+		evalEngineConfig = &EngineConfig{
+			ID:            evalEngineConfig.ID,
+			Model:         evalEngineConfig.Model,
+			Version:       evalEngineConfig.Version,
+			Env:           evalEngineConfig.Env,
+			Config:        evalEngineConfig.Config,
+			Args:          evalEngineConfig.Args,
+			APITarget:     evalEngineConfig.APITarget,
+			HarnessScript: evalEngineConfig.HarnessScript,
+			Driver:        evalEngineConfig.Driver,
+		}
+	}
+	if evalEngineConfig.ID == "" {
+		evalEngineConfig.ID = engineSetting
+	}
+
+	// Apply eval AI credits budget (smaller than detection: binary questions only).
+	evalEngineConfig.MaxAICredits = constants.DefaultEvalMaxAICredits
+
+	// Apply detection default model when no model is explicitly configured; eval
+	// questions are lightweight yes/no tasks so the detection model is appropriate.
+	if evalEngineConfig.Model == "" {
+		if envModel := compilerenv.ResolveDefaultDetectionModel(""); envModel != "" {
+			evalEngineConfig.Model = envModel
+		} else if engineModel := engine.GetDefaultDetectionModel(); engineModel != "" {
+			evalEngineConfig.Model = engineModel
+		}
+	}
+
+	// Normalise Pi model to bare model ID for Copilot CLI compatibility.
+	if engineSetting == "copilot" && data.AI == "pi" {
+		evalEngineConfig.Model = extractPiModelID(evalEngineConfig.Model)
+	}
+
+	// Build minimal WorkflowData for the eval engine run. Mirrors the pattern used
+	// by buildDetectionEngineExecutionStep: AWF sandbox, no MCP, no safe outputs,
+	// minimal network (only the inference API).
+	evalData := &WorkflowData{
+		Tools: map[string]any{
+			"bash": []any{"*"},
+		},
+		SafeOutputs:  nil,
+		EngineConfig: evalEngineConfig,
+		AI:           engineSetting,
+		Features:     data.Features,
+		Permissions:  data.Permissions,
+		// IsDetectionRun: reuse detection semantics for domain allow-listing and credits.
+		IsDetectionRun: true,
+		NetworkPermissions: &NetworkPermissions{
+			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
+		},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Type: SandboxTypeAWF,
+			},
+		},
+	}
+
+	var steps []string
+
+	// Install the engine (eval job runs on a fresh runner).
+	installSteps := engine.GetInstallationSteps(evalData)
+
+	// Ensure node is on PATH when the engine needs a JS harness.
+	if engineRequiresNodeHarness(engine) && !installStepsContainNodeSetup(installSteps) {
+		for _, line := range GenerateNodeJsSetupStep() {
+			steps = append(steps, line+"\n")
+		}
+	}
+
+	for _, step := range installSteps {
+		for _, line := range step {
+			steps = append(steps, line+"\n")
+		}
+	}
+
+	// Codex needs MCP gateway bootstrap for OpenAI proxy provider configuration.
+	if engine.GetID() == "codex" {
+		var mcpSetup strings.Builder
+		if err := c.generateMCPSetup(&mcpSetup, evalData.Tools, engine, evalData); err == nil {
+			for line := range strings.SplitSeq(mcpSetup.String(), "\n") {
+				if line != "" {
+					steps = append(steps, line+"\n")
+				}
+			}
+		} else {
+			evalsLog.Printf("Failed to generate MCP setup for Codex eval; OpenAI proxy config may be incomplete: %v", err)
+		}
+	}
+
+	executionSteps := engine.GetExecutionSteps(evalData, constants.EvalLogPath)
+	for _, step := range executionSteps {
+		for i, line := range step {
+			// Prefix step IDs with "eval_" to avoid conflicts.
+			prefixed := strings.Replace(line, "id: agentic_execution", "id: eval_agentic_execution", 1)
+			steps = append(steps, prefixed+"\n")
+			// Inject the if condition and continue-on-error after the first line (- name:).
+			// continue-on-error: true ensures infrastructure failures don't fail the eval job;
+			// the parse step uses if: always() and handles missing logs gracefully.
+			if i == 0 {
+				steps = append(steps, fmt.Sprintf("        if: %s\n", evalStepCondition))
+				steps = append(steps, "        continue-on-error: true\n")
+			}
+		}
+	}
+
+	return steps, nil
+}
+
+// buildParseEvalResultsStep generates the github-script step that calls
+// parse_eval_results.cjs to extract EVAL_RESULT:{...} from the engine log,
+// write eval_results.json, and set job outputs.
+func (c *Compiler) buildParseEvalResultsStep(data *WorkflowData) []string {
+	return []string{
+		"      - name: Parse BinEval results\n",
+		"        id: parse-eval-results\n",
+		"        if: always()\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        env:\n",
+		fmt.Sprintf("          GH_AW_EVAL_WORK_DIR: %s\n", evalsWorkDir),
+		"        with:\n",
+		"          script: |\n",
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		"            const { main } = require('" + SetupActionDestination + "/parse_eval_results.cjs');\n",
 		"            await main();\n",
 	}
 }

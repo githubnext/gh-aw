@@ -285,6 +285,10 @@ const DefaultMaxAICredits int64 = 1000
 // AWF API proxy for threat-detection runs.
 const DefaultDetectionMaxAICredits int64 = 400
 
+// DefaultEvalMaxAICredits is the default AI Credits budget enforced by the
+// AWF API proxy for BinEval runs.
+const DefaultEvalMaxAICredits int64 = 200
+
 // DefaultMaxDailyAICredits is the default per-workflow daily AI Credits guardrail.
 const DefaultMaxDailyAICredits = "5000"
 
@@ -473,6 +477,12 @@ const TmpPiAgentDir = TmpGhAwDir + "/pi-agent-dir"
 
 // ThreatDetectionLogPath is the threat detection engine log file path.
 const ThreatDetectionLogPath = TmpGhAwDir + "/threat-detection/detection.log"
+
+// EvalLogPath is the BinEval engine log file path.
+const EvalLogPath = TmpGhAwDir + "/eval/eval.log"
+
+// EvalDir is the BinEval working directory.
+const EvalDir = TmpGhAwDir + "/eval"
 
 // ThreatDetectionDir is the threat detection working directory.
 const ThreatDetectionDir = TmpGhAwDir + "/threat-detection"
