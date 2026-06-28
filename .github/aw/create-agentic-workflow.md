@@ -113,6 +113,14 @@ For recurring reports, audits, and stakeholder digests:
 - add `workflow_dispatch` when manual reruns, backfills, or preview runs should be possible
 - require `noop` when the selected window has no qualifying updates
 
+**Duplicate-suppression checklist for recurring reports and audits:**
+
+- [ ] Define a stable deduplication key (for example `workflow + window-date` or `scope + YYYY-W01` using ISO week notation)
+- [ ] Search for an existing open issue with that key before creating a new one (for example by title prefix or label)
+- [ ] If a matching open issue exists, update it with `add-comment` instead of creating a duplicate
+- [ ] If the window has zero qualifying updates, call `noop` — never create an empty or placeholder report
+- [ ] Escalate with a new issue only when no open issue covers the same scope and window
+
 ### 2b. Backend review compact guidance
 
 For backend-focused PR automation (schema migrations and API compatibility):
@@ -120,6 +128,23 @@ For backend-focused PR automation (schema migrations and API compatibility):
 - scope `pull_request.paths` to backend contract indicators instead of whole-repo review
 - instruct the agent to classify changes as additive, backward-compatible, or breaking, then report only actionable risks
 - include explicit `noop` criteria when no migration/API contract files changed
+
+### 2c. PR analyzer escalation guidance
+
+For PR-triggered automation that must decide between commenting, creating an issue, or doing nothing:
+
+| Condition | Action |
+|---|---|
+| Findings affect only this PR (style, quality, risk) | `add-comment` on the PR |
+| Finding is a cross-cutting or team-wide concern requiring follow-up beyond this PR | `create-issue` |
+| No findings, or only docs/metadata changed outside scoped `paths:` | `noop` |
+
+Rules:
+
+- prefer `add-comment` over `create-issue` for PR-local findings; issues outlive the PR and create noise
+- before creating an issue, search for an existing open issue covering the same concern (use a stable title prefix or label to avoid duplicates)
+- if a matching open issue already exists, add a linked `add-comment` on the PR referencing it instead of opening a duplicate issue
+- call `noop` explicitly whenever no actionable finding exists — do not comment with "no issues found" text
 
 ### 3. Keep permissions read-only
 

@@ -563,6 +563,7 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 			workflowData: &WorkflowData{
 				Name:               "Test Workflow",
 				Command:            []string{"review-bot"},
+				LabelCommand:       []string{"deploy"},
 				CommandPlaceholder: "to review this PR",
 				SafeOutputs:        &SafeOutputsConfig{},
 			},
@@ -570,6 +571,7 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 			expectedVars: map[string]string{
 				"GH_AW_COMMANDS":            `"[\"review-bot\"]"`,
 				"GH_AW_COMMAND_PLACEHOLDER": `"to review this PR"`,
+				"GH_AW_LABEL_COMMANDS":      `"[\"deploy\"]"`,
 			},
 			checkContains: true,
 		},

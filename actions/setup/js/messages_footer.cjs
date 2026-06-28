@@ -143,6 +143,7 @@ function getAICFromEnv() {
  * @property {string} [emoji] - Optional emoji representing the workflow (from frontmatter)
  * @property {string} [slashCommand] - Slash command name (without leading slash) for the run-again hint, when applicable
  * @property {string} [slashCommandPlaceholder] - Custom hint text appended after the command name (replaces default "to run again")
+ * @property {string} [labelCommand] - Label command name for the run-again hint, when applicable
  */
 
 /**
@@ -234,7 +235,30 @@ function getFooterMessage(ctx) {
     const hintText = ctx.slashCommandPlaceholder || "to run again";
     defaultFooter += `\n> <sub>Comment <em>/{slash_command}</em> ${hintText}</sub>`;
   }
+  // Append label command hint when applicable (workflow has a label command trigger)
+  if (ctx.labelCommand) {
+    defaultFooter += `\n> <sub>Add label <em>{label_command}</em> to run again</sub>`;
+  }
   return renderTemplate(defaultFooter, templateContext);
+}
+
+/**
+ * @param {string|undefined} commandsJSON
+ * @returns {string|undefined}
+ */
+function getFirstCommandHint(commandsJSON) {
+  if (!commandsJSON) {
+    return undefined;
+  }
+  try {
+    const commands = JSON.parse(commandsJSON);
+    if (Array.isArray(commands) && commands.length > 0 && typeof commands[0] === "string") {
+      return commands[0];
+    }
+  } catch {
+    // Silently ignore malformed JSON; hints are non-critical enhancements.
+  }
+  return undefined;
 }
 
 /**
@@ -580,20 +604,11 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
 
   // Read slash command from GH_AW_COMMANDS (JSON array) when available.
   // Use the first command as the hint. This is only set when the workflow has a slash command trigger.
-  let slashCommand;
-  const commandsJSON = process.env.GH_AW_COMMANDS;
-  if (commandsJSON) {
-    try {
-      const commands = JSON.parse(commandsJSON);
-      if (Array.isArray(commands) && commands.length > 0 && typeof commands[0] === "string") {
-        slashCommand = commands[0];
-      }
-    } catch {
-      // Silently ignore malformed GH_AW_COMMANDS; the hint is a non-critical enhancement
-      // and omitting it is always safe. The value is compiler-generated JSON, so this
-      // path should not occur in practice.
-    }
-  }
+  const slashCommand = getFirstCommandHint(process.env.GH_AW_COMMANDS);
+
+  // Read label command from GH_AW_LABEL_COMMANDS (JSON array) when available.
+  // Use the first configured label as the hint.
+  const labelCommand = getFirstCommandHint(process.env.GH_AW_LABEL_COMMANDS);
 
   // Read optional footer hint placeholder from GH_AW_COMMAND_PLACEHOLDER.
   // When set, it replaces the default "to run again" suffix in the slash command hint.
@@ -610,6 +625,7 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
     emoji,
     slashCommand,
     slashCommandPlaceholder,
+    labelCommand,
   };
 
   const { skipDetectionCaution = false } = options || {};

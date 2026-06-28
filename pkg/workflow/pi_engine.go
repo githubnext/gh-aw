@@ -79,11 +79,9 @@ func resolvePiBackend(workflowData *WorkflowData) UniversalLLMBackend {
 	}
 	// "github-copilot" is Pi CLI's internal name for GitHub Copilot.  Accept it as
 	// an alias so workflows can use either "copilot/..." or "github-copilot/...".
-	parts := strings.SplitN(model, "/", 2)
-	if strings.EqualFold(parts[0], "github-copilot") {
-		return UniversalLLMBackendCopilot
-	}
-	backend, err := resolveUniversalLLMBackendFromModel(model)
+	backend, err := resolveBackendWithAliases(model, map[string]UniversalLLMBackend{
+		"github-copilot": UniversalLLMBackendCopilot,
+	})
 	if err != nil {
 		piLog.Printf("Could not resolve backend for Pi model %q, defaulting to copilot: %v", model, err)
 		return UniversalLLMBackendCopilot

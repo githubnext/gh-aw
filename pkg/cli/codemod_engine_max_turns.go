@@ -16,13 +16,15 @@ func getEngineMaxTurnsToTopLevelCodemod() Codemod {
 			return migrateEngineFieldToTopLevel(
 				content,
 				frontmatter,
-				"max-turns",
-				"max-turns",
-				[]string{"max-turns"},
-				engineMaxTurnsCodemodLog,
-				"Skipping engine.max-turns migration for inline-map engine syntax; migrate to top-level max-turns manually",
-				"Removed deprecated engine.max-turns (top-level max-turns already present)",
-				"Migrated engine.max-turns to top-level max-turns",
+				migrateEngineFieldToTopLevelOptions{
+					engineField:            "max-turns",
+					targetTopLevelField:    "max-turns",
+					preserveTopLevelFields: []string{"max-turns"},
+					log:                    engineMaxTurnsCodemodLog,
+					skipInlineMessage:      "Skipping engine.max-turns migration for inline-map engine syntax; migrate to top-level max-turns manually",
+					removedMessage:         "Removed deprecated engine.max-turns (top-level max-turns already present)",
+					migratedMessage:        "Migrated engine.max-turns to top-level max-turns",
+				},
 			)
 		},
 	}

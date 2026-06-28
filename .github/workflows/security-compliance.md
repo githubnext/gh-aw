@@ -24,7 +24,9 @@ permissions:
   contents: read
   security-events: read
 
-engine: copilot
+engine:
+  id: copilot
+  max-continuations: 3
 
 safe-outputs:
   create-issue:

@@ -22,3 +22,14 @@ func SplitRepoSlug(slug string) (owner, repo string, err error) {
 	repoutilLog.Printf("Split result: owner=%s, repo=%s", parts[0], parts[1])
 	return parts[0], parts[1], nil
 }
+
+// NormalizeRepoForAPI splits a repo string of the form "[HOST/]owner/repo" into
+// the owner/repo portion and an optional host. Most callers pass plain
+// "owner/repo", but GHES and Proxima installs may supply "HOST/owner/repo".
+func NormalizeRepoForAPI(repo string) (ownerRepo string, host string) {
+	parts := strings.SplitN(repo, "/", 3)
+	if len(parts) == 3 {
+		return parts[1] + "/" + parts[2], parts[0]
+	}
+	return repo, ""
+}

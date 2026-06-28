@@ -9,6 +9,8 @@ The recommended enterprise pattern is to maintain one central `agentic-workflows
 
 ## Sharing Layers
 
+Organizations usually combine a few independent sharing mechanisms: install complete workflows with `gh aw add`, import shared modules with `imports:`, and choose a versioning strategy that matches how quickly consumers should receive updates.
+
 ### 1. Copy and install whole workflows
 
 A repository can pull in a complete workflow from another repository:
@@ -55,10 +57,12 @@ See [Imports Reference](/gh-aw/reference/imports/#calling-a-parameterized-shared
 
 Enterprise workflow sharing needs a clear versioning model:
 
-- **Exact release tags** (`@v1.2.0`) pin to a specific immutable release. They do not move on their own, so `gh aw update` will keep fetching that same tagged version unless you change the `source:` ref explicitly.
-- **Moving release refs** (`@v1`) follow the latest compatible release within that stream. These are the typical refs to use when you want `gh aw update` to pick up newer upstream releases automatically.
-- **Branch refs** (`@develop`) track the latest commit on a branch — useful for development integration.
-- **SHA pins** (`@abc123def`) provide strict reproducibility and never move without an explicit change.
+| Ref type | Behavior |
+| --- | --- |
+| Exact release tag (`@v1.2.0`) | Pins to one immutable release until you change `source:` explicitly. |
+| Moving release ref (`@v1`) | Follows newer compatible releases in that major line when you run `gh aw update`. |
+| Branch ref (`@develop`) | Tracks the latest commit on a branch for development integration. |
+| SHA pin (`@abc123def`) | Gives strict reproducibility and never moves without an explicit change. |
 
 To pull upstream changes into an already-installed workflow:
 
@@ -71,11 +75,7 @@ Updates use a 3-way merge by default to preserve local edits. Use `--no-merge` t
 
 ### 5. Private and internal sharing controls
 
-Not all workflows are safe to share across organizations. GitHub Agentic Workflows provides controls at multiple levels:
-
-- **`private: true`** in frontmatter blocks a workflow from being installed into other repositories via `gh aw add`. Attempting to add a private workflow from another repository fails with an error.
-- **Repository visibility** controls which workflows are discoverable. Private repositories require access before any workflow can be fetched.
-- **Org-internal catalogs** can be implemented by placing workflows in a private or internal organization repository, ensuring only organization members can install them.
+Not all workflows are safe to share across organizations. Use `private: true` in frontmatter to block installation into other repositories via `gh aw add`, rely on repository visibility to control discoverability, and keep org-internal catalogs in private or internal repositories so only authorized members can install them.
 
 See [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private) for configuration details.
 
@@ -87,11 +87,7 @@ Imports are cached locally under `.github/aw/imports/` by commit SHA. Cached imp
 
 ### 7. Cross-repository execution model
 
-Separate from sharing workflow definitions, workflows can operate across repositories at runtime:
-
-- Read files and metadata from other repositories during execution.
-- Check out code from target repositories for analysis or modification.
-- Write safe outputs to target repositories with explicit authentication and allowlists.
+Separate from sharing workflow definitions, workflows can operate across repositories at runtime by reading files and metadata from other repositories, checking out target code for analysis or modification, and writing safe outputs to target repositories with explicit authentication and allowlists.
 
 ```yaml
 safe-outputs:
@@ -104,27 +100,13 @@ Cross-repository operations require appropriate GitHub token permissions and exp
 
 ## Recommended Enterprise Pattern
 
-The recommended pattern for organizations sharing workflows at scale:
-
-1. **One central `agentic-workflows` repository** holds versioned workflow templates and shared components under `workflows/` and `shared/`.
-2. **Consuming repositories** use `gh aw add acme-org/agentic-workflows/<workflow>@<version>` to install complete workflows.
-3. **Common modules** (MCP configurations, safety policies, shared prompts) live in `shared/` and are imported via `imports:` in consuming workflows.
-4. **Version tags** on the central repository provide stable anchors for production consumers while branches support development integration.
-5. **`private: true`** marks internal-only workflows that should not be exported outside the organization.
+For most organizations, one central `agentic-workflows` repository should hold versioned workflow templates and shared components under `workflows/` and `shared/`. Consuming repositories install complete workflows with `gh aw add acme-org/agentic-workflows/<workflow>@<version>`, import common modules such as MCP configurations and safety policies through `imports:`, use tags for stable production consumers and branches for development integration, and mark internal-only workflows with `private: true`.
 
 This model gives platform teams centralized ownership and update control while giving consuming teams reproducibility through version pins and the ability to preserve local customizations through 3-way merge.
 
 ## Governance Questions
 
-When workflows are shared across an organization, the important decisions are usually operational rather than technical:
-
-- Who owns the source workflow and reviews proposed changes.
-- How updates are tested, tagged, and promoted to consuming repositories.
-- Which repositories may consume or dispatch to shared workflows.
-- How secrets, permissions, and safe outputs are standardized across consumers.
-- When a consuming team may fork a workflow rather than stay on the shared version.
-
-Those decisions affect reliability more than the file format does.
+When workflows are shared across an organization, the important decisions are usually operational rather than technical: who owns the source workflow and reviews changes, how updates are tested and promoted, which repositories may consume or dispatch shared workflows, how secrets and permissions are standardized, and when a team may fork instead of staying on the shared version. Those decisions affect reliability more than the file format does.
 
 ## Related Documentation
 
@@ -132,5 +114,4 @@ Those decisions affect reliability more than the file format does.
 - [Imports Reference](/gh-aw/reference/imports/)
 - [Cross-Repository Operations](/gh-aw/reference/cross-repository/)
 - [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private)
-- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)

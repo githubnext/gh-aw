@@ -958,6 +958,13 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL_COSTS: '%s'\n", escapedModelCostsJSON)
 		}
 	}
+	if len(data.Features) > 0 {
+		if featuresJSON, err := json.Marshal(data.Features); err == nil {
+			// Escape single quotes for YAML single-quoted scalar safety
+			escapedFeaturesJSON := strings.ReplaceAll(string(featuresJSON), "'", "''")
+			fmt.Fprintf(yaml, "          GH_AW_INFO_FEATURES: '%s'\n", escapedFeaturesJSON)
+		}
+	}
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
@@ -1032,6 +1039,11 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 		}
 		if data.CommandPlaceholder != "" {
 			fmt.Fprintf(yaml, "          GH_AW_COMMAND_PLACEHOLDER: %q\n", data.CommandPlaceholder)
+		}
+	}
+	if len(data.LabelCommand) > 0 {
+		if labelCommandsJSON, err := json.Marshal(data.LabelCommand); err == nil {
+			fmt.Fprintf(yaml, "          GH_AW_LABEL_COMMANDS: %q\n", string(labelCommandsJSON))
 		}
 	}
 

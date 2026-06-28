@@ -145,7 +145,7 @@ steps:
       echo "eligible_count=$(jq '.prs | length' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)" >> "$GITHUB_OUTPUT"
   - name: Setup Go
     if: steps.fetch-prs.outputs.eligible_count != '0'
-    uses: actions/setup-go@v6.4.0
+    uses: actions/setup-go@v6.5.0
     with:
       go-version-file: go.mod
       cache: true
@@ -250,6 +250,7 @@ For each PR that is not skipped:
 2. **Post exactly one combined nudge comment**
    - **At most ONE `add_comment` call per PR per run.** Never post two comments to the same PR in a single run.
    - Inspect PR review threads and comments for unresolved feedback.
+   - If unresolved PR reviews exist, include an explicit unresolved-reviews list in the nudge comment (reviewer + direct link for each unresolved review thread, newest first).
    - Combine all nudges (unresolved review feedback, branch-refresh request, completion plan, etc.) into **one single comment** that includes:
      - `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line (required — this is how the cooldown and duplicate-comment checks detect sous-chef).
      - @copilot mention with a concise, actionable instruction covering all relevant nudges in one message, including a direct instruction to run the `pr-finisher` skill.
@@ -293,7 +294,7 @@ safeoutputs noop --message "processed=4; skipped_checks_running=0; skipped_last_
 ## agent: `pr-processor`
 ---
 description: Processes one PR with minimal API calls and returns skip/nudge decisions
-model: gpt-5-mini
+model: claude-haiku-4.5
 ---
 Given one PR number and compact metadata:
 
@@ -304,7 +305,7 @@ Given one PR number and compact metadata:
 2. If skipped, return `skip_reason` only.
 3. If not skipped, return:
    - whether branch update should be attempted
-   - a single combined nudge comment body (covering unresolved review feedback, branch refresh, and any other forward-progress action) — one comment only, never two
+   - a single combined nudge comment body (covering unresolved review feedback, branch refresh, and any other forward-progress action) — one comment only, never two; if unresolved PR reviews exist, include an explicit unresolved-reviews list (reviewer + direct link per unresolved review thread)
 4. Make at most 8 tool calls total. If 8 calls are insufficient to reach a confident decision, set all fields to `null` and set `skip_reason: "insufficient_context"`.
 5. Keep output compact JSON only — a single object, no prose.
 6. If you cannot determine a field, set it to `null`.
