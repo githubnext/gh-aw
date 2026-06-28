@@ -257,6 +257,39 @@ The `🧪 A/B Experiments` section of the audit report shows the variant chosen 
   • style = concise (cumulative: concise:5, detailed:4)
 ```
 
+### Darwin mode
+
+Use Darwin mode to evolve one named experiment inside an existing experiment
+workflow:
+
+```bash
+# Inspect the current generation and pick a winner from observed counts
+gh aw experiments darwin myworkflow style
+
+# Promote a specific winner and archive the current generation
+gh aw experiments darwin myworkflow style --winner concise --apply
+
+# Generate the next generation explicitly
+gh aw experiments darwin myworkflow style \
+  --variant concise \
+  --variant detailed \
+  --variant step_by_step \
+  --apply
+```
+
+Darwin mode stays inside the existing `experiments:` feature. It:
+
+- evaluates the named experiment from `state.json`
+- archives the current generation to `.github/experiments/archive/`
+- promotes the selected winner to the control slot (the first variant)
+- optionally generates the next population from the promoted winner plus the
+  `--variant` values you provide
+
+> [!NOTE]
+> Darwin mode only rewrites the frontmatter variant list. If you introduce new
+> variant names with `--variant`, make sure the workflow prompt already handles
+> them.
+
 ### Filtering audit results by variant
 
 Use `--experiment` and `--variant` to filter audit runs to a specific variant:

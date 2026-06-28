@@ -310,6 +310,7 @@ func TestNewExperimentsCommand(t *testing.T) {
 
 	assert.Contains(t, subNames, "list", "should have list subcommand")
 	assert.Contains(t, subNames, "analyze", "should have analyze subcommand")
+	assert.Contains(t, subNames, "darwin", "should have darwin subcommand")
 }
 
 func TestExperimentsListSubcommandFlags(t *testing.T) {
@@ -334,4 +335,23 @@ func TestExperimentsAnalyzeRequiresArg(t *testing.T) {
 
 	err := cmd.Args(cmd, []string{})
 	assert.Error(t, err, "analyze should require exactly 1 argument")
+}
+
+func TestExperimentsDarwinSubcommandFlags(t *testing.T) {
+	cmd := NewExperimentsDarwinSubcommand()
+	require.NotNil(t, cmd, "darwin subcommand should be created")
+
+	assert.NotNil(t, cmd.Flag("json"), "should have --json flag")
+	assert.NotNil(t, cmd.Flag("apply"), "should have --apply flag")
+	assert.NotNil(t, cmd.Flag("winner"), "should have --winner flag")
+	assert.NotNil(t, cmd.Flag("archive-dir"), "should have --archive-dir flag")
+	assert.NotNil(t, cmd.Flag("variant"), "should have --variant flag")
+}
+
+func TestExperimentsDarwinRequiresArgs(t *testing.T) {
+	cmd := NewExperimentsDarwinSubcommand()
+	require.NotNil(t, cmd, "darwin subcommand should be created")
+
+	err := cmd.Args(cmd, []string{"workflow"})
+	assert.Error(t, err, "darwin should require exactly 2 arguments")
 }

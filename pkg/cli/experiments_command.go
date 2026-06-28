@@ -99,11 +99,13 @@ workflow's pick_experiment step, containing variant counts and run history.
 
 Available subcommands:
   - list    - List all experiment workflow branches (default)
-  - analyze - Analyze a specific experiment workflow in detail`,
+  - analyze - Analyze a specific experiment workflow in detail
+  - darwin  - Evaluate and promote the next generation of an experiment`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` experiments                        # List all experiments (default)
   ` + string(constants.CLIExtensionPrefix) + ` experiments list                   # List all experiments
   ` + string(constants.CLIExtensionPrefix) + ` experiments list --json            # Output in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow    # Analyze experiments/my-workflow
+  ` + string(constants.CLIExtensionPrefix) + ` experiments darwin myworkflow style   # Promote the next experiment generation
   ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow --json  # Analyze in JSON format`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			jsonOutput, _ := cmd.Flags().GetBool("json")
@@ -120,6 +122,7 @@ Available subcommands:
 
 	cmd.AddCommand(NewExperimentsListSubcommand())
 	cmd.AddCommand(NewExperimentsAnalyzeSubcommand())
+	cmd.AddCommand(NewExperimentsDarwinSubcommand())
 
 	return cmd
 }
