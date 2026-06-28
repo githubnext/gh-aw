@@ -1,6 +1,18 @@
 {
-  "last_updated": "2026-06-27",
+  "last_updated": "2026-06-28",
   "pending_tasks": [
+    {
+      "file": ".github/workflows/archie.md",
+      "created": "2026-06-28",
+      "priority": "high",
+      "title": "Normalize status message emoji: replace 📐/🎨/📐 trio with consistent 🏛️ to match workflow identity; remove theatrical emoji switching"
+    },
+    {
+      "file": ".github/workflows/impeccable-skills-reviewer.md",
+      "created": "2026-06-28",
+      "priority": "medium",
+      "title": "Add actionable log link to run-failure message: append 'Check the [run logs]({run_url}) for details.'"
+    },
     {
       "file": ".github/workflows/smoke-gemini.md",
       "created": "2026-06-27",
