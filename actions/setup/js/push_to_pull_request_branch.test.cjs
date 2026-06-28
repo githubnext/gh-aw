@@ -1285,6 +1285,92 @@ index 0000000..abc1234
   });
 
   // ──────────────────────────────────────────────────────
+  // Threat Detection: Review Branch Push
+  // ──────────────────────────────────────────────────────
+
+  describe("threat detection: review branch push", () => {
+    it("should return typed workflows_scope_required error when review branch push is rejected for missing workflows scope (timeout variant)", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      const patchPath = createPatchFile("review-branch-workflows-scope-timeout");
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          return {
+            exitCode: 1,
+            stdout: "",
+            stderr: "remote: error: Unable to determine if workflow can be created or updated due to timeout; `workflows` scope may be required.\n" + "error: failed to push some refs to 'https://github.com/test-owner/test-repo.git'",
+          };
+        }
+        return originalGetExecOutput(cmd, args);
+      });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "review-branch-workflows-scope-timeout" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error_type).toBe("workflows_scope_required");
+      expect(result.error).toContain("'workflows' scope");
+      expect(result.error).toContain("allow-workflows");
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("'workflows' scope"));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("allow-workflows"));
+      // Should NOT fall through to the generic "Failed to create review PR" catch message
+      const errorCalls = mockCore.error.mock.calls.map(c => c[0]);
+      expect(errorCalls.some(msg => msg.includes("Failed to create review PR"))).toBe(false);
+    });
+
+    it("should return typed workflows_scope_required error when review branch push is rejected with backtick workflows scope message", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      const patchPath = createPatchFile("review-branch-workflows-scope-backtick");
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          return {
+            exitCode: 1,
+            stdout: "",
+            stderr: "! [remote rejected] branch -> branch (`workflows` scope may be required.)",
+          };
+        }
+        return originalGetExecOutput(cmd, args);
+      });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "review-branch-workflows-scope-backtick" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error_type).toBe("workflows_scope_required");
+    });
+
+    it("should wrap generic review branch push failure in actionable error message", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      const patchPath = createPatchFile("review-branch-generic-push-failure");
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          return { exitCode: 1, stdout: "", stderr: "error: authentication failed for origin" };
+        }
+        return originalGetExecOutput(cmd, args);
+      });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: "review-branch-generic-push-failure" }, {});
+
+      expect(result.success).toBe(false);
+      // Generic push failure should NOT be typed as workflows_scope_required
+      expect(result.error_type).toBeUndefined();
+      expect(result.error).toContain("Failed to create review PR");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // Empty Commit / No Changes Handling
   // ──────────────────────────────────────────────────────
 
