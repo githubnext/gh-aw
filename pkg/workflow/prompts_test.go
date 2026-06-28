@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -470,7 +471,7 @@ func TestDailyModelResolutionUsesCodexCompatibleSubAgentModel(t *testing.T) {
 	}
 }
 
-func TestWorkflowSourcesDoNotPinKnownUnavailableCodexAlphaSnapshot(t *testing.T) {
+func TestWorkflowSourcesDoNotPinCodexAlphaSnapshotPattern(t *testing.T) {
 	repoRoot, err := findRepoRoot()
 	if err != nil {
 		t.Fatalf("Failed to find repo root: %v", err)
@@ -481,14 +482,37 @@ func TestWorkflowSourcesDoNotPinKnownUnavailableCodexAlphaSnapshot(t *testing.T)
 		t.Fatalf("Failed to list workflow markdown files: %v", err)
 	}
 
-	const blockedModel = "gpt-5-codex-alpha-2025-11-07"
+	blockedPattern := regexp.MustCompile(`\bgpt-\d+(?:\.\d+)?-codex-alpha-\d{4}-\d{2}-\d{2}\b`)
 	for _, workflowFile := range workflowFiles {
 		content, err := os.ReadFile(workflowFile)
 		if err != nil {
 			t.Fatalf("Failed to read workflow file %s: %v", workflowFile, err)
 		}
-		if strings.Contains(string(content), blockedModel) {
-			t.Fatalf("Workflow file %s must not reference known-unavailable Codex alpha snapshot %q", workflowFile, blockedModel)
+		if offending := blockedPattern.FindString(string(content)); offending != "" {
+			t.Fatalf("Workflow file %s must not reference unavailable Codex alpha snapshot pattern %q", workflowFile, offending)
+		}
+	}
+}
+
+func TestModelsJSONDoesNotIncludeCodexAlphaSnapshotPattern(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	files := []string{
+		filepath.Join(repoRoot, "actions", "setup", "js", "models.json"),
+		filepath.Join(repoRoot, "pkg", "cli", "data", "models.json"),
+	}
+	blockedPattern := regexp.MustCompile(`"gpt-\d+(?:\.\d+)?-codex-alpha-\d{4}-\d{2}-\d{2}"`)
+
+	for _, file := range files {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatalf("Failed to read models file %s: %v", file, err)
+		}
+		if offending := blockedPattern.FindString(string(content)); offending != "" {
+			t.Fatalf("Models file %s must not include unavailable Codex alpha snapshot model %s", file, offending)
 		}
 	}
 }

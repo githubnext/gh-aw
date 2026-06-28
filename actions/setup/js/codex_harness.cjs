@@ -86,13 +86,13 @@ const MISSING_API_KEY_PATTERN = /Missing environment variable:\s*`?(?:CODEX_API_
 // These are transient infrastructure failures that may resolve on retry.
 const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
 // Captures model IDs from AIC proxy 404 payloads like:
-//   "404 Not Found: Model not found gpt-5-codex-alpha-2025-11-07"
+//   "404 Not Found: Model not found gpt-5-codex-alpha-2026-01-01"
 const MODEL_NOT_FOUND_AIC_PATTERN = /Model\s+not\s+found\s+([a-z0-9._:@/-]+)/i;
 // Captures model IDs from generic invalid-model payloads like:
 //   "model 'gpt-foo' not found"
 //   "model gpt-bar is not available"
 const MODEL_NOT_FOUND_GENERIC_PATTERN = /model(?:\s+name)?\s+['"`]?([a-z0-9._:@/-]+)['"`]?\s+(?:not found|is not available|unavailable)/i;
-const KNOWN_UNAVAILABLE_MODEL_IDS = ["gpt-5-codex-alpha-2025-11-07"];
+const KNOWN_UNAVAILABLE_MODEL_PATTERNS = [/gpt-\d+(?:\.\d+)?-codex-alpha-\d{4}-\d{2}-\d{2}/i];
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
@@ -173,8 +173,9 @@ function extractOffendingModelName(output) {
 function detectKnownUnavailableModel(args) {
   for (const arg of args) {
     if (!arg || typeof arg !== "string") continue;
-    for (const modelID of KNOWN_UNAVAILABLE_MODEL_IDS) {
-      if (arg.includes(modelID)) return modelID;
+    for (const modelPattern of KNOWN_UNAVAILABLE_MODEL_PATTERNS) {
+      const match = arg.match(modelPattern);
+      if (match && match[0]) return match[0];
     }
   }
   return null;

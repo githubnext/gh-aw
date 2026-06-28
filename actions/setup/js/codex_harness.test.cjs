@@ -283,7 +283,7 @@ env_key = "OPENAI_API_KEY"
 
     describe("extractOffendingModelName", () => {
       it("extracts model name from AIC api-proxy 404 output", () => {
-        expect(extractOffendingModelName("unexpected status 404 Not Found: Model not found gpt-5-codex-alpha-2025-11-07")).toBe("gpt-5-codex-alpha-2025-11-07");
+        expect(extractOffendingModelName("unexpected status 404 Not Found: Model not found gpt-5-codex-alpha-2026-01-01")).toBe("gpt-5-codex-alpha-2026-01-01");
       });
 
       it("extracts model name from generic model-not-found output", () => {
@@ -296,8 +296,8 @@ env_key = "OPENAI_API_KEY"
     });
 
     describe("detectKnownUnavailableModel", () => {
-      it("detects blocked alpha snapshot in prompt content", () => {
-        expect(detectKnownUnavailableModel(["exec", "use model gpt-5-codex-alpha-2025-11-07 for sub-agent"])).toBe("gpt-5-codex-alpha-2025-11-07");
+      it("detects codex alpha snapshot pattern in prompt content", () => {
+        expect(detectKnownUnavailableModel(["exec", "use model gpt-5-codex-alpha-2026-01-01 for sub-agent"])).toBe("gpt-5-codex-alpha-2026-01-01");
       });
 
       it("returns null when blocked model is absent", () => {
@@ -662,7 +662,7 @@ fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\
 process.exit(0);`,
         "utf8"
       );
-      fs.writeFileSync(promptPath, "Use gpt-5-codex-alpha-2025-11-07 for the run-analyzer sub-agent.", "utf8");
+      fs.writeFileSync(promptPath, "Use gpt-5-codex-alpha-2026-01-01 for the run-analyzer sub-agent.", "utf8");
 
       const result = spawnSync(process.execPath, ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./codex_harness.cjs")),
@@ -677,7 +677,7 @@ process.exit(0);`,
       const stubCallCount = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length : 0;
       expect(stubCallCount).toBe(0);
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain('known-unavailable model "gpt-5-codex-alpha-2025-11-07"');
+      expect(result.stderr).toContain('known-unavailable model "gpt-5-codex-alpha-2026-01-01"');
     });
   });
 });
