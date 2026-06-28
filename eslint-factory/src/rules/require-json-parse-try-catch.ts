@@ -1,6 +1,6 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
 
-const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/actions/setup/js/eslint-factory#${name}`);
+const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
 // Statement node types that can be directly wrapped in a try/catch block.
 const WRAPPABLE_STATEMENT_TYPES = new Set<AST_NODE_TYPES>([AST_NODE_TYPES.ExpressionStatement, AST_NODE_TYPES.VariableDeclaration, AST_NODE_TYPES.ReturnStatement, AST_NODE_TYPES.ThrowStatement]);
@@ -60,11 +60,15 @@ export const requireJsonParseTryCatchRule = createRule({
           return;
         }
 
-        if (node.callee.property.type !== "Identifier") {
-          return;
-        }
+        // Accept both direct property access (JSON.parse) and computed string-literal
+        // access (JSON["parse"]). Aliased (const p = JSON.parse; p(raw)) and
+        // destructured (const { parse } = JSON; parse(raw)) bindings are intentionally
+        // out of scope: tracking them reliably requires full scope analysis and is
+        // disproportionate to the current risk surface.
+        const property = node.callee.property;
+        const isParseProperty = (property.type === "Identifier" && property.name === "parse") || (property.type === "Literal" && property.value === "parse");
 
-        if (node.callee.property.name !== "parse") {
+        if (!isParseProperty) {
           return;
         }
 
