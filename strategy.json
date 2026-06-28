@@ -1,38 +1,54 @@
 {
-  "version": 1,
-  "last_run": "2026-06-27",
-  "scope": "actions/setup/js/eslint-factory",
+  "version": 2,
+  "last_run": "2026-06-28",
+  "scope": "eslint-factory (repo root); targets actions/setup/js/**/*.cjs",
   "rules_inventory": [
     {
       "name": "require-json-parse-try-catch",
       "type": "problem",
       "severity_in_config": "warn",
       "summary": "Flags JSON.parse(...) calls not lexically inside a try block.",
+      "status_2026-06-28": "Improved by commit #42000: now handles computed JSON[\"parse\"], added hasSuggestions+suggest fix, references parseJsonWithRepair/parseJsonlContent helpers. Has full test suite (6 cases).",
       "known_gaps": [
-        "Only matches direct JSON.parse member calls; misses computed access JSON['parse'](), destructured { parse } = JSON, and aliased const p = JSON.parse.",
-        "isInsideTryBlock uses lexical ancestry; unsound for deferred callbacks (.then/.catch/addEventListener/.on/setTimeout/setInterval/queueMicrotask/Promise executor) defined in a try but invoked later.",
-        "Generic diagnostic, no hasSuggestions/suggest fix, does not reference canonical safe-parse helpers already in the repo (parseJsonWithRepair, parseJsonlContent)."
+        "Aliased (const p = JSON.parse) and destructured ({ parse } = JSON) bindings still out of scope by design (see #41962).",
+        "Lexical try-ancestry still unsound for deferred callbacks .then/.catch/setTimeout/etc (#41963 OPEN)."
+      ]
+    },
+    {
+      "name": "require-parseInt-radix",
+      "type": "problem",
+      "severity_in_config": "warn",
+      "summary": "Flags parseInt(x)/Number.parseInt(x) without explicit radix.",
+      "status_2026-06-28": "Working: catches 5 real sites in parse_codex_log.cjs (lines 32,145,146,798,806).",
+      "known_gaps": [
+        "NO test file exists (sibling rule has 6 cases) -> issue filed this run.",
+        "No hasSuggestions/suggest fix -> issue filed this run.",
+        "Broken docs URL: uses .../actions/setup/js/eslint-factory# but eslint-factory is at repo root -> folded into suggestion issue.",
+        "Misses computed Number[\"parseInt\"] and globalThis/window/global.parseInt -> issue filed this run."
       ]
     }
   ],
+  "open_issues_from_prior_runs": {
+    "41962": "OPEN - indirect/computed JSON.parse (partially addressed by #42000 for computed; alias/destructure still open)",
+    "41963": "OPEN - try-ancestry unsound for deferred callbacks (untouched)",
+    "41964": "OPEN - suggestion + helper reference for JSON rule (largely delivered by #42000; verify and close)"
+  },
   "codebase_signals": {
-    "non_test_cjs_files": 360,
-    "files_using_json_parse": 107,
-    "deferred_api_call_sites": 104,
-    "indirect_json_parse_found": 0,
+    "non_test_cjs_files": 361,
+    "parseInt_real_missing_radix_sites": ["parse_codex_log.cjs:32,145,146,798,806"],
     "existing_safe_parse_helpers": [
       "collect_ndjson_output.cjs:parseJsonWithRepair",
       "jsonl_helpers.cjs:parseJsonlContent"
     ]
   },
-  "refinement_priorities": [
-    "P1 false-negative: indirect/computed JSON.parse access invisible to rule",
-    "P2 false-negative: lexical try-ancestry unsound for deferred callbacks",
-    "P3 diagnostic-quality: add ESLint suggestion + reference canonical helpers"
+  "refinement_priorities_next": [
+    "Re-verify #41964 against #42000 diff; recommend close if satisfied.",
+    "Pursue #41963 (deferred-callback soundness) - still the highest-risk false-negative.",
+    "Consider a 3rd rule candidate: mine new recurring defect classes in actions/setup/js beyond JSON.parse/parseInt."
   ],
   "next_run_notes": [
-    "Live lint could not be run: npm/network blocked in sandbox, no node_modules/dist. Rely on static analysis of rule source vs real cjs patterns.",
-    "Repo-memory dir not readable via fs tools in sandbox; treat each run as append-only via push_repo_memory.",
-    "No pre-existing eslint/refiner issues in repo as of this run; future runs should re-check before creating duplicates."
+    "Repo-memory files readable via Read/Glob tools but NOT via bash (sandbox blocks /tmp paths). Write tool works for /tmp/gh-aw/repo-memory.",
+    "safeoutputs CLI: pass JSON via stdin from a file in the working dir; bash blocks writes to /tmp/gh-aw/agent and printf chokes on [n] subscripts.",
+    "Before creating issues, gh issue list --search by title keyword to dedupe against prior runs."
   ]
 }
