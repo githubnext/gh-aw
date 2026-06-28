@@ -13,6 +13,11 @@ permissions:
   issues: read
   actions: read
   copilot-requests: write
+
+sandbox:
+  agent:
+    sudo: false
+
 checkout:
   fetch: ["refs/pulls/open/*"]
   fetch-depth: 0

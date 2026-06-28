@@ -28,6 +28,10 @@ permissions:
   pull-requests: read
   discussions: read
 
+sandbox:
+  agent:
+    sudo: false
+
 engine:
   id: copilot
   copilot-sdk: true

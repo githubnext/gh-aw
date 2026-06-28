@@ -17,6 +17,11 @@ permissions:
   actions: read
   pull-requests: read
   copilot-requests: write
+
+sandbox:
+  agent:
+    sudo: false
+
 engine:
   id: copilot
   copilot-sdk: true

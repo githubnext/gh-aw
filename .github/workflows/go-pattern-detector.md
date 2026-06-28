@@ -12,6 +12,10 @@ permissions:
   issues: read
   pull-requests: read
 
+sandbox:
+  agent:
+    sudo: false
+
 jobs:
   ast_grep:
     runs-on: ubuntu-latest

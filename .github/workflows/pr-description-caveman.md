@@ -10,6 +10,11 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
+
+sandbox:
+  agent:
+    sudo: false
+
 strict: true
 tools:
   github:
