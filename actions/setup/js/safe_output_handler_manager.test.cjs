@@ -162,6 +162,16 @@ describe("Safe Output Handler Manager", () => {
       ).toBe(false);
     });
 
+    it("treats explicit reportOnly failures as report-only regardless of type", () => {
+      expect(
+        isReportOnlyFailureResult({
+          type: "dispatch_workflow",
+          success: false,
+          reportOnly: true,
+        })
+      ).toBe(true);
+    });
+
     it("partitions fatal failures away from assign_to_agent report-only failures", () => {
       const { fatalFailures, reportOnlyFailures } = partitionFailureResults([
         { type: "assign_to_agent", success: false, error: "Insufficient permissions" },
@@ -183,6 +193,16 @@ describe("Safe Output Handler Manager", () => {
 
       expect(reportOnlyFailures).toEqual([{ type: "upload_artifact", success: false, error: "artifact twirp CreateArtifact failed (400)" }]);
       expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
+    });
+
+    it("partitions explicit reportOnly failures as report-only, not fatal", () => {
+      const { fatalFailures, reportOnlyFailures } = partitionFailureResults([
+        { type: "dispatch_workflow", success: false, reportOnly: true, error: "Validation failed" },
+        { type: "create_issue", success: false, error: "Fatal validation failed" },
+      ]);
+
+      expect(reportOnlyFailures).toEqual([{ type: "dispatch_workflow", success: false, reportOnly: true, error: "Validation failed" }]);
+      expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Fatal validation failed" }]);
     });
   });
 

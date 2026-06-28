@@ -312,6 +312,11 @@ func TestDispatchWorkflowFileExtensionResolution(t *testing.T) {
 	lockWorkflow := `name: Lock Workflow
 on:
   workflow_dispatch:
+    inputs:
+      message:
+        description: Message to print
+        required: true
+        type: string
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -379,6 +384,10 @@ This workflow dispatches to different workflow types.
 		"lock-test should use .lock.yml extension")
 	assert.Equal(t, ".yml", workflowData.SafeOutputs.DispatchWorkflow.WorkflowFiles["yml-test"],
 		"yml-test should use .yml extension")
+	assert.Equal(t, []string{"message"}, workflowData.SafeOutputs.DispatchWorkflow.RequiredInputs["lock-test"],
+		"lock-test should capture required workflow_dispatch inputs")
+	assert.Empty(t, workflowData.SafeOutputs.DispatchWorkflow.RequiredInputs["yml-test"],
+		"yml-test should not have required workflow_dispatch inputs")
 
 	// Generate safe outputs config to verify workflow_files is included
 	configJSON, err := generateSafeOutputsConfig(workflowData)
@@ -395,11 +404,15 @@ This workflow dispatches to different workflow types.
 
 	workflowFiles, ok := dispatchWorkflowConfig["workflow_files"].(map[string]any)
 	require.True(t, ok, "workflow_files should be in dispatch_workflow config")
+	requiredInputs, ok := dispatchWorkflowConfig["required_inputs"].(map[string]any)
+	require.True(t, ok, "required_inputs should be in dispatch_workflow config")
 
 	assert.Equal(t, ".lock.yml", workflowFiles["lock-test"],
 		"lock-test extension should be in workflow_files")
 	assert.Equal(t, ".yml", workflowFiles["yml-test"],
 		"yml-test extension should be in workflow_files")
+	assert.Equal(t, []any{"message"}, requiredInputs["lock-test"],
+		"lock-test required inputs should be in required_inputs")
 }
 
 // TestDispatchWorkflowValidationWithoutAgenticWorkflowsTool tests that dispatch-workflow

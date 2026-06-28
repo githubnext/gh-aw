@@ -26,6 +26,7 @@ async function main(config = {}) {
   const allowedWorkflows = config.workflows || [];
   const maxCount = config.max || 1;
   const workflowFiles = config.workflow_files || {}; // Map of workflow name to file extension
+  const requiredInputsByWorkflow = config.required_inputs || {}; // Map of workflow name to required workflow_dispatch input names
   const awContextWorkflows = new Set(config.aw_context_workflows || []); // Workflows that accept aw_context input
   const githubClient = await createAuthenticatedGitHubClient(config);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
@@ -228,6 +229,16 @@ async function main(config = {}) {
         inputs["aw_context"] = JSON.stringify(buildAwContext());
       }
 
+      const requiredInputs = Array.isArray(requiredInputsByWorkflow[workflowName]) ? requiredInputsByWorkflow[workflowName] : [];
+      const missingRequiredInput = requiredInputs.find(inputName => !Object.prototype.hasOwnProperty.call(inputs, inputName));
+      if (missingRequiredInput) {
+        return {
+          success: false,
+          reportOnly: true,
+          error: `Validation failed for dispatch_workflow "${workflowName}": missing required input "${missingRequiredInput}". Include it under dispatch_workflow.inputs.${missingRequiredInput}.`,
+        };
+      }
+
       // Get the workflow file extension from compile-time resolution
       let extension = workflowFiles[workflowName];
       if (!extension && isCrossRepoDispatch) {
@@ -287,6 +298,16 @@ async function main(config = {}) {
             ref: ref,
             inputs: inputs,
           });
+        } else if (isValidationStatus) {
+          const missingInputMatch = /Required input '([^']+)' not provided/i.exec(dispatchErrMessage);
+          if (missingInputMatch && missingInputMatch[1]) {
+            return {
+              success: false,
+              reportOnly: true,
+              error: `Validation failed for dispatch_workflow "${workflowName}": missing required input "${missingInputMatch[1]}". Include it under dispatch_workflow.inputs.${missingInputMatch[1]}.`,
+            };
+          }
+          throw err;
         } else {
           throw err;
         }

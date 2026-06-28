@@ -639,6 +639,9 @@ var handlerRegistry = map[string]handlerBuilder{
 		if len(c.WorkflowFiles) > 0 {
 			builder.AddDefault("workflow_files", c.WorkflowFiles)
 		}
+		if len(c.RequiredInputs) > 0 {
+			builder.AddDefault("required_inputs", c.RequiredInputs)
+		}
 
 		// Add aw_context_workflows list if it has entries
 		if len(c.AwContextWorkflows) > 0 {

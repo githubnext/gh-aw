@@ -348,6 +348,26 @@ describe("dispatch_workflow handler factory", () => {
     });
   });
 
+  it("returns a report-only validation error when required input is missing before dispatch", async () => {
+    const config = {
+      workflows: ["haiku-printer"],
+      workflow_files: {
+        "haiku-printer": ".lock.yml",
+      },
+      required_inputs: {
+        "haiku-printer": ["message"],
+      },
+    };
+    const handler = await main(config);
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "haiku-printer", inputs: {} }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.reportOnly).toBe(true);
+    expect(result.error).toContain('missing required input "message"');
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
   it("should delay 5 seconds between dispatches", async () => {
     const config = {
       workflows: ["workflow1", "workflow2"],
@@ -659,6 +679,28 @@ describe("dispatch_workflow handler factory", () => {
     const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
 
     expect(result.success).toBe(false);
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns a report-only validation error when API reports missing required input", async () => {
+    const error = new Error("Unprocessable Entity");
+    // @ts-ignore
+    error.status = 422;
+    // @ts-ignore
+    error.response = { data: { message: "Required input 'message' not provided" } };
+    github.rest.actions.createWorkflowDispatch.mockRejectedValueOnce(error);
+
+    const config = {
+      workflows: ["haiku-printer"],
+      workflow_files: { "haiku-printer": ".lock.yml" },
+    };
+    const handler = await main(config);
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "haiku-printer", inputs: {} }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.reportOnly).toBe(true);
+    expect(result.error).toContain('missing required input "message"');
     expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledTimes(1);
   });
 

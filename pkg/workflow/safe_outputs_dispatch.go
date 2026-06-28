@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"sort"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -37,6 +39,9 @@ func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 	if data.SafeOutputs.DispatchWorkflow.WorkflowFiles == nil {
 		data.SafeOutputs.DispatchWorkflow.WorkflowFiles = make(map[string]string)
 	}
+	if data.SafeOutputs.DispatchWorkflow.RequiredInputs == nil {
+		data.SafeOutputs.DispatchWorkflow.RequiredInputs = make(map[string][]string)
+	}
 
 	for _, workflowName := range data.SafeOutputs.DispatchWorkflow.Workflows {
 		// Find the workflow file
@@ -65,6 +70,12 @@ func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 			)
 			safeOutputsConfigLog.Printf("Workflow %s declares aw_context input", workflowName)
 		}
+
+		requiredInputs := extractRequiredDispatchInputs(fileResult, workflowName)
+		if len(requiredInputs) > 0 {
+			data.SafeOutputs.DispatchWorkflow.RequiredInputs[workflowName] = requiredInputs
+			safeOutputsConfigLog.Printf("Workflow %s has required dispatch inputs: %v", workflowName, requiredInputs)
+		}
 	}
 }
 
@@ -89,6 +100,38 @@ func workflowHasAwContextInput(fileResult *findWorkflowFileResult, workflowName 
 	}
 	_, hasAwContext := inputs["aw_context"]
 	return hasAwContext
+}
+
+func extractRequiredDispatchInputs(fileResult *findWorkflowFileResult, workflowName string) []string {
+	var inputs map[string]any
+	var err error
+
+	if fileResult.lockExists {
+		inputs, err = extractWorkflowDispatchInputs(fileResult.lockPath)
+	} else if fileResult.ymlExists {
+		inputs, err = extractWorkflowDispatchInputs(fileResult.ymlPath)
+	} else if fileResult.mdExists {
+		inputs, err = extractMDWorkflowDispatchInputs(fileResult.mdPath)
+	} else {
+		return nil
+	}
+	if err != nil {
+		safeOutputsConfigLog.Printf("Warning: error extracting required inputs for %s: %v", workflowName, err)
+		return nil
+	}
+
+	required := make([]string, 0, len(inputs))
+	for inputName, inputDef := range inputs {
+		inputMap, ok := inputDef.(map[string]any)
+		if !ok {
+			continue
+		}
+		if requiredVal, exists := inputMap["required"].(bool); exists && requiredVal {
+			required = append(required, inputName)
+		}
+	}
+	sort.Strings(required)
+	return required
 }
 
 // generateDispatchWorkflowTool generates an MCP tool definition for a specific workflow.

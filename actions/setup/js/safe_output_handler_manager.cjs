@@ -574,11 +574,11 @@ const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact"]
  * Artifact uploads are best-effort and non-critical: a failed upload should not fail an
  * otherwise-successful run.
  *
- * @param {{type?: string, success?: boolean, deferred?: boolean, skipped?: boolean, cancelled?: boolean}|null|undefined} result
+ * @param {{type?: string, success?: boolean, deferred?: boolean, skipped?: boolean, cancelled?: boolean, reportOnly?: boolean}|null|undefined} result
  * @returns {boolean}
  */
 function isReportOnlyFailureResult(result) {
-  return isFailedProcessingResult(result) && !!(result?.type && REPORT_ONLY_FAILURE_TYPES.has(result.type));
+  return isFailedProcessingResult(result) && (result?.reportOnly === true || !!(result?.type && REPORT_ONLY_FAILURE_TYPES.has(result.type)));
 }
 
 /**
@@ -589,8 +589,8 @@ function isReportOnlyFailureResult(result) {
  */
 function partitionFailureResults(results) {
   const failedResults = results.filter(isFailedProcessingResult);
-  const reportOnlyFailures = failedResults.filter(r => REPORT_ONLY_FAILURE_TYPES.has(r?.type ?? ""));
-  const fatalFailures = failedResults.filter(r => !REPORT_ONLY_FAILURE_TYPES.has(r?.type ?? ""));
+  const reportOnlyFailures = failedResults.filter(isReportOnlyFailureResult);
+  const fatalFailures = failedResults.filter(r => !isReportOnlyFailureResult(r));
   return { fatalFailures, reportOnlyFailures };
 }
 
