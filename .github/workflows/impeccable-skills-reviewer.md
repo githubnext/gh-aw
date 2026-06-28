@@ -33,7 +33,7 @@ pre-agent-steps:
       fi
   - name: Install Impeccable skills
     env:
-      GH_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     run: |
       set -euo pipefail
       SKILLS_SRC="needex/skills"
