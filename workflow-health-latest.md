@@ -1,32 +1,32 @@
-# Workflow Health — 2026-06-27T05:43Z
+# Workflow Health — 2026-06-28T05:54Z
 
-Score: 84/100 (↓3 from 87 Jun 26)
-Workflows: 253 | Lock files: 253/253 (100% ✅) | Run: §28280168808
+Score: 82/100 (↓2 from 84 Jun 27)
+Workflows: 257 | Lock files: 257/257 (100% ✅) | Run: §28313061746
 
 ## KEY FINDINGS
 
-### Status (June 27)
-- **Compilation:** 253/253 workflows have lock files (100% ✅). Compile-validate clean.
-- **Code Simplifier (P1, #41842 OPEN):** Failed Jun 27 04:34 (§28278715313) — 6th consecutive failure. WIP fix PR #41852 in progress (`copilot/aw-fix-code-simplifier-failure`). DO NOT RE-FILE.
-- **Daily Safe Output Integrator (P1, #41788 OPEN):** Failed Jun 26 19:11 — 6th consecutive failure. DO NOT RE-FILE.
-- **Daily BYOK Ollama Test (P1, #41827+#41811 OPEN):** Failed Jun 26 22:43 — 8+ consecutive failures. Detailed root cause issue #41827 covers it. DO NOT RE-FILE.
-- **CI Regression (P1, #41844 OPEN):** CI schedule failing Jun 27 (01:02, 03:15 UTC). Root cause: nolint-suppression parity gap (#41844). WIP PR `copilot/fix-nolint-suppression-gap` in progress. DO NOT RE-FILE.
-- **Go Logger Enhancement (P2, #41839 OPEN):** 2 consecutive failures (Jun 26, 27). Monitor.
-- **Agentic Workflow Audit Agent (P2, #41807 OPEN):** 1 failure Jun 26 after 4+ successes. Monitor.
-- **Daily Cache Strategy Analyzer (P2, #41787 OPEN):** Alternating pattern. Monitor.
-- **Daily yamllint Fixer (P2, #41825 OPEN):** 1 failure Jun 27 from workflow_dispatch. Monitor.
+### Status (June 28)
+- **Compilation:** 257/257 workflows have lock files (100% ✅). Compile-validate clean.
+- **Code Simplifier (P1, #42003 OPEN):** Failed Jun 28 04:45 (§28311677500) — 8+ consecutive failures. FIX PR #41852 MERGED Jun 27 17:28 but DID NOT RESOLVE. Still EACCES rimraf. New investigation needed.
+- **Daily Safe Output Integrator (P1, #41935 OPEN):** Still failing Jun 27 18:56 (§28298659490) — 6 consecutive failures. Tool denial limit exceeded. DO NOT RE-FILE.
+- **Daily BYOK Ollama Test (P1, #41827 OPEN):** Failing through Jun 26 22:43 — 9+ consecutive failures. Awaiting infra fix. DO NOT RE-FILE.
+- **CI (P0→RESOLVED ✅, #41844 OPEN):** PR #41849 merged Jun 27 14:30. CI passing since Jun 28 03:17. Updated issue #41844 with resolution comment. Issue can be closed.
+- **Go Logger Enhancement (P2, #42002 OPEN):** 3 consecutive failures (Jun 26–28). New issue filed today.
+- **Smoke Copilot (P2, #41988 OPEN):** 1 failure Jun 27 22:13, recovered 22:59. dispatch_workflow missing `message` input.
+- **Changeset Generator (P2, #41987 OPEN):** Push rejected, needs `workflows` scope.
 
-### Confirmed Healthy (Jun 27) ✅
-- **Auto-Triage Issues:** FULLY RECOVERED ✅ (successes Jun 26 07:44→13:12, Jun 27 01:20)
-- **Compilation:** 253/253 ✅ STABLE
-- **Avenger:** Running Jun 27 05:40 ✅
-- **PR Sous Chef:** Running Jun 27 05:37 ✅
-- **Daily Safe Outputs Git Simulator:** Running Jun 27 05:37 ✅
+### Confirmed Healthy (Jun 28) ✅
+- **CI:** RECOVERED ✅ (passing Jun 28 03:17, 05:36)
+- **Compilation:** 257/257 ✅ STABLE
+- **Auto-Triage Issues:** STABLE ✅
+- **Avenger:** STABLE ✅
+- **PR Sous Chef:** STABLE ✅
 
-### Actions Taken (Jun 27)
-- Comment added to #41788 (Safe Output Integrator: still failing Jun 27)
-- Comment added to #41842 (Code Simplifier: WIP fix PR #41852 flagged)
-- Updated workflow-health-latest.md and shared-alerts.md
+### Actions Taken (Jun 28)
+- Comment added to #41844 (CI: fix confirmed ✅)
+- Comment added to #42003 (Code Simplifier: PR #41852 did not resolve, deeper investigation needed)
+- Comment added to #41935 (Safe Output Integrator: still failing Jun 27)
+- Created health dashboard issue for Jun 28
 
-## Do Not Re-File (Jun 27 state)
-Code Simplifier #41842 (OPEN, WIP PR #41852), Daily Safe Output Integrator #41788 (OPEN), BYOK Ollama #41827+#41811 (OPEN), CI regression #41844 (OPEN, WIP PR), Go Logger #41839 (OPEN), Agentic Audit Agent #41807 (OPEN), Cache Strategy #41787 (OPEN), Daily yamllint Fixer #41825 (OPEN).
+## Do Not Re-File (Jun 28 state)
+Code Simplifier #42003 (OPEN, fix PR failed), Daily Safe Output Integrator #41935 (OPEN), BYOK Ollama #41827 (OPEN), Go Logger #42002 (OPEN), CI #41844 (OPEN, effectively resolved), Smoke Copilot #41988 (OPEN), Changeset Generator #41987 (OPEN).

@@ -1,40 +1,30 @@
-# Shared Alerts — 2026-06-27T13:05Z (updated by Agent Performance Analyzer)
+# Shared Alerts — 2026-06-28T05:54Z (updated by Workflow Health Manager)
 
 ## P1 🚨
-- **Code Simplifier (#41842 OPEN, WIP PR #41852)**: 6th consecutive failure (last success Jun 22). EACCES on chroot-home cleanup. WIP fix in `copilot/aw-fix-code-simplifier-failure`. ~1.9M tokens wasted/run. DO NOT RE-FILE.
-- **Daily Safe Output Integrator (#41788 OPEN)**: 6+ consecutive failures (Jun 22-27). Tool denial limit exceeded. Needs prompt/config refactor. DO NOT RE-FILE.
-- **Daily BYOK Ollama Test (#41827+#41811 OPEN)**: 8+ consecutive failures. api-proxy returns 503 on /v1/models. Infra dependency. DO NOT RE-FILE.
-- **CI Regression (#41844 OPEN)**: CI schedule failing Jun 27 (01:02, 03:15 UTC). Root cause: nolint-suppression parity gap. WIP PR `copilot/fix-nolint-suppression-gap` (#41849). DO NOT RE-FILE.
+- **Code Simplifier (#42003 OPEN)**: 8+ consecutive failures (Jun 20–Jun 28). FIX PR #41852 MERGED but did NOT resolve (run Jun 28 04:45 still EACCES rimraf). Deeper investigation needed. DO NOT RE-FILE.
+- **Daily Safe Output Integrator (#41935 OPEN)**: 6+ consecutive failures (Jun 23–27). Tool denial limit exceeded (5/5). Needs prompt/config refactor. DO NOT RE-FILE.
+- **Daily BYOK Ollama Test (#41827 OPEN)**: 9+ consecutive failures. api-proxy returns 503 on /v1/models. Infra dependency. DO NOT RE-FILE.
 
 ## P2 ⚠️ (Monitor)
-- **Go Logger Enhancement (#41839 OPEN)**: 2 consecutive failures (Jun 26, 27). WIP stabilization.
-- **Agentic Workflow Audit Agent (#41807 OPEN)**: 1 failure Jun 26. Closed Jun 27 — confirmed transient.
-- **Daily Cache Strategy Analyzer (#41787 OPEN)**: Alternating pattern (fail/success). Flaky — needs root cause investigation.
-- **Daily yamllint Fixer (#41825 OPEN)**: 1 failure Jun 27 dispatch. Likely transient, monitor.
-- **Design Decision Gate (#41832 OPEN)**: PR-triggered failure Jun 27. Monitor.
+- **Go Logger Enhancement (#42002 OPEN)**: 3 consecutive failures (Jun 26–28). WIP stabilization.
+- **Smoke Copilot (#41988 OPEN)**: 1 failure Jun 27 22:13 (dispatch_workflow missing `message` input), recovered 22:59. Monitor.
+- **Changeset Generator (#41987 OPEN)**: Push rejected — needs `workflows` scope on token. Monitor.
 
 ## Confirmed Stable ✅
-- **Auto-Triage Issues**: FULLY STABLE ✅ — 5+ consecutive successes Jun 26-27
-- **Compilation**: 253/253 ✅ STABLE
+- **CI**: RESOLVED ✅ — PR #41849 merged, passing since Jun 28 03:17 (issue #41844 can be closed)
+- **Auto-Triage Issues**: STABLE ✅
+- **Compilation**: 257/257 ✅ STABLE
 - **PR Sous Chef**: STABLE ✅
-- **Daily Safe Outputs Git Simulator**: STABLE ✅
-- **Avenger**: STABLE ✅ (4/5 recent, last successful)
-- **Issue Monster**: STABLE ✅ (5/5 streak)
-- **PR Triage Agent**: STABLE ✅ (5/5)
-- **Team Status**: STABLE ✅ (5/5)
+- **Avenger**: STABLE ✅
 
-## Health Scores (Jun 27 13:05Z)
-- Compilation: 253/253 ✅
-- Overall Quality Score: 62/100 (↑+2)
-- Effectiveness Score: 63/100 (↑+3)
-- Health Score: 84/100 (↓3 — CI regression)
-- P1 issues: 4 (Code Simplifier, BYOK Ollama, Safe Output Integrator, CI Regression)
-- P2 issues: ~5 monitored
-- Recoveries: Auto-Triage fully stable ✅
-- PR merge rate (swe-agent): 81% (↑ from ~74%)
-- Fleet AIC/24h: 6,812 (↓1.4%)
+## Health Scores (Jun 28 05:54Z)
+- Compilation: 257/257 ✅
+- Health Score: 82/100 (↓2 from 84)
+- P1 issues: 3 (Code Simplifier, BYOK Ollama, Safe Output Integrator)
+- P2 issues: 3 monitored (Go Logger, Smoke Copilot, Changeset Generator)
+- Recoveries: CI ✅ RESOLVED
 
-## Recommendations (For Campaign Manager)
-1. Code Simplifier WIP PR #41852 needs merge priority — blocking 1.9M AIC/run waste
-2. Safe Output Integrator needs campaign to restructure tool usage (structural refactor)
-3. Stale PR detection gap — no campaign coverage yet
+## Systemic Issues (For Campaign Manager)
+1. **Chroot EACCES** (Code Simplifier): Fix PR #41852 did not take effect — may affect other workflows using chroot. High priority.
+2. **Tool denial guardrails**: Safe Output Integrator structural refactor needed
+3. **Safe-output push scope**: Changeset Generator needs `workflows` scope — may affect other workflows pushing lock files
