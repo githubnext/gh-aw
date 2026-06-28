@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var actionCacheLog = logger.New("workflow:action_cache")
@@ -668,10 +669,7 @@ func (c *ActionCache) deleteDedupEntries(toDelete []string) {
 }
 
 func truncateSHAForLog(sha string) string {
-	if len(sha) > 8 {
-		return sha[:8]
-	}
-	return sha
+	return stringutil.Truncate(sha, 11)
 }
 
 // PruneStaleGHAWEntries removes entries from the cache for the gh-aw-actions

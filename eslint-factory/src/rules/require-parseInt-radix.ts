@@ -1,6 +1,7 @@
-import { ESLintUtils } from "@typescript-eslint/utils";
+import { ESLintUtils, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/actions/setup/js/eslint-factory#${name}`);
+const GLOBAL_PARSE_INT_OBJECTS = new Set(["Number", "globalThis", "window", "global"]);
 
 export const requireParseIntRadixRule = createRule({
   name: "require-parseInt-radix",
@@ -16,23 +17,68 @@ export const requireParseIntRadixRule = createRule({
   },
   defaultOptions: [],
   create(context) {
+    const sourceCode = context.sourceCode;
+    type SourceCodeScope = ReturnType<typeof sourceCode.getScope>;
+
+    /**
+     * Checks whether a given identifier name is locally bound in the current scope chain.
+     * @param node AST node to start the scope search from.
+     * @param name Identifier name to search for.
+     * @returns true if the name has a local binding, false otherwise.
+     */
+    function hasLocalBinding(node: TSESTree.Node, name: string): boolean {
+      let scope: SourceCodeScope | null = sourceCode.getScope(node);
+
+      while (scope) {
+        const variable = scope.set.get(name);
+
+        if (variable?.defs.length) {
+          return true;
+        }
+
+        scope = scope.upper;
+      }
+
+      return false;
+    }
+
+    /**
+     * Checks whether a MemberExpression property is parseInt, either direct or computed.
+     * @param node MemberExpression node to inspect.
+     * @returns true if the property is parseInt.
+     */
+    function isParseIntProperty(node: TSESTree.MemberExpression): boolean {
+      const property = node.property;
+      const isDirectAccess = property.type === "Identifier" && property.name === "parseInt";
+      const isComputedAccess = property.type === "Literal" && property.value === "parseInt";
+
+      return isDirectAccess || isComputedAccess;
+    }
+
     return {
       CallExpression(node) {
+        if (node.arguments.length >= 2) {
+          return;
+        }
+
+        // Report only the global parseInt binding. Aliased (const p = parseInt; p(x))
+        // and destructured (const { parseInt } = Number; parseInt(x)) bindings are
+        // intentionally out of scope: tracking them reliably requires deeper
+        // scope/alias analysis and is disproportionate to the current risk surface.
         // Global parseInt(x) — missing radix
-        if (node.callee.type === "Identifier" && node.callee.name === "parseInt" && node.arguments.length < 2) {
+        if (node.callee.type === "Identifier" && node.callee.name === "parseInt" && !hasLocalBinding(node, "parseInt")) {
           context.report({ node, messageId: "requireRadix" });
           return;
         }
 
-        // Number.parseInt(x) — missing radix
+        // Accept both direct property access (Number.parseInt, globalThis.parseInt)
+        // and computed string-literal access (Number["parseInt"]).
         if (
           node.callee.type === "MemberExpression" &&
-          !node.callee.computed &&
           node.callee.object.type === "Identifier" &&
-          node.callee.object.name === "Number" &&
-          node.callee.property.type === "Identifier" &&
-          node.callee.property.name === "parseInt" &&
-          node.arguments.length < 2
+          GLOBAL_PARSE_INT_OBJECTS.has(node.callee.object.name) &&
+          !hasLocalBinding(node, node.callee.object.name) &&
+          isParseIntProperty(node.callee)
         ) {
           context.report({ node, messageId: "requireRadix" });
         }

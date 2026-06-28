@@ -42,14 +42,14 @@
         },
         "isolation": {
           "type": "boolean",
-          "description": "Enable network topology egress mode. AWF creates an internal awf-net and routes traffic through attached sidecars instead of host-network iptables."
+          "description": "Experimental: enforce egress via Docker network topology (an internal network with no internet route plus a dual-homed Squid proxy) instead of host iptables. Requires no sudo/NET_ADMIN, so it works inside ARC/Kubernetes DinD runners. Not yet supported together with dnsOverHttps or enableHostAccess. Maps to the --network-isolation CLI flag."
         },
         "topologyAttach": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Container names to attach to awf-net after startup (equivalent to repeated --topology-attach flags). Requires network.isolation=true."
+          "description": "Names of externally-launched trusted containers (e.g. an MCP gateway or DIFC proxy) to attach to the internal topology network so the agent can reach them without granting them their own egress path. Requires network.isolation to be true. Maps to repeated --topology-attach CLI flags."
         }
       },
       "allOf": [

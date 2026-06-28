@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/github"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -114,7 +115,7 @@ func TestNormalizeRepoForAPI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ownerRepo, host := normalizeRepoForAPI(tt.repo)
+			ownerRepo, host := repoutil.NormalizeRepoForAPI(tt.repo)
 			assert.Equal(t, tt.wantOwnerRepo, ownerRepo, "owner/repo portion")
 			assert.Equal(t, tt.wantHost, host, "host portion")
 		})
