@@ -1,5 +1,5 @@
 import { RuleTester } from "eslint";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { requireParseIntRadixRule } from "./require-parseInt-radix";
 
 const cjsRuleTester = new RuleTester({
@@ -17,6 +17,10 @@ const esmRuleTester = new RuleTester({
 });
 
 describe("require-parseInt-radix", () => {
+  it("uses the correct docs URL", () => {
+    expect(requireParseIntRadixRule.meta.docs.url).toBe("https://github.com/github/gh-aw/tree/main/eslint-factory#require-parseInt-radix");
+  });
+
   it("valid: explicit radix is accepted for direct and computed access", () => {
     cjsRuleTester.run("require-parseInt-radix", requireParseIntRadixRule, {
       valid: [
@@ -61,11 +65,11 @@ describe("require-parseInt-radix", () => {
       invalid: [
         {
           code: `parseInt(str);`,
-          errors: [{ messageId: "requireRadix" }],
+          errors: [{ messageId: "requireRadix", suggestions: [{ messageId: "addRadix10", output: `parseInt(str, 10);` }] }],
         },
         {
           code: `parseInt(str.trim());`,
-          errors: [{ messageId: "requireRadix" }],
+          errors: [{ messageId: "requireRadix", suggestions: [{ messageId: "addRadix10", output: `parseInt(str.trim(), 10);` }] }],
         },
       ],
     });
@@ -77,11 +81,11 @@ describe("require-parseInt-radix", () => {
       invalid: [
         {
           code: `Number.parseInt(str);`,
-          errors: [{ messageId: "requireRadix" }],
+          errors: [{ messageId: "requireRadix", suggestions: [{ messageId: "addRadix10", output: `Number.parseInt(str, 10);` }] }],
         },
         {
           code: `Number["parseInt"](value);`,
-          errors: [{ messageId: "requireRadix" }],
+          errors: [{ messageId: "requireRadix", suggestions: [{ messageId: "addRadix10", output: `Number["parseInt"](value, 10);` }] }],
         },
       ],
     });
@@ -93,27 +97,62 @@ describe("require-parseInt-radix", () => {
       invalid: [
         {
           code: `globalThis.parseInt(value);`,
-          errors: [{ messageId: "requireRadix" }],
+          errors: [{ messageId: "requireRadix", suggestions: [{ messageId: "addRadix10", output: `globalThis.parseInt(value, 10);` }] }],
         },
         {
           code: `globalThis["parseInt"](value);`,
-          errors: [{ messageId: "requireRadix" }],
+          errors: [{ messageId: "requireRadix", suggestions: [{ messageId: "addRadix10", output: `globalThis["parseInt"](value, 10);` }] }],
         },
         {
           code: `window.parseInt(value);`,
-          errors: [{ messageId: "requireRadix" }],
+          errors: [{ messageId: "requireRadix", suggestions: [{ messageId: "addRadix10", output: `window.parseInt(value, 10);` }] }],
         },
         {
           code: `window["parseInt"](value);`,
-          errors: [{ messageId: "requireRadix" }],
+          errors: [{ messageId: "requireRadix", suggestions: [{ messageId: "addRadix10", output: `window["parseInt"](value, 10);` }] }],
         },
         {
           code: `global.parseInt(value);`,
-          errors: [{ messageId: "requireRadix" }],
+          errors: [{ messageId: "requireRadix", suggestions: [{ messageId: "addRadix10", output: `global.parseInt(value, 10);` }] }],
         },
         {
           code: `global["parseInt"](value);`,
-          errors: [{ messageId: "requireRadix" }],
+          errors: [{ messageId: "requireRadix", suggestions: [{ messageId: "addRadix10", output: `global["parseInt"](value, 10);` }] }],
+        },
+      ],
+    });
+  });
+
+  it("suggestion: inserts ', 10' for single-argument parseInt calls", () => {
+    cjsRuleTester.run("require-parseInt-radix", requireParseIntRadixRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `parseInt(str);`,
+          errors: [
+            {
+              messageId: "requireRadix",
+              suggestions: [{ messageId: "addRadix10", output: `parseInt(str, 10);` }],
+            },
+          ],
+        },
+        {
+          code: `Number.parseInt(value);`,
+          errors: [
+            {
+              messageId: "requireRadix",
+              suggestions: [{ messageId: "addRadix10", output: `Number.parseInt(value, 10);` }],
+            },
+          ],
+        },
+        {
+          code: `globalThis["parseInt"](value);`,
+          errors: [
+            {
+              messageId: "requireRadix",
+              suggestions: [{ messageId: "addRadix10", output: `globalThis["parseInt"](value, 10);` }],
+            },
+          ],
         },
       ],
     });
