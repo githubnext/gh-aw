@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en" data-color-mode="auto" data-light-theme="light" data-dark-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agentic Workflows Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/@primer/css@21/dist/primer.css" />
+    <style>
+      .awd-shell {
+        min-height: 100vh;
+        background: var(--bgColor-default, #ffffff);
+      }
+      .awd-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: 1fr;
+      }
+      @media (min-width: 960px) {
+        .awd-grid {
+          grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.2fr) minmax(360px, 1.2fr);
+        }
+      }
+      .awd-scroll {
+        max-height: 55vh;
+        overflow: auto;
+      }
+      .awd-run-row {
+        cursor: pointer;
+      }
+      .awd-run-row.is-selected {
+        background: var(--bgColor-accent-muted, #ddf4ff);
+      }
+      .awd-command-output {
+        white-space: pre-wrap;
+        max-height: 180px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body class="color-bg-default color-fg-default">
+    <div class="awd-shell" x-data="dashboardApp" x-init="init()">
+      <header class="border-bottom color-bg-subtle px-4 py-3">
+        <div class="d-flex flex-wrap flex-items-center flex-justify-between gap-2">
+          <div>
+            <div class="h4 mb-1">github / gh-aw</div>
+            <div class="color-fg-muted text-small">Agentic workflows canvas dashboard</div>
+          </div>
+          <span class="Label Label--accent">Copilot Canvas</span>
+        </div>
+        <nav class="UnderlineNav mt-3" aria-label="Repository">
+          <div class="UnderlineNav-body">
+            <a class="UnderlineNav-item selected" href="#" onclick="return false;">
+              Workflows
+              <span class="Counter" x-text="definitions.length"></span>
+            </a>
+            <a class="UnderlineNav-item" href="#" onclick="return false;">
+              Runs
+              <span class="Counter" x-text="runs.length"></span>
+            </a>
+          </div>
+        </nav>
+      </header>
+
+      <main class="px-4 py-3">
+        <div class="flash mt-2" :class="flashKind === 'error' ? 'flash-error' : (flashKind === 'warn' ? 'flash-warn' : 'flash-success')" x-show="flashMessage" x-text="flashMessage"></div>
+
+        <section class="awd-grid mt-3">
+          <div class="Box">
+            <div class="Box-header d-flex flex-items-center flex-justify-between">
+              <h2 class="Box-title">Workflow definitions <span class="Counter" x-text="definitionsPaged.totalItems"></span></h2>
+            </div>
+            <div class="Box-body p-0 awd-scroll">
+              <div class="Box-row" x-for="definition in definitionsPaged.items" :key="definition.id">
+                <div class="d-flex flex-justify-between gap-2">
+                  <div>
+                    <div class="text-bold" x-text="definition.name"></div>
+                    <div class="color-fg-muted text-small mt-1" x-text="definition.description"></div>
+                    <div class="mt-2 text-small color-fg-muted" x-text="definition.id"></div>
+                  </div>
+                  <span :class="definition.enabled ? 'Label Label--success' : 'Label Label--secondary'" x-text="definition.enabled ? 'enabled' : 'disabled'"></span>
+                </div>
+                <div class="mt-2">
+                  <button class="btn btn-sm" @click="selectedDefinitionId = definition.id; dispatchSelectedWorkflow()">Dispatch</button>
+                </div>
+              </div>
+            </div>
+            <div class="Box-footer d-flex flex-items-center flex-justify-between">
+              <button class="btn btn-sm" :disabled="!definitionsPaged.hasPreviousPage" @click="loadDefinitionPage(definitionsPaged.page - 1)">Previous</button>
+              <span class="color-fg-muted text-small">Page <span x-text="definitionsPaged.page"></span> / <span x-text="definitionsPaged.totalPages"></span></span>
+              <button class="btn btn-sm" :disabled="!definitionsPaged.hasNextPage" @click="loadDefinitionPage(definitionsPaged.page + 1)">Next</button>
+            </div>
+          </div>
+
+          <div class="Box">
+            <div class="Box-header d-flex flex-items-center flex-justify-between">
+              <h2 class="Box-title">Workflow runs <span class="Counter" x-text="runsPaged.totalItems"></span></h2>
+            </div>
+            <div class="Box-body p-0 awd-scroll">
+              <div class="Box-row awd-run-row" x-for="run in runsPaged.items" :key="run.id" :class="selectedRun && selectedRun.id === run.id ? 'is-selected' : ''" @click="selectRun(run.id)">
+                <div class="d-flex flex-justify-between flex-items-start gap-2">
+                  <div>
+                    <div class="text-bold" x-text="run.id"></div>
+                    <div class="color-fg-muted text-small mt-1">Definition: <span x-text="run.definitionId"></span></div>
+                    <div class="color-fg-muted text-small">Updated: <span x-text="formatDate(run.updatedAt)"></span></div>
+                  </div>
+                  <span :class="runStatusClass(run.status)" x-text="run.status"></span>
+                </div>
+              </div>
+            </div>
+            <div class="Box-footer d-flex flex-items-center flex-justify-between">
+              <button class="btn btn-sm" :disabled="!runsPaged.hasPreviousPage" @click="loadRunPage(runsPaged.page - 1)">Previous</button>
+              <span class="color-fg-muted text-small">Page <span x-text="runsPaged.page"></span> / <span x-text="runsPaged.totalPages"></span></span>
+              <button class="btn btn-sm" :disabled="!runsPaged.hasNextPage" @click="loadRunPage(runsPaged.page + 1)">Next</button>
+            </div>
+          </div>
+
+          <div class="d-flex flex-column gap-3">
+            <div class="Box">
+              <div class="Box-header">
+                <h2 class="Box-title">Run details</h2>
+              </div>
+              <div class="Box-body" x-show="selectedRun">
+                <div class="d-flex flex-wrap gap-2 flex-items-center mb-2">
+                  <span class="text-bold" x-text="selectedRun ? selectedRun.id : ''"></span>
+                  <span :class="selectedRun ? runStatusClass(selectedRun.status) : 'Label Label--secondary'" x-text="selectedRun ? selectedRun.status : 'n/a'"></span>
+                </div>
+                <div class="color-fg-muted text-small mb-3" x-show="selectedRun">Created: <span x-text="selectedRun ? formatDate(selectedRun.createdAt) : ''"></span></div>
+                <div class="Box border rounded-2">
+                  <div class="Box-row" x-for="step in (selectedRun ? selectedRun.steps : [])" :key="step.id">
+                    <div class="d-flex flex-items-center flex-justify-between mb-2">
+                      <span class="text-bold" x-text="step.title"></span>
+                      <span :class="stepStatusClass(step.status)" x-text="step.status"></span>
+                    </div>
+                    <div class="markdown-body text-small" x-html="renderMarkdown(step.summaryMarkdown)"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="Box-body color-fg-muted" x-show="!selectedRun">Select a workflow run to review step summaries.</div>
+            </div>
+
+            <div class="Box">
+              <div class="Box-header">
+                <h2 class="Box-title">Command panel</h2>
+              </div>
+              <div class="Box-body">
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                  <button class="btn btn-sm" @click="commandQuickFill('gh aw logs')">gh aw logs</button>
+                  <button class="btn btn-sm" @click="commandQuickFill(selectedRun ? `gh aw logs --run ${selectedRun.id}` : 'gh aw logs --run run-00001')">gh aw logs --run</button>
+                  <button class="btn btn-sm" @click="commandQuickFill('gh aw audit')">gh aw audit</button>
+                  <button class="btn btn-sm" @click="commandQuickFill(selectedRun ? `gh aw audit --run ${selectedRun.id}` : 'gh aw audit --run run-00001')">gh aw audit --run</button>
+                </div>
+                <div class="input-group mb-2">
+                  <input class="form-control" type="text" x-model="commandInput" aria-label="Command input" />
+                  <button class="btn" @click="runCommand()">Run</button>
+                </div>
+                <pre class="Box p-2 awd-command-output" x-text="commandOutput"></pre>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.0/dist/cdn.min.js"></script>
+    <script type="module">
+/*__APP_JS__*/
+    </script>
+  </body>
+</html>

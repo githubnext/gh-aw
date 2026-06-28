@@ -1,0 +1,17 @@
+{
+  "name": "agentic-workflows-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "extension.mjs",
+  "description": "GitHub Copilot canvas extension for agentic workflows dashboard.",
+  "dependencies": {
+    "@github/copilot-sdk": "1.0.4"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
