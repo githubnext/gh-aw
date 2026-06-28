@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "last_run": "2026-06-27",
-  "tested_count": 36,
+  "last_run": "2026-06-28",
+  "tested_count": 40,
   "total_cells": 3600,
   "tested": {
     "tiny-none-single-micro-clean-single": {"outcome": "pass", "timestamp": "2026-06-19", "issue_url": null},
@@ -39,8 +39,12 @@
     "tiny-none-single-large-ahead-merge_msg": {"outcome": "pass", "timestamp": "2026-06-27", "issue_url": null},
     "tiny-none-single-large-diverged-single": {"outcome": "pass", "timestamp": "2026-06-27", "issue_url": null},
     "tiny-none-single-large-diverged-multi": {"outcome": "pass", "timestamp": "2026-06-27", "issue_url": null},
-    "tiny-none-single-large-diverged-merge_msg": {"outcome": "pass", "timestamp": "2026-06-27", "issue_url": null}
+    "tiny-none-single-large-diverged-merge_msg": {"outcome": "pass", "timestamp": "2026-06-27", "issue_url": null},
+    "tiny-none-single-xlarge-clean-single": {"outcome": "pass", "timestamp": "2026-06-28", "issue_url": null},
+    "tiny-none-single-xlarge-clean-multi": {"outcome": "pass", "timestamp": "2026-06-28", "issue_url": null},
+    "tiny-none-single-xlarge-clean-merge_msg": {"outcome": "pass", "timestamp": "2026-06-28", "issue_url": null},
+    "tiny-none-single-xlarge-ahead-single": {"outcome": "pass", "timestamp": "2026-06-28", "issue_url": null}
   },
   "strategies": [],
-  "next_index": 36
+  "next_index": 40
 }

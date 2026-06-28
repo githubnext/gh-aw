@@ -3,12 +3,10 @@
 Compact log of the 3600-cell Z3 sweep (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT,
 COMMIT innermost). Condensed 2026-06-25 to fit the 10 KB repo-memory budget.
 
-## Results so far (36/3600, all PASS — no failures/rejections yet)
+## Results so far (40/3600, all PASS — no failures/rejections yet)
 
-All cells tested live in the `tiny-none-single-*` corner (SIZE=tiny,
-HISTORY=none, FILES=single). Enumeration walked PATCH micro→small→medium→large to
-COMPLETION; BRANCH clean/ahead/diverged × COMMIT single/multi/merge_msg fully
-covered at every tier through large. xlarge is next (idx 36).
+All cells in the `tiny-none-single-*` corner. PATCH walked micro→large to
+COMPLETION; xlarge now PARTIAL (clean×{sgl,multi,mrg}+ahead-sgl, 06-28).
 
 | PATCH tier | cells | branch×commit coverage | patch KB range | result |
 |-----------|-------|------------------------|----------------|--------|
@@ -16,9 +14,29 @@ covered at every tier through large. xlarge is next (idx 36).
 | small (50 KB)  | idx 9-17  | full clean/ahead/diverged × all commits | 48.7–52.1 | pass |
 | medium (200 KB)| idx 18-26 | full clean/ahead/diverged × all commits | 198–267*  | pass |
 | large (1000 KB)| idx 27-35 | full clean/ahead/diverged × all commits | 1013–1116 | pass |
+| xlarge (4000KB)| idx 36-39 | clean×{sgl,multi,mrg} + ahead-sgl ONLY   | 4052.9–4054.7 | pass |
 
 *one 06-24 outlier at 267 KB from a base64-inflation bug, since fixed.
-Large tier CLOSED 06-27 (idx 32-35: ahead/merge_msg + diverged×{single,multi,merge_msg}).
+Large CLOSED 06-27. xlarge OPENED 06-28; remaining idx 40-44 (ahead-
+multi/merge_msg + diverged×all).
+
+## *** HEADLINE 06-28: xlarge rides ~99% of the REAL default cap ***
+
+GROUNDED IN SOURCE (not a guess): the create-PR / push-to-branch patch cap is
+**`max-patch-size` default = 4096 KB** (compiler_types.go:734 "in KB (defaults to
+4096)"; safe_outputs_config.go:482 sets 4096 when unset; handler_registry.go:466,
+528 emit `max_patch_size: 4096`). Units = KB, per-handler configurable, NOT ~1 MB.
+A 06-28 sub-agent guessed ~1 MB and predicted "rejected" for idx 36 → RETRACTED;
+corrected vs source → PASS (4052.9 < 4096).
+- PATCH=xlarge (4000 KB payload) → **~4053–4055 KB** actual format-patch (~1.3–1.4%
+  base64-in-patch overhead). UNDER 4096 but only **~41–43 KB (~1%) headroom** —
+  the whole band rides the cap.
+- PREDICTION: first real `rejected` appears at xlarge × (diverged OR multi-file OR
+  bigger SIZE), where extra hunk/index/file headers tip net patch past 4096. Esp.
+  BRANCH=diverged (symmetric-diff adds history.md hunk), FILES few/many/batch.
+- Cap COMPARISON logic lives in the ACTION RUNTIME (TS collector), not this repo's
+  Go/JS (pkg only sets the value). Unconfirmed whether it measures payload bytes
+  or full format-patch bytes; if the latter (worst case), ~1% headroom is operative.
 
 ## Durable confirmations (hold across every tier tested)
 
@@ -68,25 +86,25 @@ Large tier CLOSED 06-27 (idx 32-35: ahead/merge_msg + diverged×{single,multi,me
 
 ## Hypotheses to validate as coverage grows
 
-- **xlarge (4000 KB) is the prime rejection candidate** — top size tier, first
-  reached at idx 36 (clean), band idx 36-44. A 4 MB patch × COMMIT=multi overhead
-  is the most likely place to finally hit a size cap.
-- **FILES=batch (100 files)** and **HISTORY=deep (500)** remain far ahead in the
-  enumeration; candidates for file-count / history-depth limits or timeouts,
-  especially combined with xlarge.
-- Baseline corner is fully healthy: no boundary effects below 1 MB at
-  tiny/none/single.
+- **xlarge × extra-overhead = the rejection edge.** Now grounded: cap = 4096 KB,
+  xlarge clean-single already at 4053 KB (~99%). The remaining xlarge cells
+  (40-44) and any future xlarge with diverged/multi-file/bigger-SIZE are the
+  prime spots to finally cross 4096 → real `rejected`. COMMIT does NOT inflate
+  (1× for text), so COMMIT alone won't tip it; FILE-COUNT and DIVERGED will.
+- **FILES=batch (100 files)** and **HISTORY=deep (500)** far ahead in enumeration;
+  also note FILES>single adds per-file diff/index headers — at xlarge that header
+  overhead is exactly what could breach 4096. Plus possible `max_patch_files` cap
+  (handler emits `max_patch_files`, default seen ~800; confirm before batch).
+- Baseline corner healthy: no boundary effects below 1 MB at tiny/none/single.
 
 ## Next
 
-Next enumeration index: **36** → `tiny-none-single-xlarge-clean-single`.
-Large tier is closed; **idx 36 enters xlarge (4000 KB)/clean** — the strongest
-remaining size-limit candidate. xlarge band is idx 36-44 (clean/ahead/diverged ×
-single/multi/merge_msg). NOTE the 06-27 correction: for our base64-TEXT payloads,
-COMMIT=multi does NOT inflate the patch SUM (~1× not 3×), so the earlier "multi
-pushes xlarge SUM toward ~12 MB" hypothesis is RETRACTED — a 4 MB xlarge stays
-~4 MB regardless of commit count. The honest worst-case at xlarge is ~4 MB patch
-SUM. If a size cap exists it should surface as a flat ~4 MB threshold at idx 36+,
-independent of COMMIT. After xlarge, enumeration leaves PATCH and advances FILES
-(few/many/batch) then HISTORY (shallow→deep) — batch (100 files) + deep (500) are
-the next untested file-count / history-depth limit candidates.
+Next enumeration index: **40** → `tiny-none-single-xlarge-ahead-multi`.
+xlarge clean-band (36-38) + ahead-single (39) CLOSED 06-28, all PASS at ~4053 KB
+(~99% of the 4096 KB cap). Band idx 40-44 = ahead×{multi,merge_msg} +
+diverged×{single,multi,merge_msg}. WATCH idx 42-44 (diverged): the symmetric-diff
+history.md hunk adds bytes on top of an already-4053 KB patch — first plausible
+breach of 4096 → real `rejected`. After xlarge fully closes (idx 45), enumeration
+leaves PATCH and advances FILES (few/many/batch) then HISTORY (shallow→deep);
+multi-file at xlarge (header overhead) and batch/deep are next limit candidates.
+REMINDER: `config-simulator` subagent unregistered → use `general-purpose`.
