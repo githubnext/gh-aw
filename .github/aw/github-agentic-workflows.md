@@ -71,7 +71,7 @@ See also: [workflow-constraints.md](workflow-constraints.md)
 
 When a PR analysis requires verifying or attaching a linked artifact (design doc, policy link, architecture decision record, or approval), follow this compact pattern:
 
-1. **Read the linked reference** from the PR body or comments (for example a URL, a markdown link, or an `ADR-NN` token) using `gh pr view`.
+1. **Read the linked reference** from the PR body or comments (for example, a URL, a markdown link, or an ADR reference token like `ADR-NN`) using `gh pr view`.
 2. **Validate the link** — confirm the document exists and is accessible before assessing compliance.
 3. **Classify the result**:
    - Link present and satisfies requirement → `add-comment` with a ✅ summary

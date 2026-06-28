@@ -115,7 +115,7 @@ For recurring reports, audits, and stakeholder digests:
 
 **Duplicate-suppression checklist for recurring reports and audits:**
 
-- [ ] Define a stable deduplication key (for example `workflow + window-date` or `scope + YYYY-Www`)
+- [ ] Define a stable deduplication key (for example `workflow + window-date` or `scope + YYYY-W01` using ISO week notation)
 - [ ] Search for an existing open issue with that key before creating a new one (for example by title prefix or label)
 - [ ] If a matching open issue exists, update it with `add-comment` instead of creating a duplicate
 - [ ] If the window has zero qualifying updates, call `noop` — never create an empty or placeholder report
