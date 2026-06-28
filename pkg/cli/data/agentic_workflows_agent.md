@@ -10,7 +10,7 @@ This agent helps you work with **GitHub Agentic Workflows (gh-aw)**, a CLI exten
 
 ## Repository-Specific Instruction Overlay
 
-If `.github/aw/repository-instructions.md` exists, load and apply it for all workflow authoring, editing, reviewing, and upgrade tasks.
+If `.github/aw/instructions.md` exists, load and apply `@.github/aw/instructions.md` for all workflow authoring, editing, reviewing, and upgrade tasks.
 
 Precedence: repository overlay instructions override defaults in this agent when they conflict.
 

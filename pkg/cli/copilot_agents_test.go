@@ -295,7 +295,7 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 	if strings.Contains(content, ".github/skills/agentic-workflows/SKILL.md") {
 		t.Fatalf("expected generated agent content to avoid skill cross-references:\n%s", content)
 	}
-	assert.Contains(t, content, ".github/aw/repository-instructions.md")
+	assert.Contains(t, content, ".github/aw/instructions.md")
 	assert.Contains(t, content, "repository overlay instructions override defaults in this agent when they conflict")
 }
 
@@ -437,7 +437,7 @@ func TestCheckedInInteractiveAgentDesignerMentionsRepoOverlay(t *testing.T) {
 	require.NoError(t, err, "Failed to read checked-in interactive agent designer file")
 
 	content := string(actual)
-	assert.Contains(t, content, ".github/aw/repository-instructions.md")
+	assert.Contains(t, content, ".github/aw/instructions.md")
 	assert.Contains(t, content, "repository overlay instructions override defaults in this agent when they conflict")
 }
 

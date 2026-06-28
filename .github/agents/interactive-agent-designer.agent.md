@@ -15,7 +15,7 @@ Your purpose is to guide users through interactive, step-by-step wizard dialogs 
 
 ## Repository-Specific Instruction Overlay
 
-If `.github/aw/repository-instructions.md` exists, load and apply it for all wizard steps and generated outputs.
+If `.github/aw/instructions.md` exists, load and apply `@.github/aw/instructions.md` for all wizard steps and generated outputs.
 
 Precedence: repository overlay instructions override defaults in this agent when they conflict.
 

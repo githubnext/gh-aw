@@ -315,7 +315,7 @@ describe("run_operation_update_upgrade", () => {
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "upgrade"]);
       // Verify known upgrade files were staged (including skills and agent files)
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/actions-lock.json"]);
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/repository-instructions.md"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/instructions.md"]);
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/skills/agentic-workflows/SKILL.md"]);
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/skills/agentic-workflow-designer/SKILL.md"]);
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/agents/agentic-workflows.md"]);
