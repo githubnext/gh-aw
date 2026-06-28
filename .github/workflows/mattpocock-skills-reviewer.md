@@ -45,13 +45,8 @@ pre-agent-steps:
       set -euo pipefail
       SKILLS_DST="${RUNNER_TEMP}/gh-aw/mattpocock-skills"
       mkdir -p "${SKILLS_DST}"
-      # Discover all engineering skills and install each individually.
-      # gh skill install requires a skill name in non-interactive (CI) mode.
-      # Use --dir to install directly to the target directory.
-      while IFS= read -r skill; do
-        gh skill install mattpocock/skills "$skill" --dir "${SKILLS_DST}" --force
-      done < <(gh api repos/mattpocock/skills/contents/skills/engineering \
-        --jq '[.[] | select(.type == "dir") | .name] | .[]')
+      # Install all published skills in one step.
+      gh skill install mattpocock/skills --all --dir "${SKILLS_DST}" --force
       SKILL_COUNT=$(find "${SKILLS_DST}" -name "SKILL.md" | wc -l)
       echo "Installed ${SKILL_COUNT} skill(s):"
       find "${SKILLS_DST}" -name "SKILL.md" | head -20
