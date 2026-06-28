@@ -172,13 +172,41 @@ function runGhAwAudit(args = "") {
   };
 }
 
+function runGhAwCompile(args = "") {
+  const argsText = typeof args === "string" ? args : JSON.stringify(args);
+  return {
+    command: `gh aw compile ${argsText}`.trim(),
+    output: `Compile summary\n- definitions loaded: ${definitions.length}\n- runs indexed: ${runs.length}\n- status: success`,
+  };
+}
+
+function runGhAwAuditDiff(args = "") {
+  const argsText = typeof args === "string" ? args : JSON.stringify(args);
+  const referencedRuns = argsText.match(/run-\d{5}/g) ?? [];
+  const baseRun = findRun(referencedRuns[0] ?? runs[1]?.id ?? "");
+  const compareRun = findRun(referencedRuns[1] ?? runs[0]?.id ?? "");
+
+  if (!baseRun || !compareRun) {
+    return {
+      command: `gh aw audit-diff ${argsText}`.trim(),
+      output: "Need two valid runs for diff. Example: gh aw audit-diff run-00002 run-00003",
+    };
+  }
+
+  return {
+    command: `gh aw audit-diff ${baseRun.id} ${compareRun.id}`,
+    output: `Audit diff\n- base: ${baseRun.id} (${baseRun.status})\n- compare: ${compareRun.id} (${compareRun.status})\n- step delta: ${compareRun.steps.length - baseRun.steps.length}`,
+  };
+}
+
 async function renderDashboardUrl() {
   const htmlPath = join(__dirname, "web", "index.html");
   const appPath = join(__dirname, "web", "app.js");
+  const cssPath = join(__dirname, "web", "styles.css");
 
-  const [htmlTemplate, appBundle] = await Promise.all([readFile(htmlPath, "utf8"), readFile(appPath, "utf8")]);
+  const [htmlTemplate, appBundle, cssBundle] = await Promise.all([readFile(htmlPath, "utf8"), readFile(appPath, "utf8"), readFile(cssPath, "utf8")]);
 
-  const html = htmlTemplate.replace("/*__APP_JS__*/", appBundle);
+  const html = htmlTemplate.replace("/*__APP_CSS__*/", cssBundle).replace("/*__APP_JS__*/", appBundle);
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
@@ -280,6 +308,30 @@ await joinSession({
             additionalProperties: false,
           },
           handler: ctx => runGhAwAudit(String(ctx.input?.args ?? "")),
+        },
+        {
+          name: "runGhAwCompile",
+          description: "Run gh aw compile command behavior.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              args: { type: "string" },
+            },
+            additionalProperties: false,
+          },
+          handler: ctx => runGhAwCompile(String(ctx.input?.args ?? "")),
+        },
+        {
+          name: "runGhAwAuditDiff",
+          description: "Run gh aw audit-diff command behavior.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              args: { type: "string" },
+            },
+            additionalProperties: false,
+          },
+          handler: ctx => runGhAwAuditDiff(String(ctx.input?.args ?? "")),
         },
       ],
       open: async () => {

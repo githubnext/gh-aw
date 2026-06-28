@@ -197,12 +197,37 @@ function runGhCommand(command: string, runs: WorkflowRun[]): CommandResult {
     };
   }
 
+  if (normalized === "gh aw compile") {
+    return {
+      command: normalized,
+      output: `Compile summary\n- definitions loaded: ${definitions.length}\n- runs indexed: ${runs.length}\n- status: success`,
+    };
+  }
+
   if (normalized === "gh aw audit") {
     const completed = runs.filter(run => run.status === "completed").length;
     const failed = runs.filter(run => run.status === "failed").length;
     return {
       command: normalized,
       output: `Audit summary\n- total runs: ${runs.length}\n- completed: ${completed}\n- failed: ${failed}`,
+    };
+  }
+
+  if (normalized.startsWith("gh aw audit-diff")) {
+    const referencedRuns = normalized.match(/run-\d{5}/g) ?? [];
+    const baseRun = runs.find(item => item.id === (referencedRuns[0] ?? runs[1]?.id));
+    const compareRun = runs.find(item => item.id === (referencedRuns[1] ?? runs[0]?.id));
+
+    if (!baseRun || !compareRun) {
+      return {
+        command: normalized,
+        output: "Need two valid runs for diff. Example: gh aw audit-diff run-00002 run-00003",
+      };
+    }
+
+    return {
+      command: normalized,
+      output: `Audit diff\n- base: ${baseRun.id} (${baseRun.status})\n- compare: ${compareRun.id} (${compareRun.status})\n- step delta: ${compareRun.steps.length - baseRun.steps.length}`,
     };
   }
 
@@ -220,7 +245,7 @@ function runGhCommand(command: string, runs: WorkflowRun[]): CommandResult {
 
   return {
     command: normalized,
-    output: "Supported commands: gh aw logs, gh aw logs --run <id>, gh aw audit, gh aw audit --run <id>.",
+    output: "Supported commands: gh aw logs, gh aw logs --run <id>, gh aw compile, gh aw audit, gh aw audit --run <id>, gh aw audit-diff.",
   };
 }
 

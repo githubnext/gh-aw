@@ -5,26 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agentic Workflows Dashboard</title>
     <link rel="stylesheet" href="https://unpkg.com/@primer/css@21/dist/primer.css" />
+    <link rel="stylesheet" href="./styles.css" />
     <style>
-      .awd-shell {
-        min-height: 100vh;
-        background: var(--bgColor-default, #ffffff);
-      }
-      .awd-scroll {
-        max-height: 55vh;
-        overflow: auto;
-      }
-      .awd-run-row {
-        cursor: pointer;
-      }
-      .awd-run-row.is-selected {
-        background: var(--bgColor-accent-muted, #ddf4ff);
-      }
-      .awd-command-output {
-        white-space: pre-wrap;
-        max-height: 180px;
-        overflow: auto;
-      }
+      /*__APP_CSS__*/
     </style>
   </head>
   <body class="color-bg-default color-fg-default">
@@ -139,8 +122,10 @@
               <div class="d-flex flex-wrap gap-2 mb-2">
                 <button class="btn btn-sm" @click="commandQuickFill('gh aw logs')">gh aw logs</button>
                 <button class="btn btn-sm" @click="commandQuickFill(selectedRun ? `gh aw logs --run ${selectedRun.id}` : 'gh aw logs --run run-00001')">gh aw logs --run</button>
+                <button class="btn btn-sm" @click="commandQuickFill('gh aw compile')">gh aw compile</button>
                 <button class="btn btn-sm" @click="commandQuickFill('gh aw audit')">gh aw audit</button>
                 <button class="btn btn-sm" @click="commandQuickFill(selectedRun ? `gh aw audit --run ${selectedRun.id}` : 'gh aw audit --run run-00001')">gh aw audit --run</button>
+                <button class="btn btn-sm" @click="commandQuickFill(selectedRun ? `gh aw audit-diff ${runs[1]?.id ?? 'run-00002'} ${selectedRun.id}` : 'gh aw audit-diff run-00001 run-00002')">gh aw audit-diff</button>
               </div>
               <div class="input-group mb-2">
                 <input class="form-control" type="text" x-model="commandInput" aria-label="Command input" />
@@ -154,7 +139,7 @@
     </div>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.0/dist/cdn.min.js"></script>
     <script type="module">
-/*__APP_JS__*/
+      /*__APP_JS__*/
     </script>
   </body>
 </html>
