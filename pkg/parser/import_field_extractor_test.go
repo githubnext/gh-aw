@@ -709,7 +709,7 @@ func TestAppendModelsField_ExtractsModelPolicySets(t *testing.T) {
 		},
 	}
 
-	acc.appendModelsField(fm)
+	acc.appendModelsField(fm, "import-a.md")
 
 	require.Len(t, acc.modelPolicies, 1, "expected one model policy set")
 	assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, acc.modelPolicies[0]["allowed"])
@@ -734,7 +734,7 @@ func TestAppendModelsField_ExtractsModelCostsAndPolicyTogether(t *testing.T) {
 		},
 	}
 
-	acc.appendModelsField(fm)
+	acc.appendModelsField(fm, "import-b.md")
 
 	require.Len(t, acc.modelCosts, 1, "expected one model cost overlay")
 	require.Len(t, acc.modelPolicies, 1, "expected one model policy set")
@@ -745,4 +745,22 @@ func TestAppendModelsField_ExtractsModelCostsAndPolicyTogether(t *testing.T) {
 		_, present := acc.modelCosts[0][key]
 		assert.Falsef(t, present, "model cost overlay should not contain policy key %q", key)
 	}
+}
+
+func TestAppendModelsField_InvalidPolicyAndProviders_EmitsWarningsAndSkipsCosts(t *testing.T) {
+	acc := newImportAccumulator()
+	fm := map[string]any{
+		"models": map[string]any{
+			"allowed":   "gpt-5",
+			"providers": "not-an-object",
+		},
+	}
+
+	acc.appendModelsField(fm, "import-c.md")
+
+	assert.Empty(t, acc.modelPolicies)
+	assert.Empty(t, acc.modelCosts)
+	require.NotEmpty(t, acc.warnings)
+	assert.Contains(t, acc.warnings[0], "models.allowed")
+	assert.Contains(t, acc.warnings[1], "models.providers")
 }

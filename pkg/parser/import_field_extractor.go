@@ -589,7 +589,7 @@ func (acc *importAccumulator) extractFeatureAndObservabilityFields(fm map[string
 	acc.mergeLabels(fm)
 	acc.appendCacheField(fm)
 	acc.appendFeaturesField(fm)
-	acc.appendModelsField(fm)
+	acc.appendModelsField(fm, fullPath)
 	acc.extractRunInstallScripts(fm, fullPath)
 	acc.appendObservabilityField(fm, fullPath)
 }
@@ -618,7 +618,7 @@ func (acc *importAccumulator) appendFeaturesField(fm map[string]any) {
 	}
 }
 
-func (acc *importAccumulator) appendModelsField(fm map[string]any) {
+func (acc *importAccumulator) appendModelsField(fm map[string]any, importPath string) {
 	modelsContent, err := extractFieldJSONFromMap(fm, "models", "{}")
 	if err != nil || modelsContent == "" || modelsContent == "{}" {
 		return
@@ -627,16 +627,14 @@ func (acc *importAccumulator) appendModelsField(fm map[string]any) {
 	if jsonErr := json.Unmarshal([]byte(modelsContent), &rawModels); jsonErr != nil {
 		return
 	}
-	if modelPolicy := normalizeModelPolicies(rawModels); len(modelPolicy) > 0 {
+	if modelPolicy := normalizeModelPolicies(rawModels, importPath, &acc.warnings); len(modelPolicy) > 0 {
 		acc.modelPolicies = append(acc.modelPolicies, modelPolicy)
 		parserLog.Printf("Extracted model policy from import: allowed=%d, disallowed=%d", len(modelPolicy["allowed"]), len(modelPolicy["disallowed"]))
 	}
 	if providers, hasProviders := rawModels["providers"]; hasProviders {
-		acc.modelCosts = append(acc.modelCosts, map[string]any{"providers": providers})
-		if providerMap, ok := providers.(map[string]any); ok {
+		if providerMap, ok := sanitizeModelProvidersForCosts(providers, importPath, &acc.warnings); ok {
+			acc.modelCosts = append(acc.modelCosts, map[string]any{"providers": providerMap})
 			parserLog.Printf("Extracted model costs from import: providers=%d", len(providerMap))
-		} else {
-			parserLog.Printf("Extracted model costs from import")
 		}
 		return
 	}
@@ -658,9 +656,13 @@ func (acc *importAccumulator) appendModelsField(fm map[string]any) {
 	}
 }
 
-func normalizeModelPolicies(rawModels map[string]any) map[string][]string {
+func normalizeModelPolicies(rawModels map[string]any, importPath string, warnings *[]string) map[string][]string {
 	parse := func(key string) []string {
-		return parseStringSliceField(rawModels[key], false)
+		value, exists := rawModels[key]
+		if !exists {
+			return nil
+		}
+		return parseModelPolicyField(value, key, importPath, warnings)
 	}
 	allowed := parse(modelPolicyAllowedKey)
 	disallowed := parse(modelPolicyDisallowedKey)
@@ -683,6 +685,44 @@ func normalizeModelAliases(rawModels map[string]any) map[string][]string {
 		modelsMap[k] = strs
 	}
 	return modelsMap
+}
+
+// parseModelPolicyField parses one imported models policy field as a string list.
+// Invalid field shapes or entries are ignored and appended to warnings.
+func parseModelPolicyField(value any, fieldName, importPath string, warnings *[]string) []string {
+	values, ok := value.([]any)
+	if !ok {
+		*warnings = append(*warnings, fmt.Sprintf("import %q: models.%s must be an array; skipping invalid value", importPath, fieldName))
+		return nil
+	}
+	result := make([]string, 0, len(values))
+	for _, v := range values {
+		s, ok := v.(string)
+		if !ok {
+			*warnings = append(*warnings, fmt.Sprintf("import %q: models.%s contains a non-string entry; skipping invalid entry", importPath, fieldName))
+			continue
+		}
+		if s == "" {
+			*warnings = append(*warnings, fmt.Sprintf("import %q: models.%s contains an empty string entry; skipping invalid entry", importPath, fieldName))
+			continue
+		}
+		result = append(result, s)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+// sanitizeModelProvidersForCosts validates models.providers from an import.
+// It returns the provider map and true when the input is a non-empty object; otherwise false.
+func sanitizeModelProvidersForCosts(providers any, importPath string, warnings *[]string) (map[string]any, bool) {
+	providerMap, ok := providers.(map[string]any)
+	if !ok || len(providerMap) == 0 {
+		*warnings = append(*warnings, fmt.Sprintf("import %q: models.providers must be a non-empty object; skipping invalid value", importPath))
+		return nil, false
+	}
+	return providerMap, true
 }
 
 func parseStringSliceField(value any, keepEmpty bool) []string {

@@ -580,6 +580,11 @@ func resolveModelPolicyForAWFConfig(workflowData *WorkflowData) ([]string, []str
 	} else if workflowData != nil {
 		disallowed = workflowData.ModelPolicyDisallowed
 	}
+	disallowedSet := make(map[string]struct{}, len(disallowed))
+	for _, model := range disallowed {
+		disallowedSet[model] = struct{}{}
+	}
+	allowed = filterAllowedModelConflictsWithSet(allowed, disallowedSet)
 	return allowed, disallowed
 }
 

@@ -198,7 +198,9 @@ func extractMainModelCostsOverlay(toolsResult *toolsProcessingResult, frontmatte
 	// tool config shapes like bash: ["*"]).
 	if toolsResult.parsedFrontmatter != nil && len(toolsResult.parsedFrontmatter.ModelCosts) > 0 {
 		if providers, hasProviders := toolsResult.parsedFrontmatter.ModelCosts["providers"]; hasProviders {
-			return map[string]any{"providers": providers}
+			if providersMap, ok := providers.(map[string]any); ok && len(providersMap) > 0 {
+				return map[string]any{"providers": providersMap}
+			}
 		}
 		return nil
 	}
@@ -215,7 +217,11 @@ func extractMainModelCostsOverlay(toolsResult *toolsProcessingResult, frontmatte
 	if !hasProviders {
 		return nil
 	}
-	return map[string]any{"providers": providers}
+	providersMap, ok := providers.(map[string]any)
+	if !ok || len(providersMap) == 0 {
+		return nil
+	}
+	return map[string]any{"providers": providersMap}
 }
 
 func mergeModelCostOverlays(importedOverlays []map[string]any, mainOverlay map[string]any) map[string]any {
@@ -346,9 +352,24 @@ func mergeModelPolicyOverlays(importedPolicies []map[string][]string, mainPolicy
 	for model := range disallowedSet {
 		disallowedModels = append(disallowedModels, model)
 	}
+	allowedModels = filterAllowedModelConflictsWithSet(allowedModels, disallowedSet)
 	sort.Strings(allowedModels)
 	sort.Strings(disallowedModels)
 	return allowedModels, disallowedModels
+}
+
+func filterAllowedModelConflictsWithSet(allowed []string, disallowedSet map[string]struct{}) []string {
+	if len(allowed) == 0 || len(disallowedSet) == 0 {
+		return allowed
+	}
+	filtered := make([]string, 0, len(allowed))
+	for _, model := range allowed {
+		if _, isDisallowed := disallowedSet[model]; isDisallowed {
+			continue
+		}
+		filtered = append(filtered, model)
+	}
+	return filtered
 }
 
 // resolveInlinedImports returns true if inlined-imports is enabled.
