@@ -1,4 +1,5 @@
 import type { PagedResult, WorkflowDefinition, WorkflowRun, WorkflowRunStatus, WorkflowStep, WorkflowStepStatus } from "./models.js";
+import { paginate } from "./pagination.js";
 
 type CommandResult = { command: string; output: string };
 
@@ -97,24 +98,6 @@ function buildRuns(count: number, definitions: WorkflowDefinition[]): WorkflowRu
       steps: stepStatuses.map((stepStatus, stepIndex) => buildStep(index, stepIndex + 1, stepStatus)),
     };
   });
-}
-
-function paginate<T>(items: T[], page: number, pageSize: number): PagedResult<T> {
-  const totalItems = items.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const safePage = Math.min(Math.max(1, page), totalPages);
-  const start = (safePage - 1) * pageSize;
-  const end = start + pageSize;
-
-  return {
-    items: items.slice(start, end),
-    page: safePage,
-    pageSize,
-    totalItems,
-    totalPages,
-    hasNextPage: safePage < totalPages,
-    hasPreviousPage: safePage > 1,
-  };
 }
 
 function escapeHtml(value: string): string {

@@ -1,3 +1,4 @@
+import { paginate } from "./pagination.js";
 const definitionCount = 240;
 const runCount = 420;
 function isoHoursAgo(hours) {
@@ -55,22 +56,6 @@ function buildRuns(count, definitions) {
             steps: stepStatuses.map((stepStatus, stepIndex) => buildStep(index, stepIndex + 1, stepStatus)),
         };
     });
-}
-function paginate(items, page, pageSize) {
-    const totalItems = items.length;
-    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-    const safePage = Math.min(Math.max(1, page), totalPages);
-    const start = (safePage - 1) * pageSize;
-    const end = start + pageSize;
-    return {
-        items: items.slice(start, end),
-        page: safePage,
-        pageSize,
-        totalItems,
-        totalPages,
-        hasNextPage: safePage < totalPages,
-        hasPreviousPage: safePage > 1,
-    };
 }
 function escapeHtml(value) {
     return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
@@ -266,4 +251,3 @@ document.addEventListener("alpine:init", () => {
         stepStatusClass,
     }));
 });
-export {};

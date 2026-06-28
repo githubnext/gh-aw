@@ -235,6 +235,11 @@ security-govulncheck-sarif:
 test-js: build-js
 	cd actions/setup/js && npm run test:js -- --no-file-parallelism
 
+# Build and test the Copilot canvas extension for agentic workflows
+.PHONY: test-canvas-extension
+test-canvas-extension:
+	cd .github/extensions/agentic-workflows-dashboard && npm ci && npm run build && npm test
+
 # Test impacted JavaScript unit tests only (excluding integration tests)
 .PHONY: test-impacted-js
 test-impacted-js: build-js
