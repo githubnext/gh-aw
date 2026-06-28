@@ -772,6 +772,43 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
+    it("does not add duplicate safe.directory entries on repeated handler calls with the same path", async () => {
+      const prevCount = process.env.GIT_CONFIG_COUNT;
+      const prevKeys = Object.fromEntries(Object.entries(process.env).filter(([k]) => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k)));
+      delete process.env.GIT_CONFIG_COUNT;
+      for (const key of Object.keys(prevKeys)) delete process.env[key];
+      try {
+        // Two calls simulate a retry or concurrent invocation with the same workspace path.
+        await handlers.createPullRequestHandler({
+          branch: "feature-branch",
+          title: "Test PR",
+          body: "Test description",
+        });
+        await handlers.createPullRequestHandler({
+          branch: "feature-branch",
+          title: "Test PR",
+          body: "Test description",
+        });
+
+        const count = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10);
+        const safeDirectories = [];
+        for (let i = 0; i < count; i++) {
+          if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory") {
+            safeDirectories.push(process.env[`GIT_CONFIG_VALUE_${i}`]);
+          }
+        }
+        // The workspace path must appear exactly once — no duplicate growth.
+        expect(safeDirectories.filter(d => d === testWorkspaceDir)).toHaveLength(1);
+      } finally {
+        if (prevCount === undefined) delete process.env.GIT_CONFIG_COUNT;
+        else process.env.GIT_CONFIG_COUNT = prevCount;
+        for (const key of Object.keys(process.env).filter(k => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k))) {
+          delete process.env[key];
+        }
+        for (const [key, value] of Object.entries(prevKeys)) process.env[key] = value;
+      }
+    });
+
     it("should include helpful details in error response", async () => {
       const args = {
         branch: "test-branch",

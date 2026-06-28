@@ -235,6 +235,11 @@ function ensureSafeDirectoryTrust(gitCwd, server) {
  * @returns {Object} An object containing all handler functions
  */
 function createHandlers(server, appendSafeOutput, config = {}) {
+  // Ensure the workspace is trusted for the lifetime of this server process.
+  // This covers all current and future handlers automatically; per-handler calls
+  // additionally cover per-request checkout paths that differ from GITHUB_WORKSPACE.
+  ensureSafeDirectoryTrust(process.env.GITHUB_WORKSPACE || process.cwd(), server);
+
   const TOKEN_THRESHOLD = 16000;
 
   /**
