@@ -14,7 +14,9 @@ permissions:
 
   copilot-requests: write
 tracker-id: spec-extractor
-engine: copilot
+engine:
+  id: copilot
+  max-continuations: 3
 strict: true
 
 imports:
