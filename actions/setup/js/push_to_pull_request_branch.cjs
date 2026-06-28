@@ -1225,7 +1225,7 @@ async function main(config = {}) {
             if (fallbackPushOutput.exitCode !== 0) {
               const fallbackPushStderr = (fallbackPushOutput.stderr || "").trim();
               if (isWorkflowsScopeRejection(fallbackPushStderr)) {
-                throw new Error(buildWorkflowsScopeError("Fallback branch", core).error);
+                return buildWorkflowsScopeError("Fallback branch", core);
               }
               throw new Error(`git push origin ${fallbackBranchName} failed (exit code ${fallbackPushOutput.exitCode}): ${fallbackPushStderr}`);
             }
