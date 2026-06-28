@@ -56,6 +56,7 @@ safe-outputs:
 timeout-minutes: 15
 strict: true
 
+max-tool-denials: 8
 ---
 
 # Resource Summarizer Agent

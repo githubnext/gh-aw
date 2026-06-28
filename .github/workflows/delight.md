@@ -81,6 +81,7 @@ tools:
     - default
     - discussions
 tracker-id: delight-daily
+max-tool-denials: 8
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

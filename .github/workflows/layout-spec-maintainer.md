@@ -52,6 +52,7 @@ tools:
     toolsets:
     - default
 tracker-id: layout-spec-maintainer
+max-tool-denials: 8
 ---
 # Layout Specification Maintainer
 

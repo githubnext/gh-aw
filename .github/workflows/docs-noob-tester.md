@@ -97,6 +97,7 @@ pre-agent-steps:
       echo "Server URL: http://localhost:4321/gh-aw/"
 features:
   gh-aw-detection: true
+max-tool-denials: 8
 ---
 
 # Documentation Noob Testing

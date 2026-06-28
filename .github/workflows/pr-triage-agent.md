@@ -47,6 +47,7 @@ timeout-minutes: 30
 max-ai-credits: 1500
 
 
+max-tool-denials: 8
 ---
 
 # PR Triage Agent

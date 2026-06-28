@@ -70,6 +70,7 @@ tools:
     max-file-size: 204800
 features:
   gh-aw-detection: true
+max-tool-denials: 8
 ---
 
 # Copilot CLI Deep Research Agent

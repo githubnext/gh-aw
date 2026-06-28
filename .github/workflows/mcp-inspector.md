@@ -55,6 +55,7 @@ tools:
   cache-memory: true
 
 
+max-tool-denials: 8
 ---
 # MCP Inspector Agent
 

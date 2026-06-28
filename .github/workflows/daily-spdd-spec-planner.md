@@ -70,6 +70,7 @@ safe-outputs:
   max-bot-mentions: 1
 
 timeout-minutes: 20
+max-tool-denials: 8
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

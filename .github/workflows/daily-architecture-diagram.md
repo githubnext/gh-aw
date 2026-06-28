@@ -68,6 +68,7 @@ timeout-minutes: 20
 strict: true
 features:
   gh-aw-detection: true
+max-tool-denials: 8
 ---
 
 # Architecture Diagram Generator

@@ -53,6 +53,7 @@ timeout-minutes: 30
 strict: true
 
 
+max-tool-denials: 8
 ---
 
 # Q - Agentic Workflow Optimizer

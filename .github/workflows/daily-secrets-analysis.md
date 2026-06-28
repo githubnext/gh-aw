@@ -27,6 +27,7 @@ imports:
     with:
       title-prefix: "[daily secrets] "
   - shared/otlp.md
+max-tool-denials: 8
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -49,6 +49,7 @@ tools:
   cli-proxy: true
 features:
   gh-aw-detection: true
+max-tool-denials: 8
 ---
 
 # Copilot PR Prompt Pattern Analysis

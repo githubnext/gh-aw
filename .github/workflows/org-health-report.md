@@ -50,6 +50,7 @@ imports:
 
 
   - shared/otlp.md
+max-tool-denials: 8
 ---
 
 # Organization Health Report

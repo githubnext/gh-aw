@@ -49,6 +49,7 @@ safe-outputs:
 timeout-minutes: 10
 features:
   gh-aw-detection: true
+max-tool-denials: 8
 ---
 
 # Breaking Change Checker

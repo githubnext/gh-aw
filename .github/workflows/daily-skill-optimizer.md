@@ -154,6 +154,7 @@ imports:
 sandbox:
   agent:
     sudo: false
+max-tool-denials: 8
 ---
 
 # Daily Skill Optimizer Improvements

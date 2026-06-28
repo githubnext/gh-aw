@@ -72,6 +72,7 @@ safe-outputs:
   noop:
 timeout-minutes: 120
 max-turns: 1000
+max-tool-denials: 8
 ---
 
 # Linter Miner

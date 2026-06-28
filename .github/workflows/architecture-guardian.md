@@ -152,6 +152,7 @@ steps:
       echo "✅ Pre-computed metrics for $FILE_COUNT file(s) → /tmp/gh-aw/agent/arch-metrics.json"
 features:
   gh-aw-detection: true
+max-tool-denials: 8
 ---
 
 # Architecture Guardian

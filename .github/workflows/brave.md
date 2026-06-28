@@ -37,6 +37,7 @@ tools:
   cli-proxy: true
 features:
   gh-aw-detection: true
+max-tool-denials: 8
 ---
 
 # Brave Web Search Agent

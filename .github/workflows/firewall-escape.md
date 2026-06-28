@@ -92,6 +92,7 @@ jobs:
             - File operations failed`,
               labels: ['bug', 'firewall', 'automated']
             });
+max-tool-denials: 8
 ---
 
 # The Great Escapi

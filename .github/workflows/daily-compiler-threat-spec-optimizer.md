@@ -60,6 +60,7 @@ tools:
 tracker-id: daily-compiler-threat-spec-optimizer
 features:
   gh-aw-detection: true
+max-tool-denials: 8
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

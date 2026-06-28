@@ -55,6 +55,7 @@ features:
 sandbox:
   agent:
     sudo: false
+max-tool-denials: 8
 ---
 
 # CI Optimization Coach

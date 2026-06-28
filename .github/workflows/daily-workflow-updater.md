@@ -45,6 +45,7 @@ timeout-minutes: 15
 
 imports:
   - shared/otlp.md
+max-tool-denials: 8
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

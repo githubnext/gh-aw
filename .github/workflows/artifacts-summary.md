@@ -42,6 +42,7 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+max-tool-denials: 8
 ---
 
 # Artifacts Summary

@@ -46,6 +46,7 @@ safe-outputs:
     run-failure: "🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt..."
 features:
   gh-aw-detection: true
+max-tool-denials: 8
 ---
 
 # Workflow Craft Agent

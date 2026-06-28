@@ -40,6 +40,7 @@ imports:
       toolsets: [pull_requests, actions, repos]
   - shared/reporting.md
   - shared/otlp.md
+max-tool-denials: 8
 ---
 
 # Dev Hawk - Development Workflow Monitor

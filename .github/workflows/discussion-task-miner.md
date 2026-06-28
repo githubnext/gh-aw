@@ -63,6 +63,7 @@ tracker-id: discussion-task-miner
 sandbox:
   agent:
     sudo: false
+max-tool-denials: 8
 ---
 
 # Discussion Task Miner - Code Quality Improvement Agent

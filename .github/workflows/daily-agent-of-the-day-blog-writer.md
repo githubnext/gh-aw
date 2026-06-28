@@ -73,6 +73,7 @@ imports:
   - shared/noop-reminder.md
 features:
   gh-aw-detection: true
+max-tool-denials: 8
 ---
 
 # Daily Agent of the Day Blog Writer

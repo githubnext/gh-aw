@@ -37,6 +37,7 @@ safe-outputs:
     run-success: "✅ Draft PR cleanup complete! [{workflow_name}]({run_url}) has reviewed and processed stale drafts."
     run-failure: "❌ Draft PR cleanup failed! [{workflow_name}]({run_url}) {status}. Some draft PRs may not be processed."
 timeout-minutes: 20
+max-tool-denials: 8
 ---
 
 # Draft PR Cleanup Agent 🧹

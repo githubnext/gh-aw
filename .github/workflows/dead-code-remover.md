@@ -48,6 +48,7 @@ steps:
 sandbox:
   agent:
     sudo: false
+max-tool-denials: 8
 ---
 
 # Dead Code Removal Agent

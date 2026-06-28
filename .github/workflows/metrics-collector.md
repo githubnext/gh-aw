@@ -24,6 +24,7 @@ timeout-minutes: 15
 safe-outputs:
   noop:
 
+max-tool-denials: 8
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

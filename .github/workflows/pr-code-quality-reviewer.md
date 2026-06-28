@@ -41,6 +41,7 @@ safe-outputs:
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during code quality review."
 timeout-minutes: 15
 
+max-tool-denials: 8
 ---
 
 # PR Code Quality Reviewer 🔎

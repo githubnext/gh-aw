@@ -64,6 +64,7 @@ steps:
 sandbox:
   agent:
     sudo: false
+max-tool-denials: 8
 ---
 
 # Mergefest - Merge Main into Pull Request Branch

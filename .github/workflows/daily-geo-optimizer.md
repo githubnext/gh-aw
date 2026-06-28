@@ -113,6 +113,7 @@ features:
 sandbox:
   agent:
     sudo: false
+max-tool-denials: 8
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

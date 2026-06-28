@@ -33,6 +33,7 @@ timeout-minutes: 10
 sandbox:
   agent:
     sudo: false
+max-tool-denials: 8
 ---
 
 # Deployment Incident Monitor

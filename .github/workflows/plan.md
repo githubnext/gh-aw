@@ -37,6 +37,7 @@ safe-outputs:
 timeout-minutes: 10
 
 
+max-tool-denials: 8
 ---
 
 # Planning Assistant

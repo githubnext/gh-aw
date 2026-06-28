@@ -53,6 +53,7 @@ steps:
 imports:
   - shared/reporting.md
   - shared/otlp.md
+max-tool-denials: 8
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

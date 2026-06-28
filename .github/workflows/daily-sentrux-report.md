@@ -32,6 +32,7 @@ engine:
   id: copilot
   copilot-sdk: true
 
+max-tool-denials: 8
 ---
 
 # Daily Sentrux Codebase Quality Report

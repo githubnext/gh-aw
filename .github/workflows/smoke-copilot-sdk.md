@@ -34,6 +34,7 @@ safe-outputs:
 timeout-minutes: 10
 features:
   gh-aw-detection: false
+max-tool-denials: 8
 ---
 
 # Smoke Test: Copilot SDK Engine Validation

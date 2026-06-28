@@ -30,6 +30,7 @@ tools:
 
 timeout-minutes: 5
 
+max-tool-denials: 8
 ---
 
 # Firewall Test Agent

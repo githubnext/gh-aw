@@ -42,6 +42,7 @@ safe-outputs:
     auto-merge: true
 
 timeout-minutes: 10
+max-tool-denials: 8
 ---
 
 # Dictation Prompt Generator

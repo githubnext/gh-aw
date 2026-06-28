@@ -57,6 +57,7 @@ tools:
     toolsets:
     - default
 tracker-id: daily-safe-output-integrator
+max-tool-denials: 8
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -57,6 +57,7 @@ strict: true
 sandbox:
   agent:
     sudo: false
+max-tool-denials: 8
 ---
 
 # jsweep - JavaScript Unbloater
