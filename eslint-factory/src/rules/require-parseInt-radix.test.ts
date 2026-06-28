@@ -20,16 +20,24 @@ describe("require-parseInt-radix", () => {
   it("valid: explicit radix is accepted for direct and computed access", () => {
     cjsRuleTester.run("require-parseInt-radix", requireParseIntRadixRule, {
       valid: [
-        `parseInt(value, 10);`,
-        `Number.parseInt(value, 10);`,
-        `Number["parseInt"](value, 10);`,
-        `globalThis.parseInt(value, 10);`,
-        `globalThis["parseInt"](value, 10);`,
-        `window.parseInt(value, 10);`,
-        `window["parseInt"](value, 10);`,
-        `global.parseInt(value, 10);`,
-        `global["parseInt"](value, 10);`,
+        `parseInt(str, 10);`,
+        `parseInt(str, 16);`,
+        `Number.parseInt(str, 10);`,
+        `Number["parseInt"](str, 10);`,
+        `globalThis.parseInt(str, 10);`,
+        `globalThis["parseInt"](str, 10);`,
+        `window.parseInt(str, 10);`,
+        `window["parseInt"](str, 10);`,
+        `global.parseInt(str, 10);`,
+        `global["parseInt"](str, 10);`,
       ],
+      invalid: [],
+    });
+  });
+
+  it("valid: non-parseInt calls are not flagged", () => {
+    cjsRuleTester.run("require-parseInt-radix", requireParseIntRadixRule, {
+      valid: [`foo.parseInt(x);`, `parseFloat(x);`],
       invalid: [],
     });
   });
@@ -47,10 +55,30 @@ describe("require-parseInt-radix", () => {
     });
   });
 
-  it("invalid: computed Number.parseInt access without radix is flagged", () => {
+  it("invalid: global parseInt without radix is flagged", () => {
     cjsRuleTester.run("require-parseInt-radix", requireParseIntRadixRule, {
       valid: [],
       invalid: [
+        {
+          code: `parseInt(str);`,
+          errors: [{ messageId: "requireRadix" }],
+        },
+        {
+          code: `parseInt(str.trim());`,
+          errors: [{ messageId: "requireRadix" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: Number.parseInt without radix is flagged (direct and computed access)", () => {
+    cjsRuleTester.run("require-parseInt-radix", requireParseIntRadixRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `Number.parseInt(str);`,
+          errors: [{ messageId: "requireRadix" }],
+        },
         {
           code: `Number["parseInt"](value);`,
           errors: [{ messageId: "requireRadix" }],
