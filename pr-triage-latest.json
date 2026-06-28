@@ -1,10 +1,10 @@
 {
-  "run_date": "2026-06-28T12:44:27Z",
-  "run_id": "28322591180",
-  "previous_run_id": "28315307719",
-  "previous_run_date": "2026-06-28T07:37:40Z",
-  "agent_prs_found": 6,
-  "prs_triaged": 6,
+  "run_date": "2026-06-28T18:38:02Z",
+  "run_id": "28332039983",
+  "previous_run_id": "28322591180",
+  "previous_run_date": "2026-06-28T12:44:27Z",
+  "agent_prs_found": 4,
+  "prs_triaged": 4,
   "open_agent_prs": [
     {
       "number": 41830,
@@ -16,80 +16,44 @@
       "category": "bug",
       "risk": "medium",
       "priority": "high",
-      "score": 71,
+      "score": 60,
       "action": "fast_track",
-      "age_hours": 34.2,
-      "ci": "2_success_unstable",
-      "batch": "production-fixes",
-      "notes": "Carried over (34h). Git dubious-ownership fix in bundle branch pinning. mergeable_state: unstable. Bot review dismissed, needs fresh human review."
-    },
-    {
-      "number": 41912,
-      "title": "Propagate enterprise host context into curated DIFC/CLI proxy env",
-      "draft": false,
-      "additions": 1132,
-      "deletions": 6,
-      "changed_files": 157,
-      "category": "bug",
-      "risk": "medium",
-      "priority": "high",
-      "score": 68,
-      "action": "fast_track",
-      "age_hours": 19.0,
-      "ci": "0_runs_no_ci",
-      "batch": "production-fixes",
-      "notes": "Carried over (19h). Critical DIFC proxy fix for enterprise tenants. 0 CI check runs on latest SHA. CHANGES_REQUESTED review. Needs CI verification + human approval."
-    },
-    {
-      "number": 42077,
-      "title": "Fix centralized workflow dispatch API usage and status comment attribution",
-      "draft": false,
-      "additions": 193,
-      "deletions": 20,
-      "changed_files": 4,
-      "category": "bug",
-      "risk": "medium",
-      "priority": "high",
-      "score": 64,
-      "action": "fast_track",
-      "age_hours": 0.5,
-      "ci": "23_success_7_skipped_blocked",
-      "batch": "production-fixes",
-      "notes": "New PR. Switches dispatch to workflow dispatch endpoint, improves status comment attribution. CI all passing, blocked by bot CHANGES_REQUESTED. Needs human approval."
+      "age_hours": 40.1,
+      "ci": "UNSTABLE",
+      "notes": "Carried over (~40h). Git dubious-ownership fix. Code quality review dismissed (silent error swallowing, ~/.gitconfig side effect). Test quality approved 100/100. Needs human sign-off. pr-batch:production-fixes should be removed manually."
     },
     {
       "number": 41824,
       "title": "Add model policy frontmatter + import unioning + env policy overrides",
       "draft": false,
-      "additions": null,
-      "deletions": null,
-      "changed_files": null,
+      "additions": 657,
+      "deletions": 23,
+      "changed_files": 14,
       "category": "feature",
       "risk": "high",
       "priority": "high",
-      "score": 63,
+      "score": 55,
       "action": "fast_track",
-      "age_hours": 36.0,
-      "ci": "1_success",
-      "batch": "feature-promo",
-      "notes": "Carried over (36h). Model policy frontmatter. Bot approval dismissed. Label conflicts: pr-action:defer and pr-batch:active-drafts need manual removal.",
-      "label_conflicts": ["pr-action:defer", "pr-batch:active-drafts"]
+      "age_hours": 41.7,
+      "ci": "UNSTABLE",
+      "notes": "Carried over (~42h). Model policy enforcement. 3 correctness bugs flagged by code quality reviewer (dismissed): allowed+blocked conflict, policy key leakage into cost data, silent parse failure. Test quality 82/100. Needs human sign-off. Label conflicts: pr-action:defer, pr-batch:active-drafts, pr-batch:feature-promo should be removed.",
+      "label_conflicts": ["pr-action:defer", "pr-batch:active-drafts", "pr-batch:feature-promo"]
     },
     {
-      "number": 42068,
-      "title": "Propagate workflow frontmatter `features` into `aw_info.json`",
-      "draft": false,
-      "additions": 110,
+      "number": 42100,
+      "title": "feat: add experimental BinEval evaluation support",
+      "draft": true,
+      "additions": 2181,
       "deletions": 0,
-      "changed_files": 4,
+      "changed_files": null,
       "category": "feature",
-      "risk": "low",
+      "risk": "high",
       "priority": "medium",
-      "score": 58,
-      "action": "fast_track",
-      "age_hours": 1.2,
-      "ci": "30_success_clean",
-      "notes": "New PR. Additions-only, tests in JS+Go, CI all passing, mergeable_state: clean. Strongest auto-merge candidate pending human sign-off."
+      "score": 38,
+      "action": "defer",
+      "age_hours": 3.8,
+      "ci": "UNSTABLE",
+      "notes": "New draft PR. BinEval LLM evaluation harness in workflow frontmatter. Very large (+2181 lines). No CI yet. Defer until promoted to ready."
     },
     {
       "number": 42053,
@@ -101,53 +65,49 @@
       "category": "feature",
       "risk": "low",
       "priority": "low",
-      "score": 30,
+      "score": 28,
       "action": "defer",
-      "age_hours": 2.9,
-      "ci": "0_runs_draft",
-      "notes": "New draft PR. Repo-local instruction overlay. No CI yet. Re-triage when ready."
+      "age_hours": 8.8,
+      "ci": "UNKNOWN",
+      "notes": "Carried over draft (~9h). Repo-local agent instruction overlays. Small change. Labels from prior triage correct. Defer until ready."
     }
   ],
   "closed_since_last_run": [
-    {"number": 41945, "title": "Bump gh-aw-firewall to v0.27.12 and gh-aw-mcpg to v0.3.31", "outcome": "merged"},
-    {"number": 42001, "title": "fix: typed error for workflows-scope rejection in review/fallback branch push", "outcome": "merged"},
-    {"number": 41985, "title": "Refactor duplicated update-check state helpers and centralize repo/API normalization", "outcome": "merged"},
-    {"number": 42009, "title": "fix(httpstatuscode): replace spelling-based gating with type-aware detection", "outcome": "merged"},
-    {"number": 41992, "title": "Safe outputs: pre-validate dispatch_workflow required inputs", "outcome": "closed_not_merged"}
+    {"number": 41912, "title": "Propagate enterprise host context into curated DIFC/CLI proxy env", "outcome": "merged", "merged_at": "2026-06-28T17:40:08Z"},
+    {"number": 42077, "title": "Fix centralized workflow dispatch API usage and status comment attribution", "outcome": "merged", "merged_at": "2026-06-28T15:09:33Z"},
+    {"number": 42068, "title": "Propagate workflow frontmatter `features` into `aw_info.json`", "outcome": "merged", "merged_at": "2026-06-28T13:07:16Z"}
   ],
   "statistics": {
-    "total_open_copilot_prs": 6,
+    "total_open_copilot_prs": 4,
     "draft_prs": 2,
-    "ready_prs": 4,
+    "ready_prs": 2,
     "by_action": {
-      "fast_track": 5,
-      "defer": 1
+      "fast_track": 2,
+      "defer": 2
     },
     "by_category": {
-      "bug": 3,
+      "bug": 1,
       "feature": 3
     },
     "by_risk": {
-      "high": 1,
-      "medium": 3,
-      "low": 2
-    },
-    "by_priority": {
-      "high": 3,
-      "medium": 2,
+      "high": 2,
+      "medium": 1,
       "low": 1
     },
-    "closed_since_last_run": 5,
-    "new_since_last_run": 3,
+    "by_priority": {
+      "high": 2,
+      "medium": 1,
+      "low": 1
+    },
+    "closed_since_last_run": 3,
+    "new_since_last_run": 1,
     "carried_over": 3,
-    "merges_since_last_run": 4
+    "merges_since_last_run": 3
   },
-  "batches": {
-    "production-fixes": [41830, 41912, 42077],
-    "feature-promo": [41824]
-  },
+  "batches": {},
   "label_conflicts": [
-    {"pr": 41824, "stale_labels": ["pr-action:defer", "pr-batch:active-drafts"]}
+    {"pr": 41830, "stale_labels": ["pr-batch:production-fixes"]},
+    {"pr": 41824, "stale_labels": ["pr-action:defer", "pr-batch:active-drafts", "pr-batch:feature-promo"]}
   ],
-  "notes": "6 open agent PRs. 4 merged + 1 closed since last run. 3 new: #42077 (dispatch API fix), #42068 (features->aw_info), #42053 (draft, repo overlays). Batch production-fixes: #41830+#41912+#42077. #42068 is clean/auto-merge candidate. Run §28322591180."
+  "notes": "4 open agent PRs. 3 merged since last run (#41912, #42077, #42068). 1 new: #42100 (draft, BinEval harness, +2181 lines, high risk). 3 carried over: #41830 (40h, fast_track), #41824 (42h, fast_track), #42053 (9h draft, defer). No batches (only 2 ready PRs). Both ready PRs have dismissed CHANGES_REQUESTED reviews needing human sign-off. Run §28332039983."
 }
