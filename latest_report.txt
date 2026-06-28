@@ -1,105 +1,106 @@
 ### 📊 Performance Summary
 
-**Date**: 2026-06-27  
+**Date**: 2026-06-28  
+**Run**: [§28326611928](https://github.com/github/gh-aw/actions/runs/28326611928)  
 **Analysis Status**: ✨ 7 improvement(s) detected
 
 ### 🎯 Key Metrics
 
-- **Total Benchmarks**: 8
-- **Stable**: 1
-- **Warnings**: 0
-- **Regressions**: 0
-- **Improvements**: 7
+| Metric | Count |
+|--------|-------|
+| Total Benchmarks | 9 |
+| ✅ Improvements | 7 |
+| ✓ Stable | 1 |
+| ⚡ Warnings | 0 |
+| ⚠️ Regressions | 0 |
+| ℹ️ Baseline (new) | 1 |
 
 <details>
 <summary>📈 Detailed Benchmark Results</summary>
 
 #### ✨ CompileComplexWorkflow
 
-- **Current**: 5.29ms
-- **Historical Average**: 7.78ms
-- **Change**: -32.0%
-- **Memory**: 1537701 B/op
-- **Allocations**: 10981 allocs/op
-- **Status**: ✅ IMPROVEMENT: -32.0% faster than historical average
+- **Current**: 5.51ms
+- **Historical Average**: 7.16ms
+- **Change**: -23.0%
+- **Memory**: 1565381 B/op, 11015 allocs/op
+- **Status**: ✅ IMPROVEMENT: -23.0% faster than historical average
 
 #### ✨ CompileMCPWorkflow
 
-- **Current**: 312.12µs
-- **Historical Average**: 462.20µs
-- **Change**: -32.5%
-- **Memory**: 129632 B/op
-- **Allocations**: 2294 allocs/op
-- **Status**: ✅ IMPROVEMENT: -32.5% faster than historical average
+- **Current**: 358.12µs
+- **Historical Average**: 424.68µs
+- **Change**: -15.7%
+- **Memory**: 129504 B/op, 2294 allocs/op
+- **Status**: ✅ IMPROVEMENT: -15.7% faster than historical average
 
 #### ✨ CompileMemoryUsage
 
-- **Current**: 4.88ms
-- **Historical Average**: 6.80ms
-- **Change**: -28.3%
-- **Memory**: 1442416 B/op
-- **Allocations**: 9221 allocs/op
-- **Status**: ✅ IMPROVEMENT: -28.3% faster than historical average
+- **Current**: 5.07ms
+- **Historical Average**: 6.32ms
+- **Change**: -19.9%
+- **Memory**: 1456714 B/op, 9248 allocs/op
+- **Status**: ✅ IMPROVEMENT: -19.9% faster than historical average
 
 #### ✨ CompileSimpleWorkflow
 
-- **Current**: 3.92ms
-- **Historical Average**: 5.09ms
-- **Change**: -23.0%
-- **Memory**: 981296 B/op
-- **Allocations**: 6065 allocs/op
-- **Status**: ✅ IMPROVEMENT: -23.0% faster than historical average
+- **Current**: 3.59ms
+- **Historical Average**: 4.79ms
+- **Change**: -25.1%
+- **Memory**: 987138 B/op, 6080 allocs/op
+- **Status**: ✅ IMPROVEMENT: -25.1% faster than historical average
 
 #### ✓ ExtractWorkflowNameFromFile
 
-- **Current**: 7.19µs
-- **Historical Average**: 7.09µs
-- **Change**: +1.4%
-- **Memory**: 262 B/op
-- **Allocations**: 7 allocs/op
-- **Status**: ✓ STABLE: 1.4% change from historical average
+- **Current**: 7.26µs
+- **Historical Average**: 7.12µs
+- **Change**: +2.0%
+- **Memory**: 262 B/op, 7 allocs/op
+- **Status**: ✓ STABLE: 2.0% change from historical average
+
+#### ℹ️ FindIncludesInContent
+
+- **Current**: 172ns
+- **Memory**: 64 B/op, 1 allocs/op
 
 #### ✨ ParseWorkflow
 
-- **Current**: 253.65µs
-- **Historical Average**: 305.58µs
-- **Change**: -17.0%
-- **Memory**: 96024 B/op
-- **Allocations**: 1728 allocs/op
-- **Status**: ✅ IMPROVEMENT: -17.0% faster than historical average
+- **Current**: 272.04µs
+- **Historical Average**: 292.60µs
+- **Change**: -7.0%
+- **Memory**: 96024 B/op, 1728 allocs/op
+- **Status**: ✅ IMPROVEMENT: -7.0% faster than historical average
 
 #### ✨ Validation
 
-- **Current**: 27.07µs
-- **Historical Average**: 67.92µs
-- **Change**: -60.1%
-- **Memory**: 3290 B/op
-- **Allocations**: 55 allocs/op
-- **Status**: ✅ IMPROVEMENT: -60.2% faster than historical average
+- **Current**: 46.37µs
+- **Historical Average**: 57.71µs
+- **Change**: -19.6%
+- **Memory**: 3290 B/op, 55 allocs/op
+- **Status**: ✅ IMPROVEMENT: -19.6% faster than historical average
 
 #### ✨ YAMLGeneration
 
-- **Current**: 4.82ms
-- **Historical Average**: 5.88ms
-- **Change**: -18.0%
-- **Memory**: 932738 B/op
-- **Allocations**: 5529 allocs/op
-- **Status**: ✅ IMPROVEMENT: -18.0% faster than historical average
+- **Current**: 5.10ms
+- **Historical Average**: 5.62ms
+- **Change**: -9.1%
+- **Memory**: 973717 B/op, 5550 allocs/op
+- **Status**: ✅ IMPROVEMENT: -9.1% faster than historical average
 
 </details>
 
 <details>
-<summary>📉 Historical Comparisons</summary>
+<summary>✨ Performance Improvements This Run</summary>
 
-#### ✨ Improvements
-
-- **CompileSimpleWorkflow**: -23.0% faster (was 5.09ms, now 3.92ms)
-- **CompileComplexWorkflow**: -32.0% faster (was 7.78ms, now 5.29ms)
-- **CompileMCPWorkflow**: -32.5% faster (was 462.20µs, now 312.12µs)
-- **CompileMemoryUsage**: -28.3% faster (was 6.80ms, now 4.88ms)
-- **ParseWorkflow**: -17.0% faster (was 305.58µs, now 253.65µs)
-- **Validation**: -60.1% faster (was 67.92µs, now 27.07µs)
-- **YAMLGeneration**: -18.0% faster (was 5.88ms, now 4.82ms)
+| Benchmark | Current | Historical Avg | Change |
+|-----------|---------|----------------|--------|
+| CompileSimpleWorkflow | 3.59ms | 4.79ms | -25.1% |
+| CompileComplexWorkflow | 5.51ms | 7.16ms | -23.0% |
+| CompileMemoryUsage | 5.07ms | 6.32ms | -19.9% |
+| Validation | 46.37µs | 57.71µs | -19.6% |
+| CompileMCPWorkflow | 358.12µs | 424.68µs | -15.7% |
+| YAMLGeneration | 5.10ms | 5.62ms | -9.1% |
+| ParseWorkflow | 272.04µs | 292.60µs | -7.0% |
 
 </details>
 
@@ -107,3 +108,6 @@
 
 1. Document the changes that led to these improvements
 2. Consider applying similar optimizations to other areas
+3. Continue monitoring to ensure improvements are sustained
+
+**References:** [§28326611928](https://github.com/github/gh-aw/actions/runs/28326611928)
