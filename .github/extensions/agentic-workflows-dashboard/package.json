@@ -4,9 +4,7 @@
   "type": "module",
   "main": "extension.mjs",
   "description": "GitHub Copilot canvas extension for agentic workflows dashboard.",
-  "dependencies": {
-    "@github/copilot-sdk": "1.0.4"
-  },
+  "dependencies": {},
   "devDependencies": {
     "typescript": "6.0.3",
     "vitest": "4.1.9"

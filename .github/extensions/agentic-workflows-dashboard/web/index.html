@@ -40,19 +40,21 @@
               <h2 class="Box-title">Workflow definitions <span class="Counter" x-text="definitionsPaged.totalItems"></span></h2>
             </div>
             <div class="Box-body p-0 awd-scroll">
-              <div class="Box-row" x-for="definition in definitionsPaged.items" :key="definition.id">
-                <div class="d-flex flex-justify-between gap-2">
-                  <div>
-                    <div class="text-bold" x-text="definition.name"></div>
-                    <div class="color-fg-muted text-small mt-1" x-text="definition.description"></div>
-                    <div class="mt-2 text-small color-fg-muted" x-text="definition.id"></div>
+              <template x-for="definition in definitionsPaged.items" :key="definition.id">
+                <div class="Box-row">
+                  <div class="d-flex flex-justify-between gap-2">
+                    <div>
+                      <div class="text-bold" x-text="definition.name"></div>
+                      <div class="color-fg-muted text-small mt-1" x-text="definition.description"></div>
+                      <div class="mt-2 text-small color-fg-muted" x-text="definition.id"></div>
+                    </div>
+                    <span :class="definition.enabled ? 'Label Label--success' : 'Label Label--secondary'" x-text="definition.enabled ? 'enabled' : 'disabled'"></span>
                   </div>
-                  <span :class="definition.enabled ? 'Label Label--success' : 'Label Label--secondary'" x-text="definition.enabled ? 'enabled' : 'disabled'"></span>
+                  <div class="mt-2">
+                    <button class="btn btn-sm" @click="selectedDefinitionId = definition.id; dispatchSelectedWorkflow()">Dispatch</button>
+                  </div>
                 </div>
-                <div class="mt-2">
-                  <button class="btn btn-sm" @click="selectedDefinitionId = definition.id; dispatchSelectedWorkflow()">Dispatch</button>
-                </div>
-              </div>
+              </template>
             </div>
             <div class="Box-footer d-flex flex-items-center flex-justify-between">
               <button class="btn btn-sm" :disabled="!definitionsPaged.hasPreviousPage" @click="loadDefinitionPage(definitionsPaged.page - 1)">Previous</button>
@@ -68,16 +70,18 @@
               <h2 class="Box-title">Workflow runs <span class="Counter" x-text="runsPaged.totalItems"></span></h2>
             </div>
             <div class="Box-body p-0 awd-scroll">
-              <div class="Box-row awd-run-row" x-for="run in runsPaged.items" :key="run.id" :class="selectedRun && selectedRun.id === run.id ? 'is-selected' : ''" @click="viewRunDetails(run.id)">
-                <div class="d-flex flex-justify-between flex-items-start gap-2">
-                  <div>
-                    <div class="text-bold" x-text="run.id"></div>
-                    <div class="color-fg-muted text-small mt-1">Definition: <span x-text="run.definitionId"></span></div>
-                    <div class="color-fg-muted text-small">Updated: <span x-text="formatDate(run.updatedAt)"></span></div>
+              <template x-for="run in runsPaged.items" :key="run.id">
+                <div class="Box-row awd-run-row" :class="selectedRun && selectedRun.id === run.id ? 'is-selected' : ''" @click="viewRunDetails(run.id)">
+                  <div class="d-flex flex-justify-between flex-items-start gap-2">
+                    <div>
+                      <div class="text-bold" x-text="run.id"></div>
+                      <div class="color-fg-muted text-small mt-1">Definition: <span x-text="run.definitionId"></span></div>
+                      <div class="color-fg-muted text-small">Updated: <span x-text="formatDate(run.updatedAt)"></span></div>
+                    </div>
+                    <span :class="runStatusClass(run.status)" x-text="run.status"></span>
                   </div>
-                  <span :class="runStatusClass(run.status)" x-text="run.status"></span>
                 </div>
-              </div>
+              </template>
             </div>
             <div class="Box-footer d-flex flex-items-center flex-justify-between">
               <button class="btn btn-sm" :disabled="!runsPaged.hasPreviousPage" @click="loadRunPage(runsPaged.page - 1)">Previous</button>
@@ -99,13 +103,15 @@
               </div>
               <div class="color-fg-muted text-small mb-3" x-show="selectedRun">Created: <span x-text="selectedRun ? formatDate(selectedRun.createdAt) : ''"></span></div>
               <div class="Box border rounded-2">
-                <div class="Box-row" x-for="step in (selectedRun ? selectedRun.steps : [])" :key="step.id">
-                  <div class="d-flex flex-items-center flex-justify-between mb-2">
-                    <span class="text-bold" x-text="step.title"></span>
-                    <span :class="stepStatusClass(step.status)" x-text="step.status"></span>
+                <template x-for="step in (selectedRun ? selectedRun.steps : [])" :key="step.id">
+                  <div class="Box-row">
+                    <div class="d-flex flex-items-center flex-justify-between mb-2">
+                      <span class="text-bold" x-text="step.title"></span>
+                      <span :class="stepStatusClass(step.status)" x-text="step.status"></span>
+                    </div>
+                    <div class="markdown-body text-small" x-html="renderMarkdown(step.summaryMarkdown)"></div>
                   </div>
-                  <div class="markdown-body text-small" x-html="renderMarkdown(step.summaryMarkdown)"></div>
-                </div>
+                </template>
               </div>
             </div>
             <div class="Box-body color-fg-muted" x-show="!selectedRun">Select a workflow run to review step summaries.</div>
@@ -137,8 +143,6 @@
       </main>
     </div>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.0/dist/cdn.min.js"></script>
-    <script type="module">
-      /*__APP_JS__*/
-    </script>
+    <script type="module" src="/app.js"></script>
   </body>
 </html>

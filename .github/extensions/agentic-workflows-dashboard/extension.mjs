@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -206,15 +207,39 @@ function runGhAwAuditDiff(args = "") {
   };
 }
 
-async function renderDashboardUrl() {
-  const htmlPath = join(__dirname, "web", "index.html");
-  const appPath = join(__dirname, "web", "app.js");
-  const cssPath = join(__dirname, "web", "styles.css");
+const servers = new Map();
 
-  const [htmlTemplate, appBundle, cssBundle] = await Promise.all([readFile(htmlPath, "utf8"), readFile(appPath, "utf8"), readFile(cssPath, "utf8")]);
-
-  const html = htmlTemplate.replace("/*__APP_CSS__*/", cssBundle).replace("/*__APP_JS__*/", appBundle);
-  return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+async function startServer() {
+  const server = createServer(async (req, res) => {
+    const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
+    try {
+      if (pathname === "/" || pathname === "/index.html") {
+        const [html, css] = await Promise.all([
+          readFile(join(__dirname, "web", "index.html"), "utf8"),
+          readFile(join(__dirname, "web", "styles.css"), "utf8"),
+        ]);
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(html.replace("/*__APP_CSS__*/", css));
+      } else if (pathname === "/app.js") {
+        const content = await readFile(join(__dirname, "web", "app.js"), "utf8");
+        res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+        res.end(content);
+      } else if (pathname === "/pagination.js") {
+        const content = await readFile(join(__dirname, "web", "pagination.js"), "utf8");
+        res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+        res.end(content);
+      } else {
+        res.writeHead(404);
+        res.end("Not found");
+      }
+    } catch {
+      res.writeHead(500);
+      res.end("Internal server error");
+    }
+  });
+  await new Promise(r => server.listen(0, "127.0.0.1", r));
+  const { port } = server.address();
+  return { server, url: `http://127.0.0.1:${port}/` };
 }
 
 await joinSession({
@@ -341,12 +366,24 @@ await joinSession({
           handler: ctx => runGhAwAuditDiff(String(ctx.input?.args ?? "")),
         },
       ],
-      open: async () => {
+      open: async (ctx) => {
+        let entry = servers.get(ctx.instanceId);
+        if (!entry) {
+          entry = await startServer();
+          servers.set(ctx.instanceId, entry);
+        }
         return {
           title: "Agentic Workflows Dashboard",
           status: `${definitions.length} workflows · ${runs.length} runs`,
-          url: await renderDashboardUrl(),
+          url: entry.url,
         };
+      },
+      onClose: async (ctx) => {
+        const entry = servers.get(ctx.instanceId);
+        if (entry) {
+          servers.delete(ctx.instanceId);
+          await new Promise(r => entry.server.close(r));
+        }
       },
     }),
   ],
