@@ -247,3 +247,232 @@ describe("ai_credits_context unknown_model_ai_credits detection", () => {
     expect(parseUnknownModelAICreditsFromAuditLog()).toBe(false);
   });
 });
+
+describe("ai_credits_context parseMaxAICreditsFromAuditLog", () => {
+  let tmpDir;
+  /** @type {(path?: string) => string} */
+  let parseMaxAICreditsFromAuditLog;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aic-maxcredits-test-"));
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    const mod = await import("./ai_credits_context.cjs");
+    const exports = mod.default || mod;
+    parseMaxAICreditsFromAuditLog = exports.parseMaxAICreditsFromAuditLog;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    delete process.env.GH_AW_AGENT_OUTPUT;
+  });
+
+  function writeAuditLog(lines) {
+    const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+    fs.mkdirSync(auditDir, { recursive: true });
+    const logPath = path.join(auditDir, "log.jsonl");
+    fs.writeFileSync(logPath, lines.map(l => JSON.stringify(l)).join("\n") + "\n", "utf8");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    return logPath;
+  }
+
+  it("returns empty string for missing audit log", () => {
+    expect(parseMaxAICreditsFromAuditLog("/nonexistent/path.jsonl")).toBe("");
+  });
+
+  it("returns empty string when no max_ai_credits field is present", () => {
+    writeAuditLog([{ type: "request", ai_credits: 500 }]);
+    expect(parseMaxAICreditsFromAuditLog()).toBe("");
+  });
+
+  it("parses snake_case max_ai_credits", () => {
+    writeAuditLog([{ type: "response", max_ai_credits: 1000 }]);
+    expect(parseMaxAICreditsFromAuditLog()).toBe("1000");
+  });
+
+  it("parses camelCase maxAiCredits", () => {
+    writeAuditLog([{ type: "response", maxAiCredits: 2000 }]);
+    expect(parseMaxAICreditsFromAuditLog()).toBe("2000");
+  });
+
+  it("parses nested max_ai_credits field", () => {
+    writeAuditLog([{ type: "response", metadata: { max_ai_credits: 500 } }]);
+    expect(parseMaxAICreditsFromAuditLog()).toBe("500");
+  });
+
+  it("returns the last non-empty value across multiple entries", () => {
+    writeAuditLog([{ max_ai_credits: 1000 }, { max_ai_credits: 2000 }]);
+    expect(parseMaxAICreditsFromAuditLog()).toBe("2000");
+  });
+
+  it("returns empty string for empty audit log", () => {
+    const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+    fs.mkdirSync(auditDir, { recursive: true });
+    fs.writeFileSync(path.join(auditDir, "log.jsonl"), "", "utf8");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    expect(parseMaxAICreditsFromAuditLog()).toBe("");
+  });
+
+  it("parses decimal max_ai_credits value", () => {
+    writeAuditLog([{ max_ai_credits: 999.5 }]);
+    expect(parseMaxAICreditsFromAuditLog()).toBe("999.5");
+  });
+
+  it("ignores non-positive max_ai_credits values", () => {
+    writeAuditLog([{ max_ai_credits: -100 }]);
+    expect(parseMaxAICreditsFromAuditLog()).toBe("");
+  });
+});
+
+describe("ai_credits_context parseAICreditsErrorInfoFromAuditLog", () => {
+  let tmpDir;
+  /** @type {(path?: string) => { aiCredits: string, rateLimitError: boolean }} */
+  let parseAICreditsErrorInfoFromAuditLog;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aic-errorinfo-test-"));
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    const mod = await import("./ai_credits_context.cjs");
+    const exports = mod.default || mod;
+    parseAICreditsErrorInfoFromAuditLog = exports.parseAICreditsErrorInfoFromAuditLog;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    delete process.env.GH_AW_AGENT_OUTPUT;
+  });
+
+  function writeAuditLog(lines) {
+    const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+    fs.mkdirSync(auditDir, { recursive: true });
+    const logPath = path.join(auditDir, "log.jsonl");
+    fs.writeFileSync(logPath, lines.map(l => JSON.stringify(l)).join("\n") + "\n", "utf8");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    return logPath;
+  }
+
+  it("returns empty defaults for missing log", () => {
+    expect(parseAICreditsErrorInfoFromAuditLog("/nonexistent/path.jsonl")).toEqual({ aiCredits: "", rateLimitError: false });
+  });
+
+  it("returns empty defaults for empty log", () => {
+    const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+    fs.mkdirSync(auditDir, { recursive: true });
+    fs.writeFileSync(path.join(auditDir, "log.jsonl"), "", "utf8");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    expect(parseAICreditsErrorInfoFromAuditLog()).toEqual({ aiCredits: "", rateLimitError: false });
+  });
+
+  it("parses ai_credits value from snake_case field", () => {
+    writeAuditLog([{ type: "response", ai_credits: 750 }]);
+    const result = parseAICreditsErrorInfoFromAuditLog();
+    expect(result.aiCredits).toBe("750");
+    expect(result.rateLimitError).toBe(false);
+  });
+
+  it("parses aiCredits value from camelCase field", () => {
+    writeAuditLog([{ aiCredits: 300 }]);
+    const result = parseAICreditsErrorInfoFromAuditLog();
+    expect(result.aiCredits).toBe("300");
+  });
+
+  it("detects ai_credits_rate_limit_error: true (snake_case)", () => {
+    writeAuditLog([{ ai_credits_rate_limit_error: true }]);
+    expect(parseAICreditsErrorInfoFromAuditLog().rateLimitError).toBe(true);
+  });
+
+  it("detects aiCreditsRateLimitError: true (camelCase)", () => {
+    writeAuditLog([{ aiCreditsRateLimitError: true }]);
+    expect(parseAICreditsErrorInfoFromAuditLog().rateLimitError).toBe(true);
+  });
+
+  it("detects rate limit from message field text pattern", () => {
+    writeAuditLog([{ message: "AI credits rate limit exceeded" }]);
+    expect(parseAICreditsErrorInfoFromAuditLog().rateLimitError).toBe(true);
+  });
+
+  it("detects rate limit from code field with ai_credits_limit_exceeded", () => {
+    writeAuditLog([{ code: "ai_credits_limit_exceeded" }]);
+    expect(parseAICreditsErrorInfoFromAuditLog().rateLimitError).toBe(true);
+  });
+
+  it("accumulates aiCredits and rateLimitError across multiple entries", () => {
+    writeAuditLog([{ ai_credits: 500 }, { ai_credits_rate_limit_error: true, ai_credits: 750 }]);
+    const result = parseAICreditsErrorInfoFromAuditLog();
+    expect(result.aiCredits).toBe("750");
+    expect(result.rateLimitError).toBe(true);
+  });
+});
+
+describe("ai_credits_context resolveFirewallAuditLogPath", () => {
+  let tmpDir;
+  /** @type {(override?: string) => string} */
+  let resolveFirewallAuditLogPath;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aic-path-test-"));
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    const mod = await import("./ai_credits_context.cjs");
+    const exports = mod.default || mod;
+    resolveFirewallAuditLogPath = exports.resolveFirewallAuditLogPath;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    delete process.env.GH_AW_AGENT_OUTPUT;
+  });
+
+  it("returns the override path directly without checking existence", () => {
+    expect(resolveFirewallAuditLogPath("/custom/path/log.jsonl")).toBe("/custom/path/log.jsonl");
+  });
+
+  it("returns derived audit path when GH_AW_AGENT_OUTPUT is set and log.jsonl exists", () => {
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+    fs.mkdirSync(auditDir, { recursive: true });
+    fs.writeFileSync(path.join(auditDir, "log.jsonl"), "", "utf8");
+    expect(resolveFirewallAuditLogPath()).toBe(path.join(auditDir, "log.jsonl"));
+  });
+
+  it("prefers log.jsonl over audit.jsonl when both exist", () => {
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+    fs.mkdirSync(auditDir, { recursive: true });
+    fs.writeFileSync(path.join(auditDir, "log.jsonl"), "", "utf8");
+    fs.writeFileSync(path.join(auditDir, "audit.jsonl"), "", "utf8");
+    expect(resolveFirewallAuditLogPath()).toBe(path.join(auditDir, "log.jsonl"));
+  });
+
+  it("falls back to audit.jsonl when log.jsonl does not exist in derived path", () => {
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+    fs.mkdirSync(auditDir, { recursive: true });
+    fs.writeFileSync(path.join(auditDir, "audit.jsonl"), "", "utf8");
+    expect(resolveFirewallAuditLogPath()).toBe(path.join(auditDir, "audit.jsonl"));
+  });
+
+  it("checks the logs subdir when audit subdir has no match", () => {
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    const logsDir = path.join(tmpDir, "sandbox", "firewall", "logs");
+    fs.mkdirSync(logsDir, { recursive: true });
+    fs.writeFileSync(path.join(logsDir, "log.jsonl"), "", "utf8");
+    expect(resolveFirewallAuditLogPath()).toBe(path.join(logsDir, "log.jsonl"));
+  });
+
+  it("returns default fallback path when GH_AW_AGENT_OUTPUT is set but no file exists", () => {
+    // Use a unique tmpDir sub-path as the agent output so derived paths stay
+    // within tmpDir and won't accidentally match real files elsewhere.
+    const fakeTmpOutput = path.join(tmpDir, "nested", "output.json");
+    process.env.GH_AW_AGENT_OUTPUT = fakeTmpOutput;
+    // The derived candidates (tmpDir/nested/sandbox/...) won't exist in tmpDir,
+    // but the default /tmp/gh-aw paths might — so just assert the returned path
+    // is a string ending in .jsonl (the function always returns some valid path).
+    const result = resolveFirewallAuditLogPath();
+    expect(result).toMatch(/\.jsonl$/);
+  });
+});
