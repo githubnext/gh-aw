@@ -1,11 +1,27 @@
 {
-  "run_date": "2026-06-27T18:38:26Z",
-  "run_id": "28298156610",
-  "previous_run_id": "28289524040",
-  "previous_run_date": "2026-06-27T12:44:41Z",
+  "run_date": "2026-06-28T01:21:47Z",
+  "run_id": "28307424127",
+  "previous_run_id": "28298156610",
+  "previous_run_date": "2026-06-27T18:38:26Z",
   "agent_prs_found": 5,
   "prs_triaged": 5,
   "open_agent_prs": [
+    {
+      "number": 41830,
+      "title": "safe_outputs: set git safe.directory via process-scoped env vars before bundle branch pinning",
+      "draft": false,
+      "additions": 97,
+      "deletions": 0,
+      "changed_files": 2,
+      "category": "bug",
+      "risk": "medium",
+      "priority": "high",
+      "score": 73,
+      "action": "fast_track",
+      "age_hours": 22.9,
+      "ci": "1_pass",
+      "notes": "CI clean, bot APPROVED was dismissed. Needs fresh human approval. Production fix for git dubious ownership errors."
+    },
     {
       "number": 41912,
       "title": "Propagate enterprise host context into curated DIFC/CLI proxy env",
@@ -16,11 +32,11 @@
       "category": "bug",
       "risk": "medium",
       "priority": "high",
-      "score": 76,
+      "score": 72,
       "action": "fast_track",
-      "age_hours": 0.87,
-      "ci": "11_pass_15_skip_3_in_progress",
-      "notes": "new PR; production fix for GHE tenants - enterprise host context dropped from DIFC/CLI proxy"
+      "age_hours": 7.6,
+      "ci": "74_pass_1_fail_25_skip",
+      "notes": "CI has 1 safe_outputs failure. Bot CHANGES_REQUESTED after APPROVED. Production fix for GHE/data-residency tenants."
     },
     {
       "number": 41824,
@@ -32,70 +48,61 @@
       "category": "feature",
       "risk": "high",
       "priority": "high",
-      "score": 69,
+      "score": 67,
       "action": "fast_track",
-      "batch": "feature-promo",
-      "age_hours": 17.7,
-      "notes": "stale labels pr-action:defer and pr-batch:active-drafts remain; bot-approved, prior CHANGES_REQUESTED dismissed"
+      "age_hours": 26.4,
+      "ci": "1_pass",
+      "notes": "26h old. Conflicting labels: pr-action:defer + pr-action:fast_track, pr-batch:active-drafts (stale). Bot approval dismissed. #41777 (batch partner) now merged.",
+      "label_conflicts": ["pr-action:defer", "pr-batch:active-drafts"]
     },
     {
-      "number": 41830,
-      "title": "safe_outputs: set git safe.directory via process-scoped env vars before bundle branch pinning",
+      "number": 41945,
+      "title": "Bump gh-aw-firewall to v0.27.12 and gh-aw-mcpg to v0.3.31",
       "draft": false,
-      "additions": 97,
-      "deletions": 0,
-      "changed_files": 2,
-      "category": "bug",
+      "additions": 5244,
+      "deletions": 5144,
+      "changed_files": 268,
+      "category": "chore",
       "risk": "medium",
       "priority": "high",
-      "score": 64,
-      "action": "fast_track",
-      "age_hours": 16.2,
-      "notes": "bot APPROVED; prior CHANGES_REQUESTED dismissed; no CI checks; ready to merge"
-    },
-    {
-      "number": 41777,
-      "title": "Add Copilot-only `lsp` frontmatter support with schema, codegen, engine guardrails, and LSP instructions",
-      "draft": false,
-      "additions": 984,
-      "deletions": 29,
-      "changed_files": 21,
-      "category": "feature",
-      "risk": "high",
-      "priority": "high",
-      "score": 61,
+      "score": 65,
       "action": "batch_review",
-      "batch": "feature-promo",
-      "age_hours": 24.0,
-      "ci": "in_progress",
-      "notes": "reviewer commented, no approve/block; CI in-progress"
+      "age_hours": 3.9,
+      "ci": "87_pass_3_fail_10_skip",
+      "notes": "New PR. CI failures: safe_outputs x2, Smoke Copilot - AOAI. Blocked until CI fixed. Large generated-asset refresh."
     },
     {
-      "number": 41906,
-      "title": "[formal-spec] Add OTEL observability formal compatibility test suite (v0.4.0 L1/L2)",
+      "number": 41975,
+      "title": "Moving ESLint factory to new location",
       "draft": false,
-      "additions": 289,
-      "deletions": 0,
-      "changed_files": 2,
-      "category": "test",
+      "additions": 54,
+      "deletions": 47,
+      "changed_files": 17,
+      "category": "refactor",
       "risk": "low",
       "priority": "medium",
-      "score": 41,
+      "score": 50,
       "action": "fast_track",
-      "age_hours": 2.4,
+      "age_hours": 1.4,
       "ci": "1_pass",
-      "otel": true,
-      "notes": "new PR; OTEL flag - labeled otel, @mnkeifer mentioned; pure test additions + ADR doc"
+      "notes": "New PR. Clean ESLint factory directory reorganization. Pure renames + workflow/Makefile updates. CI green."
     }
   ],
   "closed_since_last_run": [
-    {"number": 41821, "title": "Enable templatable `report-failure-as-issue` and shared-workflow propagation", "outcome": "merged"},
-    {"number": 41849, "title": "Add nolint suppression parity for 5 remaining gh-aw analyzers", "outcome": "merged"},
-    {"number": 41850, "title": "fix(fmterrorfnoverbs): treat %% as escaped literal, not a real verb", "outcome": "merged"},
-    {"number": 41864, "title": "Fix invalid JSON escapes in GitHub remote MCP gateway config generation", "outcome": "merged"},
-    {"number": 41865, "title": "Bump Claude Code to 2.1.195 and Codex to 0.142.3", "outcome": "merged"},
-    {"number": 41852, "title": "fix(setup): clean up root-owned /tmp/awf-*-chroot-home directories", "outcome": "merged"},
-    {"number": 41835, "title": "Handle missing PR-head refs in centralized slash-command dispatch", "outcome": "closed"}
+    {"number": 41977, "title": "Clarify LSP capabilities and prompt patterns in lsp.md", "outcome": "merged"},
+    {"number": 41978, "title": "Add ready_for_review workflow for Impeccable (needex) skills-based PR", "outcome": "merged"},
+    {"number": 41966, "title": "eslint-factory: add hasSuggestions, enriched diagnostic message, and test", "outcome": "merged"},
+    {"number": 41960, "title": "feat(ambient-context): trim prompt size in daily-code-metrics, test-quality", "outcome": "merged"},
+    {"number": 41959, "title": "pr-sous-chef: auto-resolve outdated addressed review threads", "outcome": "merged"},
+    {"number": 41938, "title": "Establish ESLint Linter Factory for actions/setup/js and add dedicated", "outcome": "merged"},
+    {"number": 41948, "title": "safeoutputs: disambiguate submit_pull_request_review.event from action", "outcome": "merged"},
+    {"number": 41937, "title": "fix(changeset): restrict safe-outputs allowed-files to .changeset/*.md", "outcome": "merged"},
+    {"number": 41921, "title": "refactor: extract shared CLI engine execution logic; make Pi backend robust", "outcome": "merged"},
+    {"number": 41920, "title": "Add run-again footer hints for slash and label command triggers", "outcome": "merged"},
+    {"number": 41906, "title": "[formal-spec] Add OTEL observability formal compatibility test suite (v0.4.0)", "outcome": "merged"},
+    {"number": 41916, "title": "Strengthen anomaly detector edge coverage and remove order-dependent tests", "outcome": "merged"},
+    {"number": 41777, "title": "Add Copilot-only lsp frontmatter support with schema, codegen, engine guardrails", "outcome": "merged"},
+    {"number": 41922, "title": "Gate CI coverage uploads behind code-quality opt-in variable", "outcome": "merged"}
   ],
   "statistics": {
     "total_open_copilot_prs": 5,
@@ -107,12 +114,13 @@
     },
     "by_category": {
       "bug": 2,
-      "feature": 2,
-      "test": 1
+      "feature": 1,
+      "chore": 1,
+      "refactor": 1
     },
     "by_risk": {
-      "high": 2,
-      "medium": 2,
+      "high": 1,
+      "medium": 3,
       "low": 1
     },
     "by_priority": {
@@ -120,17 +128,15 @@
       "medium": 1,
       "low": 0
     },
-    "closed_since_last_run": 7,
+    "closed_since_last_run": 14,
     "new_since_last_run": 2,
     "carried_over": 3,
-    "merges_since_last_run": 6
+    "merges_since_last_run": 14
   },
-  "batches": {
-    "feature-promo": [41824, 41777]
-  },
+  "batches": {},
   "label_conflicts": [
     {"pr": 41824, "stale_labels": ["pr-action:defer", "pr-batch:active-drafts"]}
   ],
-  "otel_prs": [41906],
-  "notes": "5 open agent PRs. 6 merged since last run (#41821, #41849, #41850, #41864, #41865, #41852). 1 closed (#41835). 2 new: #41912 (GHE proxy bug, fast_track), #41906 (OTEL test, fast_track, @mnkeifer). feature-promo batch: #41824+#41777. #41830 bot-approved, ready to merge. Run §28298156610."
+  "ci_failures": [41945, 41912],
+  "notes": "5 open agent PRs. 14 merged since last run. 2 new: #41945 (firewall/mcpg bump, batch_review, CI failing), #41975 (ESLint factory refactor, fast_track). #41912 now has CI failure and bot CHANGES_REQUESTED. #41824 batch partner #41777 merged. Run §28307424127."
 }
