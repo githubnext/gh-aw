@@ -237,7 +237,7 @@ Example:
 ### Persona Overview
 - **Agent**: [name]
 - **Personas This Run**: [3 persona names]
-- **Scenarios Tested**: [count - should be 3-4 from the 6 generated]
+- **Scenarios Tested**: [count - should be 3-4, selected from the 6 generated in Phase 2 (2 per persona × 3 personas)]
 - **Average Quality Score**: [X.X/5.0]
 
 ### Key Findings (3-5 bullet points max)
