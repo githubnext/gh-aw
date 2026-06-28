@@ -12,18 +12,18 @@ gh-aw (GitHub Agentic Workflows) is a CLI extension for GitHub that compiles mar
 ## Project Glossary
 
 acceptEdits
-actions
 activation
 actor
 add-comment
+add-labels
 add-wizard
 agent
 agent-output.json
 agentic
+agentic-ops
 agentic-workflows
 AGENTS.md
 ai-credits
-allowed
 allowed-domains
 allowed-files
 allowed-github-references
@@ -32,28 +32,30 @@ ANTHROPIC_API_KEY
 api-target
 append
 approval-labels
-approved
 artifact
 artifacts
+assign-milestone
+assign-to-agent
 audit
-avoidHourBoundary
-avoidPeakMinutes
+auto-triage-issues
 aw-info.json
 aw.json
 aw.yml
 bash
+batch-ops
 blocked
 blocked-users
-body
-branch
 bypassPermissions
 cache
 cache-memory
 call-workflow
+central-repo-ops
+chat-ops
 checkout
 claude
 CLAUDE.md
 client-id
+close-discussion
 close-issue
 close-pull-request
 codex
@@ -66,6 +68,7 @@ contents
 copilot
 COPILOT_GITHUB_TOKEN
 COPILOT_MODEL
+correction-ops
 create-discussion
 create-issue
 create-pull-request
@@ -73,20 +76,16 @@ create-pull-request-review-comment
 cron
 cross-repository
 crush
-custom
 custom-safe-outputs
 daily
-default
-defaults
 dependencies
 detection
-dev-tools
+deterministic-ops
 discussion
 discussion-number
 discussions
+dispatch-ops
 dispatch-workflow
-DOCKER_HOST
-domain
 download-artifact
 edit
 effective-tokens
@@ -105,7 +104,6 @@ experiments
 expires
 fallback-to-issue
 feature-flags
-field_node_id
 firewall
 firewall-audit-logs
 footer
@@ -124,34 +122,30 @@ github-app
 github-token
 github-tools
 GITHUB_TOKEN
-go.mod
 gpt-5
 gpt-5-mini
 haiku
 headers
+hide-comment
 hide-older-comments
-hourly
 id-token
-ignore
-ignore-if-missing
 import-schema
 imports
+inline-sub-agents
 inlined-imports
 integrity
 integrity-reactions
 issue
 issue-comment
 issue-number
+issue-ops
 issues
-job
-jobs
-keepaliveInterval
 label-command
+label-ops
 labels
-large
+link-sub-issue
 lock.yml
-lockfile
-manifest
+lockdown-mode
 markdown
 max-ai-credits
 max-continuations
@@ -164,32 +158,31 @@ mcp-gateway
 mcp-scripts
 mcp-servers
 MCP_GATEWAY_SESSION_TIMEOUT
-member
+memory-ops
 merge
-merged
+merge-pull-request
 min-integrity
 min-samples
 min-version
-mini
-model
 model-alias
+monitor-ops
+multi-phase
+multi-repo-ops
 network
 network.allowed
 noop
-notify
-observability
 opencode
+OPENAI_API_KEY
 opentelemetry
 opus
+orchestration
+orchestrator-ops
 organization
 otel
 otlp
-owner
-package.json
-packages
 payloadDir
-pending
 permissions
+pi
 playwright
 post-steps
 pre-activation
@@ -206,36 +199,33 @@ pull-request-target
 pull-requests
 pull_request
 pull_request_target
-push
 push-to-pull-request-branch
 rate-limiting
 README.md
-redirect
 refusal-labels
 registry
+remove-labels
 replace
-repo
 repo-memory
+reply-to-pull-request-review-comment
 report-incomplete
-repository
-repository-dispatch
 required-labels
 required-title-prefix
-retention-days
+research-plan-assign-ops
+resolve-pull-request-review-thread
 runs-on
 runs-on-slim
-runtime
-runtimes
 safe-outputs
+safe-rollout
 sandbox
 schedule
-security
 serena
 sessionTimeout
 skip-if-match
 slash-command
 sonnet
 spanId
+spec-ops
 staged
 start-date
 state.json
@@ -251,24 +241,22 @@ threat-detection
 timeout-minutes
 timezone
 title-prefix
-tools
 tools.github
 tools.timeout
 toolsets
 total-effective-tokens
 traceId
 traceparent
+trial-ops
 trusted-users
 trustedBots
 unapproved
+update-discussion
 update-issue
 update-project
-upload-artifact
-upload-asset
+update-pull-request
 user-rate-limit
 variants
-version
-warn
 web-fetch
 web-search
 weekly
@@ -277,7 +265,7 @@ workflow-call
 workflow-dispatch
 workflow_call
 workflow_dispatch
-workflows
+workqueue-ops
 YAML
 
 ## Fix Speech-to-Text Errors
@@ -324,11 +312,27 @@ Common misrecognitions to correct:
 - "max daily AI credits" → "max-daily-ai-credits" (hyphenated)
 - "AI credits" → "ai-credits" (hyphenated)
 - "open code" → "opencode" (one word when used as engine name)
+- "open AI API key" → "OPENAI_API_KEY" (uppercase with underscores)
 - "crush" → "crush" (CLI engine name, lowercase)
 - "anthropic API key" → "ANTHROPIC_API_KEY" (uppercase with underscores)
 - "gemini API key" → "GEMINI_API_KEY" (uppercase with underscores)
 - "close issue" → "close-issue" (hyphenated in YAML context)
 - "close pull request" → "close-pull-request" (hyphenated in YAML context)
+- "batch ops" → "batch-ops" (hyphenated)
+- "chat ops" → "chat-ops" (hyphenated)
+- "issue ops" → "issue-ops" (hyphenated)
+- "label ops" → "label-ops" (hyphenated)
+- "memory ops" → "memory-ops" (hyphenated)
+- "monitor ops" → "monitor-ops" (hyphenated)
+- "multi repo ops" → "multi-repo-ops" (hyphenated)
+- "orchestrator ops" → "orchestrator-ops" (hyphenated)
+- "spec ops" → "spec-ops" (hyphenated)
+- "trial ops" → "trial-ops" (hyphenated)
+- "workqueue ops" → "workqueue-ops" (hyphenated)
+- "safe rollout" → "safe-rollout" (hyphenated)
+- "inline sub agents" → "inline-sub-agents" (hyphenated)
+- "lockdown mode" → "lockdown-mode" (hyphenated)
+- "agentic ops" → "agentic-ops" (hyphenated)
 
 ## Clean Up and Improve Text
 

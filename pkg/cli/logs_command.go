@@ -19,6 +19,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -448,7 +449,7 @@ Downloaded artifacts include (when using --artifacts all):
 // to the same repository that is checked out locally.
 func repoIsLocal(repo string) bool {
 	// Strip optional HOST/ prefix (e.g. "github.com/owner/repo" → "owner/repo")
-	ownerRepo, _ := normalizeRepoForAPI(repo)
+	ownerRepo, _ := repoutil.NormalizeRepoForAPI(repo)
 
 	// Fast path: GITHUB_REPOSITORY is always the current repo in MCP server containers.
 	if envRepo := os.Getenv("GITHUB_REPOSITORY"); envRepo != "" {
