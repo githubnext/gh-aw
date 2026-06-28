@@ -90,7 +90,7 @@ steps:
     cache-dependency-path: actions/setup/js/package-lock.json
     node-version: "24"
 - name: Setup Go
-  uses: actions/setup-go@v6.4.0
+  uses: actions/setup-go@v6.5.0
   with:
     cache: true
     go-version-file: go.mod

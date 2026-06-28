@@ -145,7 +145,7 @@ steps:
       echo "eligible_count=$(jq '.prs | length' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)" >> "$GITHUB_OUTPUT"
   - name: Setup Go
     if: steps.fetch-prs.outputs.eligible_count != '0'
-    uses: actions/setup-go@v6.4.0
+    uses: actions/setup-go@v6.5.0
     with:
       go-version-file: go.mod
       cache: true
