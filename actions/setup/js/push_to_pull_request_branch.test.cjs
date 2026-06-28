@@ -1291,7 +1291,7 @@ index 0000000..abc1234
   describe("threat detection: review branch push", () => {
     it("should return typed workflows_scope_required error when review branch push is rejected for missing workflows scope (timeout variant)", async () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
-      const patchPath = createPatchFile("review-branch-workflows-scope-timeout");
+      createPatchFile("review-branch-workflows-scope-timeout");
 
       const originalGetExecOutput = mockExec.getExecOutput;
       mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
@@ -1323,7 +1323,7 @@ index 0000000..abc1234
 
     it("should return typed workflows_scope_required error when review branch push is rejected with backtick workflows scope message", async () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
-      const patchPath = createPatchFile("review-branch-workflows-scope-backtick");
+      createPatchFile("review-branch-workflows-scope-backtick");
 
       const originalGetExecOutput = mockExec.getExecOutput;
       mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
@@ -1348,7 +1348,7 @@ index 0000000..abc1234
 
     it("should wrap generic review branch push failure in actionable error message", async () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
-      const patchPath = createPatchFile("review-branch-generic-push-failure");
+      createPatchFile("review-branch-generic-push-failure");
 
       const originalGetExecOutput = mockExec.getExecOutput;
       mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
