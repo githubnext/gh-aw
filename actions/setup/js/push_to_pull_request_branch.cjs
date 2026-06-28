@@ -128,6 +128,7 @@ async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef)
  * @returns {boolean} true when the rejection is due to missing 'workflows' scope
  */
 function isWorkflowsScopeRejection(stderr) {
+  if (!stderr) return false;
   const lower = stderr.toLowerCase();
   return lower.includes("`workflows` scope") || lower.includes("workflow can be created or updated");
 }

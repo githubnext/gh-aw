@@ -1354,7 +1354,7 @@ index 0000000..abc1234
       mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
         const argList = Array.isArray(args) ? args : [];
         if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
-          return { exitCode: 1, stdout: "", stderr: "error: authentication failed for origin" };
+          return { exitCode: 1, stdout: "", stderr: "error: authentication failed for 'https://github.com/test-owner/test-repo.git'" };
         }
         return originalGetExecOutput(cmd, args);
       });
