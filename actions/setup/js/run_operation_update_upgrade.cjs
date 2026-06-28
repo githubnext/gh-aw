@@ -17,7 +17,7 @@ const KNOWN_FILES_UPDATE = [".github/aw/actions-lock.json"];
  */
 const KNOWN_FILES_UPGRADE = [
   ".github/aw/actions-lock.json",
-  ".github/aw/repo-instructions.md",
+  ".github/aw/repository-instructions.md",
   ".github/skills/agentic-workflows/SKILL.md",
   ".github/skills/agentic-workflow-designer/SKILL.md",
   ".github/agents/agentic-workflows.md",

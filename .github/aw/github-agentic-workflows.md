@@ -56,7 +56,7 @@ See also: [workflow-editing.md](workflow-editing.md)
 
 ## Repository-Specific Instructions
 
-Use `.github/aw/repo-instructions.md` as the canonical repository-local overlay for workflow authoring standards.
+Use `.github/aw/repository-instructions.md` as the canonical repository-local overlay for workflow authoring standards.
 
 - This file is optional and repository-owned.
 - Installed gh-aw agents should load and apply it automatically when present.
