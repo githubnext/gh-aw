@@ -204,21 +204,26 @@ function getFooterMessage(ctx) {
     threatDetectionAiCreditsSuffix,
   });
 
-  const getRunAgainHints = () => {
+  const getRunAgainHints = renderedFooter => {
     let hints = "";
     if (ctx.slashCommand) {
       const hintText = ctx.slashCommandPlaceholder || "to run again";
-      hints += `\n> <sub>Comment <em>/{slash_command}</em> ${hintText}</sub>`;
+      hints += `> <sub>Comment <em>/{slash_command}</em> ${hintText}</sub>`;
     }
     if (ctx.labelCommand) {
-      hints += `\n> <sub>Add label <em>{label_command}</em> to run again</sub>`;
+      if (hints) hints += "\n";
+      hints += `> <sub>Add label <em>{label_command}</em> to run again</sub>`;
     }
-    return renderTemplate(hints, templateContext);
+    const renderedHints = renderTemplate(hints, templateContext);
+    if (!renderedHints) return "";
+    const separator = renderedFooter && !renderedFooter.endsWith("\n") ? "\n" : "";
+    return separator + renderedHints;
   };
 
   // Use custom footer template if configured
   if (messages?.footer) {
-    return renderTemplate(messages.footer, templateContext) + getRunAgainHints();
+    const renderedCustomFooter = renderTemplate(messages.footer, templateContext);
+    return renderedCustomFooter + getRunAgainHints(renderedCustomFooter);
   }
 
   // Default footer template - includes emoji prefix when available
@@ -242,7 +247,8 @@ function getFooterMessage(ctx) {
   if (ctx.historyUrl) {
     defaultFooter += " · [◷]({history_url})";
   }
-  return renderTemplate(defaultFooter, templateContext) + getRunAgainHints();
+  const renderedDefaultFooter = renderTemplate(defaultFooter, templateContext);
+  return renderedDefaultFooter + getRunAgainHints(renderedDefaultFooter);
 }
 
 /**

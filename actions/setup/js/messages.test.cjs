@@ -616,9 +616,23 @@ describe("messages.cjs", () => {
         slashCommand: "review-bot",
       });
 
-      expect(result).toBe(
-        "> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123)\n> <sub>Comment <em>/review-bot</em> to run again</sub>"
-      );
+      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123)\n> <sub>Comment <em>/review-bot</em> to run again</sub>");
+    });
+
+    it("should include label command hint in custom footer templates", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        footer: "> Custom: [{workflow_name}]({run_url})",
+      });
+
+      const { getFooterMessage } = await import("./messages.cjs");
+
+      const result = getFooterMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+        labelCommand: "deploy",
+      });
+
+      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123)\n> <sub>Add label <em>deploy</em> to run again</sub>");
     });
 
     it("should use slashCommandPlaceholder as hint text when provided", async () => {
