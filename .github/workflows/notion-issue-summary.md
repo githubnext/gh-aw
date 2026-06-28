@@ -14,6 +14,11 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+
+sandbox:
+  agent:
+    sudo: false
+
 tools:
   cli-proxy: true
   github:

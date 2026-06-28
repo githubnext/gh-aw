@@ -16,6 +16,10 @@ permissions:
   discussions: read
   security-events: read
 
+sandbox:
+  agent:
+    sudo: false
+
 tracker-id: deep-report-intel-agent
 timeout-minutes: 45
 engine: claude

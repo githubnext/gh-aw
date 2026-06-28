@@ -15,6 +15,11 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
+
+sandbox:
+  agent:
+    sudo: false
+
 concurrency:
   job-discriminator: ${{ inputs.focus || github.run_id }}
 tracker-id: slide-deck-maintainer

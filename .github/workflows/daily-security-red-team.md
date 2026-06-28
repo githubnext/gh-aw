@@ -10,6 +10,11 @@ permissions:
   issues: read
   security-events: read
   copilot-requests: write
+
+sandbox:
+  agent:
+    sudo: false
+
 tracker-id: security-red-team
 engine: claude
 strict: true

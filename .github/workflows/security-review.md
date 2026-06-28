@@ -15,6 +15,11 @@ permissions:
   issues: read
   security-events: read
   copilot-requests: write
+
+sandbox:
+  agent:
+    sudo: false
+
 tools:
   github:
     toolsets: [all]
