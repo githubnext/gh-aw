@@ -116,7 +116,7 @@ async function main() {
   const knownFiles = isUpgrade ? KNOWN_FILES_UPGRADE : KNOWN_FILES_UPDATE;
   for (const file of knownFiles) {
     try {
-      await exec.exec("git", ["add", "--", file]);
+      await exec.exec("git", ["add", "-A", "--", file]);
     } catch (error) {
       core.warning(`Failed to stage '${file}': ${getErrorMessage(error)}`);
     }
