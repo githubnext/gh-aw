@@ -669,7 +669,7 @@ func (c *ActionCache) deleteDedupEntries(toDelete []string) {
 }
 
 func truncateSHAForLog(sha string) string {
-	return stringutil.Truncate(sha, 8)
+	return stringutil.Truncate(sha, 11)
 }
 
 // PruneStaleGHAWEntries removes entries from the cache for the gh-aw-actions

@@ -127,10 +127,7 @@ func shouldRunCompileUpdateCheck(noCheckUpdate bool) bool {
 	}
 
 	lastCheckFile := getCompileUpdateCheckFilePath()
-	if !shouldRunUpdateCheckAtPath(lastCheckFile, compileUpdateCheckInterval, "compile update check", compileUpdateCheckLog) {
-		return false
-	}
-	return true
+	return shouldRunUpdateCheckAtPath(lastCheckFile, compileUpdateCheckInterval, "compile update check", compileUpdateCheckLog)
 }
 
 func waitForCompileUpdateNotification(ctx context.Context, results <-chan *compileUpdateNotification, timeout time.Duration) *compileUpdateNotification {
