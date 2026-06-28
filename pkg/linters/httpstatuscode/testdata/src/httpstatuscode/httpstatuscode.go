@@ -32,6 +32,13 @@ func compareStatusCode(statusCode int) {
 	}
 }
 
+func compareHTTPStatus(httpStatus int) {
+	if httpStatus == 200 { // want `use http\.StatusOK instead of magic HTTP status code 200`
+	}
+	if httpStatus == 404 { // want `use http\.StatusNotFound instead of magic HTTP status code 404`
+	}
+}
+
 func compareResponse(resp *http.Response) {
 	if resp.StatusCode == 200 { // want `use http\.StatusOK instead of magic HTTP status code 200`
 	}
@@ -117,4 +124,79 @@ type customResponse struct {
 func compareCustomIntStatusCode(r customResponse) {
 	if r.StatusCode == 418 { // want `use http\.StatusTeapot instead of magic HTTP status code 418`
 	}
+}
+
+// httpEntry is a response type with a field named Status (not StatusCode).
+type httpEntry struct {
+	Status int
+}
+
+func compareFieldStatus(entry httpEntry) {
+	if entry.Status == 200 { // want `use http\.StatusOK instead of magic HTTP status code 200`
+	}
+	if entry.Status == 404 { // want `use http\.StatusNotFound instead of magic HTTP status code 404`
+	}
+}
+
+func compareSwitchFieldStatus(entry httpEntry) {
+	switch entry.Status {
+	case 200: // want `use http\.StatusOK instead of magic HTTP status code 200`
+	case 500: // want `use http\.StatusInternalServerError instead of magic HTTP status code 500`
+	}
+}
+
+// httpClientInfo is a type with a field named HTTPStatus.
+type httpClientInfo struct {
+	HTTPStatus int
+}
+
+func compareFieldHTTPStatus(c httpClientInfo) {
+	if c.HTTPStatus == 404 { // want `use http\.StatusNotFound instead of magic HTTP status code 404`
+	}
+	if c.HTTPStatus == 500 { // want `use http\.StatusInternalServerError instead of magic HTTP status code 500`
+	}
+}
+
+func compareSwitchFieldHTTPStatus(c httpClientInfo) {
+	switch c.HTTPStatus {
+	case 200: // want `use http\.StatusOK instead of magic HTTP status code 200`
+	case 404: // want `use http\.StatusNotFound instead of magic HTTP status code 404`
+	}
+}
+
+// JobState is a non-HTTP integer enum (state machine). Comparisons against
+// HTTP-range integers must not be flagged because the type name contains no
+// HTTP indicator.
+type JobState int
+
+const (
+	JobPending JobState = iota
+	JobRunning
+	JobDone
+)
+
+func compareNonHTTPJobState(state JobState) {
+	if state == 200 {
+	}
+	if state == 404 {
+	}
+}
+
+func compareSwitchNonHTTPJobState(state JobState) {
+	switch state {
+	case 200:
+	case 404:
+	}
+}
+
+func compareNonStatusNamedLocal(resp *http.Response) {
+	// False negative: "code" is a plain int whose name is not in the HTTP-status
+	// name list. Flow-based analysis would be required to detect this pattern.
+	// The absence of a "want" comment below is the test assertion — analysistest
+	// fails if an unexpected diagnostic is produced, so this line also guards
+	// against regressions that would cause the linter to start flagging it.
+	code := resp.StatusCode
+	if code == 404 {
+	}
+	_ = code
 }
