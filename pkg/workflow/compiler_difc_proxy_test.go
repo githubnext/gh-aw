@@ -20,6 +20,21 @@ func assertProxyCuratedUpstreamEnv(t *testing.T, result string) {
 	assert.Contains(t, result, "GITHUB_ENTERPRISE_HOST: ${{ env.GITHUB_ENTERPRISE_HOST }}", "proxy step should forward GITHUB_ENTERPRISE_HOST into the curated env")
 	assert.Contains(t, result, "GITHUB_GRAPHQL_URL: ${{ env.GITHUB_GRAPHQL_URL }}", "proxy step should forward GITHUB_GRAPHQL_URL into the curated env")
 	assert.Contains(t, result, "GITHUB_COPILOT_BASE_URL: ${{ env.GITHUB_COPILOT_BASE_URL }}", "proxy step should forward or preserve a custom Copilot base URL")
+
+	// Verify each upstream env key appears exactly once — duplicates indicate the
+	// curated env was emitted more than once or leaked from an earlier block.
+	for _, key := range []string{
+		"GITHUB_SERVER_URL",
+		"GITHUB_API_URL",
+		"GH_HOST",
+		"GITHUB_HOST",
+		"GITHUB_ENTERPRISE_HOST",
+		"GITHUB_GRAPHQL_URL",
+		"GITHUB_COPILOT_BASE_URL",
+	} {
+		count := strings.Count(result, key+":")
+		assert.Equal(t, 1, count, "env key %q should appear exactly once in the proxy step YAML, got %d occurrences", key, count)
+	}
 }
 
 // TestHasDIFCProxyNeeded verifies that DIFC proxy injection is triggered only
