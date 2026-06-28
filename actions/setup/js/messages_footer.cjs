@@ -204,9 +204,21 @@ function getFooterMessage(ctx) {
     threatDetectionAiCreditsSuffix,
   });
 
-  // Use custom footer template if configured (no automatic suffix appended)
+  const getRunAgainHints = () => {
+    let hints = "";
+    if (ctx.slashCommand) {
+      const hintText = ctx.slashCommandPlaceholder || "to run again";
+      hints += `\n> <sub>Comment <em>/{slash_command}</em> ${hintText}</sub>`;
+    }
+    if (ctx.labelCommand) {
+      hints += `\n> <sub>Add label <em>{label_command}</em> to run again</sub>`;
+    }
+    return renderTemplate(hints, templateContext);
+  };
+
+  // Use custom footer template if configured
   if (messages?.footer) {
-    return renderTemplate(messages.footer, templateContext);
+    return renderTemplate(messages.footer, templateContext) + getRunAgainHints();
   }
 
   // Default footer template - includes emoji prefix when available
@@ -230,16 +242,7 @@ function getFooterMessage(ctx) {
   if (ctx.historyUrl) {
     defaultFooter += " · [◷]({history_url})";
   }
-  // Append slash command hint when applicable (workflow has a slash command trigger)
-  if (ctx.slashCommand) {
-    const hintText = ctx.slashCommandPlaceholder || "to run again";
-    defaultFooter += `\n> <sub>Comment <em>/{slash_command}</em> ${hintText}</sub>`;
-  }
-  // Append label command hint when applicable (workflow has a label command trigger)
-  if (ctx.labelCommand) {
-    defaultFooter += `\n> <sub>Add label <em>{label_command}</em> to run again</sub>`;
-  }
-  return renderTemplate(defaultFooter, templateContext);
+  return renderTemplate(defaultFooter, templateContext) + getRunAgainHints();
 }
 
 /**
