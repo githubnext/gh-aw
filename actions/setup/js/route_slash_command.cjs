@@ -351,14 +351,16 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
 
     const responseData = response?.data || {};
     // GitHub may return run metadata in either shape:
-    // - flat: { workflow_run_id, workflow_run_url }
-    // - nested: { workflow_run: { id, html_url, url } }
+    // - flat: { workflow_run_id, workflow_run_url }  (workflow_run_url is a REST API URL)
+    // - nested: { workflow_run: { id, html_url, url } }  (url is a REST API URL; html_url is the Actions page URL)
     const parsedRunId = Number(responseData?.workflow_run_id ?? responseData?.workflow_run?.id);
     const runId = Number.isFinite(parsedRunId) && parsedRunId > 0 ? parsedRunId : undefined;
-    const runUrlFromResponse = firstNonEmptyString([responseData?.workflow_run_url, responseData?.workflow_run?.html_url, responseData?.workflow_run?.url]);
     const serverUrl = context.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
+    // Prefer the constructed HTML URL when runId is available — it is always the Actions run page URL.
+    // Avoid workflow_run_url and workflow_run.url which are REST API URLs, not Actions run page URLs.
     const runUrlFromRunId = runId ? `${serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}` : undefined;
-    const runUrl = runUrlFromResponse || runUrlFromRunId;
+    const runUrlFromResponse = firstNonEmptyString([responseData?.workflow_run?.html_url]);
+    const runUrl = runUrlFromRunId || runUrlFromResponse;
     return {
       dispatched: true,
       ...(runId ? { run_id: runId } : {}),
