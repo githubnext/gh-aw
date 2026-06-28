@@ -1,10 +1,10 @@
 {
-  "run_date": "2026-06-28T07:37:40Z",
-  "run_id": "28315307719",
-  "previous_run_id": "28307424127",
-  "previous_run_date": "2026-06-28T01:21:47Z",
-  "agent_prs_found": 8,
-  "prs_triaged": 8,
+  "run_date": "2026-06-28T12:44:27Z",
+  "run_id": "28322591180",
+  "previous_run_id": "28315307719",
+  "previous_run_date": "2026-06-28T07:37:40Z",
+  "agent_prs_found": 6,
+  "prs_triaged": 6,
   "open_agent_prs": [
     {
       "number": 41830,
@@ -16,12 +16,12 @@
       "category": "bug",
       "risk": "medium",
       "priority": "high",
-      "score": 73,
+      "score": 71,
       "action": "fast_track",
-      "age_hours": 29.1,
-      "ci": "action_required",
+      "age_hours": 34.2,
+      "ci": "2_success_unstable",
       "batch": "production-fixes",
-      "notes": "Oldest ready PR. CI action_required (standard gate). Multiple addressing-comment runs succeeded. Bot approval dismissed; needs fresh human approval."
+      "notes": "Carried over (34h). Git dubious-ownership fix in bundle branch pinning. mergeable_state: unstable. Bot review dismissed, needs fresh human review."
     },
     {
       "number": 41912,
@@ -33,151 +33,121 @@
       "category": "bug",
       "risk": "medium",
       "priority": "high",
-      "score": 72,
+      "score": 68,
       "action": "fast_track",
-      "age_hours": 13.9,
-      "ci": "action_required",
+      "age_hours": 19.0,
+      "ci": "0_runs_no_ci",
       "batch": "production-fixes",
-      "notes": "Addressing-comment ran at 06:38 UTC. File count jumped to 157 (generated assets). Enterprise/DIFC critical fix."
+      "notes": "Carried over (19h). Critical DIFC proxy fix for enterprise tenants. 0 CI check runs on latest SHA. CHANGES_REQUESTED review. Needs CI verification + human approval."
     },
     {
-      "number": 41824,
-      "title": "Add model policy frontmatter + import unioning + env policy overrides",
+      "number": 42077,
+      "title": "Fix centralized workflow dispatch API usage and status comment attribution",
       "draft": false,
-      "additions": 514,
+      "additions": 193,
       "deletions": 20,
-      "changed_files": 16,
-      "category": "feature",
-      "risk": "high",
-      "priority": "high",
-      "score": 67,
-      "action": "fast_track",
-      "age_hours": 30.7,
-      "ci": "action_required",
-      "notes": "Addressing-comment ran at 01:57 UTC. Batch partner #41777 merged. Stale labels: pr-action:defer + pr-batch:active-drafts need manual removal.",
-      "label_conflicts": ["pr-action:defer", "pr-batch:active-drafts"]
-    },
-    {
-      "number": 41992,
-      "title": "Safe outputs: pre-validate `dispatch_workflow` required inputs and downgrade missing-input failures to non-fatal",
-      "draft": false,
-      "additions": 177,
-      "deletions": 30,
-      "changed_files": 13,
+      "changed_files": 4,
       "category": "bug",
       "risk": "medium",
       "priority": "high",
       "score": 64,
       "action": "fast_track",
-      "age_hours": 5.1,
-      "ci": "action_required",
+      "age_hours": 0.5,
+      "ci": "23_success_7_skipped_blocked",
       "batch": "production-fixes",
-      "notes": "New PR. pr-finisher skill requested. Fixes dispatch_workflow required-input CI failures."
+      "notes": "New PR. Switches dispatch to workflow dispatch endpoint, improves status comment attribution. CI all passing, blocked by bot CHANGES_REQUESTED. Needs human approval."
     },
     {
-      "number": 41945,
-      "title": "Bump gh-aw-firewall to v0.27.12 and gh-aw-mcpg to v0.3.31",
+      "number": 41824,
+      "title": "Add model policy frontmatter + import unioning + env policy overrides",
       "draft": false,
-      "additions": 5307,
-      "deletions": 5227,
-      "changed_files": 272,
-      "category": "chore",
-      "risk": "medium",
+      "additions": null,
+      "deletions": null,
+      "changed_files": null,
+      "category": "feature",
+      "risk": "high",
       "priority": "high",
-      "score": 58,
-      "action": "batch_review",
-      "age_hours": 10.2,
-      "ci": "action_required",
-      "notes": "Carried over. CI action_required after latest push. Large generated-asset refresh."
+      "score": 63,
+      "action": "fast_track",
+      "age_hours": 36.0,
+      "ci": "1_success",
+      "batch": "feature-promo",
+      "notes": "Carried over (36h). Model policy frontmatter. Bot approval dismissed. Label conflicts: pr-action:defer and pr-batch:active-drafts need manual removal.",
+      "label_conflicts": ["pr-action:defer", "pr-batch:active-drafts"]
     },
     {
-      "number": 42001,
-      "title": "fix: typed error for workflows-scope rejection in review/fallback branch push",
-      "draft": true,
-      "additions": 143,
-      "deletions": 3,
-      "changed_files": 2,
-      "category": "bug",
+      "number": 42068,
+      "title": "Propagate workflow frontmatter `features` into `aw_info.json`",
+      "draft": false,
+      "additions": 110,
+      "deletions": 0,
+      "changed_files": 4,
+      "category": "feature",
       "risk": "low",
       "priority": "medium",
-      "score": 47,
-      "action": "defer",
-      "age_hours": 3.7,
-      "ci": "action_required",
-      "notes": "New draft PR. Fixes silent error swallowing for workflows-scope rejection. Re-triage when ready."
+      "score": 58,
+      "action": "fast_track",
+      "age_hours": 1.2,
+      "ci": "30_success_clean",
+      "notes": "New PR. Additions-only, tests in JS+Go, CI all passing, mergeable_state: clean. Strongest auto-merge candidate pending human sign-off."
     },
     {
-      "number": 41985,
-      "title": "Refactor duplicated update-check state helpers and centralize repo/API normalization",
-      "draft": false,
-      "additions": 131,
-      "deletions": 123,
-      "changed_files": 14,
-      "category": "refactor",
-      "risk": "medium",
-      "priority": "medium",
-      "score": 36,
-      "action": "batch_review",
-      "age_hours": 6.3,
-      "ci": "action_required",
-      "notes": "New PR. Multiple review comments received. pr-finisher skill requested. Non-critical refactor."
-    },
-    {
-      "number": 42009,
-      "title": "fix(httpstatuscode): replace spelling-based gating with type-aware detection",
+      "number": 42053,
+      "title": "Add repo-local instruction overlays for installed gh-aw agents",
       "draft": true,
-      "additions": 131,
-      "deletions": 2,
-      "changed_files": 2,
-      "category": "bug",
+      "additions": 84,
+      "deletions": 3,
+      "changed_files": 11,
+      "category": "feature",
       "risk": "low",
       "priority": "low",
       "score": 30,
       "action": "defer",
-      "age_hours": 1.9,
-      "ci": "action_required",
-      "notes": "New draft PR. Linter type-aware detection upgrade. Re-triage when ready."
+      "age_hours": 2.9,
+      "ci": "0_runs_draft",
+      "notes": "New draft PR. Repo-local instruction overlay. No CI yet. Re-triage when ready."
     }
   ],
   "closed_since_last_run": [
-    {"number": 41975, "title": "Moving ESLint factory to new location", "outcome": "merged"}
+    {"number": 41945, "title": "Bump gh-aw-firewall to v0.27.12 and gh-aw-mcpg to v0.3.31", "outcome": "merged"},
+    {"number": 42001, "title": "fix: typed error for workflows-scope rejection in review/fallback branch push", "outcome": "merged"},
+    {"number": 41985, "title": "Refactor duplicated update-check state helpers and centralize repo/API normalization", "outcome": "merged"},
+    {"number": 42009, "title": "fix(httpstatuscode): replace spelling-based gating with type-aware detection", "outcome": "merged"},
+    {"number": 41992, "title": "Safe outputs: pre-validate dispatch_workflow required inputs", "outcome": "closed_not_merged"}
   ],
   "statistics": {
-    "total_open_copilot_prs": 8,
+    "total_open_copilot_prs": 6,
     "draft_prs": 2,
-    "ready_prs": 6,
+    "ready_prs": 4,
     "by_action": {
-      "fast_track": 4,
-      "batch_review": 2,
-      "defer": 2
+      "fast_track": 5,
+      "defer": 1
     },
     "by_category": {
-      "bug": 5,
-      "feature": 1,
-      "chore": 1,
-      "refactor": 1
+      "bug": 3,
+      "feature": 3
     },
     "by_risk": {
       "high": 1,
-      "medium": 5,
+      "medium": 3,
       "low": 2
     },
     "by_priority": {
-      "high": 5,
+      "high": 3,
       "medium": 2,
       "low": 1
     },
-    "closed_since_last_run": 1,
-    "new_since_last_run": 4,
-    "carried_over": 4,
-    "merges_since_last_run": 1
+    "closed_since_last_run": 5,
+    "new_since_last_run": 3,
+    "carried_over": 3,
+    "merges_since_last_run": 4
   },
   "batches": {
-    "production-fixes": [41830, 41912, 41992]
+    "production-fixes": [41830, 41912, 42077],
+    "feature-promo": [41824]
   },
   "label_conflicts": [
     {"pr": 41824, "stale_labels": ["pr-action:defer", "pr-batch:active-drafts"]}
   ],
-  "ci_failures": [],
-  "notes": "8 open agent PRs. 1 merged since last run (#41975 ESLint factory). 4 new: #41992 (dispatch_workflow fix, fast_track), #41985 (refactor, batch_review), #42001 (draft bug, defer), #42009 (draft linter, defer). Batch production-fixes: #41830+#41912+#41992. Run §28315307719."
+  "notes": "6 open agent PRs. 4 merged + 1 closed since last run. 3 new: #42077 (dispatch API fix), #42068 (features->aw_info), #42053 (draft, repo overlays). Batch production-fixes: #41830+#41912+#42077. #42068 is clean/auto-merge candidate. Run §28322591180."
 }
