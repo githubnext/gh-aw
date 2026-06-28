@@ -263,6 +263,32 @@ func TestBuildAuditData(t *testing.T) {
 	}
 }
 
+func TestBuildAuditDataCountsFailedWorkflowWithoutTelemetryAsError(t *testing.T) {
+	processedRun := ProcessedRun{
+		Run: WorkflowRun{
+			DatabaseID:   123456,
+			WorkflowName: "Failed Workflow",
+			Status:       "completed",
+			Conclusion:   "failure",
+			LogsPath:     testutil.TempDir(t, "test-*"),
+		},
+	}
+
+	auditData := buildAuditData(processedRun, LogMetrics{}, nil)
+
+	assert.Equal(t, 1, auditData.Metrics.ErrorCount, "failed workflow should contribute at least one error")
+}
+
+func TestApplyAuditMetricsCountsWorkflowFailureWithoutTelemetry(t *testing.T) {
+	run := WorkflowRun{
+		Conclusion: "failure",
+	}
+
+	updated := applyAuditMetrics(run, auditAnalysisResults{})
+
+	assert.Equal(t, 1, updated.ErrorCount, "failed workflow should contribute at least one error")
+}
+
 func TestDescribeFile(t *testing.T) {
 	tests := []struct {
 		filename    string

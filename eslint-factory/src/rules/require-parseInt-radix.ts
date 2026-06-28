@@ -1,18 +1,20 @@
-import { ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
-const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/actions/setup/js/eslint-factory#${name}`);
+const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 const GLOBAL_PARSE_INT_OBJECTS = new Set(["Number", "globalThis", "window", "global"]);
 
 export const requireParseIntRadixRule = createRule({
   name: "require-parseInt-radix",
   meta: {
     type: "problem",
+    hasSuggestions: true,
     docs: {
-      description: "Require parseInt() calls in actions/setup/js scripts to include an explicit radix argument to avoid implicit base detection (e.g., 0x prefix silently parsed as hexadecimal)",
+      description: "Require parseInt() calls in gh-aw JavaScript runtime scripts to include an explicit radix argument to avoid implicit base detection (e.g., 0x prefix silently parsed as hexadecimal)",
     },
     schema: [],
     messages: {
-      requireRadix: "parseInt() must be called with an explicit radix (e.g., parseInt(str, 10)) to avoid implicit base detection in actions/setup/js.",
+      requireRadix: "parseInt() must be called with an explicit radix (e.g., parseInt(str, 10)) to avoid implicit base detection in gh-aw JavaScript runtime scripts.",
+      addRadix10: "Add radix 10 as a safe default, then confirm the intended base for this input (e.g., 16/8 may be correct in some contexts).",
     },
   },
   defaultOptions: [],
@@ -61,13 +63,25 @@ export const requireParseIntRadixRule = createRule({
           return;
         }
 
+        const suggest =
+          node.arguments.length === 1
+            ? [
+                {
+                  messageId: "addRadix10" as const,
+                  fix(fixer: TSESLint.RuleFixer) {
+                    return fixer.insertTextAfter(node.arguments[0], ", 10");
+                  },
+                },
+              ]
+            : undefined;
+
         // Report only the global parseInt binding. Aliased (const p = parseInt; p(x))
         // and destructured (const { parseInt } = Number; parseInt(x)) bindings are
         // intentionally out of scope: tracking them reliably requires deeper
         // scope/alias analysis and is disproportionate to the current risk surface.
         // Global parseInt(x) — missing radix
         if (node.callee.type === "Identifier" && node.callee.name === "parseInt" && !hasLocalBinding(node, "parseInt")) {
-          context.report({ node, messageId: "requireRadix" });
+          context.report({ node, messageId: "requireRadix", suggest });
           return;
         }
 
@@ -80,7 +94,7 @@ export const requireParseIntRadixRule = createRule({
           !hasLocalBinding(node, node.callee.object.name) &&
           isParseIntProperty(node.callee)
         ) {
-          context.report({ node, messageId: "requireRadix" });
+          context.report({ node, messageId: "requireRadix", suggest });
         }
       },
     };

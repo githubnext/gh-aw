@@ -38,22 +38,26 @@ pre-agent-steps:
       set -euo pipefail
       SKILLS_SRC="needex/skills"
       SKILLS_DST="${RUNNER_TEMP}/gh-aw/impeccable-skills"
+      SKILLS_LIST="${RUNNER_TEMP}/gh-aw/impeccable-skills-list.txt"
       mkdir -p "${SKILLS_DST}"
 
       # Discover available skills and install each one individually.
-      while IFS= read -r skill; do
-        if ! gh skill install "${SKILLS_SRC}" "$skill" --dir "${SKILLS_DST}" --force; then
-          echo "::error::Failed to install skill '${skill}' from ${SKILLS_SRC}"
-          exit 1
-        fi
-      done < <(gh api "repos/${SKILLS_SRC}/contents/skills" --jq '[.[] | select(.type == "dir") | .name] | .[]')
+      # External skill repositories may be unavailable; continue with a best-effort review.
+      if gh api "repos/${SKILLS_SRC}/contents/skills" --jq '[.[] | select(.type == "dir") | .name] | .[]' > "${SKILLS_LIST}"; then
+        while IFS= read -r skill; do
+          if ! gh skill install "${SKILLS_SRC}" "$skill" --dir "${SKILLS_DST}" --force; then
+            echo "::warning::Failed to install skill '${skill}' from ${SKILLS_SRC}; continuing."
+          fi
+        done < "${SKILLS_LIST}"
+      else
+        echo "::warning::Failed to discover skills from ${SKILLS_SRC}; continuing without external skills."
+      fi
 
       SKILL_COUNT=$(find "${SKILLS_DST}" -name "SKILL.md" | wc -l)
       echo "Installed ${SKILL_COUNT} skill(s) from ${SKILLS_SRC}:"
       find "${SKILLS_DST}" -name "SKILL.md" | head -20
       if [ "${SKILL_COUNT}" -eq 0 ]; then
-        echo "::error::No SKILL.md files found after installing ${SKILLS_SRC}"
-        exit 1
+        echo "::warning::No SKILL.md files found after installing ${SKILLS_SRC}; review will continue without external skills."
       fi
   - name: Pre-fetch PR diff
     env:
@@ -129,6 +133,8 @@ Review this pull request by selecting and applying the most relevant installed I
    ```
 
 3. Select the most relevant skills for the detected change type and risk areas.
+
+   If no external skills are installed, perform a normal high-signal review focused on correctness and security.
 
 4. Add up to 10 high-impact inline review comments using `create-pull-request-review-comment`.
 
