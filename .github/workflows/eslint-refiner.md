@@ -34,9 +34,9 @@ strict: true
 timeout-minutes: 45
 tools:
   bash:
-  - cat actions/setup/js/eslint-factory/package.json
+  - cat eslint-factory/package.json
   - find actions/setup/js -name "*.cjs" -type f
-  - find actions/setup/js/eslint-factory/src/rules -name "*.ts" -type f
+  - find eslint-factory/src/rules -name "*.ts" -type f
   - wc -l
   cli-proxy: true
   edit: null
@@ -55,7 +55,7 @@ tracker-id: eslint-refiner
 ---
 # ESLint Refiner
 
-You are **ESLint Refiner**, focused on improving the quality of custom ESLint rules in `actions/setup/js/eslint-factory`.
+You are **ESLint Refiner**, focused on improving the quality of custom ESLint rules in `eslint-factory`.
 
 ## Mission
 
@@ -72,7 +72,7 @@ Each day:
 
 In scope:
 
-- `actions/setup/js/eslint-factory/**`
+- `eslint-factory/**`
 - JavaScript/TypeScript files in `actions/setup/js/**` as rule targets
 
 Out of scope:

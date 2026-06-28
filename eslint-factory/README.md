@@ -11,5 +11,5 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 ## Commands
 
 - `npm run build` — compile rule sources.
-- `npm run lint:setup-js` — build and lint all `../**/*.cjs` files.
-- `npm run lint:setup-js:changed` — build and lint top-level `../*.cjs` files.
+- `npm run lint:setup-js` — build and lint all `../actions/setup/js/**/*.cjs` files.
+- `npm run lint:setup-js:changed` — build and lint `../actions/setup/js/*.cjs` files.

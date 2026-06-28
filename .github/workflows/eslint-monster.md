@@ -35,7 +35,7 @@ steps:
       rm -f /tmp/gh-aw/agent/lint-clean.flag
       REPO_ROOT="$(pwd)"
 
-      cd actions/setup/js/eslint-factory
+      cd eslint-factory
       npm ci > /tmp/gh-aw/agent/eslint-factory.log 2>&1
 
       if npm run lint:setup-js >> /tmp/gh-aw/agent/eslint-factory.log 2>&1; then
