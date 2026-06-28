@@ -1,87 +1,116 @@
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { access, readFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const servers = new Map();
+const cache = new Map(); // key → { data, expiresAt }
+const CACHE_TTL_MS = 60_000;
+let workspacePath = process.cwd();
 
-const definitions = buildDefinitions(240);
-const runs = buildRuns(420, definitions);
+// ---------------------------------------------------------------------------
+// CLI helpers
+// ---------------------------------------------------------------------------
 
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function isoHoursAgo(hours) {
-  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-}
-
-function buildDefinitions(count) {
-  return Array.from({ length: count }, (_, i) => {
-    const index = i + 1;
-    return {
-      id: `wf-${String(index).padStart(3, "0")}`,
-      name: `agentic-workflow-${index}`,
-      description: `Automated workflow #${index} for triage, reporting, and repository automation.`,
-      inputSchema: {
-        type: "object",
-        properties: {
-          issue: { type: "number" },
-          branch: { type: "string" },
-        },
-        additionalProperties: false,
-      },
-      enabled: index % 9 !== 0,
-    };
+function execp(bin, args, cwd) {
+  return new Promise((resolve, reject) => {
+    execFile(bin, args, {
+      cwd,
+      env: { ...process.env, NO_COLOR: "1", GH_NO_UPDATE_NOTIFIER: "1" },
+      maxBuffer: 10 * 1024 * 1024,
+    }, (err, stdout, stderr) => {
+      if (err) reject(Object.assign(err, { stderr: stderr ?? "" }));
+      else resolve(stdout);
+    });
   });
 }
 
-function buildStep(runNumber, idx, status) {
-  return {
-    id: `step-${runNumber}-${idx}`,
-    title: ["Resolve context", "Execute engine", "Publish summary", "Finalize run"][idx - 1] ?? `Step ${idx}`,
-    status,
-    summaryMarkdown: `### ${status === "failed" ? "Action required" : "Step complete"}\n- Run: **${runNumber}**\n- Step: **${idx}**\n- Status: \`${status}\`\n\n[View workflow docs](https://github.com/github/gh-aw/tree/main/docs)`,
-  };
+async function runGhAw(args) {
+  const cwd = workspacePath;
+  const isWin = process.platform === "win32";
+  const devBin = join(cwd, isWin ? "gh-aw.exe" : "gh-aw");
+  try {
+    await access(devBin, fsConstants.X_OK);
+    return await execp(devBin, args, cwd);
+  } catch {
+    return await execp("gh", ["aw", ...args], cwd);
+  }
 }
 
-function buildRuns(count, sourceDefinitions) {
-  const statuses = ["queued", "running", "completed", "failed"];
-  const stepStatusMap = {
-    queued: ["pending", "pending", "pending", "pending"],
-    running: ["done", "running", "pending", "pending"],
-    completed: ["done", "done", "done", "done"],
-    failed: ["done", "failed", "pending", "pending"],
-  };
+// ---------------------------------------------------------------------------
+// Cache
+// ---------------------------------------------------------------------------
 
-  return Array.from({ length: count }, (_, i) => {
-    const index = i + 1;
-    const status = statuses[index % statuses.length] ?? "queued";
-    const definition = sourceDefinitions[index % sourceDefinitions.length];
-    const stepStatuses = stepStatusMap[status] ?? stepStatusMap.queued;
-
-    return {
-      id: `run-${String(index).padStart(5, "0")}`,
-      definitionId: definition.id,
-      status,
-      createdAt: isoHoursAgo(index * 2),
-      updatedAt: isoHoursAgo(index),
-      steps: stepStatuses.map((stepStatus, stepIndex) => buildStep(index, stepIndex + 1, stepStatus)),
-    };
-  });
+function getCached(key) {
+  const entry = cache.get(key);
+  return entry && Date.now() < entry.expiresAt ? entry.data : null;
 }
+function setCached(key, data) {
+  cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+// ---------------------------------------------------------------------------
+// Data fetchers — both call the CLI, never Go code
+// ---------------------------------------------------------------------------
+
+async function getDefinitions() {
+  const hit = getCached("definitions");
+  if (hit) return hit;
+  const raw = await runGhAw(["status", "--json"]);
+  const data = JSON.parse(raw);
+  setCached("definitions", data);
+  return data;
+}
+
+async function getRuns(count = 50) {
+  const key = `runs:${count}`;
+  const hit = getCached(key);
+  if (hit) return hit;
+  const raw = await runGhAw(["logs", "--json", "-c", String(count)]);
+  const logsData = JSON.parse(raw);
+  const runs = logsData.runs ?? [];
+  setCached(key, runs);
+  return runs;
+}
+
+// ---------------------------------------------------------------------------
+// Command runner for the Commands panel
+// ---------------------------------------------------------------------------
+
+function parseGhAwArgs(raw) {
+  const m = raw.trim().match(/^(?:gh\s+aw\s+)(.+)$/);
+  return m ? m[1].trim().split(/\s+/) : null;
+}
+
+async function execCommand(rawCmd) {
+  const args = parseGhAwArgs(rawCmd);
+  if (!args) {
+    return { command: rawCmd, output: "Only 'gh aw <subcommand>' commands are supported.", error: true };
+  }
+  try {
+    const output = await runGhAw(args);
+    return { command: rawCmd, output };
+  } catch (err) {
+    return { command: rawCmd, output: err.stderr || err.message, error: true };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pagination utility
+// ---------------------------------------------------------------------------
 
 function paginate(items, page = 1, pageSize = 20) {
   const totalItems = items.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(Math.max(1, page), totalPages);
   const start = (safePage - 1) * pageSize;
-  const end = start + pageSize;
-
   return {
-    items: items.slice(start, end),
+    items: items.slice(start, start + pageSize),
     page: safePage,
     pageSize,
     totalItems,
@@ -91,127 +120,20 @@ function paginate(items, page = 1, pageSize = 20) {
   };
 }
 
-function findRun(runId) {
-  return runs.find(run => run.id === runId) ?? null;
-}
-
-function dispatchWorkflow(definitionId, inputs = {}) {
-  const definition = definitions.find(item => item.id === definitionId);
-  if (!definition) {
-    return { ok: false, error: `Unknown workflow definition: ${definitionId}` };
-  }
-
-  const sequence = runs.length + 1;
-  const now = nowIso();
-  const run = {
-    id: `run-${String(sequence).padStart(5, "0")}`,
-    definitionId,
-    status: "queued",
-    createdAt: now,
-    updatedAt: now,
-    steps: [buildStep(sequence, 1, "pending"), buildStep(sequence, 2, "pending"), buildStep(sequence, 3, "pending"), buildStep(sequence, 4, "pending")],
-    inputs,
-  };
-
-  runs.unshift(run);
-
-  return {
-    ok: true,
-    run,
-  };
-}
-
-function parseRunFlag(argsText) {
-  const directMatch = argsText.match(/--run(?:=|\s+)(run-\d{5})/);
-  return directMatch?.[1] ?? null;
-}
-
-function runGhAwLogs(args = "") {
-  const argsText = typeof args === "string" ? args : JSON.stringify(args);
-  const runId = parseRunFlag(argsText);
-
-  if (runId) {
-    const run = findRun(runId);
-    if (!run) {
-      return { command: `gh aw logs ${argsText}`.trim(), output: `Run ${runId} not found.` };
-    }
-    return {
-      command: `gh aw logs --run ${runId}`,
-      output: `Logs for ${run.id}\n- definition: ${run.definitionId}\n- status: ${run.status}\n- updatedAt: ${run.updatedAt}`,
-    };
-  }
-
-  const latest = runs[0];
-  return {
-    command: "gh aw logs",
-    output: `Showing logs for ${latest?.id ?? "n/a"}.\n- status: ${latest?.status ?? "n/a"}\n- updatedAt: ${latest?.updatedAt ?? "n/a"}`,
-  };
-}
-
-function runGhAwAudit(args = "") {
-  const argsText = typeof args === "string" ? args : JSON.stringify(args);
-  const runId = parseRunFlag(argsText);
-
-  if (runId) {
-    const run = findRun(runId);
-    if (!run) {
-      return { command: `gh aw audit ${argsText}`.trim(), output: `Run ${runId} not found.` };
-    }
-    const failedSteps = run.steps.filter(step => step.status === "failed").length;
-    return {
-      command: `gh aw audit --run ${runId}`,
-      output: `Audit for ${run.id}\n- definition: ${run.definitionId}\n- status: ${run.status}\n- failed steps: ${failedSteps}`,
-    };
-  }
-
-  const completed = runs.filter(run => run.status === "completed").length;
-  const failed = runs.filter(run => run.status === "failed").length;
-
-  return {
-    command: "gh aw audit",
-    output: `Audit summary\n- total runs: ${runs.length}\n- completed: ${completed}\n- failed: ${failed}`,
-  };
-}
-
-function runGhAwCompile(args = "") {
-  const argsText = typeof args === "string" ? args : JSON.stringify(args);
-  return {
-    command: `gh aw compile ${argsText}`.trim(),
-    output: `Compile summary\n- definitions loaded: ${definitions.length}\n- runs indexed: ${runs.length}\n- status: success`,
-  };
-}
-
-function runGhAwAuditDiff(args = "") {
-  const argsText = typeof args === "string" ? args : JSON.stringify(args);
-  const referencedRuns = argsText.match(/run-\d{5}/g) ?? [];
-  if (referencedRuns.length < 2) {
-    return {
-      command: `gh aw audit-diff ${argsText}`.trim(),
-      output: "Need two valid runs for diff. Example: gh aw audit-diff run-00002 run-00003",
-    };
-  }
-
-  const baseRun = findRun(referencedRuns[0]);
-  const compareRun = findRun(referencedRuns[1]);
-
-  if (!baseRun || !compareRun) {
-    return {
-      command: `gh aw audit-diff ${argsText}`.trim(),
-      output: "Need two valid runs for diff. Example: gh aw audit-diff run-00002 run-00003",
-    };
-  }
-
-  return {
-    command: `gh aw audit-diff ${baseRun.id} ${compareRun.id}`,
-    output: `Audit diff\n- base: ${baseRun.id} (${baseRun.status})\n- compare: ${compareRun.id} (${compareRun.status})\n- step delta: ${compareRun.steps.length - baseRun.steps.length}`,
-  };
-}
-
-const servers = new Map();
+// ---------------------------------------------------------------------------
+// Loopback HTTP server per canvas instance
+// ---------------------------------------------------------------------------
 
 async function startServer() {
   const server = createServer(async (req, res) => {
-    const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
+    const reqUrl = new URL(req.url ?? "/", "http://localhost");
+    const pathname = reqUrl.pathname;
+
+    const sendJson = (payload, status = 200) => {
+      res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify(payload));
+    };
+
     try {
       if (pathname === "/" || pathname === "/index.html") {
         const [html, css] = await Promise.all([
@@ -221,20 +143,28 @@ async function startServer() {
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         res.end(html.replace("/*__APP_CSS__*/", css));
       } else if (pathname === "/app.js") {
-        const content = await readFile(join(__dirname, "web", "app.js"), "utf8");
         res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-        res.end(content);
+        res.end(await readFile(join(__dirname, "web", "app.js"), "utf8"));
       } else if (pathname === "/pagination.js") {
-        const content = await readFile(join(__dirname, "web", "pagination.js"), "utf8");
         res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-        res.end(content);
+        res.end(await readFile(join(__dirname, "web", "pagination.js"), "utf8"));
+      } else if (pathname === "/api/status") {
+        sendJson(await getDefinitions());
+      } else if (pathname === "/api/runs") {
+        const count = parseInt(reqUrl.searchParams.get("count") ?? "50", 10);
+        sendJson(await getRuns(count));
+      } else if (pathname === "/api/run-command") {
+        const cmd = reqUrl.searchParams.get("cmd") ?? "";
+        sendJson(await execCommand(cmd));
+      } else if (pathname === "/api/refresh") {
+        cache.clear();
+        sendJson({ ok: true });
       } else {
         res.writeHead(404);
         res.end("Not found");
       }
-    } catch {
-      res.writeHead(500);
-      res.end("Internal server error");
+    } catch (err) {
+      sendJson({ error: err.message }, 500);
     }
   });
   await new Promise(r => server.listen(0, "127.0.0.1", r));
@@ -242,16 +172,43 @@ async function startServer() {
   return { server, url: `http://127.0.0.1:${port}/` };
 }
 
-await joinSession({
+// ---------------------------------------------------------------------------
+// Session
+// ---------------------------------------------------------------------------
+
+const session = await joinSession({
+  systemMessage: {
+    mode: "append",
+    content: `## Agentic Workflows Dashboard
+
+This canvas shows live data from the current repository using the gh-aw CLI.
+It never calls Go code directly — all data is fetched by running CLI subcommands.
+
+**CLI commands used by this canvas:**
+- \`gh aw status --json\` — list agentic workflow definitions (workflow, engine_id, compiled, labels, status, time_remaining)
+- \`gh aw logs --json -c <N>\` — list recent workflow runs (run_id, workflow_name, status, conclusion, duration, token_usage, turns, error_count)
+
+**Dev build** (when gh-aw is not installed as a gh extension):
+1. Run \`make build\` in the repository root to compile \`./gh-aw\` (or \`./gh-aw.exe\` on Windows)
+2. The canvas auto-detects the dev binary and uses it before falling back to \`gh aw\`
+
+**Canvas actions available to the agent:**
+- \`listDefinitions\` — calls \`gh aw status --json\`, returns paged results
+- \`listRuns\` — calls \`gh aw logs --json\`, returns paged results
+- \`getRun\` — looks up a single run by \`run_id\`
+- \`runCommand\` — executes any \`gh aw <subcommand>\` and returns stdout
+- \`refresh\` — clears the 60-second cache so the next call fetches fresh data
+`,
+  },
   canvases: [
     createCanvas({
       id: "agentic-workflows-dashboard",
       displayName: "Agentic Workflows Dashboard",
-      description: "A minimal dashboard for browsing workflow definitions and workflow runs.",
+      description: "Live dashboard for agentic workflow definitions and runs, powered by gh aw status and gh aw logs.",
       actions: [
         {
           name: "listDefinitions",
-          description: "List workflow definitions with paging support.",
+          description: "List workflow definitions via gh aw status --json, with paging.",
           inputSchema: {
             type: "object",
             properties: {
@@ -260,125 +217,69 @@ await joinSession({
             },
             additionalProperties: false,
           },
-          handler: ctx => {
-            const page = Number(ctx.input?.page ?? 1);
-            const pageSize = Number(ctx.input?.pageSize ?? 20);
-            return paginate(definitions, page, pageSize);
+          handler: async ctx => {
+            const defs = await getDefinitions();
+            return paginate(defs, Number(ctx.input?.page ?? 1), Number(ctx.input?.pageSize ?? 20));
           },
         },
         {
           name: "listRuns",
-          description: "List workflow runs with paging support.",
+          description: "List recent workflow runs via gh aw logs --json, with paging.",
           inputSchema: {
             type: "object",
             properties: {
               page: { type: "number", minimum: 1 },
               pageSize: { type: "number", minimum: 1, maximum: 100 },
+              count: { type: "number", minimum: 1, maximum: 200, description: "Max runs to fetch from the CLI." },
             },
             additionalProperties: false,
           },
-          handler: ctx => {
-            const page = Number(ctx.input?.page ?? 1);
-            const pageSize = Number(ctx.input?.pageSize ?? 20);
-            return paginate(runs, page, pageSize);
+          handler: async ctx => {
+            const runs = await getRuns(Number(ctx.input?.count ?? 50));
+            return paginate(runs, Number(ctx.input?.page ?? 1), Number(ctx.input?.pageSize ?? 20));
           },
         },
         {
           name: "getRun",
-          description: "Get a workflow run by run id.",
+          description: "Get a single workflow run by its run_id.",
           inputSchema: {
             type: "object",
-            required: ["id"],
-            properties: {
-              id: { type: "string" },
-            },
+            required: ["run_id"],
+            properties: { run_id: { type: "number" } },
             additionalProperties: false,
           },
-          handler: ctx => {
-            const id = String(ctx.input?.id ?? "");
-            return { run: findRun(id) };
+          handler: async ctx => {
+            const runs = await getRuns(200);
+            return { run: runs.find(r => r.run_id === Number(ctx.input?.run_id)) ?? null };
           },
         },
         {
-          name: "dispatchWorkflow",
-          description: "Dispatch an existing predefined workflow.",
+          name: "runCommand",
+          description: "Execute a gh aw subcommand (e.g. 'gh aw status', 'gh aw logs -c 5') and return its stdout.",
           inputSchema: {
             type: "object",
-            required: ["definitionId"],
-            properties: {
-              definitionId: { type: "string" },
-              inputs: { type: "object", additionalProperties: true },
-            },
+            required: ["command"],
+            properties: { command: { type: "string", description: "Full command string starting with 'gh aw'." } },
             additionalProperties: false,
           },
-          handler: ctx => {
-            const definitionId = String(ctx.input?.definitionId ?? "");
-            const inputs = ctx.input?.inputs && typeof ctx.input.inputs === "object" ? ctx.input.inputs : {};
-            return dispatchWorkflow(definitionId, inputs);
-          },
+          handler: async ctx => execCommand(String(ctx.input?.command ?? "")),
         },
         {
-          name: "runGhAwLogs",
-          description: "Run gh aw logs command behavior.",
-          inputSchema: {
-            type: "object",
-            properties: {
-              args: { type: "string" },
-            },
-            additionalProperties: false,
-          },
-          handler: ctx => runGhAwLogs(String(ctx.input?.args ?? "")),
-        },
-        {
-          name: "runGhAwAudit",
-          description: "Run gh aw audit command behavior.",
-          inputSchema: {
-            type: "object",
-            properties: {
-              args: { type: "string" },
-            },
-            additionalProperties: false,
-          },
-          handler: ctx => runGhAwAudit(String(ctx.input?.args ?? "")),
-        },
-        {
-          name: "runGhAwCompile",
-          description: "Run gh aw compile command behavior.",
-          inputSchema: {
-            type: "object",
-            properties: {
-              args: { type: "string" },
-            },
-            additionalProperties: false,
-          },
-          handler: ctx => runGhAwCompile(String(ctx.input?.args ?? "")),
-        },
-        {
-          name: "runGhAwAuditDiff",
-          description: "Run gh aw audit-diff command behavior.",
-          inputSchema: {
-            type: "object",
-            properties: {
-              args: { type: "string" },
-            },
-            additionalProperties: false,
-          },
-          handler: ctx => runGhAwAuditDiff(String(ctx.input?.args ?? "")),
+          name: "refresh",
+          description: "Clear the data cache so the next listDefinitions/listRuns fetches fresh data from the CLI.",
+          inputSchema: { type: "object", additionalProperties: false },
+          handler: () => { cache.clear(); return { ok: true }; },
         },
       ],
-      open: async (ctx) => {
+      open: async ctx => {
         let entry = servers.get(ctx.instanceId);
         if (!entry) {
           entry = await startServer();
           servers.set(ctx.instanceId, entry);
         }
-        return {
-          title: "Agentic Workflows Dashboard",
-          status: `${definitions.length} workflows · ${runs.length} runs`,
-          url: entry.url,
-        };
+        return { title: "Agentic Workflows Dashboard", status: "Live · gh aw", url: entry.url };
       },
-      onClose: async (ctx) => {
+      onClose: async ctx => {
         const entry = servers.get(ctx.instanceId);
         if (entry) {
           servers.delete(ctx.instanceId);
@@ -388,3 +289,5 @@ await joinSession({
     }),
   ],
 });
+
+workspacePath = session.workspacePath ?? process.cwd();
