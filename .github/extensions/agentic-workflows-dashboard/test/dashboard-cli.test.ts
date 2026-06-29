@@ -48,4 +48,27 @@ describe("dashboard cli runner", () => {
       installCommand: "gh extension install github/gh-aw",
     });
   });
+
+  it("returns gh install instructions when gh itself is not found", async () => {
+    const execFileFn = vi.fn((bin, args, options, callback) => {
+      callback(Object.assign(new Error("spawn gh ENOENT"), { code: "ENOENT", syscall: "spawn", path: "gh" }), "", "");
+    });
+
+    const runGhAw = createGhAwRunnerWithStatus({
+      getWorkspacePath: () => "/workspace",
+      accessFn: vi.fn(async () => {
+        throw new Error("missing");
+      }),
+      execFileFn,
+    });
+
+    await expect(runGhAw.getStatus()).resolves.toMatchObject({
+      available: false,
+      source: "gh-not-found",
+      command: "gh aw version",
+      message: "Install the GitHub CLI to use this dashboard.",
+      installUrl: "https://cli.github.com",
+      installCommand: "gh extension install github/gh-aw",
+    });
+  });
 });

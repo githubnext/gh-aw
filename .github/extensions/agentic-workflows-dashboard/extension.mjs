@@ -58,9 +58,6 @@ async function startServer() {
       } else if (pathname === "/app.js") {
         res.setHeader("Content-Type", "application/javascript; charset=utf-8");
         res.end(await readFile(join(__dirname, "web", "app.js"), "utf8"));
-      } else if (pathname === "/pagination.js") {
-        res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-        res.end(await readFile(join(__dirname, "web", "pagination.js"), "utf8"));
       } else if (pathname === "/api/status") {
         sendJson(await dataAccess.getDefinitions());
       } else if (pathname === "/api/cli-status") {
