@@ -195,12 +195,7 @@ func RenderTable(config TableConfig) string {
 
 	consoleLog.Printf("Rendering table: title=%s, columns=%d, rows=%d", config.Title, len(config.Headers), len(config.Rows))
 
-	// Use caller-supplied TTY detector when provided (e.g. tty.IsStderrTerminal
-	// for tables written to stderr), otherwise fall back to stdout detection.
-	ttyCheck := isTTY
-	if config.TTYFunc != nil {
-		ttyCheck = config.TTYFunc
-	}
+	ttyCheck := tableTTYCheck(config)
 
 	var output strings.Builder
 
@@ -209,40 +204,9 @@ func RenderTable(config TableConfig) string {
 		output.WriteString("\n")
 	}
 
-	allRows := config.Rows
-	if config.ShowTotal && len(config.TotalRow) > 0 {
-		allRows = append(allRows, config.TotalRow)
-	}
-
-	dataRowCount := len(config.Rows)
-
-	styleFunc := func(row, col int) lipgloss.Style {
-		if !ttyCheck() {
-			return lipgloss.NewStyle()
-		}
-		if row == table.HeaderRow {
-			headerStyle := styles.TableHeader
-			return headerStyle.PaddingLeft(1).PaddingRight(1)
-		}
-		if config.ShowTotal && len(config.TotalRow) > 0 && row == dataRowCount {
-			totalStyle := styles.TableTotal
-			return totalStyle.PaddingLeft(1).PaddingRight(1)
-		}
-		if row%2 == 0 {
-			cellStyle := styles.TableCell
-			return cellStyle.PaddingLeft(1).PaddingRight(1)
-		}
-		return lipgloss.NewStyle().
-			Foreground(styles.ColorForeground).
-			Background(styles.ColorTableAltRow).
-			PaddingLeft(1).
-			PaddingRight(1)
-	}
-
-	borderStyle := lipgloss.NewStyle()
-	if ttyCheck() {
-		borderStyle = styles.TableBorder
-	}
+	allRows := tableRowsWithTotal(config)
+	styleFunc := tableStyleFunc(config, ttyCheck)
+	borderStyle := tableBorderStyle(ttyCheck)
 
 	t := table.New().
 		Headers(config.Headers...).
@@ -255,6 +219,56 @@ func RenderTable(config TableConfig) string {
 	output.WriteString("\n")
 
 	return output.String()
+}
+
+func tableTTYCheck(config TableConfig) func() bool {
+	// Use caller-supplied TTY detector when provided (e.g. tty.IsStderrTerminal
+	// for tables written to stderr), otherwise fall back to stdout detection.
+	if config.TTYFunc != nil {
+		return config.TTYFunc
+	}
+	return isTTY
+}
+
+func tableRowsWithTotal(config TableConfig) [][]string {
+	if !config.ShowTotal || len(config.TotalRow) == 0 {
+		return config.Rows
+	}
+	allRows := make([][]string, 0, len(config.Rows)+1)
+	allRows = append(allRows, config.Rows...)
+	allRows = append(allRows, config.TotalRow)
+	return allRows
+}
+
+func tableStyleFunc(config TableConfig, ttyCheck func() bool) func(row, col int) lipgloss.Style {
+	dataRowCount := len(config.Rows)
+	return func(row, col int) lipgloss.Style {
+		_ = col
+		if !ttyCheck() {
+			return lipgloss.NewStyle()
+		}
+		if row == table.HeaderRow {
+			return styles.TableHeader.PaddingLeft(1).PaddingRight(1)
+		}
+		if config.ShowTotal && len(config.TotalRow) > 0 && row == dataRowCount {
+			return styles.TableTotal.PaddingLeft(1).PaddingRight(1)
+		}
+		if row%2 == 0 {
+			return styles.TableCell.PaddingLeft(1).PaddingRight(1)
+		}
+		return lipgloss.NewStyle().
+			Foreground(styles.ColorForeground).
+			Background(styles.ColorTableAltRow).
+			PaddingLeft(1).
+			PaddingRight(1)
+	}
+}
+
+func tableBorderStyle(ttyCheck func() bool) lipgloss.Style {
+	if ttyCheck() {
+		return styles.TableBorder
+	}
+	return lipgloss.NewStyle()
 }
 
 // FormatCommandMessage formats a command execution message

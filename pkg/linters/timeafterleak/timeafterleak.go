@@ -89,34 +89,64 @@ func isTimeAfterCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 // Single-case selects without a default are not flagged because the timer must
 // fire before the loop can continue — no timer accumulation is possible.
 func isInsideLoopSelectComm(cur inspector.Cursor) bool {
+	recvCur, ok := receiveCursor(cur)
+	if !ok {
+		return false
+	}
+
+	commStmtCur, commStmt, ok := commStatementCursor(recvCur)
+	if !ok {
+		return false
+	}
+
+	clauseCur, cc, ok := commClauseCursor(commStmtCur, commStmt)
+	if !ok {
+		return false
+	}
+
+	if !hasOtherSelectCommClause(clauseCur, cc) {
+		return false
+	}
+
+	return enclosedByLoopBeforeFuncLit(clauseCur)
+}
+
+func receiveCursor(cur inspector.Cursor) (inspector.Cursor, bool) {
 	// The immediate parent of time.After(...) must be a channel-receive UnaryExpr.
 	recvCur := cur.Parent()
 	unary, ok := recvCur.Node().(*ast.UnaryExpr)
 	if !ok || unary.Op != token.ARROW {
-		return false
+		return inspector.Cursor{}, false
 	}
+	return recvCur, true
+}
 
+func commStatementCursor(recvCur inspector.Cursor) (inspector.Cursor, ast.Stmt, bool) {
 	// The parent of the receive expression must be the Comm statement of a CommClause.
 	// Comm is an ExprStmt (case <-ch:) or AssignStmt (case v := <-ch:).
 	commStmtCur := recvCur.Parent()
-	var commStmt ast.Stmt
 	switch s := commStmtCur.Node().(type) {
 	case *ast.ExprStmt:
-		commStmt = s
+		return commStmtCur, s, true
 	case *ast.AssignStmt:
-		commStmt = s
+		return commStmtCur, s, true
 	default:
-		return false
+		return inspector.Cursor{}, nil, false
 	}
+}
 
+func commClauseCursor(commStmtCur inspector.Cursor, commStmt ast.Stmt) (inspector.Cursor, *ast.CommClause, bool) {
 	// The parent of the Comm statement must be a CommClause, and commStmt must
 	// be the Comm field (not a statement in the Body).
 	clauseCur := commStmtCur.Parent()
 	cc, ok := clauseCur.Node().(*ast.CommClause)
 	if !ok || cc.Comm != commStmt {
-		return false
+		return inspector.Cursor{}, nil, false
 	}
+	return clauseCur, cc, true
+}
 
+func hasOtherSelectCommClause(clauseCur inspector.Cursor, cc *ast.CommClause) bool {
 	// If the enclosing SelectStmt has no other CommClause (no other channel case
 	// and no default), the timer must fire — it cannot be preempted, so there is
 	// no accumulation. A default clause (CommClause with nil Comm) can preempt
@@ -126,19 +156,17 @@ func isInsideLoopSelectComm(cur inspector.Cursor) bool {
 		if !ok {
 			break
 		}
-		hasOther := false
 		for _, stmt := range sel.Body.List {
 			if other, isComm := stmt.(*ast.CommClause); isComm && other != cc {
-				hasOther = true
-				break
+				return true
 			}
 		}
-		if !hasOther {
-			return false
-		}
-		break
+		return false
 	}
+	return false
+}
 
+func enclosedByLoopBeforeFuncLit(clauseCur inspector.Cursor) bool {
 	// Walk up from the CommClause to find an enclosing for or range loop,
 	// stopping at any function literal boundary.
 	for encl := range clauseCur.Enclosing(

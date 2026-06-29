@@ -63,6 +63,17 @@ func run(pass *analysis.Pass) (any, error) {
 // inspectBody walks a function body and reports map[string]bool variables
 // that are only ever assigned the literal true (i.e., used as a set).
 func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintLinesByFile map[string]map[int]struct{}) {
+	candidates := collectSetCandidates(pass, body)
+
+	if len(candidates) == 0 {
+		return
+	}
+
+	nonSetMaps := collectNonSetMaps(pass, body, candidates)
+	reportSetMapCandidates(pass, candidates, nonSetMaps, noLintLinesByFile)
+}
+
+func collectSetCandidates(pass *analysis.Pass, body *ast.BlockStmt) map[types.Object]ast.Node {
 	// Collect map[string]bool local variables defined in this scope.
 	candidates := make(map[types.Object]ast.Node) // object -> declaration node for reporting
 
@@ -74,66 +85,71 @@ func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintLinesByFile map
 			return false
 		}
 		if _, ok := n.(*ast.FuncLit); ok {
-			return false // do not descend into nested closures
+			return false
 		}
 		switch stmt := n.(type) {
 		case *ast.AssignStmt:
-			// seen := make(map[string]bool)  or  seen := map[string]bool{}
-			if stmt.Tok.String() != ":=" {
-				return true
-			}
-			for i, lhs := range stmt.Lhs {
-				if i >= len(stmt.Rhs) {
-					break
-				}
-				ident, ok := lhs.(*ast.Ident)
-				if !ok || ident.Name == "_" {
-					continue
-				}
-				obj := pass.TypesInfo.ObjectOf(ident)
-				if obj == nil {
-					continue
-				}
-				if isMapStringBool(pass.TypesInfo.TypeOf(ident)) && isMapStringBoolExpr(stmt.Rhs[i]) {
-					candidates[obj] = ident
-				}
-			}
+			collectAssignStmtCandidates(pass, stmt, candidates)
 		case *ast.DeclStmt:
-			// var seen map[string]bool
-			genDecl, ok := stmt.Decl.(*ast.GenDecl)
-			if !ok {
-				return true
-			}
-			for _, spec := range genDecl.Specs {
-				valSpec, ok := spec.(*ast.ValueSpec)
-				if !ok {
-					continue
-				}
-				for _, name := range valSpec.Names {
-					if name.Name == "_" {
-						continue
-					}
-					obj := pass.TypesInfo.ObjectOf(name)
-					if obj == nil {
-						continue
-					}
-					if isMapStringBool(pass.TypesInfo.TypeOf(name)) {
-						candidates[obj] = name
-					}
-				}
-			}
+			collectDeclStmtCandidates(pass, stmt, candidates)
 		}
 		return true
 	})
+	return candidates
+}
 
-	if len(candidates) == 0 {
+func collectAssignStmtCandidates(pass *analysis.Pass, stmt *ast.AssignStmt, candidates map[types.Object]ast.Node) {
+	// seen := make(map[string]bool)  or  seen := map[string]bool{}
+	if stmt.Tok.String() != ":=" {
 		return
 	}
+	for i, lhs := range stmt.Lhs {
+		if i >= len(stmt.Rhs) {
+			break
+		}
+		ident, ok := lhs.(*ast.Ident)
+		if !ok || ident.Name == "_" {
+			continue
+		}
+		obj := pass.TypesInfo.ObjectOf(ident)
+		if obj == nil {
+			continue
+		}
+		if isMapStringBool(pass.TypesInfo.TypeOf(ident)) && isMapStringBoolExpr(stmt.Rhs[i]) {
+			candidates[obj] = ident
+		}
+	}
+}
 
+func collectDeclStmtCandidates(pass *analysis.Pass, stmt *ast.DeclStmt, candidates map[types.Object]ast.Node) {
+	// var seen map[string]bool
+	genDecl, ok := stmt.Decl.(*ast.GenDecl)
+	if !ok {
+		return
+	}
+	for _, spec := range genDecl.Specs {
+		valSpec, ok := spec.(*ast.ValueSpec)
+		if !ok {
+			continue
+		}
+		for _, name := range valSpec.Names {
+			if name.Name == "_" {
+				continue
+			}
+			obj := pass.TypesInfo.ObjectOf(name)
+			if obj == nil {
+				continue
+			}
+			if isMapStringBool(pass.TypesInfo.TypeOf(name)) {
+				candidates[obj] = name
+			}
+		}
+	}
+}
+
+func collectNonSetMaps(pass *analysis.Pass, body *ast.BlockStmt, candidates map[types.Object]ast.Node) map[types.Object]bool {
 	// Second pass: check that every write to these maps only assigns true.
-	// If any non-true assignment is found, remove the map from candidates.
 	nonSetMaps := make(map[types.Object]bool)
-
 	ast.Inspect(body, func(n ast.Node) bool {
 		assign, ok := n.(*ast.AssignStmt)
 		if !ok {
@@ -149,22 +165,24 @@ func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintLinesByFile map
 				continue
 			}
 			obj := pass.TypesInfo.ObjectOf(ident)
-			if obj == nil {
+			if obj == nil || candidates[obj] == nil {
 				continue
 			}
-			if _, isCandidate := candidates[obj]; !isCandidate {
-				continue
-			}
-			// Check the value being assigned.
-			if i < len(assign.Rhs) {
-				if !isBoolTrue(assign.Rhs[i]) {
-					nonSetMaps[obj] = true
-				}
+			if i < len(assign.Rhs) && !isBoolTrue(assign.Rhs[i]) {
+				nonSetMaps[obj] = true
 			}
 		}
 		return true
 	})
+	return nonSetMaps
+}
 
+func reportSetMapCandidates(
+	pass *analysis.Pass,
+	candidates map[types.Object]ast.Node,
+	nonSetMaps map[types.Object]bool,
+	noLintLinesByFile map[string]map[int]struct{},
+) {
 	// Report remaining candidates that are pure sets.
 	for obj, declNode := range candidates {
 		if nonSetMaps[obj] {

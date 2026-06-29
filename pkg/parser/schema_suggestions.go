@@ -650,57 +650,65 @@ func findFieldLocationsInSchema(schemaDoc any, targetField, currentPath string) 
 	allLocations := collectSchemaPropertyPaths(schemaDoc, "", 0)
 	targetLower := strings.ToLower(targetField)
 
-	seen := make(map[string]struct {
-	})
-
-	// Collect exact matches first
-	var exactMatches []schemaFieldLocation
-	for _, loc := range allLocations {
-		if loc.SchemaPath == currentPath {
-			continue
-		}
-		key := loc.FieldName + "|" + loc.SchemaPath
-		if setutil.Contains(seen, key) {
-			continue
-		}
-		seen[key] = struct {
-		}{}
-
-		if strings.EqualFold(loc.FieldName, targetField) {
-			loc.Distance = 0
-			exactMatches = append(exactMatches, loc)
-		}
-	}
+	exactMatches := findExactFieldLocations(allLocations, targetField, currentPath)
 
 	if len(exactMatches) > 0 {
 		schemaSuggestionsLog.Printf("Found %d exact schema locations for field '%s'", len(exactMatches), targetField)
 		return exactMatches
 	}
 
-	// Fall back to fuzzy matching with a stricter distance threshold for high confidence
-	seenFuzzy := make(map[string]struct {
-	})
+	fuzzyMatches := findFuzzyFieldLocations(allLocations, targetLower, currentPath)
+	sortFieldLocationsByDistance(fuzzyMatches)
+
+	schemaSuggestionsLog.Printf("Found %d fuzzy schema locations for field '%s'", len(fuzzyMatches), targetField)
+	return fuzzyMatches
+}
+
+func findExactFieldLocations(allLocations []schemaFieldLocation, targetField, currentPath string) []schemaFieldLocation {
+	seen := make(map[string]struct{})
+	var exactMatches []schemaFieldLocation
+	for _, loc := range allLocations {
+		if !shouldIncludeSchemaLocation(seen, loc, currentPath) {
+			continue
+		}
+		if strings.EqualFold(loc.FieldName, targetField) {
+			loc.Distance = 0
+			exactMatches = append(exactMatches, loc)
+		}
+	}
+	return exactMatches
+}
+
+func findFuzzyFieldLocations(allLocations []schemaFieldLocation, targetLower, currentPath string) []schemaFieldLocation {
+	seen := make(map[string]struct{})
 	var fuzzyMatches []schemaFieldLocation
 	for _, loc := range allLocations {
-		if loc.SchemaPath == currentPath {
+		if !shouldIncludeSchemaLocation(seen, loc, currentPath) {
 			continue
 		}
-		key := loc.FieldName + "|" + loc.SchemaPath
-		if setutil.Contains(seenFuzzy, key) {
-			continue
-		}
-		seenFuzzy[key] = struct {
-		}{}
-
 		dist := LevenshteinDistance(targetLower, strings.ToLower(loc.FieldName))
 		if dist > 0 && dist <= maxPathSearchDistance {
 			loc.Distance = dist
 			fuzzyMatches = append(fuzzyMatches, loc)
 		}
 	}
+	return fuzzyMatches
+}
 
-	// Sort fuzzy matches by distance (ascending), then path for stable output
-	slices.SortFunc(fuzzyMatches, func(a, b schemaFieldLocation) int {
+func shouldIncludeSchemaLocation(seen map[string]struct{}, loc schemaFieldLocation, currentPath string) bool {
+	if loc.SchemaPath == currentPath {
+		return false
+	}
+	key := loc.FieldName + "|" + loc.SchemaPath
+	if setutil.Contains(seen, key) {
+		return false
+	}
+	seen[key] = struct{}{}
+	return true
+}
+
+func sortFieldLocationsByDistance(matches []schemaFieldLocation) {
+	slices.SortFunc(matches, func(a, b schemaFieldLocation) int {
 		if a.Distance != b.Distance {
 			if a.Distance < b.Distance {
 				return -1
@@ -716,9 +724,6 @@ func findFieldLocationsInSchema(schemaDoc any, targetField, currentPath string) 
 			return 0
 		}
 	})
-
-	schemaSuggestionsLog.Printf("Found %d fuzzy schema locations for field '%s'", len(fuzzyMatches), targetField)
-	return fuzzyMatches
 }
 
 // formatSchemaPathForDisplay converts a JSON schema path to a human-readable string.

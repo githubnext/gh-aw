@@ -230,58 +230,63 @@ func run(pass *analysis.Pass) (any, error) {
 	knownConsts := collectKnownPathConsts(pass)
 
 	for cur := range insp.Root().Preorder((*ast.BasicLit)(nil)) {
-		lit, ok := cur.Node().(*ast.BasicLit)
-		if !ok || lit.Kind != token.STRING {
-			continue
-		}
-
-		pos := pass.Fset.PositionFor(lit.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
-			continue
-		}
-		if nolint.HasDirective(pos, noLintLines) {
-			continue
-		}
-
-		raw := unquoteStringLit(lit.Value)
-		if !isPathLike(raw) {
-			continue
-		}
-		if hasFormatVerb(raw) {
-			continue
-		}
-
-		// Skip literals that are the value of a const declaration — those are
-		// the canonical definitions, not inline usages.
-		if isConstDeclValue(cur) {
-			continue
-		}
-
-		// Detect whether the literal is a direct argument of a log/print call.
-		inLog := enclosingCallIsLogPrint(pass, cur)
-
-		if ref, found := knownConsts[raw]; found {
-			msg := fmt.Sprintf(
-				"hard-coded file path %q: use constant %s instead of inline string literal",
-				raw, ref,
-			)
-			if inLog {
-				msg += " (path appears in log/print call — keeping consistent via constant is especially important)"
-			}
-			pass.ReportRangef(lit, "%s", msg)
-		} else {
-			msg := fmt.Sprintf(
-				"hard-coded file path %q: consider extracting as a named constant",
-				raw,
-			)
-			if inLog {
-				msg += " (path appears in log/print call)"
-			}
-			pass.ReportRangef(lit, "%s", msg)
-		}
+		reportHardcodedPathLiteral(pass, cur, noLintLines, knownConsts)
 	}
 
 	return nil, nil
+}
+
+func reportHardcodedPathLiteral(
+	pass *analysis.Pass,
+	cur inspector.Cursor,
+	noLintLines map[string]map[int]struct{},
+	knownConsts map[string]constRef,
+) {
+	lit, ok := cur.Node().(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
+		return
+	}
+	if shouldSkipPathLiteral(pass, cur, lit, noLintLines) {
+		return
+	}
+	raw := unquoteStringLit(lit.Value)
+	inLog := enclosingCallIsLogPrint(pass, cur)
+	pass.ReportRangef(lit, "%s", hardcodedPathMessage(raw, inLog, knownConsts))
+}
+
+func shouldSkipPathLiteral(pass *analysis.Pass, cur inspector.Cursor, lit *ast.BasicLit, noLintLines map[string]map[int]struct{}) bool {
+	pos := pass.Fset.PositionFor(lit.Pos(), false)
+	if filecheck.IsTestFile(pos.Filename) || nolint.HasDirective(pos, noLintLines) {
+		return true
+	}
+	raw := unquoteStringLit(lit.Value)
+	if !isPathLike(raw) || hasFormatVerb(raw) {
+		return true
+	}
+	// Skip literals that are the value of a const declaration — those are the
+	// canonical definitions, not inline usages.
+	return isConstDeclValue(cur)
+}
+
+func hardcodedPathMessage(raw string, inLog bool, knownConsts map[string]constRef) string {
+	if ref, found := knownConsts[raw]; found {
+		msg := fmt.Sprintf(
+			"hard-coded file path %q: use constant %s instead of inline string literal",
+			raw, ref.String(),
+		)
+		if inLog {
+			msg += " (path appears in log/print call — keeping consistent via constant is especially important)"
+		}
+		return msg
+	}
+	msg := fmt.Sprintf(
+		"hard-coded file path %q: consider extracting as a named constant",
+		raw,
+	)
+	if inLog {
+		msg += " (path appears in log/print call)"
+	}
+	return msg
 }
 
 // isConstDeclValue reports whether the cursor's node is the value expression
