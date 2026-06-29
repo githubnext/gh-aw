@@ -171,6 +171,15 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleString();
 }
 
+const LABEL_CLASS: Record<WorkflowRunStatus | WorkflowStepStatus, string> = {
+  queued: "Label Label--secondary",
+  pending: "Label Label--secondary",
+  running: "Label Label--attention",
+  completed: "Label Label--success",
+  done: "Label Label--success",
+  failed: "Label Label--danger",
+};
+
 function runGhCommand(command: string, runs: WorkflowRun[]): CommandResult {
   const normalized = command.trim();
 
@@ -258,29 +267,11 @@ function runGhCommand(command: string, runs: WorkflowRun[]): CommandResult {
 }
 
 function statusClass(status: WorkflowRunStatus): string {
-  switch (status) {
-    case "completed":
-      return "Label Label--success";
-    case "failed":
-      return "Label Label--danger";
-    case "running":
-      return "Label Label--attention";
-    default:
-      return "Label Label--secondary";
-  }
+  return LABEL_CLASS[status];
 }
 
 function stepStatusClass(status: WorkflowStepStatus): string {
-  switch (status) {
-    case "done":
-      return "Label Label--success";
-    case "failed":
-      return "Label Label--danger";
-    case "running":
-      return "Label Label--attention";
-    default:
-      return "Label Label--secondary";
-  }
+  return LABEL_CLASS[status];
 }
 
 const definitions = buildDefinitions(definitionCount);
@@ -307,7 +298,7 @@ document.addEventListener("alpine:init", () => {
     init() {
       this.loadDefinitionPage(1);
       this.loadRunPage(1);
-      if (this.commandOutput.length === 0) {
+      if (!this.commandOutput) {
         this.runCommand();
       }
     },
@@ -370,7 +361,7 @@ document.addEventListener("alpine:init", () => {
         status: "queued",
         createdAt: now,
         updatedAt: now,
-        steps: [buildStep(sequence, 1, "pending"), buildStep(sequence, 2, "pending"), buildStep(sequence, 3, "pending"), buildStep(sequence, 4, "pending")],
+        steps: [1, 2, 3, 4].map(step => buildStep(sequence, step, "pending")),
       };
 
       this.runs = [newRun, ...this.runs];

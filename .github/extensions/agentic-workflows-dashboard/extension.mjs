@@ -109,8 +109,9 @@ function paginate(items, page = 1, pageSize = 20) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(Math.max(1, page), totalPages);
   const start = (safePage - 1) * pageSize;
+  const end = start + pageSize;
   return {
-    items: items.slice(start, start + pageSize),
+    items: items.slice(start, end),
     page: safePage,
     pageSize,
     totalItems,
