@@ -89,9 +89,11 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, manifestC
 	// Register workflow management tools
 	registerAddTool(server, execCmd)
 	if err := registerUpdateTool(server, execCmd); err != nil {
+		mcpLog.Printf("Failed to register update tool: %v", err)
 		return server
 	}
 	if err := registerUpgradeTool(server, execCmd); err != nil {
+		mcpLog.Printf("Failed to register upgrade tool: %v", err)
 		return server
 	}
 	registerFixTool(server, execCmd)
