@@ -124,6 +124,23 @@
                               },
                               {
                                 "type": "boolean"
+                              },
+                              {
+                                "type": "array",
+                                "description": "Array sub-property of an object import parameter.",
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    }
+                                  ]
+                                }
                               }
                             ]
                           }
@@ -170,6 +187,23 @@
                               },
                               {
                                 "type": "boolean"
+                              },
+                              {
+                                "type": "array",
+                                "description": "Array sub-property of an object import parameter.",
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    }
+                                  ]
+                                }
                               }
                             ]
                           }
@@ -255,6 +289,23 @@
                                   },
                                   {
                                     "type": "boolean"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "description": "Array sub-property of an object import parameter.",
+                                    "items": {
+                                      "oneOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
                                   }
                                 ]
                               }
@@ -301,6 +352,23 @@
                                   },
                                   {
                                     "type": "boolean"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "description": "Array sub-property of an object import parameter.",
+                                    "items": {
+                                      "oneOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
                                   }
                                 ]
                               }
