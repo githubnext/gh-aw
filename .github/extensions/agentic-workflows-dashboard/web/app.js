@@ -44,7 +44,8 @@ function formatDuration(ms) {
 
 function formatDate(iso) {
     if (!iso) return "—";
-    return new Date(iso).toLocaleString();
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
 
 Alpine.data("dashboardApp", () => ({
