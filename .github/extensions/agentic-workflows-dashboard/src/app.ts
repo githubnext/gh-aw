@@ -22,6 +22,7 @@ interface DashboardState {
   reportWindows: ReportWindow[];
   activeTab: DashboardTabId;
   selectedWindow: ReportWindow["id"];
+  selectedWorkflowFilter: string;
   logsTimeout: number;
   pageSize: number;
   cliStatus: CLIStatus | null;
@@ -76,6 +77,7 @@ interface DashboardState {
   loadExperimentPage(page: number): void;
   selectRun(runId: number): void;
   viewRunDetails(runId: number): void;
+  selectWorkflowFilter(workflowName: string): Promise<void>;
   loadAudit(): Promise<void>;
   clearAudit(): void;
   buildLogsCommand(count?: number): string;
@@ -212,6 +214,7 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   reportWindows,
   activeTab: "definitions",
   selectedWindow: "7d",
+  selectedWorkflowFilter: "",
   logsTimeout: 1,
   pageSize: 20,
   cliStatus: null,
@@ -252,7 +255,7 @@ Alpine.data("dashboardApp", (): DashboardState => ({
     this.commandInput = this.buildLogsCommand();
     await this.fetchCliStatus();
     if (this.cliStatus?.available) {
-      await Promise.all([this.fetchDefinitions(), this.fetchRuns(), this.fetchUsage(), this.fetchExperiments()]);
+      await Promise.all([this.fetchDefinitions(), this.fetchUsage(), this.fetchExperiments()]);
       this.commandOutput = `$ ${this.cliStatus.command}\ngh aw version ${this.cliStatus.version}`;
       return;
     }
@@ -276,6 +279,13 @@ Alpine.data("dashboardApp", (): DashboardState => ({
     this.commandInput = this.buildLogsCommand();
     if (!this.cliStatus?.available) return;
     await Promise.all([this.fetchRuns(), this.fetchUsage()]);
+  },
+
+  async selectWorkflowFilter(workflowName) {
+    this.selectedWorkflowFilter = workflowName;
+    this.commandInput = this.buildLogsCommand();
+    if (!this.cliStatus?.available) return;
+    await this.fetchRuns();
   },
 
   async fetchCliStatus() {
@@ -305,6 +315,13 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   },
 
   async fetchRuns() {
+    if (!this.selectedWorkflowFilter) {
+      this.runs = [];
+      this.runsMeta = null;
+      this.selectedRun = null;
+      this.loadRunPage(1);
+      return;
+    }
     this.loadingRuns = true;
     this.errorRuns = "";
     try {
@@ -313,6 +330,7 @@ Alpine.data("dashboardApp", (): DashboardState => ({
         count: "100",
         window: this.selectedWindow,
         timeout: String(this.logsTimeout),
+        workflow_name: this.selectedWorkflowFilter,
       });
       const data = await fetchJson<RunsResponse>(`/api/runs?${params.toString()}`);
       this.runsMeta = data;
@@ -459,7 +477,8 @@ Alpine.data("dashboardApp", (): DashboardState => ({
 
   buildLogsCommand(count = DEFAULT_LOGS_COMMAND_COUNT) {
     const window = this.currentWindow();
-    return `gh aw logs --json -c ${count} --start-date ${window.startDate} --timeout ${this.logsTimeout}`;
+    const workflowPart = this.selectedWorkflowFilter ? ` ${this.selectedWorkflowFilter}` : "";
+    return `gh aw logs --json -c ${count}${workflowPart} --start-date ${window.startDate} --timeout ${this.logsTimeout}`;
   },
 
   buildMaintenanceCommand(action) {

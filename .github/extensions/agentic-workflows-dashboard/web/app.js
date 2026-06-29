@@ -3309,9 +3309,9 @@ var dashboardTabs = [
   { id: "commands", label: "Commands" }
 ];
 var reportWindows = [
-  { id: "3d", label: "3 days", startDate: "-3d" },
-  { id: "7d", label: "7 days", startDate: "-1w" },
-  { id: "1mo", label: "1 month", startDate: "-1mo" }
+  { id: "3d", label: "3 days", startDate: "-3d", days: 3 },
+  { id: "7d", label: "7 days", startDate: "-1w", days: 7 },
+  { id: "1mo", label: "1 month", startDate: "-1mo", days: 30 }
 ];
 var DEFAULT_LOGS_COMMAND_COUNT = 25;
 function cliSourceLabel(cliStatus) {
@@ -3394,6 +3394,7 @@ module_default.data("dashboardApp", () => ({
   reportWindows,
   activeTab: "definitions",
   selectedWindow: "7d",
+  selectedWorkflowFilter: "",
   logsTimeout: 1,
   pageSize: 20,
   cliStatus: null,
@@ -3433,7 +3434,7 @@ module_default.data("dashboardApp", () => ({
     this.commandInput = this.buildLogsCommand();
     await this.fetchCliStatus();
     if (this.cliStatus?.available) {
-      await Promise.all([this.fetchDefinitions(), this.fetchRuns(), this.fetchUsage(), this.fetchExperiments()]);
+      await Promise.all([this.fetchDefinitions(), this.fetchUsage(), this.fetchExperiments()]);
       this.commandOutput = `$ ${this.cliStatus.command}
 gh aw version ${this.cliStatus.version}`;
       return;
@@ -3454,6 +3455,12 @@ gh aw version ${this.cliStatus.version}`;
     this.commandInput = this.buildLogsCommand();
     if (!this.cliStatus?.available) return;
     await Promise.all([this.fetchRuns(), this.fetchUsage()]);
+  },
+  async selectWorkflowFilter(workflowName) {
+    this.selectedWorkflowFilter = workflowName;
+    this.commandInput = this.buildLogsCommand();
+    if (!this.cliStatus?.available) return;
+    await this.fetchRuns();
   },
   async fetchCliStatus() {
     this.loadingCliStatus = true;
@@ -3480,6 +3487,13 @@ gh aw version ${this.cliStatus.version}`;
     }
   },
   async fetchRuns() {
+    if (!this.selectedWorkflowFilter) {
+      this.runs = [];
+      this.runsMeta = null;
+      this.selectedRun = null;
+      this.loadRunPage(1);
+      return;
+    }
     this.loadingRuns = true;
     this.errorRuns = "";
     try {
@@ -3487,7 +3501,8 @@ gh aw version ${this.cliStatus.version}`;
       const params = new URLSearchParams({
         count: "100",
         window: this.selectedWindow,
-        timeout: String(this.logsTimeout)
+        timeout: String(this.logsTimeout),
+        workflow_name: this.selectedWorkflowFilter
       });
       const data2 = await fetchJson(`/api/runs?${params.toString()}`);
       this.runsMeta = data2;
@@ -3620,7 +3635,8 @@ gh aw version ${this.cliStatus.version}`;
   },
   buildLogsCommand(count = DEFAULT_LOGS_COMMAND_COUNT) {
     const window2 = this.currentWindow();
-    return `gh aw logs --json -c ${count} --start-date ${window2.startDate} --timeout ${this.logsTimeout}`;
+    const workflowPart = this.selectedWorkflowFilter ? ` ${this.selectedWorkflowFilter}` : "";
+    return `gh aw logs --json -c ${count}${workflowPart} --start-date ${window2.startDate} --timeout ${this.logsTimeout}`;
   },
   buildMaintenanceCommand(action) {
     if (action === "check-update") return "gh aw status --json";

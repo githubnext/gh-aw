@@ -109,6 +109,7 @@ async function startServer() {
             count: parseInt(reqUrl.searchParams.get("count") ?? String(DEFAULT_RUN_COUNT), 10),
             window: reqUrl.searchParams.get("window") ?? "7d",
             timeout: parseInt(reqUrl.searchParams.get("timeout") ?? String(DEFAULT_LOG_TIMEOUT_MINUTES), 10),
+            workflowName: reqUrl.searchParams.get("workflow_name") ?? "",
           })
         );
       } else if (pathname === "/api/usage") {
