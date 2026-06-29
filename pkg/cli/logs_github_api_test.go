@@ -254,6 +254,32 @@ func TestFetchJobDetailsWithCountsIncludesSteps(t *testing.T) {
 	assert.Contains(t, string(argsLog), "steps:", "gh jq projection should request step data")
 }
 
+// TestFetchJobDetailsWithCountsNullConclusion verifies that jobs and steps with null conclusions
+// (e.g. in-progress or queued jobs) are still parsed and not silently dropped. The jq projection
+// uses (.conclusion // "") to coerce null to empty string before JSON decoding.
+func TestFetchJobDetailsWithCountsNullConclusion(t *testing.T) {
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	// Simulate jq coercing null -> "" before output (as (.conclusion // "") does).
+	// A job still in progress has conclusion="" for itself and for any pending steps.
+	fakeGHScript := "#!/bin/sh\n" +
+		"cat <<'EOF'\n" +
+		"{\"name\":\"agent\",\"status\":\"in_progress\",\"conclusion\":\"\",\"started_at\":\"2026-06-28T01:31:00Z\",\"completed_at\":\"0001-01-01T00:00:00Z\",\"steps\":[{\"name\":\"Set up job\",\"status\":\"completed\",\"conclusion\":\"success\"},{\"name\":\"Run agent\",\"status\":\"in_progress\",\"conclusion\":\"\"}]}\n" +
+		"EOF\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	jobs, failedJobs, err := fetchJobDetailsWithCounts(28307653871, false)
+	require.NoError(t, err)
+	require.Len(t, jobs, 1, "in-progress jobs with null conclusion should not be dropped")
+	assert.Equal(t, 0, failedJobs, "in-progress job should not count as failed")
+	assert.Equal(t, "in_progress", jobs[0].Status)
+	assert.Empty(t, jobs[0].Conclusion, "null conclusion should be coerced to empty string")
+	require.Len(t, jobs[0].Steps, 2)
+	assert.Empty(t, jobs[0].Steps[1].Conclusion, "null step conclusion should be coerced to empty string")
+}
+
 func TestWorkflowRunsSpinnerMessage(t *testing.T) {
 	tests := []struct {
 		name string
