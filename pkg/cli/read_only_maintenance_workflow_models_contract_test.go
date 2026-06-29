@@ -24,9 +24,10 @@ func TestReadOnlyMaintenanceWorkflowsUseHaikuModels(t *testing.T) {
 		require.NoError(t, err, "Should read pr-description-caveman workflow")
 
 		text := string(content)
-		assert.Contains(t, text, "engine:\n  id: copilot\n  model: claude-haiku-4.5", "Workflow should pin a cheaper Haiku top-level model")
+		assert.Contains(t, text, "engine:\n  id: copilot", "Workflow should declare a top-level Copilot engine block")
+		assert.Contains(t, text, "\n  model: claude-haiku-4.5\n", "Workflow should pin a cheaper Haiku top-level model")
 		assert.Contains(t, text, "## agent: `pr-description-synthesizer`", "Workflow should keep the dedicated synthesizer sub-agent")
-		assert.Contains(t, text, "model: claude-haiku-4.5", "Workflow synthesizer should use a cheaper Haiku model")
+		assert.Contains(t, text, "## agent: `pr-description-synthesizer`\n---\ndescription: Combines per-chunk analysis results and diff metadata into a final structured PR description optimised for agentic analysis.\nmodel: claude-haiku-4.5", "Workflow synthesizer should use a cheaper Haiku model")
 		assert.NotContains(t, text, "model: large", "Workflow should no longer use the expensive large alias for PR description synthesis")
 	})
 
