@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "last_run": "2026-06-28",
+  "version": 3,
+  "last_run": "2026-06-29",
   "scope": "eslint-factory (repo root); targets actions/setup/js/**/*.cjs",
   "rules_inventory": [
     {
@@ -25,6 +25,18 @@
         "No hasSuggestions/suggest fix -> issue filed this run.",
         "Broken docs URL: uses .../actions/setup/js/eslint-factory# but eslint-factory is at repo root -> folded into suggestion issue.",
         "Misses computed Number[\"parseInt\"] and globalThis/window/global.parseInt -> issue filed this run."
+      ]
+    },
+    {
+      "name": "no-unsafe-catch-error-property",
+      "type": "problem",
+      "severity_in_config": "warn",
+      "summary": "Flags err.message/.stack/.code on caught var without getErrorMessage/instanceof guard.",
+      "status_2026-06-29": "Has 13 tests. Focus this run. UNSAFE_PROPERTIES={message,stack,code}; only .message has suggestion fix.",
+      "known_gaps": [
+        ".status/.cause/.name not in unsafe set -> real FNs: load_experiment_state_from_repo.cjs:97, checkout_pr_branch.cjs:160 (issue filed).",
+        "Guard is whole-block/order-independent (lines 72-92) -> branch-order false negatives (issue filed).",
+        "No suggestion for .stack/.code; computed err[\"message\"] intentional FN (issue filed)."
       ]
     }
   ],
