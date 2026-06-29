@@ -99,9 +99,7 @@ function spawnExecFile(file: string, args: string[], options: ExecOptions, callb
     const stdout = Buffer.concat(stdoutChunks).toString("utf8");
     const stderr = Buffer.concat(stderrChunks).toString("utf8");
     if (code !== 0 || stderr) {
-      console.error(
-        `${LOG} spawn close file=${file} code=${code} stdout=${stdout.length}B stderr=${stderr.length}B${stderr ? ` stderr: ${stderr.slice(0, 300)}` : ""}`
-      );
+      console.error(`${LOG} spawn close file=${file} code=${code} stdout=${stdout.length}B stderr=${stderr.length}B${stderr ? ` stderr: ${stderr.slice(0, 300)}` : ""}`);
     }
     if (overflowed) {
       const err: ExecError = new Error("stdout/stderr maxBuffer exceeded");

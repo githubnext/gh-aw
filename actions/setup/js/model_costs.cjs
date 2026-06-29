@@ -269,7 +269,7 @@ function loadModelsJson() {
     const raw = fs.readFileSync(getModelsPath(), "utf8");
     const parsed = JSON.parse(raw);
     const isPlainObject = parsed !== null && typeof parsed === "object" && !Array.isArray(parsed);
-    _modelsJson = isPlainObject ? /** @type {Record<string, unknown>} */ (parsed) : null;
+    _modelsJson = isPlainObject ? /** @type {Record<string, unknown>} */ parsed : null;
   } catch {
     _modelsJson = null;
   }

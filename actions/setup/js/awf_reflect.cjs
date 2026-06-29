@@ -329,15 +329,7 @@ async function fetchAWFReflect(options) {
  * @returns {boolean}
  */
 function isAnthropicModelName(model) {
-  return (
-    model.startsWith("claude-") ||
-    model.includes("-opus-") ||
-    model.endsWith("-opus") ||
-    model.includes("-haiku-") ||
-    model.endsWith("-haiku") ||
-    model.includes("-sonnet-") ||
-    model.endsWith("-sonnet")
-  );
+  return model.startsWith("claude-") || model.includes("-opus-") || model.endsWith("-opus") || model.includes("-haiku-") || model.endsWith("-haiku") || model.includes("-sonnet-") || model.endsWith("-sonnet");
 }
 
 /**

@@ -25,7 +25,8 @@ network:
   allowed: ["defaults", "go"]
 engine:
   id: copilot
-  model: claude-sonnet-4.6
+  copilot-sdk: true
+  model: gpt-5.4-mini
 strict: true
 imports:
   - shared/otlp.md
