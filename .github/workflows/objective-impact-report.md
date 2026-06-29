@@ -49,9 +49,14 @@ safe-outputs:
     max: 1
 ---
 
-# Impact Efficiency Report
+### Impact Efficiency Report
 
-## Required Inputs (already precomputed)
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
+
+
+#### Required Inputs (already precomputed)
 
 Use these deterministic files first:
 
@@ -69,7 +74,7 @@ Use these deterministic files first:
 
 Do **not** re-fetch these datasets with GitHub tools unless a required file is missing, empty, or fails JSON parsing.
 
-## Goal
+#### Goal
 
 Produce a comprehensive executive report on what work was performed, what AIC tokens were spent on, which outcomes delivered the highest impact, and which workflows contributed that impact. The report must clearly answer: *What did we build, fix, and ship, what was the most impactful work in the repository, which workflows drove that impact, and was it worth the cost?*
 
@@ -99,7 +104,7 @@ Workflows explain where delivered value came from.
 AI Credits provide cost.
 Do not use an LLM judge.
 
-## AIC Source of Truth
+#### AIC Source of Truth
 
 Resolve AI Credits in this order:
 
@@ -114,7 +119,7 @@ When computing total AI Credits for the report:
 
 If a run's `aic` field is missing or null, treat it as `0` and count it as missing-cost data in the report.
 
-## Scope
+#### Scope
 
 Analyze only the following outcome types from the last 180 days:
 
@@ -123,7 +128,7 @@ Analyze only the following outcome types from the last 180 days:
 
 Exclude all other outcome types (direct issue outcomes, comments, discussions, etc.). These are omitted because their acceptance criteria are incomplete and most are left pending, which would distort the metric.
 
-## Objective value mapping
+#### Objective value mapping
 
 Objective values should be resolved from deterministic inputs whenever available.
 
@@ -147,7 +152,7 @@ If `objective_value` is `0` and the entry has root/issue labels present, mark th
 
 Do not invent fallback scoring rules such as milestone bonuses, project bonuses, or priority-to-points heuristics.
 
-## Outcome association rules
+#### Outcome association rules
 
 For each in-scope outcome, use the precomputed root-tracing results:
 
@@ -159,7 +164,7 @@ For each in-scope outcome, use the precomputed root-tracing results:
 6. Record traced issue numbers (`root_issue_numbers` when present, otherwise `linked_issue_numbers`) in the report as the audit trail.
 7. If `objective_value` is `0` and labels are present, mark the outcome as `unmapped`, exclude it from `Σ Outcome Value`, and report it separately.
 
-## Computation
+#### Computation
 
 For each in-scope outcome:
 
@@ -194,7 +199,7 @@ Use the workflow name from the producing run as the attribution key. If multiple
 If AI Credits is missing or zero, report that Impact Efficiency is not computable and explain whether credits data was unavailable or no credits were consumed in the analysis window.
 If only some runs are missing `aic`, still compute the metric from the available values and explicitly report how many runs had missing cost data.
 
-## Report
+#### Report
 
 Before creating the new report, search for an existing open issue titled:
 
@@ -336,6 +341,6 @@ Also report:
 
 Sort categories by total objective value descending. Do **not** compute AIC or Impact Efficiency for this section — human work has no associated AI Credits cost.
 
-## Safe output
+#### Safe output
 
 Use only `close-issue` and `create-issue`.

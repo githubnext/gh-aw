@@ -44,11 +44,16 @@ features:
   gh-aw-detection: true
 ---
 
-# Artifacts Summary
+### Artifacts Summary
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
+
 
 Generate a comprehensive summary table of GitHub Actions artifacts usage in the repository ${{ github.repository }}.
 
-## Task Requirements
+#### Task Requirements
 
 1. **Analyze all workflows** in the repository to identify which ones generate artifacts
 2. **Collect artifact data** for recent workflow runs (last 30 days recommended)
@@ -60,7 +65,7 @@ Generate a comprehensive summary table of GitHub Actions artifacts usage in the 
    - Latest Run Date
    - Status (Active/Inactive)
 
-## Analysis Instructions
+#### Analysis Instructions
 
 Please:
 
@@ -78,7 +83,7 @@ Please:
    - Trends in artifact usage
    - Recommendations for optimization
 
-## Output Format
+#### Output Format
 
 Create an issue with a markdown table like this:
 
@@ -94,7 +99,7 @@ Create an issue with a markdown table like this:
 [Your analysis and recommendations here]
 ```
 
-## Important Notes
+#### Important Notes
 
 - Focus on workflows that actually generate artifacts (skip those without any)
 - Convert sizes to human-readable formats (MB, GB)
