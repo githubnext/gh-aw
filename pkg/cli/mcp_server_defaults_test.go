@@ -66,11 +66,11 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 			t.Fatalf("Failed to generate schema: %v", err)
 		}
 
-		// Add defaults as done in createMCPServer
-		if err := AddSchemaDefault(schema, "count", 100); err != nil {
+		// Add defaults as done in registerLogsTool
+		if err := AddSchemaDefault(schema, "count", defaultMCPLogsToolCount); err != nil {
 			t.Fatalf("Failed to add count default: %v", err)
 		}
-		if err := AddSchemaDefault(schema, "timeout", 50); err != nil {
+		if err := AddSchemaDefault(schema, "timeout", defaultMCPLogsToolTimeoutMinutesForCount(defaultMCPLogsToolCount)); err != nil {
 			t.Fatalf("Failed to add timeout default: %v", err)
 		}
 		if err := AddSchemaDefault(schema, "max_tokens", 12000); err != nil {
@@ -92,8 +92,8 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 		if err := json.Unmarshal(countProp.Default, &countDefault); err != nil {
 			t.Fatalf("Failed to unmarshal count default: %v", err)
 		}
-		if countDefault != 100 {
-			t.Errorf("Expected count default to be 100, got %v", countDefault)
+		if countDefault != defaultMCPLogsToolCount {
+			t.Errorf("Expected count default to be %d, got %v", defaultMCPLogsToolCount, countDefault)
 		}
 
 		// Verify timeout default
@@ -108,8 +108,9 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 		if err := json.Unmarshal(timeoutProp.Default, &timeoutDefault); err != nil {
 			t.Fatalf("Failed to unmarshal timeout default: %v", err)
 		}
-		if timeoutDefault != 50 {
-			t.Errorf("Expected timeout default to be 50, got %v", timeoutDefault)
+		expectedTimeoutDefault := defaultMCPLogsToolTimeoutMinutesForCount(defaultMCPLogsToolCount)
+		if timeoutDefault != expectedTimeoutDefault {
+			t.Errorf("Expected timeout default to be %d, got %v", expectedTimeoutDefault, timeoutDefault)
 		}
 
 		// Verify max_tokens default (backward-compat field)
