@@ -1,5 +1,5 @@
 > [!WARNING]
-> **HTTP 400 Bad Request from Copilot**: The agent failed after Copilot returned `Response status code does not indicate success: 400 (Bad Request)`.
+> **HTTP 400 Bad Request from agentic engine**: The agent failed after the engine returned `Response status code does not indicate success: 400 (Bad Request)`.
 
 This is usually a **request validation failure** rather than a timeout or quota issue.
 

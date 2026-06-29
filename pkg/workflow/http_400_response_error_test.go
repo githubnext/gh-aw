@@ -58,6 +58,8 @@ Test workflow`)
 // TestHTTP400ResponseErrorNotInEngineWithoutDetectionScript tests that engines without
 // detect-agent-errors support do not include http_400_response_error output.
 func TestHTTP400ResponseErrorNotInEngineWithoutDetectionScript(t *testing.T) {
+	t.Parallel()
+
 	lockStr := compileWorkflowAndReadLock(t, `---
 on: workflow_dispatch
 engine: gemini

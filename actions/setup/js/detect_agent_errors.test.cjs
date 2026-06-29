@@ -187,6 +187,10 @@ describe("detect_agent_errors.cjs", () => {
       expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("Response status code does not indicate success: 400 (Bad Request)")).toBe(true);
     });
 
+    it("matches the HTTP 400 response shape without the (Bad Request) suffix", () => {
+      expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("Response status code does not indicate success: 400")).toBe(true);
+    });
+
     it("does not match unrelated 400 text", () => {
       expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("CAPIError: 400 Bad Request")).toBe(false);
       expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("Error: 400 Bad Request")).toBe(false);

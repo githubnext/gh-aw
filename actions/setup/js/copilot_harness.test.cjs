@@ -44,6 +44,7 @@ const {
   generateCopilotConnectionToken,
   GEMINI_MODEL_NAME_PREFIX,
   isCAPIQuotaExceededError,
+  isHTTP400ResponseError,
   isSDKSessionIdleTimeoutError,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
@@ -963,6 +964,24 @@ describe("copilot_harness.cjs", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("Access denied by policy settings")).toBe(false);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("MCP servers were blocked by policy: 'github'")).toBe(false);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("")).toBe(false);
+    });
+  });
+
+  describe("isHTTP400ResponseError", () => {
+    it("matches the exact SDK message format", () => {
+      expect(isHTTP400ResponseError("Response status code does not indicate success: 400 (Bad Request)")).toBe(true);
+    });
+
+    it("matches without the (Bad Request) suffix", () => {
+      expect(isHTTP400ResponseError("Response status code does not indicate success: 400")).toBe(true);
+    });
+
+    it("does not match CAPIError 400 (a distinct error shape)", () => {
+      expect(isHTTP400ResponseError("CAPIError: 400 The requested model is not supported.")).toBe(false);
+    });
+
+    it("returns false for empty output", () => {
+      expect(isHTTP400ResponseError("")).toBe(false);
     });
   });
 

@@ -63,7 +63,8 @@ const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 const MODEL_NOT_SUPPORTED_PATTERN =
   /(?:The requested model is not supported|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable)|404\b[^\n]*\bModel\s+not\s+found)/i;
 
-// Pattern: Generic HTTP 400 Bad Request responses emitted by Copilot / SDK wrappers.
+// Pattern: Generic HTTP 400 Bad Request responses emitted by engine / SDK wrappers.
+// NOTE: keep in sync with HTTP_400_RESPONSE_ERROR_PATTERN in copilot_harness.cjs.
 const HTTP_400_RESPONSE_ERROR_PATTERN = /Response status code does not indicate success:\s*400(?:\s*\(Bad Request\))?/i;
 
 // Pattern: Copilot/CAPI quota exhaustion and rate-limit responses.

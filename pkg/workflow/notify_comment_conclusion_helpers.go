@@ -234,13 +234,14 @@ func buildAgentFailureEngineDetectionVars(engine CodingAgentEngine, data *Workfl
 	// Pass engine error-detection outputs to the conclusion job when the selected engine
 	// provides a host-runner detect-agent-errors step.
 	// Contract: engines returning a non-empty GetErrorDetectionScriptId() must run
-	// actions/setup/js/detect_agent_errors.cjs, which emits all five outputs below.
+	// actions/setup/js/detect_agent_errors.cjs, which emits all six outputs below.
 	// These outputs cover:
 	//   - inference_access_error: token lacks inference access
 	//   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
 	//   - agentic_engine_timeout: engine process killed by signal (step timeout)
 	//   - model_not_supported_error: configured model name is invalid or unavailable
 	//   - http_400_response_error: engine returned a generic HTTP 400 Bad Request response
+	//   - capi_quota_exceeded_error: Copilot/CAPI quota exhaustion/rate-limit response
 	var envVars []string
 	if engine.GetErrorDetectionScriptId() != "" {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.%s.outputs.inference_access_error }}\n", mainJobName))

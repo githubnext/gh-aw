@@ -255,6 +255,8 @@ function buildFailureIssueTitle(options) {
   if (options.hasDailyAICExceeded) return `[aw] ${workflowName} exceeded daily AI credits budget`;
   if (options.maxAICreditsExceeded) return `[aw] ${workflowName} exceeded max AI credits`;
   if (options.aiCreditsRateLimitError) return `[aw] ${workflowName} hit AI credits rate limit`;
+  // Keep HTTP 400 below AI-credits signals: quota/rate-limit indicates an account-level
+  // budget state that should take precedence when both classes are detected.
   if (options.http400ResponseError) return `[aw] ${workflowName} hit HTTP 400 bad request`;
   if (options.hasAppTokenMintingFailed) return `[aw] ${workflowName} failed to mint GitHub App token`;
   if (options.hasLockdownCheckFailed) return `[aw] ${workflowName} failed lockdown check`;
@@ -1595,7 +1597,7 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
 }
 
 /**
- * Build a context string when Copilot returned a generic HTTP 400 Bad Request response.
+ * Build a context string when the agentic engine returned a generic HTTP 400 Bad Request response.
  * @param {boolean} hasHTTP400ResponseError - Whether a generic HTTP 400 response error was detected
  * @returns {string} Formatted context string, or empty string if no error
  */
