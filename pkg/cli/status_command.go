@@ -29,11 +29,12 @@ var statusLog = logger.New("cli:status_command")
 // same source of truth for the common workflow metadata fields.
 type WorkflowStatus struct {
 	WorkflowListItem
-	Status        string   `json:"status" console:"header:Status"`
-	TimeRemaining string   `json:"time_remaining" console:"header:Time Remaining"`
+	Status        string   `json:"status" console:"-"`
+	TimeRemaining string   `json:"time_remaining" console:"-"`
 	Dependencies  []string `json:"dependencies,omitempty" console:"-"`
-	RunStatus     string   `json:"run_status,omitempty" console:"header:Run Status,omitempty"`
-	RunConclusion string   `json:"run_conclusion,omitempty" console:"header:Run Conclusion,omitempty"`
+	RunID         int64    `json:"run_id,omitempty" console:"header:run id,omitempty"`
+	RunStatus     string   `json:"run_status,omitempty" console:"header:status,omitempty"`
+	RunConclusion string   `json:"run_conclusion,omitempty" console:"header:conclusion,omitempty"`
 }
 
 // GetWorkflowStatuses retrieves workflow status information and returns it as a slice.
@@ -167,9 +168,11 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 		}
 
 		// Get run status for ref if available
+		var runID int64
 		var runStatus, runConclusion string
 		if latestRunsByWorkflow != nil {
 			if run, exists := latestRunsByWorkflow[name]; exists {
+				runID = run.DatabaseID
 				runStatus = run.Status
 				runConclusion = run.Conclusion
 			}
@@ -187,6 +190,7 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 			Status:        status,
 			TimeRemaining: timeRemaining,
 			Dependencies:  dependencies,
+			RunID:         runID,
 			RunStatus:     runStatus,
 			RunConclusion: runConclusion,
 		})
@@ -211,9 +215,11 @@ func buildRemoteWorkflowStatuses(pattern string, githubWorkflows map[string]*Git
 			status = "disabled"
 		}
 
+		var runID int64
 		var runStatus, runConclusion string
 		if latestRunsByWorkflow != nil {
 			if run, exists := latestRunsByWorkflow[name]; exists {
+				runID = run.DatabaseID
 				runStatus = run.Status
 				runConclusion = run.Conclusion
 			}
@@ -226,6 +232,7 @@ func buildRemoteWorkflowStatuses(pattern string, githubWorkflows map[string]*Git
 				Workflow: name,
 			},
 			Status:        status,
+			RunID:         runID,
 			RunStatus:     runStatus,
 			RunConclusion: runConclusion,
 		})
