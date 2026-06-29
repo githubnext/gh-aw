@@ -1,0 +1,35 @@
+{
+  "date": "2026-06-29",
+  "pr_count": 47,
+  "avg_sentiment": 0.0108,
+  "positive_count": 32,
+  "neutral_count": 33,
+  "negative_count": 29,
+  "top_topic": "Consolidate / Dedup / Env",
+  "top_keywords": [
+    "agent",
+    "model",
+    "github",
+    "sub",
+    "guidance",
+    "generated",
+    "compiled",
+    "safe",
+    "sub agent",
+    "env"
+  ],
+  "cluster_sizes": {
+    "0": 26,
+    "1": 15,
+    "2": 20,
+    "3": 21,
+    "4": 12
+  },
+  "topic_names": {
+    "0": "Consolidate / Dedup / Env",
+    "1": "Chart / Daily / Safe",
+    "2": "Model / Sub / Sub Agent",
+    "3": "Skill / Style / Guidance",
+    "4": "Github / Domain / Mcp"
+  }
+}
