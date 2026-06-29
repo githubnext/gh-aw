@@ -17,11 +17,11 @@
             <div class="h4 mb-1">github / gh-aw</div>
             <div class="color-fg-muted text-small">Agentic workflows canvas dashboard</div>
           </div>
-          <div class="d-flex gap-2 flex-items-center">
+          <div class="d-flex gap-3 flex-items-center">
             <span class="Label Label--accent">Copilot Canvas</span>
-            <span class="Label Label--success" x-show="cliStatus && cliStatus.available">gh aw <span x-text="cliStatus?.version"></span> · <span x-text="cliSourceLabel(cliStatus)"></span></span>
-            <span class="Label Label--secondary" x-show="loadingCliStatus">Checking gh aw…</span>
-            <button class="btn btn-sm" @click="refresh()">↻ Refresh</button>
+            <span class="Label Label--success" x-cloak x-show="cliStatus && cliStatus.available">gh aw <span x-text="cliStatus?.version"></span> · <span x-text="cliSourceLabel(cliStatus)"></span></span>
+            <span class="Label Label--secondary" x-cloak x-show="loadingCliStatus">Checking gh aw…</span>
+            <button class="btn btn-sm ms-1" @click="refresh()">↻ Refresh</button>
           </div>
         </div>
         <nav class="UnderlineNav mt-3" aria-label="Repository">
@@ -37,9 +37,9 @@
       </header>
 
       <main class="px-4 py-3">
-        <div class="flash mt-2" :class="flashKind === 'error' ? 'flash-error' : (flashKind === 'warn' ? 'flash-warn' : 'flash-success')" x-show="flashMessage" x-text="flashMessage"></div>
-        <section class="flash flash-error mt-3" x-show="errorCliStatus" x-text="errorCliStatus"></section>
-        <section class="flash flash-warn mt-3 awd-install-banner" x-show="cliStatus && !cliStatus.available">
+        <div class="flash mt-2" :class="flashKind === 'error' ? 'flash-error' : (flashKind === 'warn' ? 'flash-warn' : 'flash-success')" x-cloak x-show="flashMessage" x-text="flashMessage"></div>
+        <section class="flash flash-error mt-3" x-cloak x-show="errorCliStatus" x-text="errorCliStatus"></section>
+        <section class="flash flash-warn mt-3 awd-install-banner" x-cloak x-show="cliStatus && !cliStatus.available">
           <div class="text-bold">gh aw is not installed</div>
           <div class="mt-1" x-text="cliStatus?.message || 'Install the GitHub CLI extension to use this dashboard.'"></div>
           <div class="mt-2">Run <code x-text="cliStatus?.installCommand || 'gh extension install github/gh-aw'"></code></div>
@@ -68,11 +68,11 @@
               <h2 class="Box-title">Workflow definitions <span class="Counter" x-text="definitionsPaged.totalItems"></span></h2>
             </div>
             <!-- loading -->
-            <div class="Box-body color-fg-muted text-center py-4" x-show="loadingDefinitions">
+            <div class="Box-body color-fg-muted text-center py-4" x-cloak x-show="loadingDefinitions">
               <span>Loading workflows…</span>
             </div>
             <!-- error -->
-            <div class="Box-body flash flash-error" x-show="!loadingDefinitions && errorDefinitions" x-text="errorDefinitions"></div>
+            <div class="Box-body flash flash-error" x-cloak x-show="!loadingDefinitions && errorDefinitions" x-text="errorDefinitions"></div>
             <!-- rows -->
             <div class="Box-body p-0 awd-scroll" x-show="!loadingDefinitions && !errorDefinitions">
               <template x-for="definition in definitionsPaged.items" :key="definition.workflow">
@@ -90,7 +90,7 @@
               </template>
               <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingDefinitions && definitionsPaged.totalItems === 0">No workflow definitions found. Run <code>make build</code> then open this canvas again.</div>
             </div>
-            <div class="Box-footer d-flex flex-items-center flex-justify-between" x-show="!loadingDefinitions && definitionsPaged.totalPages > 1">
+            <div class="Box-footer d-flex flex-items-center flex-justify-between" x-cloak x-show="!loadingDefinitions && definitionsPaged.totalPages > 1">
               <button class="btn btn-sm" :disabled="!definitionsPaged.hasPreviousPage" @click="loadDefinitionPage(definitionsPaged.page - 1)">Previous</button>
               <span class="color-fg-muted text-small">Page <span x-text="definitionsPaged.page"></span> / <span x-text="definitionsPaged.totalPages"></span></span>
               <button class="btn btn-sm" :disabled="!definitionsPaged.hasNextPage" @click="loadDefinitionPage(definitionsPaged.page + 1)">Next</button>
@@ -99,18 +99,18 @@
         </section>
 
         <!-- Runs tab -->
-        <section class="mt-3" x-show="isActiveTab('runs')">
+        <section class="mt-3" x-cloak x-show="isActiveTab('runs')">
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
               <h2 class="Box-title">Workflow runs <span class="Counter" x-text="runsPaged.totalItems"></span></h2>
               <span class="color-fg-muted text-small" x-text="buildReportSummaryMessage(runsMeta)"></span>
             </div>
             <!-- loading -->
-            <div class="Box-body color-fg-muted text-center py-4" x-show="loadingRuns">
+            <div class="Box-body color-fg-muted text-center py-4" x-cloak x-show="loadingRuns">
               <span>Loading runs…</span>
             </div>
             <!-- error -->
-            <div class="Box-body flash flash-error" x-show="!loadingRuns && errorRuns" x-text="errorRuns"></div>
+            <div class="Box-body flash flash-error" x-cloak x-show="!loadingRuns && errorRuns" x-text="errorRuns"></div>
             <!-- rows -->
             <div class="Box-body p-0 awd-scroll" x-show="!loadingRuns && !errorRuns">
               <template x-for="run in runsPaged.items" :key="run.run_id">
@@ -128,7 +128,7 @@
               </template>
               <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingRuns && runsPaged.totalItems === 0">No runs found. Run <code>gh aw logs</code> to check availability.</div>
             </div>
-            <div class="Box-footer d-flex flex-items-center flex-justify-between" x-show="!loadingRuns && runsPaged.totalPages > 1">
+            <div class="Box-footer d-flex flex-items-center flex-justify-between" x-cloak x-show="!loadingRuns && runsPaged.totalPages > 1">
               <button class="btn btn-sm" :disabled="!runsPaged.hasPreviousPage" @click="loadRunPage(runsPaged.page - 1)">Previous</button>
               <span class="color-fg-muted text-small">Page <span x-text="runsPaged.page"></span> / <span x-text="runsPaged.totalPages"></span></span>
               <button class="btn btn-sm" :disabled="!runsPaged.hasNextPage" @click="loadRunPage(runsPaged.page + 1)">Next</button>
@@ -137,7 +137,7 @@
         </section>
 
         <!-- Details tab -->
-        <section class="mt-3" x-show="isActiveTab('details')">
+        <section class="mt-3" x-cloak x-show="isActiveTab('details')">
           <div class="Box">
             <div class="Box-header">
               <h2 class="Box-title">Run details</h2>
@@ -351,16 +351,16 @@
         </section>
 
         <!-- Usage tab -->
-        <section class="mt-3" x-show="isActiveTab('usage')">
+        <section class="mt-3" x-cloak x-show="isActiveTab('usage')">
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
               <h2 class="Box-title">Usage forecast <span class="Counter" x-text="usagePaged.totalItems"></span></h2>
               <span class="color-fg-muted text-small" x-text="buildReportSummaryMessage(usageMeta)"></span>
             </div>
-            <div class="Box-body color-fg-muted text-center py-4" x-show="loadingUsage">
+            <div class="Box-body color-fg-muted text-center py-4" x-cloak x-show="loadingUsage">
               <span>Loading usage forecast…</span>
             </div>
-            <div class="Box-body flash flash-error" x-show="!loadingUsage && errorUsage" x-text="errorUsage"></div>
+            <div class="Box-body flash flash-error" x-cloak x-show="!loadingUsage && errorUsage" x-text="errorUsage"></div>
             <div class="Box-body p-0 awd-scroll" x-show="!loadingUsage && !errorUsage">
               <div class="Box-row awd-usage-header">
                 <div>Workflow</div>
@@ -384,7 +384,7 @@
               </template>
               <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingUsage && usagePaged.totalItems === 0">No usage data found for the selected report window.</div>
             </div>
-            <div class="Box-footer d-flex flex-items-center flex-justify-between" x-show="!loadingUsage && usagePaged.totalPages > 1">
+            <div class="Box-footer d-flex flex-items-center flex-justify-between" x-cloak x-show="!loadingUsage && usagePaged.totalPages > 1">
               <button class="btn btn-sm" :disabled="!usagePaged.hasPreviousPage" @click="loadUsagePage(usagePaged.page - 1)">Previous</button>
               <span class="color-fg-muted text-small">Page <span x-text="usagePaged.page"></span> / <span x-text="usagePaged.totalPages"></span></span>
               <button class="btn btn-sm" :disabled="!usagePaged.hasNextPage" @click="loadUsagePage(usagePaged.page + 1)">Next</button>
@@ -393,17 +393,17 @@
         </section>
 
         <!-- Experiments tab -->
-        <section class="mt-3" x-show="isActiveTab('experiments')">
+        <section class="mt-3" x-cloak x-show="isActiveTab('experiments')">
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
               <h2 class="Box-title">Experiments <span class="Counter" x-text="experimentsPaged.totalItems"></span></h2>
             </div>
             <!-- loading -->
-            <div class="Box-body color-fg-muted text-center py-4" x-show="loadingExperiments">
+            <div class="Box-body color-fg-muted text-center py-4" x-cloak x-show="loadingExperiments">
               <span>Loading experiments…</span>
             </div>
             <!-- error -->
-            <div class="Box-body flash flash-error" x-show="!loadingExperiments && errorExperiments" x-text="errorExperiments"></div>
+            <div class="Box-body flash flash-error" x-cloak x-show="!loadingExperiments && errorExperiments" x-text="errorExperiments"></div>
             <!-- rows -->
             <div class="Box-body p-0 awd-scroll" x-show="!loadingExperiments && !errorExperiments">
               <template x-for="exp in experimentsPaged.items" :key="exp.workflow_id">
@@ -425,7 +425,7 @@
               </template>
               <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingExperiments && experimentsPaged.totalItems === 0">No experiments found. Run <code>gh aw experiments list</code> to check availability.</div>
             </div>
-            <div class="Box-footer d-flex flex-items-center flex-justify-between" x-show="!loadingExperiments && experimentsPaged.totalPages > 1">
+            <div class="Box-footer d-flex flex-items-center flex-justify-between" x-cloak x-show="!loadingExperiments && experimentsPaged.totalPages > 1">
               <button class="btn btn-sm" :disabled="!experimentsPaged.hasPreviousPage" @click="loadExperimentPage(experimentsPaged.page - 1)">Previous</button>
               <span class="color-fg-muted text-small">Page <span x-text="experimentsPaged.page"></span> / <span x-text="experimentsPaged.totalPages"></span></span>
               <button class="btn btn-sm" :disabled="!experimentsPaged.hasNextPage" @click="loadExperimentPage(experimentsPaged.page + 1)">Next</button>
@@ -434,7 +434,7 @@
         </section>
 
         <!-- Commands tab -->
-        <section class="mt-3" x-show="isActiveTab('commands')">
+        <section class="mt-3" x-cloak x-show="isActiveTab('commands')">
           <div class="Box">
             <div class="Box-header">
               <h2 class="Box-title">Command panel</h2>
