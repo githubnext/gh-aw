@@ -27,7 +27,7 @@ func (d DocURL) String() string {
 
 // IsValid returns true if the documentation URL is non-empty
 func (d DocURL) IsValid() bool {
-	return len(d) > 0
+	return d != ""
 }
 
 // DefaultMCPRegistryURL is the default MCP registry URL.

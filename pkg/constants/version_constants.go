@@ -18,7 +18,7 @@ func (v Version) String() string {
 
 // IsValid returns true if the version is non-empty
 func (v Version) IsValid() bool {
-	return len(v) > 0
+	return v != ""
 }
 
 // ModelName represents an AI model name identifier.

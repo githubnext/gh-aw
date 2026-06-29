@@ -19,14 +19,19 @@ let workspacePath = process.cwd();
 
 function execp(bin, args, cwd) {
   return new Promise((resolve, reject) => {
-    execFile(bin, args, {
-      cwd,
-      env: { ...process.env, NO_COLOR: "1", GH_NO_UPDATE_NOTIFIER: "1" },
-      maxBuffer: 10 * 1024 * 1024,
-    }, (err, stdout, stderr) => {
-      if (err) reject(Object.assign(err, { stderr: stderr ?? "" }));
-      else resolve(stdout);
-    });
+    execFile(
+      bin,
+      args,
+      {
+        cwd,
+        env: { ...process.env, NO_COLOR: "1", GH_NO_UPDATE_NOTIFIER: "1" },
+        maxBuffer: 10 * 1024 * 1024,
+      },
+      (err, stdout, stderr) => {
+        if (err) reject(Object.assign(err, { stderr: stderr ?? "" }));
+        else resolve(stdout);
+      }
+    );
   });
 }
 
@@ -136,10 +141,7 @@ async function startServer() {
 
     try {
       if (pathname === "/" || pathname === "/index.html") {
-        const [html, css] = await Promise.all([
-          readFile(join(__dirname, "web", "index.html"), "utf8"),
-          readFile(join(__dirname, "web", "styles.css"), "utf8"),
-        ]);
+        const [html, css] = await Promise.all([readFile(join(__dirname, "web", "index.html"), "utf8"), readFile(join(__dirname, "web", "styles.css"), "utf8")]);
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         res.end(html.replace("/*__APP_CSS__*/", css));
       } else if (pathname === "/app.js") {
@@ -268,7 +270,10 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
           name: "refresh",
           description: "Clear the data cache so the next listDefinitions/listRuns fetches fresh data from the CLI.",
           inputSchema: { type: "object", additionalProperties: false },
-          handler: () => { cache.clear(); return { ok: true }; },
+          handler: () => {
+            cache.clear();
+            return { ok: true };
+          },
         },
       ],
       open: async ctx => {

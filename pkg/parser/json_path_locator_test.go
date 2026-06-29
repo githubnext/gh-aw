@@ -138,7 +138,9 @@ func TestExtractJSONPathFromValidationError(t *testing.T) {
 	// Compile schema and validate
 	compiler := jsonschema.NewCompiler()
 	var schemaDoc any
-	json.Unmarshal([]byte(schemaJSON), &schemaDoc)
+	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
+		t.Fatalf("json.Unmarshal error: %v", err)
+	}
 
 	schemaURL := "http://example.com/schema.json"
 	compiler.AddResource(schemaURL, schemaDoc)
