@@ -1,6 +1,15 @@
 import { describe, it, expect } from "vitest";
 
-const { detectErrors, isCAPIQuotaExceededError, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN, MODEL_NOT_SUPPORTED_PATTERN, CAPI_QUOTA_EXCEEDED_PATTERN } = require("./detect_agent_errors.cjs");
+const {
+  detectErrors,
+  isCAPIQuotaExceededError,
+  INFERENCE_ACCESS_ERROR_PATTERN,
+  MCP_POLICY_BLOCKED_PATTERN,
+  AGENTIC_ENGINE_TIMEOUT_PATTERN,
+  MODEL_NOT_SUPPORTED_PATTERN,
+  HTTP_400_RESPONSE_ERROR_PATTERN,
+  CAPI_QUOTA_EXCEEDED_PATTERN,
+} = require("./detect_agent_errors.cjs");
 
 describe("detect_agent_errors.cjs", () => {
   describe("INFERENCE_ACCESS_ERROR_PATTERN", () => {
@@ -173,6 +182,17 @@ describe("detect_agent_errors.cjs", () => {
     });
   });
 
+  describe("HTTP_400_RESPONSE_ERROR_PATTERN", () => {
+    it("matches the generic HTTP 400 Bad Request response shape", () => {
+      expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("Response status code does not indicate success: 400 (Bad Request)")).toBe(true);
+    });
+
+    it("does not match unrelated 400 text", () => {
+      expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("CAPIError: 400 Bad Request")).toBe(false);
+      expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("Error: 400 Bad Request")).toBe(false);
+    });
+  });
+
   describe("detectErrors", () => {
     it("returns all false for empty log", () => {
       const result = detectErrors("");
@@ -180,6 +200,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
     });
 
@@ -189,6 +210,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
     });
 
@@ -198,6 +220,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(true);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
     });
 
@@ -207,6 +230,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(true);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
     });
 
@@ -216,6 +240,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(true);
+      expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
     });
 
@@ -225,6 +250,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(true);
+      expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
     });
 
@@ -234,7 +260,18 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(true);
+    });
+
+    it("detects HTTP 400 response error only", () => {
+      const result = detectErrors("Response status code does not indicate success: 400 (Bad Request)");
+      expect(result.inferenceAccessError).toBe(false);
+      expect(result.mcpPolicyError).toBe(false);
+      expect(result.agenticEngineTimeout).toBe(false);
+      expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(true);
+      expect(result.capiQuotaExceededError).toBe(false);
     });
 
     it("detects both errors in the same log", () => {
@@ -244,6 +281,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(true);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
     });
 
@@ -254,6 +292,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(true);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
     });
 
@@ -263,6 +302,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
       expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
     });
   });

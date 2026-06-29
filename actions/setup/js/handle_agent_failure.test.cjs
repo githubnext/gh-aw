@@ -88,12 +88,14 @@ describe("handle_agent_failure", () => {
       aiCreditsRateLimitError: false,
       maxAICreditsExceeded: false,
       hasAssignmentErrors: false,
+      http400ResponseError: false,
     };
 
     const cases = [
       { flag: "hasDailyAICExceeded", expected: "[aw] Test Workflow exceeded daily AI credits budget" },
       { flag: "maxAICreditsExceeded", expected: "[aw] Test Workflow exceeded max AI credits" },
       { flag: "aiCreditsRateLimitError", expected: "[aw] Test Workflow hit AI credits rate limit" },
+      { flag: "http400ResponseError", expected: "[aw] Test Workflow hit HTTP 400 bad request" },
       { flag: "hasAppTokenMintingFailed", expected: "[aw] Test Workflow failed to mint GitHub App token" },
       { flag: "hasLockdownCheckFailed", expected: "[aw] Test Workflow failed lockdown check" },
       { flag: "hasStaleLockFileFailed", expected: "[aw] Test Workflow has stale lock file" },
@@ -1315,6 +1317,7 @@ describe("handle_agent_failure", () => {
         inference_access_error_context: "",
         mcp_policy_error_context: "",
         model_not_supported_error_context: "",
+        http_400_response_error_context: "",
         ai_credits_rate_limit_error_context: "",
         app_token_minting_failed_context: "",
         lockdown_check_failed_context: "",
@@ -2807,6 +2810,50 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       process.env.RUNNER_TEMP = tmpDir;
       ({ buildModelNotSupportedErrorContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    describe("buildHTTP400ResponseErrorContext", () => {
+      let buildHTTP400ResponseErrorContext;
+      const fs = require("fs");
+      const path = require("path");
+      const os = require("os");
+
+      /** @type {string} */
+      let tmpDir;
+
+      /** @type {string} */
+      let promptsDir;
+
+      beforeEach(() => {
+        vi.resetModules();
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-http-400-"));
+        promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+        fs.mkdirSync(promptsDir, { recursive: true });
+        process.env.RUNNER_TEMP = tmpDir;
+        ({ buildHTTP400ResponseErrorContext } = require("./handle_agent_failure.cjs"));
+      });
+
+      afterEach(() => {
+        delete process.env.RUNNER_TEMP;
+        if (fs.existsSync(tmpDir)) {
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+      });
+
+      it("returns empty string when no HTTP 400 response error", () => {
+        expect(buildHTTP400ResponseErrorContext(false)).toBe("");
+      });
+
+      it("returns template content when HTTP 400 response error and template exists", () => {
+        const templateContent = "\n**HTTP 400 Bad Request from Copilot**: Test message.\n";
+        fs.writeFileSync(path.join(promptsDir, "http_400_response_error.md"), templateContent);
+        const result = buildHTTP400ResponseErrorContext(true);
+        expect(result).toContain("HTTP 400 Bad Request from Copilot");
+      });
+
+      it("throws when template is missing", () => {
+        expect(() => buildHTTP400ResponseErrorContext(true)).toThrow(/ENOENT|no such file/i);
+      });
     });
 
     afterEach(() => {
@@ -4622,6 +4669,13 @@ describe("handle_agent_failure", () => {
       for (let i = 1; i < categories.length; i++) {
         expect(categories[i] >= categories[i - 1]).toBe(true);
       }
+    });
+
+    it("returns http_400_response_error category", () => {
+      const categories = buildFailureMatchCategories({
+        http400ResponseError: true,
+      });
+      expect(categories).toContain("http_400_response_error");
     });
 
     it("returns awf_firewall_startup_failed category when isAWFFirewallStartupFailed is true", () => {
