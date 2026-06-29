@@ -58,10 +58,8 @@ This workflow verifies that sudo is omitted when sudo is false (network isolatio
 			t.Error("Expected no 'sudo -E awf' in lock file when sudo is false (network isolation mode)")
 		}
 
-		// AWF must still be invoked (just without sudo). Check for the main AWF invocation pattern.
-		// The awf command appears in a multi-line run: | block with indentation (e.g., "          awf --config").
-		// This pattern uniquely identifies the main AWF execution (not the log-parsing "awf logs summary").
-		if !strings.Contains(lockStr, "\n          awf --config ") {
+		// AWF must still be invoked (just without sudo).
+		if !strings.Contains(lockStr, "awf --config ") {
 			t.Error("Expected rootless 'awf --config' invocation in lock file main execution step")
 		}
 
@@ -79,7 +77,7 @@ This workflow verifies that sudo is omitted when sudo is false (network isolatio
 		}
 	})
 
-	t.Run("legacy workflow (sudo omitted) still uses sudo -E awf", func(t *testing.T) {
+	t.Run("workflow with sudo omitted defaults to network isolation (no sudo -E awf)", func(t *testing.T) {
 		workflowsDir := t.TempDir()
 
 		markdown := `---
@@ -95,12 +93,12 @@ sandbox:
     id: awf
 ---
 
-# Test Legacy Sudo
+# Test Default Network Isolation
 
-This workflow verifies that sudo is retained when sudo is not set (default route enabled).
+This workflow verifies that sudo is omitted by default when sudo is not set (network isolation is the new default).
 `
 
-		workflowPath := filepath.Join(workflowsDir, "test-legacy-sudo.md")
+		workflowPath := filepath.Join(workflowsDir, "test-default-network-isolation.md")
 		if err := os.WriteFile(workflowPath, []byte(markdown), 0644); err != nil {
 			t.Fatalf("Failed to write workflow file: %v", err)
 		}
@@ -110,26 +108,34 @@ This workflow verifies that sudo is retained when sudo is not set (default route
 			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		lockPath := filepath.Join(workflowsDir, "test-legacy-sudo.lock.yml")
+		lockPath := filepath.Join(workflowsDir, "test-default-network-isolation.lock.yml")
 		lockContent, err := os.ReadFile(lockPath)
 		if err != nil {
 			t.Fatalf("Failed to read compiled workflow: %v", err)
 		}
 		lockStr := string(lockContent)
 
-		// Default (sudo not set) must still use sudo -E awf
-		if !strings.Contains(lockStr, "sudo -E awf") {
-			t.Error("Expected 'sudo -E awf' in lock file when sudo is not set (default route enabled)")
+		// Default (sudo not set) must use network isolation mode (no sudo -E awf)
+		if strings.Contains(lockStr, "sudo -E awf") {
+			t.Error("Expected no 'sudo -E awf' in lock file when sudo is not set (network isolation is the default)")
 		}
 
-		// Install step must NOT pass --rootless flag
-		if strings.Contains(lockStr, "--rootless") {
-			t.Error("Expected no '--rootless' flag in install step when sudo is not set")
+		// AWF must still be invoked (without sudo).
+		if !strings.Contains(lockStr, "awf --config ") {
+			t.Error("Expected rootless 'awf --config' invocation in lock file main execution step")
 		}
 
-		// sudo chmod permission-fix step should be present
-		if !strings.Contains(lockStr, "sudo chmod -R a+rX") {
-			t.Error("Expected 'sudo chmod -R a+rX' permission-fix step when sudo is not set (default route enabled)")
+		// Install step must pass --rootless flag
+		if !strings.Contains(lockStr, "install_awf_binary.sh") {
+			t.Error("Expected install_awf_binary.sh in lock file")
+		}
+		if !strings.Contains(lockStr, "--rootless") {
+			t.Error("Expected '--rootless' flag in install step when sudo is not set (network isolation is the default)")
+		}
+
+		// sudo chmod permission-fix step should be absent
+		if strings.Contains(lockStr, "sudo chmod -R a+rX") {
+			t.Error("Expected no 'sudo chmod -R a+rX' permission-fix step when sudo is not set (network isolation is the default)")
 		}
 	})
 }

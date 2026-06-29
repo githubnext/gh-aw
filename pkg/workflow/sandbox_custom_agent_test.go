@@ -265,9 +265,12 @@ sandbox:
 		}
 		lockStr := string(lockContent)
 
-		// Verify standard AWF command is used
-		if !strings.Contains(lockStr, "sudo -E awf") {
-			t.Error("Expected standard AWF command 'sudo -E awf' with legacy type field")
+		// Verify standard AWF command is used (rootless mode - no sudo -E awf)
+		if strings.Contains(lockStr, "sudo -E awf") {
+			t.Error("Expected no sudo -E awf with legacy type field (network isolation is the default)")
+		}
+		if !strings.Contains(lockStr, "awf --config") {
+			t.Error("Expected rootless AWF invocation with legacy type field")
 		}
 
 		// Verify installation step is present
