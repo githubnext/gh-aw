@@ -28,7 +28,7 @@ type DispatchRepositoryConfig struct {
 
 // parseDispatchRepositoryConfig parses dispatch-repository configuration from the safe-outputs map.
 func (c *Compiler) parseDispatchRepositoryConfig(outputMap map[string]any) *DispatchRepositoryConfig {
-	dispatchRepositoryLog.Print("Parsing dispatch_repository configuration")
+	dispatchRepositoryLog.Print("Parsing dispatch-repository configuration")
 
 	var configData any
 	var exists bool
