@@ -107,7 +107,7 @@ safe-outputs:
 				return
 			}
 
-			expectedMessage := "Using experimental feature: dispatch_repository"
+			expectedMessage := "Using experimental feature: dispatch-repository"
 
 			if tt.expectWarning {
 				if !strings.Contains(stderrOutput, expectedMessage) {

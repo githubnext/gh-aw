@@ -1343,7 +1343,7 @@ Use `call-workflow` for deterministic fan-out where actor attribution and zero A
 ### Repository Dispatch (`dispatch-repository`)
 
 > [!CAUTION]
-> This is an experimental feature. Compiling a workflow with `dispatch-repository` emits a warning: `Using experimental feature: dispatch_repository`. The API may change in future releases.
+> This is an experimental feature. Compiling a workflow with `dispatch-repository` emits a warning: `Using experimental feature: dispatch-repository`. The API may change in future releases.
 
 Triggers [`repository_dispatch`](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#repository_dispatch) events in external repositories. Unlike `dispatch-workflow` (same-repo only), `dispatch-repository` is designed for cross-repository orchestration.
 
