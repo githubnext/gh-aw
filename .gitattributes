@@ -9,6 +9,7 @@ pkg/workflow/js/*.cjs linguist-generated=true
 pkg/workflow/sh/*.sh linguist-generated=true
 actions/*/index.js linguist-generated=true
 actions/setup-cli/install.sh linguist-generated=true
+.github/extensions/agentic-workflows-dashboard/web/app.js linguist-generated=true merge=ours
 specs/artifacts.md linguist-generated=true merge=ours
 docs/adr/*.md merge=theirs
 # Use bd merge for beads JSONL files

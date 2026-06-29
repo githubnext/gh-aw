@@ -79,6 +79,7 @@ Quick decision matrix:
 | Monitor external service deployment failures (Heroku, Vercel, Fly.io) | `deployment_status` | `github` (`gh-proxy`) with `deployments: read` | `create-issue` |
 | Run visual regression checks on PR UI changes | `pull_request` | `playwright` + `cache-memory` | `add-comment` |
 | Publish weekly stakeholder/product digest | `schedule` | `github` (`gh-proxy`) | `create-issue` (default), `create-discussion` only if explicitly requested |
+| Review dependency licenses or design-token governance on PRs | `pull_request` with `paths:` | `github` (`gh-proxy`) | `add-comment`; `create-issue` only for blocked/policy-violating findings |
 
 > **`workflow_run` vs `deployment_status`**: Use `workflow_run` when monitoring another GitHub Actions workflow in the same repository. Use `deployment_status` when an external service (Heroku, Vercel, Fly.io) reports deployment results back to GitHub via the Deployments API. See [deployment-status.md](deployment-status.md) for the full pattern.
 >
@@ -92,6 +93,7 @@ Compact scenario examples:
 - **Visual regression on UI changes**: trigger `pull_request`, use only `playwright` + `cache-memory` (no extra tools), keep network minimal (allowlist only target preview/app hosts if required), state the exact baseline source (`cache-memory` key, artifact, or branch path), publish via `add-comment`, call `noop` when UI paths are unchanged.
 - **Deployment incident triage**: use `deployment_status` for external provider failures and `workflow_run` for GitHub Actions failures, publish incident reports via `create-issue`, derive a stable failure key (for example workflow + job + failing step or error signature), and call `noop` when a failure self-recovers or matches an existing open incident.
 - **Product/stakeholder digest**: use fuzzy `schedule` plus optional `workflow_dispatch`, define an explicit window (for example `last 7 full days ending at run start (UTC)`), choose grouping dimensions up front (for example team, service, owner, severity, or status), publish with `create-issue` by default, and call `noop` when there are no updates in that window.
+- **Dependency-license compliance review on PRs**: trigger `pull_request` with `paths:` scoped to dependency manifests (for example `package.json`, `go.mod`, `requirements.txt`, `Cargo.toml`), read new dependency additions via `github` (`gh-proxy`), classify each addition by license tier (allowed / needs-review / blocked), publish findings with `add-comment`, escalate blocked additions with `create-issue` for team-wide follow-up, call `noop` when no new dependencies were added or all additions are pre-approved.
 
 Pattern-specific `noop` examples:
 
@@ -145,6 +147,26 @@ Rules:
 - before creating an issue, search for an existing open issue covering the same concern (use a stable title prefix or label to avoid duplicates)
 - if a matching open issue already exists, add a linked `add-comment` on the PR referencing it instead of opening a duplicate issue
 - call `noop` explicitly whenever no actionable finding exists — do not comment with "no issues found" text
+
+### 2d. Compliance review compact guidance
+
+For dependency-license compliance and policy review on PRs:
+
+- scope `pull_request.paths` to dependency manifest files (for example `package.json`, `go.mod`, `requirements.txt`, `Cargo.toml`, `pyproject.toml`, `composer.json`)
+- classify each new dependency by license tier using the project's configured policy (the example tiers below represent a common MIT-compatible policy; adjust for your project): **allowed** (MIT, Apache-2.0, BSD, ISC), **needs-review** (unknown, dual-licensed, weak-copyleft), **blocked** (strong-copyleft such as GPL/AGPL, proprietary, or licenses incompatible with your project's license)
+- publish per-tier findings with `add-comment` listing each dependency, its version, and detected license
+- escalate to `create-issue` only when a **blocked** dependency was added or a policy violation requires team-wide follow-up beyond this PR
+- before creating a new issue, search for an existing open issue with a stable key (for example `license-violation + dependency-name + version`) to avoid duplicates; if found, link to it from the PR comment instead
+- call `noop` when no new dependencies were added or all additions are confirmed in the allowed tier
+
+**Compliance escalation decision table:**
+
+| Finding | Action |
+|---|---|
+| No dependency manifest files changed | `noop` immediately |
+| All new dependencies in allowed tier | `noop` (or brief `add-comment` confirmation when the workflow prompt explicitly requests a confirmation comment) |
+| Dependencies in needs-review tier | `add-comment` listing them with license details and requesting maintainer confirmation |
+| Blocked dependency added | `add-comment` flagging the violation + `create-issue` for team-wide record (skip `create-issue` if a matching open issue already exists) |
 
 ### 3. Keep permissions read-only
 
