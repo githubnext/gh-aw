@@ -1,119 +1,19 @@
 import { createServer } from "node:http";
-import { execFile } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
-import { constants as fsConstants } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 
+import { createGhAwRunner } from "./dashboard-cli.mjs";
+import { DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT } from "./dashboard-config.mjs";
+import { createDashboardDataAccess } from "./dashboard-data.mjs";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const servers = new Map();
-const cache = new Map(); // key → { data, expiresAt }
-const CACHE_TTL_MS = 60_000;
 let workspacePath = process.cwd();
-
-// ---------------------------------------------------------------------------
-// CLI helpers
-// ---------------------------------------------------------------------------
-
-function execp(bin, args, cwd) {
-  return new Promise((resolve, reject) => {
-    execFile(
-      bin,
-      args,
-      {
-        cwd,
-        env: { ...process.env, NO_COLOR: "1", GH_NO_UPDATE_NOTIFIER: "1" },
-        maxBuffer: 10 * 1024 * 1024,
-      },
-      (err, stdout, stderr) => {
-        if (err) reject(Object.assign(err, { stderr: stderr ?? "" }));
-        else resolve(stdout);
-      }
-    );
-  });
-}
-
-async function runGhAw(args) {
-  const cwd = workspacePath;
-  const isWin = process.platform === "win32";
-  const devBin = join(cwd, isWin ? "gh-aw.exe" : "gh-aw");
-  try {
-    await access(devBin, fsConstants.X_OK);
-    return await execp(devBin, args, cwd);
-  } catch {
-    return await execp("gh", ["aw", ...args], cwd);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Cache
-// ---------------------------------------------------------------------------
-
-function getCached(key) {
-  const entry = cache.get(key);
-  return entry && Date.now() < entry.expiresAt ? entry.data : null;
-}
-function setCached(key, data) {
-  cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
-}
-
-// ---------------------------------------------------------------------------
-// Data fetchers — both call the CLI, never Go code
-// ---------------------------------------------------------------------------
-
-async function getDefinitions() {
-  const hit = getCached("definitions");
-  if (hit) return hit;
-  const raw = await runGhAw(["status", "--json"]);
-  const data = JSON.parse(raw);
-  setCached("definitions", data);
-  return data;
-}
-
-async function getExperiments() {
-  const hit = getCached("experiments");
-  if (hit) return hit;
-  const raw = await runGhAw(["experiments", "list", "--json"]);
-  const data = JSON.parse(raw);
-  const experiments = Array.isArray(data) ? data : [];
-  setCached("experiments", experiments);
-  return experiments;
-}
-
-async function getRuns(count = 50) {
-  const key = `runs:${count}`;
-  const hit = getCached(key);
-  if (hit) return hit;
-  const raw = await runGhAw(["logs", "--json", "-c", String(count)]);
-  const logsData = JSON.parse(raw);
-  const runs = logsData.runs ?? [];
-  setCached(key, runs);
-  return runs;
-}
-
-// ---------------------------------------------------------------------------
-// Command runner for the Commands panel
-// ---------------------------------------------------------------------------
-
-function parseGhAwArgs(raw) {
-  const m = raw.trim().match(/^(?:gh\s+aw\s+)(.+)$/);
-  return m ? m[1].trim().split(/\s+/) : null;
-}
-
-async function execCommand(rawCmd) {
-  const args = parseGhAwArgs(rawCmd);
-  if (!args) {
-    return { command: rawCmd, output: "Only 'gh aw <subcommand>' commands are supported.", error: true };
-  }
-  try {
-    const output = await runGhAw(args);
-    return { command: rawCmd, output };
-  } catch (err) {
-    return { command: rawCmd, output: err.stderr || err.message, error: true };
-  }
-}
+const runGhAw = createGhAwRunner({ getWorkspacePath: () => workspacePath });
+const dataAccess = createDashboardDataAccess({ runGhAw });
 
 // ---------------------------------------------------------------------------
 // Pagination utility
@@ -162,17 +62,35 @@ async function startServer() {
         res.setHeader("Content-Type", "application/javascript; charset=utf-8");
         res.end(await readFile(join(__dirname, "web", "pagination.js"), "utf8"));
       } else if (pathname === "/api/status") {
-        sendJson(await getDefinitions());
+        sendJson(await dataAccess.getDefinitions());
       } else if (pathname === "/api/experiments") {
-        sendJson(await getExperiments());
+        sendJson(await dataAccess.getExperiments());
       } else if (pathname === "/api/runs") {
-        const count = parseInt(reqUrl.searchParams.get("count") ?? "50", 10);
-        sendJson(await getRuns(count));
+        sendJson(
+          await dataAccess.getRuns({
+            count: parseInt(reqUrl.searchParams.get("count") ?? String(DEFAULT_RUN_COUNT), 10),
+            window: reqUrl.searchParams.get("window") ?? "7d",
+            timeout: parseInt(reqUrl.searchParams.get("timeout") ?? String(DEFAULT_LOG_TIMEOUT_MINUTES), 10),
+          })
+        );
+      } else if (pathname === "/api/usage") {
+        sendJson(
+          await dataAccess.getUsage({
+            count: parseInt(reqUrl.searchParams.get("count") ?? String(DEFAULT_RUN_COUNT), 10),
+            window: reqUrl.searchParams.get("window") ?? "7d",
+            timeout: parseInt(reqUrl.searchParams.get("timeout") ?? String(DEFAULT_LOG_TIMEOUT_MINUTES), 10),
+          })
+        );
       } else if (pathname === "/api/run-command") {
         const cmd = reqUrl.searchParams.get("cmd") ?? "";
-        sendJson(await execCommand(cmd));
+        sendJson(
+          await dataAccess.execCommand(cmd, {
+            window: reqUrl.searchParams.get("window") ?? "7d",
+            timeout: parseInt(reqUrl.searchParams.get("timeout") ?? String(DEFAULT_LOG_TIMEOUT_MINUTES), 10),
+          })
+        );
       } else if (pathname === "/api/refresh") {
-        cache.clear();
+        dataAccess.clearCache();
         sendJson({ ok: true });
       } else {
         res.writeHead(404);
@@ -201,7 +119,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
 
 **CLI commands used by this canvas:**
 - \`gh aw status --json\` — list agentic workflow definitions (workflow, engine_id, compiled, labels, status, time_remaining)
-- \`gh aw logs --json -c <N>\` — list recent workflow runs (run_id, workflow_name, status, conclusion, duration, token_usage, turns, error_count)
+- \`gh aw logs --json -c <N> --start-date <window> --timeout <minutes>\` — list recent workflow runs and follow continuation batches progressively
 - \`gh aw experiments list --json\` — list experiment workflow branches (workflow_id, branch, experiments, total_runs, last_run)
 
 **Dev build** (when gh-aw is not installed as a gh extension):
@@ -210,7 +128,8 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
 
 **Canvas actions available to the agent:**
 - \`listDefinitions\` — calls \`gh aw status --json\`, returns paged results
-- \`listRuns\` — calls \`gh aw logs --json\`, returns paged results
+- \`listRuns\` — calls \`gh aw logs --json\` with a selected report window, timeout, and continuation handling
+- \`listUsage\` — aggregates workflow AIC usage from logs and fills monthly forecast via \`gh aw forecast --json\`
 - \`listExperiments\` — calls \`gh aw experiments list --json\`, returns paged results
 - \`getRun\` — looks up a single run by \`run_id\`
 - \`runCommand\` — executes any \`gh aw <subcommand>\` and returns stdout
@@ -235,25 +154,65 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
             additionalProperties: false,
           },
           handler: async ctx => {
-            const defs = await getDefinitions();
+            const defs = await dataAccess.getDefinitions();
             return paginate(defs, Number(ctx.input?.page ?? 1), Number(ctx.input?.pageSize ?? 20));
           },
         },
         {
           name: "listRuns",
-          description: "List recent workflow runs via gh aw logs --json, with paging.",
+          description: "List recent workflow runs via gh aw logs --json, with paging and continuation handling.",
           inputSchema: {
             type: "object",
             properties: {
               page: { type: "number", minimum: 1 },
               pageSize: { type: "number", minimum: 1, maximum: 100 },
               count: { type: "number", minimum: 1, maximum: 200, description: "Max runs to fetch from the CLI." },
+              window: { type: "string", enum: ["3d", "7d", "1mo"], description: "Report window preset for gh aw logs." },
+              timeout: { type: "number", minimum: 1, maximum: 10, description: "Per-request timeout in minutes for progressive logs retrieval." },
             },
             additionalProperties: false,
           },
           handler: async ctx => {
-            const runs = await getRuns(Number(ctx.input?.count ?? 50));
-            return paginate(runs, Number(ctx.input?.page ?? 1), Number(ctx.input?.pageSize ?? 20));
+            const logsData = await dataAccess.getRuns({
+              count: Number(ctx.input?.count ?? DEFAULT_RUN_COUNT),
+              window: String(ctx.input?.window ?? "7d"),
+              timeout: Number(ctx.input?.timeout ?? DEFAULT_LOG_TIMEOUT_MINUTES),
+            });
+            return {
+              ...paginate(logsData.runs, Number(ctx.input?.page ?? 1), Number(ctx.input?.pageSize ?? 20)),
+              partial: logsData.partial,
+              logsFetches: logsData.logsFetches,
+              window: logsData.window,
+            };
+          },
+        },
+        {
+          name: "listUsage",
+          description: "Aggregate workflow AIC usage from gh aw logs and monthly forecast costs from gh aw forecast.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              page: { type: "number", minimum: 1 },
+              pageSize: { type: "number", minimum: 1, maximum: 100 },
+              count: { type: "number", minimum: 1, maximum: 200, description: "Max runs to fetch from the CLI." },
+              window: { type: "string", enum: ["3d", "7d", "1mo"], description: "Report window preset for gh aw logs." },
+              timeout: { type: "number", minimum: 1, maximum: 10, description: "Per-request timeout in minutes for progressive logs retrieval." },
+            },
+            additionalProperties: false,
+          },
+          handler: async ctx => {
+            const usage = await dataAccess.getUsage({
+              count: Number(ctx.input?.count ?? DEFAULT_RUN_COUNT),
+              window: String(ctx.input?.window ?? "7d"),
+              timeout: Number(ctx.input?.timeout ?? DEFAULT_LOG_TIMEOUT_MINUTES),
+            });
+            return {
+              ...paginate(usage.items, Number(ctx.input?.page ?? 1), Number(ctx.input?.pageSize ?? 20)),
+              partial: usage.partial,
+              logsFetches: usage.logsFetches,
+              totalRuns: usage.total_runs,
+              window: usage.window,
+            };
           },
         },
         {
@@ -268,7 +227,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
             additionalProperties: false,
           },
           handler: async ctx => {
-            const experiments = await getExperiments();
+            const experiments = await dataAccess.getExperiments();
             return paginate(experiments, Number(ctx.input?.page ?? 1), Number(ctx.input?.pageSize ?? 20));
           },
         },
@@ -282,8 +241,8 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
             additionalProperties: false,
           },
           handler: async ctx => {
-            const runs = await getRuns(200);
-            return { run: runs.find(r => r.run_id === Number(ctx.input?.run_id)) ?? null };
+            const logsData = await dataAccess.getRuns({ count: 200, window: "1mo", timeout: DEFAULT_LOG_TIMEOUT_MINUTES });
+            return { run: logsData.runs.find(r => r.run_id === Number(ctx.input?.run_id)) ?? null };
           },
         },
         {
@@ -295,14 +254,14 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
             properties: { command: { type: "string", description: "Full command string starting with 'gh aw'." } },
             additionalProperties: false,
           },
-          handler: async ctx => execCommand(String(ctx.input?.command ?? "")),
+          handler: async ctx => dataAccess.execCommand(String(ctx.input?.command ?? ""), { window: "7d", timeout: DEFAULT_LOG_TIMEOUT_MINUTES }),
         },
         {
           name: "refresh",
           description: "Clear the data cache so the next listDefinitions/listRuns fetches fresh data from the CLI.",
           inputSchema: { type: "object", additionalProperties: false },
           handler: () => {
-            cache.clear();
+            dataAccess.clearCache();
             return { ok: true };
           },
         },

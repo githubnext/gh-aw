@@ -18,7 +18,7 @@
     "fmt:ts": "npx prettier --write --parser typescript \"src/**/*.ts\" \"test/**/*.ts\" \"vitest.config.ts\"",
     "fmt:html": "npx prettier --write --parser html \"web/index.html\"",
     "fmt:css": "npx prettier --write --parser css \"web/styles.css\"",
-    "fmt:js": "npx prettier --write --parser babel \"extension.mjs\"",
+    "fmt:js": "npx prettier --write --parser babel \"*.mjs\"",
     "fmt:json": "npx prettier --write --parser json \"copilot-extension.json\" \"package.json\"",
     "impeccable:detect": "npx impeccable detect web/index.html web/styles.css"
   }

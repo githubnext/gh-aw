@@ -261,6 +261,14 @@ type JobInfo struct {
 	Conclusion  string    `json:"conclusion"`
 	StartedAt   time.Time `json:"started_at,omitzero"`
 	CompletedAt time.Time `json:"completed_at,omitzero"`
+	Steps       []JobStep `json:"steps,omitempty"`
+}
+
+// JobStep represents basic information about an individual workflow job step.
+type JobStep struct {
+	Name       string `json:"name"`
+	Status     string `json:"status,omitempty"`
+	Conclusion string `json:"conclusion,omitempty"`
 }
 
 // JobInfoWithDuration extends JobInfo with calculated duration

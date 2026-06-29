@@ -36,6 +36,22 @@
 
       <main class="px-4 py-3">
         <div class="flash mt-2" :class="flashKind === 'error' ? 'flash-error' : (flashKind === 'warn' ? 'flash-warn' : 'flash-success')" x-show="flashMessage" x-text="flashMessage"></div>
+        <section class="Box mt-3">
+          <div class="Box-body d-flex flex-wrap flex-items-center flex-justify-between gap-3">
+            <div>
+              <div class="text-bold">Report logs window</div>
+              <div class="color-fg-muted text-small">Runs, usage, and logs commands reuse the same window and timeout.</div>
+            </div>
+            <div class="d-flex flex-wrap flex-items-center gap-2">
+              <div class="BtnGroup" role="group" aria-label="Report window">
+                <template x-for="window in reportWindows" :key="window.id">
+                  <button type="button" :class="reportWindowClass(window.id)" @click="selectReportWindow(window.id)" x-text="window.label"></button>
+                </template>
+              </div>
+              <span class="Label Label--accent">Timeout <span x-text="logsTimeout"></span>m/request</span>
+            </div>
+          </div>
+        </section>
 
         <!-- Definitions tab -->
         <section class="mt-3" x-show="isActiveTab('definitions')">
@@ -79,6 +95,7 @@
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
               <h2 class="Box-title">Workflow runs <span class="Counter" x-text="runsPaged.totalItems"></span></h2>
+              <span class="color-fg-muted text-small" x-text="buildReportSummaryMessage(runsMeta)"></span>
             </div>
             <!-- loading -->
             <div class="Box-body color-fg-muted text-center py-4" x-show="loadingRuns">
@@ -95,6 +112,7 @@
                       <div class="text-bold">#<span x-text="run.run_id"></span></div>
                       <div class="color-fg-muted text-small mt-1">Workflow: <span x-text="run.workflow_name"></span></div>
                       <div class="color-fg-muted text-small" x-show="run.duration">Duration: <span x-text="formatDuration(run.duration)"></span></div>
+                      <div class="color-fg-muted text-small">AIC: <span x-text="formatAIC(run.aic ?? 0)"></span></div>
                     </div>
                     <span :class="runStatusClass(run)" x-text="runStatusLabel(run)"></span>
                   </div>
@@ -128,6 +146,10 @@
                   <div class="text-bold" x-text="selectedRun ? formatDuration(selectedRun.duration) : '—'"></div>
                 </div>
                 <div class="Box p-3 flex-1">
+                  <div class="text-small color-fg-muted mb-1">AIC</div>
+                  <div class="text-bold" x-text="selectedRun ? formatAIC(selectedRun.aic ?? 0) : '—'"></div>
+                </div>
+                <div class="Box p-3 flex-1">
                   <div class="text-small color-fg-muted mb-1">Tokens</div>
                   <div class="text-bold" x-text="selectedRun ? (selectedRun.token_usage ?? '—') : '—'"></div>
                 </div>
@@ -150,6 +172,48 @@
               </div>
             </div>
             <div class="Box-body color-fg-muted" x-show="!selectedRun">Select a workflow run from the Runs tab to view details.</div>
+          </div>
+        </section>
+
+        <!-- Usage tab -->
+        <section class="mt-3" x-show="isActiveTab('usage')">
+          <div class="Box">
+            <div class="Box-header d-flex flex-items-center flex-justify-between">
+              <h2 class="Box-title">Usage forecast <span class="Counter" x-text="usagePaged.totalItems"></span></h2>
+              <span class="color-fg-muted text-small" x-text="buildReportSummaryMessage(usageMeta)"></span>
+            </div>
+            <div class="Box-body color-fg-muted text-center py-4" x-show="loadingUsage">
+              <span>Loading usage forecast…</span>
+            </div>
+            <div class="Box-body flash flash-error" x-show="!loadingUsage && errorUsage" x-text="errorUsage"></div>
+            <div class="Box-body p-0 awd-scroll" x-show="!loadingUsage && !errorUsage">
+              <div class="Box-row awd-usage-header">
+                <div>Workflow</div>
+                <div class="text-right">Runs</div>
+                <div class="text-right">Total AIC</div>
+                <div class="text-right">AIC / run</div>
+                <div class="text-right">Daily AIC</div>
+                <div class="text-right">Monthly forecast</div>
+                <div class="text-right">Last run</div>
+              </div>
+              <template x-for="item in usagePaged.items" :key="item.workflow_name">
+                <div class="Box-row awd-usage-row">
+                  <div class="text-bold" x-text="item.workflow_name"></div>
+                  <div class="text-right" x-text="formatNumber(item.run_count)"></div>
+                  <div class="text-right" x-text="formatAIC(item.total_aic)"></div>
+                  <div class="text-right" x-text="formatAIC(item.cost_per_run)"></div>
+                  <div class="text-right" x-text="formatAIC(item.daily_aic)"></div>
+                  <div class="text-right" x-text="formatAIC(item.monthly_forecast_aic)"></div>
+                  <div class="text-right color-fg-muted text-small" x-text="formatDate(item.last_run_at)"></div>
+                </div>
+              </template>
+              <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingUsage && usagePaged.totalItems === 0">No usage data found for the selected report window.</div>
+            </div>
+            <div class="Box-footer d-flex flex-items-center flex-justify-between" x-show="!loadingUsage && usagePaged.totalPages > 1">
+              <button class="btn btn-sm" :disabled="!usagePaged.hasPreviousPage" @click="loadUsagePage(usagePaged.page - 1)">Previous</button>
+              <span class="color-fg-muted text-small">Page <span x-text="usagePaged.page"></span> / <span x-text="usagePaged.totalPages"></span></span>
+              <button class="btn btn-sm" :disabled="!usagePaged.hasNextPage" @click="loadUsagePage(usagePaged.page + 1)">Next</button>
+            </div>
           </div>
         </section>
 
@@ -204,11 +268,12 @@
               <div class="d-flex flex-wrap gap-2 mb-2">
                 <button class="btn btn-sm" @click="commandQuickFill('gh aw status')">gh aw status</button>
                 <button class="btn btn-sm" @click="commandQuickFill('gh aw status --json')">gh aw status --json</button>
-                <button class="btn btn-sm" @click="commandQuickFill('gh aw logs -c 10')">gh aw logs -c 10</button>
-                <button class="btn btn-sm" @click="commandQuickFill('gh aw logs --json -c 5')">gh aw logs --json -c 5</button>
+                <button class="btn btn-sm" @click="commandQuickFill(buildLogsCommand(10))">gh aw logs (10)</button>
+                <button class="btn btn-sm" @click="commandQuickFill(buildLogsCommand(50))">gh aw logs (50)</button>
                 <button class="btn btn-sm" @click="commandQuickFill('gh aw compile')">gh aw compile</button>
                 <button class="btn btn-sm" @click="commandQuickFill('gh aw audit')">gh aw audit</button>
               </div>
+              <div class="color-fg-muted text-small mb-2">Logs commands automatically reuse the selected report window and timeout unless you override those flags.</div>
               <div class="input-group mb-2">
                 <input class="form-control" type="text" x-model="commandInput" aria-label="Command input" placeholder="gh aw <subcommand>" />
                 <button class="btn" @click="runCommand()">Run</button>
