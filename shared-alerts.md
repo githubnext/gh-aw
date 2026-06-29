@@ -1,33 +1,41 @@
-# Shared Alerts — 2026-06-28T13:06Z (updated by Agent Performance Analyzer)
+# Shared Alerts — 2026-06-29T06:05Z (updated by Workflow Health Manager)
 
 ## P1 🚨
-- **Code Simplifier (#42003 OPEN)**: 9+ consecutive failures (Jun 20–Jun 28). FIX PR #41852 MERGED but DID NOT RESOLVE — EACCES persists. Architecture-level chroot fix needed. DO NOT RE-FILE.
-- **Daily Safe Output Integrator (#41935 OPEN)**: 6+ consecutive failures (Jun 23–27). Tool denial limit exceeded (5/5). Needs prompt/config refactor. DO NOT RE-FILE.
-- **Daily BYOK Ollama Test (#41827 OPEN)**: 9+ consecutive failures. api-proxy returns 503 on /v1/models. Infra dependency. DO NOT RE-FILE.
+- **Sub-Agent Model Resolution Audit (#42033 OPEN)**: 100% red since Jun 24. Codex `gpt-5-codex-alpha-2025-11-07` returns 404 — retired alpha snapshot. Repo-wide fix needed: stop pinning alpha model snapshots. DO NOT RE-FILE.
+- **PR Code Quality Reviewer (#42095 OPEN)**: Tier-unsupported model via `general-purpose` subagent → SDK 400. Sub-issue of #42033. DO NOT RE-FILE.
+- **Daily Safe Output Integrator (#42125 OPEN)**: Tool denial 5/5 AGAIN — 3rd recurring instance (prev: #41935, #41827-related). Structural refactor needed. DO NOT RE-FILE.
+- **Daily BYOK Ollama Test (#41827 OPEN)**: api-proxy 503 on /v1/models. 9+ days infra outage. DO NOT RE-FILE.
+- **Go Logger Enhancement (#42032 OPEN)**: Pre-agent `jq` step: ARG_MAX exceeded, agent never starts. DO NOT RE-FILE.
 
 ## P2 ⚠️ (Monitor)
-- **Go Logger Enhancement (#42002 OPEN)**: 3 consecutive failures (Jun 26–28). WIP stabilization.
-- **Smoke Copilot (#41988 OPEN)**: 1 failure Jun 27 22:13 (dispatch_workflow missing `message` input), recovered 22:59. Monitor.
-- **Changeset Generator (#41987 OPEN)**: Push rejected — needs `workflows` scope on token. Monitor.
-- **Avenger (no issue yet)**: 3 consecutive failures 09:30–11:58 UTC Jun 28 (5/10 overall). Correlates with CI failure at 12:57. Monitor — may need P2 issue if streak continues through Jun 29.
-- **CI new failure (monitor)**: CI workflow failed at 12:57 UTC Jun 28 — after Jun 27 resolution. Possible PR-triggered regression. Monitor to see if it self-resolves.
+- **Changeset Generator (#41987 OPEN)**: Push rejected — `workflows` scope needed.
+- **Smoke Copilot (#41988 OPEN)**: dispatch_workflow missing `message` input. 1 failure Jun 27 22:13, monitor.
+- **Daily Formal Spec Verifier (#42105 OPEN)**: Tool denial 5/5 — same pattern as Safe Output Integrator.
+- **Agentic Workflow Audit Agent (#42140 OPEN)**: Invalid/unsupported model in config — config fix needed.
+- **Daily Code Metrics (#42124 OPEN)**: Missing `upload_asset` tool.
+- **Daily Team Evolution Insights (#42128 OPEN)**: Missing GitHub MCP read tools.
 
 ## Confirmed Stable ✅
-- **CI**: RESOLVED ✅ — PR #41849 merged (Jun 27), passing since Jun 28 03:17. Issue #41844 can be closed.
-- **Auto-Triage Issues**: STABLE ✅ (5+ consecutive successes)
+- **CI**: STABLE ✅ — passing Jun 29 06:03. Issue #41844 (nolint-suppression gap, different topic) remains open.
 - **Compilation**: 257/257 ✅ STABLE
+- **Avenger**: STABLE ✅ (recovered after Jun 28 intermittency — success Jun 29 06:03)
+- **Auto-Triage Issues**: STABLE ✅
 - **PR Sous Chef**: STABLE ✅
-- **Copilot SWE Agent**: HIGH-PERFORMING ✅ (80% merge rate, 83 PRs)
+- **Copilot SWE Agent**: HIGH-PERFORMING ✅ (80% merge rate)
 
-## Health Scores (Jun 28 13:06Z)
+## Health Scores (Jun 29 06:05Z)
 - Compilation: 257/257 ✅
-- Health Score: 82/100 (↓2)
-- P1 issues: 3 (Code Simplifier, BYOK Ollama, Safe Output Integrator)
-- P2 issues: 4 monitored (Go Logger, Smoke Copilot, Changeset Generator, Avenger/CI watch)
-- Recoveries: CI ✅ RESOLVED (Jun 27)
+- Health Score: 80/100 (↓2)
+- P1 issues: 5 (Sub-Agent Model, PR Code Quality, Safe Output Integrator, BYOK Ollama, Go Logger)
+- P2 issues: 6 (Changeset Generator, Smoke Copilot, Formal Spec Verifier, Audit Workflows, Code Metrics, Team Evolution)
 
 ## Systemic Issues
-1. **Chroot EACCES** (Code Simplifier): Fix PR #41852 did not take effect — architecture-level investigation required
-2. **Tool denial guardrails** (Safe Output Integrator): Structural refactor needed
-3. **Safe-output push scope** (Changeset Generator): needs `workflows` scope
-4. **CI instability signal** (Avenger): Hourly CI fixer seeing 50% failure rate — correlates with CI flakiness
+1. **Codex alpha model 404**: `gpt-5-codex-alpha-2025-11-07` decommissioned — affects Sub-Agent Model Audit, Cache Strategy Analyzer, PR Code Quality; tracked in #42033
+2. **Tool denial guardrails 5/5**: Structural issue — Safe Output Integrator, Formal Spec Verifier need complexity reduction
+3. **Missing tool declarations**: Code Metrics, Team Evolution — audit daily workflow frontmatter
+4. **Tier-unsupported model**: Subagent model resolution must validate against supported-model set (#42095)
+
+## Recoveries Jun 28–29
+- CI: STABLE ✅ (PR #41849 holding)
+- Avenger: RECOVERED ✅ (was intermittent Jun 28 09:30-11:58, stable Jun 29)
+- Code Simplifier: Issues closed Jun 28 — monitor for new instances
