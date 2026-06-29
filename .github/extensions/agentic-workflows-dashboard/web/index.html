@@ -39,7 +39,15 @@
       <main class="px-4 py-3">
         <div class="flash mt-2" :class="flashKind === 'error' ? 'flash-error' : (flashKind === 'warn' ? 'flash-warn' : 'flash-success')" x-cloak x-show="flashMessage" x-text="flashMessage"></div>
         <section class="flash flash-error mt-3" x-cloak x-show="errorCliStatus" x-text="errorCliStatus"></section>
-        <section class="flash flash-warn mt-3 awd-install-banner" x-cloak x-show="cliStatus && !cliStatus.available">
+        <section class="flash flash-error mt-3 awd-install-banner" x-cloak x-show="cliStatus && cliStatus.source === 'gh-not-found'">
+          <div class="text-bold">gh (GitHub CLI) is not installed</div>
+          <div class="mt-1" x-text="cliStatus?.message || 'Install the GitHub CLI to use this dashboard.'"></div>
+          <div class="mt-2">
+            Install from <a :href="cliStatus?.installUrl || 'https://cli.github.com'" target="_blank" rel="noopener">cli.github.com</a>, then run:
+            <code x-text="cliStatus?.installCommand || 'gh extension install github/gh-aw'"></code>
+          </div>
+        </section>
+        <section class="flash flash-warn mt-3 awd-install-banner" x-cloak x-show="cliStatus && !cliStatus.available && cliStatus.source !== 'gh-not-found'">
           <div class="text-bold">gh aw is not installed</div>
           <div class="mt-1" x-text="cliStatus?.message || 'Install the GitHub CLI extension to use this dashboard.'"></div>
           <div class="mt-2">Run <code x-text="cliStatus?.installCommand || 'gh extension install github/gh-aw'"></code></div>

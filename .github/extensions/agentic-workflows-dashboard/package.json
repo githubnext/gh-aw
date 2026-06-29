@@ -4,13 +4,17 @@
   "type": "module",
   "main": "extension.mjs",
   "description": "GitHub Copilot canvas extension for agentic workflows dashboard.",
-  "dependencies": {},
+  "dependencies": {
+    "alpinejs": "^3.15.0"
+  },
   "devDependencies": {
+    "esbuild": "^0.28.1",
     "typescript": "6.0.3",
     "vitest": "4.1.9"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run typecheck && npm run build:web",
+    "build:web": "esbuild src/app.ts --bundle --format=esm --target=es2022 --outfile=web/app.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "lint": "npm run typecheck && npm test",

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -259,6 +260,38 @@ func TestLogsToolPassesArtifactsArgument(t *testing.T) {
 		}
 	}
 	t.Fatal("expected --artifacts flag in command args")
+}
+
+func TestLogsToolUsesEffectiveCountForTimeoutScaling(t *testing.T) {
+	t.Run("omitted count uses MCP default for both -c and --timeout", func(t *testing.T) {
+		var capturedArgs []string
+		mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+			capturedArgs = append([]string(nil), args...)
+			return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", `{"file_path":"/tmp/gh-aw/aw-mcp/logs/runs.json"}`)
+		}
+
+		server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+		err := registerLogsTool(server, mockExecCmd, "", false)
+		require.NoError(t, err, "registerLogsTool should succeed")
+
+		session := connectInMemory(t, server)
+		_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+			Name:      "logs",
+			Arguments: map[string]any{},
+		})
+		require.NoError(t, err, "logs tool should succeed")
+
+		countIndex := slices.Index(capturedArgs, "-c")
+		require.NotEqual(t, -1, countIndex, "logs tool should pass -c to keep MCP/CLI defaults aligned")
+		require.Less(t, countIndex+1, len(capturedArgs), "-c should have a value")
+		assert.Equal(t, strconv.Itoa(defaultMCPLogsToolCount), capturedArgs[countIndex+1])
+
+		timeoutIndex := slices.Index(capturedArgs, "--timeout")
+		require.NotEqual(t, -1, timeoutIndex, "logs tool should pass --timeout")
+		require.Less(t, timeoutIndex+1, len(capturedArgs), "--timeout should have a value")
+		assert.Equal(t, strconv.Itoa(defaultMCPLogsToolTimeoutMinutesForCount(defaultMCPLogsToolCount)), capturedArgs[timeoutIndex+1])
+	})
+
 }
 
 // TestAuditToolPassesGithubRepositoryAsRepoFlag verifies that the audit MCP tool
