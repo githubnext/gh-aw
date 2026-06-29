@@ -16,6 +16,8 @@
  *   - model_not_supported_error: The configured model is invalid or unsupported
  *     for the selected engine/account (for example unknown model name, model not
  *     found, or model unavailable for the plan).
+ *   - http_400_response_error: The engine surfaced a generic HTTP 400 Bad Request
+ *     response (for example "Response status code does not indicate success: 400 (Bad Request)").
  *   - capi_quota_exceeded_error: The Copilot CAPI quota has been exhausted
  *     or rate-limited (e.g., "CAPIError: 429 429 quota exceeded",
  *     "CAPIError: Too Many Requests"). All matched forms are treated as
@@ -61,6 +63,10 @@ const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 const MODEL_NOT_SUPPORTED_PATTERN =
   /(?:The requested model is not supported|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable)|404\b[^\n]*\bModel\s+not\s+found)/i;
 
+// Pattern: Generic HTTP 400 Bad Request responses emitted by engine / SDK wrappers.
+// NOTE: keep in sync with HTTP_400_RESPONSE_ERROR_PATTERN in copilot_harness.cjs.
+const HTTP_400_RESPONSE_ERROR_PATTERN = /Response status code does not indicate success:\s*400(?:\s*\(Bad Request\))?/i;
+
 // Pattern: Copilot/CAPI quota exhaustion and rate-limit responses.
 // Matches all observed forms:
 //   "CAPIError: 429 429 quota exceeded"  (original observed form)
@@ -82,7 +88,7 @@ function isCAPIQuotaExceededError(output) {
 /**
  * Detect known error patterns in a log string and return detection results.
  * @param {string} logContent - Contents of the agent stdio log
- * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, capiQuotaExceededError: boolean }}
+ * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean }}
  */
 function detectErrors(logContent) {
   return {
@@ -90,13 +96,14 @@ function detectErrors(logContent) {
     mcpPolicyError: MCP_POLICY_BLOCKED_PATTERN.test(logContent),
     agenticEngineTimeout: AGENTIC_ENGINE_TIMEOUT_PATTERN.test(logContent),
     modelNotSupportedError: MODEL_NOT_SUPPORTED_PATTERN.test(logContent),
+    http400ResponseError: HTTP_400_RESPONSE_ERROR_PATTERN.test(logContent),
     capiQuotaExceededError: isCAPIQuotaExceededError(logContent),
   };
 }
 
 /**
  * Write GitHub Actions outputs to $GITHUB_OUTPUT.
- * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, capiQuotaExceededError: boolean }} results
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean }} results
  */
 function writeOutputs(results) {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -110,6 +117,7 @@ function writeOutputs(results) {
     `mcp_policy_error=${results.mcpPolicyError}`,
     `agentic_engine_timeout=${results.agenticEngineTimeout}`,
     `model_not_supported_error=${results.modelNotSupportedError}`,
+    `http_400_response_error=${results.http400ResponseError}`,
     `capi_quota_exceeded_error=${results.capiQuotaExceededError}`,
   ];
   fs.appendFileSync(outputFile, lines.join("\n") + "\n");
@@ -138,6 +146,9 @@ function main() {
   if (results.modelNotSupportedError) {
     process.stderr.write("[detect-agent-errors] Detected model configuration error: configured model is invalid or unavailable for this engine/account\n");
   }
+  if (results.http400ResponseError) {
+    process.stderr.write("[detect-agent-errors] Detected HTTP 400 response error in agent log\n");
+  }
   if (results.capiQuotaExceededError) {
     process.stderr.write("[detect-agent-errors] Detected CAPI quota exhaustion: Copilot quota has been exceeded\n");
   }
@@ -149,4 +160,13 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { detectErrors, isCAPIQuotaExceededError, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN, MODEL_NOT_SUPPORTED_PATTERN, CAPI_QUOTA_EXCEEDED_PATTERN };
+module.exports = {
+  detectErrors,
+  isCAPIQuotaExceededError,
+  INFERENCE_ACCESS_ERROR_PATTERN,
+  MCP_POLICY_BLOCKED_PATTERN,
+  AGENTIC_ENGINE_TIMEOUT_PATTERN,
+  MODEL_NOT_SUPPORTED_PATTERN,
+  HTTP_400_RESPONSE_ERROR_PATTERN,
+  CAPI_QUOTA_EXCEEDED_PATTERN,
+};

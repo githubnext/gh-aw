@@ -148,6 +148,82 @@ func TestParseSafeJobsConfig(t *testing.T) {
 	}
 }
 
+func TestParseSafeJobsConfigMax(t *testing.T) {
+	c := NewCompiler()
+
+	jobsMap := map[string]any{
+		"emit-finding": map[string]any{
+			"description": "Emit a quality finding",
+			"max":         float64(25), // YAML numbers are float64 when parsed generically
+			"inputs": map[string]any{
+				"message": map[string]any{
+					"description": "The finding message",
+					"required":    true,
+					"type":        "string",
+				},
+			},
+		},
+		"single-output": map[string]any{
+			"description": "Default max (no max field)",
+			"inputs": map[string]any{
+				"body": map[string]any{
+					"type": "string",
+				},
+			},
+		},
+	}
+
+	result := c.parseSafeJobsConfig(jobsMap)
+
+	if result == nil {
+		t.Fatal("Expected safe-jobs config to be parsed, got nil")
+	}
+
+	finding := result["emit-finding"]
+	if finding == nil {
+		t.Fatal("Expected 'emit-finding' job to exist")
+	}
+	if finding.Max != 25 {
+		t.Errorf("Expected Max to be 25, got %d", finding.Max)
+	}
+
+	single := result["single-output"]
+	if single == nil {
+		t.Fatal("Expected 'single-output' job to exist")
+	}
+	if single.Max != 0 {
+		t.Errorf("Expected Max to be 0 (unset) when not specified, got %d", single.Max)
+	}
+}
+
+func TestParseSafeJobsConfigMaxInvalidIgnored(t *testing.T) {
+	c := NewCompiler()
+
+	jobsMap := map[string]any{
+		"bad-max": map[string]any{
+			"max": float64(-5), // negative — should be ignored
+			"inputs": map[string]any{
+				"x": map[string]any{"type": "string"},
+			},
+		},
+		"zero-max": map[string]any{
+			"max": float64(0), // zero — should be ignored
+			"inputs": map[string]any{
+				"x": map[string]any{"type": "string"},
+			},
+		},
+	}
+
+	result := c.parseSafeJobsConfig(jobsMap)
+
+	if result["bad-max"].Max != 0 {
+		t.Errorf("Expected negative max to be ignored (Max=0), got %d", result["bad-max"].Max)
+	}
+	if result["zero-max"].Max != 0 {
+		t.Errorf("Expected zero max to be ignored (Max=0), got %d", result["zero-max"].Max)
+	}
+}
+
 func TestBuildSafeJobs(t *testing.T) {
 	c := NewCompiler()
 

@@ -73,15 +73,13 @@ If a frontmatter setting appears to be silently ignored, the field name may be m
 
 ### Compilation Failures
 
-- **Won't compile:** check YAML syntax (indentation, colons with spaces), required fields (`on:`), and types against the schema; use `gh aw compile --verbose`.
-- **Lock file not generated:** fix errors (`gh aw compile 2>&1 | grep -i error`) and check write permissions on `.github/workflows/`.
-- **Orphaned lock files:** clear stale `.lock.yml` files with `gh aw compile --purge` after deleting `.md` workflows.
+Common fixes: validate YAML syntax (indentation and `key: value` spacing), confirm required fields such as `on:`, and check types against the schema with `gh aw compile --verbose`.
+
+If no lock file is generated, fix the reported errors (`gh aw compile 2>&1 | grep -i error`) and confirm `.github/workflows/` is writable. If stale `.lock.yml` files remain after deleting a workflow `.md`, remove them with `gh aw compile --purge`.
 
 ## Import and Include Issues
 
-- **Import file not found:** import paths are relative to the repository root (e.g., `.github/workflows/shared/tools.md`); verify with `git status`.
-- **Multiple agent files error:** import only one `.github/agents/` file per workflow.
-- **Circular dependencies:** compilation hangs indicate circular imports — remove the circular reference.
+Import paths are relative to the repository root, for example `.github/workflows/shared/tools.md`; verify the expected files with `git status`. A workflow can import only one file from `.github/agents/`. If compilation hangs, check for circular imports and remove the cycle.
 
 ## Tool Configuration Issues
 
@@ -150,11 +148,11 @@ When integrating OpenCode-compatible engines (such as `crush`), runs can complet
 
 Key gotchas:
 
-- Crush/OpenCode does not auto-discover MCP servers — declare an explicit top-level `mcp` block with routed URLs (`http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`).
-- Use `agent.build.permission` (singular) — `permissions` is silently ignored, leaving tools unavailable.
-- `external_directory` defaults to `ask` in non-interactive mode, which becomes an implicit deny. Set it to `allow` only when access outside the workspace (e.g., `/tmp`, mounted dirs) is required.
-- For direct Copilot endpoints (`api.githubcopilot.com`), do **not** append `/v1`. For other OpenAI-compatible providers, use the provider's documented base path so `/chat/completions` is appended correctly. Keep the local proxy URL (`http://host.docker.internal:10004`) as-is.
-- When using `--enable-api-proxy`, pass `COPILOT_GITHUB_TOKEN` in the execute step's `env:` so the proxy can authenticate:
+Crush/OpenCode does not auto-discover MCP servers, so declare an explicit top-level `mcp` block with routed URLs such as `http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`. Use `agent.build.permission` (singular); `permissions` is silently ignored and leaves tools unavailable. `external_directory` defaults to `ask`, which becomes an implicit deny in non-interactive runs, so set it to `allow` only when you truly need access outside the workspace.
+
+For direct Copilot endpoints (`api.githubcopilot.com`), do **not** append `/v1`. For other OpenAI-compatible providers, use the provider's documented base path so `/chat/completions` is appended correctly. Keep the local proxy URL (`http://host.docker.internal:10004`) unchanged.
+
+When using `--enable-api-proxy`, pass `COPILOT_GITHUB_TOKEN` in the execute step's `env:` so the proxy can authenticate:
 
 ```yaml wrap
 - name: Execute
@@ -332,14 +330,11 @@ network:
 
 ### Other Network Issues
 
-- **URLs appearing as `(redacted)`:** add domains to the allowed list ([Network Permissions](/gh-aw/reference/network/)) — e.g., `allowed: [defaults, "api.example.com"]`.
-- **Cannot download remote imports:** verify network (`curl -I https://raw.githubusercontent.com/github/gh-aw/main/README.md`) and auth (`gh auth status`).
-- **MCP server connection timeout:** use local servers (`command: "node"`, `args: ["./server.js"]`).
+If URLs appear as `(redacted)`, add the relevant domains to the allowed list ([Network Permissions](/gh-aw/reference/network/)), for example `allowed: [defaults, "api.example.com"]`. If remote imports fail to download, verify both network access (`curl -I https://raw.githubusercontent.com/github/gh-aw/main/README.md`) and authentication (`gh auth status`). For MCP server timeouts, prefer local servers such as `command: "node"` with `args: ["./server.js"]`.
 
 ## Cache Issues
 
-- **Cache not restoring:** verify key patterns match (caches expire after 7 days) — `cache: { key: deps-${{ hashFiles('package-lock.json') }}, restore-keys: deps- }`.
-- **Cache memory not persisting:** configure the cache-memory MCP server — `tools.cache-memory.key: memory-${{ github.workflow }}-${{ github.run_id }}`.
+If a cache is not restoring, make sure the key pattern matches; caches expire after 7 days, for example `cache: { key: deps-${{ hashFiles('package-lock.json') }}, restore-keys: deps- }`. If cache memory is not persisting, configure the cache-memory MCP server with a key such as `tools.cache-memory.key: memory-${{ github.workflow }}-${{ github.run_id }}`.
 
 ## Integrity Filtering Blocking Expected Content
 
@@ -381,7 +376,7 @@ max-continuations: 5     # Copilot: autopilot continuations
 
 ### Why Did My Workflow Fail?
 
-Common causes: missing tokens, permission mismatches, network restrictions, disabled tools, or rate limits. The fastest path is to ask an agent with the run URL — it audits logs, identifies the root cause, and suggests fixes.
+Common causes include missing tokens, permission mismatches, network restrictions, disabled tools, and rate limits. The quickest path is usually to give an agent the run URL so it can inspect logs and suggest a fix.
 
 Using Copilot Chat (requires [agentic authoring setup](/gh-aw/guides/agentic-authoring/#configuring-your-repository)):
 
@@ -396,7 +391,7 @@ Debug this workflow run using https://raw.githubusercontent.com/github/gh-aw/mai
 The failed workflow run is at https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
-For manual investigation: `gh aw audit <run-id>`, `gh aw logs`, inspect `.lock.yml`. See the [Debugging Workflows](/gh-aw/troubleshooting/debugging/) guide for a full walkthrough.
+For manual investigation, use `gh aw audit <run-id>` and `gh aw logs`, then inspect the generated `.lock.yml`. See the [Debugging Workflows](/gh-aw/troubleshooting/debugging/) guide for a full walkthrough.
 
 ### Enable Debug Logging
 

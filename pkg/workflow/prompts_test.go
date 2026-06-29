@@ -369,6 +369,51 @@ func TestDailyFormalSpecVerifierAllowsReadOnlyFileInspection(t *testing.T) {
 	}
 }
 
+func TestDailyFormalSpecVerifierHasToolBudgetAwareness(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-formal-spec-verifier.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	if !strings.Contains(workflow, "If you are approaching the tool call limit, emit a partial result immediately rather than continuing to gather more data.") {
+		t.Fatal("Expected daily-formal-spec-verifier workflow to contain tool budget awareness instruction")
+	}
+	if !strings.Contains(workflow, "report_incomplete") {
+		t.Fatal("Expected daily-formal-spec-verifier workflow to mention report_incomplete as budget-exhaustion fallback")
+	}
+}
+
+func TestLayoutSpecMaintainerHasToolBudgetAwareness(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "layout-spec-maintainer.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	for _, expected := range []string{
+		"If you are approaching the tool call limit, emit a partial result immediately rather than continuing to gather more data.",
+		"run at most **50 lock files total**",
+		"Early emission",
+	} {
+		if !strings.Contains(workflow, expected) {
+			t.Fatalf("Expected layout-spec-maintainer workflow to contain %q", expected)
+		}
+	}
+}
+
 func TestDailySPDDSpecPlannerAllowsReadOnlyFileInspection(t *testing.T) {
 	repoRoot, err := findRepoRoot()
 	if err != nil {

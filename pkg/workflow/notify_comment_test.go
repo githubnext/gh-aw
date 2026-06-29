@@ -1337,8 +1337,11 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(allSteps, "generate_usage_activity_summary.cjs") {
 		t.Errorf("Expected usage artifact collection to generate activity summary aggregates.\nGenerated steps:\n%s", allSteps)
 	}
-	if !strings.Contains(allSteps, "node ${RUNNER_TEMP}/gh-aw/actions/generate_usage_activity_summary.cjs") {
-		t.Errorf("Expected usage activity summary script path to use shell-safe RUNNER_TEMP form (not ${{ runner.temp }} interpolation).\nGenerated steps:\n%s", allSteps)
+	if !strings.Contains(allSteps, `node "${RUNNER_TEMP}/gh-aw/actions/generate_usage_activity_summary.cjs"`) {
+		t.Errorf("Expected usage activity summary script path to use quoted shell-safe RUNNER_TEMP form to prevent word-splitting (SC2086).\nGenerated steps:\n%s", allSteps)
+	}
+	if strings.Contains(allSteps, "node ${RUNNER_TEMP}/gh-aw/actions/generate_usage_activity_summary.cjs") {
+		t.Errorf("Usage activity summary script path must use double-quoted RUNNER_TEMP to prevent word-splitting (SC2086).\nGenerated steps:\n%s", allSteps)
 	}
 	if strings.Contains(allSteps, "node ${{ runner.temp }}/gh-aw/actions/generate_usage_activity_summary.cjs") {
 		t.Errorf("Usage activity summary script path must not inline ${{ runner.temp }} in run block.\nGenerated steps:\n%s", allSteps)
