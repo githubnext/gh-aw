@@ -198,7 +198,7 @@
   },
   {
     "date": "2026-06-24",
-    "workflow_name": "Design Decision Gate \ud83c\udfd7\ufe0f",
+    "workflow_name": "Design Decision Gate 🏗️",
     "workflow_file": "design-decision-gate",
     "total_aic_analyzed": 432.592,
     "runs_audited": 7,
@@ -215,5 +215,15 @@
     "recommendations_count": 4,
     "subagent_candidates": 0,
     "estimated_aic_savings_per_run": 15
+  },
+  {
+    "date": "2026-06-29",
+    "workflow_name": "Contribution Check",
+    "workflow_file": "contribution-check",
+    "total_aic_analyzed": 587.835,
+    "runs_audited": 30,
+    "recommendations_count": 5,
+    "subagent_candidates": 0,
+    "estimated_aic_savings_per_run": 40
   }
 ]
