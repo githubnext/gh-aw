@@ -5,6 +5,8 @@ package parser
 import (
 	"strings"
 	"testing"
+
+	"github.com/santhosh-tekuri/jsonschema/v6/kind"
 )
 
 func TestExtractAdditionalPropertyNames(t *testing.T) {
@@ -201,6 +203,88 @@ another_invalid: value2`
 				t.Errorf("Expected Column=%d, got Column=%d", tt.expectedCol, location.Column)
 			}
 		})
+	}
+}
+
+func TestLocateJSONPathForPathInfoUsesAdditionalPropertiesErrorKind(t *testing.T) {
+	yamlContent := `on:
+  push:
+    branches: [main]
+  foobar: invalid`
+
+	info := JSONPathInfo{
+		Path:      "/on",
+		Message:   "this message is intentionally not parseable",
+		ErrorKind: &kind.AdditionalProperties{Properties: []string{"foobar"}},
+	}
+
+	location := LocateJSONPathForPathInfo(yamlContent, info)
+	if !location.Found {
+		t.Fatal("expected location to be found")
+	}
+	if location.Line != 4 || location.Column != 3 {
+		t.Fatalf("expected additional property location at line 4, col 3; got line %d, col %d", location.Line, location.Column)
+	}
+}
+
+func TestLocateJSONPathForPathInfoSkipsRegexForNonAdditionalPropertiesErrorKind(t *testing.T) {
+	yamlContent := `on:
+  push:
+    branches: [main]
+  foobar: invalid`
+
+	info := JSONPathInfo{
+		Path:      "/on",
+		Message:   "at '/on': additional properties 'foobar' not allowed",
+		ErrorKind: &kind.Type{},
+	}
+
+	location := LocateJSONPathForPathInfo(yamlContent, info)
+	expected := LocateJSONPathInYAML(yamlContent, "/on")
+	if location != expected {
+		t.Fatalf("expected fallback to LocateJSONPathInYAML location %+v, got %+v", expected, location)
+	}
+}
+
+func TestLocateJSONPathForPathInfoUsesRegexFallbackForGroupErrorKind(t *testing.T) {
+	yamlContent := `on:
+  push:
+    branches: [main]
+  foobar: invalid`
+
+	info := JSONPathInfo{
+		Path:      "/on",
+		Message:   "at '/on': additional properties 'foobar' not allowed",
+		ErrorKind: &kind.Group{},
+	}
+
+	location := LocateJSONPathForPathInfo(yamlContent, info)
+	if !location.Found {
+		t.Fatal("expected location to be found")
+	}
+	if location.Line != 4 || location.Column != 3 {
+		t.Fatalf("expected additional property location at line 4, col 3; got line %d, col %d", location.Line, location.Column)
+	}
+}
+
+func TestLocateJSONPathForPathInfoUsesRegexFallbackForOneOfErrorKind(t *testing.T) {
+	yamlContent := `on:
+  push:
+    branches: [main]
+  foobar: invalid`
+
+	info := JSONPathInfo{
+		Path:      "/on",
+		Message:   "at '/on': 'oneOf' failed, none matched\n- at '/on': additional properties 'foobar' not allowed\n- at '/on': got object, want null",
+		ErrorKind: &kind.OneOf{},
+	}
+
+	location := LocateJSONPathForPathInfo(yamlContent, info)
+	if !location.Found {
+		t.Fatal("expected location to be found")
+	}
+	if location.Line != 4 || location.Column != 3 {
+		t.Fatalf("expected additional property location at line 4, col 3; got line %d, col %d", location.Line, location.Column)
 	}
 }
 

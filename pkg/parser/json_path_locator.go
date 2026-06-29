@@ -120,13 +120,10 @@ func LocateJSONPathInYAMLWithAdditionalProperties(yamlContent string, jsonPath s
 // It uses ErrorKind for structural property-name extraction when available, and falls back to
 // regex parsing of the error message string for backward compatibility.
 func LocateJSONPathForPathInfo(yamlContent string, info JSONPathInfo) JSONPathLocation {
-	if info.Path == "" {
-		if names := additionalPropertyNamesFor(info); len(names) > 0 {
+	if names := additionalPropertyNamesFor(info); len(names) > 0 {
+		if info.Path == "" {
 			return findFirstAdditionalProperty(yamlContent, names)
 		}
-		return JSONPathLocation{Line: 1, Column: 1, Found: true}
-	}
-	if names := additionalPropertyNamesFor(info); len(names) > 0 {
 		return findAdditionalPropertyInNestedContext(yamlContent, info.Path, names)
 	}
 	return LocateJSONPathInYAML(yamlContent, info.Path)
@@ -138,6 +135,14 @@ func additionalPropertyNamesFor(info JSONPathInfo) []string {
 	if info.ErrorKind != nil {
 		if ap, ok := info.ErrorKind.(*kind.AdditionalProperties); ok {
 			return ap.Properties
+		}
+		switch info.ErrorKind.(type) {
+		case *kind.OneOf, *kind.AnyOf, *kind.AllOf, *kind.Group:
+			// Composite errors may wrap an additional-properties leaf; regex fallback
+			// preserves the historical location behavior for these aggregate kinds.
+			return extractAdditionalPropertyNames(info.Message)
+		default:
+			return nil
 		}
 	}
 	return extractAdditionalPropertyNames(info.Message)

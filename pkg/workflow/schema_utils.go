@@ -7,7 +7,8 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
-// compileSchema compiles a JSON schema from a JSON string and caches it at the given URL.
+// compileSchema parses schemaJSON and compiles it as a jsonschema.Schema registered
+// under schemaURL.
 // It is a shared helper used by all schema-compilation sites in this package to avoid
 // repeating the NewCompiler → AddResource → Compile boilerplate.
 func compileSchema(schemaJSON, schemaURL string) (*jsonschema.Schema, error) {

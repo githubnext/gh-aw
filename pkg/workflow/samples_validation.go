@@ -83,7 +83,10 @@ func getCompiledToolSchemas() (map[string]toolSchemaEntry, error) {
 				return
 			}
 			var rawMap map[string]any
-			_ = json.Unmarshal(t.InputSchema, &rawMap)
+			if err := json.Unmarshal(t.InputSchema, &rawMap); err != nil {
+				compiledToolSchemasErr = fmt.Errorf("failed to parse inputSchema for tool %q: %w", t.Name, err)
+				return
+			}
 			out[t.Name] = toolSchemaEntry{raw: rawMap, compiled: schema}
 		}
 		compiledToolSchemas = out
