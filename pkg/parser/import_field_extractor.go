@@ -56,6 +56,7 @@ type importAccumulator struct {
 	caches                   []string
 	features                 []map[string]any
 	models                   []map[string][]string // model alias maps from each imported file (appended in import order)
+	modelPolicies            []map[string][]string // model policy sets from each imported file (appended in import order)
 	modelCosts               []map[string]any      // model pricing overlays from each imported file (appended in import order)
 	runInstallScripts        bool                  // true if any imported workflow sets runtimes.node.run-install-scripts: true
 	agentFile                string
@@ -88,6 +89,11 @@ type importAccumulator struct {
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
 	warnings []string
 }
+
+const (
+	modelPolicyAllowedKey = "allowed"
+	modelPolicyBlockedKey = "blocked"
+)
 
 // newImportAccumulator creates and initializes a new importAccumulator.
 // Maps (botsSet, etc.) are explicitly initialized to prevent nil map panics
@@ -583,7 +589,7 @@ func (acc *importAccumulator) extractFeatureAndObservabilityFields(fm map[string
 	acc.mergeLabels(fm)
 	acc.appendCacheField(fm)
 	acc.appendFeaturesField(fm)
-	acc.appendModelsField(fm)
+	acc.appendModelsField(fm, fullPath)
 	acc.extractRunInstallScripts(fm, fullPath)
 	acc.appendObservabilityField(fm, fullPath)
 }
@@ -612,48 +618,149 @@ func (acc *importAccumulator) appendFeaturesField(fm map[string]any) {
 	}
 }
 
-func (acc *importAccumulator) appendModelsField(fm map[string]any) {
+func (acc *importAccumulator) appendModelsField(fm map[string]any, importPath string) {
 	modelsContent, err := extractFieldJSONFromMap(fm, "models", "{}")
 	if err != nil || modelsContent == "" || modelsContent == "{}" {
 		return
 	}
 	var rawModels map[string]any
 	if jsonErr := json.Unmarshal([]byte(modelsContent), &rawModels); jsonErr != nil {
+		acc.warnings = append(acc.warnings, fmt.Sprintf("import %q: models field is not a valid object; skipping invalid value", importPath))
 		return
 	}
-	if _, hasProviders := rawModels["providers"]; hasProviders {
-		acc.modelCosts = append(acc.modelCosts, rawModels)
-		if providers, ok := rawModels["providers"].(map[string]any); ok {
-			parserLog.Printf("Extracted model costs from import: providers=%d", len(providers))
-		} else {
-			parserLog.Printf("Extracted model costs from import")
+	if modelPolicy := normalizeModelPolicies(rawModels, importPath, &acc.warnings); len(modelPolicy) > 0 {
+		acc.modelPolicies = append(acc.modelPolicies, modelPolicy)
+		parserLog.Printf("Extracted model policy from import: allowed=%d, blocked=%d", len(modelPolicy["allowed"]), len(modelPolicy["blocked"]))
+	}
+	if providers, hasProviders := rawModels["providers"]; hasProviders {
+		if providerMap, ok := sanitizeModelProvidersForCosts(providers, importPath, &acc.warnings); ok {
+			acc.modelCosts = append(acc.modelCosts, map[string]any{"providers": providerMap})
+			parserLog.Printf("Extracted model costs from import: providers=%d", len(providerMap))
 		}
-		return
 	}
 
-	modelsMap := normalizeModelAliases(rawModels)
+	aliasModels := make(map[string]any, len(rawModels))
+	for key, value := range rawModels {
+		// providers is reserved for model-cost overlays and should not be treated
+		// as an alias key, even when aliases and providers coexist.
+		if key == "providers" || isModelPolicyKey(key) {
+			continue
+		}
+		aliasModels[key] = value
+	}
+	if len(aliasModels) == 0 {
+		return
+	}
+	modelsMap := normalizeModelAliases(aliasModels)
 	if len(modelsMap) > 0 {
 		acc.models = append(acc.models, modelsMap)
 		parserLog.Printf("Extracted model aliases from import: %d entries", len(modelsMap))
 	}
 }
 
+func normalizeModelPolicies(rawModels map[string]any, importPath string, warnings *[]string) map[string][]string {
+	parse := func(key string) []string {
+		value, exists := rawModels[key]
+		if !exists {
+			return nil
+		}
+		return parseModelPolicyField(value, key, importPath, warnings)
+	}
+	allowed := parse(modelPolicyAllowedKey)
+	blocked := parse(modelPolicyBlockedKey)
+	if len(allowed) == 0 && len(blocked) == 0 {
+		return nil
+	}
+	return map[string][]string{
+		modelPolicyAllowedKey: allowed,
+		modelPolicyBlockedKey: blocked,
+	}
+}
+
 func normalizeModelAliases(rawModels map[string]any) map[string][]string {
 	modelsMap := make(map[string][]string, len(rawModels))
 	for k, v := range rawModels {
-		patterns, ok := v.([]any)
-		if !ok {
+		strs := parseStringSliceField(v, true)
+		if len(strs) == 0 {
 			continue
-		}
-		strs := make([]string, 0, len(patterns))
-		for _, p := range patterns {
-			if s, ok := p.(string); ok {
-				strs = append(strs, s)
-			}
 		}
 		modelsMap[k] = strs
 	}
 	return modelsMap
+}
+
+// parseModelPolicyField parses one imported models policy field as a string list.
+// Invalid field shapes or entries are ignored and appended to warnings.
+func parseModelPolicyField(value any, fieldName, importPath string, warnings *[]string) []string {
+	values, ok := value.([]any)
+	if !ok {
+		*warnings = append(*warnings, fmt.Sprintf("import %q: models.%s must be an array; skipping invalid value", importPath, fieldName))
+		return nil
+	}
+	result := make([]string, 0, len(values))
+	for _, v := range values {
+		s, ok := v.(string)
+		if !ok {
+			*warnings = append(*warnings, fmt.Sprintf("import %q: models.%s contains a non-string entry; skipping invalid entry", importPath, fieldName))
+			continue
+		}
+		if s == "" {
+			*warnings = append(*warnings, fmt.Sprintf("import %q: models.%s contains an empty string entry; skipping invalid entry", importPath, fieldName))
+			continue
+		}
+		result = append(result, s)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+// sanitizeModelProvidersForCosts validates models.providers from an import.
+// It returns the provider map and true when the input is a non-empty object; otherwise false.
+func sanitizeModelProvidersForCosts(providers any, importPath string, warnings *[]string) (map[string]any, bool) {
+	providerMap, ok := providers.(map[string]any)
+	if !ok || len(providerMap) == 0 {
+		*warnings = append(*warnings, fmt.Sprintf("import %q: models.providers must be a non-empty object; skipping invalid value", importPath))
+		return nil, false
+	}
+	sanitizedProviders := make(map[string]any, len(providerMap))
+	for providerName, providerValue := range providerMap {
+		if isModelPolicyKey(providerName) || providerName == "blocked" {
+			*warnings = append(*warnings, fmt.Sprintf("import %q: models.providers.%s is reserved for policy and ignored in cost data", importPath, providerName))
+			continue
+		}
+		sanitizedProviders[providerName] = providerValue
+	}
+	if len(sanitizedProviders) == 0 {
+		*warnings = append(*warnings, fmt.Sprintf("import %q: models.providers must contain at least one non-policy provider key", importPath))
+		return nil, false
+	}
+	return sanitizedProviders, true
+}
+
+func parseStringSliceField(value any, keepEmpty bool) []string {
+	values, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	result := make([]string, 0, len(values))
+	for _, v := range values {
+		if s, ok := v.(string); ok {
+			if s == "" && !keepEmpty {
+				continue
+			}
+			result = append(result, s)
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+func isModelPolicyKey(key string) bool {
+	return key == modelPolicyAllowedKey || key == modelPolicyBlockedKey
 }
 
 func (acc *importAccumulator) extractRunInstallScripts(fm map[string]any, fullPath string) {
@@ -737,6 +844,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedEnvSources:              acc.envSources,
 		MergedFeatures:                acc.features,
 		MergedModels:                  acc.models,
+		MergedModelPolicies:           acc.modelPolicies,
 		MergedModelCosts:              acc.modelCosts,
 		MergedObservability:           mergeObservabilityConfigs(acc.observabilityConfigs),
 		ImportedFiles:                 topologicalOrder,

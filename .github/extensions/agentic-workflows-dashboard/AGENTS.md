@@ -176,5 +176,6 @@ Get-Content "<log-path>" | Select-String "[dashboard-cli]" -SimpleMatch
 ## Known Pitfalls
 
 - **`session.workspacePath` and `process.cwd()` are NOT the git repo root.** `session.workspacePath` points to the session-state folder (`~/.copilot/session-state/<id>`). `process.cwd()` resolves to the Copilot runtime directory (`~/.copilot`). The git repo root must be derived from `__dirname`: for a project-scoped extension at `.github/extensions/<name>/`, use `resolve(__dirname, "../../..")`.
+- **Logs are stored in a shared user-level cache directory** (`~/.cache/gh-aw/logs/<owner>/<repo>/`), not inside the workspace. This ensures that when a coding agent starts a fresh session with a new workspace checkout, previously downloaded run artifacts are reused without re-downloading. The shared dir is resolved at startup from `git remote get-url origin`; it falls back to `<workspacePath>/.github/aw/logs` when the remote cannot be determined.
 - **`detached: true` on Windows** causes spawned processes to allocate a new console, which can redirect their stdout to that console instead of the pipe. Use `windowsHide: true` without `detached: true` for subprocess spawning.
 - **Root `.js` files in git** — they are committed alongside the TS sources. After editing `src/`, run `npm run build:ts` and commit both.

@@ -21,6 +21,8 @@ permissions:
   actions: read
   
 name: Smoke Claude
+models:
+  blocked: ["*opus*"]
 max-turns: 100
 engine:
   id: claude

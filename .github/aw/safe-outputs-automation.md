@@ -40,7 +40,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
       max: 10                         # Optional: max assets (default: 10)
   ```
 
-  Publishes files to an orphaned git branch for persistent storage and URL-addressable embedding. Default allowed extensions include common non-executable types. Default max file size is 10MB (10240 KB), configurable via `max-size`. **Use this for images, charts, and screenshots that need embeddable URLs in issues/PRs/discussions.**
+  Default allowed extensions are common non-executable types; default max file size is 10MB (10240 KB), configurable via `max-size`. **Use this for images, charts, and screenshots that need embeddable URLs in issues/PRs/discussions.**
 - `upload-artifact:` - Upload files as run-scoped GitHub Actions artifacts (recommended for temporary run artifacts and attachment-style outputs)
 
   ```yaml
@@ -60,7 +60,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
         if-no-files: "ignore"         # "error" or "ignore" when no files match (default: "error")
   ```
 
-  Uploads files as run-scoped GitHub Actions artifacts. Artifacts are temporary and tied to the workflow run, automatically cleaned up when they expire. Agents call `upload_artifact` with a `name` and `path`. `retention-days` and `skip-archive` are fixed at the workflow level (templatable via expressions); the agent cannot override them. **Use this for temporary downloadable artifacts and attachment-style arbitrary data** (for example when a comment/issue should link to a generated file bundle). Set `skip-archive: true` when downloads should be served as direct files without uncompressing. Use `upload-asset` instead when you need stable embeddable URLs (images/charts in GitHub content).
+  Artifacts are run-scoped and auto-cleaned when they expire. Agents call `upload_artifact` with a `name` and `path`. `retention-days` and `skip-archive` are fixed at the workflow level (templatable via expressions); the agent cannot override them. **Use this for temporary downloadable artifacts and attachment-style arbitrary data** (e.g. a comment/issue linking to a generated file bundle). Set `skip-archive: true` to serve downloads as direct files without uncompressing. Use `upload-asset` instead when you need stable embeddable URLs (images/charts in GitHub content).
 - `dispatch-workflow:` - Trigger other workflows with inputs
 
   ```yaml
@@ -147,7 +147,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
         summary: "Awaiting agent output"  # Fallback summary (max 65535 chars)
   ```
 
-  Requires `checks: write` permission, which is added automatically. Agents call `create_check_run` with `conclusion` (e.g., `success`, `failure`, `neutral`), `title`, `summary`, and optional `annotations`. Useful for reporting structured analysis results (security findings, code quality, test outcomes) directly on commits and pull requests.
+  Requires `checks: write` (added automatically). Agents call `create_check_run` with `conclusion` (e.g., `success`, `failure`, `neutral`), `title`, `summary`, and optional `annotations`. Reports structured results (security findings, code quality, test outcomes) directly on commits and PRs.
 
 - `create-agent-session:` - Create GitHub Copilot coding agent sessions
 
@@ -251,7 +251,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
       report-as-issue: false          # Optional: report noop as issue (default: true)
   ```
 
-  The noop safe-output provides a fallback mechanism ensuring workflows never complete silently. When enabled (automatically by default), agents can emit human-visible messages even when no other actions are required (e.g., "Analysis complete - no issues found"). This ensures every workflow run produces visible output.
+  Fallback ensuring workflows never complete silently. Agents emit human-visible messages even when no other action is required (e.g., "Analysis complete - no issues found").
 - `missing-tool:` - Report missing tools or functionality (auto-enabled)
 
   ```yaml
@@ -262,7 +262,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
       labels: [tool-request]          # Optional: labels for created issues
   ```
 
-  The missing-tool safe-output allows agents to report when they need tools or functionality not currently available. This is automatically enabled by default and helps track feature requests from agents. When `create-issue` is true, missing tool reports create or update GitHub issues for tracking.
+  Lets agents report tools or functionality they need but lack; tracks feature requests. When `create-issue` is true, reports create or update GitHub issues.
 - `missing-data:` - Report missing data required to complete tasks (auto-enabled)
 
   ```yaml
@@ -273,7 +273,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
       labels: [data-request]          # Optional: labels for created issues
   ```
 
-  The missing-data safe-output allows agents to report when required data or information is unavailable. This is automatically enabled by default. When `create-issue` is true, missing data reports create or update GitHub issues for tracking.
+  Lets agents report when required data or information is unavailable. When `create-issue` is true, reports create or update GitHub issues for tracking.
 
 - `report-incomplete:` - Signal that the task could not be completed due to an infrastructure or tool failure (auto-enabled)
 

@@ -21,7 +21,7 @@
             <span class="Label Label--accent">Copilot Canvas</span>
             <span class="Label Label--success" x-cloak x-show="cliStatus && cliStatus.available">gh aw <span x-text="cliStatus?.version"></span> · <span x-text="cliSourceLabel(cliStatus)"></span></span>
             <span class="Label Label--secondary" x-cloak x-show="loadingCliStatus">Checking gh aw…</span>
-            <button class="btn btn-sm ms-1" @click="refresh()">↻ Refresh</button>
+            <button class="btn btn-sm" @click="refresh()">↻ Refresh</button>
           </div>
         </div>
         <nav class="UnderlineNav mt-3" aria-label="Repository">
@@ -59,7 +59,7 @@
               <div class="color-fg-muted text-small">Runs, usage, and logs commands reuse the same window and timeout.</div>
             </div>
             <div class="d-flex flex-wrap flex-items-center gap-2">
-              <div class="BtnGroup" role="group" aria-label="Report window">
+              <div class="d-flex flex-wrap gap-2" role="group" aria-label="Report window">
                 <template x-for="window in reportWindows" :key="window.id">
                   <button type="button" :class="reportWindowClass(window.id)" @click="selectReportWindow(window.id)" x-text="window.label"></button>
                 </template>

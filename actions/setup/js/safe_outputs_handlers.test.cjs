@@ -760,6 +760,76 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
+    it("injects GITHUB_WORKSPACE into GIT_CONFIG env vars for safe.directory before branch pinning", async () => {
+      const prevCount = process.env.GIT_CONFIG_COUNT;
+      const prevKeys = Object.fromEntries(Object.entries(process.env).filter(([k]) => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k)));
+      // Clear any pre-existing GIT_CONFIG_COUNT so the injection starts at index 0.
+      delete process.env.GIT_CONFIG_COUNT;
+      for (const key of Object.keys(prevKeys)) delete process.env[key];
+      try {
+        await handlers.createPullRequestHandler({
+          branch: "feature-branch",
+          title: "Test PR",
+          body: "Test description",
+        });
+
+        const count = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10);
+        const injected = [];
+        for (let i = 0; i < count; i++) {
+          if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory") {
+            injected.push(process.env[`GIT_CONFIG_VALUE_${i}`]);
+          }
+        }
+        expect(injected).toContain(testWorkspaceDir);
+      } finally {
+        // Restore original env state.
+        if (prevCount === undefined) delete process.env.GIT_CONFIG_COUNT;
+        else process.env.GIT_CONFIG_COUNT = prevCount;
+        // Remove any GIT_CONFIG_KEY/VALUE vars added during the test, then restore originals.
+        for (const key of Object.keys(process.env).filter(k => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k))) {
+          delete process.env[key];
+        }
+        for (const [key, value] of Object.entries(prevKeys)) process.env[key] = value;
+      }
+    });
+
+    it("does not add duplicate safe.directory entries on repeated handler calls with the same path", async () => {
+      const prevCount = process.env.GIT_CONFIG_COUNT;
+      const prevKeys = Object.fromEntries(Object.entries(process.env).filter(([k]) => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k)));
+      delete process.env.GIT_CONFIG_COUNT;
+      for (const key of Object.keys(prevKeys)) delete process.env[key];
+      try {
+        // Two calls simulate a retry or concurrent invocation with the same workspace path.
+        await handlers.createPullRequestHandler({
+          branch: "feature-branch",
+          title: "Test PR",
+          body: "Test description",
+        });
+        await handlers.createPullRequestHandler({
+          branch: "feature-branch",
+          title: "Test PR",
+          body: "Test description",
+        });
+
+        const count = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10);
+        const safeDirectories = [];
+        for (let i = 0; i < count; i++) {
+          if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory") {
+            safeDirectories.push(process.env[`GIT_CONFIG_VALUE_${i}`]);
+          }
+        }
+        // The workspace path must appear exactly once — no duplicate growth.
+        expect(safeDirectories.filter(d => d === testWorkspaceDir)).toHaveLength(1);
+      } finally {
+        if (prevCount === undefined) delete process.env.GIT_CONFIG_COUNT;
+        else process.env.GIT_CONFIG_COUNT = prevCount;
+        for (const key of Object.keys(process.env).filter(k => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k))) {
+          delete process.env[key];
+        }
+        for (const [key, value] of Object.entries(prevKeys)) process.env[key] = value;
+      }
+    });
+
     it("should allow bundle transport to fall back to HEAD when the requested branch is missing locally", async () => {
       const { targetRepoDir, baseCommitSha } = createRepoWithHeadCommitAndMissingRequestedBranch();
       const previousWorkspace = process.env.GITHUB_WORKSPACE;
@@ -1262,6 +1332,37 @@ describe("safe_outputs_handlers", () => {
 
       // Should not have appended to safe output since patch generation failed
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("injects GITHUB_WORKSPACE into GIT_CONFIG env vars for safe.directory before push branch pinning", async () => {
+      const prevCount = process.env.GIT_CONFIG_COUNT;
+      const prevKeys = Object.fromEntries(Object.entries(process.env).filter(([k]) => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k)));
+      // Clear any pre-existing GIT_CONFIG_COUNT so the injection starts at index 0.
+      delete process.env.GIT_CONFIG_COUNT;
+      for (const key of Object.keys(prevKeys)) delete process.env[key];
+      try {
+        await handlers.pushToPullRequestBranchHandler({
+          branch: "feature-branch",
+        });
+
+        const count = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10);
+        const injected = [];
+        for (let i = 0; i < count; i++) {
+          if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory") {
+            injected.push(process.env[`GIT_CONFIG_VALUE_${i}`]);
+          }
+        }
+        expect(injected).toContain(testWorkspaceDir);
+      } finally {
+        // Restore original env state.
+        if (prevCount === undefined) delete process.env.GIT_CONFIG_COUNT;
+        else process.env.GIT_CONFIG_COUNT = prevCount;
+        // Remove any GIT_CONFIG_KEY/VALUE vars added during the test, then restore originals.
+        for (const key of Object.keys(process.env).filter(k => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k))) {
+          delete process.env[key];
+        }
+        for (const [key, value] of Object.entries(prevKeys)) process.env[key] = value;
+      }
     });
 
     it("should require explicit pull_request_number when push_to_pull_request_branch target is '*'", async () => {

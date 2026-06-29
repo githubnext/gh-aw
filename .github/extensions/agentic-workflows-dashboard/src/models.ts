@@ -59,3 +59,16 @@ export interface CLIStatus {
   installUrl?: string;
   message?: string;
 }
+
+export interface AuditFinding {
+  severity?: string;
+  priority?: string;
+  title?: string;
+  description?: string;
+}
+
+export interface AuditReport {
+  key_findings?: AuditFinding[];
+  overview?: Record<string, unknown>;
+  metrics?: Record<string, unknown>;
+}

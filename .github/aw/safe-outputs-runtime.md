@@ -32,7 +32,7 @@ description: Safe-output reference for runtime defaults, custom jobs, scripts, a
               curl -H "Authorization: $API_KEY" -d "$MESSAGE" https://api.example.com/notify
   ```
 
-  Custom safe-output jobs define post-processing GitHub Actions jobs registered as MCP tools. Agents call the tool by its normalized name (dashes converted to underscores, e.g., `send_notification`). The job runs after the agent completes with access to `$GH_AW_AGENT_OUTPUT` (the path to agent output JSON). Use this to integrate with Slack, Discord, external APIs, databases, or any service requiring secrets. Import from shared files using the `imports:` field.
+  Post-processing GitHub Actions jobs registered as MCP tools. Agents call the tool by its normalized name (dashes → underscores, e.g., `send_notification`). The job runs after the agent completes with access to `$GH_AW_AGENT_OUTPUT` (agent output JSON path). Use to integrate Slack, Discord, external APIs, databases, or any service requiring secrets. Import from shared files via `imports:`.
 
 - `scripts:` - Inline JavaScript handlers running inside the safe-outputs job handler loop
 
@@ -68,7 +68,7 @@ description: Safe-output reference for runtime defaults, custom jobs, scripts, a
           API_KEY: ${{ secrets.API_KEY }} # Optional: environment variables for the injected step
   ```
 
-  Actions are resolved at compile time — the compiler fetches `action.yml` and parses inputs automatically, exposing them as MCP tool parameters. The agent calls the action by its normalized name (dashes converted to underscores). Each action runs as an injected step in the safe-outputs job. Local actions (`./path/to/action`) are also supported.
+  Resolved at compile time — the compiler fetches `action.yml`, parses inputs, and exposes them as MCP tool parameters. The agent calls the action by its normalized name (dashes → underscores). Each action runs as an injected step in the safe-outputs job. Local actions (`./path/to/action`) are also supported.
 
 **Global Safe Output Configuration:**
 - `github-token:` - Custom GitHub token for all safe output jobs

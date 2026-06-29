@@ -17,7 +17,7 @@ description: Safe-output reference for update, label, milestone, project, releas
       target-repo: "owner/repo"       # Optional: cross-repository
   ```
 
-  **Note:** While `update-issue` technically supports changing status between 'open' and 'closed', use `close-issue` instead when you want to close an issue with a closing comment. Use `update-issue` primarily for changing the title, body, labels, assignees, or milestone without closing.
+  **Note:** `update-issue` can change status between 'open'/'closed', but use `close-issue` to close with a comment. Use `update-issue` for title, body, labels, assignees, or milestone changes without closing.
 - `update-pull-request:` - Update PR title or body
 
   ```yaml
@@ -155,7 +155,7 @@ description: Safe-output reference for update, label, milestone, project, releas
       target-repo: "owner/repo"          # Optional: cross-repository
   ```
 
-  Links issues as sub-issues using GitHub's parent-child relationships. Agent output includes `parent_issue_number` and `sub_issue_number`. Use with `create-issue` temporary IDs or existing issue numbers.
+  Links issues via GitHub's parent-child relationships. Agent output includes `parent_issue_number` and `sub_issue_number`. Use with `create-issue` temporary IDs or existing issue numbers.
 - `create-project:` - Create a new GitHub Project board with optional fields and views
 
   ```yaml
@@ -167,7 +167,7 @@ description: Safe-output reference for update, label, milestone, project, releas
       title-prefix: "[ai] "           # Optional: prefix for project titles
   ```
 
-  Can optionally specify custom fields, project views, and an initial item to add. Requires PAT/App token with Projects permissions (`GH_AW_PROJECT_GITHUB_TOKEN`); `GITHUB_TOKEN` cannot access Projects v2 API. Not supported for cross-repository operations.
+  Optionally specify custom fields, project views, and an initial item. Requires PAT/App token with Projects permissions (`GH_AW_PROJECT_GITHUB_TOKEN`); `GITHUB_TOKEN` cannot access Projects v2 API. No cross-repository support.
 - `update-project:` - Add items to GitHub Projects, update custom fields, manage project structure
 
   ```yaml

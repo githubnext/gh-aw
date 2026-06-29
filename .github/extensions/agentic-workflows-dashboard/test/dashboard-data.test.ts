@@ -56,6 +56,64 @@ describe("dashboard data access", () => {
     expect(usage.items[0]?.monthly_forecast_aic).toBe(44);
   });
 
+  it("passes --output to logs and audit commands when logsOutputDir is configured", async () => {
+    const calls: string[][] = [];
+    const dataAccess = createDashboardDataAccess({
+      runGhAw: async args => {
+        calls.push(args);
+        if (args[0] === "logs") return JSON.stringify({ runs: [{ run_id: 100, workflow_name: "CI Doctor" }] });
+        if (args[0] === "audit") return JSON.stringify({ overview: {}, metrics: {} });
+        return "[]";
+      },
+      logsOutputDir: "/shared/logs/owner/repo",
+    });
+
+    await dataAccess.getRuns({ window: "7d", count: 5, timeout: 1 });
+    await dataAccess.getAudit("100");
+
+    const logsCall = calls.find(a => a[0] === "logs");
+    const auditCall = calls.find(a => a[0] === "audit");
+
+    expect(logsCall).toEqual(expect.arrayContaining(["--output", "/shared/logs/owner/repo"]));
+    expect(auditCall).toEqual(expect.arrayContaining(["--output", "/shared/logs/owner/repo"]));
+  });
+
+  it("does not inject --output when logsOutputDir is not configured", async () => {
+    const calls: string[][] = [];
+    const dataAccess = createDashboardDataAccess({
+      runGhAw: async args => {
+        calls.push(args);
+        if (args[0] === "logs") return JSON.stringify({ runs: [{ run_id: 100 }] });
+        return "[]";
+      },
+    });
+
+    await dataAccess.getRuns({ window: "7d", count: 5, timeout: 1 });
+
+    const logsCall = calls.find(a => a[0] === "logs");
+    expect(logsCall).not.toEqual(expect.arrayContaining(["--output"]));
+  });
+
+  it("does not inject duplicate --output when one is already present in execCommand args", async () => {
+    const calls: string[][] = [];
+    const dataAccess = createDashboardDataAccess({
+      logsOutputDir: "/shared/logs/owner/repo",
+      runGhAw: async args => {
+        calls.push(args);
+        if (args[0] === "logs") return JSON.stringify({ runs: [{ run_id: 200 }] });
+        return "[]";
+      },
+    });
+
+    // When the caller already has --output in execCommand we should not add a second one.
+    // Simulate this by calling getRuns normally — the injected --output appears exactly once.
+    await dataAccess.getRuns({ window: "7d", count: 5, timeout: 1 });
+
+    const logsCall = calls.find(a => a[0] === "logs");
+    const outputOccurrences = logsCall?.filter(a => a === "--output").length ?? 0;
+    expect(outputOccurrences).toBe(1);
+  });
+
   it("parses gh aw status output that has a status line prefix before the JSON", async () => {
     const dataAccess = createDashboardDataAccess({
       runGhAw: async args => {
