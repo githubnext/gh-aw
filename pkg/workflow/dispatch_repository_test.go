@@ -17,7 +17,7 @@ func TestParseDispatchRepositoryConfig_SingleTool(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
-		"dispatch_repository": map[string]any{
+		"dispatch-repository": map[string]any{
 			"trigger_ci": map[string]any{
 				"description": "Trigger CI in another repository",
 				"workflow":    "ci.yml",
@@ -46,7 +46,7 @@ func TestParseDispatchRepositoryConfig_MultipleTools(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
-		"dispatch_repository": map[string]any{
+		"dispatch-repository": map[string]any{
 			"trigger_ci": map[string]any{
 				"workflow":   "ci.yml",
 				"event_type": "ci_trigger",
@@ -90,12 +90,12 @@ func TestParseDispatchRepositoryConfig_MultipleTools(t *testing.T) {
 	assert.Equal(t, strPtr("2"), notifyService.Max)
 }
 
-// TestParseDispatchRepositoryConfig_DashAliasRejected tests that "dispatch-repository" (dash) is rejected.
-func TestParseDispatchRepositoryConfig_DashAliasRejected(t *testing.T) {
+// TestParseDispatchRepositoryConfig_UnderscoreAlias tests that "dispatch_repository" (underscore) remains supported.
+func TestParseDispatchRepositoryConfig_UnderscoreAlias(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
-		"dispatch-repository": map[string]any{
+		"dispatch_repository": map[string]any{
 			"trigger_ci": map[string]any{
 				"workflow":   "ci.yml",
 				"event_type": "ci_trigger",
@@ -105,7 +105,8 @@ func TestParseDispatchRepositoryConfig_DashAliasRejected(t *testing.T) {
 	}
 
 	config := compiler.parseDispatchRepositoryConfig(outputMap)
-	assert.Nil(t, config, "Config should be nil for dash form key")
+	require.NotNil(t, config, "Config should be parsed from underscore alias")
+	require.Len(t, config.Tools, 1, "Should have 1 tool")
 }
 
 // TestParseDispatchRepositoryConfig_Absent tests that nil is returned when key is absent

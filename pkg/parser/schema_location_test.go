@@ -322,7 +322,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AdditionalProperti
 			errContains: "requird",
 		},
 		{
-			name: "dispatch-repository key is rejected by schema",
+			name: "dispatch-repository key is accepted by schema",
 			frontmatter: map[string]any{
 				"on": "workflow_dispatch",
 				"safe-outputs": map[string]any{
@@ -335,9 +335,8 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AdditionalProperti
 					},
 				},
 			},
-			filePath:    "/test/workflow.md",
-			wantErr:     true,
-			errContains: "dispatch-repository",
+			filePath: "/test/workflow.md",
+			wantErr:  false,
 		},
 		{
 			name: "valid workflow_call input still compiles",

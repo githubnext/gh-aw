@@ -26,15 +26,18 @@ type DispatchRepositoryConfig struct {
 	Tools map[string]*DispatchRepositoryToolConfig // Map of tool name to tool config
 }
 
-// parseDispatchRepositoryConfig parses dispatch_repository configuration from the safe-outputs map.
+// parseDispatchRepositoryConfig parses dispatch-repository configuration from the safe-outputs map.
 func (c *Compiler) parseDispatchRepositoryConfig(outputMap map[string]any) *DispatchRepositoryConfig {
 	dispatchRepositoryLog.Print("Parsing dispatch_repository configuration")
 
 	var configData any
 	var exists bool
 
-	if configData, exists = outputMap["dispatch_repository"]; !exists {
-		return nil
+	// dispatch-repository is canonical; keep underscore form as a backward-compatible alias.
+	if configData, exists = outputMap["dispatch-repository"]; !exists {
+		if configData, exists = outputMap["dispatch_repository"]; !exists {
+			return nil
+		}
 	}
 
 	configMap, ok := configData.(map[string]any)
