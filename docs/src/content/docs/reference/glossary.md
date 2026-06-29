@@ -896,6 +896,10 @@ A feature of `gh aw logs` that aggregates firewall, MCP, and metrics data across
 
 A CLI command that orchestrates full workflow rollout to a target repository in a single invocation. `gh aw deploy` clones the target repository, runs `update` to refresh any sourced workflows, runs `add` to install the requested workflows, runs `compile --purge` to regenerate lock files and remove stale outputs, then opens a pull request with all changes for review. Replaces the manual sequence of `clone → update → add → compile → pr` commands and skips the add phase for workflows that already carry a `source:` frontmatter field to prevent duplicate installations. Accepts `--repo` to specify the target repository and `--cool-down` to set the default scheduling interval. See [CLI Reference](/gh-aw/setup/cli/).
 
+### `gh aw env`
+
+A CLI command that reads and writes [`GH_AW_DEFAULT_*`](#gh_aw_default_) governance variables as GitHub Actions variables at enterprise, organization, or repository scope. Use `gh aw env get` to export current values to a YAML file and `gh aw env update` to apply changes from a YAML file. Supports `--dry-run` to preview changes before applying and `--yes` to skip the confirmation prompt in automation. Defaults percolate through scopes following a most-specific-wins model: workflow frontmatter overrides repository variables, which override organization variables, which override enterprise defaults. See [Governance](/gh-aw/guides/governance/).
+
 ### AI Credits (AIC)
 
 The primary inference-cost metric for GitHub Agentic Workflows. One AI Credit equals `0.01 USD` and is computed from input, output, cache-read, cache-write, and reasoning tokens multiplied by per-model pricing weights. AIC provides a model-normalized spend unit across all supported engines, enabling consistent budget governance and cost comparison. Reports from `gh aw audit` and `gh aw logs` expose AIC as `total_aic` (per episode or run) and per-request values. Use `max-ai-credits` and `max-daily-ai-credits` in workflow frontmatter to set budget caps. See [AI Credits Specification](/gh-aw/specs/ai-credits-specification/).
@@ -1074,6 +1078,15 @@ A system-injected environment variable containing the comma-separated list of do
 ### `GH_AW_DEFAULT_*`
 
 A family of environment variables set in the compiler process environment or as GitHub Actions `vars.*` to apply organization- or repository-wide defaults without editing individual workflow frontmatter. Compiler-process variables (`GH_AW_DEFAULT_MAX_TURNS`, `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES`, `GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_DETECTION_MODEL`) inject defaults at compile time by being read when `gh aw compile` runs; runtime repository variables (`GH_AW_DEFAULT_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`, `GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MODEL_COPILOT`, `GH_AW_DEFAULT_MODEL_CLAUDE`, `GH_AW_DEFAULT_MODEL_CODEX`) are embedded as `${{ vars.* }}` expressions in the compiled workflow and resolved by the GitHub Actions runner at execution time. Frontmatter settings always take precedence over `GH_AW_DEFAULT_*`. Managed in batch via `gh aw env`. See [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/).
+
+### `GH_AW_POLICY_*`
+
+A family of boolean GitHub Actions variables that enforce runtime capability gates without requiring workflow recompilation. Where [`GH_AW_DEFAULT_*`](#gh_aw_default_) variables tune numeric and model settings, policy variables permit or refuse specific behaviors at runtime — any value other than `"false"` leaves the feature enabled. Set at repository, organization, or enterprise scope via `vars.*`; the most-specific-wins rule applies, so a repository-level `"true"` overrides an org-level `"false"`.
+
+Currently defined:
+- `GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` — disables `safe-outputs.create-pull-request` when set to `"false"`.
+
+See [Governance](/gh-aw/guides/governance/#disabling-create-pull-request-org-wide) and [Runtime Policy Variables](/gh-aw/reference/environment-variables/#runtime-policy-variables).
 
 ### `GH_HOST`
 
