@@ -53,7 +53,7 @@ func findRootRequiringPatterns(content string) []string {
 	var violations []string
 	seen := map[string]bool{}
 
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 		// Skip comments and empty lines
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
@@ -78,16 +78,66 @@ func findRootRequiringPatterns(content string) []string {
 }
 
 // containsSudoCommand checks if a line contains a sudo invocation.
-// Matches "sudo " at word boundaries but not inside comments or strings mentioning sudo.
+// It distinguishes between sudo used as a shell command and sudo merely
+// mentioned in YAML metadata (e.g. "- name: avoid sudo operations").
+// A line is flagged only when sudo appears as a command invocation:
+//   - at the start of a shell command line,
+//   - as the command in an inline "run: sudo ..." YAML field, or
+//   - after a common shell operator (&& || ; | ().
 func containsSudoCommand(line string) bool {
-	// Look for sudo as a command (not in a YAML key or comment)
 	trimmed := strings.TrimSpace(line)
 	if strings.HasPrefix(trimmed, "#") {
 		return false
 	}
-	// Check for sudo at start of a command or after common shell operators
-	for _, prefix := range []string{"sudo ", "sudo\t"} {
-		if strings.Contains(trimmed, prefix) {
+
+	// If this line is a YAML key-value, only inspect the value when the key is "run".
+	// All other YAML keys (name, id, if, uses, with, env, …) are metadata and must
+	// not cause false positives even when their value mentions sudo.
+	rest := trimmed
+	if strings.HasPrefix(rest, "- ") {
+		rest = strings.TrimSpace(rest[2:])
+	}
+	if idx := strings.Index(rest, ":"); idx > 0 {
+		key := rest[:idx]
+		if isYAMLKey(key) {
+			if key != "run" {
+				return false // metadata field — not a command
+			}
+			// Inline run: value — check only the command portion
+			cmd := strings.TrimSpace(rest[idx+1:])
+			if cmd == "|" || cmd == ">" {
+				return false // multiline block indicator, no inline command
+			}
+			return hasSudoInvocation(cmd)
+		}
+	}
+
+	// Plain shell command line (inside a multiline run block)
+	return hasSudoInvocation(trimmed)
+}
+
+// isYAMLKey reports whether s looks like a YAML mapping key (letters, digits, _ or -).
+func isYAMLKey(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') &&
+			(c < '0' || c > '9') && c != '_' && c != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+// hasSudoInvocation reports whether cmd contains sudo used as a command
+// (at start of the string, or immediately after a shell operator).
+func hasSudoInvocation(cmd string) bool {
+	if strings.HasPrefix(cmd, "sudo ") || strings.HasPrefix(cmd, "sudo\t") {
+		return true
+	}
+	for _, op := range []string{"&& sudo ", "|| sudo ", "; sudo ", "| sudo ", "( sudo "} {
+		if strings.Contains(cmd, op) {
 			return true
 		}
 	}
