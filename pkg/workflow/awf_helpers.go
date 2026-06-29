@@ -66,12 +66,15 @@ const (
 	// invocation line:
 	//   - SC1003 is expected because generated GitHub expression literals can include
 	//     single quotes (for example ports['<port>']) and must survive unchanged.
+	//   - SC2016 is expected because ${RUNNER_TEMP} and similar runtime variables appear
+	//     inside the single-quoted bash -c '...' argument intentionally — they are expanded
+	//     by the outer runner shell before AWF receives them, not by the inner bash -c.
 	//   - SC2086 is expected because compiler-owned AWF argument fragments are emitted
 	//     as intentional expandable shell snippets (for example ${GH_AW_TOOL_CACHE_MOUNT:+...}
 	//     and ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}).
 	//
 	// User-controlled values remain quoted via shellEscapeArg/shellJoinArgs.
-	awfShellcheckDirective = "# shellcheck disable=SC1003,SC2086"
+	awfShellcheckDirective = "# shellcheck disable=SC1003,SC2016,SC2086"
 )
 
 // AWFCommandConfig contains configuration for building AWF commands.

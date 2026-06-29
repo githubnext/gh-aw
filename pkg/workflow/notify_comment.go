@@ -109,7 +109,7 @@ func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string)
 		"          [ -f /tmp/gh-aw/usage/agent/token_usage.jsonl ] || : > /tmp/gh-aw/usage/agent/token_usage.jsonl\n",
 		"          [ -f /tmp/gh-aw/usage/detection/token_usage.jsonl ] || : > /tmp/gh-aw/usage/detection/token_usage.jsonl\n",
 		"          mkdir -p /tmp/gh-aw/usage/activity\n",
-		fmt.Sprintf("          node %s/generate_usage_activity_summary.cjs\n", SetupActionDestinationShell),
+		fmt.Sprintf("          node \"%s/generate_usage_activity_summary.cjs\"\n", SetupActionDestinationShell),
 		"          find /tmp/gh-aw/usage -type f -print | sort\n",
 		"      - name: Upload usage artifact\n",
 		"        if: always()\n",
