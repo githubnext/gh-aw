@@ -58,7 +58,7 @@ function formatDate(iso) {
 function formatNumber(value, options = {}) {
   const numeric = Number(value ?? 0);
   if (!Number.isFinite(numeric)) return "0";
-  return new Intl.NumberFormat("en-US", options).format(numeric);
+  return new Intl.NumberFormat(undefined, options).format(numeric);
 }
 
 function formatAIC(value) {

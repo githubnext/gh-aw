@@ -158,6 +158,42 @@ function mergeRuns(existingRuns, nextRuns) {
   return Array.from(merged.values()).sort((a, b) => Number(b.run_id ?? 0) - Number(a.run_id ?? 0));
 }
 
+async function fetchLogsBatches(initialOptions, initialArgs = null) {
+  let current = initialOptions;
+  let logsFetches = 0;
+  let runs = [];
+  let continuation = null;
+  let summary = null;
+  let firstBatch = null;
+
+  while (current && logsFetches < MAX_LOG_CONTINUATIONS) {
+    const raw = await runGhAw(logsFetches === 0 && initialArgs ? initialArgs : buildLogsArgs(current));
+    const data = JSON.parse(raw);
+    if (!firstBatch) {
+      firstBatch = data;
+    }
+    runs = mergeRuns(runs, Array.isArray(data?.runs) ? data.runs : []);
+    continuation = data?.continuation ?? null;
+    summary = data?.summary ?? summary;
+    logsFetches += 1;
+
+    if (!continuation) {
+      break;
+    }
+
+    current = continuationToLogsOptions(continuation, initialOptions);
+  }
+
+  return {
+    firstBatch,
+    runs,
+    summary,
+    logsFetches,
+    partial: Boolean(continuation),
+    continuation,
+  };
+}
+
 async function getLogsData(options = {}) {
   const normalized = normalizeLogsOptions(options);
   const key = `logs:${JSON.stringify({
@@ -176,35 +212,16 @@ async function getLogsData(options = {}) {
   const hit = getCached(key);
   if (hit) return hit;
 
-  let current = normalized;
-  let logsFetches = 0;
-  let runs = [];
-  let continuation = null;
-  let summary = null;
-
-  while (current && logsFetches < MAX_LOG_CONTINUATIONS) {
-    const raw = await runGhAw(buildLogsArgs(current));
-    const data = JSON.parse(raw);
-    runs = mergeRuns(runs, Array.isArray(data?.runs) ? data.runs : []);
-    continuation = data?.continuation ?? null;
-    summary = data?.summary ?? summary;
-    logsFetches += 1;
-
-    if (!continuation) {
-      break;
-    }
-
-    current = continuationToLogsOptions(continuation, normalized);
-  }
+  const logsResult = await fetchLogsBatches(normalized);
 
   const result = {
-    runs,
-    summary,
+    runs: logsResult.runs,
+    summary: logsResult.summary,
     window: normalized.window,
     timeout: normalized.timeout,
-    logsFetches,
-    partial: Boolean(continuation),
-    continuation,
+    logsFetches: logsResult.logsFetches,
+    partial: logsResult.partial,
+    continuation: logsResult.continuation,
   };
   setCached(key, result);
   return result;
@@ -221,6 +238,7 @@ function toNumber(value) {
 
 function buildUsageSummary(runs, window) {
   const usageByWorkflow = new Map();
+  const effectiveDays = Math.max(Number(window?.days ?? 0), 1);
 
   for (const run of runs) {
     const workflowName = String(run?.workflow_name ?? "").trim();
@@ -250,7 +268,7 @@ function buildUsageSummary(runs, window) {
   return Array.from(usageByWorkflow.values())
     .map(entry => {
       const costPerRun = entry.run_count > 0 ? entry.total_aic / entry.run_count : 0;
-      const dailyAIC = window.days > 0 ? entry.total_aic / window.days : 0;
+      const dailyAIC = entry.total_aic / effectiveDays;
       return {
         ...entry,
         cost_per_run: costPerRun,
@@ -288,7 +306,15 @@ function parseGhAwArgs(raw) {
 }
 
 function hasFlag(args, longFlag, shortFlag = "") {
-  return args.some((arg, index) => arg === longFlag || arg.startsWith(`${longFlag}=`) || (shortFlag && (arg === shortFlag || arg.startsWith(`${shortFlag}=`))) || ((arg === longFlag || arg === shortFlag) && index < args.length - 1));
+  return args.some((arg, index) => {
+    if (arg === longFlag || arg.startsWith(`${longFlag}=`)) {
+      return true;
+    }
+    if (shortFlag && (arg === shortFlag || arg.startsWith(`${shortFlag}=`))) {
+      return true;
+    }
+    return (arg === longFlag || (shortFlag && arg === shortFlag)) && index < args.length - 1;
+  });
 }
 
 function logsCommandUsesJSON(args) {
@@ -317,31 +343,18 @@ async function execCommand(rawCmd, options = {}) {
   try {
     if (args[0] === "logs" && logsCommandUsesJSON(args)) {
       const commandArgs = normalizeLogsCommandArgs(args, options.window, options.timeout ?? DEFAULT_LOG_TIMEOUT_MINUTES);
-      const output = await runGhAw(commandArgs);
-      const firstBatch = JSON.parse(output);
-      let runs = Array.isArray(firstBatch?.runs) ? firstBatch.runs : [];
-      let continuation = firstBatch?.continuation ?? null;
-      let logsFetches = 1;
-      let current = continuationToLogsOptions(continuation, normalizeLogsOptions({ window: options.window, timeout: options.timeout }));
-
-      while (continuation && current && logsFetches < MAX_LOG_CONTINUATIONS) {
-        const continuationOutput = await runGhAw(buildLogsArgs(current));
-        const continuationBatch = JSON.parse(continuationOutput);
-        runs = mergeRuns(runs, Array.isArray(continuationBatch?.runs) ? continuationBatch.runs : []);
-        continuation = continuationBatch?.continuation ?? null;
-        current = continuationToLogsOptions(continuation, current);
-        logsFetches += 1;
-      }
+      const logsOptions = normalizeLogsOptions({ window: options.window, timeout: options.timeout });
+      const logsResult = await fetchLogsBatches(logsOptions, commandArgs);
 
       return {
         command: `gh aw ${commandArgs.join(" ")}`,
         output: JSON.stringify(
           {
-            ...firstBatch,
-            runs,
-            partial: Boolean(continuation),
-            logs_fetches: logsFetches,
-            continuation,
+            ...(logsResult.firstBatch ?? {}),
+            runs: logsResult.runs,
+            partial: logsResult.partial,
+            logs_fetches: logsResult.logsFetches,
+            continuation: logsResult.continuation,
           },
           null,
           2
