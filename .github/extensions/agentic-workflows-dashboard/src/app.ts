@@ -17,6 +17,8 @@ type ReportMeta = {
 };
 type RunsResponse = ReportMeta & { runs?: WorkflowRun[] };
 type UsageResponse = ReportMeta & { items?: UsageSummaryItem[] };
+type AuditFinding = { severity?: string };
+type RunAudit = { key_findings?: AuditFinding[] };
 
 interface DashboardState {
   tabs: DashboardTab[];
@@ -35,6 +37,7 @@ interface DashboardState {
   usagePaged: PagedResult<UsageSummaryItem>;
   experimentsPaged: PagedResult<ExperimentInfo>;
   selectedRun: WorkflowRun | null;
+  auditData: RunAudit | null;
   includePreReleases: boolean;
   maintenanceOutput: string;
   maintenanceLastAction: string;
@@ -47,12 +50,14 @@ interface DashboardState {
   loadingRuns: boolean;
   loadingUsage: boolean;
   loadingExperiments: boolean;
+  loadingAudit: boolean;
   loadingMaintenance: boolean;
   errorCliStatus: string;
   errorDefinitions: string;
   errorRuns: string;
   errorUsage: string;
   errorExperiments: string;
+  errorAudit: string;
   runsMeta: ReportMeta | null;
   usageMeta: ReportMeta | null;
   init(): Promise<void>;
@@ -74,10 +79,15 @@ interface DashboardState {
   loadExperimentPage(page: number): void;
   selectRun(runId: number): void;
   viewRunDetails(runId: number): void;
+  loadAudit(): Promise<void>;
+  clearAudit(): void;
   buildLogsCommand(count?: number): string;
   buildMaintenanceCommand(action: MaintenanceAction): string;
   maintenanceActionLabel(action: MaintenanceAction): string;
   runMaintenanceAction(action: MaintenanceAction): Promise<void>;
+  auditHasFindings(): boolean;
+  auditSeverityClass(severity?: string): string;
+  auditPriorityClass(priority?: string): string;
   buildReportSummaryMessage(meta: ReportMeta | null): string;
   runCommand(): Promise<void>;
   commandQuickFill(value: string): void;
@@ -217,6 +227,7 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   usagePaged: paginate([], 1, 20),
   experimentsPaged: paginate([], 1, 20),
   selectedRun: null,
+  auditData: null,
   includePreReleases: false,
   maintenanceOutput: "Use this view to check dashboard maintenance commands before applying updates or upgrades.",
   maintenanceLastAction: "",
@@ -229,12 +240,14 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   loadingRuns: false,
   loadingUsage: false,
   loadingExperiments: false,
+  loadingAudit: false,
   loadingMaintenance: false,
   errorCliStatus: "",
   errorDefinitions: "",
   errorRuns: "",
   errorUsage: "",
   errorExperiments: "",
+  errorAudit: "",
   runsMeta: null,
   usageMeta: null,
 
@@ -414,12 +427,37 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   },
 
   selectRun(runId) {
+    const previousRunId = this.selectedRun?.run_id;
     this.selectedRun = this.runs.find(run => run.run_id === runId) ?? null;
+    if (this.selectedRun?.run_id !== previousRunId) {
+      this.clearAudit();
+    }
   },
 
   viewRunDetails(runId) {
     this.selectRun(runId);
     this.setActiveTab("details");
+  },
+
+  async loadAudit() {
+    if (!this.selectedRun?.run_id) return;
+    this.loadingAudit = true;
+    this.errorAudit = "";
+    try {
+      const params = new URLSearchParams({ run_id: String(this.selectedRun.run_id) });
+      this.auditData = await fetchJson<RunAudit>(`/api/audit?${params.toString()}`);
+    } catch (error) {
+      this.auditData = null;
+      this.errorAudit = `Failed to load audit: ${error instanceof Error ? error.message : String(error)}`;
+    } finally {
+      this.loadingAudit = false;
+    }
+  },
+
+  clearAudit() {
+    this.auditData = null;
+    this.errorAudit = "";
+    this.loadingAudit = false;
   },
 
   buildLogsCommand(count = DEFAULT_LOGS_COMMAND_COUNT) {
@@ -456,6 +494,7 @@ Alpine.data("dashboardApp", (): DashboardState => ({
       const result = await fetchJson<{ command?: string; output?: string }>(`/api/run-command?${params.toString()}`);
       this.maintenanceOutput = `$ ${result.command ?? cmd}\n${result.output ?? ""}`;
       if (action === "run-update" || action === "run-upgrade") {
+        await fetch("/api/refresh");
         await this.fetchCliStatus();
         if (this.cliStatus?.available) {
           await Promise.all([this.fetchDefinitions(), this.fetchRuns(), this.fetchUsage(), this.fetchExperiments()]);
@@ -470,6 +509,25 @@ Alpine.data("dashboardApp", (): DashboardState => ({
 
   cliUnavailableMessage() {
     return (this.cliStatus?.message ?? this.errorCliStatus) || "gh aw is not installed.";
+  },
+
+  auditHasFindings() {
+    return (this.auditData?.key_findings ?? []).length > 0;
+  },
+
+  auditSeverityClass(severity) {
+    const normalized = (severity ?? "").toLowerCase();
+    if (normalized === "critical" || normalized === "high" || normalized === "error") return "Label Label--danger";
+    if (normalized === "medium" || normalized === "warning") return "Label Label--attention";
+    if (normalized === "low") return "Label Label--accent";
+    return "Label Label--secondary";
+  },
+
+  auditPriorityClass(priority) {
+    const normalized = (priority ?? "").toLowerCase();
+    if (normalized === "high" || normalized === "p0" || normalized === "p1") return "Label Label--danger";
+    if (normalized === "medium" || normalized === "p2") return "Label Label--attention";
+    return "Label Label--secondary";
   },
 
   buildReportSummaryMessage(meta) {

@@ -122,6 +122,7 @@ Alpine.data("dashboardApp", () => ({
     usagePaged: paginate([], 1, 20),
     experimentsPaged: paginate([], 1, 20),
     selectedRun: null,
+    auditData: null,
     includePreReleases: false,
     maintenanceOutput: "Use this view to check dashboard maintenance commands before applying updates or upgrades.",
     maintenanceLastAction: "",
@@ -134,12 +135,14 @@ Alpine.data("dashboardApp", () => ({
     loadingRuns: false,
     loadingUsage: false,
     loadingExperiments: false,
+    loadingAudit: false,
     loadingMaintenance: false,
     errorCliStatus: "",
     errorDefinitions: "",
     errorRuns: "",
     errorUsage: "",
     errorExperiments: "",
+    errorAudit: "",
     runsMeta: null,
     usageMeta: null,
     async init() {
@@ -318,11 +321,37 @@ Alpine.data("dashboardApp", () => ({
         this.experimentsPaged = paginate(this.experiments, page, this.pageSize);
     },
     selectRun(runId) {
+        const previousRunId = this.selectedRun?.run_id;
         this.selectedRun = this.runs.find(run => run.run_id === runId) ?? null;
+        if (this.selectedRun?.run_id !== previousRunId) {
+            this.clearAudit();
+        }
     },
     viewRunDetails(runId) {
         this.selectRun(runId);
         this.setActiveTab("details");
+    },
+    async loadAudit() {
+        if (!this.selectedRun?.run_id)
+            return;
+        this.loadingAudit = true;
+        this.errorAudit = "";
+        try {
+            const params = new URLSearchParams({ run_id: String(this.selectedRun.run_id) });
+            this.auditData = await fetchJson(`/api/audit?${params.toString()}`);
+        }
+        catch (error) {
+            this.auditData = null;
+            this.errorAudit = `Failed to load audit: ${error instanceof Error ? error.message : String(error)}`;
+        }
+        finally {
+            this.loadingAudit = false;
+        }
+    },
+    clearAudit() {
+        this.auditData = null;
+        this.errorAudit = "";
+        this.loadingAudit = false;
     },
     buildLogsCommand(count = DEFAULT_LOGS_COMMAND_COUNT) {
         const window = this.currentWindow();
@@ -361,6 +390,7 @@ Alpine.data("dashboardApp", () => ({
             const result = await fetchJson(`/api/run-command?${params.toString()}`);
             this.maintenanceOutput = `$ ${result.command ?? cmd}\n${result.output ?? ""}`;
             if (action === "run-update" || action === "run-upgrade") {
+                await fetch("/api/refresh");
                 await this.fetchCliStatus();
                 if (this.cliStatus?.available) {
                     await Promise.all([this.fetchDefinitions(), this.fetchRuns(), this.fetchUsage(), this.fetchExperiments()]);
@@ -376,6 +406,27 @@ Alpine.data("dashboardApp", () => ({
     },
     cliUnavailableMessage() {
         return (this.cliStatus?.message ?? this.errorCliStatus) || "gh aw is not installed.";
+    },
+    auditHasFindings() {
+        return (this.auditData?.key_findings ?? []).length > 0;
+    },
+    auditSeverityClass(severity) {
+        const normalized = (severity ?? "").toLowerCase();
+        if (normalized === "critical" || normalized === "high" || normalized === "error")
+            return "Label Label--danger";
+        if (normalized === "medium" || normalized === "warning")
+            return "Label Label--attention";
+        if (normalized === "low")
+            return "Label Label--accent";
+        return "Label Label--secondary";
+    },
+    auditPriorityClass(priority) {
+        const normalized = (priority ?? "").toLowerCase();
+        if (normalized === "high" || normalized === "p0" || normalized === "p1")
+            return "Label Label--danger";
+        if (normalized === "medium" || normalized === "p2")
+            return "Label Label--attention";
+        return "Label Label--secondary";
     },
     buildReportSummaryMessage(meta) {
         return buildReportMessage(meta, "No logs metadata available.");
