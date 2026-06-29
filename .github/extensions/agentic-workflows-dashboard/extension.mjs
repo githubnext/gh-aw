@@ -259,7 +259,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
           inputSchema: {
             type: "object",
             required: ["run_id"],
-            properties: { run_id: { type: "number", description: "The workflow run ID to audit." } },
+            properties: { run_id: { type: "string", description: "The workflow run ID to audit (numeric string)." } },
             additionalProperties: false,
           },
           handler: async ctx => dataAccess.getAudit(String(ctx.input?.run_id ?? "")),

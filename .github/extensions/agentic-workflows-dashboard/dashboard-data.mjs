@@ -204,7 +204,10 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
     try {
       data = JSON.parse(raw);
     } catch (error) {
-      throw new Error(`Failed to parse audit output for run ${runId}: ${error.message}`);
+      const snippet = String(raw ?? "")
+        .replace(/\s+/g, " ")
+        .slice(0, 100);
+      throw new Error(`Failed to parse audit output for run ${runId}: ${error.message}${snippet ? ` (output: ${snippet})` : ""}`);
     }
     setCached(key, data);
     return data;

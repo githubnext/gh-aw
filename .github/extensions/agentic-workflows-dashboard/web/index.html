@@ -180,7 +180,7 @@
                     Run Audit
                   </button>
                   <span class="color-fg-muted text-small" x-show="loadingAudit">Running audit…</span>
-                  <button class="btn btn-sm btn-danger" @click="auditData = null; errorAudit = ''" x-show="auditData">Clear audit</button>
+                  <button class="btn btn-sm btn-danger" @click="clearAudit()" x-show="auditData">Clear audit</button>
                 </div>
                 <div class="flash flash-error mb-2" x-show="errorAudit" x-text="errorAudit"></div>
 
@@ -224,7 +224,7 @@
                   </details>
 
                   <!-- Key Findings -->
-                  <details class="mb-2" :open="(auditData?.key_findings ?? []).length > 0">
+                  <details class="mb-2" :open="auditHasFindings()">
                     <summary class="btn-link text-bold color-fg-default mb-1" style="cursor:pointer;list-style:none">▾ Key Findings <span class="Counter" x-text="(auditData?.key_findings ?? []).length"></span></summary>
                     <div class="Box mt-1" x-show="(auditData?.key_findings ?? []).length > 0">
                       <template x-for="(finding, idx) in (auditData?.key_findings ?? [])" :key="idx">

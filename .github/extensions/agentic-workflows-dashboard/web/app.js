@@ -297,6 +297,15 @@ Alpine.data("dashboardApp", () => ({
     }
   },
 
+  clearAudit() {
+    this.auditData = null;
+    this.errorAudit = "";
+  },
+
+  auditHasFindings() {
+    return (this.auditData?.key_findings ?? []).length > 0;
+  },
+
   auditSeverityClass(severity) {
     if (severity === "critical" || severity === "high") return "Label Label--danger";
     if (severity === "medium") return "Label Label--attention";
