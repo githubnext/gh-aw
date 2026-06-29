@@ -161,7 +161,7 @@ Alpine.data("dashboardApp", () => ({
         return reportWindowById(this.selectedWindow);
     },
     reportWindowClass(windowId) {
-        return this.selectedWindow === windowId ? "btn btn-sm btn-primary" : "btn btn-sm";
+        return this.selectedWindow === windowId ? "BtnGroup-item btn btn-sm btn-primary" : "BtnGroup-item btn btn-sm";
     },
     async selectReportWindow(windowId) {
         if (this.selectedWindow === windowId)
