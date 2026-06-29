@@ -44,3 +44,30 @@
   top: 0;
   z-index: 1;
 }
+
+.awd-tool-usage-header,
+.awd-tool-usage-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) repeat(3, minmax(80px, 1fr));
+  gap: 12px;
+  align-items: center;
+}
+
+.awd-tool-usage-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fgColor-muted, #656d76);
+  background: var(--bgColor-muted, #f6f8fa);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+details > summary {
+  list-style: none;
+}
+
+details > summary::marker,
+details > summary::-webkit-details-marker {
+  display: none;
+}

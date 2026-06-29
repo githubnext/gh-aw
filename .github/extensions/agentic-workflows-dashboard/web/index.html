@@ -143,12 +143,14 @@
               <h2 class="Box-title">Run details</h2>
             </div>
             <div class="Box-body" x-show="selectedRun">
+              <!-- Summary header -->
               <div class="d-flex flex-wrap gap-2 flex-items-center mb-3">
                 <span class="text-bold">Run #<span x-text="selectedRun ? selectedRun.run_id : ''"></span></span>
                 <span x-text="selectedRun ? selectedRun.workflow_name : ''"></span>
                 <span :class="selectedRun ? runStatusClass(selectedRun) : 'Label Label--secondary'" x-text="selectedRun ? runStatusLabel(selectedRun) : 'n/a'"></span>
               </div>
-              <div class="d-flex flex-wrap gap-3">
+              <!-- Key metrics -->
+              <div class="d-flex flex-wrap gap-3 mb-3">
                 <div class="Box p-3 flex-1">
                   <div class="text-small color-fg-muted mb-1">Duration</div>
                   <div class="text-bold" x-text="selectedRun ? formatDuration(selectedRun.duration) : '—'"></div>
@@ -176,6 +178,171 @@
                 <div class="Box p-3 flex-1">
                   <div class="text-small color-fg-muted mb-1">Missing tools</div>
                   <div class="text-bold" x-text="selectedRun ? (selectedRun.missing_tool_count ?? 0) : '—'"></div>
+                </div>
+              </div>
+
+              <!-- Audit section -->
+              <div class="border-top pt-3">
+                <div class="d-flex flex-items-center gap-2 mb-2">
+                  <button class="btn btn-sm" @click="loadAudit()" :disabled="loadingAudit" x-show="!auditData && !loadingAudit">Run Audit</button>
+                  <span class="color-fg-muted text-small" x-show="loadingAudit">Running audit…</span>
+                  <button class="btn btn-sm btn-danger" @click="clearAudit()" x-show="auditData">Clear audit</button>
+                </div>
+                <div class="flash flash-error mb-2" x-show="errorAudit" x-text="errorAudit"></div>
+
+                <div x-show="auditData">
+                  <!-- Overview -->
+                  <details class="mb-2" open>
+                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Overview</summary>
+                    <div class="Box mt-1">
+                      <div class="Box-body p-0">
+                        <div class="Box-row d-flex gap-3 flex-wrap">
+                          <div class="flex-1">
+                            <div class="text-small color-fg-muted">Branch</div>
+                            <div class="text-small" x-text="auditData?.overview?.branch ?? '—'"></div>
+                          </div>
+                          <div class="flex-1">
+                            <div class="text-small color-fg-muted">Event</div>
+                            <div class="text-small" x-text="auditData?.overview?.event ?? '—'"></div>
+                          </div>
+                          <div class="flex-1">
+                            <div class="text-small color-fg-muted">Created</div>
+                            <div class="text-small" x-text="auditData?.overview?.created_at ? formatDate(auditData.overview.created_at) : '—'"></div>
+                          </div>
+                          <div class="flex-1">
+                            <div class="text-small color-fg-muted">Duration</div>
+                            <div class="text-small" x-text="auditData?.overview?.duration ?? '—'"></div>
+                          </div>
+                          <div class="flex-1">
+                            <div class="text-small color-fg-muted">Experiment</div>
+                            <div class="text-small" x-text="auditData?.overview?.experiment ?? '—'"></div>
+                          </div>
+                          <div class="flex-1">
+                            <div class="text-small color-fg-muted">URL</div>
+                            <div class="text-small">
+                              <a :href="auditData?.overview?.url ?? '#'" target="_blank" rel="noopener noreferrer" x-show="auditData?.overview?.url" x-text="'View run ↗'"></a>
+                              <span x-show="!auditData?.overview?.url">—</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+
+                  <!-- Key Findings -->
+                  <details class="mb-2" :open="auditHasFindings()">
+                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Key Findings <span class="Counter" x-text="(auditData?.key_findings ?? []).length"></span></summary>
+                    <div class="Box mt-1" x-show="(auditData?.key_findings ?? []).length > 0">
+                      <template x-for="(finding, idx) in (auditData?.key_findings ?? [])" :key="idx">
+                        <div class="Box-row">
+                          <div class="d-flex flex-justify-between flex-items-start gap-2">
+                            <div class="flex-1">
+                              <div class="d-flex flex-items-center gap-2 mb-1">
+                                <span :class="auditSeverityClass(finding.severity)" x-text="finding.severity"></span>
+                                <span class="Label Label--secondary" x-text="finding.category"></span>
+                                <span class="text-bold text-small" x-text="finding.title"></span>
+                              </div>
+                              <div class="color-fg-muted text-small" x-text="finding.description"></div>
+                              <div class="color-fg-muted text-small mt-1" x-show="finding.impact"><em x-text="'Impact: ' + finding.impact"></em></div>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                    <div class="color-fg-muted text-small mt-1" x-show="(auditData?.key_findings ?? []).length === 0">No key findings.</div>
+                  </details>
+
+                  <!-- Recommendations -->
+                  <details class="mb-2">
+                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Recommendations <span class="Counter" x-text="(auditData?.recommendations ?? []).length"></span></summary>
+                    <div class="Box mt-1" x-show="(auditData?.recommendations ?? []).length > 0">
+                      <template x-for="(rec, idx) in (auditData?.recommendations ?? [])" :key="idx">
+                        <div class="Box-row">
+                          <div class="d-flex flex-items-start gap-2">
+                            <span :class="auditPriorityClass(rec.priority)" x-text="rec.priority"></span>
+                            <div>
+                              <div class="text-small text-bold" x-text="rec.action"></div>
+                              <div class="color-fg-muted text-small" x-text="rec.reason"></div>
+                              <div class="color-fg-muted text-small mt-1" x-show="rec.example"><code x-text="rec.example"></code></div>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                    <div class="color-fg-muted text-small mt-1" x-show="(auditData?.recommendations ?? []).length === 0">No recommendations.</div>
+                  </details>
+
+                  <!-- Jobs -->
+                  <details class="mb-2" x-show="(auditData?.jobs ?? []).length > 0">
+                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Jobs <span class="Counter" x-text="(auditData?.jobs ?? []).length"></span></summary>
+                    <div class="Box mt-1">
+                      <template x-for="(job, idx) in (auditData?.jobs ?? [])" :key="idx">
+                        <div class="Box-row">
+                          <div class="d-flex flex-justify-between flex-items-center gap-2">
+                            <div>
+                              <div class="text-bold text-small" x-text="job.name"></div>
+                              <div class="color-fg-muted text-small" x-show="job.duration" x-text="'Duration: ' + job.duration"></div>
+                            </div>
+                            <span :class="runStatusClass({ status: job.status, conclusion: job.conclusion })" x-text="job.conclusion || job.status || '—'"></span>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </details>
+
+                  <!-- Tool Usage -->
+                  <details class="mb-2" x-show="(auditData?.tool_usage ?? []).length > 0">
+                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Tool Usage <span class="Counter" x-text="(auditData?.tool_usage ?? []).length"></span></summary>
+                    <div class="Box mt-1">
+                      <div class="Box-row awd-tool-usage-header">
+                        <div>Tool</div>
+                        <div class="text-right">Calls</div>
+                        <div class="text-right">Max Output</div>
+                        <div class="text-right">Max Duration</div>
+                      </div>
+                      <template x-for="(tool, idx) in (auditData?.tool_usage ?? [])" :key="idx">
+                        <div class="Box-row awd-tool-usage-row">
+                          <div class="text-small text-bold" x-text="tool.name"></div>
+                          <div class="text-right text-small" x-text="formatNumber(tool.call_count)"></div>
+                          <div class="text-right text-small color-fg-muted" x-text="tool.max_output_size ? formatNumber(tool.max_output_size) : '—'"></div>
+                          <div class="text-right text-small color-fg-muted" x-text="tool.max_duration ?? '—'"></div>
+                        </div>
+                      </template>
+                    </div>
+                  </details>
+
+                  <!-- Errors & Warnings -->
+                  <details class="mb-2" x-show="(auditData?.errors ?? []).length > 0 || (auditData?.warnings ?? []).length > 0">
+                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">
+                      ▾ Errors &amp; Warnings <span class="Counter" x-text="(auditData?.errors ?? []).length + (auditData?.warnings ?? []).length"></span>
+                    </summary>
+                    <div class="Box mt-1">
+                      <template x-for="(err, idx) in (auditData?.errors ?? [])" :key="'e' + idx">
+                        <div class="Box-row">
+                          <div class="d-flex flex-items-start gap-2">
+                            <span class="Label Label--danger">error</span>
+                            <div>
+                              <div class="text-small text-bold" x-text="err.type"></div>
+                              <div class="color-fg-muted text-small" x-text="err.message"></div>
+                              <div class="color-fg-muted text-small" x-show="err.file" x-text="err.file + (err.line ? ':' + err.line : '')"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                      <template x-for="(warn, idx) in (auditData?.warnings ?? [])" :key="'w' + idx">
+                        <div class="Box-row">
+                          <div class="d-flex flex-items-start gap-2">
+                            <span class="Label Label--attention">warning</span>
+                            <div>
+                              <div class="text-small text-bold" x-text="warn.type"></div>
+                              <div class="color-fg-muted text-small" x-text="warn.message"></div>
+                              <div class="color-fg-muted text-small" x-show="warn.file" x-text="warn.file + (warn.line ? ':' + warn.line : '')"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </details>
                 </div>
               </div>
             </div>
