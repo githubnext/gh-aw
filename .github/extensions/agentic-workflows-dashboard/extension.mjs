@@ -1,6 +1,8 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
+import { execFile } from "node:child_process/promises";
 import { dirname, join, resolve } from "node:path";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
@@ -10,15 +12,48 @@ import { DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT } from "./dashboard-conf
 import { createDashboardDataAccess } from "./dashboard-data.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const servers = new Map();
+const LOG = "[extension]";
 // For project-scoped extensions the file lives at .github/extensions/<name>/extension.mjs,
 // so three levels up is the git repo root. process.cwd() and session.workspacePath both
 // resolve to unrelated Copilot runtime directories and must not be used as CLI cwd.
 const workspacePath = resolve(__dirname, "../../..");
 const runGhAw = createGhAwRunnerWithStatus({ getWorkspacePath: () => workspacePath });
-const dataAccess = createDashboardDataAccess({ runGhAw });
-const LOG = "[extension]";
-console.error(`${LOG} startup __dirname=${__dirname} workspacePath=${workspacePath}`);
+
+/**
+ * Resolve a shared logs directory keyed by the GitHub repo identity (owner/repo),
+ * stored in the user's home cache directory.  This ensures all sessions that
+ * target the same repo—even when each session runs in a fresh workspace
+ * checkout—share a single on-disk artifact cache and never re-download runs
+ * that are already present.
+ *
+ * Falls back to `<workspacePath>/.github/aw/logs` when the remote URL cannot
+ * be determined (e.g. no git remote, or git is unavailable).
+ */
+async function resolveSharedLogsDir(workspace) {
+  try {
+    const { stdout } = await execFile("git", ["-C", workspace, "remote", "get-url", "origin"], { encoding: "utf8" });
+    const remoteUrl = stdout.trim();
+    // Match both HTTPS (https://github.com/owner/repo) and SSH (git@github.com:owner/repo) formats.
+    const match = remoteUrl.match(/github\.com[/:]([^/]+)\/([^/\s]+?)(?:\.git)?(?:\s|$)/);
+    if (match) {
+      const [, owner, repo] = match;
+      const dir = join(homedir(), ".cache", "gh-aw", "logs", owner, repo);
+      console.error(`${LOG} resolveSharedLogsDir: remote="${remoteUrl}" -> ${dir}`);
+      return dir;
+    }
+    console.error(`${LOG} resolveSharedLogsDir: could not parse owner/repo from remote="${remoteUrl}", using workspace default`);
+  } catch (err) {
+    console.error(`${LOG} resolveSharedLogsDir: git remote lookup failed: ${err.message}`);
+  }
+  const fallback = join(workspace, ".github", "aw", "logs");
+  console.error(`${LOG} resolveSharedLogsDir: using fallback=${fallback}`);
+  return fallback;
+}
+
+const sharedLogsDir = await resolveSharedLogsDir(workspacePath);
+const servers = new Map();
+const dataAccess = createDashboardDataAccess({ runGhAw, logsOutputDir: sharedLogsDir });
+console.error(`${LOG} startup __dirname=${__dirname} workspacePath=${workspacePath} sharedLogsDir=${sharedLogsDir}`);
 
 // ---------------------------------------------------------------------------
 // Pagination utility

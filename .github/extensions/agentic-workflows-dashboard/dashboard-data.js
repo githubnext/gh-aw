@@ -1,5 +1,5 @@
 import { CACHE_TTL_MS, DEFAULT_LOG_TIMEOUT_MINUTES, MAX_LOG_CONTINUATIONS } from "./dashboard-config.js";
-import { buildLogsArgs, continuationToLogsOptions, logsArgsToOptions, logsCommandUsesJSON, mergeRuns, normalizeLogsCommandArgs, normalizeLogsOptions, parseGhAwArgs, } from "./dashboard-logs.js";
+import { buildLogsArgs, continuationToLogsOptions, hasFlag, logsArgsToOptions, logsCommandUsesJSON, mergeRuns, normalizeLogsCommandArgs, normalizeLogsOptions, parseGhAwArgs, } from "./dashboard-logs.js";
 import { applyForecastToUsageSummary, buildUsageSummary, forecastDaysForWindow } from "./usage-forecast.js";
 const LOG = "[dashboard-data]";
 function asError(value) {
@@ -41,7 +41,7 @@ function parseJsonOutput(raw, context) {
         throw new Error(`${context}: failed to parse JSON (output: ${snippet})`);
     }
 }
-export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) {
+export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS, logsOutputDir }) {
     const cache = new Map();
     function getCached(key) {
         const entry = cache.get(key);
@@ -98,7 +98,11 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
         let summary = null;
         let firstBatch = null;
         while (current && logsFetches < MAX_LOG_CONTINUATIONS) {
-            const batchArgs = logsFetches === 0 && initialArgs ? initialArgs : buildLogsArgs(current);
+            let batchArgs = logsFetches === 0 && initialArgs ? initialArgs : buildLogsArgs(current);
+            // Inject --output so all sessions for the same repo share one disk cache.
+            if (logsOutputDir && !hasFlag(batchArgs, "--output", "-o")) {
+                batchArgs = [...batchArgs, "--output", logsOutputDir];
+            }
             console.error(`${LOG} fetchLogsBatches: batch=${logsFetches + 1} args=${JSON.stringify(batchArgs)}`);
             const raw = await runGhAw(batchArgs);
             let data;
@@ -266,7 +270,11 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
         }
         console.error(`${LOG} getAudit: fetching runId=${runId}`);
         try {
-            const raw = await runGhAw(["audit", String(runId), "--json"]);
+            const auditArgs = ["audit", String(runId), "--json"];
+            if (logsOutputDir) {
+                auditArgs.push("--output", logsOutputDir);
+            }
+            const raw = await runGhAw(auditArgs);
             const data = parseJsonOutput(raw, `gh aw audit ${runId} --json`);
             setCached(key, data);
             console.error(`${LOG} getAudit: fetched runId=${runId}`);

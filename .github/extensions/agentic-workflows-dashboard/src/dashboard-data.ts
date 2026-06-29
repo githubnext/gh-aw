@@ -2,6 +2,7 @@ import { CACHE_TTL_MS, DEFAULT_LOG_TIMEOUT_MINUTES, MAX_LOG_CONTINUATIONS, type 
 import {
   buildLogsArgs,
   continuationToLogsOptions,
+  hasFlag,
   logsArgsToOptions,
   logsCommandUsesJSON,
   mergeRuns,
@@ -115,7 +116,7 @@ function parseJsonOutput(raw: string, context: string): unknown {
   }
 }
 
-export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }: { runGhAw: RunGhAw; cacheTTL?: number }) {
+export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS, logsOutputDir }: { runGhAw: RunGhAw; cacheTTL?: number; logsOutputDir?: string }) {
   const cache = new Map<string, CacheEntry<unknown>>();
 
   function getCached<T>(key: string): T | null {
@@ -176,7 +177,11 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }: 
     let firstBatch: LogsBatchResponse | null = null;
 
     while (current && logsFetches < MAX_LOG_CONTINUATIONS) {
-      const batchArgs = logsFetches === 0 && initialArgs ? initialArgs : buildLogsArgs(current);
+      let batchArgs = logsFetches === 0 && initialArgs ? initialArgs : buildLogsArgs(current);
+      // Inject --output so all sessions for the same repo share one disk cache.
+      if (logsOutputDir && !hasFlag(batchArgs, "--output", "-o")) {
+        batchArgs = [...batchArgs, "--output", logsOutputDir];
+      }
       console.error(`${LOG} fetchLogsBatches: batch=${logsFetches + 1} args=${JSON.stringify(batchArgs)}`);
       const raw = await runGhAw(batchArgs);
       let data: LogsBatchResponse;
@@ -361,7 +366,11 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }: 
     }
     console.error(`${LOG} getAudit: fetching runId=${runId}`);
     try {
-      const raw = await runGhAw(["audit", String(runId), "--json"]);
+      const auditArgs: string[] = ["audit", String(runId), "--json"];
+      if (logsOutputDir) {
+        auditArgs.push("--output", logsOutputDir);
+      }
+      const raw = await runGhAw(auditArgs);
       const data = parseJsonOutput(raw, `gh aw audit ${runId} --json`);
       setCached(key, data);
       console.error(`${LOG} getAudit: fetched runId=${runId}`);
