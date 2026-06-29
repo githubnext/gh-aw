@@ -9,8 +9,7 @@
     "noImplicitAny": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-    "outDir": "./web",
-    "rootDir": ".",
+    "noEmit": true,
     "skipLibCheck": true
   },
   "include": ["src/**/*.ts"]
