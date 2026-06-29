@@ -15,7 +15,7 @@
   },
   "scripts": {
     "build": "npm run typecheck && npm run build:web",
-    "build:ts": "tsc -p tsconfig.emit.json",
+    "build:ts": "esbuild src/index.ts --bundle --format=esm --target=es2022 --platform=node --outfile=app.js",
     "build:web": "esbuild src/app.ts --bundle --format=esm --target=es2022 --outfile=web/app.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

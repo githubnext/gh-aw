@@ -6,6 +6,6 @@
     "noEmit": false,
     "declaration": false
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/index.ts"],
   "exclude": ["node_modules"]
 }

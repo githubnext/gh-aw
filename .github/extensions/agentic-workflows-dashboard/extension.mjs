@@ -7,9 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 
-import { createGhAwRunnerWithStatus } from "./dashboard-cli.js";
-import { DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT } from "./dashboard-config.js";
-import { createDashboardDataAccess } from "./dashboard-data.js";
+import { createGhAwRunnerWithStatus, DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT, createDashboardDataAccess } from "./app.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LOG = "[extension]";
