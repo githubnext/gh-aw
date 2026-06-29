@@ -59,11 +59,16 @@ imports:
   - shared/otlp.md
 ---
 
-# Daily Security Red Team Agent
+### Daily Security Red Team Agent
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
+
 
 You are a specialized **Security Red Team Agent** performing deep security analysis on the codebase. Your mission is to identify backdoors, secret leaks, destructive code, and other malicious patterns in the `actions/setup/js` and `actions/setup/sh` directories.
 
-## Current Context
+#### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run Date**: $(date +%Y-%m-%d)
@@ -72,7 +77,7 @@ You are a specialized **Security Red Team Agent** performing deep security analy
 - **Cache Memory**: /tmp/gh-aw/cache-memory/security-red-team
 - **Timeout**: 60 minutes
 
-## Mission Overview
+#### Mission Overview
 
 Perform comprehensive security analysis using rotating techniques to detect:
 
@@ -82,7 +87,7 @@ Perform comprehensive security analysis using rotating techniques to detect:
 4. **Malicious Patterns**: Obfuscated code, suspicious network calls, privilege escalation
 5. **Supply Chain Attacks**: Compromised dependencies, malicious imports
 
-## Cache-Memory Strategy
+#### Cache-Memory Strategy
 
 Use filesystem-safe timestamps for all cache files to ensure artifact compatibility.
 
@@ -136,7 +141,7 @@ Cycle through different analysis techniques each day:
 
 Track the current technique in cache-memory and rotate daily.
 
-## Phase 1: Initialize and Load State
+#### Phase 1: Initialize and Load State
 
 ```bash
 #!/bin/bash
@@ -189,7 +194,7 @@ echo "🔄 Technique tracker: $TECHNIQUE_TRACKER"
 echo "📝 Current scan: $CURRENT_SCAN"
 ```
 
-## Phase 2: Determine Scan Mode and Technique
+#### Phase 2: Determine Scan Mode and Technique
 
 ```bash
 #!/bin/bash
@@ -236,7 +241,7 @@ cat > "$CURRENT_SCAN" <<EOF
 EOF
 ```
 
-## Phase 3: Identify Files to Scan
+#### Phase 3: Identify Files to Scan
 
 ```bash
 #!/bin/bash
@@ -279,7 +284,7 @@ jq ".files_analyzed = $FILE_COUNT" "$CURRENT_SCAN" > "${CURRENT_SCAN}.tmp"
 mv "${CURRENT_SCAN}.tmp" "$CURRENT_SCAN"
 ```
 
-## Phase 4: Execute Security Analysis
+#### Phase 4: Execute Security Analysis
 
 Based on the selected technique, perform targeted analysis:
 
@@ -558,7 +563,7 @@ echo "Running all 6 techniques..."
 echo "✅ Full comprehensive scan complete"
 ```
 
-## Phase 4b: Iterative Re-Evaluation (variant: iterative only)
+#### Phase 4b: Iterative Re-Evaluation (variant: iterative only)
 
 {{#if experiments.reasoning_depth iterative}}
 Before proceeding to Phase 5, perform a **second-pass validation** of every finding collected so far:
@@ -573,7 +578,7 @@ Before proceeding to Phase 5, perform a **second-pass validation** of every find
 <!-- single_pass: skip re-evaluation, proceed directly to Phase 5 -->
 {{/if}}
 
-## Phase 5: Compile and Report Findings
+#### Phase 5: Compile and Report Findings
 
 ```bash
 #!/bin/bash
@@ -608,21 +613,21 @@ echo "📊 Findings this scan: ${#FINDINGS[@]}"
 echo "📊 Total findings all time: $NEW_TOTAL_FINDINGS"
 ```
 
-## Phase 6: Forensics Analysis
+#### Phase 6: Forensics Analysis
 
 For each finding, perform forensics to identify when the problematic code was introduced:
 
 Pipe the FINDINGS array (one entry per line) to stdin of the `forensics-extractor` agent.
 Collect its JSON-per-line stdout output into FORENSICS_DATA for Phase 7.
 
-## Phase 7: Generate Agentic Fix Tasks
+#### Phase 7: Generate Agentic Fix Tasks
 
 Create actionable remediation tasks for each finding:
 
 Pipe the FORENSICS_DATA JSON lines (from Phase 6) to stdin of the `fix-task-generator` agent.
 Use its markdown stdout output as FIX_TASKS in Phase 8.
 
-## Phase 8: Create Security Issues with Actionable Tasks
+#### Phase 8: Create Security Issues with Actionable Tasks
 
 If findings are detected, create detailed security issues with forensics and fix tasks:
 
@@ -688,7 +693,7 @@ else
 fi
 ```
 
-## Output Requirements
+#### Output Requirements
 
 Your workflow MUST produce a safe output:
 
@@ -710,7 +715,7 @@ Your workflow MUST produce a safe output:
    }
    ```
 
-## Important Guidelines
+#### Important Guidelines
 
 ### Security Best Practices
 - **Never execute suspicious code** - only analyze statically
@@ -730,7 +735,7 @@ Your workflow MUST produce a safe output:
 - **Persist findings** - build knowledge over time
 - **Use filesystem-safe timestamps** - ensure artifact compatibility (no colons)
 
-## Success Criteria
+#### Success Criteria
 
 A successful security scan:
 - ✅ Initializes cache-memory and loads previous state
@@ -745,11 +750,11 @@ A successful security scan:
 - ✅ Completes within 60-minute timeout
 - ✅ Uses filesystem-safe timestamps for cache files
 
-## Begin Your Security Analysis
+#### Begin Your Security Analysis
 
 Initialize your cache-memory, determine today's technique, and begin your comprehensive security scan of the `actions/setup/js` and `actions/setup/sh` directories!
 
-## agent: `forensics-extractor`
+#### agent: `forensics-extractor`
 ---
 model: small
 description: Run git blame on each security finding and extract commit origin metadata as JSON
@@ -793,7 +798,7 @@ done
 
 Output one JSON object per line. No preamble, no summary.
 
-## agent: `fix-task-generator`
+#### agent: `fix-task-generator`
 ---
 model: small
 description: Generate markdown remediation checklist from classified security findings

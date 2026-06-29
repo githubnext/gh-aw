@@ -761,19 +761,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     } catch (pinError) {
       server.debug(`Failed to pin branch '${entry.branch}': ${getErrorMessage(pinError)}`);
       if (useBundle) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                result: "error",
-                error: `Failed to pin branch '${entry.branch}' before bundle generation: ${getErrorMessage(pinError)}`,
-                details: `Bundle transport requires branch pinning to prevent patch/bundle desynchronization. Retry after ensuring the branch exists locally (for example: git branch --list '${entry.branch}').`,
-              }),
-            },
-          ],
-          isError: true,
-        };
+        server.debug(`create_pull_request: proceeding without branch pinning for '${entry.branch}'; bundle generation will fall back to HEAD-based strategies when available`);
       }
       pinnedSha = null;
     }
