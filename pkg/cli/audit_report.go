@@ -115,10 +115,18 @@ type MetricsData struct {
 
 // JobData contains information about individual jobs
 type JobData struct {
-	Name       string `json:"name" console:"header:Name"`
-	Status     string `json:"status" console:"header:Status"`
-	Conclusion string `json:"conclusion,omitempty" console:"header:Conclusion,omitempty"`
-	Duration   string `json:"duration,omitempty" console:"header:Duration,omitempty"`
+	Name       string        `json:"name" console:"header:Name"`
+	Status     string        `json:"status" console:"header:Status"`
+	Conclusion string        `json:"conclusion,omitempty" console:"header:Conclusion,omitempty"`
+	Duration   string        `json:"duration,omitempty" console:"header:Duration,omitempty"`
+	Steps      []JobStepData `json:"steps,omitempty"`
+}
+
+// JobStepData contains information about an individual workflow job step.
+type JobStepData struct {
+	Name       string `json:"name"`
+	Status     string `json:"status,omitempty"`
+	Conclusion string `json:"conclusion,omitempty"`
 }
 
 // FileInfo contains information about downloaded artifact files
@@ -351,6 +359,9 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 			Name:       jobDetail.Name,
 			Status:     jobDetail.Status,
 			Conclusion: jobDetail.Conclusion,
+			Steps: sliceutil.Map(jobDetail.Steps, func(step JobStep) JobStepData {
+				return JobStepData(step)
+			}),
 		}
 		if jobDetail.Duration > 0 {
 			job.Duration = timeutil.FormatDuration(jobDetail.Duration)

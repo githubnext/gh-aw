@@ -4,9 +4,13 @@ package cli
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -220,6 +224,34 @@ func TestListWorkflowRunsErrorHandling(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFetchJobDetailsWithCountsIncludesSteps(t *testing.T) {
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	argsLogPath := filepath.Join(fakeBinDir, "gh-args.log")
+	fakeGHScript := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> \"" + argsLogPath + "\"\n" +
+		"cat <<'EOF'\n" +
+		"{\"name\":\"agent\",\"status\":\"completed\",\"conclusion\":\"failure\",\"started_at\":\"2026-06-28T01:31:00Z\",\"completed_at\":\"2026-06-28T01:33:00Z\",\"steps\":[{\"name\":\"Set up job\",\"status\":\"completed\",\"conclusion\":\"success\"},{\"name\":\"Run agent\",\"status\":\"completed\",\"conclusion\":\"failure\"}]}\n" +
+		"EOF\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	jobs, failedJobs, err := fetchJobDetailsWithCounts(28307653871, false)
+	require.NoError(t, err)
+	require.Len(t, jobs, 1)
+	assert.Equal(t, 1, failedJobs, "failed job count should include failed jobs")
+	assert.Equal(t, 2*time.Minute, jobs[0].Duration, "job duration should still be derived from timestamps")
+	require.Len(t, jobs[0].Steps, 2)
+	assert.Equal(t, "Run agent", jobs[0].Steps[1].Name, "step names should be parsed from gh api output")
+	assert.Equal(t, "failure", jobs[0].Steps[1].Conclusion, "step conclusions should be parsed from gh api output")
+
+	argsLog, err := os.ReadFile(argsLogPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(argsLog), "repos/{owner}/{repo}/actions/runs/28307653871/jobs", "should query the run jobs API")
+	assert.Contains(t, string(argsLog), "steps:", "gh jq projection should request step data")
 }
 
 func TestWorkflowRunsSpinnerMessage(t *testing.T) {
