@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 
+import { applyForecastToUsageSummary, buildUsageSummary, forecastDaysForWindow } from "./usage-forecast.mjs";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const servers = new Map();
 const cache = new Map(); // key → { data, expiresAt }
@@ -236,72 +238,50 @@ async function getRuns(options = {}) {
   return getLogsData(options);
 }
 
-function toNumber(value) {
-  const numeric = Number(value ?? 0);
-  return Number.isFinite(numeric) ? numeric : 0;
-}
-
-function buildUsageSummary(runs, window) {
-  const usageByWorkflow = new Map();
-  const effectiveDays = Number(window?.days ?? 0);
-  if (!Number.isFinite(effectiveDays) || effectiveDays <= 0) {
-    throw new Error(`report window '${window?.id ?? "unknown"}' is missing a valid positive day count.`);
+async function getForecastData(workflowIDs, window, timeout) {
+  if (!Array.isArray(workflowIDs) || workflowIDs.length === 0) {
+    return [];
   }
 
-  for (const run of runs) {
-    const workflowName = String(run?.workflow_name ?? "").trim();
-    if (!workflowName) continue;
-
-    const aic = toNumber(run?.aic);
-    const entry = usageByWorkflow.get(workflowName) ?? {
-      workflow_name: workflowName,
-      run_count: 0,
-      total_aic: 0,
-      cost_per_run: 0,
-      daily_aic: 0,
-      monthly_forecast_aic: 0,
-      last_run_at: "",
-    };
-
-    entry.run_count += 1;
-    entry.total_aic += aic;
-    const createdAt = typeof run?.created_at === "string" ? run.created_at : "";
-    if (createdAt && (!entry.last_run_at || createdAt > entry.last_run_at)) {
-      entry.last_run_at = createdAt;
-    }
-
-    usageByWorkflow.set(workflowName, entry);
+  const args = ["forecast", "--json", "--period", "month", "--days", String(forecastDaysForWindow(window)), "--timeout", String(timeout), ...workflowIDs];
+  const raw = await runGhAw(args);
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch (error) {
+    const snippet = String(raw ?? "")
+      .replace(/\s+/g, " ")
+      .slice(0, 200);
+    throw new Error(`Failed to parse forecast output: ${error.message}${snippet ? ` (output: ${snippet})` : ""}`);
   }
-
-  return Array.from(usageByWorkflow.values())
-    .map(entry => {
-      const costPerRun = entry.run_count > 0 ? entry.total_aic / entry.run_count : 0;
-      const dailyAIC = entry.total_aic / effectiveDays;
-      return {
-        ...entry,
-        cost_per_run: costPerRun,
-        daily_aic: dailyAIC,
-        monthly_forecast_aic: dailyAIC * 30,
-      };
-    })
-    .sort((a, b) => {
-      const dailyDelta = b.daily_aic - a.daily_aic;
-      if (dailyDelta !== 0) return dailyDelta;
-      return b.cost_per_run - a.cost_per_run;
-    });
+  return Array.isArray(data?.workflows) ? data.workflows : [];
 }
 
 async function getUsage(options = {}) {
-  const logsData = await getLogsData(options);
-  return {
-    items: buildUsageSummary(logsData.runs, logsData.window),
+  const normalized = normalizeLogsOptions(options);
+  const key = `usage:${JSON.stringify({
+    window: normalized.window.id,
+    count: normalized.count,
+    timeout: normalized.timeout,
+  })}`;
+  const hit = getCached(key);
+  if (hit) return hit;
+  const logsData = await getLogsData(normalized);
+  const usageItems = buildUsageSummary(logsData.runs, logsData.window);
+  const workflowIDs = usageItems.map(item => item.workflow_id).filter(Boolean);
+  const forecastWorkflows = await getForecastData(workflowIDs, logsData.window, logsData.timeout);
+  const result = {
+    items: applyForecastToUsageSummary(usageItems, forecastWorkflows),
     window: logsData.window,
     timeout: logsData.timeout,
     logsFetches: logsData.logsFetches,
     partial: logsData.partial,
     continuation: logsData.continuation,
     total_runs: logsData.runs.length,
+    forecast_history_days: forecastDaysForWindow(logsData.window),
   };
+  setCached(key, result);
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -494,7 +474,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
 **Canvas actions available to the agent:**
 - \`listDefinitions\` — calls \`gh aw status --json\`, returns paged results
 - \`listRuns\` — calls \`gh aw logs --json\` with a selected report window, timeout, and continuation handling
-- \`listUsage\` — aggregates workflow AIC usage, daily burn, and monthly forecast from the same logs window
+- \`listUsage\` — aggregates workflow AIC usage from logs and fills monthly forecast via \`gh aw forecast --json\`
 - \`listExperiments\` — calls \`gh aw experiments list --json\`, returns paged results
 - \`getRun\` — looks up a single run by \`run_id\`
 - \`runCommand\` — executes any \`gh aw <subcommand>\` and returns stdout
@@ -553,7 +533,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
         },
         {
           name: "listUsage",
-          description: "Aggregate workflow AIC usage, daily burn, and monthly forecast from gh aw logs.",
+          description: "Aggregate workflow AIC usage from gh aw logs and monthly forecast costs from gh aw forecast.",
           inputSchema: {
             type: "object",
             properties: {
