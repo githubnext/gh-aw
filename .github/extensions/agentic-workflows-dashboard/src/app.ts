@@ -164,7 +164,7 @@ function reportWindowById(windowId: ReportWindow["id"]): ReportWindow {
 }
 
 function buildReportMessage(meta: ReportMeta | null, emptyLabel: string): string {
-  if (!meta?.window) return emptyLabel;
+  if (!meta?.window) return emptyLabel ?? "";
 
   const windowLabel = meta.window.label ?? meta.window.id;
   const fragments = windowLabel ? [`Window: ${windowLabel}`] : [];

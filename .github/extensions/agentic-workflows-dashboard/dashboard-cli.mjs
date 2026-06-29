@@ -28,7 +28,7 @@ function execp(bin, args, cwd, { combineIO = false, execFileFn = execFile, env =
   });
 }
 
-function parseVersion(output) {
+function parseVersionFromOutput(output) {
   const trimmed = String(output ?? "").trim();
   if (!trimmed) return "";
   const match = trimmed.match(/gh(?:-aw| aw) version (\S+)/i);
@@ -81,7 +81,7 @@ export function createGhAwRunnerWithStatus(options) {
       return {
         available: true,
         source: "dev-binary",
-        version: parseVersion(output) || "unknown",
+        version: parseVersionFromOutput(output) || "unknown",
         command: `${devBin} version`,
         installCommand: INSTALL_COMMAND,
       };
@@ -96,7 +96,7 @@ export function createGhAwRunnerWithStatus(options) {
       return {
         available: true,
         source: "gh-extension",
-        version: parseVersion(output) || "unknown",
+        version: parseVersionFromOutput(output) || "unknown",
         command: "gh aw version",
         installCommand: INSTALL_COMMAND,
       };

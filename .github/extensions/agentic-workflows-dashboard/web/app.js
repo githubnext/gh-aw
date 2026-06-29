@@ -82,7 +82,7 @@ function reportWindowById(windowId) {
 }
 function buildReportMessage(meta, emptyLabel) {
     if (!meta?.window)
-        return emptyLabel;
+        return emptyLabel ?? "";
     const windowLabel = meta.window.label ?? meta.window.id;
     const fragments = windowLabel ? [`Window: ${windowLabel}`] : [];
     if (meta.logsFetches) {
