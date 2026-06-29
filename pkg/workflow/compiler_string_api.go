@@ -108,6 +108,11 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 		return nil, &SharedWorkflowError{Path: cleanPath}
 	}
 
+	if err := c.validateStringEngineBeforeSchema(cleanPath, []byte(content), result, frontmatterForValidation); err != nil {
+		compilerStringAPILog.Printf("ParseWorkflowString: string engine pre-validation failed for %s", cleanPath)
+		return nil, err
+	}
+
 	// Validate frontmatter against schema
 	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
 		compilerStringAPILog.Printf("ParseWorkflowString: schema validation failed for %s", cleanPath)
