@@ -29,7 +29,7 @@
             <template x-for="tab in tabs" :key="tab.id">
               <button type="button" class="UnderlineNav-item" :class="isActiveTab(tab.id) ? 'selected' : ''" @click="setActiveTab(tab.id)">
                 <span x-text="tab.label"></span>
-                <span class="Counter" x-show="tab.counter" x-text="tabCount(tab)"></span>
+                <span class="Counter ml-1" x-show="tab.counter" x-text="tabCount(tab)"></span>
               </button>
             </template>
           </div>
@@ -73,7 +73,7 @@
         <section class="mt-3" x-show="isActiveTab('definitions')">
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
-              <h2 class="Box-title">Workflow definitions <span class="Counter" x-text="definitionsPaged.totalItems"></span></h2>
+              <h2 class="Box-title">Workflow definitions <span class="Counter ml-1" x-text="definitionsPaged.totalItems"></span></h2>
             </div>
             <!-- loading -->
             <div class="Box-body color-fg-muted text-center py-4" x-cloak x-show="loadingDefinitions">
@@ -110,7 +110,7 @@
         <section class="mt-3" x-cloak x-show="isActiveTab('runs')">
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
-              <h2 class="Box-title">Workflow runs <span class="Counter" x-text="runsPaged.totalItems"></span></h2>
+              <h2 class="Box-title">Workflow runs <span class="Counter ml-1" x-text="runsPaged.totalItems"></span></h2>
               <span class="color-fg-muted text-small" x-text="buildReportSummaryMessage(runsMeta)"></span>
             </div>
             <!-- loading -->
@@ -239,7 +239,7 @@
 
                   <!-- Key Findings -->
                   <details class="mb-2" :open="auditHasFindings()">
-                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Key Findings <span class="Counter" x-text="(auditData?.key_findings ?? []).length"></span></summary>
+                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Key Findings <span class="Counter ml-1" x-text="(auditData?.key_findings ?? []).length"></span></summary>
                     <div class="Box mt-1" x-show="(auditData?.key_findings ?? []).length > 0">
                       <template x-for="(finding, idx) in (auditData?.key_findings ?? [])" :key="idx">
                         <div class="Box-row">
@@ -262,7 +262,7 @@
 
                   <!-- Recommendations -->
                   <details class="mb-2">
-                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Recommendations <span class="Counter" x-text="(auditData?.recommendations ?? []).length"></span></summary>
+                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Recommendations <span class="Counter ml-1" x-text="(auditData?.recommendations ?? []).length"></span></summary>
                     <div class="Box mt-1" x-show="(auditData?.recommendations ?? []).length > 0">
                       <template x-for="(rec, idx) in (auditData?.recommendations ?? [])" :key="idx">
                         <div class="Box-row">
@@ -282,7 +282,7 @@
 
                   <!-- Jobs -->
                   <details class="mb-2" x-show="(auditData?.jobs ?? []).length > 0">
-                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Jobs <span class="Counter" x-text="(auditData?.jobs ?? []).length"></span></summary>
+                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Jobs <span class="Counter ml-1" x-text="(auditData?.jobs ?? []).length"></span></summary>
                     <div class="Box mt-1">
                       <template x-for="(job, idx) in (auditData?.jobs ?? [])" :key="idx">
                         <div class="Box-row">
@@ -300,7 +300,7 @@
 
                   <!-- Tool Usage -->
                   <details class="mb-2" x-show="(auditData?.tool_usage ?? []).length > 0">
-                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Tool Usage <span class="Counter" x-text="(auditData?.tool_usage ?? []).length"></span></summary>
+                    <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">▾ Tool Usage <span class="Counter ml-1" x-text="(auditData?.tool_usage ?? []).length"></span></summary>
                     <div class="Box mt-1">
                       <div class="Box-row awd-tool-usage-header">
                         <div>Tool</div>
@@ -322,7 +322,7 @@
                   <!-- Errors & Warnings -->
                   <details class="mb-2" x-show="(auditData?.errors ?? []).length > 0 || (auditData?.warnings ?? []).length > 0">
                     <summary class="btn-link text-bold color-fg-default mb-1" style="cursor: pointer; list-style: none">
-                      ▾ Errors &amp; Warnings <span class="Counter" x-text="(auditData?.errors ?? []).length + (auditData?.warnings ?? []).length"></span>
+                      ▾ Errors &amp; Warnings <span class="Counter ml-1" x-text="(auditData?.errors ?? []).length + (auditData?.warnings ?? []).length"></span>
                     </summary>
                     <div class="Box mt-1">
                       <template x-for="(err, idx) in (auditData?.errors ?? [])" :key="'e' + idx">
@@ -362,7 +362,7 @@
         <section class="mt-3" x-cloak x-show="isActiveTab('usage')">
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
-              <h2 class="Box-title">Usage forecast <span class="Counter" x-text="usagePaged.totalItems"></span></h2>
+              <h2 class="Box-title">Usage forecast <span class="Counter ml-1" x-text="usagePaged.totalItems"></span></h2>
               <span class="color-fg-muted text-small" x-text="buildReportSummaryMessage(usageMeta)"></span>
             </div>
             <div class="Box-body color-fg-muted text-center py-4" x-cloak x-show="loadingUsage">
@@ -404,7 +404,7 @@
         <section class="mt-3" x-cloak x-show="isActiveTab('experiments')">
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
-              <h2 class="Box-title">Experiments <span class="Counter" x-text="experimentsPaged.totalItems"></span></h2>
+              <h2 class="Box-title">Experiments <span class="Counter ml-1" x-text="experimentsPaged.totalItems"></span></h2>
             </div>
             <!-- loading -->
             <div class="Box-body color-fg-muted text-center py-4" x-cloak x-show="loadingExperiments">
