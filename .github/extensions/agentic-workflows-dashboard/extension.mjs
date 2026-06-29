@@ -262,7 +262,13 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
             properties: { run_id: { type: "string", description: "The workflow run ID to audit (numeric string)." } },
             additionalProperties: false,
           },
-          handler: async ctx => dataAccess.getAudit(String(ctx.input?.run_id ?? "")),
+          handler: async ctx => {
+            const runId = String(ctx.input?.run_id ?? "").trim();
+            if (!runId || !/^\d+$/.test(runId)) {
+              throw new Error("run_id must be a non-empty numeric string");
+            }
+            return dataAccess.getAudit(runId);
+          },
         },
         {
           name: "runCommand",

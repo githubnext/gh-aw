@@ -272,6 +272,7 @@ Alpine.data("dashboardApp", () => ({
     this.selectedRun = this.runs.find(run => run.run_id === runId) ?? null;
     this.auditData = null;
     this.errorAudit = "";
+    this.loadingAudit = false;
   },
 
   viewRunDetails(runId) {
@@ -281,19 +282,24 @@ Alpine.data("dashboardApp", () => ({
 
   async loadAudit() {
     if (!this.selectedRun) return;
+    const requestedRunId = this.selectedRun.run_id;
     this.loadingAudit = true;
     this.errorAudit = "";
     this.auditData = null;
     try {
-      const params = new URLSearchParams({ run_id: String(this.selectedRun.run_id) });
+      const params = new URLSearchParams({ run_id: String(requestedRunId) });
       const resp = await fetch(`/api/audit?${params.toString()}`);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error ?? `HTTP ${resp.status}`);
+      if (this.selectedRun?.run_id !== requestedRunId) return;
       this.auditData = data;
     } catch (error) {
+      if (this.selectedRun?.run_id !== requestedRunId) return;
       this.errorAudit = `Audit failed: ${error.message}`;
     } finally {
-      this.loadingAudit = false;
+      if (this.selectedRun?.run_id === requestedRunId) {
+        this.loadingAudit = false;
+      }
     }
   },
 
