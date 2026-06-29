@@ -9262,7 +9262,7 @@
           ],
           "description": "Dispatch workflow_dispatch events to other workflows. Used by orchestrators to delegate work to worker workflows with controlled maximum dispatch count."
         },
-        "dispatch_repository": {
+        "dispatch-repository": {
           "type": "object",
           "description": "Dispatch repository_dispatch events to external repositories. Each sub-key defines a named dispatch tool with its own event_type, target repository, input schema, and execution limits.",
           "additionalProperties": {
@@ -9359,6 +9359,10 @@
             "required": ["workflow", "event_type"],
             "additionalProperties": false
           }
+        },
+        "dispatch_repository": {
+          "$ref": "#/properties/safe-outputs/properties/dispatch-repository",
+          "description": "Deprecated alias for dispatch-repository."
         },
         "call-workflow": {
           "oneOf": [

@@ -309,7 +309,7 @@ safeoutputs noop --message "processed=4; skipped_checks_running=0; skipped_last_
 ## agent: `pr-processor`
 ---
 description: Processes one PR with minimal API calls and returns skip/nudge decisions
-model: claude-haiku-4.5
+model: claude-sonnet-4.6
 ---
 Given one PR number and compact metadata:
 

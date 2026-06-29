@@ -34,3 +34,11 @@ export interface PagedResult<T> {
   hasNextPage: boolean;
   hasPreviousPage: boolean;
 }
+
+export interface ExperimentInfo {
+  workflow_id: string;
+  branch: string;
+  experiments: number;
+  total_runs: number;
+  last_run: string;
+}

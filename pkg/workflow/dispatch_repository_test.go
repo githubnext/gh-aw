@@ -17,7 +17,7 @@ func TestParseDispatchRepositoryConfig_SingleTool(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
-		"dispatch_repository": map[string]any{
+		"dispatch-repository": map[string]any{
 			"trigger_ci": map[string]any{
 				"description": "Trigger CI in another repository",
 				"workflow":    "ci.yml",
@@ -46,7 +46,7 @@ func TestParseDispatchRepositoryConfig_MultipleTools(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
-		"dispatch_repository": map[string]any{
+		"dispatch-repository": map[string]any{
 			"trigger_ci": map[string]any{
 				"workflow":   "ci.yml",
 				"event_type": "ci_trigger",
@@ -90,12 +90,12 @@ func TestParseDispatchRepositoryConfig_MultipleTools(t *testing.T) {
 	assert.Equal(t, strPtr("2"), notifyService.Max)
 }
 
-// TestParseDispatchRepositoryConfig_DashAlias tests that "dispatch-repository" (dash) also works
-func TestParseDispatchRepositoryConfig_DashAlias(t *testing.T) {
+// TestParseDispatchRepositoryConfig_UnderscoreAlias tests that "dispatch_repository" (underscore) remains supported.
+func TestParseDispatchRepositoryConfig_UnderscoreAlias(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
-		"dispatch-repository": map[string]any{
+		"dispatch_repository": map[string]any{
 			"trigger_ci": map[string]any{
 				"workflow":   "ci.yml",
 				"event_type": "ci_trigger",
@@ -105,7 +105,7 @@ func TestParseDispatchRepositoryConfig_DashAlias(t *testing.T) {
 	}
 
 	config := compiler.parseDispatchRepositoryConfig(outputMap)
-	require.NotNil(t, config, "Config should be parsed from dash form")
+	require.NotNil(t, config, "Config should be parsed from underscore alias")
 	require.Len(t, config.Tools, 1, "Should have 1 tool")
 }
 
@@ -119,6 +119,36 @@ func TestParseDispatchRepositoryConfig_Absent(t *testing.T) {
 
 	config := compiler.parseDispatchRepositoryConfig(outputMap)
 	assert.Nil(t, config, "Config should be nil when dispatch_repository is absent")
+}
+
+// TestParseDispatchRepositoryConfig_DashPrecedenceOverUnderscore tests that dispatch-repository (dashed)
+// takes precedence over dispatch_repository (underscore) when both keys are present.
+func TestParseDispatchRepositoryConfig_DashPrecedenceOverUnderscore(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	outputMap := map[string]any{
+		"dispatch-repository": map[string]any{
+			"dash_tool": map[string]any{
+				"workflow":   "dash.yml",
+				"event_type": "dash_event",
+				"repository": "github/canonical",
+			},
+		},
+		"dispatch_repository": map[string]any{
+			"underscore_tool": map[string]any{
+				"workflow":   "underscore.yml",
+				"event_type": "underscore_event",
+				"repository": "github/alias",
+			},
+		},
+	}
+
+	config := compiler.parseDispatchRepositoryConfig(outputMap)
+	require.NotNil(t, config)
+	_, hasDashTool := config.Tools["dash_tool"]
+	assert.True(t, hasDashTool, "dashed form should take precedence")
+	_, hasUnderscoreTool := config.Tools["underscore_tool"]
+	assert.False(t, hasUnderscoreTool, "underscore form should be shadowed by dashed form")
 }
 
 // TestParseDispatchRepositoryConfig_MaxCap tests that max is capped at 50
