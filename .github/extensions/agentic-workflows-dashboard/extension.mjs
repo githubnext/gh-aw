@@ -1,19 +1,57 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { execFile } from "node:child_process/promises";
+import { dirname, join, resolve } from "node:path";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 
-import { createGhAwRunner } from "./dashboard-cli.mjs";
-import { DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT } from "./dashboard-config.mjs";
-import { createDashboardDataAccess } from "./dashboard-data.mjs";
+import { createGhAwRunnerWithStatus, DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT, createDashboardDataAccess } from "./app.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const LOG = "[extension]";
+// For project-scoped extensions the file lives at .github/extensions/<name>/extension.mjs,
+// so three levels up is the git repo root. process.cwd() and session.workspacePath both
+// resolve to unrelated Copilot runtime directories and must not be used as CLI cwd.
+const workspacePath = resolve(__dirname, "../../..");
+const runGhAw = createGhAwRunnerWithStatus({ getWorkspacePath: () => workspacePath });
+
+/**
+ * Resolve a shared logs directory keyed by the GitHub repo identity (owner/repo),
+ * stored in the user's home cache directory.  This ensures all sessions that
+ * target the same repo—even when each session runs in a fresh workspace
+ * checkout—share a single on-disk artifact cache and never re-download runs
+ * that are already present.
+ *
+ * Falls back to `<workspacePath>/.github/aw/logs` when the remote URL cannot
+ * be determined (e.g. no git remote, or git is unavailable).
+ */
+async function resolveSharedLogsDir(workspace) {
+  try {
+    const { stdout } = await execFile("git", ["-C", workspace, "remote", "get-url", "origin"], { encoding: "utf8" });
+    const remoteUrl = stdout.trim();
+    // Match both HTTPS (https://github.com/owner/repo) and SSH (git@github.com:owner/repo) formats.
+    const match = remoteUrl.match(/github\.com[/:]([^/]+)\/([^/\s]+?)(?:\.git)?(?:\s|$)/);
+    if (match) {
+      const [, owner, repo] = match;
+      const dir = join(homedir(), ".cache", "gh-aw", "logs", owner, repo);
+      console.error(`${LOG} resolveSharedLogsDir: remote="${remoteUrl}" -> ${dir}`);
+      return dir;
+    }
+    console.error(`${LOG} resolveSharedLogsDir: could not parse owner/repo from remote="${remoteUrl}", using workspace default`);
+  } catch (err) {
+    console.error(`${LOG} resolveSharedLogsDir: git remote lookup failed: ${err.message}`);
+  }
+  const fallback = join(workspace, ".github", "aw", "logs");
+  console.error(`${LOG} resolveSharedLogsDir: using fallback=${fallback}`);
+  return fallback;
+}
+
+const sharedLogsDir = await resolveSharedLogsDir(workspacePath);
 const servers = new Map();
-let workspacePath = process.cwd();
-const runGhAw = createGhAwRunner({ getWorkspacePath: () => workspacePath });
-const dataAccess = createDashboardDataAccess({ runGhAw });
+const dataAccess = createDashboardDataAccess({ runGhAw, logsOutputDir: sharedLogsDir });
+console.error(`${LOG} startup __dirname=${__dirname} workspacePath=${workspacePath} sharedLogsDir=${sharedLogsDir}`);
 
 // ---------------------------------------------------------------------------
 // Pagination utility
@@ -44,6 +82,7 @@ async function startServer() {
   const server = createServer(async (req, res) => {
     const reqUrl = new URL(req.url ?? "/", "http://localhost");
     const pathname = reqUrl.pathname;
+    const t0 = Date.now();
 
     const sendJson = (payload, status = 200) => {
       res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
@@ -58,11 +97,10 @@ async function startServer() {
       } else if (pathname === "/app.js") {
         res.setHeader("Content-Type", "application/javascript; charset=utf-8");
         res.end(await readFile(join(__dirname, "web", "app.js"), "utf8"));
-      } else if (pathname === "/pagination.js") {
-        res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-        res.end(await readFile(join(__dirname, "web", "pagination.js"), "utf8"));
       } else if (pathname === "/api/status") {
         sendJson(await dataAccess.getDefinitions());
+      } else if (pathname === "/api/cli-status") {
+        sendJson(await runGhAw.getStatus());
       } else if (pathname === "/api/experiments") {
         sendJson(await dataAccess.getExperiments());
       } else if (pathname === "/api/runs") {
@@ -81,6 +119,13 @@ async function startServer() {
             timeout: parseInt(reqUrl.searchParams.get("timeout") ?? String(DEFAULT_LOG_TIMEOUT_MINUTES), 10),
           })
         );
+      } else if (pathname === "/api/audit") {
+        const runId = reqUrl.searchParams.get("run_id") ?? "";
+        if (!runId) {
+          sendJson({ error: "run_id is required" }, 400);
+        } else {
+          sendJson(await dataAccess.getAudit(runId));
+        }
       } else if (pathname === "/api/run-command") {
         const cmd = reqUrl.searchParams.get("cmd") ?? "";
         sendJson(
@@ -96,12 +141,17 @@ async function startServer() {
         res.writeHead(404);
         res.end("Not found");
       }
+      if (pathname.startsWith("/api/")) {
+        console.error(`${LOG} request ${req.method} ${pathname} ${Date.now() - t0}ms`);
+      }
     } catch (err) {
+      console.error(`${LOG} request error ${req.method} ${pathname} ${Date.now() - t0}ms: ${err.message}`);
       sendJson({ error: err.message }, 500);
     }
   });
   await new Promise(r => server.listen(0, "127.0.0.1", r));
   const { port } = server.address();
+  console.error(`${LOG} server listening on port ${port}`);
   return { server, url: `http://127.0.0.1:${port}/` };
 }
 
@@ -132,6 +182,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
 - \`listUsage\` — aggregates workflow AIC usage from logs and fills monthly forecast via \`gh aw forecast --json\`
 - \`listExperiments\` — calls \`gh aw experiments list --json\`, returns paged results
 - \`getRun\` — looks up a single run by \`run_id\`
+- \`auditRun\` — calls \`gh aw audit <run_id> --json\` and returns structured audit data (overview, metrics, key_findings, recommendations, jobs, tool_usage, errors, warnings, firewall_analysis)
 - \`runCommand\` — executes any \`gh aw <subcommand>\` and returns stdout
 - \`refresh\` — clears the 60-second cache so the next call fetches fresh data
 `,
@@ -246,6 +297,23 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
           },
         },
         {
+          name: "auditRun",
+          description: "Run gh aw audit for a specific workflow run by run_id, returning structured audit data.",
+          inputSchema: {
+            type: "object",
+            required: ["run_id"],
+            properties: { run_id: { type: "string", description: "The workflow run ID to audit (numeric string)." } },
+            additionalProperties: false,
+          },
+          handler: async ctx => {
+            const runId = String(ctx.input?.run_id ?? "").trim();
+            if (!runId || !/^\d+$/.test(runId)) {
+              throw new Error("run_id must be a non-empty numeric string");
+            }
+            return dataAccess.getAudit(runId);
+          },
+        },
+        {
           name: "runCommand",
           description: "Execute a gh aw subcommand (e.g. 'gh aw status', 'gh aw logs -c 5') and return its stdout.",
           inputSchema: {
@@ -267,6 +335,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
         },
       ],
       open: async ctx => {
+        console.error(`${LOG} canvas open instanceId=${ctx.instanceId}`);
         let entry = servers.get(ctx.instanceId);
         if (!entry) {
           entry = await startServer();
@@ -275,6 +344,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
         return { title: "Agentic Workflows Dashboard", status: "Live · gh aw", url: entry.url };
       },
       onClose: async ctx => {
+        console.error(`${LOG} canvas close instanceId=${ctx.instanceId}`);
         const entry = servers.get(ctx.instanceId);
         if (entry) {
           servers.delete(ctx.instanceId);
@@ -284,5 +354,3 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
     }),
   ],
 });
-
-workspacePath = session.workspacePath ?? process.cwd();

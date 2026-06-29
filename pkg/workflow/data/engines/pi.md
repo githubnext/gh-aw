@@ -6,9 +6,6 @@ engine:
   runtime-id: pi
   provider:
     name: github
-  auth:
-    - role: api-key
-      secret: COPILOT_GITHUB_TOKEN
 ---
 
 <!-- # Pi

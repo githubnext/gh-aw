@@ -8,12 +8,11 @@ var assignToUserLog = logger.New("workflow:assign_to_user")
 
 // AssignToUserConfig holds configuration for assigning users to issues from agent output
 type AssignToUserConfig struct {
-	BaseSafeOutputConfig   `yaml:",inline"`
-	SafeOutputTargetConfig `yaml:",inline"`
-	SafeOutputFilterConfig `yaml:",inline"`
-	Allowed                []string `yaml:"allowed,omitempty"`        // Optional list of allowed usernames. If omitted, any users are allowed.
-	Blocked                []string `yaml:"blocked,omitempty"`        // Optional list of blocked usernames or patterns (e.g., "copilot", "*[bot]")
-	UnassignFirst          *string  `yaml:"unassign-first,omitempty"` // If true, unassign all current assignees before assigning new ones
+	BaseSafeOutputConfig       `yaml:",inline"`
+	SafeOutputTargetConfig     `yaml:",inline"`
+	SafeOutputFilterConfig     `yaml:",inline"`
+	SafeOutputAllowBlockConfig `yaml:",inline"`
+	UnassignFirst              *string `yaml:"unassign-first,omitempty"` // If true, unassign all current assignees before assigning new ones
 }
 
 // parseAssignToUserConfig handles assign-to-user configuration

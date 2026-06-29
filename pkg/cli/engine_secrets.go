@@ -110,7 +110,7 @@ func getEngineSecretDescription(opt *constants.EngineOption) string {
 }
 
 // secretRequirementsFromAuthDefinition converts an AuthDefinition into SecretRequirement
-// entries so that auth-binding secrets are treated as required secrets (same as built-in
+// entries so inline auth secrets are treated as required secrets (same as built-in
 // engine secrets). Returns nil when auth is nil.
 func secretRequirementsFromAuthDefinition(auth *workflow.AuthDefinition, engineName string) []SecretRequirement {
 	if auth == nil {

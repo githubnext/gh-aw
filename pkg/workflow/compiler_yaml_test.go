@@ -568,6 +568,43 @@ Content.`,
 	}
 }
 
+func TestEngineTypeValidationErrorUsesSingleSourceLocationAndSnippet(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-type-error-test")
+
+	// Integer engine values bypass validateEngineBeforeSchema, so this verifies the
+	// schema-validation path still reports one authoritative location plus snippet.
+	content := `---
+on: push
+name: test
+engine: 123
+---
+
+# Test
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	if err == nil {
+		t.Fatal("expected compilation to fail")
+	}
+
+	errorStr := err.Error()
+	if !strings.Contains(errorStr, testFile+":4:8: error:") {
+		t.Errorf("error should point to engine value location in header, got: %s", errorStr)
+	}
+	if strings.Contains(errorStr, "(line ") || strings.Contains(errorStr, ", col ") {
+		t.Errorf("single schema failure should not repeat a second line/col location in the message body, got: %s", errorStr)
+	}
+	if !strings.Contains(errorStr, "4 | engine: 123") {
+		t.Errorf("error should include the engine source line snippet, got: %s", errorStr)
+	}
+}
+
 // TestInvalidEngineReportedBeforeImportErrors verifies that an invalid engine: value
 // is reported immediately, even when imports also fail. Previously the import error
 // would shadow the engine typo.
@@ -618,6 +655,43 @@ Content.`
 	// Should NOT report the missing import (engine error is primary)
 	if strings.Contains(errorStr, "import file not found") {
 		t.Errorf("import error should be suppressed when engine is invalid, got: %s", errorStr)
+	}
+}
+
+func TestInvalidEngineReportedBeforeSchemaErrors(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-before-schema-test")
+
+	content := `---
+on: push
+engine: copiilot
+bogus-field: true
+---
+
+# Test
+`
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	if err == nil {
+		t.Fatal("expected compilation to fail")
+	}
+
+	errorStr := err.Error()
+	if !strings.Contains(errorStr, "invalid engine: copiilot") {
+		t.Errorf("error should prioritize the invalid engine typo, got: %s", errorStr)
+	}
+	if !strings.Contains(errorStr, "Did you mean: copilot?") {
+		t.Errorf("error should include the closest engine suggestion, got: %s", errorStr)
+	}
+	if strings.Contains(errorStr, "Unknown property: bogus-field") {
+		t.Errorf("schema error should not shadow the invalid engine typo, got: %s", errorStr)
+	}
+	if !strings.Contains(errorStr, testFile+":3:1: error:") {
+		t.Errorf("error should point to the engine field location, got: %s", errorStr)
 	}
 }
 

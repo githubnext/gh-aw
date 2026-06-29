@@ -641,6 +641,29 @@ describe("safe_outputs_handlers", () => {
       return { targetRepoDir };
     }
 
+    function createRepoWithHeadCommitAndMissingRequestedBranch() {
+      const targetRepoDir = path.join(testWorkspaceDir, "head-fallback-repo");
+      fs.mkdirSync(targetRepoDir, { recursive: true });
+
+      execSync("git init -b main", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@example.com'", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test User'", { cwd: targetRepoDir, stdio: "pipe" });
+
+      fs.writeFileSync(path.join(targetRepoDir, "README.md"), "base\n");
+      execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'base commit'", { cwd: targetRepoDir, stdio: "pipe" });
+      const baseCommitSha = execSync("git rev-parse HEAD", { cwd: targetRepoDir, stdio: "pipe" }).toString().trim();
+
+      execSync("git remote add origin https://github.com/test-owner/test-repo.git", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync(`git update-ref refs/remotes/origin/main ${baseCommitSha}`, { cwd: targetRepoDir, stdio: "pipe" });
+
+      fs.writeFileSync(path.join(targetRepoDir, "README.md"), "local only\n");
+      execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'local only commit'", { cwd: targetRepoDir, stdio: "pipe" });
+
+      return { targetRepoDir, baseCommitSha };
+    }
+
     it("should be defined", () => {
       expect(handlers.createPullRequestHandler).toBeDefined();
     });
@@ -707,9 +730,9 @@ describe("safe_outputs_handlers", () => {
       );
     });
 
-    it("should return error response when patch generation fails (not throw)", async () => {
-      // This test verifies the error is returned as content, not thrown
-      // Patch generation will fail because we're not in a git repo
+    it("should return error response when patch generation still fails after branch pinning fallback", async () => {
+      // This test verifies the error is returned as content, not thrown.
+      // Patch generation still fails because we're not in a git repo.
       const args = {
         branch: "feature-branch",
         title: "Test PR",
@@ -730,13 +753,117 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
       expect(responseData.error).toBeDefined();
-      expect(responseData.error).toContain("Failed to pin branch");
-      expect(responseData.error).toContain("before bundle generation");
       expect(responseData.details).toBeDefined();
-      expect(responseData.details).toContain("Bundle transport requires branch pinning");
+      expect(responseData.details).toContain("No commits were found to create a pull request");
 
       // Should not have appended to safe output since patch generation failed
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("injects GITHUB_WORKSPACE into GIT_CONFIG env vars for safe.directory before branch pinning", async () => {
+      const prevCount = process.env.GIT_CONFIG_COUNT;
+      const prevKeys = Object.fromEntries(Object.entries(process.env).filter(([k]) => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k)));
+      // Clear any pre-existing GIT_CONFIG_COUNT so the injection starts at index 0.
+      delete process.env.GIT_CONFIG_COUNT;
+      for (const key of Object.keys(prevKeys)) delete process.env[key];
+      try {
+        await handlers.createPullRequestHandler({
+          branch: "feature-branch",
+          title: "Test PR",
+          body: "Test description",
+        });
+
+        const count = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10);
+        const injected = [];
+        for (let i = 0; i < count; i++) {
+          if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory") {
+            injected.push(process.env[`GIT_CONFIG_VALUE_${i}`]);
+          }
+        }
+        expect(injected).toContain(testWorkspaceDir);
+      } finally {
+        // Restore original env state.
+        if (prevCount === undefined) delete process.env.GIT_CONFIG_COUNT;
+        else process.env.GIT_CONFIG_COUNT = prevCount;
+        // Remove any GIT_CONFIG_KEY/VALUE vars added during the test, then restore originals.
+        for (const key of Object.keys(process.env).filter(k => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k))) {
+          delete process.env[key];
+        }
+        for (const [key, value] of Object.entries(prevKeys)) process.env[key] = value;
+      }
+    });
+
+    it("does not add duplicate safe.directory entries on repeated handler calls with the same path", async () => {
+      const prevCount = process.env.GIT_CONFIG_COUNT;
+      const prevKeys = Object.fromEntries(Object.entries(process.env).filter(([k]) => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k)));
+      delete process.env.GIT_CONFIG_COUNT;
+      for (const key of Object.keys(prevKeys)) delete process.env[key];
+      try {
+        // Two calls simulate a retry or concurrent invocation with the same workspace path.
+        await handlers.createPullRequestHandler({
+          branch: "feature-branch",
+          title: "Test PR",
+          body: "Test description",
+        });
+        await handlers.createPullRequestHandler({
+          branch: "feature-branch",
+          title: "Test PR",
+          body: "Test description",
+        });
+
+        const count = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10);
+        const safeDirectories = [];
+        for (let i = 0; i < count; i++) {
+          if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory") {
+            safeDirectories.push(process.env[`GIT_CONFIG_VALUE_${i}`]);
+          }
+        }
+        // The workspace path must appear exactly once — no duplicate growth.
+        expect(safeDirectories.filter(d => d === testWorkspaceDir)).toHaveLength(1);
+      } finally {
+        if (prevCount === undefined) delete process.env.GIT_CONFIG_COUNT;
+        else process.env.GIT_CONFIG_COUNT = prevCount;
+        for (const key of Object.keys(process.env).filter(k => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k))) {
+          delete process.env[key];
+        }
+        for (const [key, value] of Object.entries(prevKeys)) process.env[key] = value;
+      }
+    });
+
+    it("should allow bundle transport to fall back to HEAD when the requested branch is missing locally", async () => {
+      const { targetRepoDir, baseCommitSha } = createRepoWithHeadCommitAndMissingRequestedBranch();
+      const previousWorkspace = process.env.GITHUB_WORKSPACE;
+      const previousGitHubSha = process.env.GITHUB_SHA;
+      process.env.GITHUB_WORKSPACE = targetRepoDir;
+      process.env.GITHUB_SHA = baseCommitSha;
+
+      try {
+        const result = await handlers.createPullRequestHandler({
+          branch: "blog/2026-06-29-agent-of-the-day",
+          title: "Test PR",
+          body: "Description",
+        });
+
+        expect(result.isError).toBeUndefined();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        expect(responseData.bundle?.path).toBeTruthy();
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "create_pull_request",
+            branch: "blog/2026-06-29-agent-of-the-day",
+          })
+        );
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to pin branch 'blog/2026-06-29-agent-of-the-day'"));
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("proceeding without branch pinning"));
+      } finally {
+        process.env.GITHUB_WORKSPACE = previousWorkspace;
+        if (previousGitHubSha === undefined) {
+          delete process.env.GITHUB_SHA;
+        } else {
+          process.env.GITHUB_SHA = previousGitHubSha;
+        }
+      }
     });
 
     it("should include helpful details in error response", async () => {
@@ -752,8 +879,7 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
 
       // Verify the details provide actionable guidance
-      expect(responseData.details).toContain("Bundle transport requires branch pinning");
-      expect(responseData.details).toContain("branch exists locally");
+      expect(responseData.details).toContain("git add and git commit");
     });
 
     it("should return error when repo parameter is not in the allowed-repos list", async () => {
@@ -790,7 +916,7 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       // Should be a patch generation error, not a repo not found error
       expect(responseData.error).not.toContain("not found in workspace");
-      expect(responseData.error).toContain("Failed to pin branch");
+      expect(responseData.details).toContain("No commits were found to create a pull request");
     });
 
     it("should treat whitespace-only repo as workspace root", async () => {
@@ -1206,6 +1332,37 @@ describe("safe_outputs_handlers", () => {
 
       // Should not have appended to safe output since patch generation failed
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("injects GITHUB_WORKSPACE into GIT_CONFIG env vars for safe.directory before push branch pinning", async () => {
+      const prevCount = process.env.GIT_CONFIG_COUNT;
+      const prevKeys = Object.fromEntries(Object.entries(process.env).filter(([k]) => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k)));
+      // Clear any pre-existing GIT_CONFIG_COUNT so the injection starts at index 0.
+      delete process.env.GIT_CONFIG_COUNT;
+      for (const key of Object.keys(prevKeys)) delete process.env[key];
+      try {
+        await handlers.pushToPullRequestBranchHandler({
+          branch: "feature-branch",
+        });
+
+        const count = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10);
+        const injected = [];
+        for (let i = 0; i < count; i++) {
+          if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory") {
+            injected.push(process.env[`GIT_CONFIG_VALUE_${i}`]);
+          }
+        }
+        expect(injected).toContain(testWorkspaceDir);
+      } finally {
+        // Restore original env state.
+        if (prevCount === undefined) delete process.env.GIT_CONFIG_COUNT;
+        else process.env.GIT_CONFIG_COUNT = prevCount;
+        // Remove any GIT_CONFIG_KEY/VALUE vars added during the test, then restore originals.
+        for (const key of Object.keys(process.env).filter(k => /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k))) {
+          delete process.env[key];
+        }
+        for (const [key, value] of Object.entries(prevKeys)) process.env[key] = value;
+      }
     });
 
     it("should require explicit pull_request_number when push_to_pull_request_branch target is '*'", async () => {

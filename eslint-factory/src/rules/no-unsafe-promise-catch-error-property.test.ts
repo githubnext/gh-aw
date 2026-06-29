@@ -240,6 +240,64 @@ describe("no-unsafe-promise-catch-error-property", () => {
     });
   });
 
+  it("valid: typeof err === 'object' guard suppresses warnings in .catch() callback", () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [`promise.catch(err => { if (typeof err === 'object') { console.log(err.status); } });`, `promise.catch(err => { if ('object' === typeof err) { console.log(err.status); } });`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: err.status without guard is flagged in .catch() callback", () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `promise.catch(err => { if (err.status === 404) { } });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "status", errorVar: "err" },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: err.cause without guard is flagged in .catch() callback", () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `promise.catch(err => { console.log(err.cause); });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "cause", errorVar: "err" },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: err.name without guard is flagged in .catch() callback", () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `promise.catch(err => { console.log(err.name); });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "name", errorVar: "err" },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("invalid: nested .catch() callbacks are checked independently", () => {
     cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
       valid: [],

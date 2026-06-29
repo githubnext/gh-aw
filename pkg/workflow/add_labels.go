@@ -8,11 +8,10 @@ var addLabelsLog = logger.New("workflow:add_labels")
 
 // AddLabelsConfig holds configuration for adding labels to issues/PRs from agent output
 type AddLabelsConfig struct {
-	BaseSafeOutputConfig   `yaml:",inline"`
-	SafeOutputTargetConfig `yaml:",inline"`
-	SafeOutputFilterConfig `yaml:",inline"`
-	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed label patterns (supports glob patterns like "team-*", "area/*"). Labels will be created if they don't already exist in the repository. If omitted, any labels are allowed (including creating new ones).
-	Blocked                []string `yaml:"blocked,omitempty"` // Optional list of blocked label patterns (supports glob patterns like "~*", "*[bot]"). Labels matching these patterns will be rejected.
+	BaseSafeOutputConfig       `yaml:",inline"`
+	SafeOutputTargetConfig     `yaml:",inline"`
+	SafeOutputFilterConfig     `yaml:",inline"`
+	SafeOutputAllowBlockConfig `yaml:",inline"`
 }
 
 // parseAddLabelsConfig handles add-labels configuration

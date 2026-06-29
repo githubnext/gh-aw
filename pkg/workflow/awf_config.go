@@ -71,6 +71,7 @@ import (
 	"github.com/github/gh-aw/pkg/jsonutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 //go:embed schemas/awf-config.schema.json
@@ -229,6 +230,11 @@ type AWFAPIProxyConfig struct {
 	// AWF resolves aliases recursively; loops are not permitted.
 	// Per the AWF config schema, this lives under apiProxy.models.
 	Models map[string][]string `json:"models,omitempty"`
+
+	// AllowedModels is the explicit allowlist policy for model names/patterns.
+	AllowedModels []string `json:"allowedModels,omitempty"`
+	// DisallowedModels is the explicit denylist policy for model names/patterns.
+	DisallowedModels []string `json:"disallowedModels,omitempty"`
 }
 
 // AWFModelFallbackConfig is the "apiProxy.modelFallback" section of the AWF config file.
@@ -479,6 +485,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		apiProxy.Models = config.WorkflowData.ModelMappings
 		awfConfigLog.Printf("Models section: %d alias entries", len(config.WorkflowData.ModelMappings))
 	}
+	allowedModels, disallowedModels := resolveModelPolicyForAWFConfig(config.WorkflowData)
+	if len(allowedModels) > 0 {
+		apiProxy.AllowedModels = allowedModels
+		awfConfigLog.Printf("Models policy: %d allowed model pattern(s)", len(allowedModels))
+	}
+	if len(disallowedModels) > 0 {
+		apiProxy.DisallowedModels = disallowedModels
+		awfConfigLog.Printf("Models policy: %d disallowed model pattern(s)", len(disallowedModels))
+	}
 
 	awfConfig.APIProxy = apiProxy
 
@@ -533,6 +548,73 @@ func splitDomainList(domains string) []string {
 			}{}
 			result = append(result, d)
 		}
+	}
+	return result
+}
+
+// resolveModelPolicyForAWFConfig applies policy precedence independently per list:
+// allowed rules are narrowed using intersection with env policy, while blocked
+// rules are widened using union with env policy.
+func resolveModelPolicyForAWFConfig(workflowData *WorkflowData) ([]string, []string) {
+	envAllowed, hasAllowedOverride := compilerenv.ResolvePolicyModelsAllowed()
+	envBlocked, hasBlockedOverride := compilerenv.ResolvePolicyModelsBlocked()
+	var allowed []string
+	var blocked []string
+	if workflowData != nil {
+		allowed = workflowData.ModelPolicyAllowed
+		blocked = workflowData.ModelPolicyBlocked
+	}
+	if hasAllowedOverride {
+		allowed = intersectModelPolicyRules(allowed, envAllowed)
+	}
+	if hasBlockedOverride {
+		blocked = unionModelPolicyRules(blocked, envBlocked)
+	}
+	blockedSet := make(map[string]struct{}, len(blocked))
+	for _, model := range blocked {
+		blockedSet[model] = struct{}{}
+	}
+	allowed = filterAllowedModelConflictsWithSet(allowed, blockedSet)
+	return allowed, blocked
+}
+
+func intersectModelPolicyRules(local, override []string) []string {
+	if len(override) == 0 {
+		return append([]string(nil), local...)
+	}
+	// No local allow-list means no workflow restriction; keep the env allow-list.
+	if len(local) == 0 {
+		return append([]string(nil), override...)
+	}
+	localSet := make(map[string]struct{}, len(local))
+	for _, model := range local {
+		localSet[model] = struct{}{}
+	}
+	result := make([]string, 0, len(override))
+	for _, model := range override {
+		if _, ok := localSet[model]; ok {
+			result = append(result, model)
+		}
+	}
+	return result
+}
+
+func unionModelPolicyRules(local, override []string) []string {
+	result := make([]string, 0, len(local)+len(override))
+	seen := make(map[string]struct{}, len(local)+len(override))
+	for _, model := range local {
+		if _, ok := seen[model]; ok {
+			continue
+		}
+		seen[model] = struct{}{}
+		result = append(result, model)
+	}
+	for _, model := range override {
+		if _, ok := seen[model]; ok {
+			continue
+		}
+		seen[model] = struct{}{}
+		result = append(result, model)
 	}
 	return result
 }

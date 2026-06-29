@@ -138,3 +138,5 @@ Do not modify unrelated existing fixture files and do not create duplicates when
 - Use `###`/`####` headings only in generated report text.
 - Use `<details>` blocks for long sections.
 - This workflow must end with either `create_pull_request` or `noop`.
+- **Batch size**: Process at most **20 missing types** per run. If more than 20 types are missing, handle the first 20 and note the remainder in the PR body for the next run.
+- **Tool budget awareness**: If you are approaching the tool call limit, emit a partial result immediately rather than continuing to gather more data. A partial `create_pull_request` covering only the types processed so far is always better than no output at all.

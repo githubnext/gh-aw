@@ -51,9 +51,10 @@ func TestExtractAgentSandboxConfigSudo(t *testing.T) {
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
 		assert.True(t, config.NetworkIsolation, "sudo: false should enable network isolation (NetworkIsolation=true)")
+		assert.False(t, config.SudoExplicitlyEnabled, "sudo: false should not set SudoExplicitlyEnabled")
 	})
 
-	t.Run("extracts sandbox.agent.sudo: true as normal mode", func(t *testing.T) {
+	t.Run("extracts sandbox.agent.sudo: true as normal mode with SudoExplicitlyEnabled", func(t *testing.T) {
 		agentObj := map[string]any{
 			"id":   "awf",
 			"sudo": true,
@@ -62,6 +63,18 @@ func TestExtractAgentSandboxConfigSudo(t *testing.T) {
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
 		assert.False(t, config.NetworkIsolation, "sudo: true should disable network isolation (NetworkIsolation=false)")
+		assert.True(t, config.SudoExplicitlyEnabled, "sudo: true should set SudoExplicitlyEnabled")
+	})
+
+	t.Run("sudo omitted defaults to network isolation mode", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id": "awf",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.True(t, config.NetworkIsolation, "omitting sudo should default to network isolation (NetworkIsolation=true)")
+		assert.False(t, config.SudoExplicitlyEnabled, "omitting sudo should not set SudoExplicitlyEnabled")
 	})
 }
 

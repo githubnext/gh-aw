@@ -191,7 +191,7 @@ safe-outputs:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			location := LocateJSONPathInYAMLWithAdditionalProperties(tt.yamlContent, tt.jsonPath, tt.errorMessage)
+			location := LocateJSONPathForPathInfo(tt.yamlContent, JSONPathInfo{Path: tt.jsonPath, Message: tt.errorMessage})
 
 			if !location.Found {
 				t.Errorf("Expected to find error location, but Found=false")
@@ -284,7 +284,7 @@ safe-outputs:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			location := LocateJSONPathInYAMLWithAdditionalProperties(tt.yamlContent, tt.jsonPath, tt.errorMessage)
+			location := LocateJSONPathForPathInfo(tt.yamlContent, JSONPathInfo{Path: tt.jsonPath, Message: tt.errorMessage})
 
 			if !location.Found {
 				t.Errorf("Expected to find error location, but Found=false. %s", tt.description)
@@ -370,7 +370,7 @@ safe-outputs:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			location := LocateJSONPathInYAMLWithAdditionalProperties(tt.yamlContent, tt.jsonPath, tt.errorMessage)
+			location := LocateJSONPathForPathInfo(tt.yamlContent, JSONPathInfo{Path: tt.jsonPath, Message: tt.errorMessage})
 
 			if location.Found != tt.shouldFind {
 				t.Errorf("Expected Found=%v, got Found=%v. %s", tt.shouldFind, location.Found, tt.description)

@@ -155,62 +155,37 @@ Also check `/tmp/gh-aw/agent/missing-build-tags.txt` — any newly added Go test
 
 For each changed test file, run structural checks using available tools.
 
-**Go — `Test*` functions**
+| Language | Analyzer | Extract | Flag immediately |
+|---|---|---|---|
+| Go (`Test*`) | `go-test-analyzer` | Assertion counts, error-path checks, table-driven rows, build-tag status | `gomock`, `testify/mock`, `.EXPECT()`, `.On()`, `.Return()`, missing `//go:build` |
+| JavaScript (`.test.cjs` / `.test.js`) | `js-test-analyzer` | `expect(...)` counts, error matchers (`.toThrow`, `.rejects`), `vi.*` mock usage | Mocking internal business logic without behavioral assertions |
 
-Use the `go-test-analyzer` agent to extract per-function assertion counts, error coverage,
-table-driven usage, and forbidden mock calls from the pre-fetched test diff. It also checks
-for missing `//go:build` tags in newly added Go test files. Use its table and build-tag findings
-as input to Step 4.
-
-Key signals for Go tests in this codebase:
-- **Assertions (accepted forms)**:
-  - testify: `assert.Equal`, `assert.NoError`, `assert.Error`, `require.Equal`, `require.NoError`, etc.
-  - stdlib: `t.Errorf(...)`, `t.Fatalf(...)`, `t.Error(...)`
-- **Error coverage**: `assert.Error` / `require.Error`, `assert.NoError` / `require.NoError`, `t.Fatalf` / `t.Errorf` explicitly checking error returns
-- **Table-driven tests**: `t.Run()` over a `tests []struct{...}` slice — the preferred pattern in this codebase; a single table-driven test covers all its sub-cases, so credit all included error / edge-case rows
-- **Assertion messages**: guidelines require a descriptive message argument on every assertion call — e.g. `assert.Equal(t, expected, actual, "descriptive context")` not bare `assert.Equal(t, expected, actual)`
-- **Forbidden**: any use of `gomock`, `testify/mock`, `.EXPECT()`, `.On()`, `.Return()` in Go tests violates the project's "no mocks" guideline; flag immediately
-
-**JavaScript — vitest `test()` / `it()` blocks**
-
-Use the `js-test-analyzer` agent to extract per-test assertion counts, error matcher usage,
-and `vi.*` mock calls from the pre-fetched test diff. Covers both `.test.cjs` (primary) and
-`.test.js` (scripts) formats. Use its table as input to Step 4.
-
-Key signals for JavaScript tests in this codebase:
-- **Assertions**: `expect(...)` calls with vitest matchers (`.toBe`, `.toEqual`, `.toMatchObject`, `.toContain`, `.toBeNull`, etc.)
-- **Error coverage**: `.toThrow()`, `.toThrowError()`, `.rejects`, or assertions on error-shaped return values
-- **Mocking (vitest)**: `vi.mock(module)` for module-level stubs, `vi.spyOn(obj, 'method')` for method observation, `vi.fn()` for standalone stub functions; `vi.clearAllMocks()` / `beforeEach`+`vi.clearAllMocks()` for cleanup
-- **Legitimate mocking targets**: external I/O (`fs`, `path`), GitHub Actions runtime (`global.core`, `process.stderr`), and HTTP clients are acceptable mock targets. Flag only when mocking internal business-logic functions that have no external side-effects.
+Use analyzer output tables in Step 4. Accepted signals:
+- **Assertions**: Go (`assert.*`, `require.*`, `t.Error*`), JS (`expect(...).to*`)
+- **Error coverage**: explicit error assertions (`assert.Error`, `.toThrow`, `.rejects`, etc.)
+- **Table-driven credit (Go)**: count each `tests []struct{...}` row in `t.Run(...)`
+- **Mocking policy**: external-I/O/runtime mocks are acceptable; internal-logic mocks are suspicious
+- **Assertion-message policy (Go)**: missing descriptive assertion context is a guideline violation
 
 ### Step 4: AI Quality Review of Each Test
 
-For each new or modified test function identified in Step 2, answer these three quality questions:
+For each new/modified test from Step 2, classify with this compact rubric:
 
-**Quality Question 1: Design Invariant** — "What design invariant does this test enforce?" Classify as:
-- **Behavioral contract**: Tests what the system *does* — input/output, state transitions, error handling, side effects
-- **Implementation detail**: Tests *how* the system does it — specific internal functions called, data structure layouts, mocking internals
-- **Unknown**: Not enough code to determine
+| Question | Classify as |
+|---|---|
+| **Design invariant** — what guarantee does the test enforce? | `behavioral_contract` / `implementation_detail` / `unknown` |
+| **Value if deleted** — what regression would escape? | `high_value` / `low_value` / `duplicated` |
+| **Contract vs implementation** — what does it mostly verify? | `design_test` / `implementation_test` |
 
-**Quality Question 2: Value if Deleted** — "What would break in the system if this test were deleted?" Classify as:
-- **High value**: Deleting this test would allow a real behavioral regression to go undetected
-- **Low value**: Deleting this test would only break if the internal implementation changes (not the observable behavior)
-- **Duplicated**: Another test already covers this exact scenario
-
-**Quality Question 3: Contract vs. Implementation** — "Does this test cover a behavioral contract or just an implementation detail?" Classify as:
-- **Design test** (high value): Verifies a behavioral contract — what the system promises to users or other components
-- **Implementation test** (low value): Verifies how code is structured internally, prone to breaking on legitimate refactoring
-
-**Red Flags to Detect**: Mark a test as **suspicious** if it shows any of these patterns:
-
-1. **Mock-heavy with no behavior assertion** (JavaScript): Uses `vi.mock()` / `vi.spyOn()` extensively but only asserts that internal functions were called — not that observable outputs are correct. Note: mocking external I/O (`fs`, `process.stderr`, `global.core`) is legitimate; flag only when mocking internal business-logic functions.
-2. **Mock libraries in Go** *(coding-guideline violation)*: Any use of `gomock`, `testify/mock`, `.EXPECT()`, or `.On()` in a Go test file. The project guideline is "no mocks or test suites — test real component interactions." This is a hard red flag regardless of whether the mock has a behavioral assertion.
-3. **Missing build tag in Go test file** *(coding-guideline violation)*: Every `*_test.go` file must begin on line 1 with either `//go:build !integration` (unit tests) or `//go:build integration` (integration tests). Files added without this tag violate the required convention.
-4. **Happy-path only**: No error cases, no edge cases (empty inputs, nil values, boundary values, invalid inputs)
-5. **Test inflation**: The test file grew proportionally faster than the production code file it covers (ratio > 2:1 lines added in test vs. production)
-6. **Duplicated assertions**: Identical assertion patterns repeated across multiple test functions with only minor variations in constants (suggesting copy-paste test generation)
-7. **No assertions**: A test function with zero assert/expect/check calls (only calls functions and discards results)
-8. **Missing assertion messages in Go** *(guideline violation)*: Go tests must always pass a descriptive message to assertion calls. Flag tests that use bare `assert.Equal(t, want, got)` or `t.Errorf("expected %v")` without enough context for a reader to understand what failed.
+Red flags (mark **suspicious** when present):
+1. JS mock-heavy test with no observable behavior assertion (internal-call assertions only)
+2. Go mock libraries (`gomock`, `testify/mock`, `.EXPECT()`, `.On()`) — hard violation
+3. New Go `*_test.go` missing line-1 build tag (`//go:build !integration` or `//go:build integration`) — hard violation
+4. Happy-path only (no error/edge assertions)
+5. Test inflation (test:prod added lines > 2:1)
+6. Duplicated assertion patterns across 3+ tests
+7. No assertions
+8. Go assertion lacks descriptive failure context
 
 Scope for this step:
 - Analyze only new/changed Go (`*_test.go`) and JavaScript (`*.test.cjs`, `*.test.js`) tests; note other languages without scoring.
@@ -231,41 +206,23 @@ If the ratio of new lines added to the test file vs. the production file exceeds
 
 ## Step 6: Calculate Test Quality Score
 
-Compute the **Test Quality Score** (0–100) using this rubric:
-
-**Scoring Components**
-
-| Component | Weight | Description |
-|-----------|--------|-------------|
-| **Behavioral Coverage** | 40 pts | % of new tests classified as "design tests" (behavioral contracts) |
-| **Error/Edge Case Coverage** | 30 pts | % of new tests that include at least one error path or edge case assertion |
-| **Low Duplication** | 20 pts | Penalize for copy-paste test patterns (deduct 5 pts per duplicate cluster) |
-| **Proportional Growth** | 10 pts | Test files grow proportionally to production code (no test inflation) |
-
-**Score Formula**
+Compute **Test Quality Score** (0–100):
 
 ```
-behavioral_ratio = (design_tests / total_new_tests) * 40
-edge_case_ratio  = (tests_with_edge_cases / total_new_tests) * 30
-duplication_penalty = min(duplicate_clusters * 5, 20)
-inflation_penalty = 10 if any test file shows inflation ratio > 2:1 else 0  # binary: all-or-nothing deduction
-
-score = behavioral_ratio + edge_case_ratio + (20 - duplication_penalty) + (10 - inflation_penalty)
+score = ((design_tests / total_new_tests) * 40) +
+        ((tests_with_edge_cases / total_new_tests) * 30) +
+        (20 - min(duplicate_clusters * 5, 20)) +
+        (0 if any inflation_ratio > 2:1 else 10)
 score = max(0, min(100, score))
 ```
 
-**Thresholds**: Score ≥ 80 = ✅ Excellent; 60–79 = ⚠️ Acceptable; 40–59 = 🔶 Needs improvement; < 40 = ❌ Poor.
+Thresholds: `>=80 ✅ Excellent`, `60-79 ⚠️ Acceptable`, `40-59 🔶 Needs improvement`, `<40 ❌ Poor`.
 
-**Failure Condition**: Fail the check if either:
+Fail if either condition is true:
+- `implementation_tests / total_new_tests > 0.30`
+- Any coding-guideline violation exists (Go mock library usage, or new Go test missing required build tag)
 
-1. More than 30% of new tests are classified as **implementation tests** (low-value):
-   `low_value_ratio = (implementation_tests / total_new_tests) > 0.30`
-
-2. Any **coding-guideline violation** is detected:
-   - A Go test file uses `gomock`, `testify/mock`, `.EXPECT()`, or `.On()` (mock libraries are prohibited)
-   - A new Go test file is missing the required `//go:build !integration` or `//go:build integration` build tag on line 1
-
-Guideline violations always trigger `REQUEST_CHANGES` regardless of the quality score.
+Guideline violations always force `REQUEST_CHANGES` regardless of numeric score.
 
 ## Step 7: Post PR Comment with Results
 
@@ -282,13 +239,20 @@ Do **not** invoke `safeoutputs` from bash, and do **not** set `item_number` for 
 
 ## Step 8: Submit PR Review Based on Result
 
-After posting the comment, submit a pull request review based on the verdict. **You MUST always call at least one safe output tool.** If no tests were found or no action is needed, call `noop`:
+After posting the comment, submit exactly one safe-output action:
+- `noop` when no tests/action are required
+- `APPROVE` when implementation-test ratio is `<=30%` and no guideline violations
+- `REQUEST_CHANGES` when ratio is `>30%` **or** any guideline violation exists
+
+Use these payload templates:
 
 ```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why no action was required]"}}
+{
+  "noop": {
+    "message": "No action needed: [brief explanation of what was analyzed and why no action was required]"
+  }
+}
 ```
-
-**If check PASSES** (≤ 30% implementation tests AND no coding-guideline violations):
 
 ```json
 {
@@ -297,33 +261,21 @@ After posting the comment, submit a pull request review based on the verdict. **
 }
 ```
 
-**If check FAILS due to implementation-test ratio** (> 30% implementation tests):
-
 ```json
 {
   "event": "REQUEST_CHANGES",
-  "body": "❌ Test Quality Sentinel: {SCORE}/100. {IMPL_PCT}% of new tests are classified as low-value implementation tests, exceeding the 30% threshold. Please review the flagged tests in the comment above and improve their behavioral coverage."
-}
-```
-
-**If check FAILS due to coding-guideline violation** (mock library in Go, or missing build tag):
-
-```json
-{
-  "event": "REQUEST_CHANGES",
-  "body": "❌ Test Quality Sentinel: Coding-guideline violation detected. {VIOLATION_SUMMARY} Please review the flagged files in the comment above."
+  "body": "❌ Test Quality Sentinel: {SCORE}/100. {FAIL_REASON} Please review the flagged tests/files in the comment above."
 }
 ```
 
 ## Guidelines
 
-**Calibration**:
-- **Generous for edge case credit**: If a Go test has even one `assert.Error`/`require.Error`, `t.Fatalf` on an error return, or an `expectError: true` table row, count it as having edge case coverage. For JavaScript, `.toThrow()`, `.toThrowError()`, or `.rejects` qualifies.
-- **Table-driven tests**: Count each table row as a separate scenario. A single table-driven `TestFoo` with 10 rows (happy-path + error cases) is better than 10 separate single-case tests. Give full credit for each row that includes an error/edge case.
-- **`require` vs `assert` discipline**: `require.*` for setup assertions, `assert.*` for validations.
-- **Assertion messages**: Every testify/stdlib assertion should have a descriptive message argument. Flag bare `assert.Equal(t, a, b)` without a context string.
-- **Strict for behavioral credit**: Only classify as "design test" if the assertion verifies something a *user* of the function/module would care about.
-- **Duplicate detection**: Only flag duplicates if 3+ test functions share the same assertion pattern with trivially different constants.
+Calibration rules:
+- **Edge-case credit is generous**: one valid error assertion is enough (`assert.Error`, `t.Fatalf` on error, `.toThrow`, `.rejects`, etc.)
+- **Table-driven tests**: count each row as a scenario; credit error/edge rows individually
+- **Behavioral credit is strict**: mark `design_test` only when assertions verify user-visible behavior
+- **Go assertion messages required**: flag assertions without descriptive failure context
+- **Duplicate detection threshold**: report duplicates only when 3+ tests share the same pattern with trivial constant changes
 
 **Token Budget**: Analyze at most **50 test functions** per run. If more exist, prioritize newly added functions over modified ones; add a sampling note in the PR comment. Keep individual test analysis concise — 2–3 sentences per test in the flagged section. Always wrap the per-test classification table and flagged-test details in `<details>` tags.
 

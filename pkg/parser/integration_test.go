@@ -156,7 +156,7 @@ another_invalid: also_bad`
 	oldLocation := LocateJSONPathInYAML(yamlContent, "")
 
 	// Test new behavior
-	newLocation := LocateJSONPathInYAMLWithAdditionalProperties(yamlContent, "", errorMessage)
+	newLocation := LocateJSONPathForPathInfo(yamlContent, JSONPathInfo{Path: "", Message: errorMessage})
 
 	// The old behavior should point to line 1, column 1
 	if oldLocation.Line != 1 || oldLocation.Column != 1 {

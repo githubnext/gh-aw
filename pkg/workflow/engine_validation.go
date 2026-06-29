@@ -281,7 +281,6 @@ func (c *Compiler) registerInlineEngineDefinition(config *EngineConfig) {
 		// Copy existing provider/auth as defaults; inline values below fully replace them
 		// when present (replacement, not merge).
 		def.Provider = existing.Provider
-		def.Auth = existing.Auth
 	}
 
 	// Apply inline provider overrides.
@@ -297,15 +296,6 @@ func (c *Compiler) registerInlineEngineDefinition(config *EngineConfig) {
 			auth.Strategy = AuthStrategyAPIKey
 		}
 		def.Provider.Auth = auth
-		// Keep legacy AuthBinding in sync for callers that still read def.Auth.
-		// When an AuthDefinition is provided, always reset legacy bindings to avoid
-		// leaking stale secrets from existing engine definitions.
-		def.Auth = nil
-		if auth.Secret != "" {
-			def.Auth = []AuthBinding{{Role: string(auth.Strategy), Secret: auth.Secret}}
-		}
-	} else if config.InlineProviderSecret != "" {
-		def.Auth = []AuthBinding{{Role: "api-key", Secret: config.InlineProviderSecret}}
 	}
 
 	if config.InlineProviderRequest != nil {

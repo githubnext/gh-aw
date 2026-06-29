@@ -56,12 +56,14 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  inferProviderTypeForModel,
   resolveCopilotSDKCustomProviderFromReflect,
 } = require("./awf_reflect.cjs");
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
 const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
+const { loadModelsJson } = require("./model_costs.cjs");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;
@@ -713,18 +715,21 @@ async function main() {
   // BYOK is the only supported mode for SDK sessions — fail immediately if the provider
   // cannot be resolved so retries are not wasted on a misconfigured environment.
   let providerBaseUrl = "";
+  let providerType = "openai";
   let resolvedModel = "";
   if (copilotSDKMode) {
     const configuredModel = process.env.COPILOT_MODEL || "";
     const configuredProvider = process.env.GH_AW_LLM_PROVIDER || "";
-    const customProvider = resolveCopilotSDKCustomProviderFromReflect({ model: configuredModel, provider: configuredProvider, reflectData: awfReflectData, logger: log });
+    const modelsJson = loadModelsJson();
+    const customProvider = resolveCopilotSDKCustomProviderFromReflect({ model: configuredModel, provider: configuredProvider, reflectData: awfReflectData, modelsJson, logger: log });
     if (!customProvider) {
       log("copilot-sdk driver mode: BYOK provider is required but could not be resolved from awf-reflect data — aborting");
       process.exit(1);
     }
     providerBaseUrl = customProvider.provider.baseUrl;
+    providerType = customProvider.provider.type || "openai";
     resolvedModel = customProvider.model;
-    log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${providerBaseUrl} model=${resolvedModel})`);
+    log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${providerBaseUrl} type=${providerType} model=${resolvedModel})`);
   }
 
   // Merge SDK env additions into the child process env only when the SDK helper
@@ -733,13 +738,14 @@ async function main() {
   // sdkEnv already contains SDK-mode variables (e.g. COPILOT_SDK_URI) when enabled.
   // Always attach the generated per-run COPILOT_CONNECTION_TOKEN so both the sidecar
   // (started by the harness) and the SDK client share the same token.
-  // In SDK mode also inject the resolved BYOK provider base URL and model so the driver
+  // In SDK mode also inject the resolved BYOK provider base URL, type, and model so the driver
   // subprocess does not need to re-read the reflect file.
   const sdkChildEnv = copilotSDKMode
     ? {
         ...sdkEnv,
         COPILOT_CONNECTION_TOKEN: copilotConnectionToken,
         GH_AW_COPILOT_SDK_PROVIDER_BASE_URL: providerBaseUrl,
+        GH_AW_COPILOT_SDK_PROVIDER_TYPE: providerType,
         COPILOT_MODEL: resolvedModel,
       }
     : sdkEnv;
@@ -1107,6 +1113,7 @@ if (typeof module !== "undefined" && module.exports) {
     isModelAvailableInReflectData,
     isModelAvailableInReflectFile,
     resolveCopilotSDKCustomProviderFromReflect,
+    inferProviderTypeForModel,
     countPermissionDeniedIssues,
     detectCopilotErrors,
     classifyCopilotFailure,

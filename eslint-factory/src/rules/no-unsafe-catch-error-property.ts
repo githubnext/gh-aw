@@ -2,7 +2,7 @@ import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils"
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
-const UNSAFE_PROPERTIES = new Set(["message", "stack", "code"]);
+const UNSAFE_PROPERTIES = new Set(["message", "stack", "code", "status", "cause", "name"]);
 
 interface CatchFrame {
   varName: string;
@@ -16,7 +16,7 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
     type: "problem",
     hasSuggestions: true,
     docs: {
-      description: "Disallow direct access to .message, .stack, or .code on a caught error variable without a getErrorMessage guard",
+      description: "Disallow direct access to .message, .stack, .code, .status, .cause, or .name on a caught error variable without a getErrorMessage guard",
     },
     schema: [],
     messages: {
@@ -90,6 +90,7 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
       },
 
       // Detect catchVar instanceof Error — also accepted as a safe guard
+      // Detect typeof catchVar === 'object' — also accepted as a safe guard
       BinaryExpression(node) {
         if (catchStack.length === 0) return;
         const top = catchStack[catchStack.length - 1];
@@ -97,11 +98,33 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
 
         if (node.operator === "instanceof" && node.left.type === AST_NODE_TYPES.Identifier && node.left.name === top.varName) {
           top.hasGuard = true;
+          return;
+        }
+
+        // typeof varName === 'object' or 'object' === typeof varName
+        if (node.operator === "===") {
+          const { left, right } = node;
+          const isTypeofObject =
+            (left.type === AST_NODE_TYPES.UnaryExpression &&
+              left.operator === "typeof" &&
+              left.argument.type === AST_NODE_TYPES.Identifier &&
+              left.argument.name === top.varName &&
+              right.type === AST_NODE_TYPES.Literal &&
+              right.value === "object") ||
+            (right.type === AST_NODE_TYPES.UnaryExpression &&
+              right.operator === "typeof" &&
+              right.argument.type === AST_NODE_TYPES.Identifier &&
+              right.argument.name === top.varName &&
+              left.type === AST_NODE_TYPES.Literal &&
+              left.value === "object");
+          if (isTypeofObject) {
+            top.hasGuard = true;
+          }
         }
       },
 
-      // Collect catchVar.message / catchVar.stack / catchVar.code accesses
-      // Also detects computed string-literal access: catchVar["message"], catchVar["stack"], catchVar["code"]
+      // Collect catchVar.message / catchVar.stack / catchVar.code / catchVar.status / catchVar.cause / catchVar.name accesses
+      // Also detects computed string-literal access: catchVar["message"], catchVar["status"], etc.
       MemberExpression(node) {
         if (catchStack.length === 0) return;
         const top = catchStack[catchStack.length - 1];
@@ -112,13 +135,13 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
 
         if (obj.type !== AST_NODE_TYPES.Identifier || obj.name !== top.varName) return;
 
-        // Non-computed dot access: err.message / err.stack / err.code
+        // Non-computed dot access: err.message / err.stack / err.code / err.status / err.cause / err.name
         if (!node.computed && prop.type === AST_NODE_TYPES.Identifier && UNSAFE_PROPERTIES.has(prop.name)) {
           top.unsafeNodes.push({ node, prop: prop.name });
           return;
         }
 
-        // Computed string-literal access: err["message"] / err["stack"] / err["code"]
+        // Computed string-literal access: err["message"] / err["stack"] / err["status"] / etc.
         // Dynamic access (err[prop]) is kept out of scope intentionally.
         if (node.computed && prop.type === AST_NODE_TYPES.Literal && typeof prop.value === "string" && UNSAFE_PROPERTIES.has(prop.value)) {
           top.unsafeNodes.push({ node, prop: prop.value });

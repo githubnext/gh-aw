@@ -6,9 +6,6 @@ engine:
   runtime-id: copilot
   provider:
     name: github
-  auth:
-    - role: api-key
-      secret: COPILOT_GITHUB_TOKEN
 ---
 
 <!-- # GitHub Copilot CLI

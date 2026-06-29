@@ -104,7 +104,9 @@ func TestGenerateSafeOutputsConfigActionsCollisionReturnsError(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			// add_labels is a built-in handler that produces a real config object.
 			AddLabels: &AddLabelsConfig{
-				Allowed: []string{"bug"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Allowed: []string{"bug"},
+				},
 			},
 			// A custom action whose normalized name matches the built-in "add_labels" key.
 			Actions: map[string]*SafeOutputActionConfig{
@@ -434,8 +436,10 @@ func TestGenerateSafeOutputsConfigAddLabelsBlocked(t *testing.T) {
 					Target:         "*",
 					TargetRepoSlug: "microsoft/vscode",
 				},
-				Allowed: []string{"bug", "enhancement"},
-				Blocked: []string{"[*]*", "~spam", "stale", "triage-needed"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Allowed: []string{"bug", "enhancement"},
+					Blocked: []string{"[*]*", "~spam", "stale", "triage-needed"},
+				},
 			},
 		},
 	}
@@ -459,6 +463,46 @@ func TestGenerateSafeOutputsConfigAddLabelsBlocked(t *testing.T) {
 	assert.Equal(t, "~spam", blockedSlice[1], "Second blocked pattern should match")
 	assert.Equal(t, "stale", blockedSlice[2], "Third blocked pattern should match")
 	assert.Equal(t, "triage-needed", blockedSlice[3], "Fourth blocked pattern should match")
+}
+
+// TestGenerateSafeOutputsConfigSafeJobMax tests that the max field is emitted in config.json
+// for custom safe-jobs so the output collector can enforce it.
+func TestGenerateSafeOutputsConfigSafeJobMax(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			Jobs: map[string]*SafeJobConfig{
+				"emit-finding": {
+					Description: "Emit a quality finding",
+					Max:         25,
+					Inputs: map[string]*InputDefinition{
+						"message": {Type: "string", Required: true},
+					},
+				},
+				"single-output": {
+					Description: "Max not set — should be omitted from config",
+					Inputs: map[string]*InputDefinition{
+						"body": {Type: "string"},
+					},
+				},
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+
+	findingCfg, ok := parsed["emit-finding"].(map[string]any)
+	require.True(t, ok, "emit-finding should be present in config")
+	assert.InDelta(t, float64(25), findingCfg["max"], 0.0001, "max should be 25")
+
+	singleCfg, ok := parsed["single-output"].(map[string]any)
+	require.True(t, ok, "single-output should be present in config")
+	_, hasMax := singleCfg["max"]
+	assert.False(t, hasMax, "max should be absent when not configured (lets runtime default to 1)")
 }
 
 // TestGenerateSafeOutputsConfigCreatePullRequestTargetRepo tests that target-repo

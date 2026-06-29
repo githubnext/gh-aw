@@ -342,6 +342,96 @@ try {
     });
   });
 
+  it("valid: typeof err === 'object' guard suppresses all warnings in the catch block", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [
+        `try { f(); } catch (err) { if (typeof err === 'object') { console.log(err.status); } }`,
+        `try { f(); } catch (err) { if (typeof err === 'object' && err !== null) { console.log(err.status); } }`,
+        `try { f(); } catch (err) { if ('object' === typeof err) { console.log(err.status); } }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: err.status without guard is flagged", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { if (err.status === 404) { } }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "status", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "status" },
+                  output: `try { f(); } catch (err) { if ((err instanceof Error ? err.status : undefined) === 404) { } }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: err.cause without guard is flagged", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { console.log(err.cause); }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "cause", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "cause" },
+                  output: `try { f(); } catch (err) { console.log((err instanceof Error ? err.cause : undefined)); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: err.name without guard is flagged", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { console.log(err.name); }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "name", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "name" },
+                  output: `try { f(); } catch (err) { console.log((err instanceof Error ? err.name : undefined)); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("valid: typeof err === 'object' guard suppresses .status access (mirrors real call sites)", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [`try { f(); } catch (err) { if (typeof err === 'object' && err.status === 404) { } }`],
+      invalid: [],
+    });
+  });
+
   it("valid: nested try/catch — inner guard does not affect the outer catch block", () => {
     cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
       valid: [],

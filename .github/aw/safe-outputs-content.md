@@ -32,7 +32,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
   - `body` maximum length: **65000** characters
 
   **Auto-Expiration**: The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Generates `agentics-maintenance.yml` workflow that runs at minimum required frequency based on shortest expiration time: 1 day or less → every 2 hours, 2 days → every 6 hours, 3-4 days → every 12 hours, 5+ days → daily.
-  **Deduplication for Scheduled Workflows**: When a `schedule:` trigger is combined with `create-issue`, use `skip-if-match:` in the `on:` block to prevent opening a duplicate issue on every run. Pair with `expires:` so stale issues are cleaned up automatically:
+  **Deduplication for Scheduled Workflows**: When `schedule:` is combined with `create-issue`, use `skip-if-match:` in the `on:` block to prevent opening a duplicate issue every run. Pair with `expires:` to clean up stale issues:
 
   ```yaml
   on:
@@ -96,9 +96,9 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
   ```
 
-  The `category` field is optional and can be specified by name (e.g., "General"), slug (e.g., "general"), or ID (e.g., "DIC_kwDOGFsHUM4BsUn3"). If not specified, discussions will be created in the first available category. Category resolution tries ID first, then name, then slug.
+  `category` accepts name (e.g., "General"), slug (e.g., "general"), or ID (e.g., "DIC_kwDOGFsHUM4BsUn3"); defaults to the first category. Resolution tries ID, then name, then slug.
 
-  Set `close-older-discussions: true` to automatically close older discussions matching the same title prefix or labels. Up to 10 older discussions are closed as "OUTDATED" with a comment linking to the new discussion. Requires `title-prefix` or `labels` to identify matching discussions.
+  `close-older-discussions: true` closes up to 10 older discussions matching the same title prefix or labels as "OUTDATED" with a comment linking to the new one. Requires `title-prefix` or `labels`.
 
 - `close-discussion:` - Close discussions with comment and resolution
 
@@ -156,7 +156,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       allowed-repos: [owner/other]    # Optional: additional repos agent can target
   ```
 
-  Boolean shorthand: `comment-memory: true` enables defaults; `false` or `null` disables. The handler materializes memory content to files before agent execution and synchronizes edits back to a single managed comment on the issue/PR after execution, providing durable cross-run state without external storage. See [memory.md](memory.md) for full details.
+  Boolean shorthand: `comment-memory: true` enables defaults; `false` or `null` disables. The handler materializes memory to files before execution and syncs edits back to a single managed comment after, providing durable cross-run state without external storage. See [memory.md](memory.md).
 
 - `create-pull-request:` - Safe pull request creation with git patches
 
@@ -261,4 +261,4 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       target-repo: "owner/repo"       # Optional: cross-repository
   ```
 
-  This safe-output type allows agents to programmatically resolve review comment threads after addressing feedback, improving PR review workflows.
+  Lets agents resolve review comment threads after addressing feedback.

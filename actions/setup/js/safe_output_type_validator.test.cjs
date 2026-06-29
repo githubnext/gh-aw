@@ -740,6 +740,24 @@ describe("safe_output_type_validator", () => {
 
       expect(max).toBe(1);
     });
+
+    it("should return configured max for custom safe-job type", async () => {
+      const { getMaxAllowedForType } = await import("./safe_output_type_validator.cjs");
+
+      // Simulates a custom safe-job entry as written by safe_outputs_config_generation.go
+      const max = getMaxAllowedForType("emit_finding", { emit_finding: { max: 25, description: "Emit a finding" } });
+
+      expect(max).toBe(25);
+    });
+
+    it("should return 1 for custom safe-job type with no max in config", async () => {
+      const { getMaxAllowedForType } = await import("./safe_output_type_validator.cjs");
+
+      // Custom safe-job without max: field — should fall through to default of 1
+      const max = getMaxAllowedForType("emit_finding", { emit_finding: { description: "Emit a finding" } });
+
+      expect(max).toBe(1);
+    });
   });
 
   describe("hasValidationConfig", () => {

@@ -8,11 +8,10 @@ var removeLabelsLog = logger.New("workflow:remove_labels")
 
 // RemoveLabelsConfig holds configuration for removing labels from issues/PRs from agent output
 type RemoveLabelsConfig struct {
-	BaseSafeOutputConfig   `yaml:",inline"`
-	SafeOutputTargetConfig `yaml:",inline"`
-	SafeOutputFilterConfig `yaml:",inline"`
-	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed label patterns to remove (supports glob patterns like "team-*", "area/*"). If omitted, any labels can be removed.
-	Blocked                []string `yaml:"blocked,omitempty"` // Optional list of blocked label patterns (supports glob patterns like "~*", "*[bot]"). Labels matching these patterns will be rejected.
+	BaseSafeOutputConfig       `yaml:",inline"`
+	SafeOutputTargetConfig     `yaml:",inline"`
+	SafeOutputFilterConfig     `yaml:",inline"`
+	SafeOutputAllowBlockConfig `yaml:",inline"`
 }
 
 // parseRemoveLabelsConfig handles remove-labels configuration

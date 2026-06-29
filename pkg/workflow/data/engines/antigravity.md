@@ -6,9 +6,6 @@ engine:
   runtime-id: antigravity
   provider:
     name: google
-  auth:
-    - role: api-key
-      secret: ANTIGRAVITY_API_KEY
 ---
 
 <!-- # Google Antigravity CLI

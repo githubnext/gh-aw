@@ -95,7 +95,9 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			name: "add labels config",
 			safeOutputs: &SafeOutputsConfig{
 				AddLabels: &AddLabelsConfig{
-					Allowed: []string{"bug", "enhancement", "documentation"},
+					SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+						Allowed: []string{"bug", "enhancement", "documentation"},
+					},
 				},
 			},
 			checkContains: []string{
@@ -228,7 +230,9 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 					},
 				},
 				AddLabels: &AddLabelsConfig{
-					Allowed: []string{"bug"},
+					SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+						Allowed: []string{"bug"},
+					},
 				},
 			},
 			checkContains: []string{
@@ -346,7 +350,9 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			name: "remove_labels config",
 			safeOutputs: &SafeOutputsConfig{
 				RemoveLabels: &RemoveLabelsConfig{
-					Allowed: []string{"bug", "wontfix"},
+					SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+						Allowed: []string{"bug", "wontfix"},
+					},
 				},
 			},
 			checkContains: []string{
@@ -725,7 +731,9 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
 						Max: strPtr("5"),
 					},
-					Allowed: []string{"user1", "user2"},
+					SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+						Allowed: []string{"user1", "user2"},
+					},
 				},
 			},
 			checkContains: []string{
@@ -2088,7 +2096,9 @@ func TestHandlerConfigAssignToUser(t *testing.T) {
 					TargetRepoSlug: "org/target-repo",
 					AllowedRepos:   []string{"org/repo1", "org/repo2"},
 				},
-				Allowed: []string{"user1", "user2", "copilot"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Allowed: []string{"user1", "user2", "copilot"},
+				},
 			},
 		},
 	}
@@ -2217,7 +2227,9 @@ func TestHandlerConfigUnassignFromUser(t *testing.T) {
 					TargetRepoSlug: "org/target-repo",
 					AllowedRepos:   []string{"org/repo1"},
 				},
-				Allowed: []string{"githubactionagent", "bot-user"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Allowed: []string{"githubactionagent", "bot-user"},
+				},
 			},
 		},
 	}
@@ -2291,7 +2303,9 @@ func TestHandlerConfigAssignToUserWithBlocked(t *testing.T) {
 					Target:         "*",
 					TargetRepoSlug: "microsoft/vscode",
 				},
-				Blocked: []string{"copilot", "*[bot]"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Blocked: []string{"copilot", "*[bot]"},
+				},
 			},
 		},
 	}
@@ -2341,7 +2355,9 @@ func TestHandlerConfigUnassignFromUserWithBlocked(t *testing.T) {
 					Target:         "*",
 					TargetRepoSlug: "microsoft/vscode",
 				},
-				Blocked: []string{"copilot", "*[bot]"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Blocked: []string{"copilot", "*[bot]"},
+				},
 			},
 		},
 	}
