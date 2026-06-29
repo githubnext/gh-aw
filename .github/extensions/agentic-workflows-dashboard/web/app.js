@@ -279,7 +279,7 @@ Alpine.data("dashboardApp", () => ({
     return `gh aw logs --json -c ${count} --start-date ${window.startDate} --timeout ${this.logsTimeout}`;
   },
 
-  buildLogsSummaryMessage(meta) {
+  buildReportSummaryMessage(meta) {
     return buildReportMessage(meta, "No logs metadata available.");
   },
 

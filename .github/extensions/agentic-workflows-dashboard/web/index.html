@@ -95,7 +95,7 @@
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
               <h2 class="Box-title">Workflow runs <span class="Counter" x-text="runsPaged.totalItems"></span></h2>
-              <span class="color-fg-muted text-small" x-text="buildLogsSummaryMessage(runsMeta)"></span>
+              <span class="color-fg-muted text-small" x-text="buildReportSummaryMessage(runsMeta)"></span>
             </div>
             <!-- loading -->
             <div class="Box-body color-fg-muted text-center py-4" x-show="loadingRuns">
@@ -180,7 +180,7 @@
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
               <h2 class="Box-title">Usage forecast <span class="Counter" x-text="usagePaged.totalItems"></span></h2>
-              <span class="color-fg-muted text-small" x-text="buildLogsSummaryMessage(usageMeta)"></span>
+              <span class="color-fg-muted text-small" x-text="buildReportSummaryMessage(usageMeta)"></span>
             </div>
             <div class="Box-body color-fg-muted text-center py-4" x-show="loadingUsage">
               <span>Loading usage forecast…</span>
