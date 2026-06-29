@@ -36,7 +36,12 @@ features:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Auto-Assign Issue
+### Auto-Assign Issue
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
+
 
 Find ONE open issue that:
 - **Has no assignees** - When you retrieve issues from GitHub, explicitly check the `assignees` field. Skip any issue where `issue.assignees` is not empty or has length > 0.

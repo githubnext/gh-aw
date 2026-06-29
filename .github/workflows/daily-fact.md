@@ -72,11 +72,16 @@ features:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Fact About gh-aw
+### Daily Fact About gh-aw
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
+
 
 Your task is to post a poetic, whimsical fact about the ${{ github.repository }} project to discussion #4750.
 
-## Step 0: Load Memory
+#### Step 0: Load Memory
 
 Before gathering repository activity, check what has already been celebrated in the palace to avoid repetition.
 
@@ -84,7 +89,7 @@ Before gathering repository activity, check what has already been celebrated in 
 2. Call `mempalace_search` with `query: "gh-aw daily fact"` and `wing: "daily-facts"` to retrieve recently posted facts. On the very first run the palace will be empty — that is fine, proceed without results.
 3. Note any PR numbers, issue numbers, release tags, or contributor handles that appear in the results — **do not repeat those topics today**.
 
-## Data Sources
+#### Data Sources
 
 Mine recent activity from the repository to find interesting facts. Focus on:
 
@@ -104,7 +109,7 @@ Mine recent activity from the repository to find interesting facts. Focus on:
    - Feature requests implemented
    - Community contributions
 
-## Guidelines
+#### Guidelines
 
 - **Check memory first**: Skip any PR, issue, or release that already appears in the palace results from Step 0
 {{#if experiments.reasoning_depth == 'multi_candidate'}}
@@ -117,7 +122,7 @@ Mine recent activity from the repository to find interesting facts. Focus on:
 - **Be poetic**: Use lyrical, whimsical language that celebrates the beauty of code and collaboration
 - **Add variety**: Don't repeat the same type of fact every day (e.g., alternate between PRs, issues, releases, contributors, code patterns)
 
-## Output Format
+#### Output Format
 
 Create a single comment with this structure:
 
@@ -130,7 +135,7 @@ Create a single comment with this structure:
 *Whispered to you by the Poet of Workflows 🪶*
 ```
 
-## Examples
+#### Examples
 
 Good facts (poetic tone):
 - "In the garden of code, PR #1234 bloomed — the `playwright` tool now dances upon the stage, orchestrating browsers in graceful automation! 🎭"
@@ -143,7 +148,7 @@ Bad facts:
 - "There were some changes." (not specific, uninspired)
 - Long paragraphs (keep it brief and lyrical)
 
-## Step 3: Save to Memory
+#### Step 3: Save to Memory
 
 After posting the comment, store the fact in the palace so it will be excluded from future runs:
 

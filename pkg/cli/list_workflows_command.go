@@ -18,10 +18,10 @@ var listWorkflowsLog = logger.New("cli:list_workflows")
 
 // WorkflowListItem represents a single workflow for list output
 type WorkflowListItem struct {
-	Workflow string   `json:"workflow" console:"header:Workflow"`
-	EngineID string   `json:"engine_id" console:"header:Engine"`
-	Compiled string   `json:"compiled" console:"header:Compiled"`
-	Labels   []string `json:"labels,omitempty" console:"header:Labels,omitempty"`
+	Workflow string   `json:"workflow" console:"header:workflow"`
+	EngineID string   `json:"engine_id" console:"header:engine"`
+	Compiled string   `json:"compiled" console:"header:compiled"`
+	Labels   []string `json:"labels,omitempty" console:"-"`
 	On       any      `json:"on,omitempty" console:"-"`
 }
 

@@ -2849,6 +2849,42 @@ describe("add_comment", () => {
       expect(capturedBody).not.toContain("`@copilot`");
     });
 
+    it("should preserve pre-resolved allowed mentions from handler manager", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      mockContext.payload = {
+        pull_request: {
+          number: 8535,
+          user: { login: "PRAuthor", type: "User" },
+        },
+      };
+
+      let capturedBody = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedBody = params.body;
+        return {
+          data: {
+            id: 12345,
+            html_url: "https://github.com/owner/repo/issues/8535#issuecomment-12345",
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ mentions: { allowedTeams: ["myorg/eng"] }, allowedMentionAliases: ["TeamMate"] }); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "@TeamMate thanks for taking a look",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedBody).toBeDefined();
+      expect(capturedBody).toContain("@TeamMate");
+      expect(capturedBody).not.toContain("`@TeamMate`");
+    });
+
     it("should escape all mentions when mentions.enabled is false", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 

@@ -1,11 +1,46 @@
 import { basename } from "node:path";
 
-export function toNumber(value) {
+export interface ForecastMonthlyMonteCarlo {
+  p50_projected_aic?: number;
+}
+
+export interface ForecastWorkflow {
+  workflow_id?: string;
+  workflow_path?: string;
+  monthly_monte_carlo?: ForecastMonthlyMonteCarlo;
+  monthly_projected_aic?: number;
+}
+
+export interface UsageSummaryItem {
+  workflow_id: string;
+  workflow_name: string;
+  workflow_path: string;
+  run_count: number;
+  total_aic: number;
+  cost_per_run: number;
+  daily_aic: number;
+  monthly_forecast_aic: number;
+  last_run_at: string;
+}
+
+export interface UsageWindow {
+  id?: string;
+  days?: number;
+}
+
+export interface UsageRun {
+  workflow_name?: string;
+  workflow_path?: string;
+  aic?: number;
+  created_at?: string;
+}
+
+export function toNumber(value: unknown): number {
   const numeric = Number(value ?? 0);
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
-export function normalizeWorkflowID(value) {
+export function normalizeWorkflowID(value: unknown): string {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
 
@@ -20,21 +55,19 @@ export function normalizeWorkflowID(value) {
   return name.trim();
 }
 
-export function forecastDaysForWindow(window) {
+export function forecastDaysForWindow(window?: UsageWindow | null): number {
   return window?.id === "1mo" ? 30 : 7;
 }
 
-export function getForecastMonthlyAIC(forecast) {
+export function getForecastMonthlyAIC(forecast?: ForecastWorkflow | null): number {
   if (!forecast || typeof forecast !== "object") return 0;
   const monteCarloP50 = toNumber(forecast.monthly_monte_carlo?.p50_projected_aic);
   if (monteCarloP50 > 0) return monteCarloP50;
   return toNumber(forecast.monthly_projected_aic);
 }
 
-export function applyForecastToUsageSummary(items, forecastWorkflows = []) {
-  // Forecast results identify workflows by workflow_id; workflow_path is accepted as a
-  // fallback so older or alternate JSON payloads can still be matched safely.
-  const forecastEntries = forecastWorkflows.map(forecast => [normalizeWorkflowID(forecast?.workflow_id || forecast?.workflow_path), getForecastMonthlyAIC(forecast)]).filter(([workflowID]) => Boolean(workflowID));
+export function applyForecastToUsageSummary(items: UsageSummaryItem[], forecastWorkflows: ForecastWorkflow[] = []): UsageSummaryItem[] {
+  const forecastEntries = forecastWorkflows.map(forecast => [normalizeWorkflowID(forecast?.workflow_id || forecast?.workflow_path), getForecastMonthlyAIC(forecast)] as const).filter(([workflowID]) => Boolean(workflowID));
   const forecastByWorkflow = new Map(forecastEntries);
 
   return items.map(item => ({
@@ -43,8 +76,8 @@ export function applyForecastToUsageSummary(items, forecastWorkflows = []) {
   }));
 }
 
-export function buildUsageSummary(runs, window, forecastWorkflows = []) {
-  const usageByWorkflow = new Map();
+export function buildUsageSummary(runs: UsageRun[], window: UsageWindow, forecastWorkflows: ForecastWorkflow[] = []): UsageSummaryItem[] {
+  const usageByWorkflow = new Map<string, UsageSummaryItem>();
   const effectiveDays = Number(window?.days ?? 0);
   if (!Number.isFinite(effectiveDays) || effectiveDays <= 0) {
     throw new Error(`report window '${window?.id ?? "unknown"}' is missing a valid positive day count.`);
@@ -57,7 +90,7 @@ export function buildUsageSummary(runs, window, forecastWorkflows = []) {
 
     const workflowName = String(run?.workflow_name ?? workflowID).trim() || workflowID;
     const aic = toNumber(run?.aic);
-    const entry = usageByWorkflow.get(workflowID) ?? {
+    const entry: UsageSummaryItem = usageByWorkflow.get(workflowID) ?? {
       workflow_id: workflowID,
       workflow_name: workflowName,
       workflow_path: workflowPath,

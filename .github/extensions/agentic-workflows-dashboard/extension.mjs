@@ -5,14 +5,14 @@ import { fileURLToPath } from "node:url";
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 
-import { createGhAwRunner } from "./dashboard-cli.mjs";
-import { DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT } from "./dashboard-config.mjs";
-import { createDashboardDataAccess } from "./dashboard-data.mjs";
+import { createGhAwRunnerWithStatus } from "./dashboard-cli.js";
+import { DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT } from "./dashboard-config.js";
+import { createDashboardDataAccess } from "./dashboard-data.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const servers = new Map();
 let workspacePath = process.cwd();
-const runGhAw = createGhAwRunner({ getWorkspacePath: () => workspacePath });
+const runGhAw = createGhAwRunnerWithStatus({ getWorkspacePath: () => workspacePath });
 const dataAccess = createDashboardDataAccess({ runGhAw });
 
 // ---------------------------------------------------------------------------
@@ -58,11 +58,10 @@ async function startServer() {
       } else if (pathname === "/app.js") {
         res.setHeader("Content-Type", "application/javascript; charset=utf-8");
         res.end(await readFile(join(__dirname, "web", "app.js"), "utf8"));
-      } else if (pathname === "/pagination.js") {
-        res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-        res.end(await readFile(join(__dirname, "web", "pagination.js"), "utf8"));
       } else if (pathname === "/api/status") {
         sendJson(await dataAccess.getDefinitions());
+      } else if (pathname === "/api/cli-status") {
+        sendJson(await runGhAw.getStatus());
       } else if (pathname === "/api/experiments") {
         sendJson(await dataAccess.getExperiments());
       } else if (pathname === "/api/runs") {
@@ -81,6 +80,13 @@ async function startServer() {
             timeout: parseInt(reqUrl.searchParams.get("timeout") ?? String(DEFAULT_LOG_TIMEOUT_MINUTES), 10),
           })
         );
+      } else if (pathname === "/api/audit") {
+        const runId = reqUrl.searchParams.get("run_id") ?? "";
+        if (!runId) {
+          sendJson({ error: "run_id is required" }, 400);
+        } else {
+          sendJson(await dataAccess.getAudit(runId));
+        }
       } else if (pathname === "/api/run-command") {
         const cmd = reqUrl.searchParams.get("cmd") ?? "";
         sendJson(
@@ -132,6 +138,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
 - \`listUsage\` — aggregates workflow AIC usage from logs and fills monthly forecast via \`gh aw forecast --json\`
 - \`listExperiments\` — calls \`gh aw experiments list --json\`, returns paged results
 - \`getRun\` — looks up a single run by \`run_id\`
+- \`auditRun\` — calls \`gh aw audit <run_id> --json\` and returns structured audit data (overview, metrics, key_findings, recommendations, jobs, tool_usage, errors, warnings, firewall_analysis)
 - \`runCommand\` — executes any \`gh aw <subcommand>\` and returns stdout
 - \`refresh\` — clears the 60-second cache so the next call fetches fresh data
 `,
@@ -243,6 +250,23 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
           handler: async ctx => {
             const logsData = await dataAccess.getRuns({ count: 200, window: "1mo", timeout: DEFAULT_LOG_TIMEOUT_MINUTES });
             return { run: logsData.runs.find(r => r.run_id === Number(ctx.input?.run_id)) ?? null };
+          },
+        },
+        {
+          name: "auditRun",
+          description: "Run gh aw audit for a specific workflow run by run_id, returning structured audit data.",
+          inputSchema: {
+            type: "object",
+            required: ["run_id"],
+            properties: { run_id: { type: "string", description: "The workflow run ID to audit (numeric string)." } },
+            additionalProperties: false,
+          },
+          handler: async ctx => {
+            const runId = String(ctx.input?.run_id ?? "").trim();
+            if (!runId || !/^\d+$/.test(runId)) {
+              throw new Error("run_id must be a non-empty numeric string");
+            }
+            return dataAccess.getAudit(runId);
           },
         },
         {

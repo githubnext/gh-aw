@@ -30,11 +30,16 @@ strict: true
 
 ---
 
-# Issue Summary to Notion
+### Issue Summary to Notion
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
+
 
 Analyze the issue #${{ github.event.inputs.issue-number }} and create a brief summary, then add it as a comment to the Notion page.
 
-## Instructions
+#### Instructions
 
 1. Read and analyze the issue content
 2. Create a concise summary (2-3 sentences) of the issue
