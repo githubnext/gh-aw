@@ -3280,7 +3280,7 @@ alpine_default.setReactivityEngine({ reactive: reactive2, effect: effect2, relea
 var src_default = alpine_default;
 var module_default = src_default;
 
-// web/pagination.js
+// src/pagination.ts
 function paginate(items, page, pageSize) {
   const totalItems = items.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -3298,7 +3298,7 @@ function paginate(items, page, pageSize) {
   };
 }
 
-// web/app-source.js
+// src/app.ts
 var dashboardTabs = [
   { id: "definitions", label: "Workflows", counter: "definitions" },
   { id: "runs", label: "Runs", counter: "runs" },

@@ -1,5 +1,4 @@
-// @ts-ignore - browser runtime resolves the remote ESM import directly
-import Alpine from "https://cdn.jsdelivr.net/npm/alpinejs@3.15.0/+esm";
+import Alpine from "alpinejs";
 
 import type { CLIStatus, ExperimentInfo, PagedResult, UsageSummaryItem, WorkflowDefinition, WorkflowRun } from "./models.js";
 import { paginate } from "./pagination.js";

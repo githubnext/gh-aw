@@ -14,7 +14,7 @@
   },
   "scripts": {
     "build": "npm run typecheck && npm run build:web",
-    "build:web": "esbuild web/app-source.js --bundle --format=esm --target=es2022 --outfile=web/app.js",
+    "build:web": "esbuild src/app.ts --bundle --format=esm --target=es2022 --outfile=web/app.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "lint": "npm run typecheck && npm test",
@@ -22,7 +22,7 @@
     "fmt:ts": "npx prettier --write --parser typescript \"src/**/*.ts\" \"test/**/*.ts\" \"vitest.config.ts\"",
     "fmt:html": "npx prettier --write --parser html \"web/index.html\"",
     "fmt:css": "npx prettier --write --parser css \"web/styles.css\"",
-    "fmt:js": "npx prettier --write --parser babel \"*.mjs\" \"web/app-source.js\" \"web/pagination.js\"",
+    "fmt:js": "npx prettier --write --parser babel \"*.mjs\"",
     "fmt:json": "npx prettier --write --parser json \"copilot-extension.json\" \"package.json\"",
     "impeccable:detect": "npx impeccable detect web/index.html web/styles.css"
   }
