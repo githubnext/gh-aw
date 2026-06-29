@@ -729,7 +729,7 @@ async function startServer() {
     const pathname = reqUrl.pathname;
     const sendJson = (payload, status = 200) => {
       res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify(sanitizePayload(payload)));
+      res.end(JSON.stringify(payload));
     };
     try {
       if (pathname === "/" || pathname === "/index.html") {
@@ -740,41 +740,47 @@ async function startServer() {
         res.setHeader("Content-Type", "application/javascript; charset=utf-8");
         res.end(await readFile(join2(__dirname, "web", "app.js"), "utf8"));
       } else if (pathname === "/api/status") {
-        sendJson(await dataAccess.getDefinitions());
+        sendJson(sanitizePayload(await dataAccess.getDefinitions()));
       } else if (pathname === "/api/cli-status") {
-        sendJson(await runGhAw.getStatus());
+        sendJson(sanitizePayload(await runGhAw.getStatus()));
       } else if (pathname === "/api/experiments") {
-        sendJson(await dataAccess.getExperiments());
+        sendJson(sanitizePayload(await dataAccess.getExperiments()));
       } else if (pathname === "/api/runs") {
         sendJson(
-          await dataAccess.getRuns({
-            count: parseQueryInt(reqUrl.searchParams.get("count"), DEFAULT_RUN_COUNT),
-            window: reqUrl.searchParams.get("window") ?? "7d",
-            timeout: parseQueryInt(reqUrl.searchParams.get("timeout"), DEFAULT_LOG_TIMEOUT_MINUTES),
-          })
+          sanitizePayload(
+            await dataAccess.getRuns({
+              count: parseQueryInt(reqUrl.searchParams.get("count"), DEFAULT_RUN_COUNT),
+              window: reqUrl.searchParams.get("window") ?? "7d",
+              timeout: parseQueryInt(reqUrl.searchParams.get("timeout"), DEFAULT_LOG_TIMEOUT_MINUTES),
+            })
+          )
         );
       } else if (pathname === "/api/usage") {
         sendJson(
-          await dataAccess.getUsage({
-            count: parseQueryInt(reqUrl.searchParams.get("count"), DEFAULT_RUN_COUNT),
-            window: reqUrl.searchParams.get("window") ?? "7d",
-            timeout: parseQueryInt(reqUrl.searchParams.get("timeout"), DEFAULT_LOG_TIMEOUT_MINUTES),
-          })
+          sanitizePayload(
+            await dataAccess.getUsage({
+              count: parseQueryInt(reqUrl.searchParams.get("count"), DEFAULT_RUN_COUNT),
+              window: reqUrl.searchParams.get("window") ?? "7d",
+              timeout: parseQueryInt(reqUrl.searchParams.get("timeout"), DEFAULT_LOG_TIMEOUT_MINUTES),
+            })
+          )
         );
       } else if (pathname === "/api/audit") {
         const runId = reqUrl.searchParams.get("run_id") ?? "";
         if (!runId) {
           sendJson({ error: "run_id is required" }, 400);
         } else {
-          sendJson(await dataAccess.getAudit(runId));
+          sendJson(sanitizePayload(await dataAccess.getAudit(runId)));
         }
       } else if (pathname === "/api/run-command") {
         const cmd = reqUrl.searchParams.get("cmd") ?? "";
         sendJson(
-          await dataAccess.execCommand(cmd, {
-            window: reqUrl.searchParams.get("window") ?? "7d",
-            timeout: parseQueryInt(reqUrl.searchParams.get("timeout"), DEFAULT_LOG_TIMEOUT_MINUTES),
-          })
+          sanitizePayload(
+            await dataAccess.execCommand(cmd, {
+              window: reqUrl.searchParams.get("window") ?? "7d",
+              timeout: parseQueryInt(reqUrl.searchParams.get("timeout"), DEFAULT_LOG_TIMEOUT_MINUTES),
+            })
+          )
         );
       } else if (pathname === "/api/refresh") {
         dataAccess.clearCache();
