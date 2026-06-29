@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
@@ -11,9 +11,10 @@ import { createDashboardDataAccess } from "./dashboard-data.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const servers = new Map();
-// process.cwd() is the git repo root when the extension is launched.
-// session.workspacePath is the session-state folder (plan.md, checkpoints) — a different path.
-const workspacePath = process.cwd();
+// For project-scoped extensions the file lives at .github/extensions/<name>/extension.mjs,
+// so three levels up is the git repo root. process.cwd() and session.workspacePath both
+// resolve to unrelated Copilot runtime directories and must not be used as CLI cwd.
+const workspacePath = resolve(__dirname, "../../..");
 const runGhAw = createGhAwRunnerWithStatus({ getWorkspacePath: () => workspacePath });
 const dataAccess = createDashboardDataAccess({ runGhAw });
 const LOG = "[extension]";

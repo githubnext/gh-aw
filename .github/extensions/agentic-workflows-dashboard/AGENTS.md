@@ -175,6 +175,6 @@ Get-Content "<log-path>" | Select-String "[dashboard-cli]" -SimpleMatch
 
 ## Known Pitfalls
 
-- **`session.workspacePath` is NOT the git repo root.** It points to the session-state folder (`~/.copilot/session-state/<id>`). The git repo root is `process.cwd()` captured at extension startup — that is what is used as the `cwd` for all CLI invocations.
+- **`session.workspacePath` and `process.cwd()` are NOT the git repo root.** `session.workspacePath` points to the session-state folder (`~/.copilot/session-state/<id>`). `process.cwd()` resolves to the Copilot runtime directory (`~/.copilot`). The git repo root must be derived from `__dirname`: for a project-scoped extension at `.github/extensions/<name>/`, use `resolve(__dirname, "../../..")`.
 - **`detached: true` on Windows** causes spawned processes to allocate a new console, which can redirect their stdout to that console instead of the pipe. Use `windowsHide: true` without `detached: true` for subprocess spawning.
 - **Root `.js` files in git** — they are committed alongside the TS sources. After editing `src/`, run `npm run build:ts` and commit both.

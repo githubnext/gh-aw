@@ -9,7 +9,7 @@ function combineOutput(stdout, stderr) {
 }
 function spawnExecFile(file, args, options, callback) {
     const { env, cwd, maxBuffer = 10 * 1024 * 1024 } = options ?? {};
-    const spawnOptions = { env, cwd, stdio: ["ignore", "pipe", "pipe"], detached: true };
+    const spawnOptions = { env, cwd, stdio: ["ignore", "pipe", "pipe"], windowsHide: true };
     const proc = spawn(file, args, spawnOptions);
     const stdoutChunks = [];
     const stderrChunks = [];
