@@ -203,10 +203,10 @@ Summary version **1.0.0** corresponds to the minimum validated `.lock.yml` compi
 | Update summary to reflect v1.0.2 CTR-012 work | ✅ Done (2026-05-10) | Appendix count updated; security architecture remains at version 1.0.0 |
 | Audit "Next Steps" for stale v1.0.0 tasks | ✅ Done (2026-05-10) | This table replaces the stale untracked list |
 | Add spec-to-lock sync note for security summary consumers | ✅ Done (2026-06-25) | Added "Spec-to-Lock Sync (v1.0.0)" section mapping summary version to validated `.lock.yml` behaviors |
-| Track pre_activation note from validation doc | ⏳ Pending | Add an explicit note tying role validation to the separate `pre_activation` job in `specs/security-architecture-spec.md` |
-| Track detection job naming note from validation doc | ⏳ Pending | Add an Appendix D example that names the `detection` job explicitly as the runtime threat-detection layer |
-| Track conclusion job note from validation doc | ⏳ Pending | Document optional cleanup/reporting jobs such as `conclusion` without making them normative |
-| Audit trusted-users runtime enforcement coverage | ⏳ Pending | `trusted-users` runtime enforcement is not yet called out in Sections 8-9 of `specs/security-architecture-spec.md`; decide whether to document it there or defer to the companion GitHub MCP access-control spec |
+| Track pre_activation note from validation doc | ✅ Done (2026-06-29) | Added §8.7 "Role Validation and the pre_activation Job" (SI-11 through SI-13) tying role validation to the `pre_activation` job and referencing the full `pre_activation → activation → agent → detection → safe_outputs → conclusion` flow |
+| Track detection job naming note from validation doc | ✅ Done (2026-06-29) | Added Appendix D Example 5 explicitly naming the `detection` job as the runtime threat-detection layer; also added §9.8 (TD-16 through TD-18) as normative requirements for `detection` job placement |
+| Track conclusion job note from validation doc | ✅ Done (2026-06-29) | Documented optional `conclusion` job in Appendix D Example 5 and §9.8 as a cleanup/reporting job without normative status; added §G.9 reference in the example table |
+| Audit trusted-users runtime enforcement coverage | ✅ Done (2026-06-29) | Added §9.9 "Trusted-Users Access Control" (TD-19 through TD-21) calling out the `pre_activation` gate and forward-referencing the companion **[GHAW-GITHUB-ACCESS]** spec for detailed access-control semantics |
 
 ## Versioning
 

@@ -738,6 +738,20 @@ The sandbox isolation layer provides process-level and container-level isolation
 - MCP servers in isolated containers with independent network allowlists
 - Defense in depth: filesystem visibility (chroot) and network isolation (iptables) remain separate layers
 
+### 8.7 Role Validation and the pre_activation Job
+
+**SI-11**: Role-based access control is enforced in the `pre_activation` job, which MUST be the first job in the compiled workflow dependency chain and MUST complete before any other job in the workflow executes. The canonical job dependency order is:
+
+```
+pre_activation → activation → agent → detection → safe_outputs → conclusion
+```
+
+**SI-12**: The `pre_activation` job performs role validation (via `check_membership.cjs`) and exposes an `activated` output boolean. The `activation` job MUST declare `needs: pre_activation` and `if: needs.pre_activation.outputs.activated == 'true'`. Every subsequent job in the chain MUST transitively depend on `activation`, ensuring that a failed role check cascades to prevent all downstream jobs from executing.
+
+**SI-13**: This arrangement provides a single authoritative gate for actor-identity enforcement. All security controls that require a known, authorized actor (role checks, trusted-user verification, permission minimization) MUST complete before the sandbox isolation layer begins agent execution.
+
+See §7.6.1 (Pre-Activation Pattern) for the normative requirements governing the `pre_activation` job implementation.
+
 ---
 
 ## 9. Threat Detection Layer
@@ -834,6 +848,30 @@ threat-detection:
     - name: Static Analysis
       run: ./scan.sh
 ```
+
+### 9.8 Runtime Placement in Job Dependency Chain
+
+**TD-16**: The `detection` job MUST be placed in the compiled workflow dependency chain immediately after the `agent` job and immediately before the `safe_outputs` job. This placement ensures that threat analysis of agent output occurs before any write operations are performed against the GitHub API. The canonical job execution order is:
+
+```
+pre_activation → activation → agent → detection → safe_outputs → conclusion
+```
+
+**TD-17**: The `safe_outputs` job MUST declare `needs: [agent, detection]` and include the condition `if: needs.detection.outputs.success == 'true'` to enforce the security gate. Safe output jobs **MUST NOT** run when the detection job reports a threat or fails to reach a terminal success state.
+
+**TD-18**: The `detection` job MUST run with no GitHub token permissions (`permissions: {}`). It reads only the agent artifact written to the runner file system and MUST NOT perform any GitHub API calls.
+
+### 9.9 Trusted-Users Access Control
+
+**TD-19**: When a `trusted-users` configuration is present, the implementation MUST enforce it as an additional actor-identity gate in the `pre_activation` job, alongside the existing role-based membership check. Trusted-user enforcement **MUST** occur before the `activation` job executes.
+
+**TD-20**: Trusted-user lists are distinct from role-based access: roles are enforced via GitHub API membership checks (`check_membership.cjs`), while `trusted-users` lists are evaluated against the `github.actor` or equivalent actor field available at `pre_activation` time.
+
+**TD-21**: A conforming implementation **MUST** document its trusted-users enforcement strategy in one of the following ways:
+  - As a normative subsection of Section 7 (Permission Management) or Section 9 (this section) in this specification, or
+  - As a forward-reference to the companion **[GHAW-GITHUB-ACCESS]** GitHub MCP Server Access Control Specification.
+
+The current reference implementation defers the detailed access-control semantics (scope, tool-level restrictions, token permissions for MCP sessions) to **[GHAW-GITHUB-ACCESS]** (`scratchpad/github-mcp-access-control-specification.md`). Implementors requiring full trusted-users audit coverage **SHOULD** consult that document alongside this specification.
 
 ---
 
@@ -1566,6 +1604,102 @@ safe-outputs:
 ```
 
 **Behavior**: All workflow runs complete in order, preventing incomplete operations.
+
+#### Example 5: Job Dependency Chain with detection and conclusion Jobs
+
+The following partial `.lock.yml` fragment illustrates the canonical job dependency structure produced by `gh aw compile`. The `detection` job acts as the runtime threat-detection layer; it **MUST** run immediately after `agent` and immediately before `safe_outputs`. The `conclusion` job is optional and, when present, performs only cleanup and summary reporting with no write permissions.
+
+```yaml
+jobs:
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@<SHA>
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+
+  activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    # ... input sanitization steps ...
+
+  agent:
+    needs: activation
+    if: needs.pre_activation.outputs.activated == 'true'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      actions: read
+    # ... AI agent execution within AWF sandbox ...
+
+  detection:
+    # Runtime threat-detection layer — analyzes agent output before any write operations.
+    # Runs with no GitHub token permissions; reads only the agent artifact from the runner.
+    needs: agent
+    runs-on: ubuntu-slim
+    permissions: {}
+    outputs:
+      success: ${{ steps.threat_detection.outputs.success }}
+    steps:
+      - name: Threat detection
+        id: threat_detection
+        uses: actions/github-script@<SHA>
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { main } = require('/opt/gh-aw/actions/threat_detection.cjs');
+            await main();
+
+  safe_outputs:
+    needs: [agent, detection]
+    if: needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write
+    # ... safe output execution ...
+
+  conclusion:
+    # Optional cleanup/summary job. When present it MUST depend on safe_outputs and
+    # MUST perform only idempotent, read-or-comment operations (e.g., posting a run
+    # summary comment). It MUST NOT perform any write operations that were not already
+    # gated by the detection → safe_outputs security chain.
+    needs: safe_outputs
+    if: always()
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write  # only for posting a summary comment
+    steps:
+      - name: Post execution summary
+        uses: actions/github-script@<SHA>
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { main } = require('/opt/gh-aw/actions/conclusion.cjs');
+            await main();
+```
+
+**Key properties of the detection and conclusion jobs**:
+
+| Job | Role | Permissions | Normative |
+|-----|------|-------------|-----------|
+| `detection` | Runtime threat-detection layer; security gate for `safe_outputs` | `{}` (none) | Required when `safe-outputs` is configured (TD-01, TD-02) |
+| `conclusion` | Optional cleanup/reporting; runs after `safe_outputs` regardless of outcome | Minimal (`contents: read`, `issues: write` for summary comment only) | Optional; see §G.9 (Lock File Validation Checklist) |
 
 ### Appendix E: Concurrency Control Examples
 

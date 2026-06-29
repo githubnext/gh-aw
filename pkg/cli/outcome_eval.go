@@ -105,6 +105,7 @@ var outcomeEvaluators = map[string]outcomeEvaluator{
 	"push_to_pull_request_branch":           evalPushToPRBranch,
 	"add_reviewer":                          evalAddReviewer,
 	"submit_pull_request_review":            evalSubmitPullRequestReview,
+	"replace_label":                         evalGenericSticky, // TODO(spdd): implement dedicated replace_label evaluator with ghaw.outcome.label.removed/added OTel attrs
 }
 
 // EvaluateOutcomes checks the current state of all safe output items from a run.

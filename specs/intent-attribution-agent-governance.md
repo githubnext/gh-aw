@@ -161,6 +161,18 @@ Examples:
 
 ## Design principles
 
+## Norms
+
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
+
+1. **Resolution order is deterministic.** The resolver MUST evaluate attribution sources in the canonical order (explicit metadata → closing issue → parent/sub-issue → referenced issue → project → milestone → artifact labels → suggestion → unlinked). It MUST NOT skip steps or reorder them based on output priority or policy.
+2. **Fail closed.** Unknown, invalid, or ambiguous intent MUST result in the safest applicable workflow policy. The resolver MUST NOT silently grant a permissive policy when attribution is absent or unresolvable.
+3. **Provenance is required.** Every attribution and policy decision MUST record: the source, the resolution rule applied, the root object identifier, the configuration version (`config_hash`), and any overrides. Decisions MUST NOT be emitted without a complete provenance record.
+4. **Unknown is not zero.** Missing attribution MUST be represented as `status: "unlinked"` and `weight: null`. A `weight` of `0` MUST NOT be used as a proxy for unknown attribution; it MUST only be set when the configured label explicitly maps to a weight of zero.
+5. **Suggested attribution MUST NOT govern.** An `IntentRecord` with `status: "suggested"` MUST NOT contribute to official workflow-authorization decisions or binding metrics. It MAY be surfaced for human review only.
+
+## Design principles
+
 ### Deterministic authority
 
 Official attribution and workflow authorization must be derived from:
@@ -290,6 +302,70 @@ Existing numeric values are interpreted as **relative weights**, not financial v
 Separating dimensions prevents initiatives, priorities, domains, and risk labels from competing in one flat scoring calculation.
 
 Only the configured scoring dimension contributes to weight.
+
+### `intent-policy.json` Migration Schema (Draft)
+
+The following is a draft schema skeleton for the future `.github/intent-policy.json` configuration format. It is informative only and subject to change before stabilization.
+
+```json
+{
+  "$schema": "https://github.com/github/gh-aw/schemas/intent-policy.json",
+  "version": 1,
+  "labels": {
+    "<label-name>": {
+      "dimension": "<priority|domain|initiative|risk>",
+      "value": "<string>",
+      "weight": "<number|null>"
+    }
+  },
+  "scoring": {
+    "dimension": "<priority|domain|initiative|risk>",
+    "strategy": "<max|sum|min>"
+  },
+  "attribution": {
+    "multiple_roots": "<ambiguous|primary|all|fractional>",
+    "allow_artifact_label_fallback": "<bool>"
+  }
+}
+```
+
+**Field definitions:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `version` | integer | Yes | Schema version; currently `1`. Must be incremented on breaking changes. |
+| `labels` | object | Yes | Map of GitHub label names to structured intent metadata. |
+| `labels.<name>.dimension` | string | Yes | Semantic dimension: `priority`, `domain`, `initiative`, or `risk`. |
+| `labels.<name>.value` | string | Yes | Human-readable value within the dimension (e.g., `"critical"`, `"security"`). |
+| `labels.<name>.weight` | number\|null | No | Relative scoring weight for this label within its dimension. `null` means unweighted. `0` means explicitly zero. |
+| `scoring.dimension` | string | Yes | The dimension that contributes to numeric weight scoring. Only labels in this dimension affect the numeric `objective_value`. |
+| `scoring.strategy` | string | Yes | How multiple labels in the scoring dimension are combined: `"max"` (default), `"sum"`, or `"min"`. |
+| `attribution.multiple_roots` | string | Yes | Policy when multiple closing issues are found: `"ambiguous"` (default, fail closed), `"primary"` (explicit root required), `"all"`, or `"fractional"`. |
+| `attribution.allow_artifact_label_fallback` | bool | No | When `true`, labels on the artifact itself (PR or issue) are used as a fallback when no root object provides attribution. Default: `true`. |
+
+**Example — minimal production configuration:**
+
+```json
+{
+  "version": 1,
+  "labels": {
+    "critical": { "dimension": "priority", "value": "critical", "weight": 100 },
+    "p0":       { "dimension": "priority", "value": "critical", "weight": 100 },
+    "p1":       { "dimension": "priority", "value": "high",     "weight": 50  },
+    "p2":       { "dimension": "priority", "value": "medium",   "weight": 25  },
+    "security": { "dimension": "domain",   "value": "security"                },
+    "high-risk":{ "dimension": "risk",     "value": "high"                    }
+  },
+  "scoring":     { "dimension": "priority", "strategy": "max" },
+  "attribution": { "multiple_roots": "ambiguous", "allow_artifact_label_fallback": true }
+}
+```
+
+**Migration notes:**
+
+- `intent-policy.json` is the intended successor to `objective-mapping.json`.
+- `objective-mapping.json` values (`label_to_value`, `multi_label_logic`, `priority_labels`) map to `labels[*].weight`, `scoring.strategy`, and the `priority` dimension, respectively.
+- Until migration is complete, both files MAY coexist; the resolver MUST prefer `intent-policy.json` when both are present.
 
 ## Intent record
 
@@ -618,6 +694,16 @@ func safestDefaultPolicy() ExecutionPolicy {
 ```
 
 Unknown or ambiguous intent must not grant elevated authority.
+
+## Safeguards
+
+The following runtime safeguards MUST be implemented by any conforming orchestrator that evaluates intent and compiles execution policies.
+
+1. **Missing configuration → safest default policy.** If the intent configuration file (`.github/objective-mapping.json` or `.github/intent-policy.json`) is absent, inaccessible, or fails to parse, the orchestrator MUST call `safestDefaultPolicy()` and MUST NOT attempt to derive a policy from partial or empty configuration. A structured error MUST be logged indicating the missing configuration source and the policy that was applied.
+
+2. **Corrupted `IntentRecord` → `unlinked`.** If an `IntentRecord` is structurally invalid (missing required fields such as `status`, `source`, or `rule`; type mismatches; or JSON parse failure), the orchestrator MUST treat the record as `status: "unlinked"` with `weight: null`. The corrupted record MUST NOT be used to derive a permissive policy. The error MUST be logged with the full provenance context.
+
+3. **Compile error → block and structured error.** If `PolicyCompiler.Compile` encounters an error (e.g., a rule references an undefined dimension, or policy merging produces a contradictory state), the orchestrator MUST block workflow execution and MUST emit a structured error containing: the rule IDs that were applied, the intent record that triggered the error, and the config hash. Partial policy application MUST NOT proceed past an error boundary.
 
 ## Policy compilation
 

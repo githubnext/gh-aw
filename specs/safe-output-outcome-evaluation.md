@@ -113,6 +113,7 @@ Rows marked `evalGenericSticky` fallback are generic existence checks, not type-
 | `assign_milestone` | `evalAssignMilestone` | milestone still set |
 | `update_project` | `evalGenericSticky` fallback | object still exists |
 | `update_release` | `evalGenericSticky` fallback | object still exists |
+| `replace_label` | `evalGenericSticky` fallback | label target exists |
 | `noop` | explicit skip | skipped |
 | `missing_tool` | explicit skip | skipped |
 
@@ -145,6 +146,7 @@ Rows marked `evalGenericSticky` fallback are generic existence checks, not type-
 | `assign_milestone` | partial | `pkg/workflow/assign_milestone.go`, `pkg/cli/outcome_eval.go` (`evalAssignMilestone`) | `actions/setup/js/assign_milestone.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `update_project` | not-started | `pkg/workflow/update_project.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/update_project.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `update_release` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/update_release.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `replace_label` | not-started | `pkg/workflow/replace_label.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/replace_label.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `noop` | implemented | `pkg/cli/outcome_eval.go` (explicit skip in `EvaluateOutcomes`) | `actions/setup/js/evaluate_outcomes.cjs` (`NOOP_TYPES`) |
 | `missing_tool` | implemented | `pkg/cli/outcome_eval.go` (explicit skip in `EvaluateOutcomes`) | `actions/setup/js/missing_tool.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (`NOOP_TYPES`) |
 
@@ -545,6 +547,22 @@ Same logic as `update_issue` but via GraphQL on the discussion body.
 | Dispatched run completed with `conclusion == "success"` | `accepted` |
 | Dispatched run completed with `conclusion == "failure"` | `rejected` |
 | Dispatched run not found or still running | `pending` |
+| Dispatched run cancelled before terminal state | `rejected` |
+| API returns `404` for the run record | `rejected` |
+
+**Additional OTel attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `ghaw.outcome.dispatch.run_id` | string | The GitHub Actions run ID of the dispatched workflow |
+| `ghaw.outcome.dispatch.conclusion` | string | Terminal conclusion of the dispatched run (`success`, `failure`, `cancelled`, etc.) |
+| `ghaw.outcome.dispatch.workflow_name` | string | Name of the dispatched workflow |
+
+**API failure safeguards (`dispatch_workflow`):**
+
+1. If the run list API returns `404` or the run record is absent, the evaluator **MUST** classify as `rejected`.
+2. If the API returns `5xx`, timeout, or transport failure, the evaluator **MUST** classify as `pending`, record retry metadata, and retry without emitting a terminal outcome.
+3. If the API returns rate-limit responses, the evaluator **MUST** classify as `pending` and reschedule evaluation using the reset window.
 
 ---
 
@@ -641,6 +659,16 @@ Same logic as `update_issue` but via GraphQL on the discussion body.
 |-----------|---------|
 | Field value unchanged | `accepted` |
 | Field value changed by someone else | `rejected` |
+| Project item deleted | `rejected` |
+| API returns error or item not found | `pending` |
+
+**Additional OTel attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `ghaw.outcome.project.field_name` | string | Name of the project field that was updated |
+| `ghaw.outcome.project.expected_value` | string | Value the workflow set |
+| `ghaw.outcome.project.actual_value` | string | Value observed at evaluation time |
 
 ---
 
@@ -656,6 +684,17 @@ Same logic as `update_issue` but via GraphQL on the discussion body.
 |-----------|---------|
 | Release body/name unchanged since workflow edit | `accepted` |
 | Release body/name changed by someone else | `rejected` |
+| Release deleted (API returns `404`) | `rejected` |
+| API returns `5xx` or timeout | `pending` |
+
+**Additional OTel attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `ghaw.outcome.release.id` | string | GitHub release ID |
+| `ghaw.outcome.release.tag_name` | string | Tag name of the release |
+| `ghaw.outcome.release.body_changed` | bool | Whether the release body was changed after workflow edit |
+| `ghaw.outcome.release.name_changed` | bool | Whether the release name was changed after workflow edit |
 
 ---
 
@@ -666,6 +705,41 @@ No outcome to evaluate. Skip.
 ## 29. `missing_tool`
 
 No outcome to evaluate. Skip.
+
+---
+
+## 30. `replace_label`
+
+**Question:** Did both the label removal and addition stick?
+
+**API:** `GET /repos/{owner}/{repo}/issues/{number}/labels`
+
+**Evaluation:**
+
+| Condition | Outcome |
+|-----------|---------|
+| `label_to_add` is present and `label_to_remove` is absent | `accepted` |
+| `label_to_add` is present and `label_to_remove` is still present | `rejected` (partial — remove did not take effect) |
+| `label_to_add` is absent | `rejected` (add did not take effect or was reverted) |
+| Target issue/PR not found (API `404`) | `rejected` |
+| API returns `5xx`, timeout, or transport failure | `pending` |
+| API returns rate-limit response | `pending` |
+
+**Additional OTel attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `ghaw.outcome.label.removed` | string | The label that was to be removed (`label_to_remove` value from the manifest) |
+| `ghaw.outcome.label.added` | string | The label that was to be added (`label_to_add` value from the manifest) |
+| `ghaw.outcome.label.remove_succeeded` | bool | Whether `label_to_remove` is absent from the target at evaluation time |
+| `ghaw.outcome.label.add_succeeded` | bool | Whether `label_to_add` is present on the target at evaluation time |
+
+**API failure safeguards (`replace_label`):**
+
+1. If `GET /repos/{owner}/{repo}/issues/{number}/labels` returns `404`, the evaluator **MUST** classify as `rejected` because the authoritative labeling target is no longer reachable.
+2. If the API returns `5xx`, timeout, or transport failure, the evaluator **MUST** classify as `pending`, record retry metadata, and retry without emitting a terminal outcome.
+3. If the API returns rate-limit responses (`403` exhaustion or `429`), the evaluator **MUST** classify as `pending` and reschedule evaluation using the reset window.
+4. Evaluators **MUST NOT** emit `accepted` when either the add or remove half of the transition cannot be confirmed due to API failure.
 
 ---
 
@@ -731,6 +805,7 @@ The table below specifies one conformance test row per safe-output type. Each ro
 | `assign_milestone` | `assign_milestone` | Milestone assignment is present on the target issue/PR at evaluation time | Milestone assignment was removed by a visible non-bot actor within the evaluation window |
 | `update_project` | `update_project` | Project item field(s) match the values the bot submitted at evaluation time | Project item field(s) were reverted to pre-bot values by a visible non-bot actor within the evaluation window |
 | `update_release` | `update_release` | Release field(s) (name, body, tag, draft status) match the values the bot submitted at evaluation time | Release field(s) were reverted by a visible non-bot actor, or the release was deleted within the evaluation window |
+| `replace_label` | `replace_label` | `label_to_add` is present and `label_to_remove` is absent on the target issue/PR at evaluation time | `label_to_add` is absent from the target, or `label_to_remove` is still present at evaluation time |
 | `noop` | `noop` | Evaluation is skipped; no outcome is computed | N/A — `noop` always results in `ignored` |
 | `missing_tool` | `missing_tool` | Evaluation is skipped; no outcome is computed | N/A — `missing_tool` always results in `ignored` |
 

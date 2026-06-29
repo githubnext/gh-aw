@@ -514,6 +514,17 @@ The test suite for `replace-label` spans two layers:
 - **Unit tests** (`actions/setup/js/replace_label.test.cjs`): Test the JavaScript handler in isolation using mocked GitHub API clients.
 - **Integration tests** (`pkg/workflow/`): Test Go configuration parsing and schema validation using the common safe-output test infrastructure.
 
+### 9.0 Outcome Evaluation Cross-Reference
+
+The outcome evaluation semantics for `replace_label` are specified in the **Safe Output Outcome Evaluation Specification** (`specs/safe-output-outcome-evaluation.md`), Section 30. That section defines:
+
+- The evaluation question: did both the label removal (`label_to_remove` absent) and label addition (`label_to_add` present) stick?
+- The pass and fail conditions for each outcome (`accepted`, `rejected`, `pending`).
+- The OTel attributes specific to this type: `ghaw.outcome.label.removed`, `ghaw.outcome.label.added`, `ghaw.outcome.label.remove_succeeded`, and `ghaw.outcome.label.add_succeeded`.
+- API failure safeguards (404, 5xx, rate-limit handling).
+
+The conformance test table in `specs/safe-output-outcome-evaluation.md` includes a `replace_label` row specifying the expected `ghaw.outcome.type` attribute value and the canonical pass/fail conditions. Implementations **MUST** satisfy the conformance requirements in that table in addition to the compliance requirements in this section.
+
 ### 9.2 Test Requirements
 
 #### 9.2.1 Schema Validation Tests
