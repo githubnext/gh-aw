@@ -51,7 +51,7 @@ describe("dashboard cli runner", () => {
 
   it("returns gh install instructions when gh itself is not found", async () => {
     const execFileFn = vi.fn((bin, args, options, callback) => {
-      callback(Object.assign(new Error("spawn gh ENOENT"), { code: "ENOENT" }), "", "");
+      callback(Object.assign(new Error("spawn gh ENOENT"), { code: "ENOENT", syscall: "spawn", path: "gh" }), "", "");
     });
 
     const runGhAw = createGhAwRunnerWithStatus({
@@ -66,8 +66,9 @@ describe("dashboard cli runner", () => {
       available: false,
       source: "gh-not-found",
       command: "gh aw version",
-      message: expect.stringContaining("gh (GitHub CLI) is not installed"),
-      installCommand: expect.stringContaining("https://cli.github.com"),
+      message: "Install the GitHub CLI to use this dashboard.",
+      installUrl: "https://cli.github.com",
+      installCommand: "gh extension install github/gh-aw",
     });
   });
 });

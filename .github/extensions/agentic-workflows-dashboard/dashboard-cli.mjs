@@ -4,7 +4,7 @@ import { access } from "node:fs/promises";
 import { join } from "node:path";
 
 const INSTALL_COMMAND = "gh extension install github/gh-aw";
-const GH_INSTALL_PROMPT = "Visit https://cli.github.com to install the GitHub CLI, then run: gh extension install github/gh-aw";
+const GH_INSTALL_URL = "https://cli.github.com";
 
 function combineOutput(stdout, stderr) {
   return [stdout, stderr].filter(Boolean).join("\n").trim();
@@ -37,7 +37,7 @@ function parseVersionFromOutput(output) {
 }
 
 function isMissingGh(error) {
-  return error?.code === "ENOENT";
+  return error?.code === "ENOENT" && error?.syscall === "spawn" && error?.path === "gh";
 }
 
 function isMissingGhAwExtension(error) {
@@ -112,8 +112,9 @@ export function createGhAwRunnerWithStatus(options) {
           source: "gh-not-found",
           version: "",
           command: "gh aw version",
-          installCommand: GH_INSTALL_PROMPT,
-          message: "gh (GitHub CLI) is not installed. Install the GitHub CLI to use this dashboard.",
+          installCommand: INSTALL_COMMAND,
+          installUrl: GH_INSTALL_URL,
+          message: "Install the GitHub CLI to use this dashboard.",
         };
       }
 

@@ -42,7 +42,10 @@
         <section class="flash flash-error mt-3 awd-install-banner" x-show="cliStatus && cliStatus.source === 'gh-not-found'">
           <div class="text-bold">gh (GitHub CLI) is not installed</div>
           <div class="mt-1" x-text="cliStatus?.message || 'Install the GitHub CLI to use this dashboard.'"></div>
-          <div class="mt-2"><code x-text="cliStatus?.installCommand"></code></div>
+          <div class="mt-2">
+            Install from <a :href="cliStatus?.installUrl || 'https://cli.github.com'" target="_blank" rel="noopener">cli.github.com</a>, then run:
+            <code x-text="cliStatus?.installCommand || 'gh extension install github/gh-aw'"></code>
+          </div>
         </section>
         <section class="flash flash-warn mt-3 awd-install-banner" x-show="cliStatus && !cliStatus.available && cliStatus.source !== 'gh-not-found'">
           <div class="text-bold">gh aw is not installed</div>
