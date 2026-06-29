@@ -761,8 +761,8 @@ async function startServer() {
         res.writeHead(404);
         res.end("Not found");
       }
-    } catch (error) {
-      sendJson({ error: error instanceof Error ? error.message : String(error) }, 500);
+    } catch {
+      sendJson({ error: "Request failed." }, 500);
     }
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));

@@ -107,8 +107,8 @@ async function startServer(): Promise<ServerEntry> {
         res.writeHead(404);
         res.end("Not found");
       }
-    } catch (error) {
-      sendJson({ error: error instanceof Error ? error.message : String(error) }, 500);
+    } catch {
+      sendJson({ error: "Request failed." }, 500);
     }
   });
 
