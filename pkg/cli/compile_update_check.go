@@ -284,11 +284,22 @@ func isMinorVersionBehind(currentVersion string, latestVersion string) bool {
 	if semverutil.Compare(currentSV, latestSV) >= 0 {
 		return false
 	}
+	if !hasExplicitMinorComponent(currentSV) || !hasExplicitMinorComponent(latestSV) {
+		return false
+	}
 
 	currentParsed := semverutil.ParseVersion(currentSV)
 	latestParsed := semverutil.ParseVersion(latestSV)
 
 	return currentParsed.Major == latestParsed.Major && latestParsed.Minor > currentParsed.Minor
+}
+
+func hasExplicitMinorComponent(version string) bool {
+	core := strings.TrimPrefix(version, "v")
+	if idx := strings.IndexAny(core, "-+"); idx >= 0 {
+		core = core[:idx]
+	}
+	return strings.Count(core, ".") >= 1
 }
 
 func printCompileUpdateNotification(notification *compileUpdateNotification) {

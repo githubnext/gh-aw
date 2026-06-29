@@ -199,6 +199,46 @@ func TestPrintCompileUpdateNotification(t *testing.T) {
 	}
 }
 
+func TestIsMinorVersionBehind(t *testing.T) {
+	tests := []struct {
+		name    string
+		current string
+		latest  string
+		want    bool
+	}{
+		{
+			name:    "explicit minor behind",
+			current: "v1.2.3",
+			latest:  "v1.3.0",
+			want:    true,
+		},
+		{
+			name:    "current missing minor returns false",
+			current: "v1",
+			latest:  "v1.1.0",
+			want:    false,
+		},
+		{
+			name:    "latest missing minor returns false",
+			current: "v1.0.0",
+			latest:  "v1",
+			want:    false,
+		},
+		{
+			name:    "prerelease still counts explicit minor",
+			current: "v1.0.0-rc.1",
+			latest:  "v1.1.0",
+			want:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isMinorVersionBehind(tt.current, tt.latest))
+		})
+	}
+}
+
 func TestRunCompileUpdateCheckUsesHEADRequests(t *testing.T) {
 	originalVersion := GetVersion()
 	originalRelease := workflow.IsRelease()
