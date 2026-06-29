@@ -29,6 +29,7 @@ type SafeJobConfig struct {
 	Inputs      map[string]*InputDefinition `yaml:"inputs,omitempty"`
 	GitHubToken string                      `yaml:"github-token,omitempty"`
 	Output      string                      `yaml:"output,omitempty"`
+	Max         int                         `yaml:"max,omitempty"` // Maximum number of times this output type may be emitted per run (default: 1)
 }
 
 // parseSafeJobsConfig parses safe-jobs configuration from a jobs map.
@@ -147,7 +148,21 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 			}
 		}
 
-		safeJobsLog.Printf("Parsed safe-job configuration: name=%s, has_steps=%v, has_inputs=%v", jobName, len(safeJob.Steps) > 0, len(safeJob.Inputs) > 0)
+		// Parse max (optional; controls how many times this output type may be emitted per run)
+		if maxVal, exists := jobConfig["max"]; exists {
+			switch v := maxVal.(type) {
+			case int:
+				if v > 0 {
+					safeJob.Max = v
+				}
+			case float64:
+				if int(v) > 0 {
+					safeJob.Max = int(v)
+				}
+			}
+		}
+
+		safeJobsLog.Printf("Parsed safe-job configuration: name=%s, has_steps=%v, has_inputs=%v, max=%d", jobName, len(safeJob.Steps) > 0, len(safeJob.Inputs) > 0, safeJob.Max)
 		result[jobName] = safeJob
 	}
 

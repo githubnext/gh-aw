@@ -80,6 +80,9 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 			if jobConfig.Output != "" {
 				safeJobConfig["output"] = jobConfig.Output
 			}
+			if jobConfig.Max > 0 {
+				safeJobConfig["max"] = jobConfig.Max
+			}
 			if len(jobConfig.Inputs) > 0 {
 				inputsConfig := make(map[string]any)
 				for inputName, inputDef := range jobConfig.Inputs {
