@@ -233,8 +233,9 @@ Alpine.data("dashboardApp", (): DashboardState => ({
       return;
     }
 
+    const unavailableMessage = (this.cliStatus?.message ?? this.errorCliStatus) || "gh aw is not installed.";
     this.commandInput = this.cliStatus?.command ?? "gh aw version";
-    this.commandOutput = this.cliStatus?.message ?? "gh aw is not installed.";
+    this.commandOutput = unavailableMessage;
   },
 
   currentWindow() {
@@ -349,12 +350,16 @@ Alpine.data("dashboardApp", (): DashboardState => ({
       this.runs = [];
       this.usage = [];
       this.experiments = [];
+      this.selectedRun = null;
+      this.runsMeta = null;
+      this.usageMeta = null;
       this.loadDefinitionPage(1);
       this.loadRunPage(1);
       this.loadUsagePage(1);
       this.loadExperimentPage(1);
+      const unavailableMessage = (this.cliStatus?.message ?? this.errorCliStatus) || "gh aw is not installed.";
       this.commandInput = this.cliStatus?.command ?? "gh aw version";
-      this.commandOutput = this.cliStatus?.message ?? "gh aw is not installed.";
+      this.commandOutput = unavailableMessage;
     }
     this.flashMessage = "Refreshed.";
     setTimeout(() => {
