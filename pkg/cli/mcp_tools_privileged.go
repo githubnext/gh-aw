@@ -15,6 +15,12 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+const (
+	defaultMCPLogsToolCount            = 100
+	defaultMCPLogsTimeoutMinutes       = 1
+	mcpLogsRunsPerDefaultTimeoutMinute = 40
+)
+
 // appendRepoFlagFromEnv appends "--repo <owner/repo>" to args when GITHUB_REPOSITORY
 // is set in the environment. This allows gh CLI subcommands to identify the repository
 // without falling back to git-based detection, which fails in sandboxed environments
@@ -41,9 +47,32 @@ type logsArgs struct {
 	Branch            string   `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
 	AfterRunID        int64    `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
 	BeforeRunID       int64    `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
-	Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: 1 for MCP server)"`
+	Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: auto-scales with count in the MCP server, rounded up in 40-run increments; e.g. 1 minute up to 40, 2 minutes for 41-80, 3 minutes for 81-120, and so on)"`
 	MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored. Output is always written to a file."`
 	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: usage). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage"`
+}
+
+func defaultMCPLogsToolTimeoutMinutesForCount(count int) int {
+	count = effectiveMCPLogsToolCount(count)
+
+	// Round up in 40-run increments so requests slightly above the current
+	// 60-second threshold automatically get an extra minute of budget.
+	return max(defaultMCPLogsTimeoutMinutes, (count+mcpLogsRunsPerDefaultTimeoutMinute-1)/mcpLogsRunsPerDefaultTimeoutMinute)
+}
+
+func effectiveMCPLogsToolCount(count int) int {
+	if count > 0 {
+		return count
+	}
+	return defaultMCPLogsToolCount
+}
+
+func effectiveMCPLogsToolTimeoutMinutes(requestedTimeout, count int) int {
+	if requestedTimeout > 0 {
+		return requestedTimeout
+	}
+
+	return defaultMCPLogsToolTimeoutMinutesForCount(count)
 }
 
 // The logs tool requires write+ access and checks actor permissions.
@@ -56,10 +85,12 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 		return err
 	}
 	// Add elicitation defaults for common parameters
-	if err := AddSchemaDefault(logsSchema, "count", 100); err != nil {
+	if err := AddSchemaDefault(logsSchema, "count", defaultMCPLogsToolCount); err != nil {
 		mcpLog.Printf("Failed to add default for count: %v", err)
 	}
-	if err := AddSchemaDefault(logsSchema, "timeout", 1); err != nil {
+	// Schema default corresponds to defaultMCPLogsToolCount; runtime timeout
+	// scales with the effective count used for the request.
+	if err := AddSchemaDefault(logsSchema, "timeout", defaultMCPLogsToolTimeoutMinutesForCount(defaultMCPLogsToolCount)); err != nil {
 		mcpLog.Printf("Failed to add default for timeout: %v", err)
 	}
 	if err := AddSchemaDefault(logsSchema, "max_tokens", 12000); err != nil {
@@ -141,9 +172,8 @@ from where the previous request stopped due to timeout.`,
 		if args.WorkflowName != "" {
 			cmdArgs = append(cmdArgs, args.WorkflowName)
 		}
-		if args.Count > 0 {
-			cmdArgs = append(cmdArgs, "-c", strconv.Itoa(args.Count))
-		}
+		effectiveCount := effectiveMCPLogsToolCount(args.Count)
+		cmdArgs = append(cmdArgs, "-c", strconv.Itoa(effectiveCount))
 		if args.StartDate != "" {
 			cmdArgs = append(cmdArgs, "--start-date", args.StartDate)
 		}
@@ -179,19 +209,17 @@ from where the previous request stopped due to timeout.`,
 
 		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
 
-		// Set timeout to 1 minute for MCP server if not explicitly specified
-		timeoutValue := args.Timeout
-		if timeoutValue == 0 {
-			timeoutValue = 1
-		}
+		// Scale the implicit MCP timeout with the requested fetch window so
+		// larger fleet-wide requests do not hit the 60s server deadline by default.
+		timeoutValue := effectiveMCPLogsToolTimeoutMinutes(args.Timeout, effectiveCount)
 		cmdArgs = append(cmdArgs, "--timeout", strconv.Itoa(timeoutValue))
 
 		// Always use --json mode in MCP server
 		cmdArgs = append(cmdArgs, "--json")
 
 		// Log the command being executed for debugging
-		mcpLog.Printf("Executing logs tool: workflow=%s, count=%d, firewall=%v, no_firewall=%v, filtered_integrity=%v, timeout=%d, command_args=%v",
-			args.WorkflowName, args.Count, args.Firewall, args.NoFirewall, args.FilteredIntegrity, timeoutValue, cmdArgs)
+		mcpLog.Printf("Executing logs tool: workflow=%s, requested_count=%d, effective_count=%d, firewall=%v, no_firewall=%v, filtered_integrity=%v, timeout=%d, command_args=%v",
+			args.WorkflowName, args.Count, effectiveCount, args.Firewall, args.NoFirewall, args.FilteredIntegrity, timeoutValue, cmdArgs)
 
 		notifyProgress(ctx, req, 0, 100, "Downloading workflow logs...")
 

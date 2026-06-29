@@ -143,6 +143,12 @@ A `pre-agent` step has already queried and filtered PRs from `${{ env.TARGET_REP
 If `pr_numbers` is empty, create a report stating no PRs matched the filters and skip dispatch.
 Do **not** emit one `noop` per PR slot or placeholder. If you need a noop, emit exactly **one** consolidated noop for the entire run.
 
+## Safe-Output Path
+
+Use **only** the MCP safe-output tools (`create_issue`, `add_labels`, `add_comment`) for all safe-output calls. Do **not** emit safe outputs via the `safeoutputs` bash CLI. Never pipe JSON to `safeoutputs create_issue .` or similar.
+
+Do not probe safe-output tool schemas with `--help` commands or test invocations. All tool signatures are already in your system prompt.
+
 ## Step 1: Dispatch to Subagent
 
 For each PR number in the comma-separated list, delegate evaluation to the **contribution-checker** subagent (`.github/agents/contribution-checker.agent.md`).
@@ -197,17 +203,23 @@ Do not specify the repo — `target-repo` is pre-configured.
 
 Once all subagent results are collected (or errors recorded), compile the report and call safe-output tools. Do **NOT** retry failed subagent calls more than once. If a subagent returns an error on the second attempt, record the verdict as `❓` and continue.
 
+If `create_issue` returns an E002 error, the issue slot was already consumed earlier in this run — the report **was** created. Do **not** retry `create_issue`. Do **not** re-run the evaluation loop. Proceed directly to `add_comment` and `add_labels` calls with the PRs already evaluated, then finish.
+
 Keep a running count of actions taken (each tool call or subagent dispatch counts as one turn). Do not exceed **50 total turns** across the entire orchestrator run. If you are approaching the limit, skip any remaining retries, finalize the report with what you have, and emit safe-output calls immediately.
 
 ## Step 2: Compile Report
 
 Use the `report-formatter` agent, passing the array of returned subagent JSON objects, the `skipped_count` from `pr-filter-results.json`, and the run URL (constructed as `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`), to produce the report body. Then emit a single `create_issue` safe output with that body as `body` and `temporary_id: "aw_summary"`.
 
+Do not include a `fields` property in the `create_issue` payload unless setting custom project fields (arrays of `{"name": "...", "value": "..."}` pairs). The `close-older-issues` behaviour is configured in the workflow YAML and must not be passed as a field.
+
 ## Step 3: Label the Report Issue
 
 After creating the report issue, call the `add_labels` safe output tool to apply labels based on the quality signals reported by the subagent. Collect the distinct `quality` values from all returned rows and add each as a label. The `add_labels` tool is pre-configured with `target-repo` pointing to the target repository.
 
 When you create the report issue, set a `temporary_id` (for example `aw_summary`). Then set `add_labels.item_number` to `#<temporary_id>` (for example `#aw_summary`) so labels are applied to the issue created in the same run.
+
+Call `create_issue` first and wait for its successful response. Only after you receive that response, emit `add_labels` with `item_number: "#aw_summary"`. Never reference `#aw_summary` before `create_issue` has returned a successful result.
 
 Example:
 

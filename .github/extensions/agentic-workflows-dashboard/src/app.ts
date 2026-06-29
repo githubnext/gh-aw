@@ -1,13 +1,13 @@
-// @ts-ignore - browser runtime resolves the remote ESM import directly
-import Alpine from "https://cdn.jsdelivr.net/npm/alpinejs@3.15.0/+esm";
+import Alpine from "alpinejs";
 
 import type { CLIStatus, ExperimentInfo, PagedResult, UsageSummaryItem, WorkflowDefinition, WorkflowRun } from "./models.js";
 import { paginate } from "./pagination.js";
 
 type FlashKind = "success" | "warn" | "error";
-type DashboardTabId = "definitions" | "runs" | "details" | "usage" | "experiments" | "commands";
+type DashboardTabId = "definitions" | "runs" | "details" | "usage" | "experiments" | "maintenance" | "commands";
 type DashboardTab = { id: DashboardTabId; label: string; counter?: "definitions" | "runs" | "usage" | "experiments" };
 type ReportWindow = { id: "3d" | "7d" | "1mo"; label: string; startDate: string };
+type MaintenanceAction = "check-update" | "run-update" | "check-upgrade" | "run-upgrade";
 type ReportMeta = {
   window?: { id?: string; label?: string };
   logsFetches?: number;
@@ -16,6 +16,8 @@ type ReportMeta = {
 };
 type RunsResponse = ReportMeta & { runs?: WorkflowRun[] };
 type UsageResponse = ReportMeta & { items?: UsageSummaryItem[] };
+type AuditFinding = { severity?: string };
+type RunAudit = { key_findings?: AuditFinding[] };
 
 interface DashboardState {
   tabs: DashboardTab[];
@@ -34,6 +36,10 @@ interface DashboardState {
   usagePaged: PagedResult<UsageSummaryItem>;
   experimentsPaged: PagedResult<ExperimentInfo>;
   selectedRun: WorkflowRun | null;
+  auditData: RunAudit | null;
+  includePreReleases: boolean;
+  maintenanceOutput: string;
+  maintenanceLastAction: string;
   commandInput: string;
   commandOutput: string;
   flashMessage: string;
@@ -43,11 +49,14 @@ interface DashboardState {
   loadingRuns: boolean;
   loadingUsage: boolean;
   loadingExperiments: boolean;
+  loadingAudit: boolean;
+  loadingMaintenance: boolean;
   errorCliStatus: string;
   errorDefinitions: string;
   errorRuns: string;
   errorUsage: string;
   errorExperiments: string;
+  errorAudit: string;
   runsMeta: ReportMeta | null;
   usageMeta: ReportMeta | null;
   init(): Promise<void>;
@@ -69,7 +78,15 @@ interface DashboardState {
   loadExperimentPage(page: number): void;
   selectRun(runId: number): void;
   viewRunDetails(runId: number): void;
+  loadAudit(): Promise<void>;
+  clearAudit(): void;
   buildLogsCommand(count?: number): string;
+  buildMaintenanceCommand(action: MaintenanceAction): string;
+  maintenanceActionLabel(action: MaintenanceAction): string;
+  runMaintenanceAction(action: MaintenanceAction): Promise<void>;
+  auditHasFindings(): boolean;
+  auditSeverityClass(severity?: string): string;
+  auditPriorityClass(priority?: string): string;
   buildReportSummaryMessage(meta: ReportMeta | null): string;
   runCommand(): Promise<void>;
   commandQuickFill(value: string): void;
@@ -91,6 +108,7 @@ const dashboardTabs: DashboardTab[] = [
   { id: "details", label: "Run details" },
   { id: "usage", label: "Usage", counter: "usage" },
   { id: "experiments", label: "Experiments", counter: "experiments" },
+  { id: "maintenance", label: "Maintenance" },
   { id: "commands", label: "Commands" },
 ];
 
@@ -208,6 +226,10 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   usagePaged: paginate([], 1, 20),
   experimentsPaged: paginate([], 1, 20),
   selectedRun: null,
+  auditData: null,
+  includePreReleases: false,
+  maintenanceOutput: "Use this view to check dashboard maintenance commands before applying updates or upgrades.",
+  maintenanceLastAction: "",
   commandInput: "",
   commandOutput: "",
   flashMessage: "",
@@ -217,11 +239,14 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   loadingRuns: false,
   loadingUsage: false,
   loadingExperiments: false,
+  loadingAudit: false,
+  loadingMaintenance: false,
   errorCliStatus: "",
   errorDefinitions: "",
   errorRuns: "",
   errorUsage: "",
   errorExperiments: "",
+  errorAudit: "",
   runsMeta: null,
   usageMeta: null,
 
@@ -244,7 +269,7 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   },
 
   reportWindowClass(windowId) {
-    return this.selectedWindow === windowId ? "btn btn-sm btn-primary" : "btn btn-sm";
+    return this.selectedWindow === windowId ? "BtnGroup-item btn btn-sm btn-primary" : "BtnGroup-item btn btn-sm";
   },
 
   async selectReportWindow(windowId) {
@@ -401,7 +426,11 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   },
 
   selectRun(runId) {
+    const previousRunId = this.selectedRun?.run_id;
     this.selectedRun = this.runs.find(run => run.run_id === runId) ?? null;
+    if (this.selectedRun?.run_id !== previousRunId) {
+      this.clearAudit();
+    }
   },
 
   viewRunDetails(runId) {
@@ -409,13 +438,95 @@ Alpine.data("dashboardApp", (): DashboardState => ({
     this.setActiveTab("details");
   },
 
+  async loadAudit() {
+    if (!this.selectedRun?.run_id) return;
+    this.loadingAudit = true;
+    this.errorAudit = "";
+    try {
+      const params = new URLSearchParams({ run_id: String(this.selectedRun.run_id) });
+      this.auditData = await fetchJson<RunAudit>(`/api/audit?${params.toString()}`);
+    } catch (error) {
+      this.auditData = null;
+      this.errorAudit = `Failed to load audit: ${error instanceof Error ? error.message : String(error)}`;
+    } finally {
+      this.loadingAudit = false;
+    }
+  },
+
+  clearAudit() {
+    this.auditData = null;
+    this.errorAudit = "";
+    this.loadingAudit = false;
+  },
+
   buildLogsCommand(count = DEFAULT_LOGS_COMMAND_COUNT) {
     const window = this.currentWindow();
     return `gh aw logs --json -c ${count} --start-date ${window.startDate} --timeout ${this.logsTimeout}`;
   },
 
+  buildMaintenanceCommand(action) {
+    if (action === "check-update") return "gh aw status --json";
+    if (action === "run-update") return "gh aw update";
+    if (action === "check-upgrade") return `gh aw upgrade --audit${this.includePreReleases ? " --pre-releases" : ""}`;
+    return `gh aw upgrade${this.includePreReleases ? " --pre-releases" : ""}`;
+  },
+
+  maintenanceActionLabel(action) {
+    if (action === "check-update") return "Check updates";
+    if (action === "run-update") return "Run update";
+    if (action === "check-upgrade") return "Check upgrades";
+    return "Run upgrade";
+  },
+
+  async runMaintenanceAction(action) {
+    const cmd = this.buildMaintenanceCommand(action);
+    this.loadingMaintenance = true;
+    this.maintenanceLastAction = this.maintenanceActionLabel(action);
+    this.maintenanceOutput = `$ ${cmd}\n(running…)`;
+    this.commandInput = cmd;
+    try {
+      const params = new URLSearchParams({
+        cmd,
+        window: this.selectedWindow,
+        timeout: String(this.logsTimeout),
+      });
+      const result = await fetchJson<{ command?: string; output?: string }>(`/api/run-command?${params.toString()}`);
+      this.maintenanceOutput = `$ ${result.command ?? cmd}\n${result.output ?? ""}`;
+      if (action === "run-update" || action === "run-upgrade") {
+        await fetch("/api/refresh");
+        await this.fetchCliStatus();
+        if (this.cliStatus?.available) {
+          await Promise.all([this.fetchDefinitions(), this.fetchRuns(), this.fetchUsage(), this.fetchExperiments()]);
+        }
+      }
+    } catch (error) {
+      this.maintenanceOutput = `$ ${cmd}\nError: ${error instanceof Error ? error.message : String(error)}`;
+    } finally {
+      this.loadingMaintenance = false;
+    }
+  },
+
   cliUnavailableMessage() {
     return (this.cliStatus?.message ?? this.errorCliStatus) || "gh aw is not installed.";
+  },
+
+  auditHasFindings() {
+    return (this.auditData?.key_findings ?? []).length > 0;
+  },
+
+  auditSeverityClass(severity) {
+    const normalized = (severity ?? "").toLowerCase();
+    if (normalized === "critical" || normalized === "high" || normalized === "error") return "Label Label--danger";
+    if (normalized === "medium" || normalized === "warning") return "Label Label--attention";
+    if (normalized === "low") return "Label Label--accent";
+    return "Label Label--secondary";
+  },
+
+  auditPriorityClass(priority) {
+    const normalized = (priority ?? "").toLowerCase();
+    if (normalized === "high" || normalized === "p0" || normalized === "p1") return "Label Label--danger";
+    if (normalized === "medium" || normalized === "p2") return "Label Label--attention";
+    return "Label Label--secondary";
   },
 
   buildReportSummaryMessage(meta) {

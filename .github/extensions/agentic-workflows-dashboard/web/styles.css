@@ -1,3 +1,8 @@
+/* Hide Alpine.js x-cloak elements until Alpine initializes to prevent FOUC */
+[x-cloak] {
+  display: none !important;
+}
+
 .awd-shell {
   min-height: 100vh;
   background: var(--bgColor-default, #ffffff);
@@ -25,6 +30,12 @@
   white-space: pre-wrap;
   max-height: 260px;
   overflow: auto;
+}
+
+.awd-maintenance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
 }
 
 .awd-usage-header,
