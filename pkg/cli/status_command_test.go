@@ -322,10 +322,18 @@ func TestWorkflowStatus_ConsoleRendering(t *testing.T) {
 	output := console.RenderStruct(statuses)
 
 	// Verify the output contains table headers from console tags
-	expectedHeaders := []string{"Workflow", "Engine", "Compiled", "Status", "Time Remaining"}
+	expectedHeaders := []string{"workflow", "engine", "compiled"}
 	for _, header := range expectedHeaders {
 		if !strings.Contains(output, header) {
 			t.Errorf("Expected output to contain header '%s', got:\n%s", header, output)
+		}
+	}
+
+	// Verify hidden headers are absent
+	hiddenHeaders := []string{"Status", "Time Remaining"}
+	for _, header := range hiddenHeaders {
+		if strings.Contains(output, header) {
+			t.Errorf("Expected output NOT to contain header '%s', got:\n%s", header, output)
 		}
 	}
 
@@ -517,7 +525,7 @@ func TestWorkflowStatus_ConsoleRenderingWithRunStatus(t *testing.T) {
 	output := console.RenderStruct(statuses)
 
 	// Verify the output contains run status headers
-	expectedHeaders := []string{"Workflow", "Engine", "Compiled", "Status", "Time Remaining", "Run Status", "Run Conclusion"}
+	expectedHeaders := []string{"workflow", "engine", "compiled", "status", "conclusion"}
 	for _, header := range expectedHeaders {
 		if !strings.Contains(output, header) {
 			t.Errorf("Expected output to contain header '%s', got:\n%s", header, output)

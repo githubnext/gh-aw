@@ -56,5 +56,6 @@ export interface CLIStatus {
   version: string;
   command: string;
   installCommand: string;
+  installUrl?: string;
   message?: string;
 }

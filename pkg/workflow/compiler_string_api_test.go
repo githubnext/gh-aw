@@ -138,6 +138,55 @@ engine: copilot
 	assert.NotNil(t, wd)
 }
 
+func TestParseWorkflowString_InvalidEngineReportedBeforeSchemaErrors(t *testing.T) {
+	markdown := `---
+on: push
+engine: copiilot
+bogus-field: true
+---
+
+# Test
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	_, err := compiler.ParseWorkflowString(markdown, "virtual/workflow.md")
+	require.Error(t, err)
+
+	errorStr := err.Error()
+	assert.Contains(t, errorStr, "invalid engine: copiilot")
+	assert.Contains(t, errorStr, "Did you mean: copilot?")
+	assert.NotContains(t, errorStr, "Unknown property: bogus-field")
+	assert.Contains(t, errorStr, "virtual/workflow.md:3:1: error:")
+}
+
+func TestParseWorkflowString_WhitespaceOnlyEngineReportedBeforeSchemaErrors(t *testing.T) {
+	markdown := `---
+on: push
+engine: "   "
+bogus-field: true
+---
+
+# Test
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	_, err := compiler.ParseWorkflowString(markdown, "virtual/workflow.md")
+	require.Error(t, err)
+
+	errorStr := err.Error()
+	assert.Contains(t, errorStr, "invalid engine:")
+	assert.NotContains(t, errorStr, "Unknown property: bogus-field")
+	assert.Contains(t, errorStr, "virtual/workflow.md:3:1: error:")
+}
+
 func TestCompileToYAML_BasicCompilation(t *testing.T) {
 	markdown := `---
 name: compile-test
