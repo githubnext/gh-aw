@@ -13,7 +13,7 @@ import "os"
 // - Simplify interactive elements
 // - Use plain text instead of fancy formatting
 func IsAccessibleMode() bool {
-	return os.Getenv("ACCESSIBLE") != "" ||
-		os.Getenv("TERM") == "dumb" ||
-		os.Getenv("NO_COLOR") != ""
+	return os.Getenv("ACCESSIBLE") != "" || //nolint:osgetenvlibrary
+		os.Getenv("TERM") == "dumb" || //nolint:osgetenvlibrary
+		os.Getenv("NO_COLOR") != "" //nolint:osgetenvlibrary
 }
