@@ -72,11 +72,13 @@ type AuthDefinition struct {
 	TokenURL string `yaml:"token-url,omitempty"`
 
 	// ClientIDRef is the secret name that holds the OAuth client ID.
-	// Required for oauth-client-credentials strategy.
+	// The "Ref" suffix indicates this is a reference to a GitHub Actions secret name,
+	// not the secret value itself. Required for oauth-client-credentials strategy.
 	ClientIDRef string `yaml:"client-id,omitempty"`
 
 	// ClientSecretRef is the secret name that holds the OAuth client secret.
-	// Required for oauth-client-credentials strategy.
+	// The "Ref" suffix indicates this is a reference to a GitHub Actions secret name,
+	// not the secret value itself. Required for oauth-client-credentials strategy.
 	ClientSecretRef string `yaml:"client-secret,omitempty"`
 
 	// TokenField is the JSON field name in the token response that contains the access token.
