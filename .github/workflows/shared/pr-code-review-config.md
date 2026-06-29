@@ -32,9 +32,3 @@ This shared component provides the standard tooling for AI pull request code rev
 1. **Use `get_diff`** — Fetch the actual diff to review line-by-line changes
 2. **Use `get_review_comments`** — Check existing review threads before adding new ones
 3. **Submit as a unified review** — Batch comments and call `submit-pull-request-review` once with an overall assessment
-
-### Safe Output Usage
-
-- `create-pull-request-review-comment` — Post inline comments on specific lines
-- `submit-pull-request-review` — Submit the overall review (APPROVE / REQUEST_CHANGES / COMMENT)
-- `create_check_run` — When the final verdict is `APPROVE`, create one check run with `conclusion: "success"` summarizing that no blocking issues were found

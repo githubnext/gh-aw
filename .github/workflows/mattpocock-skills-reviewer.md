@@ -45,8 +45,11 @@ pre-agent-steps:
       set -euo pipefail
       SKILLS_DST="${RUNNER_TEMP}/gh-aw/mattpocock-skills"
       mkdir -p "${SKILLS_DST}"
-      # Install all published skills in one step.
-      gh skill install mattpocock/skills --all --dir "${SKILLS_DST}" --force
+      # Install only the skills referenced in this workflow's prompt, rather than
+      # all published skills, to reduce install time and network overhead.
+      for skill in diagnose tdd zoom-out improve-codebase-architecture grill-with-docs to-prd; do
+        gh skill install mattpocock/skills "${skill}" --dir "${SKILLS_DST}" --force
+      done
       SKILL_COUNT=$(find "${SKILLS_DST}" -name "SKILL.md" | wc -l)
       echo "Installed ${SKILL_COUNT} skill(s):"
       find "${SKILLS_DST}" -name "SKILL.md" | head -20

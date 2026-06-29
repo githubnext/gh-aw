@@ -50,6 +50,14 @@ const (
 	// PolicyStrict enables runtime enforcement that workflows must be compiled in strict mode
 	// when GH_AW_POLICY_STRICT is set to the string value "true".
 	PolicyStrict = "GH_AW_POLICY_STRICT"
+	// PolicyModelsAllowed applies experimental models.allowed policy from env.
+	// It intersects with workflow models.allowed and does not change
+	// models.blocked unless PolicyModelsBlocked is also set.
+	PolicyModelsAllowed = "GHAW_POLICY_MODELS_ALLOWED"
+	// PolicyModelsBlocked applies experimental models.blocked policy from env.
+	// It unions with workflow models.blocked and does not change models.allowed
+	// unless PolicyModelsAllowed is also set.
+	PolicyModelsBlocked = "GHAW_POLICY_MODELS_BLOCKED"
 	// PolicyAllowCreatePullRequest controls whether create-pull-request safe-outputs
 	// remain runtime-compliant. Set to the string value "false" to disable the
 	// create_pull_request safe-output tool at runtime.
@@ -164,4 +172,51 @@ func BuildModelOverrideExpression(primaryVar, enterpriseDefaultVar, builtinFallb
 // enterprise default model var, and empty string fallback.
 func BuildModelOverrideExpressionEmptyFallback(primaryVar, enterpriseDefaultVar string) string {
 	return fmt.Sprintf("${{ vars.%s || vars.%s || '' }}", primaryVar, enterpriseDefaultVar)
+}
+
+// ResolvePolicyModelsAllowed returns configured allowed model policy entries.
+// When the env var is unset/empty, ok=false and callers should use frontmatter policy.
+func ResolvePolicyModelsAllowed() ([]string, bool) {
+	return resolveModelListEnv(PolicyModelsAllowed)
+}
+
+// ResolvePolicyModelsBlocked returns configured blocked model policy entries.
+// When the env var is unset/empty, ok=false and callers should use frontmatter policy.
+func ResolvePolicyModelsBlocked() ([]string, bool) {
+	return resolveModelListEnv(PolicyModelsBlocked)
+}
+
+func resolveModelListEnv(name string) ([]string, bool) {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return nil, false
+	}
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r'
+	})
+	if len(parts) == 0 {
+		return nil, false
+	}
+	result := make([]string, 0, len(parts))
+	seen := map[string]struct{}{}
+	for _, part := range parts {
+		model := strings.TrimSpace(part)
+		if model == "" {
+			continue
+		}
+		if strings.ContainsAny(model, " \t") {
+			managerLog.Printf("Skipping invalid model policy entry in %s: %q (use comma/newline separators)", name, model)
+			continue
+		}
+		if _, exists := seen[model]; exists {
+			continue
+		}
+		seen[model] = struct{}{}
+		result = append(result, model)
+	}
+	if len(result) == 0 {
+		return nil, false
+	}
+	managerLog.Printf("Applying model policy override %s with %d model(s)", name, len(result))
+	return result, true
 }

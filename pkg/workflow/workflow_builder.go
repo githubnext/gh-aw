@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -152,6 +154,14 @@ func (c *Compiler) buildInitialWorkflowData(
 	if len(mergedModelCosts) > 0 {
 		workflowData.ModelCosts = mergedModelCosts
 	}
+	mainModelPolicy := extractMainModelPolicyOverlay(toolsResult, result.Frontmatter)
+	allowedModels, disallowedModels := mergeModelPolicyOverlays(importsResult.MergedModelPolicies, mainModelPolicy)
+	if len(allowedModels) > 0 {
+		workflowData.ModelPolicyAllowed = allowedModels
+	}
+	if len(disallowedModels) > 0 {
+		workflowData.ModelPolicyBlocked = disallowedModels
+	}
 
 	return workflowData
 }
@@ -188,7 +198,12 @@ func extractMainModelCostsOverlay(toolsResult *toolsProcessingResult, frontmatte
 	// Fall back to raw frontmatter when ParseFrontmatterConfig failed (e.g. due to unrecognized
 	// tool config shapes like bash: ["*"]).
 	if toolsResult.parsedFrontmatter != nil && len(toolsResult.parsedFrontmatter.ModelCosts) > 0 {
-		return toolsResult.parsedFrontmatter.ModelCosts
+		if providers, hasProviders := toolsResult.parsedFrontmatter.ModelCosts["providers"]; hasProviders {
+			if providersMap, ok := providers.(map[string]any); ok && len(providersMap) > 0 {
+				return map[string]any{"providers": providersMap}
+			}
+		}
+		return nil
 	}
 
 	rawModels, ok := frontmatter["models"]
@@ -199,10 +214,15 @@ func extractMainModelCostsOverlay(toolsResult *toolsProcessingResult, frontmatte
 	if !ok {
 		return nil
 	}
-	if _, hasProviders := modelsMap["providers"]; !hasProviders {
+	providers, hasProviders := modelsMap["providers"]
+	if !hasProviders {
 		return nil
 	}
-	return modelsMap
+	providersMap, ok := providers.(map[string]any)
+	if !ok || len(providersMap) == 0 {
+		return nil
+	}
+	return map[string]any{"providers": providersMap}
 }
 
 func mergeModelCostOverlays(importedOverlays []map[string]any, mainOverlay map[string]any) map[string]any {
@@ -274,6 +294,116 @@ func mergeModelCostOverlayPair(base, overlay map[string]any) map[string]any {
 
 	result["providers"] = mergedProviders
 	return result
+}
+
+// extractMainModelPolicyOverlay returns only models.allowed/blocked policy
+// entries and never treats providers data as policy.
+func extractMainModelPolicyOverlay(toolsResult *toolsProcessingResult, frontmatter map[string]any) map[string][]string {
+	if toolsResult.parsedFrontmatter != nil {
+		mainPolicy := map[string][]string{
+			"allowed": toolsResult.parsedFrontmatter.ModelPolicyAllowed,
+			"blocked": toolsResult.parsedFrontmatter.ModelPolicyBlocked,
+		}
+		if len(mainPolicy["allowed"]) > 0 || len(mainPolicy["blocked"]) > 0 {
+			return mainPolicy
+		}
+	}
+	modelsMap, ok := frontmatter["models"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	mainPolicy := map[string][]string{
+		"allowed": parseModelPolicyList(modelsMap["allowed"]),
+		"blocked": parseModelPolicyList(modelsMap["blocked"]),
+	}
+	if len(mainPolicy["allowed"]) == 0 && len(mainPolicy["blocked"]) == 0 {
+		return nil
+	}
+	return mainPolicy
+}
+
+func mergeModelPolicyOverlays(importedPolicies []map[string][]string, mainPolicy map[string][]string) ([]string, []string) {
+	overlays := make([]map[string][]string, 0, len(importedPolicies)+1)
+	overlays = append(overlays, importedPolicies...)
+	if len(mainPolicy) > 0 {
+		overlays = append(overlays, mainPolicy)
+	}
+	if len(overlays) == 0 {
+		return nil, nil
+	}
+
+	allowedSet := map[string]struct{}{}
+	disallowedSet := map[string]struct{}{}
+	for _, overlay := range overlays {
+		for _, model := range overlay["allowed"] {
+			if model != "" {
+				allowedSet[model] = struct{}{}
+			}
+		}
+		for _, model := range overlay["blocked"] {
+			if model != "" {
+				disallowedSet[model] = struct{}{}
+			}
+		}
+	}
+
+	allowedModels := make([]string, 0, len(allowedSet))
+	for model := range allowedSet {
+		allowedModels = append(allowedModels, model)
+	}
+	disallowedModels := make([]string, 0, len(disallowedSet))
+	for model := range disallowedSet {
+		disallowedModels = append(disallowedModels, model)
+	}
+	allowedModels = filterAllowedModelConflictsWithSet(allowedModels, disallowedSet)
+	sort.Strings(allowedModels)
+	sort.Strings(disallowedModels)
+	return allowedModels, disallowedModels
+}
+
+func filterAllowedModelConflictsWithSet(allowed []string, disallowedSet map[string]struct{}) []string {
+	if len(allowed) == 0 || len(disallowedSet) == 0 {
+		return allowed
+	}
+	filtered := make([]string, 0, len(allowed))
+	for _, model := range allowed {
+		if modelConflictsWithDisallowedPolicy(model, disallowedSet) {
+			continue
+		}
+		filtered = append(filtered, model)
+	}
+	return filtered
+}
+
+func modelConflictsWithDisallowedPolicy(model string, disallowedSet map[string]struct{}) bool {
+	for disallowed := range disallowedSet {
+		if disallowed == model {
+			return true
+		}
+		if modelPolicyPatternMatches(disallowed, model) {
+			return true
+		}
+		// Also check the inverse direction so an allowed wildcard pattern (for example
+		// "*opus*") conflicts with a disallowed exact entry ("claude-opus").
+		if modelPolicyPatternMatches(model, disallowed) {
+			return true
+		}
+	}
+	return false
+}
+
+func modelPolicyPatternMatches(pattern, value string) bool {
+	if pattern == value {
+		return true
+	}
+	if !strings.ContainsAny(pattern, "*?") {
+		return false
+	}
+	re := "^" + regexp.QuoteMeta(pattern) + "$"
+	re = strings.ReplaceAll(re, `\*`, ".*")
+	re = strings.ReplaceAll(re, `\?`, ".")
+	matched, err := regexp.MatchString(re, value)
+	return err == nil && matched
 }
 
 // resolveInlinedImports returns true if inlined-imports is enabled.

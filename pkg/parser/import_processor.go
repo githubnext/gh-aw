@@ -59,6 +59,7 @@ type ImportsResult struct {
 	MergedEnvSources              map[string]string     // env var name → source import path (for conflict detection and lock file header listing)
 	MergedFeatures                []map[string]any      // Merged features configuration from all imports (parsed YAML structures)
 	MergedModels                  []map[string][]string // Merged model alias definitions from all imports (first import to define a key wins among imports)
+	MergedModelPolicies           []map[string][]string // Merged model policy sets from all imports (models.allowed/blocked)
 	MergedModelCosts              []map[string]any      // Merged model pricing overlays (models.json provider structure) from all imports
 	MergedObservability           string                // Merged observability config (JSON) from all imports as an endpoint array (deduped by URL)
 	MergedEngineMCPToolTimeout    string                // First engine.mcp.tool-timeout found across all imports (Go duration string, e.g. "10m")
