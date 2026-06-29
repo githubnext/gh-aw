@@ -82,6 +82,7 @@ interface DashboardState {
   formatAIC(value?: number | null): string;
   formatNumber(value?: number | null, options?: Intl.NumberFormatOptions): string;
   cliSourceLabel(cliStatus: CLIStatus | null): string;
+  cliUnavailableMessage(): string;
 }
 
 const dashboardTabs: DashboardTab[] = [
@@ -233,7 +234,7 @@ Alpine.data("dashboardApp", (): DashboardState => ({
       return;
     }
 
-    const unavailableMessage = (this.cliStatus?.message ?? this.errorCliStatus) || "gh aw is not installed.";
+    const unavailableMessage = this.cliUnavailableMessage();
     this.commandInput = this.cliStatus?.command ?? "gh aw version";
     this.commandOutput = unavailableMessage;
   },
@@ -357,7 +358,7 @@ Alpine.data("dashboardApp", (): DashboardState => ({
       this.loadRunPage(1);
       this.loadUsagePage(1);
       this.loadExperimentPage(1);
-      const unavailableMessage = (this.cliStatus?.message ?? this.errorCliStatus) || "gh aw is not installed.";
+      const unavailableMessage = this.cliUnavailableMessage();
       this.commandInput = this.cliStatus?.command ?? "gh aw version";
       this.commandOutput = unavailableMessage;
     }
@@ -411,6 +412,10 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   buildLogsCommand(count = DEFAULT_LOGS_COMMAND_COUNT) {
     const window = this.currentWindow();
     return `gh aw logs --json -c ${count} --start-date ${window.startDate} --timeout ${this.logsTimeout}`;
+  },
+
+  cliUnavailableMessage() {
+    return (this.cliStatus?.message ?? this.errorCliStatus) || "gh aw is not installed.";
   },
 
   buildReportSummaryMessage(meta) {
