@@ -2761,10 +2761,23 @@
       ]
     },
     "models": {
-      "description": "Custom model pricing data in the same structure as models.json. Merged with the built-in models.json at runtime; frontmatter entries override matching models and fill gaps for unknown models. Useful for custom or private models, or to adjust pricing for AI Credits cost accounting.",
+      "description": "Model policy and optional pricing configuration. The policy fields (allowed/blocked) are experimental and merged as unions across imports. The providers field is optional and supplies pricing data merged by provider/model key.",
       "type": "object",
-      "required": ["providers"],
       "properties": {
+        "allowed": {
+          "type": "array",
+          "description": "Experimental allowlist of model names/patterns. Mapped to AWF apiProxy.allowedModels.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blocked": {
+          "type": "array",
+          "description": "Experimental denylist of model names/patterns. Mapped to AWF apiProxy.disallowedModels.",
+          "items": {
+            "type": "string"
+          }
+        },
         "providers": {
           "type": "object",
           "description": "Provider-keyed map of model pricing data.",

@@ -14,6 +14,7 @@ import {
   type LogsOptionsInput,
   type RunLike,
 } from "./dashboard-logs.js";
+import type { AuditReport, ExperimentInfo, WorkflowDefinition } from "./models.js";
 import { applyForecastToUsageSummary, buildUsageSummary, forecastDaysForWindow, type ForecastWorkflow, type UsageRun, type UsageSummaryItem } from "./usage-forecast.js";
 
 const LOG = "[dashboard-data]";
@@ -26,8 +27,7 @@ interface CacheEntry<T> {
 interface LogsBatchResponse {
   runs?: RunLike[];
   continuation?: LogsContinuation;
-  summary?: unknown;
-  [key: string]: unknown;
+  summary?: Record<string, unknown>;
 }
 
 interface ForecastResponse {
@@ -37,7 +37,7 @@ interface ForecastResponse {
 interface LogsBatchResult {
   firstBatch: LogsBatchResponse | null;
   runs: RunLike[];
-  summary: unknown;
+  summary: Record<string, unknown> | null;
   logsFetches: number;
   partial: boolean;
   continuation: LogsContinuation | null;
@@ -45,7 +45,7 @@ interface LogsBatchResult {
 
 interface LogsDataResult {
   runs: RunLike[];
-  summary: unknown;
+  summary: Record<string, unknown> | null;
   window: ReportWindow;
   timeout: number;
   logsFetches: number;
@@ -73,6 +73,10 @@ interface ExecCommandResult {
   command: string;
   output: string;
   error?: boolean;
+}
+
+interface CommandError extends Error {
+  stderr?: string;
 }
 
 type RunGhAw = (args: string[]) => Promise<string>;
@@ -128,8 +132,8 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS, lo
     cache.set(key, { data, expiresAt: Date.now() + cacheTTL });
   }
 
-  async function getDefinitions(): Promise<unknown[]> {
-    const hit = getCached<unknown[]>("definitions");
+  async function getDefinitions(): Promise<WorkflowDefinition[]> {
+    const hit = getCached<WorkflowDefinition[]>("definitions");
     if (hit) {
       console.error(`${LOG} getDefinitions: cache hit count=${hit.length}`);
       return hit;
@@ -138,7 +142,7 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS, lo
     try {
       const raw = await runGhAw(["status", "--json"]);
       const parsed = parseJsonOutput(raw, "gh aw status --json");
-      const data = Array.isArray(parsed) ? parsed : [];
+      const data = (Array.isArray(parsed) ? parsed : []) as WorkflowDefinition[];
       setCached("definitions", data);
       console.error(`${LOG} getDefinitions: fetched count=${data.length}`);
       return data;
@@ -148,8 +152,8 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS, lo
     }
   }
 
-  async function getExperiments(): Promise<unknown[]> {
-    const hit = getCached<unknown[]>("experiments");
+  async function getExperiments(): Promise<ExperimentInfo[]> {
+    const hit = getCached<ExperimentInfo[]>("experiments");
     if (hit) {
       console.error(`${LOG} getExperiments: cache hit count=${hit.length}`);
       return hit;
@@ -158,7 +162,7 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS, lo
     try {
       const raw = await runGhAw(["experiments", "list", "--json"]);
       const parsed = parseJsonOutput(raw, "gh aw experiments list --json");
-      const experiments = Array.isArray(parsed) ? parsed : [];
+      const experiments = (Array.isArray(parsed) ? parsed : []) as ExperimentInfo[];
       setCached("experiments", experiments);
       console.error(`${LOG} getExperiments: fetched count=${experiments.length}`);
       return experiments;
@@ -173,7 +177,7 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS, lo
     let logsFetches = 0;
     let runs: RunLike[] = [];
     let continuation: LogsContinuation | null = null;
-    let summary: unknown = null;
+    let summary: Record<string, unknown> | null = null;
     let firstBatch: LogsBatchResponse | null = null;
 
     while (current && logsFetches < MAX_LOG_CONTINUATIONS) {
@@ -349,14 +353,14 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS, lo
       const output = await runGhAw(args);
       return { command: rawCmd, output };
     } catch (err) {
-      const error = err as { stderr?: string; message?: string };
-      const msg = error.stderr || error.message || "Unknown error";
+      const e = asError(err) as CommandError;
+      const msg = e.stderr || e.message || "Unknown error";
       console.error(`${LOG} execCommand error cmd="${rawCmd}": ${msg}`);
       return { command: rawCmd, output: msg, error: true };
     }
   }
 
-  async function getAudit(runId: string | number): Promise<unknown | null> {
+  async function getAudit(runId: string | number): Promise<AuditReport | null> {
     if (!runId) return null;
     const key = `audit:${runId}`;
     const hit = getCached<unknown>(key);
@@ -371,7 +375,7 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS, lo
         auditArgs.push("--output", logsOutputDir);
       }
       const raw = await runGhAw(auditArgs);
-      const data = parseJsonOutput(raw, `gh aw audit ${runId} --json`);
+      const data = parseJsonOutput(raw, `gh aw audit ${runId} --json`) as AuditReport;
       setCached(key, data);
       console.error(`${LOG} getAudit: fetched runId=${runId}`);
       return data;

@@ -90,10 +90,47 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	// legacy bare-array form and the new object form are available as ExperimentConfig
 	// structs without callers needing to type-assert config.Experiments entries.
 	config.ExperimentConfigs = extractExperimentConfigsFromFrontmatter(frontmatter)
+	config.ModelPolicyAllowed, config.ModelPolicyBlocked = extractModelPolicyFromFrontmatter(frontmatter)
 
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%v", config.Name, config.Engine)
 	return &config, nil
 }
+
+func extractModelPolicyFromFrontmatter(frontmatter map[string]any) ([]string, []string) {
+	modelsRaw, ok := frontmatter["models"].(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	return parseModelPolicyList(modelsRaw["allowed"]), parseModelPolicyList(modelsRaw["blocked"])
+}
+
+func parseModelPolicyList(value any) []string {
+	values, ok := value.([]any)
+	if !ok {
+		if value != nil {
+			frontmatterTypesLog.Printf("Skipping model policy list: expected array, got %T", value)
+		}
+		return nil
+	}
+	result := make([]string, 0, len(values))
+	for _, v := range values {
+		s, ok := v.(string)
+		if !ok {
+			frontmatterTypesLog.Printf("Skipping model policy entry: expected string, got %T", v)
+			continue
+		}
+		if s == "" {
+			frontmatterTypesLog.Printf("Skipping model policy entry: empty string")
+			continue
+		}
+		result = append(result, s)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
 func parseOnNeedsConfig(on map[string]any) ([]string, error) {
 	return parseOnNeedsValues(on)
 }
