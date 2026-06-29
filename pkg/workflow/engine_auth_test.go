@@ -5,8 +5,8 @@
 //   - OAuth client-credentials definition validates correctly
 //   - Missing tokenUrl/clientId/clientSecret produce helpful errors
 //   - Unknown auth strategy produces a clear error
-//   - Strict mode includes auth-binding secrets in required secret list
-//   - Existing built-in auth flows are unchanged (regression)
+//   - Strict mode includes inline auth secrets in required secret list
+//   - Existing built-in engine definitions remain present in the catalog (regression)
 
 package workflow
 
@@ -391,13 +391,13 @@ func TestStrictModeGetEngineBaseEnvVarKeys_IncludesAuthSecrets(t *testing.T) {
 	assert.True(t, setutil.Contains(keys, "MY_CLIENT_SECRET"), "client secret should be in allowed env-var keys")
 }
 
-// TestBuiltInEngineAuthUnchanged is a regression test verifying that the built-in engines
-// (claude, codex, copilot, gemini) are present in the catalog after removing legacy auth bindings.
-func TestBuiltInEngineAuthUnchanged(t *testing.T) {
+// TestBuiltInEngineCatalogIncludesBuiltIns is a regression test verifying that the built-in
+// engines remain present in the catalog after removing legacy auth bindings.
+func TestBuiltInEngineCatalogIncludesBuiltIns(t *testing.T) {
 	registry := NewEngineRegistry()
 	catalog := NewEngineCatalog(registry)
 
-	engineIDs := []string{"claude", "codex", "copilot", "gemini", "opencode", "crush", "pi"}
+	engineIDs := []string{"antigravity", "claude", "codex", "copilot", "crush", "gemini", "opencode", "pi"}
 
 	for _, engineID := range engineIDs {
 		t.Run(engineID, func(t *testing.T) {

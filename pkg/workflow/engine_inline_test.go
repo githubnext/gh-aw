@@ -126,6 +126,8 @@ func TestExtractEngineConfig_InlineDefinition(t *testing.T) {
 			if tt.expectedSecret != "" {
 				require.NotNil(t, config.InlineProviderAuth, "InlineProviderAuth should be set when secret is expected")
 				assert.Equal(t, tt.expectedSecret, config.InlineProviderAuth.Secret, "InlineProviderAuth.Secret should match provider.auth.secret")
+			} else {
+				assert.Nil(t, config.InlineProviderAuth, "InlineProviderAuth should be nil when provider.auth is omitted")
 			}
 			assert.Equal(t, tt.expectedPermission, config.PermissionMode, "PermissionMode should match engine.permission-mode")
 		})
