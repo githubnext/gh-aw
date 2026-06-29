@@ -15,6 +15,7 @@ const reportWindows = [
   { id: "7d", label: "7 days", startDate: "-1w" },
   { id: "1mo", label: "1 month", startDate: "-1mo" },
 ];
+const DEFAULT_LOGS_COMMAND_COUNT = 25;
 
 function runStatusClass(run) {
   const status = run?.status ?? "";
@@ -122,7 +123,7 @@ Alpine.data("dashboardApp", () => ({
   usageMeta: null,
 
   async init() {
-    this.commandInput = this.buildLogsCommand(25);
+    this.commandInput = this.buildLogsCommand();
     await Promise.all([this.fetchDefinitions(), this.fetchRuns(), this.fetchUsage(), this.fetchExperiments()]);
   },
 
@@ -137,7 +138,7 @@ Alpine.data("dashboardApp", () => ({
   async selectReportWindow(windowId) {
     if (this.selectedWindow === windowId) return;
     this.selectedWindow = windowId;
-    this.commandInput = this.buildLogsCommand(25);
+    this.commandInput = this.buildLogsCommand();
     await Promise.all([this.fetchRuns(), this.fetchUsage()]);
   },
 
@@ -161,6 +162,7 @@ Alpine.data("dashboardApp", () => ({
     this.loadingRuns = true;
     this.errorRuns = "";
     try {
+      const previousRunId = this.selectedRun?.run_id ?? null;
       const params = new URLSearchParams({
         count: "100",
         window: this.selectedWindow,
@@ -172,9 +174,7 @@ Alpine.data("dashboardApp", () => ({
       this.runsMeta = data;
       this.runs = Array.isArray(data?.runs) ? data.runs : [];
       this.loadRunPage(1);
-      if (!this.selectedRun || !this.runs.some(run => run.run_id === this.selectedRun?.run_id)) {
-        this.selectedRun = this.runs[0] ?? null;
-      }
+      this.selectedRun = this.runs.find(run => run.run_id === previousRunId) ?? this.runs[0] ?? null;
     } catch (error) {
       this.errorRuns = `Failed to load runs: ${error.message}`;
       this.runsMeta = null;
@@ -274,7 +274,7 @@ Alpine.data("dashboardApp", () => ({
     this.setActiveTab("details");
   },
 
-  buildLogsCommand(count = 25) {
+  buildLogsCommand(count = DEFAULT_LOGS_COMMAND_COUNT) {
     const window = this.currentWindow();
     return `gh aw logs --json -c ${count} --start-date ${window.startDate} --timeout ${this.logsTimeout}`;
   },

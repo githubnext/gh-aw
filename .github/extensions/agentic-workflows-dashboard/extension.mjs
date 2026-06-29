@@ -168,7 +168,12 @@ async function fetchLogsBatches(initialOptions, initialArgs = null) {
 
   while (current && logsFetches < MAX_LOG_CONTINUATIONS) {
     const raw = await runGhAw(logsFetches === 0 && initialArgs ? initialArgs : buildLogsArgs(current));
-    const data = JSON.parse(raw);
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch (error) {
+      throw new Error(`Failed to parse logs batch ${logsFetches + 1}: ${error.message}`);
+    }
     if (!firstBatch) {
       firstBatch = data;
     }
@@ -238,7 +243,10 @@ function toNumber(value) {
 
 function buildUsageSummary(runs, window) {
   const usageByWorkflow = new Map();
-  const effectiveDays = Math.max(Number(window?.days ?? 0), 1);
+  const effectiveDays = Number(window?.days ?? 0);
+  if (!Number.isFinite(effectiveDays) || effectiveDays <= 0) {
+    throw new Error("Report window is missing a valid positive day count.");
+  }
 
   for (const run of runs) {
     const workflowName = String(run?.workflow_name ?? "").trim();
@@ -307,13 +315,16 @@ function parseGhAwArgs(raw) {
 
 function hasFlag(args, longFlag, shortFlag = "") {
   return args.some((arg, index) => {
-    if (arg === longFlag || arg.startsWith(`${longFlag}=`)) {
+    if (arg.startsWith(`${longFlag}=`)) {
       return true;
     }
-    if (shortFlag && (arg === shortFlag || arg.startsWith(`${shortFlag}=`))) {
+    if (shortFlag && arg.startsWith(`${shortFlag}=`)) {
       return true;
     }
-    return (arg === longFlag || (shortFlag && arg === shortFlag)) && index < args.length - 1;
+    if (arg === longFlag || (shortFlag && arg === shortFlag)) {
+      return true;
+    }
+    return false;
   });
 }
 
