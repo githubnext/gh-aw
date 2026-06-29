@@ -1730,8 +1730,28 @@ func TestBuildAWFConfigJSON_ModelPolicyEnvAllowedIntersectionCanBeEmpty(t *testi
 
 	jsonStr, err := BuildAWFConfigJSON(config)
 	require.NoError(t, err)
-	assert.NotContains(t, jsonStr, `"allowedModels":`)
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+	apiProxy, ok := parsed["apiProxy"].(map[string]any)
+	require.True(t, ok)
+	_, hasAllowedModels := apiProxy["allowedModels"]
+	assert.False(t, hasAllowedModels)
 	assert.Contains(t, jsonStr, `"disallowedModels":["frontmatter-blocked"]`)
+}
+
+func TestIntersectModelPolicyRules_EmptyOverrideKeepsLocal(t *testing.T) {
+	got := intersectModelPolicyRules([]string{"gpt-5"}, nil)
+	assert.Equal(t, []string{"gpt-5"}, got)
+}
+
+func TestIntersectModelPolicyRules_EmptyLocalUsesOverride(t *testing.T) {
+	got := intersectModelPolicyRules(nil, []string{"gpt-5"})
+	assert.Equal(t, []string{"gpt-5"}, got)
+}
+
+func TestIntersectModelPolicyRules_OverlapOnly(t *testing.T) {
+	got := intersectModelPolicyRules([]string{"gpt-5", "claude-sonnet"}, []string{"gemini-pro", "gpt-5"})
+	assert.Equal(t, []string{"gpt-5"}, got)
 }
 
 func TestBuildAWFConfigJSON_ModelPolicyConflictDisallowedWins(t *testing.T) {

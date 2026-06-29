@@ -580,8 +580,9 @@ func resolveModelPolicyForAWFConfig(workflowData *WorkflowData) ([]string, []str
 
 func intersectModelPolicyRules(local, override []string) []string {
 	if len(override) == 0 {
-		return nil
+		return append([]string(nil), local...)
 	}
+	// No local allow-list means no workflow restriction; keep the env allow-list.
 	if len(local) == 0 {
 		return append([]string(nil), override...)
 	}
