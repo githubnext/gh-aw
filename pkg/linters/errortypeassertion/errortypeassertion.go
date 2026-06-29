@@ -4,7 +4,7 @@
 package errortypeassertion
 
 import (
-	"fmt"
+	"errors"
 	"go/ast"
 	"go/types"
 
@@ -36,7 +36,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if builtinErrorObj == nil {
 		// types.Universe always contains "error"; this branch indicates a broken
 		// Go toolchain setup and should never be reached in practice.
-		return nil, fmt.Errorf("errortypeassertion: types.Universe does not contain built-in error type")
+		return nil, errors.New("errortypeassertion: types.Universe does not contain built-in error type")
 	}
 	builtinErrorType := builtinErrorObj.Type()
 
