@@ -29,12 +29,18 @@ function spawnExecFile(file, args, options, callback) {
 
   proc.stdout.on("data", chunk => {
     stdoutLen += chunk.length;
-    if (stdoutLen > maxBuffer) { overflowed = true; return; }
+    if (stdoutLen > maxBuffer) {
+      overflowed = true;
+      return;
+    }
     stdoutChunks.push(chunk);
   });
   proc.stderr.on("data", chunk => {
     stderrLen += chunk.length;
-    if (stderrLen > maxBuffer) { overflowed = true; return; }
+    if (stderrLen > maxBuffer) {
+      overflowed = true;
+      return;
+    }
     stderrChunks.push(chunk);
   });
 
