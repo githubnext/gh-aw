@@ -55,4 +55,36 @@ describe("dashboard data access", () => {
     expect(calls[1]).toEqual(["forecast", "--json", "--period", "month", "--days", "7", "--timeout", "3", "ci-doctor"]);
     expect(usage.items[0]?.monthly_forecast_aic).toBe(44);
   });
+
+  it("parses gh aw status output that has a status line prefix before the JSON", async () => {
+    const dataAccess = createDashboardDataAccess({
+      runGhAw: async args => {
+        if (args[0] === "status") {
+          // Simulate gh aw writing a status message to stdout before the JSON array
+          return `✓ Fetched 2 workflows\n[{"workflow":"ci-doctor"},{"workflow":"ab-advisor"}]`;
+        }
+        return "[]";
+      },
+    });
+
+    const defs = await dataAccess.getDefinitions();
+    expect(defs).toHaveLength(2);
+    expect((defs[0] as { workflow: string }).workflow).toBe("ci-doctor");
+  });
+
+  it("throws a descriptive error when gh aw status produces no output", async () => {
+    const dataAccess = createDashboardDataAccess({
+      runGhAw: async () => "",
+    });
+
+    await expect(dataAccess.getDefinitions()).rejects.toThrow("command produced no output");
+  });
+
+  it("throws a descriptive error including an output snippet when JSON is unparseable", async () => {
+    const dataAccess = createDashboardDataAccess({
+      runGhAw: async () => "error: authentication required",
+    });
+
+    await expect(dataAccess.getDefinitions()).rejects.toThrow("failed to parse JSON");
+  });
 });

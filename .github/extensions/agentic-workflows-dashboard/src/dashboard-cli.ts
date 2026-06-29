@@ -39,6 +39,8 @@ interface RunnerOptions {
   execFileFn?: ExecFileLike;
   platform?: NodeJS.Platform;
   env?: NodeJS.ProcessEnv;
+  /** Pre-built memoized resolver; when provided, `findDevBinary` is never called directly. */
+  resolveBin?: () => Promise<string | null>;
 }
 
 export interface GhAwStatus {
@@ -155,27 +157,56 @@ async function findDevBinary(cwd: string, accessFn: AccessLike = access, platfor
   }
 }
 
-export function createGhAwRunner({ getWorkspacePath, accessFn = access, execFileFn = spawnExecFile, platform = process.platform, env = process.env }: RunnerOptions): (args: string[]) => Promise<string> {
-  async function runExec(bin: string, args: string[], cwd: string, options?: RunExecOptions): Promise<string> {
+export function createGhAwRunner({
+  getWorkspacePath,
+  accessFn = access,
+  execFileFn = spawnExecFile,
+  platform = process.platform,
+  env = process.env,
+  resolveBin,
+}: RunnerOptions): (args: string[]) => Promise<string> {
+  // Memoize per cwd so findDevBinary is called at most once per workspace path.
+  const binCache = new Map<string, Promise<string | null>>();
+  const _resolveBin =
+    resolveBin ??
+    (() => {
+      const cwd = getWorkspacePath();
+      if (!binCache.has(cwd)) {
+        binCache.set(cwd, findDevBinary(cwd, accessFn, platform));
+      }
+      return binCache.get(cwd)!;
+    });
+
+  function runExec(bin: string, args: string[], cwd: string, options?: RunExecOptions): Promise<string> {
     return execp(bin, args, cwd, { ...options, execFileFn, env });
   }
 
   return async function runGhAw(args: string[]): Promise<string> {
     const cwd = getWorkspacePath();
-    const devBin = await findDevBinary(cwd, accessFn, platform);
+    const devBin = await _resolveBin();
     if (devBin) {
       return runExec(devBin, args, cwd);
     }
-
     return runExec("gh", ["aw", ...args], cwd);
   };
 }
 
 export function createGhAwRunnerWithStatus(options: RunnerOptions): GhAwRunner {
-  const runGhAw = createGhAwRunner(options) as GhAwRunner;
+  // One shared per-cwd memoized resolver so findDevBinary is called at most once,
+  // even across concurrent runGhAw() calls and getStatus().
+  const binCache = new Map<string, Promise<string | null>>();
+  const resolveBin = (): Promise<string | null> => {
+    const cwd = options.getWorkspacePath();
+    if (!binCache.has(cwd)) {
+      binCache.set(cwd, findDevBinary(cwd, options.accessFn ?? access, options.platform ?? process.platform));
+    }
+    return binCache.get(cwd)!;
+  };
+
+  const runGhAw = createGhAwRunner({ ...options, resolveBin }) as GhAwRunner;
   const getStatus = async (): Promise<GhAwStatus> => {
     const cwd = options.getWorkspacePath();
-    const devBin = await findDevBinary(cwd, options.accessFn ?? access, options.platform ?? process.platform);
+    const devBin = await resolveBin();
 
     if (devBin) {
       const output = await execp(devBin, ["version"], cwd, {
