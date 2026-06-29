@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_LOG_TIMEOUT_MINUTES, REPORT_WINDOWS } from "../dashboard-config.mjs";
-import { buildLogsArgs, continuationToLogsOptions, logsArgsToOptions, normalizeLogsCommandArgs, normalizeLogsOptions } from "../dashboard-logs.mjs";
+import { DEFAULT_LOG_TIMEOUT_MINUTES, REPORT_WINDOWS } from "../src/dashboard-config.js";
+import { buildLogsArgs, continuationToLogsOptions, logsArgsToOptions, normalizeLogsCommandArgs, normalizeLogsOptions } from "../src/dashboard-logs.js";
 
 describe("dashboard logs helpers", () => {
   it("defaults logs timeouts in minutes", () => {

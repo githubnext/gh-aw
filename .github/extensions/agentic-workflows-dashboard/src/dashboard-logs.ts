@@ -1,11 +1,56 @@
-import { DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT, getReportWindow } from "./dashboard-config.mjs";
+import { DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT, getReportWindow, type ReportWindow, type ReportWindowID } from "./dashboard-config.js";
 
-function parsePositiveInt(value, fallback) {
+export interface RunLike {
+  run_id?: number | string | null;
+  [key: string]: unknown;
+}
+
+export interface LogsOptionsInput {
+  window?: ReportWindow | ReportWindowID | string | undefined;
+  count?: number | string | undefined;
+  timeout?: number | string | undefined;
+  startDate?: string | undefined;
+  endDate?: string | undefined;
+  beforeRunID?: number | string | undefined;
+  afterRunID?: number | string | undefined;
+  workflowName?: string | undefined;
+  engine?: string | undefined;
+  branch?: string | undefined;
+  artifacts?: string[] | undefined;
+}
+
+export interface LogsOptions {
+  window: ReportWindow;
+  count: number;
+  timeout: number;
+  startDate: string;
+  endDate: string;
+  beforeRunID: number;
+  afterRunID: number;
+  workflowName: string;
+  engine: string;
+  branch: string;
+  artifacts: string[];
+}
+
+export interface LogsContinuation {
+  workflow_name?: string;
+  count?: number | string;
+  start_date?: string;
+  end_date?: string;
+  engine?: string;
+  branch?: string;
+  after_run_id?: number | string;
+  before_run_id?: number | string;
+  timeout?: number | string;
+}
+
+function parsePositiveInt(value: unknown, fallback: number): number {
   const numeric = Number.parseInt(String(value ?? fallback), 10);
   return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
 }
 
-function readFlagValue(args, index, arg) {
+function readFlagValue(args: string[], index: number, arg: string): { value: string; nextIndex: number } {
   const equalsIndex = arg.indexOf("=");
   if (equalsIndex >= 0) {
     return { value: arg.slice(equalsIndex + 1), nextIndex: index };
@@ -13,7 +58,7 @@ function readFlagValue(args, index, arg) {
   return { value: args[index + 1] ?? "", nextIndex: index + 1 };
 }
 
-export function normalizeLogsOptions(options = {}) {
+export function normalizeLogsOptions(options: LogsOptionsInput = {}): LogsOptions {
   const windowId = typeof options.window === "string" ? options.window : options.window?.id;
   const window = getReportWindow(windowId);
   const artifacts = Array.isArray(options.artifacts) && options.artifacts.length > 0 ? options.artifacts : ["usage"];
@@ -33,7 +78,7 @@ export function normalizeLogsOptions(options = {}) {
   };
 }
 
-export function buildLogsArgs(options) {
+export function buildLogsArgs(options: LogsOptions): string[] {
   const args = ["logs", "--json", "-c", String(options.count), "--timeout", String(options.timeout)];
 
   if (options.workflowName) args.push(options.workflowName);
@@ -48,7 +93,7 @@ export function buildLogsArgs(options) {
   return args;
 }
 
-export function continuationToLogsOptions(continuation, fallback) {
+export function continuationToLogsOptions(continuation: LogsContinuation | null | undefined, fallback: LogsOptions): LogsOptions | null {
   if (!continuation) return null;
 
   return normalizeLogsOptions({
@@ -66,38 +111,35 @@ export function continuationToLogsOptions(continuation, fallback) {
   });
 }
 
-export function mergeRuns(existingRuns, nextRuns) {
+export function mergeRuns(existingRuns: RunLike[], nextRuns: RunLike[]): RunLike[] {
   const merged = new Map(existingRuns.map(run => [run.run_id, run]));
   for (const run of nextRuns) {
     if (run?.run_id != null) {
       merged.set(run.run_id, run);
     }
   }
+
   return Array.from(merged.values()).sort((a, b) => Number(b.run_id ?? 0) - Number(a.run_id ?? 0));
 }
 
-export function parseGhAwArgs(raw) {
+export function parseGhAwArgs(raw: string): string[] | null {
   const match = raw.trim().match(/^(?:gh\s+aw\s+)(.+)$/);
-  return match ? match[1].trim().split(/\s+/) : null;
+  return match?.[1] ? match[1].trim().split(/\s+/) : null;
 }
 
-export function hasFlag(args, longFlag, shortFlag = "") {
+export function hasFlag(args: string[], longFlag: string, shortFlag = ""): boolean {
   return args.some(arg => {
-    if (arg.startsWith(`${longFlag}=`)) {
-      return true;
-    }
-    if (shortFlag && arg.startsWith(`${shortFlag}=`)) {
-      return true;
-    }
-    return arg === longFlag || (shortFlag && arg === shortFlag);
+    if (arg.startsWith(`${longFlag}=`)) return true;
+    if (shortFlag && arg.startsWith(`${shortFlag}=`)) return true;
+    return arg === longFlag || (shortFlag !== "" && arg === shortFlag);
   });
 }
 
-export function logsCommandUsesJSON(args) {
+export function logsCommandUsesJSON(args: string[]): boolean {
   return hasFlag(args, "--json", "-j");
 }
 
-export function normalizeLogsCommandArgs(args, windowId, timeoutMinutes) {
+export function normalizeLogsCommandArgs(args: string[], windowId: string | undefined, timeoutMinutes: number): string[] {
   const nextArgs = [...args];
   if (!hasFlag(nextArgs, "--start-date") && !hasFlag(nextArgs, "--end-date") && !hasFlag(nextArgs, "--after-run-id") && !hasFlag(nextArgs, "--before-run-id")) {
     nextArgs.push("--start-date", getReportWindow(windowId).startDate);
@@ -111,8 +153,8 @@ export function normalizeLogsCommandArgs(args, windowId, timeoutMinutes) {
   return nextArgs;
 }
 
-export function logsArgsToOptions(args, fallback = {}) {
-  const options = {
+export function logsArgsToOptions(args: string[], fallback: LogsOptionsInput = {}): LogsOptions {
+  const options: LogsOptionsInput = {
     window: typeof fallback.window === "string" ? fallback.window : fallback.window?.id,
     count: fallback.count,
     timeout: fallback.timeout,
@@ -127,7 +169,7 @@ export function logsArgsToOptions(args, fallback = {}) {
   };
 
   for (let index = 1; index < args.length; index += 1) {
-    const arg = args[index];
+    const arg = args[index] ?? "";
 
     if (!arg.startsWith("-")) {
       if (!options.workflowName) {
