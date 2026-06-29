@@ -376,4 +376,60 @@ try {
       ],
     });
   });
+
+  it("invalid: guard in one branch does not suppress unsafe access in a sibling branch", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          // getErrorMessage is only inside the if-body; the access after the if is unguarded
+          code: `try { f(); } catch (err) { if (cond) { return getErrorMessage(err); } core.setFailed(err.message); }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "message", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { if (cond) { return getErrorMessage(err); } core.setFailed(getErrorMessage(err)); }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          // instanceof guard is only inside the if-body; the access after the if is unguarded
+          code: `try { f(); } catch (err) { if (cond) { if (err instanceof Error) { log(err.stack); } } console.log(err.message); }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "message", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { if (cond) { if (err instanceof Error) { log(err.stack); } } console.log(getErrorMessage(err)); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("valid: guard then access in the same straight-line block is not flagged", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [
+        // getErrorMessage guard precedes the access at the same block level
+        `try { f(); } catch (err) { const msg = getErrorMessage(err); core.setFailed(err.message); }`,
+        // instanceof guard at top-level of catch body precedes access inside an inner block
+        `try { f(); } catch (err) { if (err instanceof Error) { console.log(err.stack); } }`,
+        // instanceof in ternary test is an ancestor of the consequent access
+        `try { f(); } catch (err) { core.setFailed(err instanceof Error ? err.message : String(err)); }`,
+      ],
+      invalid: [],
+    });
+  });
 });

@@ -4,10 +4,48 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 
 const UNSAFE_PROPERTIES = new Set(["message", "stack", "code"]);
 
+interface Guard {
+  /** Source start offset of the guard expression. */
+  start: number;
+  /** Snapshot of the block-nesting stack at the point the guard was seen. */
+  blockStack: readonly number[];
+}
+
+interface UnsafeNode {
+  node: TSESTree.MemberExpression;
+  prop: string;
+  /** Snapshot of the block-nesting stack at the point the access was seen. */
+  blockStack: readonly number[];
+}
+
 interface CatchFrame {
   varName: string;
-  hasGuard: boolean;
-  unsafeNodes: Array<{ node: TSESTree.MemberExpression; prop: string }>;
+  guards: Guard[];
+  unsafeNodes: UnsafeNode[];
+  /** Mutable block-nesting stack — updated by BlockStatement enter/exit. */
+  blockStack: number[];
+}
+
+/**
+ * Returns true when guardStack is a prefix of (or equal to) accessStack.
+ * This means the guard is at the same or an outer block level as the access,
+ * so every execution path that reaches the access also passed through the guard's scope.
+ */
+function dominates(guardStack: readonly number[], accessStack: readonly number[]): boolean {
+  if (guardStack.length > accessStack.length) return false;
+  for (let i = 0; i < guardStack.length; i++) {
+    if (guardStack[i] !== accessStack[i]) return false;
+  }
+  return true;
+}
+
+/**
+ * Returns true when a guard lexically dominates an unsafe access:
+ * the guard appears before the access in source order AND its block stack
+ * is a prefix of the access's block stack (same or outer scope level).
+ */
+function guardProtects(guard: Guard, accessStart: number, accessStack: readonly number[]): boolean {
+  return guard.start < accessStart && dominates(guard.blockStack, accessStack);
 }
 
 export const noUnsafeCatchErrorPropertyRule = createRule({
@@ -36,18 +74,24 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
         // Only handle simple identifier bindings; skip bare catch {} and destructuring patterns.
         // Push a sentinel frame so CatchClause:exit always has a matching pop.
         if (!param || param.type !== AST_NODE_TYPES.Identifier) {
-          catchStack.push({ varName: "", hasGuard: true, unsafeNodes: [] });
+          catchStack.push({ varName: "", guards: [], unsafeNodes: [], blockStack: [] });
           return;
         }
 
-        catchStack.push({ varName: param.name, hasGuard: false, unsafeNodes: [] });
+        catchStack.push({ varName: param.name, guards: [], unsafeNodes: [], blockStack: [] });
       },
 
       "CatchClause:exit"() {
         const frame = catchStack.pop();
-        if (!frame || !frame.varName || frame.hasGuard) return;
+        if (!frame || !frame.varName) return;
 
-        for (const { node: memberExpr, prop } of frame.unsafeNodes) {
+        for (const { node: memberExpr, prop, blockStack: accessStack } of frame.unsafeNodes) {
+          // An access is safe only when a guard dominates it: the guard's block stack is a prefix
+          // of (or equal to) the access's block stack, and the guard appears first in source order.
+          const accessStart = memberExpr.range[0];
+          const isSafe = frame.guards.some(guard => guardProtects(guard, accessStart, accessStack));
+          if (isSafe) continue;
+
           const { varName } = frame;
           context.report({
             node: memberExpr,
@@ -77,15 +121,27 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
         }
       },
 
+      // Track block nesting within the active catch frame so guards and accesses
+      // can be compared by their scope depth (used in dominance check above).
+      BlockStatement(node) {
+        if (catchStack.length === 0) return;
+        catchStack[catchStack.length - 1].blockStack.push(node.range[0]);
+      },
+
+      "BlockStatement:exit"() {
+        if (catchStack.length === 0) return;
+        catchStack[catchStack.length - 1].blockStack.pop();
+      },
+
       // Detect getErrorMessage(catchVar) call — accepted safe guard
       CallExpression(node) {
         if (catchStack.length === 0) return;
         const top = catchStack[catchStack.length - 1];
-        if (!top || top.hasGuard || !top.varName) return;
+        if (!top || !top.varName) return;
 
         const firstArg = node.arguments[0];
         if (node.callee.type === AST_NODE_TYPES.Identifier && node.callee.name === "getErrorMessage" && node.arguments.length >= 1 && firstArg.type === AST_NODE_TYPES.Identifier && firstArg.name === top.varName) {
-          top.hasGuard = true;
+          top.guards.push({ start: node.range[0], blockStack: [...top.blockStack] });
         }
       },
 
@@ -93,10 +149,10 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
       BinaryExpression(node) {
         if (catchStack.length === 0) return;
         const top = catchStack[catchStack.length - 1];
-        if (!top || top.hasGuard || !top.varName) return;
+        if (!top || !top.varName) return;
 
         if (node.operator === "instanceof" && node.left.type === AST_NODE_TYPES.Identifier && node.left.name === top.varName) {
-          top.hasGuard = true;
+          top.guards.push({ start: node.range[0], blockStack: [...top.blockStack] });
         }
       },
 
@@ -114,14 +170,14 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
 
         // Non-computed dot access: err.message / err.stack / err.code
         if (!node.computed && prop.type === AST_NODE_TYPES.Identifier && UNSAFE_PROPERTIES.has(prop.name)) {
-          top.unsafeNodes.push({ node, prop: prop.name });
+          top.unsafeNodes.push({ node, prop: prop.name, blockStack: [...top.blockStack] });
           return;
         }
 
         // Computed string-literal access: err["message"] / err["stack"] / err["code"]
         // Dynamic access (err[prop]) is kept out of scope intentionally.
         if (node.computed && prop.type === AST_NODE_TYPES.Literal && typeof prop.value === "string" && UNSAFE_PROPERTIES.has(prop.value)) {
-          top.unsafeNodes.push({ node, prop: prop.value });
+          top.unsafeNodes.push({ node, prop: prop.value, blockStack: [...top.blockStack] });
         }
       },
     };
