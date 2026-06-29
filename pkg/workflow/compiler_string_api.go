@@ -58,6 +58,7 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	workflowLog.Printf("ParseWorkflowString: parsing %d bytes with virtual path %s", len(content), virtualPath)
 
 	cleanPath := filepath.Clean(virtualPath)
+	contentBytes := []byte(content)
 
 	// Store content so downstream code can use it instead of reading from disk.
 	// Cleared in CompileToYAML after compilation completes.
@@ -108,7 +109,7 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 		return nil, &SharedWorkflowError{Path: cleanPath}
 	}
 
-	if err := c.validateStringEngineBeforeSchema(cleanPath, []byte(content), result, frontmatterForValidation); err != nil {
+	if err := c.validateEngineBeforeSchema(cleanPath, contentBytes, result, frontmatterForValidation); err != nil {
 		compilerStringAPILog.Printf("ParseWorkflowString: string engine pre-validation failed for %s", cleanPath)
 		return nil, err
 	}
@@ -124,7 +125,7 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	// Build parse result to reuse the rest of the orchestrator pipeline
 	parseResult := &frontmatterParseResult{
 		cleanPath:                cleanPath,
-		content:                  []byte(content),
+		content:                  contentBytes,
 		frontmatterResult:        result,
 		frontmatterForValidation: frontmatterForValidation,
 		markdownDir:              filepath.Dir(cleanPath),

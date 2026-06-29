@@ -571,6 +571,8 @@ Content.`,
 func TestEngineTypeValidationErrorUsesSingleSourceLocationAndSnippet(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "engine-type-error-test")
 
+	// Integer engine values bypass validateEngineBeforeSchema, so this verifies the
+	// schema-validation path still reports one authoritative location plus snippet.
 	content := `---
 on: push
 name: test
@@ -593,13 +595,13 @@ engine: 123
 
 	errorStr := err.Error()
 	if !strings.Contains(errorStr, testFile+":4:8: error:") {
-		t.Fatalf("error should point to engine value location in header, got: %s", errorStr)
+		t.Errorf("error should point to engine value location in header, got: %s", errorStr)
 	}
 	if strings.Contains(errorStr, "(line ") || strings.Contains(errorStr, ", col ") {
-		t.Fatalf("single schema failure should not repeat a second line/col location in the message body, got: %s", errorStr)
+		t.Errorf("single schema failure should not repeat a second line/col location in the message body, got: %s", errorStr)
 	}
 	if !strings.Contains(errorStr, "4 | engine: 123") {
-		t.Fatalf("error should include the engine source line snippet, got: %s", errorStr)
+		t.Errorf("error should include the engine source line snippet, got: %s", errorStr)
 	}
 }
 
@@ -680,16 +682,16 @@ bogus-field: true
 
 	errorStr := err.Error()
 	if !strings.Contains(errorStr, "invalid engine: copiilot") {
-		t.Fatalf("error should prioritize the invalid engine typo, got: %s", errorStr)
+		t.Errorf("error should prioritize the invalid engine typo, got: %s", errorStr)
 	}
 	if !strings.Contains(errorStr, "Did you mean: copilot?") {
-		t.Fatalf("error should include the closest engine suggestion, got: %s", errorStr)
+		t.Errorf("error should include the closest engine suggestion, got: %s", errorStr)
 	}
 	if strings.Contains(errorStr, "Unknown property: bogus-field") {
-		t.Fatalf("schema error should not shadow the invalid engine typo, got: %s", errorStr)
+		t.Errorf("schema error should not shadow the invalid engine typo, got: %s", errorStr)
 	}
 	if !strings.Contains(errorStr, testFile+":3:1: error:") {
-		t.Fatalf("error should point to the engine field location, got: %s", errorStr)
+		t.Errorf("error should point to the engine field location, got: %s", errorStr)
 	}
 }
 

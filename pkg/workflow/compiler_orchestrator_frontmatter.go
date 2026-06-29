@@ -29,14 +29,14 @@ type frontmatterParseResult struct {
 	redirectTarget string
 }
 
-func (c *Compiler) validateStringEngineBeforeSchema(
+func (c *Compiler) validateEngineBeforeSchema(
 	cleanPath string,
 	content []byte,
 	result *parser.FrontmatterResult,
 	frontmatterForValidation map[string]any,
 ) error {
 	engineValue, ok := frontmatterForValidation["engine"].(string)
-	if !ok || strings.TrimSpace(engineValue) == "" {
+	if !ok || engineValue == "" {
 		return nil
 	}
 
@@ -52,6 +52,8 @@ func (c *Compiler) validateStringEngineBeforeSchema(
 		return formatCompilerErrorWithContext(
 			cleanPath,
 			line,
+			// Point to the field key for invalid string engine names so the location
+			// stays stable even when the specific invalid value changes.
 			1,
 			"error",
 			err.Error(),
@@ -169,7 +171,7 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		return nil, errors.New("no markdown content found")
 	}
 
-	if err := c.validateStringEngineBeforeSchema(cleanPath, content, result, frontmatterForValidation); err != nil {
+	if err := c.validateEngineBeforeSchema(cleanPath, content, result, frontmatterForValidation); err != nil {
 		orchestratorFrontmatterLog.Printf("String engine pre-validation failed: %v", err)
 		return nil, err
 	}
