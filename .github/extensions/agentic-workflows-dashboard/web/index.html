@@ -85,12 +85,12 @@
             <div class="Box-body p-0 awd-scroll" x-show="!loadingDefinitions && !errorDefinitions">
               <template x-for="definition in definitionsPaged.items" :key="definition.workflow">
                 <div class="Box-row">
-                  <div class="d-flex flex-justify-between gap-2">
-                    <div>
-                      <div class="text-bold" x-text="definition.workflow"></div>
-                      <div class="color-fg-muted text-small mt-1">Engine: <span x-text="definition.engine_id ?? '—'"></span></div>
-                      <div class="color-fg-muted text-small" x-show="definition.labels && definition.labels.length">Labels: <span x-text="(definition.labels ?? []).join(', ')"></span></div>
-                      <div class="color-fg-muted text-small" x-show="definition.time_remaining">Time remaining: <span x-text="definition.time_remaining"></span></div>
+                  <div class="d-flex flex-items-center flex-justify-between gap-2">
+                    <div class="d-flex flex-items-center gap-2 text-small">
+                      <span class="text-bold" x-text="definition.workflow"></span>
+                      <span class="color-fg-muted">· <span x-text="definition.engine_id ?? '—'"></span></span>
+                      <span class="color-fg-muted" x-show="definition.labels && definition.labels.length">· <span x-text="(definition.labels ?? []).join(', ')"></span></span>
+                      <span class="color-fg-muted" x-show="definition.time_remaining">· <span x-text="definition.time_remaining"></span></span>
                     </div>
                     <span :class="definitionStatusClass(definition)" x-text="definitionStatusLabel(definition)"></span>
                   </div>
@@ -123,12 +123,12 @@
             <div class="Box-body p-0 awd-scroll" x-show="!loadingRuns && !errorRuns">
               <template x-for="run in runsPaged.items" :key="run.run_id">
                 <div class="Box-row awd-run-row" :class="selectedRun && selectedRun.run_id === run.run_id ? 'is-selected' : ''" @click="viewRunDetails(run.run_id)">
-                  <div class="d-flex flex-justify-between flex-items-start gap-2">
-                    <div>
-                      <div class="text-bold">#<span x-text="run.run_id"></span></div>
-                      <div class="color-fg-muted text-small mt-1">Workflow: <span x-text="run.workflow_name"></span></div>
-                      <div class="color-fg-muted text-small" x-show="run.duration">Duration: <span x-text="formatDuration(run.duration)"></span></div>
-                      <div class="color-fg-muted text-small">AIC: <span x-text="formatAIC(run.aic ?? 0)"></span></div>
+                  <div class="d-flex flex-items-center flex-justify-between gap-2">
+                    <div class="d-flex flex-items-center gap-2 text-small">
+                      <span class="text-bold">#<span x-text="run.run_id"></span></span>
+                      <span class="color-fg-muted">· <span x-text="run.workflow_name"></span></span>
+                      <span class="color-fg-muted" x-show="run.duration">· <span x-text="formatDuration(run.duration)"></span></span>
+                      <span class="color-fg-muted">· <span x-text="formatAIC(run.aic ?? 0)"></span></span>
                     </div>
                     <span :class="runStatusClass(run)" x-text="runStatusLabel(run)"></span>
                   </div>
