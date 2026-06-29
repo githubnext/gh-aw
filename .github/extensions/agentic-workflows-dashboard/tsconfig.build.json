@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": ".",
+    "rootDir": "src",
+    "lib": ["ES2022"],
+    "declaration": false
+  },
+  "include": [
+    "src/dashboard-cli.ts",
+    "src/dashboard-config.ts",
+    "src/dashboard-data.ts",
+    "src/dashboard-logs.ts",
+    "src/usage-forecast.ts"
+  ],
+  "exclude": ["node_modules"]
+}

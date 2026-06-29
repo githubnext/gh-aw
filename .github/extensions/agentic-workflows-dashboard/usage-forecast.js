@@ -29,9 +29,7 @@ export function getForecastMonthlyAIC(forecast) {
     return toNumber(forecast.monthly_projected_aic);
 }
 export function applyForecastToUsageSummary(items, forecastWorkflows = []) {
-    const forecastEntries = forecastWorkflows
-        .map(forecast => [normalizeWorkflowID(forecast?.workflow_id || forecast?.workflow_path), getForecastMonthlyAIC(forecast)])
-        .filter(([workflowID]) => Boolean(workflowID));
+    const forecastEntries = forecastWorkflows.map(forecast => [normalizeWorkflowID(forecast?.workflow_id || forecast?.workflow_path), getForecastMonthlyAIC(forecast)]).filter(([workflowID]) => Boolean(workflowID));
     const forecastByWorkflow = new Map(forecastEntries);
     return items.map(item => ({
         ...item,

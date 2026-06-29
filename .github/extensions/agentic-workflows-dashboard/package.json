@@ -14,7 +14,8 @@
     "vitest": "4.1.9"
   },
   "scripts": {
-    "build": "npm run typecheck && npm run build:web",
+    "build": "npm run typecheck && npm run build:backend && npm run build:web",
+    "build:backend": "tsc -p tsconfig.build.json",
     "build:web": "esbuild src/app.ts --bundle --format=esm --target=es2022 --outfile=web/app.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
