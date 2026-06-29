@@ -70,6 +70,16 @@ func okFormatVerb() string {
 	return fmt.Sprintf("/tmp/gh-aw/runs/%s/output.json", "run-id")
 }
 
+// ok: path template literal with %x should be treated as a format template.
+func okHexTemplateLiteral() string {
+	return "/tmp/gh-aw/%x.tmp"
+}
+
+// bad: escaped %% is not a format verb and should still be reported.
+func badEscapedPercentPath() string {
+	return "/tmp/gh-aw/100%%-done.log" // want `hard-coded file path.*consider extracting`
+}
+
 // ok: very short path segment (no trailing slash after prefix).
 func okShortSegment() string {
 	return ".github"
