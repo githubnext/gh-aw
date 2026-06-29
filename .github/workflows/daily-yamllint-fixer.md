@@ -105,7 +105,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
-    sudo: false
+    sudo: true
 ---
 
 # Daily yamllint Fixer
