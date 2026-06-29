@@ -34,11 +34,7 @@ export function getForecastMonthlyAIC(forecast) {
 export function applyForecastToUsageSummary(items, forecastWorkflows = []) {
   // Forecast results identify workflows by workflow_id; workflow_path is accepted as a
   // fallback so older or alternate JSON payloads can still be matched safely.
-  const forecastByWorkflow = new Map(
-    forecastWorkflows
-      .map(forecast => [normalizeWorkflowID(forecast?.workflow_id || forecast?.workflow_path), getForecastMonthlyAIC(forecast)])
-      .filter(([workflowID]) => Boolean(workflowID))
-  );
+  const forecastByWorkflow = new Map(forecastWorkflows.map(forecast => [normalizeWorkflowID(forecast?.workflow_id || forecast?.workflow_path), getForecastMonthlyAIC(forecast)]).filter(([workflowID]) => Boolean(workflowID)));
 
   return items.map(item => ({
     ...item,

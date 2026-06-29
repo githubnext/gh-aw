@@ -1,364 +1,19 @@
 import { createServer } from "node:http";
-import { execFile } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
-import { constants as fsConstants } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 
-import { applyForecastToUsageSummary, buildUsageSummary, forecastDaysForWindow } from "./usage-forecast.mjs";
+import { createGhAwRunner } from "./dashboard-cli.mjs";
+import { DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT } from "./dashboard-config.mjs";
+import { createDashboardDataAccess } from "./dashboard-data.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const servers = new Map();
-const cache = new Map(); // key → { data, expiresAt }
-const CACHE_TTL_MS = 60_000;
-const DEFAULT_LOG_TIMEOUT_MINUTES = 1;
-const DEFAULT_RUN_COUNT = 100;
-const MAX_LOG_CONTINUATIONS = 6;
-const REPORT_WINDOWS = {
-  "3d": { id: "3d", label: "3 days", startDate: "-3d", days: 3 },
-  "7d": { id: "7d", label: "7 days", startDate: "-1w", days: 7 },
-  "1mo": { id: "1mo", label: "1 month", startDate: "-1mo", days: 30 },
-};
 let workspacePath = process.cwd();
-
-// ---------------------------------------------------------------------------
-// CLI helpers
-// ---------------------------------------------------------------------------
-
-function execp(bin, args, cwd) {
-  return new Promise((resolve, reject) => {
-    execFile(
-      bin,
-      args,
-      {
-        cwd,
-        env: { ...process.env, NO_COLOR: "1", GH_NO_UPDATE_NOTIFIER: "1" },
-        maxBuffer: 10 * 1024 * 1024,
-      },
-      (err, stdout, stderr) => {
-        if (err) reject(Object.assign(err, { stderr: stderr ?? "" }));
-        else resolve(stdout);
-      }
-    );
-  });
-}
-
-async function runGhAw(args) {
-  const cwd = workspacePath;
-  const isWin = process.platform === "win32";
-  const devBin = join(cwd, isWin ? "gh-aw.exe" : "gh-aw");
-  try {
-    await access(devBin, fsConstants.X_OK);
-    return await execp(devBin, args, cwd);
-  } catch {
-    return await execp("gh", ["aw", ...args], cwd);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Cache
-// ---------------------------------------------------------------------------
-
-function getCached(key) {
-  const entry = cache.get(key);
-  return entry && Date.now() < entry.expiresAt ? entry.data : null;
-}
-function setCached(key, data) {
-  cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
-}
-
-// ---------------------------------------------------------------------------
-// Data fetchers — both call the CLI, never Go code
-// ---------------------------------------------------------------------------
-
-async function getDefinitions() {
-  const hit = getCached("definitions");
-  if (hit) return hit;
-  const raw = await runGhAw(["status", "--json"]);
-  const data = JSON.parse(raw);
-  setCached("definitions", data);
-  return data;
-}
-
-async function getExperiments() {
-  const hit = getCached("experiments");
-  if (hit) return hit;
-  const raw = await runGhAw(["experiments", "list", "--json"]);
-  const data = JSON.parse(raw);
-  const experiments = Array.isArray(data) ? data : [];
-  setCached("experiments", experiments);
-  return experiments;
-}
-
-function getReportWindow(windowId) {
-  return REPORT_WINDOWS[windowId] ?? REPORT_WINDOWS["7d"];
-}
-
-function normalizeLogsOptions(options = {}) {
-  const window = getReportWindow(options.window);
-  const count = Number.parseInt(String(options.count ?? DEFAULT_RUN_COUNT), 10);
-  const timeout = Number.parseInt(String(options.timeout ?? DEFAULT_LOG_TIMEOUT_MINUTES), 10);
-  const artifacts = Array.isArray(options.artifacts) && options.artifacts.length > 0 ? options.artifacts : ["usage"];
-
-  return {
-    window,
-    count: Number.isFinite(count) && count > 0 ? count : DEFAULT_RUN_COUNT,
-    timeout: Number.isFinite(timeout) && timeout > 0 ? timeout : DEFAULT_LOG_TIMEOUT_MINUTES,
-    startDate: typeof options.startDate === "string" && options.startDate.trim() ? options.startDate.trim() : window.startDate,
-    endDate: typeof options.endDate === "string" && options.endDate.trim() ? options.endDate.trim() : "",
-    beforeRunID: Number.isFinite(Number(options.beforeRunID)) && Number(options.beforeRunID) > 0 ? Number(options.beforeRunID) : 0,
-    afterRunID: Number.isFinite(Number(options.afterRunID)) && Number(options.afterRunID) > 0 ? Number(options.afterRunID) : 0,
-    workflowName: typeof options.workflowName === "string" ? options.workflowName.trim() : "",
-    engine: typeof options.engine === "string" ? options.engine.trim() : "",
-    branch: typeof options.branch === "string" ? options.branch.trim() : "",
-    artifacts,
-  };
-}
-
-function buildLogsArgs(options) {
-  const args = ["logs", "--json", "-c", String(options.count), "--timeout", String(options.timeout)];
-
-  if (options.workflowName) args.push(options.workflowName);
-  if (options.startDate) args.push("--start-date", options.startDate);
-  if (options.endDate) args.push("--end-date", options.endDate);
-  if (options.engine) args.push("--engine", options.engine);
-  if (options.branch) args.push("--ref", options.branch);
-  if (options.beforeRunID > 0) args.push("--before-run-id", String(options.beforeRunID));
-  if (options.afterRunID > 0) args.push("--after-run-id", String(options.afterRunID));
-  if (options.artifacts.length > 0) args.push("--artifacts", options.artifacts.join(","));
-
-  return args;
-}
-
-function continuationToLogsOptions(continuation, fallback) {
-  if (!continuation) return null;
-
-  return normalizeLogsOptions({
-    window: fallback.window.id,
-    workflowName: continuation.workflow_name || fallback.workflowName,
-    count: continuation.count || fallback.count,
-    startDate: continuation.start_date || fallback.startDate,
-    endDate: continuation.end_date || fallback.endDate,
-    engine: continuation.engine || fallback.engine,
-    branch: continuation.branch || fallback.branch,
-    afterRunID: continuation.after_run_id || fallback.afterRunID,
-    beforeRunID: continuation.before_run_id || fallback.beforeRunID,
-    timeout: continuation.timeout || fallback.timeout,
-    artifacts: fallback.artifacts,
-  });
-}
-
-function mergeRuns(existingRuns, nextRuns) {
-  const merged = new Map(existingRuns.map(run => [run.run_id, run]));
-  for (const run of nextRuns) {
-    if (run?.run_id != null) {
-      merged.set(run.run_id, run);
-    }
-  }
-  return Array.from(merged.values()).sort((a, b) => Number(b.run_id ?? 0) - Number(a.run_id ?? 0));
-}
-
-async function fetchLogsBatches(initialOptions, initialArgs = null) {
-  let current = initialOptions;
-  let logsFetches = 0;
-  let runs = [];
-  let continuation = null;
-  let summary = null;
-  let firstBatch = null;
-
-  while (current && logsFetches < MAX_LOG_CONTINUATIONS) {
-    const raw = await runGhAw(logsFetches === 0 && initialArgs ? initialArgs : buildLogsArgs(current));
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch (error) {
-      throw new Error(`Failed to parse logs batch ${logsFetches + 1}: ${error.message}`);
-    }
-    if (!firstBatch) {
-      firstBatch = data;
-    }
-    runs = mergeRuns(runs, Array.isArray(data?.runs) ? data.runs : []);
-    continuation = data?.continuation ?? null;
-    summary = data?.summary ?? summary;
-    logsFetches += 1;
-
-    if (!continuation) {
-      break;
-    }
-
-    current = continuationToLogsOptions(continuation, initialOptions);
-  }
-
-  return {
-    firstBatch,
-    runs,
-    summary,
-    logsFetches,
-    partial: Boolean(continuation),
-    continuation,
-  };
-}
-
-async function getLogsData(options = {}) {
-  const normalized = normalizeLogsOptions(options);
-  const key = `logs:${JSON.stringify({
-    window: normalized.window.id,
-    count: normalized.count,
-    timeout: normalized.timeout,
-    startDate: normalized.startDate,
-    endDate: normalized.endDate,
-    beforeRunID: normalized.beforeRunID,
-    afterRunID: normalized.afterRunID,
-    workflowName: normalized.workflowName,
-    engine: normalized.engine,
-    branch: normalized.branch,
-    artifacts: normalized.artifacts,
-  })}`;
-  const hit = getCached(key);
-  if (hit) return hit;
-
-  const logsResult = await fetchLogsBatches(normalized);
-
-  const result = {
-    runs: logsResult.runs,
-    summary: logsResult.summary,
-    window: normalized.window,
-    timeout: normalized.timeout,
-    logsFetches: logsResult.logsFetches,
-    partial: logsResult.partial,
-    continuation: logsResult.continuation,
-  };
-  setCached(key, result);
-  return result;
-}
-
-async function getRuns(options = {}) {
-  return getLogsData(options);
-}
-
-async function getForecastData(workflowIDs, window, timeout) {
-  if (!Array.isArray(workflowIDs) || workflowIDs.length === 0) {
-    return [];
-  }
-
-  const args = ["forecast", "--json", "--period", "month", "--days", String(forecastDaysForWindow(window)), "--timeout", String(timeout), ...workflowIDs];
-  const raw = await runGhAw(args);
-  let data;
-  try {
-    data = JSON.parse(raw);
-  } catch (error) {
-    const snippet = String(raw ?? "")
-      .replace(/\s+/g, " ")
-      .slice(0, 200);
-    throw new Error(`Failed to parse forecast output: ${error.message}${snippet ? ` (output: ${snippet})` : ""}`);
-  }
-  return Array.isArray(data?.workflows) ? data.workflows : [];
-}
-
-async function getUsage(options = {}) {
-  const normalized = normalizeLogsOptions(options);
-  const key = `usage:${JSON.stringify({
-    window: normalized.window.id,
-    count: normalized.count,
-    timeout: normalized.timeout,
-  })}`;
-  const hit = getCached(key);
-  if (hit) return hit;
-  const logsData = await getLogsData(normalized);
-  const usageItems = buildUsageSummary(logsData.runs, logsData.window);
-  const workflowIDs = usageItems.map(item => item.workflow_id).filter(Boolean);
-  const forecastWorkflows = await getForecastData(workflowIDs, logsData.window, logsData.timeout);
-  const result = {
-    items: applyForecastToUsageSummary(usageItems, forecastWorkflows),
-    window: logsData.window,
-    timeout: logsData.timeout,
-    logsFetches: logsData.logsFetches,
-    partial: logsData.partial,
-    continuation: logsData.continuation,
-    total_runs: logsData.runs.length,
-    forecast_history_days: forecastDaysForWindow(logsData.window),
-  };
-  setCached(key, result);
-  return result;
-}
-
-// ---------------------------------------------------------------------------
-// Command runner for the Commands panel
-// ---------------------------------------------------------------------------
-
-function parseGhAwArgs(raw) {
-  const m = raw.trim().match(/^(?:gh\s+aw\s+)(.+)$/);
-  return m ? m[1].trim().split(/\s+/) : null;
-}
-
-function hasFlag(args, longFlag, shortFlag = "") {
-  return args.some(arg => {
-    if (arg.startsWith(`${longFlag}=`)) {
-      return true;
-    }
-    if (shortFlag && arg.startsWith(`${shortFlag}=`)) {
-      return true;
-    }
-    if (arg === longFlag || (shortFlag && arg === shortFlag)) {
-      return true;
-    }
-    return false;
-  });
-}
-
-function logsCommandUsesJSON(args) {
-  return hasFlag(args, "--json");
-}
-
-function normalizeLogsCommandArgs(args, windowId, timeout) {
-  const nextArgs = [...args];
-  if (!hasFlag(nextArgs, "--start-date") && !hasFlag(nextArgs, "--end-date") && !hasFlag(nextArgs, "--after-run-id") && !hasFlag(nextArgs, "--before-run-id")) {
-    nextArgs.push("--start-date", getReportWindow(windowId).startDate);
-  }
-  if (!hasFlag(nextArgs, "--timeout")) {
-    nextArgs.push("--timeout", String(timeout));
-  }
-  if (!hasFlag(nextArgs, "--artifacts")) {
-    nextArgs.push("--artifacts", "usage");
-  }
-  return nextArgs;
-}
-
-async function execCommand(rawCmd, options = {}) {
-  const args = parseGhAwArgs(rawCmd);
-  if (!args) {
-    return { command: rawCmd, output: "Only 'gh aw <subcommand>' commands are supported.", error: true };
-  }
-  try {
-    if (args[0] === "logs" && logsCommandUsesJSON(args)) {
-      const commandArgs = normalizeLogsCommandArgs(args, options.window, options.timeout ?? DEFAULT_LOG_TIMEOUT_MINUTES);
-      const logsOptions = normalizeLogsOptions({ window: options.window, timeout: options.timeout });
-      const logsResult = await fetchLogsBatches(logsOptions, commandArgs);
-
-      return {
-        command: `gh aw ${commandArgs.join(" ")}`,
-        output: JSON.stringify(
-          {
-            ...(logsResult.firstBatch ?? {}),
-            runs: logsResult.runs,
-            partial: logsResult.partial,
-            logs_fetches: logsResult.logsFetches,
-            continuation: logsResult.continuation,
-          },
-          null,
-          2
-        ),
-      };
-    }
-
-    const output = await runGhAw(args);
-    return { command: rawCmd, output };
-  } catch (err) {
-    return { command: rawCmd, output: err.stderr || err.message, error: true };
-  }
-}
+const runGhAw = createGhAwRunner({ getWorkspacePath: () => workspacePath });
+const dataAccess = createDashboardDataAccess({ runGhAw });
 
 // ---------------------------------------------------------------------------
 // Pagination utility
@@ -407,12 +62,12 @@ async function startServer() {
         res.setHeader("Content-Type", "application/javascript; charset=utf-8");
         res.end(await readFile(join(__dirname, "web", "pagination.js"), "utf8"));
       } else if (pathname === "/api/status") {
-        sendJson(await getDefinitions());
+        sendJson(await dataAccess.getDefinitions());
       } else if (pathname === "/api/experiments") {
-        sendJson(await getExperiments());
+        sendJson(await dataAccess.getExperiments());
       } else if (pathname === "/api/runs") {
         sendJson(
-          await getRuns({
+          await dataAccess.getRuns({
             count: parseInt(reqUrl.searchParams.get("count") ?? String(DEFAULT_RUN_COUNT), 10),
             window: reqUrl.searchParams.get("window") ?? "7d",
             timeout: parseInt(reqUrl.searchParams.get("timeout") ?? String(DEFAULT_LOG_TIMEOUT_MINUTES), 10),
@@ -420,7 +75,7 @@ async function startServer() {
         );
       } else if (pathname === "/api/usage") {
         sendJson(
-          await getUsage({
+          await dataAccess.getUsage({
             count: parseInt(reqUrl.searchParams.get("count") ?? String(DEFAULT_RUN_COUNT), 10),
             window: reqUrl.searchParams.get("window") ?? "7d",
             timeout: parseInt(reqUrl.searchParams.get("timeout") ?? String(DEFAULT_LOG_TIMEOUT_MINUTES), 10),
@@ -429,13 +84,13 @@ async function startServer() {
       } else if (pathname === "/api/run-command") {
         const cmd = reqUrl.searchParams.get("cmd") ?? "";
         sendJson(
-          await execCommand(cmd, {
+          await dataAccess.execCommand(cmd, {
             window: reqUrl.searchParams.get("window") ?? "7d",
             timeout: parseInt(reqUrl.searchParams.get("timeout") ?? String(DEFAULT_LOG_TIMEOUT_MINUTES), 10),
           })
         );
       } else if (pathname === "/api/refresh") {
-        cache.clear();
+        dataAccess.clearCache();
         sendJson({ ok: true });
       } else {
         res.writeHead(404);
@@ -499,7 +154,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
             additionalProperties: false,
           },
           handler: async ctx => {
-            const defs = await getDefinitions();
+            const defs = await dataAccess.getDefinitions();
             return paginate(defs, Number(ctx.input?.page ?? 1), Number(ctx.input?.pageSize ?? 20));
           },
         },
@@ -518,7 +173,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
             additionalProperties: false,
           },
           handler: async ctx => {
-            const logsData = await getRuns({
+            const logsData = await dataAccess.getRuns({
               count: Number(ctx.input?.count ?? DEFAULT_RUN_COUNT),
               window: String(ctx.input?.window ?? "7d"),
               timeout: Number(ctx.input?.timeout ?? DEFAULT_LOG_TIMEOUT_MINUTES),
@@ -546,7 +201,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
             additionalProperties: false,
           },
           handler: async ctx => {
-            const usage = await getUsage({
+            const usage = await dataAccess.getUsage({
               count: Number(ctx.input?.count ?? DEFAULT_RUN_COUNT),
               window: String(ctx.input?.window ?? "7d"),
               timeout: Number(ctx.input?.timeout ?? DEFAULT_LOG_TIMEOUT_MINUTES),
@@ -572,7 +227,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
             additionalProperties: false,
           },
           handler: async ctx => {
-            const experiments = await getExperiments();
+            const experiments = await dataAccess.getExperiments();
             return paginate(experiments, Number(ctx.input?.page ?? 1), Number(ctx.input?.pageSize ?? 20));
           },
         },
@@ -586,7 +241,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
             additionalProperties: false,
           },
           handler: async ctx => {
-            const logsData = await getRuns({ count: 200, window: "1mo", timeout: DEFAULT_LOG_TIMEOUT_MINUTES });
+            const logsData = await dataAccess.getRuns({ count: 200, window: "1mo", timeout: DEFAULT_LOG_TIMEOUT_MINUTES });
             return { run: logsData.runs.find(r => r.run_id === Number(ctx.input?.run_id)) ?? null };
           },
         },
@@ -599,14 +254,14 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
             properties: { command: { type: "string", description: "Full command string starting with 'gh aw'." } },
             additionalProperties: false,
           },
-          handler: async ctx => execCommand(String(ctx.input?.command ?? ""), { window: "7d", timeout: DEFAULT_LOG_TIMEOUT_MINUTES }),
+          handler: async ctx => dataAccess.execCommand(String(ctx.input?.command ?? ""), { window: "7d", timeout: DEFAULT_LOG_TIMEOUT_MINUTES }),
         },
         {
           name: "refresh",
           description: "Clear the data cache so the next listDefinitions/listRuns fetches fresh data from the CLI.",
           inputSchema: { type: "object", additionalProperties: false },
           handler: () => {
-            cache.clear();
+            dataAccess.clearCache();
             return { ok: true };
           },
         },
