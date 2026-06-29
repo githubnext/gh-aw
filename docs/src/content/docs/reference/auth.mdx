@@ -37,6 +37,12 @@ Configure one GitHub Actions secret per engine before running your first workflo
 - **Alternative:** None
 - **Notes:** API key from Google AI Studio
 
+### Antigravity
+
+- **Required secret:** [`ANTIGRAVITY_API_KEY`](#antigravity_api_key)
+- **Alternative:** None
+- **Notes:** API key for the experimental Antigravity CLI engine
+
 Most workflows will run without any additional secrets or additional authentication beyond this one engine secret.
 
 ## Additional Authentication
@@ -329,6 +335,24 @@ If using the Gemini by Google engine, you need to set a GitHub Actions secret `G
    ```
 
 See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Gemini with GitHub MCP.
+
+---
+
+### `ANTIGRAVITY_API_KEY`
+
+If using the Antigravity CLI engine, set a GitHub Actions secret `ANTIGRAVITY_API_KEY`.
+
+**Setup**:
+
+1. Obtain an API key for the Antigravity CLI account or environment you use.
+
+2. Add it to your repository secrets, either by CLI or GitHub UI:
+
+   ```bash wrap
+   gh aw secrets set ANTIGRAVITY_API_KEY --value "YOUR_ANTIGRAVITY_API_KEY"
+   ```
+
+See also [AI Engines](/gh-aw/reference/engines/#antigravity-cli) for additional configuration needed when using Antigravity in a workflow.
 
 ---
 

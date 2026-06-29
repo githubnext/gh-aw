@@ -11761,8 +11761,13 @@
     },
     "engine_config": {
       "examples": [
+        "antigravity",
         "claude",
         "copilot",
+        {
+          "id": "antigravity",
+          "version": "1.0.2-6113393518706688"
+        },
         {
           "id": "claude",
           "model": "claude-3-5-sonnet-20241022",
@@ -11836,7 +11841,7 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog entry"
+          "description": "Engine name: built-in ('antigravity', 'claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog entry"
         },
         {
           "type": "object",
@@ -11844,7 +11849,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog entry"
+              "description": "AI engine identifier: built-in ('antigravity', 'claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog entry"
             },
             "version": {
               "type": ["string", "number"],
