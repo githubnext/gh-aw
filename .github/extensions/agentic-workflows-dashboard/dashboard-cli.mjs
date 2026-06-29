@@ -31,8 +31,8 @@ function execp(bin, args, cwd, { combineIO = false, execFileFn = execFile, env =
 function parseVersionFromOutput(output) {
   const trimmed = String(output ?? "").trim();
   if (!trimmed) return "";
-  const match = trimmed.match(/gh(?:-aw| aw) version (\S+)/i);
-  return match?.[1] ?? "";
+  const match = trimmed.match(/gh(?:-aw| aw) version ([^\r\n]+)/i);
+  return match?.[1]?.trim() ?? "";
 }
 
 function isMissingGhAwExtension(error) {

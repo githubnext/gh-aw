@@ -339,7 +339,9 @@ Alpine.data("dashboardApp", () => ({
     },
     commandQuickFill(value) {
         this.commandInput = value;
-        void this.runCommand();
+        this.runCommand().catch(error => {
+            this.commandOutput = `$ ${this.commandInput}\nError: ${error instanceof Error ? error.message : String(error)}`;
+        });
     },
     runStatusClass,
     runStatusLabel,
