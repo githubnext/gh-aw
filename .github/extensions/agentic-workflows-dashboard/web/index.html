@@ -57,20 +57,14 @@
                     <div>
                       <div class="text-bold" x-text="definition.workflow"></div>
                       <div class="color-fg-muted text-small mt-1">Engine: <span x-text="definition.engine_id ?? '—'"></span></div>
-                      <div class="color-fg-muted text-small" x-show="definition.labels && definition.labels.length">
-                        Labels: <span x-text="(definition.labels ?? []).join(', ')"></span>
-                      </div>
-                      <div class="color-fg-muted text-small" x-show="definition.time_remaining">
-                        Time remaining: <span x-text="definition.time_remaining"></span>
-                      </div>
+                      <div class="color-fg-muted text-small" x-show="definition.labels && definition.labels.length">Labels: <span x-text="(definition.labels ?? []).join(', ')"></span></div>
+                      <div class="color-fg-muted text-small" x-show="definition.time_remaining">Time remaining: <span x-text="definition.time_remaining"></span></div>
                     </div>
                     <span :class="definitionStatusClass(definition)" x-text="definitionStatusLabel(definition)"></span>
                   </div>
                 </div>
               </template>
-              <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingDefinitions && definitionsPaged.totalItems === 0">
-                No workflow definitions found. Run <code>make build</code> then open this canvas again.
-              </div>
+              <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingDefinitions && definitionsPaged.totalItems === 0">No workflow definitions found. Run <code>make build</code> then open this canvas again.</div>
             </div>
             <div class="Box-footer d-flex flex-items-center flex-justify-between" x-show="!loadingDefinitions && definitionsPaged.totalPages > 1">
               <button class="btn btn-sm" :disabled="!definitionsPaged.hasPreviousPage" @click="loadDefinitionPage(definitionsPaged.page - 1)">Previous</button>
@@ -106,9 +100,7 @@
                   </div>
                 </div>
               </template>
-              <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingRuns && runsPaged.totalItems === 0">
-                No runs found. Run <code>gh aw logs</code> to check availability.
-              </div>
+              <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingRuns && runsPaged.totalItems === 0">No runs found. Run <code>gh aw logs</code> to check availability.</div>
             </div>
             <div class="Box-footer d-flex flex-items-center flex-justify-between" x-show="!loadingRuns && runsPaged.totalPages > 1">
               <button class="btn btn-sm" :disabled="!runsPaged.hasPreviousPage" @click="loadRunPage(runsPaged.page - 1)">Previous</button>

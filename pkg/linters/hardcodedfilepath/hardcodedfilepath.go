@@ -84,7 +84,7 @@ func isPathLike(val string) bool {
 	return false
 }
 
-var fmtDirectivePattern = regexp.MustCompile(`%(?:\[[0-9]+\])?[#0+\- ]*(?:\*|\d+)?(?:\.(?:\*|\d+))?[bcdeEfFgGopqstTUvwxX]`)
+var fmtDirectivePattern = regexp.MustCompile(`%[#0+\- ]*(?:(?:\[[0-9]+\])?\*|\d+)?(?:\.(?:(?:\[[0-9]+\])?\*|\d+))?(?:\[[0-9]+\])?[bcdeEfFgGopqstTUvwxX]`)
 
 // hasFormatVerb reports whether val contains fmt-style format directives.
 // Strings with directives are format templates, not standalone paths, so they

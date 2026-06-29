@@ -80,6 +80,11 @@ func badEscapedPercentPath() string {
 	return "/tmp/gh-aw/100%%-done.log" // want `hard-coded file path.*consider extracting`
 }
 
+// ok: path template with indexed width/precision/value directive (e.g. %[3]*.[2]*[1]x).
+func okIndexedArgDirective() string {
+	return "/tmp/gh-aw/%[3]*.[2]*[1]x"
+}
+
 // ok: very short path segment (no trailing slash after prefix).
 func okShortSegment() string {
 	return ".github"
