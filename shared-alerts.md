@@ -39,3 +39,9 @@
 - CI: STABLE ✅ (PR #41849 holding)
 - Avenger: RECOVERED ✅ (was intermittent Jun 28 09:30-11:58, stable Jun 29)
 - Code Simplifier: Issues closed Jun 28 — monitor for new instances
+
+## Update — 2026-06-29T14:01Z (Agent Performance Analyzer)
+- **Escalating tool denial pattern**: 3 agents now: Safe Output Integrator (#42125), Formal Spec Verifier (#42105), Layout Spec Maintainer (#42204). Systemic issue filed: #aw_toolden1. 
+- **AI Moderator**: #42234 filed, 0/4 success, 2 ar, 2 skip.
+- **Q workflow**: 10/14 action_required — monitor; appears by-design (dispatch approval flow).
+- Copilot SWE Agent STABLE: 80% merge rate maintained.
