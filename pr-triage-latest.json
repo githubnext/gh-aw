@@ -1,58 +1,42 @@
 {
-  "run_date": "2026-06-29T01:22:56Z",
-  "run_id": "28342769269",
-  "previous_run_id": "28332039983",
-  "previous_run_date": "2026-06-28T18:38:02Z",
-  "agent_prs_found": 5,
-  "prs_triaged": 5,
+  "run_date": "2026-06-29T08:07:52Z",
+  "run_id": "28357644191",
+  "previous_run_id": "28342769269",
+  "previous_run_date": "2026-06-29T01:22:56Z",
+  "agent_prs_found": 10,
+  "prs_triaged": 10,
   "open_agent_prs": [
     {
-      "number": 42150,
-      "title": "Enforce canonical `dispatch_repository` safe-output key (remove dashed alias)",
-      "draft": true,
-      "additions": 22,
-      "deletions": 9,
-      "changed_files": 3,
+      "number": 42165,
+      "title": "fix: apply 13 lint-monster correctness/style findings (2026-06-29)",
+      "draft": false,
+      "additions": 37,
+      "deletions": 38,
+      "changed_files": 13,
       "category": "bug",
       "risk": "low",
       "priority": "medium",
-      "score": 40,
-      "action": "defer",
-      "age_hours": 1.2,
-      "ci": "PENDING",
-      "notes": "New draft PR. Removes undocumented dashed alias from dispatch_repository parsing. Tiny targeted fix (+22/-9). No CI yet. Defer until promoted to ready."
-    },
-    {
-      "number": 42137,
-      "title": "Add a Copilot Canvas extension for agentic workflow operations",
-      "draft": false,
-      "additions": 2777,
-      "deletions": 2,
-      "changed_files": 20,
-      "category": "feature",
-      "risk": "high",
-      "priority": "high",
-      "score": 69,
-      "action": "fast_track",
-      "age_hours": 3.6,
+      "score": 55,
+      "action": "auto_merge",
+      "age_hours": 4.3,
       "ci": "PASSING",
-      "notes": "New ready PR. Canvas extension for agentic workflows dashboard. CI passing. CHANGES_REQUESTED from skills-based review (3 blocking issues). @pelikhan requested make fmt/lint. Fast-track once resolved."
+      "notes": "New ready PR. 13 lint correctness fixes. CI passing, 3 bot approvals. Auto-merge eligible."
     },
     {
-      "number": 42100,
-      "title": "feat: add experimental BinEval evaluation support",
-      "draft": true,
-      "additions": 2181,
-      "deletions": 0,
-      "changed_files": null,
-      "category": "feature",
-      "risk": "high",
+      "number": 42163,
+      "title": "fix: resolve osgetenvlibrary lint findings in boundary-layer packages",
+      "draft": false,
+      "additions": 13,
+      "deletions": 13,
+      "changed_files": 7,
+      "category": "chore",
+      "risk": "low",
       "priority": "low",
-      "score": 38,
-      "action": "defer",
-      "age_hours": 10.6,
-      "ci": "PENDING",
-      "notes": "Carried over draft PR. BinEval LLM evaluation harness. Large (+2181 lines). No CI. Defer until promoted to ready."
+      "score": 37,
+      "action": "auto_merge",
+      "age_hours": 4.3,
+      "ci": "PASSING",
+      "notes": "New ready PR. nolint suppressions at justified boundaries. CI passing. Auto-merge eligible."
     },
     {
       "number": 41830,
@@ -64,14 +48,11 @@
       "category": "bug",
       "risk": "medium",
       "priority": "high",
-      "score": 70,
+      "score": 75,
       "action": "fast_track",
-      "age_hours": 46.9,
+      "age_hours": 53.6,
       "ci": "PASSING",
-      "notes": "Carried over (~47h). Git dubious-ownership fix. CI passing. Test quality APPROVED 100/100. Code quality concerns (silent error swallowing, ~/.gitconfig side effect) dismissed. STALE - needs human sign-off urgently.",
-      "label_conflicts": [
-        "pr-batch:production-fixes"
-      ]
+      "notes": "Carried over (53.6h). Production git dubious-ownership fix. CI passing. CRITICALLY STALE - needs immediate human sign-off."
     },
     {
       "number": 41824,
@@ -83,128 +64,132 @@
       "category": "feature",
       "risk": "high",
       "priority": "high",
-      "score": 69,
+      "score": 55,
       "action": "fast_track",
-      "age_hours": 48.4,
+      "age_hours": 55.1,
       "ci": "PENDING",
-      "notes": "Carried over (~48h). Model policy enforcement. CHANGES_REQUESTED citing 3 correctness bugs (allowed+blocked conflict, policy key leakage, silent parse failure). Test quality 82/100. STALE. Label conflicts remain (pr-action:defer, pr-batch:active-drafts, pr-batch:feature-promo).",
-      "label_conflicts": [
-        "pr-action:defer",
-        "pr-batch:active-drafts",
-        "pr-batch:feature-promo"
-      ]
+      "notes": "Carried over (55.1h). CHANGES_REQUESTED with 3 correctness bugs. Author must address before merge. Label conflict: pr-action:defer + pr-action:fast_track both present.",
+      "label_conflicts": ["pr-action:defer", "pr-batch:active-drafts", "pr-batch:feature-promo"]
+    },
+    {
+      "number": 42150,
+      "title": "Enforce canonical `dispatch_repository` safe-output key (remove dashed alias)",
+      "draft": true,
+      "additions": 22,
+      "deletions": 9,
+      "changed_files": 3,
+      "category": "bug",
+      "risk": "low",
+      "priority": "low",
+      "score": 36,
+      "action": "defer",
+      "age_hours": 7.9,
+      "ci": "PENDING",
+      "notes": "Carried over (7.9h). Draft. Schema alignment fix. Defer until promoted."
+    },
+    {
+      "number": 42178,
+      "title": "hardcodedfilepath: detect full fmt directives (incl. %x) and ignore escaped %%",
+      "draft": true,
+      "additions": 20,
+      "deletions": 6,
+      "changed_files": 2,
+      "category": "bug",
+      "risk": "low",
+      "priority": "low",
+      "score": 33,
+      "action": "defer",
+      "age_hours": 2.3,
+      "ci": "PENDING",
+      "notes": "New draft. Linter false-positive fix. Part of quality-sweep-drafts batch."
+    },
+    {
+      "number": 42181,
+      "title": "Stabilize Daily yamllint Fixer by disabling rootless AWF path",
+      "draft": true,
+      "additions": 10,
+      "deletions": 8,
+      "changed_files": 2,
+      "category": "chore",
+      "risk": "low",
+      "priority": "low",
+      "score": 29,
+      "action": "defer",
+      "age_hours": 2.2,
+      "ci": "PENDING",
+      "notes": "New draft. Fixes EACCES errors in daily yamllint workflow. Part of quality-sweep-drafts batch."
+    },
+    {
+      "number": 42100,
+      "title": "feat: add experimental BinEval evaluation support",
+      "draft": true,
+      "additions": 2181,
+      "deletions": 0,
+      "changed_files": null,
+      "category": "feature",
+      "risk": "high",
+      "priority": "low",
+      "score": 30,
+      "action": "defer",
+      "age_hours": 17.3,
+      "ci": "PENDING",
+      "notes": "Carried over (17.3h). Experimental large feature. Draft, no CI. Defer until promoted."
+    },
+    {
+      "number": 42179,
+      "title": "Refactor non-workflow large functions into focused helpers",
+      "draft": true,
+      "additions": 837,
+      "deletions": 676,
+      "changed_files": 8,
+      "category": "refactor",
+      "risk": "medium",
+      "priority": "low",
+      "score": 25,
+      "action": "defer",
+      "age_hours": 2.3,
+      "ci": "PENDING",
+      "notes": "New draft. Large structural refactor from lint-monster. Part of quality-sweep-drafts batch."
+    },
+    {
+      "number": 42180,
+      "title": "[code-simplifier] Consolidate dashboard status label mapping and align pagination slice style",
+      "draft": true,
+      "additions": 15,
+      "deletions": 23,
+      "changed_files": 2,
+      "category": "refactor",
+      "risk": "low",
+      "priority": "low",
+      "score": 18,
+      "action": "defer",
+      "age_hours": 2.2,
+      "ci": "PENDING",
+      "notes": "New draft. Code-simplifier output on canvas app. Part of quality-sweep-drafts batch."
     }
   ],
   "closed_since_last_run": [
-    {
-      "number": 42144,
-      "title": "Reinstall chart libraries in shared trending setup",
-      "outcome": "merged"
-    },
-    {
-      "number": 42142,
-      "title": "pr-sous-chef: schedule merge-main skill when branch is CONFLICTING",
-      "outcome": "merged"
-    },
-    {
-      "number": 42139,
-      "title": "Update Code Scanning Fixer to process all alerts by severity",
-      "outcome": "merged"
-    },
-    {
-      "number": 42138,
-      "title": "Use `gh skill install --all` in skill review workflows",
-      "outcome": "merged"
-    },
-    {
-      "number": 42136,
-      "title": "Add `patchdiff.githubusercontent.com` to GitHub network domain list",
-      "outcome": "merged"
-    },
-    {
-      "number": 42134,
-      "title": "Increase Daily Code Metrics asset upload limit",
-      "outcome": "merged"
-    },
-    {
-      "number": 42133,
-      "title": "Prevent Daily Safe Output Integrator from tripping tool limits",
-      "outcome": "merged"
-    },
-    {
-      "number": 42132,
-      "title": "Restore GitHub MCP access in Daily Team Evolution Insights",
-      "outcome": "merged"
-    },
-    {
-      "number": 42127,
-      "title": "Reduce ambient-context token bloat in daily metrics and test workflows",
-      "outcome": "merged"
-    },
-    {
-      "number": 42119,
-      "title": "Raise sandbox.agent.sudo: false coverage to 80% of workflows",
-      "outcome": "merged"
-    },
-    {
-      "number": 42118,
-      "title": "Prevent step-summary conversation truncation",
-      "outcome": "merged"
-    },
-    {
-      "number": 42117,
-      "title": "Render slash-command footer hints for custom safe-output footers",
-      "outcome": "merged"
-    },
-    {
-      "number": 42116,
-      "title": "Fix Copilot events parser for structured tool result payloads",
-      "outcome": "merged"
-    }
+    {"number": 42137, "title": "Add a Copilot Canvas extension for agentic workflow operations", "outcome": "merged"},
+    {"number": 42156, "title": "refactor: consolidate reinvented semver helpers into pkg/semverutil", "outcome": "merged"}
   ],
   "statistics": {
-    "total_open_copilot_prs": 5,
-    "draft_prs": 2,
-    "ready_prs": 3,
-    "by_action": {
-      "fast_track": 3,
-      "defer": 2
-    },
-    "by_category": {
-      "bug": 2,
-      "feature": 3
-    },
-    "by_risk": {
-      "high": 3,
-      "medium": 1,
-      "low": 1
-    },
-    "by_priority": {
-      "high": 3,
-      "medium": 1,
-      "low": 1
-    },
-    "closed_since_last_run": 13,
-    "new_since_last_run": 2,
-    "carried_over": 3,
-    "merges_since_last_run": 13
+    "total_open_copilot_prs": 10,
+    "draft_prs": 6,
+    "ready_prs": 4,
+    "by_action": {"auto_merge": 2, "fast_track": 2, "defer": 6},
+    "by_category": {"bug": 4, "chore": 2, "refactor": 2, "feature": 2},
+    "by_risk": {"high": 2, "medium": 2, "low": 6},
+    "by_priority": {"high": 2, "medium": 1, "low": 7},
+    "closed_since_last_run": 2,
+    "new_since_last_run": 6,
+    "carried_over": 4,
+    "merges_since_last_run": 2
   },
-  "batches": {},
+  "batches": {
+    "quality-sweep-drafts": [42178, 42179, 42180, 42181]
+  },
   "label_conflicts": [
-    {
-      "pr": 41830,
-      "stale_labels": [
-        "pr-batch:production-fixes"
-      ]
-    },
-    {
-      "pr": 41824,
-      "stale_labels": [
-        "pr-action:defer",
-        "pr-batch:active-drafts",
-        "pr-batch:feature-promo"
-      ]
-    }
+    {"pr": 41824, "stale_labels": ["pr-action:defer", "pr-batch:active-drafts", "pr-batch:feature-promo"]}
   ],
-  "notes": "5 open agent PRs. 13 merged since last run. 2 new: #42150 (draft, tiny bug fix, low risk), #42137 (ready, canvas extension, high impact, CI passing). 3 carried over: #41830 (47h stale, fast_track, CI passing), #41824 (48h stale, fast_track, CHANGES_REQUESTED), #42100 (10h draft, defer). No batches. Both stale ready PRs need human sign-off urgently. Run \u00a728342769269."
+  "notes": "10 open agent PRs. 2 merged since last run (#42137 canvas, #42156 semver). 6 new: #42165+#42163 (ready, auto_merge, CI passing), #42178+#42179+#42180+#42181 (drafts, quality sweep). 4 carried over: #41830 (53.6h critical stale fast_track), #41824 (55.1h CHANGES_REQUESTED), #42150 (7.9h draft), #42100 (17.3h draft). Run §28357644191."
 }
