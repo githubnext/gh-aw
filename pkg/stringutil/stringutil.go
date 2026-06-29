@@ -41,7 +41,7 @@ func NormalizeWhitespace(content string) string {
 	// Join back and ensure exactly one trailing newline if content is not empty
 	normalized := strings.Join(lines, "\n")
 	normalized = strings.TrimRight(normalized, "\n")
-	if len(normalized) > 0 {
+	if normalized != "" {
 		normalized += "\n"
 	}
 

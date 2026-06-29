@@ -28,7 +28,7 @@ var (
 	debugEnv = initDebugEnv()
 
 	// DEBUG_COLORS environment variable to control color output.
-	debugColors = os.Getenv("DEBUG_COLORS") != "0"
+	debugColors = os.Getenv("DEBUG_COLORS") != "0" //nolint:osgetenvlibrary
 
 	// Color palette for namespace coloring, using adaptive styles.
 	colorPalette = []lipgloss.Style{
@@ -51,10 +51,10 @@ var (
 // If DEBUG is set, it takes precedence. Otherwise, if ACTIONS_RUNNER_DEBUG=true,
 // all loggers are enabled (equivalent to DEBUG=*).
 func initDebugEnv() string {
-	if d := os.Getenv("DEBUG"); d != "" {
+	if d := os.Getenv("DEBUG"); d != "" { //nolint:osgetenvlibrary
 		return d
 	}
-	if os.Getenv("ACTIONS_RUNNER_DEBUG") == "true" {
+	if os.Getenv("ACTIONS_RUNNER_DEBUG") == "true" { //nolint:osgetenvlibrary
 		return "*"
 	}
 	return ""

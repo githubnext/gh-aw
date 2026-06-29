@@ -10,6 +10,9 @@
 #         expires: "1d"
 #         labels: [automation]
 #         reviewers: [copilot]
+#         protected-files:            # optional; omit to use default request_review policy
+#           exclude:
+#             - .github/extensions/  # opt a dot-folder out of the default protected set
 
 import-schema:
   title-prefix:
@@ -28,6 +31,9 @@ import-schema:
     type: array
     default: [copilot]
     description: "Reviewers to assign to created PRs"
+  protected-files:
+    description: "Protected files policy for create-pull-request (string policy or object with exclude/policy). Omit to use the default request_review policy."
+    default: "request_review"
 
 imports:
   - shared/activation-app.md
@@ -39,5 +45,6 @@ safe-outputs:
     title-prefix: "${{ github.aw.import-inputs.title-prefix }}"
     labels: ${{ github.aw.import-inputs.labels }}
     reviewers: ${{ github.aw.import-inputs.reviewers }}
+    protected-files: ${{ github.aw.import-inputs.protected-files }}
   noop:
 ---

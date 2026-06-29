@@ -164,7 +164,7 @@ To build and test repository custom linters:
 - @mason-tim: #33084 _(direct issue)_, #33074 _(direct issue)_, #31489 _(direct issue)_, #30336 _(direct issue)_, #29301 _(direct issue)_
 - @MatthewBunker: #39876 _(direct issue)_, #39649 _(direct issue)_
 - @MatthewLabasan-NBCU: #26289 _(direct issue)_
-- @MattSkala: #40354 _(direct issue)_, #24567 _(direct issue)_
+- @MattSkala: #40354 _(direct issue)_
 - @MauroDruwel: #30178 _(direct issue)_, #30169 _(direct issue)_, #29379 _(direct issue)_, #29378 _(direct issue)_
 - @mdashrraf: #28657 _(direct issue)_
 - @michen00: #36857 _(direct issue)_, #31869 _(direct issue)_
@@ -200,7 +200,6 @@ To build and test repository custom linters:
 - @shiran-gutsy: #27641 _(direct issue)_
 - @shubhamtanwar23: #39206 _(direct issue)_, #39205 _(direct issue)_, #39202 _(direct issue)_
 - @stefankrzyz: #27260 _(direct issue)_
-- @straub: #24569 _(direct issue)_
 - @strawgate: #33597 _(direct issue)_
 - @susmahad: #26276 _(direct issue)_, #25866 _(direct issue)_, #25710 _(direct issue)_
 - @szabta89: #29064 _(direct issue)_, #29063 _(direct issue)_

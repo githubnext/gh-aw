@@ -89,24 +89,11 @@ var (
 func getCompiledAWFConfigSchema() (*jsonschema.Schema, error) {
 	compiledAWFConfigSchemaOnce.Do(func() {
 		awfConfigLog.Print("Compiling AWF config schema (first time)")
-		var schemaDoc any
-		if err := json.Unmarshal([]byte(awfConfigSchema), &schemaDoc); err != nil {
-			awfConfigSchemaCompileError = fmt.Errorf("failed to parse embedded AWF config schema: %w", err)
-			return
-		}
-		loader := jsonschema.NewCompiler()
 		schemaURL := fmt.Sprintf("https://github.com/github/gh-aw-firewall/releases/download/%s/awf-config.schema.json", constants.DefaultFirewallVersion)
-		if err := loader.AddResource(schemaURL, schemaDoc); err != nil {
-			awfConfigSchemaCompileError = fmt.Errorf("failed to add AWF config schema resource: %w", err)
-			return
+		compiledAWFConfigSchema, awfConfigSchemaCompileError = compileSchema(awfConfigSchema, schemaURL)
+		if awfConfigSchemaCompileError == nil {
+			awfConfigLog.Print("AWF config schema compiled successfully")
 		}
-		schema, err := loader.Compile(schemaURL)
-		if err != nil {
-			awfConfigSchemaCompileError = fmt.Errorf("failed to compile AWF config schema: %w", err)
-			return
-		}
-		compiledAWFConfigSchema = schema
-		awfConfigLog.Print("AWF config schema compiled successfully")
 	})
 	return compiledAWFConfigSchema, awfConfigSchemaCompileError
 }

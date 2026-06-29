@@ -51,7 +51,7 @@ func (c CommandPrefix) String() string {
 
 // IsValid returns true if the command prefix is non-empty
 func (c CommandPrefix) IsValid() bool {
-	return len(c) > 0
+	return c != ""
 }
 
 // WorkflowID represents a workflow identifier (basename without .md extension).
@@ -548,7 +548,7 @@ const UsrLocalPrefix = "/usr/local"
 // Always uses forward slashes, which are required for git/GitHub paths.
 // GH_AW_WORKFLOWS_DIR overrides the default; any OS-specific separators are normalized.
 func GetWorkflowDir() string {
-	if dir := os.Getenv("GH_AW_WORKFLOWS_DIR"); dir != "" {
+	if dir := os.Getenv("GH_AW_WORKFLOWS_DIR"); dir != "" { //nolint:osgetenvlibrary
 		return filepath.ToSlash(dir)
 	}
 	return WorkflowsDir

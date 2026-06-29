@@ -5,6 +5,8 @@ package parser
 import (
 	"strings"
 	"testing"
+
+	"github.com/santhosh-tekuri/jsonschema/v6/kind"
 )
 
 func TestExtractAdditionalPropertyNames(t *testing.T) {
@@ -137,162 +139,85 @@ permissions:
 	}
 }
 
-func TestLocateJSONPathInYAMLWithAdditionalProperties(t *testing.T) {
-	yamlContent := `name: John
-age: 25
-invalid_prop: value
-another_invalid: value2`
+func TestLocateJSONPathForPathInfoUsesAdditionalPropertiesErrorKind(t *testing.T) {
+	yamlContent := `on:
+  push:
+    branches: [main]
+  foobar: invalid`
 
-	tests := []struct {
-		name         string
-		jsonPath     string
-		errorMessage string
-		expectedLine int
-		expectedCol  int
-		shouldFind   bool
-	}{
-		{
-			name:         "empty path with additional properties",
-			jsonPath:     "",
-			errorMessage: "at '': additional properties 'invalid_prop', 'another_invalid' not allowed",
-			expectedLine: 3,
-			expectedCol:  1,
-			shouldFind:   true,
-		},
-		{
-			name:         "empty path with single additional property",
-			jsonPath:     "",
-			errorMessage: "at '': additional properties 'another_invalid' not allowed",
-			expectedLine: 4,
-			expectedCol:  1,
-			shouldFind:   true,
-		},
-		{
-			name:         "empty path without additional properties message",
-			jsonPath:     "",
-			errorMessage: "some other error",
-			expectedLine: 1,
-			expectedCol:  1,
-			shouldFind:   true,
-		},
-		{
-			name:         "non-empty path should use regular logic",
-			jsonPath:     "/name",
-			errorMessage: "any message",
-			expectedLine: 1,
-			expectedCol:  6, // After "name:"
-			shouldFind:   true,
-		},
+	info := JSONPathInfo{
+		Path:      "/on",
+		Message:   "this message is intentionally not parseable",
+		ErrorKind: &kind.AdditionalProperties{Properties: []string{"foobar"}},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			location := LocateJSONPathInYAMLWithAdditionalProperties(yamlContent, tt.jsonPath, tt.errorMessage)
-
-			if location.Found != tt.shouldFind {
-				t.Errorf("Expected Found=%v, got Found=%v", tt.shouldFind, location.Found)
-			}
-
-			if location.Line != tt.expectedLine {
-				t.Errorf("Expected Line=%d, got Line=%d", tt.expectedLine, location.Line)
-			}
-
-			if location.Column != tt.expectedCol {
-				t.Errorf("Expected Column=%d, got Column=%d", tt.expectedCol, location.Column)
-			}
-		})
+	location := LocateJSONPathForPathInfo(yamlContent, info)
+	if !location.Found {
+		t.Fatal("expected location to be found")
+	}
+	if location.Line != 4 || location.Column != 3 {
+		t.Fatalf("expected additional property location at line 4, col 3; got line %d, col %d", location.Line, location.Column)
 	}
 }
 
-// TestLocateJSONPathInYAMLWithAdditionalPropertiesNested tests the new functionality for nested additional properties
-func TestLocateJSONPathInYAMLWithAdditionalPropertiesNested(t *testing.T) {
-	yamlContent := `name: Test Workflow
-on:
-  push: 
+func TestLocateJSONPathForPathInfoSkipsRegexForNonAdditionalPropertiesErrorKind(t *testing.T) {
+	yamlContent := `on:
+  push:
     branches: [main]
-  foobar: invalid
-permissions:
-  contents: read
-  invalid_perm: write
-nested:
-  deeply:
-    more_nested: true
-    bad_prop: invalid`
+  foobar: invalid`
 
-	tests := []struct {
-		name         string
-		jsonPath     string
-		errorMessage string
-		expectedLine int
-		expectedCol  int
-		shouldFind   bool
-	}{
-		{
-			name:         "nested additional property under 'on'",
-			jsonPath:     "/on",
-			errorMessage: "at '/on': additional properties 'foobar' not allowed",
-			expectedLine: 5,
-			expectedCol:  3, // Position of 'foobar'
-			shouldFind:   true,
-		},
-		{
-			name:         "nested additional property under 'permissions'",
-			jsonPath:     "/permissions",
-			errorMessage: "at '/permissions': additional properties 'invalid_perm' not allowed",
-			expectedLine: 8,
-			expectedCol:  3, // Position of 'invalid_perm'
-			shouldFind:   true,
-		},
-		{
-			name:         "deeply nested additional property",
-			jsonPath:     "/nested/deeply",
-			errorMessage: "at '/nested/deeply': additional properties 'bad_prop' not allowed",
-			expectedLine: 12,
-			expectedCol:  5, // Position of 'bad_prop' (indented further)
-			shouldFind:   true,
-		},
-		{
-			name:         "multiple additional properties - should find first",
-			jsonPath:     "/on",
-			errorMessage: "at '/on': additional properties 'foobar', 'another_prop' not allowed",
-			expectedLine: 5,
-			expectedCol:  3, // Position of 'foobar' (first one found)
-			shouldFind:   true,
-		},
-		{
-			name:         "non-existent path with additional properties",
-			jsonPath:     "/nonexistent",
-			errorMessage: "at '/nonexistent': additional properties 'some_prop' not allowed",
-			expectedLine: 1, // Falls back to global search, which won't find 'some_prop'
-			expectedCol:  1,
-			shouldFind:   false,
-		},
-		{
-			name:         "nested path without additional properties error",
-			jsonPath:     "/on/push",
-			errorMessage: "at '/on/push': some other validation error",
-			expectedLine: 3, // Should find the 'push' key location using regular logic
-			expectedCol:  8, // After "push:"
-			shouldFind:   true,
-		},
+	info := JSONPathInfo{
+		Path:      "/on",
+		Message:   "at '/on': additional properties 'foobar' not allowed",
+		ErrorKind: &kind.Type{},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			location := LocateJSONPathInYAMLWithAdditionalProperties(yamlContent, tt.jsonPath, tt.errorMessage)
+	location := LocateJSONPathForPathInfo(yamlContent, info)
+	expected := LocateJSONPathInYAML(yamlContent, "/on")
+	if location != expected {
+		t.Fatalf("expected fallback to LocateJSONPathInYAML location %+v, got %+v", expected, location)
+	}
+}
 
-			if location.Found != tt.shouldFind {
-				t.Errorf("Expected Found=%v, got Found=%v", tt.shouldFind, location.Found)
-			}
+func TestLocateJSONPathForPathInfoUsesRegexFallbackForGroupErrorKind(t *testing.T) {
+	yamlContent := `on:
+  push:
+    branches: [main]
+  foobar: invalid`
 
-			if location.Line != tt.expectedLine {
-				t.Errorf("Expected Line=%d, got Line=%d", tt.expectedLine, location.Line)
-			}
+	info := JSONPathInfo{
+		Path:      "/on",
+		Message:   "at '/on': additional properties 'foobar' not allowed",
+		ErrorKind: &kind.Group{},
+	}
 
-			if location.Column != tt.expectedCol {
-				t.Errorf("Expected Column=%d, got Column=%d", tt.expectedCol, location.Column)
-			}
-		})
+	location := LocateJSONPathForPathInfo(yamlContent, info)
+	if !location.Found {
+		t.Fatal("expected location to be found")
+	}
+	if location.Line != 4 || location.Column != 3 {
+		t.Fatalf("expected additional property location at line 4, col 3; got line %d, col %d", location.Line, location.Column)
+	}
+}
+
+func TestLocateJSONPathForPathInfoUsesRegexFallbackForOneOfErrorKind(t *testing.T) {
+	yamlContent := `on:
+  push:
+    branches: [main]
+  foobar: invalid`
+
+	info := JSONPathInfo{
+		Path:      "/on",
+		Message:   "at '/on': 'oneOf' failed, none matched\n- at '/on': additional properties 'foobar' not allowed\n- at '/on': got object, want null",
+		ErrorKind: &kind.OneOf{},
+	}
+
+	location := LocateJSONPathForPathInfo(yamlContent, info)
+	if !location.Found {
+		t.Fatal("expected location to be found")
+	}
+	if location.Line != 4 || location.Column != 3 {
+		t.Fatalf("expected additional property location at line 4, col 3; got line %d, col %d", location.Line, location.Column)
 	}
 }
 
@@ -372,7 +297,7 @@ footer_prop2: value2`
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			location := LocateJSONPathInYAMLWithAdditionalProperties(yamlContent, tt.jsonPath, tt.errorMessage)
+			location := LocateJSONPathForPathInfo(yamlContent, JSONPathInfo{Path: tt.jsonPath, Message: tt.errorMessage})
 
 			if location.Found != tt.shouldFind {
 				t.Errorf("Expected Found=%v, got Found=%v", tt.shouldFind, location.Found)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/santhosh-tekuri/jsonschema/v6"
+	"github.com/santhosh-tekuri/jsonschema/v6/kind"
 )
 
 var jsonPathLog = logger.New("parser:json_path_locator")
@@ -34,9 +35,10 @@ func ExtractJSONPathFromValidationError(err error) []JSONPathInfo {
 		// Process each cause (individual validation error)
 		for _, cause := range validationError.Causes {
 			path := JSONPathInfo{
-				Path:     convertInstanceLocationToJSONPath(cause.InstanceLocation),
-				Message:  cause.Error(),
-				Location: cause.InstanceLocation,
+				Path:      convertInstanceLocationToJSONPath(cause.InstanceLocation),
+				Message:   cause.Error(),
+				Location:  cause.InstanceLocation,
+				ErrorKind: cause.ErrorKind,
 			}
 			paths = append(paths, path)
 		}
@@ -47,9 +49,10 @@ func ExtractJSONPathFromValidationError(err error) []JSONPathInfo {
 
 // JSONPathInfo holds information about a validation error and its path
 type JSONPathInfo struct {
-	Path     string   // JSON path like "/tools/1" or "/age"
-	Message  string   // Error message
-	Location []string // Instance location from jsonschema (e.g., ["tools", "1"])
+	Path      string               // JSON path like "/tools/1" or "/age"
+	Message   string               // Error message
+	Location  []string             // Instance location from jsonschema (e.g., ["tools", "1"])
+	ErrorKind jsonschema.ErrorKind // Structural error kind; nil when built from a string-only context
 }
 
 // convertInstanceLocationToJSONPath converts jsonschema InstanceLocation to JSON path string
@@ -88,32 +91,38 @@ func LocateJSONPathInYAML(yamlContent string, jsonPath string) JSONPathLocation 
 	return location
 }
 
-// LocateJSONPathInYAMLWithAdditionalProperties finds the line/column position of a JSON path in YAML source
-// with special handling for additional properties errors
-func LocateJSONPathInYAMLWithAdditionalProperties(yamlContent string, jsonPath string, errorMessage string) JSONPathLocation {
-	if jsonPath == "" {
-		// This might be an additional properties error - try to extract property names
-		propertyNames := extractAdditionalPropertyNames(errorMessage)
-		if len(propertyNames) > 0 {
-			// Find the first additional property in the YAML
-			return findFirstAdditionalProperty(yamlContent, propertyNames)
+// LocateJSONPathForPathInfo finds the line/column position in YAML source for a JSONPathInfo.
+// It uses ErrorKind for structural property-name extraction when available, and falls back to
+// regex parsing of the error message string for backward compatibility.
+func LocateJSONPathForPathInfo(yamlContent string, info JSONPathInfo) JSONPathLocation {
+	if names := additionalPropertyNamesFor(info); len(names) > 0 {
+		if info.Path == "" {
+			return findFirstAdditionalProperty(yamlContent, names)
 		}
-		// Fallback to root level error
-		return JSONPathLocation{Line: 1, Column: 1, Found: true}
+		return findAdditionalPropertyInNestedContext(yamlContent, info.Path, names)
 	}
-
-	// Check if this is an additional properties error even with a non-empty path
-	propertyNames := extractAdditionalPropertyNames(errorMessage)
-	if len(propertyNames) > 0 {
-		// Find the additional property within the nested context
-		return findAdditionalPropertyInNestedContext(yamlContent, jsonPath, propertyNames)
-	}
-
-	// For non-empty paths without additional properties, use the regular logic
-	return LocateJSONPathInYAML(yamlContent, jsonPath)
+	return LocateJSONPathInYAML(yamlContent, info.Path)
 }
 
-// findPathInYAMLLines finds a JSON path in YAML content using line-by-line analysis
+// additionalPropertyNamesFor returns the disallowed property names for a JSONPathInfo.
+// It checks ErrorKind first (structural, no string parsing) and falls back to regex on Message.
+func additionalPropertyNamesFor(info JSONPathInfo) []string {
+	if info.ErrorKind != nil {
+		if ap, ok := info.ErrorKind.(*kind.AdditionalProperties); ok {
+			return ap.Properties
+		}
+		switch info.ErrorKind.(type) {
+		case *kind.OneOf, *kind.AnyOf, *kind.AllOf, *kind.Group:
+			// Composite errors may wrap an additional-properties leaf; regex fallback
+			// preserves the historical location behavior for these aggregate kinds.
+			return extractAdditionalPropertyNames(info.Message)
+		default:
+			return nil
+		}
+	}
+	return extractAdditionalPropertyNames(info.Message)
+}
+
 func findPathInYAMLLines(yamlContent string, pathSegments []PathSegment) JSONPathLocation {
 	lines := strings.Split(yamlContent, "\n")
 

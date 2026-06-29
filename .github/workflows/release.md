@@ -748,6 +748,8 @@ jobs:
               release_id: releaseId
             });
 
+            core.info(`Current release: tag=${currentRelease.tag_name}, id=${currentRelease.id}, sha=${currentRelease.target_commitish}, published_at=${currentRelease.published_at}, url=${currentRelease.html_url}`);
+
             const { data: releases } = await github.rest.repos.listReleases({
               owner,
               repo,
@@ -767,12 +769,16 @@ jobs:
               return;
             }
 
+            core.info(`Previous release: tag=${previousRelease.tag_name}, id=${previousRelease.id}, sha=${previousRelease.target_commitish}, published_at=${previousRelease.published_at}, url=${previousRelease.html_url}`);
+
             const query = [
               `repo:${owner}/${repo}`,
               "is:pr",
               "is:merged",
               `merged:${previousRelease.published_at}..${currentRelease.published_at}`
             ].join(" ");
+
+            core.info(`Searching merged PRs with query: ${query}`);
 
             const mergedPrs = await github.paginate(github.rest.search.issuesAndPullRequests, {
               q: query,
@@ -784,6 +790,8 @@ jobs:
               return;
             }
 
+            core.info(`Found ${mergedPrs.length} merged PR(s) between ${previousRelease.tag_name} and ${releaseTag}.`);
+
             const marker = `<!-- gh-aw-release:${releaseTag} -->`;
             const releaseUrl = currentRelease.html_url;
             const commentBody = [
@@ -793,6 +801,8 @@ jobs:
               "",
               marker
             ].join("\n");
+
+            core.info(`Comment body to post:\n${commentBody}`);
 
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             const withRetry = async (fn, label) => {
@@ -839,6 +849,7 @@ jobs:
                   }),
                 `Creating release comment for #${pr.number}`
               );
+              core.info(`Commented on PR #${pr.number}: ${pr.title} — ${pr.html_url}`);
               commentedCount += 1;
             }
 

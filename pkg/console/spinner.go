@@ -101,7 +101,7 @@ type SpinnerWrapper struct {
 // Automatically disabled when not running in a TTY or when ACCESSIBLE env var is set.
 func NewSpinner(message string) *SpinnerWrapper {
 	isTTY := tty.IsStderrTerminal()
-	isAccessible := os.Getenv("ACCESSIBLE") != ""
+	isAccessible := IsAccessibleMode()
 	enabled := isTTY && !isAccessible
 	spinnerLog.Printf("Creating spinner: message=%q, tty=%t, accessible=%t, enabled=%t", message, isTTY, isAccessible, enabled)
 	s := &SpinnerWrapper{enabled: enabled}

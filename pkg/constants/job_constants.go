@@ -17,7 +17,7 @@ func (j JobName) String() string {
 
 // IsValid returns true if the job name is non-empty
 func (j JobName) IsValid() bool {
-	return len(j) > 0
+	return j != ""
 }
 
 // StepID represents a GitHub Actions step identifier.
@@ -37,7 +37,7 @@ func (s StepID) String() string {
 
 // IsValid returns true if the step ID is non-empty
 func (s StepID) IsValid() bool {
-	return len(s) > 0
+	return s != ""
 }
 
 // MCPServerID represents a built-in MCP server identifier.

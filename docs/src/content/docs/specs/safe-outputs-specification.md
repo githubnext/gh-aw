@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.23.0  
+**Version**: 1.24.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-06-10  
+**Publication Date**: 2026-06-13  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)  
 **Latest Published Version**: This document

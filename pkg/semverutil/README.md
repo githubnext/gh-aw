@@ -88,6 +88,16 @@ semverutil.Compare("v1.0.0", "v1.0.0") // 0  (equal)
 semverutil.Compare("v0.9.0", "v1.0.0") // -1 (v0.9 is older)
 ```
 
+### `IsMorePreciseVersion(v1, v2 string) bool`
+
+Reports whether `v1` should sort ahead of `v2` in the action-version specificity ordering. Versions with more dot-separated components sort first (e.g. `"v4.3.0"` ahead of `"v4"`), and ties use lexicographic ordering. This is an ordering predicate, not a strict "more precise" check. No validation is performed; callers MUST ensure both inputs are well-formed version tags.
+
+```go
+semverutil.IsMorePreciseVersion("v4.3.0", "v4")     // true  (v4.3.0 is more specific)
+semverutil.IsMorePreciseVersion("v4", "v4.3.0")     // false
+semverutil.IsMorePreciseVersion("v4.3.0", "v4.3.0") // false (equal precision)
+```
+
 ### `IsCompatible(pinVersion, requestedVersion string) bool`
 
 Reports whether `pinVersion` is semver-compatible with `requestedVersion`. Compatibility is defined as sharing the same major version.

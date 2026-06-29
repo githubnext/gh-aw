@@ -124,6 +124,23 @@
                               },
                               {
                                 "type": "boolean"
+                              },
+                              {
+                                "type": "array",
+                                "description": "Array sub-property of an object import parameter.",
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    }
+                                  ]
+                                }
                               }
                             ]
                           }
@@ -170,6 +187,23 @@
                               },
                               {
                                 "type": "boolean"
+                              },
+                              {
+                                "type": "array",
+                                "description": "Array sub-property of an object import parameter.",
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    }
+                                  ]
+                                }
                               }
                             ]
                           }
@@ -255,6 +289,23 @@
                                   },
                                   {
                                     "type": "boolean"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "description": "Array sub-property of an object import parameter.",
+                                    "items": {
+                                      "oneOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
                                   }
                                 ]
                               }
@@ -301,6 +352,23 @@
                                   },
                                   {
                                     "type": "boolean"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "description": "Array sub-property of an object import parameter.",
+                                    "items": {
+                                      "oneOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
                                   }
                                 ]
                               }
@@ -9194,7 +9262,7 @@
           ],
           "description": "Dispatch workflow_dispatch events to other workflows. Used by orchestrators to delegate work to worker workflows with controlled maximum dispatch count."
         },
-        "dispatch_repository": {
+        "dispatch-repository": {
           "type": "object",
           "description": "Dispatch repository_dispatch events to external repositories. Each sub-key defines a named dispatch tool with its own event_type, target repository, input schema, and execution limits.",
           "additionalProperties": {
@@ -9291,6 +9359,10 @@
             "required": ["workflow", "event_type"],
             "additionalProperties": false
           }
+        },
+        "dispatch_repository": {
+          "$ref": "#/properties/safe-outputs/properties/dispatch-repository",
+          "description": "Deprecated alias for dispatch-repository."
         },
         "call-workflow": {
           "oneOf": [
@@ -10014,6 +10086,11 @@
                 "output": {
                   "type": "string",
                   "description": "Output configuration for the safe job"
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Maximum number of times this output type may be emitted per run (default: 1). Increase for workflows that emit multiple findings, comments, or other items from a single agent run."
                 },
                 "inputs": {
                   "type": "object",

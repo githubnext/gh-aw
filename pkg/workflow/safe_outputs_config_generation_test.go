@@ -461,6 +461,46 @@ func TestGenerateSafeOutputsConfigAddLabelsBlocked(t *testing.T) {
 	assert.Equal(t, "triage-needed", blockedSlice[3], "Fourth blocked pattern should match")
 }
 
+// TestGenerateSafeOutputsConfigSafeJobMax tests that the max field is emitted in config.json
+// for custom safe-jobs so the output collector can enforce it.
+func TestGenerateSafeOutputsConfigSafeJobMax(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			Jobs: map[string]*SafeJobConfig{
+				"emit-finding": {
+					Description: "Emit a quality finding",
+					Max:         25,
+					Inputs: map[string]*InputDefinition{
+						"message": {Type: "string", Required: true},
+					},
+				},
+				"single-output": {
+					Description: "Max not set — should be omitted from config",
+					Inputs: map[string]*InputDefinition{
+						"body": {Type: "string"},
+					},
+				},
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+
+	findingCfg, ok := parsed["emit-finding"].(map[string]any)
+	require.True(t, ok, "emit-finding should be present in config")
+	assert.InDelta(t, float64(25), findingCfg["max"], 0.0001, "max should be 25")
+
+	singleCfg, ok := parsed["single-output"].(map[string]any)
+	require.True(t, ok, "single-output should be present in config")
+	_, hasMax := singleCfg["max"]
+	assert.False(t, hasMax, "max should be absent when not configured (lets runtime default to 1)")
+}
+
 // TestGenerateSafeOutputsConfigCreatePullRequestTargetRepo tests that target-repo
 // and related cross-repo fields are included in config.json for create_pull_request.
 func TestGenerateSafeOutputsConfigCreatePullRequestTargetRepo(t *testing.T) {

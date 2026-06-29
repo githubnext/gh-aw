@@ -185,6 +185,21 @@ For PR UI validation and screenshot diffs:
 - output: `add-comment` with pass/fail summary and artifact links
 - fallback: `noop` when no UI changes detected
 
+## Design Token / CSS Governance Pattern
+
+For PRs touching design tokens or CSS files that require a linked design reference (Figma link, design doc URL, or ADR token):
+
+- trigger: `pull_request` with `paths:` scoped to token/style files (for example `tokens/**`, `**/*.tokens.json`, `**/*.css`, `src/styles/**`, `design-system/**`)
+- permissions: `pull-requests: read`, `contents: read`; agent job read-only
+- reads: PR body and comments via `gh pr view` to locate the linked design reference; then validate that the link target is reachable and matches the changed components
+- output:
+  - Link present and valid → `add-comment` with ✅ summary
+  - Link present but incomplete (for example wrong component, outdated version) → `add-comment` describing the specific gap
+  - Required link missing → `add-comment` requesting it; escalate to `create-issue` only when the workflow prompt explicitly requires a blocking review gate (for example a CODEOWNERS or policy rule) and no open issue already covers the same scope
+- fallback: `noop` when `paths:` guard excludes all changed files
+
+See also: the PR Checks with Linked References pattern in [github-agentic-workflows.md](github-agentic-workflows.md).
+
 ## QA Coverage Report Pattern
 
 For PR QA coverage summaries (gaps, risks, suggested test focus):

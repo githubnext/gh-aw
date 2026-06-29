@@ -8,6 +8,23 @@ import (
 	"testing"
 )
 
+func TestDailySafeOutputIntegratorHasToolBudgetAwareness(t *testing.T) {
+	sourceContent, err := os.ReadFile("../../.github/workflows/daily-safe-output-integrator.md")
+	if err != nil {
+		t.Fatalf("failed to read workflow source: %v", err)
+	}
+
+	sourceContentStr := string(sourceContent)
+	for _, expected := range []string{
+		"If you are approaching the tool call limit, emit a partial result immediately rather than continuing to gather more data.",
+		"Process at most **20 missing types** per run.",
+	} {
+		if !strings.Contains(sourceContentStr, expected) {
+			t.Fatalf("expected daily-safe-output-integrator to contain tool budget awareness guidance %q", expected)
+		}
+	}
+}
+
 func TestDailySafeOutputIntegratorIncludesTempCoverageScriptAllowlist(t *testing.T) {
 	sourceContent, err := os.ReadFile("../../.github/workflows/daily-safe-output-integrator.md")
 	if err != nil {

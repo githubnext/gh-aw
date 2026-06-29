@@ -39,7 +39,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -62,30 +61,13 @@ var (
 func getCompiledSchema() (*jsonschema.Schema, error) {
 	compiledSchemaOnce.Do(func() {
 		schemaValidationLog.Print("Compiling GitHub Actions schema (first time)")
-		// Parse the embedded schema
-		var schemaDoc any
-		if err := json.Unmarshal([]byte(githubWorkflowSchema), &schemaDoc); err != nil {
-			schemaCompileError = fmt.Errorf("failed to parse embedded GitHub Actions schema: %w", err)
-			return
+		compiledSchema, schemaCompileError = compileSchema(
+			githubWorkflowSchema,
+			"https://json.schemastore.org/github-workflow.json",
+		)
+		if schemaCompileError == nil {
+			schemaValidationLog.Print("GitHub Actions schema compiled successfully")
 		}
-
-		// Create compiler and add the schema as a resource
-		loader := jsonschema.NewCompiler()
-		schemaURL := "https://json.schemastore.org/github-workflow.json"
-		if err := loader.AddResource(schemaURL, schemaDoc); err != nil {
-			schemaCompileError = fmt.Errorf("failed to add schema resource: %w", err)
-			return
-		}
-
-		// Compile the schema once
-		schema, err := loader.Compile(schemaURL)
-		if err != nil {
-			schemaCompileError = fmt.Errorf("failed to compile GitHub Actions schema: %w", err)
-			return
-		}
-
-		compiledSchema = schema
-		schemaValidationLog.Print("GitHub Actions schema compiled successfully")
 	})
 
 	return compiledSchema, schemaCompileError

@@ -109,25 +109,65 @@ func TestTimeoutLogic(t *testing.T) {
 	}
 }
 
-// TestMCPServerDefaultTimeout tests that the MCP server sets a default timeout
-func TestMCPServerDefaultTimeout(t *testing.T) {
-	// Test that when no timeout is specified, MCP server uses 1 minute
-	timeoutValue := 0
-	if timeoutValue == 0 {
-		timeoutValue = 1
+// TestEffectiveMCPLogsToolTimeoutMinutes verifies that the MCP logs tool
+// scales its implicit timeout with larger fetch windows while preserving
+// explicit user-provided timeouts.
+func TestEffectiveMCPLogsToolTimeoutMinutes(t *testing.T) {
+	tests := []struct {
+		name             string
+		requestedTimeout int
+		count            int
+		want             int
+	}{
+		{
+			name:             "explicit timeout is preserved",
+			requestedTimeout: 5,
+			count:            100,
+			want:             5,
+		},
+		{
+			name:             "small fetch window keeps one minute default",
+			requestedTimeout: 0,
+			count:            40,
+			want:             1,
+		},
+		{
+			name:             "fetch window above forty runs gets two minutes",
+			requestedTimeout: 0,
+			count:            41,
+			want:             2,
+		},
+		{
+			name:             "eighty run fetch window stays in two minute tier",
+			requestedTimeout: 0,
+			count:            80,
+			want:             2,
+		},
+		{
+			name:             "eighty one run fetch window enters three minute tier",
+			requestedTimeout: 0,
+			count:            81,
+			want:             3,
+		},
+		{
+			name:             "default hundred run window gets three minutes",
+			requestedTimeout: 0,
+			count:            100,
+			want:             3,
+		},
+		{
+			name:             "unspecified count falls back to default window size",
+			requestedTimeout: 0,
+			count:            0,
+			want:             3,
+		},
 	}
 
-	if timeoutValue != 1 {
-		t.Errorf("Expected MCP server default timeout to be 1 but got %d", timeoutValue)
-	}
-
-	// Test that explicit timeout overrides the default
-	timeoutValue = 5
-	if timeoutValue == 0 {
-		timeoutValue = 1
-	}
-
-	if timeoutValue != 5 {
-		t.Errorf("Expected explicit timeout to be preserved but got %d", timeoutValue)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := effectiveMCPLogsToolTimeoutMinutes(tt.requestedTimeout, tt.count); got != tt.want {
+				t.Errorf("effectiveMCPLogsToolTimeoutMinutes(%d, %d) = %d, want %d", tt.requestedTimeout, tt.count, got, tt.want)
+			}
+		})
 	}
 }

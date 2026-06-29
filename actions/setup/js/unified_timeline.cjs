@@ -27,8 +27,6 @@ const TMP_GH_AW = "/tmp/gh-aw";
 const GATEWAY_JSONL_PATH = `${TMP_GH_AW}/mcp-logs/gateway.jsonl`;
 const RPC_MESSAGES_PATH = `${TMP_GH_AW}/mcp-logs/rpc-messages.jsonl`;
 const FIREWALL_AUDIT_PATH = `${TMP_GH_AW}/sandbox/firewall/audit/audit.jsonl`;
-/** Base directory to search recursively for events.jsonl */
-const AGENT_SESSION_STATE_DIR = `${TMP_GH_AW}/sandbox/agent/logs/copilot-session-state`;
 
 // ---------------------------------------------------------------------------
 // Event-source and event-kind constants (mirror Go constants)
@@ -461,63 +459,24 @@ function collectUnifiedTimelineEvents(opts = {}) {
 function buildUnifiedTimelineMarkdown(events) {
   if (!events || events.length === 0) return "";
 
-  // Build summary counts
-  let gwCount = 0,
-    fwCount = 0,
-    agCount = 0;
-  let toolCalls = 0,
-    difcFiltered = 0,
-    guardBlocked = 0;
-  let netAllowed = 0,
-    netBlocked = 0;
-  let agentTurns = 0,
-    agentToolStarts = 0,
-    agentToolDones = 0;
-
-  for (const evt of events) {
-    switch (evt.source) {
-      case SOURCE_GATEWAY:
-        gwCount++;
-        break;
-      case SOURCE_FIREWALL:
-        fwCount++;
-        break;
-      case SOURCE_AGENT:
-        agCount++;
-        break;
-    }
-    switch (evt.kind) {
-      case KIND_TOOL_CALL:
-        toolCalls++;
-        break;
-      case KIND_DIFC_FILTERED:
-        difcFiltered++;
-        break;
-      case KIND_GUARD_BLOCKED:
-        guardBlocked++;
-        break;
-      case KIND_NET_ALLOWED:
-        netAllowed++;
-        break;
-      case KIND_NET_BLOCKED:
-        netBlocked++;
-        break;
-      case KIND_AGENT_TURN:
-        agentTurns++;
-        break;
-      case KIND_AGENT_TOOL_START:
-        agentToolStarts++;
-        break;
-      case KIND_AGENT_TOOL_DONE:
-        agentToolDones++;
-        break;
-    }
+  // Tally events per source and per kind in a single pass.
+  // NOTE: byKind is a global tally. The gateway / firewall / agent stats
+  // lines each assume their KIND_* constants do not appear in other sources.
+  // If you add a new kind, ensure it is unique across all collectors.
+  /** @type {Record<string, number>} */
+  const bySource = {};
+  /** @type {Record<string, number>} */
+  const byKind = {};
+  for (const { source, kind } of events) {
+    bySource[source] = (bySource[source] ?? 0) + 1;
+    byKind[kind] = (byKind[kind] ?? 0) + 1;
   }
 
-  const summaryParts = [`${events.length} events`];
-  if (gwCount > 0) summaryParts.push(`GW:${gwCount}`);
-  if (fwCount > 0) summaryParts.push(`FW:${fwCount}`);
-  if (agCount > 0) summaryParts.push(`AG:${agCount}`);
+  const gwCount = bySource[SOURCE_GATEWAY] ?? 0;
+  const fwCount = bySource[SOURCE_FIREWALL] ?? 0;
+  const agCount = bySource[SOURCE_AGENT] ?? 0;
+
+  const summaryParts = [`${events.length} events`, ...(gwCount > 0 ? [`GW:${gwCount}`] : []), ...(fwCount > 0 ? [`FW:${fwCount}`] : []), ...(agCount > 0 ? [`AG:${agCount}`] : [])];
 
   const lines = [];
 
@@ -526,13 +485,13 @@ function buildUnifiedTimelineMarkdown(events) {
   lines.push(``);
   lines.push(`**Total Events:** ${events.length}`);
   if (gwCount > 0) {
-    lines.push(`**Gateway (GW):** ${gwCount} — tool_calls=${toolCalls}, difc_filtered=${difcFiltered}, guard_blocked=${guardBlocked}`);
+    lines.push(`**Gateway (GW):** ${gwCount} — tool_calls=${byKind[KIND_TOOL_CALL] ?? 0}, difc_filtered=${byKind[KIND_DIFC_FILTERED] ?? 0}, guard_blocked=${byKind[KIND_GUARD_BLOCKED] ?? 0}`);
   }
   if (fwCount > 0) {
-    lines.push(`**Firewall (FW):** ${fwCount} — allowed=${netAllowed}, blocked=${netBlocked}`);
+    lines.push(`**Firewall (FW):** ${fwCount} — allowed=${byKind[KIND_NET_ALLOWED] ?? 0}, blocked=${byKind[KIND_NET_BLOCKED] ?? 0}`);
   }
   if (agCount > 0) {
-    lines.push(`**Agent (AG):** ${agCount} — turns=${agentTurns}, tool_start=${agentToolStarts}, tool_done=${agentToolDones}`);
+    lines.push(`**Agent (AG):** ${agCount} — turns=${byKind[KIND_AGENT_TURN] ?? 0}, tool_start=${byKind[KIND_AGENT_TOOL_START] ?? 0}, tool_done=${byKind[KIND_AGENT_TOOL_DONE] ?? 0}`);
   }
   lines.push(``);
   lines.push(`| Time | Src | Kind | Detail | Status |`);

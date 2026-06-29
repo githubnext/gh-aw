@@ -15,6 +15,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -83,13 +84,24 @@ func isPathLike(val string) bool {
 	return false
 }
 
-// hasFormatVerb reports whether val contains common fmt format verbs. Strings
-// with verbs are format templates, not standalone paths, so they are excluded.
+// fmtDirectivePattern matches a Go fmt directive of the form:
+//
+//	%[flags][width][.precision][argindex]verb
+//
+// where width and precision each allow an optional explicit argument index
+// before "*" (e.g. [3]*), and verb may also be preceded by an explicit
+// argument index (e.g. [1]x). This covers simple forms like %s, indexed
+// forms like %[1]s, and the full indexed form %[3]*.[2]*[1]x.
+var fmtDirectivePattern = regexp.MustCompile(`%[#0+\- ]*(?:(?:\[[0-9]+\])?\*|\d+)?(?:\.(?:(?:\[[0-9]+\])?\*|\d+))?(?:\[[0-9]+\])?[bcdeEfFgGopqstTUvwxX]`)
+
+// hasFormatVerb reports whether val contains fmt-style format directives.
+// Strings with directives are format templates, not standalone paths, so they
+// are excluded. Escaped percent pairs (%%) are ignored.
 func hasFormatVerb(val string) bool {
-	return strings.ContainsAny(val, "%") &&
-		(strings.Contains(val, "%s") || strings.Contains(val, "%d") ||
-			strings.Contains(val, "%v") || strings.Contains(val, "%q") ||
-			strings.Contains(val, "%w") || strings.Contains(val, "%f"))
+	if !strings.Contains(val, "%") {
+		return false
+	}
+	return fmtDirectivePattern.MatchString(strings.ReplaceAll(val, "%%", ""))
 }
 
 // unquoteStringLit returns the raw string value of a Go string literal token,

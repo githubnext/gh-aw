@@ -7,12 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/mod/semver"
-
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -172,10 +171,10 @@ func isCurrentVersionAtLeastLatest(currentVersion, latestVersion string) bool {
 		return true
 	}
 
-	currentSV := ensureSemverPrefix(currentVersion)
-	latestSV := ensureSemverPrefix(latestVersion)
-	if semver.IsValid(currentSV) && semver.IsValid(latestSV) {
-		return semver.Compare(currentSV, latestSV) >= 0
+	currentSV := semverutil.EnsureVPrefix(currentVersion)
+	latestSV := semverutil.EnsureVPrefix(latestVersion)
+	if semverutil.IsValid(currentSV) && semverutil.IsValid(latestSV) {
+		return semverutil.Compare(currentSV, latestSV) >= 0
 	}
 
 	return currentVersionNormalized > latestVersionNormalized

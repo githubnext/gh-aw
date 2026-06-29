@@ -18,7 +18,7 @@ func (v Version) String() string {
 
 // IsValid returns true if the version is non-empty
 func (v Version) IsValid() bool {
-	return len(v) > 0
+	return v != ""
 }
 
 // ModelName represents an AI model name identifier.
@@ -45,7 +45,7 @@ const DefaultCopilotVersion Version = "1.0.65"
 const DefaultCopilotSDKVersion Version = "1.0.4"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.142.3"
+const DefaultCodexVersion Version = "0.142.4"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.39.1"
@@ -63,7 +63,7 @@ const DefaultPiVersion Version = "0.80.2"
 const DefaultOpenCodeVersion Version = "1.2.14"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v1.4.0"
+const DefaultGitHubMCPServerVersion Version = "v1.5.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 //
@@ -73,7 +73,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.4.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.27.12"
+const DefaultFirewallVersion Version = "v0.27.13"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -118,7 +118,7 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.3.31"
+const DefaultMCPGatewayVersion Version = "v0.3.32"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.

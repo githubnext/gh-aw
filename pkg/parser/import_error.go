@@ -196,7 +196,7 @@ func findImportItemLocation(yamlContent string, importPath string) (line int, co
 		// If we're in the imports section and find a line with our import path
 		if inImportsSection {
 			// Check if this line exits the imports section (new top-level key)
-			if len(line) > 0 && line[0] != ' ' && line[0] != '-' && line[0] != '\t' {
+			if line != "" && line[0] != ' ' && line[0] != '-' && line[0] != '\t' {
 				break
 			}
 

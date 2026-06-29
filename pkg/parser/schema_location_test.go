@@ -322,6 +322,23 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AdditionalProperti
 			errContains: "requird",
 		},
 		{
+			name: "dispatch-repository key is accepted by schema",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+				"safe-outputs": map[string]any{
+					"dispatch-repository": map[string]any{
+						"relay": map[string]any{
+							"workflow":   "router.yml",
+							"event_type": "dispatch",
+							"repository": "github/gh-aw",
+						},
+					},
+				},
+			},
+			filePath: "/test/workflow.md",
+			wantErr:  false,
+		},
+		{
 			name: "valid workflow_call input still compiles",
 			frontmatter: map[string]any{
 				"on": map[string]any{

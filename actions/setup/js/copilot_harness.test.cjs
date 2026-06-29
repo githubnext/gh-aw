@@ -44,6 +44,7 @@ const {
   generateCopilotConnectionToken,
   GEMINI_MODEL_NAME_PREFIX,
   isCAPIQuotaExceededError,
+  isHTTP400ResponseError,
   isSDKSessionIdleTimeoutError,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
@@ -915,12 +916,14 @@ describe("copilot_harness.cjs", () => {
           "MCP servers were blocked by policy: 'github'",
           "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM",
           "Execution failed: CAPIError: 400 The requested model is not supported.",
+          "Response status code does not indicate success: 400 (Bad Request)",
         ].join("\n");
         expect(detectCopilotErrors(output)).toEqual({
           inferenceAccessError: true,
           mcpPolicyError: true,
           agenticEngineTimeout: true,
           modelNotSupportedError: true,
+          http400ResponseError: true,
         });
         expect(INFERENCE_ACCESS_ERROR_PATTERN.test(output)).toBe(true);
         expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test(output)).toBe(true);
@@ -936,6 +939,7 @@ describe("copilot_harness.cjs", () => {
           mcpPolicyError: false,
           agenticEngineTimeout: true,
           modelNotSupportedError: false,
+          http400ResponseError: true,
         });
 
         const content = fs.readFileSync(outputFile, "utf8");
@@ -943,6 +947,7 @@ describe("copilot_harness.cjs", () => {
         expect(content).toContain("mcp_policy_error=false");
         expect(content).toContain("agentic_engine_timeout=true");
         expect(content).toContain("model_not_supported_error=false");
+        expect(content).toContain("http_400_response_error=true");
       });
     });
 
@@ -959,6 +964,24 @@ describe("copilot_harness.cjs", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("Access denied by policy settings")).toBe(false);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("MCP servers were blocked by policy: 'github'")).toBe(false);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("")).toBe(false);
+    });
+  });
+
+  describe("isHTTP400ResponseError", () => {
+    it("matches the exact SDK message format", () => {
+      expect(isHTTP400ResponseError("Response status code does not indicate success: 400 (Bad Request)")).toBe(true);
+    });
+
+    it("matches without the (Bad Request) suffix", () => {
+      expect(isHTTP400ResponseError("Response status code does not indicate success: 400")).toBe(true);
+    });
+
+    it("does not match CAPIError 400 (a distinct error shape)", () => {
+      expect(isHTTP400ResponseError("CAPIError: 400 The requested model is not supported.")).toBe(false);
+    });
+
+    it("returns false for empty output", () => {
+      expect(isHTTP400ResponseError("")).toBe(false);
     });
   });
 

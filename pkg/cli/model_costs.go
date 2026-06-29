@@ -6,7 +6,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var modelCostsLog = logger.New("cli:model_costs")
 
 //go:embed data/models.json
 var modelsJSON []byte
@@ -68,6 +72,7 @@ func initModelPrices() {
 				modelPriceRecords = append(modelPriceRecords, record)
 			}
 		}
+		modelCostsLog.Printf("Initialized model price catalog: providers=%d, records=%d", len(data.Providers), len(modelPriceRecords))
 	})
 }
 
@@ -89,6 +94,7 @@ func findModelPricing(provider, model string) (map[string]float64, bool) {
 
 	for _, record := range modelPriceRecords {
 		if (fullID != "" && record.id == fullID) || (comparableFullID != "" && normalizeComparableModelID(record.id) == comparableFullID) {
+			modelCostsLog.Printf("Exact pricing match: provider=%s, model=%s -> %s", provider, model, record.id)
 			return record.pricing, true
 		}
 	}
@@ -123,11 +129,14 @@ func findModelPricing(provider, model string) (map[string]float64, bool) {
 	}
 
 	if bestProviderScoped != nil {
+		modelCostsLog.Printf("Provider-scoped prefix pricing match: provider=%s, model=%s", provider, model)
 		return bestProviderScoped, true
 	}
 	if bestGeneric != nil {
+		modelCostsLog.Printf("Generic prefix pricing match: provider=%s, model=%s", provider, model)
 		return bestGeneric, true
 	}
+	modelCostsLog.Printf("No pricing match: provider=%s, model=%s", provider, model)
 	return nil, false
 }
 
