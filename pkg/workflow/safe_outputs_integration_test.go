@@ -185,7 +185,9 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 			configBuilder: func() *SafeOutputsConfig {
 				return &SafeOutputsConfig{
 					AssignToUser: &AssignToUserConfig{
-						Allowed: []string{"user1"},
+						SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+							Allowed: []string{"user1"},
+						},
 					},
 				}
 			},
