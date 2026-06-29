@@ -58,10 +58,8 @@ This workflow verifies that sudo is omitted when sudo is false (network isolatio
 			t.Error("Expected no 'sudo -E awf' in lock file when sudo is false (network isolation mode)")
 		}
 
-		// AWF must still be invoked (just without sudo). Check for the main AWF invocation pattern.
-		// The awf command appears in a multi-line run: | block with indentation (e.g., "          awf --config").
-		// This pattern uniquely identifies the main AWF execution (not the log-parsing "awf logs summary").
-		if !strings.Contains(lockStr, "\n          awf --config ") {
+		// AWF must still be invoked (just without sudo).
+		if !strings.Contains(lockStr, "awf --config ") {
 			t.Error("Expected rootless 'awf --config' invocation in lock file main execution step")
 		}
 
@@ -122,8 +120,8 @@ This workflow verifies that sudo is omitted by default when sudo is not set (net
 			t.Error("Expected no 'sudo -E awf' in lock file when sudo is not set (network isolation is the default)")
 		}
 
-		// AWF must still be invoked (without sudo). Check for the main AWF invocation pattern.
-		if !strings.Contains(lockStr, "\n          awf --config ") {
+		// AWF must still be invoked (without sudo).
+		if !strings.Contains(lockStr, "awf --config ") {
 			t.Error("Expected rootless 'awf --config' invocation in lock file main execution step")
 		}
 
