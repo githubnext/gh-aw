@@ -179,6 +179,8 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", err.Error()))
 		c.IncrementWarningCount()
 	}
+	workflowLog.Printf("Validating cross-repo checkout paths")
+	c.validateCrossRepoCheckoutPaths(workflowData.CheckoutConfigs, markdownPath)
 	workflowLog.Printf("Validating push-to-pull-request-branch configuration")
 	c.validatePushToPullRequestBranchWarnings(workflowData.SafeOutputs, workflowData.CheckoutConfigs)
 	for _, validation := range validations {
