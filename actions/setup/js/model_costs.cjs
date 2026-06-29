@@ -249,8 +249,36 @@ function formatAIC(value) {
   return value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
 }
 
+/** @type {Record<string, unknown> | null | undefined} */
+let _modelsJson = undefined;
+
+/**
+ * Load and return the raw parsed models.json catalog object.
+ *
+ * Returns the full JSON object (including `provider_type` fields per model entry)
+ * so callers can perform custom lookups like provider-type resolution.
+ * The result is cached after the first successful read.
+ *
+ * @returns {Record<string, unknown> | null}
+ */
+function loadModelsJson() {
+  if (_modelsJson !== undefined) {
+    return _modelsJson;
+  }
+  try {
+    const raw = fs.readFileSync(getModelsPath(), "utf8");
+    const parsed = JSON.parse(raw);
+    const isPlainObject = parsed !== null && typeof parsed === "object" && !Array.isArray(parsed);
+    _modelsJson = isPlainObject ? /** @type {Record<string, unknown>} */ parsed : null;
+  } catch {
+    _modelsJson = null;
+  }
+  return _modelsJson;
+}
+
 function _resetModelCostsCache() {
   _catalog = undefined;
+  _modelsJson = undefined;
 }
 
 module.exports = {
@@ -260,6 +288,7 @@ module.exports = {
   formatAIC,
   getModelsPath,
   loadCatalog,
+  loadModelsJson,
   usdToAIC,
   _resetModelCostsCache,
 };

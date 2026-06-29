@@ -7,12 +7,13 @@
  * configuration from environment variables, delegates the full session
  * lifecycle to copilot_sdk_session.cjs, and exits with the session's exit code.
  *
- *   GH_AW_PROMPT                      — path to the prompt file
- *   COPILOT_SDK_URI                    — SDK server URI (set by the harness)
- *   COPILOT_CONNECTION_TOKEN           — shared secret for the SDK session (set by the harness)
- *   COPILOT_MODEL                      — model override (optional)
+ *   GH_AW_PROMPT                       — path to the prompt file
+ *   COPILOT_SDK_URI                     — SDK server URI (set by the harness)
+ *   COPILOT_CONNECTION_TOKEN            — shared secret for the SDK session (set by the harness)
+ *   COPILOT_MODEL                       — model override (optional)
  *   GH_AW_COPILOT_SDK_PROVIDER_BASE_URL — BYOK provider base URL (set by the harness)
- *   GH_AW_COPILOT_SDK_SERVER_ARGS      — JSON-encoded allow-tool sidecar args (set by the engine)
+ *   GH_AW_COPILOT_SDK_PROVIDER_TYPE    — BYOK provider type: "openai" | "azure" | "anthropic" (set by the harness)
+ *   GH_AW_COPILOT_SDK_SERVER_ARGS       — JSON-encoded allow-tool sidecar args (set by the engine)
  *
  * The sidecar is started and stopped by the harness; the driver only opens a
  * client connection, runs the session, and exits.
@@ -89,15 +90,20 @@ async function main() {
 
   // --- Resolve BYOK custom provider from environment ------------------
   // The harness resolves the BYOK provider from live AWF reflect data before launching
-  // this driver and injects the result as GH_AW_COPILOT_SDK_PROVIDER_BASE_URL.
-  // BYOK is the only supported mode — fail immediately if the env var is missing.
+  // this driver and injects the result as GH_AW_COPILOT_SDK_PROVIDER_BASE_URL and
+  // GH_AW_COPILOT_SDK_PROVIDER_TYPE.
+  // BYOK is the only supported mode — fail immediately if the base URL is missing.
   const providerBaseUrl = process.env.GH_AW_COPILOT_SDK_PROVIDER_BASE_URL;
   if (!providerBaseUrl) {
     process.stderr.write("[copilot-sdk-driver] error: GH_AW_COPILOT_SDK_PROVIDER_BASE_URL is not set — " + "BYOK provider is required; ensure the harness resolved a custom provider from awf-reflect data\n");
     process.exit(1);
   }
+  const rawProviderType = process.env.GH_AW_COPILOT_SDK_PROVIDER_TYPE || "openai";
+  /** @type {"openai" | "azure" | "anthropic"} */
+  const providerType = rawProviderType === "anthropic" || rawProviderType === "azure" ? rawProviderType : "openai";
+  log(`provider type: ${providerType}`);
   /** @type {import("@github/copilot-sdk").ProviderConfig} */
-  const provider = { type: "openai", baseUrl: providerBaseUrl };
+  const provider = { type: providerType, baseUrl: providerBaseUrl };
 
   // --- Build permission config from sidecar server args ----------------
   // GH_AW_COPILOT_SDK_SERVER_ARGS holds the JSON-encoded --allow-tool flags

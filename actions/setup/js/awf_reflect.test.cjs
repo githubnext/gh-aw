@@ -18,6 +18,7 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  inferProviderTypeForModel,
   resolveCopilotSDKCustomProviderFromReflect,
 } = require("./awf_reflect.cjs");
 
@@ -332,6 +333,69 @@ describe("awf_reflect.cjs", () => {
     });
   });
 
+  describe("inferProviderTypeForModel", () => {
+    it("returns 'anthropic' for anthropic endpoint provider", () => {
+      expect(inferProviderTypeForModel("anthropic", "claude-sonnet-4.6", null)).toBe("anthropic");
+    });
+
+    it("returns 'azure' for azure endpoint provider", () => {
+      expect(inferProviderTypeForModel("azure", "gpt-4o", null)).toBe("azure");
+      expect(inferProviderTypeForModel("azure-openai", "gpt-4o", null)).toBe("azure");
+    });
+
+    it("returns 'openai' for openai endpoint provider", () => {
+      expect(inferProviderTypeForModel("openai", "gpt-4o", null)).toBe("openai");
+    });
+
+    it("uses model name heuristic for claude-* models on copilot endpoint", () => {
+      expect(inferProviderTypeForModel("copilot", "claude-sonnet-4.6", null)).toBe("anthropic");
+      expect(inferProviderTypeForModel("copilot", "claude-opus-4-5", null)).toBe("anthropic");
+      expect(inferProviderTypeForModel("", "claude-haiku-4.5", null)).toBe("anthropic");
+    });
+
+    it("uses model name heuristic for opus/haiku/sonnet suffix models", () => {
+      expect(inferProviderTypeForModel("copilot", "model-opus-4.6", null)).toBe("anthropic");
+      expect(inferProviderTypeForModel("copilot", "model-haiku-4.5", null)).toBe("anthropic");
+      expect(inferProviderTypeForModel("copilot", "model-sonnet-4", null)).toBe("anthropic");
+    });
+
+    it("uses model name heuristic for gpt-* models", () => {
+      expect(inferProviderTypeForModel("copilot", "gpt-5.4", null)).toBe("openai");
+      expect(inferProviderTypeForModel("", "gpt-4o", null)).toBe("openai");
+    });
+
+    it("uses model name heuristic for o1/o3/o4 models", () => {
+      expect(inferProviderTypeForModel("copilot", "o1-mini", null)).toBe("openai");
+      expect(inferProviderTypeForModel("copilot", "o3-pro", null)).toBe("openai");
+      expect(inferProviderTypeForModel("copilot", "o4-mini", null)).toBe("openai");
+    });
+
+    it("looks up provider_type from modelsJson catalog", () => {
+      const modelsJson = {
+        providers: {
+          "github-copilot": {
+            models: {
+              "raptor-mini": { provider_type: "openai", cost: {} },
+              "claude-sonnet-4": { provider_type: "anthropic", cost: {} },
+            },
+          },
+        },
+      };
+      expect(inferProviderTypeForModel("copilot", "raptor-mini", modelsJson)).toBe("openai");
+      expect(inferProviderTypeForModel("copilot", "claude-sonnet-4", modelsJson)).toBe("anthropic");
+    });
+
+    it("falls back to heuristics when model is not in catalog", () => {
+      const modelsJson = { providers: { "github-copilot": { models: {} } } };
+      expect(inferProviderTypeForModel("copilot", "claude-unknown-model", modelsJson)).toBe("anthropic");
+    });
+
+    it("returns 'openai' by default for unknown models", () => {
+      expect(inferProviderTypeForModel("copilot", "gemini-2.5-pro", null)).toBe("openai");
+      expect(inferProviderTypeForModel("", "raptor-mini", null)).toBe("openai");
+    });
+  });
+
   describe("resolveCopilotSDKCustomProviderFromReflect", () => {
     it("resolves provider baseUrl and model from port when models_url is absent", () => {
       const reflectData = {
@@ -352,7 +416,7 @@ describe("awf_reflect.cjs", () => {
       };
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "claude-sonnet-4.6" })).toEqual({
         model: "claude-sonnet-4.6",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+        provider: { type: "anthropic", baseUrl: "http://api-proxy:10002" },
       });
     });
 
@@ -365,7 +429,7 @@ describe("awf_reflect.cjs", () => {
       };
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, provider: "anthropic" })).toEqual({
         model: "claude-sonnet-4.6",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10003" },
+        provider: { type: "anthropic", baseUrl: "http://api-proxy:10003" },
       });
     });
 
@@ -376,6 +440,51 @@ describe("awf_reflect.cjs", () => {
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
         model: "gpt-4o",
         provider: { type: "openai", baseUrl: "http://172.30.0.30:10002" },
+      });
+    });
+
+    it("uses anthropic type for anthropic endpoint serving claude model", () => {
+      const reflectData = {
+        endpoints: [{ provider: "anthropic", port: 10001, configured: true, models: ["claude-sonnet-4.6"] }],
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
+        model: "claude-sonnet-4.6",
+        provider: { type: "anthropic", baseUrl: "http://api-proxy:10001" },
+      });
+    });
+
+    it("uses anthropic type via model name heuristic on copilot endpoint when claude model is selected", () => {
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["claude-opus-4.5", "gpt-5.4"] }],
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "claude-opus-4.5" })).toEqual({
+        model: "claude-opus-4.5",
+        provider: { type: "anthropic", baseUrl: "http://api-proxy:10002" },
+      });
+    });
+
+    it("uses openai type via model name heuristic on copilot endpoint when gpt model is selected", () => {
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["claude-opus-4.5", "gpt-5.4"] }],
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "gpt-5.4" })).toEqual({
+        model: "gpt-5.4",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+      });
+    });
+
+    it("uses modelsJson catalog for provider_type lookup", () => {
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["raptor-mini"] }],
+      };
+      const modelsJson = {
+        providers: {
+          "github-copilot": { models: { "raptor-mini": { provider_type: "openai", cost: {} } } },
+        },
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, modelsJson })).toEqual({
+        model: "raptor-mini",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
       });
     });
 
