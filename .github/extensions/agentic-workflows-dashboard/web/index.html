@@ -20,7 +20,7 @@
           <div class="d-flex gap-3 flex-items-center">
             <span class="Label Label--accent">Copilot Canvas</span>
             <span class="Label Label--success" x-cloak x-show="cliStatus && cliStatus.available">gh aw <span x-text="cliStatus?.version"></span> · <span x-text="cliSourceLabel(cliStatus)"></span></span>
-            <span class="Label Label--secondary" x-show="loadingCliStatus">Checking gh aw…</span>
+            <span class="Label Label--secondary" x-cloak x-show="loadingCliStatus">Checking gh aw…</span>
             <button class="btn btn-sm ms-1" @click="refresh()">↻ Refresh</button>
           </div>
         </div>
