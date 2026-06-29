@@ -91,31 +91,6 @@ func LocateJSONPathInYAML(yamlContent string, jsonPath string) JSONPathLocation 
 	return location
 }
 
-// LocateJSONPathInYAMLWithAdditionalProperties finds the line/column position of a JSON path in YAML source
-// with special handling for additional properties errors
-func LocateJSONPathInYAMLWithAdditionalProperties(yamlContent string, jsonPath string, errorMessage string) JSONPathLocation {
-	if jsonPath == "" {
-		// This might be an additional properties error - try to extract property names
-		propertyNames := extractAdditionalPropertyNames(errorMessage)
-		if len(propertyNames) > 0 {
-			// Find the first additional property in the YAML
-			return findFirstAdditionalProperty(yamlContent, propertyNames)
-		}
-		// Fallback to root level error
-		return JSONPathLocation{Line: 1, Column: 1, Found: true}
-	}
-
-	// Check if this is an additional properties error even with a non-empty path
-	propertyNames := extractAdditionalPropertyNames(errorMessage)
-	if len(propertyNames) > 0 {
-		// Find the additional property within the nested context
-		return findAdditionalPropertyInNestedContext(yamlContent, jsonPath, propertyNames)
-	}
-
-	// For non-empty paths without additional properties, use the regular logic
-	return LocateJSONPathInYAML(yamlContent, jsonPath)
-}
-
 // LocateJSONPathForPathInfo finds the line/column position in YAML source for a JSONPathInfo.
 // It uses ErrorKind for structural property-name extraction when available, and falls back to
 // regex parsing of the error message string for backward compatibility.

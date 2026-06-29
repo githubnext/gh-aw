@@ -9,6 +9,10 @@
   overflow: auto;
 }
 
+.awd-install-banner code {
+  white-space: nowrap;
+}
+
 .awd-run-row {
   cursor: pointer;
 }

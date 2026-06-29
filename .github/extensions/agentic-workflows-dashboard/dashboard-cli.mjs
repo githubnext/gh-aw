@@ -3,34 +3,126 @@ import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 
-function execp(bin, args, cwd) {
+const INSTALL_COMMAND = "gh extension install github/gh-aw";
+
+function combineOutput(stdout, stderr) {
+  return [stdout, stderr].filter(Boolean).join("\n").trim();
+}
+
+function execp(bin, args, cwd, { combineIO = false, execFileFn = execFile, env = process.env } = {}) {
   return new Promise((resolve, reject) => {
-    execFile(
+    execFileFn(
       bin,
       args,
       {
         cwd,
-        env: { ...process.env, NO_COLOR: "1", GH_NO_UPDATE_NOTIFIER: "1" },
+        env: { ...env, CI: "1", NO_COLOR: "1", GH_NO_UPDATE_NOTIFIER: "1" },
         maxBuffer: 10 * 1024 * 1024,
       },
       (err, stdout, stderr) => {
-        if (err) reject(Object.assign(err, { stderr: stderr ?? "" }));
-        else resolve(stdout);
+        const output = combineOutput(stdout ?? "", stderr ?? "");
+        if (err) reject(Object.assign(err, { stderr: stderr ?? "", stdout: stdout ?? "", output }));
+        else resolve(combineIO ? output : stdout);
       }
     );
   });
 }
 
-export function createGhAwRunner({ getWorkspacePath }) {
+function parseVersionFromOutput(output) {
+  const trimmed = String(output ?? "").trim();
+  if (!trimmed) return "";
+  const match = trimmed.match(/gh(?:-aw| aw) version ([^\r\n]+)/i);
+  return match?.[1]?.trim() ?? "";
+}
+
+function isMissingGhAwExtension(error) {
+  const output = String(error?.output ?? error?.stderr ?? error?.message ?? "");
+  return /extension not found:\s*aw/i.test(output) || /unknown command ["']aw["'] for ["']gh["']/i.test(output);
+}
+
+async function findDevBinary(cwd, accessFn = access, platform = process.platform) {
+  const devBin = join(cwd, platform === "win32" ? "gh-aw.exe" : "gh-aw");
+  try {
+    await accessFn(devBin, fsConstants.X_OK);
+    return devBin;
+  } catch {
+    return null;
+  }
+}
+
+export function createGhAwRunner({ getWorkspacePath, accessFn = access, execFileFn = execFile, platform = process.platform, env = process.env }) {
+  async function runExec(bin, args, cwd, options) {
+    return execp(bin, args, cwd, { ...options, execFileFn, env });
+  }
+
   return async function runGhAw(args) {
     const cwd = getWorkspacePath();
-    const isWin = process.platform === "win32";
-    const devBin = join(cwd, isWin ? "gh-aw.exe" : "gh-aw");
+    const devBin = await findDevBinary(cwd, accessFn, platform);
+    if (devBin) {
+      return runExec(devBin, args, cwd);
+    }
+
+    return runExec("gh", ["aw", ...args], cwd);
+  };
+}
+
+export function createGhAwRunnerWithStatus(options) {
+  const runGhAw = createGhAwRunner(options);
+  const getStatus = async () => {
+    const cwd = options.getWorkspacePath();
+    const devBin = await findDevBinary(cwd, options.accessFn ?? access, options.platform ?? process.platform);
+
+    if (devBin) {
+      const output = await execp(devBin, ["version"], cwd, {
+        combineIO: true,
+        execFileFn: options.execFileFn ?? execFile,
+        env: options.env ?? process.env,
+      });
+      return {
+        available: true,
+        source: "dev-binary",
+        version: parseVersionFromOutput(output) || "unknown",
+        command: `${devBin} version`,
+        installCommand: INSTALL_COMMAND,
+      };
+    }
+
     try {
-      await access(devBin, fsConstants.X_OK);
-      return await execp(devBin, args, cwd);
-    } catch {
-      return await execp("gh", ["aw", ...args], cwd);
+      const output = await execp("gh", ["aw", "version"], cwd, {
+        combineIO: true,
+        execFileFn: options.execFileFn ?? execFile,
+        env: options.env ?? process.env,
+      });
+      return {
+        available: true,
+        source: "gh-extension",
+        version: parseVersionFromOutput(output) || "unknown",
+        command: "gh aw version",
+        installCommand: INSTALL_COMMAND,
+      };
+    } catch (error) {
+      if (isMissingGhAwExtension(error)) {
+        return {
+          available: false,
+          source: "missing",
+          version: "",
+          command: "gh aw version",
+          installCommand: INSTALL_COMMAND,
+          message: "gh aw is not installed. Install the GitHub CLI extension to use the dashboard outside a local dev build.",
+        };
+      }
+
+      return {
+        available: false,
+        source: "error",
+        version: "",
+        command: "gh aw version",
+        installCommand: INSTALL_COMMAND,
+        message: String(error?.output ?? error?.stderr ?? error?.message ?? "Failed to detect gh aw."),
+      };
     }
   };
+
+  runGhAw.getStatus = getStatus;
+  return runGhAw;
 }
