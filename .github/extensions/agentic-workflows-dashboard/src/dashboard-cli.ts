@@ -157,14 +157,7 @@ async function findDevBinary(cwd: string, accessFn: AccessLike = access, platfor
   }
 }
 
-export function createGhAwRunner({
-  getWorkspacePath,
-  accessFn = access,
-  execFileFn = spawnExecFile,
-  platform = process.platform,
-  env = process.env,
-  resolveBin,
-}: RunnerOptions): (args: string[]) => Promise<string> {
+export function createGhAwRunner({ getWorkspacePath, accessFn = access, execFileFn = spawnExecFile, platform = process.platform, env = process.env, resolveBin }: RunnerOptions): (args: string[]) => Promise<string> {
   // Memoize per cwd so findDevBinary is called at most once per workspace path.
   const binCache = new Map<string, Promise<string | null>>();
   const _resolveBin =
