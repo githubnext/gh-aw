@@ -317,6 +317,9 @@ This helps improve efficiency over time and avoids re-discovering the same patte
 8. **Deduplication**: Remove duplicates from extracted patterns
 9. **Sort alphabetically**: Keep lists organized and easy to scan
 10. **Real SHA values**: When listing actions, use actual commit SHAs found
+11. **Batch size**: When scanning lock files for patterns, run at most **50 lock files total** across all category queries (actions, artifacts, job names, paths) combined per run. If there are more than 50 lock files, sample the first 50 and note the remainder in the PR body.
+12. **Early emission**: After completing the scan and generating the document, emit the `create-pull-request` safe output immediately. Do not delay to gather additional data beyond the batch limit.
+13. **Tool budget awareness**: If you are approaching the tool call limit, emit a partial result immediately rather than continuing to gather more data. A partial `create_pull_request` covering only the patterns collected so far is always better than no output at all.
 
 ## Success Criteria
 
