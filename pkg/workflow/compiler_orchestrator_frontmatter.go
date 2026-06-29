@@ -36,6 +36,8 @@ func (c *Compiler) validateEngineBeforeSchema(
 	frontmatterForValidation map[string]any,
 ) error {
 	engineValue, ok := frontmatterForValidation["engine"].(string)
+	// Keep the empty-string default-engine behavior, but let whitespace-only values
+	// fall through to getAgenticEngine so they surface as invalid engine typos.
 	if !ok || engineValue == "" {
 		return nil
 	}
