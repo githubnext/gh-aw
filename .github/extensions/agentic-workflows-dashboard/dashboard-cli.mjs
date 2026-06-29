@@ -82,7 +82,7 @@ export function createGhAwRunnerWithStatus(options) {
         available: true,
         source: "dev-binary",
         version: parseVersion(output) || "unknown",
-        command: options.platform === "win32" ? "gh-aw.exe version" : "./gh-aw version",
+        command: `${devBin} version`,
         installCommand: INSTALL_COMMAND,
       };
     }

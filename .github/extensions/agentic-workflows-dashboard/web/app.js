@@ -83,7 +83,8 @@ function reportWindowById(windowId) {
 function buildReportMessage(meta, emptyLabel) {
     if (!meta?.window)
         return emptyLabel;
-    const fragments = [`Window: ${meta.window.label ?? meta.window.id ?? "custom"}`];
+    const windowLabel = meta.window.label ?? meta.window.id;
+    const fragments = windowLabel ? [`Window: ${windowLabel}`] : [];
     if (meta.logsFetches) {
         fragments.push(`${meta.logsFetches} log request${meta.logsFetches === 1 ? "" : "s"}`);
     }
@@ -93,7 +94,7 @@ function buildReportMessage(meta, emptyLabel) {
     if (meta.total_runs != null) {
         fragments.push(`${meta.total_runs} runs analyzed`);
     }
-    return fragments.join(" · ");
+    return fragments.length > 0 ? fragments.join(" · ") : emptyLabel;
 }
 async function fetchJson(url) {
     const response = await fetch(url);
