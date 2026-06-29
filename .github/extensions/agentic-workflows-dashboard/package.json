@@ -8,18 +8,20 @@
     "alpinejs": "^3.15.0"
   },
   "devDependencies": {
+    "@types/node": "^26.0.1",
     "esbuild": "^0.28.1",
     "typescript": "6.0.3",
     "vitest": "4.1.9"
   },
   "scripts": {
-    "build": "npm run typecheck && npm run build:web",
+    "build": "npm run typecheck && npm run build:extension && npm run build:web",
+    "build:extension": "esbuild extension.ts --bundle --format=esm --platform=node --target=node20 --external:@github/copilot-sdk/extension --outfile=extension.mjs",
     "build:web": "esbuild src/app.ts --bundle --format=esm --target=es2022 --outfile=web/app.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "lint": "npm run typecheck && npm test",
     "fmt": "npm run fmt:ts && npm run fmt:html && npm run fmt:css && npm run fmt:js && npm run fmt:json",
-    "fmt:ts": "npx prettier --write --parser typescript \"src/**/*.ts\" \"test/**/*.ts\" \"vitest.config.ts\"",
+    "fmt:ts": "npx prettier --write --parser typescript \"*.ts\" \"src/**/*.ts\" \"test/**/*.ts\" \"vitest.config.ts\"",
     "fmt:html": "npx prettier --write --parser html \"web/index.html\"",
     "fmt:css": "npx prettier --write --parser css \"web/styles.css\"",
     "fmt:js": "npx prettier --write --parser babel \"*.mjs\"",

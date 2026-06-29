@@ -19,6 +19,8 @@ export interface WorkflowRun {
   error_count?: number;
   warning_count?: number;
   missing_tool_count?: number;
+  workflow_path?: string;
+  created_at?: string;
 }
 
 export interface PagedResult<T> {
@@ -47,6 +49,7 @@ export interface UsageSummaryItem {
   cost_per_run: number;
   daily_aic: number;
   monthly_forecast_aic: number;
+  workflow_path?: string;
   last_run_at?: string;
 }
 

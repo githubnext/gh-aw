@@ -1,11 +1,52 @@
-import { DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT, getReportWindow } from "./dashboard-config.mjs";
+import { DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT, getReportWindow, type ReportWindow } from "./dashboard-config.js";
+import type { WorkflowRun } from "./src/models.js";
 
-function parsePositiveInt(value, fallback) {
+export interface LogsOptionsInput {
+  afterRunID?: number | string;
+  artifacts?: string[];
+  beforeRunID?: number | string;
+  branch?: string;
+  count?: number | string;
+  endDate?: string;
+  engine?: string;
+  startDate?: string;
+  timeout?: number | string;
+  window?: string | { id?: string };
+  workflowName?: string;
+}
+
+export interface LogsOptions {
+  afterRunID: number;
+  artifacts: string[];
+  beforeRunID: number;
+  branch: string;
+  count: number;
+  endDate: string;
+  engine: string;
+  startDate: string;
+  timeout: number;
+  window: ReportWindow;
+  workflowName: string;
+}
+
+export interface LogsContinuation {
+  after_run_id?: number | string;
+  before_run_id?: number | string;
+  branch?: string;
+  count?: number | string;
+  end_date?: string;
+  engine?: string;
+  start_date?: string;
+  timeout?: number | string;
+  workflow_name?: string;
+}
+
+function parsePositiveInt(value: unknown, fallback: number): number {
   const numeric = Number.parseInt(String(value ?? fallback), 10);
   return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
 }
 
-function readFlagValue(args, index, arg) {
+function readFlagValue(args: string[], index: number, arg: string): { nextIndex: number; value: string } {
   const equalsIndex = arg.indexOf("=");
   if (equalsIndex >= 0) {
     return { value: arg.slice(equalsIndex + 1), nextIndex: index };
@@ -13,7 +54,7 @@ function readFlagValue(args, index, arg) {
   return { value: args[index + 1] ?? "", nextIndex: index + 1 };
 }
 
-export function normalizeLogsOptions(options = {}) {
+export function normalizeLogsOptions(options: LogsOptionsInput = {}): LogsOptions {
   const windowId = typeof options.window === "string" ? options.window : options.window?.id;
   const window = getReportWindow(windowId);
   const artifacts = Array.isArray(options.artifacts) && options.artifacts.length > 0 ? options.artifacts : ["usage"];
@@ -33,7 +74,7 @@ export function normalizeLogsOptions(options = {}) {
   };
 }
 
-export function buildLogsArgs(options) {
+export function buildLogsArgs(options: LogsOptions): string[] {
   const args = ["logs", "--json", "-c", String(options.count), "--timeout", String(options.timeout)];
 
   if (options.workflowName) args.push(options.workflowName);
@@ -48,7 +89,7 @@ export function buildLogsArgs(options) {
   return args;
 }
 
-export function continuationToLogsOptions(continuation, fallback) {
+export function continuationToLogsOptions(continuation: LogsContinuation | null | undefined, fallback: LogsOptions): LogsOptions | null {
   if (!continuation) return null;
 
   return normalizeLogsOptions({
@@ -66,7 +107,7 @@ export function continuationToLogsOptions(continuation, fallback) {
   });
 }
 
-export function mergeRuns(existingRuns, nextRuns) {
+export function mergeRuns(existingRuns: WorkflowRun[], nextRuns: WorkflowRun[]): WorkflowRun[] {
   const merged = new Map(existingRuns.map(run => [run.run_id, run]));
   for (const run of nextRuns) {
     if (run?.run_id != null) {
@@ -76,12 +117,13 @@ export function mergeRuns(existingRuns, nextRuns) {
   return Array.from(merged.values()).sort((a, b) => Number(b.run_id ?? 0) - Number(a.run_id ?? 0));
 }
 
-export function parseGhAwArgs(raw) {
+export function parseGhAwArgs(raw: string): string[] | null {
   const match = raw.trim().match(/^(?:gh\s+aw\s+)(.+)$/);
-  return match ? match[1].trim().split(/\s+/) : null;
+  const subcommand = match?.[1];
+  return subcommand ? subcommand.trim().split(/\s+/) : null;
 }
 
-export function hasFlag(args, longFlag, shortFlag = "") {
+export function hasFlag(args: string[], longFlag: string, shortFlag = ""): boolean {
   return args.some(arg => {
     if (arg.startsWith(`${longFlag}=`)) {
       return true;
@@ -89,15 +131,15 @@ export function hasFlag(args, longFlag, shortFlag = "") {
     if (shortFlag && arg.startsWith(`${shortFlag}=`)) {
       return true;
     }
-    return arg === longFlag || (shortFlag && arg === shortFlag);
+    return arg === longFlag || (shortFlag !== "" && arg === shortFlag);
   });
 }
 
-export function logsCommandUsesJSON(args) {
+export function logsCommandUsesJSON(args: string[]): boolean {
   return hasFlag(args, "--json", "-j");
 }
 
-export function normalizeLogsCommandArgs(args, windowId, timeoutMinutes) {
+export function normalizeLogsCommandArgs(args: string[], windowId?: string, timeoutMinutes = DEFAULT_LOG_TIMEOUT_MINUTES): string[] {
   const nextArgs = [...args];
   if (!hasFlag(nextArgs, "--start-date") && !hasFlag(nextArgs, "--end-date") && !hasFlag(nextArgs, "--after-run-id") && !hasFlag(nextArgs, "--before-run-id")) {
     nextArgs.push("--start-date", getReportWindow(windowId).startDate);
@@ -111,23 +153,23 @@ export function normalizeLogsCommandArgs(args, windowId, timeoutMinutes) {
   return nextArgs;
 }
 
-export function logsArgsToOptions(args, fallback = {}) {
-  const options = {
-    window: typeof fallback.window === "string" ? fallback.window : fallback.window?.id,
-    count: fallback.count,
-    timeout: fallback.timeout,
-    startDate: fallback.startDate,
-    endDate: fallback.endDate,
-    beforeRunID: fallback.beforeRunID,
-    afterRunID: fallback.afterRunID,
-    workflowName: fallback.workflowName,
-    engine: fallback.engine,
-    branch: fallback.branch,
-    artifacts: fallback.artifacts,
-  };
+export function logsArgsToOptions(args: string[], fallback: LogsOptionsInput = {}): LogsOptions {
+  const options: LogsOptionsInput = {};
+  const fallbackWindow = typeof fallback.window === "string" ? fallback.window : fallback.window?.id;
+  if (fallbackWindow) options.window = fallbackWindow;
+  if (fallback.count !== undefined) options.count = fallback.count;
+  if (fallback.timeout !== undefined) options.timeout = fallback.timeout;
+  if (fallback.startDate !== undefined) options.startDate = fallback.startDate;
+  if (fallback.endDate !== undefined) options.endDate = fallback.endDate;
+  if (fallback.beforeRunID !== undefined) options.beforeRunID = fallback.beforeRunID;
+  if (fallback.afterRunID !== undefined) options.afterRunID = fallback.afterRunID;
+  if (fallback.workflowName !== undefined) options.workflowName = fallback.workflowName;
+  if (fallback.engine !== undefined) options.engine = fallback.engine;
+  if (fallback.branch !== undefined) options.branch = fallback.branch;
+  if (fallback.artifacts !== undefined) options.artifacts = fallback.artifacts;
 
   for (let index = 1; index < args.length; index += 1) {
-    const arg = args[index];
+    const arg = args[index] ?? "";
 
     if (!arg.startsWith("-")) {
       if (!options.workflowName) {

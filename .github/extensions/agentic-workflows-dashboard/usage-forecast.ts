@@ -1,11 +1,34 @@
 import { basename } from "node:path";
 
-export function toNumber(value) {
+import type { UsageSummaryItem } from "./src/models.js";
+
+export interface ForecastWorkflow {
+  monthly_monte_carlo?: {
+    p50_projected_aic?: unknown;
+  };
+  monthly_projected_aic?: unknown;
+  workflow_id?: string;
+  workflow_path?: string;
+}
+
+export type ForecastWindow = {
+  days?: number;
+  id?: string;
+};
+
+export interface UsageRunLike {
+  aic?: number;
+  created_at?: string;
+  workflow_name: string;
+  workflow_path?: string;
+}
+
+export function toNumber(value: unknown): number {
   const numeric = Number(value ?? 0);
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
-export function normalizeWorkflowID(value) {
+export function normalizeWorkflowID(value: unknown): string {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
 
@@ -20,21 +43,21 @@ export function normalizeWorkflowID(value) {
   return name.trim();
 }
 
-export function forecastDaysForWindow(window) {
+export function forecastDaysForWindow(window: ForecastWindow | null | undefined): number {
   return window?.id === "1mo" ? 30 : 7;
 }
 
-export function getForecastMonthlyAIC(forecast) {
+export function getForecastMonthlyAIC(forecast: ForecastWorkflow | null | undefined): number {
   if (!forecast || typeof forecast !== "object") return 0;
   const monteCarloP50 = toNumber(forecast.monthly_monte_carlo?.p50_projected_aic);
   if (monteCarloP50 > 0) return monteCarloP50;
   return toNumber(forecast.monthly_projected_aic);
 }
 
-export function applyForecastToUsageSummary(items, forecastWorkflows = []) {
+export function applyForecastToUsageSummary(items: UsageSummaryItem[], forecastWorkflows: ForecastWorkflow[] = []): UsageSummaryItem[] {
   // Forecast results identify workflows by workflow_id; workflow_path is accepted as a
   // fallback so older or alternate JSON payloads can still be matched safely.
-  const forecastEntries = forecastWorkflows.map(forecast => [normalizeWorkflowID(forecast?.workflow_id || forecast?.workflow_path), getForecastMonthlyAIC(forecast)]).filter(([workflowID]) => Boolean(workflowID));
+  const forecastEntries = forecastWorkflows.map(forecast => [normalizeWorkflowID(forecast.workflow_id || forecast.workflow_path), getForecastMonthlyAIC(forecast)] as const).filter(([workflowID]) => Boolean(workflowID));
   const forecastByWorkflow = new Map(forecastEntries);
 
   return items.map(item => ({
@@ -43,20 +66,20 @@ export function applyForecastToUsageSummary(items, forecastWorkflows = []) {
   }));
 }
 
-export function buildUsageSummary(runs, window, forecastWorkflows = []) {
-  const usageByWorkflow = new Map();
-  const effectiveDays = Number(window?.days ?? 0);
+export function buildUsageSummary(runs: UsageRunLike[], window: ForecastWindow, forecastWorkflows: ForecastWorkflow[] = []): UsageSummaryItem[] {
+  const usageByWorkflow = new Map<string, UsageSummaryItem>();
+  const effectiveDays = Number(window.days ?? 0);
   if (!Number.isFinite(effectiveDays) || effectiveDays <= 0) {
-    throw new Error(`report window '${window?.id ?? "unknown"}' is missing a valid positive day count.`);
+    throw new Error(`report window '${window.id ?? "unknown"}' is missing a valid positive day count.`);
   }
 
   for (const run of runs) {
-    const workflowPath = typeof run?.workflow_path === "string" ? run.workflow_path.trim() : "";
-    const workflowID = normalizeWorkflowID(workflowPath || run?.workflow_name);
+    const workflowPath = typeof run.workflow_path === "string" ? run.workflow_path.trim() : "";
+    const workflowID = normalizeWorkflowID(workflowPath || run.workflow_name);
     if (!workflowID) continue;
 
-    const workflowName = String(run?.workflow_name ?? workflowID).trim() || workflowID;
-    const aic = toNumber(run?.aic);
+    const workflowName = String(run.workflow_name ?? workflowID).trim() || workflowID;
+    const aic = toNumber(run.aic);
     const entry = usageByWorkflow.get(workflowID) ?? {
       workflow_id: workflowID,
       workflow_name: workflowName,
@@ -78,7 +101,7 @@ export function buildUsageSummary(runs, window, forecastWorkflows = []) {
       entry.workflow_name = workflowName;
     }
 
-    const createdAt = typeof run?.created_at === "string" ? run.created_at : "";
+    const createdAt = typeof run.created_at === "string" ? run.created_at : "";
     if (createdAt && (!entry.last_run_at || createdAt > entry.last_run_at)) {
       entry.last_run_at = createdAt;
     }
