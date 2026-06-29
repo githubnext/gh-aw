@@ -24,6 +24,15 @@ func GoodTypeSwitch(err error) {
 	}
 }
 
+func BadTypeSwitch(err error) {
+	switch e := err.(type) {
+	case *os.PathError: // want `type assertion on error to \*os\.PathError bypasses wrapped errors; use errors\.As instead`
+		fmt.Println(e.Path)
+	case interface{ Temporary() bool }:
+		fmt.Println(e.Temporary())
+	}
+}
+
 func BadSingleValue(err error) {
 	_ = err.(*os.PathError) // want `type assertion on error to \*os\.PathError bypasses wrapped errors; use errors\.As instead`
 }
