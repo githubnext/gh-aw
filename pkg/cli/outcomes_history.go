@@ -12,9 +12,12 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	ghmapping "github.com/github/gh-aw/pkg/github"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
+
+var outcomesHistoryLog = logger.New("cli:outcomes_history")
 
 const (
 	historySourceIssues = "issues"
@@ -133,6 +136,8 @@ func RunOutcomesHistory(config OutcomesHistoryConfig) error {
 		return fmt.Errorf("invalid --source %q: expected issues, prs, or all", config.Source)
 	}
 
+	outcomesHistoryLog.Printf("Running outcomes history: repo=%s, source=%s, limit=%d, json=%v", repo, source, config.Limit, config.JSONOutput)
+
 	mapping := ghmapping.LoadObjectiveMappingFromConfig()
 	data := historicalObjectivesData{Repo: repo, Limit: config.Limit}
 
@@ -196,6 +201,7 @@ func fetchHistoricalGitHubItems(repo string, limit int, source string) ([]histor
 	if err := json.Unmarshal(output, &items); err != nil {
 		return nil, fmt.Errorf("failed to parse %s listing JSON: %w", source, err)
 	}
+	outcomesHistoryLog.Printf("Fetched %d %s items for %s", len(items), source, repo)
 	return items, nil
 }
 
@@ -285,6 +291,7 @@ func buildHistoricalObjectiveReport(source string, items []historicalGitHubItem,
 		}
 	}
 
+	outcomesHistoryLog.Printf("Built %s report: scored=%d/%d, totalValue=%d, buckets=%d", source, scoredItems, len(items), totalObjectiveValue, len(buckets))
 	return historicalObjectiveReport{
 		Source:              source,
 		SampleSize:          len(items),

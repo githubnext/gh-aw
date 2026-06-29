@@ -11,8 +11,11 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var upgradeOrgLog = logger.New("cli:upgrade_org")
 
 var runUpgradeForTargetRepoFn = runUpgradeForTargetRepo
 var searchOrgLockWorkflowReposFn = searchOrgLockWorkflowRepos
@@ -31,6 +34,7 @@ const orgUpgradeSkillsDir = constants.GithubDir + "skills"
 // organization discovery, rate-limit handling, graceful cancellation, result
 // sorting, and per-repo error recovery.
 func runUpgradeForOrg(ctx context.Context, org string, repoGlobs []string, opts upgradeOptions, createPR bool, createIssue bool, verbose bool) error {
+	upgradeOrgLog.Printf("Running org upgrade: org=%s, globs=%d, createPR=%v, createIssue=%v", org, len(repoGlobs), createPR, createIssue)
 	return runCommandForOrg(ctx, org, repoGlobs, orgRunCallbacks{
 		AutoYes:  opts.yes,
 		SearchFn: searchOrgLockWorkflowReposFn,
@@ -85,6 +89,7 @@ func scanUpgradeRepo(ctx context.Context, repo string, verbose bool) (orgRepoPre
 	}
 
 	if mdCount == 0 {
+		upgradeOrgLog.Printf("Skipping %s: no agentic workflow files found", repo)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Skipping "+repo+": no agentic workflow files found"))
 		}
@@ -93,6 +98,7 @@ func scanUpgradeRepo(ctx context.Context, repo string, verbose bool) (orgRepoPre
 
 	// Extract compiler version from lock file metadata.
 	currentVersion := extractCompilerVersionFromWorkflowsDir(workflowsDir)
+	upgradeOrgLog.Printf("Scanned %s: workflows=%d, currentVersion=%s", repo, mdCount, currentVersion)
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 		fmt.Sprintf("%s: %d workflow(s)%s", repo, mdCount, formatCurrentVersionSuffix(currentVersion)),
@@ -268,6 +274,7 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 		return err
 	}
 	if !changed {
+		upgradeOrgLog.Printf("Skipping PR for %s: no pending changes after upgrade", repo)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Skipping PR for "+repo+": already up to date"))
 		}
