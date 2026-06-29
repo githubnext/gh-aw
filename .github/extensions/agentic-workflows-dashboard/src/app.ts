@@ -1,12 +1,12 @@
 import Alpine from "alpinejs";
 
-import type { CLIStatus, ExperimentInfo, PagedResult, UsageSummaryItem, WorkflowDefinition, WorkflowRun } from "./models.js";
+import type { AuditFinding, AuditReport, CLIStatus, ExperimentInfo, PagedResult, UsageSummaryItem, WorkflowDefinition, WorkflowRun } from "./models.js";
 import { paginate } from "./pagination.js";
+import type { ReportWindow } from "./dashboard-config.js";
 
 type FlashKind = "success" | "warn" | "error";
 type DashboardTabId = "definitions" | "runs" | "details" | "usage" | "experiments" | "maintenance" | "commands";
 type DashboardTab = { id: DashboardTabId; label: string; counter?: "definitions" | "runs" | "usage" | "experiments" };
-type ReportWindow = { id: "3d" | "7d" | "1mo"; label: string; startDate: string };
 type MaintenanceAction = "check-update" | "run-update" | "check-upgrade" | "run-upgrade";
 type ReportMeta = {
   window?: { id?: string; label?: string };
@@ -16,8 +16,6 @@ type ReportMeta = {
 };
 type RunsResponse = ReportMeta & { runs?: WorkflowRun[] };
 type UsageResponse = ReportMeta & { items?: UsageSummaryItem[] };
-type AuditFinding = { severity?: string };
-type RunAudit = { key_findings?: AuditFinding[] };
 
 interface DashboardState {
   tabs: DashboardTab[];
@@ -36,7 +34,7 @@ interface DashboardState {
   usagePaged: PagedResult<UsageSummaryItem>;
   experimentsPaged: PagedResult<ExperimentInfo>;
   selectedRun: WorkflowRun | null;
-  auditData: RunAudit | null;
+  auditData: AuditReport | null;
   includePreReleases: boolean;
   maintenanceOutput: string;
   maintenanceLastAction: string;
@@ -113,9 +111,9 @@ const dashboardTabs: DashboardTab[] = [
 ];
 
 const reportWindows: ReportWindow[] = [
-  { id: "3d", label: "3 days", startDate: "-3d" },
-  { id: "7d", label: "7 days", startDate: "-1w" },
-  { id: "1mo", label: "1 month", startDate: "-1mo" },
+  { id: "3d", label: "3 days", startDate: "-3d", days: 3 },
+  { id: "7d", label: "7 days", startDate: "-1w", days: 7 },
+  { id: "1mo", label: "1 month", startDate: "-1mo", days: 30 },
 ];
 
 const DEFAULT_LOGS_COMMAND_COUNT = 25;
@@ -444,7 +442,7 @@ Alpine.data("dashboardApp", (): DashboardState => ({
     this.errorAudit = "";
     try {
       const params = new URLSearchParams({ run_id: String(this.selectedRun.run_id) });
-      this.auditData = await fetchJson<RunAudit>(`/api/audit?${params.toString()}`);
+      this.auditData = await fetchJson<AuditReport>(`/api/audit?${params.toString()}`);
     } catch (error) {
       this.auditData = null;
       this.errorAudit = `Failed to load audit: ${error instanceof Error ? error.message : String(error)}`;
