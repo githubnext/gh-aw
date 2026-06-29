@@ -32,8 +32,7 @@ function parseVersion(output) {
   const trimmed = String(output ?? "").trim();
   if (!trimmed) return "";
   const match = trimmed.match(/gh(?:-aw| aw) version (\S+)/i);
-  if (match?.[1]) return match[1];
-  return trimmed.split(/\s+/).at(-1) ?? "";
+  return match?.[1] ?? "";
 }
 
 function isMissingGhAwExtension(error) {
@@ -41,24 +40,24 @@ function isMissingGhAwExtension(error) {
   return /extension not found:\s*aw/i.test(output) || /unknown command ["']aw["'] for ["']gh["']/i.test(output);
 }
 
-export function createGhAwRunner({ getWorkspacePath, accessFn = access, execFileFn = execFile, platform = process.platform, env = process.env }) {
-  async function findDevBinary(cwd) {
-    const devBin = join(cwd, platform === "win32" ? "gh-aw.exe" : "gh-aw");
-    try {
-      await accessFn(devBin, fsConstants.X_OK);
-      return devBin;
-    } catch {
-      return null;
-    }
+async function findDevBinary(cwd, accessFn = access, platform = process.platform) {
+  const devBin = join(cwd, platform === "win32" ? "gh-aw.exe" : "gh-aw");
+  try {
+    await accessFn(devBin, fsConstants.X_OK);
+    return devBin;
+  } catch {
+    return null;
   }
+}
 
+export function createGhAwRunner({ getWorkspacePath, accessFn = access, execFileFn = execFile, platform = process.platform, env = process.env }) {
   async function runExec(bin, args, cwd, options) {
     return execp(bin, args, cwd, { ...options, execFileFn, env });
   }
 
   return async function runGhAw(args) {
     const cwd = getWorkspacePath();
-    const devBin = await findDevBinary(cwd);
+    const devBin = await findDevBinary(cwd, accessFn, platform);
     if (devBin) {
       return runExec(devBin, args, cwd);
     }
@@ -71,15 +70,7 @@ export function createGhAwRunnerWithStatus(options) {
   const runGhAw = createGhAwRunner(options);
   const getStatus = async () => {
     const cwd = options.getWorkspacePath();
-    const devBin = await (async () => {
-      const candidate = join(cwd, options.platform === "win32" ? "gh-aw.exe" : "gh-aw");
-      try {
-        await (options.accessFn ?? access)(candidate, fsConstants.X_OK);
-        return candidate;
-      } catch {
-        return null;
-      }
-    })();
+    const devBin = await findDevBinary(cwd, options.accessFn ?? access, options.platform ?? process.platform);
 
     if (devBin) {
       const output = await execp(devBin, ["version"], cwd, {
@@ -90,7 +81,7 @@ export function createGhAwRunnerWithStatus(options) {
       return {
         available: true,
         source: "dev-binary",
-        version: parseVersion(output),
+        version: parseVersion(output) || "unknown",
         command: options.platform === "win32" ? "gh-aw.exe version" : "./gh-aw version",
         installCommand: INSTALL_COMMAND,
       };
@@ -105,7 +96,7 @@ export function createGhAwRunnerWithStatus(options) {
       return {
         available: true,
         source: "gh-extension",
-        version: parseVersion(output),
+        version: parseVersion(output) || "unknown",
         command: "gh aw version",
         installCommand: INSTALL_COMMAND,
       };
