@@ -15,6 +15,10 @@ sandbox:
   agent:
     sudo: false
 
+engine:
+  id: copilot
+  model: claude-haiku-4.5
+
 strict: true
 tools:
   github:
@@ -170,7 +174,7 @@ Do not read additional files or invoke shell tools. The chunk content is provide
 ## agent: `pr-description-synthesizer`
 ---
 description: Combines per-chunk analysis results and diff metadata into a final structured PR description optimised for agentic analysis.
-model: large
+model: claude-haiku-4.5
 ---
 
 You receive:
