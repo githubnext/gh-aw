@@ -5,6 +5,12 @@ description: Reviews pull requests using Matt Pocock's engineering skills to pro
 on:
   pull_request:
     types: [ready_for_review]
+    paths:
+      - '.github/skills/**'
+      - 'specs/**'
+      - 'docs/adr/**'
+      - '.github/workflows/**'
+      - 'scratchpad/**'
   slash_command:
     strategy: centralized
     name: matt

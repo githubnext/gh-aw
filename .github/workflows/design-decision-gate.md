@@ -6,6 +6,13 @@ on:
   pull_request:
     types: [labeled, ready_for_review]
     names: ["implementation"]
+    paths:
+      - '.github/skills/**'
+      - 'specs/**'
+      - 'docs/adr/**'
+      - 'pkg/**'
+      - '.github/workflows/**'
+      - 'scratchpad/**'
   slash_command:
     strategy: centralized
     name: review

@@ -6,6 +6,12 @@ description: Reviews pull requests using Impeccable skills from needex/skills an
 on:
   pull_request:
     types: [ready_for_review]
+    paths:
+      - '.github/skills/**'
+      - 'specs/**'
+      - 'docs/adr/**'
+      - '.github/workflows/**'
+      - 'scratchpad/**'
   workflow_dispatch:
 permissions:
   contents: read
