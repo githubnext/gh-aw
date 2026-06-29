@@ -195,7 +195,7 @@ For PRs touching design tokens or CSS files that require a linked design referen
 - output:
   - Link present and valid → `add-comment` with ✅ summary
   - Link present but incomplete (for example wrong component, outdated version) → `add-comment` describing the specific gap
-  - Required link missing → `add-comment` requesting it; escalate to `create-issue` only when policy requires a blocking review and no open issue already covers the same scope
+  - Required link missing → `add-comment` requesting it; escalate to `create-issue` only when the workflow prompt explicitly requires a blocking review gate (for example a CODEOWNERS or policy rule) and no open issue already covers the same scope
 - fallback: `noop` when `paths:` guard excludes all changed files
 
 See also: the PR Checks with Linked References pattern in [github-agentic-workflows.md](github-agentic-workflows.md).

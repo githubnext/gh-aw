@@ -153,7 +153,7 @@ Rules:
 For dependency-license compliance and policy review on PRs:
 
 - scope `pull_request.paths` to dependency manifest files (for example `package.json`, `go.mod`, `requirements.txt`, `Cargo.toml`, `pyproject.toml`, `composer.json`)
-- classify each new dependency by license tier: **allowed** (MIT, Apache-2.0, BSD, ISC), **needs-review** (unknown, dual-licensed, weak-copyleft), **blocked** (GPL, AGPL, proprietary)
+- classify each new dependency by license tier using the project's configured policy (the example tiers below represent a common MIT-compatible policy; adjust for your project): **allowed** (MIT, Apache-2.0, BSD, ISC), **needs-review** (unknown, dual-licensed, weak-copyleft), **blocked** (strong-copyleft such as GPL/AGPL, proprietary, or licenses incompatible with your project's license)
 - publish per-tier findings with `add-comment` listing each dependency, its version, and detected license
 - escalate to `create-issue` only when a **blocked** dependency was added or a policy violation requires team-wide follow-up beyond this PR
 - before creating a new issue, search for an existing open issue with a stable key (for example `license-violation + dependency-name + version`) to avoid duplicates; if found, link to it from the PR comment instead
@@ -164,7 +164,7 @@ For dependency-license compliance and policy review on PRs:
 | Finding | Action |
 |---|---|
 | No dependency manifest files changed | `noop` immediately |
-| All new dependencies in allowed tier | `noop` (or brief `add-comment` confirmation if explicitly requested) |
+| All new dependencies in allowed tier | `noop` (or brief `add-comment` confirmation when the workflow prompt explicitly requests a confirmation comment) |
 | Dependencies in needs-review tier | `add-comment` listing them with license details and requesting maintainer confirmation |
 | Blocked dependency added | `add-comment` flagging the violation + `create-issue` for team-wide record (skip `create-issue` if a matching open issue already exists) |
 
