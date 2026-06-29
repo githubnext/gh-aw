@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_LOG_TIMEOUT_MINUTES } from "../dashboard-config.mjs";
+import { DEFAULT_LOG_TIMEOUT_MINUTES, REPORT_WINDOWS } from "../dashboard-config.mjs";
 import { buildLogsArgs, continuationToLogsOptions, logsArgsToOptions, normalizeLogsCommandArgs, normalizeLogsOptions } from "../dashboard-logs.mjs";
 
 describe("dashboard logs helpers", () => {
@@ -9,6 +9,14 @@ describe("dashboard logs helpers", () => {
 
     expect(options.timeout).toBe(DEFAULT_LOG_TIMEOUT_MINUTES);
     expect(buildLogsArgs(options)).toEqual(expect.arrayContaining(["--timeout", String(DEFAULT_LOG_TIMEOUT_MINUTES)]));
+  });
+
+  it("accepts a window object in normalizeLogsOptions without falling back to default", () => {
+    const windowObj = REPORT_WINDOWS["3d"];
+    const options = normalizeLogsOptions({ window: windowObj });
+
+    expect(options.window.id).toBe("3d");
+    expect(options.startDate).toBe(windowObj.startDate);
   });
 
   it("preserves fallback filters when continuing logs pages", () => {

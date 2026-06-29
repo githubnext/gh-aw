@@ -14,7 +14,8 @@ function readFlagValue(args, index, arg) {
 }
 
 export function normalizeLogsOptions(options = {}) {
-  const window = getReportWindow(options.window);
+  const windowId = typeof options.window === "string" ? options.window : options.window?.id;
+  const window = getReportWindow(windowId);
   const artifacts = Array.isArray(options.artifacts) && options.artifacts.length > 0 ? options.artifacts : ["usage"];
 
   return {

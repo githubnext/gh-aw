@@ -74,7 +74,7 @@ function reportWindowById(windowId) {
 
 function buildReportMessage(meta, emptyLabel) {
   if (!meta?.window) {
-    return "";
+    return emptyLabel ?? "";
   }
 
   const fragments = [`Window: ${meta.window.label}`];
