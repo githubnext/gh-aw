@@ -47,7 +47,7 @@ type logsArgs struct {
 	Branch            string   `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
 	AfterRunID        int64    `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
 	BeforeRunID       int64    `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
-	Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: auto-scales with count in the MCP server, from 1 minute for <=40 runs to 3 minutes for the default 100-run window)"`
+	Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: auto-scales with count in the MCP server: 1 minute for up to 40 runs, 2 minutes for 41-80 runs, and 3 minutes for the default 100-run window)"`
 	MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored. Output is always written to a file."`
 	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: usage). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage"`
 }
@@ -57,6 +57,8 @@ func defaultMCPLogsToolTimeoutMinutesForCount(count int) int {
 		count = defaultMCPLogsToolCount
 	}
 
+	// Round up in 40-run increments so requests slightly above the current
+	// 60-second threshold automatically get an extra minute of budget.
 	return max(defaultMCPLogsTimeoutMinutes, (count+mcpLogsRunsPerDefaultTimeoutMinute-1)/mcpLogsRunsPerDefaultTimeoutMinute)
 }
 
