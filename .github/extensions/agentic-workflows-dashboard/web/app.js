@@ -121,9 +121,6 @@ Alpine.data("dashboardApp", () => ({
     usagePaged: paginate([], 1, 20),
     experimentsPaged: paginate([], 1, 20),
     selectedRun: null,
-    auditData: null,
-    loadingAudit: false,
-    errorAudit: "",
     commandInput: "",
     commandOutput: "",
     flashMessage: "",
@@ -148,8 +145,9 @@ Alpine.data("dashboardApp", () => ({
             this.commandOutput = `$ ${this.cliStatus.command}\ngh aw version ${this.cliStatus.version}`;
             return;
         }
+        const unavailableMessage = this.cliUnavailableMessage();
         this.commandInput = this.cliStatus?.command ?? "gh aw version";
-        this.commandOutput = this.cliStatus?.message ?? "gh aw is not installed.";
+        this.commandOutput = unavailableMessage;
     },
     currentWindow() {
         return reportWindowById(this.selectedWindow);
@@ -268,12 +266,16 @@ Alpine.data("dashboardApp", () => ({
             this.runs = [];
             this.usage = [];
             this.experiments = [];
+            this.selectedRun = null;
+            this.runsMeta = null;
+            this.usageMeta = null;
             this.loadDefinitionPage(1);
             this.loadRunPage(1);
             this.loadUsagePage(1);
             this.loadExperimentPage(1);
+            const unavailableMessage = this.cliUnavailableMessage();
             this.commandInput = this.cliStatus?.command ?? "gh aw version";
-            this.commandOutput = this.cliStatus?.message ?? "gh aw is not installed.";
+            this.commandOutput = unavailableMessage;
         }
         this.flashMessage = "Refreshed.";
         setTimeout(() => {
@@ -312,57 +314,17 @@ Alpine.data("dashboardApp", () => ({
     },
     selectRun(runId) {
         this.selectedRun = this.runs.find(run => run.run_id === runId) ?? null;
-        this.auditData = null;
-        this.errorAudit = "";
-        this.loadingAudit = false;
     },
     viewRunDetails(runId) {
         this.selectRun(runId);
         this.setActiveTab("details");
     },
-    async loadAudit() {
-        if (!this.selectedRun) return;
-        const requestedRunId = this.selectedRun.run_id;
-        this.loadingAudit = true;
-        this.errorAudit = "";
-        this.auditData = null;
-        try {
-            const params = new URLSearchParams({ run_id: String(requestedRunId) });
-            const resp = await fetch(`/api/audit?${params.toString()}`);
-            const data = await resp.json();
-            if (!resp.ok) throw new Error(data.error ?? `HTTP ${resp.status}`);
-            if (this.selectedRun?.run_id !== requestedRunId) return;
-            this.auditData = data;
-        } catch (error) {
-            if (this.selectedRun?.run_id !== requestedRunId) return;
-            this.errorAudit = `Audit failed: ${error instanceof Error ? error.message : String(error)}`;
-        } finally {
-            if (this.selectedRun?.run_id === requestedRunId) {
-                this.loadingAudit = false;
-            }
-        }
-    },
-    clearAudit() {
-        this.auditData = null;
-        this.errorAudit = "";
-    },
-    auditHasFindings() {
-        return (this.auditData?.key_findings ?? []).length > 0;
-    },
-    auditSeverityClass(severity) {
-        if (severity === "critical" || severity === "high") return "Label Label--danger";
-        if (severity === "medium") return "Label Label--attention";
-        if (severity === "low") return "Label Label--secondary";
-        return "Label Label--accent";
-    },
-    auditPriorityClass(priority) {
-        if (priority === "high") return "Label Label--danger";
-        if (priority === "medium") return "Label Label--attention";
-        return "Label Label--secondary";
-    },
     buildLogsCommand(count = DEFAULT_LOGS_COMMAND_COUNT) {
         const window = this.currentWindow();
         return `gh aw logs --json -c ${count} --start-date ${window.startDate} --timeout ${this.logsTimeout}`;
+    },
+    cliUnavailableMessage() {
+        return (this.cliStatus?.message ?? this.errorCliStatus) || "gh aw is not installed.";
     },
     buildReportSummaryMessage(meta) {
         return buildReportMessage(meta, "No logs metadata available.");
