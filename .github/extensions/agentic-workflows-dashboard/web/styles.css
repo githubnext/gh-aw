@@ -82,3 +82,61 @@ details > summary::marker,
 details > summary::-webkit-details-marker {
   display: none;
 }
+
+/* Give flash alert boxes inside Box components breathing room */
+.Box-body.flash {
+  margin: 0.75rem;
+  border-radius: 6px;
+}
+
+/* Thin, themed scrollbars for content scroll areas */
+.awd-scroll,
+.awd-command-output {
+  scrollbar-width: thin;
+  scrollbar-color: var(--borderColor-default, #d0d7de) transparent;
+}
+
+.awd-scroll::-webkit-scrollbar,
+.awd-command-output::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.awd-scroll::-webkit-scrollbar-track,
+.awd-command-output::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.awd-scroll::-webkit-scrollbar-thumb,
+.awd-command-output::-webkit-scrollbar-thumb {
+  background: var(--borderColor-default, #d0d7de);
+  border-radius: 4px;
+}
+
+.awd-scroll::-webkit-scrollbar-thumb:hover,
+.awd-command-output::-webkit-scrollbar-thumb:hover {
+  background: var(--fgColor-muted, #656d76);
+}
+
+/* Thin scrollbar for the tab navigation overflow area */
+.UnderlineNav-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--borderColor-default, #d0d7de) transparent;
+}
+
+.UnderlineNav-body::-webkit-scrollbar {
+  height: 4px;
+}
+
+.UnderlineNav-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.UnderlineNav-body::-webkit-scrollbar-thumb {
+  background: var(--borderColor-default, #d0d7de);
+  border-radius: 2px;
+}
+
+.UnderlineNav-body::-webkit-scrollbar-thumb:hover {
+  background: var(--fgColor-muted, #656d76);
+}
