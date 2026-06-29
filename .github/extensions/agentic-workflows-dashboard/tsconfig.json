@@ -13,5 +13,5 @@
     "rootDir": ".",
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "dashboard-*.ts", "usage-forecast.ts"]
+  "include": ["src/**/*.ts"]
 }

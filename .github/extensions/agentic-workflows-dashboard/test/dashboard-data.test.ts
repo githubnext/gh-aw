@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createDashboardDataAccess } from "../dashboard-data.js";
+import { createDashboardDataAccess } from "../src/dashboard-data.js";
 
 describe("dashboard data access", () => {
   it("keeps logs command filters across continuation batches", async () => {

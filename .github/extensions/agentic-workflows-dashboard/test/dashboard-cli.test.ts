@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createGhAwRunnerWithStatus } from "../dashboard-cli.js";
+import { createGhAwRunnerWithStatus } from "../src/dashboard-cli.js";
 
 describe("dashboard cli runner", () => {
   it("detects gh aw version from the extension and sets CI=1", async () => {

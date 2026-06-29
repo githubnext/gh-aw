@@ -67,9 +67,7 @@ export function getForecastMonthlyAIC(forecast?: ForecastWorkflow | null): numbe
 }
 
 export function applyForecastToUsageSummary(items: UsageSummaryItem[], forecastWorkflows: ForecastWorkflow[] = []): UsageSummaryItem[] {
-  const forecastEntries = forecastWorkflows
-    .map(forecast => [normalizeWorkflowID(forecast?.workflow_id || forecast?.workflow_path), getForecastMonthlyAIC(forecast)] as const)
-    .filter(([workflowID]) => Boolean(workflowID));
+  const forecastEntries = forecastWorkflows.map(forecast => [normalizeWorkflowID(forecast?.workflow_id || forecast?.workflow_path), getForecastMonthlyAIC(forecast)] as const).filter(([workflowID]) => Boolean(workflowID));
   const forecastByWorkflow = new Map(forecastEntries);
 
   return items.map(item => ({
