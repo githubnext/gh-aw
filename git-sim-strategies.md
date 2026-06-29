@@ -34,6 +34,13 @@ corrected vs source → PASS (4052.9 < 4096).
 - PREDICTION: first real `rejected` appears at xlarge × (diverged OR multi-file OR
   bigger SIZE), where extra hunk/index/file headers tip net patch past 4096. Esp.
   BRANCH=diverged (symmetric-diff adds history.md hunk), FILES few/many/batch.
+- ** 06-29 CORRECTION — DIVERGED does NOT inflate the feature patch.** xlarge band
+  CLOSED 06-29 (idx 40-43 ahead-multi/merge_msg + diverged-single/multi): all PASS
+  at 4053–4060 KB. The diverged history.md commit lives on MAIN, i.e. the merge-base
+  SIDE, so it is EXCLUDED from `MB..feature` — the patch the cap measures. Symmetric
+  two-dot `main..feature` over-counts it (cosmetic) but format-patch from merge-base
+  does not. So diverged adds ZERO patch bytes; only FILE-COUNT (per-file headers) or
+  bigger SIZE can breach 4096. Real `rejected` now expected first at xlarge×FILES>1.
 - Cap COMPARISON logic lives in the ACTION RUNTIME (TS collector), not this repo's
   Go/JS (pkg only sets the value). Unconfirmed whether it measures payload bytes
   or full format-patch bytes; if the latter (worst case), ~1% headroom is operative.
@@ -99,12 +106,12 @@ corrected vs source → PASS (4052.9 < 4096).
 
 ## Next
 
-Next enumeration index: **40** → `tiny-none-single-xlarge-ahead-multi`.
-xlarge clean-band (36-38) + ahead-single (39) CLOSED 06-28, all PASS at ~4053 KB
-(~99% of the 4096 KB cap). Band idx 40-44 = ahead×{multi,merge_msg} +
-diverged×{single,multi,merge_msg}. WATCH idx 42-44 (diverged): the symmetric-diff
-history.md hunk adds bytes on top of an already-4053 KB patch — first plausible
-breach of 4096 → real `rejected`. After xlarge fully closes (idx 45), enumeration
-leaves PATCH and advances FILES (few/many/batch) then HISTORY (shallow→deep);
-multi-file at xlarge (header overhead) and batch/deep are next limit candidates.
-REMINDER: `config-simulator` subagent unregistered → use `general-purpose`.
+Next enumeration index: **44** → `tiny-none-single-xlarge-diverged-merge_msg` (sole
+remaining xlarge cell; closes the tiny-none-single PATCH walk). idx 40-43 CLOSED
+06-29 all PASS (4053-4060 KB). Diverged confirmed NOT a breach path — history.md is
+merge-base-side, excluded from MB..feature. After idx 44, enumeration leaves PATCH
+(0->4 wraps) and advances FILES single->few; the prime rejection candidate is now
+xlarge×FILES≥few (per-file diff/index headers stack on top of ~4053 KB → >4096).
+Also confirm possible `max_patch_files` cap (~800?) before FILES=batch. HISTORY=deep
+(500) still far ahead. REMINDER: `config-simulator` subagent unregistered → use
+`general-purpose`.
