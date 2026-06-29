@@ -1,9 +1,12 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { execFile } from "node:child_process/promises";
+import { execFile as execFileCb } from "node:child_process";
+import { promisify } from "node:util";
 import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
+
+const execFile = promisify(execFileCb);
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 
