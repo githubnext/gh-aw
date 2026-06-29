@@ -47,7 +47,7 @@ pre-agent-steps:
       mkdir -p "${SKILLS_DST}"
       # Install only the skills referenced in this workflow's prompt, rather than
       # all published skills, to reduce install time and network overhead.
-      for skill in diagnose tdd zoom-out improve-codebase-architecture grill-with-docs to-prd; do
+      for skill in diagnosing-bugs tdd improve-codebase-architecture grill-with-docs to-prd codebase-design domain-modeling; do
         gh skill install mattpocock/skills "${skill}" --dir "${SKILLS_DST}" --force
       done
       SKILL_COUNT=$(find "${SKILLS_DST}" -name "SKILL.md" | wc -l)
@@ -117,10 +117,11 @@ You are a skilled engineering reviewer who applies [Matt Pocock's engineering sk
 
 The following skills have been installed via `gh skill` and are available under `${RUNNER_TEMP}/gh-aw/mattpocock-skills/`. Discover exactly which skills are present using the `find` command in Step 2.
 
-- **`/diagnose`** — Disciplined debugging loop: reproduce → minimise → hypothesise → instrument → fix → regression-test. Use for PRs that fix bugs or address performance regressions.
+- **`/diagnosing-bugs`** — Disciplined debugging loop: reproduce → minimise → hypothesise → instrument → fix → regression-test. Use for PRs that fix bugs or address performance regressions.
 - **`/tdd`** — Test-driven development: red-green-refactor loop. Use for PRs that add features or fix bugs, especially where test coverage is thin.
-- **`/zoom-out`** — Broader architectural context and higher-level perspective on code changes. Use for large refactors or when reviewing unfamiliar modules.
+- **`/codebase-design`** — Shared vocabulary for deep modules, interface seams, and codebase navigability. Use for large refactors or when reviewing unfamiliar modules.
 - **`/improve-codebase-architecture`** — Find deepening opportunities informed by the domain language. Use for PRs that restructure or extend the architecture.
+- **`/domain-modeling`** — Sharpen project terminology and architectural context. Use when changes introduce or rename concepts.
 - **`/grill-with-docs`** — Challenges the plan against the existing domain model and terminology. Use when changes introduce new concepts or abstractions.
 - **`/to-prd`** — Turn context into a PRD. Use when the PR description is unclear or the scope is hard to understand.
 
@@ -166,13 +167,13 @@ Focus your skill application on files listed in `pr-triage`'s `high_impact_files
 Apply the skill(s) to review the changed lines. For each issue you find:
 
 - **Identify the file and line number** in the diff
-- **Explain the issue** in terms of the skill's principles (e.g. missing test coverage per `/tdd`, unclear abstraction per `/zoom-out`)
+- **Explain the issue** in terms of the skill's principles (e.g. missing test coverage per `/tdd`, unclear abstraction per `/codebase-design`)
 - **Provide a concrete suggestion** — what to do differently and why
 - **Keep it actionable** — the author should know exactly what to change
 
 Focus areas by skill:
 
-**`/diagnose` guidance:**
+**`/diagnosing-bugs` guidance:**
 - Is the bug fix accompanied by a regression test?
 - Is the root cause properly addressed, or only the symptom?
 - Are error paths instrumented to surface future regressions?
@@ -183,7 +184,7 @@ Focus areas by skill:
 - Are test names descriptive — do they read as specifications?
 - Is test structure clear: Arrange / Act / Assert?
 
-**`/zoom-out` guidance:**
+**`/codebase-design` guidance:**
 - Does the change fit the broader architecture?
 - Are new abstractions consistent with existing patterns?
 - Could this change make the codebase harder to navigate?
@@ -211,7 +212,7 @@ For each issue found, create a review comment using `create-pull-request-review-
 ```
 
 Guidelines:
-- Prefix each comment with the skill name in brackets: `**[/diagnose]**`, `**[/tdd]**`, etc.
+- Prefix each comment with the skill name in brackets: `**[/diagnosing-bugs]**`, `**[/tdd]**`, etc.
 - Keep the **immediately visible text brief** (1–2 sentences): state the issue and its impact
 - Wrap code examples, detailed explanations, and multi-step suggestions in `<details><summary>💡 …</summary>` blocks
 - Be specific: file path, line number, exact issue
@@ -234,7 +235,7 @@ The review body should apply progressive disclosure — keep the immediately vis
 ```markdown
 ### Skills-Based Review 🧠
 
-Applied **`/tdd`** and **`/zoom-out`** — requesting changes on test coverage gaps.
+Applied **`/tdd`** and **`/codebase-design`** — requesting changes on test coverage gaps.
 
 <details>
 <summary>📋 Key Themes & Highlights</summary>
@@ -299,28 +300,28 @@ Tasks:
    - `documentation`
    - `mixed_unclear`
 3. Choose 1–2 `recommended_skills` from:
-   - `/diagnose`
+   - `/diagnosing-bugs`
    - `/tdd`
-   - `/zoom-out`
+   - `/codebase-design`
    - `/improve-codebase-architecture`
    - `/grill-with-docs`
 4. Rank changed files as `high_impact_files` (most important first), including enough files to cover the key risk areas.
 5. Provide concise `key_signals` that justify classification and ranking.
 
 Skill mapping:
-- `bug_fix` → `/diagnose`, `/tdd`
+- `bug_fix` → `/diagnosing-bugs`, `/tdd`
 - `new_feature` → `/tdd`, `/grill-with-docs`
-- `refactor_cleanup` → `/zoom-out`, `/improve-codebase-architecture`
-- `architecture_change` → `/improve-codebase-architecture`, `/zoom-out`
+- `refactor_cleanup` → `/codebase-design`, `/improve-codebase-architecture`
+- `architecture_change` → `/improve-codebase-architecture`, `/codebase-design`
 - `tests_only` → `/tdd`
 - `documentation` → `/grill-with-docs`
-- `mixed_unclear` → `/zoom-out`, `/tdd`
+- `mixed_unclear` → `/codebase-design`, `/tdd`
 
 Return JSON only (no markdown) in this exact shape:
 ```json
 {
   "change_type": "bug_fix",
-  "recommended_skills": ["/diagnose", "/tdd"],
+  "recommended_skills": ["/diagnosing-bugs", "/tdd"],
   "high_impact_files": [
     {
       "path": "pkg/example/file.go",
