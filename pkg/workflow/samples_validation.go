@@ -81,13 +81,8 @@ func getCompiledToolSchemas() (map[string]toolSchemaEntry, error) {
 				compiledToolSchemasErr = fmt.Errorf("failed to parse inputSchema for tool %q: %w", t.Name, err)
 				return
 			}
-			compiler := jsonschema.NewCompiler()
 			schemaURL := fmt.Sprintf("inmem://safe-outputs-tools/%s.json", t.Name)
-			if err := compiler.AddResource(schemaURL, schemaDoc); err != nil {
-				compiledToolSchemasErr = fmt.Errorf("failed to add schema resource for tool %q: %w", t.Name, err)
-				return
-			}
-			schema, err := compiler.Compile(schemaURL)
+			schema, err := compileSchema(string(t.InputSchema), schemaURL)
 			if err != nil {
 				compiledToolSchemasErr = fmt.Errorf("failed to compile inputSchema for tool %q: %w", t.Name, err)
 				return
