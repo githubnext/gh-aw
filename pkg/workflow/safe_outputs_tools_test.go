@@ -91,7 +91,9 @@ func TestEnhanceToolDescription(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				AddLabels: &AddLabelsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
-					Allowed:              []string{"bug", "enhancement", "question"},
+					SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+						Allowed: []string{"bug", "enhancement", "question"},
+					},
 				},
 			},
 			wantContains: []string{
@@ -107,7 +109,9 @@ func TestEnhanceToolDescription(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				AddLabels: &AddLabelsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
-					Allowed:              []string{"bug", "feature request", "good first issue", "help wanted"},
+					SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+						Allowed: []string{"bug", "feature request", "good first issue", "help wanted"},
+					},
 				},
 			},
 			wantContains: []string{

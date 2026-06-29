@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { applyForecastToUsageSummary, buildUsageSummary, forecastDaysForWindow, getForecastMonthlyAIC, normalizeWorkflowID } from "../usage-forecast.mjs";
+import { applyForecastToUsageSummary, buildUsageSummary, forecastDaysForWindow, getForecastMonthlyAIC, normalizeWorkflowID } from "../src/usage-forecast.js";
 
 describe("usage forecast helpers", () => {
   it("normalizes workflow ids from workflow paths", () => {

@@ -104,7 +104,9 @@ func TestGenerateSafeOutputsConfigActionsCollisionReturnsError(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			// add_labels is a built-in handler that produces a real config object.
 			AddLabels: &AddLabelsConfig{
-				Allowed: []string{"bug"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Allowed: []string{"bug"},
+				},
 			},
 			// A custom action whose normalized name matches the built-in "add_labels" key.
 			Actions: map[string]*SafeOutputActionConfig{
@@ -434,8 +436,10 @@ func TestGenerateSafeOutputsConfigAddLabelsBlocked(t *testing.T) {
 					Target:         "*",
 					TargetRepoSlug: "microsoft/vscode",
 				},
-				Allowed: []string{"bug", "enhancement"},
-				Blocked: []string{"[*]*", "~spam", "stale", "triage-needed"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Allowed: []string{"bug", "enhancement"},
+					Blocked: []string{"[*]*", "~spam", "stale", "triage-needed"},
+				},
 			},
 		},
 	}

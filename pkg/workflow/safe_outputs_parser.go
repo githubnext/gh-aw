@@ -26,6 +26,13 @@ type SafeOutputDiscussionFilterConfig struct {
 	RequiredCategory       string `yaml:"required-category,omitempty"` // Required category for discussion operations
 }
 
+// SafeOutputAllowBlockConfig contains common allow/block lists for safe output configurations.
+// Embed this in safe output config structs that support optional allowed/blocked value filters.
+type SafeOutputAllowBlockConfig struct {
+	Allowed []string `yaml:"allowed,omitempty"` // Optional list of allowed values
+	Blocked []string `yaml:"blocked,omitempty"` // Optional list of blocked patterns (supports glob patterns)
+}
+
 // CloseJobConfig represents common configuration for close operations (close-issue, close-discussion, close-pull-request)
 type CloseJobConfig struct {
 	SafeOutputTargetConfig `yaml:",inline"`
@@ -34,9 +41,8 @@ type CloseJobConfig struct {
 
 // ListJobConfig represents common configuration for list-based operations (add-labels, add-reviewer, assign-milestone)
 type ListJobConfig struct {
-	SafeOutputTargetConfig `yaml:",inline"`
-	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed values
-	Blocked                []string `yaml:"blocked,omitempty"` // Optional list of blocked patterns (supports glob patterns)
+	SafeOutputTargetConfig     `yaml:",inline"`
+	SafeOutputAllowBlockConfig `yaml:",inline"`
 }
 
 // ParseTargetConfig parses target and target-repo fields from a config map.

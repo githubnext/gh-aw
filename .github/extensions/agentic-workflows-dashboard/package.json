@@ -8,12 +8,14 @@
     "alpinejs": "^3.15.0"
   },
   "devDependencies": {
+    "@types/node": "^26.0.1",
     "esbuild": "^0.28.1",
     "typescript": "6.0.3",
     "vitest": "4.1.9"
   },
   "scripts": {
     "build": "npm run typecheck && npm run build:web",
+    "build:ts": "tsc -p tsconfig.emit.json",
     "build:web": "esbuild src/app.ts --bundle --format=esm --target=es2022 --outfile=web/app.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
