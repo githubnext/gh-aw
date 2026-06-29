@@ -37,6 +37,7 @@ const {
   isModelAvailableInReflectData,
   isModelAvailableInReflectFile,
   resolveCopilotSDKCustomProviderFromReflect,
+  inferProviderTypeForModel,
   enrichReflectModels,
   extractModelIds,
   fetchAWFReflect,
