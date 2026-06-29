@@ -3299,6 +3299,41 @@ function paginate(items, page, pageSize) {
 }
 
 // src/app.ts
+var DEFINITIONS_SEARCH_KEY = "awd-definitions-search";
+function parseDefinitionsSearch(query) {
+  const terms = [];
+  const tokenRe = /(\w+):("([^"]*)"|\S+)|(\S+)/g;
+  let match;
+  while ((match = tokenRe.exec(query)) !== null) {
+    if (match[1]) {
+      const field = match[1].toLowerCase();
+      const rawValue = match[3] ?? match[2] ?? "";
+      const value = rawValue.replace(/^"|"$/g, "").toLowerCase();
+      if (field === "name" || field === "engine" || field === "label") {
+        terms.push({ field, value });
+      } else {
+        terms.push({ field: "text", value: `${field}:${value}` });
+      }
+    } else if (match[4]) {
+      terms.push({ field: "text", value: match[4].toLowerCase() });
+    }
+  }
+  return terms;
+}
+function matchesDefinitionSearch(definition, query) {
+  if (!query.trim()) return true;
+  const terms = parseDefinitionsSearch(query);
+  if (terms.length === 0) return true;
+  const name = (definition.workflow ?? "").toLowerCase();
+  const engine = (definition.engine_id ?? "").toLowerCase();
+  const labels = (definition.labels ?? []).map((l) => l.toLowerCase());
+  return terms.every((term) => {
+    if (term.field === "name") return name.includes(term.value);
+    if (term.field === "engine") return engine.includes(term.value);
+    if (term.field === "label") return labels.some((l) => l.includes(term.value));
+    return name.includes(term.value) || engine.includes(term.value) || labels.some((l) => l.includes(term.value));
+  });
+}
 var dashboardTabs = [
   { id: "definitions", label: "Workflows", counter: "definitions" },
   { id: "runs", label: "Runs", counter: "runs" },
@@ -3309,9 +3344,9 @@ var dashboardTabs = [
   { id: "commands", label: "Commands" }
 ];
 var reportWindows = [
-  { id: "3d", label: "3 days", startDate: "-3d" },
-  { id: "7d", label: "7 days", startDate: "-1w" },
-  { id: "1mo", label: "1 month", startDate: "-1mo" }
+  { id: "3d", label: "3 days", startDate: "-3d", days: 3 },
+  { id: "7d", label: "7 days", startDate: "-1w", days: 7 },
+  { id: "1mo", label: "1 month", startDate: "-1mo", days: 30 }
 ];
 var DEFAULT_LOGS_COMMAND_COUNT = 25;
 function cliSourceLabel(cliStatus) {
@@ -3398,6 +3433,13 @@ module_default.data("dashboardApp", () => ({
   pageSize: 20,
   cliStatus: null,
   definitions: [],
+  definitionsSearch: (() => {
+    try {
+      return localStorage.getItem(DEFINITIONS_SEARCH_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  })(),
   runs: [],
   usage: [],
   experiments: [],
@@ -3577,7 +3619,17 @@ gh aw version ${this.cliStatus.version}`;
     return 0;
   },
   loadDefinitionPage(page) {
-    this.definitionsPaged = paginate(this.definitions, page, this.pageSize);
+    this.definitionsPaged = paginate(this.filteredDefinitions(), page, this.pageSize);
+  },
+  filteredDefinitions() {
+    return this.definitions.filter((d) => matchesDefinitionSearch(d, this.definitionsSearch));
+  },
+  applyDefinitionsSearch() {
+    try {
+      localStorage.setItem(DEFINITIONS_SEARCH_KEY, this.definitionsSearch);
+    } catch {
+    }
+    this.loadDefinitionPage(1);
   },
   loadRunPage(page) {
     this.runsPaged = paginate(this.runs, page, this.pageSize);

@@ -73,7 +73,17 @@
         <section class="mt-3" x-show="isActiveTab('definitions')">
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
-              <h2 class="Box-title">Workflow definitions <span class="Counter ml-1" x-text="definitionsPaged.totalItems"></span></h2>
+              <h2 class="Box-title">
+                Workflow definitions <span class="Counter ml-1" x-text="definitionsPaged.totalItems"></span
+                ><span class="color-fg-muted text-small ml-1" x-cloak x-show="definitionsSearch && definitionsPaged.totalItems !== definitions.length">/ <span x-text="definitions.length"></span></span>
+              </h2>
+            </div>
+            <!-- search bar -->
+            <div class="awd-search-bar">
+              <div class="d-flex flex-items-center gap-2">
+                <input class="form-control input-sm flex-1" type="search" placeholder="Search by name, engine:id, label:name" aria-label="Search workflow definitions" x-model="definitionsSearch" @input="applyDefinitionsSearch()" />
+                <button class="btn btn-sm" x-cloak x-show="definitionsSearch" @click="definitionsSearch = ''; applyDefinitionsSearch()">Clear</button>
+              </div>
             </div>
             <!-- loading -->
             <div class="Box-body color-fg-muted text-center py-4" x-cloak x-show="loadingDefinitions">
@@ -99,7 +109,9 @@
                   </div>
                 </div>
               </template>
-              <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingDefinitions && definitionsPaged.totalItems === 0">No workflow definitions found. Run <code>make build</code> then open this canvas again.</div>
+              <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingDefinitions && definitionsPaged.totalItems === 0">
+                <span x-show="!definitionsSearch">No workflow definitions found. Run <code>make build</code> then open this canvas again.</span><span x-show="definitionsSearch">No workflows match your search.</span>
+              </div>
             </div>
             <div class="Box-footer d-flex flex-items-center flex-justify-between" x-cloak x-show="!loadingDefinitions && definitionsPaged.totalPages > 1">
               <button class="btn btn-sm" :disabled="!definitionsPaged.hasPreviousPage" @click="loadDefinitionPage(definitionsPaged.page - 1)">Previous</button>

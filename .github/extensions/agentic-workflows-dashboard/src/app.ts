@@ -4,6 +4,46 @@ import type { AuditFinding, AuditReport, CLIStatus, ExperimentInfo, PagedResult,
 import { paginate } from "./pagination.js";
 import type { ReportWindow } from "./dashboard-config.js";
 
+const DEFINITIONS_SEARCH_KEY = "awd-definitions-search";
+
+type SearchTerm = { field: "name" | "engine" | "label" | "text"; value: string };
+
+function parseDefinitionsSearch(query: string): SearchTerm[] {
+  const terms: SearchTerm[] = [];
+  const tokenRe = /(\w+):("([^"]*)"|\S+)|(\S+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = tokenRe.exec(query)) !== null) {
+    if (match[1]) {
+      const field = match[1].toLowerCase();
+      const rawValue = match[3] ?? match[2] ?? "";
+      const value = rawValue.replace(/^"|"$/g, "").toLowerCase();
+      if (field === "name" || field === "engine" || field === "label") {
+        terms.push({ field, value });
+      } else {
+        terms.push({ field: "text", value: `${field}:${value}` });
+      }
+    } else if (match[4]) {
+      terms.push({ field: "text", value: match[4].toLowerCase() });
+    }
+  }
+  return terms;
+}
+
+function matchesDefinitionSearch(definition: WorkflowDefinition, query: string): boolean {
+  if (!query.trim()) return true;
+  const terms = parseDefinitionsSearch(query);
+  if (terms.length === 0) return true;
+  const name = (definition.workflow ?? "").toLowerCase();
+  const engine = (definition.engine_id ?? "").toLowerCase();
+  const labels = (definition.labels ?? []).map(l => l.toLowerCase());
+  return terms.every(term => {
+    if (term.field === "name") return name.includes(term.value);
+    if (term.field === "engine") return engine.includes(term.value);
+    if (term.field === "label") return labels.some(l => l.includes(term.value));
+    return name.includes(term.value) || engine.includes(term.value) || labels.some(l => l.includes(term.value));
+  });
+}
+
 type FlashKind = "success" | "warn" | "error";
 type DashboardTabId = "definitions" | "runs" | "details" | "usage" | "experiments" | "maintenance" | "commands";
 type DashboardTab = { id: DashboardTabId; label: string; counter?: "definitions" | "runs" | "usage" | "experiments" };
@@ -26,6 +66,7 @@ interface DashboardState {
   pageSize: number;
   cliStatus: CLIStatus | null;
   definitions: WorkflowDefinition[];
+  definitionsSearch: string;
   runs: WorkflowRun[];
   usage: UsageSummaryItem[];
   experiments: ExperimentInfo[];
@@ -71,6 +112,8 @@ interface DashboardState {
   isActiveTab(tab: DashboardTabId): boolean;
   tabCount(tab: DashboardTab): number;
   loadDefinitionPage(page: number): void;
+  filteredDefinitions(): WorkflowDefinition[];
+  applyDefinitionsSearch(): void;
   loadRunPage(page: number): void;
   loadUsagePage(page: number): void;
   loadExperimentPage(page: number): void;
@@ -216,6 +259,13 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   pageSize: 20,
   cliStatus: null,
   definitions: [],
+  definitionsSearch: (() => {
+    try {
+      return localStorage.getItem(DEFINITIONS_SEARCH_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  })(),
   runs: [],
   usage: [],
   experiments: [],
@@ -408,7 +458,20 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   },
 
   loadDefinitionPage(page) {
-    this.definitionsPaged = paginate(this.definitions, page, this.pageSize);
+    this.definitionsPaged = paginate(this.filteredDefinitions(), page, this.pageSize);
+  },
+
+  filteredDefinitions() {
+    return this.definitions.filter(d => matchesDefinitionSearch(d, this.definitionsSearch));
+  },
+
+  applyDefinitionsSearch() {
+    try {
+      localStorage.setItem(DEFINITIONS_SEARCH_KEY, this.definitionsSearch);
+    } catch {
+      // localStorage unavailable (e.g. private browsing restrictions)
+    }
+    this.loadDefinitionPage(1);
   },
 
   loadRunPage(page) {

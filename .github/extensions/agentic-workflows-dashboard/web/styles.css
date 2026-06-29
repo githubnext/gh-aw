@@ -163,6 +163,16 @@ details > summary::-webkit-details-marker {
   vertical-align: middle;
 }
 
+/* Sticky search bar above the workflow definitions scroll area */
+.awd-search-bar {
+  padding: 8px 16px;
+  background: var(--bgColor-default, #ffffff);
+  border-bottom: 1px solid var(--borderColor-default, #d0d7de);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
 /* Skeleton shimmer */
 @keyframes awd-shimmer {
   0% {
