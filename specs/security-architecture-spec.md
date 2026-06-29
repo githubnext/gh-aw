@@ -1658,11 +1658,11 @@ jobs:
       - name: Threat detection
         id: threat_detection
         uses: actions/github-script@<SHA>
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { main } = require('/opt/gh-aw/actions/threat_detection.cjs');
-            await main();
+        # No github-token: detection reads only the agent artifact written to the runner
+        # file system. Providing a token here would violate TD-18 (no GitHub API calls).
+        script: |
+          const { main } = require('/opt/gh-aw/actions/threat_detection.cjs');
+          await main();
 
   safe_outputs:
     needs: [agent, detection]
@@ -1678,12 +1678,14 @@ jobs:
     # MUST perform only idempotent, read-or-comment operations (e.g., posting a run
     # summary comment). It MUST NOT perform any write operations that were not already
     # gated by the detection → safe_outputs security chain.
+    # A GitHub token is required here solely to post the summary comment; the token
+    # MUST have only the permissions declared below (issues: write for comments only).
     needs: safe_outputs
     if: always()
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      issues: write  # only for posting a summary comment
+      issues: write  # required only for posting the run summary comment; no other writes
     steps:
       - name: Post execution summary
         uses: actions/github-script@<SHA>
