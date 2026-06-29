@@ -81,6 +81,13 @@ async function startServer() {
             timeout: parseInt(reqUrl.searchParams.get("timeout") ?? String(DEFAULT_LOG_TIMEOUT_MINUTES), 10),
           })
         );
+      } else if (pathname === "/api/audit") {
+        const runId = reqUrl.searchParams.get("run_id") ?? "";
+        if (!runId) {
+          sendJson({ error: "run_id is required" }, 400);
+        } else {
+          sendJson(await dataAccess.getAudit(runId));
+        }
       } else if (pathname === "/api/run-command") {
         const cmd = reqUrl.searchParams.get("cmd") ?? "";
         sendJson(
@@ -132,6 +139,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
 - \`listUsage\` — aggregates workflow AIC usage from logs and fills monthly forecast via \`gh aw forecast --json\`
 - \`listExperiments\` — calls \`gh aw experiments list --json\`, returns paged results
 - \`getRun\` — looks up a single run by \`run_id\`
+- \`auditRun\` — calls \`gh aw audit <run_id> --json\` and returns structured audit data (overview, metrics, key_findings, recommendations, jobs, tool_usage, errors, warnings, firewall_analysis)
 - \`runCommand\` — executes any \`gh aw <subcommand>\` and returns stdout
 - \`refresh\` — clears the 60-second cache so the next call fetches fresh data
 `,
@@ -244,6 +252,17 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
             const logsData = await dataAccess.getRuns({ count: 200, window: "1mo", timeout: DEFAULT_LOG_TIMEOUT_MINUTES });
             return { run: logsData.runs.find(r => r.run_id === Number(ctx.input?.run_id)) ?? null };
           },
+        },
+        {
+          name: "auditRun",
+          description: "Run gh aw audit for a specific workflow run by run_id, returning structured audit data.",
+          inputSchema: {
+            type: "object",
+            required: ["run_id"],
+            properties: { run_id: { type: "number", description: "The workflow run ID to audit." } },
+            additionalProperties: false,
+          },
+          handler: async ctx => dataAccess.getAudit(String(ctx.input?.run_id ?? "")),
         },
         {
           name: "runCommand",

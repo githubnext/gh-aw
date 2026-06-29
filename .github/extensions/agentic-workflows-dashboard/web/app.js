@@ -107,6 +107,9 @@ Alpine.data("dashboardApp", () => ({
   usagePaged: paginate([], 1, 20),
   experimentsPaged: paginate([], 1, 20),
   selectedRun: null,
+  auditData: null,
+  loadingAudit: false,
+  errorAudit: "",
   commandInput: "",
   commandOutput: "",
   flashMessage: "",
@@ -267,11 +270,44 @@ Alpine.data("dashboardApp", () => ({
 
   selectRun(runId) {
     this.selectedRun = this.runs.find(run => run.run_id === runId) ?? null;
+    this.auditData = null;
+    this.errorAudit = "";
   },
 
   viewRunDetails(runId) {
     this.selectRun(runId);
     this.setActiveTab("details");
+  },
+
+  async loadAudit() {
+    if (!this.selectedRun) return;
+    this.loadingAudit = true;
+    this.errorAudit = "";
+    this.auditData = null;
+    try {
+      const params = new URLSearchParams({ run_id: String(this.selectedRun.run_id) });
+      const resp = await fetch(`/api/audit?${params.toString()}`);
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error ?? `HTTP ${resp.status}`);
+      this.auditData = data;
+    } catch (error) {
+      this.errorAudit = `Audit failed: ${error.message}`;
+    } finally {
+      this.loadingAudit = false;
+    }
+  },
+
+  auditSeverityClass(severity) {
+    if (severity === "critical" || severity === "high") return "Label Label--danger";
+    if (severity === "medium") return "Label Label--attention";
+    if (severity === "low") return "Label Label--secondary";
+    return "Label Label--accent";
+  },
+
+  auditPriorityClass(priority) {
+    if (priority === "high") return "Label Label--danger";
+    if (priority === "medium") return "Label Label--attention";
+    return "Label Label--secondary";
   },
 
   buildLogsCommand(count = DEFAULT_LOGS_COMMAND_COUNT) {
