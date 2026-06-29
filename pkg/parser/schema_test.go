@@ -475,6 +475,36 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EnginePermissionMo
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineExtensions(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id":         "pi",
+			"extensions": []any{".go", ".md"},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/engine-extensions-valid-test.md")
+	if err != nil {
+		t.Fatalf("expected valid engine.extensions to pass schema validation, got: %v", err)
+	}
+
+	invalidFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id":         "pi",
+			"extensions": []any{".go", 1},
+		},
+	}
+
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/engine-extensions-invalid-test.md")
+	if err == nil {
+		t.Fatal("expected non-string engine.extensions entry to fail schema validation")
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ToolsEditBoolean(t *testing.T) {
 	t.Parallel()
 

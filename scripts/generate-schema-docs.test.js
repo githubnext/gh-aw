@@ -63,9 +63,9 @@ let allPassed = true;
 console.log("\nRunning tests...\n");
 
 // Test 1: Engine $ref resolution
-allPassed &= assertContains(output, 'engine: "claude"', "Engine $ref resolved - should show string option");
+allPassed &= assertContains(output, 'engine: "example-value"', "Engine $ref resolved - should show string option");
 
-allPassed &= assertContains(output, 'id: "claude"', "Engine $ref resolved - should show object variant with id field");
+allPassed &= assertContains(output, 'id: "example-value"', "Engine $ref resolved - should show object variant with id field");
 
 allPassed &= assertContains(output, "max-turns:", "Engine $ref resolved - should show max-turns field");
 
@@ -99,8 +99,12 @@ allPassed &= assertContains(output, "```yaml wrap", "YAML code block should have
 
 allPassed &= assertNotContains(output, "```yaml\n---\n# Workflow name", "YAML code block should NOT be plain ```yaml without wrap");
 
-// Test 8: Verify that all $refs in schema can be resolved
-const allRefs = ["#/$defs/engine_config", "#/$defs/stdio_mcp_tool", "#/$defs/http_mcp_tool", "#/properties/permissions", "#/properties/defaults", "#/properties/concurrency"];
+// Test 8: Verify engine.extensions appears in generated docs
+allPassed &= assertContains(output, "extensions:", "Engine extensions field should be present in generated docs");
+allPassed &= assertContains(output, "Pi engine may modify", "Engine extensions description should be present in generated docs");
+
+// Test 9: Verify that all $refs in schema can be resolved
+const allRefs = ["#/$defs/engine_config", "#/$defs/stdio_mcp_tool", "#/$defs/http_mcp_tool", "#/properties/permissions", "#/properties/concurrency"];
 
 for (const ref of allRefs) {
   const path = ref.substring(2).split("/");
@@ -124,7 +128,7 @@ for (const ref of allRefs) {
   }
 }
 
-// Test 9: Verify that deprecated fields are excluded from output and schema
+// Test 10: Verify that deprecated fields are excluded from output and schema
 allPassed &= assertNotContains(output, "timeout_minutes:", "Deprecated field timeout_minutes should NOT be in output");
 
 allPassed &= assertContains(output, "timeout-minutes:", "Non-deprecated field timeout-minutes should be in output");

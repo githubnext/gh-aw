@@ -12053,6 +12053,17 @@
               },
               "description": "Optional array of command-line arguments to pass to the AI engine CLI. These arguments are injected after all other args but before the prompt."
             },
+            "extensions": {
+              "type": "array",
+              "description": "Optional allowlist of file extensions that the Pi engine may modify. Entries should be strings such as '.go' or '.md'. When omitted or empty, the Pi engine uses its default extension behavior.",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [".go", ".md"],
+                [".js", ".ts", ".json"]
+              ]
+            },
             "bare": {
               "type": "boolean",
               "description": "When true, disables automatic loading of context and custom instructions by the AI engine. The engine-specific flag depends on the engine: copilot uses --no-custom-instructions (suppresses .github/AGENTS.md and user-level custom instructions), claude uses --bare (suppresses CLAUDE.md memory files), codex uses --no-system-prompt (suppresses the default system prompt), gemini sets GEMINI_SYSTEM_MD=/dev/null (overrides the built-in system prompt with an empty one). Defaults to false.",

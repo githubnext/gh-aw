@@ -2285,6 +2285,13 @@ engine:
   args: []
     # Array of strings
 
+  # Optional allowlist of file extensions that the Pi engine may modify. Entries
+  # should be strings such as '.go' or '.md'. When omitted or empty, the Pi engine
+  # uses its default extension behavior.
+  # (optional)
+  extensions: []
+    # Array of strings
+
   # When true, disables automatic loading of context and custom instructions by the
   # AI engine. The engine-specific flag depends on the engine: copilot uses
   # --no-custom-instructions (suppresses .github/AGENTS.md and user-level custom
