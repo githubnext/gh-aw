@@ -6,12 +6,11 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"golang.org/x/mod/semver"
+	"github.com/github/gh-aw/pkg/semverutil"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -276,55 +275,26 @@ func updateCompileUpdateCheckTime() {
 }
 
 func isMinorVersionBehind(currentVersion string, latestVersion string) bool {
-	currentSV := ensureSemverPrefix(currentVersion)
-	latestSV := ensureSemverPrefix(latestVersion)
+	currentSV := semverutil.EnsureVPrefix(currentVersion)
+	latestSV := semverutil.EnsureVPrefix(latestVersion)
 
-	if !semver.IsValid(currentSV) || !semver.IsValid(latestSV) {
+	if !semverutil.IsValid(currentSV) || !semverutil.IsValid(latestSV) {
 		return false
 	}
-	if semver.Compare(currentSV, latestSV) >= 0 {
-		return false
-	}
-
-	currentMajor, currentMinor, ok := semverMajorMinorParts(currentSV)
-	if !ok {
-		return false
-	}
-	latestMajor, latestMinor, ok := semverMajorMinorParts(latestSV)
-	if !ok {
+	if semverutil.Compare(currentSV, latestSV) >= 0 {
 		return false
 	}
 
-	return currentMajor == latestMajor && latestMinor > currentMinor
-}
-
-func semverMajorMinorParts(version string) (int, int, bool) {
-	trimmed := strings.TrimPrefix(version, "v")
-	trimmed = strings.SplitN(trimmed, "-", 2)[0]
-	trimmed = strings.SplitN(trimmed, "+", 2)[0]
-
-	parts := strings.Split(trimmed, ".")
-	if len(parts) < 2 {
-		return 0, 0, false
+	currentParsed := semverutil.ParseVersion(currentSV)
+	if currentParsed == nil {
+		return false
+	}
+	latestParsed := semverutil.ParseVersion(latestSV)
+	if latestParsed == nil {
+		return false
 	}
 
-	major, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return 0, 0, false
-	}
-	minor, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return 0, 0, false
-	}
-
-	return major, minor, true
-}
-
-func ensureSemverPrefix(version string) string {
-	if strings.HasPrefix(version, "v") {
-		return version
-	}
-	return "v" + version
+	return currentParsed.Major == latestParsed.Major && latestParsed.Minor > currentParsed.Minor
 }
 
 func printCompileUpdateNotification(notification *compileUpdateNotification) {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -640,9 +641,9 @@ func buildDedupKeyInfos(keys []string) []cacheKeyInfo {
 	}
 	slices.SortFunc(keyInfos, func(a, b cacheKeyInfo) int {
 		switch {
-		case isMorePreciseVersion(a.versionRef, b.versionRef):
+		case semverutil.IsMorePreciseVersion(a.versionRef, b.versionRef):
 			return -1
-		case isMorePreciseVersion(b.versionRef, a.versionRef):
+		case semverutil.IsMorePreciseVersion(b.versionRef, a.versionRef):
 			return 1
 		default:
 			return 0
@@ -715,21 +716,4 @@ func (c *ActionCache) PruneStaleGHAWEntries(currentVersion string, actionsRepoPr
 		c.dirty = true
 		actionCacheLog.Printf("Pruned %d stale gh-aw-actions entries, %d entries remaining", len(toDelete), len(c.Entries))
 	}
-}
-
-// isMorePreciseVersion returns true if v1 is more precise than v2
-// For example: "v4.3.0" is more precise than "v4"
-func isMorePreciseVersion(v1, v2 string) bool {
-	// Count the number of dots in each version string
-	// More dots means more precision
-	dots1 := strings.Count(v1, ".")
-	dots2 := strings.Count(v2, ".")
-
-	if dots1 != dots2 {
-		return dots1 > dots2
-	}
-
-	// If same number of dots, compare lexicographically
-	// This handles cases like "v1.2.3" vs "v1.2.10" correctly
-	return v1 > v2
 }

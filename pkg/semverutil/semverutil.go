@@ -137,6 +137,19 @@ func (v *SemanticVersion) IsNewer(other *SemanticVersion) bool {
 	return Compare(v.Raw, other.Raw) > 0
 }
 
+// IsMorePreciseVersion reports whether v1 is more version-precise than v2.
+// Precision is measured by the number of dot-separated components: "v4.3.0"
+// (three components) is more precise than "v4" (one component). When both
+// versions have the same number of components, lexicographic ordering is used.
+func IsMorePreciseVersion(v1, v2 string) bool {
+	dots1 := strings.Count(v1, ".")
+	dots2 := strings.Count(v2, ".")
+	if dots1 != dots2 {
+		return dots1 > dots2
+	}
+	return v1 > v2
+}
+
 // IsCompatible reports whether pinVersion is semver-compatible with requestedVersion.
 // Semver compatibility is defined as both versions sharing the same major version.
 //
