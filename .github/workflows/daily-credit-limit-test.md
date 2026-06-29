@@ -32,14 +32,19 @@ features:
   gh-aw-detection: true
 ---
 
-# Daily Credit Limit Test (Intentionally Broken)
+### Daily Credit Limit Test (Intentionally Broken)
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
+
 
 > ⚠️ **This workflow is intentionally broken.** It exists solely to verify that
 > `max-daily-ai-credits: 1` is enforced by the activation guardrail and that the
 > system posts the appropriate limit-exceeded message when the budget is consumed.
 > **Do not fix this workflow.**
 
-## What This Tests
+#### What This Tests
 
 1. The activation job checks whether the last 24 hours of runs consumed more than 1 AI credit.
 2. If the limit is exceeded the agent job is skipped and a "Daily Workflow AIC Guardrail Exceeded"
@@ -47,7 +52,7 @@ features:
 3. Because any real model invocation exceeds 1 AI credit, this workflow will always trip the
    guardrail after the very first run.
 
-## Task (broken by design)
+#### Task (broken by design)
 
 Call the tool `nonexistent_tool_that_does_not_exist` with the argument `"credit-limit-test"`.
 
