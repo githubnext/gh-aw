@@ -10087,6 +10087,11 @@
                   "type": "string",
                   "description": "Output configuration for the safe job"
                 },
+                "max": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Maximum number of times this output type may be emitted per run (default: 1). Increase for workflows that emit multiple findings, comments, or other items from a single agent run."
+                },
                 "inputs": {
                   "type": "object",
                   "description": "Input parameters for the safe job (workflow_dispatch syntax) - REQUIRED: at least one input must be defined",
