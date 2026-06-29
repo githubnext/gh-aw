@@ -70,11 +70,16 @@ features:
   gh-aw-detection: true
 ---
 
-# Architecture Diagram Generator
+### Architecture Diagram Generator
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
+
 
 You are an AI agent that generates a **high-level ASCII architecture diagram** of this repository, focusing on the layered structure from CLI entry points down to utility packages.
 
-## Cache Strategy
+#### Cache Strategy
 
 Before doing any work, check cache-memory for a file named `architecture-state.json`.
 
@@ -94,7 +99,7 @@ Before doing any work, check cache-memory for a file named `architecture-state.j
 
 Perform a full analysis of the repository structure (see below).
 
-## Analysis Steps
+#### Analysis Steps
 
 Use bash to gather structural information:
 
@@ -116,7 +121,7 @@ done
 grep -r '"github.com/github/gh-aw/pkg/' pkg/ --include="*.go" -h | sort -u | head -60
 ```
 
-## Diagram Requirements
+#### Diagram Requirements
 
 Generate an ASCII architecture diagram showing **three layers**:
 
@@ -167,7 +172,7 @@ This is just an example skeleton. Your actual diagram should:
 - Use arrows (─▶, ──▶, ─▷) to indicate dependency direction
 - Include a brief one-line description next to or below each core package
 
-## Updating the Cache
+#### Updating the Cache
 
 After generating the diagram, write an updated `architecture-state.json` to cache-memory with:
 
@@ -183,7 +188,7 @@ After generating the diagram, write an updated `architecture-state.json` to cach
 
 Use a filesystem-safe filename: `architecture-state.json` (no colons or special characters).
 
-## Output Format
+#### Output Format
 
 Create an issue with this structure:
 
@@ -218,7 +223,7 @@ A compact table of all packages with their layer and one-line description:
 If this was an incremental update, list changed packages in a brief bullet list (max 5 items).
 {{/if}}
 
-## Scratchpad File
+#### Scratchpad File
 
 After creating the issue, update `scratchpad/architecture.md` with the latest diagram via `create_pull_request`.
 

@@ -35,21 +35,26 @@ features:
   gh-aw-detection: true
 ---
 
-# Daily Max AI Credits Test (Intentionally Fails)
+### Daily Max AI Credits Test (Intentionally Fails)
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
+
 
 > ⚠️ **This workflow is intentionally broken.** It exists solely to verify that
 > `max-ai-credits: 1` is enforced by the AWF firewall and that the agent is
 > cut off when the per-run budget is exhausted.
 > **Do not fix this workflow.**
 
-## What This Tests
+#### What This Tests
 
 1. The AWF firewall enforces the `max-ai-credits` per-run budget.
 2. Once the agent consumes more than 1 AI credit in a single run, the firewall cuts off the LLM API.
 3. The prompt forces multiple turns and multiple large-file reads so the run reliably burns credits.
 4. The run is expected to be cut off by the per-run budget before all jobs can complete.
 
-## Task (broken by design)
+#### Task (broken by design)
 
 Use **at least four separate assistant turns**. Do not combine all work into one response.
 

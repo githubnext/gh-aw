@@ -435,6 +435,8 @@ async function main(config = {}) {
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
   const requiredTitlePrefix = config.required_title_prefix || "";
   const mentionsDisabled = config.mentions === false || config.mentions?.enabled === false;
+  const preResolvedMentionAliases =
+    !mentionsDisabled && Array.isArray(config.allowedMentionAliases) ? config.allowedMentionAliases.map(alias => (typeof alias === "string" ? alias.trim().replace(/^@+/, "") : "")).filter(alias => alias.length > 0) : [];
   const configuredMentionAliases =
     !mentionsDisabled && Array.isArray(config.mentions?.allowed) ? config.mentions.allowed.map(alias => (typeof alias === "string" ? alias.trim().replace(/^@+/, "") : "")).filter(alias => alias.length > 0) : [];
 
@@ -656,7 +658,7 @@ async function main(config = {}) {
         }
       }
     }
-    const allowedMentionAliases = deduplicateCaseInsensitive([...parentAuthors, ...configuredMentionAliases]);
+    const allowedMentionAliases = deduplicateCaseInsensitive([...parentAuthors, ...preResolvedMentionAliases, ...configuredMentionAliases]);
 
     if (allowedMentionAliases.length > 0) {
       core.info(`[MENTIONS] Allowing aliases in comment: ${allowedMentionAliases.join(", ")}`);
