@@ -49,10 +49,82 @@ describe("no-unsafe-catch-error-property", () => {
     });
   });
 
-  it("valid: computed property access on catch variable is not flagged", () => {
+  it("valid: dynamic computed property access on catch variable is not flagged", () => {
     cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
-      valid: [`try { f(); } catch (err) { console.log(err["message"]); }`, `try { f(); } catch (err) { const prop = "message"; console.log(err[prop]); }`],
+      valid: [`try { f(); } catch (err) { const prop = "message"; console.log(err[prop]); }`],
       invalid: [],
+    });
+  });
+
+  it('invalid: computed string-literal err["message"] is flagged same as err.message', () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { console.log(err["message"]); }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "message", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { console.log(getErrorMessage(err)); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('invalid: computed string-literal err["stack"] suggests instanceof guard', () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { console.log(err["stack"]); }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "stack", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "stack" },
+                  output: `try { f(); } catch (err) { console.log((err instanceof Error ? err.stack : undefined)); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('invalid: computed string-literal err["code"] suggests instanceof guard', () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { if (err["code"] === "ENOENT") { } }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "code", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "code" },
+                  output: `try { f(); } catch (err) { if ((err instanceof Error ? err.code : undefined) === "ENOENT") { } }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
     });
   });
 
@@ -90,6 +162,13 @@ describe("no-unsafe-catch-error-property", () => {
             {
               messageId: "unsafeProperty",
               data: { prop: "stack", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "stack" },
+                  output: `try { f(); } catch (err) { console.log((err instanceof Error ? err.stack : undefined)); }`,
+                },
+              ],
             },
           ],
         },
@@ -107,6 +186,13 @@ describe("no-unsafe-catch-error-property", () => {
             {
               messageId: "unsafeProperty",
               data: { prop: "code", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "code" },
+                  output: `try { f(); } catch (err) { if ((err instanceof Error ? err.code : undefined) === "ENOENT") { } }`,
+                },
+              ],
             },
           ],
         },
@@ -135,7 +221,13 @@ describe("no-unsafe-catch-error-property", () => {
             {
               messageId: "unsafeProperty",
               data: { prop: "stack", errorVar: "err" },
-              suggestions: [],
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "stack" },
+                  output: `try { f(); } catch (err) { console.log(err.message); console.log((err instanceof Error ? err.stack : undefined)); }`,
+                },
+              ],
             },
           ],
         },
@@ -167,7 +259,7 @@ describe("no-unsafe-catch-error-property", () => {
     });
   });
 
-  it("invalid: .stack has no suggestion (no direct helper)", () => {
+  it("invalid: .stack suggests instanceof Error guard", () => {
     cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
       valid: [],
       invalid: [
@@ -177,7 +269,13 @@ describe("no-unsafe-catch-error-property", () => {
             {
               messageId: "unsafeProperty",
               data: { prop: "stack", errorVar: "err" },
-              suggestions: [],
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "stack" },
+                  output: `try { f(); } catch (err) { console.log((err instanceof Error ? err.stack : undefined)); }`,
+                },
+              ],
             },
           ],
         },

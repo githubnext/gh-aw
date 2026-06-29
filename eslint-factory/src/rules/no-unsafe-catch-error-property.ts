@@ -22,6 +22,7 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
     messages: {
       unsafeProperty: "Direct access to .{{prop}} on caught error '{{errorVar}}' is unsafe — the thrown value may not be an Error instance. Use getErrorMessage({{errorVar}}) from error_helpers.cjs instead.",
       useGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) from error_helpers.cjs for safe error message extraction.",
+      wrapWithInstanceof: "Wrap with '({{errorVar}} instanceof Error ? {{errorVar}}.{{prop}} : undefined)' to guard against non-Error throws.",
     },
   },
   defaultOptions: [],
@@ -63,7 +64,15 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
                       },
                     },
                   ]
-                : undefined,
+                : [
+                    {
+                      messageId: "wrapWithInstanceof" as const,
+                      data: { errorVar: varName, prop },
+                      fix(fixer) {
+                        return fixer.replaceText(memberExpr, `(${varName} instanceof Error ? ${varName}.${prop} : undefined)`);
+                      },
+                    },
+                  ],
           });
         }
       },
@@ -92,6 +101,7 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
       },
 
       // Collect catchVar.message / catchVar.stack / catchVar.code accesses
+      // Also detects computed string-literal access: catchVar["message"], catchVar["stack"], catchVar["code"]
       MemberExpression(node) {
         if (catchStack.length === 0) return;
         const top = catchStack[catchStack.length - 1];
@@ -99,8 +109,19 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
 
         const obj = node.object;
         const prop = node.property;
-        if (!node.computed && obj.type === AST_NODE_TYPES.Identifier && obj.name === top.varName && prop.type === AST_NODE_TYPES.Identifier && UNSAFE_PROPERTIES.has(prop.name)) {
+
+        if (obj.type !== AST_NODE_TYPES.Identifier || obj.name !== top.varName) return;
+
+        // Non-computed dot access: err.message / err.stack / err.code
+        if (!node.computed && prop.type === AST_NODE_TYPES.Identifier && UNSAFE_PROPERTIES.has(prop.name)) {
           top.unsafeNodes.push({ node, prop: prop.name });
+          return;
+        }
+
+        // Computed string-literal access: err["message"] / err["stack"] / err["code"]
+        // Dynamic access (err[prop]) is kept out of scope intentionally.
+        if (node.computed && prop.type === AST_NODE_TYPES.Literal && typeof prop.value === "string" && UNSAFE_PROPERTIES.has(prop.value)) {
+          top.unsafeNodes.push({ node, prop: prop.value });
         }
       },
     };
