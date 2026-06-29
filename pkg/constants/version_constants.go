@@ -45,7 +45,7 @@ const DefaultCopilotVersion Version = "1.0.65"
 const DefaultCopilotSDKVersion Version = "1.0.4"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.142.3"
+const DefaultCodexVersion Version = "0.142.4"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.39.1"
@@ -63,7 +63,7 @@ const DefaultPiVersion Version = "0.80.2"
 const DefaultOpenCodeVersion Version = "1.2.14"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v1.4.0"
+const DefaultGitHubMCPServerVersion Version = "v1.5.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 //
