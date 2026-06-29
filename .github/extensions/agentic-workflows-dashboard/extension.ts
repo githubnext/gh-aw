@@ -40,6 +40,31 @@ let workspacePath = process.cwd();
 const runGhAw = createGhAwRunnerWithStatus({ getWorkspacePath: () => workspacePath });
 const dataAccess = createDashboardDataAccess({ runGhAw });
 
+type JsonValue = boolean | null | number | string | JsonValue[] | { [key: string]: JsonValue };
+
+function sanitizePayload(payload: unknown): JsonValue {
+  if (payload instanceof Error) {
+    return { error: "Request failed." };
+  }
+  if (payload === null) {
+    return null;
+  }
+  if (typeof payload === "boolean" || typeof payload === "number" || typeof payload === "string") {
+    return payload;
+  }
+  if (Array.isArray(payload)) {
+    return payload.map(item => sanitizePayload(item));
+  }
+  if (typeof payload === "object") {
+    return Object.fromEntries(
+      Object.entries(payload)
+        .filter(([key]) => key !== "stack")
+        .map(([key, value]) => [key, sanitizePayload(value)])
+    );
+  }
+  return String(payload);
+}
+
 function parseQueryInt(value: string | null, fallback: number): number {
   const parsed = Number.parseInt(value ?? "", 10);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -52,7 +77,7 @@ async function startServer(): Promise<ServerEntry> {
 
     const sendJson = (payload: unknown, status = 200): void => {
       res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify(payload));
+      res.end(JSON.stringify(sanitizePayload(payload)));
     };
 
     try {

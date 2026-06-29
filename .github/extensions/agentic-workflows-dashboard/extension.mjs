@@ -697,6 +697,28 @@ var servers = /* @__PURE__ */ new Map();
 var workspacePath = process.cwd();
 var runGhAw = createGhAwRunnerWithStatus({ getWorkspacePath: () => workspacePath });
 var dataAccess = createDashboardDataAccess({ runGhAw });
+function sanitizePayload(payload) {
+  if (payload instanceof Error) {
+    return { error: "Request failed." };
+  }
+  if (payload === null) {
+    return null;
+  }
+  if (typeof payload === "boolean" || typeof payload === "number" || typeof payload === "string") {
+    return payload;
+  }
+  if (Array.isArray(payload)) {
+    return payload.map(item => sanitizePayload(item));
+  }
+  if (typeof payload === "object") {
+    return Object.fromEntries(
+      Object.entries(payload)
+        .filter(([key]) => key !== "stack")
+        .map(([key, value]) => [key, sanitizePayload(value)])
+    );
+  }
+  return String(payload);
+}
 function parseQueryInt(value, fallback) {
   const parsed = Number.parseInt(value ?? "", 10);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -707,7 +729,7 @@ async function startServer() {
     const pathname = reqUrl.pathname;
     const sendJson = (payload, status = 200) => {
       res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify(payload));
+      res.end(JSON.stringify(sanitizePayload(payload)));
     };
     try {
       if (pathname === "/" || pathname === "/index.html") {
