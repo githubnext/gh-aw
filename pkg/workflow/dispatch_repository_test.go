@@ -90,8 +90,8 @@ func TestParseDispatchRepositoryConfig_MultipleTools(t *testing.T) {
 	assert.Equal(t, strPtr("2"), notifyService.Max)
 }
 
-// TestParseDispatchRepositoryConfig_DashAlias tests that "dispatch-repository" (dash) also works
-func TestParseDispatchRepositoryConfig_DashAlias(t *testing.T) {
+// TestParseDispatchRepositoryConfig_DashAliasRejected tests that "dispatch-repository" (dash) is rejected.
+func TestParseDispatchRepositoryConfig_DashAliasRejected(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
@@ -105,8 +105,7 @@ func TestParseDispatchRepositoryConfig_DashAlias(t *testing.T) {
 	}
 
 	config := compiler.parseDispatchRepositoryConfig(outputMap)
-	require.NotNil(t, config, "Config should be parsed from dash form")
-	require.Len(t, config.Tools, 1, "Should have 1 tool")
+	assert.Nil(t, config, "Config should be nil for dash form key")
 }
 
 // TestParseDispatchRepositoryConfig_Absent tests that nil is returned when key is absent

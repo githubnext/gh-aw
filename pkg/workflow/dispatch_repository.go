@@ -27,18 +27,14 @@ type DispatchRepositoryConfig struct {
 }
 
 // parseDispatchRepositoryConfig parses dispatch_repository configuration from the safe-outputs map.
-// Accepts both "dispatch_repository" (underscore, preferred) and "dispatch-repository" (dash, alias).
 func (c *Compiler) parseDispatchRepositoryConfig(outputMap map[string]any) *DispatchRepositoryConfig {
 	dispatchRepositoryLog.Print("Parsing dispatch_repository configuration")
 
 	var configData any
 	var exists bool
 
-	// Support both underscore and dash variants
 	if configData, exists = outputMap["dispatch_repository"]; !exists {
-		if configData, exists = outputMap["dispatch-repository"]; !exists {
-			return nil
-		}
+		return nil
 	}
 
 	configMap, ok := configData.(map[string]any)
