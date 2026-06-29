@@ -141,9 +141,13 @@ This is a test workflow without network permissions.
 		}
 
 		// AWF is enabled by default for all engines (copilot, claude, codex) even without explicit network config
-		// This ensures sandbox.agent: awf is the default behavior
-		if !strings.Contains(string(lockContent), "sudo -E awf") {
+		// This ensures sandbox.agent: awf is the default behavior.
+		// With the new default of sudo: false (network isolation), AWF runs without sudo.
+		if !strings.Contains(string(lockContent), "awf --config") {
 			t.Error("Should contain AWF wrapper by default for Claude engine")
+		}
+		if strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should NOT use sudo -E awf in network isolation mode (default)")
 		}
 	})
 
@@ -177,9 +181,13 @@ This is a test workflow with explicit defaults network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// AWF is enabled by default for Claude engine with network: defaults
-		if !strings.Contains(string(lockContent), "sudo -E awf") {
+		// AWF is enabled by default for Claude engine with network: defaults.
+		// With the new default of sudo: false (network isolation), AWF runs without sudo.
+		if !strings.Contains(string(lockContent), "awf --config") {
 			t.Error("Should contain AWF wrapper for Claude engine with network: defaults")
+		}
+		if strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should NOT use sudo -E awf in network isolation mode (default)")
 		}
 	})
 
@@ -213,9 +221,13 @@ This is a test workflow with empty network permissions (deny all).
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// AWF is enabled by default for Claude engine with network: {}
-		if !strings.Contains(string(lockContent), "sudo -E awf") {
+		// AWF is enabled by default for Claude engine with network: {}.
+		// With the new default of sudo: false (network isolation), AWF runs without sudo.
+		if !strings.Contains(string(lockContent), "awf --config") {
 			t.Error("Should contain AWF wrapper for Claude engine with network: {}")
+		}
+		if strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should NOT use sudo -E awf in network isolation mode (default)")
 		}
 	})
 
@@ -251,9 +263,13 @@ This is a test workflow with explicit network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain AWF wrapper with domains in config JSON
-		if !strings.Contains(string(lockContent), "sudo -E awf") {
+		// Should contain AWF wrapper with domains in config JSON.
+		// With the new default of sudo: false (network isolation), AWF runs without sudo.
+		if !strings.Contains(string(lockContent), "awf --config") {
 			t.Error("Should contain AWF wrapper with explicit network permissions")
+		}
+		if strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should NOT use sudo -E awf in network isolation mode (default)")
 		}
 		if !strings.Contains(string(lockContent), "allowDomains") {
 			t.Error("Should contain allowDomains in AWF config JSON")
