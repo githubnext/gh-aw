@@ -84,6 +84,14 @@ func isPathLike(val string) bool {
 	return false
 }
 
+// fmtDirectivePattern matches a Go fmt directive of the form:
+//
+//	%[flags][width][.precision][argindex]verb
+//
+// where width and precision each allow an optional explicit argument index
+// before "*" (e.g. [3]*), and verb may also be preceded by an explicit
+// argument index (e.g. [1]x). This covers simple forms like %s, indexed
+// forms like %[1]s, and the full indexed form %[3]*.[2]*[1]x.
 var fmtDirectivePattern = regexp.MustCompile(`%[#0+\- ]*(?:(?:\[[0-9]+\])?\*|\d+)?(?:\.(?:(?:\[[0-9]+\])?\*|\d+))?(?:\[[0-9]+\])?[bcdeEfFgGopqstTUvwxX]`)
 
 // hasFormatVerb reports whether val contains fmt-style format directives.
