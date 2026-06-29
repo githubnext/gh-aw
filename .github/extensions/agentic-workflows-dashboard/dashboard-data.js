@@ -7,6 +7,38 @@ function asError(value) {
     }
     return new Error(String(value));
 }
+/**
+ * Parse JSON from CLI output robustly.
+ *
+ * Some gh-aw commands emit a status line (e.g. "✓ Fetched 36 workflows") to
+ * stdout before the JSON payload.  This helper tries a direct parse first and,
+ * on failure, locates the first `[` or `{` character and retries from there.
+ * A descriptive error with a raw-output snippet is thrown when parsing still
+ * fails, making silent "Unexpected end of JSON input" errors actionable.
+ */
+function parseJsonOutput(raw, context) {
+    const trimmed = (raw ?? "").trim();
+    if (!trimmed) {
+        throw new Error(`${context}: command produced no output`);
+    }
+    try {
+        return JSON.parse(trimmed);
+    }
+    catch {
+        // Re-try from the first JSON structure character to tolerate status-line prefixes.
+        const jsonStart = trimmed.search(/[{[]/);
+        if (jsonStart > 0) {
+            try {
+                return JSON.parse(trimmed.slice(jsonStart));
+            }
+            catch {
+                // fall through to the descriptive throw below
+            }
+        }
+        const snippet = trimmed.replace(/\s+/g, " ").slice(0, 200);
+        throw new Error(`${context}: failed to parse JSON (output: ${snippet})`);
+    }
+}
 export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) {
     const cache = new Map();
     function getCached(key) {
@@ -21,7 +53,7 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
         if (hit)
             return hit;
         const raw = await runGhAw(["status", "--json"]);
-        const parsed = JSON.parse(raw);
+        const parsed = parseJsonOutput(raw, "gh aw status --json");
         const data = Array.isArray(parsed) ? parsed : [];
         setCached("definitions", data);
         return data;
@@ -31,7 +63,7 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
         if (hit)
             return hit;
         const raw = await runGhAw(["experiments", "list", "--json"]);
-        const parsed = JSON.parse(raw);
+        const parsed = parseJsonOutput(raw, "gh aw experiments list --json");
         const experiments = Array.isArray(parsed) ? parsed : [];
         setCached("experiments", experiments);
         return experiments;
@@ -47,11 +79,10 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
             const raw = await runGhAw(logsFetches === 0 && initialArgs ? initialArgs : buildLogsArgs(current));
             let data;
             try {
-                data = JSON.parse(raw);
+                data = parseJsonOutput(raw, `logs batch ${logsFetches + 1}`);
             }
             catch (error) {
-                const parsedError = asError(error);
-                throw new Error(`Failed to parse logs batch ${logsFetches + 1}: ${parsedError.message}`);
+                throw asError(error);
             }
             if (!firstBatch) {
                 firstBatch = data;
@@ -111,17 +142,7 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
         }
         const args = ["forecast", "--json", "--period", "month", "--days", String(forecastDaysForWindow(window)), "--timeout", String(timeout), ...workflowIDs];
         const raw = await runGhAw(args);
-        let data;
-        try {
-            data = JSON.parse(raw);
-        }
-        catch (error) {
-            const parsedError = asError(error);
-            const snippet = String(raw ?? "")
-                .replace(/\s+/g, " ")
-                .slice(0, 200);
-            throw new Error(`Failed to parse forecast output: ${parsedError.message}${snippet ? ` (output: ${snippet})` : ""}`);
-        }
+        const data = parseJsonOutput(raw, "gh aw forecast --json");
         return Array.isArray(data.workflows) ? data.workflows : [];
     }
     async function getRuns(options = {}) {
@@ -198,17 +219,7 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
         if (hit)
             return hit;
         const raw = await runGhAw(["audit", String(runId), "--json"]);
-        let data;
-        try {
-            data = JSON.parse(raw);
-        }
-        catch (error) {
-            const parsedError = asError(error);
-            const snippet = String(raw ?? "")
-                .replace(/\s+/g, " ")
-                .slice(0, 100);
-            throw new Error(`Failed to parse audit output for run ${runId}: ${parsedError.message}${snippet ? ` (output: ${snippet})` : ""}`);
-        }
+        const data = parseJsonOutput(raw, `gh aw audit ${runId} --json`);
         setCached(key, data);
         return data;
     }

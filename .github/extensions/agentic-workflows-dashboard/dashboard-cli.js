@@ -93,13 +93,24 @@ async function findDevBinary(cwd, accessFn = access, platform = process.platform
         return null;
     }
 }
-export function createGhAwRunner({ getWorkspacePath, accessFn = access, execFileFn = spawnExecFile, platform = process.platform, env = process.env }) {
+export function createGhAwRunner({ getWorkspacePath, accessFn = access, execFileFn = spawnExecFile, platform = process.platform, env = process.env, resolveBin }) {
+    // Memoize per cwd so findDevBinary is called at most once per workspace path.
+    const binCache = new Map();
+    const _resolveBin =
+        resolveBin ??
+        (() => {
+            const cwd = getWorkspacePath();
+            if (!binCache.has(cwd)) {
+                binCache.set(cwd, findDevBinary(cwd, accessFn, platform));
+            }
+            return binCache.get(cwd);
+        });
     async function runExec(bin, args, cwd, options) {
         return execp(bin, args, cwd, { ...options, execFileFn, env });
     }
     return async function runGhAw(args) {
         const cwd = getWorkspacePath();
-        const devBin = await findDevBinary(cwd, accessFn, platform);
+        const devBin = await _resolveBin();
         if (devBin) {
             return runExec(devBin, args, cwd);
         }
@@ -107,10 +118,20 @@ export function createGhAwRunner({ getWorkspacePath, accessFn = access, execFile
     };
 }
 export function createGhAwRunnerWithStatus(options) {
-    const runGhAw = createGhAwRunner(options);
+    // One shared per-cwd memoized resolver so findDevBinary is called at most once,
+    // even across concurrent runGhAw() calls and getStatus().
+    const binCache = new Map();
+    const resolveBin = () => {
+        const cwd = options.getWorkspacePath();
+        if (!binCache.has(cwd)) {
+            binCache.set(cwd, findDevBinary(cwd, options.accessFn ?? access, options.platform ?? process.platform));
+        }
+        return binCache.get(cwd);
+    };
+    const runGhAw = createGhAwRunner({ ...options, resolveBin });
     const getStatus = async () => {
         const cwd = options.getWorkspacePath();
-        const devBin = await findDevBinary(cwd, options.accessFn ?? access, options.platform ?? process.platform);
+        const devBin = await resolveBin();
         if (devBin) {
             const output = await execp(devBin, ["version"], cwd, {
                 combineIO: true,
