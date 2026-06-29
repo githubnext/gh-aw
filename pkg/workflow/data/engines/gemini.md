@@ -6,9 +6,6 @@ engine:
   runtime-id: gemini
   provider:
     name: google
-  auth:
-    - role: api-key
-      secret: GEMINI_API_KEY
 ---
 
 <!-- # Google Gemini CLI
