@@ -3,47 +3,7 @@ import Alpine from "alpinejs";
 import type { AuditFinding, AuditReport, CLIStatus, ExperimentInfo, PagedResult, UsageSummaryItem, WorkflowDefinition, WorkflowRun } from "./models.js";
 import { paginate } from "./pagination.js";
 import type { ReportWindow } from "./dashboard-config.js";
-
-const DEFINITIONS_SEARCH_KEY = "awd-definitions-search";
-
-type SearchTerm = { field: "name" | "engine" | "label" | "text"; value: string };
-
-function parseDefinitionsSearch(query: string): SearchTerm[] {
-  const terms: SearchTerm[] = [];
-  const tokenRe = /(\w+):("([^"]*)"|\S+)|(\S+)/g;
-  let match: RegExpExecArray | null;
-  while ((match = tokenRe.exec(query)) !== null) {
-    if (match[1]) {
-      const field = match[1].toLowerCase();
-      const rawValue = match[3] ?? match[2] ?? ""; // match[3]: content inside quotes; match[2]: unquoted value
-      const value = rawValue.replace(/^"|"$/g, "").toLowerCase();
-      if (field === "name" || field === "engine" || field === "label") {
-        terms.push({ field, value });
-      } else {
-        // Unrecognized qualifier: fall back to text search for the value
-        if (value) terms.push({ field: "text", value });
-      }
-    } else if (match[4]) {
-      terms.push({ field: "text", value: match[4].toLowerCase() });
-    }
-  }
-  return terms;
-}
-
-function matchesDefinitionSearch(definition: WorkflowDefinition, query: string): boolean {
-  if (!query.trim()) return true;
-  const terms = parseDefinitionsSearch(query);
-  if (terms.length === 0) return true;
-  const name = (definition.workflow ?? "").toLowerCase();
-  const engine = (definition.engine_id ?? "").toLowerCase();
-  const labels = (definition.labels ?? []).map(l => l.toLowerCase());
-  return terms.every(term => {
-    if (term.field === "name") return name.includes(term.value);
-    if (term.field === "engine") return engine.includes(term.value);
-    if (term.field === "label") return labels.some(l => l.includes(term.value));
-    return name.includes(term.value) || engine.includes(term.value) || labels.some(l => l.includes(term.value));
-  });
-}
+import { DEFINITIONS_SEARCH_KEY, matchesDefinitionSearch } from "./search.js";
 
 type FlashKind = "success" | "warn" | "error";
 type DashboardTabId = "definitions" | "runs" | "details" | "usage" | "experiments" | "maintenance" | "commands";
