@@ -53,8 +53,8 @@ const (
 )
 
 // AuthDefinition describes how the engine authenticates with a provider backend.
-// It extends the simple AuthBinding model to support OAuth client-credentials flows,
-// custom header injection, and template-based secret references.
+// It supports OAuth client-credentials flows, custom header injection, and
+// template-based secret references.
 //
 // For backwards compatibility, a plain auth.secret field without a strategy is treated as
 // AuthStrategyAPIKey.

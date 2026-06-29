@@ -2501,17 +2501,6 @@ engine:
     supported: []
       # Array of strings
 
-  # Authentication bindings — maps logical roles (e.g. 'api-key') to GitHub Actions
-  # secret names
-  # (optional)
-  auth: []
-    # Array items:
-      # Logical authentication role (e.g. 'api-key', 'token')
-      role: "example-value"
-
-      # Name of the GitHub Actions secret that provides credentials for this role
-      secret: "example-value"
-
   # Additional engine-specific options
   # (optional)
   options:
