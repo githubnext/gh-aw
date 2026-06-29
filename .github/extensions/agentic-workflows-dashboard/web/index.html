@@ -19,6 +19,8 @@
           </div>
           <div class="d-flex gap-2 flex-items-center">
             <span class="Label Label--accent">Copilot Canvas</span>
+            <span class="Label Label--success" x-show="cliStatus && cliStatus.available"> gh aw <span x-text="cliStatus?.version || 'available'"></span> · <span x-text="cliSourceLabel(cliStatus)"></span> </span>
+            <span class="Label Label--secondary" x-show="loadingCliStatus">Checking gh aw…</span>
             <button class="btn btn-sm" @click="refresh()">↻ Refresh</button>
           </div>
         </div>
@@ -36,6 +38,12 @@
 
       <main class="px-4 py-3">
         <div class="flash mt-2" :class="flashKind === 'error' ? 'flash-error' : (flashKind === 'warn' ? 'flash-warn' : 'flash-success')" x-show="flashMessage" x-text="flashMessage"></div>
+        <section class="flash flash-error mt-3" x-show="errorCliStatus" x-text="errorCliStatus"></section>
+        <section class="flash flash-warn mt-3 awd-install-banner" x-show="cliStatus && !cliStatus.available">
+          <div class="text-bold">gh aw is not installed</div>
+          <div class="mt-1" x-text="cliStatus?.message || 'Install the GitHub CLI extension to use this dashboard.'"></div>
+          <div class="mt-2">Run <code x-text="cliStatus?.installCommand || 'gh extension install github/gh-aw'"></code></div>
+        </section>
         <section class="Box mt-3">
           <div class="Box-body d-flex flex-wrap flex-items-center flex-justify-between gap-3">
             <div>
@@ -268,6 +276,7 @@
               <div class="d-flex flex-wrap gap-2 mb-2">
                 <button class="btn btn-sm" @click="commandQuickFill('gh aw status')">gh aw status</button>
                 <button class="btn btn-sm" @click="commandQuickFill('gh aw status --json')">gh aw status --json</button>
+                <button class="btn btn-sm" @click="commandQuickFill('gh aw version')">gh aw version</button>
                 <button class="btn btn-sm" @click="commandQuickFill(buildLogsCommand(10))">gh aw logs (10)</button>
                 <button class="btn btn-sm" @click="commandQuickFill(buildLogsCommand(50))">gh aw logs (50)</button>
                 <button class="btn btn-sm" @click="commandQuickFill('gh aw compile')">gh aw compile</button>

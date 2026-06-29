@@ -1,28 +1,24 @@
-export type WorkflowRunStatus = "queued" | "running" | "completed" | "failed";
-export type WorkflowStepStatus = "pending" | "running" | "done" | "failed";
-
 export interface WorkflowDefinition {
-  id: string;
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-  enabled: boolean;
-}
-
-export interface WorkflowStep {
-  id: string;
-  title: string;
-  status: WorkflowStepStatus;
-  summaryMarkdown: string;
+  workflow: string;
+  engine_id?: string;
+  compiled?: string;
+  labels?: string[];
+  status?: string;
+  time_remaining?: string;
 }
 
 export interface WorkflowRun {
-  id: string;
-  definitionId: string;
-  status: WorkflowRunStatus;
-  createdAt: string;
-  updatedAt: string;
-  steps: WorkflowStep[];
+  run_id: number;
+  workflow_name: string;
+  status?: string;
+  conclusion?: string;
+  duration?: number;
+  aic?: number;
+  token_usage?: number;
+  turns?: number;
+  error_count?: number;
+  warning_count?: number;
+  missing_tool_count?: number;
 }
 
 export interface PagedResult<T> {
@@ -41,4 +37,24 @@ export interface ExperimentInfo {
   experiments: number;
   total_runs: number;
   last_run: string;
+}
+
+export interface UsageSummaryItem {
+  workflow_id: string;
+  workflow_name: string;
+  run_count: number;
+  total_aic: number;
+  cost_per_run: number;
+  daily_aic: number;
+  monthly_forecast_aic: number;
+  last_run_at?: string;
+}
+
+export interface CLIStatus {
+  available: boolean;
+  source: string;
+  version: string;
+  command: string;
+  installCommand: string;
+  message?: string;
 }

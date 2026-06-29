@@ -5,14 +5,14 @@ import { fileURLToPath } from "node:url";
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 
-import { createGhAwRunner } from "./dashboard-cli.mjs";
+import { createGhAwRunnerWithStatus } from "./dashboard-cli.mjs";
 import { DEFAULT_LOG_TIMEOUT_MINUTES, DEFAULT_RUN_COUNT } from "./dashboard-config.mjs";
 import { createDashboardDataAccess } from "./dashboard-data.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const servers = new Map();
 let workspacePath = process.cwd();
-const runGhAw = createGhAwRunner({ getWorkspacePath: () => workspacePath });
+const runGhAw = createGhAwRunnerWithStatus({ getWorkspacePath: () => workspacePath });
 const dataAccess = createDashboardDataAccess({ runGhAw });
 
 // ---------------------------------------------------------------------------
@@ -63,6 +63,8 @@ async function startServer() {
         res.end(await readFile(join(__dirname, "web", "pagination.js"), "utf8"));
       } else if (pathname === "/api/status") {
         sendJson(await dataAccess.getDefinitions());
+      } else if (pathname === "/api/cli-status") {
+        sendJson(await runGhAw.getStatus());
       } else if (pathname === "/api/experiments") {
         sendJson(await dataAccess.getExperiments());
       } else if (pathname === "/api/runs") {
