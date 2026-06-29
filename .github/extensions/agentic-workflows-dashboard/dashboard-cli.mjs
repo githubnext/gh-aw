@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { spawn } from "node:child_process";
 import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
@@ -9,7 +9,54 @@ function combineOutput(stdout, stderr) {
   return [stdout, stderr].filter(Boolean).join("\n").trim();
 }
 
-function execp(bin, args, cwd, { combineIO = false, execFileFn = execFile, env = process.env } = {}) {
+/**
+ * Wraps spawn() with the same callback signature as execFile(), but uses
+ * stdio: ['ignore', 'pipe', 'pipe'] so the child process never blocks waiting
+ * for stdin. This is important in environments where the parent process holds
+ * a special stdin handle (e.g. Copilot CLI) that causes the child to hang.
+ */
+function spawnExecFile(file, args, options, callback) {
+  const { env, cwd, maxBuffer = 10 * 1024 * 1024 } = options ?? {};
+  // detached: true prevents the child from inheriting the parent's special
+  // handles (e.g. Copilot CLI named pipes) that would otherwise cause gh-aw
+  // to block indefinitely waiting on an inherited pipe it never owns.
+  const proc = spawn(file, args, { env, cwd, stdio: ["ignore", "pipe", "pipe"], detached: true });
+  const stdoutChunks = [];
+  const stderrChunks = [];
+  let stdoutLen = 0;
+  let stderrLen = 0;
+  let overflowed = false;
+
+  proc.stdout.on("data", chunk => {
+    stdoutLen += chunk.length;
+    if (stdoutLen > maxBuffer) { overflowed = true; return; }
+    stdoutChunks.push(chunk);
+  });
+  proc.stderr.on("data", chunk => {
+    stderrLen += chunk.length;
+    if (stderrLen > maxBuffer) { overflowed = true; return; }
+    stderrChunks.push(chunk);
+  });
+
+  proc.on("error", err => callback(err, "", ""));
+  proc.on("close", code => {
+    const stdout = Buffer.concat(stdoutChunks).toString("utf8");
+    const stderr = Buffer.concat(stderrChunks).toString("utf8");
+    if (overflowed) {
+      const err = new Error("stdout/stderr maxBuffer exceeded");
+      err.code = "ERR_CHILD_PROCESS_STDIO_MAXBUFFER";
+      callback(err, stdout, stderr);
+    } else if (code !== 0) {
+      const err = new Error(`Command failed with exit code ${code}`);
+      err.code = code;
+      callback(err, stdout, stderr);
+    } else {
+      callback(null, stdout, stderr);
+    }
+  });
+}
+
+function execp(bin, args, cwd, { combineIO = false, execFileFn = spawnExecFile, env = process.env } = {}) {
   return new Promise((resolve, reject) => {
     execFileFn(
       bin,
@@ -50,7 +97,7 @@ async function findDevBinary(cwd, accessFn = access, platform = process.platform
   }
 }
 
-export function createGhAwRunner({ getWorkspacePath, accessFn = access, execFileFn = execFile, platform = process.platform, env = process.env }) {
+export function createGhAwRunner({ getWorkspacePath, accessFn = access, execFileFn = spawnExecFile, platform = process.platform, env = process.env }) {
   async function runExec(bin, args, cwd, options) {
     return execp(bin, args, cwd, { ...options, execFileFn, env });
   }
@@ -75,7 +122,7 @@ export function createGhAwRunnerWithStatus(options) {
     if (devBin) {
       const output = await execp(devBin, ["version"], cwd, {
         combineIO: true,
-        execFileFn: options.execFileFn ?? execFile,
+        execFileFn: options.execFileFn ?? spawnExecFile,
         env: options.env ?? process.env,
       });
       return {
@@ -90,7 +137,7 @@ export function createGhAwRunnerWithStatus(options) {
     try {
       const output = await execp("gh", ["aw", "version"], cwd, {
         combineIO: true,
-        execFileFn: options.execFileFn ?? execFile,
+        execFileFn: options.execFileFn ?? spawnExecFile,
         env: options.env ?? process.env,
       });
       return {
