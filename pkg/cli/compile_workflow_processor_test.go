@@ -16,7 +16,9 @@ func TestExtractSafeOutputLabels_IncludesLabelCommand(t *testing.T) {
 				AllowedLabels: []string{"triage"},
 			},
 			AddLabels: &workflow.AddLabelsConfig{
-				Allowed: []string{"automation"},
+				SafeOutputAllowBlockConfig: workflow.SafeOutputAllowBlockConfig{
+					Allowed: []string{"automation"},
+				},
 			},
 		},
 		LabelCommand: []string{"deploy"},

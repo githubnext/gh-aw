@@ -8,11 +8,10 @@ var unassignFromUserLog = logger.New("workflow:unassign_from_user")
 
 // UnassignFromUserConfig holds configuration for removing assignees from issues
 type UnassignFromUserConfig struct {
-	BaseSafeOutputConfig   `yaml:",inline"`
-	SafeOutputTargetConfig `yaml:",inline"`
-	SafeOutputFilterConfig `yaml:",inline"`
-	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed usernames. If omitted, any users can be unassigned.
-	Blocked                []string `yaml:"blocked,omitempty"` // Optional list of blocked usernames or patterns (e.g., "copilot", "*[bot]")
+	BaseSafeOutputConfig       `yaml:",inline"`
+	SafeOutputTargetConfig     `yaml:",inline"`
+	SafeOutputFilterConfig     `yaml:",inline"`
+	SafeOutputAllowBlockConfig `yaml:",inline"`
 }
 
 // parseUnassignFromUserConfig handles unassign-from-user configuration

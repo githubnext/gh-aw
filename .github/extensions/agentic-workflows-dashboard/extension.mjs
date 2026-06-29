@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
@@ -11,9 +11,14 @@ import { createDashboardDataAccess } from "./dashboard-data.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const servers = new Map();
-let workspacePath = process.cwd();
+// For project-scoped extensions the file lives at .github/extensions/<name>/extension.mjs,
+// so three levels up is the git repo root. process.cwd() and session.workspacePath both
+// resolve to unrelated Copilot runtime directories and must not be used as CLI cwd.
+const workspacePath = resolve(__dirname, "../../..");
 const runGhAw = createGhAwRunnerWithStatus({ getWorkspacePath: () => workspacePath });
 const dataAccess = createDashboardDataAccess({ runGhAw });
+const LOG = "[extension]";
+console.error(`${LOG} startup __dirname=${__dirname} workspacePath=${workspacePath}`);
 
 // ---------------------------------------------------------------------------
 // Pagination utility
@@ -44,6 +49,7 @@ async function startServer() {
   const server = createServer(async (req, res) => {
     const reqUrl = new URL(req.url ?? "/", "http://localhost");
     const pathname = reqUrl.pathname;
+    const t0 = Date.now();
 
     const sendJson = (payload, status = 200) => {
       res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
@@ -102,12 +108,17 @@ async function startServer() {
         res.writeHead(404);
         res.end("Not found");
       }
+      if (pathname.startsWith("/api/")) {
+        console.error(`${LOG} request ${req.method} ${pathname} ${Date.now() - t0}ms`);
+      }
     } catch (err) {
+      console.error(`${LOG} request error ${req.method} ${pathname} ${Date.now() - t0}ms: ${err.message}`);
       sendJson({ error: err.message }, 500);
     }
   });
   await new Promise(r => server.listen(0, "127.0.0.1", r));
   const { port } = server.address();
+  console.error(`${LOG} server listening on port ${port}`);
   return { server, url: `http://127.0.0.1:${port}/` };
 }
 
@@ -291,6 +302,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
         },
       ],
       open: async ctx => {
+        console.error(`${LOG} canvas open instanceId=${ctx.instanceId}`);
         let entry = servers.get(ctx.instanceId);
         if (!entry) {
           entry = await startServer();
@@ -299,6 +311,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
         return { title: "Agentic Workflows Dashboard", status: "Live · gh aw", url: entry.url };
       },
       onClose: async ctx => {
+        console.error(`${LOG} canvas close instanceId=${ctx.instanceId}`);
         const entry = servers.get(ctx.instanceId);
         if (entry) {
           servers.delete(ctx.instanceId);
@@ -308,5 +321,3 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
     }),
   ],
 });
-
-workspacePath = session.workspacePath ?? process.cwd();

@@ -1,6 +1,7 @@
 import { CACHE_TTL_MS, DEFAULT_LOG_TIMEOUT_MINUTES, MAX_LOG_CONTINUATIONS } from "./dashboard-config.js";
 import { buildLogsArgs, continuationToLogsOptions, logsArgsToOptions, logsCommandUsesJSON, mergeRuns, normalizeLogsCommandArgs, normalizeLogsOptions, parseGhAwArgs, } from "./dashboard-logs.js";
 import { applyForecastToUsageSummary, buildUsageSummary, forecastDaysForWindow } from "./usage-forecast.js";
+const LOG = "[dashboard-data]";
 function asError(value) {
     if (value instanceof Error) {
         return value;
@@ -19,13 +20,13 @@ function asError(value) {
 function parseJsonOutput(raw, context) {
     const trimmed = (raw ?? "").trim();
     if (!trimmed) {
+        console.error(`${LOG} parseJsonOutput: no output for context="${context}"`);
         throw new Error(`${context}: command produced no output`);
     }
     try {
         return JSON.parse(trimmed);
     }
     catch {
-        // Re-try from the first JSON structure character to tolerate status-line prefixes.
         const jsonStart = trimmed.search(/[{[]/);
         if (jsonStart > 0) {
             try {
@@ -36,6 +37,7 @@ function parseJsonOutput(raw, context) {
             }
         }
         const snippet = trimmed.replace(/\s+/g, " ").slice(0, 200);
+        console.error(`${LOG} parseJsonOutput: JSON parse failed context="${context}" snippet=${snippet}`);
         throw new Error(`${context}: failed to parse JSON (output: ${snippet})`);
     }
 }
@@ -50,23 +52,43 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
     }
     async function getDefinitions() {
         const hit = getCached("definitions");
-        if (hit)
+        if (hit) {
+            console.error(`${LOG} getDefinitions: cache hit count=${hit.length}`);
             return hit;
-        const raw = await runGhAw(["status", "--json"]);
-        const parsed = parseJsonOutput(raw, "gh aw status --json");
-        const data = Array.isArray(parsed) ? parsed : [];
-        setCached("definitions", data);
-        return data;
+        }
+        console.error(`${LOG} getDefinitions: fetching from CLI`);
+        try {
+            const raw = await runGhAw(["status", "--json"]);
+            const parsed = parseJsonOutput(raw, "gh aw status --json");
+            const data = Array.isArray(parsed) ? parsed : [];
+            setCached("definitions", data);
+            console.error(`${LOG} getDefinitions: fetched count=${data.length}`);
+            return data;
+        }
+        catch (err) {
+            console.error(`${LOG} getDefinitions error: ${asError(err).message}`);
+            throw err;
+        }
     }
     async function getExperiments() {
         const hit = getCached("experiments");
-        if (hit)
+        if (hit) {
+            console.error(`${LOG} getExperiments: cache hit count=${hit.length}`);
             return hit;
-        const raw = await runGhAw(["experiments", "list", "--json"]);
-        const parsed = parseJsonOutput(raw, "gh aw experiments list --json");
-        const experiments = Array.isArray(parsed) ? parsed : [];
-        setCached("experiments", experiments);
-        return experiments;
+        }
+        console.error(`${LOG} getExperiments: fetching from CLI`);
+        try {
+            const raw = await runGhAw(["experiments", "list", "--json"]);
+            const parsed = parseJsonOutput(raw, "gh aw experiments list --json");
+            const experiments = Array.isArray(parsed) ? parsed : [];
+            setCached("experiments", experiments);
+            console.error(`${LOG} getExperiments: fetched count=${experiments.length}`);
+            return experiments;
+        }
+        catch (err) {
+            console.error(`${LOG} getExperiments error: ${asError(err).message}`);
+            throw err;
+        }
     }
     async function fetchLogsBatches(initialOptions, initialArgs = null) {
         let current = initialOptions;
@@ -76,21 +98,26 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
         let summary = null;
         let firstBatch = null;
         while (current && logsFetches < MAX_LOG_CONTINUATIONS) {
-            const raw = await runGhAw(logsFetches === 0 && initialArgs ? initialArgs : buildLogsArgs(current));
+            const batchArgs = logsFetches === 0 && initialArgs ? initialArgs : buildLogsArgs(current);
+            console.error(`${LOG} fetchLogsBatches: batch=${logsFetches + 1} args=${JSON.stringify(batchArgs)}`);
+            const raw = await runGhAw(batchArgs);
             let data;
             try {
                 data = parseJsonOutput(raw, `logs batch ${logsFetches + 1}`);
             }
             catch (error) {
+                console.error(`${LOG} fetchLogsBatches: parse error on batch ${logsFetches + 1}: ${asError(error).message}`);
                 throw asError(error);
             }
             if (!firstBatch) {
                 firstBatch = data;
             }
-            runs = mergeRuns(runs, Array.isArray(data.runs) ? data.runs : []);
+            const newRuns = Array.isArray(data.runs) ? data.runs : [];
+            runs = mergeRuns(runs, newRuns);
             continuation = data.continuation ?? null;
             summary = data.summary ?? summary;
             logsFetches += 1;
+            console.error(`${LOG} fetchLogsBatches: batch=${logsFetches} newRuns=${newRuns.length} totalRuns=${runs.length} hasContinuation=${Boolean(continuation)}`);
             if (!continuation) {
                 break;
             }
@@ -121,9 +148,13 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
             artifacts: normalized.artifacts,
         })}`;
         const hit = getCached(key);
-        if (hit)
+        if (hit) {
+            console.error(`${LOG} getLogsData: cache hit runs=${hit.runs.length} window=${hit.window.id}`);
             return hit;
+        }
+        console.error(`${LOG} getLogsData: fetching window=${normalized.window.id} count=${normalized.count} timeout=${normalized.timeout}`);
         const logsResult = await fetchLogsBatches(normalized);
+        console.error(`${LOG} getLogsData: fetched runs=${logsResult.runs.length} fetches=${logsResult.logsFetches} partial=${logsResult.partial}`);
         const result = {
             runs: logsResult.runs,
             summary: logsResult.summary,
@@ -141,9 +172,18 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
             return [];
         }
         const args = ["forecast", "--json", "--period", "month", "--days", String(forecastDaysForWindow(window)), "--timeout", String(timeout), ...workflowIDs];
-        const raw = await runGhAw(args);
-        const data = parseJsonOutput(raw, "gh aw forecast --json");
-        return Array.isArray(data.workflows) ? data.workflows : [];
+        console.error(`${LOG} getForecastData: workflowIDs=${workflowIDs.length} window=${window.id} days=${forecastDaysForWindow(window)}`);
+        try {
+            const raw = await runGhAw(args);
+            const data = parseJsonOutput(raw, "gh aw forecast --json");
+            const workflows = Array.isArray(data.workflows) ? data.workflows : [];
+            console.error(`${LOG} getForecastData: fetched workflows=${workflows.length}`);
+            return workflows;
+        }
+        catch (err) {
+            console.error(`${LOG} getForecastData error: ${asError(err).message}`);
+            throw err;
+        }
     }
     async function getRuns(options = {}) {
         return getLogsData(options);
@@ -176,8 +216,10 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
         return result;
     }
     async function execCommand(rawCmd, options = {}) {
+        console.error(`${LOG} execCommand: cmd="${rawCmd}"`);
         const args = parseGhAwArgs(rawCmd);
         if (!args) {
+            console.error(`${LOG} execCommand: rejected unsupported command "${rawCmd}"`);
             return { command: rawCmd, output: "Only 'gh aw <subcommand>' commands are supported.", error: true };
         }
         try {
@@ -208,7 +250,9 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
         }
         catch (err) {
             const error = err;
-            return { command: rawCmd, output: error.stderr || error.message || "Unknown error", error: true };
+            const msg = error.stderr || error.message || "Unknown error";
+            console.error(`${LOG} execCommand error cmd="${rawCmd}": ${msg}`);
+            return { command: rawCmd, output: msg, error: true };
         }
     }
     async function getAudit(runId) {
@@ -216,12 +260,22 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
             return null;
         const key = `audit:${runId}`;
         const hit = getCached(key);
-        if (hit)
+        if (hit) {
+            console.error(`${LOG} getAudit: cache hit runId=${runId}`);
             return hit;
-        const raw = await runGhAw(["audit", String(runId), "--json"]);
-        const data = parseJsonOutput(raw, `gh aw audit ${runId} --json`);
-        setCached(key, data);
-        return data;
+        }
+        console.error(`${LOG} getAudit: fetching runId=${runId}`);
+        try {
+            const raw = await runGhAw(["audit", String(runId), "--json"]);
+            const data = parseJsonOutput(raw, `gh aw audit ${runId} --json`);
+            setCached(key, data);
+            console.error(`${LOG} getAudit: fetched runId=${runId}`);
+            return data;
+        }
+        catch (err) {
+            console.error(`${LOG} getAudit error runId=${runId}: ${asError(err).message}`);
+            throw err;
+        }
     }
     return {
         clearCache: () => cache.clear(),
