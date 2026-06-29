@@ -74,14 +74,20 @@
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between">
               <h2 class="Box-title">
-                Workflow definitions <span class="Counter ml-1" x-text="definitionsPaged.totalItems"></span
-                ><span class="color-fg-muted text-small ml-1" x-cloak x-show="definitionsSearch && definitionsPaged.totalItems !== definitions.length">/ <span x-text="definitions.length"></span></span>
+                Workflow definitions <span class="Counter ml-1" x-text="definitionsPaged.totalItems"></span>
+                <span class="color-fg-muted text-small ml-1" x-cloak x-show="definitionsSearch && definitionsPaged.totalItems !== definitions.length">/ <span x-text="definitions.length"></span></span>
               </h2>
             </div>
             <!-- search bar -->
             <div class="awd-search-bar">
               <div class="d-flex flex-items-center gap-2">
-                <input class="form-control input-sm flex-1" type="search" placeholder="Search by name, engine:id, label:name" aria-label="Search workflow definitions" x-model="definitionsSearch" @input="applyDefinitionsSearch()" />
+                <input
+                  class="form-control input-sm flex-1"
+                  type="search"
+                  placeholder="Search: name:workflow, engine:claude, label:tag, or bare text"
+                  aria-label="Search workflow definitions"
+                  x-model="definitionsSearch"
+                  @input="applyDefinitionsSearch()" />
                 <button class="btn btn-sm" x-cloak x-show="definitionsSearch" @click="definitionsSearch = ''; applyDefinitionsSearch()">Clear</button>
               </div>
             </div>

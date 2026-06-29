@@ -15,12 +15,13 @@ function parseDefinitionsSearch(query: string): SearchTerm[] {
   while ((match = tokenRe.exec(query)) !== null) {
     if (match[1]) {
       const field = match[1].toLowerCase();
-      const rawValue = match[3] ?? match[2] ?? "";
+      const rawValue = match[3] ?? match[2] ?? ""; // match[3]: content inside quotes; match[2]: unquoted value
       const value = rawValue.replace(/^"|"$/g, "").toLowerCase();
       if (field === "name" || field === "engine" || field === "label") {
         terms.push({ field, value });
       } else {
-        terms.push({ field: "text", value: `${field}:${value}` });
+        // Unrecognized qualifier: fall back to text search for the value
+        if (value) terms.push({ field: "text", value });
       }
     } else if (match[4]) {
       terms.push({ field: "text", value: match[4].toLowerCase() });
