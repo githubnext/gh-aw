@@ -319,7 +319,7 @@ describe("collectGatewayEvents", () => {
     ]);
     const events = collectGatewayEvents({ gatewayJsonlPath: gwPath, rpcMessagesPath: "/nonexistent" });
     expect(events).toHaveLength(1);
-    expect(events[0].status).toContain("error");
+    expect(events[0].status).toBe("error");
   });
 
   it("parses DIFC_FILTERED events from rpc-messages.jsonl", () => {
@@ -340,7 +340,7 @@ describe("collectGatewayEvents", () => {
     expect(events[0].status).toBe("secrecy");
   });
 
-  it("parses gateway tool_call without server name", () => {
+  it("parses gateway rpc_call without server name", () => {
     const gwPath = path.join(tmpDir, "gateway.jsonl");
     writeJsonl(gwPath, [
       {
@@ -662,6 +662,13 @@ describe("buildUnifiedTimelineMarkdown", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).not.toContain("srv|tool");
     expect(rows[0]).toContain("&#124;");
+  });
+
+  it("counts gateway tool_calls in stats line", () => {
+    const events = [{ source: SOURCE_GATEWAY, kind: KIND_TOOL_CALL, time: new Date("2024-01-15T10:00:02Z"), detail: "srv/tool", status: "success" }];
+    const md = buildUnifiedTimelineMarkdown(events);
+    expect(md).toContain("tool_calls=1");
+    expect(md).toContain("difc_filtered=0");
   });
 });
 

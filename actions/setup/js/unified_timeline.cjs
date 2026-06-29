@@ -460,6 +460,9 @@ function buildUnifiedTimelineMarkdown(events) {
   if (!events || events.length === 0) return "";
 
   // Tally events per source and per kind in a single pass.
+  // NOTE: byKind is a global tally. The gateway / firewall / agent stats
+  // lines each assume their KIND_* constants do not appear in other sources.
+  // If you add a new kind, ensure it is unique across all collectors.
   /** @type {Record<string, number>} */
   const bySource = {};
   /** @type {Record<string, number>} */
