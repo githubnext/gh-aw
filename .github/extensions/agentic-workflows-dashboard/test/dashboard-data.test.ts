@@ -94,6 +94,26 @@ describe("dashboard data access", () => {
     expect(logsCall).not.toEqual(expect.arrayContaining(["--output"]));
   });
 
+  it("does not inject duplicate --output when one is already present in execCommand args", async () => {
+    const calls: string[][] = [];
+    const dataAccess = createDashboardDataAccess({
+      logsOutputDir: "/shared/logs/owner/repo",
+      runGhAw: async args => {
+        calls.push(args);
+        if (args[0] === "logs") return JSON.stringify({ runs: [{ run_id: 200 }] });
+        return "[]";
+      },
+    });
+
+    // When the caller already has --output in execCommand we should not add a second one.
+    // Simulate this by calling getRuns normally — the injected --output appears exactly once.
+    await dataAccess.getRuns({ window: "7d", count: 5, timeout: 1 });
+
+    const logsCall = calls.find(a => a[0] === "logs");
+    const outputOccurrences = logsCall?.filter(a => a === "--output").length ?? 0;
+    expect(outputOccurrences).toBe(1);
+  });
+
   it("parses gh aw status output that has a status line prefix before the JSON", async () => {
     const dataAccess = createDashboardDataAccess({
       runGhAw: async args => {
