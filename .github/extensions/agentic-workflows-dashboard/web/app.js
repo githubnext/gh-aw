@@ -3305,6 +3305,7 @@ var dashboardTabs = [
   { id: "details", label: "Run details" },
   { id: "usage", label: "Usage", counter: "usage" },
   { id: "experiments", label: "Experiments", counter: "experiments" },
+  { id: "maintenance", label: "Maintenance" },
   { id: "commands", label: "Commands" }
 ];
 var reportWindows = [
@@ -3405,6 +3406,10 @@ module_default.data("dashboardApp", () => ({
   usagePaged: paginate([], 1, 20),
   experimentsPaged: paginate([], 1, 20),
   selectedRun: null,
+  auditData: null,
+  includePreReleases: false,
+  maintenanceOutput: "Use this view to check dashboard maintenance commands before applying updates or upgrades.",
+  maintenanceLastAction: "",
   commandInput: "",
   commandOutput: "",
   flashMessage: "",
@@ -3414,11 +3419,14 @@ module_default.data("dashboardApp", () => ({
   loadingRuns: false,
   loadingUsage: false,
   loadingExperiments: false,
+  loadingAudit: false,
+  loadingMaintenance: false,
   errorCliStatus: "",
   errorDefinitions: "",
   errorRuns: "",
   errorUsage: "",
   errorExperiments: "",
+  errorAudit: "",
   runsMeta: null,
   usageMeta: null,
   async init() {
@@ -3581,18 +3589,99 @@ gh aw version ${this.cliStatus.version}`;
     this.experimentsPaged = paginate(this.experiments, page, this.pageSize);
   },
   selectRun(runId) {
+    const previousRunId = this.selectedRun?.run_id;
     this.selectedRun = this.runs.find((run) => run.run_id === runId) ?? null;
+    if (this.selectedRun?.run_id !== previousRunId) {
+      this.clearAudit();
+    }
   },
   viewRunDetails(runId) {
     this.selectRun(runId);
     this.setActiveTab("details");
   },
+  async loadAudit() {
+    if (!this.selectedRun?.run_id) return;
+    this.loadingAudit = true;
+    this.errorAudit = "";
+    try {
+      const params = new URLSearchParams({ run_id: String(this.selectedRun.run_id) });
+      this.auditData = await fetchJson(`/api/audit?${params.toString()}`);
+    } catch (error2) {
+      this.auditData = null;
+      this.errorAudit = `Failed to load audit: ${error2 instanceof Error ? error2.message : String(error2)}`;
+    } finally {
+      this.loadingAudit = false;
+    }
+  },
+  clearAudit() {
+    this.auditData = null;
+    this.errorAudit = "";
+    this.loadingAudit = false;
+  },
   buildLogsCommand(count = DEFAULT_LOGS_COMMAND_COUNT) {
     const window2 = this.currentWindow();
     return `gh aw logs --json -c ${count} --start-date ${window2.startDate} --timeout ${this.logsTimeout}`;
   },
+  buildMaintenanceCommand(action) {
+    if (action === "check-update") return "gh aw status --json";
+    if (action === "run-update") return "gh aw update";
+    if (action === "check-upgrade") return `gh aw upgrade --audit${this.includePreReleases ? " --pre-releases" : ""}`;
+    return `gh aw upgrade${this.includePreReleases ? " --pre-releases" : ""}`;
+  },
+  maintenanceActionLabel(action) {
+    if (action === "check-update") return "Check updates";
+    if (action === "run-update") return "Run update";
+    if (action === "check-upgrade") return "Check upgrades";
+    return "Run upgrade";
+  },
+  async runMaintenanceAction(action) {
+    const cmd = this.buildMaintenanceCommand(action);
+    this.loadingMaintenance = true;
+    this.maintenanceLastAction = this.maintenanceActionLabel(action);
+    this.maintenanceOutput = `$ ${cmd}
+(running\u2026)`;
+    this.commandInput = cmd;
+    try {
+      const params = new URLSearchParams({
+        cmd,
+        window: this.selectedWindow,
+        timeout: String(this.logsTimeout)
+      });
+      const result = await fetchJson(`/api/run-command?${params.toString()}`);
+      this.maintenanceOutput = `$ ${result.command ?? cmd}
+${result.output ?? ""}`;
+      if (action === "run-update" || action === "run-upgrade") {
+        await fetch("/api/refresh");
+        await this.fetchCliStatus();
+        if (this.cliStatus?.available) {
+          await Promise.all([this.fetchDefinitions(), this.fetchRuns(), this.fetchUsage(), this.fetchExperiments()]);
+        }
+      }
+    } catch (error2) {
+      this.maintenanceOutput = `$ ${cmd}
+Error: ${error2 instanceof Error ? error2.message : String(error2)}`;
+    } finally {
+      this.loadingMaintenance = false;
+    }
+  },
   cliUnavailableMessage() {
     return (this.cliStatus?.message ?? this.errorCliStatus) || "gh aw is not installed.";
+  },
+  auditHasFindings() {
+    return (this.auditData?.key_findings ?? []).length > 0;
+  },
+  auditSeverityClass(severity) {
+    const normalized = (severity ?? "").toLowerCase();
+    if (normalized === "critical" || normalized === "high" || normalized === "error") return "Label Label--danger";
+    if (normalized === "medium" || normalized === "warning") return "Label Label--attention";
+    if (normalized === "low") return "Label Label--accent";
+    return "Label Label--secondary";
+  },
+  auditPriorityClass(priority) {
+    const normalized = (priority ?? "").toLowerCase();
+    if (normalized === "high" || normalized === "p0" || normalized === "p1") return "Label Label--danger";
+    if (normalized === "medium" || normalized === "p2") return "Label Label--attention";
+    return "Label Label--secondary";
   },
   buildReportSummaryMessage(meta) {
     return buildReportMessage(meta, "No logs metadata available.");
