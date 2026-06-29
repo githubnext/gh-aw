@@ -21,6 +21,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/deferinloop"
 	"github.com/github/gh-aw/pkg/linters/errorfwrapv"
 	"github.com/github/gh-aw/pkg/linters/errormessage"
+	"github.com/github/gh-aw/pkg/linters/errortypeassertion"
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
 	"github.com/github/gh-aw/pkg/linters/execcommandwithoutcontext"
@@ -61,6 +62,7 @@ func main() {
 		ctxbackground.Analyzer,
 		deferinloop.Analyzer,
 		errormessage.Analyzer,
+		errortypeassertion.Analyzer,
 		fprintlnsprintf.Analyzer,
 		errstringmatch.Analyzer,
 		errorfwrapv.Analyzer,
