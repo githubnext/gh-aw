@@ -50,11 +50,13 @@ const (
 	// PolicyStrict enables runtime enforcement that workflows must be compiled in strict mode
 	// when GH_AW_POLICY_STRICT is set to the string value "true".
 	PolicyStrict = "GH_AW_POLICY_STRICT"
-	// PolicyModelsAllowed overrides only models.allowed policy values (it does not
-	// change models.disallowed unless PolicyModelsDisallowed is also set).
+	// PolicyModelsAllowed overrides only the experimental models.allowed policy
+	// values (it does not change models.disallowed unless PolicyModelsDisallowed is
+	// also set).
 	PolicyModelsAllowed = "GHAW_POLICY_MODELS_ALLOWED"
-	// PolicyModelsDisallowed overrides only models.disallowed policy values (it
-	// does not change models.allowed unless PolicyModelsAllowed is also set).
+	// PolicyModelsDisallowed overrides only the experimental models.disallowed
+	// policy values (it does not change models.allowed unless PolicyModelsAllowed
+	// is also set).
 	PolicyModelsDisallowed = "GHAW_POLICY_MODELS_DISALLOWED"
 	// PolicyAllowCreatePullRequest controls whether create-pull-request safe-outputs
 	// remain runtime-compliant. Set to the string value "false" to disable the
