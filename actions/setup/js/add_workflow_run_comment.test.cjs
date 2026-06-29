@@ -342,6 +342,38 @@ describe("add_workflow_run_comment", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
+    it("uses dispatched workflow metadata from aw_context when provided", async () => {
+      global.context = {
+        eventName: "workflow_dispatch",
+        runId: 12345,
+        repo: { owner: "workflowowner", repo: "workflowrepo" },
+        payload: {
+          inputs: {
+            aw_context: JSON.stringify({
+              repo: "targetowner/targetrepo",
+              event_type: "issue_comment",
+              item_type: "issue",
+              item_number: 789,
+              status_comment_id: 67890,
+              status_comment_url: "https://github.com/targetowner/targetrepo/issues/789#issuecomment-67890",
+              dispatched_workflow_name: "archie",
+              dispatched_run_url: "https://github.com/github/gh-aw/actions/runs/444",
+            }),
+          },
+        },
+      };
+
+      await runScript();
+
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        expect.objectContaining({
+          comment_id: 67890,
+          body: expect.stringContaining("[archie](https://github.com/github/gh-aw/actions/runs/444)"),
+        })
+      );
+    });
+
     it("updates reusable centralized slash-command discussion comments via GraphQL", async () => {
       mockGithub.graphql.mockResolvedValue({
         updateDiscussionComment: {
@@ -907,6 +939,14 @@ describe("add_workflow_run_comment", () => {
       const { buildCommentBody } = await importAddWorkflowRunComment();
       const body = buildCommentBody("issue_comment", "https://example.com/run/1");
       expect(body).toContain("[Agentic Commands]");
+    });
+
+    it("should prefer explicit workflow name override over environment defaults", async () => {
+      process.env.GH_AW_WORKFLOW_NAME = "Agentic Commands";
+      const { buildCommentBody } = await importAddWorkflowRunComment();
+      const body = buildCommentBody("issue_comment", "https://example.com/run/1", "archie");
+      expect(body).toContain("[archie]");
+      expect(body).not.toContain("[Agentic Commands]");
     });
 
     it("should include tracker-id marker when GH_AW_TRACKER_ID is set", async () => {

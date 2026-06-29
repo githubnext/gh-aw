@@ -14,17 +14,9 @@ For workflows that generate reports — status updates, audits, summaries — po
 | Inline update on an existing issue or PR | `add-comment` with `hide-older-comments` |
 | Discussion-based report (only when explicitly requested) | `create-discussion` with `close-older-discussions` |
 
-Default to `create-issue` — searchable, supports close/expire cleanup. Use `create-discussion` only when explicitly requested.
-
-### PM/Stakeholder Digests
-
-- `create-issue` for operational reports (backlog follow-ups, ownership tracking, recurring status).
-- `create-discussion` only when the requester explicitly wants threaded collaboration / async feedback.
-- If unclear, default to `create-issue`.
+Default to `create-issue`. Use `create-discussion` only when the requester explicitly wants threaded async collaboration.
 
 ## Automatic Cleanup
-
-Configure cleanup for scheduled or recurring reports.
 
 - **`expires`** — auto-close after a window (e.g. `7`, `2w`, `1m`).
 - **`close-older-issues: true`** — close previous issues from the same workflow. Requires `title-prefix` or `labels`.
@@ -44,22 +36,19 @@ safe-outputs:
 
 ## Scheduled Report Window Scoping
 
-Always define the report window explicitly in the prompt so runs are deterministic and comparable.
+Define the report window explicitly in the prompt so runs are deterministic and comparable.
 
-Good window examples:
+Window examples:
 
 - `last 24 full hours ending at workflow start (UTC)`
 - `last 7 full days ending at workflow start (UTC)`
 - `since previous successful run timestamp`
 - `current calendar week to date (UTC, Monday 00:00 to now)`
 
-When choosing a strategy: use fixed durations for stable trend comparisons, run-based windows for continuous monitoring workflows, and calendar windows for stakeholder/business reporting.
+Strategy: fixed durations for trend comparisons, run-based windows for continuous monitoring, calendar windows for stakeholder reporting.
 
-Window + no-op expectation:
-
-- call `noop` when the selected window has no qualifying updates to report
-- state the evaluated window in the no-op message for transparency
-- example (replace placeholders with computed values): `noop("No updates in last 24 full hours ({{window_start_utc}} to {{window_end_utc}})")`
+When the window has no qualifying updates, call `noop` with the evaluated window in the message:
+`noop("No updates in last 24 full hours ({{window_start_utc}} to {{window_end_utc}})")`
 
 ## Report Style and Structure
 
@@ -71,7 +60,7 @@ Window + no-op expectation:
 
 ### Progressive Disclosure
 
-Wrap detail content in `<details><summary>Section Name</summary>`. Use for verbose logs/raw data, secondary info, per-item breakdowns. Keep summary, critical issues, and key metrics visible.
+Wrap verbose logs, secondary info, and per-item breakdowns in `<details><summary>Section Name</summary>`. Keep summary, critical issues, and key metrics visible.
 
 ### Alerts Instead of Emojis
 
@@ -127,10 +116,10 @@ Do not use emoji severity markers (`✅`, `⚠️`, `❌`, `🧪`).
 
 ## Avoiding Mentions and Backlinks
 
-Without filtering, `@username` notifies users and `#123` creates cross-reference backlinks — noise every run.
+Without filtering, `@username` notifies users and `#123` creates backlinks every run.
 
-- **`mentions: false`** — escapes all `@mentions`, no notifications.
-- **`allowed-github-references: []`** — escapes `#123` / `owner/repo#123`, no backlinks.
+- **`mentions: false`** — escapes all `@mentions`.
+- **`allowed-github-references: []`** — escapes `#123` / `owner/repo#123`.
 - **`max-bot-mentions: 0`** — neutralizes bot-trigger phrases like `fixes #123` / `closes #456`.
 
 ```yaml

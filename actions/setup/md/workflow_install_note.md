@@ -1,5 +1,5 @@
 <details>
-<summary>Add this agentic workflows to your repo</summary>
+<summary><sub>Add this agentic workflow to your repo</sub></summary>
 
 To install this agentic workflow, run
 

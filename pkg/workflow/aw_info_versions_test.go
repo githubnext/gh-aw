@@ -400,3 +400,61 @@ func TestAllVersionsInAwInfo(t *testing.T) {
 		t.Errorf("Expected output to contain awmg_version '%s', got:\n%s", expectedAwmgLine, output)
 	}
 }
+
+func TestFeaturesInAwInfo(t *testing.T) {
+	tests := []struct {
+		name          string
+		features      map[string]any
+		shouldInclude bool
+	}{
+		{
+			name:          "features included when configured",
+			features:      map[string]any{"gh-aw-detection": true, "mode": "strict"},
+			shouldInclude: true,
+		},
+		{
+			name:          "features omitted when empty",
+			features:      map[string]any{},
+			shouldInclude: false,
+		},
+		{
+			name:          "features omitted when nil",
+			features:      nil,
+			shouldInclude: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(WithVersion("1.0.0"))
+			registry := GetGlobalEngineRegistry()
+			engine, err := registry.GetEngine("copilot")
+			if err != nil {
+				t.Fatalf("Failed to get copilot engine: %v", err)
+			}
+
+			workflowData := &WorkflowData{
+				Name:     "Test Workflow",
+				Features: tt.features,
+			}
+
+			var yaml strings.Builder
+			compiler.generateCreateAwInfo(&yaml, workflowData, engine)
+			output := yaml.String()
+
+			if tt.shouldInclude {
+				if !strings.Contains(output, "GH_AW_INFO_FEATURES:") {
+					t.Fatalf("Expected output to contain GH_AW_INFO_FEATURES, got:\n%s", output)
+				}
+				if !strings.Contains(output, `"gh-aw-detection":true`) {
+					t.Errorf("Expected output to include boolean feature value, got:\n%s", output)
+				}
+				if !strings.Contains(output, `"mode":"strict"`) {
+					t.Errorf("Expected output to include string feature value, got:\n%s", output)
+				}
+			} else if strings.Contains(output, "GH_AW_INFO_FEATURES:") {
+				t.Errorf("Expected output to omit GH_AW_INFO_FEATURES, got:\n%s", output)
+			}
+		})
+	}
+}

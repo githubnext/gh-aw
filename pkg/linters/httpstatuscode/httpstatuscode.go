@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -173,9 +174,24 @@ func extractStatusLiteral(expr *ast.BinaryExpr) (*ast.BasicLit, ast.Expr) {
 func isHTTPStatusContext(pass *analysis.Pass, expr ast.Expr) bool {
 	switch e := expr.(type) {
 	case *ast.Ident:
-		return e.Name == "status" || e.Name == "statusCode"
+		obj, ok := pass.TypesInfo.Uses[e]
+		if !ok {
+			return false
+		}
+		t := obj.Type()
+		if !isIntegerType(t) {
+			return false
+		}
+		// For named integer types (custom enums/aliases), check whether the type
+		// name itself indicates HTTP status to avoid false positives on non-HTTP
+		// integer types (e.g. type JobState int).
+		if named, isNamed := t.(*types.Named); isNamed {
+			return isHTTPStatusTypeName(named.Obj().Name())
+		}
+		// For plain integer types, fall back to variable name heuristic.
+		return isHTTPStatusVarName(e.Name)
 	case *ast.SelectorExpr:
-		if e.Sel.Name != "StatusCode" {
+		if !isHTTPStatusFieldName(e.Sel.Name) {
 			return false
 		}
 		if sel, ok := pass.TypesInfo.Selections[e]; ok {
@@ -192,6 +208,35 @@ func isHTTPStatusContext(pass *analysis.Pass, expr ast.Expr) bool {
 		return isIntegerType(field.Type())
 	}
 	return false
+}
+
+// isHTTPStatusVarName returns true if a plain-integer variable/parameter name
+// suggests it holds an HTTP status code.
+func isHTTPStatusVarName(name string) bool {
+	switch name {
+	case "status", "statusCode", "httpStatus":
+		return true
+	}
+	return false
+}
+
+// isHTTPStatusFieldName returns true if a struct field name suggests HTTP status.
+// Accepts StatusCode, Status, and HTTPStatus to cover common response field spellings.
+func isHTTPStatusFieldName(name string) bool {
+	switch name {
+	case "StatusCode", "Status", "HTTPStatus":
+		return true
+	}
+	return false
+}
+
+// isHTTPStatusTypeName returns true if a named integer type's name indicates that
+// it represents an HTTP status code (e.g. HTTPStatusCode, HTTPStatus).
+// Both "http" and "status" must appear in the name (case-insensitive) to avoid
+// matching unrelated HTTP types such as HTTPVersion or HTTPMethod.
+func isHTTPStatusTypeName(name string) bool {
+	lower := strings.ToLower(name)
+	return strings.Contains(lower, "http") && strings.Contains(lower, "status")
 }
 
 func isIntegerType(t types.Type) bool {

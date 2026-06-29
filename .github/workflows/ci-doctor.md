@@ -203,7 +203,7 @@ steps:
       echo ""
       echo "✅ PR pre-analysis complete. Agent should start with $SUMMARY_FILE"
 
-source: githubnext/agentics/workflows/ci-doctor.md@e15e57b40918dbca11b350c55d02ab61934afa75
+source: githubnext/agentics/workflows/ci-doctor.md@1c6668b751c51af8571f01204ceffb19362e0f66
 features:
   gh-aw-detection: true
 ---

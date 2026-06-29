@@ -443,3 +443,30 @@ func TestResolveForecastWorkflowsFromRemote_RateLimitFallsBackToPartialResults(t
 	require.NoError(t, readErr, "Should read captured stderr")
 	assert.Contains(t, string(stderrBytes), "partial results", "Should warn that discovery returned partial results")
 }
+
+func TestMonteCarloFixtureVariantsAreAvailable(t *testing.T) {
+	t.Run("zero ET fixture", func(t *testing.T) {
+		fixture := loadFixture(t, "run_summary_zero_et.json")
+		usage, ok := fixture["token_usage_summary"].(map[string]any)
+		require.True(t, ok)
+		totalEffectiveTokens, ok := usage["total_effective_tokens"].(float64)
+		require.True(t, ok)
+		assert.Zero(t, totalEffectiveTokens)
+	})
+
+	t.Run("failed run fixture", func(t *testing.T) {
+		fixture := loadFixture(t, "run_summary_failed.json")
+		run, ok := fixture["run"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "failure", run["conclusion"])
+	})
+
+	t.Run("high ET fixture", func(t *testing.T) {
+		fixture := loadFixture(t, "run_summary_high_et.json")
+		usage, ok := fixture["token_usage_summary"].(map[string]any)
+		require.True(t, ok)
+		totalEffectiveTokens, ok := usage["total_effective_tokens"].(float64)
+		require.True(t, ok)
+		assert.GreaterOrEqual(t, totalEffectiveTokens, 1_000_000.0)
+	})
+}

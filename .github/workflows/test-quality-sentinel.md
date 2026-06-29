@@ -64,6 +64,26 @@ steps:
       git diff "$EXPR_GITHUB_EVENT_PULL_REQUEST_BASE_SHA...HEAD" --numstat \
         > /tmp/gh-aw/agent/diff-numstat.txt 2>/dev/null || true
 
+      # Extract new/modified test function signatures from the diff
+      if [ -s /tmp/gh-aw/agent/test-diff.txt ]; then
+        grep -E "^\+func Test" /tmp/gh-aw/agent/test-diff.txt \
+          > /tmp/gh-aw/agent/go-new-test-funcs.txt || true
+        grep -E "^\+(it|test|describe)\(" /tmp/gh-aw/agent/test-diff.txt \
+          > /tmp/gh-aw/agent/js-new-test-funcs.txt || true
+        # Check for new Go test files missing mandatory build tags
+        git diff "$EXPR_GITHUB_EVENT_PULL_REQUEST_BASE_SHA...HEAD" \
+          --diff-filter=A --name-only 2>/dev/null \
+          | grep '_test\.go$' | while read -r f; do
+            if ! head -1 "$f" | grep -qE '^//go:build'; then
+              echo "MISSING BUILD TAG: $f"
+            fi
+          done > /tmp/gh-aw/agent/missing-build-tags.txt || true
+      else
+        touch /tmp/gh-aw/agent/go-new-test-funcs.txt \
+              /tmp/gh-aw/agent/js-new-test-funcs.txt \
+              /tmp/gh-aw/agent/missing-build-tags.txt
+      fi
+
       echo "Pre-fetched $(grep -c . /tmp/gh-aw/agent/test-files.txt || echo 0) test files"
 safe-outputs:
   add-comment:
@@ -97,21 +117,12 @@ High test counts can create an illusion of safety. The real signal is whether te
 
 ## Step 1: Load Pre-fetched PR Data and Identify Test Files
 
-PR data has already been fetched before the agent started. Read the pre-fetched files:
+PR data has already been fetched before the agent started. Read from:
 
-```bash
-# PR metadata (files, additions, deletions, branch names)
-cat /tmp/gh-aw/agent/pr-meta.json
-
-# List of changed test files
-cat /tmp/gh-aw/agent/test-files.txt
-
-# Diff for test files only
-cat /tmp/gh-aw/agent/test-diff.txt
-
-# Numstat for all changed files
-cat /tmp/gh-aw/agent/diff-numstat.txt
-```
+- `/tmp/gh-aw/agent/pr-meta.json` — PR metadata (files, additions, deletions, branch names)
+- `/tmp/gh-aw/agent/test-files.txt` — list of changed test files
+- `/tmp/gh-aw/agent/test-diff.txt` — diff for test files only
+- `/tmp/gh-aw/agent/diff-numstat.txt` — numstat for all changed files
 
 Then identify all **new and modified test files** in the diff:
 
@@ -136,26 +147,9 @@ For each test, collect:
 - **Test body** (assertions, setup, mocking calls)
 - **File path and approximate line number**
 
-Use bash tools to help parse the diff if needed:
+New Go test function signatures (lines matching `+func Test*`) are pre-extracted to `/tmp/gh-aw/agent/go-new-test-funcs.txt`. New JavaScript test blocks (`it(`, `test(`, `describe(`) are in `/tmp/gh-aw/agent/js-new-test-funcs.txt`. Use these as a starting point, then read `test-diff.txt` for full function bodies.
 
-```bash
-# For Go: find Test* function definitions in the diff
-git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*_test.go' | grep -E "^\+func Test"
-
-# For JavaScript (.test.cjs is the primary format; .test.js used in scripts/)
-git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.test.cjs' '*.test.js' | grep -E "^\+(it|test|describe)\("
-```
-
-Also check for missing build tags in new Go test files — every `*_test.go` file must begin with either `//go:build !integration` (for unit tests) or `//go:build integration` (for integration tests):
-
-```bash
-# List any newly added Go test files that are missing the mandatory build tag
-git diff ${{ github.event.pull_request.base.sha }}...HEAD --diff-filter=A --name-only | grep '_test\.go$' | while read f; do
-  if ! head -1 "$f" | grep -qE '^//go:build'; then
-    echo "MISSING BUILD TAG: $f"
-  fi
-done
-```
+Also check `/tmp/gh-aw/agent/missing-build-tags.txt` — any newly added Go test files missing the mandatory `//go:build` tag on line 1 are listed there.
 
 ### Step 3: AST-Assisted Structural Analysis
 
@@ -218,14 +212,14 @@ For each new or modified test function identified in Step 2, answer these three 
 7. **No assertions**: A test function with zero assert/expect/check calls (only calls functions and discards results)
 8. **Missing assertion messages in Go** *(guideline violation)*: Go tests must always pass a descriptive message to assertion calls. Flag tests that use bare `assert.Equal(t, want, got)` or `t.Errorf("expected %v")` without enough context for a reader to understand what failed.
 
+Scope for this step:
+- Analyze only new/changed Go (`*_test.go`) and JavaScript (`*.test.cjs`, `*.test.js`) tests; note other languages without scoring.
+- Treat Go mocking with `gomock`, `testify/mock`, `.EXPECT()`, or `.On()` as a hard violation.
+- JavaScript vitest mocks for external I/O are acceptable unless business logic is mocked without output assertions.
+
 ## Step 5: Count Lines in Test Files vs. Production Files
 
-Calculate the test inflation ratio for each changed test file:
-
-```bash
-# Count lines added to test files vs. production files
-cat /tmp/gh-aw/agent/diff-numstat.txt
-```
+Calculate the test inflation ratio for each changed test file using the pre-fetched `/tmp/gh-aw/agent/diff-numstat.txt`.
 
 For each **Go and JavaScript** test file, find the corresponding production file and compare the ratio of lines added:
 
@@ -276,6 +270,7 @@ Guideline violations always trigger `REQUEST_CHANGES` regardless of the quality 
 ## Step 7: Post PR Comment with Results
 
 Post a comment to the pull request with the full analysis using the `add-comment` safe-output tool (tool call, not shell). Use the `tqs-report-template` skill for the exact comment format.
+Use `###` or lower report headers and progressive disclosure (`<details><summary>…</summary>`). Required structure: visible score headline + one-sentence summary → `<details>` metrics table + classification table → `<details>` flagged tests (omit if empty) → visible verdict.
 
 Use this shape:
 
@@ -321,10 +316,6 @@ After posting the comment, submit a pull request review based on the verdict. **
 ```
 
 ## Guidelines
-
-**Report Formatting**: Use `###` or lower for all headers in reports. Apply **progressive disclosure**: keep the immediately visible text brief; wrap verbose sections in `<details><summary>…</summary>` tags. Required structure: visible score headline + one-sentence summary → `<details>` metrics table + classification table → `<details>` flagged tests (omit if empty) → visible verdict.
-
-**Analysis Scope**: Focus only on new and changed tests. Support Go (`*_test.go`) and JavaScript (`*.test.cjs`, `*.test.js`) as primary targets; note other languages but don't score them. Go uses no mock libraries — any `gomock`, `testify/mock`, `.EXPECT()`, or `.On()` is a hard red flag. JavaScript uses vitest — mocking external I/O (`fs`, `process.stderr`, `global.core`) is acceptable; flag only when business-logic functions are mocked without behavioral assertion on outputs. A test inside `integration/` is expected to exercise more real dependencies than a unit test.
 
 **Calibration**:
 - **Generous for edge case credit**: If a Go test has even one `assert.Error`/`require.Error`, `t.Fatalf` on an error return, or an `expectError: true` table row, count it as having edge case coverage. For JavaScript, `.toThrow()`, `.toThrowError()`, or `.rejects` qualifies.
@@ -409,14 +400,10 @@ END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors
 '
 ```
 
-Also check for newly added Go test files missing the mandatory build tag:
+Also check for newly added Go test files missing the mandatory build tag by reading the pre-fetched file:
 
 ```bash
-git diff ${{ github.event.pull_request.base.sha }}...HEAD --diff-filter=A --name-only | grep '_test\.go$' | while read f; do
-  if ! head -1 "$f" | grep -qE '^//go:build'; then
-    echo "MISSING BUILD TAG: $f"
-  fi
-done
+cat /tmp/gh-aw/agent/missing-build-tags.txt
 ```
 
 Return:

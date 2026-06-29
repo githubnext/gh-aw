@@ -8,6 +8,11 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
+
+sandbox:
+  agent:
+    sudo: false
+
 imports:
 - uses: shared/daily-audit-base.md
   with:
@@ -46,8 +51,11 @@ tools:
   - cat pkg/parser/schemas/main_workflow_schema.json
   - sed -n
   - git status
+  - git status:*
+  - git diff:*
   - git diff --name-only
   - cd * && git diff --name-only
+  - cat > /tmp/gh-aw/agent/*.py
   - python3 *
   cli-proxy: true
   edit: null
@@ -86,6 +94,8 @@ Ensure every supported safe-output type has both:
 - Use one compact script (saved under `/tmp/gh-aw/agent/`) to emit:
   - covered types (with file examples),
   - missing types requiring new fixtures.
+- Create that temporary script with the edit tool or the allowed `cat > /tmp/gh-aw/agent/*.py` bash command, then run it with `python3`.
+- Do not retry alternate shell-redirection paths; use only the allowed `/tmp/gh-aw/agent/` path.
 - Do not rely on repeated hardcoded frontmatter examples; generate fixtures from a single template pattern.
 
 ### Phase 3: Detect Go compiler-test gaps

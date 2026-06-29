@@ -9,6 +9,11 @@ permissions:
   pull-requests: read
   actions: read
   issues: read
+
+sandbox:
+  agent:
+    sudo: false
+
 cache:
   - key: objective-impact-report-cache-${{ github.run_id }}
     name: Save objective impact report dataset cache

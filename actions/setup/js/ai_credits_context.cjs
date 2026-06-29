@@ -235,10 +235,7 @@ function parseMaxAICreditsExceededFromAuditEntry(entry) {
     if (key === "reason") reason = value;
     if (key === "forced_termination") forcedTermination = value;
   }
-  if (typeof event === "string" && event === BUDGET_EXCEEDED_EVENT && typeof reason === "string" && reason === "hard_limit" && isTrueLike(forcedTermination)) {
-    return true;
-  }
-  return false;
+  return typeof event === "string" && event === BUDGET_EXCEEDED_EVENT && typeof reason === "string" && reason === "hard_limit" && isTrueLike(forcedTermination);
 }
 
 /**
@@ -316,6 +313,23 @@ function parseAuditLogCombined(auditJsonlPathOverride) {
 }
 
 /**
+ * Logs the provenance source and value for a single AI credits field.
+ * Outputs exactly one line regardless of which source resolved the value.
+ *
+ * @param {string} label
+ * @param {string} auditValue
+ * @param {string} stdioValue
+ * @param {string} envValue
+ * @param {string} envVarName
+ */
+function logAICreditSource(label, auditValue, stdioValue, envValue, envVarName) {
+  if (auditValue) console.log(`[ai-credits] ${label} source=audit_log value=${auditValue}`);
+  else if (stdioValue) console.log(`[ai-credits] ${label} source=agent_stdio value=${stdioValue}`);
+  else if (envValue) console.log(`[ai-credits] ${label} source=env(${envVarName}) value=${envValue}`);
+  else console.log(`[ai-credits] ${label} source=none ${envVarName}=${process.env[envVarName] || "(unset)"}`);
+}
+
+/**
  * @param {{ logProvenance?: boolean }} [options]
  * @returns {{ aiCredits: string, maxAICredits: string, aiCreditsRateLimitError: boolean, maxAICreditsExceeded: boolean }}
  */
@@ -329,25 +343,8 @@ function resolveAICreditsFailureState({ logProvenance = true } = {}) {
 
   // Log provenance so failing issues can be diagnosed when credit data is missing.
   if (logProvenance) {
-    if (auditAICredits) {
-      console.log(`[ai-credits] aiCredits source=audit_log value=${auditAICredits}`);
-    } else if (stdioSignals.aiCredits) {
-      console.log(`[ai-credits] aiCredits source=agent_stdio value=${stdioSignals.aiCredits}`);
-    } else if (envAICredits) {
-      console.log(`[ai-credits] aiCredits source=env(GH_AW_AIC) value=${envAICredits}`);
-    } else {
-      console.log(`[ai-credits] aiCredits source=none GH_AW_AIC=${process.env.GH_AW_AIC || "(unset)"}`);
-    }
-
-    if (auditMaxAICredits) {
-      console.log(`[ai-credits] maxAICredits source=audit_log value=${auditMaxAICredits}`);
-    } else if (stdioSignals.maxAICredits) {
-      console.log(`[ai-credits] maxAICredits source=agent_stdio value=${stdioSignals.maxAICredits}`);
-    } else if (envMaxAICredits) {
-      console.log(`[ai-credits] maxAICredits source=env(GH_AW_MAX_AI_CREDITS) value=${envMaxAICredits}`);
-    } else {
-      console.log(`[ai-credits] maxAICredits source=none GH_AW_MAX_AI_CREDITS=${process.env.GH_AW_MAX_AI_CREDITS || "(unset)"}`);
-    }
+    logAICreditSource("aiCredits", auditAICredits, stdioSignals.aiCredits, envAICredits, "GH_AW_AIC");
+    logAICreditSource("maxAICredits", auditMaxAICredits, stdioSignals.maxAICredits, envMaxAICredits, "GH_AW_MAX_AI_CREDITS");
 
     const rawRateLimitSignalSource = auditRateLimitError
       ? "audit_log"

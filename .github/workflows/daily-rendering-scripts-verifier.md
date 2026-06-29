@@ -26,6 +26,8 @@ tools:
     - "echo*"
     - "jq*"
     - "node *"
+    - "unzip *"
+    - "python3 *"
     - "npm*"
     - "npx *"
     - "make *"

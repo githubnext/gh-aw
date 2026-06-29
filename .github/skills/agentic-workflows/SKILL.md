@@ -9,6 +9,10 @@ Use this skill when a user asks to design, create, update, debug, or upgrade Git
 
 This skill is a dispatcher: identify the task type, load the matching workflow prompt/skill file, and follow it directly. Keep responses concise and ask a clarifying question if the correct prompt is unclear.
 
+Repository overlay (optional):
+- If `.github/aw/instructions.md` exists, load it with `@.github/aw/instructions.md` after loading the matched prompt/skill.
+- Precedence: repository overlay instructions override upstream defaults when they conflict.
+
 Read only the files you need:
 Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/agentic-chat.md`
@@ -27,6 +31,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/experiments.md`
 - `.github/aw/github-agentic-workflows.md`
 - `.github/aw/github-mcp-server.md`
+- `.github/aw/instructions.md`
 - `.github/aw/llms.md`
 - `.github/aw/loop.md`
 - `.github/aw/lsp.md`

@@ -13,6 +13,11 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+
+sandbox:
+  agent:
+    sudo: false
+
 engine: codex
 strict: true
 timeout-minutes: 25

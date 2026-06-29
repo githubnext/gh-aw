@@ -56,6 +56,38 @@ For the languages below, the compiler automatically injects an install step — 
 
 Language keys not in this table still work — the compiler simply skips the auto-install step. Add a manual `steps:` entry to install the server yourself.
 
+## LSP-enabled Tools (Copilot Engine)
+
+When `lsp` is configured, Copilot gets semantic code-intelligence tools from the configured language servers. These tools are distinct from plain text search and are best for symbol-aware work.
+
+| Tool capability | What it's used for | Typical prompt intent |
+|---|---|---|
+| Symbol lookup | Find functions, types, methods, constants, classes by symbol name | "Find the `Compile` method and related types." |
+| Go to definition / declaration | Jump from usage to source of truth | "Open the definition of `NewLSPManager`." |
+| Find references | Discover where a symbol is read/written/called | "List all call sites of `GenerateInstallSteps`." |
+| Document / workspace symbols | Enumerate symbols in a file or project scope | "Summarize top-level symbols in `pkg/workflow/lsp_manager.go`." |
+| Hover / type info | Inspect signatures, inferred types, and doc comments | "Show the signature and docs for `RuntimeRequirements`." |
+| Diagnostics | Surface parse/type errors from the language server | "Check diagnostics in `pkg/workflow` before editing." |
+| Rename / refactor actions (server-dependent) | Apply safe symbol renames and structured edits | "Rename this exported type and update references." |
+
+> [!NOTE]
+> Exact tool names and availability depend on the runtime engine and language server. Prompt for the capability ("find references", "go to definition"), not a hardcoded tool ID.
+
+## Prompting Guidance for Efficient LSP Use
+
+Use these patterns to help the authoring agent get faster, higher-signal results:
+
+1. **State the semantic goal first.** Ask for symbol-level operations (definition, references, diagnostics) before broad grep scans.
+2. **Constrain scope early.** Include target directories/files and language keys to avoid whole-repo symbol walks.
+3. **Use a two-pass flow.** Ask for quick symbol discovery first, then deeper reference/type analysis only for shortlisted symbols.
+4. **Require evidence in output.** Instruct the agent to include file paths and line numbers for each definition/reference result.
+5. **Set fallback behavior.** If LSP data is unavailable, instruct the agent to fall back to text search and say confidence is lower.
+6. **Avoid over-requesting.** Ask for only the symbols needed for the current task to minimize token and tool overhead.
+
+Example intent phrasing:
+
+> "Use LSP capabilities first: find symbol definitions and references for `LSPManager` in `pkg/workflow`, report file:line evidence, then propose the minimal edit."
+
 ## Examples
 
 ### TypeScript / JavaScript

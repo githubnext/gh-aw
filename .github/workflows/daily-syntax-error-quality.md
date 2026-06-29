@@ -11,6 +11,11 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
+
+sandbox:
+  agent:
+    sudo: false
+
 tracker-id: daily-syntax-error-quality
 engine:
   id: copilot

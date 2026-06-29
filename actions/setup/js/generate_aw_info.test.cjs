@@ -60,6 +60,7 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_FRONTMATTER_SOURCE = "";
     process.env.GH_AW_INFO_FRONTMATTER_EMOJI = "";
     process.env.GH_AW_INFO_BODY_MODIFIED = "";
+    process.env.GH_AW_INFO_FEATURES = "";
 
     // Dynamic import to get fresh module state
     const module = await import("./generate_aw_info.cjs");
@@ -97,7 +98,23 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.event_name).toBe("push");
     expect(awInfo.staged).toBe(false);
     expect(awInfo.firewall_enabled).toBe(false);
+    expect(awInfo.features).toBeUndefined();
     expect(awInfo.created_at).toBeTruthy();
+  });
+
+  it("should include features from GH_AW_INFO_FEATURES and preserve value types", async () => {
+    process.env.GH_AW_INFO_FEATURES = JSON.stringify({
+      "gh-aw-detection": true,
+      "custom-mode": "strict",
+    });
+
+    await main(mockCore, mockContext);
+
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.features).toEqual({
+      "gh-aw-detection": true,
+      "custom-mode": "strict",
+    });
   });
 
   it("should persist custom token weights in aw_info.json", async () => {

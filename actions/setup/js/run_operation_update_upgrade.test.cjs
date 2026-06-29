@@ -185,7 +185,7 @@ describe("run_operation_update_upgrade", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No changes detected"));
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "update"]);
       // git add was called for known files
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/actions-lock.json"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/actions-lock.json"]);
     });
 
     it("does not stage workflow yml files for update operation", async () => {
@@ -200,8 +200,8 @@ describe("run_operation_update_upgrade", () => {
       await main();
 
       // Workflow yml files must never be staged - they are not in the update allowlist
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/agentics-maintenance.yml"]);
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/my-workflow.md"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/agentics-maintenance.yml"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/my-workflow.md"]);
     });
 
     it("does not stage workflow md files for upgrade operation", async () => {
@@ -216,8 +216,8 @@ describe("run_operation_update_upgrade", () => {
       await main();
 
       // Workflow files must never be staged
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/my-workflow.md"]);
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/agentics-maintenance.yml"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/my-workflow.md"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/agentics-maintenance.yml"]);
     });
   });
 
@@ -248,7 +248,7 @@ describe("run_operation_update_upgrade", () => {
       // Verify gh aw update was run
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "update"]);
       // Verify only known update files were staged
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/actions-lock.json"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/actions-lock.json"]);
       // Verify branch was created
       expect(mockExec.exec).toHaveBeenCalledWith("git", expect.arrayContaining(["checkout", "-b", expect.stringContaining("aw/update-")]));
       // Verify commit was made
@@ -282,10 +282,10 @@ describe("run_operation_update_upgrade", () => {
       await main();
 
       // Workflow files must NEVER be staged for update
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/my-workflow.md"]);
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/agentics-maintenance.yml"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/my-workflow.md"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/agentics-maintenance.yml"]);
       // Only known update file should be staged
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/actions-lock.json"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/actions-lock.json"]);
     });
 
     it("creates PR for upgrade operation with correct title", async () => {
@@ -313,16 +313,19 @@ describe("run_operation_update_upgrade", () => {
 
       // Verify gh aw upgrade was run
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "upgrade"]);
-      // Verify known upgrade files were staged (including skill and legacy agent file)
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/actions-lock.json"]);
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/skills/agentic-workflows/SKILL.md"]);
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/agents/agentic-workflows.agent.md"]);
+      // Verify known upgrade files were staged (including skills and agent files)
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/actions-lock.json"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/instructions.md"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/skills/agentic-workflows/SKILL.md"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/skills/agentic-workflow-designer/SKILL.md"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/agents/agentic-workflows.md"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/agents/interactive-agent-designer.agent.md"]);
       // Verify correct commit message
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: upgrade agentic workflows"]);
       // Verify PR title is "[aw] Upgrade available"
       expect(getExecOutputMock).toHaveBeenCalledWith("gh", expect.arrayContaining(["pr", "create", "--title", "[aw] Upgrade available", "--label", "agentic-workflows"]), expect.anything());
       // Verify workflow yml was NOT staged
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/agentics-maintenance.yml"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/agentics-maintenance.yml"]);
     });
 
     it("stages old agent files for upgrade operation (for deletion tracking)", async () => {
@@ -349,7 +352,7 @@ describe("run_operation_update_upgrade", () => {
       await main();
 
       // Old agent file deletion should be staged
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/agents/create-agentic-workflow.agent.md"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/agents/create-agentic-workflow.agent.md"]);
     });
 
     it("uses ./gh-aw as binary in dev mode", async () => {
@@ -404,7 +407,7 @@ describe("run_operation_update_upgrade", () => {
 
       // git add fails for the known update file
       mockExec.exec = vi.fn().mockImplementation(async (cmd, args) => {
-        if (cmd === "git" && args[0] === "add" && args[2] === ".github/aw/actions-lock.json") {
+        if (cmd === "git" && args[0] === "add" && args[3] === ".github/aw/actions-lock.json") {
           throw new Error("git add failed");
         }
         return 0;

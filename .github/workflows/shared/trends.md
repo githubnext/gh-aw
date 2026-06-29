@@ -41,22 +41,6 @@ Use `sns.set_style("whitegrid")`, `sns.set_context("notebook", font_scale=1.2)`,
 - **Quality score components**: stacked area showing how each component (test coverage, churn stability, etc.) evolves
 - **Moving averages**: 7-day rolling mean overlaid on raw data to reduce noise
 
-## Data Preparation for history.jsonl
-
-```python
-import json, pandas as pd
-from pathlib import Path
-
-# Load history and normalize nested metrics
-rows = [json.loads(l) for l in Path('/tmp/gh-aw/repo-memory/default/history.jsonl').read_text().splitlines() if l.strip()]
-df = pd.json_normalize(rows)  # flattens metrics.size.*, metrics.quality.*, etc.
-df['date'] = pd.to_datetime(df['date'])
-df = df.sort_values('date').set_index('date')
-
-# Rolling 7-day mean
-df['loc_7d'] = df['metrics.size.lines_of_code_total'].rolling(7).mean()
-```
-
 ## Tips
 
 - Match time granularity to the pattern (daily for code metrics, weekly for macro trends)

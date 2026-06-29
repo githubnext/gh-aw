@@ -10,6 +10,11 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+
+sandbox:
+  agent:
+    sudo: false
+
 tracker-id: daily-reliability-review
 engine: claude
 strict: true

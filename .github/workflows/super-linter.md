@@ -40,7 +40,7 @@ jobs:
           persist-credentials: false
       
       - name: Run super-linter
-        uses: super-linter/super-linter@v8.6.0 # x-release-please-version
+        uses: super-linter/super-linter@v8.7.0 # x-release-please-version
         id: super-linter
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

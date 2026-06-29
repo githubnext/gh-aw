@@ -123,6 +123,11 @@ async function main(core, ctx) {
     awInfo.token_weights = tokenWeights;
   }
 
+  const features = parseFeaturesFromEnv(core);
+  if (features) {
+    awInfo.features = features;
+  }
+
   // Include aw_context when the workflow was triggered by a caller that relayed
   // orchestration context via workflow inputs or repository_dispatch client payload.
   // Validates JSON format and structure before populating the context key in aw_info.json.
@@ -186,6 +191,29 @@ async function main(core, ctx) {
       return null;
     } catch {
       core.warning(`Failed to parse GH_AW_INFO_TOKEN_WEIGHTS: ${tokenWeightsEnv}`);
+      return null;
+    }
+  }
+
+  /**
+   * Parse optional features map from GH_AW_INFO_FEATURES.
+   * @param {typeof import('@actions/core')} core
+   * @returns {Record<string, unknown> | null}
+   */
+  function parseFeaturesFromEnv(core) {
+    const featuresEnv = process.env.GH_AW_INFO_FEATURES;
+    if (!featuresEnv) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(featuresEnv);
+      if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return Object.keys(parsed).length > 0 ? parsed : null;
+      }
+      core.warning("GH_AW_INFO_FEATURES must be a JSON object, ignoring");
+      return null;
+    } catch {
+      core.warning(`Failed to parse GH_AW_INFO_FEATURES: ${featuresEnv}`);
       return null;
     }
   }

@@ -27,7 +27,9 @@ steps:
         python3 -m venv /tmp/gh-aw/agent/venv
       fi
       echo "/tmp/gh-aw/agent/venv/bin" >> "$GITHUB_PATH"
-      /tmp/gh-aw/agent/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
+      # Reinstall chart libraries every run so chart generation never depends on stale state.
+      /tmp/gh-aw/agent/venv/bin/pip install --quiet --upgrade --force-reinstall numpy pandas matplotlib seaborn scipy
+      /tmp/gh-aw/agent/venv/bin/python3 -c "import numpy,pandas,matplotlib,seaborn,scipy;print('chart-libraries-ready')"
 
   - name: Upload source files and data
     if: always()

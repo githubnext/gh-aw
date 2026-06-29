@@ -181,19 +181,7 @@ Talk like a caveman in all your responses and outputs. Use short, broken sentenc
 
 ## Tool Access Overview
 
-This workflow uses `cli-proxy: true`. The following MCP servers are **NOT available as MCP tools** — they are mounted exclusively as **shell CLI commands** (see `<mcp-clis>` section above). You **must** use them via the `bash` tool:
-
-- **`playwright`** — installed as `@playwright/cli`, use `playwright-cli <command>` in bash (e.g. `playwright-cli open https://github.com`, `playwright-cli screenshot`)
-- **`serena`** — use `serena <tool> [--param value...]` in bash (e.g. `serena activate_project --path ...`)
-- **`agenticworkflows`** — use `agenticworkflows <tool> [--param value...]` in bash
-- **`safeoutputs`** — use `safeoutputs <tool> [--param value...]` in bash (e.g. `safeoutputs add_comment --body "..."`)
-- **`mcpscripts`** — use `mcpscripts <tool> [--param value...]` in bash (e.g. `mcpscripts mcpscripts-gh --args "..."`)
-
-The `github` MCP server is **NOT** CLI-mounted — it remains available as a normal MCP tool.
-
-Run `<server> --help` to list all available tools for a server, or `<server> <tool> --help` for detailed parameter info.
-
-These are **not** MCP protocol tools — they are bash executables. Call them with the `bash` tool only.
+CLI-proxy tools (call via `bash` only, not as MCP): `playwright-cli`, `serena`, `agenticworkflows`, `safeoutputs`, `mcpscripts`. The `github` tool is a normal MCP tool.
 
 ## Tests to Execute
 

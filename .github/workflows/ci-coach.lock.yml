@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"33bcd6be68db450ea23be9da0597271d8445de064da057def5d2e4203d854cec","body_hash":"1eb1bb61c5b2fd271c290f8acf47890cda411e08955337a4af90764c47181f33","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.65","copilot-sdk":"1.0.4"}}
-# gh-aw-manifest: {"version":1,"secrets":["GH_AW_CI_TRIGGER_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0","version":"v7.0.0"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.13","digest":"sha256:691a06b64961b5b35aac117eaace202fa721e91da19d1d2e22dcdd6663cd571b","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.13@sha256:691a06b64961b5b35aac117eaace202fa721e91da19d1d2e22dcdd6663cd571b"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.13","digest":"sha256:c57febf4aeeefbb4fd96f5b12c07f4279ca55edca6a700032debf9dd0787286e","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.13@sha256:c57febf4aeeefbb4fd96f5b12c07f4279ca55edca6a700032debf9dd0787286e"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.13","digest":"sha256:79dfd3a5d139bd1956ba6d7d1782b831a07175cf5afa29c45cb20bb0140f23c5","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.13@sha256:79dfd3a5d139bd1956ba6d7d1782b831a07175cf5afa29c45cb20bb0140f23c5"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.13","digest":"sha256:700b1b5a73098373b04fb684f291e95d9be0124ab559717b04f27acaf8b41bed","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.13@sha256:700b1b5a73098373b04fb684f291e95d9be0124ab559717b04f27acaf8b41bed"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.32","digest":"sha256:63e46b56dfd70895a701b6fc6dd0189e11e2d875f327f1781e81b31848735477","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.32@sha256:63e46b56dfd70895a701b6fc6dd0189e11e2d875f327f1781e81b31848735477"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b","pinned_image":"ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},{"image":"ghcr.io/github/github-mcp-server:v1.4.0","digest":"sha256:2afb26356481d1a350e14544a6e160f7f7ec1561a1ea309b823665abf0309036","pinned_image":"ghcr.io/github/github-mcp-server:v1.4.0@sha256:2afb26356481d1a350e14544a6e160f7f7ec1561a1ea309b823665abf0309036"}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"107e9f7dc29279b15a0d29e34716362153f429a8f4d50af93467934255047a14","body_hash":"1eb1bb61c5b2fd271c290f8acf47890cda411e08955337a4af90764c47181f33","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.65","copilot-sdk":"1.0.4"}}
+# gh-aw-manifest: {"version":1,"secrets":["GH_AW_CI_TRIGGER_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0","version":"v7.0.0"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"924ae3a1cded613372ab5595356fb5720e22ba16","version":"v6.5.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.13","digest":"sha256:691a06b64961b5b35aac117eaace202fa721e91da19d1d2e22dcdd6663cd571b","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.13@sha256:691a06b64961b5b35aac117eaace202fa721e91da19d1d2e22dcdd6663cd571b"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.13","digest":"sha256:c57febf4aeeefbb4fd96f5b12c07f4279ca55edca6a700032debf9dd0787286e","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.13@sha256:c57febf4aeeefbb4fd96f5b12c07f4279ca55edca6a700032debf9dd0787286e"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.13","digest":"sha256:79dfd3a5d139bd1956ba6d7d1782b831a07175cf5afa29c45cb20bb0140f23c5","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.13@sha256:79dfd3a5d139bd1956ba6d7d1782b831a07175cf5afa29c45cb20bb0140f23c5"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.13","digest":"sha256:700b1b5a73098373b04fb684f291e95d9be0124ab559717b04f27acaf8b41bed","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.13@sha256:700b1b5a73098373b04fb684f291e95d9be0124ab559717b04f27acaf8b41bed"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.32","digest":"sha256:63e46b56dfd70895a701b6fc6dd0189e11e2d875f327f1781e81b31848735477","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.32@sha256:63e46b56dfd70895a701b6fc6dd0189e11e2d875f327f1781e81b31848735477"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b","pinned_image":"ghcr.io/github/gh-aw-node@sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b"},{"image":"ghcr.io/github/github-mcp-server:v1.4.0","digest":"sha256:2afb26356481d1a350e14544a6e160f7f7ec1561a1ea309b823665abf0309036","pinned_image":"ghcr.io/github/github-mcp-server:v1.4.0@sha256:2afb26356481d1a350e14544a6e160f7f7ec1561a1ea309b823665abf0309036"}]}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _      
@@ -44,13 +44,13 @@
 #   - GITHUB_TOKEN
 #
 # Custom actions used:
-#   - actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-#   - actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+#   - actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+#   - actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
 #   - actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 #   - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
-#   - actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+#   - actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
 #   - actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
 #   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
 #
@@ -156,6 +156,7 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_COMPILED_STRICT: "true"
+          GH_AW_INFO_FEATURES: '{"gh-aw-detection":true}'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -167,7 +168,7 @@ jobs:
         id: restore-daily-aic-cache
         if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         continue-on-error: true
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: agentic-workflow-usage-cicoach-${{ github.run_id }}
           restore-keys: agentic-workflow-usage-cicoach-
@@ -542,7 +543,7 @@ jobs:
       - name: Build CI summary for optimization analysis
         run: "jq '\ndef safe_duration:\n  if (.createdAt and .updatedAt) then\n    ((.updatedAt | fromdateiso8601) - (.createdAt | fromdateiso8601))\n  else null end;\n{\n  generated_at: now | todateiso8601,\n  total_runs: length,\n  status_counts: (group_by(.status) | map({status: .[0].status, count: length})),\n  conclusion_counts: (map(select(.conclusion != null)) | group_by(.conclusion) | map({conclusion: .[0].conclusion, count: length})),\n  branch_counts: (group_by(.headBranch) | map({branch: .[0].headBranch, count: length}) | sort_by(-.count) | .[0:10]),\n  avg_duration_seconds: ([.[] | safe_duration | select(. != null)] | if length > 0 then (add / length) else null end),\n  top_recent_failures: ([.[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\") | {id: .databaseId, run_number: .number, title: .displayTitle, branch: .headBranch, event: .event, url: .url, updated_at: .updatedAt}] | sort_by(.updated_at) | reverse | .[0:10])\n}' /tmp/gh-aw/agent/ci-runs.json > /tmp/gh-aw/agent/ci-summary.json\n\necho \"## CI Summary\" >> \"$GITHUB_STEP_SUMMARY\"\njq -r '\"- runs analyzed: \\(.total_runs)\\n- avg duration (sec): \\(.avg_duration_seconds // \"n/a\")\\n- recent failure records: \\(.top_recent_failures | length)\"' /tmp/gh-aw/agent/ci-summary.json >> \"$GITHUB_STEP_SUMMARY\"\n"
       - name: Setup Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           cache: true
           go-version-file: go.mod
@@ -558,7 +559,7 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
       - name: Restore cache-memory file share data
         id: restore_cache_memory_0
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
@@ -882,6 +883,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GH_HOST: ${{ env.GH_HOST }}
+          GITHUB_HOST: ${{ env.GITHUB_HOST }}
+          GITHUB_ENTERPRISE_HOST: ${{ env.GITHUB_ENTERPRISE_HOST }}
+          GITHUB_GRAPHQL_URL: ${{ env.GITHUB_GRAPHQL_URL }}
+          GITHUB_COPILOT_BASE_URL: ${{ env.GITHUB_COPILOT_BASE_URL }}
           GH_AW_NETWORK_ISOLATION: 'true'
           CLI_PROXY_POLICY: '{"allow-only":{"repos":"all","min-integrity":"none"}}'
           CLI_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.3.32'
@@ -1228,7 +1235,7 @@ jobs:
           [ -f /tmp/gh-aw/usage/agent/token_usage.jsonl ] || : > /tmp/gh-aw/usage/agent/token_usage.jsonl
           [ -f /tmp/gh-aw/usage/detection/token_usage.jsonl ] || : > /tmp/gh-aw/usage/detection/token_usage.jsonl
           mkdir -p /tmp/gh-aw/usage/activity
-          node ${{ runner.temp }}/gh-aw/actions/generate_usage_activity_summary.cjs
+          node ${RUNNER_TEMP}/gh-aw/actions/generate_usage_activity_summary.cjs
           find /tmp/gh-aw/usage -type f -print | sort
       - name: Upload usage artifact
         if: always()
@@ -1251,7 +1258,7 @@ jobs:
         id: restore-daily-aic-cache-conclusion
         if: always()
         continue-on-error: true
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: agentic-workflow-usage-cicoach-${{ github.run_id }}
           restore-keys: agentic-workflow-usage-cicoach-
@@ -1272,7 +1279,7 @@ jobs:
         id: save-daily-aic-cache
         if: always()
         continue-on-error: true
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: agentic-workflow-usage-cicoach-${{ github.run_id }}
           path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
@@ -1905,7 +1912,7 @@ jobs:
           fi
       - name: Save cache-memory to cache (default)
         if: steps.check_cache_default.outputs.has_content == 'true'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory

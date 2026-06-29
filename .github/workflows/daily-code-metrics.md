@@ -26,13 +26,16 @@ tools:
     max-file-size: 102400  # 100KB
     max-patch-size: 131072  # 128KB - increased from 50KB to prevent history.jsonl truncation failures
   bash: true
+safe-outputs:
+  upload-asset:
+    max: 6
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
 timeout-minutes: 30
 strict: true
 imports:
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-code-metrics] "
-  - shared/python-dataviz.md
   - shared/trends.md
 
 
@@ -151,90 +154,14 @@ Generate **2 high-quality charts** focusing on the most actionable signals:
 All charts save to `/tmp/gh-aw/python/charts/<filename>`.
 {{/if}}
 
-### Chart Quality Standards
+### Python Script
 
-All charts must meet these quality standards:
+Use `figsize=(12, 7)`, DPI 300, `ax.grid(True, alpha=0.3)` (see `python-dataviz.md` for full chart setup and upload pattern). Create a script that:
 
-- **DPI**: 300 minimum for publication quality
-- **Figure Size**: 12x7 inches (consistent with daily-issues-report)
-- **Labels**: Clear titles, axis labels, and legends
-- **Grid Lines**: Enable for readability (`ax.grid(True, alpha=0.3)`)
-- **Save Format**: PNG with `bbox_inches='tight'` for proper cropping
-
-### Python Script Structure
-
-Create a Python script to collect data, analyze metrics, and generate the charts required for the selected output format variant:
-
-Read the selected variant from environment variable `GH_AW_EXPERIMENTS_OUTPUT_FORMAT` and branch chart generation logic accordingly.
-
-```python
-#!/usr/bin/env python3
-"""
-Daily Code Metrics Analysis and Visualization
-Generates code metrics charts for the selected output format variant
-"""
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from datetime import datetime, timedelta
-import json
-from pathlib import Path
-
-# Apply canonical chart setup (see python-dataviz.md Chart Generation Best Practices)
-
-# Load historical data from repo-memory
-history_file = Path('/tmp/gh-aw/repo-memory/default/history.jsonl')
-historical_data = []
-if history_file.exists():
-    with open(history_file, 'r') as f:
-        for line in f:
-            historical_data.append(json.loads(line))
-
-# Load current metrics from data files
-# (Collect metrics using bash commands and save to JSON first)
-current_metrics = json.load(open('/tmp/gh-aw/python/data/current_metrics.json'))
-
-# Generate required charts for selected variant
-# Chart: Quality Score Breakdown
-# ... implementation ...
-
-# Chart: Historical Trends
-# ... implementation ...
-
-print("All charts generated successfully")
-```
-
-### Chart Upload and Embedding
-
-After generating charts:
-
-1. **Upload each chart as an asset**:
-   - Use the `upload asset` safe-output tool for each PNG file
-   - Collect the returned URLs for embedding
-
-2. **Embed in discussion report**:
-   ```markdown
-   ## 📊 Visualizations
-   
-   ### LOC Distribution by Language
-   ![LOC by Language](URL_FROM_UPLOAD_ASSET_1)
-   
-   ### Top Directories by LOC
-   ![Top Directories](URL_FROM_UPLOAD_ASSET_2)
-   
-   ### Quality Score Breakdown
-   ![Quality Score](URL_FROM_UPLOAD_ASSET_3)
-   
-   ### Test Coverage Analysis
-   ![Test Coverage](URL_FROM_UPLOAD_ASSET_4)
-   
-   ### Code Churn (7 Days)
-   ![Code Churn](URL_FROM_UPLOAD_ASSET_5)
-   
-   ### Historical Trends (30 Days)
-   ![Historical Trends](URL_FROM_UPLOAD_ASSET_6)
-   ```
+1. Reads variant from `GH_AW_EXPERIMENTS_OUTPUT_FORMAT`
+2. Loads historical data from `/tmp/gh-aw/repo-memory/default/history.jsonl` and current metrics from `/tmp/gh-aw/python/data/current_metrics.json`
+3. Generates the required charts for the selected variant, saves to `/tmp/gh-aw/python/charts/`
+4. Uploads each chart via the `upload asset` safe-output tool and embeds the returned URLs in the discussion report
 
 ## Trend Calculation
 
@@ -297,68 +224,17 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 <details>
 <summary>📈 Detailed Metrics</summary>
 
-### Size Metrics
-| Language | LOC | % of Total | Change (7d) |
-|----------|-----|------------|-------------|
-| Go | X,XXX | XX% | ⬆️ +X% |
-| JavaScript | X,XXX | XX% | ➡️ 0% |
-| ... | ... | ... | ... |
+### Detailed Metrics
+Use one compact table per category (same placeholder style as below), then brief bullets for interpretation:
 
-| Directory | LOC | % of Total | Files |
-|-----------|-----|------------|-------|
-| pkg/ | X,XXX | XX% | XXX |
-| cmd/ | X,XXX | XX% | XX |
-| ... | ... | ... | ... |
-
-### Quality Indicators
-
-- **Average File Size**: XXX lines
-- **Large Files (>500 LOC)**: XX files
-- **Function Count**: X,XXX functions
-- **Comment Lines**: X,XXX lines (XX% ratio)
-- **Comment Density**: XX%
-
-### Test Coverage
-
-- **Test Files**: XX files
-- **Test LOC** (`test_lines_of_code`): X,XXX lines
-- **Source LOC**: X,XXX lines  
-- **Test-to-Source Ratio** (`test_to_source_ratio`): X.XX
-- **Trend (7d)**: ⬆️ +X%
-- **Trend (30d)**: ⬆️ +X%
-
-### Code Churn (Last 7 Days)
-
-- **Files Modified**: XXX files
-- **Commits**: XXX commits
-- **Lines Added**: +X,XXX lines
-- **Lines Deleted**: -X,XXX lines
-- **Net Change**: +/-X,XXX lines
-
-**Most Active Source Files**: path/to/file.go (+XXX/-XXX), path/to/file.js (+XXX/-XXX), ...
-
-### Generated File Churn (*.lock.yml and actions-lock.json)
-
-- **Generated Files Modified**: XXX files
-- **Lines Added**: +X,XXX lines
-- **Lines Deleted**: -X,XXX lines
-- **Net Change**: +/-X,XXX lines
-
-**Note**: Generated file churn (`.lock.yml` and `actions-lock.json`) is reported separately and excluded from quality score calculations to avoid noise from code-generated files.
-
-### Workflow Metrics
-
-- **Total Workflow Files (.md)** (`total_workflows`): XXX files
-- **Compiled Workflows (.lock.yml)**: XXX files
-- **Average Workflow Size**: XXX lines
-- **Growth (7d)**: ⬆️ +X%
-
-### Documentation
-
-- **Doc Files (docs/)**: XXX files
-- **Doc LOC**: X,XXX lines
-- **Code-to-Docs Ratio**: X.XX:1
-- **Documentation Coverage**: XX%
+| Category | Key Fields | Example |
+|----------|------------|---------|
+| Size | language LOC, directory LOC | `Go: X,XXX (XX%)`, `pkg/: X,XXX LOC` |
+| Quality | avg file size, large files, function count, comment ratio | `Large files: XX`, `Comment density: XX%` |
+| Tests | `test_lines_of_code`, `test_to_source_ratio`, 7d/30d trend | `Ratio: X.XX`, `Trend (7d): ⬆️ +X%` |
+| Churn (source) | files modified, commits, added/deleted/net | `+X,XXX / -X,XXX`, most active files |
+| Churn (generated) | `.lock.yml` + `actions-lock.json` stats | keep separate from quality score |
+| Workflows/Docs | `total_workflows`, compiled count, docs LOC, code-to-docs ratio | `Workflows: XXX`, `Code-to-docs: X.XX:1` |
 
 ### Quality Score: XX/100
 - **Test Coverage (30%)**: XX/30 points
