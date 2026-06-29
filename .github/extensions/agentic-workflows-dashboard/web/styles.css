@@ -140,3 +140,44 @@ details > summary::-webkit-details-marker {
 .UnderlineNav-body::-webkit-scrollbar-thumb:hover {
   background: var(--fgColor-muted, #656d76);
 }
+
+/* Spinner */
+@keyframes awd-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.awd-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--borderColor-default, #d0d7de);
+  border-top-color: var(--fgColor-accent, #0969da);
+  border-radius: 50%;
+  animation: awd-spin 0.75s linear infinite;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Skeleton shimmer */
+@keyframes awd-shimmer {
+  0% {
+    background-position: -400% 0;
+  }
+  100% {
+    background-position: 400% 0;
+  }
+}
+
+.awd-skeleton-line {
+  display: block;
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--bgColor-muted, #f6f8fa) 25%, var(--bgColor-neutral, #eaeef2) 50%, var(--bgColor-muted, #f6f8fa) 75%);
+  background-size: 400% 100%;
+  animation: awd-shimmer 1.5s ease-in-out infinite;
+}

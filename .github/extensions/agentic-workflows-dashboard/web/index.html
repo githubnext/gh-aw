@@ -77,7 +77,10 @@
             </div>
             <!-- loading -->
             <div class="Box-body color-fg-muted text-center py-4" x-cloak x-show="loadingDefinitions">
-              <span>Loading workflows…</span>
+              <div class="d-flex flex-items-center flex-justify-center gap-2">
+                <span class="awd-spinner" aria-hidden="true"></span>
+                <span>Loading workflows…</span>
+              </div>
             </div>
             <!-- error -->
             <div class="Box-body flash flash-error" x-cloak x-show="!loadingDefinitions && errorDefinitions" x-text="errorDefinitions"></div>
@@ -114,8 +117,26 @@
               <span class="color-fg-muted text-small" x-text="buildReportSummaryMessage(runsMeta)"></span>
             </div>
             <!-- loading -->
-            <div class="Box-body color-fg-muted text-center py-4" x-cloak x-show="loadingRuns">
-              <span>Loading runs…</span>
+            <div class="Box-body p-0 awd-scroll" x-cloak x-show="loadingRuns">
+              <template x-for="i in [1, 2, 3, 4, 5]" :key="i">
+                <div class="Box-row">
+                  <div class="d-flex flex-justify-between gap-2">
+                    <div class="flex-1">
+                      <div class="awd-skeleton-line mb-2" style="width: 48px"></div>
+                      <div class="awd-skeleton-line mb-1" style="width: 160px"></div>
+                      <div class="awd-skeleton-line" style="width: 100px"></div>
+                    </div>
+                    <div class="awd-skeleton-line" style="width: 64px; height: 20px; border-radius: 10px; align-self: flex-start"></div>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <div class="Box-body color-fg-muted text-center py-3" x-cloak x-show="loadingRuns">
+              <div class="d-flex flex-items-center flex-justify-center gap-2 mb-1">
+                <span class="awd-spinner" aria-hidden="true"></span>
+                <span>Loading runs…</span>
+              </div>
+              <div class="text-small">Logs queries can be slow — this may take a moment.</div>
             </div>
             <!-- error -->
             <div class="Box-body flash flash-error" x-cloak x-show="!loadingRuns && errorRuns" x-text="errorRuns"></div>
@@ -193,7 +214,10 @@
               <div class="border-top pt-3">
                 <div class="d-flex flex-items-center gap-2 mb-2">
                   <button class="btn btn-sm" @click="loadAudit()" :disabled="loadingAudit" x-show="!auditData && !loadingAudit">Run Audit</button>
-                  <span class="color-fg-muted text-small" x-show="loadingAudit">Running audit…</span>
+                  <span class="d-flex flex-items-center gap-2 color-fg-muted text-small" x-show="loadingAudit">
+                    <span class="awd-spinner" aria-hidden="true"></span>
+                    <span>Running audit…</span>
+                  </span>
                   <button class="btn btn-sm btn-danger" @click="clearAudit()" x-show="auditData">Clear audit</button>
                 </div>
                 <div class="flash flash-error mb-2" x-show="errorAudit" x-text="errorAudit"></div>
@@ -365,8 +389,34 @@
               <h2 class="Box-title">Usage forecast <span class="Counter ml-1" x-text="usagePaged.totalItems"></span></h2>
               <span class="color-fg-muted text-small" x-text="buildReportSummaryMessage(usageMeta)"></span>
             </div>
-            <div class="Box-body color-fg-muted text-center py-4" x-cloak x-show="loadingUsage">
-              <span>Loading usage forecast…</span>
+            <div class="Box-body p-0 awd-scroll" x-cloak x-show="loadingUsage">
+              <div class="Box-row awd-usage-header">
+                <div>Workflow</div>
+                <div class="text-right">Runs</div>
+                <div class="text-right">Total AIC</div>
+                <div class="text-right">AIC / run</div>
+                <div class="text-right">Daily AIC</div>
+                <div class="text-right">Monthly forecast</div>
+                <div class="text-right">Last run</div>
+              </div>
+              <template x-for="i in [1, 2, 3, 4, 5]" :key="i">
+                <div class="Box-row awd-usage-row">
+                  <div class="awd-skeleton-line" style="max-width: 200px"></div>
+                  <div class="awd-skeleton-line" style="width: 36px; justify-self: end"></div>
+                  <div class="awd-skeleton-line" style="width: 40px; justify-self: end"></div>
+                  <div class="awd-skeleton-line" style="width: 40px; justify-self: end"></div>
+                  <div class="awd-skeleton-line" style="width: 40px; justify-self: end"></div>
+                  <div class="awd-skeleton-line" style="width: 56px; justify-self: end"></div>
+                  <div class="awd-skeleton-line" style="width: 80px; justify-self: end"></div>
+                </div>
+              </template>
+            </div>
+            <div class="Box-body color-fg-muted text-center py-3" x-cloak x-show="loadingUsage">
+              <div class="d-flex flex-items-center flex-justify-center gap-2 mb-1">
+                <span class="awd-spinner" aria-hidden="true"></span>
+                <span>Loading usage forecast…</span>
+              </div>
+              <div class="text-small">Logs queries can be slow — this may take a moment.</div>
             </div>
             <div class="Box-body flash flash-error" x-cloak x-show="!loadingUsage && errorUsage" x-text="errorUsage"></div>
             <div class="Box-body p-0 awd-scroll" x-show="!loadingUsage && !errorUsage">
@@ -408,7 +458,10 @@
             </div>
             <!-- loading -->
             <div class="Box-body color-fg-muted text-center py-4" x-cloak x-show="loadingExperiments">
-              <span>Loading experiments…</span>
+              <div class="d-flex flex-items-center flex-justify-center gap-2">
+                <span class="awd-spinner" aria-hidden="true"></span>
+                <span>Loading experiments…</span>
+              </div>
             </div>
             <!-- error -->
             <div class="Box-body flash flash-error" x-cloak x-show="!loadingExperiments && errorExperiments" x-text="errorExperiments"></div>
@@ -484,7 +537,10 @@
                   <div class="text-small color-fg-muted">
                     <span x-show="maintenanceLastAction">Last action: <span class="text-bold color-fg-default" x-text="maintenanceLastAction"></span></span>
                   </div>
-                  <span class="Label Label--secondary" x-show="loadingMaintenance">Running…</span>
+                  <span class="d-flex flex-items-center gap-2" x-show="loadingMaintenance">
+                    <span class="awd-spinner" style="width: 12px; height: 12px; border-width: 1.5px" aria-hidden="true"></span>
+                    <span class="Label Label--secondary">Running…</span>
+                  </span>
                   <span class="Label Label--accent" x-show="includePreReleases">Pre-releases enabled</span>
                 </div>
                 <pre class="Box p-2 awd-command-output" x-text="maintenanceOutput"></pre>
