@@ -75,7 +75,9 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				Staged: templatableBoolPtr("true"),
 				AddLabels: &AddLabelsConfig{
-					Allowed: []string{"bug"},
+					SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+						Allowed: []string{"bug"},
+					},
 				},
 			},
 			checkContains: []string{
@@ -205,7 +207,9 @@ func TestStagedFlagOnlyAddedOnce(t *testing.T) {
 				},
 			},
 			AddLabels: &AddLabelsConfig{
-				Allowed: []string{"bug"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Allowed: []string{"bug"},
+				},
 			},
 		},
 	}
@@ -326,7 +330,9 @@ func TestEnvVarsWithMultipleSafeOutputTypes(t *testing.T) {
 				},
 			},
 			AddLabels: &AddLabelsConfig{
-				Allowed: []string{"bug", "enhancement"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Allowed: []string{"bug", "enhancement"},
+				},
 			},
 			UpdateIssues:      &UpdateIssuesConfig{},
 			UpdateDiscussions: &UpdateDiscussionsConfig{},
@@ -516,7 +522,9 @@ func TestAddLabelsTargetRepoStagedBehavior(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			Staged: templatableBoolPtr("true"),
 			AddLabels: &AddLabelsConfig{
-				Allowed: []string{"bug"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Allowed: []string{"bug"},
+				},
 				SafeOutputTargetConfig: SafeOutputTargetConfig{
 					TargetRepoSlug: "org/target",
 				},

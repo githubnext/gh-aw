@@ -92,7 +92,9 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 					},
 				},
 				AddLabels: &AddLabelsConfig{
-					Allowed: []string{"bug", "enhancement"},
+					SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+						Allowed: []string{"bug", "enhancement"},
+					},
 				},
 			},
 			expectedJobName:  "safe_outputs",
@@ -1012,7 +1014,9 @@ func TestGitHubAppTokenStepWithOTLPHeaders(t *testing.T) {
 			},
 			AddComments: &AddCommentsConfig{},
 			AddLabels: &AddLabelsConfig{
-				Allowed: []string{"bug"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Allowed: []string{"bug"},
+				},
 			},
 		},
 	}
@@ -1057,7 +1061,9 @@ func TestGitHubAppTokenStepWithOTLPAttributes(t *testing.T) {
 			},
 			AddComments: &AddCommentsConfig{},
 			AddLabels: &AddLabelsConfig{
-				Allowed: []string{"bug"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Allowed: []string{"bug"},
+				},
 			},
 		},
 	}
@@ -1102,7 +1108,9 @@ func TestGitHubAppTokenStepWithOTLPHeadersAndAttributes(t *testing.T) {
 			},
 			AddComments: &AddCommentsConfig{},
 			AddLabels: &AddLabelsConfig{
-				Allowed: []string{"bug"},
+				SafeOutputAllowBlockConfig: SafeOutputAllowBlockConfig{
+					Allowed: []string{"bug"},
+				},
 			},
 		},
 	}

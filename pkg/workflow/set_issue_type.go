@@ -8,10 +8,10 @@ var setIssueTypeLog = logger.New("workflow:set_issue_type")
 
 // SetIssueTypeConfig holds configuration for setting the type of an issue from agent output
 type SetIssueTypeConfig struct {
-	BaseSafeOutputConfig   `yaml:",inline"`
-	SafeOutputTargetConfig `yaml:",inline"`
-	SafeOutputFilterConfig `yaml:",inline"`
-	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed issue type names. If omitted, any type is allowed (including clearing with "").
+	BaseSafeOutputConfig       `yaml:",inline"`
+	SafeOutputTargetConfig     `yaml:",inline"`
+	SafeOutputFilterConfig     `yaml:",inline"`
+	SafeOutputAllowBlockConfig `yaml:",inline"`
 }
 
 // parseSetIssueTypeConfig handles set-issue-type configuration
