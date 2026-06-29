@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.13  
+**Version**: 1.0.14  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.14` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), and conditional import rejection (`imports.if` rejection for CTR-020). |
 | `1.0.13` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
 | `1.0.12` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
 | `1.0.11` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
@@ -145,6 +146,7 @@ A conforming implementation MUST include detection coverage for at least the fol
 - **CTR-017 Secret Leakage via Environment Variables**: Detect secrets expressions (`${{ secrets.* }}`) in the top-level `env:` section, in `engine.env` (excluding allowed engine-required vars), and in custom step fields (`pre-steps`, `steps`, `pre-agent-steps`, `post-steps`) outside controlled `env:` bindings and `with:` inputs for `uses:` action steps; these placements expose secrets to the agent container environment. Warn in non-strict mode; reject in strict mode.
 - **CTR-018 Version Integrity Bypass**: Detect `check-for-updates: false` in workflow frontmatter, which disables the compile-agentic version update check that ensures the workflow was compiled with a supported version of gh-aw. Warn in non-strict mode; reject in strict mode.
 - **CTR-019 Cache-Memory Integrity Enforcement**: Enforce that `update_cache_memory` job only runs when threat detection succeeds (not when skipped or failed); prevents cache pollution when agent outputs have not been validated or when detection was bypassed, ensuring cache-memory data integrity and preventing persistence of potentially malicious content from unvalidated agent sessions.
+- **CTR-020 Conditional Import Security**: Detect and reject `imports:` entries that contain an `if` field; conditional imports can alter workflow setup and security posture at runtime by making security-sensitive import decisions dependent on runtime conditions; reject compilation and direct authors to use `{{#if ...}}{{#runtime-import? ...}}{{/if}}` for experiment-specific prompt imports.
 
 ### 5.2 Compiler Response Requirements
 
@@ -250,7 +252,7 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-007 Markdown Content Security | `pkg/workflow/markdown_security_scanner.go` | `pkg/workflow/markdown_security_scanner_test.go`, `pkg/workflow/secure_markdown_rendering_test.go` |
 | CTR-008 Pull Request Target Safety | `pkg/workflow/pull_request_target_validation.go` | `pkg/workflow/pull_request_target_validation_test.go` |
 | CTR-009 Shell Expansion in Safe-Outputs | `pkg/workflow/safe_outputs_steps_shell_expansion_validation.go` | `pkg/workflow/safe_outputs_steps_shell_expansion_validation_test.go` |
-| CTR-010 Expression Safety Allowlist | `pkg/workflow/expression_safety_validation.go`, `pkg/workflow/expression_syntax_validation.go` | `pkg/workflow/expression_extraction_test.go` |
+| CTR-010 Expression Safety Allowlist | `pkg/workflow/expression_safety_validation.go`, `pkg/workflow/expression_syntax_validation.go`, `pkg/workflow/runtime_import_validation.go` (`validateRuntimeImportFiles`) | `pkg/workflow/expression_extraction_test.go` |
 | CTR-011 Network Firewall Configuration | `pkg/workflow/network_firewall_validation.go`, `pkg/workflow/firewall_validation.go`, `pkg/workflow/strict_mode_network_validation.go` | `pkg/workflow/network_firewall_validation_test.go` |
 | CTR-012 Safe-Outputs Wildcard Push Scope | `pkg/workflow/push_to_pull_request_branch_validation.go` | `pkg/workflow/push_to_pull_request_branch_test.go`, `pkg/workflow/push_to_pull_request_branch_warning_test.go` |
 | CTR-013 Argument Injection via Package/Image Names | `pkg/workflow/name_validation.go` (shared helper `rejectHyphenPrefixPackages`), `pkg/workflow/npm_validation.go`, `pkg/workflow/pip_validation.go`, `pkg/workflow/docker_validation.go` | `pkg/workflow/argument_injection_test.go` |
@@ -260,14 +262,15 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-017 Secret Leakage via Environment Variables | `pkg/workflow/strict_mode_env_validation.go` (`validateEnvSecrets`, `validateEnvSecretsSection`), `pkg/workflow/strict_mode_steps_validation.go` (`validateStepsSecrets`, `validateStepsSectionSecrets`) | `pkg/workflow/env_secrets_validation_test.go`, `pkg/workflow/jobs_secrets_validation_test.go` |
 | CTR-018 Version Integrity Bypass | `pkg/workflow/strict_mode_update_check_validation.go` (`validateUpdateCheck`) | `pkg/workflow/strict_mode_update_check_validation_test.go` |
 | CTR-019 Cache-Memory Integrity Enforcement | `pkg/workflow/cache.go` (`buildUpdateCacheMemoryJob` using `buildDetectionSuccessCondition`), `pkg/workflow/expression_builder.go` (`buildDetectionSuccessCondition`) | `pkg/workflow/cache_memory_threat_detection_test.go`, `pkg/workflow/threat_detection_job_combinations_integration_test.go` |
+| CTR-020 Conditional Import Security | `pkg/parser/import_bfs.go` (`parseImportSpecsFromArray`: rejects import items that contain an `if` field) | `pkg/parser/import_bfs_test.go` (`TestParseImportSpecsFromArray_RejectsIfField`) |
 
 The mappings above are pattern-based references and MUST be validated against concrete file paths whenever this specification is updated.
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 
-### 7.2 Mapping Audit (2026-05-27)
+### 7.2 Mapping Audit (2026-06-29)
 
-Audit result: ✅ all listed `CTR-001` through `CTR-019` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: PRs merged 2026-05-26 through 2026-05-27 (PRs #35005–#35078). Nine security-relevant items were evaluated: (1) Permission-scope validation caching (`permissions_compiler_validator.go`, PR #35076) — performance optimization that caches `ValidatePermissionScopeNames` results; CTR-001 detection behavior is unchanged. (2) `ghs_` installation token redaction regex update (`redact_secrets.cjs`, PR #35063) — runtime secret masking improvement for new stateless `ghs_` token format; outside compiler threat detection scope per Section 1.2. (3) Codex structured outputs for threat detection parsing (`codex_engine.go`, `parse_threat_detection_results.cjs`, PR #35061) — infrastructure change replacing log scraping with structured output files for Codex threat detection results; changes detection result ingestion, not detection rules; no new CTR entry required. (4) `add_comment` locked-target handling (`add_comment.cjs`, PR #35064) — safe-outputs operational fix downgrades HTTP 423/403-lock failures to non-fatal skips; no compiler detection rule change. (5) `github-workflow.json` schema: `code-quality` permission key addition (PR #35025) — expands the JSON schema for generated lock files to recognize the new GitHub Actions `code-quality` permission; CTR-001 compiler validation of the frontmatter input is unaffected since permission scope enforcement is handled in `permissions.go`. (6–9) Remaining PRs (#35005, #35015, #35057, #35060, #35065, #35070, #35072, #35077, #35078) are documentation, UI, or non-security dependency changes with no compiler threat detection impact. No new uncovered threats were identified in this review cycle.
+Audit result: ✅ all listed `CTR-001` through `CTR-020` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: commit d6d9160 (PR #42146), merged 2026-06-28. Security-relevant items evaluated: (1) **Conditional import `if` rejection** (`pkg/parser/import_bfs.go`, `parseImportSpecsFromArray`): compiler-level rejection of `imports:` entries containing an `if` field; rationale is that conditional imports can alter workflow setup and security posture at runtime; not covered by any prior CTR rule → **new CTR-020** added. (2) **Sandbox validation consolidation** (`pkg/workflow/sandbox_validation.go`, new file): new `validateSandboxConfig` enforces that `sandbox.agent: false` requires an explicit `dangerously-disable-sandbox-agent` feature flag with a non-expression justification string (minimum 20 chars); mount syntax validation and deprecated `sandbox.config` rejection also added; all covered by existing CTR-004 mapping pattern `pkg/workflow/sandbox_validation*.go`; no new rule required. (3) **Runtime import expression validation** (`pkg/workflow/runtime_import_validation.go`, new file): validates that `{{#runtime-import}}` macro targets contain only allowlisted expressions; extends CTR-010 expression safety coverage to runtime-import files → CTR-010 mapping updated to include `runtime_import_validation.go`. (4) **`network-isolation` → `sudo` rename** (`pkg/workflow/*.go`): frontmatter field renamed with inverted semantics; purely a refactoring with no new threat class; no new CTR rule required. (5) mcpg v0.3.32 and firewall v0.27.13 dependency bumps — runtime-only; outside compiler threat detection scope per Section 1.2.
 
 ### 7.3 Sync Protocol for CTR Rule and Manifest Updates
 
@@ -318,6 +321,7 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 | **T-CTR-017** | CTR-017 Secret Leakage via Environment Variables | A workflow frontmatter declares a secrets expression (e.g., `${{ secrets.MY_SECRET }}`) in the top-level `env:` section, in `engine.env` for a non-engine var, or in a custom step's `run:` field | Compilation warning in non-strict mode identifying the secrets expression and the section where it appears; compilation failure in strict mode | `CTR-017` |
 | **T-CTR-018** | CTR-018 Version Integrity Bypass | A workflow frontmatter sets `check-for-updates: false` | Compilation warning in non-strict mode identifying the disabled version check and advising removal; compilation failure in strict mode | `CTR-018` |
 | **T-CTR-019** | CTR-019 Cache-Memory Integrity Enforcement | A workflow has `cache-memory` enabled with `threat-detection: true`; the compiled lock file's `update_cache_memory` job condition must require `needs.detection.result == 'success'` (not accept `skipped`) | Compilation emits `update_cache_memory` job with condition `always() && needs.detection.result == 'success' && needs.agent.result == 'success'`; verified by integration tests | `CTR-019` |
+| **T-CTR-020** | CTR-020 Conditional Import Security | A workflow frontmatter `imports:` list contains an entry that is a YAML object with an `if` field (e.g., `- path: shared.md\n  if: experiments.variant == 'a'`) | Compilation failure with error `"import 'if' is no longer supported; use {{#if ...}}{{#runtime-import? ...}}{{/if}} for experiment-specific prompt imports"` | `CTR-020` |
 
 ### 8.2 Test Coverage Requirements
 
@@ -338,6 +342,15 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.14 (2026-06-29)
+
+- Added CTR-020 Conditional Import Security (compiler-level rejection of `imports:` entries containing an `if` field; conditional imports can alter workflow setup and security posture at runtime; implemented in `pkg/parser/import_bfs.go` `parseImportSpecsFromArray`)
+- Added T-CTR-020 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-020 implementation references (`pkg/parser/import_bfs.go`)
+- Extended CTR-010 mapping with `runtime_import_validation.go` (`validateRuntimeImportFiles`): runtime-import macro targets are now validated against the expression allowlist
+- Updated Section 7.2 mapping audit to 2026-06-29 covering commit d6d9160 (PR #42146): evaluated conditional import rejection (→ CTR-020), sandbox validation consolidation (strengthens CTR-004, already covered by mapping pattern), runtime import expression validation (extends CTR-010), network-isolation → sudo rename (refactoring only), and mcpg/firewall dependency bumps (runtime-only)
+- Updated Section 2 spec-to-implementation sync table with version 1.0.14 entry
 
 ### 1.0.13 (2026-05-27)
 
