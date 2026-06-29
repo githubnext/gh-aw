@@ -1,0 +1,35 @@
+{
+  "date": "2026-06-29",
+  "files_analyzed": {
+    "documentation": [
+      "docs/src/content/docs/blog/2026-01-13-meet-the-workflows-issue-management.md",
+      "docs/src/content/docs/specs/copilot-sdk-driver-specification.md"
+    ],
+    "cli": ["pkg/cli/add_command.go (add), pkg/cli/audit.go (audit)"],
+    "messages": [".github/workflows/daily-fact.md", ".github/workflows/pr-code-quality-reviewer.md"],
+    "validation": ["pkg/workflow/template_injection_validation.go", "pkg/workflow/template_injection_utils.go"]
+  },
+  "overall_quality": "mixed",
+  "quality_highlights": [
+    {
+      "file": "docs/src/content/docs/specs/copilot-sdk-driver-specification.md",
+      "aspect": "Excellent formal W3C-style spec with ToC, conformance classes, RFC 2119 notation, and clear compliance levels. Sets a high standard for technical documentation."
+    },
+    {
+      "file": "pkg/workflow/template_injection_utils.go",
+      "aspect": "formatTemplateInjectionError provides excellent security context: groups violations by type, shows safe/unsafe patterns side-by-side, and links to three references. Good error UX."
+    }
+  ],
+  "single_file_improvements": [
+    {
+      "file": ".github/workflows/pr-code-quality-reviewer.md",
+      "priority": "high",
+      "issue": "run-success message 'completed the code quality review.' lacks direction: users don't know to look at PR review comments for findings. Compare approach-validator.md: 'completed the approach validation. Review the report and react with ✅ or ❌.' Add 'See inline review comments for findings.' Also run-failure lacks log link — compare archie.md: 'Check the [run logs]({run_url}) for details.'"
+    },
+    {
+      "file": "pkg/workflow/template_injection_utils.go",
+      "priority": "medium",
+      "issue": "formatTemplateInjectionError says 'detected in compiled workflow' without telling users the fix must go in the SOURCE markdown file, not the .lock.yml. Users may be confused about which file to edit. Add one sentence: 'Make these changes in your source workflow markdown file (.md), then recompile.'"
+    }
+  ]
+}

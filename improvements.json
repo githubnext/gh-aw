@@ -1,6 +1,18 @@
 {
-  "last_updated": "2026-06-28",
+  "last_updated": "2026-06-29",
   "pending_tasks": [
+    {
+      "file": ".github/workflows/pr-code-quality-reviewer.md",
+      "created": "2026-06-29",
+      "priority": "high",
+      "title": "Add 'See inline review comments for findings.' to run-success; add log link to run-failure"
+    },
+    {
+      "file": "pkg/workflow/template_injection_utils.go",
+      "created": "2026-06-29",
+      "priority": "medium",
+      "title": "Add source-file fix guidance to formatTemplateInjectionError: 'Make these changes in your source workflow markdown file (.md), then recompile.'"
+    },
     {
       "file": ".github/workflows/archie.md",
       "created": "2026-06-28",
