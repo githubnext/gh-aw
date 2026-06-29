@@ -138,6 +138,18 @@ func TestEffectiveMCPLogsToolTimeoutMinutes(t *testing.T) {
 			want:             2,
 		},
 		{
+			name:             "eighty run fetch window stays in two minute tier",
+			requestedTimeout: 0,
+			count:            80,
+			want:             2,
+		},
+		{
+			name:             "eighty one run fetch window enters three minute tier",
+			requestedTimeout: 0,
+			count:            81,
+			want:             3,
+		},
+		{
 			name:             "default hundred run window gets three minutes",
 			requestedTimeout: 0,
 			count:            100,
