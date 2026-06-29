@@ -334,9 +334,9 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
 
     mockGithub.rest.issues.get.mockResolvedValueOnce({ data: { node_id: issueNodeId } });
     mockGithub.graphql.mockImplementation(async query => {
-      if (query.includes("organization(login")) {
+      if (query.includes("repository(owner")) {
         return {
-          organization: {
+          repository: {
             issueTypes: {
               nodes: [{ id: issueTypeNodeId, name: "Bug" }],
             },
@@ -372,7 +372,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
         expect.objectContaining({
           issueId: issueNodeId,
           issueType: {
-            id: issueTypeNodeId,
+            issueTypeId: issueTypeNodeId,
             rationale: "Author explicitly requests a bug fix",
             confidence: "HIGH",
             suggest: true,
