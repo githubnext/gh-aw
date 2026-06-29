@@ -553,22 +553,22 @@ func splitDomainList(domains string) []string {
 }
 
 // resolveModelPolicyForAWFConfig applies policy precedence independently per list:
-// each env override replaces only its matching list (allowed or blocked),
-// while the other list continues to use workflow-derived policy.
+// allowed rules are narrowed using intersection with env policy, while blocked
+// rules are widened using union with env policy.
 func resolveModelPolicyForAWFConfig(workflowData *WorkflowData) ([]string, []string) {
 	envAllowed, hasAllowedOverride := compilerenv.ResolvePolicyModelsAllowed()
 	envBlocked, hasBlockedOverride := compilerenv.ResolvePolicyModelsBlocked()
 	var allowed []string
 	var blocked []string
-	if hasAllowedOverride {
-		allowed = envAllowed
-	} else if workflowData != nil {
+	if workflowData != nil {
 		allowed = workflowData.ModelPolicyAllowed
+		blocked = workflowData.ModelPolicyBlocked
+	}
+	if hasAllowedOverride {
+		allowed = intersectModelPolicyRules(allowed, envAllowed)
 	}
 	if hasBlockedOverride {
-		blocked = envBlocked
-	} else if workflowData != nil {
-		blocked = workflowData.ModelPolicyBlocked
+		blocked = unionModelPolicyRules(blocked, envBlocked)
 	}
 	blockedSet := make(map[string]struct{}, len(blocked))
 	for _, model := range blocked {
@@ -576,6 +576,46 @@ func resolveModelPolicyForAWFConfig(workflowData *WorkflowData) ([]string, []str
 	}
 	allowed = filterAllowedModelConflictsWithSet(allowed, blockedSet)
 	return allowed, blocked
+}
+
+func intersectModelPolicyRules(local, override []string) []string {
+	if len(override) == 0 {
+		return nil
+	}
+	if len(local) == 0 {
+		return append([]string(nil), override...)
+	}
+	localSet := make(map[string]struct{}, len(local))
+	for _, model := range local {
+		localSet[model] = struct{}{}
+	}
+	result := make([]string, 0, len(override))
+	for _, model := range override {
+		if _, ok := localSet[model]; ok {
+			result = append(result, model)
+		}
+	}
+	return result
+}
+
+func unionModelPolicyRules(local, override []string) []string {
+	result := make([]string, 0, len(local)+len(override))
+	seen := make(map[string]struct{}, len(local)+len(override))
+	for _, model := range local {
+		if _, ok := seen[model]; ok {
+			continue
+		}
+		seen[model] = struct{}{}
+		result = append(result, model)
+	}
+	for _, model := range override {
+		if _, ok := seen[model]; ok {
+			continue
+		}
+		seen[model] = struct{}{}
+		result = append(result, model)
+	}
+	return result
 }
 
 func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {

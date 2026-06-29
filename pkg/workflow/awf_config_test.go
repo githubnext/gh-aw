@@ -1652,17 +1652,17 @@ func TestBuildAWFConfigJSON_ModelPolicyEnvOverridePrecedence(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
-			ModelPolicyAllowed: []string{"frontmatter-allowed"},
-			ModelPolicyBlocked: []string{"frontmatter-disallowed"},
+			ModelPolicyAllowed: []string{"frontmatter-allowed", "gpt-5-mini"},
+			ModelPolicyBlocked: []string{"frontmatter-blocked"},
 		},
 	}
 
 	jsonStr, err := BuildAWFConfigJSON(config)
 	require.NoError(t, err)
-	assert.Contains(t, jsonStr, `"allowedModels":["gemini-pro","gpt-5-mini"]`)
-	assert.Contains(t, jsonStr, `"disallowedModels":["claude-opus","gpt-5-pro"]`)
+	assert.Contains(t, jsonStr, `"allowedModels":["gpt-5-mini"]`)
+	assert.Contains(t, jsonStr, `"disallowedModels":["frontmatter-blocked","claude-opus","gpt-5-pro"]`)
 	assert.NotContains(t, jsonStr, "frontmatter-allowed")
-	assert.NotContains(t, jsonStr, "frontmatter-disallowed")
+	assert.NotContains(t, jsonStr, "gemini-pro")
 }
 
 func TestBuildAWFConfigJSON_ModelPolicyEnvOverride_IsPerList(t *testing.T) {
@@ -1677,7 +1677,7 @@ func TestBuildAWFConfigJSON_ModelPolicyEnvOverride_IsPerList(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
-			ModelPolicyAllowed: []string{"frontmatter-allowed"},
+			ModelPolicyAllowed: []string{"frontmatter-allowed", "gemini-pro"},
 			ModelPolicyBlocked: []string{"frontmatter-disallowed"},
 		},
 	}
@@ -1686,6 +1686,52 @@ func TestBuildAWFConfigJSON_ModelPolicyEnvOverride_IsPerList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, jsonStr, `"allowedModels":["gemini-pro"]`)
 	assert.Contains(t, jsonStr, `"disallowedModels":["frontmatter-disallowed"]`)
+}
+
+func TestBuildAWFConfigJSON_ModelPolicyEnvBlockedUnionOnly(t *testing.T) {
+	t.Setenv(compilerenv.PolicyModelsAllowed, "")
+	t.Setenv(compilerenv.PolicyModelsBlocked, "claude-opus")
+
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		AllowedDomains: "github.com",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			ModelPolicyAllowed: []string{"frontmatter-allowed"},
+			ModelPolicyBlocked: []string{"frontmatter-blocked"},
+		},
+	}
+
+	jsonStr, err := BuildAWFConfigJSON(config)
+	require.NoError(t, err)
+	assert.Contains(t, jsonStr, `"allowedModels":["frontmatter-allowed"]`)
+	assert.Contains(t, jsonStr, `"disallowedModels":["frontmatter-blocked","claude-opus"]`)
+}
+
+func TestBuildAWFConfigJSON_ModelPolicyEnvAllowedIntersectionCanBeEmpty(t *testing.T) {
+	t.Setenv(compilerenv.PolicyModelsAllowed, "gemini-pro")
+	t.Setenv(compilerenv.PolicyModelsBlocked, "")
+
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		AllowedDomains: "github.com",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			ModelPolicyAllowed: []string{"frontmatter-allowed"},
+			ModelPolicyBlocked: []string{"frontmatter-blocked"},
+		},
+	}
+
+	jsonStr, err := BuildAWFConfigJSON(config)
+	require.NoError(t, err)
+	assert.NotContains(t, jsonStr, `"allowedModels":`)
+	assert.Contains(t, jsonStr, `"disallowedModels":["frontmatter-blocked"]`)
 }
 
 func TestBuildAWFConfigJSON_ModelPolicyConflictDisallowedWins(t *testing.T) {
