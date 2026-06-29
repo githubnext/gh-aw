@@ -150,15 +150,25 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 
 		// Parse max (optional; controls how many times this output type may be emitted per run)
 		if maxVal, exists := jobConfig["max"]; exists {
+			maxInt := 0
 			switch v := maxVal.(type) {
 			case int:
-				if v > 0 {
-					safeJob.Max = v
-				}
+				maxInt = v
+			case int64:
+				maxInt = int(v)
+			case uint64:
+				maxInt = int(v)
 			case float64:
-				if int(v) > 0 {
-					safeJob.Max = int(v)
+				if v != float64(int(v)) {
+					safeJobsLog.Printf("Warning: ignoring non-integer max for safe-job %q: %v", jobName, v)
+				} else {
+					maxInt = int(v)
 				}
+			default:
+				safeJobsLog.Printf("Warning: ignoring non-numeric max for safe-job %q: %T", jobName, maxVal)
+			}
+			if maxInt > 0 {
+				safeJob.Max = maxInt
 			}
 		}
 
