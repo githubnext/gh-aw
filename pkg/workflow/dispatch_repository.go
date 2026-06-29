@@ -38,15 +38,16 @@ func (c *Compiler) parseDispatchRepositoryConfig(outputMap map[string]any) *Disp
 		if configData, exists = outputMap["dispatch_repository"]; !exists {
 			return nil
 		}
+		dispatchRepositoryLog.Print("WARNING: safe-outputs.dispatch_repository is deprecated; rename to dispatch-repository or run `gh aw fix`")
 	}
 
 	configMap, ok := configData.(map[string]any)
 	if !ok {
-		dispatchRepositoryLog.Print("dispatch_repository value is not a map, skipping")
+		dispatchRepositoryLog.Print("dispatch-repository value is not a map, skipping")
 		return nil
 	}
 
-	dispatchRepositoryLog.Printf("Parsing dispatch_repository tools map with %d entries", len(configMap))
+	dispatchRepositoryLog.Printf("Parsing dispatch-repository tools map with %d entries", len(configMap))
 
 	dispatchRepoConfig := &DispatchRepositoryConfig{
 		Tools: make(map[string]*DispatchRepositoryToolConfig),
@@ -108,25 +109,25 @@ func (c *Compiler) parseDispatchRepositoryConfig(outputMap map[string]any) *Disp
 			tool.Max = defaultIntStr(50)
 		}
 
-		dispatchRepositoryLog.Printf("Parsed dispatch_repository tool %q: workflow=%s, event_type=%s, max=%v",
+		dispatchRepositoryLog.Printf("Parsed dispatch-repository tool %q: workflow=%s, event_type=%s, max=%v",
 			toolKey, tool.Workflow, tool.EventType, tool.Max)
 
 		dispatchRepoConfig.Tools[toolKey] = tool
 	}
 
 	if len(dispatchRepoConfig.Tools) == 0 {
-		dispatchRepositoryLog.Print("No valid tools found in dispatch_repository config")
+		dispatchRepositoryLog.Print("No valid tools found in dispatch-repository config")
 		return nil
 	}
 
 	return dispatchRepoConfig
 }
 
-// generateDispatchRepositoryTool generates an MCP tool definition for a specific dispatch_repository tool.
+// generateDispatchRepositoryTool generates an MCP tool definition for a specific dispatch-repository tool.
 // The tool will be named after the tool key (normalized to underscores) and accept
 // the tool's declared inputs as parameters.
 func generateDispatchRepositoryTool(toolKey string, toolConfig *DispatchRepositoryToolConfig) map[string]any {
-	dispatchRepositoryLog.Printf("Generating dispatch_repository tool: key=%s", toolKey)
+	dispatchRepositoryLog.Printf("Generating dispatch-repository tool: key=%s", toolKey)
 
 	// Normalize tool key to use underscores
 	toolName := stringutil.NormalizeSafeOutputIdentifier(toolKey)
@@ -165,6 +166,6 @@ func generateDispatchRepositoryTool(toolKey string, toolConfig *DispatchReposito
 		"inputSchema":               inputSchema,
 	}
 
-	dispatchRepositoryLog.Printf("Generated dispatch_repository tool: name=%s, properties=%d", toolName, len(properties))
+	dispatchRepositoryLog.Printf("Generated dispatch-repository tool: name=%s, properties=%d", toolName, len(properties))
 	return tool
 }

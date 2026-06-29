@@ -13,8 +13,12 @@ func getSafeOutputDispatchRepositoryKeyCodemod() Codemod {
 		ID:           "safe-output-dispatch-repository-key",
 		Name:         "Rename safe-outputs.dispatch_repository to dispatch-repository",
 		Description:  "Renames deprecated safe-outputs.dispatch_repository to safe-outputs.dispatch-repository.",
-		IntroducedIn: "1.0.0",
+		IntroducedIn: "1.0.65",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			if safeOutputDispatchRepositoryKeyHasBothKeys(frontmatter) {
+				safeOutputDispatchRepositoryKeyCodemodLog.Print("WARN: safe-outputs has both dispatch_repository and dispatch-repository; manual review needed, skipping migration")
+				return content, false, nil
+			}
 			if !safeOutputDispatchRepositoryKeyNeedsMigration(frontmatter) {
 				return content, false, nil
 			}
@@ -26,6 +30,20 @@ func getSafeOutputDispatchRepositoryKeyCodemod() Codemod {
 			return newContent, applied, err
 		},
 	}
+}
+
+func safeOutputDispatchRepositoryKeyHasBothKeys(frontmatter map[string]any) bool {
+	safeOutputsAny, ok := frontmatter["safe-outputs"]
+	if !ok {
+		return false
+	}
+	safeOutputsMap, ok := safeOutputsAny.(map[string]any)
+	if !ok {
+		return false
+	}
+	_, hasOld := safeOutputsMap["dispatch_repository"]
+	_, hasNew := safeOutputsMap["dispatch-repository"]
+	return hasOld && hasNew
 }
 
 func safeOutputDispatchRepositoryKeyNeedsMigration(frontmatter map[string]any) bool {

@@ -16,7 +16,7 @@ func TestSafeOutputDispatchRepositoryKeyCodemod(t *testing.T) {
 		assert.Equal(t, "safe-output-dispatch-repository-key", codemod.ID)
 		assert.Equal(t, "Rename safe-outputs.dispatch_repository to dispatch-repository", codemod.Name)
 		assert.Equal(t, "Renames deprecated safe-outputs.dispatch_repository to safe-outputs.dispatch-repository.", codemod.Description)
-		assert.Equal(t, "1.0.0", codemod.IntroducedIn)
+		assert.Equal(t, "1.0.65", codemod.IntroducedIn)
 		require.NotNil(t, codemod.Apply)
 	})
 
@@ -131,6 +131,30 @@ safe-outputs:
 			"safe-outputs": map[string]any{
 				"dispatch-repository": map[string]any{},
 				"dispatch_repository": map[string]any{},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.False(t, applied)
+		assert.Equal(t, content, result)
+	})
+
+	t.Run("no-op when dispatch_repository appears only in a description value", func(t *testing.T) {
+		content := `---
+safe-outputs:
+  some-tool:
+    description: "Triggers via dispatch_repository: mechanism"
+    workflow: router.yml
+    event_type: dispatch
+    repository: github/gh-aw
+---
+`
+		frontmatter := map[string]any{
+			"safe-outputs": map[string]any{
+				"some-tool": map[string]any{
+					"description": "Triggers via dispatch_repository: mechanism",
+				},
 			},
 		}
 

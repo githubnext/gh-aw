@@ -121,6 +121,36 @@ func TestParseDispatchRepositoryConfig_Absent(t *testing.T) {
 	assert.Nil(t, config, "Config should be nil when dispatch_repository is absent")
 }
 
+// TestParseDispatchRepositoryConfig_DashPrecedenceOverUnderscore tests that dispatch-repository (dashed)
+// takes precedence over dispatch_repository (underscore) when both keys are present.
+func TestParseDispatchRepositoryConfig_DashPrecedenceOverUnderscore(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	outputMap := map[string]any{
+		"dispatch-repository": map[string]any{
+			"dash_tool": map[string]any{
+				"workflow":   "dash.yml",
+				"event_type": "dash_event",
+				"repository": "github/canonical",
+			},
+		},
+		"dispatch_repository": map[string]any{
+			"underscore_tool": map[string]any{
+				"workflow":   "underscore.yml",
+				"event_type": "underscore_event",
+				"repository": "github/alias",
+			},
+		},
+	}
+
+	config := compiler.parseDispatchRepositoryConfig(outputMap)
+	require.NotNil(t, config)
+	_, hasDashTool := config.Tools["dash_tool"]
+	assert.True(t, hasDashTool, "dashed form should take precedence")
+	_, hasUnderscoreTool := config.Tools["underscore_tool"]
+	assert.False(t, hasUnderscoreTool, "underscore form should be shadowed by dashed form")
+}
+
 // TestParseDispatchRepositoryConfig_MaxCap tests that max is capped at 50
 func TestParseDispatchRepositoryConfig_MaxCap(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
