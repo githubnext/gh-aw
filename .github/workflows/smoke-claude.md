@@ -22,7 +22,7 @@ permissions:
   
 name: Smoke Claude
 models:
-  disallowed: ["*opus*"]
+  blocked: ["*opus*"]
 max-turns: 100
 engine:
   id: claude

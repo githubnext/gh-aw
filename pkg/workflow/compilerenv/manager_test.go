@@ -174,17 +174,17 @@ func TestResolvePolicyModelsAllowed(t *testing.T) {
 	})
 }
 
-func TestResolvePolicyModelsDisallowed(t *testing.T) {
+func TestResolvePolicyModelsBlocked(t *testing.T) {
 	t.Run("unset returns no override", func(t *testing.T) {
-		t.Setenv(PolicyModelsDisallowed, "")
-		got, ok := ResolvePolicyModelsDisallowed()
+		t.Setenv(PolicyModelsBlocked, "")
+		got, ok := ResolvePolicyModelsBlocked()
 		assert.False(t, ok)
 		assert.Nil(t, got)
 	})
 
 	t.Run("comma/newline-separated list is parsed", func(t *testing.T) {
-		t.Setenv(PolicyModelsDisallowed, "gpt-5-pro,\nclaude-opus")
-		got, ok := ResolvePolicyModelsDisallowed()
+		t.Setenv(PolicyModelsBlocked, "gpt-5-pro,\nclaude-opus")
+		got, ok := ResolvePolicyModelsBlocked()
 		assert.True(t, ok)
 		assert.Equal(t, []string{"gpt-5-pro", "claude-opus"}, got)
 	})

@@ -9,20 +9,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMergeModelPolicyOverlays_UnionizesAllowedAndDisallowed(t *testing.T) {
+func TestMergeModelPolicyOverlays_UnionizesAllowedAndBlocked(t *testing.T) {
 	imported := []map[string][]string{
 		{
-			"allowed":    {"gpt-5", "claude-sonnet"},
-			"disallowed": {"gpt-5-pro"},
+			"allowed": {"gpt-5", "claude-sonnet"},
+			"blocked": {"gpt-5-pro"},
 		},
 		{
-			"allowed":    {"gpt-5-mini"},
-			"disallowed": {"claude-opus"},
+			"allowed": {"gpt-5-mini"},
+			"blocked": {"claude-opus"},
 		},
 	}
 	main := map[string][]string{
-		"allowed":    {"gpt-5"},
-		"disallowed": {"gemini-pro"},
+		"allowed": {"gpt-5"},
+		"blocked": {"gemini-pro"},
 	}
 
 	allowed, disallowed := mergeModelPolicyOverlays(imported, main)
@@ -30,11 +30,11 @@ func TestMergeModelPolicyOverlays_UnionizesAllowedAndDisallowed(t *testing.T) {
 	assert.Equal(t, []string{"claude-opus", "gemini-pro", "gpt-5-pro"}, disallowed)
 }
 
-func TestMergeModelPolicyOverlays_DisallowedWinsOnConflict(t *testing.T) {
+func TestMergeModelPolicyOverlays_BlockedWinsOnConflict(t *testing.T) {
 	imported := []map[string][]string{
 		{
-			"allowed":    {"gpt-5"},
-			"disallowed": {"gpt-5"},
+			"allowed": {"gpt-5"},
+			"blocked": {"gpt-5"},
 		},
 	}
 	allowed, disallowed := mergeModelPolicyOverlays(imported, nil)
@@ -42,11 +42,11 @@ func TestMergeModelPolicyOverlays_DisallowedWinsOnConflict(t *testing.T) {
 	assert.Equal(t, []string{"gpt-5"}, disallowed)
 }
 
-func TestMergeModelPolicyOverlays_DisallowedWildcardWinsOnConflict(t *testing.T) {
+func TestMergeModelPolicyOverlays_BlockedWildcardWinsOnConflict(t *testing.T) {
 	imported := []map[string][]string{
 		{
-			"allowed":    {"claude-opus", "claude-sonnet"},
-			"disallowed": {"*opus*"},
+			"allowed": {"claude-opus", "claude-sonnet"},
+			"blocked": {"*opus*"},
 		},
 	}
 	allowed, disallowed := mergeModelPolicyOverlays(imported, nil)
@@ -54,11 +54,11 @@ func TestMergeModelPolicyOverlays_DisallowedWildcardWinsOnConflict(t *testing.T)
 	assert.Equal(t, []string{"*opus*"}, disallowed)
 }
 
-func TestMergeModelPolicyOverlays_AllowedWildcardConflictsWithDisallowedExact(t *testing.T) {
+func TestMergeModelPolicyOverlays_AllowedWildcardConflictsWithBlockedExact(t *testing.T) {
 	imported := []map[string][]string{
 		{
-			"allowed":    {"*opus*"},
-			"disallowed": {"claude-opus"},
+			"allowed": {"*opus*"},
+			"blocked": {"claude-opus"},
 		},
 	}
 	allowed, disallowed := mergeModelPolicyOverlays(imported, nil)
@@ -69,30 +69,30 @@ func TestMergeModelPolicyOverlays_AllowedWildcardConflictsWithDisallowedExact(t 
 func TestExtractMainModelPolicyOverlay_UsesParsedFrontmatterWhenPresent(t *testing.T) {
 	toolsResult := &toolsProcessingResult{
 		parsedFrontmatter: &FrontmatterConfig{
-			ModelPolicyAllowed:    []string{"gpt-5"},
-			ModelPolicyDisallowed: []string{"gpt-5-pro"},
+			ModelPolicyAllowed: []string{"gpt-5"},
+			ModelPolicyBlocked: []string{"gpt-5-pro"},
 		},
 	}
 
 	policy := extractMainModelPolicyOverlay(toolsResult, map[string]any{})
 	require.NotNil(t, policy)
 	assert.Equal(t, []string{"gpt-5"}, policy["allowed"])
-	assert.Equal(t, []string{"gpt-5-pro"}, policy["disallowed"])
+	assert.Equal(t, []string{"gpt-5-pro"}, policy["blocked"])
 }
 
 func TestExtractMainModelPolicyOverlay_FallsBackToRawFrontmatter(t *testing.T) {
 	toolsResult := &toolsProcessingResult{}
 	frontmatter := map[string]any{
 		"models": map[string]any{
-			"allowed":    []any{"gpt-5-mini"},
-			"disallowed": []any{"claude-opus"},
+			"allowed": []any{"gpt-5-mini"},
+			"blocked": []any{"claude-opus"},
 		},
 	}
 
 	policy := extractMainModelPolicyOverlay(toolsResult, frontmatter)
 	require.NotNil(t, policy)
 	assert.Equal(t, []string{"gpt-5-mini"}, policy["allowed"])
-	assert.Equal(t, []string{"claude-opus"}, policy["disallowed"])
+	assert.Equal(t, []string{"claude-opus"}, policy["blocked"])
 }
 
 func TestExtractMainModelCostsOverlay_ExtractsNilWhenModelCostsHasOnlyPolicyKeys(t *testing.T) {

@@ -1629,8 +1629,8 @@ func TestBuildAWFConfigJSON_EmitsModelPolicyFromWorkflowData(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
-			ModelPolicyAllowed:    []string{"gpt-5", "claude-sonnet"},
-			ModelPolicyDisallowed: []string{"gpt-5-pro", "claude-opus"},
+			ModelPolicyAllowed: []string{"gpt-5", "claude-sonnet"},
+			ModelPolicyBlocked: []string{"gpt-5-pro", "claude-opus"},
 		},
 	}
 
@@ -1642,7 +1642,7 @@ func TestBuildAWFConfigJSON_EmitsModelPolicyFromWorkflowData(t *testing.T) {
 
 func TestBuildAWFConfigJSON_ModelPolicyEnvOverridePrecedence(t *testing.T) {
 	t.Setenv(compilerenv.PolicyModelsAllowed, "gemini-pro,gpt-5-mini")
-	t.Setenv(compilerenv.PolicyModelsDisallowed, "claude-opus, gpt-5-pro")
+	t.Setenv(compilerenv.PolicyModelsBlocked, "claude-opus, gpt-5-pro")
 
 	config := AWFCommandConfig{
 		EngineName:     "copilot",
@@ -1652,8 +1652,8 @@ func TestBuildAWFConfigJSON_ModelPolicyEnvOverridePrecedence(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
-			ModelPolicyAllowed:    []string{"frontmatter-allowed"},
-			ModelPolicyDisallowed: []string{"frontmatter-disallowed"},
+			ModelPolicyAllowed: []string{"frontmatter-allowed"},
+			ModelPolicyBlocked: []string{"frontmatter-disallowed"},
 		},
 	}
 
@@ -1667,7 +1667,7 @@ func TestBuildAWFConfigJSON_ModelPolicyEnvOverridePrecedence(t *testing.T) {
 
 func TestBuildAWFConfigJSON_ModelPolicyEnvOverride_IsPerList(t *testing.T) {
 	t.Setenv(compilerenv.PolicyModelsAllowed, "gemini-pro")
-	t.Setenv(compilerenv.PolicyModelsDisallowed, "")
+	t.Setenv(compilerenv.PolicyModelsBlocked, "")
 
 	config := AWFCommandConfig{
 		EngineName:     "copilot",
@@ -1677,8 +1677,8 @@ func TestBuildAWFConfigJSON_ModelPolicyEnvOverride_IsPerList(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
-			ModelPolicyAllowed:    []string{"frontmatter-allowed"},
-			ModelPolicyDisallowed: []string{"frontmatter-disallowed"},
+			ModelPolicyAllowed: []string{"frontmatter-allowed"},
+			ModelPolicyBlocked: []string{"frontmatter-disallowed"},
 		},
 	}
 
@@ -1697,8 +1697,8 @@ func TestBuildAWFConfigJSON_ModelPolicyConflictDisallowedWins(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
-			ModelPolicyAllowed:    []string{"gpt-5", "claude-sonnet"},
-			ModelPolicyDisallowed: []string{"gpt-5"},
+			ModelPolicyAllowed: []string{"gpt-5", "claude-sonnet"},
+			ModelPolicyBlocked: []string{"gpt-5"},
 		},
 	}
 

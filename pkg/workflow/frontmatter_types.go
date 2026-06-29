@@ -379,8 +379,8 @@ type FrontmatterConfig struct {
 	ModelCosts map[string]any `json:"models,omitempty"`
 	// ModelPolicyAllowed is the experimental frontmatter models.allowed (allowlist), merged as a union across imports.
 	ModelPolicyAllowed []string `json:"-"`
-	// ModelPolicyDisallowed is the experimental frontmatter models.disallowed (denylist), merged as a union across imports.
-	ModelPolicyDisallowed []string `json:"-"`
+	// ModelPolicyBlocked is the experimental frontmatter models.blocked (denylist), merged as a union across imports.
+	ModelPolicyBlocked []string `json:"-"`
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"user-rate-limit,omitempty"`

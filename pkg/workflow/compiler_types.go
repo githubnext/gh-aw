@@ -611,7 +611,7 @@ type WorkflowData struct {
 	ModelMappings                  map[string][]string             // merged model alias map (builtins + imported workflow aliases + main frontmatter overrides, in priority order); NOT yet emitted to AWF config JSON — pending AWF firewall support (config.models)
 	ModelCosts                     map[string]any                  // model pricing data from frontmatter `models` field (providers structure); merged with built-in models.json at runtime by generate_aw_info.cjs
 	ModelPolicyAllowed             []string                        // merged models.allowed policy list (union across imports + main frontmatter)
-	ModelPolicyDisallowed          []string                        // merged models.disallowed policy list (union across imports + main frontmatter)
+	ModelPolicyBlocked             []string                        // merged models.blocked policy list (union across imports + main frontmatter)
 	ActionPinMappings              map[string]string               // action-pin redirect table from aw.json action_pins: maps "owner/repo@version" → "owner/repo@version"
 }
 

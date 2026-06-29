@@ -160,7 +160,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		workflowData.ModelPolicyAllowed = allowedModels
 	}
 	if len(disallowedModels) > 0 {
-		workflowData.ModelPolicyDisallowed = disallowedModels
+		workflowData.ModelPolicyBlocked = disallowedModels
 	}
 
 	return workflowData
@@ -296,15 +296,15 @@ func mergeModelCostOverlayPair(base, overlay map[string]any) map[string]any {
 	return result
 }
 
-// extractMainModelPolicyOverlay returns only models.allowed/disallowed policy
+// extractMainModelPolicyOverlay returns only models.allowed/blocked policy
 // entries and never treats providers data as policy.
 func extractMainModelPolicyOverlay(toolsResult *toolsProcessingResult, frontmatter map[string]any) map[string][]string {
 	if toolsResult.parsedFrontmatter != nil {
 		mainPolicy := map[string][]string{
-			"allowed":    toolsResult.parsedFrontmatter.ModelPolicyAllowed,
-			"disallowed": toolsResult.parsedFrontmatter.ModelPolicyDisallowed,
+			"allowed": toolsResult.parsedFrontmatter.ModelPolicyAllowed,
+			"blocked": toolsResult.parsedFrontmatter.ModelPolicyBlocked,
 		}
-		if len(mainPolicy["allowed"]) > 0 || len(mainPolicy["disallowed"]) > 0 {
+		if len(mainPolicy["allowed"]) > 0 || len(mainPolicy["blocked"]) > 0 {
 			return mainPolicy
 		}
 	}
@@ -313,10 +313,10 @@ func extractMainModelPolicyOverlay(toolsResult *toolsProcessingResult, frontmatt
 		return nil
 	}
 	mainPolicy := map[string][]string{
-		"allowed":    parseModelPolicyList(modelsMap["allowed"]),
-		"disallowed": parseModelPolicyList(modelsMap["disallowed"]),
+		"allowed": parseModelPolicyList(modelsMap["allowed"]),
+		"blocked": parseModelPolicyList(modelsMap["blocked"]),
 	}
-	if len(mainPolicy["allowed"]) == 0 && len(mainPolicy["disallowed"]) == 0 {
+	if len(mainPolicy["allowed"]) == 0 && len(mainPolicy["blocked"]) == 0 {
 		return nil
 	}
 	return mainPolicy
@@ -340,7 +340,7 @@ func mergeModelPolicyOverlays(importedPolicies []map[string][]string, mainPolicy
 				allowedSet[model] = struct{}{}
 			}
 		}
-		for _, model := range overlay["disallowed"] {
+		for _, model := range overlay["blocked"] {
 			if model != "" {
 				disallowedSet[model] = struct{}{}
 			}

@@ -553,29 +553,29 @@ func splitDomainList(domains string) []string {
 }
 
 // resolveModelPolicyForAWFConfig applies policy precedence independently per list:
-// each env override replaces only its matching list (allowed or disallowed),
+// each env override replaces only its matching list (allowed or blocked),
 // while the other list continues to use workflow-derived policy.
 func resolveModelPolicyForAWFConfig(workflowData *WorkflowData) ([]string, []string) {
 	envAllowed, hasAllowedOverride := compilerenv.ResolvePolicyModelsAllowed()
-	envDisallowed, hasDisallowedOverride := compilerenv.ResolvePolicyModelsDisallowed()
+	envBlocked, hasBlockedOverride := compilerenv.ResolvePolicyModelsBlocked()
 	var allowed []string
-	var disallowed []string
+	var blocked []string
 	if hasAllowedOverride {
 		allowed = envAllowed
 	} else if workflowData != nil {
 		allowed = workflowData.ModelPolicyAllowed
 	}
-	if hasDisallowedOverride {
-		disallowed = envDisallowed
+	if hasBlockedOverride {
+		blocked = envBlocked
 	} else if workflowData != nil {
-		disallowed = workflowData.ModelPolicyDisallowed
+		blocked = workflowData.ModelPolicyBlocked
 	}
-	disallowedSet := make(map[string]struct{}, len(disallowed))
-	for _, model := range disallowed {
-		disallowedSet[model] = struct{}{}
+	blockedSet := make(map[string]struct{}, len(blocked))
+	for _, model := range blocked {
+		blockedSet[model] = struct{}{}
 	}
-	allowed = filterAllowedModelConflictsWithSet(allowed, disallowedSet)
-	return allowed, disallowed
+	allowed = filterAllowedModelConflictsWithSet(allowed, blockedSet)
+	return allowed, blocked
 }
 
 func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {

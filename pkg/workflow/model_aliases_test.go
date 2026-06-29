@@ -336,8 +336,8 @@ func TestFrontmatterModelsField(t *testing.T) {
 		frontmatter := map[string]any{
 			"name": "test-workflow",
 			"models": map[string]any{
-				"allowed":    []any{"gpt-5", "claude-sonnet"},
-				"disallowed": []any{"gpt-5-pro"},
+				"allowed": []any{"gpt-5", "claude-sonnet"},
+				"blocked": []any{"gpt-5-pro"},
 			},
 		}
 
@@ -345,15 +345,15 @@ func TestFrontmatterModelsField(t *testing.T) {
 		require.NoError(t, err, "ParseFrontmatterConfig should succeed with model policy fields")
 		require.NotNil(t, config, "parsed config should not be nil")
 		assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, config.ModelPolicyAllowed)
-		assert.Equal(t, []string{"gpt-5-pro"}, config.ModelPolicyDisallowed)
+		assert.Equal(t, []string{"gpt-5-pro"}, config.ModelPolicyBlocked)
 	})
 
 	t.Run("models policy fields ignore invalid entries but keep valid strings", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"name": "test-workflow",
 			"models": map[string]any{
-				"allowed":    []any{"gpt-5", 123, ""},
-				"disallowed": []any{"claude-opus", false},
+				"allowed": []any{"gpt-5", 123, ""},
+				"blocked": []any{"claude-opus", false},
 			},
 		}
 
@@ -361,6 +361,6 @@ func TestFrontmatterModelsField(t *testing.T) {
 		require.NoError(t, err, "ParseFrontmatterConfig should succeed with mixed policy entries")
 		require.NotNil(t, config, "parsed config should not be nil")
 		assert.Equal(t, []string{"gpt-5"}, config.ModelPolicyAllowed)
-		assert.Equal(t, []string{"claude-opus"}, config.ModelPolicyDisallowed)
+		assert.Equal(t, []string{"claude-opus"}, config.ModelPolicyBlocked)
 	})
 }

@@ -51,13 +51,13 @@ const (
 	// when GH_AW_POLICY_STRICT is set to the string value "true".
 	PolicyStrict = "GH_AW_POLICY_STRICT"
 	// PolicyModelsAllowed overrides only the experimental models.allowed policy
-	// values (it does not change models.disallowed unless PolicyModelsDisallowed is
+	// values (it does not change models.blocked unless PolicyModelsBlocked is
 	// also set).
 	PolicyModelsAllowed = "GHAW_POLICY_MODELS_ALLOWED"
-	// PolicyModelsDisallowed overrides only the experimental models.disallowed
+	// PolicyModelsBlocked overrides only the experimental models.blocked
 	// policy values (it does not change models.allowed unless PolicyModelsAllowed
 	// is also set).
-	PolicyModelsDisallowed = "GHAW_POLICY_MODELS_DISALLOWED"
+	PolicyModelsBlocked = "GHAW_POLICY_MODELS_BLOCKED"
 	// PolicyAllowCreatePullRequest controls whether create-pull-request safe-outputs
 	// remain runtime-compliant. Set to the string value "false" to disable the
 	// create_pull_request safe-output tool at runtime.
@@ -180,10 +180,10 @@ func ResolvePolicyModelsAllowed() ([]string, bool) {
 	return resolveModelListEnv(PolicyModelsAllowed)
 }
 
-// ResolvePolicyModelsDisallowed returns configured disallowed model policy entries.
+// ResolvePolicyModelsBlocked returns configured blocked model policy entries.
 // When the env var is unset/empty, ok=false and callers should use frontmatter policy.
-func ResolvePolicyModelsDisallowed() ([]string, bool) {
-	return resolveModelListEnv(PolicyModelsDisallowed)
+func ResolvePolicyModelsBlocked() ([]string, bool) {
+	return resolveModelListEnv(PolicyModelsBlocked)
 }
 
 func resolveModelListEnv(name string) ([]string, bool) {
