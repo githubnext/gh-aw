@@ -742,7 +742,7 @@ gh aw mcp list-tools --server github           # List tools for a server (all wo
 gh aw mcp list-tools workflow --server github  # List tools for a server in a specific workflow
 gh aw mcp inspect workflow                 # Inspect and test servers
 gh aw mcp add                              # List available MCP servers from the registry
-gh aw mcp add <server>                     # Add an MCP server to a workflow
+gh aw mcp add <workflow> <server>          # Add an MCP server to a workflow
 ```
 
 See [MCPs Guide](/gh-aw/guides/mcps/).

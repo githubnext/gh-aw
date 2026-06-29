@@ -193,9 +193,30 @@ export function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS }) 
     }
   }
 
+  async function getAudit(runId) {
+    if (!runId) return null;
+    const key = `audit:${runId}`;
+    const hit = getCached(key);
+    if (hit) return hit;
+
+    const raw = await runGhAw(["audit", String(runId), "--json"]);
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch (error) {
+      const snippet = String(raw ?? "")
+        .replace(/\s+/g, " ")
+        .slice(0, 100);
+      throw new Error(`Failed to parse audit output for run ${runId}: ${error.message}${snippet ? ` (output: ${snippet})` : ""}`);
+    }
+    setCached(key, data);
+    return data;
+  }
+
   return {
     clearCache: () => cache.clear(),
     execCommand,
+    getAudit,
     getDefinitions,
     getExperiments,
     getRuns,
