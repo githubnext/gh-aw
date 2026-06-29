@@ -35,16 +35,16 @@ async function getIssueNodeId(githubClient, owner, repo, issueNumber) {
 }
 
 /**
- * Fetches the available issue types for an organization.
- * For personal-account owners the query returns null and the call site receives an empty array.
+ * Fetches the available issue types for a repository.
  * @param {Object} githubClient - Authenticated GitHub client
- * @param {string} owner - Organization login
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
  * @returns {Promise<Array<{id: string, name: string}>>} Issue type nodes
  */
-async function fetchIssueTypesForOrg(githubClient, owner) {
+async function fetchIssueTypesForRepo(githubClient, owner, repo) {
   const result = await githubClient.graphql(
-    `query($owner: String!) {
-      organization(login: $owner) {
+    `query($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
         issueTypes(first: 100) {
           nodes {
             id
@@ -53,9 +53,9 @@ async function fetchIssueTypesForOrg(githubClient, owner) {
         }
       }
     }`,
-    { owner }
+    { owner, repo }
   );
-  return result?.organization?.issueTypes?.nodes ?? [];
+  return result?.repository?.issueTypes?.nodes ?? [];
 }
 
 /**
@@ -67,7 +67,7 @@ async function fetchIssueTypesForOrg(githubClient, owner) {
  * @returns {Promise<void>}
  */
 async function setIssueTypeById(githubClient, issueNodeId, issueTypeId, intentMetadata) {
-  const issueType = { id: issueTypeId, ...intentMetadata };
+  const issueType = { issueTypeId, ...intentMetadata };
   await githubClient.graphql(
     `mutation($issueId: ID!, $issueType: IssueTypeUpdateInput!) {
       updateIssue(input: { id: $issueId, issueType: $issueType }) {
@@ -342,9 +342,9 @@ async function main(config = {}) {
         core.info(`Using GraphQL intent path (issue_intents runtime feature enabled)`);
         core.info(`Fetching issue node ID for issue #${issueNumber}`);
         const issueNodeId = await getIssueNodeId(githubClient, owner, repo, issueNumber);
-        core.info(`Fetching issue types for org ${owner}`);
-        const issueTypes = await fetchIssueTypesForOrg(githubClient, owner);
-        core.info(`Found ${issueTypes.length} issue type(s) for org ${owner}`);
+        core.info(`Fetching issue types for repo ${owner}/${repo}`);
+        const issueTypes = await fetchIssueTypesForRepo(githubClient, owner, repo);
+        core.info(`Found ${issueTypes.length} issue type(s) for repo ${owner}/${repo}`);
         const typeNode = issueTypes.find(t => t.name.toLowerCase() === resolvedIssueTypeName.toLowerCase());
         if (!typeNode) {
           const availableNames = issueTypes.map(t => t.name).join(", ");

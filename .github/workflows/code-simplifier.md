@@ -27,6 +27,9 @@ imports:
       expires: "1d"
       labels: [refactoring, code-quality, automation]
       reviewers: [copilot]
+      protected-files:
+        exclude:
+          - .github/extensions/
 
   - shared/otlp.md
 network:

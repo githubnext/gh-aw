@@ -76,23 +76,17 @@ func getCompiledToolSchemas() (map[string]toolSchemaEntry, error) {
 			if len(t.InputSchema) == 0 {
 				continue
 			}
-			var schemaDoc any
-			if err := json.Unmarshal(t.InputSchema, &schemaDoc); err != nil {
-				compiledToolSchemasErr = fmt.Errorf("failed to parse inputSchema for tool %q: %w", t.Name, err)
-				return
-			}
-			compiler := jsonschema.NewCompiler()
 			schemaURL := fmt.Sprintf("inmem://safe-outputs-tools/%s.json", t.Name)
-			if err := compiler.AddResource(schemaURL, schemaDoc); err != nil {
-				compiledToolSchemasErr = fmt.Errorf("failed to add schema resource for tool %q: %w", t.Name, err)
-				return
-			}
-			schema, err := compiler.Compile(schemaURL)
+			schema, err := compileSchema(string(t.InputSchema), schemaURL)
 			if err != nil {
 				compiledToolSchemasErr = fmt.Errorf("failed to compile inputSchema for tool %q: %w", t.Name, err)
 				return
 			}
-			rawMap, _ := schemaDoc.(map[string]any)
+			var rawMap map[string]any
+			if err := json.Unmarshal(t.InputSchema, &rawMap); err != nil {
+				compiledToolSchemasErr = fmt.Errorf("failed to parse inputSchema for tool %q: %w", t.Name, err)
+				return
+			}
 			out[t.Name] = toolSchemaEntry{raw: rawMap, compiled: schema}
 		}
 		compiledToolSchemas = out

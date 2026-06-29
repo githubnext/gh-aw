@@ -6,7 +6,10 @@ import (
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var copilotBillingLog = logger.New("cli:copilot_billing_check")
 
 const copilotBillingTimeout = 3 * time.Second
 
@@ -63,6 +66,7 @@ func probeCopilotBillingForOrg(ctx context.Context, orgLogin string) orgCopilotB
 // It calls detectOrgCopilotCLIBillingWithClient and maps the result to UI hints.
 func probeCopilotBillingForOrgWithClient(ctx context.Context, orgLogin string, client *api.RESTClient) orgCopilotBillingProbeResult {
 	cliStatus, err := detectOrgCopilotCLIBillingWithClient(ctx, orgLogin, client)
+	copilotBillingLog.Printf("Probed Copilot CLI billing for org %s: status=%q, hasError=%v", orgLogin, cliStatus, err != nil)
 	switch {
 	case err != nil || cliStatus == "":
 		return orgCopilotBillingProbeResult{

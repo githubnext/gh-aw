@@ -1,11 +1,11 @@
-import type { PagedResult, WorkflowDefinition, WorkflowRun, WorkflowRunStatus, WorkflowStep, WorkflowStepStatus } from "./models.js";
+import type { ExperimentInfo, PagedResult, WorkflowDefinition, WorkflowRun, WorkflowRunStatus, WorkflowStep, WorkflowStepStatus } from "./models.js";
 import { paginate } from "./pagination.js";
 
 type CommandResult = { command: string; output: string };
 
 type FlashKind = "success" | "warn" | "error";
-type DashboardTabId = "definitions" | "runs" | "details" | "commands";
-type DashboardTab = { id: DashboardTabId; label: string; counter?: "definitions" | "runs" };
+type DashboardTabId = "definitions" | "runs" | "details" | "commands" | "experiments";
+type DashboardTab = { id: DashboardTabId; label: string; counter?: "definitions" | "runs" | "experiments" };
 declare const Alpine: {
   data: (name: string, callback: () => DashboardState) => void;
 };
@@ -15,11 +15,14 @@ interface DashboardState {
   activeTab: DashboardTabId;
   definitionPage: number;
   runPage: number;
+  experimentPage: number;
   pageSize: number;
   definitions: WorkflowDefinition[];
   runs: WorkflowRun[];
+  experiments: ExperimentInfo[];
   definitionsPaged: PagedResult<WorkflowDefinition>;
   runsPaged: PagedResult<WorkflowRun>;
+  experimentsPaged: PagedResult<ExperimentInfo>;
   selectedRun: WorkflowRun | null;
   selectedDefinitionId: string;
   commandInput: string;
@@ -32,6 +35,7 @@ interface DashboardState {
   tabCount(tab: DashboardTab): number;
   loadDefinitionPage(page: number): void;
   loadRunPage(page: number): void;
+  loadExperimentPage(page: number): void;
   selectRun(id: string): void;
   viewRunDetails(id: string): void;
   dispatchSelectedWorkflow(): void;
@@ -50,6 +54,7 @@ const dashboardTabs: DashboardTab[] = [
   { id: "definitions", label: "Workflows", counter: "definitions" },
   { id: "runs", label: "Runs", counter: "runs" },
   { id: "details", label: "Run details" },
+  { id: "experiments", label: "Experiments", counter: "experiments" },
   { id: "commands", label: "Commands" },
 ];
 
@@ -171,6 +176,15 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleString();
 }
 
+const LABEL_CLASS: Record<WorkflowRunStatus | WorkflowStepStatus, string> = {
+  queued: "Label Label--secondary",
+  pending: "Label Label--secondary",
+  running: "Label Label--attention",
+  completed: "Label Label--success",
+  done: "Label Label--success",
+  failed: "Label Label--danger",
+};
+
 function runGhCommand(command: string, runs: WorkflowRun[]): CommandResult {
   const normalized = command.trim();
 
@@ -258,33 +272,32 @@ function runGhCommand(command: string, runs: WorkflowRun[]): CommandResult {
 }
 
 function statusClass(status: WorkflowRunStatus): string {
-  switch (status) {
-    case "completed":
-      return "Label Label--success";
-    case "failed":
-      return "Label Label--danger";
-    case "running":
-      return "Label Label--attention";
-    default:
-      return "Label Label--secondary";
-  }
+  return LABEL_CLASS[status];
 }
 
 function stepStatusClass(status: WorkflowStepStatus): string {
-  switch (status) {
-    case "done":
-      return "Label Label--success";
-    case "failed":
-      return "Label Label--danger";
-    case "running":
-      return "Label Label--attention";
-    default:
-      return "Label Label--secondary";
-  }
+  return LABEL_CLASS[status];
 }
 
 const definitions = buildDefinitions(definitionCount);
 const runs = buildRuns(runCount, definitions);
+
+function buildExperiments(count: number): ExperimentInfo[] {
+  return Array.from({ length: count }, (_, i) => {
+    const index = i + 1;
+    const workflowId = `agentic-workflow-${index}`;
+    return {
+      workflow_id: workflowId,
+      branch: `experiments/${workflowId}`,
+      experiments: (index % 3) + 1,
+      total_runs: index * 7,
+      last_run: isoHoursAgo(index * 3),
+    };
+  });
+}
+
+const experimentCount = 12;
+const experiments = buildExperiments(experimentCount);
 
 document.addEventListener("alpine:init", () => {
   Alpine.data("dashboardApp", () => ({
@@ -292,11 +305,14 @@ document.addEventListener("alpine:init", () => {
     activeTab: "definitions",
     definitionPage: 1,
     runPage: 1,
+    experimentPage: 1,
     pageSize: 20,
     definitions,
     runs,
+    experiments,
     definitionsPaged: paginate(definitions, 1, 20),
     runsPaged: paginate(runs, 1, 20),
+    experimentsPaged: paginate(experiments, 1, 20),
     selectedRun: runs[0] ?? null,
     selectedDefinitionId: definitions[0]?.id ?? "",
     commandInput: "gh aw logs",
@@ -307,7 +323,8 @@ document.addEventListener("alpine:init", () => {
     init() {
       this.loadDefinitionPage(1);
       this.loadRunPage(1);
-      if (this.commandOutput.length === 0) {
+      this.loadExperimentPage(1);
+      if (!this.commandOutput) {
         this.runCommand();
       }
     },
@@ -329,6 +346,9 @@ document.addEventListener("alpine:init", () => {
       if (tab.counter === "runs") {
         return this.runs.length;
       }
+      if (tab.counter === "experiments") {
+        return this.experiments.length;
+      }
       return 0;
     },
 
@@ -343,6 +363,11 @@ document.addEventListener("alpine:init", () => {
       if (!this.selectedRun && this.runsPaged.items.length > 0) {
         this.selectedRun = this.runsPaged.items[0] ?? null;
       }
+    },
+
+    loadExperimentPage(page) {
+      this.experimentPage = page;
+      this.experimentsPaged = paginate(this.experiments, page, this.pageSize);
     },
 
     selectRun(id) {
@@ -370,7 +395,7 @@ document.addEventListener("alpine:init", () => {
         status: "queued",
         createdAt: now,
         updatedAt: now,
-        steps: [buildStep(sequence, 1, "pending"), buildStep(sequence, 2, "pending"), buildStep(sequence, 3, "pending"), buildStep(sequence, 4, "pending")],
+        steps: [1, 2, 3, 4].map(step => buildStep(sequence, step, "pending")),
       };
 
       this.runs = [newRun, ...this.runs];

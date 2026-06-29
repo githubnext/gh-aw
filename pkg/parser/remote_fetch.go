@@ -758,7 +758,7 @@ func checkRemoteSymlink(client *api.RESTClient, owner, repo, dirPath, ref string
 
 	// If the response is an array, this is a directory listing — not a symlink
 	trimmed := strings.TrimSpace(string(raw))
-	if len(trimmed) > 0 && trimmed[0] == '[' {
+	if trimmed != "" && trimmed[0] == '[' {
 		remoteLog.Printf("Path component %s is a directory (not a symlink)", dirPath)
 		return "", false, nil
 	}

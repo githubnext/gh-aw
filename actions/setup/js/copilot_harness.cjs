@@ -83,6 +83,9 @@ const OUTPUT_TAIL_MAX_LINES = 12;
 const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME = "copilot_requests_proxy_auth_403.md";
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
+// Pattern to detect generic HTTP 400 Bad Request responses emitted by engine CLI / SDK wrappers.
+// NOTE: keep in sync with HTTP_400_RESPONSE_ERROR_PATTERN in detect_agent_errors.cjs.
+const HTTP_400_RESPONSE_ERROR_PATTERN = /Response status code does not indicate success:\s*400(?:\s*\(Bad Request\))?/i;
 
 // Pattern to detect MCP servers blocked by enterprise/organization policy.
 // This is a persistent policy configuration error — retrying will not help.
@@ -159,6 +162,15 @@ function generateCopilotConnectionToken(options) {
  */
 function isTransientCAPIError(output) {
   return CAPI_ERROR_400_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains a generic HTTP 400 response failure.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isHTTP400ResponseError(output) {
+  return HTTP_400_RESPONSE_ERROR_PATTERN.test(output);
 }
 
 /**
@@ -325,6 +337,7 @@ function extractOutputTail(output, options) {
  *   isMCPGatewayShutdown?: boolean,
  *   isMCPPolicy?: boolean,
  *   isModelNotSupported?: boolean,
+ *   isHTTP400ResponseError?: boolean,
  *   isNullTypeToolCall?: boolean,
  *   isQuotaExceeded?: boolean,
  *   isSDKSessionIdleTimeout?: boolean,
@@ -336,6 +349,7 @@ function classifyCopilotFailure(detection) {
   if (detection.isQuotaExceeded) return "capi_quota_exceeded";
   if (detection.isMCPPolicy) return "mcp_policy_blocked";
   if (detection.isModelNotSupported) return "model_not_supported";
+  if (detection.isHTTP400ResponseError) return "http_400_response_error";
   if (detection.isNullTypeToolCall) return "null_type_tool_call";
   if (detection.isAuthErr) return "no_auth_info";
   if (detection.isAuthenticationFailed) return "authentication_failed";
@@ -465,7 +479,7 @@ function isRetryableProxyAuthenticationFailure(output, hasOutput) {
 /**
  * Detect known Copilot error patterns for workflow outputs.
  * @param {string} output
- * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean }}
+ * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean }}
  */
 function detectCopilotErrors(output) {
   return {
@@ -473,12 +487,13 @@ function detectCopilotErrors(output) {
     mcpPolicyError: isMCPPolicyError(output),
     agenticEngineTimeout: AGENTIC_ENGINE_TIMEOUT_PATTERN.test(output),
     modelNotSupportedError: isModelNotSupportedError(output),
+    http400ResponseError: isHTTP400ResponseError(output),
   };
 }
 
 /**
  * Write Copilot detection outputs to $GITHUB_OUTPUT.
- * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean }} results
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean }} results
  */
 function writeCopilotOutputs(results) {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -492,6 +507,7 @@ function writeCopilotOutputs(results) {
     `mcp_policy_error=${results.mcpPolicyError}`,
     `agentic_engine_timeout=${results.agenticEngineTimeout}`,
     `model_not_supported_error=${results.modelNotSupportedError}`,
+    `http_400_response_error=${results.http400ResponseError}`,
   ];
   fs.appendFileSync(outputFile, lines.join("\n") + "\n");
 }
@@ -754,6 +770,7 @@ async function main() {
     mcpPolicyError: false,
     agenticEngineTimeout: false,
     modelNotSupportedError: false,
+    http400ResponseError: false,
   };
   /** @type {Awaited<ReturnType<typeof startCopilotSDKServer>>} */
   let copilotSDKServer = null;
@@ -811,6 +828,7 @@ async function main() {
         detectedCopilotErrors.mcpPolicyError ||= attemptDetections.mcpPolicyError;
         detectedCopilotErrors.agenticEngineTimeout ||= attemptDetections.agenticEngineTimeout;
         detectedCopilotErrors.modelNotSupportedError ||= attemptDetections.modelNotSupportedError;
+        detectedCopilotErrors.http400ResponseError ||= attemptDetections.http400ResponseError;
 
         // Success — record exit code and stop retrying
         if (result.exitCode === 0) {
@@ -835,6 +853,7 @@ async function main() {
         const isQuotaExceeded = isCAPIQuotaExceededError(result.output);
         const isMCPPolicy = isMCPPolicyError(result.output);
         const isModelNotSupported = isModelNotSupportedError(result.output);
+        const hasHTTP400ResponseError = isHTTP400ResponseError(result.output);
         const isAuthErr = isNoAuthInfoError(result.output);
         const isAuthenticationFailed = isAuthenticationFailedError(result.output);
         const proxyAuthDiagnostic = buildCopilotProxyAuthFailureDiagnostic(result.output, process.env);
@@ -852,6 +871,7 @@ async function main() {
           isMCPGatewayShutdown,
           isMCPPolicy,
           isModelNotSupported,
+          isHTTP400ResponseError: hasHTTP400ResponseError,
           isNullTypeToolCall,
           isQuotaExceeded,
           isSDKSessionIdleTimeout,
@@ -866,6 +886,7 @@ async function main() {
             ` isCAPIQuotaExceededError=${isQuotaExceeded}` +
             ` isMCPPolicyError=${isMCPPolicy}` +
             ` isModelNotSupportedError=${isModelNotSupported}` +
+            ` isHTTP400ResponseError=${hasHTTP400ResponseError}` +
             ` isNullTypeToolCallError=${isNullTypeToolCall}` +
             ` isSDKSessionIdleTimeoutError=${isSDKSessionIdleTimeout}` +
             ` isMCPGatewayShutdownError=${isMCPGatewayShutdown}` +
@@ -952,6 +973,19 @@ async function main() {
             log(`attempt ${attempt + 1}: refreshed awf-reflect does not include model '${configuredModel || "(none)"}' — treating as non-retryable`);
           }
           log(`attempt ${attempt + 1}: model not supported — not retrying (the requested model is unavailable for this subscription tier; specify a supported model in the workflow frontmatter)`);
+          break;
+        }
+
+        // Generic HTTP 400 response errors are usually persistent request/state failures.
+        // Retry once as a fresh run to discard potentially stale conversation state.
+        if (hasHTTP400ResponseError) {
+          if (attempt < MAX_RETRIES && result.hasOutput && useContinueOnRetry) {
+            useContinueOnRetry = false;
+            continueDisabledPermanently = true;
+            log(`attempt ${attempt + 1}: HTTP 400 response error on --continue — retrying once as fresh run (request/state may be stale; --continue disabled permanently)`);
+            continue;
+          }
+          log(`attempt ${attempt + 1}: HTTP 400 response error — not retrying (persistent request validation/state failure)`);
           break;
         }
 
@@ -1069,6 +1103,7 @@ if (typeof module !== "undefined" && module.exports) {
     hasNoopInSafeOutputs,
     hasExpectedSafeOutputs,
     isDetectionPhase,
+    isHTTP400ResponseError,
     isModelAvailableInReflectData,
     isModelAvailableInReflectFile,
     resolveCopilotSDKCustomProviderFromReflect,

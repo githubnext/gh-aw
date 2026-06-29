@@ -269,8 +269,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 	}
 
-	// Add inference_access_error, mcp_policy_error, agentic_engine_timeout, and
-	// model_not_supported_error outputs for engines that provide an error detection step.
+	// Add inference_access_error, mcp_policy_error, agentic_engine_timeout,
+	// model_not_supported_error, and http_400_response_error outputs for engines
+	// that provide an error detection step.
 	// These outputs are written by the host-runner detect-agent-errors step (via the
 	// engine's GetErrorDetectionScriptId script) rather than from inside the AWF container,
 	// because GITHUB_OUTPUT is not accessible inside the sandbox.
@@ -289,6 +290,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 			outputs["model_not_supported_error"] = fmt.Sprintf("${{ %s.model_not_supported_error || 'false' }}", stepRef)
 			compilerMainJobLog.Printf("Added model_not_supported_error output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
+
+			outputs["http_400_response_error"] = fmt.Sprintf("${{ %s.http_400_response_error || 'false' }}", stepRef)
+			compilerMainJobLog.Printf("Added http_400_response_error output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
 		}
 	}
 

@@ -411,7 +411,7 @@ func formatJSONSchemaValidationWithLocation(
 		detailLines = append(detailLines, formatSchemaFailureDetail(pathInfo, schemaJSON, ctx.frontmatterContent, ctx.frontmatterStart))
 	}
 
-	location := LocateJSONPathInYAMLWithAdditionalProperties(ctx.frontmatterContent, jsonPaths[0].Path, jsonPaths[0].Message)
+	location := LocateJSONPathForPathInfo(ctx.frontmatterContent, jsonPaths[0])
 	if !location.Found {
 		return nil
 	}
@@ -487,7 +487,7 @@ func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterCon
 		path = "/"
 	}
 
-	location := LocateJSONPathInYAMLWithAdditionalProperties(frontmatterContent, pathInfo.Path, pathInfo.Message)
+	location := LocateJSONPathForPathInfo(frontmatterContent, pathInfo)
 	line := frontmatterStart
 	column := 1
 	if location.Found {

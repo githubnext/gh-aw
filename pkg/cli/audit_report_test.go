@@ -686,8 +686,30 @@ func TestBuildAuditDataComplete(t *testing.T) {
 			LogsPath:     tmpDir,
 		},
 		JobDetails: []JobInfoWithDuration{
-			{JobInfo: JobInfo{Name: "build", Status: "completed", Conclusion: "success"}, Duration: 2 * time.Minute},
-			{JobInfo: JobInfo{Name: "test", Status: "completed", Conclusion: "failure"}, Duration: 5 * time.Minute},
+			{
+				JobInfo: JobInfo{
+					Name:       "build",
+					Status:     "completed",
+					Conclusion: "success",
+					Steps: []JobStep{
+						{Name: "Set up job", Status: "completed", Conclusion: "success"},
+						{Name: "Compile", Status: "completed", Conclusion: "success"},
+					},
+				},
+				Duration: 2 * time.Minute,
+			},
+			{
+				JobInfo: JobInfo{
+					Name:       "test",
+					Status:     "completed",
+					Conclusion: "failure",
+					Steps: []JobStep{
+						{Name: "Set up job", Status: "completed", Conclusion: "success"},
+						{Name: "Run tests", Status: "completed", Conclusion: "failure"},
+					},
+				},
+				Duration: 5 * time.Minute,
+			},
 		},
 		MissingTools: []MissingToolReport{
 			{Tool: "special_tool", Reason: "Not configured"},
@@ -752,6 +774,12 @@ func TestBuildAuditDataComplete(t *testing.T) {
 	t.Run("Jobs", func(t *testing.T) {
 		assert.Len(t, auditData.Jobs, 2,
 			"Should have 2 jobs")
+		assert.Len(t, auditData.Jobs[1].Steps, 2,
+			"Should preserve step details for each job")
+		assert.Equal(t, "Run tests", auditData.Jobs[1].Steps[1].Name,
+			"Should preserve step names")
+		assert.Equal(t, "failure", auditData.Jobs[1].Steps[1].Conclusion,
+			"Should preserve step conclusions")
 	})
 
 	// Verify tool usage
@@ -895,7 +923,16 @@ func TestRenderJSONComplete(t *testing.T) {
 			{Priority: "low", Action: "Monitor", Reason: "Test reason"},
 		},
 		Jobs: []JobData{
-			{Name: "test-job", Status: "completed", Conclusion: "success", Duration: "1m30s"},
+			{
+				Name:       "test-job",
+				Status:     "completed",
+				Conclusion: "success",
+				Duration:   "1m30s",
+				Steps: []JobStepData{
+					{Name: "Set up job", Status: "completed", Conclusion: "success"},
+					{Name: "Run agent", Status: "completed", Conclusion: "success"},
+				},
+			},
 		},
 		DownloadedFiles: []FileInfo{
 			{Path: "test.log", Size: 1024, Description: "Test log"},
@@ -943,6 +980,10 @@ func TestRenderJSONComplete(t *testing.T) {
 		"Recommendations should be preserved in JSON")
 	assert.Len(t, parsed.Jobs, 1,
 		"Jobs should be preserved in JSON")
+	assert.Len(t, parsed.Jobs[0].Steps, 2,
+		"Job steps should be preserved in JSON")
+	assert.Equal(t, "Run agent", parsed.Jobs[0].Steps[1].Name,
+		"Job step names should be preserved in JSON")
 	assert.Len(t, parsed.Errors, 1,
 		"Errors should be preserved in JSON")
 	assert.Len(t, parsed.Warnings, 2,

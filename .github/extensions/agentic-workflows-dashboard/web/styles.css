@@ -19,6 +19,24 @@
 
 .awd-command-output {
   white-space: pre-wrap;
-  max-height: 180px;
+  max-height: 260px;
   overflow: auto;
+}
+
+.awd-usage-header,
+.awd-usage-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) repeat(5, minmax(88px, 1fr)) minmax(140px, 1.2fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.awd-usage-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fgColor-muted, #656d76);
+  background: var(--bgColor-muted, #f6f8fa);
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }

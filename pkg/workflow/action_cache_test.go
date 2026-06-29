@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
@@ -539,9 +540,9 @@ func TestIsMorePreciseVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isMorePreciseVersion(tt.v1, tt.v2)
+			result := semverutil.IsMorePreciseVersion(tt.v1, tt.v2)
 			if result != tt.expected {
-				t.Errorf("isMorePreciseVersion(%q, %q) = %v, want %v", tt.v1, tt.v2, result, tt.expected)
+				t.Errorf("semverutil.IsMorePreciseVersion(%q, %q) = %v, want %v", tt.v1, tt.v2, result, tt.expected)
 			}
 		})
 	}

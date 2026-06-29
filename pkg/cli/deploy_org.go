@@ -7,12 +7,16 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var deployOrgLog = logger.New("cli:deploy_org")
 
 var searchOrgDeployReposFn = searchOrgLockWorkflowRepos
 var runDeployForTargetRepoFn = runDeploy
 
 func runDeployForOrg(ctx context.Context, org string, repoGlobs []string, workflows []string, addOpts AddOptions, coolDown time.Duration, yes bool, verbose bool) error {
+	deployOrgLog.Printf("Running org deploy: org=%s, globs=%d, workflows=%d, coolDown=%s", org, len(repoGlobs), len(workflows), coolDown)
 	const createPR = true
 	const createIssue = false
 	return runCommandForOrg(ctx, org, repoGlobs, orgRunCallbacks{
@@ -32,6 +36,7 @@ func runDeployForOrg(ctx context.Context, org string, repoGlobs []string, workfl
 }
 
 func renderOrgDeployReport(results []orgRepoPreview, applying bool) {
+	deployOrgLog.Printf("Rendering deploy report: repos=%d, applying=%v", len(results), applying)
 	if applying {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Repositories selected for deploy (%d):", len(results))))
 	} else {

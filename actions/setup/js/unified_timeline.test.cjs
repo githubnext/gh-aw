@@ -174,6 +174,14 @@ describe("sourceLabel", () => {
   ])("maps %s → %s", (source, expected) => {
     expect(sourceLabel(source)).toBe(expected);
   });
+
+  it("returns first two chars uppercased for unknown sources longer than 1 char", () => {
+    expect(sourceLabel("custom-source")).toBe("CU");
+  });
+
+  it("returns uppercased single char for 1-char unknown sources", () => {
+    expect(sourceLabel("x")).toBe("X");
+  });
 });
 
 describe("eventIcon", () => {
@@ -183,6 +191,10 @@ describe("eventIcon", () => {
     const icon = eventIcon(kind);
     expect(icon).not.toBe("·");
     expect(icon.length).toBeGreaterThan(0);
+  });
+
+  it("returns default dot for unknown kind", () => {
+    expect(eventIcon("unknown_kind")).toBe("·");
   });
 });
 
@@ -198,6 +210,10 @@ describe("kindLabel", () => {
     [KIND_AGENT_TOOL_DONE, "tool_done"],
   ])("maps %s → %s", (kind, expected) => {
     expect(kindLabel(kind)).toBe(expected);
+  });
+
+  it("returns the kind string unchanged for unknown kinds", () => {
+    expect(kindLabel("custom_event")).toBe("custom_event");
   });
 });
 
@@ -288,6 +304,54 @@ describe("collectGatewayEvents", () => {
     const events = collectGatewayEvents({ gatewayJsonlPath: gwPath, rpcMessagesPath: "/nonexistent" });
     expect(events).toHaveLength(1);
     expect(events[0].detail).toContain("t2");
+  });
+
+  it("produces error status when entry has error field", () => {
+    const gwPath = path.join(tmpDir, "gateway.jsonl");
+    writeJsonl(gwPath, [
+      {
+        timestamp: "2024-01-15T10:00:02Z",
+        event: "tool_call",
+        server_name: "srv",
+        tool_name: "failing_tool",
+        error: "timeout",
+      },
+    ]);
+    const events = collectGatewayEvents({ gatewayJsonlPath: gwPath, rpcMessagesPath: "/nonexistent" });
+    expect(events).toHaveLength(1);
+    expect(events[0].status).toBe("error");
+  });
+
+  it("parses DIFC_FILTERED events from rpc-messages.jsonl", () => {
+    const rpcPath = path.join(tmpDir, "rpc-messages.jsonl");
+    writeJsonl(rpcPath, [
+      {
+        timestamp: "2024-01-15T10:00:01Z",
+        type: "DIFC_FILTERED",
+        server_id: "rpc-srv",
+        tool_name: "secret_tool",
+        reason: "secrecy",
+      },
+    ]);
+    const events = collectGatewayEvents({ gatewayJsonlPath: "/nonexistent", rpcMessagesPath: rpcPath });
+    expect(events).toHaveLength(1);
+    expect(events[0].kind).toBe(KIND_DIFC_FILTERED);
+    expect(events[0].detail).toContain("rpc-srv/secret_tool");
+    expect(events[0].status).toBe("secrecy");
+  });
+
+  it("parses gateway rpc_call without server name", () => {
+    const gwPath = path.join(tmpDir, "gateway.jsonl");
+    writeJsonl(gwPath, [
+      {
+        timestamp: "2024-01-15T10:00:02Z",
+        event: "rpc_call",
+        tool_name: "standalone_tool",
+      },
+    ]);
+    const events = collectGatewayEvents({ gatewayJsonlPath: gwPath, rpcMessagesPath: "/nonexistent" });
+    expect(events).toHaveLength(1);
+    expect(events[0].detail).toBe("standalone_tool");
   });
 });
 
@@ -476,6 +540,21 @@ describe("collectAgentEvents", () => {
     const events = collectAgentEvents({ logDir: tmpDir });
     expect(events).toHaveLength(1);
   });
+
+  it("uses tool name only when mcpServerName is absent", () => {
+    const eventsPath = path.join(tmpDir, "events.jsonl");
+    writeJsonl(eventsPath, [
+      {
+        type: "tool.execution_start",
+        id: "t1",
+        timestamp: "2024-01-15T10:00:02Z",
+        data: { toolName: "standalone_tool" },
+      },
+    ]);
+    const events = collectAgentEvents({ eventsJsonlPath: eventsPath });
+    expect(events).toHaveLength(1);
+    expect(events[0].detail).toBe("standalone_tool");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -583,6 +662,13 @@ describe("buildUnifiedTimelineMarkdown", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).not.toContain("srv|tool");
     expect(rows[0]).toContain("&#124;");
+  });
+
+  it("counts gateway tool_calls in stats line", () => {
+    const events = [{ source: SOURCE_GATEWAY, kind: KIND_TOOL_CALL, time: new Date("2024-01-15T10:00:02Z"), detail: "srv/tool", status: "success" }];
+    const md = buildUnifiedTimelineMarkdown(events);
+    expect(md).toContain("tool_calls=1");
+    expect(md).toContain("difc_filtered=0");
   });
 });
 

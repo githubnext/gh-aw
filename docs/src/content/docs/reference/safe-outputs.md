@@ -80,7 +80,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 |--------|-----|-------------|
 | [Dispatch Workflow](#workflow-dispatch-dispatch-workflow) | `dispatch-workflow` | Trigger other workflows with inputs (max: 3, same-repo only) |
 | [Call Workflow](#workflow-call-call-workflow) | `call-workflow` | Call reusable workflows via compile-time fan-out (max: 1, same-repo only) |
-| [Dispatch Repository Event](#repository-dispatch-dispatch_repository) | `dispatch_repository` | Trigger `repository_dispatch` events in external repositories, experimental (cross-repo) |
+| [Dispatch Repository Event](#repository-dispatch-dispatch-repository) | `dispatch-repository` | Trigger `repository_dispatch` events in external repositories, experimental (cross-repo) |
 | [Code Scanning Alerts](#code-scanning-alerts-create-code-scanning-alert) | `create-code-scanning-alert` | Generate SARIF security advisories (max: unlimited, same-repo only) |
 | [Autofix Code Scanning Alerts](#autofix-code-scanning-alerts-autofix-code-scanning-alert) | `autofix-code-scanning-alert` | Create automated fixes for code scanning alerts (max: 10, same-repo only) |
 | [Create Check Run](#check-run-creation-create-check-run) | `create-check-run` | Create GitHub Check Runs to surface analysis results in the PR checks UI (default max: 1, same-repo only) |
@@ -1340,18 +1340,18 @@ Use `call-workflow` for deterministic fan-out where actor attribution and zero A
 
 **Security**: Same-repo only; only allowlisted workflows can be called; compile-time validation catches misconfiguration early.
 
-### Repository Dispatch (`dispatch_repository`)
+### Repository Dispatch (`dispatch-repository`)
 
 > [!CAUTION]
-> This is an experimental feature. Compiling a workflow with `dispatch_repository` emits a warning: `Using experimental feature: dispatch_repository`. The API may change in future releases.
+> This is an experimental feature. Compiling a workflow with `dispatch-repository` emits a warning: `Using experimental feature: dispatch-repository`. The API may change in future releases.
 
-Triggers [`repository_dispatch`](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#repository_dispatch) events in external repositories. Unlike `dispatch-workflow` (same-repo only), `dispatch_repository` is designed for cross-repository orchestration.
+Triggers [`repository_dispatch`](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#repository_dispatch) events in external repositories. Unlike `dispatch-workflow` (same-repo only), `dispatch-repository` is designed for cross-repository orchestration.
 
-Each key under `dispatch_repository:` defines a named tool exposed to the agent:
+Each key under `dispatch-repository:` defines a named tool exposed to the agent:
 
 ```yaml wrap
 safe-outputs:
-  dispatch_repository:
+  dispatch-repository:
     trigger_ci:
       description: Trigger CI in another repository
       workflow: ci.yml

@@ -36,7 +36,7 @@ func GetIntFromEnv(envVar string, defaultValue, minValue, maxValue int, debugLog
 		}
 	}
 
-	envValue := os.Getenv(envVar)
+	envValue := os.Getenv(envVar) //nolint:osgetenvlibrary
 	if envValue == "" {
 		return defaultValue
 	}

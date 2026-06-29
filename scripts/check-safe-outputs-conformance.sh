@@ -4,7 +4,7 @@ set +o histexpand
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/specs/safe-outputs-specification.md
-# Spec Version: 1.23.0 (2026-06-10)
+# Spec Version: 1.24.0 (2026-06-13)
 # Script Version: 1.25.0 (2026-06-22)
 
 set -euo pipefail
@@ -1608,6 +1608,99 @@ check_add_comment_discussions_optin() {
     fi
 }
 check_add_comment_discussions_optin
+
+# TYPE-010: Wildcard Target Requirements Validation (Section 7.0.1)
+echo "Running TYPE-010: Wildcard Target Requirements Validation..."
+check_wildcard_target_requirements() {
+    local gateway_handler="actions/setup/js/safe_outputs_handlers.cjs"
+    local tools_json="pkg/workflow/js/safe_outputs_tools.json"
+    local failed=0
+
+    # Per spec Section 7.0.1: When a safe-output type is configured with target: "*",
+    # the MCP gateway MUST validate requests against x-safe-outputs-target-requirements["*"]
+    # before recording or executing intent. If no anyOf field is present, the request
+    # MUST be rejected with an MCP validation error.
+
+    if [ ! -f "$gateway_handler" ]; then
+        log_high "TYPE-010: MCP gateway handler missing: $gateway_handler"
+        return
+    fi
+
+    # Check that validateWildcardTargetRequirement function is defined in the gateway
+    if ! grep -q "validateWildcardTargetRequirement" "$gateway_handler"; then
+        log_critical "TYPE-010: Gateway handler missing wildcard target requirements validation function (Section 7.0.1)"
+        failed=1
+    fi
+
+    # Check that the validation error is returned early before recording the operation
+    if ! grep -A 3 "validateWildcardTargetRequirement" "$gateway_handler" | grep -q "return wildcardTargetValidationError"; then
+        log_critical "TYPE-010: Wildcard target validation error is not returned early before recording (Section 7.0.1)"
+        failed=1
+    fi
+
+    # Check that at least some tools declare x-safe-outputs-target-requirements in the tools JSON
+    if [ -f "$tools_json" ]; then
+        if ! grep -q '"x-safe-outputs-target-requirements"' "$tools_json"; then
+            log_high "TYPE-010: No tools define x-safe-outputs-target-requirements in $tools_json (Section 7.0.1)"
+            failed=1
+        fi
+    else
+        log_high "TYPE-010: Tool definitions file missing: $tools_json"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-010: Wildcard target requirements validation is implemented and enforced before recording (Section 7.0.1)"
+    fi
+}
+check_wildcard_target_requirements
+
+# TYPE-011: close_entity allow-body Enforcement (Section 7.3)
+echo "Running TYPE-011: close_entity allow-body Enforcement..."
+check_close_entity_allow_body() {
+    local helpers_file="actions/setup/js/close_entity_helpers.cjs"
+    local go_tools_gen="pkg/workflow/safe_outputs_tools_generation.go"
+    local failed=0
+
+    # Per spec Section 7.3 (close_issue, close_discussion): When allow-body: false is configured:
+    # 1. The handler MUST NOT post a closing comment; any body SHALL be discarded.
+    # 2. The implementation MUST log a warning if a non-empty body value was discarded.
+    # 3. The body field MUST be removed from the inputSchema required array at compile time.
+    # 4. The tool description MUST be amended with the constraint "Closing comments are disabled".
+
+    if [ ! -f "$helpers_file" ]; then
+        log_high "TYPE-011: Close entity helpers file missing: $helpers_file"
+        failed=1
+    else
+        # Check allow-body guard exists (requirement 1: handler MUST NOT post comment)
+        if ! grep -qE "allow_body|allowBody" "$helpers_file"; then
+            log_high "TYPE-011: Close entity helpers missing allow-body enforcement (Section 7.3 requirement 1)"
+            failed=1
+        fi
+
+        # Check warning is logged when non-empty body is discarded (requirement 2: MUST log warning)
+        if ! grep -qE "core\.warning.*allow-body|allow-body.*warning" "$helpers_file"; then
+            log_high "TYPE-011: Close entity helpers missing warning log for discarded body (Section 7.3 requirement 2)"
+            failed=1
+        fi
+    fi
+
+    # Check compile-time removal of body from required array (requirement 3)
+    if [ -f "$go_tools_gen" ]; then
+        if ! grep -q "computeRequiredFieldRemovals" "$go_tools_gen"; then
+            log_high "TYPE-011: Go tools generation missing computeRequiredFieldRemovals for allow-body: false (Section 7.3 requirement 3)"
+            failed=1
+        fi
+    else
+        log_medium "TYPE-011: Go tools generation file missing: $go_tools_gen"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-011: close_entity allow-body: false discards body with warning and removes field from schema (Section 7.3)"
+    fi
+}
+check_close_entity_allow_body
 
 # Summary
 echo ""

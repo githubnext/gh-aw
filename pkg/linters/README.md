@@ -19,11 +19,13 @@ This package currently provides custom Go analyzers in the following subpackages
 - `fprintlnsprintf` — reports `fmt.Fprintln(..., fmt.Sprintf(...))` patterns and recommends direct formatting calls.
 - `hardcodedfilepath` — reports hard-coded file path string literals that match known path constants or should be extracted into named constants; also annotates paths that appear in log/print calls.
 - `httpnoctx` — reports HTTP client and package-level HTTP calls that do not accept a `context.Context`.
+- `httpstatuscode` — reports raw HTTP status-code integer literals that should use `net/http` named constants.
 - `jsonmarshalignoredeerror` — reports `json.Marshal` and `json.Unmarshal` calls where the error return is discarded.
 - `largefunc` — reports function bodies that exceed a configurable line-count threshold.
 - `lenstringsplit` — reports `len(strings.Split(s, sep))` expressions with a non-empty separator that should use `strings.Count(s, sep)+1` to avoid an intermediate slice allocation.
 - `lenstringzero` — reports `len(s) == 0` / `len(s) != 0` comparisons on string values that should use `s == ""` / `s != ""`.
 - `manualmutexunlock` — reports non-deferred mutex `Unlock()` calls that can lead to deadlocks on early returns or panics.
+- `osgetenvlibrary` — reports `os.Getenv` calls in library packages (`pkg/*`) where environment access should be injected.
 - `osexitinlibrary` — reports `os.Exit` calls in library packages (`pkg/*`) where process termination should be delegated to `cmd/*` entry points.
 - `ossetenvlibrary` — reports `os.Setenv` calls in library packages (`pkg/*`) where side effects should be isolated.
 - `panic-in-library-code` — reports `panic()` calls in library packages (`pkg/*`) where errors should be returned instead.
@@ -62,11 +64,13 @@ This package currently provides custom Go analyzers in the following subpackages
 | `fprintlnsprintf` | Custom `go/analysis` analyzer that flags `fmt.Fprintln(..., fmt.Sprintf(...))` patterns |
 | `hardcodedfilepath` | Custom `go/analysis` analyzer that flags hard-coded file path string literals that match known path constants or should be extracted as named constants; annotates paths in log/print calls |
 | `httpnoctx` | Custom `go/analysis` analyzer that flags HTTP calls that do not accept a `context.Context` |
+| `httpstatuscode` | Custom `go/analysis` analyzer that flags raw HTTP status-code integer literals that should use `net/http` named constants |
 | `jsonmarshalignoredeerror` | Custom `go/analysis` analyzer that flags `json.Marshal`/`json.Unmarshal` calls where the error return is discarded |
 | `largefunc` | Custom `go/analysis` analyzer that flags large functions with actionable diagnostics |
 | `lenstringsplit` | Custom `go/analysis` analyzer that flags `len(strings.Split(s, sep))` with a non-empty separator that should use `strings.Count(s, sep)+1` |
 | `lenstringzero` | Custom `go/analysis` analyzer that flags `len(s) == 0` / `len(s) != 0` on string values that should use `s == ""` / `s != ""` |
 | `manualmutexunlock` | Custom `go/analysis` analyzer that flags mutex `Unlock()` calls that are not deferred |
+| `osgetenvlibrary` | Custom `go/analysis` analyzer that flags `os.Getenv` usage in library packages |
 | `osexitinlibrary` | Custom `go/analysis` analyzer that flags `os.Exit` usage in library packages |
 | `ossetenvlibrary` | Custom `go/analysis` analyzer that flags `os.Setenv` usage in library packages |
 | `panic-in-library-code` | Custom `go/analysis` analyzer that flags `panic()` usage in library packages |
@@ -103,9 +107,11 @@ import (
 	"github.com/github/gh-aw/pkg/linters/execcommandwithoutcontext"
 	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
+	"github.com/github/gh-aw/pkg/linters/httpstatuscode"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
+	"github.com/github/gh-aw/pkg/linters/osgetenvlibrary"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 	panicinlibrarycode "github.com/github/gh-aw/pkg/linters/panic-in-library-code"
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
@@ -122,9 +128,11 @@ _ = errstringmatch.Analyzer
 _ = execcommandwithoutcontext.Analyzer
 _ = fileclosenotdeferred.Analyzer
 _ = hardcodedfilepath.Analyzer
+_ = httpstatuscode.Analyzer
 _ = largefunc.Analyzer
 _ = lenstringzero.Analyzer
 _ = manualmutexunlock.Analyzer
+_ = osgetenvlibrary.Analyzer
 _ = osexitinlibrary.Analyzer
 _ = panicinlibrarycode.Analyzer
 _ = rawloginlib.Analyzer
@@ -146,11 +154,13 @@ _ = ssljson.Analyzer
 - `github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs` — fmt-errorf-no-verbs analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/fprintlnsprintf` — fprintln-sprintf analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/hardcodedfilepath` — hard-coded-file-path analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/httpstatuscode` — http-status-code analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror` — json-marshal-ignored-error analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/largefunc` — large-func analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/lenstringsplit` — len-strings-split analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/lenstringzero` — len-string-zero analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/manualmutexunlock` — manual-mutex-unlock analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/osgetenvlibrary` — os-getenv-library analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/osexitinlibrary` — os-exit-in-library analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/ossetenvlibrary` — os-setenv-library analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/panic-in-library-code` — panic-in-library-code analyzer subpackage

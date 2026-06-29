@@ -84,7 +84,7 @@ func fetchJobDetailsWithCounts(runID int64, verbose bool) ([]JobInfoWithDuration
 
 	output, err := workflow.RunGHCombined("Fetching job details...", "api",
 		fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID),
-		"--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion, started_at: .started_at, completed_at: .completed_at}")
+		"--jq", ".jobs[] | {name: .name, status: .status, conclusion: (.conclusion // \"\"), started_at: .started_at, completed_at: .completed_at, steps: ((.steps // []) | map({name: .name, status: .status, conclusion: (.conclusion // \"\")}))}")
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", runID, err)))
