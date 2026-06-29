@@ -43,7 +43,7 @@ func resolveForecastWorkflows(ctx context.Context, config ForecastConfig) ([]str
 	}
 
 	if len(config.WorkflowIDs) > 0 {
-		// Resolve each provided ID to a canonical lock-file workflow name.
+		// Resolve each provided ID to the workflow display name returned by FindWorkflowName.
 		resolved := make([]string, 0, len(config.WorkflowIDs))
 		for _, id := range config.WorkflowIDs {
 			name, err := workflow.FindWorkflowName(id)

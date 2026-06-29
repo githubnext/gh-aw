@@ -17,7 +17,10 @@ type ForecastRunSample struct {
 
 // ForecastWorkflowResult contains the projected metrics for a single workflow.
 type ForecastWorkflowResult struct {
-	// WorkflowID is the short identifier of the workflow (basename without .md).
+	// WorkflowID is the workflow display name with any file-extension suffix stripped
+	// (e.g. ".lock.yml", ".yml"). For most workflows the display name carries no such
+	// suffix, so WorkflowID equals the GitHub Actions workflow name as returned by
+	// workflow.FindWorkflowName or the GitHub API Name field.
 	WorkflowID string `json:"workflow_id"`
 	// WorkflowPath is the workflow file path when available (e.g. ".github/workflows/ci.yml").
 	WorkflowPath string `json:"workflow_path,omitempty"`
