@@ -57,6 +57,7 @@ When the relevant skill is not obvious, first discover candidates and then load 
 - Query helpers for issues/PRs/workflows/discussions/labels → matching `.github/skills/github-*-query/SKILL.md`
 - Doc-writing conventions → `.github/skills/documentation/SKILL.md`
 - Reviewing or writing `git`/`gh`/remote operations against checkouts (per-checkout credentials, sparse/shallow monorepos, safe-outputs MCP runs without credentials) → `.github/skills/checkout-credential-review/SKILL.md`
+- Authoring, validating, or debugging canvas extensions (loopback servers, actions, iframe rendering, state model, theme tokens) → `.github/skills/create-canvas/SKILL.md`
 
 ## Why this file is intentionally short
 

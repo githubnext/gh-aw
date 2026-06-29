@@ -1,0 +1,24 @@
+.awd-shell {
+  min-height: 100vh;
+  background: var(--bgColor-default, #ffffff);
+  padding: var(--base-size-16, 1rem);
+}
+
+.awd-scroll {
+  max-height: 55vh;
+  overflow: auto;
+}
+
+.awd-run-row {
+  cursor: pointer;
+}
+
+.awd-run-row.is-selected {
+  background: var(--bgColor-accent-muted, #ddf4ff);
+}
+
+.awd-command-output {
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow: auto;
+}
