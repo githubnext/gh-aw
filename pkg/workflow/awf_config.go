@@ -147,6 +147,11 @@ type AWFConfigFile struct {
 	// Schema is the JSON schema reference for IDE auto-complete support.
 	Schema string `json:"$schema,omitempty"`
 
+	// Runner contains runner topology metadata that AWF uses to activate
+	// topology-specific behaviors (split-filesystem handling, network isolation,
+	// tool cache redirection, sysroot image selection).
+	Runner *AWFRunnerConfig `json:"runner,omitempty"`
+
 	// Network contains network egress control configuration.
 	Network *AWFNetworkConfig `json:"network,omitempty"`
 
@@ -162,6 +167,18 @@ type AWFConfigFile struct {
 	// Chroot contains chroot execution overrides for split-filesystem ARC/DinD runners.
 	// This field is not populated at compile time; it is injected at runtime when DinD topology is detected.
 	Chroot *AWFChrootConfig `json:"chroot,omitempty"`
+}
+
+// AWFRunnerConfig is the "runner" section of the AWF config file.
+// It provides a single stable contract between gh-aw and AWF for runner topology
+// detection, letting AWF resolve all internal details (network isolation, sysroot
+// image, path-prefix probes, tool cache validation) from this signal.
+type AWFRunnerConfig struct {
+	// Topology identifies the runner execution topology.
+	// Currently supported values: "arc-dind" (ARC with Docker-in-Docker sidecar).
+	// When set to "arc-dind", AWF activates split-filesystem handling, network
+	// isolation, sysroot image staging, and DinD pre-staging automatically.
+	Topology string `json:"topology,omitempty"`
 }
 
 // AWFNetworkConfig is the "network" section of the AWF config file.
@@ -341,6 +358,12 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	awfConfig := AWFConfigFile{
 		Schema: buildAWFConfigSchemaURL(firewallConfig),
+	}
+
+	// ── Runner section ──────────────────────────────────────────────────────
+	if topology := getRunnerTopology(config.WorkflowData); topology != "" {
+		awfConfig.Runner = &AWFRunnerConfig{Topology: topology}
+		awfConfigLog.Printf("Runner section: topology=%s", topology)
 	}
 
 	// ── Network section ──────────────────────────────────────────────────────
@@ -663,4 +686,18 @@ func extractModelFallback(workflowData *WorkflowData) *AWFModelFallbackConfig {
 	return &AWFModelFallbackConfig{
 		Enabled: mf,
 	}
+}
+
+// getRunnerTopology extracts the runner topology string from WorkflowData.
+// Returns an empty string when no topology is configured.
+func getRunnerTopology(workflowData *WorkflowData) string {
+	if workflowData == nil || workflowData.RunnerConfig == nil {
+		return ""
+	}
+	return workflowData.RunnerConfig.Topology
+}
+
+// isArcDindTopology returns true when the workflow targets ARC/DinD runners.
+func isArcDindTopology(workflowData *WorkflowData) bool {
+	return getRunnerTopology(workflowData) == RunnerTopologyArcDind
 }

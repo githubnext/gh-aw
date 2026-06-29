@@ -552,6 +552,7 @@ type WorkflowData struct {
 	NeedsTextOutput                bool                            // whether the workflow uses ${{ needs.task.outputs.text }}
 	NetworkPermissions             *NetworkPermissions             // parsed network permissions
 	SandboxConfig                  *SandboxConfig                  // parsed sandbox configuration (AWF or SRT)
+	RunnerConfig                   *RunnerConfig                   // parsed runner topology configuration (e.g., arc-dind)
 	SafeOutputs                    *SafeOutputsConfig              // output configuration for automatic output routes
 	MCPScripts                     *MCPScriptsConfig               // mcp-scripts configuration for custom MCP tools
 	LabelNames                     []string                        // label names that must match for pull_request_target labeled events (on.labels)

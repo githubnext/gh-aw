@@ -243,6 +243,15 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	yaml.WriteString("      - name: Create gh-aw temp directory\n")
 	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh\"\n")
 
+	// Redirect tool cache for ARC/DinD runners.
+	// On ARC, the standard RUNNER_TOOL_CACHE=/opt/hostedtoolcache is invisible to the DinD
+	// daemon's filesystem. Redirecting to /tmp/gh-aw/tool-cache (a shared emptyDir volume)
+	// ensures setup-* actions install to a path visible to both runner and DinD containers.
+	if isArcDindTopology(data) {
+		yaml.WriteString("      - name: Redirect tool cache for ARC/DinD\n")
+		yaml.WriteString("        run: echo \"RUNNER_TOOL_CACHE=/tmp/gh-aw/tool-cache\" >> \"$GITHUB_ENV\"\n")
+	}
+
 	// Configure gh CLI for GitHub Enterprise hosts (*.ghe.com / GHES).
 	// This step runs configure_gh_for_ghe.sh which:
 	//   1. Detects the GitHub host from GITHUB_SERVER_URL

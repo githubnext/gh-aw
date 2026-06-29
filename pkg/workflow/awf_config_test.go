@@ -127,6 +127,43 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"topologyAttach":["awmg-mcpg"]`, "should attach MCP gateway container to awf-net")
 	})
 
+	t.Run("runner topology arc-dind emits runner section", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
+
+		assert.Contains(t, jsonStr, `"runner":{"topology":"arc-dind"}`, "should emit runner topology")
+	})
+
+	t.Run("runner section omitted when no topology set", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
+
+		assert.NotContains(t, jsonStr, `"runner"`, "should not emit runner section when not configured")
+	})
+
 	t.Run("openai API target is included in apiProxy targets", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "codex",
