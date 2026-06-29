@@ -322,6 +322,36 @@ async function fetchAWFReflect(options) {
 }
 
 /**
+ * Returns true when the model name matches well-known Anthropic naming patterns:
+ * "claude-*" prefix, or "-opus", "-haiku", or "-sonnet" as a segment or suffix.
+ *
+ * @param {string} model - Lower-cased, trimmed model name.
+ * @returns {boolean}
+ */
+function isAnthropicModelName(model) {
+  return (
+    model.startsWith("claude-") ||
+    model.includes("-opus-") ||
+    model.endsWith("-opus") ||
+    model.includes("-haiku-") ||
+    model.endsWith("-haiku") ||
+    model.includes("-sonnet-") ||
+    model.endsWith("-sonnet")
+  );
+}
+
+/**
+ * Returns true when the model name matches well-known OpenAI naming patterns:
+ * "gpt-*" prefix, or o1/o3/o4 reasoning models.
+ *
+ * @param {string} model - Lower-cased, trimmed model name.
+ * @returns {boolean}
+ */
+function isOpenAIModelName(model) {
+  return model.startsWith("gpt-") || /^o[134][-.]/.test(model) || model === "o1" || model === "o3" || model === "o4";
+}
+
+/**
  * Infer the Copilot SDK provider type for a given endpoint provider name and model name.
  *
  * The SDK's `ProviderConfig.type` field determines which API format the SDK uses when
@@ -379,14 +409,8 @@ function inferProviderTypeForModel(endpointProvider, modelName, modelsJson) {
 
   // 3. Well-known model name heuristics.
   if (model) {
-    // Anthropic patterns: claude-*, or names containing -opus-, -haiku-, -sonnet- segments.
-    if (model.startsWith("claude-") || model.includes("-opus-") || model.endsWith("-opus") || model.includes("-haiku-") || model.endsWith("-haiku") || model.includes("-sonnet-") || model.endsWith("-sonnet")) {
-      return "anthropic";
-    }
-    // OpenAI patterns: gpt-*, o1*, o3*, o4*.
-    if (model.startsWith("gpt-") || /^o[134][-.]/.test(model) || model === "o1" || model === "o3" || model === "o4") {
-      return "openai";
-    }
+    if (isAnthropicModelName(model)) return "anthropic";
+    if (isOpenAIModelName(model)) return "openai";
   }
 
   // 4. Default.
