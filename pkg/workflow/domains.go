@@ -179,6 +179,14 @@ var PiDefaultDomains = []string{
 	"registry.npmjs.org",
 }
 
+// AuggieDefaultDomains are the default domains required for the Auggie CLI.
+var AuggieDefaultDomains = []string{
+	"*.augmentcode.com",
+	"api.augmentcode.com",
+	"auth.augmentcode.com",
+	"d3.augmentcode.com",
+}
+
 // CrushBaseDefaultDomains are the default domains required for Crush CLI operation.
 // Crush is BYOK (any provider), so provider-specific domains are added dynamically
 // based on the model prefix via GetDefaultDomainsForEngine.
@@ -751,6 +759,7 @@ var engineDefaultDomains = map[constants.EngineName][]string{
 	constants.CodexEngine:       CodexDefaultDomains,
 	constants.GeminiEngine:      GeminiDefaultDomains,
 	constants.AntigravityEngine: AntigravityDefaultDomains,
+	constants.AuggieEngine:      AuggieDefaultDomains,
 }
 
 // GetDefaultDomainsForEngine returns the engine's default required domains.

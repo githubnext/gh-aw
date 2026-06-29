@@ -486,6 +486,7 @@ func NewEngineRegistry() *EngineRegistry {
 		NewOpenCodeEngine(),
 		NewCrushEngine(),
 		NewPiEngine(),
+		NewAuggieEngine(),
 	}
 	for _, engine := range builtins {
 		if err := registry.Register(engine); err != nil {

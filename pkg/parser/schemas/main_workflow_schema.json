@@ -3763,6 +3763,7 @@
         "copilot",
         "claude",
         "codex",
+        "auggie",
         {
           "id": "copilot",
           "version": "beta"
@@ -11836,7 +11837,7 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog entry"
+          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi', 'auggie') or a named catalog entry"
         },
         {
           "type": "object",
@@ -11844,7 +11845,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog entry"
+              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi', 'auggie') or a named catalog entry"
             },
             "version": {
               "type": ["string", "number"],
@@ -12098,8 +12099,8 @@
               "properties": {
                 "id": {
                   "type": "string",
-                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'opencode', 'crush', 'pi')",
-                  "examples": ["codex", "claude", "copilot", "gemini", "opencode", "crush", "pi"]
+                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'opencode', 'crush', 'pi', 'auggie')",
+                  "examples": ["codex", "claude", "copilot", "gemini", "opencode", "crush", "pi", "auggie"]
                 },
                 "version": {
                   "type": ["string", "number"],

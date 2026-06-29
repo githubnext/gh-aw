@@ -59,6 +59,9 @@ const DefaultCrushVersion Version = "0.59.0"
 // DefaultPiVersion is the default version of the Pi CLI
 const DefaultPiVersion Version = "0.80.2"
 
+// DefaultAuggieVersion is the default version of the Auggie CLI
+const DefaultAuggieVersion Version = "0.29.0"
+
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "1.2.14"
 

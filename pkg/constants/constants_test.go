@@ -101,7 +101,7 @@ func TestAgenticEngines(t *testing.T) {
 		t.Error("AgenticEngines should not be empty")
 	}
 
-	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
+	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi", "auggie"}
 	if len(AgenticEngines) != len(expectedEngines) {
 		t.Errorf("AgenticEngines length = %d, want %d", len(AgenticEngines), len(expectedEngines))
 	}
@@ -127,6 +127,28 @@ func TestAgenticEngines(t *testing.T) {
 	}
 	if DefaultEngine != CopilotEngine {
 		t.Errorf("DefaultEngine = %q, want CopilotEngine (%q)", DefaultEngine, CopilotEngine)
+	}
+}
+
+func TestAuggieEngineOption(t *testing.T) {
+	opt := GetEngineOption(string(AuggieEngine))
+	if opt == nil {
+		t.Fatalf("GetEngineOption(%q) returned nil", AuggieEngine)
+	}
+	if opt.Label != "Auggie" {
+		t.Errorf("Auggie option label = %q, want %q", opt.Label, "Auggie")
+	}
+	if opt.Description != "Augment Code Auggie CLI (experimental)" {
+		t.Errorf("Auggie option description = %q", opt.Description)
+	}
+	if opt.SecretName != AuggieSessionAuthEnvVar {
+		t.Errorf("Auggie option secret = %q, want %q", opt.SecretName, AuggieSessionAuthEnvVar)
+	}
+	if opt.KeyURL != "https://docs.augmentcode.com/cli/overview" {
+		t.Errorf("Auggie option key URL = %q", opt.KeyURL)
+	}
+	if opt.WhenNeeded != "Auggie engine workflows" {
+		t.Errorf("Auggie option when-needed = %q", opt.WhenNeeded)
 	}
 }
 

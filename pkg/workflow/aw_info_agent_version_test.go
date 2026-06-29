@@ -73,6 +73,13 @@ func TestAgentVersionInAwInfo(t *testing.T) {
 			expectedAgentVersion: string(constants.DefaultPiVersion),
 			description:          "Should use default version when not provided",
 		},
+		{
+			name:                 "Auggie with default version",
+			engineID:             "auggie",
+			explicitVersion:      "",
+			expectedAgentVersion: string(constants.DefaultAuggieVersion),
+			description:          "Should use default Auggie version when not provided",
+		},
 	}
 
 	for _, tt := range tests {
@@ -177,6 +184,12 @@ func TestGetInstallationVersion(t *testing.T) {
 			engineID:        "pi",
 			explicitVersion: "",
 			expectedVersion: string(constants.DefaultPiVersion),
+		},
+		{
+			name:            "Auggie without explicit version",
+			engineID:        "auggie",
+			explicitVersion: "",
+			expectedVersion: string(constants.DefaultAuggieVersion),
 		},
 	}
 

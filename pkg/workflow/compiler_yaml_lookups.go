@@ -45,6 +45,8 @@ func getVersionForSetup(data *WorkflowData) string {
 		return string(constants.DefaultCrushVersion)
 	case string(constants.PiEngine):
 		return string(constants.DefaultPiVersion)
+	case string(constants.AuggieEngine):
+		return string(constants.DefaultAuggieVersion)
 	default:
 		return ""
 	}
@@ -93,6 +95,8 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 		return string(constants.DefaultCrushVersion)
 	case string(constants.PiEngine):
 		return string(constants.DefaultPiVersion)
+	case string(constants.AuggieEngine):
+		return string(constants.DefaultAuggieVersion)
 	default:
 		// Custom or unknown engines don't have a default version
 		compilerYamlLookupsLog.Printf("No default version for custom engine: %s", engineID)
@@ -109,7 +113,7 @@ func getDefaultAgentModel(engineID string) string {
 	switch engineID {
 	case string(constants.CopilotEngine):
 		return constants.CopilotBYOKDefaultModel
-	case string(constants.ClaudeEngine), string(constants.GeminiEngine), string(constants.OpenCodeEngine), string(constants.CrushEngine), string(constants.PiEngine):
+	case string(constants.ClaudeEngine), string(constants.GeminiEngine), string(constants.OpenCodeEngine), string(constants.CrushEngine), string(constants.PiEngine), string(constants.AuggieEngine):
 		return "agent"
 	case string(constants.CodexEngine):
 		return constants.CodexDefaultModel
@@ -178,6 +182,7 @@ func collectEngineVersionsForMetadata(data *WorkflowData) map[string]string {
 		string(constants.OpenCodeEngine):    string(constants.DefaultOpenCodeVersion),
 		string(constants.CrushEngine):       string(constants.DefaultCrushVersion),
 		string(constants.PiEngine):          string(constants.DefaultPiVersion),
+		string(constants.AuggieEngine):      string(constants.DefaultAuggieVersion),
 	}
 
 	mainEngineID := strings.TrimSpace(ResolveEngineID(data))

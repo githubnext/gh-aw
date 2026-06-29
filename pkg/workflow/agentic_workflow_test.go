@@ -100,6 +100,7 @@ func TestAgenticWorkflowsMCPConfigGeneration(t *testing.T) {
 		{"Copilot", NewCopilotEngine()},
 		{"Codex", NewCodexEngine()},
 		{"Pi", NewPiEngine()},
+		{"Auggie", NewAuggieEngine()},
 	}
 
 	for _, e := range engines {

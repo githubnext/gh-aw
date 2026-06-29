@@ -36,6 +36,8 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 		{name: "CrushEngine value", constant: constants.CrushEngine, expected: "crush"},
 		// From spec: constants.PiEngine // "pi" (experimental)
 		{name: "PiEngine value", constant: constants.PiEngine, expected: "pi"},
+		// From spec: constants.AuggieEngine // "auggie" (experimental)
+		{name: "AuggieEngine value", constant: constants.AuggieEngine, expected: "auggie"},
 		// From spec: constants.DefaultEngine // "copilot"
 		{name: "DefaultEngine is copilot", constant: constants.DefaultEngine, expected: "copilot"},
 	}
@@ -50,13 +52,13 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 
 // TestSpec_EngineConstants_AgenticEngines validates the documented AgenticEngines list.
 // Spec section: "// All supported engine names"
-// Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
+// Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi", "auggie"}
 func TestSpec_EngineConstants_AgenticEngines(t *testing.T) {
 	engines := constants.AgenticEngines
 	require.NotEmpty(t, engines, "AgenticEngines should be non-empty")
 
-	// Spec documents all eight engines, including antigravity and pi (experimental).
-	documentedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
+	// Spec documents all built-in engines, including experimental pi and auggie.
+	documentedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi", "auggie"}
 	for _, expected := range documentedEngines {
 		assert.Contains(t, engines, expected,
 			"AgenticEngines should contain documented engine %q", expected)
@@ -454,6 +456,32 @@ func TestSpec_ModelEnvVars_Pi(t *testing.T) {
 				"Pi engine env var %s should have documented value %q", tt.name, tt.expected)
 		})
 	}
+}
+
+// TestSpec_ModelEnvVars_Auggie validates the documented model env var constants
+// for the Auggie engine (experimental).
+func TestSpec_ModelEnvVars_Auggie(t *testing.T) {
+	tests := []struct {
+		name     string
+		actual   string
+		expected string
+	}{
+		{name: "EnvVarModelAgentAuggie", actual: constants.EnvVarModelAgentAuggie, expected: "GH_AW_MODEL_AGENT_AUGGIE"},
+		{name: "EnvVarModelDetectionAuggie", actual: constants.EnvVarModelDetectionAuggie, expected: "GH_AW_MODEL_DETECTION_AUGGIE"},
+		{name: "AuggieSessionAuthEnvVar", actual: constants.AuggieSessionAuthEnvVar, expected: "AUGMENT_SESSION_AUTH"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.actual,
+				"Auggie engine constant %s should have documented value %q", tt.name, tt.expected)
+		})
+	}
+}
+
+func TestSpec_VersionConstants_DefaultAuggieVersion(t *testing.T) {
+	assert.Equal(t, "0.29.0", constants.DefaultAuggieVersion.String(),
+		"DefaultAuggieVersion should match the documented pinned Auggie version")
 }
 
 // TestSpec_VersionConstants_DefaultPiVersion validates that the documented Pi CLI

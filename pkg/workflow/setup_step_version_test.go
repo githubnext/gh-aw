@@ -54,6 +54,13 @@ func TestGetVersionForSetup(t *testing.T) {
 			expectedVersion: string(constants.DefaultCodexVersion),
 		},
 		{
+			name: "auggie engine uses default version",
+			data: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "auggie"},
+			},
+			expectedVersion: string(constants.DefaultAuggieVersion),
+		},
+		{
 			name: "AI field used when EngineConfig.ID is empty",
 			data: &WorkflowData{
 				AI: "copilot",
