@@ -245,7 +245,7 @@ function buildUsageSummary(runs, window) {
   const usageByWorkflow = new Map();
   const effectiveDays = Number(window?.days ?? 0);
   if (!Number.isFinite(effectiveDays) || effectiveDays <= 0) {
-    throw new Error("Report window is missing a valid positive day count.");
+    throw new Error(`Report window '${window?.id ?? "unknown"}' is missing a valid positive day count.`);
   }
 
   for (const run of runs) {
@@ -314,7 +314,7 @@ function parseGhAwArgs(raw) {
 }
 
 function hasFlag(args, longFlag, shortFlag = "") {
-  return args.some((arg, index) => {
+  return args.some(arg => {
     if (arg.startsWith(`${longFlag}=`)) {
       return true;
     }
