@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en" data-color-mode="auto" data-light-theme="light" data-dark-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agentic Workflows Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/@primer/css@21/dist/primer.css" />
+    <style>
+      /*__APP_CSS__*/
+    </style>
+  </head>
+  <body class="color-bg-default color-fg-default">
+    <div class="awd-shell" x-data="dashboardApp" x-init="init()">
+      <header class="border-bottom color-bg-subtle px-4 py-3">
+        <div class="d-flex flex-wrap flex-items-center flex-justify-between gap-2">
+          <div>
+            <div class="h4 mb-1">github / gh-aw</div>
+            <div class="color-fg-muted text-small">Agentic workflows canvas dashboard</div>
+          </div>
+          <div class="d-flex gap-2 flex-items-center">
+            <span class="Label Label--accent">Copilot Canvas</span>
+            <button class="btn btn-sm" @click="refresh()">↻ Refresh</button>
+          </div>
+        </div>
+        <nav class="UnderlineNav mt-3" aria-label="Repository">
+          <div class="UnderlineNav-body">
+            <template x-for="tab in tabs" :key="tab.id">
+              <button type="button" class="UnderlineNav-item" :class="isActiveTab(tab.id) ? 'selected' : ''" @click="setActiveTab(tab.id)">
+                <span x-text="tab.label"></span>
+                <span class="Counter" x-show="tab.counter" x-text="tabCount(tab)"></span>
+              </button>
+            </template>
+          </div>
+        </nav>
+      </header>
+
+      <main class="px-4 py-3">
+        <div class="flash mt-2" :class="flashKind === 'error' ? 'flash-error' : (flashKind === 'warn' ? 'flash-warn' : 'flash-success')" x-show="flashMessage" x-text="flashMessage"></div>
+
+        <!-- Definitions tab -->
+        <section class="mt-3" x-show="isActiveTab('definitions')">
+          <div class="Box">
+            <div class="Box-header d-flex flex-items-center flex-justify-between">
+              <h2 class="Box-title">Workflow definitions <span class="Counter" x-text="definitionsPaged.totalItems"></span></h2>
+            </div>
+            <!-- loading -->
+            <div class="Box-body color-fg-muted text-center py-4" x-show="loadingDefinitions">
+              <span>Loading workflows…</span>
+            </div>
+            <!-- error -->
+            <div class="Box-body flash flash-error" x-show="!loadingDefinitions && errorDefinitions" x-text="errorDefinitions"></div>
+            <!-- rows -->
+            <div class="Box-body p-0 awd-scroll" x-show="!loadingDefinitions && !errorDefinitions">
+              <template x-for="definition in definitionsPaged.items" :key="definition.workflow">
+                <div class="Box-row">
+                  <div class="d-flex flex-justify-between gap-2">
+                    <div>
+                      <div class="text-bold" x-text="definition.workflow"></div>
+                      <div class="color-fg-muted text-small mt-1">Engine: <span x-text="definition.engine_id ?? '—'"></span></div>
+                      <div class="color-fg-muted text-small" x-show="definition.labels && definition.labels.length">
+                        Labels: <span x-text="(definition.labels ?? []).join(', ')"></span>
+                      </div>
+                      <div class="color-fg-muted text-small" x-show="definition.time_remaining">
+                        Time remaining: <span x-text="definition.time_remaining"></span>
+                      </div>
+                    </div>
+                    <span :class="definitionStatusClass(definition)" x-text="definitionStatusLabel(definition)"></span>
+                  </div>
+                </div>
+              </template>
+              <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingDefinitions && definitionsPaged.totalItems === 0">
+                No workflow definitions found. Run <code>make build</code> then open this canvas again.
+              </div>
+            </div>
+            <div class="Box-footer d-flex flex-items-center flex-justify-between" x-show="!loadingDefinitions && definitionsPaged.totalPages > 1">
+              <button class="btn btn-sm" :disabled="!definitionsPaged.hasPreviousPage" @click="loadDefinitionPage(definitionsPaged.page - 1)">Previous</button>
+              <span class="color-fg-muted text-small">Page <span x-text="definitionsPaged.page"></span> / <span x-text="definitionsPaged.totalPages"></span></span>
+              <button class="btn btn-sm" :disabled="!definitionsPaged.hasNextPage" @click="loadDefinitionPage(definitionsPaged.page + 1)">Next</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Runs tab -->
+        <section class="mt-3" x-show="isActiveTab('runs')">
+          <div class="Box">
+            <div class="Box-header d-flex flex-items-center flex-justify-between">
+              <h2 class="Box-title">Workflow runs <span class="Counter" x-text="runsPaged.totalItems"></span></h2>
+            </div>
+            <!-- loading -->
+            <div class="Box-body color-fg-muted text-center py-4" x-show="loadingRuns">
+              <span>Loading runs…</span>
+            </div>
+            <!-- error -->
+            <div class="Box-body flash flash-error" x-show="!loadingRuns && errorRuns" x-text="errorRuns"></div>
+            <!-- rows -->
+            <div class="Box-body p-0 awd-scroll" x-show="!loadingRuns && !errorRuns">
+              <template x-for="run in runsPaged.items" :key="run.run_id">
+                <div class="Box-row awd-run-row" :class="selectedRun && selectedRun.run_id === run.run_id ? 'is-selected' : ''" @click="viewRunDetails(run.run_id)">
+                  <div class="d-flex flex-justify-between flex-items-start gap-2">
+                    <div>
+                      <div class="text-bold">#<span x-text="run.run_id"></span></div>
+                      <div class="color-fg-muted text-small mt-1">Workflow: <span x-text="run.workflow_name"></span></div>
+                      <div class="color-fg-muted text-small" x-show="run.duration">Duration: <span x-text="formatDuration(run.duration)"></span></div>
+                    </div>
+                    <span :class="runStatusClass(run)" x-text="runStatusLabel(run)"></span>
+                  </div>
+                </div>
+              </template>
+              <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingRuns && runsPaged.totalItems === 0">
+                No runs found. Run <code>gh aw logs</code> to check availability.
+              </div>
+            </div>
+            <div class="Box-footer d-flex flex-items-center flex-justify-between" x-show="!loadingRuns && runsPaged.totalPages > 1">
+              <button class="btn btn-sm" :disabled="!runsPaged.hasPreviousPage" @click="loadRunPage(runsPaged.page - 1)">Previous</button>
+              <span class="color-fg-muted text-small">Page <span x-text="runsPaged.page"></span> / <span x-text="runsPaged.totalPages"></span></span>
+              <button class="btn btn-sm" :disabled="!runsPaged.hasNextPage" @click="loadRunPage(runsPaged.page + 1)">Next</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Details tab -->
+        <section class="mt-3" x-show="isActiveTab('details')">
+          <div class="Box">
+            <div class="Box-header">
+              <h2 class="Box-title">Run details</h2>
+            </div>
+            <div class="Box-body" x-show="selectedRun">
+              <div class="d-flex flex-wrap gap-2 flex-items-center mb-3">
+                <span class="text-bold">Run #<span x-text="selectedRun ? selectedRun.run_id : ''"></span></span>
+                <span x-text="selectedRun ? selectedRun.workflow_name : ''"></span>
+                <span :class="selectedRun ? runStatusClass(selectedRun) : 'Label Label--secondary'" x-text="selectedRun ? runStatusLabel(selectedRun) : 'n/a'"></span>
+              </div>
+              <div class="d-flex flex-wrap gap-3">
+                <div class="Box p-3 flex-1">
+                  <div class="text-small color-fg-muted mb-1">Duration</div>
+                  <div class="text-bold" x-text="selectedRun ? formatDuration(selectedRun.duration) : '—'"></div>
+                </div>
+                <div class="Box p-3 flex-1">
+                  <div class="text-small color-fg-muted mb-1">Tokens</div>
+                  <div class="text-bold" x-text="selectedRun ? (selectedRun.token_usage ?? '—') : '—'"></div>
+                </div>
+                <div class="Box p-3 flex-1">
+                  <div class="text-small color-fg-muted mb-1">Turns</div>
+                  <div class="text-bold" x-text="selectedRun ? (selectedRun.turns ?? '—') : '—'"></div>
+                </div>
+                <div class="Box p-3 flex-1">
+                  <div class="text-small color-fg-muted mb-1">Errors</div>
+                  <div class="text-bold" :class="selectedRun && selectedRun.error_count > 0 ? 'color-fg-danger' : ''" x-text="selectedRun ? (selectedRun.error_count ?? 0) : '—'"></div>
+                </div>
+                <div class="Box p-3 flex-1">
+                  <div class="text-small color-fg-muted mb-1">Warnings</div>
+                  <div class="text-bold" x-text="selectedRun ? (selectedRun.warning_count ?? 0) : '—'"></div>
+                </div>
+                <div class="Box p-3 flex-1">
+                  <div class="text-small color-fg-muted mb-1">Missing tools</div>
+                  <div class="text-bold" x-text="selectedRun ? (selectedRun.missing_tool_count ?? 0) : '—'"></div>
+                </div>
+              </div>
+            </div>
+            <div class="Box-body color-fg-muted" x-show="!selectedRun">Select a workflow run from the Runs tab to view details.</div>
+          </div>
+        </section>
+
+        <!-- Commands tab -->
+        <section class="mt-3" x-show="isActiveTab('commands')">
+          <div class="Box">
+            <div class="Box-header">
+              <h2 class="Box-title">Command panel</h2>
+            </div>
+            <div class="Box-body">
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                <button class="btn btn-sm" @click="commandQuickFill('gh aw status')">gh aw status</button>
+                <button class="btn btn-sm" @click="commandQuickFill('gh aw status --json')">gh aw status --json</button>
+                <button class="btn btn-sm" @click="commandQuickFill('gh aw logs -c 10')">gh aw logs -c 10</button>
+                <button class="btn btn-sm" @click="commandQuickFill('gh aw logs --json -c 5')">gh aw logs --json -c 5</button>
+                <button class="btn btn-sm" @click="commandQuickFill('gh aw compile')">gh aw compile</button>
+                <button class="btn btn-sm" @click="commandQuickFill('gh aw audit')">gh aw audit</button>
+              </div>
+              <div class="input-group mb-2">
+                <input class="form-control" type="text" x-model="commandInput" aria-label="Command input" placeholder="gh aw <subcommand>" />
+                <button class="btn" @click="runCommand()">Run</button>
+              </div>
+              <pre class="Box p-2 awd-command-output" x-text="commandOutput"></pre>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

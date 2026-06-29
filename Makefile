@@ -235,6 +235,19 @@ security-govulncheck-sarif:
 test-js: build-js
 	cd actions/setup/js && npm run test:js -- --no-file-parallelism
 
+# Build and test the Copilot canvas extension for agentic workflows
+.PHONY: test-canvas-extension
+test-canvas-extension:
+	cd .github/extensions/agentic-workflows-dashboard && npm ci && npm run build && npm test
+
+.PHONY: fmt-canvas-extension
+fmt-canvas-extension:
+	cd .github/extensions/agentic-workflows-dashboard && npm ci && npm run fmt
+
+.PHONY: lint-canvas-extension
+lint-canvas-extension:
+	cd .github/extensions/agentic-workflows-dashboard && npm ci && npm run lint
+
 # Test impacted JavaScript unit tests only (excluding integration tests)
 .PHONY: test-impacted-js
 test-impacted-js: build-js
@@ -766,7 +779,7 @@ lint-lock: build
 
 # Format code
 .PHONY: fmt
-fmt: fmt-go fmt-cjs fmt-json
+fmt: fmt-go fmt-cjs fmt-json fmt-canvas-extension
 	@echo "✓ Code formatted successfully"
 
 .PHONY: fmt-go
@@ -889,7 +902,7 @@ lint-action-sh:
 
 # Validate all project files
 .PHONY: lint
-lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh
+lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh lint-canvas-extension
 	@echo "✓ All validations passed"
 
 # Install the binary locally
@@ -1085,8 +1098,11 @@ help:
 	@echo "  test-unit        - Run Go unit tests only (faster)"
 	@echo "  test-security    - Run security regression tests"
 	@echo "  test-js          - Run JavaScript tests"
+	@echo "  test-canvas-extension - Build and test the Copilot canvas extension"
 	@echo "  test-impacted-js - Run impacted JavaScript unit tests for current branch changes"
 	@echo "  test-impacted-go - Run impacted Go unit tests for current branch changes"
+	@echo "  fmt-canvas-extension  - Format the Copilot canvas extension sources"
+	@echo "  lint-canvas-extension - Lint/typecheck/test the Copilot canvas extension"
 	@echo "  test-impacted    - Run impacted JavaScript and Go unit tests for current branch changes"
 	@echo "  test-all         - Run all tests (Go, JavaScript, and wasm golden)"
 	@echo "  test-wasm-golden - Run wasm golden tests (Go string API path)"

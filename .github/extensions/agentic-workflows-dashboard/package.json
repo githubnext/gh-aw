@@ -1,0 +1,25 @@
+{
+  "name": "agentic-workflows-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "extension.mjs",
+  "description": "GitHub Copilot canvas extension for agentic workflows dashboard.",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vitest": "4.1.9"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "npm run typecheck && npm test",
+    "fmt": "npm run fmt:ts && npm run fmt:html && npm run fmt:css && npm run fmt:js && npm run fmt:json",
+    "fmt:ts": "npx prettier --write --parser typescript \"src/**/*.ts\" \"test/**/*.ts\" \"vitest.config.ts\"",
+    "fmt:html": "npx prettier --write --parser html \"web/index.html\"",
+    "fmt:css": "npx prettier --write --parser css \"web/styles.css\"",
+    "fmt:js": "npx prettier --write --parser babel \"extension.mjs\"",
+    "fmt:json": "npx prettier --write --parser json \"copilot-extension.json\" \"package.json\"",
+    "impeccable:detect": "npx impeccable detect web/index.html web/styles.css"
+  }
+}
