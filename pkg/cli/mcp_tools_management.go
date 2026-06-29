@@ -98,12 +98,25 @@ type updateArgs struct {
 	Workflows []string `json:"workflows,omitempty" jsonschema:"Workflow IDs to update (empty for all workflows)"`
 	Major     bool     `json:"major,omitempty" jsonschema:"Allow major version updates when updating tagged releases"`
 	Force     bool     `json:"force,omitempty" jsonschema:"Force update even if no changes detected"`
+	DryRun    bool     `json:"dry_run,omitempty" jsonschema:"Preview updates without applying any changes"`
 }
 
 // registerUpdateTool registers the update tool with the MCP server.
-func registerUpdateTool(server *mcp.Server, execCmd execCmdFunc) {
+func registerUpdateTool(server *mcp.Server, execCmd execCmdFunc) error {
+	// Generate schema with elicitation defaults
+	updateSchema, err := GenerateSchema[updateArgs]()
+	if err != nil {
+		mcpToolsManagementLog.Printf("Failed to generate update tool schema: %v", err)
+		return err
+	}
+	// Add elicitation default: dry_run defaults to true (safe preview mode)
+	if err := AddSchemaDefault(updateSchema, "dry_run", true); err != nil {
+		mcpToolsManagementLog.Printf("Failed to add default for dry_run: %v", err)
+	}
+
 	mcp.AddTool(server, &mcp.Tool{
-		Name: "update",
+		Name:        "update",
+		InputSchema: updateSchema,
 		Annotations: &mcp.ToolAnnotations{
 			OpenWorldHint: new(true),
 		},
@@ -134,7 +147,7 @@ Returns formatted text output showing:
 		default:
 		}
 
-		mcpToolsManagementLog.Printf("update tool invoked: workflows=%d, major=%v, force=%v", len(args.Workflows), args.Major, args.Force)
+		mcpToolsManagementLog.Printf("update tool invoked: workflows=%d, major=%v, force=%v, dryRun=%v", len(args.Workflows), args.Major, args.Force, args.DryRun)
 
 		// Build command arguments
 		cmdArgs := []string{"update"}
@@ -148,6 +161,9 @@ Returns formatted text output showing:
 		}
 		if args.Force {
 			cmdArgs = append(cmdArgs, "--force")
+		}
+		if args.DryRun {
+			cmdArgs = append(cmdArgs, "--dry-run")
 		}
 
 		// Execute the CLI command
@@ -163,6 +179,7 @@ Returns formatted text output showing:
 			},
 		}, nil, nil
 	})
+	return nil
 }
 
 // fixArgs holds the input parameters for the fix tool.
@@ -244,4 +261,83 @@ Returns formatted text output showing:
 			},
 		}, nil, nil
 	})
+}
+
+// upgradeArgs holds the input parameters for the upgrade tool.
+type upgradeArgs struct {
+	DryRun    bool `json:"dry_run,omitempty" jsonschema:"Preview upgrades without applying any changes"`
+	NoFix     bool `json:"no_fix,omitempty" jsonschema:"Skip codemods, action version updates, and workflow compilation (only update agent files)"`
+	NoCompile bool `json:"no_compile,omitempty" jsonschema:"Skip recompiling workflows after upgrade"`
+}
+
+// registerUpgradeTool registers the upgrade tool with the MCP server.
+func registerUpgradeTool(server *mcp.Server, execCmd execCmdFunc) error {
+	// Generate schema with elicitation defaults
+	upgradeSchema, err := GenerateSchema[upgradeArgs]()
+	if err != nil {
+		mcpToolsManagementLog.Printf("Failed to generate upgrade tool schema: %v", err)
+		return err
+	}
+	// Add elicitation default: dry_run defaults to true (safe preview mode)
+	if err := AddSchemaDefault(upgradeSchema, "dry_run", true); err != nil {
+		mcpToolsManagementLog.Printf("Failed to add default for dry_run: %v", err)
+	}
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "upgrade",
+		InputSchema: upgradeSchema,
+		Annotations: &mcp.ToolAnnotations{
+			OpenWorldHint: new(true),
+		},
+		Description: `Upgrade the gh-aw extension and apply codemods, action updates, and recompile workflows.
+
+The command:
+1. Checks if a newer version of gh-aw is available and upgrades it
+2. Updates the dispatcher skill and related Copilot artifacts
+3. Applies codemods to all workflow files
+4. Updates GitHub Actions versions in actions-lock.json
+5. Recompiles all workflows
+
+Returns formatted text output showing each upgrade step's status.`,
+		Icons: []mcp.Icon{
+			{Source: "⬆️"},
+		},
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args upgradeArgs) (*mcp.CallToolResult, any, error) {
+		// Check for cancellation before starting
+		select {
+		case <-ctx.Done():
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
+		default:
+		}
+
+		mcpToolsManagementLog.Printf("upgrade tool invoked: dryRun=%v, noFix=%v, noCompile=%v", args.DryRun, args.NoFix, args.NoCompile)
+
+		// Build command arguments
+		cmdArgs := []string{"upgrade"}
+
+		// Add optional flags
+		if args.DryRun {
+			cmdArgs = append(cmdArgs, "--dry-run")
+		}
+		if args.NoFix {
+			cmdArgs = append(cmdArgs, "--no-fix")
+		}
+		if args.NoCompile {
+			cmdArgs = append(cmdArgs, "--no-compile")
+		}
+
+		// Execute the CLI command
+		output, err := runMCPExecCombinedOutput(ctx, execCmd, cmdArgs...)
+
+		if err != nil {
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to upgrade", map[string]any{"error": err.Error(), "output": string(output)})
+		}
+
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: string(output)},
+			},
+		}, nil, nil
+	})
+	return nil
 }

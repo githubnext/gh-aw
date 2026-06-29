@@ -88,7 +88,12 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, manifestC
 
 	// Register workflow management tools
 	registerAddTool(server, execCmd)
-	registerUpdateTool(server, execCmd)
+	if err := registerUpdateTool(server, execCmd); err != nil {
+		return server
+	}
+	if err := registerUpgradeTool(server, execCmd); err != nil {
+		return server
+	}
 	registerFixTool(server, execCmd)
 
 	// Add receiving middleware to transform raw JSON-schema "additional properties"

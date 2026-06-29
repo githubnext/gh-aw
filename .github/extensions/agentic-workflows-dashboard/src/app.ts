@@ -36,6 +36,7 @@ interface DashboardState {
   selectedRun: WorkflowRun | null;
   auditData: AuditReport | null;
   includePreReleases: boolean;
+  dryRun: boolean;
   maintenanceOutput: string;
   maintenanceLastAction: string;
   commandInput: string;
@@ -226,6 +227,7 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   selectedRun: null,
   auditData: null,
   includePreReleases: false,
+  dryRun: true,
   maintenanceOutput: "Use this view to check dashboard maintenance commands before applying updates or upgrades.",
   maintenanceLastAction: "",
   commandInput: "",
@@ -464,9 +466,9 @@ Alpine.data("dashboardApp", (): DashboardState => ({
 
   buildMaintenanceCommand(action) {
     if (action === "check-update") return "gh aw status --json";
-    if (action === "run-update") return "gh aw update";
+    if (action === "run-update") return `gh aw update${this.dryRun ? " --dry-run" : ""}`;
     if (action === "check-upgrade") return `gh aw upgrade --audit${this.includePreReleases ? " --pre-releases" : ""}`;
-    return `gh aw upgrade${this.includePreReleases ? " --pre-releases" : ""}`;
+    return `gh aw upgrade${this.dryRun ? " --dry-run" : ""}${this.includePreReleases ? " --pre-releases" : ""}`;
   },
 
   maintenanceActionLabel(action) {

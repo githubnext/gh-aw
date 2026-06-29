@@ -58,6 +58,7 @@ The --audit flag skips the normal upgrade process.
 
 This command always upgrades all Markdown files in .github/workflows.`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` upgrade                    # Upgrade all workflows
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --dry-run         # Preview upgrades without applying changes
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods, actions, and compilation)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-actions      # Skip updating GitHub Actions versions
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-compile      # Skip recompiling workflows (do not modify lock files)
@@ -92,6 +93,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			preReleases, _ := cmd.Flags().GetBool("pre-releases")
 			targetOrg, _ := cmd.Flags().GetString("org")
 			repoGlobs, _ := cmd.Flags().GetStringSlice("repos")
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
 
 			if len(repoGlobs) > 0 && targetOrg == "" {
 				return errors.New("--repos requires --org to be specified")
@@ -122,6 +124,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 				approve:              approveUpgrade,
 				preReleases:          preReleases,
 				yes:                  yes,
+				dryRun:               dryRun,
 			}
 
 			if targetOrg != "" {
@@ -166,6 +169,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 	_ = cmd.Flags().MarkHidden("skip-extension-upgrade")
 	cmd.Flags().String("org", "", "Preview or create upgrade pull requests across an organization")
 	cmd.Flags().StringSlice("repos", nil, "Limit --org mode to repositories matching one or more glob patterns")
+	cmd.Flags().Bool("dry-run", false, "Preview upgrades without applying any changes")
 	addJSONFlag(cmd)
 
 	// Register completions
@@ -206,19 +210,24 @@ type upgradeOptions struct {
 	approve              bool
 	preReleases          bool
 	yes                  bool
+	dryRun               bool
 }
 
 // runUpgradeCommand executes the upgrade process
 func runUpgradeCommand(opts upgradeOptions) error {
-	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, disabledCodemodIDs=%v, skipExtensionUpgrade=%v",
-		opts.verbose, opts.workflowDir, opts.noFix, opts.noCompile, opts.noActions, opts.disabledCodemodIDs, opts.skipExtensionUpgrade)
+	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, disabledCodemodIDs=%v, skipExtensionUpgrade=%v, dryRun=%v",
+		opts.verbose, opts.workflowDir, opts.noFix, opts.noCompile, opts.noActions, opts.disabledCodemodIDs, opts.skipExtensionUpgrade, opts.dryRun)
+
+	if opts.dryRun {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("(dry run) Previewing upgrades — no files will be modified"))
+	}
 
 	// Step 0b: Ensure gh-aw extension is on the latest version.
 	// If the extension was just upgraded, re-launch the freshly-installed binary
 	// with the same flags so that all subsequent steps (e.g. lock-file compilation)
 	// use the correct new version string.  The hidden --skip-extension-upgrade flag
 	// prevents the re-launched process from entering this branch again.
-	if !opts.skipExtensionUpgrade {
+	if !opts.skipExtensionUpgrade && !opts.dryRun {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking gh-aw extension version..."))
 		upgraded, installPath, err := upgradeExtensionIfOutdated(opts.verbose, opts.preReleases)
 		if err != nil {
@@ -237,6 +246,24 @@ func runUpgradeCommand(opts upgradeOptions) error {
 			// Signal the entry-point to exit cleanly without repeating those steps.
 			return &ExitCodeError{Code: 0}
 		}
+	} else if opts.dryRun {
+		upgradeLog.Print("Dry-run mode: skipping extension version check")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("(dry run) Would check gh-aw extension version"))
+	}
+
+	if opts.dryRun {
+		// In dry-run mode, report what would happen without applying any changes.
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("(dry run) Would update dispatcher skill"))
+		if !opts.noFix {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("(dry run) Would apply codemods to all workflows"))
+		}
+		if !opts.noFix && !opts.noActions {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("(dry run) Would update GitHub Actions versions"))
+		}
+		if !opts.noFix && !opts.noCompile {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("(dry run) Would recompile all workflows"))
+		}
+		return nil
 	}
 
 	// Step 1: Update dispatcher skill and related Copilot artifacts (like init command)

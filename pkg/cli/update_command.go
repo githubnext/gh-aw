@@ -50,6 +50,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` update                    # Update all workflows from source
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist        # Update a specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist.md     # Same (alternative format)
+  ` + string(constants.CLIExtensionPrefix) + ` update --dry-run          # Preview updates without applying changes
   ` + string(constants.CLIExtensionPrefix) + ` update --org my-org       # Preview workflow updates across an organization
   ` + string(constants.CLIExtensionPrefix) + ` update --org my-org --repos '*-service'  # Limit org mode to matching repositories
   ` + string(constants.CLIExtensionPrefix) + ` update --org my-org --create-issue  # Open issues in repos with pending updates
@@ -92,6 +93,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 			targetRepo, _ := cmd.Flags().GetString("repo")
 			targetOrg, _ := cmd.Flags().GetString("org")
 			repoGlobs, _ := cmd.Flags().GetStringSlice("repos")
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
 
 			if err := validateEngine(engineOverride); err != nil {
 				return err
@@ -136,6 +138,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 				NoRedirect:             noRedirect,
 				DisableSecurityScanner: disableSecurityScanner,
 				CoolDown:               coolDown,
+				DryRun:                 dryRun,
 			}
 
 			if targetRepo != "" {
@@ -183,6 +186,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 	cmd.Flags().Bool("create-issue", false, "Open a GitHub issue in each org repository that has pending workflow updates (requires --org)")
 	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode create confirmations (required in CI)")
 	cmd.Flags().String("cool-down", "7d", coolDownFlagUsage)
+	cmd.Flags().Bool("dry-run", false, "Preview updates without applying any changes")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 
 	// Register completions for update command
@@ -196,12 +200,22 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 // RunUpdateWorkflows updates workflows from their source repositories.
 // Each workflow is compiled immediately after update.
 func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error {
-	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v, noCompile=%v, noRedirect=%v, coolDown=%v", opts.WorkflowNames, opts.AllowMajor, opts.Force, opts.NoMerge, opts.DisableReleaseBump, opts.NoCompile, opts.NoRedirect, opts.CoolDown)
+	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v, noCompile=%v, noRedirect=%v, coolDown=%v, dryRun=%v", opts.WorkflowNames, opts.AllowMajor, opts.Force, opts.NoMerge, opts.DisableReleaseBump, opts.NoCompile, opts.NoRedirect, opts.CoolDown, opts.DryRun)
+
+	if opts.DryRun {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("(dry run) Previewing workflow updates — no files will be modified"))
+	}
 
 	var firstErr error
 
 	if err := UpdateWorkflows(ctx, opts); err != nil {
 		firstErr = fmt.Errorf("workflow update failed: %w", err)
+	}
+
+	// In dry-run mode, skip all file-modifying steps.
+	if opts.DryRun {
+		updateLog.Print("Dry-run mode: skipping actions-lock.json update, workflow action reference update, and container pin update")
+		return firstErr
 	}
 
 	// Update GitHub Actions versions in actions-lock.json.

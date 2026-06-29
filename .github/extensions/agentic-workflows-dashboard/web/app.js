@@ -3309,9 +3309,9 @@ var dashboardTabs = [
   { id: "commands", label: "Commands" }
 ];
 var reportWindows = [
-  { id: "3d", label: "3 days", startDate: "-3d" },
-  { id: "7d", label: "7 days", startDate: "-1w" },
-  { id: "1mo", label: "1 month", startDate: "-1mo" }
+  { id: "3d", label: "3 days", startDate: "-3d", days: 3 },
+  { id: "7d", label: "7 days", startDate: "-1w", days: 7 },
+  { id: "1mo", label: "1 month", startDate: "-1mo", days: 30 }
 ];
 var DEFAULT_LOGS_COMMAND_COUNT = 25;
 function cliSourceLabel(cliStatus) {
@@ -3408,6 +3408,7 @@ module_default.data("dashboardApp", () => ({
   selectedRun: null,
   auditData: null,
   includePreReleases: false,
+  dryRun: true,
   maintenanceOutput: "Use this view to check dashboard maintenance commands before applying updates or upgrades.",
   maintenanceLastAction: "",
   commandInput: "",
@@ -3624,9 +3625,9 @@ gh aw version ${this.cliStatus.version}`;
   },
   buildMaintenanceCommand(action) {
     if (action === "check-update") return "gh aw status --json";
-    if (action === "run-update") return "gh aw update";
+    if (action === "run-update") return `gh aw update${this.dryRun ? " --dry-run" : ""}`;
     if (action === "check-upgrade") return `gh aw upgrade --audit${this.includePreReleases ? " --pre-releases" : ""}`;
-    return `gh aw upgrade${this.includePreReleases ? " --pre-releases" : ""}`;
+    return `gh aw upgrade${this.dryRun ? " --dry-run" : ""}${this.includePreReleases ? " --pre-releases" : ""}`;
   },
   maintenanceActionLabel(action) {
     if (action === "check-update") return "Check updates";

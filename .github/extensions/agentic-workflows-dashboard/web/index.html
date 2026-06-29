@@ -500,10 +500,16 @@
           <div class="Box">
             <div class="Box-header d-flex flex-items-center flex-justify-between gap-2">
               <h2 class="Box-title">Maintenance</h2>
-              <label class="d-flex flex-items-center gap-2 text-small">
-                <input type="checkbox" x-model="includePreReleases" />
-                <span>Include pre-release versions</span>
-              </label>
+              <div class="d-flex flex-items-center gap-3">
+                <label class="d-flex flex-items-center gap-2 text-small">
+                  <input type="checkbox" x-model="dryRun" />
+                  <span>Dry run</span>
+                </label>
+                <label class="d-flex flex-items-center gap-2 text-small">
+                  <input type="checkbox" x-model="includePreReleases" />
+                  <span>Include pre-release versions</span>
+                </label>
+              </div>
             </div>
             <div class="Box-body">
               <div class="color-fg-muted text-small mb-3">Check commands use non-destructive gh aw maintenance commands where available, then you can run the matching update or upgrade directly from this view.</div>
@@ -542,7 +548,10 @@
                     <span class="awd-spinner" style="width: 12px; height: 12px; border-width: 1.5px" aria-hidden="true"></span>
                     <span class="Label Label--secondary">Running…</span>
                   </span>
-                  <span class="Label Label--accent" x-show="includePreReleases">Pre-releases enabled</span>
+                  <div class="d-flex flex-items-center gap-2">
+                    <span class="Label Label--attention" x-show="dryRun">Dry run</span>
+                    <span class="Label Label--accent" x-show="includePreReleases">Pre-releases enabled</span>
+                  </div>
                 </div>
                 <pre class="Box p-2 awd-command-output" x-text="maintenanceOutput"></pre>
               </div>

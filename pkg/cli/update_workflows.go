@@ -63,6 +63,7 @@ type UpdateWorkflowsOptions struct {
 	NoCompile              bool
 	NoRedirect             bool
 	CoolDown               time.Duration
+	DryRun                 bool
 }
 
 // UpdateWorkflows updates workflows from their source repositories
@@ -795,6 +796,17 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, opts UpdateWork
 		}
 	} else if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Security scanning disabled"))
+	}
+
+	// Dry-run mode: report what would be updated without writing any files
+	if opts.DryRun {
+		updateLog.Printf("Dry-run: would update workflow %s from %s to %s", wf.Name, currentRef, latestRef)
+		if hasConflicts {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("(dry run) Would update %s from %s to %s with CONFLICTS", wf.Name, shortRef(currentRef), shortRef(latestRef))))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("(dry run) Would update %s from %s to %s", wf.Name, shortRef(currentRef), shortRef(latestRef))))
+		}
+		return nil
 	}
 
 	// Write updated content
