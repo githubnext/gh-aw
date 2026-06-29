@@ -29,6 +29,44 @@ type frontmatterParseResult struct {
 	redirectTarget string
 }
 
+func (c *Compiler) validateEngineBeforeSchema(
+	cleanPath string,
+	content []byte,
+	result *parser.FrontmatterResult,
+	frontmatterForValidation map[string]any,
+) error {
+	engineValue, ok := frontmatterForValidation["engine"].(string)
+	// Keep the empty-string default-engine behavior, but let whitespace-only values
+	// fall through to getAgenticEngine so they surface as invalid engine typos.
+	if !ok || engineValue == "" {
+		return nil
+	}
+
+	if _, err := c.getAgenticEngine(engineValue); err != nil {
+		line := result.FieldLines["engine"]
+		if line == 0 {
+			line = findFrontmatterFieldLine(result.FrontmatterLines, result.FrontmatterStart, "engine")
+		}
+		if line == 0 {
+			line = 1
+		}
+
+		return formatCompilerErrorWithContext(
+			cleanPath,
+			line,
+			// Point to the field key for invalid string engine names so the location
+			// stays stable even when the specific invalid value changes.
+			1,
+			"error",
+			err.Error(),
+			err,
+			readSourceContextLines(content, line),
+		)
+	}
+
+	return nil
+}
+
 // parseFrontmatterSection reads the workflow file and parses its frontmatter.
 // It returns a frontmatterParseResult containing the parsed data and validation information.
 // If the workflow is detected as a shared workflow (no 'on' field), isSharedWorkflow is set to true.
@@ -133,6 +171,11 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	if result.Markdown == "" {
 		orchestratorFrontmatterLog.Print("No markdown content found for main workflow")
 		return nil, errors.New("no markdown content found")
+	}
+
+	if err := c.validateEngineBeforeSchema(cleanPath, content, result, frontmatterForValidation); err != nil {
+		orchestratorFrontmatterLog.Printf("String engine pre-validation failed: %v", err)
+		return nil, err
 	}
 
 	// Validate main workflow frontmatter contains only expected entries
