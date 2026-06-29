@@ -286,13 +286,7 @@ func isMinorVersionBehind(currentVersion string, latestVersion string) bool {
 	}
 
 	currentParsed := semverutil.ParseVersion(currentSV)
-	if currentParsed == nil {
-		return false
-	}
 	latestParsed := semverutil.ParseVersion(latestSV)
-	if latestParsed == nil {
-		return false
-	}
 
 	return currentParsed.Major == latestParsed.Major && latestParsed.Minor > currentParsed.Minor
 }
