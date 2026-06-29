@@ -63,9 +63,9 @@ let allPassed = true;
 console.log("\nRunning tests...\n");
 
 // Test 1: Engine $ref resolution
-allPassed &= assertContains(output, 'engine: "example-value"', "Engine $ref resolved - should show string option");
+allPassed &= assertContains(output, "# Format 1: Engine name: built-in ('claude', 'codex', 'copilot', 'gemini',", "Engine $ref resolved - should describe the string option");
 
-allPassed &= assertContains(output, 'id: "example-value"', "Engine $ref resolved - should show object variant with id field");
+allPassed &= assertContains(output, "# AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini',", "Engine $ref resolved - should describe the object variant id field");
 
 allPassed &= assertContains(output, "max-turns:", "Engine $ref resolved - should show max-turns field");
 
@@ -104,6 +104,8 @@ allPassed &= assertContains(output, "extensions:", "Engine extensions field shou
 allPassed &= assertContains(output, "Pi engine may modify", "Engine extensions description should be present in generated docs");
 
 // Test 9: Verify that all $refs in schema can be resolved
+// Note: defaults is asserted from rendered output above; it is no longer exposed as
+// a direct top-level $ref target in the main workflow schema.
 const allRefs = ["#/$defs/engine_config", "#/$defs/stdio_mcp_tool", "#/$defs/http_mcp_tool", "#/properties/permissions", "#/properties/concurrency"];
 
 for (const ref of allRefs) {
