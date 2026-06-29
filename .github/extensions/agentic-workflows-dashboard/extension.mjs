@@ -72,6 +72,16 @@ async function getDefinitions() {
   return data;
 }
 
+async function getExperiments() {
+  const hit = getCached("experiments");
+  if (hit) return hit;
+  const raw = await runGhAw(["experiments", "list", "--json"]);
+  const data = JSON.parse(raw);
+  const experiments = Array.isArray(data) ? data : [];
+  setCached("experiments", experiments);
+  return experiments;
+}
+
 async function getRuns(count = 50) {
   const key = `runs:${count}`;
   const hit = getCached(key);
@@ -153,6 +163,8 @@ async function startServer() {
         res.end(await readFile(join(__dirname, "web", "pagination.js"), "utf8"));
       } else if (pathname === "/api/status") {
         sendJson(await getDefinitions());
+      } else if (pathname === "/api/experiments") {
+        sendJson(await getExperiments());
       } else if (pathname === "/api/runs") {
         const count = parseInt(reqUrl.searchParams.get("count") ?? "50", 10);
         sendJson(await getRuns(count));
@@ -190,6 +202,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
 **CLI commands used by this canvas:**
 - \`gh aw status --json\` — list agentic workflow definitions (workflow, engine_id, compiled, labels, status, time_remaining)
 - \`gh aw logs --json -c <N>\` — list recent workflow runs (run_id, workflow_name, status, conclusion, duration, token_usage, turns, error_count)
+- \`gh aw experiments list --json\` — list experiment workflow branches (workflow_id, branch, experiments, total_runs, last_run)
 
 **Dev build** (when gh-aw is not installed as a gh extension):
 1. Run \`make build\` in the repository root to compile \`./gh-aw\` (or \`./gh-aw.exe\` on Windows)
@@ -198,6 +211,7 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
 **Canvas actions available to the agent:**
 - \`listDefinitions\` — calls \`gh aw status --json\`, returns paged results
 - \`listRuns\` — calls \`gh aw logs --json\`, returns paged results
+- \`listExperiments\` — calls \`gh aw experiments list --json\`, returns paged results
 - \`getRun\` — looks up a single run by \`run_id\`
 - \`runCommand\` — executes any \`gh aw <subcommand>\` and returns stdout
 - \`refresh\` — clears the 60-second cache so the next call fetches fresh data
@@ -240,6 +254,22 @@ It never calls Go code directly — all data is fetched by running CLI subcomman
           handler: async ctx => {
             const runs = await getRuns(Number(ctx.input?.count ?? 50));
             return paginate(runs, Number(ctx.input?.page ?? 1), Number(ctx.input?.pageSize ?? 20));
+          },
+        },
+        {
+          name: "listExperiments",
+          description: "List experiment workflow branches via gh aw experiments list --json, with paging.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              page: { type: "number", minimum: 1 },
+              pageSize: { type: "number", minimum: 1, maximum: 100 },
+            },
+            additionalProperties: false,
+          },
+          handler: async ctx => {
+            const experiments = await getExperiments();
+            return paginate(experiments, Number(ctx.input?.page ?? 1), Number(ctx.input?.pageSize ?? 20));
           },
         },
         {
