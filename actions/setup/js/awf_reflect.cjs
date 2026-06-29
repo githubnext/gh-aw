@@ -322,8 +322,96 @@ async function fetchAWFReflect(options) {
 }
 
 /**
+ * Returns true when the model name matches well-known Anthropic naming patterns:
+ * "claude-*" prefix, or "-opus", "-haiku", or "-sonnet" as a segment or suffix.
+ *
+ * @param {string} model - Lower-cased, trimmed model name.
+ * @returns {boolean}
+ */
+function isAnthropicModelName(model) {
+  return model.startsWith("claude-") || model.includes("-opus-") || model.endsWith("-opus") || model.includes("-haiku-") || model.endsWith("-haiku") || model.includes("-sonnet-") || model.endsWith("-sonnet");
+}
+
+/**
+ * Returns true when the model name matches well-known OpenAI naming patterns:
+ * "gpt-*" prefix, or o1/o3/o4 reasoning models.
+ *
+ * @param {string} model - Lower-cased, trimmed model name.
+ * @returns {boolean}
+ */
+function isOpenAIModelName(model) {
+  return model.startsWith("gpt-") || /^o[134][-.]/.test(model) || model === "o1" || model === "o3" || model === "o4";
+}
+
+/**
+ * Infer the Copilot SDK provider type for a given endpoint provider name and model name.
+ *
+ * The SDK's `ProviderConfig.type` field determines which API format the SDK uses when
+ * communicating with the `baseUrl` endpoint:
+ *   - "anthropic" — Anthropic Messages API (required for direct Anthropic API endpoints)
+ *   - "azure"     — Azure OpenAI API
+ *   - "openai"    — OpenAI-compatible API (default; used for Copilot, OpenAI, Gemini, etc.)
+ *
+ * Resolution order:
+ *   1. Endpoint provider name mapping (most authoritative for BYOK endpoints).
+ *   2. Model catalog lookup via the `modelsJson` catalog (explicit `provider_type` field).
+ *   3. Well-known model name heuristics (e.g. "claude-*" → "anthropic", "gpt-*" → "openai").
+ *   4. Default: "openai".
+ *
+ * @param {string} endpointProvider - The `provider` field from the AWF reflect endpoint entry.
+ * @param {string} modelName - The resolved model name to use for heuristic fallback.
+ * @param {object | null | undefined} modelsJson - Parsed models.json catalog (optional).
+ * @returns {"openai" | "azure" | "anthropic"}
+ */
+function inferProviderTypeForModel(endpointProvider, modelName, modelsJson) {
+  // 1. Endpoint provider name mapping.
+  const ep = String(endpointProvider || "")
+    .toLowerCase()
+    .trim();
+  if (ep === "anthropic") return "anthropic";
+  if (ep === "azure" || ep === "azure-openai" || ep === "azure_openai") return "azure";
+  if (ep === "openai") return "openai";
+  // For "copilot", "github-copilot", and unknown providers, fall through to model-based lookup.
+
+  const model = String(modelName || "")
+    .toLowerCase()
+    .trim();
+
+  // 2. Model catalog lookup.
+  if (modelsJson != null && model) {
+    const providers = modelsJson && typeof modelsJson === "object" && !Array.isArray(modelsJson) ? modelsJson.providers : null;
+    if (providers && typeof providers === "object") {
+      for (const providerData of Object.values(providers)) {
+        const models = providerData && typeof providerData === "object" ? providerData.models : null;
+        if (models && typeof models === "object") {
+          for (const [catalogModel, catalogEntry] of Object.entries(models)) {
+            if (
+              String(catalogModel || "")
+                .toLowerCase()
+                .trim() === model
+            ) {
+              const pt = catalogEntry && typeof catalogEntry.provider_type === "string" ? catalogEntry.provider_type.trim() : "";
+              if (pt === "anthropic" || pt === "azure" || pt === "openai") return /** @type {"openai" | "azure" | "anthropic"} */ pt;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Well-known model name heuristics.
+  if (model) {
+    if (isAnthropicModelName(model)) return "anthropic";
+    if (isOpenAIModelName(model)) return "openai";
+  }
+
+  // 4. Default.
+  return "openai";
+}
+
+/**
  * Resolve Copilot SDK BYOK custom provider configuration from AWF /reflect data.
- * Chooses a configured endpoint and maps it to an OpenAI-compatible provider base URL.
+ * Chooses a configured endpoint and maps it to a provider base URL and type.
  * Returns null when no suitable endpoint is found (e.g. no reflect data, or endpoints not
  * configured).
  *
@@ -333,9 +421,10 @@ async function fetchAWFReflect(options) {
  *   model?: string,
  *   provider?: string,
  *   reflectData: object | null | undefined,
+ *   modelsJson?: object | null,
  *   logger?: (msg: string) => void,
  * }} [options]
- * @returns {{ model: string, provider: { type: "openai", baseUrl: string } } | null}
+ * @returns {{ model: string, provider: { type: "openai" | "azure" | "anthropic", baseUrl: string } } | null}
  */
 function resolveCopilotSDKCustomProviderFromReflect(options) {
   const configuredModel = typeof options?.model === "string" ? options.model.trim() : "";
@@ -386,10 +475,11 @@ function resolveCopilotSDKCustomProviderFromReflect(options) {
     return null;
   }
 
-  logger(`sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} baseUrl=${baseUrl} model=${model})`);
+  const providerType = inferProviderTypeForModel(String(endpoint.provider || ""), model, options?.modelsJson ?? null);
+  logger(`sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} type=${providerType} baseUrl=${baseUrl} model=${model})`);
   return {
     model,
-    provider: { type: "openai", baseUrl },
+    provider: { type: providerType, baseUrl },
   };
 }
 
@@ -407,6 +497,7 @@ if (typeof module !== "undefined" && module.exports) {
     extractModelIds,
     fetchAWFReflect,
     fetchModelsFromUrl,
+    inferProviderTypeForModel,
     resolveCopilotSDKCustomProviderFromReflect,
   };
 }

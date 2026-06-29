@@ -7,6 +7,9 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+
+	"github.com/github/gh-aw/pkg/console"
 )
 
 // internalSandboxFieldError returns a standardised strict-mode error for an
@@ -20,7 +23,8 @@ func internalSandboxFieldError(fieldPath string) error {
 	)
 }
 
-// validateStrictSandboxCustomization refuses internal sandbox customization fields in strict mode.
+// validateStrictSandboxCustomization refuses internal sandbox customization fields in strict mode
+// and warns about deprecated sandbox.agent.sudo: true in non-strict mode.
 //
 // The following fields are considered internal implementation/debugging details and
 // are not allowed in strict mode:
@@ -28,18 +32,37 @@ func internalSandboxFieldError(fieldPath string) error {
 //   - sandbox.mcp.container, sandbox.mcp.version, sandbox.mcp.entrypoint,
 //     sandbox.mcp.args, sandbox.mcp.entrypointArgs  (MCP gateway customization)
 //
+// Additionally, sandbox.agent.sudo: true is an error in strict mode and a warning in
+// non-strict mode because the global default has changed to sudo: false (network isolation).
+//
 // A sandbox.agent object without an explicit 'id' is explicitly set to AWF in strict mode.
 func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConfig) error {
+	if sandboxConfig == nil {
+		return nil
+	}
+
+	// Check agent sandbox fields
+	if agent := sandboxConfig.Agent; agent != nil {
+		// sandbox.agent.sudo: true is deprecated regardless of strict mode.
+		// It is an error in strict mode and a warning otherwise.
+		if agent.SudoExplicitlyEnabled {
+			const sudoTrueMsg = "sandbox.agent.sudo: true re-enables host-access (sudo) mode. " +
+				"The default is now sudo: false (network isolation). " +
+				"Remove 'sudo: true' to use the secure default. " +
+				"See: https://github.github.com/gh-aw/reference/sandbox/"
+			if c.strictMode {
+				return fmt.Errorf("strict mode: %s", sudoTrueMsg)
+			}
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(sudoTrueMsg))
+			c.IncrementWarningCount()
+		}
+	}
+
 	if !c.strictMode {
 		strictModeValidationLog.Printf("Strict mode disabled, skipping sandbox customization validation")
 		return nil
 	}
 
-	if sandboxConfig == nil {
-		return nil
-	}
-
-	// Check agent sandbox internal fields
 	if agent := sandboxConfig.Agent; agent != nil {
 		// In strict mode, if sandbox.agent has no id/type set, explicitly default it to AWF
 		// so the sandbox configuration is always unambiguous.
