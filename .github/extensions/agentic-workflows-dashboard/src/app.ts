@@ -5,9 +5,10 @@ import type { CLIStatus, ExperimentInfo, PagedResult, UsageSummaryItem, Workflow
 import { paginate } from "./pagination.js";
 
 type FlashKind = "success" | "warn" | "error";
-type DashboardTabId = "definitions" | "runs" | "details" | "usage" | "experiments" | "commands";
+type DashboardTabId = "definitions" | "runs" | "details" | "usage" | "experiments" | "maintenance" | "commands";
 type DashboardTab = { id: DashboardTabId; label: string; counter?: "definitions" | "runs" | "usage" | "experiments" };
 type ReportWindow = { id: "3d" | "7d" | "1mo"; label: string; startDate: string };
+type MaintenanceAction = "check-update" | "run-update" | "check-upgrade" | "run-upgrade";
 type ReportMeta = {
   window?: { id?: string; label?: string };
   logsFetches?: number;
@@ -34,6 +35,9 @@ interface DashboardState {
   usagePaged: PagedResult<UsageSummaryItem>;
   experimentsPaged: PagedResult<ExperimentInfo>;
   selectedRun: WorkflowRun | null;
+  includePreReleases: boolean;
+  maintenanceOutput: string;
+  maintenanceLastAction: string;
   commandInput: string;
   commandOutput: string;
   flashMessage: string;
@@ -43,6 +47,7 @@ interface DashboardState {
   loadingRuns: boolean;
   loadingUsage: boolean;
   loadingExperiments: boolean;
+  loadingMaintenance: boolean;
   errorCliStatus: string;
   errorDefinitions: string;
   errorRuns: string;
@@ -70,6 +75,9 @@ interface DashboardState {
   selectRun(runId: number): void;
   viewRunDetails(runId: number): void;
   buildLogsCommand(count?: number): string;
+  buildMaintenanceCommand(action: MaintenanceAction): string;
+  maintenanceActionLabel(action: MaintenanceAction): string;
+  runMaintenanceAction(action: MaintenanceAction): Promise<void>;
   buildReportSummaryMessage(meta: ReportMeta | null): string;
   runCommand(): Promise<void>;
   commandQuickFill(value: string): void;
@@ -91,6 +99,7 @@ const dashboardTabs: DashboardTab[] = [
   { id: "details", label: "Run details" },
   { id: "usage", label: "Usage", counter: "usage" },
   { id: "experiments", label: "Experiments", counter: "experiments" },
+  { id: "maintenance", label: "Maintenance" },
   { id: "commands", label: "Commands" },
 ];
 
@@ -208,6 +217,9 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   usagePaged: paginate([], 1, 20),
   experimentsPaged: paginate([], 1, 20),
   selectedRun: null,
+  includePreReleases: false,
+  maintenanceOutput: "Use this view to check dashboard maintenance commands before applying updates or upgrades.",
+  maintenanceLastAction: "",
   commandInput: "",
   commandOutput: "",
   flashMessage: "",
@@ -217,6 +229,7 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   loadingRuns: false,
   loadingUsage: false,
   loadingExperiments: false,
+  loadingMaintenance: false,
   errorCliStatus: "",
   errorDefinitions: "",
   errorRuns: "",
@@ -412,6 +425,47 @@ Alpine.data("dashboardApp", (): DashboardState => ({
   buildLogsCommand(count = DEFAULT_LOGS_COMMAND_COUNT) {
     const window = this.currentWindow();
     return `gh aw logs --json -c ${count} --start-date ${window.startDate} --timeout ${this.logsTimeout}`;
+  },
+
+  buildMaintenanceCommand(action) {
+    if (action === "check-update") return "gh aw status --json";
+    if (action === "run-update") return "gh aw update";
+    if (action === "check-upgrade") return `gh aw upgrade --audit${this.includePreReleases ? " --pre-releases" : ""}`;
+    return `gh aw upgrade${this.includePreReleases ? " --pre-releases" : ""}`;
+  },
+
+  maintenanceActionLabel(action) {
+    if (action === "check-update") return "Check updates";
+    if (action === "run-update") return "Run update";
+    if (action === "check-upgrade") return "Check upgrades";
+    return "Run upgrade";
+  },
+
+  async runMaintenanceAction(action) {
+    const cmd = this.buildMaintenanceCommand(action);
+    this.loadingMaintenance = true;
+    this.maintenanceLastAction = this.maintenanceActionLabel(action);
+    this.maintenanceOutput = `$ ${cmd}\n(running…)`;
+    this.commandInput = cmd;
+    try {
+      const params = new URLSearchParams({
+        cmd,
+        window: this.selectedWindow,
+        timeout: String(this.logsTimeout),
+      });
+      const result = await fetchJson<{ command?: string; output?: string }>(`/api/run-command?${params.toString()}`);
+      this.maintenanceOutput = `$ ${result.command ?? cmd}\n${result.output ?? ""}`;
+      if (action === "run-update" || action === "run-upgrade") {
+        await this.fetchCliStatus();
+        if (this.cliStatus?.available) {
+          await Promise.all([this.fetchDefinitions(), this.fetchRuns(), this.fetchUsage(), this.fetchExperiments()]);
+        }
+      }
+    } catch (error) {
+      this.maintenanceOutput = `$ ${cmd}\nError: ${error instanceof Error ? error.message : String(error)}`;
+    } finally {
+      this.loadingMaintenance = false;
+    }
   },
 
   cliUnavailableMessage() {
