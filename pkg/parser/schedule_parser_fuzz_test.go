@@ -381,18 +381,25 @@ func FuzzScheduleParser(f *testing.F) {
 
 		// 4. Validate cron expression format if successful
 		if err == nil && cron != "" {
-			// Allow fuzzy schedules (FUZZY:*) which have 4 fields
+			// Allow fuzzy schedules (FUZZY:*) which have 4 fields, except
+			// FUZZY:EVERY_MINUTE/N which carries all 5 cron fields.
 			if strings.HasPrefix(cron, "FUZZY:") {
-				// Fuzzy schedules have the format:
-				// - "FUZZY:DAILY * * *" (4 fields)
-				// - "FUZZY:HOURLY/N * * *" (4 fields)
-				// - "FUZZY:DAILY_AROUND:HH:MM * * *" (4 fields but with colon-separated time in first field)
-				// - "FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M * * *" (4 fields with 4 colon-separated values in first field)
 				fields := strings.Fields(cron)
-				if len(fields) != 4 {
-					t.Errorf("ParseSchedule returned invalid fuzzy cron format with %d fields (expected 4): %q for input: %q", len(fields), cron, input)
+				if strings.HasPrefix(cron, "FUZZY:EVERY_MINUTE/") {
+					// "FUZZY:EVERY_MINUTE/N * * * *" — 5 fields
+					if len(fields) != 5 {
+						t.Errorf("ParseSchedule returned invalid FUZZY:EVERY_MINUTE format with %d fields (expected 5): %q for input: %q", len(fields), cron, input)
+					}
+				} else {
+					// All other fuzzy schedules have the format:
+					// - "FUZZY:DAILY * * *" (4 fields)
+					// - "FUZZY:HOURLY/N * * *" (4 fields)
+					// - "FUZZY:DAILY_AROUND:HH:MM * * *" (4 fields but with colon-separated time in first field)
+					// - "FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M * * *" (4 fields with 4 colon-separated values in first field)
+					if len(fields) != 4 {
+						t.Errorf("ParseSchedule returned invalid fuzzy cron format with %d fields (expected 4): %q for input: %q", len(fields), cron, input)
+					}
 				}
-
 				// For FUZZY:DAILY_AROUND, validate the time format
 				if strings.HasPrefix(cron, "FUZZY:DAILY_AROUND:") {
 					// Extract the time part from FUZZY:DAILY_AROUND:HH:MM

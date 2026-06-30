@@ -640,19 +640,19 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "every 10 minutes",
 			input:        "every 10 minutes",
-			expectedCron: "*/10 * * * *",
+			expectedCron: "FUZZY:EVERY_MINUTE/10 * * * *",
 			expectedOrig: "every 10 minutes",
 		},
 		{
 			name:         "every 5 minutes",
 			input:        "every 5 minutes",
-			expectedCron: "*/5 * * * *",
+			expectedCron: "FUZZY:EVERY_MINUTE/5 * * * *",
 			expectedOrig: "every 5 minutes",
 		},
 		{
 			name:         "every 30 minutes",
 			input:        "every 30 minutes",
-			expectedCron: "*/30 * * * *",
+			expectedCron: "FUZZY:EVERY_MINUTE/30 * * * *",
 			expectedOrig: "every 30 minutes",
 		},
 		{
@@ -684,7 +684,7 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "every 30m",
 			input:        "every 30m",
-			expectedCron: "*/30 * * * *",
+			expectedCron: "FUZZY:EVERY_MINUTE/30 * * * *",
 			expectedOrig: "every 30m",
 		},
 		{
@@ -969,13 +969,13 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "interval at minimum - 5m",
 			input:        "every 5m",
-			expectedCron: "*/5 * * * *",
+			expectedCron: "FUZZY:EVERY_MINUTE/5 * * * *",
 			expectedOrig: "every 5m",
 		},
 		{
 			name:         "interval at minimum - 5 minutes",
 			input:        "every 5 minutes",
-			expectedCron: "*/5 * * * *",
+			expectedCron: "FUZZY:EVERY_MINUTE/5 * * * *",
 			expectedOrig: "every 5 minutes",
 		},
 

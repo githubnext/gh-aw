@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -216,7 +217,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			frontmatter: map[string]any{
 				"on": "every 10 minutes",
 			},
-			expectedCron:           "*/10 * * * *",
+			checkScattered:         true, // Scattered minute-interval schedule
 			expectWorkflowDispatch: true,
 		},
 		{
@@ -342,6 +343,20 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 				fields := strings.Fields(actualCron)
 				if len(fields) != 5 {
 					t.Errorf("expected 5 fields in cron expression, got %d: %s", len(fields), actualCron)
+					return
+				}
+				// If the minute field uses M/N start/step syntax, verify that the
+				// offset is a valid integer in [0, N-1]. A non-integer offset (e.g.
+				// "*" from an unscattered "*/N") is itself a failure.
+				minuteField := fields[0]
+				if parts := strings.SplitN(minuteField, "/", 2); len(parts) == 2 {
+					offset, offsetErr := strconv.Atoi(parts[0])
+					interval, intervalErr := strconv.Atoi(parts[1])
+					if offsetErr != nil || intervalErr != nil {
+						t.Errorf("minute field %q is not a valid M/N expression: %s", minuteField, actualCron)
+					} else if offset < 0 || offset >= interval {
+						t.Errorf("offset %d is not in [0, %d): %s", offset, interval, actualCron)
+					}
 				}
 				t.Logf("Successfully scattered schedule to: %s", actualCron)
 			} else if tt.expectedCron != "" {
@@ -355,11 +370,13 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 
 func TestSchedulePreprocessing(t *testing.T) {
 	tests := []struct {
-		name           string
-		frontmatter    map[string]any
-		expectedCron   string
-		expectedError  bool
-		errorSubstring string
+		name               string
+		frontmatter        map[string]any
+		workflowIdentifier string
+		expectedCron       string
+		checkScattered     bool
+		expectedError      bool
+		errorSubstring     string
 	}{
 		{
 			name: "daily schedule",
@@ -398,7 +415,8 @@ func TestSchedulePreprocessing(t *testing.T) {
 					},
 				},
 			},
-			expectedCron: "*/10 * * * *",
+			workflowIdentifier: "test-workflow.md",
+			checkScattered:     true,
 		},
 		{
 			name: "existing cron expression unchanged",
@@ -469,7 +487,8 @@ func TestSchedulePreprocessing(t *testing.T) {
 					"schedule": "every 10 minutes",
 				},
 			},
-			expectedCron: "*/10 * * * *",
+			workflowIdentifier: "test-workflow.md",
+			checkScattered:     true,
 		},
 		{
 			name: "shorthand string format - existing cron",
@@ -495,6 +514,9 @@ func TestSchedulePreprocessing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
+			if tt.workflowIdentifier != "" {
+				compiler.SetWorkflowIdentifier(tt.workflowIdentifier)
+			}
 			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
 
 			if tt.expectedError {
@@ -519,8 +541,35 @@ func TestSchedulePreprocessing(t *testing.T) {
 			firstSchedule := scheduleArray[0].(map[string]any)
 			actualCron := firstSchedule["cron"].(string)
 
-			if actualCron != tt.expectedCron {
-				t.Errorf("expected cron '%s', got '%s'", tt.expectedCron, actualCron)
+			if tt.checkScattered {
+				// Should be scattered to a valid cron (not fuzzy)
+				if strings.HasPrefix(actualCron, "FUZZY:") {
+					t.Errorf("expected scattered cron, got fuzzy: %s", actualCron)
+				}
+				fields := strings.Fields(actualCron)
+				if len(fields) != 5 {
+					t.Errorf("expected 5 fields in cron expression, got %d: %s", len(fields), actualCron)
+					return
+				}
+				// If the minute field uses the M/N start/step syntax, verify
+				// that the offset is a valid integer in [0, N-1] so the period
+				// is preserved. A non-integer offset (e.g. "*" from an
+				// unscattered "*/N") is itself a failure.
+				minuteField := fields[0]
+				if parts := strings.SplitN(minuteField, "/", 2); len(parts) == 2 {
+					offset, offsetErr := strconv.Atoi(parts[0])
+					interval, intervalErr := strconv.Atoi(parts[1])
+					if offsetErr != nil || intervalErr != nil {
+						t.Errorf("minute field %q is not a valid M/N expression: %s", minuteField, actualCron)
+					} else if offset < 0 || offset >= interval {
+						t.Errorf("offset %d is not in [0, %d): %s", offset, interval, actualCron)
+					}
+				}
+				t.Logf("Successfully scattered schedule to: %s", actualCron)
+			} else if tt.expectedCron != "" {
+				if actualCron != tt.expectedCron {
+					t.Errorf("expected cron '%s', got '%s'", tt.expectedCron, actualCron)
+				}
 			}
 		})
 	}
