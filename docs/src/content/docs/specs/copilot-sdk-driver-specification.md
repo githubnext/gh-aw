@@ -465,7 +465,7 @@ Implementations MUST provide automated tests for all Level 1 and Level 2 require
 
 #### Glossary
 
-**Non-ephemeral events**: Events that persist beyond the lifetime of a single session or request and are written to durable storage (for example, audit logs, telemetry sinks, or artifact uploads). Ephemeral events, by contrast, exist only in process memory or transient I/O buffers and are discarded when the driver process exits. A conforming implementation MUST restrict event persistence to non-ephemeral events only when those events do not contain sensitive transient state (such as raw permission-request payloads or connection token values).
+**Non-ephemeral events**: Events that persist beyond the lifetime of a single session or request and are written to durable storage (for example, audit logs, telemetry sinks, or artifact uploads). Ephemeral events, by contrast, exist only in process memory or transient I/O buffers and are discarded when the driver process exits.
 
 #### Requirements
 

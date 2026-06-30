@@ -508,7 +508,7 @@ To reduce manual re-validation burden and catch specification drift early, the f
 - Presence and ordering of `pre_activation`, `activation`, `agent`, `detection`, and `safe_outputs` jobs.
 - Permission set on `agent` job is read-only (`contents: read`, no write permissions).
 - Permission set on `safe_outputs` job contains at least one write permission.
-- All `uses:` action references match the SHA-pinned format (`owner/action@<40-hex-chars>`).
+- All non-local `uses:` action references (excluding local paths such as `./actions/...`) match the SHA-pinned format (`owner/action@<40-hex-chars>`).
 - `concurrency.group` contains at least one dynamic expression (`${{ ... }}`).
 
 This job SHOULD be implemented as a lightweight script (e.g., a YAML-parsing shell or Node.js script) that exits non-zero when any assertion fails, blocking merge.
@@ -539,7 +539,7 @@ This section audits the compliance test matrix defined in `security-architecture
 
 The following test categories require dedicated evidence entries to achieve full coverage in this validation document:
 
-1. **Sandbox Isolation (T-SI-001 to T-SI-007)** — No evidence present. A revalidation pass MUST document how AWF chroot behavior, Docker socket visibility, and MCP container isolation are reflected in compiled workflow behavior.
+1. **Sandbox Isolation (T-SI-001 to T-SI-007)** — No evidence present. A re-validation pass MUST document how AWF chroot behavior, Docker socket visibility, and MCP container isolation are reflected in compiled workflow behavior.
 2. **Output Isolation (T-OI-003 to T-OI-007)** — Partial evidence. Missing evidence for token precedence, secret expression validation, and write operation isolation.
 3. **Network Isolation (T-NI-001 to T-NI-009)** — Partial evidence. Network mode, domain matching, protocol filtering, and MCP isolation behavior are unverified in this document.
 4. **Threat Detection (T-TD-002 to T-TD-007)** — Partial evidence. Only TD-01 (job presence) verified; detection capability assertions unverified.

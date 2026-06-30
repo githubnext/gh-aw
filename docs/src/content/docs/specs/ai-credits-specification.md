@@ -240,7 +240,7 @@ A conforming implementation MUST define and enforce behavior for catalog synchro
 
 3. **Missing required fields**: When a catalog entry is missing required fields (`input` or `output` cost values), the implementation MUST treat that entry as invalid and MUST NOT compute AIC using zero or undefined costs for that model. The entry MUST be skipped or flagged, and a diagnostic MUST be emitted.
 
-4. **Catalog version mismatch**: When the two required catalog paths (`pkg/cli/data/models.json` and `actions/setup/js/models.json`) diverge in content after a sync operation, the implementation MUST treat this as a sync failure and MUST NOT permit normal operation until consistency is restored.
+4. **Catalog version mismatch**: When the two required catalog paths (`pkg/cli/data/models.json` and `actions/setup/js/models.json`) diverge in content after a sync operation, the sync tooling/CI gate MUST treat this as a sync failure and MUST fail the refresh operation until consistency is restored.
 
 ---
 
