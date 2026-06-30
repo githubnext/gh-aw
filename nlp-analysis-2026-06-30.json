@@ -1,0 +1,117 @@
+{
+  "analysis_date": "2026-06-30",
+  "pr_count": 55,
+  "avg_sentiment": -0.0846,
+  "positive_count": 20,
+  "neutral_count": 4,
+  "negative_count": 31,
+  "top_topic": "dashboard / cli / extension",
+  "top_keywords": [
+    "workflow",
+    "run",
+    "dashboard",
+    "sou",
+    "chef",
+    "output",
+    "error",
+    "test",
+    "aic",
+    "model"
+  ],
+  "topic_detail": [
+    {
+      "name": "dashboard / cli / extension",
+      "count": 19,
+      "terms": [
+        "dashboard",
+        "cli",
+        "extension",
+        "command",
+        "run",
+        "module",
+        "path",
+        "file"
+      ]
+    },
+    {
+      "name": "step / failure / output",
+      "count": 13,
+      "terms": [
+        "step",
+        "failure",
+        "output",
+        "prompt",
+        "safe output",
+        "query",
+        "safe",
+        "workflow"
+      ]
+    },
+    {
+      "name": "sou chef / sou / chef",
+      "count": 9,
+      "terms": [
+        "sou chef",
+        "sou",
+        "chef",
+        "engine",
+        "schema",
+        "model",
+        "workflow",
+        "type"
+      ]
+    },
+    {
+      "name": "error / guard / access",
+      "count": 7,
+      "terms": [
+        "error",
+        "guard",
+        "access",
+        "default",
+        "property",
+        "callback",
+        "strict",
+        "computed"
+      ]
+    },
+    {
+      "name": "button / window / linter",
+      "count": 4,
+      "terms": [
+        "button",
+        "window",
+        "linter",
+        "replace",
+        "report window",
+        "report",
+        "tab",
+        "dashboard"
+      ]
+    },
+    {
+      "name": "skill / budget / daily",
+      "count": 3,
+      "terms": [
+        "skill",
+        "budget",
+        "daily",
+        "prompt",
+        "upstream",
+        "workflow",
+        "recompiled",
+        "run"
+      ]
+    }
+  ],
+  "most_positive": {
+    "number": 42295,
+    "title": "Scale MCP logs timeout for larger fetch windows",
+    "score": 0.5145
+  },
+  "most_discussed": {
+    "number": 41824,
+    "title": "Add model policy frontmatter + import unioning + env policy overrides",
+    "body_len": 5016
+  }
+}
