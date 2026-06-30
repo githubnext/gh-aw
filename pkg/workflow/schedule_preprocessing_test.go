@@ -343,16 +343,19 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 				fields := strings.Fields(actualCron)
 				if len(fields) != 5 {
 					t.Errorf("expected 5 fields in cron expression, got %d: %s", len(fields), actualCron)
+					return
 				}
-				// If the minute field uses M/N start/step syntax, verify offset is in [0, N-1].
+				// If the minute field uses M/N start/step syntax, verify that the
+				// offset is a valid integer in [0, N-1]. A non-integer offset (e.g.
+				// "*" from an unscattered "*/N") is itself a failure.
 				minuteField := fields[0]
 				if parts := strings.SplitN(minuteField, "/", 2); len(parts) == 2 {
 					offset, offsetErr := strconv.Atoi(parts[0])
 					interval, intervalErr := strconv.Atoi(parts[1])
-					if offsetErr == nil && intervalErr == nil {
-						if offset < 0 || offset >= interval {
-							t.Errorf("offset %d is not in [0, %d): %s", offset, interval, actualCron)
-						}
+					if offsetErr != nil || intervalErr != nil {
+						t.Errorf("minute field %q is not a valid M/N expression: %s", minuteField, actualCron)
+					} else if offset < 0 || offset >= interval {
+						t.Errorf("offset %d is not in [0, %d): %s", offset, interval, actualCron)
 					}
 				}
 				t.Logf("Successfully scattered schedule to: %s", actualCron)
@@ -546,17 +549,20 @@ func TestSchedulePreprocessing(t *testing.T) {
 				fields := strings.Fields(actualCron)
 				if len(fields) != 5 {
 					t.Errorf("expected 5 fields in cron expression, got %d: %s", len(fields), actualCron)
+					return
 				}
 				// If the minute field uses the M/N start/step syntax, verify
-				// offset is within [0, N-1] so the period is preserved.
+				// that the offset is a valid integer in [0, N-1] so the period
+				// is preserved. A non-integer offset (e.g. "*" from an
+				// unscattered "*/N") is itself a failure.
 				minuteField := fields[0]
 				if parts := strings.SplitN(minuteField, "/", 2); len(parts) == 2 {
 					offset, offsetErr := strconv.Atoi(parts[0])
 					interval, intervalErr := strconv.Atoi(parts[1])
-					if offsetErr == nil && intervalErr == nil {
-						if offset < 0 || offset >= interval {
-							t.Errorf("offset %d is not in [0, %d): %s", offset, interval, actualCron)
-						}
+					if offsetErr != nil || intervalErr != nil {
+						t.Errorf("minute field %q is not a valid M/N expression: %s", minuteField, actualCron)
+					} else if offset < 0 || offset >= interval {
+						t.Errorf("offset %d is not in [0, %d): %s", offset, interval, actualCron)
 					}
 				}
 				t.Logf("Successfully scattered schedule to: %s", actualCron)
