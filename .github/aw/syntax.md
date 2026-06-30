@@ -10,6 +10,7 @@ Use the smallest relevant reference instead of loading one large schema file.
 |---|---|
 | Core GitHub Actions fields (`on`, `permissions`, `runs-on`, `steps`, `env`, `secrets`) | [syntax-core.md](syntax-core.md) |
 | Agentic workflow specific fields (`strict`, `bots`, `labels`, metadata, engine-specific fields) | [syntax-agentic.md](syntax-agentic.md) |
+| Inline engine definitions: routing a runtime adapter to a custom LLM provider (BYOK) | [syntax-engine-providers.md](syntax-engine-providers.md) |
 | Cache configuration, tools, imports, and permission patterns | [syntax-tools-imports.md](syntax-tools-imports.md) |
 
 ## Usage Guidance
