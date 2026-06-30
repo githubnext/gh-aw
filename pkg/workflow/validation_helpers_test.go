@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -587,6 +588,44 @@ func TestParseMountEntry(t *testing.T) {
 			assert.Equal(t, tt.want, got, "mount parts for %q", tt.mount)
 		})
 	}
+}
+
+func TestValidateMountEntries(t *testing.T) {
+	t.Run("returns first invalid mount after valid prefix", func(t *testing.T) {
+		var validated []mountParts
+		err := validateMountEntries(
+			[]string{
+				"/host/data:/data:ro",
+				"/host/data:/data:nope",
+				"/host/other:/other:rw",
+			},
+			func(_ int, parts mountParts) {
+				validated = append(validated, parts)
+			},
+			func(i int, mount string, parts mountParts, kind mountValidationKind) error {
+				assert.Equal(t, 1, i)
+				assert.Equal(t, "/host/data:/data:nope", mount)
+				assert.Equal(t, mountValidationModeError, kind)
+				assert.Equal(t, mountParts{source: "/host/data", dest: "/data", mode: "nope"}, parts)
+				return fmt.Errorf("stop at %d", i)
+			},
+		)
+
+		require.EqualError(t, err, "stop at 1")
+		assert.Equal(t, []mountParts{{source: "/host/data", dest: "/data", mode: "ro"}}, validated)
+	})
+
+	t.Run("accepts nil onValid callback", func(t *testing.T) {
+		err := validateMountEntries(
+			[]string{"/host/data:/data:ro"},
+			nil,
+			func(i int, mount string, parts mountParts, kind mountValidationKind) error {
+				return fmt.Errorf("unexpected invalid mount at %d: %s (%v)", i, mount, kind)
+			},
+		)
+
+		require.NoError(t, err)
+	})
 }
 
 // TestPreprocessProtectedFilesField tests the preprocessProtectedFilesField helper.
