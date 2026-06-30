@@ -515,7 +515,6 @@ tools:
 
 	userSnippet := `--user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"'`
 	groupAddSnippet := `--group-add '"${DOCKER_SOCK_GID}"'`
-	addHostSnippet := `--add-host host.docker.internal:127.0.0.1`
 	mountSnippet := `-v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock`
 	defaultGatewayPortSnippet := `export MCP_GATEWAY_PORT="8080"`
 	uidComputeSnippet := `MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')`
@@ -531,8 +530,13 @@ tools:
 		"Shell should compute MCP_GATEWAY_UID before docker command")
 	require.Contains(t, yamlStr, runnerGIDComputeSnippet,
 		"Shell should compute MCP_GATEWAY_GID before docker command")
-	require.Contains(t, yamlStr, addHostSnippet,
-		"Docker command should map host.docker.internal to host-gateway")
+	// Note: --add-host host.docker.internal is NOT present in network isolation mode (the default).
+	// Network isolation mode (sudo: false / omitted) uses --network bridge instead of --network host.
+	// See TestMCPGatewayDockerCommandUsesBridgeInNetworkIsolationMode for bridge-mode assertions.
+	require.NotContains(t, yamlStr, `--add-host host.docker.internal:127.0.0.1`,
+		"Docker command should not add host.docker.internal mapping in default network isolation mode")
+	require.Contains(t, yamlStr, `docker run -i --rm --network bridge`,
+		"Docker command should use bridge networking in default network isolation mode")
 	require.Contains(t, yamlStr, userSnippet,
 		"Docker command should include runner UID/GID user mapping")
 	require.Contains(t, yamlStr, socketPathSnippet,
