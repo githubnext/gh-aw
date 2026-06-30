@@ -23,8 +23,17 @@ func renderJSON(data AuditData) error {
 // for agentic readability. Each line carries maximum information with minimal decoration.
 func renderConsole(data AuditData, logsPath string) {
 	auditReportLog.Print("Rendering compact audit report to console")
+	renderConsoleSummarySection(data)
+	renderConsoleMetricsSection(data)
+	renderConsoleJobsSection(data)
+	renderConsoleContentSection(data)
+	renderConsoleIssuesSection(data)
+	renderConsoleToolsSection(data)
+	renderConsoleAnalysisSection(data, logsPath)
+}
 
-	// Line 1: Identity + outcome
+// renderConsoleSummarySection renders identity, context, comparison, and fingerprint lines.
+func renderConsoleSummarySection(data AuditData) {
 	statusIcon := "✅"
 	switch data.Overview.Conclusion {
 	case "failure":
@@ -36,7 +45,6 @@ func renderConsole(data AuditData, logsPath string) {
 		statusIcon, data.Overview.WorkflowName, data.Overview.Conclusion,
 		data.Overview.Duration, data.Overview.URL)
 
-	// Line 2: Context
 	engineInfo := ""
 	if data.EngineConfig != nil {
 		parts := []string{data.EngineConfig.EngineID}
@@ -51,7 +59,6 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Fprintf(os.Stderr, "  run=%d branch=%s event=%s engine=%s\n",
 		data.Overview.RunID, data.Overview.Branch, data.Overview.Event, engineInfo)
 
-	// Line 3: Comparison (if available)
 	if data.Comparison != nil && data.Comparison.BaselineFound {
 		compLine := "  comparison:"
 		if data.Comparison.Classification != nil {
@@ -66,7 +73,6 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintln(os.Stderr, compLine)
 	}
 
-	// Line 4: Fingerprint (if available)
 	if data.BehaviorFingerprint != nil {
 		fmt.Fprintf(os.Stderr, "  fingerprint: %s/%s/%s/%s/%s\n",
 			data.BehaviorFingerprint.ExecutionStyle,
@@ -75,8 +81,10 @@ func renderConsole(data AuditData, logsPath string) {
 			data.BehaviorFingerprint.ResourceProfile,
 			data.BehaviorFingerprint.DispatchMode)
 	}
+}
 
-	// Line 5: Metrics (always present)
+// renderConsoleMetricsSection renders metrics, session, token usage, and GitHub API lines.
+func renderConsoleMetricsSection(data AuditData) {
 	metricsLine := fmt.Sprintf("  metrics: errors=%d warnings=%d",
 		data.Metrics.ErrorCount, data.Metrics.WarningCount)
 	if data.Metrics.Turns > 0 {
@@ -93,7 +101,6 @@ func renderConsole(data AuditData, logsPath string) {
 	}
 	fmt.Fprintln(os.Stderr, metricsLine)
 
-	// Line 6: Session performance (if present)
 	if data.SessionAnalysis != nil {
 		sessionLine := "  session:"
 		if data.SessionAnalysis.WallTime != "" {
@@ -114,7 +121,6 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintln(os.Stderr, sessionLine)
 	}
 
-	// Token usage (if firewall data present)
 	if data.FirewallTokenUsage != nil && data.FirewallTokenUsage.TotalRequests > 0 {
 		fmt.Fprintf(os.Stderr, "  tokens: in=%s out=%s cache_read=%s reqs=%d steering=%s\n",
 			console.FormatNumber(data.FirewallTokenUsage.TotalInputTokens),
@@ -124,44 +130,48 @@ func renderConsole(data AuditData, logsPath string) {
 			console.FormatNumber(data.FirewallTokenUsage.TotalSteeringEvents))
 	}
 
-	// GitHub API usage (one line)
 	if data.GitHubRateLimitUsage != nil {
 		fmt.Fprintf(os.Stderr, "  github_api: calls=%s quota=%s/%s\n",
 			console.FormatNumber(data.GitHubRateLimitUsage.TotalRequestsMade),
 			console.FormatNumber(data.GitHubRateLimitUsage.CoreConsumed),
 			console.FormatNumber(data.GitHubRateLimitUsage.CoreLimit))
 	}
+}
 
-	// Jobs (compact: one line if all pass, table if failures)
-	if len(data.Jobs) > 0 {
-		allPassed := true
-		jobParts := make([]string, 0, len(data.Jobs))
-		for _, job := range data.Jobs {
-			if job.Conclusion != "success" && job.Conclusion != "skipped" {
-				allPassed = false
-			}
-			jobParts = append(jobParts, fmt.Sprintf("%s:%s", job.Name, job.Duration))
-		}
-		if allPassed {
-			fmt.Fprintf(os.Stderr, "  jobs: %d/%d passed [%s]\n", len(data.Jobs), len(data.Jobs), strings.Join(jobParts, " "))
-		} else {
-			fmt.Fprintf(os.Stderr, "  jobs:\n")
-			for _, job := range data.Jobs {
-				icon := "✓"
-				switch job.Conclusion {
-				case "failure":
-					icon = "✗"
-				case "skipped":
-					icon = "○"
-				case "cancelled":
-					icon = "⊘"
-				}
-				fmt.Fprintf(os.Stderr, "    %s %s (%s) %s\n", icon, job.Name, job.Duration, job.Conclusion)
-			}
-		}
+// renderConsoleJobsSection renders the jobs section (compact or table form).
+func renderConsoleJobsSection(data AuditData) {
+	if len(data.Jobs) == 0 {
+		return
 	}
+	allPassed := true
+	jobParts := make([]string, 0, len(data.Jobs))
+	for _, job := range data.Jobs {
+		if job.Conclusion != "success" && job.Conclusion != "skipped" {
+			allPassed = false
+		}
+		jobParts = append(jobParts, fmt.Sprintf("%s:%s", job.Name, job.Duration))
+	}
+	if allPassed {
+		fmt.Fprintf(os.Stderr, "  jobs: %d/%d passed [%s]\n", len(data.Jobs), len(data.Jobs), strings.Join(jobParts, " "))
+		return
+	}
+	fmt.Fprintf(os.Stderr, "  jobs:\n")
+	for _, job := range data.Jobs {
+		icon := "✓"
+		switch job.Conclusion {
+		case "failure":
+			icon = "✗"
+		case "skipped":
+			icon = "○"
+		case "cancelled":
+			icon = "⊘"
+		}
+		fmt.Fprintf(os.Stderr, "    %s %s (%s) %s\n", icon, job.Name, job.Duration, job.Conclusion)
+	}
+}
 
-	// Prompt info (one line)
+// renderConsoleContentSection renders prompt info, findings, assessments, recommendations, and insights.
+func renderConsoleContentSection(data AuditData) {
 	if data.PromptAnalysis != nil {
 		promptLine := fmt.Sprintf("  prompt: %s chars", console.FormatNumber(data.PromptAnalysis.PromptSize))
 		if data.PromptAnalysis.PromptFile != "" {
@@ -170,9 +180,6 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintln(os.Stderr, promptLine)
 	}
 
-	// --- Actionable sections below (only rendered when non-trivial) ---
-
-	// Key Findings: only show non-success findings in compact form
 	actionableFindings := filterActionableFindings(data.KeyFindings)
 	if len(actionableFindings) > 0 {
 		fmt.Fprintln(os.Stderr, "  findings:")
@@ -181,7 +188,6 @@ func renderConsole(data AuditData, logsPath string) {
 		}
 	}
 
-	// Agentic Assessments (compact)
 	if len(data.AgenticAssessments) > 0 {
 		fmt.Fprintln(os.Stderr, "  assessments:")
 		for _, a := range data.AgenticAssessments {
@@ -193,7 +199,6 @@ func renderConsole(data AuditData, logsPath string) {
 		}
 	}
 
-	// Recommendations: only high/medium
 	actionableRecs := filterActionableRecommendations(data.Recommendations)
 	if len(actionableRecs) > 0 {
 		fmt.Fprintln(os.Stderr, "  recommendations:")
@@ -202,7 +207,6 @@ func renderConsole(data AuditData, logsPath string) {
 		}
 	}
 
-	// Observability Insights: only non-info severity
 	actionableInsights := filterActionableInsights(data.ObservabilityInsights)
 	if len(actionableInsights) > 0 {
 		fmt.Fprintln(os.Stderr, "  insights:")
@@ -214,8 +218,10 @@ func renderConsole(data AuditData, logsPath string) {
 			fmt.Fprintln(os.Stderr, line)
 		}
 	}
+}
 
-	// Errors and Warnings (always show if present)
+// renderConsoleIssuesSection renders errors, warnings, missing tools, and MCP failures.
+func renderConsoleIssuesSection(data AuditData) {
 	if len(data.Errors) > 0 {
 		fmt.Fprintln(os.Stderr, "  errors:")
 		for _, err := range data.Errors {
@@ -233,7 +239,6 @@ func renderConsole(data AuditData, logsPath string) {
 		}
 	}
 
-	// Missing Tools (actionable)
 	if len(data.MissingTools) > 0 {
 		fmt.Fprintln(os.Stderr, "  missing_tools:")
 		for _, tool := range data.MissingTools {
@@ -245,26 +250,25 @@ func renderConsole(data AuditData, logsPath string) {
 		}
 	}
 
-	// MCP Failures (actionable)
 	if len(data.MCPFailures) > 0 {
 		fmt.Fprintln(os.Stderr, "  mcp_failures:")
 		for _, f := range data.MCPFailures {
 			fmt.Fprintf(os.Stderr, "    %s: %s\n", f.ServerName, f.Status)
 		}
 	}
+}
 
-	// MCP Server Health (only if issues)
+// renderConsoleToolsSection renders MCP health, safe outputs, created items, tool usage, and MCP tool usage.
+func renderConsoleToolsSection(data AuditData) {
 	if data.MCPServerHealth != nil {
 		renderCompactMCPHealth(data.MCPServerHealth)
 	}
 
-	// Safe Output Summary (compact)
 	if data.SafeOutputSummary != nil && data.SafeOutputSummary.TotalItems > 0 {
 		fmt.Fprintf(os.Stderr, "  safe_outputs: %d items — %s\n",
 			data.SafeOutputSummary.TotalItems, data.SafeOutputSummary.Summary)
 	}
 
-	// Created Items (compact)
 	if len(data.CreatedItems) > 0 {
 		fmt.Fprintln(os.Stderr, "  created:")
 		for _, item := range data.CreatedItems {
@@ -278,7 +282,6 @@ func renderConsole(data AuditData, logsPath string) {
 		}
 	}
 
-	// Tool Usage (compact table only when tools were used)
 	if len(data.ToolUsage) > 0 {
 		fmt.Fprintln(os.Stderr, "  tools:")
 		for _, tool := range data.ToolUsage {
@@ -290,7 +293,6 @@ func renderConsole(data AuditData, logsPath string) {
 		}
 	}
 
-	// MCP Tool Usage (compact)
 	if data.MCPToolUsage != nil && len(data.MCPToolUsage.Summary) > 0 {
 		fmt.Fprintln(os.Stderr, "  mcp_tools:")
 		for _, s := range data.MCPToolUsage.Summary {
@@ -303,23 +305,22 @@ func renderConsole(data AuditData, logsPath string) {
 			}
 			fmt.Fprintln(os.Stderr, line)
 		}
-		// Guard policy (if present)
 		if data.MCPToolUsage.GuardPolicySummary != nil && data.MCPToolUsage.GuardPolicySummary.TotalBlocked > 0 {
 			fmt.Fprintf(os.Stderr, "    guard_blocked: %d\n", data.MCPToolUsage.GuardPolicySummary.TotalBlocked)
 		}
 	}
+}
 
-	// Firewall Analysis (compact)
+// renderConsoleAnalysisSection renders firewall, policy, experiments, and logs path.
+func renderConsoleAnalysisSection(data AuditData, logsPath string) {
 	if data.FirewallAnalysis != nil && data.FirewallAnalysis.TotalRequests > 0 {
 		renderCompactFirewall(data.FirewallAnalysis)
 	}
 
-	// Policy Analysis (compact)
 	if data.PolicyAnalysis != nil && len(data.PolicyAnalysis.RuleHits) > 0 {
 		fmt.Fprintf(os.Stderr, "  firewall_policy: %s\n", data.PolicyAnalysis.PolicySummary)
 	}
 
-	// Experiments
 	if data.Experiments != nil && len(data.Experiments.Assignments) > 0 {
 		parts := make([]string, 0, len(data.Experiments.Assignments))
 		for name, variant := range data.Experiments.Assignments {
@@ -329,7 +330,6 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintf(os.Stderr, "  experiments: %s\n", strings.Join(parts, " "))
 	}
 
-	// Logs path (final line)
 	absPath, _ := filepath.Abs(logsPath)
 	fmt.Fprintf(os.Stderr, "  logs: %s\n", absPath)
 }

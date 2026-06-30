@@ -37,14 +37,12 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	safeOutputsConfig := make(map[string]any)
 	engineManifestFiles, engineManifestPathPrefixes := getEngineAgentFileInfoFromWorkflowData(data)
 
-	// Standard handler configs — sourced from handlerRegistry (same as GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG)
+	// Standard handler configs — sourced from handlerRegistry
 	for handlerName, builder := range handlerRegistry {
 		if handlerCfg := builder(data.SafeOutputs); handlerCfg != nil {
 			injectCurrentCheckoutPatchWorkspacePath(handlerName, handlerCfg, data)
 			injectCheckoutMapping(handlerName, handlerCfg, data)
 			excludeFiles := ParseStringArrayFromConfig(handlerCfg, "_protected_files_exclude", nil)
-			// Strip the internal sentinel key used by the handler manager for compile-time
-			// exclusion processing — it must not be forwarded to the runtime config.json.
 			delete(handlerCfg, "_protected_files_exclude")
 			if _, hasProtectedFiles := handlerCfg["protected_files"]; hasProtectedFiles {
 				fullManifestFiles := getAllManifestFiles(engineManifestFiles...)
@@ -56,8 +54,6 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 				} else {
 					delete(handlerCfg, "protected_path_prefixes")
 				}
-				// Compute which top-level dot-folder prefixes are excluded so the runtime
-				// dot-folder check can skip them.
 				if dotFolderExcludes := getDotFolderExcludes(excludeFiles); len(dotFolderExcludes) > 0 {
 					handlerCfg["protected_dot_folder_excludes"] = dotFolderExcludes
 				}
@@ -66,136 +62,12 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 		}
 	}
 
-	// Safe-jobs configuration: custom output types that run as separate GitHub Actions jobs.
-	// These are not standard handlers but must be in config.json so the ingestion step can
-	// validate and route those output types.
-	if len(data.SafeOutputs.Jobs) > 0 {
-		safeOutputsConfigLog.Printf("Processing %d safe job configurations", len(data.SafeOutputs.Jobs))
-		for jobName, jobConfig := range data.SafeOutputs.Jobs {
-			safeOutputsConfigLog.Printf("Generating config for safe job: %s", jobName)
-			safeJobConfig := map[string]any{}
-			if jobConfig.Description != "" {
-				safeJobConfig["description"] = jobConfig.Description
-			}
-			if jobConfig.Output != "" {
-				safeJobConfig["output"] = jobConfig.Output
-			}
-			if jobConfig.Max > 0 {
-				safeJobConfig["max"] = jobConfig.Max
-			}
-			if len(jobConfig.Inputs) > 0 {
-				inputsConfig := make(map[string]any)
-				for inputName, inputDef := range jobConfig.Inputs {
-					inputConfig := map[string]any{
-						"type":        inputDef.Type,
-						"description": inputDef.Description,
-						"required":    inputDef.Required,
-					}
-					if inputDef.Default != "" {
-						inputConfig["default"] = inputDef.Default
-					}
-					if len(inputDef.Options) > 0 {
-						inputConfig["options"] = inputDef.Options
-					}
-					inputsConfig[inputName] = inputConfig
-				}
-				safeJobConfig["inputs"] = inputsConfig
-			}
-			safeOutputsConfig[jobName] = safeJobConfig
-		}
+	populateSafeJobsConfig(data, safeOutputsConfig)
+	populateSafeScriptsConfig(data, safeOutputsConfig)
+	if err := populateSafeActionsConfig(data, safeOutputsConfig); err != nil {
+		return "", err
 	}
-
-	// Safe-scripts configuration: script output types handled inline by the handler manager.
-	if len(data.SafeOutputs.Scripts) > 0 {
-		safeOutputsConfigLog.Printf("Processing %d safe script configurations", len(data.SafeOutputs.Scripts))
-		for scriptName, scriptConfig := range data.SafeOutputs.Scripts {
-			normalizedName := stringutil.NormalizeSafeOutputIdentifier(scriptName)
-			safeOutputsConfigLog.Printf("Generating config for safe script: %s (normalized: %s)", scriptName, normalizedName)
-			safeScriptConfigMap := map[string]any{}
-			if scriptConfig.Description != "" {
-				safeScriptConfigMap["description"] = scriptConfig.Description
-			}
-			if len(scriptConfig.Inputs) > 0 {
-				inputsConfig := make(map[string]any)
-				for inputName, inputDef := range scriptConfig.Inputs {
-					inputConfig := map[string]any{
-						"type":        inputDef.Type,
-						"description": inputDef.Description,
-						"required":    inputDef.Required,
-					}
-					if inputDef.Default != "" {
-						inputConfig["default"] = inputDef.Default
-					}
-					if len(inputDef.Options) > 0 {
-						inputConfig["options"] = inputDef.Options
-					}
-					inputsConfig[inputName] = inputConfig
-				}
-				safeScriptConfigMap["inputs"] = inputsConfig
-			}
-			safeOutputsConfig[normalizedName] = safeScriptConfigMap
-		}
-	}
-
-	// Safe-actions configuration: custom GitHub Actions exposed as safe output tools.
-	// The normalized action names are added as config keys so both MCP server implementations
-	// recognise them as enabled tools (the tool schema is already in tools.json via
-	// tools_meta.json; the MCP server just needs to see the name in config.json).
-	if len(data.SafeOutputs.Actions) > 0 {
-		safeOutputsConfigLog.Printf("Processing %d safe action configurations", len(data.SafeOutputs.Actions))
-		for actionName := range data.SafeOutputs.Actions {
-			normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
-			if _, exists := safeOutputsConfig[normalizedName]; exists {
-				return "", fmt.Errorf(
-					"safe-outputs action %q has a normalized name %q that conflicts with an existing safe outputs config entry; rename the action to avoid the conflict",
-					actionName,
-					normalizedName,
-				)
-			}
-			safeOutputsConfigLog.Printf("Adding safe action to config: %s (normalized: %s)", actionName, normalizedName)
-			safeOutputsConfig[normalizedName] = true
-		}
-	}
-
-	// Mentions configuration: controls which @mentions are allowed in AI output.
-	// This is consumed by the ingestion step, not by standard handlers.
-	if data.SafeOutputs.Mentions != nil {
-		mentionsConfig := buildMentionsHandlerConfig(data.SafeOutputs.Mentions)
-		if len(mentionsConfig) > 0 {
-			safeOutputsConfig["mentions"] = mentionsConfig
-		}
-	}
-
-	// Max bot mentions: limits bot trigger references (e.g. "fixes #123") in AI output.
-	// Consumed by the ingestion step as a global config knob.
-	// Store as integer when possible (matching original behavior), or as expression string.
-	if data.SafeOutputs.MaxBotMentions != nil {
-		v := *data.SafeOutputs.MaxBotMentions
-		if n := templatableIntValue(data.SafeOutputs.MaxBotMentions); n > 0 {
-			safeOutputsConfig["max_bot_mentions"] = n
-		} else if strings.HasPrefix(v, "${{") {
-			safeOutputsConfig["max_bot_mentions"] = v
-		}
-	}
-
-	// Push-repo-memory configuration: enables the push_repo_memory MCP tool for early
-	// size validation during the agent session.
-	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
-		var memories []map[string]any
-		for _, memory := range data.RepoMemoryConfig.Memories {
-			memories = append(memories, map[string]any{
-				"id":             memory.ID,
-				"dir":            constants.TmpRepoMemoryDir + memory.ID,
-				"max_file_size":  memory.MaxFileSize,
-				"max_patch_size": memory.MaxPatchSize,
-				"max_file_count": memory.MaxFileCount,
-			})
-		}
-		safeOutputsConfig["push_repo_memory"] = map[string]any{
-			"memories": memories,
-		}
-		safeOutputsConfigLog.Printf("Added push_repo_memory config with %d memory entries", len(data.RepoMemoryConfig.Memories))
-	}
+	populateSafeGlobalConfig(data, safeOutputsConfig)
 
 	if len(safeOutputsConfig) == 0 {
 		return "", nil
@@ -206,6 +78,121 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	}
 	safeOutputsConfigLog.Printf("Safe outputs config generation complete: %d tool types configured", len(safeOutputsConfig))
 	return string(configJSON), nil
+}
+
+// populateSafeJobsConfig adds safe-jobs entries to the config map.
+func populateSafeJobsConfig(data *WorkflowData, cfg map[string]any) {
+	if len(data.SafeOutputs.Jobs) == 0 {
+		return
+	}
+	safeOutputsConfigLog.Printf("Processing %d safe job configurations", len(data.SafeOutputs.Jobs))
+	for jobName, jobConfig := range data.SafeOutputs.Jobs {
+		safeOutputsConfigLog.Printf("Generating config for safe job: %s", jobName)
+		safeJobConfig := map[string]any{}
+		if jobConfig.Description != "" {
+			safeJobConfig["description"] = jobConfig.Description
+		}
+		if jobConfig.Output != "" {
+			safeJobConfig["output"] = jobConfig.Output
+		}
+		if jobConfig.Max > 0 {
+			safeJobConfig["max"] = jobConfig.Max
+		}
+		if len(jobConfig.Inputs) > 0 {
+			safeJobConfig["inputs"] = buildSafeInputsConfig(jobConfig.Inputs)
+		}
+		cfg[jobName] = safeJobConfig
+	}
+}
+
+// populateSafeScriptsConfig adds safe-scripts entries to the config map.
+func populateSafeScriptsConfig(data *WorkflowData, cfg map[string]any) {
+	if len(data.SafeOutputs.Scripts) == 0 {
+		return
+	}
+	safeOutputsConfigLog.Printf("Processing %d safe script configurations", len(data.SafeOutputs.Scripts))
+	for scriptName, scriptConfig := range data.SafeOutputs.Scripts {
+		normalizedName := stringutil.NormalizeSafeOutputIdentifier(scriptName)
+		safeOutputsConfigLog.Printf("Generating config for safe script: %s (normalized: %s)", scriptName, normalizedName)
+		safeScriptConfigMap := map[string]any{}
+		if scriptConfig.Description != "" {
+			safeScriptConfigMap["description"] = scriptConfig.Description
+		}
+		if len(scriptConfig.Inputs) > 0 {
+			safeScriptConfigMap["inputs"] = buildSafeInputsConfig(scriptConfig.Inputs)
+		}
+		cfg[normalizedName] = safeScriptConfigMap
+	}
+}
+
+// buildSafeInputsConfig converts a map of InputDefinition pointers into the config map format.
+func buildSafeInputsConfig(inputs map[string]*InputDefinition) map[string]any {
+	inputsConfig := make(map[string]any)
+	for inputName, inputDef := range inputs {
+		inputConfig := map[string]any{
+			"type":        inputDef.Type,
+			"description": inputDef.Description,
+			"required":    inputDef.Required,
+		}
+		if inputDef.Default != "" {
+			inputConfig["default"] = inputDef.Default
+		}
+		if len(inputDef.Options) > 0 {
+			inputConfig["options"] = inputDef.Options
+		}
+		inputsConfig[inputName] = inputConfig
+	}
+	return inputsConfig
+}
+
+// populateSafeActionsConfig adds safe-actions entries to the config map.
+func populateSafeActionsConfig(data *WorkflowData, cfg map[string]any) error {
+	if len(data.SafeOutputs.Actions) == 0 {
+		return nil
+	}
+	safeOutputsConfigLog.Printf("Processing %d safe action configurations", len(data.SafeOutputs.Actions))
+	for actionName := range data.SafeOutputs.Actions {
+		normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
+		if _, exists := cfg[normalizedName]; exists {
+			return fmt.Errorf(
+				"safe-outputs action %q has a normalized name %q that conflicts with an existing safe outputs config entry; rename the action to avoid the conflict",
+				actionName, normalizedName,
+			)
+		}
+		safeOutputsConfigLog.Printf("Adding safe action to config: %s (normalized: %s)", actionName, normalizedName)
+		cfg[normalizedName] = true
+	}
+	return nil
+}
+
+// populateSafeGlobalConfig adds mentions, max_bot_mentions, and push_repo_memory entries.
+func populateSafeGlobalConfig(data *WorkflowData, cfg map[string]any) {
+	if data.SafeOutputs.Mentions != nil {
+		if mentionsConfig := buildMentionsHandlerConfig(data.SafeOutputs.Mentions); len(mentionsConfig) > 0 {
+			cfg["mentions"] = mentionsConfig
+		}
+	}
+	if data.SafeOutputs.MaxBotMentions != nil {
+		v := *data.SafeOutputs.MaxBotMentions
+		if n := templatableIntValue(data.SafeOutputs.MaxBotMentions); n > 0 {
+			cfg["max_bot_mentions"] = n
+		} else if strings.HasPrefix(v, "${{") {
+			cfg["max_bot_mentions"] = v
+		}
+	}
+	if data.RepoMemoryConfig == nil || len(data.RepoMemoryConfig.Memories) == 0 {
+		return
+	}
+	var memories []map[string]any
+	for _, memory := range data.RepoMemoryConfig.Memories {
+		memories = append(memories, map[string]any{
+			"id": memory.ID, "dir": constants.TmpRepoMemoryDir + memory.ID,
+			"max_file_size": memory.MaxFileSize, "max_patch_size": memory.MaxPatchSize,
+			"max_file_count": memory.MaxFileCount,
+		})
+	}
+	cfg["push_repo_memory"] = map[string]any{"memories": memories}
+	safeOutputsConfigLog.Printf("Added push_repo_memory config with %d memory entries", len(data.RepoMemoryConfig.Memories))
 }
 
 func getEngineAgentFileInfoFromWorkflowData(data *WorkflowData) (manifestFiles []string, pathPrefixes []string) {
@@ -247,44 +234,8 @@ func generateCustomJobToolDefinition(jobName string, jobConfig *SafeJobConfig) m
 		"additionalProperties": false,
 	}
 
-	var requiredFields []string
-	properties, ok := inputSchema["properties"].(map[string]any)
-	if !ok {
-		properties = make(map[string]any)
-		inputSchema["properties"] = properties
-	}
-
-	for inputName, inputDef := range jobConfig.Inputs {
-		property := map[string]any{}
-
-		if inputDef.Description != "" {
-			property["description"] = inputDef.Description
-		}
-
-		switch inputDef.Type {
-		case "choice":
-			property["type"] = "string"
-			if len(inputDef.Options) > 0 {
-				property["enum"] = inputDef.Options
-			}
-		case "boolean":
-			property["type"] = "boolean"
-		case "number":
-			property["type"] = "number"
-		default:
-			property["type"] = "string"
-		}
-
-		if inputDef.Default != nil {
-			property["default"] = inputDef.Default
-		}
-
-		if inputDef.Required {
-			requiredFields = append(requiredFields, inputName)
-		}
-
-		properties[inputName] = property
-	}
+	properties := inputSchema["properties"].(map[string]any)
+	requiredFields := buildJobInputSchemaProperties(jobConfig.Inputs, properties)
 
 	if len(requiredFields) > 0 {
 		sort.Strings(requiredFields)
@@ -299,4 +250,37 @@ func generateCustomJobToolDefinition(jobName string, jobConfig *SafeJobConfig) m
 		"description": description,
 		"inputSchema": inputSchema,
 	}
+}
+
+// buildJobInputSchemaProperties populates the properties map from job input definitions
+// and returns the list of required field names.
+func buildJobInputSchemaProperties(inputs map[string]*InputDefinition, properties map[string]any) []string {
+	var requiredFields []string
+	for inputName, inputDef := range inputs {
+		property := map[string]any{}
+		if inputDef.Description != "" {
+			property["description"] = inputDef.Description
+		}
+		switch inputDef.Type {
+		case "choice":
+			property["type"] = "string"
+			if len(inputDef.Options) > 0 {
+				property["enum"] = inputDef.Options
+			}
+		case "boolean":
+			property["type"] = "boolean"
+		case "number":
+			property["type"] = "number"
+		default:
+			property["type"] = "string"
+		}
+		if inputDef.Default != nil {
+			property["default"] = inputDef.Default
+		}
+		if inputDef.Required {
+			requiredFields = append(requiredFields, inputName)
+		}
+		properties[inputName] = property
+	}
+	return requiredFields
 }
