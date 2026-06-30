@@ -19,6 +19,7 @@ const {
   fetchAWFReflect,
   fetchModelsFromUrl,
   inferProviderTypeForModel,
+  inferWireApiForModel,
   resolveCopilotSDKCustomProviderFromReflect,
 } = require("./awf_reflect.cjs");
 

@@ -410,6 +410,42 @@ function inferProviderTypeForModel(endpointProvider, modelName, modelsJson) {
 }
 
 /**
+ * Infer the wire API for a given model ID from the models catalog.
+ * Returns "responses" when the model's catalog entry specifies `wire_api: "responses"`,
+ * or "completions" as the safe default for all other cases.
+ *
+ * @param {string} modelId
+ * @param {object | null | undefined} modelsJson
+ * @returns {"completions" | "responses"}
+ */
+function inferWireApiForModel(modelId, modelsJson) {
+  const model = String(modelId || "")
+    .toLowerCase()
+    .trim();
+  if (!model || modelsJson == null) return "completions";
+
+  const providers = modelsJson && typeof modelsJson === "object" && !Array.isArray(modelsJson) ? modelsJson.providers : null;
+  if (providers && typeof providers === "object") {
+    for (const providerData of Object.values(providers)) {
+      const models = providerData && typeof providerData === "object" ? providerData.models : null;
+      if (models && typeof models === "object") {
+        for (const [catalogModel, catalogEntry] of Object.entries(models)) {
+          if (
+            String(catalogModel || "")
+              .toLowerCase()
+              .trim() === model
+          ) {
+            if (catalogEntry && catalogEntry.wire_api === "responses") return "responses";
+          }
+        }
+      }
+    }
+  }
+
+  return "completions";
+}
+
+/**
  * Resolve Copilot SDK BYOK custom provider configuration from AWF /reflect data.
  * Chooses a configured endpoint and maps it to a provider base URL and type.
  * Returns null when no suitable endpoint is found (e.g. no reflect data, or endpoints not
@@ -424,7 +460,7 @@ function inferProviderTypeForModel(endpointProvider, modelName, modelsJson) {
  *   modelsJson?: object | null,
  *   logger?: (msg: string) => void,
  * }} [options]
- * @returns {{ model: string, provider: { type: "openai" | "azure" | "anthropic", baseUrl: string } } | null}
+ * @returns {{ model: string, provider: { type: "openai" | "azure" | "anthropic", baseUrl: string, wireApi?: "completions" | "responses" } } | null}
  */
 function resolveCopilotSDKCustomProviderFromReflect(options) {
   const configuredModel = typeof options?.model === "string" ? options.model.trim() : "";
@@ -476,10 +512,11 @@ function resolveCopilotSDKCustomProviderFromReflect(options) {
   }
 
   const providerType = inferProviderTypeForModel(String(endpoint.provider || ""), model, options?.modelsJson ?? null);
+  const wireApi = inferWireApiForModel(model, options?.modelsJson ?? null);
   logger(`sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} type=${providerType} baseUrl=${baseUrl} model=${model})`);
   return {
     model,
-    provider: { type: providerType, baseUrl },
+    provider: { type: providerType, baseUrl, ...(wireApi !== "completions" && { wireApi }) },
   };
 }
 
@@ -498,6 +535,7 @@ if (typeof module !== "undefined" && module.exports) {
     fetchAWFReflect,
     fetchModelsFromUrl,
     inferProviderTypeForModel,
+    inferWireApiForModel,
     resolveCopilotSDKCustomProviderFromReflect,
   };
 }
