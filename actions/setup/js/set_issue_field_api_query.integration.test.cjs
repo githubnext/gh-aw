@@ -13,21 +13,6 @@ const ISSUE_FIELDS_DISCOVERY_QUERY = `query($owner: String!, $repo: String!) {
         ... on IssueFieldMultiSelect { id name options { id name } }
       }
     }
-    owner {
-      __typename
-      ... on Organization {
-        issueFields(first: 100) {
-          nodes {
-            __typename
-            ... on IssueFieldText { id name }
-            ... on IssueFieldNumber { id name }
-            ... on IssueFieldDate { id name }
-            ... on IssueFieldSingleSelect { id name options { id name } }
-            ... on IssueFieldMultiSelect { id name options { id name } }
-          }
-        }
-      }
-    }
   }
 }`;
 

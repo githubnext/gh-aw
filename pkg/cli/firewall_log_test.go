@@ -1009,6 +1009,104 @@ func TestFirewallAnalysisAddMetricsMergesDomains(t *testing.T) {
 	}
 }
 
+// TestAnalyzeFirewallLogsSandboxSquidSubdir verifies that analyzeFirewallLogs
+// correctly finds access.log in the sandbox/firewall/logs/squid-logs/ subdirectory.
+// AWF writes Squid logs to {proxy-logs-dir}/squid-logs/access.log, so after the
+// agent artifact is downloaded and flattened the path is:
+// {runDir}/sandbox/firewall/logs/squid-logs/access.log
+func TestAnalyzeFirewallLogsSandboxSquidSubdir(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-sandbox-squid-*")
+
+	squidLogsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs", "squid-logs")
+	if err := os.MkdirAll(squidLogsDir, 0755); err != nil {
+		t.Fatalf("Failed to create squid-logs directory: %v", err)
+	}
+
+	logContent := `1761332530.474 172.30.0.20:35288 api.enterprise.githubcopilot.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.enterprise.githubcopilot.com:443 "-"
+1761332531.123 172.30.0.20:35289 blocked.example.com:443 140.82.112.23:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"
+1761332532.456 172.30.0.20:35290 api.github.com:443 140.82.112.5:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"
+`
+	if err := os.WriteFile(filepath.Join(squidLogsDir, "access.log"), []byte(logContent), 0644); err != nil {
+		t.Fatalf("Failed to write access.log: %v", err)
+	}
+
+	analysis, err := analyzeFirewallLogs(tmpDir, false)
+	if err != nil {
+		t.Fatalf("analyzeFirewallLogs failed: %v", err)
+	}
+	if analysis == nil {
+		t.Fatal("Expected firewall analysis but got nil - access.log in squid-logs/ subdirectory was not found")
+	}
+
+	if analysis.TotalRequests != 3 {
+		t.Errorf("TotalRequests: got %d, want 3", analysis.TotalRequests)
+	}
+	if analysis.AllowedRequests != 2 {
+		t.Errorf("AllowedRequests: got %d, want 2", analysis.AllowedRequests)
+	}
+	if analysis.BlockedRequests != 1 {
+		t.Errorf("BlockedRequests: got %d, want 1", analysis.BlockedRequests)
+	}
+	if len(analysis.BlockedDomains) != 1 || analysis.BlockedDomains[0] != "blocked.example.com:443" {
+		t.Errorf("BlockedDomains: got %v, want [blocked.example.com:443]", analysis.BlockedDomains)
+	}
+}
+
+// TestAnalyzeFirewallLogsSandboxFallbackToTopLevel verifies that when sandbox/firewall/logs/
+// exists but has no squid-logs/ subdirectory, analyzeFirewallLogs falls back to looking for
+// *.log files directly in sandbox/firewall/logs/ (backward compatibility for older AWF layout).
+func TestAnalyzeFirewallLogsSandboxFallbackToTopLevel(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-sandbox-fallback-*")
+
+	sandboxLogsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs")
+	if err := os.MkdirAll(sandboxLogsDir, 0755); err != nil {
+		t.Fatalf("Failed to create sandbox/firewall/logs directory: %v", err)
+	}
+
+	logContent := `1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.5:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"
+`
+	if err := os.WriteFile(filepath.Join(sandboxLogsDir, "access.log"), []byte(logContent), 0644); err != nil {
+		t.Fatalf("Failed to write access.log: %v", err)
+	}
+
+	analysis, err := analyzeFirewallLogs(tmpDir, false)
+	if err != nil {
+		t.Fatalf("analyzeFirewallLogs failed: %v", err)
+	}
+	if analysis == nil {
+		t.Fatal("Expected firewall analysis but got nil")
+	}
+	if analysis.TotalRequests != 1 {
+		t.Errorf("TotalRequests: got %d, want 1", analysis.TotalRequests)
+	}
+}
+
+func TestAnalyzeFirewallLogsSandboxEmptySquidSubdirFallsBackToTopLevel(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-sandbox-empty-squid-subdir-*")
+
+	sandboxLogsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs")
+	if err := os.MkdirAll(filepath.Join(sandboxLogsDir, "squid-logs"), 0755); err != nil {
+		t.Fatalf("Failed to create sandbox/firewall/logs directories: %v", err)
+	}
+
+	logContent := `1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.5:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"
+`
+	if err := os.WriteFile(filepath.Join(sandboxLogsDir, "access.log"), []byte(logContent), 0644); err != nil {
+		t.Fatalf("Failed to write access.log: %v", err)
+	}
+
+	analysis, err := analyzeFirewallLogs(tmpDir, false)
+	if err != nil {
+		t.Fatalf("analyzeFirewallLogs failed: %v", err)
+	}
+	if analysis == nil {
+		t.Fatal("Expected firewall analysis but got nil")
+	}
+	if analysis.TotalRequests != 1 {
+		t.Errorf("TotalRequests: got %d, want 1", analysis.TotalRequests)
+	}
+}
+
 func TestFirewallAnalysisAddMetricsDeduplicatesDomains(t *testing.T) {
 	base := &FirewallAnalysis{
 		TotalRequests:    1,

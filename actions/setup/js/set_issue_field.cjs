@@ -35,7 +35,7 @@ async function getIssueNodeId(githubClient, owner, repo, issueNumber) {
 }
 
 /**
- * Fetches available issue fields for the repository/owner.
+ * Fetches available issue fields for the repository.
  * @param {Object} githubClient - Authenticated GitHub client
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
@@ -55,21 +55,6 @@ async function fetchIssueFields(githubClient, owner, repo) {
             ... on IssueFieldMultiSelect { id name options { id name } }
           }
         }
-        owner {
-          __typename
-          ... on Organization {
-            issueFields(first: 100) {
-              nodes {
-                __typename
-                ... on IssueFieldText { id name }
-                ... on IssueFieldNumber { id name }
-                ... on IssueFieldDate { id name }
-                ... on IssueFieldSingleSelect { id name options { id name } }
-                ... on IssueFieldMultiSelect { id name options { id name } }
-              }
-            }
-          }
-        }
       }
     }`,
     { owner, repo }
@@ -77,13 +62,7 @@ async function fetchIssueFields(githubClient, owner, repo) {
 
   const isValidNode = node => typeof node?.id === "string" && typeof node?.name === "string";
 
-  const repoFields = (result?.repository?.issueFields?.nodes ?? []).filter(isValidNode);
-  if (repoFields.length > 0) {
-    return repoFields;
-  }
-
-  const ownerFields = (result?.repository?.owner?.issueFields?.nodes ?? []).filter(isValidNode);
-  return ownerFields;
+  return (result?.repository?.issueFields?.nodes ?? []).filter(isValidNode);
 }
 
 /**

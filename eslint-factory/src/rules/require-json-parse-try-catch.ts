@@ -57,6 +57,20 @@ function isDeferredCallback(funcNode: TSESTree.Node): boolean {
   return false;
 }
 
+function buildTryCatchSuggestion(stmtText: string, indent: string): string {
+  return [
+    "try {",
+    `${indent}  ${stmtText}`,
+    `${indent}} catch (err) {`,
+    `${indent}  // TODO: handle parse failure for this code path.`,
+    `${indent}  throw new Error(`,
+    `${indent}    "Failed to parse JSON: " + (err instanceof Error ? err.message : String(err)),`,
+    `${indent}    { cause: err },`,
+    `${indent}  );`,
+    `${indent}}`,
+  ].join("\n");
+}
+
 export const requireJsonParseTryCatchRule = createRule({
   name: "require-json-parse-try-catch",
   meta: {
@@ -158,7 +172,7 @@ export const requireJsonParseTryCatchRule = createRule({
                   const startLine = stmt.loc?.start.line;
                   const stmtLine = startLine !== undefined ? (sourceCode.lines[startLine - 1] ?? "") : "";
                   const indent = stmtLine.match(/^(\s*)/)?.[1] ?? "";
-                  return fixer.replaceText(stmt, `try {\n${indent}  ${stmtText}\n${indent}} catch (err) {\n${indent}  throw err;\n${indent}}`);
+                  return fixer.replaceText(stmt, buildTryCatchSuggestion(stmtText, indent));
                 },
               },
             ],
