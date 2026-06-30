@@ -310,23 +310,23 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_6e6e42239f1dbf7d_EOF'
+          cat << 'GH_AW_PROMPT_05bfbc22b85f9c4e_EOF'
           <system>
-          GH_AW_PROMPT_6e6e42239f1dbf7d_EOF
+          GH_AW_PROMPT_05bfbc22b85f9c4e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_6e6e42239f1dbf7d_EOF'
+          cat << 'GH_AW_PROMPT_05bfbc22b85f9c4e_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), create_issue, create_pull_request, missing_tool, missing_data, noop
-          GH_AW_PROMPT_6e6e42239f1dbf7d_EOF
+          GH_AW_PROMPT_05bfbc22b85f9c4e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_create_pull_request.md"
-          cat << 'GH_AW_PROMPT_6e6e42239f1dbf7d_EOF'
+          cat << 'GH_AW_PROMPT_05bfbc22b85f9c4e_EOF'
           </safe-output-tools>
-          GH_AW_PROMPT_6e6e42239f1dbf7d_EOF
+          GH_AW_PROMPT_05bfbc22b85f9c4e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_6e6e42239f1dbf7d_EOF'
+          cat << 'GH_AW_PROMPT_05bfbc22b85f9c4e_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -354,7 +354,7 @@ jobs:
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           - **checkouts**: The following repositories have been checked out and are available in the workspace:
-            - repo `github/gh-aw-side-repo` → `$GITHUB_WORKSPACE` (cwd) [shallow clone, fetch-depth=1 (default)]
+            - repo `github/gh-aw-side-repo` → `$GITHUB_WORKSPACE/gh-aw-side-repo` [shallow clone, fetch-depth=1 (default)]
             - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, it has NOT been checked out. For private repositories you cannot fetch it. If the branch is required and not available, exit with an error and ask the user to add it to the `fetch:` option of the `checkout:` configuration (e.g., `fetch: ["refs/pulls/open/*"]` for all open PR refs, or `fetch: ["main", "feature/my-branch"]` for specific branches).
             - **Warning: No git credentials are available to the agent.** Credentials are
               intentionally removed after the checkout step for security. This means any git
@@ -368,16 +368,16 @@ jobs:
               stop immediately and report the limitation rather than spending turns trying to work around it.
           </github-context>
           
-          GH_AW_PROMPT_6e6e42239f1dbf7d_EOF
+          GH_AW_PROMPT_05bfbc22b85f9c4e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md"
           fi
-          cat << 'GH_AW_PROMPT_6e6e42239f1dbf7d_EOF'
+          cat << 'GH_AW_PROMPT_05bfbc22b85f9c4e_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/smoke-create-cross-repo-pr.md}}
-          GH_AW_PROMPT_6e6e42239f1dbf7d_EOF
+          GH_AW_PROMPT_05bfbc22b85f9c4e_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -538,11 +538,12 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - name: Checkout github/gh-aw-side-repo
+      - name: Checkout github/gh-aw-side-repo into gh-aw-side-repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
           repository: github/gh-aw-side-repo
+          path: gh-aw-side-repo
           token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
       - name: Build checkout manifest for safe-outputs handlers
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -550,7 +551,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_CHECKOUT_MANIFEST_COUNT: "1"
           GH_AW_CHECKOUT_REPO_0: "github/gh-aw-side-repo"
-          GH_AW_CHECKOUT_PATH_0: ""
+          GH_AW_CHECKOUT_PATH_0: "gh-aw-side-repo"
           GH_AW_CHECKOUT_TOKEN_0: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
         with:
           script: |
@@ -1180,15 +1181,6 @@ jobs:
             /tmp/gh-aw/sandbox/firewall/audit/
             /tmp/gh-aw/sandbox/firewall/awf-reflect.json
           if-no-files-found: ignore
-      - name: Restore actions folder
-        if: always()
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          repository: github/gh-aw
-          sparse-checkout: |
-            actions/setup
-          sparse-checkout-cone-mode: true
-          persist-credentials: false
 
   conclusion:
     needs:
@@ -1879,20 +1871,27 @@ jobs:
         with:
           persist-credentials: true
           token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
-      - name: Checkout github/gh-aw-side-repo
+      - name: Checkout github/gh-aw-side-repo into gh-aw-side-repo
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: true
           repository: github/gh-aw-side-repo
+          path: gh-aw-side-repo
           token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
       - name: Configure Git credentials
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
         env:
-          GITHUB_REPOSITORY: github/gh-aw-side-repo
+          GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GIT_TOKEN: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
+          GH_AW_SUBREPO_0: "github/gh-aw-side-repo"
+        run: |
+          bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
+          GIT_SERVER_URL_STRIPPED="${GITHUB_SERVER_URL#https://}"
+          # Re-authenticate git for gh-aw-side-repo
+          git -C "gh-aw-side-repo" remote set-url origin "https://x-access-token:${GIT_TOKEN}@${GIT_SERVER_URL_STRIPPED}/${GH_AW_SUBREPO_0}.git"
+          echo "Git configured with standard GitHub Actions identity"
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config
         shell: bash
