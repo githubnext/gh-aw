@@ -115,12 +115,7 @@
             <div class="Box-header d-flex flex-items-center flex-justify-between flex-wrap gap-2">
               <h2 class="Box-title">Workflow runs <span class="Counter ml-1" x-text="runsPaged.totalItems"></span></h2>
               <div class="d-flex flex-items-center gap-2">
-                <select
-                  class="form-select form-select-sm"
-                  @change="selectWorkflowFilter($event.target.value)"
-                  :disabled="loadingDefinitions || loadingRuns"
-                  aria-label="Select workflow"
-                >
+                <select class="form-select form-select-sm" @change="selectWorkflowFilter($event.target.value)" :disabled="loadingDefinitions || loadingRuns" aria-label="Select workflow">
                   <option value="">— select a workflow —</option>
                   <template x-for="def in definitions" :key="def.workflow">
                     <option :value="def.workflow" :selected="selectedWorkflowFilter === def.workflow" x-text="def.workflow"></option>
