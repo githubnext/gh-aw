@@ -653,3 +653,10 @@ func stageAllChanges(verbose bool) error {
 	gitLog.Print("Successfully staged all changes")
 	return nil
 }
+
+func isGHCLIAvailable() bool {
+	cmd := exec.Command("gh", "--version")
+	available := cmd.Run() == nil
+	gitLog.Printf("Checked gh CLI availability: available=%v", available)
+	return available
+}

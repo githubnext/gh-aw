@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -12,13 +13,17 @@ import (
 
 var helpersLog = logger.New("cli:helpers")
 
-// getParentDir returns the directory part of a path
-func getParentDir(path string) string {
-	idx := strings.LastIndex(path, "/")
-	if idx == -1 {
+// getParentDir returns the directory part of a forward-slash workflow path.
+// Workflow paths always use forward slashes (e.g. ".github/workflows/foo.md"),
+// so path.Dir is correct here; filepath.Dir is not used to avoid OS-specific
+// separator handling. Returns "" when the path has no directory component
+// (i.e. path.Dir would return ".").
+func getParentDir(p string) string {
+	dir := path.Dir(p)
+	if dir == "." {
 		return ""
 	}
-	return path[:idx]
+	return dir
 }
 
 // getRepositoryRelativePath converts an absolute file path to a repository-relative path
