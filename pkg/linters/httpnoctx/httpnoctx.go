@@ -47,7 +47,10 @@ func run(pass *analysis.Pass) (any, error) {
 	ctxType := contextContextType(pass)
 
 	for cursor := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
-		call := cursor.Node().(*ast.CallExpr)
+		call, ok := cursor.Node().(*ast.CallExpr)
+		if !ok {
+			continue
+		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
 		if filecheck.IsTestFile(pos.Filename) {
