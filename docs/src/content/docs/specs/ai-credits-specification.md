@@ -230,6 +230,18 @@ Catalog refresh processes SHOULD use normalized upstream model inventories and S
 
 Catalog updates MUST preserve JSON validity and MUST maintain backward-safe handling for historical model IDs that remain in the catalog but are absent from current live inventories.
 
+### 5.4 Catalog Sync Failure Handling
+
+A conforming implementation MUST define and enforce behavior for catalog synchronization failures. Specifically:
+
+1. **Unreachable catalog source**: When the upstream pricing catalog source is unreachable during a sync operation, the implementation MUST fall back to the last successfully synchronized catalog version. The implementation MUST NOT silently use an empty or zero-cost catalog. The implementation MUST emit a diagnostic warning identifying the sync failure and the fallback version in use.
+
+2. **Malformed catalog**: When a fetched catalog update fails JSON schema validation or contains non-numeric cost fields, the implementation MUST reject the update entirely, retain the previous valid catalog, and emit a validation error identifying the malformed field(s). The implementation MUST NOT partially apply a malformed update.
+
+3. **Missing required fields**: When a catalog entry is missing required fields (`input` or `output` cost values), the implementation MUST treat that entry as invalid and MUST NOT compute AIC using zero or undefined costs for that model. The entry MUST be skipped or flagged, and a diagnostic MUST be emitted.
+
+4. **Catalog version mismatch**: When the two required catalog paths (`pkg/cli/data/models.json` and `actions/setup/js/models.json`) diverge in content after a sync operation, the sync tooling/CI gate MUST treat this as a sync failure and MUST fail the refresh operation until consistency is restored.
+
 ---
 
 ## 6. Copilot Billing Reference Requirements
@@ -495,11 +507,12 @@ Conforming implementations SHOULD surface explicit validation errors for:
 
 ### Appendix C: Security and Integrity Considerations
 
-Pricing catalogs are configuration inputs. Implementations SHOULD:
+Pricing catalogs are configuration inputs. Implementations MUST:
 
-- Treat catalog updates as controlled changes.
-- Validate and review catalog source provenance.
+- Treat catalog updates as controlled changes and gate all updates through the project's standard change-control workflow.
+- Validate catalog source provenance before applying any update; the source origin MUST be confirmed as an authorized upstream before the catalog is consumed.
 - Avoid silently mutating cost values at runtime.
+- Review catalog changes for correctness and billing alignment before merging; reviews MUST be performed by at least one team member with knowledge of the active model pricing.
 
 ---
 
