@@ -141,6 +141,38 @@ function isWorkflowsScopeRejection(stderr) {
  * @param {typeof core} core - Actions core logger
  * @returns {{ success: false, error_type: "workflows_scope_required", error: string }}
  */
+
+/**
+ * Returns the list of unique workflow file paths (.github/workflows/**) present in the
+ * local branch history relative to origin/HEAD (the remote default branch).  This is
+ * used as a pre-flight check before pushing a new branch ref: GitHub rejects such pushes
+ * when the token lacks the 'workflows' scope, even if the current changeset itself does
+ * not touch workflow files (the rejection is based on ALL commits reachable from the ref).
+ *
+ * Falls back to an empty array when origin/HEAD is not resolvable or the git command
+ * fails, so the caller can treat an empty result as "no workflow changes detected" and
+ * let the push proceed (where a real failure will still surface the typed error).
+ *
+ * @param {{ getExecOutput: Function }} exec - @actions/exec module (or compatible mock)
+ * @param {Record<string, any>} gitOptions - Base git exec options (cwd, env, etc.)
+ * @returns {Promise<string[]>} Unique workflow file paths found in the branch history
+ */
+async function detectWorkflowFileChanges(exec, gitOptions) {
+  try {
+    const result = await exec.getExecOutput("git", ["log", "--name-only", "--pretty=format:", "HEAD", "--not", "origin/HEAD", "--", ".github/workflows/"], { ...gitOptions, ignoreReturnCode: true });
+    return [
+      ...new Set(
+        result.stdout
+          .split("\n")
+          .map(f => f.trim())
+          .filter(Boolean)
+      ),
+    ];
+  } catch {
+    return [];
+  }
+}
+
 function buildWorkflowsScopeError(context, core) {
   core.error(`${context} push rejected: the branch includes changes to workflow files (.github/workflows/**) that require the 'workflows' scope on the push token.`);
   core.error("To allow this workflow to push workflow file changes, configure 'push-to-pull-request-branch.allow-workflows: true' together with a GitHub App in 'safe-outputs.github-app'.");
@@ -170,6 +202,7 @@ async function main(config = {}) {
   const commitTitleSuffix = config.commit_title_suffix || "";
   const maxSizeKb = parsePositiveInteger(config.max_patch_size) ?? 4096;
   const maxCount = config.max || 0; // 0 means no limit
+  const allowWorkflows = config.allow_workflows === true;
 
   // Cross-repo support: resolve target repository from config
   // This allows pushing to PRs in a different repository than the workflow
@@ -1041,6 +1074,20 @@ async function main(config = {}) {
         // normalizeBranchName to enforce valid git ref characters + max length.
         const reviewBranchName = normalizeBranchName(`${branchName}-review`, String(Date.now()));
         try {
+          // Pre-flight: check full branch history for workflow file changes.
+          // GitHub rejects pushes of new branch refs whose commit history contains
+          // .github/workflows/** changes when the token lacks the 'workflows' scope —
+          // even if the current changeset itself does not touch workflow files.
+          // Failing here avoids leaving the local branch in a renamed state after
+          // a rejected push, and surfaces the error before any side effects.
+          if (!allowWorkflows) {
+            const workflowFiles = await detectWorkflowFileChanges(exec, baseGitOpts);
+            if (workflowFiles.length > 0) {
+              core.info(`Pre-flight check: branch history contains workflow file changes (${workflowFiles.join(", ")}). Failing before push attempt.`);
+              return buildWorkflowsScopeError("Review branch pre-flight", core);
+            }
+          }
+
           // Rename current local branch to review branch
           await exec.exec("git", ["checkout", "-b", reviewBranchName], baseGitOpts);
           core.info(`Created review branch: ${reviewBranchName}`);
@@ -1210,6 +1257,17 @@ async function main(config = {}) {
           const fallbackBranchName = normalizeBranchName(`${branchName}-fallback`, String(Date.now()));
           core.warning(`Non-fast-forward push detected; creating fallback pull request from '${fallbackBranchName}' to '${branchName}'`);
           try {
+            // Pre-flight: check full branch history for workflow file changes.
+            // Like the review branch path, creating a new fallback branch ref triggers
+            // GitHub's scope check on the full commit history, not just the new commits.
+            if (!allowWorkflows) {
+              const workflowFiles = await detectWorkflowFileChanges(exec, baseGitOpts);
+              if (workflowFiles.length > 0) {
+                core.info(`Pre-flight check: branch history contains workflow file changes (${workflowFiles.join(", ")}). Failing before push attempt.`);
+                return buildWorkflowsScopeError("Fallback branch pre-flight", core);
+              }
+            }
+
             await exec.exec("git", ["checkout", "-b", fallbackBranchName], baseGitOpts);
             // Use getExecOutput to capture stderr for 'workflows' scope diagnostics
             const fallbackPushOutput = await exec.getExecOutput("git", ["push", "origin", fallbackBranchName], {
