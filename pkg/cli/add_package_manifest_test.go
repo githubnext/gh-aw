@@ -416,6 +416,50 @@ name: Repo Assist
 		assert.Contains(t, err.Error(), `manifest-version`)
 	})
 
+	t.Run("accepts branding field", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				return []byte(`name: Repo Assist
+branding:
+  icon: zap
+  color: blue
+files:
+  - workflows/review.md
+`), nil
+			case "README.md":
+				return []byte("# Repo Assist\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected scan of %s", workflowPath)
+			return nil, nil
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.NoError(t, err)
+		assert.Equal(t, "Repo Assist", pkg.Name)
+	})
+
+	t.Run("rejects unsupported branding icon", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "aw.yml" {
+				return []byte(`name: Repo Assist
+branding:
+  icon: not-a-feather-icon
+  color: blue
+`), nil
+			}
+			return nil, createRepositoryPackageNotFoundError(path)
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `icon`)
+	})
+
 	t.Run("rejects docs field", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {

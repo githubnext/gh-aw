@@ -480,6 +480,7 @@ type WorkflowData struct {
 	TrackerID                      string         // optional tracker identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
 	MaxDailyAICredits              *string        // optional 24-hour per-workflow ET threshold (numeric string or GitHub Actions expression)
 	ImportedFiles                  []string       // list of files imported via imports field (rendered as comment in lock file)
+	Skills                         []string       // skill specs from frontmatter (owner/repo@sha or owner/repo/skill/path@sha)
 	ImportedMarkdown               string         // Only imports WITH inputs (for compile-time substitution)
 	ImportPaths                    []string       // Import file paths for runtime-import macro generation (imports without inputs)
 	PromptImports                  []parser.PromptImportEntry

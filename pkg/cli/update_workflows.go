@@ -26,6 +26,11 @@ import (
 var defaultBranchCache sync.Map
 var branchCommitCache sync.Map
 
+// updatePublicAPIClient is a shared HTTP client used for unauthenticated GitHub
+// API fallback calls in the update workflow path. It carries a timeout to
+// prevent indefinite hangs on slow or unresponsive hosts.
+var updatePublicAPIClient = &http.Client{Timeout: constants.DefaultHTTPClientTimeout}
+
 // repoBranchKey is a composite cache key for branch commit SHA lookups.
 type repoBranchKey struct {
 	repo   string
@@ -364,7 +369,7 @@ func fetchPublicGitHubAPI(ctx context.Context, endpoint string) ([]byte, error) 
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := updatePublicAPIClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

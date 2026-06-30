@@ -90,7 +90,7 @@ func validateDeployArgs(cmd *cobra.Command, args []string) error {
 }
 
 func registerDeployFlags(cmd *cobra.Command) {
-	addRepoFlag(cmd)
+	cmd.Flags().StringP("repo", "r", "", "Target repository in [HOST/]owner/repo format (required unless --org is provided)")
 	cmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
 	addEngineFlag(cmd)
 	cmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")

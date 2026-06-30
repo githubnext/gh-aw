@@ -11,6 +11,7 @@
 //
 //   - validateRefGlob()  - Validates a glob pattern for Git ref names (branches/tags)
 //   - validatePathGlob() - Validates a glob pattern for file paths
+//   - validateGlobPatternList() - Iterates and validates a list of glob patterns
 //
 // Both return a slice of invalidGlobPattern describing any violations found.
 
@@ -215,6 +216,38 @@ func runGlobValidation(pat string, isRef bool) []invalidGlobPattern {
 		globValidationLog.Printf("Glob validation found %d error(s) for pattern %q (isRef=%t)", len(v.errs), pat, isRef)
 	}
 	return v.errs
+}
+
+// validateGlobPatternList validates patterns in order and stops at the first
+// invalid entry.
+//
+// For that first invalid pattern, onInvalid receives the list index, the pattern
+// value, and the collected validation messages. The return value from onInvalid
+// is returned directly to the caller, and onInvalid may include side effects
+// such as logging.
+//
+// Contract: onInvalid must return a non-nil error when called. Returning nil is
+// treated as success.
+func validateGlobPatternList(
+	patterns []string,
+	validate func(string) []invalidGlobPattern,
+	onInvalid func(index int, pattern string, messages []string) error,
+) error {
+	for i, pat := range patterns {
+		errs := validate(pat)
+		if len(errs) == 0 {
+			continue
+		}
+
+		msgs := make([]string, 0, len(errs))
+		for _, err := range errs {
+			msgs = append(msgs, err.Message)
+		}
+
+		return onInvalid(i, pat, msgs)
+	}
+
+	return nil
 }
 
 // validateRefGlob validates a GitHub Actions ref filter glob (branch or tag pattern).

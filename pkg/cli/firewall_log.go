@@ -372,9 +372,27 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 
 	// First, check for sandbox/firewall/logs/ directory (new path after artifact download)
 	// Firewall logs are uploaded from /tmp/gh-aw/sandbox/firewall/logs/ and the common parent
-	// /tmp/gh-aw/ is stripped during artifact upload, resulting in sandbox/firewall/logs/ after download
+	// /tmp/gh-aw/ is stripped during artifact upload, resulting in sandbox/firewall/logs/ after download.
+	// Within that directory, AWF writes Squid access logs to a squid-logs/ subdirectory.
 	sandboxFirewallLogsDir := filepath.Join(runDir, "sandbox", "firewall", "logs")
 	if fileutil.DirExists(sandboxFirewallLogsDir) {
+		// AWF writes the Squid access.log to a squid-logs/ subdirectory within --proxy-logs-dir.
+		// Check for that subdirectory first before falling back to the parent directory.
+		squidSubDir := filepath.Join(sandboxFirewallLogsDir, "squid-logs")
+		if fileutil.DirExists(squidSubDir) {
+			firewallLogLog.Printf("Found firewall logs directory: sandbox/firewall/logs/squid-logs")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs directory: sandbox/firewall/logs/squid-logs"))
+			}
+			analysis, err := analyzeMultipleFirewallLogs(squidSubDir, verbose)
+			if err != nil {
+				return nil, err
+			}
+			if analysis != nil {
+				return analysis, nil
+			}
+		}
+		// Fall back to direct *.log files at the sandbox/firewall/logs/ level (older AWF layout).
 		firewallLogLog.Printf("Found firewall logs directory: sandbox/firewall/logs")
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs directory: sandbox/firewall/logs"))

@@ -263,7 +263,7 @@ let _modelsJson = undefined;
  */
 function loadModelsJson() {
   if (_modelsJson !== undefined) {
-    return _modelsJson;
+    return _modelsJson ?? null;
   }
   try {
     const raw = fs.readFileSync(getModelsPath(), "utf8");
@@ -273,7 +273,7 @@ function loadModelsJson() {
   } catch {
     _modelsJson = null;
   }
-  return _modelsJson;
+  return _modelsJson ?? null;
 }
 
 function _resetModelCostsCache() {

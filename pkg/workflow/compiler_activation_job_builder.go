@@ -519,6 +519,41 @@ func (c *Compiler) addActivationVersionCheckStep(ctx *activationJobBuildContext)
 	ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("check_version_updates.cjs"))
 }
 
+func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext) error {
+	if len(ctx.data.Skills) == 0 {
+		return nil
+	}
+
+	engineID := ""
+	if ctx.data.EngineConfig != nil {
+		engineID = ctx.data.EngineConfig.ID
+	}
+	skillDir := GetEngineSkillDir(engineID)
+
+	ctx.steps = append(ctx.steps, "      - name: Upgrade gh CLI for frontmatter skills\n")
+	ctx.steps = append(ctx.steps, "        run: |\n")
+	ctx.steps = append(ctx.steps, "          set -euo pipefail\n")
+	ctx.steps = append(ctx.steps, "          bash \"${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh\"\n")
+	ctx.steps = append(ctx.steps, "          GH_VERSION=$(gh --version | awk 'NR==1 {print $3}')\n")
+	ctx.steps = append(ctx.steps, "          REQUIRED=\"2.90.0\"\n")
+	ctx.steps = append(ctx.steps, "          echo \"gh version: ${GH_VERSION}\"\n")
+	ctx.steps = append(ctx.steps, "          if ! printf '%s\\n%s\\n' \"$REQUIRED\" \"$GH_VERSION\" | sort -V -C; then\n")
+	ctx.steps = append(ctx.steps, "            echo \"::error::gh ${GH_VERSION} is older than required ${REQUIRED} (gh skill support requires v2.90+)\"\n")
+	ctx.steps = append(ctx.steps, "            exit 1\n")
+	ctx.steps = append(ctx.steps, "          fi\n")
+
+	ctx.steps = append(ctx.steps, "      - name: Install frontmatter skills\n")
+	ctx.steps = append(ctx.steps, "        env:\n")
+	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_TOKEN: %s\n", c.resolveActivationToken(ctx.data)))
+	ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_SKILL_DIR", skillDir))
+	ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_FRONTMATTER_SKILLS", strings.Join(ctx.data.Skills, "\n")))
+	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)))
+	ctx.steps = append(ctx.steps, "        with:\n")
+	ctx.steps = append(ctx.steps, "          script: |\n")
+	ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("install_frontmatter_skills.cjs"))
+	return nil
+}
+
 func (c *Compiler) addActivationTextOutputStep(ctx *activationJobBuildContext) error {
 	if !ctx.data.NeedsTextOutput {
 		return nil
@@ -766,15 +801,19 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt-import-tree.json\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/"+constants.GithubRateLimitsFilename+"\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/base\n")
-	// Include the engine-specific sub-agents staging directory (inline sub-agents are enabled by default).
+	engineID := ""
+	if ctx.data.EngineConfig != nil {
+		engineID = ctx.data.EngineConfig.ID
+	}
+	// Include the engine-specific sub-agent staging directory only when inline agents are enabled.
 	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), ctx.data) {
-		engineID := ""
-		if ctx.data.EngineConfig != nil {
-			engineID = ctx.data.EngineConfig.ID
-		}
 		subAgentDir := GetEngineSubAgentDir(engineID)
-		skillDir := GetEngineSkillDir(engineID)
 		ctx.steps = append(ctx.steps, fmt.Sprintf("            /tmp/gh-aw/%s\n", subAgentDir))
+	}
+	// Always include the engine-specific skill directory when either inline skills are enabled
+	// or frontmatter skills are configured.
+	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), ctx.data) || len(ctx.data.Skills) > 0 {
+		skillDir := GetEngineSkillDir(engineID)
 		ctx.steps = append(ctx.steps, fmt.Sprintf("            /tmp/gh-aw/%s\n", skillDir))
 	}
 	ctx.steps = append(ctx.steps, "          if-no-files-found: ignore\n")
