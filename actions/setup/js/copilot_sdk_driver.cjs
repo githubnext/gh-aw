@@ -13,6 +13,7 @@
  *   COPILOT_MODEL                       — model override (optional)
  *   GH_AW_COPILOT_SDK_PROVIDER_BASE_URL — BYOK provider base URL (set by the harness)
  *   GH_AW_COPILOT_SDK_PROVIDER_TYPE    — BYOK provider type: "openai" | "azure" | "anthropic" (set by the harness)
+ *   GH_AW_COPILOT_SDK_PROVIDER_WIRE_API — BYOK provider wire API: "completions" | "responses" (set by the harness)
  *   GH_AW_COPILOT_SDK_SERVER_ARGS       — JSON-encoded allow-tool sidecar args (set by the engine)
  *
  * The sidecar is started and stopped by the harness; the driver only opens a
@@ -90,8 +91,8 @@ async function main() {
 
   // --- Resolve BYOK custom provider from environment ------------------
   // The harness resolves the BYOK provider from live AWF reflect data before launching
-  // this driver and injects the result as GH_AW_COPILOT_SDK_PROVIDER_BASE_URL and
-  // GH_AW_COPILOT_SDK_PROVIDER_TYPE.
+  // this driver and injects the result as GH_AW_COPILOT_SDK_PROVIDER_BASE_URL,
+  // GH_AW_COPILOT_SDK_PROVIDER_TYPE, and GH_AW_COPILOT_SDK_PROVIDER_WIRE_API.
   // BYOK is the only supported mode — fail immediately if the base URL is missing.
   const providerBaseUrl = process.env.GH_AW_COPILOT_SDK_PROVIDER_BASE_URL;
   if (!providerBaseUrl) {
@@ -102,8 +103,14 @@ async function main() {
   /** @type {"openai" | "azure" | "anthropic"} */
   const providerType = rawProviderType === "anthropic" || rawProviderType === "azure" ? rawProviderType : "openai";
   log(`provider type: ${providerType}`);
+  const rawWireApi = process.env.GH_AW_COPILOT_SDK_PROVIDER_WIRE_API || "";
+  /** @type {"completions" | "responses" | undefined} */
+  const wireApi = rawWireApi === "responses" ? "responses" : rawWireApi === "completions" ? "completions" : undefined;
   /** @type {import("@github/copilot-sdk").ProviderConfig} */
-  const provider = { type: providerType, baseUrl: providerBaseUrl };
+  const provider = { type: providerType, baseUrl: providerBaseUrl, ...(wireApi && { wireApi }) };
+  if (wireApi) {
+    log(`provider wire API: ${wireApi}`);
+  }
 
   // --- Build permission config from sidecar server args ----------------
   // GH_AW_COPILOT_SDK_SERVER_ARGS holds the JSON-encoded --allow-tool flags
