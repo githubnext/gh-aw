@@ -1,0 +1,24 @@
+{
+  "lastRun": "2026-06-30",
+  "rulesReviewed": [
+    "no-unsafe-catch-error-property",
+    "no-unsafe-promise-catch-error-property",
+    "require-json-parse-try-catch",
+    "require-parseInt-radix"
+  ],
+  "ruleCount": 4,
+  "lintTargets": "actions/setup/js/*.cjs",
+  "lintTargetFileCount": 720,
+  "notes": "Live lint run unavailable this session (npm/build commands blocked by sandbox approval). Analysis was static code review of rule sources + tests. Repo-memory reads are sandbox-blocked; writes succeed, so each run writes a self-contained dated snapshot rather than appending to history.",
+  "knownOpenIssuesPriorRuns": {
+    "42189": "catch guard is whole-frame -> branch-order false negatives (still open, NOT re-filed)",
+    "42017": "parseInt computed/indirect callee (computed done; aliased/destructured intentionally out of scope)",
+    "41962": "json.parse computed/indirect callee (computed done; aliased/destructured out of scope)",
+    "41963": "json.parse deferred-callback ancestry (implemented)"
+  },
+  "issuesFiledThisRun": [
+    "require-parseInt-radix: radix 0 / undefined / non-positive-int literal accepted (false negative)",
+    "require-json-parse-try-catch: autofix emits useless catch(err){throw err} (no-useless-catch violation)",
+    "no-unsafe-catch-error-property: bare typeof===object guard unsound for null (false negative)"
+  ]
+}

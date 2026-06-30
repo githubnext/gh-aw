@@ -1,0 +1,30 @@
+{
+  "date": "2026-06-30",
+  "method": "static review of eslint-factory/src/rules/*.ts and *.test.ts (live lint blocked by sandbox)",
+  "findings": [
+    {
+      "id": "parseint-radix-zero",
+      "rule": "require-parseInt-radix",
+      "class": "false-negative",
+      "severity": "high",
+      "summary": "Rule returns (accepts) whenever arguments.length >= 2, but parseInt(x, 0) and parseInt(x, undefined) still trigger implicit base detection (0x -> hex). A non-numeric-literal radix is also unchecked. Tests only cover radix 10.",
+      "evidence": "require-parseInt-radix.ts:62 `if (node.arguments.length >= 2) return;`"
+    },
+    {
+      "id": "json-parse-useless-catch",
+      "rule": "require-json-parse-try-catch",
+      "class": "weak-autofix",
+      "severity": "high",
+      "summary": "Suggestion autofix emits `catch (err) { throw err; }`, a no-op rethrow that silences this rule while violating ESLint core `no-useless-catch` (recommended set) and adding zero handling.",
+      "evidence": "require-json-parse-try-catch.ts:161; asserted verbatim in test outputs"
+    },
+    {
+      "id": "typeof-object-null",
+      "rule": "no-unsafe-catch-error-property",
+      "class": "false-negative",
+      "severity": "medium",
+      "summary": "Bare `typeof err === 'object'` is accepted as a sufficient guard, but typeof null === 'object', so `err.status` after such a guard can throw on null/non-Error throws — exactly what the rule targets. Test at no-unsafe-catch-error-property.test.ts:348 asserts the null-unchecked form as valid.",
+      "evidence": "no-unsafe-catch-error-property.ts:105-123"
+    }
+  ]
+}
