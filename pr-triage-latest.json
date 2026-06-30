@@ -1,115 +1,78 @@
 {
-  "run_date": "2026-06-30T12:58:38Z",
-  "run_id": "28445959231",
-  "previous_run_id": "28428103271",
-  "previous_run_date": "2026-06-30T07:37:20Z",
-  "agent_prs_found": 10,
-  "prs_triaged": 10,
+  "run_date": "2026-06-30T18:51:43Z",
+  "run_id": "28468233686",
+  "previous_run_id": "28445959231",
+  "previous_run_date": "2026-06-30T12:58:38Z",
+  "agent_prs_found": 13,
+  "prs_triaged": 13,
   "open_agent_prs": [
     {
-      "number": 42400,
-      "title": "fix: reclaim non-writable /tmp/gh-aw/sandbox before AWF writeConfigs() to prevent EACCES",
-      "draft": false,
-      "category": "bug",
-      "risk": "medium",
-      "priority": "high",
-      "score": 78,
-      "action": "fast_track",
-      "age_hours": 10.5,
-      "ci": "PENDING",
-      "notes": "CI pending (was PASSING in prior run, likely re-running). Critical EACCES sandbox fix. Blocked by review."
-    },
-    {
-      "number": 42421,
-      "title": "fix: route gpt-5.5 through OpenAI Responses API (wireApi=responses)",
-      "draft": false,
-      "category": "bug",
-      "risk": "medium",
-      "priority": "high",
-      "score": 72,
-      "action": "fast_track",
-      "age_hours": 7.3,
-      "ci": "PASSING",
-      "notes": "gpt-5.5 routing fix. CI passing. Blocked by review."
-    },
-    {
-      "number": 42420,
-      "title": "Stop Codex harness retry loops on TPM exhaustion and unfinished-goal errors",
+      "number": 42517,
+      "title": "set_issue_field: remove org-level issueFields fallback from field discovery query",
       "draft": false,
       "category": "bug",
       "risk": "low",
-      "priority": "medium",
-      "score": 66,
+      "priority": "high",
+      "score": 67,
       "action": "fast_track",
-      "age_hours": 7.5,
-      "ci": "PASSING",
-      "notes": "Stops infinite retry token burn. CI passing. Blocked by review."
+      "age_hours": 2.7,
+      "ci": "APPROVED(github-actions)",
+      "notes": "CI approved. Small deletion fix (+4/-43). Unblocked - needs human review."
     },
     {
-      "number": 42408,
-      "title": "chore: bump gh-aw-firewall to v0.27.15",
+      "number": 42536,
+      "title": "httpnoctx: detect context-free NewRequest + Do paths",
       "draft": false,
-      "category": "chore",
-      "risk": "low",
-      "priority": "medium",
-      "score": 38,
-      "action": "batch_review",
-      "age_hours": 8.3,
-      "ci": "NO_CI",
-      "notes": "Firewall bump, 268 files changed. No CI. Needs trigger."
-    },
-    {
-      "number": 42426,
-      "title": "Add frontmatter `skills` support with activation-time `gh skill` install and engine wiring",
-      "draft": true,
       "category": "feature",
+      "risk": "medium",
+      "priority": "medium",
+      "score": 52,
+      "action": "batch_review",
+      "batch": "review-ready",
+      "age_hours": 0.5,
+      "ci": "UNKNOWN",
+      "notes": "Extends linter coverage for httpnoctx. No blocking reviews. Batch: review-ready."
+    },
+    {
+      "number": 42513,
+      "title": "fix: find access.log in sandbox/firewall/logs/squid-logs/ subdirectory",
+      "draft": false,
+      "category": "bug",
+      "risk": "medium",
+      "priority": "medium",
+      "score": 49,
+      "action": "batch_review",
+      "batch": "review-ready",
+      "age_hours": 2.7,
+      "ci": "COMMENTED(github-actions)",
+      "notes": "Fixes missing firewall log analysis. github-actions commented. Batch: review-ready."
+    },
+    {
+      "number": 42524,
+      "title": "Scatter every-N-minutes schedules to reduce concurrent overlap",
+      "draft": false,
+      "category": "bug",
       "risk": "high",
       "priority": "medium",
-      "score": 45,
+      "score": 51,
       "action": "defer",
-      "batch": "experimental",
-      "age_hours": 6.5,
-      "ci": "NO_CI",
-      "notes": "DRAFT. Skills frontmatter support. Part of experimental batch."
+      "age_hours": 2.4,
+      "ci": "CHANGES_REQUESTED",
+      "notes": "High-risk behavioral change to cron compilation. Blocked by changes_requested."
     },
     {
-      "number": 42431,
-      "title": "Deduplicate glob-list validation across workflow validators",
-      "draft": true,
-      "category": "refactor",
-      "risk": "low",
-      "priority": "low",
-      "score": 25,
-      "action": "batch_review",
-      "age_hours": 6.2,
-      "ci": "NO_CI",
-      "notes": "DRAFT. Dedup pair with #42430."
-    },
-    {
-      "number": 42430,
-      "title": "Deduplicate sandbox and MCP mount validation flow",
-      "draft": true,
-      "category": "refactor",
-      "risk": "medium",
-      "priority": "low",
-      "score": 25,
-      "action": "batch_review",
-      "age_hours": 6.2,
-      "ci": "NO_CI",
-      "notes": "DRAFT. Dedup pair with #42431."
-    },
-    {
-      "number": 42412,
-      "title": "refactor: eliminate all 13 largefunc lint violations in pkg/workflow and pkg/cli",
+      "number": 42527,
+      "title": "[formal-spec] Add replace-label formal model test suite (P1-P15 + edge cases)",
       "draft": false,
-      "category": "refactor",
-      "risk": "high",
-      "priority": "low",
-      "score": 28,
-      "action": "defer",
-      "age_hours": 7.9,
-      "ci": "FAILING(lint-go)",
-      "notes": "Self-referential lint-go failure on a lint-fixing PR. Blocked."
+      "category": "test",
+      "risk": "low",
+      "priority": "medium",
+      "score": 44,
+      "action": "batch_review",
+      "batch": "review-ready",
+      "age_hours": 2.4,
+      "ci": "UNKNOWN",
+      "notes": "21 formal tests for replace_label. Low risk. Batch: review-ready."
     },
     {
       "number": 42314,
@@ -121,9 +84,35 @@
       "score": 43,
       "action": "defer",
       "batch": "experimental",
-      "age_hours": 18.8,
+      "age_hours": 24.7,
       "ci": "NO_CI",
-      "notes": "DRAFT. Carried over. Experimental batch."
+      "notes": "DRAFT. Carried over. Large experimental feature."
+    },
+    {
+      "number": 42521,
+      "title": "fix: harden unauthenticated GitHub API fallbacks with context and 30s timeout",
+      "draft": false,
+      "category": "bug",
+      "risk": "medium",
+      "priority": "medium",
+      "score": 40,
+      "action": "defer",
+      "age_hours": 2.6,
+      "ci": "CHANGES_REQUESTED",
+      "notes": "Blocked by changes_requested."
+    },
+    {
+      "number": 42520,
+      "title": "Enable threat detection on token audit/report workflows",
+      "draft": false,
+      "category": "chore",
+      "risk": "medium",
+      "priority": "medium",
+      "score": 37,
+      "action": "defer",
+      "age_hours": 2.6,
+      "ci": "CHANGES_REQUESTED",
+      "notes": "Blocked by changes_requested."
     },
     {
       "number": 42100,
@@ -131,49 +120,174 @@
       "draft": true,
       "category": "feature",
       "risk": "high",
-      "priority": "medium",
-      "score": 38,
+      "priority": "low",
+      "score": 36,
       "action": "defer",
       "batch": "experimental",
-      "age_hours": 46.2,
+      "age_hours": 52.1,
       "ci": "NO_CI",
-      "notes": "DRAFT. 46h stale. Label conflict: pr-priority:low and pr-priority:medium both present. Remove pr-priority:low."
+      "notes": "DRAFT. 52h stale. Conflicting labels (pr-priority:low + pr-priority:medium). Consider closing."
+    },
+    {
+      "number": 42537,
+      "title": "eslint-factory: remove useless rethrow from require-json-parse-try-catch suggestion",
+      "draft": true,
+      "category": "bug",
+      "risk": "low",
+      "priority": "low",
+      "score": 30,
+      "action": "defer",
+      "batch": "draft-small",
+      "age_hours": 0.5,
+      "ci": "NO_CI",
+      "notes": "DRAFT. Small ESLint autofix fix."
+    },
+    {
+      "number": 42535,
+      "title": "Auto-label PR Triage report issues on creation",
+      "draft": true,
+      "category": "chore",
+      "risk": "low",
+      "priority": "low",
+      "score": 23,
+      "action": "defer",
+      "batch": "draft-small",
+      "age_hours": 0.5,
+      "ci": "NO_CI",
+      "notes": "DRAFT. Tiny workflow config change."
+    },
+    {
+      "number": 42530,
+      "title": "SPDD 2026-06-30: tighten normative requirements across 5 specs",
+      "draft": false,
+      "category": "docs",
+      "risk": "low",
+      "priority": "low",
+      "score": 18,
+      "action": "defer",
+      "age_hours": 2.1,
+      "ci": "CHANGES_REQUESTED",
+      "notes": "Blocked by changes_requested."
+    },
+    {
+      "number": 42542,
+      "title": "[WIP] Update gh-aw-firewall to version 0.27.16",
+      "draft": true,
+      "category": "chore",
+      "risk": "low",
+      "priority": "low",
+      "score": 18,
+      "action": "defer",
+      "batch": "draft-small",
+      "age_hours": 0.2,
+      "ci": "NO_CI",
+      "notes": "WIP/DRAFT firewall version bump."
     }
   ],
   "closed_since_last_run": [
-    { "number": 42415, "title": "[jsweep] Clean workflow_metadata_helpers.cjs", "outcome": "merged" },
-    { "number": 42410, "title": "[code-simplifier] simplify: extract buildAllowedFieldSet helper", "outcome": "merged" }
+    {
+      "number": 42400,
+      "title": "fix: reclaim non-writable /tmp/gh-aw/sandbox before AWF writeConfigs()",
+      "outcome": "closed"
+    },
+    {
+      "number": 42421,
+      "title": "fix: route gpt-5.5 through OpenAI Responses API (wireApi=responses)",
+      "outcome": "closed"
+    },
+    {
+      "number": 42420,
+      "title": "Stop Codex harness retry loops on TPM exhaustion and unfinished-goal errors",
+      "outcome": "closed"
+    },
+    {
+      "number": 42408,
+      "title": "chore: bump gh-aw-firewall to v0.27.15",
+      "outcome": "closed"
+    },
+    {
+      "number": 42426,
+      "title": "Add frontmatter skills support with activation-time gh skill install and engine wiring",
+      "outcome": "closed"
+    },
+    {
+      "number": 42431,
+      "title": "Deduplicate glob-list validation across workflow validators",
+      "outcome": "closed"
+    },
+    {
+      "number": 42430,
+      "title": "Deduplicate sandbox and MCP mount validation flow",
+      "outcome": "closed"
+    },
+    {
+      "number": 42412,
+      "title": "refactor: eliminate all 13 largefunc lint violations in pkg/workflow and pkg/cli",
+      "outcome": "closed"
+    }
   ],
   "statistics": {
-    "total_open_agent_prs": 10,
+    "total_open_agent_prs": 13,
     "draft_prs": 5,
-    "ready_prs": 5,
-    "by_action": { "fast_track": 3, "batch_review": 3, "defer": 4 },
-    "by_category": { "bug": 3, "refactor": 3, "feature": 3, "chore": 1 },
-    "by_risk": { "high": 4, "medium": 2, "low": 4 },
-    "by_priority": { "high": 2, "medium": 5, "low": 3 },
-    "closed_since_last_run": 2,
-    "new_since_last_run": 0,
-    "carried_over": 10
+    "ready_prs": 8,
+    "by_action": {
+      "fast_track": 1,
+      "batch_review": 3,
+      "defer": 9
+    },
+    "by_category": {
+      "bug": 6,
+      "chore": 3,
+      "feature": 2,
+      "test": 1,
+      "docs": 1
+    },
+    "by_risk": {
+      "high": 2,
+      "medium": 5,
+      "low": 6
+    },
+    "by_priority": {
+      "high": 1,
+      "medium": 7,
+      "low": 5
+    },
+    "closed_since_last_run": 8,
+    "new_since_last_run": 11,
+    "carried_over": 2
   },
   "batches": {
-    "experimental": [42426, 42314, 42100],
-    "dedup_refactor": [42430, 42431]
+    "review-ready": [
+      42536,
+      42527,
+      42513
+    ],
+    "draft-small": [
+      42542,
+      42537,
+      42535
+    ],
+    "experimental": [
+      42314,
+      42100
+    ]
   },
   "label_conflicts": [
     {
       "pr": 42100,
-      "stale_labels": ["pr-priority:low"],
+      "stale_labels": [
+        "pr-priority:low"
+      ],
       "correct_priority": "pr-priority:medium",
-      "note": "Persisted from prior run. Manual removal required."
+      "note": "Persisted across runs. Manual removal required. Cannot remove via add_labels."
     }
   ],
   "notable": {
-    "fast_track_ready": "#42421 and #42420 CI passing — review now",
-    "pending_ci": "#42400 CI pending (was passing) — recheck shortly",
-    "lint_failure": "#42412 blocked by lint-go CI failure",
-    "stale_draft": "#42100 at 46h DRAFT — consider closing",
-    "auto_merged": "#42415 (jsweep) and #42410 (code-simplifier) closed since last run"
+    "fast_track_ready": "#42517 CI-approved fix \u2014 review now",
+    "batch_review_ready": "#42513, #42536, #42527 \u2014 review-ready batch, no blockers",
+    "blocked_by_ci": "#42524, #42521, #42520, #42530 \u2014 all have changes_requested",
+    "stale_draft": "#42100 at 52h DRAFT \u2014 consider closing",
+    "high_throughput": "8 PRs from prior run closed (6h gap)"
   },
-  "notes": "10 open agent PRs. 2 auto_merge PRs from prior run now closed. 3 fast_track bug fixes — 2 CI passing (#42421, #42420), 1 CI pending (#42400). No new PRs since last run (6h gap)."
+  "notes": "13 open agent PRs. 8 from prior run closed in 6h. 11 new PRs (high output). 1 fast_track (#42517 CI-approved). 3 batch-review-ready. 4 blocked by changes_requested. 2 stale experimental DRAFTs."
 }
