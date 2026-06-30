@@ -16,7 +16,7 @@ The `styles` package exports the following:
 |----------|---------|
 | Adaptive colors | `ColorError`, `ColorWarning`, `ColorSuccess`, `ColorInfo`, `ColorPurple`, `ColorYellow`, `ColorComment`, `ColorForeground`, `ColorBackground`, `ColorBorder`, `ColorTableAltRow` |
 | Border styles | `RoundedBorder`, `NormalBorder`, `ThickBorder` |
-| Pre-configured `lipgloss.Style` | `Error`, `Warning`, `Success`, `Info`, `FilePath`, `LineNumber`, `Command`, `Progress`, `Prompt`, `Count`, `Verbose`, `Header`, `TableHeader`, `TableCell`, `TableTitle`, `TableBorder`, `ErrorBox`, `ServerName`, `ServerType`, `TreeEnumerator`, `TreeNode`, `ScheduleCalendarEmpty`, `ScheduleCalendarLow`, `ScheduleCalendarMedium`, `ScheduleCalendarHigh`, `ScheduleCalendarCritical` |
+| Pre-configured `lipgloss.Style` | `Error`, `Warning`, `Success`, `Info`, `FilePath`, `LineNumber`, `ContextLine`, `Highlight`, `Location`, `Command`, `Progress`, `Prompt`, `Count`, `Verbose`, `ListHeader`, `ListItem`, `Header`, `TableHeader`, `TableCell`, `TableTotal`, `TableTitle`, `TableBorder`, `ErrorBox`, `ServerName`, `ServerType`, `TreeEnumerator`, `TreeNode`, `ScheduleCalendarEmpty`, `ScheduleCalendarLow`, `ScheduleCalendarMedium`, `ScheduleCalendarHigh`, `ScheduleCalendarCritical` |
 | Huh theme | `HuhTheme` — `huh.ThemeFunc` for Dracula-inspired interactive forms |
 
 ## Adaptive Color Variables

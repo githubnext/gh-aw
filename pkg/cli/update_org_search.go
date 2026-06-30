@@ -12,8 +12,11 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var updateOrgSearchLog = logger.New("cli:update_org_search")
 
 // orgSearchResponse holds the paginated code-search results returned by the
 // GitHub search/code API when discovering repositories in an organization.
@@ -34,6 +37,7 @@ var searchOrgWorkflowReposFn = searchOrgWorkflowRepos
 // It paginates through all code-search results, deduplicates by repository full
 // name, and returns a deterministically sorted slice of "owner/repo" strings.
 func searchOrgWorkflowRepos(ctx context.Context, org string, workflowNames []string, verbose bool) ([]string, error) {
+	updateOrgSearchLog.Printf("Searching org %q for workflow repos (%d workflow name filters)", org, len(workflowNames))
 	query := buildOrgWorkflowSearchQuery(org, workflowNames)
 	return searchOrgReposByQuery(ctx, query, verbose)
 }
@@ -111,6 +115,8 @@ func searchOrgReposByQuery(ctx context.Context, query string, verbose bool) ([]s
 			repos = append(repos, repo)
 		}
 
+		updateOrgSearchLog.Printf("Search page %d returned %d items (%d unique repos so far)", page, len(response.Items), len(repos))
+
 		if len(response.Items) < perPage {
 			break
 		}
@@ -118,6 +124,7 @@ func searchOrgReposByQuery(ctx context.Context, query string, verbose bool) ([]s
 	}
 
 	slices.Sort(repos)
+	updateOrgSearchLog.Printf("Org code-search complete: %d unique repos found", len(repos))
 	return repos, nil
 }
 
@@ -144,6 +151,7 @@ func filterOrgRepos(repos []string, globs []string) []string {
 	if len(globs) == 0 {
 		return repos
 	}
+	updateOrgSearchLog.Printf("Filtering %d repos against %d glob pattern(s)", len(repos), len(globs))
 	filtered := make([]string, 0, len(repos))
 	for _, repo := range repos {
 		name := repo
@@ -161,5 +169,6 @@ func filterOrgRepos(repos []string, globs []string) []string {
 			}
 		}
 	}
+	updateOrgSearchLog.Printf("Glob filtering reduced %d repos to %d", len(repos), len(filtered))
 	return filtered
 }

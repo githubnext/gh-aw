@@ -12,6 +12,8 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
+var samplesValidationLog = newValidationLogger("samples")
+
 var sampleRuntimeExpressionPattern = regexp.MustCompile(`(?s)\$\{\{.*?\}\}`)
 
 // sampleRuntimeExpressionPlaceholder is the sentinel substituted for any
@@ -89,6 +91,7 @@ func getCompiledToolSchemas() (map[string]toolSchemaEntry, error) {
 			}
 			out[t.Name] = toolSchemaEntry{raw: rawMap, compiled: schema}
 		}
+		samplesValidationLog.Printf("Compiled %d safe-outputs tool schemas for sample validation", len(out))
 		compiledToolSchemas = out
 	})
 	return compiledToolSchemas, compiledToolSchemasErr
@@ -105,6 +108,7 @@ func validateSafeOutputsSamples(config *SafeOutputsConfig) error {
 	}
 
 	fieldNames := sliceutil.SortedKeys(safeOutputFieldMapping)
+	samplesValidationLog.Printf("Validating safe-outputs samples across %d candidate fields", len(fieldNames))
 
 	for _, fieldName := range fieldNames {
 		toolName := safeOutputFieldMapping[fieldName]
@@ -112,6 +116,7 @@ func validateSafeOutputsSamples(config *SafeOutputsConfig) error {
 		if base == nil || len(base.Samples) == 0 {
 			continue
 		}
+		samplesValidationLog.Printf("Validating %d sample(s) for field %q (tool %q)", len(base.Samples), fieldName, toolName)
 		if err := validateSamplesForTool(toolName, base.Samples); err != nil {
 			return err
 		}
@@ -151,6 +156,7 @@ func validateSamplesForTool(toolName string, samples []map[string]any) error {
 	entry, found := schemas[toolName]
 	if !found {
 		if sampleValidationDeferredTools[toolName] {
+			samplesValidationLog.Printf("Deferring sample validation for dynamic tool %q to runtime", toolName)
 			return nil
 		}
 		return fmt.Errorf("samples: no MCP tool schema found for %q (yaml key %q). Available tools come from pkg/workflow/js/safe_outputs_tools.json", toolName, toolDisplayKey(toolName))

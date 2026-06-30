@@ -3,7 +3,11 @@ package cli
 import (
 	"context"
 	"os/exec"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var mcpSubprocessGuardrailLog = logger.New("cli:mcp_subprocess_guardrail")
 
 const maxActiveMCPChildProcesses = 4
 
@@ -30,6 +34,7 @@ func (g *mcpSubprocessGuardrail) acquire(ctx context.Context) error {
 			g.release()
 			return err
 		}
+		mcpSubprocessGuardrailLog.Printf("Acquired MCP subprocess slot (%d/%d in use)", len(g.slots), cap(g.slots))
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -38,6 +43,7 @@ func (g *mcpSubprocessGuardrail) acquire(ctx context.Context) error {
 
 func (g *mcpSubprocessGuardrail) release() {
 	<-g.slots
+	mcpSubprocessGuardrailLog.Printf("Released MCP subprocess slot (%d/%d in use)", len(g.slots), cap(g.slots))
 }
 
 func (g *mcpSubprocessGuardrail) output(ctx context.Context, cmd *exec.Cmd) ([]byte, error) {
