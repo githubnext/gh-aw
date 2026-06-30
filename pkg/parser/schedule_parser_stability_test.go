@@ -101,6 +101,36 @@ func TestScatterScheduleCrossPlatformConsistency(t *testing.T) {
 			workflowIdentifier: "workflow-a.md",
 			expectedCron:       "21 8 * * 1",
 		},
+		{
+			name:               "every 10 minutes - workflow-a.md",
+			fuzzyCron:          "FUZZY:EVERY_MINUTE/10 * * * *",
+			workflowIdentifier: "workflow-a.md",
+			expectedCron:       "1/10 * * * *",
+		},
+		{
+			name:               "every 10 minutes - workflow-b.md",
+			fuzzyCron:          "FUZZY:EVERY_MINUTE/10 * * * *",
+			workflowIdentifier: "workflow-b.md",
+			expectedCron:       "2/10 * * * *",
+		},
+		{
+			name:               "every 5 minutes - workflow-a.md",
+			fuzzyCron:          "FUZZY:EVERY_MINUTE/5 * * * *",
+			workflowIdentifier: "workflow-a.md",
+			expectedCron:       "1/5 * * * *",
+		},
+		{
+			name:               "every 30 minutes - workflow-a.md",
+			fuzzyCron:          "FUZZY:EVERY_MINUTE/30 * * * *",
+			workflowIdentifier: "workflow-a.md",
+			expectedCron:       "21/30 * * * *",
+		},
+		{
+			name:               "every 15 minutes - workflow-b.md",
+			fuzzyCron:          "FUZZY:EVERY_MINUTE/15 * * * *",
+			workflowIdentifier: "workflow-b.md",
+			expectedCron:       "7/15 * * * *",
+		},
 	}
 
 	for _, tt := range tests {
