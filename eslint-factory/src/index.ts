@@ -1,3 +1,4 @@
+import { noCoreSetOutputNonStringRule } from "./rules/no-core-setoutput-non-string";
 import { noUnsafeCatchErrorPropertyRule } from "./rules/no-unsafe-catch-error-property";
 import { noUnsafePromiseCatchErrorPropertyRule } from "./rules/no-unsafe-promise-catch-error-property";
 import { requireJsonParseTryCatchRule } from "./rules/require-json-parse-try-catch";
@@ -9,6 +10,7 @@ const plugin = {
     version: "0.1.0",
   },
   rules: {
+    "no-core-setoutput-non-string": noCoreSetOutputNonStringRule,
     "no-unsafe-catch-error-property": noUnsafeCatchErrorPropertyRule,
     "no-unsafe-promise-catch-error-property": noUnsafePromiseCatchErrorPropertyRule,
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,

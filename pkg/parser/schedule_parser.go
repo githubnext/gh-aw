@@ -283,7 +283,7 @@ func formatShortDurationCron(interval int, unit string, hasWeekdaysSuffix bool) 
 		if hasWeekdaysSuffix {
 			return "", errors.New("minute intervals with 'on weekdays' are not supported")
 		}
-		return fmt.Sprintf("*/%d * * * *", interval), nil
+		return fmt.Sprintf("FUZZY:EVERY_MINUTE/%d * * * *", interval), nil
 	case "h":
 		return formatHourlyIntervalCron(interval, hasWeekdaysSuffix), nil
 	case "d":
@@ -303,7 +303,7 @@ func formatLongIntervalCron(interval int, unit string, hasWeekdaysSuffix bool) (
 		if hasWeekdaysSuffix {
 			return "", errors.New("minute intervals with 'on weekdays' are not supported")
 		}
-		return fmt.Sprintf("*/%d * * * *", interval), nil
+		return fmt.Sprintf("FUZZY:EVERY_MINUTE/%d * * * *", interval), nil
 	case "hours":
 		return formatHourlyIntervalCron(interval, hasWeekdaysSuffix), nil
 	case "days":

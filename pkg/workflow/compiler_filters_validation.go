@@ -197,26 +197,18 @@ func validateGlobList(eventMap map[string]any, eventName, filterKey string, isPa
 		return nil
 	}
 
-	for _, pat := range patterns {
-		var errs []invalidGlobPattern
-		if isPath {
-			errs = validatePathGlob(pat)
-		} else {
-			errs = validateRefGlob(pat)
-		}
-		if len(errs) > 0 {
-			msgs := make([]string, 0, len(errs))
-			for _, e := range errs {
-				msgs = append(msgs, e.Message)
-			}
-			filterValidationLog.Printf("ERROR: invalid glob pattern %q in %s.%s: %s", pat, eventName, filterKey, strings.Join(msgs, "; "))
-			return NewValidationError(
-				fmt.Sprintf("on.%s.%s", eventName, filterKey),
-				pat,
-				"expected a valid GitHub Actions glob pattern: "+strings.Join(msgs, "; "),
-				fmt.Sprintf("Use valid glob syntax for on.%s.%s:\n\non:\n  %s:\n    %s:\n      - src/**", eventName, filterKey, eventName, filterKey),
-			)
-		}
+	validate := validateRefGlob
+	if isPath {
+		validate = validatePathGlob
 	}
-	return nil
+
+	return validateGlobPatternList(patterns, validate, func(_ int, pat string, msgs []string) error {
+		filterValidationLog.Printf("ERROR: invalid glob pattern %q in %s.%s: %s", pat, eventName, filterKey, strings.Join(msgs, "; "))
+		return NewValidationError(
+			fmt.Sprintf("on.%s.%s", eventName, filterKey),
+			pat,
+			"expected a valid GitHub Actions glob pattern: "+strings.Join(msgs, "; "),
+			fmt.Sprintf("Use valid glob syntax for on.%s.%s:\n\non:\n  %s:\n    %s:\n      - src/**", eventName, filterKey, eventName, filterKey),
+		)
+	})
 }

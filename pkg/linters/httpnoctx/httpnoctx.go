@@ -1,8 +1,10 @@
 // Package httpnoctx implements a Go analysis linter that flags HTTP calls
 // that do not accept a context.Context: (*http.Client).Get, .Head, .Post,
 // .PostForm and the package-level http.Get/Head/Post/PostForm shortcuts.
-// The fix is to build the request with http.NewRequestWithContext and call
-// client.Do so that cancellation and deadline are propagated.
+// It also flags http.NewRequest inside functions that already receive
+// context.Context, and http.DefaultClient.Do which uses a timeout-less client.
+// The fix is to build the request with http.NewRequestWithContext and use a
+// client with a timeout so cancellation and deadline are propagated.
 package httpnoctx
 
 import (
@@ -11,6 +13,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
@@ -20,7 +23,7 @@ import (
 // Analyzer is the http-no-ctx analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "httpnoctx",
-	Doc:      "reports http.Client and package-level HTTP calls that do not accept a context.Context; use http.NewRequestWithContext + client.Do instead",
+	Doc:      "reports context-free net/http request paths: http.Client/http package helpers without context, http.NewRequest in context-aware functions, and http.DefaultClient.Do",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/httpnoctx",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -41,48 +44,57 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "httpnoctx")
+	ctxType := contextContextType(pass)
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
-	}
-
-	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
+	for cursor := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
+		call, ok := cursor.Node().(*ast.CallExpr)
 		if !ok {
-			return
+			continue
 		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
 		if filecheck.IsTestFile(pos.Filename) {
-			return
+			continue
 		}
 		if nolint.HasDirective(pos, noLintLinesByFile) {
-			return
+			continue
 		}
 
 		sel, ok := call.Fun.(*ast.SelectorExpr)
 		if !ok {
-			return
+			continue
 		}
-		if !contextFreeMethods[sel.Sel.Name] {
-			return
+		if contextFreeMethods[sel.Sel.Name] {
+			if isHTTPClientReceiver(pass, sel.X) {
+				pass.ReportRangef(call,
+					"(*http.Client).%s does not accept a context; use http.NewRequestWithContext + client.Do to propagate cancellation",
+					sel.Sel.Name,
+				)
+				continue
+			}
+
+			if isHTTPPackage(pass, sel.X) {
+				pass.ReportRangef(call,
+					"http.%s does not accept a context; use http.NewRequestWithContext + http.DefaultClient.Do to propagate cancellation",
+					sel.Sel.Name,
+				)
+				continue
+			}
 		}
 
-		if isHTTPClientReceiver(pass, sel.X) {
+		if sel.Sel.Name == "NewRequest" && isHTTPPackage(pass, sel.X) && hasContextInEnclosingFunc(pass, cursor, ctxType) {
 			pass.ReportRangef(call,
-				"(*http.Client).%s does not accept a context; use http.NewRequestWithContext + client.Do to propagate cancellation",
-				sel.Sel.Name,
+				"http.NewRequest does not propagate context; use http.NewRequestWithContext when context.Context is in scope",
 			)
-			return
+			continue
 		}
 
-		if isHTTPPackage(pass, sel.X) {
+		if sel.Sel.Name == "Do" && isHTTPDefaultClient(pass, sel.X) {
 			pass.ReportRangef(call,
-				"http.%s does not accept a context; use http.NewRequestWithContext + http.DefaultClient.Do to propagate cancellation",
-				sel.Sel.Name,
+				"http.DefaultClient.Do uses a timeout-less client; use a dedicated *http.Client with Timeout set",
 			)
 		}
-	})
+	}
 
 	return nil, nil
 }
@@ -120,4 +132,62 @@ func isHTTPPackage(pass *analysis.Pass, expr ast.Expr) bool {
 		return false
 	}
 	return pkgName.Imported().Path() == "net/http"
+}
+
+func hasContextInEnclosingFunc(pass *analysis.Pass, cursor inspector.Cursor, ctxType types.Type) bool {
+	if ctxType == nil {
+		return false
+	}
+
+	for enclosing := range cursor.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
+		fnType := enclosingFuncType(enclosing.Node())
+		if fnType == nil || fnType.Params == nil {
+			continue
+		}
+
+		for _, field := range fnType.Params.List {
+			t := pass.TypesInfo.TypeOf(field.Type)
+			if t == nil || !types.Identical(t, ctxType) {
+				continue
+			}
+			for _, name := range field.Names {
+				if name.Name != "_" {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+func enclosingFuncType(node ast.Node) *ast.FuncType {
+	switch fn := node.(type) {
+	case *ast.FuncDecl:
+		return fn.Type
+	case *ast.FuncLit:
+		return fn.Type
+	default:
+		return nil
+	}
+}
+
+func contextContextType(pass *analysis.Pass) types.Type {
+	for _, pkg := range pass.Pkg.Imports() {
+		if pkg.Path() != "context" {
+			continue
+		}
+		if obj := pkg.Scope().Lookup("Context"); obj != nil {
+			return obj.Type()
+		}
+	}
+	return nil
+}
+
+func isHTTPDefaultClient(pass *analysis.Pass, expr ast.Expr) bool {
+	sel, ok := expr.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "DefaultClient" {
+		return false
+	}
+	return isHTTPPackage(pass, sel.X)
 }

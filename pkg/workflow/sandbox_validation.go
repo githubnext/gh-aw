@@ -28,11 +28,10 @@ var githubActionsExpressionPattern = regexp.MustCompile(`\$\{\{[\s\S]*\}\}`)
 // validateMountsSyntax validates that mount strings follow the correct syntax
 // Expected format: "source:destination:mode" where mode is either "ro" or "rw"
 func validateMountsSyntax(mounts []string) error {
-	for i, mount := range mounts {
-		parts, kind := parseMountEntry(mount)
+	return validateMountEntries(mounts, func(i int, parts mountParts) {
+		sandboxValidationLog.Printf("Validated mount %d: source=%s, dest=%s, mode=%s", i, parts.source, parts.dest, parts.mode)
+	}, func(i int, mount string, parts mountParts, kind mountValidationKind) error {
 		switch kind {
-		case mountValidationOK:
-			sandboxValidationLog.Printf("Validated mount %d: source=%s, dest=%s, mode=%s", i, parts.source, parts.dest, parts.mode)
 		case mountValidationFormatError:
 			return NewValidationError(
 				fmt.Sprintf("sandbox.mounts[%d]", i),
@@ -64,9 +63,7 @@ func validateMountsSyntax(mounts []string) error {
 		default:
 			return fmt.Errorf("internal error: unsupported mount validation kind %d for sandbox mount %q", kind, mount)
 		}
-	}
-
-	return nil
+	})
 }
 
 // validateSandboxConfig validates the sandbox configuration

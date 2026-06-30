@@ -5,7 +5,7 @@ import * as os from "os";
 import * as path from "path";
 
 const require = createRequire(import.meta.url);
-const { runWithCopilotSDK, parsePermissionConfigFromServerArgs } = require("./copilot_sdk_driver.cjs");
+const { runWithCopilotSDK, parsePermissionConfigFromServerArgs, parseWireApiEnv } = require("./copilot_sdk_driver.cjs");
 
 describe("copilot_sdk_driver.cjs", () => {
   let testSessionStateDir;
@@ -19,6 +19,19 @@ describe("copilot_sdk_driver.cjs", () => {
     if (prevSessionStateDir === undefined) delete process.env.GH_AW_SESSION_STATE_BASE_DIR;
     else process.env.GH_AW_SESSION_STATE_BASE_DIR = prevSessionStateDir;
     if (testSessionStateDir) fs.rmSync(testSessionStateDir, { recursive: true, force: true });
+  });
+
+  describe("parseWireApiEnv", () => {
+    it("accepts supported values case-insensitively", () => {
+      expect(parseWireApiEnv(" responses ")).toBe("responses");
+      expect(parseWireApiEnv("COMPLETIONS")).toBe("completions");
+    });
+
+    it("returns undefined for empty or unsupported values", () => {
+      expect(parseWireApiEnv("")).toBeUndefined();
+      expect(parseWireApiEnv("chat")).toBeUndefined();
+      expect(parseWireApiEnv(undefined)).toBeUndefined();
+    });
   });
 
   describe("runWithCopilotSDK", () => {
@@ -776,7 +789,7 @@ describe("copilot_sdk_driver.cjs", () => {
         prompt: "test prompt",
         logger: () => {},
         model: "gpt-5.4",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" },
         sdkModule: {
           CopilotClient: FakeCopilotClient,
           RuntimeConnection: { forUri },
@@ -788,7 +801,7 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(createSession).toHaveBeenCalledWith(
         expect.objectContaining({
           model: "gpt-5.4",
-          provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+          provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" },
         })
       );
       expect(forUri).toHaveBeenCalledWith("http://127.0.0.1:3002", {});

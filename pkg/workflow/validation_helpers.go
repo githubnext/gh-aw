@@ -145,6 +145,33 @@ func parseMountEntry(mount string) (mountParts, mountValidationKind) {
 	return mountParts{source: source, dest: dest, mode: mode}, mountValidationOK
 }
 
+// validateMountEntries applies shared mount parsing and classification across
+// callers while allowing each caller to preserve its own logging and error
+// construction. onValid may be nil. onInvalid must be non-nil and must return
+// a non-nil error for all non-OK mountValidationKind values.
+func validateMountEntries(mounts []string, onValid func(int, mountParts), onInvalid func(int, string, mountParts, mountValidationKind) error) error {
+	if onInvalid == nil {
+		return errors.New("internal error: onInvalid callback must not be nil")
+	}
+
+	for i, mount := range mounts {
+		parts, kind := parseMountEntry(mount)
+		if kind == mountValidationOK {
+			if onValid != nil {
+				onValid(i, parts)
+			}
+			continue
+		}
+		err := onInvalid(i, mount, parts, kind)
+		if err == nil {
+			return fmt.Errorf("internal error: onInvalid callback returned nil for mount kind %d", kind)
+		}
+		return err
+	}
+
+	return nil
+}
+
 // validateStringEnumField checks that a config field, if present, contains one
 // of the allowed string values. Non-string values and unrecognised strings are
 // removed from the map (treated as absent) and a warning is logged. Use this

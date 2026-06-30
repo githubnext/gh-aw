@@ -48,6 +48,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		TrackerID:             toolsResult.trackerID,
 		MaxDailyAICredits:     resolveMaxDailyAIC(result.Frontmatter, importsResult.MergedMaxDailyAICredits),
 		ImportedFiles:         importsResult.ImportedFiles,
+		Skills:                extractFrontmatterSkills(toolsResult.parsedFrontmatter, result.Frontmatter),
 		ImportedMarkdown:      toolsResult.importedMarkdown, // Only imports WITH inputs
 		ImportPaths:           toolsResult.importPaths,      // Import paths for runtime-import macros (imports without inputs)
 		PromptImports:         toolsResult.promptImports,    // Ordered prompt contributions from imports
@@ -193,6 +194,33 @@ func extractLSPConfig(parsedFrontmatter *FrontmatterConfig, frontmatter map[stri
 		return nil
 	}
 	return lsp
+}
+
+func extractFrontmatterSkills(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any) []string {
+	if parsedFrontmatter != nil && len(parsedFrontmatter.Skills) > 0 {
+		return append([]string(nil), parsedFrontmatter.Skills...)
+	}
+
+	// Fall back to raw frontmatter when ParseFrontmatterConfig failed for non-skills reasons
+	// (e.g. unrecognized tool shapes). Safe because validateFrontmatterSkills already ran
+	// and succeeded on this frontmatter before we reach this point.
+	rawSkills, ok := frontmatter["skills"].([]any)
+	if !ok || len(rawSkills) == 0 {
+		return nil
+	}
+
+	skills := make([]string, 0, len(rawSkills))
+	for _, rawSkill := range rawSkills {
+		skill, ok := rawSkill.(string)
+		if !ok || skill == "" {
+			continue
+		}
+		skills = append(skills, skill)
+	}
+	if len(skills) == 0 {
+		return nil
+	}
+	return skills
 }
 
 func extractMainModelCostsOverlay(toolsResult *toolsProcessingResult, frontmatter map[string]any) map[string]any {

@@ -437,6 +437,10 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	// is not clobbered. Inline sub-agents are enabled by default.
 	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), data) {
 		generateRestoreInlineSubAgentsStep(yaml, data)
+	}
+	// Restore the engine-specific skills directory when inline skills are enabled or when
+	// explicit frontmatter skills were installed during activation.
+	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), data) || len(data.Skills) > 0 {
 		generateRestoreInlineSkillsStep(yaml, data)
 	}
 
