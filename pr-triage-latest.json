@@ -1,40 +1,34 @@
 {
-  "run_date": "2026-06-30T07:37:20Z",
-  "run_id": "28428103271",
-  "previous_run_id": "28413530597",
-  "previous_run_date": "2026-06-30T01:16:41Z",
-  "agent_prs_found": 12,
-  "prs_triaged": 12,
+  "run_date": "2026-06-30T12:58:38Z",
+  "run_id": "28445959231",
+  "previous_run_id": "28428103271",
+  "previous_run_date": "2026-06-30T07:37:20Z",
+  "agent_prs_found": 10,
+  "prs_triaged": 10,
   "open_agent_prs": [
     {
       "number": 42400,
       "title": "fix: reclaim non-writable /tmp/gh-aw/sandbox before AWF writeConfigs() to prevent EACCES",
       "draft": false,
-      "additions": 139,
-      "deletions": 0,
-      "changed_files": 3,
       "category": "bug",
       "risk": "medium",
       "priority": "high",
-      "score": 81,
+      "score": 78,
       "action": "fast_track",
-      "age_hours": 5.1,
-      "ci": "PASSING",
-      "notes": "Critical-path fix for AWF EACCES runtime failure. CI passing. Blocked by review."
+      "age_hours": 10.5,
+      "ci": "PENDING",
+      "notes": "CI pending (was PASSING in prior run, likely re-running). Critical EACCES sandbox fix. Blocked by review."
     },
     {
       "number": 42421,
       "title": "fix: route gpt-5.5 through OpenAI Responses API (wireApi=responses)",
       "draft": false,
-      "additions": 249,
-      "deletions": 8,
-      "changed_files": 5,
       "category": "bug",
       "risk": "medium",
       "priority": "high",
       "score": 72,
       "action": "fast_track",
-      "age_hours": 1.9,
+      "age_hours": 7.3,
       "ci": "PASSING",
       "notes": "gpt-5.5 routing fix. CI passing. Blocked by review."
     },
@@ -42,64 +36,52 @@
       "number": 42420,
       "title": "Stop Codex harness retry loops on TPM exhaustion and unfinished-goal errors",
       "draft": false,
-      "additions": 47,
-      "deletions": 3,
-      "changed_files": 5,
       "category": "bug",
       "risk": "low",
       "priority": "medium",
       "score": 66,
       "action": "fast_track",
-      "age_hours": 2.2,
+      "age_hours": 7.5,
       "ci": "PASSING",
-      "notes": "Stops infinite retry token burn. CI passing."
+      "notes": "Stops infinite retry token burn. CI passing. Blocked by review."
     },
     {
       "number": 42408,
       "title": "chore: bump gh-aw-firewall to v0.27.15",
       "draft": false,
-      "additions": 4530,
-      "deletions": 4530,
-      "changed_files": 268,
       "category": "chore",
       "risk": "low",
       "priority": "medium",
       "score": 38,
       "action": "batch_review",
-      "age_hours": 3.0,
+      "age_hours": 8.3,
       "ci": "NO_CI",
-      "notes": "Firewall bump, 257 lock files regenerated. No CI yet."
+      "notes": "Firewall bump, 268 files changed. No CI. Needs trigger."
     },
     {
       "number": 42426,
       "title": "Add frontmatter `skills` support with activation-time `gh skill` install and engine wiring",
       "draft": true,
-      "additions": 346,
-      "deletions": 6,
-      "changed_files": 16,
       "category": "feature",
       "risk": "high",
       "priority": "medium",
       "score": 45,
       "action": "defer",
       "batch": "experimental",
-      "age_hours": 1.1,
+      "age_hours": 6.5,
       "ci": "NO_CI",
-      "notes": "DRAFT. Skills frontmatter support, part of experimental batch."
+      "notes": "DRAFT. Skills frontmatter support. Part of experimental batch."
     },
     {
       "number": 42431,
       "title": "Deduplicate glob-list validation across workflow validators",
       "draft": true,
-      "additions": 50,
-      "deletions": 31,
-      "changed_files": 4,
       "category": "refactor",
       "risk": "low",
       "priority": "low",
       "score": 25,
       "action": "batch_review",
-      "age_hours": 0.9,
+      "age_hours": 6.2,
       "ci": "NO_CI",
       "notes": "DRAFT. Dedup pair with #42430."
     },
@@ -107,80 +89,39 @@
       "number": 42430,
       "title": "Deduplicate sandbox and MCP mount validation flow",
       "draft": true,
-      "additions": 66,
-      "deletions": 14,
-      "changed_files": 4,
       "category": "refactor",
       "risk": "medium",
       "priority": "low",
       "score": 25,
       "action": "batch_review",
-      "age_hours": 0.9,
+      "age_hours": 6.2,
       "ci": "NO_CI",
       "notes": "DRAFT. Dedup pair with #42431."
-    },
-    {
-      "number": 42415,
-      "title": "[jsweep] Clean workflow_metadata_helpers.cjs",
-      "draft": false,
-      "additions": 68,
-      "deletions": 12,
-      "changed_files": 2,
-      "category": "chore",
-      "risk": "low",
-      "priority": "medium",
-      "score": 34,
-      "action": "auto_merge",
-      "age_hours": 2.4,
-      "ci": "PASSING",
-      "notes": "Bot automation, CI passing, auto_merge eligible."
-    },
-    {
-      "number": 42410,
-      "title": "[code-simplifier] simplify: extract buildAllowedFieldSet helper and format replay one-liner",
-      "draft": false,
-      "additions": 26,
-      "deletions": 31,
-      "changed_files": 2,
-      "category": "refactor",
-      "risk": "low",
-      "priority": "medium",
-      "score": 34,
-      "action": "auto_merge",
-      "age_hours": 2.8,
-      "ci": "PASSING",
-      "notes": "Bot automation, CI passing, auto_merge eligible."
     },
     {
       "number": 42412,
       "title": "refactor: eliminate all 13 largefunc lint violations in pkg/workflow and pkg/cli",
       "draft": false,
-      "additions": 2481,
-      "deletions": 2711,
-      "changed_files": 11,
       "category": "refactor",
       "risk": "high",
       "priority": "low",
       "score": 28,
       "action": "defer",
-      "age_hours": 2.6,
+      "age_hours": 7.9,
       "ci": "FAILING(lint-go)",
-      "notes": "lint-go CI failure. Large refactor blocked."
+      "notes": "Self-referential lint-go failure on a lint-fixing PR. Blocked."
     },
     {
       "number": 42314,
       "title": "Add experimental Auggie engine support",
       "draft": true,
-      "additions": 3213,
-      "deletions": 558,
-      "changed_files": 288,
       "category": "feature",
       "risk": "high",
       "priority": "medium",
       "score": 43,
       "action": "defer",
       "batch": "experimental",
-      "age_hours": 13.5,
+      "age_hours": 18.8,
       "ci": "NO_CI",
       "notes": "DRAFT. Carried over. Experimental batch."
     },
@@ -188,86 +129,51 @@
       "number": 42100,
       "title": "feat: add experimental BinEval evaluation support",
       "draft": true,
-      "additions": 2181,
-      "deletions": 0,
-      "changed_files": 19,
       "category": "feature",
       "risk": "high",
       "priority": "medium",
       "score": 38,
       "action": "defer",
       "batch": "experimental",
-      "age_hours": 40.8,
+      "age_hours": 46.2,
       "ci": "NO_CI",
-      "notes": "DRAFT. Carried over 40h+. Label conflict: remove pr-priority:low (stale)."
+      "notes": "DRAFT. 46h stale. Label conflict: pr-priority:low and pr-priority:medium both present. Remove pr-priority:low."
     }
   ],
   "closed_since_last_run": [
-    {
-      "number": 42257,
-      "title": "compiler: auto-derive and warn on missing path: for cross-repo checkout entries",
-      "outcome": "unknown"
-    },
-    {
-      "number": 42379,
-      "title": "[WIP] Fix failing GitHub Actions job for CLI Completion",
-      "outcome": "unknown"
-    }
+    { "number": 42415, "title": "[jsweep] Clean workflow_metadata_helpers.cjs", "outcome": "merged" },
+    { "number": 42410, "title": "[code-simplifier] simplify: extract buildAllowedFieldSet helper", "outcome": "merged" }
   ],
   "statistics": {
-    "total_open_agent_prs": 12,
+    "total_open_agent_prs": 10,
     "draft_prs": 5,
-    "ready_prs": 7,
-    "by_action": {
-      "fast_track": 3,
-      "batch_review": 3,
-      "defer": 4,
-      "auto_merge": 2
-    },
-    "by_category": {
-      "bug": 3,
-      "feature": 3,
-      "refactor": 3,
-      "chore": 3
-    },
-    "by_risk": {
-      "high": 4,
-      "medium": 3,
-      "low": 5
-    },
-    "by_priority": {
-      "high": 2,
-      "medium": 7,
-      "low": 3
-    },
+    "ready_prs": 5,
+    "by_action": { "fast_track": 3, "batch_review": 3, "defer": 4 },
+    "by_category": { "bug": 3, "refactor": 3, "feature": 3, "chore": 1 },
+    "by_risk": { "high": 4, "medium": 2, "low": 4 },
+    "by_priority": { "high": 2, "medium": 5, "low": 3 },
     "closed_since_last_run": 2,
-    "new_since_last_run": 10,
-    "carried_over": 2
+    "new_since_last_run": 0,
+    "carried_over": 10
   },
   "batches": {
-    "experimental": [
-      42426,
-      42314,
-      42100
-    ]
+    "experimental": [42426, 42314, 42100],
+    "dedup_refactor": [42430, 42431]
   },
   "label_conflicts": [
     {
       "pr": 42100,
-      "stale_labels": [
-        "pr-priority:low"
-      ],
+      "stale_labels": ["pr-priority:low"],
       "correct_priority": "pr-priority:medium",
-      "note": "Carried over from prior run. Remove pr-priority:low manually."
+      "note": "Persisted from prior run. Manual removal required."
     }
   ],
   "notable": {
-    "critical_fix_ready": "#42400 EACCES sandbox fix - CI passing, fast_track",
-    "model_routing_fix": "#42421 gpt-5.5 routing fix - CI passing, fast_track",
-    "retry_fix_ready": "#42420 Codex retry loop fix - CI passing, fast_track",
-    "lint_failure": "#42412 large refactor blocked by lint-go CI failure",
-    "experimental_batch": "#42426 + #42314 + #42100 form experimental features batch",
-    "auto_merge_bots": "#42415 (jsweep) and #42410 (code-simplifier) are auto_merge eligible"
+    "fast_track_ready": "#42421 and #42420 CI passing — review now",
+    "pending_ci": "#42400 CI pending (was passing) — recheck shortly",
+    "lint_failure": "#42412 blocked by lint-go CI failure",
+    "stale_draft": "#42100 at 46h DRAFT — consider closing",
+    "auto_merged": "#42415 (jsweep) and #42410 (code-simplifier) closed since last run"
   },
-  "notes": "12 open agent PRs \u2014 biggest wave in recent runs. 3 fast_track bug fixes ready. 2 auto_merge bot PRs. 10 new PRs since last run (~6h ago). Run \u00a728428103271."
+  "notes": "10 open agent PRs. 2 auto_merge PRs from prior run now closed. 3 fast_track bug fixes — 2 CI passing (#42421, #42420), 1 CI pending (#42400). No new PRs since last run (6h gap)."
 }
