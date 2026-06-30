@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -343,6 +344,17 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 				if len(fields) != 5 {
 					t.Errorf("expected 5 fields in cron expression, got %d: %s", len(fields), actualCron)
 				}
+				// If the minute field uses M/N start/step syntax, verify offset is in [0, N-1].
+				minuteField := fields[0]
+				if parts := strings.SplitN(minuteField, "/", 2); len(parts) == 2 {
+					offset, offsetErr := strconv.Atoi(parts[0])
+					interval, intervalErr := strconv.Atoi(parts[1])
+					if offsetErr == nil && intervalErr == nil {
+						if offset < 0 || offset >= interval {
+							t.Errorf("offset %d is not in [0, %d): %s", offset, interval, actualCron)
+						}
+					}
+				}
 				t.Logf("Successfully scattered schedule to: %s", actualCron)
 			} else if tt.expectedCron != "" {
 				if actualCron != tt.expectedCron {
@@ -534,6 +546,18 @@ func TestSchedulePreprocessing(t *testing.T) {
 				fields := strings.Fields(actualCron)
 				if len(fields) != 5 {
 					t.Errorf("expected 5 fields in cron expression, got %d: %s", len(fields), actualCron)
+				}
+				// If the minute field uses the M/N start/step syntax, verify
+				// offset is within [0, N-1] so the period is preserved.
+				minuteField := fields[0]
+				if parts := strings.SplitN(minuteField, "/", 2); len(parts) == 2 {
+					offset, offsetErr := strconv.Atoi(parts[0])
+					interval, intervalErr := strconv.Atoi(parts[1])
+					if offsetErr == nil && intervalErr == nil {
+						if offset < 0 || offset >= interval {
+							t.Errorf("offset %d is not in [0, %d): %s", offset, interval, actualCron)
+						}
+					}
 				}
 				t.Logf("Successfully scattered schedule to: %s", actualCron)
 			} else if tt.expectedCron != "" {
