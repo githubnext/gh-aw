@@ -1267,6 +1267,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
         if (branchHistoryFiles.length > 0) {
           const allowedPatterns = pushConfig.allowed_files.map(p => globPatternToRegex(p));
+          // Files matching excluded_files are intentionally exempt: they will be stripped
+          // from the patch at generation time via :(exclude) pathspecs, so they won't be
+          // present in the final changeset applied to the branch.
           const excludedPatterns = Array.isArray(pushConfig.excluded_files) ? pushConfig.excluded_files.map(p => globPatternToRegex(p)) : [];
           const uniqueFiles = [...new Set(branchHistoryFiles)];
           const disallowedFiles = uniqueFiles.filter(f => !allowedPatterns.some(re => re.test(f)) && !excludedPatterns.some(re => re.test(f)));

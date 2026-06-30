@@ -144,14 +144,17 @@ function isWorkflowsScopeRejection(stderr) {
 
 /**
  * Returns the list of unique workflow file paths (.github/workflows/**) present in the
- * local branch history relative to origin/HEAD (the remote default branch).  This is
- * used as a pre-flight check before pushing a new branch ref: GitHub rejects such pushes
- * when the token lacks the 'workflows' scope, even if the current changeset itself does
- * not touch workflow files (the rejection is based on ALL commits reachable from the ref).
+ * local branch history relative to `origin/HEAD` (the remote default branch as set by
+ * `actions/checkout`).  This is used as a pre-flight check before pushing a new branch
+ * ref: GitHub rejects such pushes when the token lacks the 'workflows' scope, even if
+ * the current changeset itself does not touch workflow files (the rejection is based on
+ * ALL commits reachable from the pushed ref).
  *
- * Falls back to an empty array when origin/HEAD is not resolvable or the git command
- * fails, so the caller can treat an empty result as "no workflow changes detected" and
- * let the push proceed (where a real failure will still surface the typed error).
+ * Uses `origin/HEAD` as the exclusion baseline because it is reliably set by
+ * `actions/checkout` and represents commits that GitHub has already accepted.  Falls back
+ * to an empty array (no workflow changes detected) when `origin/HEAD` is not resolvable
+ * or the git command fails — in that case the push is still attempted, and any real
+ * 'workflows' scope rejection will be caught and surfaced as the typed error downstream.
  *
  * @param {{ getExecOutput: Function }} exec - @actions/exec module (or compatible mock)
  * @param {Record<string, any>} gitOptions - Base git exec options (cwd, env, etc.)
