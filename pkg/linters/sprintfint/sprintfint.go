@@ -19,7 +19,7 @@ import (
 // Analyzer is the sprintfint analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "sprintfint",
-	Doc:      "reports fmt.Sprintf(\"%d\", x) calls where x is a single int value; use strconv.Itoa(x) instead",
+	Doc:      "reports fmt.Sprintf(\"%d\", x) calls where x is a single int value; use strconv.Itoa(x) instead (suggested fixes may require goimports to add/remove imports)",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/sprintfint",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -74,7 +74,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if argType == nil {
 			return
 		}
-		if argType.Underlying() != types.Typ[types.Int] {
+		if argType != types.Typ[types.Int] {
 			return
 		}
 

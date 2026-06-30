@@ -6,6 +6,8 @@ import (
 	"strconv"
 )
 
+type counter int
+
 // bad demonstrates the flagged pattern: fmt.Sprintf with a single "%d" verb
 // and an int argument, which should be replaced by strconv.Itoa.
 func bad(n int) string {
@@ -40,6 +42,12 @@ func goodMultipleVerbs(a, b int) string {
 // goodOtherVerb uses a different verb — not flagged.
 func goodOtherVerb(n int) string {
 	return fmt.Sprintf("%v", n)
+}
+
+// goodNamedInt uses a named int type — not flagged because strconv.Itoa
+// requires the exact predeclared int type.
+func goodNamedInt(n counter) string {
+	return fmt.Sprintf("%d", n)
 }
 
 // suppressed suppresses the linter directive — no diagnostic expected.
