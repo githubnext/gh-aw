@@ -40,7 +40,12 @@ func parseFirewallLogs(runDir string, verbose bool) error {
 	}
 
 	// Check if squid logs directory exists in the run directory
-	// The logs could be in workflow-logs subdirectory or directly in the run directory
+	// The logs could be in several locations depending on the AWF version and artifact structure.
+
+	// Primary path: sandbox/firewall/logs/squid-logs/ (AWF writes Squid logs here within --proxy-logs-dir)
+	sandboxSquidLogsDir := filepath.Join(runDir, "sandbox", "firewall", "logs", "squid-logs")
+
+	// Legacy path: squid-logs/ directly in the run directory (older artifact format)
 	squidLogsDir := filepath.Join(runDir, "squid-logs")
 
 	// Also check for squid logs in workflow-logs directory
@@ -48,7 +53,10 @@ func parseFirewallLogs(runDir string, verbose bool) error {
 
 	// Determine which directory to use
 	var logsDir string
-	if fileutil.DirExists(squidLogsDir) {
+	if fileutil.DirExists(sandboxSquidLogsDir) {
+		logsDir = sandboxSquidLogsDir
+		logsParsingFirewallLog.Printf("Found firewall logs in sandbox/firewall/logs/squid-logs directory")
+	} else if fileutil.DirExists(squidLogsDir) {
 		logsDir = squidLogsDir
 		logsParsingFirewallLog.Printf("Found firewall logs in squid-logs directory")
 	} else if fileutil.DirExists(workflowLogsSquidDir) {
