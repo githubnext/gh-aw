@@ -225,6 +225,19 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	customStepsContainCheckout := data.CustomSteps != "" && ContainsCheckout(data.CustomSteps)
 	compilerYamlLog.Printf("Custom steps contain checkout: %t (len(customSteps)=%d)", customStepsContainCheckout, len(data.CustomSteps))
 
+	// Redirect tool cache for ARC/DinD runners BEFORE runtime setup steps.
+	// On ARC, the standard RUNNER_TOOL_CACHE=/opt/hostedtoolcache is invisible to the DinD
+	// daemon's filesystem. Redirecting to /tmp/gh-aw/tool-cache (a shared emptyDir volume)
+	// ensures setup-* actions install to a path visible to both runner and DinD containers.
+	// This step must run before any runtime setup steps (setup-go, setup-node, etc.) so that
+	// those actions pick up the redirected path when they write into RUNNER_TOOL_CACHE.
+	if isArcDindTopology(data) {
+		yaml.WriteString("      - name: Redirect tool cache for ARC/DinD\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          mkdir -p /tmp/gh-aw/tool-cache\n")
+		yaml.WriteString("          echo \"RUNNER_TOOL_CACHE=/tmp/gh-aw/tool-cache\" >> \"$GITHUB_ENV\"\n")
+	}
+
 	if needsCheckout || !customStepsContainCheckout {
 		// Case 1 or 3: Add runtime steps before custom steps
 		// This ensures checkout -> runtime -> custom steps order

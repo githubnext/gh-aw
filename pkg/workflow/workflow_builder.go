@@ -67,6 +67,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		RepositoryImports:     importsResult.RepositoryImports,
 		NetworkPermissions:    engineSetup.networkPermissions,
 		SandboxConfig:         applySandboxDefaults(engineSetup.sandboxConfig, engineSetup.engineConfig),
+		RunnerConfig:          extractRunnerConfig(result.Frontmatter),
 		NeedsTextOutput:       toolsResult.needsTextOutput,
 		ToolsTimeout:          toolsResult.toolsTimeout,
 		ToolsStartupTimeout:   toolsResult.toolsStartupTimeout,

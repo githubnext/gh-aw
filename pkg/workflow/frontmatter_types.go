@@ -6,6 +6,19 @@ import (
 
 var frontmatterTypesLog = logger.New("workflow:frontmatter_types")
 
+// RunnerTopologyArcDind is the topology value for ARC runners with Docker-in-Docker sidecars.
+const RunnerTopologyArcDind = "arc-dind"
+
+// RunnerConfig represents runner topology configuration from the workflow frontmatter.
+// The topology field is the single stable contract between gh-aw and AWF for runner
+// environment detection — AWF resolves all internal details (network isolation, sysroot
+// image, path-prefix probes, tool cache validation) from this signal.
+type RunnerConfig struct {
+	// Topology identifies the runner execution topology.
+	// Supported values: "arc-dind" (ARC with Docker-in-Docker sidecar).
+	Topology string `json:"topology,omitempty" yaml:"topology,omitempty"`
+}
+
 // RuntimeConfig represents the configuration for a single runtime
 type RuntimeConfig struct {
 	Version           string `json:"version,omitempty"`             // Version of the runtime (e.g., "20" for Node, "3.11" for Python)
@@ -330,6 +343,7 @@ type FrontmatterConfig struct {
 	// Network and sandbox configuration
 	Network *NetworkPermissions `json:"network,omitempty"`
 	Sandbox *SandboxConfig      `json:"sandbox,omitempty"`
+	Runner  *RunnerConfig       `json:"runner,omitempty"`
 
 	// Feature flags and other settings
 	Features map[string]any    `json:"features,omitempty"` // Dynamic feature flags

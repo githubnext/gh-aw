@@ -85,6 +85,14 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 //   - validatePermissions: permissions parsing, MCP tool constraints, workflow_run security
 //   - validateToolConfiguration: safe-outputs, GitHub tools, dispatches, and resources
 func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath string) error {
+	if err := validateRunnerConfig(workflowData.RunnerConfig); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
+	if err := validateArcDindRootless(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	if err := c.validateExpressions(workflowData, markdownPath); err != nil {
 		return err
 	}

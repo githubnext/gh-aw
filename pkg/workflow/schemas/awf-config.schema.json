@@ -10,6 +10,18 @@
       "type": "string",
       "description": "JSON Schema URL for IDE validation and autocomplete."
     },
+    "runner": {
+      "type": "object",
+      "description": "Runner topology metadata. AWF uses this to activate topology-specific behaviors (split-filesystem handling, network isolation, sysroot image, path-prefix probes, tool cache validation).",
+      "additionalProperties": false,
+      "properties": {
+        "topology": {
+          "type": "string",
+          "description": "Runner execution topology. When set to \"arc-dind\", AWF activates split-filesystem handling, network isolation, sysroot image staging, and DinD pre-staging automatically.",
+          "enum": ["arc-dind"]
+        }
+      }
+    },
     "network": {
       "type": "object",
       "description": "Network egress configuration.",
