@@ -40,21 +40,13 @@ func parseFirewallLogs(runDir string, verbose bool) error {
 	}
 
 	// Check if squid logs directory exists in the run directory
-	// The logs could be in workflow-logs subdirectory or directly in the run directory
-	squidLogsDir := filepath.Join(runDir, "squid-logs")
+	// The logs could be in several locations depending on the AWF version and artifact structure.
 
-	// Also check for squid logs in workflow-logs directory
-	workflowLogsSquidDir := filepath.Join(runDir, "workflow-logs", "squid-logs")
-
-	// Determine which directory to use
-	var logsDir string
-	if fileutil.DirExists(squidLogsDir) {
-		logsDir = squidLogsDir
-		logsParsingFirewallLog.Printf("Found firewall logs in squid-logs directory")
-	} else if fileutil.DirExists(workflowLogsSquidDir) {
-		logsDir = workflowLogsSquidDir
-		logsParsingFirewallLog.Printf("Found firewall logs in workflow-logs/squid-logs directory")
-	} else {
+	logsDir, err := findFirewallLogsDir(runDir)
+	if err != nil {
+		return err
+	}
+	if logsDir == "" {
 		logsParsingFirewallLog.Print("No firewall logs found, skipping parsing")
 		// No firewall logs found - this is not an error, just skip parsing
 		if verbose {
@@ -238,4 +230,53 @@ originalMain();
 	}
 
 	return nil
+}
+
+func dirHasMatchingFiles(dir string, globPattern string) (bool, error) {
+	if !fileutil.DirExists(dir) {
+		return false, nil
+	}
+
+	files, err := filepath.Glob(filepath.Join(dir, globPattern))
+	if err != nil {
+		return false, fmt.Errorf("failed to find firewall log files in %s: %w", dir, err)
+	}
+
+	return len(files) > 0, nil
+}
+
+func findFirewallLogsDir(runDir string) (string, error) {
+	for _, candidate := range []struct {
+		path        string
+		description string
+	}{
+		{
+			path:        filepath.Join(runDir, "sandbox", "firewall", "logs", "squid-logs"),
+			description: "sandbox/firewall/logs/squid-logs",
+		},
+		{
+			path:        filepath.Join(runDir, "sandbox", "firewall", "logs"),
+			description: "sandbox/firewall/logs",
+		},
+		{
+			path:        filepath.Join(runDir, "squid-logs"),
+			description: "squid-logs",
+		},
+		{
+			path:        filepath.Join(runDir, "workflow-logs", "squid-logs"),
+			description: "workflow-logs/squid-logs",
+		},
+	} {
+		hasLogs, err := dirHasMatchingFiles(candidate.path, "*.log")
+		if err != nil {
+			return "", err
+		}
+		if !hasLogs {
+			continue
+		}
+		logsParsingFirewallLog.Printf("Found firewall logs in %s directory", candidate.description)
+		return candidate.path, nil
+	}
+
+	return "", nil
 }
