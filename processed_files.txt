@@ -28,3 +28,4 @@
 ./pkg/cli/checks_command_test.go|2026-06-01
 ./pkg/parser/frontmatter_extraction_test.go|2026-05-31
 ./pkg/constants/permissions_policy_test.go|2026-06-17
+./pkg/actionpins/spec_test.go|2026-06-30
