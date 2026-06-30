@@ -1,5 +1,5 @@
 {
- "updated": "2026-06-27",
+ "updated": "2026-06-30",
  "anomalies": [
   {
    "id": "anom-avenger-resumed-after-pause-2026-06-24",
@@ -13,125 +13,6 @@
    "status": "ACTIVE",
    "detail": "Avenger RESUMED after 2-day absence (06-22,06-23) and immediately failed 2/2 (claude, 0-tok, 14.6m+15.7m). Confirms the 06-22/23 streak break was a PAUSE, not a fix \u2014 err-config/no-structured-logs root cause (open since ~06-08, issue recur 15) persists. Pause appears lifted. Owner action per rec-avenger-fix-err-config still required. | 06-27 ESCALATION: Avenger now 10/10 hard-fail in 24h (up from 2/2 on 06-24), ~every 90min, 173 action-min/day wasted. Pause fully lifted; chronic 100%-fail resumed. err-config root cause untouched. Single largest reliability drain on the fleet.",
    "linked_issue": "avenger-err-config-no-structured-logs"
-  },
-  {
-   "id": "anom-sdk-toolperm-reescalate",
-   "date": "2026-06-07",
-   "wf": "Daily Safe Output Integrator",
-   "run": "27101776716",
-   "kind": "sdk-driver-tool-permission-lockout",
-   "persistence": 6,
-   "escalation": "PERSISTING-ESCALATE",
-   "detail": "RECUR 06-07 on 1 prod-main schedule (Safe Output Integrator): denies read(*_test.go)/shell(sed), 13 denials, 5-denial abort. Down from 3 wf on 06-06. sdk-driver path now 1/8 fails (minimatch gone). | \u2026 | 06-18: spread to NEW wf (SPDD Spec Planner) + Safe Output Integrator, 2 prod-main 0-tok lockout fails, recur day11. | 06-19 day12: 3 prod/PR tool-perm-lockout 0-tok fails (Safe Output Integrator + SPDD Spec Planner + PR Code Quality Reviewer).",
-   "status": "ACTIVE",
-   "last_seen": "2026-06-19"
-  },
-  {
-   "id": "anom-model-config-effort",
-   "date": "2026-06-07",
-   "wf": "Daily Caveman Optimizer",
-   "run": 27104658186,
-   "kind": "model-config-effort-unsupported",
-   "persistence": 3,
-   "escalation": "PERSISTING-ESCALATE",
-   "detail": "RECUR 3rd consecutive day: 400 'This model does not support the effort parameter' (run 27104658186, now retries 1/11) on prod main schedule; all retries exhausted, 0 tokens. Unfixed 3 days \u2014 static co\u2026",
-   "status": "ACTIVE"
-  },
-  {
-   "id": "anom-model-config-notfound",
-   "date": "2026-06-07",
-   "wf": "Daily Cache Strategy Analyzer",
-   "run": 27101492605,
-   "kind": "model-config-model-not-found",
-   "persistence": 3,
-   "escalation": "PERSISTING-ESCALATE",
-   "detail": "RECUR 3rd consecutive day: 404 'Model not found gpt-5-codex-alpha-2025-11-07' (run 27101492605) on prod main schedule. Model id ROTATED from adelie-alpha-2026-02-19 but STILL 404 \u2014 chasing a moving en\u2026",
-   "status": "ACTIVE"
-  },
-  {
-   "id": "anom-avenger-6x-redden",
-   "date": "2026-06-13",
-   "wf": "Avenger",
-   "run": "27470367219,27473035084,27477435506,27471579514,27475887718,27478718477",
-   "kind": "avenger-err-config-no-structured-logs",
-   "persistence": 2,
-   "escalation": "PERSISTING",
-   "status": "ACTIVE",
-   "detail": "6 consecutive Avenger reddens, claude engine, ERR_CONFIG no-structured-logs on follow-up invocation. First appearance. Maintainer fix branch exists. | 06-14 PERSIST day2: 3x reddened (down from 6). 2 agents did real work+created PRs then reddened. Fix branch not yet effective.",
-   "last_seen": "2026-06-14"
-  },
-  {
-   "id": "cache-strategy-100pct-fail",
-   "date": "2026-06-15",
-   "wf": "Daily Cache Strategy Analyzer",
-   "run": 27571281247,
-   "kind": "failure-hotspot",
-   "persistence": 2,
-   "escalation": "escalate",
-   "detail": "100% fail-rate; today gh-aw-binary-not-found-for-mcp exit1 (new signature vs prior model-not-found). Chronically broken wf. | 06-19 RECUR: 0-tok agent:failure (27843593919), still ~100% fail-rate.",
-   "status": "active",
-   "last_seen": "2026-06-19"
-  },
-  {
-   "id": "safe-output-integrator-sdk-perm-lockout",
-   "date": "2026-06-15",
-   "wf": "Daily Safe Output Integrator",
-   "run": 27572285541,
-   "kind": "recurring-tool-perm-lockout",
-   "persistence": 2,
-   "escalation": "PERSISTING-ESCALATE",
-   "detail": "day10 RECUR (run 27643760095) 5-denial lockout ~24min 0-tok; Daily Testify NEW same signature. SDK headless tool-permission loop persists 10 days.",
-   "status": "active",
-   "last_seen": "2026-06-16"
-  },
-  {
-   "id": "anom-upload-assets-redden",
-   "date": "2026-06-16",
-   "wf": "Daily Code Metrics / Daily Project Performance Summary",
-   "run": "27643027159,27649783375",
-   "kind": "upload_assets-reddens-successful-run",
-   "persistence": 1,
-   "escalation": "NEW-MEDIUM",
-   "status": "ACTIVE",
-   "last_seen": "2026-06-16",
-   "detail": "2 prod-main runs reddened by upload_assets job failure despite agent SUCCESS (Daily Code Metrics 53turns/4.27M tok, Daily Project Performance Summary). agent+safe_outputs+detection all green. New false-red class on chart-upload path."
-  },
-  {
-   "id": "anom-avenger-errconfig-resurge",
-   "date": "2026-06-18",
-   "wf": "Avenger",
-   "run": "27777515515,27783264854",
-   "kind": "err-config-no-structured-logs",
-   "persistence": 3,
-   "escalation": "PERSISTING-ESCALATE",
-   "detail": "Avenger claude resurfaced 06-18 x2 (77K tok/2-turn agent:failure) after 4-day quiet since 06-14; chronic top prod-main offender (issue recur 11). Bash tool error stalls observed in agent-stdio. | 06-19 ESCALATE: x4 reddens (100% of Avenger runs), 0-tok/0-turn agent:failure 17-21min (27845956163/27843736968/27841318778/27839069048). Up from 06-18 x2; chronic #1 prod-main offender.",
-   "status": "ACTIVE",
-   "last_seen": "2026-06-19"
-  },
-  {
-   "id": "anom-skillet-fleet-wide-redness-2026-06-20",
-   "first_seen": "2026-06-20",
-   "last_seen": "2026-06-20",
-   "persistence_score": 1,
-   "escalation_state": "NEW-HIGH",
-   "summary": "Sudden fleet-wide failure spike: NEW workflow Skillet 103 fails/100% in 24h on push across all branches+main, 0-tok pre-activation. Overall success cratered to 69.6% (would be 94.2% ex-Skillet). Largest single-workflow failure cluster observed in audit history. Watch for resolution as Skillet dev stabilizes.",
-   "linked_issue": "skillet-100pct-fail-on-push-fleet-wide"
-  },
-  {
-   "id": "skillet-fleet-wide-push-fail",
-   "first_seen": "2026-06-20",
-   "last_seen": "2026-06-22",
-   "persistence": 3,
-   "escalation_state": "RESOLVED",
-   "note": "NEW wf Skillet 100%-fail 103x on 06-20 -> 4x 06-21 -> 0x 06-22. De-escalation complete; resolved unless push-triggered 0-tok fails resurface."
-  },
-  {
-   "id": "avenger-sustained-100pct-fail",
-   "first_seen": "2026-06-18",
-   "last_seen": "2026-06-22",
-   "persistence": 5,
-   "escalation_state": "streak-broken-by-absence",
-   "note": "Avenger 100% fail 06-18 x2,06-19 x4,06-20 x8,06-21 x7. 06-22: 0 runs (did not fire). Streak broken by ABSENCE, not confirmed fix. WATCH next scheduled fire to determine if err-config root cause persists."
   },
   {
    "id": "copilot-sdk-longrun-agentjob-fail",
@@ -175,15 +56,38 @@
   {
    "id": "anom-avenger-10x-100pct-2026-06-27",
    "first_seen": "2026-06-27",
-   "last_seen": "2026-06-27",
+   "last_seen": "2026-06-30",
    "wf": "Avenger",
    "run": "28301247575 (+9 more)",
    "kind": "err-config-no-structured-logs-100pct",
-   "persistence": 1,
+   "persistence": 2,
    "escalation": "ESCALATE",
    "status": "ACTIVE",
-   "detail": "Avenger 10/10 fail this 24h window (claude, model='agent', Turns=0, ~14-19m). Accounts for 38% of all prod-main fails. Removing Avenger lifts prod-main from 86.3% to 91.2%.",
+   "detail": "Avenger 10/10 fail this 24h window (claude, model='agent', Turns=0, ~14-19m). Accounts for 38% of all prod-main fails. Removing Avenger lifts prod-main from 86.3% to 91.2%. | 06-30: 4/4 fail in 10.5h window (rate consistent ~every 90min). MODEL CHANGED to claude-haiku-4.5 (was 'agent'/sonnet) \u2014 swap did NOT fix err-config. Still fails at 'Parse agent logs for step summary'.",
    "linked_issue": "avenger-err-config-no-structured-logs"
+  },
+  {
+   "id": "anom-smoke-ci-100pct-copilot-cli-2026-06-30",
+   "first_seen": "2026-06-30",
+   "last_seen": "2026-06-30",
+   "wf": "Smoke CI",
+   "kind": "copilot-execute-cli-0turn-100pct",
+   "persistence": 1,
+   "escalation": "NEW-HIGH",
+   "status": "ACTIVE",
+   "detail": "Smoke CI 11/11=100% fail on push to main (copilot/claude-sonnet-4.6, 0-turn 4-5m, fails at 'Execute GitHub Copilot CLI'). High-frequency push-triggered wf = constant red on main. Largest single-cause contributor to the 65.9% prod-main rate this window (removing it lifts prod-main to 75.7%). Likely real copilot CLI/engine startup regression on main, not noise. 06-28/29 unobserved so onset may be earlier.",
+   "linked_issue": "smoke-ci-copilot-cli-100pct-fail-on-push"
+  },
+  {
+   "id": "copilot-execute-cli-0turn-fleet-dominant",
+   "first_seen": "2026-06-25",
+   "last_seen": "2026-06-30",
+   "kind": "copilot-execute-cli-0turn",
+   "persistence": 3,
+   "escalation": "ESCALATE-now-dominant",
+   "status": "ACTIVE",
+   "linked_issue": "copilot-sdk-driver-failures",
+   "detail": "copilot 'Execute GitHub Copilot CLI' 0-turn/0-tok failures = 25/32 (78%) of ALL fleet fails on 2026-06-30. Spans Smoke CI(11,100%), PR Sous Chef(9,82%), Safe Output Integrator(25m), Blog Writer(19m), PR Code Quality Reviewer(2x,20m,PR), Issues Report Gen(10m). Continuation of the 06-25 distributed-0tok agent-startup elevation, now concentrated heavily in copilot engine (79.5% engine success). Two variants: instant 4-5m (Smoke CI) and longrun 19-25m (Safe Output Integrator/Blog Writer/PR CQR)."
   }
  ]
 }

@@ -1,31 +1,31 @@
 {
- "updated": "2026-06-27",
- "date": "2026-06-27",
- "partial": false,
- "latest_window": "2026-06-26T21:52Z..2026-06-27T21:24Z (~23.5h, 5 stitched batches, 320 runs; 06-26 audit-day was MISSED/unrecorded)",
+ "updated": "2026-06-30",
+ "date": "2026-06-30",
+ "partial": true,
+ "latest_window": "2026-06-30T10:44Z..2026-06-30T21:19Z (~10.5h PARTIAL, 2nd-half-of-day; logs 60s-deadline pagination, stalled at 10:44Z; 06-28/29 audit-days missed)",
  "totals": {
-  "r": 320,
-  "s": 291,
-  "f": 29,
-  "rate": 90.9,
-  "prod_main_rate": 86.3,
-  "prod_main_ex_intentional": 87.3,
-  "action_min": 3412,
-  "github_api": 3530,
-  "aic": 23272,
+  "r": 171,
+  "s": 139,
+  "f": 32,
+  "rate": 81.3,
+  "prod_main_rate": 65.9,
+  "prod_main_ex_smokeci": 75.7,
+  "prod_main_ex_2clusters": 85.7,
+  "non_main_rate": 96.5,
+  "action_min": 2220,
+  "aic": null,
   "tok": null,
   "missing_tools": 0,
   "missing_data": 0,
   "mcp_failures": 0
  },
  "engines": {
-  "copilot": 210,
-  "claude": 69,
-  "pi": 26,
-  "codex": 10,
-  "antigravity": 2,
-  "gemini": 2,
-  "null_metadata": 1
+  "copilot": 122,
+  "claude": 31,
+  "pi": 11,
+  "codex": 5,
+  "antigravity": 1,
+  "gemini": 1
  },
  "history": [
   {
@@ -230,6 +230,15 @@
    "aic": 23272,
    "tok": null,
    "note": "RECOVERED to 90.9% (prod-main 86.3%, 87.3% ex-2-intentional) from 06-25 trough. Avenger 10/10 fail DOMINANT (38% of prod-main fails); ex-Avenger prod-main=91.2%. copilot/claude longrun-0turn persists (SPDD/SafeOutInteg/Firewall/RenderVerifier/yamllint). 06-26 audit-day missed. 0 missing-tools/data/mcp."
+  },
+  {
+   "d": "2026-06-30",
+   "r": 171,
+   "s": 139,
+   "rate": 81.3,
+   "tok": null,
+   "partial": true,
+   "note": "PARTIAL ~10.5h (10:44-21:19Z) 2nd-half window; pagination stalled. prod-main 65.9% DOMINATED by 2 copilot-CLI-startup clusters: NEW Smoke CI 11/11=100% fail on push + PR Sous Chef 9/11=82%. Ex-both prod-main=85.7% near baseline. 25/32 fails (78%)=copilot 'Execute Copilot CLI' 0-turn. pi 11/11=100%. non-main 96.5%. 0 missing-tools/data/mcp. tokens artifact empty since 06-19."
   }
  ]
 }

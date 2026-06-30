@@ -1,5 +1,5 @@
 {
- "updated": "2026-06-27",
+ "updated": "2026-06-30",
  "issues": [
   {
    "id": "model-param-config-incompatibility",
@@ -24,7 +24,7 @@
    "severity": "HIGH",
    "first_seen": "2026-05",
    "last_seen": "2026-06-27",
-   "recurrence": "RECUR 2026-06-27 (count7): PR Sous Chef 2 fails again (9.4m+9.1m, aic 51+93).",
+   "recurrence": "2026-06-30 NO new instances of the TRUE safe-output-partial signature (agent SUCCESS reddened by safe_outputs). PR Sous Chef's 06-30 fails were copilot-CLI-exec 0-turn (agent never ran) \u2014 moved to copilot-sdk-driver-failures. Issue stays OPEN on prior evidence; watch for genuine recurrence.",
    "affected": [
     "Contribution Check",
     "PR Sous Chef",
@@ -40,17 +40,19 @@
    "status": "recurring",
    "severity": "HIGH",
    "first_seen": "2026-06-02",
-   "last_seen": "2026-06-27",
-   "recurrence": "RECUR 2026-06-27 (recur18): LONG-RUN-0turn variant persists \u2014 Daily SPDD Spec Planner(26m), Daily Safe Output Integrator(25m), Daily Firewall Logs Collector(33m). All copilot, Turns=0, fail after real compute.",
+   "last_seen": "2026-06-30",
+   "recurrence": "RECUR/ESCALATE 2026-06-30 (recur19): copilot 'Execute GitHub Copilot CLI' 0-turn/0-tok is 25/32 (78%) of ALL fleet fails this window. PR Sous Chef 9/11 RECLASSIFIED here (fails at Execute Copilot CLI 0-turn, NOT safe-output-partial). Plus Smoke CI 11/11=100% (see smoke-ci-copilot-cli-100pct-fail-on-push), Daily Safe Output Integrator 25m longrun, Blog Writer 19m, PR Code Quality Reviewer x2 20m PR. Dominant fleet failure family.",
    "affected": [
     "Daily SPDD Spec Planner",
     "Daily Safe Output Integrator",
     "Daily Testify Uber Super Expert",
     "GEO Optimizer Daily Audit",
-    "PR Code Quality Reviewer"
+    "PR Code Quality Reviewer",
+    "PR Sous Chef",
+    "Smoke CI"
    ],
    "note": "06-19 x3 prod/PR tool-perm-lockout (Safe Output Integrator, SPDD, PR CQR)",
-   "recurrence_count": 18,
+   "recurrence_count": 19,
    "count": 16,
    "summary": "2 tool-perm-lockout 0-tok fails: Daily Safe Output Integrator (27880811834, 24min, 1-turn) + PR Code Quality Reviewer (PR branch). Day14 of chronic copilot-sdk path.",
    "recur": "RECUR 2026-06-25 (count 19): LONG-RUN variant persists \u2014 Daily Safe Output Integrator 25.4m ($85) + Daily SPDD Spec Planner 24.4m ($100), both copilot agent-job fails after 24-25min real work. Day23+ chronic, still the dominant 'ran-work' prod-main fail family."
@@ -76,10 +78,10 @@
    "severity": "high",
    "new": true,
    "first_seen": "2026-06-12",
-   "last_seen": "2026-06-27",
-   "recurrence_count": 8,
+   "last_seen": "2026-06-30",
+   "recurrence_count": 9,
    "title": "Copilot CLI requires Node.js but 'node' not available inside AWF chroot \u2014 agent never starts",
-   "recurrence": "RECUR 2026-06-27 (count8): Daily Issues Report Generator (copilot) fail 9.2m \u2014 likely same node-in-chroot entrypoint abort.",
+   "recurrence": "RECUR 2026-06-30 (count9): Daily Issues Report Generator (copilot) fail 10m. Same chroot-node entrypoint family suspected. Chronic.",
    "affected_workflows": [
     "Daily Issues Report Generator"
    ],
@@ -93,9 +95,9 @@
    "severity": "HIGH",
    "new": false,
    "first_seen": "2026-06-13",
-   "last_seen": "2026-06-27",
-   "recurrence_count": 16,
-   "recurrence": "RE-ESCALATE 2026-06-27 (recur16): Avenger 10/10 hard-fail (claude, model='agent', Turns=0/Tok=0/ErrorCount=0, ~14-19m each, 173 action-min wasted). DOMINANT prod-main drag = 38% of 26 prod-main fails. Resumed fully after 06-22/23 pause; pause now clearly lifted, runs ~every 90min and fails every time. Owner fix still required.",
+   "last_seen": "2026-06-30",
+   "recurrence_count": 17,
+   "recurrence": "RECUR 2026-06-30 (recur17): Avenger 4/4 fail this 10.5h window (claude, model now claude-haiku-4.5 \u2014 CHANGED from prior 'agent'/sonnet), 0-turn 17-18m, fails at 'Parse agent logs for step summary'. Model swap did NOT fix err-config/no-structured-logs root cause. Still firing ~every 90min and failing each time.",
    "affected": [
     "Avenger"
    ],
@@ -126,9 +128,9 @@
    "severity": "high",
    "new": true,
    "first_seen": "2026-06-15",
-   "last_seen": "2026-06-23",
-   "recurrence_count": 4,
-   "recurrence": "RECUR 2026-06-19 (count 3): Daily Cache Strategy Analyzer (27843593919) 0-tok agent:failure 6min, main/schedule. wf remains ~100% fail-rate (binary-not-found / model-not-found family).",
+   "last_seen": "2026-06-30",
+   "recurrence_count": 5,
+   "recurrence": "RECUR 2026-06-30: Daily Cache Strategy Analyzer (codex) fail 8m 0-turn at 'Execute Codex CLI'. Still ~100% fail. Unfixed since 06-15.",
    "affected": [
     "Daily Cache Strategy Analyzer"
    ],
@@ -236,6 +238,39 @@
    "engine": "copilot",
    "note": "3/4 runs failed 2026-06-25 main/schedule. 0-tok/0-turn agent:failure, surrounding jobs green. NEW. Part of broader fleet-wide 0-tok agent-startup elevation this window.",
    "fix": "Check copilot CLI startup for this wf; compare config vs sibling copilot wfs that succeeded. Watch 06-26 for recurrence."
+  },
+  {
+   "id": "smoke-ci-copilot-cli-100pct-fail-on-push",
+   "title": "Smoke CI (copilot/claude-sonnet-4.6) 100% fail on every push to main \u2014 agent job fails at 'Execute GitHub Copilot CLI' 0-turn/0-tok",
+   "status": "OPEN",
+   "severity": "HIGH",
+   "new": true,
+   "first_seen": "2026-06-30",
+   "last_seen": "2026-06-30",
+   "recurrence_count": 1,
+   "affected": [
+    "Smoke CI"
+   ],
+   "engine": "copilot",
+   "model": "claude-sonnet-4.6",
+   "note": "11/11 (100%) Smoke CI runs failed on push to main this window. pre_activation+activation succeed, then agent job 'Execute GitHub Copilot CLI' step fails after 4-5min with Turns=0/Tok=0/ErrorCount=0. High-frequency (fires on every push) so this is a constant red on main. Same copilot-CLI-startup signature as the chronic copilot-sdk-driver family and the 06-25 distributed-0tok elevation \u2014 but here it is 100% deterministic for one workflow. NOTE: 06-28/06-29 unobserved, so first_seen may predate 06-30.",
+   "fix": "Investigate copilot CLI execution path for Smoke CI specifically (model claude-sonnet-4.6, push event). Compare to copilot wfs that succeed. If Smoke CI is meant to validate the copilot engine, its 100% red likely signals a real copilot CLI / engine startup regression on main \u2014 escalate to engine owners. Add a fast-fail diagnostic that surfaces WHY 'Execute GitHub Copilot CLI' aborts 0-turn."
+  },
+  {
+   "id": "daily-fact-codex-gpt54-0turn",
+   "title": "Daily Fact (codex/gpt-5.4) 0-turn fail at 'Execute Codex CLI'",
+   "status": "WATCH",
+   "severity": "LOW",
+   "new": true,
+   "first_seen": "2026-06-30",
+   "last_seen": "2026-06-30",
+   "recurrence_count": 1,
+   "affected": [
+    "Daily Fact"
+   ],
+   "engine": "codex",
+   "model": "gpt-5.4",
+   "note": "Single 0-turn 7m fail at Execute Codex CLI. NEW. codex engine 40% (2/5) this window. Watch for cluster."
   }
  ]
 }

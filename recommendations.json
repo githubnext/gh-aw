@@ -1,5 +1,5 @@
 {
- "updated": "2026-06-27",
+ "updated": "2026-06-30",
  "recommendations": [
   {
    "id": "rec-sdk-toolperm-allowlist-or-relax-guard",
@@ -26,15 +26,6 @@
    "recurrence": 1,
    "status": "open",
    "rec": "NEW prod-main failure: Daily Issues Report Generator entrypoint aborted because 'node' is not reachable inside the AWF chroot (Copilot CLI requires Node.js). Ensure the setup-node/nvm install path is bind-mounted into /host and on PATH inside the chroot, or bundle node into the chroot image. Add a pre-flight `node --version` check in the chroot entrypoint so this fails fast with a clear message. Likely a regression f\u2026"
-  },
-  {
-   "id": "rec-sdk-session-idle-emit-then-timeout",
-   "linked_issue": "copilot-sdk-driver-failures",
-   "priority": "HIGH",
-   "date": "2026-06-08",
-   "text": "PR Code Quality Reviewer (27160990743) emitted a complete, valid review (findings JSON in assistant.message) but then hit 'Timeout 870000ms waiting for session.idle' and exit1, discarding the work and reddening the job. The sdk-driver shoul\u2026",
-   "last_seen": "2026-06-27",
-   "note": "RECONFIRM 06-27: copilot-sdk LONG-RUN-0turn still firing (SPDD 26m, Safe Output Integrator 25m, Firewall 33m). Now CROSS-ENGINE \u2014 claude Rendering Verifier(25m)+yamllint Fixer(19m) share signature. Flush emitted safe-output on session-idle/terminal instead of reddening the long-run agent job."
   },
   {
    "id": "rec-ai-credits-soft-cap-guard",
@@ -64,17 +55,6 @@
    "last_raised": "2026-06-20"
   },
   {
-   "id": "rec-doc-unbloat-tolerance-consistency",
-   "linked_issue": "doc-unbloat-empty-output",
-   "priority": "LOW",
-   "date": "2026-06-13",
-   "first_seen": "2026-06-13",
-   "last_seen": "2026-06-13",
-   "recurrence": 1,
-   "status": "open",
-   "rec": "Documentation Unbloat empty-output was tolerated (green) 06-12 but reddened 06-13. Make empty-output handling deterministic: either both green (no-op) or both fail \u2014 current inconsistency makes the signal unreliable."
-  },
-  {
    "id": "fix-cache-strategy-binary-path",
    "linked_issue": "codex-gh-aw-binary-not-found-for-mcp",
    "priority": "high",
@@ -99,53 +79,6 @@
    "status": "open",
    "rec": "Resolve copilot-SDK headless tool-permission lockout on Daily Safe Output Integrator (14 perm-denied loops -> 20min action timeout). Day9 recurring. Grant required tool perms or fix SDK allowlist plumbing.",
    "note": "Burns ~20min compute per run with no output."
-  },
-  {
-   "id": "fix-doc-unbloat-cache-git-integrity",
-   "linked_issue": "doc-unbloat-empty-output",
-   "priority": "medium",
-   "date": "2026-06-15",
-   "first_seen": "2026-06-15",
-   "last_seen": "2026-06-15",
-   "recurrence": 1,
-   "status": "open",
-   "rec": "Documentation Unbloat (claude) fails at check_cache_memory_git_integrity.sh with git exit 2 \u2014 investigate cache-memory branch git state / integrity check robustness. Day3 consecutive.",
-   "note": "Root cause refined 06-15 from generic empty-output."
-  },
-  {
-   "id": "rec-upload-assets-nonfatal",
-   "linked_issue": "upload-assets-reddens-successful-run",
-   "priority": "MEDIUM",
-   "date": "2026-06-16",
-   "first_seen": "2026-06-16",
-   "last_seen": "2026-06-16",
-   "recurrence": 1,
-   "status": "open",
-   "rec": "NEW prod-main false-red: the upload_assets safe-output job failing reddens 2 fully-successful runs (Daily Code Metrics agent SUCCESS 53turns/4.27M tok; Daily Project Performance Summary agent SUCCESS) even though agent+safe_outputs+detection all green. Make the upload_assets job non-fatal to overall run conclusion (skip-and-warn), or add retry/validation, so a transient chart-asset upload failure does not discard a successful agent run. Note: this is the same upload_asset path used by chart-emitting audit/report agents fleet-wide, so impact is broad.",
-   "note": "Watch recurrence \u2014 if it persists it joins safe-output-partial-failure-intolerance family."
-  },
-  {
-   "id": "rec-upload-assets-noredden",
-   "linked_issue": "upload-assets-reddens-successful-run",
-   "priority": "MEDIUM",
-   "date": "2026-06-17",
-   "first_seen": "2026-06-16",
-   "last_seen": "2026-06-17",
-   "recurrence": 2,
-   "status": "open",
-   "rec": "upload_assets safe-output job failure should not redden a run whose agent + other safe_outputs + detection all succeeded. Make the asset-publish step non-fatal (continue-on-error / soft-fail) and surface a warning annotation instead, OR validate asset path resolution earlier. Note: asset paths must resolve under $GITHUB_WORKSPACE \u2014 host safeoutputs server cannot read /tmp/gh-aw/{python,agent,cache-memory}; document this so chart-generating workflows copy to workspace before upload.",
-   "note": "Recurs 06-16 (Daily Code Metrics, Daily Project Performance Summary) -> 06-17 (Daily Project Performance Summary). 2 consecutive days."
-  },
-  {
-   "id": "rec-skillet-trigger-and-preactivation-fix",
-   "priority": "P0",
-   "status": "OPEN",
-   "first_raised": "2026-06-20",
-   "linked_issue": "skillet-100pct-fail-on-push-fleet-wide",
-   "workflows": [
-    "Skillet"
-   ],
-   "recommendation": "Skillet (NEW, merged HEAD 894b94c, private:true) is failing 100% (103 runs/24h) and firing on push across EVERY branch incl main, reddening the whole fleet (94.2%->69.6%). (1) Reconcile trigger: source declares slash_command(centralized) but runs carry event=push \u2014 verify the compiled trigger/central-dispatcher registration; it should NOT run on arbitrary pushes. (2) Fix the pre-activation/setup job that 0-tok-fails before the agent. (3) Until fixed, consider disabling Skillet on main or gating it so dev iteration doesn't generate fleet-wide red runs. Owner appears to be actively iterating (copilot/* branches)."
   },
   {
    "id": "rec-avenger-fix-err-config",
@@ -181,6 +114,26 @@
    "linked_anomaly": "anom-prodmain-distributed-degradation-2026-06-25",
    "title": "Confirm whether 06-25 distributed 0-tok agent-startup elevation is transient or systemic",
    "detail": "32/40 prod-main fails on 06-25 were 0-tok/0-turn agent-job failures across 4 engines and ~16 wfs (prod-main 81.0%, worst since ~06-18). Spread evenly over 24h + across gh-aw versions argues against one incident/regression, but the elevated baseline is real. Action: re-run 06-26 audit and compare \u2014 if it reverts to ~92% baseline, classify transient/noisy-day; if 0-tok elevation persists across the same wf set, escalate to a systemic agent-startup investigation (driver/runner-image/launch path)."
+  },
+  {
+   "id": "rec-smoke-ci-copilot-cli-100pct",
+   "status": "NEW-P1",
+   "severity": "HIGH",
+   "title": "Investigate Smoke CI 100%-fail (copilot CLI startup) on push to main",
+   "first_seen": "2026-06-30",
+   "last_seen": "2026-06-30",
+   "linked_issue": "smoke-ci-copilot-cli-100pct-fail-on-push",
+   "detail": "Smoke CI fails 11/11 at 'Execute GitHub Copilot CLI' 0-turn on every push to main. If Smoke CI validates the copilot engine, its constant red is a real signal. Capture the copilot CLI stderr/exit-code at the failing step and determine if this is a model/auth/runtime regression. Add fast-fail diagnostic. P1 because it reds main on every push and is the top prod-main drag."
+  },
+  {
+   "id": "rec-copilot-cli-0turn-rootcause",
+   "status": "ESCALATE",
+   "severity": "HIGH",
+   "title": "Root-cause the copilot 'Execute GitHub Copilot CLI' 0-turn failure family (78% of fleet fails)",
+   "first_seen": "2026-06-25",
+   "last_seen": "2026-06-30",
+   "linked_issue": "copilot-sdk-driver-failures",
+   "detail": "25/32 fleet fails on 06-30 share this signature. Instrument the copilot CLI exec step to emit stderr+exit code into run artifacts so 0-turn fails stop being opaque. Distinguish instant (4-5m Smoke CI) vs longrun (19-25m) sub-variants \u2014 they may have different causes (startup vs session-idle/network)."
   }
  ]
 }
