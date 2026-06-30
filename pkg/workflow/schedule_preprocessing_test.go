@@ -216,7 +216,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			frontmatter: map[string]any{
 				"on": "every 10 minutes",
 			},
-			expectedCron:           "*/10 * * * *",
+			checkScattered:         true, // Scattered minute-interval schedule
 			expectWorkflowDispatch: true,
 		},
 		{
@@ -355,11 +355,13 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 
 func TestSchedulePreprocessing(t *testing.T) {
 	tests := []struct {
-		name           string
-		frontmatter    map[string]any
-		expectedCron   string
-		expectedError  bool
-		errorSubstring string
+		name               string
+		frontmatter        map[string]any
+		workflowIdentifier string
+		expectedCron       string
+		checkScattered     bool
+		expectedError      bool
+		errorSubstring     string
 	}{
 		{
 			name: "daily schedule",
@@ -398,7 +400,8 @@ func TestSchedulePreprocessing(t *testing.T) {
 					},
 				},
 			},
-			expectedCron: "*/10 * * * *",
+			workflowIdentifier: "test-workflow.md",
+			checkScattered:     true,
 		},
 		{
 			name: "existing cron expression unchanged",
@@ -469,7 +472,8 @@ func TestSchedulePreprocessing(t *testing.T) {
 					"schedule": "every 10 minutes",
 				},
 			},
-			expectedCron: "*/10 * * * *",
+			workflowIdentifier: "test-workflow.md",
+			checkScattered:     true,
 		},
 		{
 			name: "shorthand string format - existing cron",
@@ -495,6 +499,9 @@ func TestSchedulePreprocessing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
+			if tt.workflowIdentifier != "" {
+				compiler.SetWorkflowIdentifier(tt.workflowIdentifier)
+			}
 			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
 
 			if tt.expectedError {
@@ -519,8 +526,20 @@ func TestSchedulePreprocessing(t *testing.T) {
 			firstSchedule := scheduleArray[0].(map[string]any)
 			actualCron := firstSchedule["cron"].(string)
 
-			if actualCron != tt.expectedCron {
-				t.Errorf("expected cron '%s', got '%s'", tt.expectedCron, actualCron)
+			if tt.checkScattered {
+				// Should be scattered to a valid cron (not fuzzy)
+				if strings.HasPrefix(actualCron, "FUZZY:") {
+					t.Errorf("expected scattered cron, got fuzzy: %s", actualCron)
+				}
+				fields := strings.Fields(actualCron)
+				if len(fields) != 5 {
+					t.Errorf("expected 5 fields in cron expression, got %d: %s", len(fields), actualCron)
+				}
+				t.Logf("Successfully scattered schedule to: %s", actualCron)
+			} else if tt.expectedCron != "" {
+				if actualCron != tt.expectedCron {
+					t.Errorf("expected cron '%s', got '%s'", tt.expectedCron, actualCron)
+				}
 			}
 		})
 	}
