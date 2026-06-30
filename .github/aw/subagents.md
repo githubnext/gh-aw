@@ -42,7 +42,7 @@ Only two fields are supported inside a sub-agent frontmatter block:
 | `description` | No | — | Human-readable summary of the sub-agent's role |
 | `model` | No | `"inherited"` | Model override; `"inherited"` uses the parent workflow's model. Prefer model aliases (e.g. `small`, `large`) over specific model IDs for portability. |
 
-**Prefer model aliases over model IDs.** Built-in aliases resolve to the best available model for each provider, so they continue to work as models are updated. Commonly used aliases for sub-agents:
+Built-in aliases resolve to the best available model per provider and keep working as models are updated. Common sub-agent aliases:
 
 | Alias | Resolves to | When to use |
 |---|---|---|
@@ -71,7 +71,7 @@ The engine is detected at compile time from the `engine:` field and injected as 
 
 ## MCP Access in Sub-Agents
 
-Sub-agents **do not have their own MCP servers** — they run within the parent's agent environment without independent tool config. To give them file system and shell access, enable on the parent workflow:
+Sub-agents **do not have their own MCP servers** — they run in the parent's agent environment without independent tool config. For file system and shell access, enable on the parent workflow:
 
 - **`cli-proxy: true`** — GitHub CLI proxy for authenticated `gh` calls. Recommended for any sub-agent that reads/writes repo content.
 - **`tools.github.mode: gh-proxy`** — routes GitHub API calls through the gh proxy sidecar; required for private repos or the GitHub MCP toolset.
@@ -89,8 +89,6 @@ tools:
 ---
 
 ## When to Use Sub-Agents
-
-Two main scenarios:
 
 ### 1 — Parallel specialised tasks with smaller models
 
