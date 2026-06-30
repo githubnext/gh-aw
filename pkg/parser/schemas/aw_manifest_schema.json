@@ -53,6 +53,20 @@
       "items": {
         "type": "string"
       }
+    },
+    "branding": {
+      "type": "object",
+      "description": "GitHub Actions marketplace branding. See https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax#branding",
+      "properties": {
+        "icon": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string",
+          "enum": ["white", "yellow", "blue", "green", "orange", "red", "purple", "gray-dark"]
+        }
+      },
+      "additionalProperties": false
     }
   }
 }
