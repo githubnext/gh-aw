@@ -44,7 +44,7 @@ describe("require-json-parse-try-catch", () => {
               suggestions: [
                 {
                   messageId: "useHelper",
-                  output: `try {\n  const data = JSON.parse(rawInput);\n} catch (err) {\n  throw err;\n}`,
+                  output: `try {\n  const data = JSON.parse(rawInput);\n} catch (err) {\n  // TODO: handle parse failure for this code path.\n  throw new Error(\`Failed to parse JSON: \${err instanceof Error ? err.message : String(err)}\`);\n}`,
                 },
               ],
             },
@@ -59,7 +59,7 @@ describe("require-json-parse-try-catch", () => {
               suggestions: [
                 {
                   messageId: "useHelper",
-                  output: `try {\n  JSON.parse(response.body);\n} catch (err) {\n  throw err;\n}`,
+                  output: `try {\n  JSON.parse(response.body);\n} catch (err) {\n  // TODO: handle parse failure for this code path.\n  throw new Error(\`Failed to parse JSON: \${err instanceof Error ? err.message : String(err)}\`);\n}`,
                 },
               ],
             },
@@ -82,7 +82,7 @@ describe("require-json-parse-try-catch", () => {
               suggestions: [
                 {
                   messageId: "useHelper",
-                  output: `try {\n  const data = JSON.parse(rawInput);\n} catch (err) {\n  throw err;\n}`,
+                  output: `try {\n  const data = JSON.parse(rawInput);\n} catch (err) {\n  // TODO: handle parse failure for this code path.\n  throw new Error(\`Failed to parse JSON: \${err instanceof Error ? err.message : String(err)}\`);\n}`,
                 },
               ],
             },
@@ -104,7 +104,7 @@ describe("require-json-parse-try-catch", () => {
               suggestions: [
                 {
                   messageId: "useHelper",
-                  output: `try {\n  const result = JSON.parse(text);\n} catch (err) {\n  throw err;\n}`,
+                  output: `try {\n  const result = JSON.parse(text);\n} catch (err) {\n  // TODO: handle parse failure for this code path.\n  throw new Error(\`Failed to parse JSON: \${err instanceof Error ? err.message : String(err)}\`);\n}`,
                 },
               ],
             },
@@ -127,7 +127,7 @@ describe("require-json-parse-try-catch", () => {
               suggestions: [
                 {
                   messageId: "useHelper",
-                  output: `try {\n  const data = JSON["parse"](rawInput);\n} catch (err) {\n  throw err;\n}`,
+                  output: `try {\n  const data = JSON["parse"](rawInput);\n} catch (err) {\n  // TODO: handle parse failure for this code path.\n  throw new Error(\`Failed to parse JSON: \${err instanceof Error ? err.message : String(err)}\`);\n}`,
                 },
               ],
             },
@@ -142,7 +142,7 @@ describe("require-json-parse-try-catch", () => {
               suggestions: [
                 {
                   messageId: "useHelper",
-                  output: `try {\n  JSON["parse"](response.body);\n} catch (err) {\n  throw err;\n}`,
+                  output: `try {\n  JSON["parse"](response.body);\n} catch (err) {\n  // TODO: handle parse failure for this code path.\n  throw new Error(\`Failed to parse JSON: \${err instanceof Error ? err.message : String(err)}\`);\n}`,
                 },
               ],
             },
@@ -181,7 +181,7 @@ describe("require-json-parse-try-catch", () => {
               suggestions: [
                 {
                   messageId: "useHelper",
-                  output: `try { emitter.on("data", chunk => { try {\n  JSON.parse(chunk);\n} catch (err) {\n  throw err;\n} }); } catch (e) {}`,
+                  output: `try { emitter.on("data", chunk => { try {\n  JSON.parse(chunk);\n} catch (err) {\n  // TODO: handle parse failure for this code path.\n  throw new Error(\`Failed to parse JSON: \${err instanceof Error ? err.message : String(err)}\`);\n} }); } catch (e) {}`,
                 },
               ],
             },
@@ -197,7 +197,7 @@ describe("require-json-parse-try-catch", () => {
               suggestions: [
                 {
                   messageId: "useHelper",
-                  output: `try { promise.then(data => { try {\n  const x = JSON.parse(data);\n} catch (err) {\n  throw err;\n} }); } catch (e) {}`,
+                  output: `try { promise.then(data => { try {\n  const x = JSON.parse(data);\n} catch (err) {\n  // TODO: handle parse failure for this code path.\n  throw new Error(\`Failed to parse JSON: \${err instanceof Error ? err.message : String(err)}\`);\n} }); } catch (e) {}`,
                 },
               ],
             },
@@ -213,7 +213,7 @@ describe("require-json-parse-try-catch", () => {
               suggestions: [
                 {
                   messageId: "useHelper",
-                  output: `try { setTimeout(() => { try {\n  JSON.parse(raw);\n} catch (err) {\n  throw err;\n} }, 100); } catch (e) {}`,
+                  output: `try { setTimeout(() => { try {\n  JSON.parse(raw);\n} catch (err) {\n  // TODO: handle parse failure for this code path.\n  throw new Error(\`Failed to parse JSON: \${err instanceof Error ? err.message : String(err)}\`);\n} }, 100); } catch (e) {}`,
                 },
               ],
             },
@@ -229,7 +229,7 @@ describe("require-json-parse-try-catch", () => {
               suggestions: [
                 {
                   messageId: "useHelper",
-                  output: `try { new Promise(resolve => { try {\n  JSON.parse(data);\n} catch (err) {\n  throw err;\n} }); } catch (e) {}`,
+                  output: `try { new Promise(resolve => { try {\n  JSON.parse(data);\n} catch (err) {\n  // TODO: handle parse failure for this code path.\n  throw new Error(\`Failed to parse JSON: \${err instanceof Error ? err.message : String(err)}\`);\n} }); } catch (e) {}`,
                 },
               ],
             },
@@ -245,7 +245,7 @@ describe("require-json-parse-try-catch", () => {
               suggestions: [
                 {
                   messageId: "useHelper",
-                  output: `try { process.nextTick(() => { try {\n  JSON.parse(payload);\n} catch (err) {\n  throw err;\n} }); } catch (e) {}`,
+                  output: `try { process.nextTick(() => { try {\n  JSON.parse(payload);\n} catch (err) {\n  // TODO: handle parse failure for this code path.\n  throw new Error(\`Failed to parse JSON: \${err instanceof Error ? err.message : String(err)}\`);\n} }); } catch (e) {}`,
                 },
               ],
             },
