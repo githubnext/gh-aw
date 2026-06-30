@@ -147,9 +147,13 @@ func parseMountEntry(mount string) (mountParts, mountValidationKind) {
 
 // validateMountEntries applies shared mount parsing and classification across
 // callers while allowing each caller to preserve its own logging and error
-// construction. The onInvalid callback must return an error for all non-OK
-// mountValidationKind values.
+// construction. onValid may be nil. onInvalid must be non-nil and must return
+// a non-nil error for all non-OK mountValidationKind values.
 func validateMountEntries(mounts []string, onValid func(int, mountParts), onInvalid func(int, string, mountParts, mountValidationKind) error) error {
+	if onInvalid == nil {
+		return errors.New("internal error: onInvalid callback must not be nil")
+	}
+
 	for i, mount := range mounts {
 		parts, kind := parseMountEntry(mount)
 		if kind == mountValidationOK {
@@ -158,7 +162,11 @@ func validateMountEntries(mounts []string, onValid func(int, mountParts), onInva
 			}
 			continue
 		}
-		return onInvalid(i, mount, parts, kind)
+		err := onInvalid(i, mount, parts, kind)
+		if err == nil {
+			return fmt.Errorf("internal error: onInvalid callback returned nil for mount kind %d", kind)
+		}
+		return err
 	}
 
 	return nil
