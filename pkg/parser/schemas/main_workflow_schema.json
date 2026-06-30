@@ -61,7 +61,19 @@
       "description": "Optional list of external skill references to install during activation. Supports repository-wide installs (`owner/repo@<sha>`) and path-scoped installs (`owner/repo/skill/path@<sha>`). References must always be pinned to full 40-character lowercase commit SHAs.",
       "items": {
         "type": "string",
-        "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$"
+        "oneOf": [
+          {
+            "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$"
+          },
+          {
+            "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)*)?@\\$\\{\\{.*\\}\\}$",
+            "description": "Skill reference with a GitHub Actions expression in the ref position."
+          },
+          {
+            "pattern": "^\\$\\{\\{.*\\}\\}$",
+            "description": "GitHub Actions expression that resolves to a full skill reference string at runtime."
+          }
+        ]
       },
       "examples": [["githubnext/awesome-skills@1f181b37d3fe5862ab590648f25a292e345b5de6"], ["githubnext/awesome-skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6"]]
     },

@@ -28,6 +28,16 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "40-char-sha")
 	})
+
+	t.Run("accepts github actions expressions", func(t *testing.T) {
+		err := validateFrontmatterSkills(map[string]any{
+			"skills": []any{
+				"${{ inputs.skill_ref }}",
+				"githubnext/skills@${{ github.sha }}",
+			},
+		})
+		require.NoError(t, err)
+	})
 }
 
 func TestIsRepositorySkillSpec(t *testing.T) {

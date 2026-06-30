@@ -10,6 +10,8 @@ import (
 )
 
 var skillSpecRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$`)
+var skillSpecExpressionRefRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@\$\{\{.*\}\}$`)
+var githubActionsExpressionRegexp = regexp.MustCompile(`^\$\{\{.*\}\}$`)
 
 func validateFrontmatterSkills(frontmatter map[string]any) error {
 	rawSkills, hasSkills := frontmatter["skills"]
@@ -27,9 +29,12 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 		if !ok || strings.TrimSpace(skillSpec) == "" {
 			return fmt.Errorf("skills[%d] must be a non-empty string", i)
 		}
+		if githubActionsExpressionRegexp.MatchString(skillSpec) || skillSpecExpressionRefRegexp.MatchString(skillSpec) {
+			continue
+		}
 		if !skillSpecRegexp.MatchString(skillSpec) {
 			return fmt.Errorf(
-				"skills[%d] must use owner/repo@<40-char-sha> or owner/repo/skill/path@<40-char-sha>: %q",
+				"skills[%d] must use owner/repo@<40-char-sha>, owner/repo/skill/path@<40-char-sha>, or a GitHub Actions expression: %q",
 				i,
 				skillSpec,
 			)

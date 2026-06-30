@@ -293,6 +293,35 @@ skills:
 	)
 }
 
+func TestParseFrontmatterSection_ExpressionSkillsRef(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-expression-skills-ref")
+
+	testContent := `---
+on: workflow_dispatch
+engine: copilot
+skills:
+  - ${{ inputs.skill_ref }}
+  - githubnext/skills@${{ github.sha }}
+---
+
+# Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "expression-skills.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	result, err := compiler.parseFrontmatterSection(testFile)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.frontmatterResult)
+	assert.Equal(t, []any{
+		"${{ inputs.skill_ref }}",
+		"githubnext/skills@${{ github.sha }}",
+	}, result.frontmatterResult.Frontmatter["skills"])
+}
+
 // TestParseFrontmatterSection_FileReadError tests file I/O error handling
 func TestParseFrontmatterSection_FileReadError(t *testing.T) {
 	compiler := NewCompiler()
