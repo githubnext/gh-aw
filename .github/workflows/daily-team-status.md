@@ -47,6 +47,22 @@ Create an upbeat daily status report for the team as a GitHub issue.
 - Be positive, encouraging, and helpful 🌟
 - Use emojis moderately for engagement
 - Keep it concise - adjust length based on actual activity
+- Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body
+- Wrap long activity item lists and recommendation lists in `<details><summary>...</summary>...</details>` to reduce scrolling
+
+## Report Structure
+
+Structure the report with this hierarchy:
+
+- `### 🌟 Team Snapshot`
+  - 1-2 paragraph overview of today's team momentum and notable signals
+- `### 🛠️ Activity Highlights`
+  - Keep concise highlights visible
+  - Put detailed activity lists in `<details>` blocks
+- `### 💡 Recommendations`
+  - Put long recommendation lists in `<details>` blocks
+- `### 📌 Next Steps`
+  - Short actionable closing section
 
 ## Process
 
