@@ -65,6 +65,7 @@ function buildTryCatchSuggestion(stmtText: string, indent: string): string {
     `${indent}  // TODO: handle parse failure for this code path.`,
     `${indent}  throw new Error(`,
     `${indent}    "Failed to parse JSON: " + (err instanceof Error ? err.message : String(err)),`,
+    `${indent}    { cause: err },`,
     `${indent}  );`,
     `${indent}}`,
   ].join("\n");
