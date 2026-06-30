@@ -11,6 +11,7 @@
 //
 //   - validateRefGlob()  - Validates a glob pattern for Git ref names (branches/tags)
 //   - validatePathGlob() - Validates a glob pattern for file paths
+//   - validateGlobPatternList() - Iterates and validates a list of glob patterns
 //
 // Both return a slice of invalidGlobPattern describing any violations found.
 
@@ -217,6 +218,16 @@ func runGlobValidation(pat string, isRef bool) []invalidGlobPattern {
 	return v.errs
 }
 
+// validateGlobPatternList validates patterns in order and stops at the first
+// invalid entry.
+//
+// For that first invalid pattern, onInvalid receives the list index, the pattern
+// value, and the collected validation messages. The return value from onInvalid
+// is returned directly to the caller, and onInvalid may include side effects
+// such as logging.
+//
+// Contract: onInvalid must return a non-nil error when called. Returning nil is
+// treated as success.
 func validateGlobPatternList(
 	patterns []string,
 	validate func(string) []invalidGlobPattern,
