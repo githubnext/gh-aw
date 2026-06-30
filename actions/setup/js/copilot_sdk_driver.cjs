@@ -13,6 +13,7 @@
  *   COPILOT_MODEL                       — model override (optional)
  *   GH_AW_COPILOT_SDK_PROVIDER_BASE_URL — BYOK provider base URL (set by the harness)
  *   GH_AW_COPILOT_SDK_PROVIDER_TYPE    — BYOK provider type: "openai" | "azure" | "anthropic" (set by the harness)
+ *   GH_AW_COPILOT_SDK_PROVIDER_WIRE_API — BYOK provider wire API: "completions" | "responses" (set by the harness)
  *   GH_AW_COPILOT_SDK_SERVER_ARGS       — JSON-encoded allow-tool sidecar args (set by the engine)
  *
  * The sidecar is started and stopped by the harness; the driver only opens a
@@ -31,7 +32,7 @@ const { parsePermissionConfigFromServerArgs } = require("./copilot_sdk_permissio
 
 // Re-export the session and permission helpers so that existing callers that
 // require("./copilot_sdk_driver.cjs") (e.g. copilot_harness.cjs) continue to work.
-module.exports = { extractPromptFromArgs, runWithCopilotSDK, parsePermissionConfigFromServerArgs };
+module.exports = { extractPromptFromArgs, runWithCopilotSDK, parsePermissionConfigFromServerArgs, parseWireApiEnv };
 
 // ---------------------------------------------------------------------------
 // Standalone entry point
@@ -43,6 +44,19 @@ module.exports = { extractPromptFromArgs, runWithCopilotSDK, parsePermissionConf
  */
 function log(msg) {
   process.stderr.write(`[copilot-sdk-driver] ${msg}\n`);
+}
+
+/**
+ * Normalize the optional provider wire API env var.
+ *
+ * @param {string | undefined} raw
+ * @returns {"completions" | "responses" | undefined}
+ */
+function parseWireApiEnv(raw) {
+  const normalized = String(raw || "")
+    .toLowerCase()
+    .trim();
+  return normalized === "responses" || normalized === "completions" ? normalized : undefined;
 }
 
 /**
@@ -102,8 +116,9 @@ async function main() {
   /** @type {"openai" | "azure" | "anthropic"} */
   const providerType = rawProviderType === "anthropic" || rawProviderType === "azure" ? rawProviderType : "openai";
   log(`provider type: ${providerType}`);
+  const wireApi = parseWireApiEnv(process.env.GH_AW_COPILOT_SDK_PROVIDER_WIRE_API);
   /** @type {import("@github/copilot-sdk").ProviderConfig} */
-  const provider = { type: providerType, baseUrl: providerBaseUrl };
+  const provider = { type: providerType, baseUrl: providerBaseUrl, ...(wireApi ? { wireApi } : {}) };
 
   // --- Build permission config from sidecar server args ----------------
   // GH_AW_COPILOT_SDK_SERVER_ARGS holds the JSON-encoded --allow-tool flags

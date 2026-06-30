@@ -716,6 +716,7 @@ async function main() {
   // cannot be resolved so retries are not wasted on a misconfigured environment.
   let providerBaseUrl = "";
   let providerType = "openai";
+  let providerWireApi = "";
   let resolvedModel = "";
   if (copilotSDKMode) {
     const configuredModel = process.env.COPILOT_MODEL || "";
@@ -728,8 +729,9 @@ async function main() {
     }
     providerBaseUrl = customProvider.provider.baseUrl;
     providerType = customProvider.provider.type || "openai";
+    providerWireApi = customProvider.provider.wireApi || "";
     resolvedModel = customProvider.model;
-    log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${providerBaseUrl} type=${providerType} model=${resolvedModel})`);
+    log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${providerBaseUrl} type=${providerType}${providerWireApi ? ` wireApi=${providerWireApi}` : ""} model=${resolvedModel})`);
   }
 
   // Merge SDK env additions into the child process env only when the SDK helper
@@ -746,6 +748,7 @@ async function main() {
         COPILOT_CONNECTION_TOKEN: copilotConnectionToken,
         GH_AW_COPILOT_SDK_PROVIDER_BASE_URL: providerBaseUrl,
         GH_AW_COPILOT_SDK_PROVIDER_TYPE: providerType,
+        GH_AW_COPILOT_SDK_PROVIDER_WIRE_API: providerWireApi,
         COPILOT_MODEL: resolvedModel,
       }
     : sdkEnv;

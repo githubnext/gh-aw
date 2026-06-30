@@ -184,6 +184,10 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		orchestratorFrontmatterLog.Printf("Main workflow frontmatter validation failed: %v", err)
 		return nil, err
 	}
+	if err := validateFrontmatterSkills(frontmatterForValidation); err != nil {
+		orchestratorFrontmatterLog.Printf("Skills frontmatter validation failed: %v", err)
+		return nil, err
+	}
 
 	// Validate event filter mutual exclusivity (branches/branches-ignore, paths/paths-ignore)
 	if err := ValidateEventFilters(frontmatterForValidation); err != nil {

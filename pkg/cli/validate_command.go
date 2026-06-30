@@ -75,7 +75,7 @@ If no workflows are specified, all Markdown files in .github/workflows will be v
 
 	addEngineFlag(cmd)
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
-	cmd.Flags().Bool("strict", false, "Override frontmatter to enforce strict mode validation for all workflows (enforces action pinning, network config, safe-outputs, refuses write permissions and deprecated fields). Note: Workflows default to strict mode unless frontmatter sets strict: false")
+	cmd.Flags().Bool("strict", false, "Override frontmatter to enforce strict mode validation for all workflows (enforces action pinning, network config, safe-outputs, disallows write permissions and deprecated fields). Note: Workflows default to strict mode unless frontmatter sets strict: false")
 	cmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 	cmd.Flags().Bool("fail-fast", false, "Stop at the first validation error instead of collecting all errors")
 	cmd.Flags().Bool("validate-images", false, "Require Docker to be available for container image validation. Without this flag, container image validation is silently skipped when Docker is not installed or the daemon is not running")

@@ -9,18 +9,20 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
  * @returns {string[]}
  */
 function parseAllowedIssueFields(value) {
-  if (value == null || value === "") {
-    return [];
-  }
+  if (value == null || value === "") return [];
   const raw = Array.isArray(value) ? value : String(value).split(",");
-  const uniqueFields = new Set();
-  for (const item of raw) {
-    const normalized = String(item).trim();
-    if (normalized) {
-      uniqueFields.add(normalized);
-    }
-  }
-  return [...uniqueFields];
+  return [...new Set(raw.map(item => String(item).trim()).filter(Boolean))];
+}
+
+/**
+ * Build a lowercased Set from allowedFields.
+ * Returns null when no restriction applies (empty list, non-array, or wildcard "*").
+ * @param {string[]} allowedFields
+ * @returns {Set<string>|null}
+ */
+function buildAllowedFieldSet(allowedFields) {
+  if (!Array.isArray(allowedFields) || allowedFields.length === 0 || allowedFields.includes("*")) return null;
+  return new Set(allowedFields.map(f => f.toLowerCase()));
 }
 
 /**
@@ -30,14 +32,10 @@ function parseAllowedIssueFields(value) {
  * @returns {void}
  */
 function validateAllowedIssueFieldName(fieldName, allowedFields) {
-  if (!fieldName) {
-    return;
-  }
-  if (!Array.isArray(allowedFields) || allowedFields.length === 0 || allowedFields.includes("*")) {
-    return;
-  }
-  const allowedFieldSet = new Set(allowedFields.map(field => field.toLowerCase()));
-  if (!allowedFieldSet.has(fieldName.toLowerCase())) {
+  if (!fieldName) return;
+  const fieldSet = buildAllowedFieldSet(allowedFields);
+  if (!fieldSet) return;
+  if (!fieldSet.has(fieldName.toLowerCase())) {
     throw new Error(`${ERR_VALIDATION}: issue field "${fieldName}" is not in the allowed-fields list: ${allowedFields.join(", ")}`);
   }
 }
@@ -49,18 +47,11 @@ function validateAllowedIssueFieldName(fieldName, allowedFields) {
  * @returns {void}
  */
 function validateAllowedIssueFields(issueFields, allowedFields) {
-  if (!Array.isArray(issueFields) || issueFields.length === 0) {
-    return;
-  }
-  if (!Array.isArray(allowedFields) || allowedFields.length === 0) {
-    return;
-  }
-  const allowedFieldSet = new Set(allowedFields.map(field => field.toLowerCase()));
-  if (allowedFieldSet.has("*")) {
-    return;
-  }
+  if (!Array.isArray(issueFields) || issueFields.length === 0) return;
+  const fieldSet = buildAllowedFieldSet(allowedFields);
+  if (!fieldSet) return;
   for (const field of issueFields) {
-    if (!allowedFieldSet.has(field.name.toLowerCase())) {
+    if (!fieldSet.has(field.name.toLowerCase())) {
       throw new Error(`${ERR_VALIDATION}: issue field "${field.name}" is not in the allowed-fields list: ${allowedFields.join(", ")}`);
     }
   }

@@ -115,6 +115,15 @@ describe("getWorkflowMetadata", () => {
 
     expect(metadata.runUrl).toBe("https://github.com/my-owner/my-repo/actions/runs/7");
   });
+
+  it("should use 0 as runId when context.runId is explicitly 0", () => {
+    global.context = { runId: 0, serverUrl: "https://github.com" };
+
+    const metadata = getWorkflowMetadata("owner", "repo");
+
+    expect(metadata.runId).toBe(0);
+    expect(metadata.runUrl).toBe("https://github.com/owner/repo/actions/runs/0");
+  });
 });
 
 describe("buildWorkflowRunUrl", () => {
@@ -199,5 +208,57 @@ describe("buildWorkflowRunUrl", () => {
         process.env.GITHUB_REPOSITORY = originalEnv;
       }
     }
+  });
+
+  it("should use explicit owner but fall back GITHUB_REPOSITORY for missing repo", () => {
+    const originalEnv = process.env.GITHUB_REPOSITORY;
+    process.env.GITHUB_REPOSITORY = "env-owner/env-repo";
+    try {
+      const url = buildWorkflowRunUrl({ serverUrl: "https://github.com", runId: 5 }, { owner: "explicit-owner", repo: "" });
+      expect(url).toBe("https://github.com/explicit-owner/env-repo/actions/runs/5");
+    } finally {
+      if (originalEnv === undefined) {
+        delete process.env.GITHUB_REPOSITORY;
+      } else {
+        process.env.GITHUB_REPOSITORY = originalEnv;
+      }
+    }
+  });
+
+  it("should use explicit repo but fall back GITHUB_REPOSITORY for missing owner", () => {
+    const originalEnv = process.env.GITHUB_REPOSITORY;
+    process.env.GITHUB_REPOSITORY = "env-owner/env-repo";
+    try {
+      const url = buildWorkflowRunUrl({ serverUrl: "https://github.com", runId: 6 }, { owner: "", repo: "explicit-repo" });
+      expect(url).toBe("https://github.com/env-owner/explicit-repo/actions/runs/6");
+    } finally {
+      if (originalEnv === undefined) {
+        delete process.env.GITHUB_REPOSITORY;
+      } else {
+        process.env.GITHUB_REPOSITORY = originalEnv;
+      }
+    }
+  });
+
+  it("should not fall back to GITHUB_REPOSITORY when both owner and repo are set", () => {
+    const originalEnv = process.env.GITHUB_REPOSITORY;
+    process.env.GITHUB_REPOSITORY = "env-owner/env-repo";
+    try {
+      const url = buildWorkflowRunUrl({ serverUrl: "https://github.com", runId: 8 }, { owner: "wf-owner", repo: "wf-repo" });
+      expect(url).toBe("https://github.com/wf-owner/wf-repo/actions/runs/8");
+      expect(url).not.toContain("env-owner");
+      expect(url).not.toContain("env-repo");
+    } finally {
+      if (originalEnv === undefined) {
+        delete process.env.GITHUB_REPOSITORY;
+      } else {
+        process.env.GITHUB_REPOSITORY = originalEnv;
+      }
+    }
+  });
+
+  it("should use string runId in URL", () => {
+    const url = buildWorkflowRunUrl({ serverUrl: "https://github.com", runId: "run-abc123" }, { owner: "owner", repo: "repo" });
+    expect(url).toBe("https://github.com/owner/repo/actions/runs/run-abc123");
   });
 });

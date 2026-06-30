@@ -18,7 +18,9 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  getCatalogModelEntry,
   inferProviderTypeForModel,
+  inferWireApiForModel,
   resolveCopilotSDKCustomProviderFromReflect,
 } = require("./awf_reflect.cjs");
 
@@ -396,6 +398,72 @@ describe("awf_reflect.cjs", () => {
     });
   });
 
+  describe("getCatalogModelEntry", () => {
+    it("matches model names case-insensitively", () => {
+      const entry = getCatalogModelEntry(
+        {
+          providers: {
+            "github-copilot": { models: { "gpt-5.5": { provider_type: "openai", wire_api: "responses", cost: {} } } },
+          },
+        },
+        "GPT-5.5"
+      );
+      expect(entry).toEqual({ provider_type: "openai", wire_api: "responses", cost: {} });
+    });
+
+    it("uses the requested provider when duplicate model names exist", () => {
+      const modelsJson = {
+        providers: {
+          openai: { models: { "gpt-5.5": { provider_type: "openai", cost: {} } } },
+          "github-copilot": { models: { "gpt-5.5": { provider_type: "openai", wire_api: "responses", cost: {} } } },
+        },
+      };
+      expect(getCatalogModelEntry(modelsJson, "gpt-5.5", "github-copilot")).toEqual({
+        provider_type: "openai",
+        wire_api: "responses",
+        cost: {},
+      });
+      expect(getCatalogModelEntry(modelsJson, "gpt-5.5", "openai")).toEqual({
+        provider_type: "openai",
+        cost: {},
+      });
+    });
+
+    it("returns null for invalid catalog entries", () => {
+      expect(
+        getCatalogModelEntry(
+          {
+            providers: {
+              "github-copilot": { models: { broken: null, arrayish: [] } },
+            },
+          },
+          "broken"
+        )
+      ).toBeNull();
+      expect(
+        getCatalogModelEntry(
+          {
+            providers: {
+              "github-copilot": { models: { broken: null, arrayish: [] } },
+            },
+          },
+          "arrayish"
+        )
+      ).toBeNull();
+    });
+  });
+
+  describe("inferWireApiForModel", () => {
+    it("omits wireApi for Anthropic providers even when the catalog requests one", () => {
+      expect(inferWireApiForModel("anthropic", "claude-opus-5", { wire_api: "responses" })).toBeUndefined();
+    });
+
+    it("falls back to completions when the catalog value is invalid or absent", () => {
+      expect(inferWireApiForModel("openai", "gpt-5.5", { wire_api: "grpc" })).toBe("completions");
+      expect(inferWireApiForModel("openai", "gpt-5.5", null)).toBe("completions");
+    });
+  });
+
   describe("resolveCopilotSDKCustomProviderFromReflect", () => {
     it("resolves provider baseUrl and model from port when models_url is absent", () => {
       const reflectData = {
@@ -403,7 +471,7 @@ describe("awf_reflect.cjs", () => {
       };
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
         model: "gpt-5.4",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "completions" },
       });
     });
 
@@ -439,7 +507,7 @@ describe("awf_reflect.cjs", () => {
       };
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
         model: "gpt-4o",
-        provider: { type: "openai", baseUrl: "http://172.30.0.30:10002" },
+        provider: { type: "openai", baseUrl: "http://172.30.0.30:10002", wireApi: "completions" },
       });
     });
 
@@ -469,7 +537,7 @@ describe("awf_reflect.cjs", () => {
       };
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "gpt-5.4" })).toEqual({
         model: "gpt-5.4",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "completions" },
       });
     });
 
@@ -484,7 +552,53 @@ describe("awf_reflect.cjs", () => {
       };
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, modelsJson })).toEqual({
         model: "raptor-mini",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "completions" },
+      });
+    });
+
+    it("uses wire_api from modelsJson when provided", () => {
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.5"] }],
+      };
+      const modelsJson = {
+        providers: {
+          "github-copilot": { models: { "gpt-5.5": { provider_type: "openai", wire_api: "responses", cost: {} } } },
+        },
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "gpt-5.5", modelsJson })).toEqual({
+        model: "gpt-5.5",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" },
+      });
+    });
+
+    it("prefers github-copilot catalog metadata when duplicate model names exist across providers", () => {
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.5"] }],
+      };
+      const modelsJson = {
+        providers: {
+          openai: { models: { "gpt-5.5": { provider_type: "openai", cost: {} } } },
+          "github-copilot": { models: { "gpt-5.5": { provider_type: "openai", wire_api: "responses", cost: {} } } },
+        },
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "gpt-5.5", modelsJson })).toEqual({
+        model: "gpt-5.5",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" },
+      });
+    });
+
+    it("omits wireApi for Anthropic models even when the catalog has wire_api", () => {
+      const reflectData = {
+        endpoints: [{ provider: "anthropic", port: 10001, configured: true, models: ["claude-opus-5"] }],
+      };
+      const modelsJson = {
+        providers: {
+          "github-copilot": { models: { "claude-opus-5": { provider_type: "anthropic", wire_api: "responses", cost: {} } } },
+        },
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "claude-opus-5", modelsJson })).toEqual({
+        model: "claude-opus-5",
+        provider: { type: "anthropic", baseUrl: "http://api-proxy:10001" },
       });
     });
 

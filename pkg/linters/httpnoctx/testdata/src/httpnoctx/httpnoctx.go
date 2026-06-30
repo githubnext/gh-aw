@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // BadClientGet calls (*http.Client).Get without context.
@@ -57,11 +58,32 @@ func GoodClientDo(ctx context.Context, client *http.Client, rawURL string) (*htt
 	return client.Do(req)
 }
 
-// GoodDefaultClientDo uses http.NewRequestWithContext + http.DefaultClient.Do — not flagged.
-func GoodDefaultClientDo(ctx context.Context, rawURL string) (*http.Response, error) {
+// BadDefaultClientDo uses timeout-less http.DefaultClient.Do.
+func BadDefaultClientDo(ctx context.Context, rawURL string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rawURL, strings.NewReader("body"))
 	if err != nil {
 		return nil, err
 	}
-	return http.DefaultClient.Do(req)
+	return http.DefaultClient.Do(req) // want `http\.DefaultClient\.Do uses a timeout-less client`
+}
+
+// BadNewRequestWithContextInScope calls http.NewRequest where context.Context is in scope.
+func BadNewRequestWithContextInScope(ctx context.Context, rawURL string) (*http.Request, error) {
+	_ = ctx
+	return http.NewRequest(http.MethodGet, rawURL, nil) // want `http\.NewRequest does not propagate context`
+}
+
+// GoodNewRequestNoContextInScope uses http.NewRequest in a function without context.Context.
+func GoodNewRequestNoContextInScope(rawURL string) (*http.Request, error) {
+	return http.NewRequest(http.MethodGet, rawURL, nil)
+}
+
+// GoodTimeoutClientDo uses a dedicated client with Timeout set.
+func GoodTimeoutClientDo(ctx context.Context, rawURL string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	client := &http.Client{Timeout: time.Second}
+	return client.Do(req)
 }

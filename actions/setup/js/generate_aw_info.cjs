@@ -128,6 +128,12 @@ async function main(core, ctx) {
     awInfo.features = features;
   }
 
+  const skills = parseSkillsFromEnv(core);
+  if (skills) {
+    awInfo.skills = skills;
+    core.info(`Configured frontmatter skills (${skills.length}): ${skills.join(", ")}`);
+  }
+
   // Include aw_context when the workflow was triggered by a caller that relayed
   // orchestration context via workflow inputs or repository_dispatch client payload.
   // Validates JSON format and structure before populating the context key in aw_info.json.
@@ -214,6 +220,38 @@ async function main(core, ctx) {
       return null;
     } catch {
       core.warning(`Failed to parse GH_AW_INFO_FEATURES: ${featuresEnv}`);
+      return null;
+    }
+  }
+
+  /**
+   * Parse optional skills list from GH_AW_INFO_SKILLS.
+   * @param {typeof import('@actions/core')} core
+   * @returns {string[] | null}
+   */
+  function parseSkillsFromEnv(core) {
+    const skillsEnv = process.env.GH_AW_INFO_SKILLS;
+    if (!skillsEnv) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(skillsEnv);
+      if (!Array.isArray(parsed)) {
+        core.warning("GH_AW_INFO_SKILLS must be a JSON array, ignoring");
+        return null;
+      }
+      const skills = [];
+      for (const [index, value] of parsed.entries()) {
+        if (typeof value === "string" && value.length > 0) {
+          skills.push(value);
+          continue;
+        }
+        core.warning(`Ignoring invalid GH_AW_INFO_SKILLS[${index}] value: ${JSON.stringify(value)}`);
+      }
+      return skills.length > 0 ? skills : null;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      core.warning(`Failed to parse GH_AW_INFO_SKILLS: ${skillsEnv} (${message})`);
       return null;
     }
   }

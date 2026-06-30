@@ -55,6 +55,25 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("parses skills array", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"skills": []any{
+				"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+				"githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6",
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		require.Equal(t, []string{
+			"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+			"githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6",
+		}, config.Skills)
+	})
+
 	t.Run("parses complete workflow config", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"name":        "full-workflow",

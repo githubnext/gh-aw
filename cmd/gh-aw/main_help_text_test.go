@@ -39,6 +39,12 @@ func TestCompileShowAllFlagHelpText(t *testing.T) {
 	assert.Equal(t, "Display all prioritized compilation errors instead of the default top five", showAllFlag.Usage)
 }
 
+func TestCompileStrictFlagHelpText(t *testing.T) {
+	strictFlag := compileCmd.Flags().Lookup("strict")
+	require.NotNil(t, strictFlag, "compile command should define --strict")
+	assert.Contains(t, strictFlag.Usage, "disallows write permissions and deprecated fields")
+}
+
 func TestCompileGhAwRefMutuallyExclusiveFlags(t *testing.T) {
 	tests := []struct {
 		name string

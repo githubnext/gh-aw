@@ -99,6 +99,21 @@ func TestSpec_PublicAPI_ExtractRepo(t *testing.T) {
 			uses:     "actions/checkout",
 			expected: "actions/checkout",
 		},
+		{
+			name:     "empty string returns empty string",
+			uses:     "",
+			expected: "",
+		},
+		{
+			name:     "leading @ returns empty repo",
+			uses:     "@v4",
+			expected: "",
+		},
+		{
+			name:     "multiple @ separators returns part before first @",
+			uses:     "actions/checkout@v4@extra",
+			expected: "actions/checkout",
+		},
 	}
 
 	for _, tt := range tests {
@@ -130,6 +145,21 @@ func TestSpec_PublicAPI_ExtractVersion(t *testing.T) {
 			name:     "no @ separator returns empty string",
 			uses:     "actions/checkout",
 			expected: "",
+		},
+		{
+			name:     "empty string returns empty string",
+			uses:     "",
+			expected: "",
+		},
+		{
+			name:     "leading @ returns version part after @",
+			uses:     "@v4",
+			expected: "v4",
+		},
+		{
+			name:     "multiple @ separators returns everything after first @",
+			uses:     "actions/checkout@v4@extra",
+			expected: "v4@extra",
 		},
 	}
 
@@ -224,6 +254,54 @@ func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
 		assert.Empty(t, result, "AllowActionRefs downgrade should keep unresolved result empty")
 		assert.True(t, ctx.Warnings[actionpins.FormatCacheKey("does-not-exist/x", "v1")],
 			"AllowActionRefs should record warning dedup key")
+	})
+
+	t.Run("dynamic resolver fails with EnforcePinned=true returns error", func(t *testing.T) {
+		var failures []actionpins.ResolutionFailure
+		ctx := &actionpins.PinContext{
+			Resolver:      &testSHAResolver{err: errors.New("network error")},
+			EnforcePinned: true,
+			Warnings:      make(map[string]bool),
+			RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
+				failures = append(failures, f)
+			},
+		}
+		_, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
+		require.Error(t, err, "EnforcePinned should return an error when dynamic resolution fails")
+		assert.Contains(t, err.Error(), "unable to pin action",
+			"error message should mention unable to pin action")
+		require.Len(t, failures, 1, "failure should be audited when dynamic resolution fails in enforce mode")
+		assert.Equal(t, actionpins.ResolutionErrorTypeDynamicResolutionFailed, failures[0].ErrorType,
+			"dynamic resolver failure should classify as dynamic_resolution_failed")
+	})
+}
+
+// TestSpec_PublicAPI_ResolveActionPin_SkipHardcodedFallback validates that setting
+// PinContext.SkipHardcodedFallback=true prevents the embedded hardcoded pins from
+// being consulted, even for a well-known action that is present in the embedded data.
+func TestSpec_PublicAPI_ResolveActionPin_SkipHardcodedFallback(t *testing.T) {
+	t.Run("known action with SkipHardcodedFallback=true returns empty result", func(t *testing.T) {
+		// actions/checkout has entries in the embedded pins.
+		// With SkipHardcodedFallback=true and no dynamic resolver, resolution should
+		// fall through without producing a pinned reference.
+		ctx := &actionpins.PinContext{
+			SkipHardcodedFallback: true,
+			Warnings:              make(map[string]bool),
+		}
+		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
+		require.NoError(t, err, "SkipHardcodedFallback should not cause an error")
+		assert.Empty(t, result, "SkipHardcodedFallback=true should prevent hardcoded pin lookup")
+	})
+
+	t.Run("known action with SkipHardcodedFallback=false resolves normally", func(t *testing.T) {
+		ctx := &actionpins.PinContext{
+			SkipHardcodedFallback: false,
+			Warnings:              make(map[string]bool),
+		}
+		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
+		require.NoError(t, err, "hardcoded pin lookup should succeed when SkipHardcodedFallback is false")
+		assert.NotEmpty(t, result, "SkipHardcodedFallback=false should allow hardcoded pin lookup")
+		assert.Contains(t, result, "actions/checkout@", "result should reference actions/checkout")
 	})
 }
 
@@ -415,7 +493,7 @@ func TestSpec_PublicAPI_GetContainerPin(t *testing.T) {
 		pin, ok := actionpins.GetContainerPin("alpine:latest")
 		require.True(t, ok, "should return true for a known container image")
 		assert.Equal(t, "alpine:latest", pin.Image, "ContainerPin.Image should match the queried image")
-		assert.NotEmpty(t, pin.Digest, "ContainerPin.Digest should be non-empty for a known image")
+		require.NotEmpty(t, pin.Digest, "ContainerPin.Digest should be non-empty for a known image")
 		assert.NotEmpty(t, pin.PinnedImage, "ContainerPin.PinnedImage should be non-empty for a known image")
 		assert.Contains(t, pin.PinnedImage, pin.Digest, "PinnedImage should contain the digest")
 	})

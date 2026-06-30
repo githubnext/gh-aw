@@ -332,6 +332,33 @@ When a permission request is denied, the implementation MUST:
 
 In standalone mode, missing required environment variables or unreadable prompt input MUST be reported to standard error with a driver-specific prefix.
 
+### 6.5 Structured Event Serialization Schema
+
+All structured log entries emitted by a conforming implementation MUST conform to the following field schema. Implementations MUST include all required fields and MAY include additional fields.
+
+#### 6.5.1 Lifecycle Event Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `event` | string | MUST | Event type identifier (e.g., `"connection.start"`, `"session.created"`, `"prompt.dispatched"`, `"session.completed"`, `"error"`) |
+| `timestamp` | string (ISO 8601) | MUST | UTC timestamp of the event |
+| `sessionId` | string | MUST when available | Session identifier assigned at session creation; MUST be omitted before session is established |
+| `durationMs` | number | MUST for completion events | Elapsed time in milliseconds from prompt dispatch to completion |
+| `hasOutput` | boolean | MUST for completion events | Indicates whether the session produced a non-empty output |
+| `level` | string | MUST | Log severity level: one of `"info"`, `"warning"`, `"error"` |
+| `message` | string | MUST | Human-readable description of the event |
+
+#### 6.5.2 Policy-Denial Log Entry Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `event` | string | MUST | MUST be `"permission.denied"` |
+| `timestamp` | string (ISO 8601) | MUST | UTC timestamp of the denial |
+| `sessionId` | string | MUST | Session identifier in which the denial occurred |
+| `requestKind` | string | MUST | Permission request kind: one of `"read"`, `"write"`, `"url"`, `"shell"`, `"mcp"`, `"custom-tool"` |
+| `requestSummary` | string | MUST | Compact human-readable summary of the denied request (MUST NOT include secret values or raw token content) |
+| `level` | string | MUST | MUST be `"warning"` or `"error"` |
+
 ---
 
 ## 7. Error Handling and Exit Behavior
@@ -436,12 +463,18 @@ Implementations MUST provide automated tests for all Level 1 and Level 2 require
 
 ### Appendix C: Security Considerations
 
+#### Glossary
+
+**Non-ephemeral events**: Events that persist beyond the lifetime of a single session or request and are written to durable storage (for example, audit logs, telemetry sinks, or artifact uploads). Ephemeral events, by contrast, exist only in process memory or transient I/O buffers and are discarded when the driver process exits.
+
+#### Requirements
+
 A conforming implementation SHOULD:
 
 - Treat connection tokens as secrets and avoid logging raw token values.
 - Apply least-privilege permission rules and avoid broad allow-all configurations unless operationally justified.
 - Preserve auditable denial logs for policy and incident review.
-- Restrict event persistence to non-ephemeral events and avoid writing sensitive transient state.
+- Restrict event persistence to non-ephemeral events (as defined above) and avoid writing sensitive transient state to durable storage.
 - Not attempt to read, fall back to, or check for platform authentication tokens (`GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`). These tokens are not present in the driver subprocess environment by design. Attempting to use them would fail silently or cause unexpected behavior.
 
 ---
