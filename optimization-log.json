@@ -198,7 +198,7 @@
   },
   {
     "date": "2026-06-24",
-    "workflow_name": "Design Decision Gate 🏗️",
+    "workflow_name": "Design Decision Gate \ud83c\udfd7\ufe0f",
     "workflow_file": "design-decision-gate",
     "total_aic_analyzed": 432.592,
     "runs_audited": 7,
@@ -225,5 +225,15 @@
     "recommendations_count": 5,
     "subagent_candidates": 0,
     "estimated_aic_savings_per_run": 40
+  },
+  {
+    "date": "2026-06-30",
+    "workflow_name": "Test Quality Sentinel",
+    "workflow_file": "test-quality-sentinel",
+    "total_aic_analyzed": 373.279,
+    "runs_audited": 5,
+    "recommendations_count": 5,
+    "subagent_candidates": 0,
+    "estimated_aic_savings_per_run": 12
   }
 ]
