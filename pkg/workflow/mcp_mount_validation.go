@@ -37,11 +37,10 @@ func validateMCPMountsSyntax(toolName string, mountsRaw any) error {
 	}
 
 	mcpMountValidationLog.Printf("Validating %d mount(s) for tool %q", len(mounts), toolName)
-	for i, mount := range mounts {
-		parts, kind := parseMountEntry(mount)
+	return validateMountEntries(mounts, func(i int, parts mountParts) {
+		mcpMountValidationLog.Printf("Mount[%d] valid for tool %q: source=%s, dest=%s, mode=%s", i, toolName, parts.source, parts.dest, parts.mode)
+	}, func(i int, mount string, parts mountParts, kind mountValidationKind) error {
 		switch kind {
-		case mountValidationOK:
-			mcpMountValidationLog.Printf("Mount[%d] valid for tool %q: source=%s, dest=%s, mode=%s", i, toolName, parts.source, parts.dest, parts.mode)
 		case mountValidationFormatError:
 			mcpMountValidationLog.Printf("Mount[%d] format error for tool %q: %q", i, toolName, mount)
 			return fmt.Errorf("tool '%s' mcp configuration mounts[%d] must follow 'source:destination:mode' format, got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"\n\nSee: %s", toolName, i, mount, toolName, constants.DocsToolsURL)
@@ -57,7 +56,5 @@ func validateMCPMountsSyntax(toolName string, mountsRaw any) error {
 		default:
 			return fmt.Errorf("internal error: unsupported mount validation kind %d for tool %q mount %q", kind, toolName, mount)
 		}
-	}
-
-	return nil
+	})
 }
