@@ -565,18 +565,23 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          skill_spec=\"${GH_AW_SKILL_SPEC_%d}\"\n", i))
 		ctx.steps = append(ctx.steps, "          echo \"Installing skill reference: ${skill_spec}\"\n")
 		// gh skill install expects <repository> [<skill[@version]>] as separate arguments.
-		// Split the spec into owner/repo and optional skill-path+pin, keeping this logic
-		// aligned with isRepositorySkillSpec so expression-based refs behave the same after resolution.
-		ctx.steps = append(ctx.steps, "          skill_ref=\"${skill_spec##*@}\"\n")
-		ctx.steps = append(ctx.steps, "          skill_base=\"${skill_spec%@*}\"\n")
+		// Split the spec into owner/repo and optional skill-path, and only add --pin
+		// when the resolved value includes an @ref suffix.
+		ctx.steps = append(ctx.steps, "          skill_base=\"${skill_spec}\"\n")
+		ctx.steps = append(ctx.steps, "          install_args=()\n")
+		ctx.steps = append(ctx.steps, "          if [[ \"${skill_spec}\" == *@* ]]; then\n")
+		ctx.steps = append(ctx.steps, "            skill_ref=\"${skill_spec##*@}\"\n")
+		ctx.steps = append(ctx.steps, "            skill_base=\"${skill_spec%@*}\"\n")
+		ctx.steps = append(ctx.steps, "            install_args+=(--pin \"${skill_ref}\")\n")
+		ctx.steps = append(ctx.steps, "          fi\n")
 		ctx.steps = append(ctx.steps, "          if [[ \"${skill_base}\" == */*/* ]]; then\n")
 		ctx.steps = append(ctx.steps, "            skill_owner=\"${skill_base%%/*}\"\n")
 		ctx.steps = append(ctx.steps, "            skill_remaining=\"${skill_base#*/}\"\n")
 		ctx.steps = append(ctx.steps, "            skill_repo=\"${skill_owner}/${skill_remaining%%/*}\"\n")
 		ctx.steps = append(ctx.steps, "            skill_subpath=\"${skill_remaining#*/}\"\n")
-		ctx.steps = append(ctx.steps, "            gh skill install \"${skill_repo}\" \"${skill_subpath}\" --pin \"${skill_ref}\" --dir \"${SKILLS_DST}\" --force\n")
+		ctx.steps = append(ctx.steps, "            gh skill install \"${skill_repo}\" \"${skill_subpath}\" \"${install_args[@]}\" --dir \"${SKILLS_DST}\" --force\n")
 		ctx.steps = append(ctx.steps, "          elif [[ \"${skill_base}\" == */* ]]; then\n")
-		ctx.steps = append(ctx.steps, "            gh skill install \"${skill_base}\" --all --pin \"${skill_ref}\" --dir \"${SKILLS_DST}\" --force\n")
+		ctx.steps = append(ctx.steps, "            gh skill install \"${skill_base}\" --all \"${install_args[@]}\" --dir \"${SKILLS_DST}\" --force\n")
 		ctx.steps = append(ctx.steps, "          else\n")
 		ctx.steps = append(ctx.steps, "            gh skill install \"${skill_spec}\" --dir \"${SKILLS_DST}\" --force\n")
 		ctx.steps = append(ctx.steps, "          fi\n")
