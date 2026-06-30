@@ -1,5 +1,23 @@
 //go:build !integration
 
+// Package workflow – replace_label formal model tests.
+//
+// This file encodes the formal specification predicates (P1–P15 and edge
+// cases) for the replace_label safe-output type.
+//
+// Scope: tests here cover two layers:
+//  1. Production Go code – ValidationConfig shape assertions (P3, edge cases)
+//     and the Go compiler parser for staged mode (P9).
+//  2. Formal spec model – helper functions (formalMatch*, formalCompute*, …)
+//     that re-implement the semantics described in the spec and used to
+//     exercise the invariants at the spec level.
+//
+// The formal helpers are NOT wrappers around the production JavaScript handler
+// (actions/setup/js/replace_label.cjs).  Regressions in the JS handler are
+// detected by the JavaScript test suite (replace_label.test.cjs) and
+// integration tests, not by this file.  When matching semantics differ from
+// the JS runtime (e.g. glob case-sensitivity), the helper is documented to
+// match the production default so the spec invariants stay accurate.
 package workflow
 
 import (
@@ -32,9 +50,13 @@ func formalLabelAndRepoLengthsValid(labelToRemove, labelToAdd, repo string) bool
 	return len(labelToRemove) <= 128 && len(labelToAdd) <= 128 && len(repo) <= 256
 }
 
+// formalMatchAnyPattern reports whether value matches any of the given glob
+// patterns.  Matching is case-insensitive by default, consistent with the
+// production matchesSimpleGlob helper in glob_pattern_helpers.cjs.
 func formalMatchAnyPattern(value string, patterns []string) bool {
+	lowerValue := strings.ToLower(value)
 	for _, p := range patterns {
-		matched, err := path.Match(p, value)
+		matched, err := path.Match(strings.ToLower(p), lowerValue)
 		if err != nil {
 			continue
 		}
@@ -283,7 +305,7 @@ func TestFormalReplaceLabelEdge_BothLabelsIdentical(t *testing.T) {
 	assert.Equal(t, []string{"bug", "in-progress"}, labels)
 }
 
-func TestFormalReplaceLabelEdge_NonExistentLabelHTTP422(t *testing.T) {
+func TestFormalReplaceLabelEdge_HardErrorOutcome(t *testing.T) {
 	outcome := formalReplaceLabelOutcome{Success: false, Skipped: false}
 	assert.False(t, outcome.Success)
 	assert.False(t, outcome.Skipped)
