@@ -30,6 +30,11 @@ import (
 
 var remoteLog = logger.New("parser:remote_fetch")
 
+// publicAPIClient is a shared HTTP client used for unauthenticated GitHub API
+// fallback calls. It carries a timeout to prevent indefinite hangs on slow or
+// unresponsive hosts.
+var publicAPIClient = &http.Client{Timeout: constants.DefaultHTTPClientTimeout}
+
 // gitListCloneCache is a process-lifetime cache of shallow clones used by
 // git-based directory listing fallbacks to avoid repeated clone operations for
 // the same repository/ref tuple. Entries are not explicitly cleaned up because
@@ -569,7 +574,6 @@ func resolveRefToSHAViaPublicAPI(ctx context.Context, owner, repo, ref string) (
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 
-	publicAPIClient := &http.Client{Timeout: constants.DefaultHTTPClientTimeout}
 	resp, err := publicAPIClient.Do(req)
 	if err != nil {
 		return "", err
@@ -1329,7 +1333,6 @@ func fetchPublicGitHubContentsAPI(ctx context.Context, owner, repo, path, ref st
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 
-	publicAPIClient := &http.Client{Timeout: constants.DefaultHTTPClientTimeout}
 	resp, err := publicAPIClient.Do(req)
 	if err != nil {
 		return nil, err
