@@ -64,7 +64,7 @@ function combineOutput(stdout: string, stderr: string): string {
 
 function spawnExecFile(file: string, args: string[], options: ExecOptions, callback: ExecCallback): void {
   const { env, cwd, maxBuffer = 10 * 1024 * 1024 } = options ?? {};
-  const spawnOptions: SpawnOptions = { env, cwd, stdio: ["ignore", "pipe", "pipe"], windowsHide: true };
+  const spawnOptions: SpawnOptions = { env, cwd, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: true };
   console.error(`${LOG} spawn file=${file} args=${JSON.stringify(args)} cwd=${cwd}`);
   const proc = spawn(file, args, spawnOptions);
   const stdoutChunks: Buffer[] = [];
