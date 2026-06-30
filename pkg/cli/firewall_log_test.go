@@ -1081,6 +1081,32 @@ func TestAnalyzeFirewallLogsSandboxFallbackToTopLevel(t *testing.T) {
 	}
 }
 
+func TestAnalyzeFirewallLogsSandboxEmptySquidSubdirFallsBackToTopLevel(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-sandbox-empty-squid-subdir-*")
+
+	sandboxLogsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs")
+	if err := os.MkdirAll(filepath.Join(sandboxLogsDir, "squid-logs"), 0755); err != nil {
+		t.Fatalf("Failed to create sandbox/firewall/logs directories: %v", err)
+	}
+
+	logContent := `1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.5:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"
+`
+	if err := os.WriteFile(filepath.Join(sandboxLogsDir, "access.log"), []byte(logContent), 0644); err != nil {
+		t.Fatalf("Failed to write access.log: %v", err)
+	}
+
+	analysis, err := analyzeFirewallLogs(tmpDir, false)
+	if err != nil {
+		t.Fatalf("analyzeFirewallLogs failed: %v", err)
+	}
+	if analysis == nil {
+		t.Fatal("Expected firewall analysis but got nil")
+	}
+	if analysis.TotalRequests != 1 {
+		t.Errorf("TotalRequests: got %d, want 1", analysis.TotalRequests)
+	}
+}
+
 func TestFirewallAnalysisAddMetricsDeduplicatesDomains(t *testing.T) {
 	base := &FirewallAnalysis{
 		TotalRequests:    1,
