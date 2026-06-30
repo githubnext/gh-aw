@@ -1715,7 +1715,7 @@ describe("copilot_harness.cjs", () => {
       };
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
         model: "gpt-5.4",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "completions" },
       });
     });
   });

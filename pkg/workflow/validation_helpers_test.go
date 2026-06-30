@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -587,6 +588,116 @@ func TestParseMountEntry(t *testing.T) {
 			assert.Equal(t, tt.want, got, "mount parts for %q", tt.mount)
 		})
 	}
+}
+
+func TestValidateMountEntries(t *testing.T) {
+	t.Run("returns nil and calls onValid for each mount when all are valid", func(t *testing.T) {
+		var validated []mountParts
+		err := validateMountEntries(
+			[]string{
+				"/host/a:/a:ro",
+				"/host/b:/b:rw",
+			},
+			func(_ int, parts mountParts) {
+				validated = append(validated, parts)
+			},
+			func(i int, mount string, parts mountParts, kind mountValidationKind) error {
+				return fmt.Errorf("unexpected invalid mount at %d: %s (%v) %#v", i, mount, kind, parts)
+			},
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, []mountParts{
+			{source: "/host/a", dest: "/a", mode: "ro"},
+			{source: "/host/b", dest: "/b", mode: "rw"},
+		}, validated)
+	})
+
+	t.Run("returns nil for empty mounts", func(t *testing.T) {
+		err := validateMountEntries(
+			nil,
+			func(_ int, _ mountParts) { t.Fatal("onValid should not be called") },
+			func(i int, mount string, parts mountParts, kind mountValidationKind) error {
+				return fmt.Errorf("onInvalid should not be called at %d: %s (%v) %#v", i, mount, kind, parts)
+			},
+		)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("reports index 0 when first mount is invalid", func(t *testing.T) {
+		err := validateMountEntries(
+			[]string{"/host/data:/data:nope"},
+			nil,
+			func(i int, mount string, parts mountParts, kind mountValidationKind) error {
+				assert.Equal(t, 0, i)
+				assert.Equal(t, "/host/data:/data:nope", mount)
+				assert.Equal(t, mountValidationModeError, kind)
+				assert.Equal(t, mountParts{source: "/host/data", dest: "/data", mode: "nope"}, parts)
+				return fmt.Errorf("invalid at %d", i)
+			},
+		)
+
+		require.EqualError(t, err, "invalid at 0")
+	})
+
+	t.Run("returns first invalid mount after valid prefix", func(t *testing.T) {
+		var validated []mountParts
+		err := validateMountEntries(
+			[]string{
+				"/host/data:/data:ro",
+				"/host/data:/data:nope",
+				"/host/other:/other:rw",
+			},
+			func(_ int, parts mountParts) {
+				validated = append(validated, parts)
+			},
+			func(i int, mount string, parts mountParts, kind mountValidationKind) error {
+				assert.Equal(t, 1, i)
+				assert.Equal(t, "/host/data:/data:nope", mount)
+				assert.Equal(t, mountValidationModeError, kind)
+				assert.Equal(t, mountParts{source: "/host/data", dest: "/data", mode: "nope"}, parts)
+				return fmt.Errorf("stop at %d", i)
+			},
+		)
+
+		require.EqualError(t, err, "stop at 1")
+		assert.Equal(t, []mountParts{{source: "/host/data", dest: "/data", mode: "ro"}}, validated)
+	})
+
+	t.Run("accepts nil onValid callback", func(t *testing.T) {
+		err := validateMountEntries(
+			[]string{"/host/data:/data:ro"},
+			nil,
+			func(i int, mount string, parts mountParts, kind mountValidationKind) error {
+				return fmt.Errorf("unexpected invalid mount at %d: %s (%v)", i, mount, kind)
+			},
+		)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("returns internal error for nil onInvalid callback", func(t *testing.T) {
+		err := validateMountEntries(
+			[]string{"/host/data:/data:nope"},
+			nil,
+			nil,
+		)
+
+		require.EqualError(t, err, "internal error: onInvalid callback must not be nil")
+	})
+
+	t.Run("returns internal error when onInvalid returns nil", func(t *testing.T) {
+		err := validateMountEntries(
+			[]string{"/host/data:/data:nope"},
+			nil,
+			func(_ int, _ string, _ mountParts, _ mountValidationKind) error {
+				return nil
+			},
+		)
+
+		require.EqualError(t, err, "internal error: onInvalid callback returned nil for mount kind 2")
+	})
 }
 
 // TestPreprocessProtectedFilesField tests the preprocessProtectedFilesField helper.

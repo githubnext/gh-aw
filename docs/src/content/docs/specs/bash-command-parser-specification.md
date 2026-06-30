@@ -73,6 +73,8 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **
 
 A conforming implementation MUST satisfy all applicable MUST-level requirements for its class.
 
+A Class I (Integration Consumer) conforming implementation MUST apply default-deny behavior when `extractCommandNamesFromPipeline` (§4.3) returns no commands (`length === 0`). An empty list result MUST NOT be treated as implicit authorization to proceed with command execution.
+
 ### 2.3 Language-Neutral Type Contract
 
 Conforming implementations MUST expose semantics equivalent to the following total functions:
@@ -277,7 +279,7 @@ Conforming projects SHOULD publish vectors in JSON (or equivalent structured dat
 - `source = "model-based"` for state-model-derived vectors
 - `source = "verification"` for metamorphic/property-derived vectors
 
-Reference vectors SHOULD be stored in repository-owned, language-neutral artifacts and consumed by each implementation's native test runner.
+Reference vectors MUST be stored at `specs/test-vectors/bash-command-parser/` within the repository root and MUST be addressable via stable, version-qualified filenames following the pattern `<version>-<source>.json` (for example, `v1.1.0-model-based.json` and `v1.1.0-verification.json`). The canonical path for the test vector collection is `specs/test-vectors/bash-command-parser/` relative to the repository root. Each implementation's native test runner MUST consume vectors from this canonical path when this collection is present in the repository.
 
 ---
 
@@ -302,7 +304,21 @@ Conforming projects SHOULD apply all of the following:
 
 ## 11. Security Considerations
 
-This parser is not a shell sandbox and MUST NOT be treated as proof of command safety. Consumers MUST keep permission checks default-deny when command identification fails. Ambiguous/unparseable input SHOULD result in deny behavior at integration layer.
+This parser is not a shell sandbox and MUST NOT be treated as proof of command safety. Consumers MUST keep permission checks default-deny when command identification fails. Ambiguous/unparseable input MUST result in deny behavior at the integration layer.
+
+### 11.1 Misuse Examples
+
+The following examples illustrate security misuse patterns that conforming consumers MUST NOT adopt:
+
+**Misuse Example 1 — Using parser output as sandbox proof**: An integration that allows a shell command to execute solely because the parser returned a non-null command name is incorrect. The parser identifies command tokens; it does not validate that the command is safe, permitted, or confined. A consumer MUST NOT treat a non-null extraction result as proof that execution is authorized or sandbox-contained.
+
+**Misuse Example 2 — Allowing execution on empty parse result**: An integration that permits shell execution when `extractCommandNamesFromPipeline` returns an empty list (for example, because the input contained only redirections or structural keywords) violates the default-deny contract. An empty result MUST NOT be treated as implicit permission; the integration MUST apply its default-deny fallback.
+
+**Misuse Example 3 — Bypassing permission checks on single-command pipelines**: An integration that skips scoped allow-list checks for inputs the parser classifies as "simple" (single command, no operators) misuses the parser's output. Parser-identified simplicity is a syntactic property only. All permission-check logic MUST be applied regardless of pipeline complexity as determined by the parser.
+
+### 11.2 Normative Security Requirements
+
+A Class I (Integration Consumer) conforming implementation MUST NOT treat any parser output — including non-empty command-name results and empty lists — as proof that the corresponding shell invocation is safe or permitted. Permission-enforcement logic MUST remain fully operative independent of what the parser returns.
 
 ---
 

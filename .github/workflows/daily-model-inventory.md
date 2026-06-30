@@ -501,6 +501,13 @@ Use the Copilot reflect endpoint (`billing.multiplier`) and the docs pricing tab
 sources for `models.json` pricing fields. Prefer reflect data when available for Copilot model
 multiplier validation, and use docs table values as a secondary cross-check.
 
+Also validate Copilot SDK routing metadata in `models.json` for `github-copilot` models:
+- `provider_type` (for SDK provider selection)
+- `wire_api` when present (`responses` or `completions`, for OpenAI/Azure-compatible transport selection)
+
+When updating `models.json`, preserve or add `wire_api` for Copilot models where source data
+provides it. Keep `wire_api` absent for models/providers where it is not applicable.
+
 Treat `gpt-4o-mini`, `gpt-4.1`, `gpt-4o`, and `gpt-5.4-nano` as intentionally deprecated
 Copilot-facing model IDs. Keep ignoring them even if they appear in the reflect data, docs table,
 `models.dev`, or live provider inventories: do not propose adding or restoring them in

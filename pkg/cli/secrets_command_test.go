@@ -18,6 +18,8 @@ func TestNewSecretsCommand(t *testing.T) {
 	assert.Equal(t, "secrets", cmd.Use, "Command use should be 'secrets'")
 	assert.Equal(t, "Manage GitHub Actions secrets for agentic workflows", cmd.Short, "Command short description should match")
 	assert.Contains(t, cmd.Long, "Manage GitHub Actions secrets", "Command long description should contain expected text")
+	assert.Contains(t, cmd.Long, "for agentic workflows", "Command long description should use lowercase product phrasing")
+	assert.NotContains(t, cmd.Long, "GitHub Agentic Workflows", "Command long description should avoid inconsistent capitalization")
 
 	// Verify subcommands are added
 	assert.True(t, cmd.HasSubCommands(), "Secrets command should have subcommands")

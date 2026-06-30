@@ -19,17 +19,10 @@ engine:
   max-continuations: 15
 tools:
   cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [pull_requests]
   bash:
     - "git diff:*"
     - "grep:*"
-    - "find:*"
     - "cat:*"
-    - "wc:*"
-    - "awk:*"
-    - "sed:*"
     - "echo:*"
 steps:
   - name: Pre-fetch PR data
@@ -51,11 +44,12 @@ steps:
         --name-only | grep -E '(_test\.go|\.test\.cjs|\.test\.js)$' \
         > /tmp/gh-aw/agent/test-files.txt || true
 
-      # Diff for test files only (empty file is fine if no test files changed)
+      # Diff for test files only; capped at 40 KB to control cache token costs
       if [ -s /tmp/gh-aw/agent/test-files.txt ]; then
         # shellcheck disable=SC2046
         gh pr diff "$PR_NUMBER" \
           -- $(tr '\n' ' ' < /tmp/gh-aw/agent/test-files.txt) \
+          | head -c 40000 \
           > /tmp/gh-aw/agent/test-diff.txt 2>/dev/null || true
       else
         touch /tmp/gh-aw/agent/test-diff.txt
@@ -78,10 +72,38 @@ steps:
               echo "MISSING BUILD TAG: $f"
             fi
           done > /tmp/gh-aw/agent/missing-build-tags.txt || true
+        # Go test structural stats (assertions, error checks, table-driven, forbidden mocks)
+        awk '
+          /^\+func Test/ {
+            if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks
+            match($0, /func (Test[^(]+)/, arr); test_name=arr[1]; assertions=0; errors=0; table_driven=0; forbidden_mocks=0
+          }
+          test_name && /^\+.*(assert\.|require\.)/ { assertions++ }
+          test_name && /^\+.*t\.(Error|Errorf|Fatal|Fatalf)\(/ { assertions++; errors++ }
+          test_name && /^\+.*(assert\.Error|require\.Error|assert\.NoError|require\.NoError)/ { errors++ }
+          test_name && /^\+.*t\.Run\(/ { table_driven++ }
+          test_name && /^\+.*(gomock\.|testify\/mock|\.EXPECT\(\)|\.On\(|\.Return\()/ { forbidden_mocks++ }
+          test_name && /^\+\}$/ { print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks; test_name="" }
+          END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks }
+        ' /tmp/gh-aw/agent/test-diff.txt > /tmp/gh-aw/agent/go-test-stats.txt || true
+        # JS test structural stats (assertions, error matchers, vi.* mocks)
+        awk '
+          /^\+(it|test)\(/ {
+            if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks
+            match($0, /(it|test)\(["\047]([^"\047]+)/, arr); test_name=arr[2]; assertions=0; errors=0; mocks=0
+          }
+          test_name && /^\+.*expect\(/ { assertions++ }
+          test_name && /^\+.*(\.toThrow|\.rejects|\.toThrowError)/ { errors++ }
+          test_name && /^\+.*(vi\.mock|vi\.spyOn|vi\.fn)/ { mocks++ }
+          test_name && /^\+\}\)/ { print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks; test_name="" }
+          END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks }
+        ' /tmp/gh-aw/agent/test-diff.txt > /tmp/gh-aw/agent/js-test-stats.txt || true
       else
         touch /tmp/gh-aw/agent/go-new-test-funcs.txt \
               /tmp/gh-aw/agent/js-new-test-funcs.txt \
-              /tmp/gh-aw/agent/missing-build-tags.txt
+              /tmp/gh-aw/agent/missing-build-tags.txt \
+              /tmp/gh-aw/agent/go-test-stats.txt \
+              /tmp/gh-aw/agent/js-test-stats.txt
       fi
 
       echo "Pre-fetched $(grep -c . /tmp/gh-aw/agent/test-files.txt || echo 0) test files"
@@ -121,7 +143,7 @@ PR data has already been fetched before the agent started. Read from:
 
 - `/tmp/gh-aw/agent/pr-meta.json` — PR metadata (files, additions, deletions, branch names)
 - `/tmp/gh-aw/agent/test-files.txt` — list of changed test files
-- `/tmp/gh-aw/agent/test-diff.txt` — diff for test files only
+- `/tmp/gh-aw/agent/test-diff.txt` — diff for test files only _(capped at 40 KB; if truncated, prioritize newly added `func Test*` functions)_
 - `/tmp/gh-aw/agent/diff-numstat.txt` — numstat for all changed files
 
 Then identify all **new and modified test files** in the diff:
@@ -151,21 +173,19 @@ New Go test function signatures (lines matching `+func Test*`) are pre-extracted
 
 Also check `/tmp/gh-aw/agent/missing-build-tags.txt` — any newly added Go test files missing the mandatory `//go:build` tag on line 1 are listed there.
 
-### Step 3: AST-Assisted Structural Analysis
+### Step 3: Structural Stats
 
-For each changed test file, run structural checks using available tools.
+Read the pre-computed stats from the pre-fetch step:
 
-| Language | Analyzer | Extract | Flag immediately |
-|---|---|---|---|
-| Go (`Test*`) | `go-test-analyzer` | Assertion counts, error-path checks, table-driven rows, build-tag status | `gomock`, `testify/mock`, `.EXPECT()`, `.On()`, `.Return()`, missing `//go:build` |
-| JavaScript (`.test.cjs` / `.test.js`) | `js-test-analyzer` | `expect(...)` counts, error matchers (`.toThrow`, `.rejects`), `vi.*` mock usage | Mocking internal business logic without behavioral assertions |
+- Go: `cat /tmp/gh-aw/agent/go-test-stats.txt` — per-function counts: `assertions`, `errors`, `table_driven`, `forbidden_mocks`
+- JS: `cat /tmp/gh-aw/agent/js-test-stats.txt` — per-test counts: `assertions`, `errors`, `mocks`
 
-Use analyzer output tables in Step 4. Accepted signals:
+Use these counts directly in Step 4 classification. Accepted signals:
 - **Assertions**: Go (`assert.*`, `require.*`, `t.Error*`), JS (`expect(...).to*`)
 - **Error coverage**: explicit error assertions (`assert.Error`, `.toThrow`, `.rejects`, etc.)
-- **Table-driven credit (Go)**: count each `tests []struct{...}` row in `t.Run(...)`
-- **Mocking policy**: external-I/O/runtime mocks are acceptable; internal-logic mocks are suspicious
-- **Assertion-message policy (Go)**: missing descriptive assertion context is a guideline violation
+- **Table-driven credit (Go)**: credit each `t.Run(...)` subtest row; use `table_driven` count from stats
+- **Mocking policy**: external-I/O/runtime mocks are acceptable; `forbidden_mocks > 0` in Go stats is a hard violation
+- **Assertion-message policy (Go)**: flag assertions without descriptive failure context
 
 ### Step 4: AI Quality Review of Each Test
 
@@ -226,65 +246,13 @@ Guideline violations always force `REQUEST_CHANGES` regardless of numeric score.
 
 ## Step 7: Post PR Comment with Results
 
-Post a comment to the pull request with the full analysis using the `add-comment` safe-output tool (tool call, not shell). Use the `tqs-report-template` skill for the exact comment format.
-Use `###` or lower report headers and progressive disclosure (`<details><summary>…</summary>`). Required structure: visible score headline + one-sentence summary → `<details>` metrics table + classification table → `<details>` flagged tests (omit if empty) → visible verdict.
-
-Use this shape:
+Post a comment using `add-comment` (not bash). Do **not** set `item_number`; it auto-targets the PR:
 
 ```json
 {"add_comment":{"body":"<full markdown report>"}}
 ```
 
-Do **not** invoke `safeoutputs` from bash, and do **not** set `item_number` for this step. Let `add_comment` auto-target the triggering pull request.
-
-## Step 8: Submit PR Review Based on Result
-
-After posting the comment, submit exactly one safe-output action:
-- `noop` when no tests/action are required
-- `APPROVE` when implementation-test ratio is `<=30%` and no guideline violations
-- `REQUEST_CHANGES` when ratio is `>30%` **or** any guideline violation exists
-
-Use these payload templates:
-
-```json
-{
-  "noop": {
-    "message": "No action needed: [brief explanation of what was analyzed and why no action was required]"
-  }
-}
-```
-
-```json
-{
-  "event": "APPROVE",
-  "body": "✅ Test Quality Sentinel: {SCORE}/100. Test quality is acceptable — {IMPL_PCT}% of new tests are implementation tests (threshold: 30%)."
-}
-```
-
-```json
-{
-  "event": "REQUEST_CHANGES",
-  "body": "❌ Test Quality Sentinel: {SCORE}/100. {FAIL_REASON} Please review the flagged tests/files in the comment above."
-}
-```
-
-## Guidelines
-
-Calibration rules:
-- **Edge-case credit is generous**: one valid error assertion is enough (`assert.Error`, `t.Fatalf` on error, `.toThrow`, `.rejects`, etc.)
-- **Table-driven tests**: count each row as a scenario; credit error/edge rows individually
-- **Behavioral credit is strict**: mark `design_test` only when assertions verify user-visible behavior
-- **Go assertion messages required**: flag assertions without descriptive failure context
-- **Duplicate detection threshold**: report duplicates only when 3+ tests share the same pattern with trivial constant changes
-
-**Token Budget**: Analyze at most **50 test functions** per run. If more exist, prioritize newly added functions over modified ones; add a sampling note in the PR comment. Keep individual test analysis concise — 2–3 sentences per test in the flagged section. Always wrap the per-test classification table and flagged-test details in `<details>` tags.
-
-## skill: `tqs-report-template`
----
-description: Exact PR comment format for Test Quality Sentinel reports
----
-
-Use this exact format when posting the analysis comment in Step 7:
+Use this exact format for the report body:
 
 ```markdown
 ### 🧪 Test Quality Sentinel Report
@@ -304,93 +272,43 @@ Use this exact format when posting the analysis comment in Step 7:
 | Tests with error/edge cases | {EDGE_COUNT} ({EDGE_PCT}%) |
 | Duplicate test clusters | {DUP_COUNT} |
 | Test inflation detected | {YES/NO} |
-| 🚨 Coding-guideline violations | {VIOLATIONS} (Go mock libraries / missing build tags / no assertion messages) |
+| 🚨 Coding-guideline violations | {VIOLATIONS} |
 
 | Test | File | Classification | Issues Detected |
 |------|------|----------------|----------------|
 | `TestFoo` | `pkg/foo/foo_test.go:42` | ✅ Design | — |
 
-Go: {GO_COUNT} (`*_test.go`); JavaScript: {JS_COUNT} (`*.test.cjs`, `*.test.js`). Other languages detected but not scored.
+Go: {GO_COUNT} (`*_test.go`); JavaScript: {JS_COUNT} (`*.test.cjs`/`.test.js`).
 
 </details>
 
 {If flagged tests exist:}
 <details>
-<summary>⚠️ Flagged Tests — Requires Review ({FLAGGED_COUNT} issue(s))</summary>
+<summary>⚠️ Flagged Tests ({FLAGGED_COUNT} issue(s))</summary>
 
-For each flagged test, provide: name + file:line, classification, issue, and suggested improvement. Example:
-
-**`TestProcessData`** (`pkg/processor/processor_test.go:42`) — ⚠️ Implementation: only asserts mock was called, not the observable output. **Suggested fix**: assert on the function's return value instead of call count.
+**`TestName`** (`file:line`) — classification, issue, and suggested fix.
 
 </details>
 
 ### Verdict
 
-> {✅/❌} **Check {passed/failed}.** {IMPL_PCT}% implementation tests (threshold: 30%). Design tests verify observable behavior; implementation tests verify internals only.
+> {✅/❌} **Check {passed/failed}.** {IMPL_PCT}% implementation tests (threshold: 30%).
 ```
 
-## agent: `go-test-analyzer`
----
-description: Run awk analysis on Go test diff and return per-function stats plus missing build tags
-model: small
----
-Read the pre-fetched test diff and extract per-function Go test stats:
+## Step 8: Submit PR Review Based on Result
 
-```bash
-cat /tmp/gh-aw/agent/test-diff.txt | awk '
-/^\+func Test/ {
-  if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks
-  match($0, /func (Test[^(]+)/, arr); test_name=arr[1]; assertions=0; errors=0; table_driven=0; forbidden_mocks=0
-}
-test_name && /^\+.*(assert\.|require\.)/ { assertions++ }
-test_name && /^\+.*t\.(Error|Errorf|Fatal|Fatalf)\(/ { assertions++; errors++ }
-test_name && /^\+.*(assert\.Error|require\.Error|assert\.NoError|require\.NoError)/ { errors++ }
-test_name && /^\+.*t\.Run\(/ { table_driven++ }
-test_name && /^\+.*(gomock\.|testify\/mock|\.EXPECT\(\)|\.On\(|\.Return\()/ { forbidden_mocks++ }
-test_name && /^\+\}$/ { print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks; test_name="" }
-END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks }
-'
-```
+After posting the comment, submit exactly one safe-output action based on the analysis outcome:
+- When no tests required action: `{"noop": {"message": "No action needed: [brief explanation]"}}`
+- When quality passes (`implementation_tests / total <= 30%` and no violations): `{"event": "APPROVE", "body": "✅ Test Quality Sentinel: {SCORE}/100. {IMPL_PCT}% implementation tests (threshold: 30%)."}`
+- When quality fails (ratio `> 30%` **or** any guideline violation): `{"event": "REQUEST_CHANGES", "body": "❌ Test Quality Sentinel: {SCORE}/100. {FAIL_REASON} Review flagged tests in the comment above."}`
 
-Also check for newly added Go test files missing the mandatory build tag by reading the pre-fetched file:
+## Guidelines
 
-```bash
-cat /tmp/gh-aw/agent/missing-build-tags.txt
-```
+Calibration rules:
+- **Edge-case credit is generous**: one valid error assertion is enough (`assert.Error`, `t.Fatalf` on error, `.toThrow`, `.rejects`, etc.)
+- **Table-driven tests**: count each row as a scenario; credit error/edge rows individually
+- **Behavioral credit is strict**: mark `design_test` only when assertions verify user-visible behavior
+- **Go assertion messages required**: flag assertions without descriptive failure context
+- **Duplicate detection threshold**: report duplicates only when 3+ tests share the same pattern with trivial constant changes
 
-Return:
-1. A markdown table with this exact header:
-   `| Test Function | Assertions | Error Checks | Table-Driven Subtests | Forbidden Mock Calls |`
-   Example row:
-   `| TestCompile | 4 | 2 | 1 | 0 |`
-2. A `Missing Build Tags` section listing any `MISSING BUILD TAG: <file>` lines, or `None.`
-3. If no Go test functions are in the diff, return: `No Go test functions found in diff.`
-
-## agent: `js-test-analyzer`
----
-description: Run awk analysis on JavaScript vitest diff and return per-test stats
-model: small
----
-Read the pre-fetched test diff and extract per-test JavaScript vitest stats:
-
-```bash
-cat /tmp/gh-aw/agent/test-diff.txt | awk '
-/^\+(it|test)\(/ {
-  if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks
-  match($0, /(it|test)\(["\047]([^"\047]+)/, arr); test_name=arr[2]; assertions=0; errors=0; mocks=0
-}
-test_name && /^\+.*expect\(/ { assertions++ }
-test_name && /^\+.*(\.toThrow|\.rejects|\.toThrowError)/ { errors++ }
-test_name && /^\+.*(vi\.mock|vi\.spyOn|vi\.fn)/ { mocks++ }
-test_name && /^\+\}\)/ { print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks; test_name="" }
-END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks }
-'
-```
-
-Return a markdown table with this exact header:
-`| Test Name | Assertions | Error Matchers | vi.* Mock Calls |`
-
-Example row:
-`| should_validate_input | 3 | 1 | 0 |`
-
-If no JavaScript test blocks are in the diff, return: `No JavaScript test blocks found in diff.`
+**Token Budget**: Analyze at most **50 test functions** per run. If more exist, prioritize newly added functions over modified ones; add a sampling note in the PR comment. Keep individual test analysis concise — 2–3 sentences per test in the flagged section. Always wrap the per-test classification table and flagged-test details in `<details>` tags.

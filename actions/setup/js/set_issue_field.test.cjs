@@ -274,10 +274,6 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
         return Promise.resolve({
           repository: {
             issueFields: { nodes: [] },
-            owner: {
-              __typename: "Organization",
-              issueFields: { nodes: [] },
-            },
           },
         });
       }
@@ -349,6 +345,8 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     await h({ type: "set_issue_field", issue_number: 42, field_name: "Customer Impact", value: "High" }, {});
 
     expect(capturedQuery).not.toContain("... on User");
+    expect(capturedQuery).not.toContain("... on Organization");
+    expect(capturedQuery).not.toMatch(/owner\s*\{/);
   });
 
   it("fetchIssueFields filters out nodes missing id or name (null entries and unknown types)", async () => {
@@ -365,7 +363,6 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
                 { __typename: "IssueFieldUnknown", name: "Orphan" }, // missing id
               ],
             },
-            owner: { __typename: "Organization", issueFields: { nodes: [] } },
           },
         });
       }
