@@ -46,11 +46,8 @@ func run(pass *analysis.Pass) (any, error) {
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "httpnoctx")
 	ctxType := contextContextType(pass)
 
-	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
-		call, ok := cur.Node().(*ast.CallExpr)
-		if !ok {
-			continue
-		}
+	for cursor := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
+		call := cursor.Node().(*ast.CallExpr)
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
 		if filecheck.IsTestFile(pos.Filename) {
@@ -82,7 +79,7 @@ func run(pass *analysis.Pass) (any, error) {
 			}
 		}
 
-		if sel.Sel.Name == "NewRequest" && isHTTPPackage(pass, sel.X) && hasContextInEnclosingFunc(pass, cur, ctxType) {
+		if sel.Sel.Name == "NewRequest" && isHTTPPackage(pass, sel.X) && hasContextInEnclosingFunc(pass, cursor, ctxType) {
 			pass.ReportRangef(call,
 				"http.NewRequest does not propagate context; use http.NewRequestWithContext when context.Context is in scope",
 			)
@@ -134,13 +131,13 @@ func isHTTPPackage(pass *analysis.Pass, expr ast.Expr) bool {
 	return pkgName.Imported().Path() == "net/http"
 }
 
-func hasContextInEnclosingFunc(pass *analysis.Pass, cur inspector.Cursor, ctxType types.Type) bool {
+func hasContextInEnclosingFunc(pass *analysis.Pass, cursor inspector.Cursor, ctxType types.Type) bool {
 	if ctxType == nil {
 		return false
 	}
 
-	for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
-		fnType := enclosingFuncType(encl.Node())
+	for enclosing := range cursor.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
+		fnType := enclosingFuncType(enclosing.Node())
 		if fnType == nil || fnType.Params == nil {
 			continue
 		}
