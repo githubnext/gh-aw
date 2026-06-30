@@ -296,6 +296,12 @@ The value must be a bare filename — no directory separators, no `..`, and no s
 > [!NOTE]
 > `engine.harness` is currently only applied during Copilot engine execution. Setting it on other engines has no effect.
 
+### Harness Retry Count
+
+Built-in harness scripts (`copilot_harness.cjs`, `claude_harness.cjs`, `codex_harness.cjs`) currently use a fixed retry budget of **3 retries** after the initial run (4 total attempts).
+
+To specify a different retry count, provide a custom harness script and implement your own retry policy there. At present, `engine.harness` customization is only applied for the Copilot engine.
+
 **Validation rules:**
 
 | Rule | Valid example | Invalid example |

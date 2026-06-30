@@ -1109,6 +1109,21 @@ Persistent file storage via Git branches with unlimited retention. Unlike cache-
 
 Configuration for the AI agent execution environment, providing two isolation layers: the **Coding Agent Sandbox** ([AWF](#awf-agent-workflow-firewall) by default) for network egress control, and the **MCP Gateway** for routing MCP server calls through a unified HTTP endpoint. Configured via the `sandbox:` field in frontmatter. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
+### `sandbox.agent.sudo` (`sandbox.agent.sudo`)
+
+A `sandbox.agent` field that controls whether AWF (Agent Workflow Firewall) runs with elevated `sudo` privileges. Defaults to `false` (network isolation mode) — AWF runs rootless with `--network-isolation` for container-boundary egress control without requiring host-level `sudo`.
+
+- `sudo: false` (default) — AWF enforces network egress at the container level. The secure default for all workflows.
+- `sudo: true` (deprecated) — AWF runs as `sudo -E awf`, granting host-level `iptables` control. Emits a compile-time warning in non-strict mode and an error in [Strict Mode](#strict-mode).
+
+Omitting `sudo` is equivalent to `sudo: false`. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+
+```aw wrap
+sandbox:
+  agent:
+    sudo: false
+```
+
 ### Strict Mode
 
 Enhanced validation mode enforcing additional security checks and best practices. Enabled via `strict: true` in frontmatter or `--strict` flag when compiling.

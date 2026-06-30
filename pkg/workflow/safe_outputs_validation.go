@@ -232,16 +232,9 @@ func validateSafeOutputsMergePullRequest(config *SafeOutputsConfig) error {
 	}
 
 	validateRefGlobList := func(field string, patterns []string) error {
-		for i, pat := range patterns {
-			if errs := validateRefGlob(pat); len(errs) > 0 {
-				msgs := make([]string, 0, len(errs))
-				for _, e := range errs {
-					msgs = append(msgs, e.Message)
-				}
-				return fmt.Errorf("invalid glob pattern %q in safe-outputs.merge-pull-request.%s[%d]: %s", pat, field, i, strings.Join(msgs, "; "))
-			}
-		}
-		return nil
+		return validateGlobPatternList(patterns, validateRefGlob, func(i int, pat string, msgs []string) error {
+			return fmt.Errorf("invalid glob pattern %q in safe-outputs.merge-pull-request.%s[%d]: %s", pat, field, i, strings.Join(msgs, "; "))
+		})
 	}
 
 	if err := validateNonEmptyStringList("required-labels", c.RequiredLabels); err != nil {

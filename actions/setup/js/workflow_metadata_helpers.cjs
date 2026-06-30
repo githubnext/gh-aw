@@ -13,15 +13,10 @@
 function getWorkflowMetadata(owner, repo) {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-  const runId = context.runId || 0;
+  const runId = context.runId ?? 0;
   const runUrl = buildWorkflowRunUrl({ runId, serverUrl: context.serverUrl }, { owner, repo });
 
-  return {
-    workflowName,
-    workflowId,
-    runId,
-    runUrl,
-  };
+  return { workflowName, workflowId, runId, runUrl };
 }
 
 /**
@@ -38,14 +33,14 @@ function getWorkflowMetadata(owner, repo) {
  */
 function buildWorkflowRunUrl(ctx, workflowRepo) {
   const server = ctx.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
-  let { owner, repo } = workflowRepo || {};
+  let { owner = "", repo = "" } = workflowRepo ?? {};
   if (!owner || !repo) {
     // When context is spread (e.g. `{...context}`), prototype getters like context.repo
     // are not included. Fall back to GITHUB_REPOSITORY for the workflow repo.
-    const parts = (process.env.GITHUB_REPOSITORY || "").split("/");
-    if (parts.length === 2 && parts[0] && parts[1]) {
-      owner = owner || parts[0];
-      repo = repo || parts[1];
+    const [envOwner = "", envRepo = ""] = (process.env.GITHUB_REPOSITORY || "").split("/");
+    if (envOwner && envRepo) {
+      owner = owner || envOwner;
+      repo = repo || envRepo;
     }
   }
   return `${server}/${owner}/${repo}/actions/runs/${ctx.runId}`;

@@ -26,7 +26,7 @@ network:
 engine:
   id: copilot
   copilot-sdk: true
-  model: gpt-5.4-mini
+  model: claude-sonnet-4.5
 strict: true
 imports:
   - shared/otlp.md
@@ -310,7 +310,7 @@ safeoutputs noop --message "processed=4; skipped_checks_running=0; skipped_last_
 ## agent: `pr-processor`
 ---
 description: Processes one PR with minimal API calls and returns skip/nudge decisions
-model: claude-sonnet-4.6
+model: claude-sonnet-4.5
 ---
 Given one PR number and compact metadata:
 

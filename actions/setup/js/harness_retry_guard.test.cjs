@@ -92,6 +92,16 @@ describe("harness_retry_guard.cjs", () => {
     expect(result.goalAlreadyActive).toBe(true);
   });
 
+  it("detects goal already active for unfinished-goal wording", () => {
+    const result = detectNonRetryableHarnessGuard("cannot create a new goal because this thread has an unfinished goal; complete the existing goal first");
+    expect(result.goalAlreadyActive).toBe(true);
+  });
+
+  it("detects goal already active for unfinished-goal wording (JSON-wrapped)", () => {
+    const result = detectNonRetryableHarnessGuard('{"type":"error","message":"cannot create a new goal because this thread has an unfinished goal; complete the existing goal first"}');
+    expect(result.goalAlreadyActive).toBe(true);
+  });
+
   it("detects max_runs_exceeded by JSON error type", () => {
     const result = detectNonRetryableHarnessGuard('{"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (20 / 20).","invocation_count":20,"max_runs":20}}');
     expect(result.maxRunsExceeded).toBe(true);

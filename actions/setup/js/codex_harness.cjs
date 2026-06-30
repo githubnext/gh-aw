@@ -64,6 +64,7 @@ const MAX_DELAY_MS = 60000;
 // the human-readable message Codex emits inside "Reconnecting..." / error lines:
 // "Rate limit reached for <model> in organization <org> on tokens per min (TPM): ..."
 const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError|Rate limit reached for [^\s]+(?: in organization [^\s]+)? on tokens per min/i;
+const TOKEN_PER_MIN_RATE_LIMIT_PATTERN = /Rate limit reached for [^\s]+(?: in organization [^\s]+)? on tokens per min/i;
 
 // Pattern to detect when Codex's internal stream-reconnect budget is fully spent.
 // Codex emits "Reconnecting... N/N (reason)" where both numbers are the same when
@@ -104,6 +105,17 @@ function log(message) {
  */
 function isRateLimitError(output) {
   return RATE_LIMIT_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output indicates OpenAI token-per-minute exhaustion.
+ * This limit is workload-dependent and immediate fresh-run retries can consume
+ * additional budget without making progress.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isTokenPerMinuteRateLimitError(output) {
+  return TOKEN_PER_MIN_RATE_LIMIT_PATTERN.test(output);
 }
 
 /**
@@ -436,6 +448,7 @@ async function main() {
     }
 
     const isRateLimit = isRateLimitError(result.output);
+    const isTokenPerMinuteRateLimit = isTokenPerMinuteRateLimitError(result.output);
     const isAuthenticationFailed = isAuthenticationFailedError(result.output);
     const isMissingApiKey = isMissingApiKeyError(result.output);
     const isServer = isServerError(result.output);
@@ -446,6 +459,7 @@ async function main() {
       `attempt ${attempt + 1} failed:` +
         ` exitCode=${result.exitCode}` +
         ` isRateLimitError=${isRateLimit}` +
+        ` isTokenPerMinuteRateLimitError=${isTokenPerMinuteRateLimit}` +
         ` isAuthenticationFailedError=${isAuthenticationFailed}` +
         ` isMissingApiKeyError=${isMissingApiKey}` +
         ` isServerError=${isServer}` +
@@ -506,6 +520,14 @@ async function main() {
       break;
     }
 
+    // Token-per-minute limits indicate exhausted budget for the current workload profile.
+    // Fresh-run retries immediately repeat the same prompt workload and can quickly
+    // drain available credits without making forward progress.
+    if (isTokenPerMinuteRateLimit) {
+      log(`attempt ${attempt + 1}: token-per-minute rate limit detected — not retrying (fresh runs can further drain token budget)`);
+      break;
+    }
+
     // Codex's internal stream-reconnect retries are exhausted and the root cause is a
     // rate-limit error.  Each reconnect attempt immediately failed with the same limit,
     // so a fresh harness run will encounter the same rate-limit at the same point in the
@@ -545,6 +567,7 @@ if (typeof module !== "undefined" && module.exports) {
     resolveCodexPromptFileArgs,
     injectJsonFlag,
     isRateLimitError,
+    isTokenPerMinuteRateLimitError,
     isAuthenticationFailedError,
     isMissingApiKeyError,
     isServerError,
