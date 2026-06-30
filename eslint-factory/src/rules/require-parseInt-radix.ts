@@ -57,19 +57,39 @@ export const requireParseIntRadixRule = createRule({
       return isDirectAccess || isComputedAccess;
     }
 
+    /**
+     * Returns true when the second argument is a radix value that is safe (not equivalent to "no radix").
+     * radix 0 and the identifier `undefined` both behave identically to omitting the radix entirely, so
+     * they are treated as invalid. Any other value — including non-literal identifiers — is accepted.
+     */
+    function isValidSecondArg(arg: TSESTree.CallExpressionArgument): boolean {
+      // Literal 0 is spec-equivalent to no radix
+      if (arg.type === "Literal" && arg.value === 0) {
+        return false;
+      }
+      // The identifier `undefined` is equivalent to no radix
+      if (arg.type === "Identifier" && arg.name === "undefined") {
+        return false;
+      }
+      return true;
+    }
+
     return {
       CallExpression(node) {
-        if (node.arguments.length >= 2) {
+        if (node.arguments.length >= 2 && isValidSecondArg(node.arguments[1])) {
           return;
         }
 
+        // Do not offer a fix when the first argument is a spread (e.g. parseInt(...args)):
+        // inserting ", 10" after a SpreadElement produces broken output.
+        const firstArg = node.arguments[0];
         const suggest =
-          node.arguments.length === 1
+          node.arguments.length === 1 && firstArg.type !== "SpreadElement"
             ? [
                 {
                   messageId: "addRadix10" as const,
                   fix(fixer: TSESLint.RuleFixer) {
-                    return fixer.insertTextAfter(node.arguments[0], ", 10");
+                    return fixer.insertTextAfter(firstArg, ", 10");
                   },
                 },
               ]

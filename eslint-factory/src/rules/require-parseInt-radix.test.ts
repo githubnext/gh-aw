@@ -34,6 +34,9 @@ describe("require-parseInt-radix", () => {
         `window["parseInt"](str, 10);`,
         `global.parseInt(str, 10);`,
         `global["parseInt"](str, 10);`,
+        // Non-literal identifier radix is accepted (cannot be statically verified but is not a known-bad literal)
+        `parseInt(str, base);`,
+        `Number.parseInt(str, radix);`,
       ],
       invalid: [],
     });
@@ -153,6 +156,67 @@ describe("require-parseInt-radix", () => {
               suggestions: [{ messageId: "addRadix10", output: `globalThis["parseInt"](value, 10);` }],
             },
           ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: radix 0 is rejected (spec-equivalent to no radix)", () => {
+    cjsRuleTester.run("require-parseInt-radix", requireParseIntRadixRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `parseInt(str, 0);`,
+          errors: [{ messageId: "requireRadix" }],
+        },
+        {
+          code: `Number.parseInt(str, 0);`,
+          errors: [{ messageId: "requireRadix" }],
+        },
+        {
+          code: `globalThis.parseInt(str, 0);`,
+          errors: [{ messageId: "requireRadix" }],
+        },
+        {
+          code: `window["parseInt"](str, 0);`,
+          errors: [{ messageId: "requireRadix" }],
+        },
+        {
+          code: `global.parseInt(str, 0);`,
+          errors: [{ messageId: "requireRadix" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: radix undefined is rejected (equivalent to no radix)", () => {
+    cjsRuleTester.run("require-parseInt-radix", requireParseIntRadixRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `parseInt(str, undefined);`,
+          errors: [{ messageId: "requireRadix" }],
+        },
+        {
+          code: `Number.parseInt(str, undefined);`,
+          errors: [{ messageId: "requireRadix" }],
+        },
+        {
+          code: `globalThis.parseInt(str, undefined);`,
+          errors: [{ messageId: "requireRadix" }],
+        },
+      ],
+    });
+  });
+
+  it("no broken fix for spread-element first argument", () => {
+    cjsRuleTester.run("require-parseInt-radix", requireParseIntRadixRule, {
+      valid: [],
+      invalid: [
+        {
+          // Spread as the only argument: no suggestion should be offered
+          code: `parseInt(...args);`,
+          errors: [{ messageId: "requireRadix", suggestions: [] }],
         },
       ],
     });
