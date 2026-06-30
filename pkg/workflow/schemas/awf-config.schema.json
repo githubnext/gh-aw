@@ -10,18 +10,6 @@
       "type": "string",
       "description": "JSON Schema URL for IDE validation and autocomplete."
     },
-    "runner": {
-      "type": "object",
-      "description": "Runner topology metadata. AWF uses this to activate topology-specific behaviors (split-filesystem handling, network isolation, sysroot image, path-prefix probes, tool cache validation).",
-      "additionalProperties": false,
-      "properties": {
-        "topology": {
-          "type": "string",
-          "description": "Runner execution topology. When set to \"arc-dind\", AWF activates split-filesystem handling, network isolation, sysroot image staging, and DinD pre-staging automatically.",
-          "enum": ["arc-dind"]
-        }
-      }
-    },
     "network": {
       "type": "object",
       "description": "Network egress configuration.",
@@ -70,12 +58,12 @@
             "required": ["topologyAttach"]
           },
           "then": {
+            "required": ["isolation"],
             "properties": {
               "isolation": {
                 "const": true
               }
-            },
-            "required": ["isolation"]
+            }
           }
         }
       ]
@@ -161,7 +149,7 @@
         "maxTurns": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 403 and error type 'max_runs_exceeded'. See spec §11."
+          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec §11."
         },
         "maxRuns": {
           "type": "integer",
@@ -727,6 +715,22 @@
           "type": "string",
           "enum": ["github.com", "ghes", "ghec", "ghec-self-hosted"],
           "description": "The GitHub deployment type. 'github.com' = GitHub.com (default), 'ghes' = GitHub Enterprise Server (on-premises), 'ghec' = GitHub Enterprise Cloud (*.ghe.com tenants), 'ghec-self-hosted' = GHEC with self-hosted runners."
+        }
+      }
+    },
+    "runner": {
+      "type": "object",
+      "description": "Runner topology configuration. Declares the runner deployment model so AWF can activate the correct split-filesystem, sysroot, and network isolation behavior.",
+      "additionalProperties": false,
+      "properties": {
+        "topology": {
+          "type": "string",
+          "enum": ["standard", "arc-dind"],
+          "description": "Runner deployment topology. 'standard' (default) = GitHub-hosted VM or self-hosted runner with local Docker. 'arc-dind' = ARC (Actions Runner Controller) with Docker-in-Docker sidecar, where the runner and Docker daemon have separate filesystems. When set to 'arc-dind', AWF applies overridable defaults: network.isolation=true, dind.preStageDirs=true, sysroot image activation, and tool cache validation."
+        },
+        "sysrootImage": {
+          "type": "string",
+          "description": "Container image providing system-level build tools (gcc, make, libraries) for the agent's chroot base. Used as an init container that copies its filesystem into a named volume mounted at /host. Only used when runner.topology is 'arc-dind'. Defaults to 'ghcr.io/github/gh-aw-firewall/build-tools:<imageTag>'."
         }
       }
     }

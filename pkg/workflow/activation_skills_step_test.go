@@ -36,13 +36,9 @@ func TestBuildActivationJob_AddsFrontmatterSkillsInstallSteps(t *testing.T) {
 	assert.Contains(t, steps, "Upgrade gh CLI for frontmatter skills", "expected gh upgrade step in activation job")
 	assert.Contains(t, steps, "Install frontmatter skills", "expected frontmatter skills install step in activation job")
 	assert.Contains(t, steps, "GH_AW_SKILL_DIR: \".claude/skills\"", "expected engine skill directory env var")
-	assert.Contains(t, steps, "GH_AW_SKILLS_SUMMARY: '[\"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6\",\"githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6\"]'", "expected summary env var for requested skills")
-	assert.Contains(t, steps, "GH_AW_SKILL_SPEC_0: \"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6\"", "expected first skill env var")
-	assert.Contains(t, steps, "GH_AW_SKILL_SPEC_1: \"githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6\"", "expected second skill env var")
-	assert.Contains(t, steps, "skill_spec=\"${GH_AW_SKILL_SPEC_0}\"", "expected runtime install loop to read first skill from env")
-	assert.Contains(t, steps, "install_args+=(--all)", "expected runtime repository-scope detection")
-	assert.Contains(t, steps, "gh skill install \"${skill_spec}\" \"${install_args[@]}\" --dir \"${SKILLS_DST}\" --force", "expected runtime install command to use quoted env values")
-	assert.Contains(t, steps, "### Frontmatter skills installed", "expected step summary output")
+	assert.Contains(t, steps, "GH_AW_FRONTMATTER_SKILLS: \"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6\\ngithubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6\"", "expected skills env var")
+	assert.Contains(t, steps, "const { main } = require('${{ runner.temp }}/gh-aw/actions/install_frontmatter_skills.cjs');", "expected github-script runtime loader for skill install")
+	assert.NotContains(t, steps, "GH_AW_SKILL_SPEC_0", "expected per-skill env vars to be removed")
 }
 
 func TestBuildActivationJob_AddsExpressionSkillInstallSteps(t *testing.T) {
@@ -65,9 +61,8 @@ func TestBuildActivationJob_AddsExpressionSkillInstallSteps(t *testing.T) {
 	require.NotNil(t, job)
 
 	steps := strings.Join(job.Steps, "")
-	assert.Contains(t, steps, "GH_AW_SKILL_SPEC_0: \"${{ inputs.skill_ref }}\"", "expected whole-expression skill env var")
-	assert.Contains(t, steps, "GH_AW_SKILL_SPEC_1: \"githubnext/skills@${{ github.sha }}\"", "expected expression-ref skill env var")
-	assert.NotContains(t, steps, "echo \"Installing skill reference: ${{ inputs.skill_ref }}\"", "expression should not be interpolated directly into the run script")
+	assert.Contains(t, steps, "GH_AW_FRONTMATTER_SKILLS: \"${{ inputs.skill_ref }}\\ngithubnext/skills@${{ github.sha }}\"", "expected skills env var to preserve expressions for runtime resolution")
+	assert.NotContains(t, steps, "GH_AW_SKILL_SPEC_0", "expected per-skill env vars to be removed")
 }
 
 func TestBuildActivationJob_NoSkillsStepsWhenSkillsAbsent(t *testing.T) {

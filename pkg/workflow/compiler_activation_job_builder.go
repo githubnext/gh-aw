@@ -529,11 +529,6 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 		engineID = ctx.data.EngineConfig.ID
 	}
 	skillDir := GetEngineSkillDir(engineID)
-	skillSpecsJSON, err := json.Marshal(ctx.data.Skills)
-	if err != nil {
-		return fmt.Errorf("marshal activation skill specs: %w", err)
-	}
-	escapedSkillSpecsJSON := strings.ReplaceAll(string(skillSpecsJSON), "'", "''")
 
 	ctx.steps = append(ctx.steps, "      - name: Upgrade gh CLI for frontmatter skills\n")
 	ctx.steps = append(ctx.steps, "        run: |\n")
@@ -550,41 +545,12 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	ctx.steps = append(ctx.steps, "      - name: Install frontmatter skills\n")
 	ctx.steps = append(ctx.steps, "        env:\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_TOKEN: %s\n", c.resolveActivationToken(ctx.data)))
-	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_SKILL_DIR: %q\n", skillDir))
-	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_SKILLS_SUMMARY: '%s'\n", escapedSkillSpecsJSON))
-	for i, skillSpec := range ctx.data.Skills {
-		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", fmt.Sprintf("GH_AW_SKILL_SPEC_%d", i), skillSpec))
-	}
-	ctx.steps = append(ctx.steps, "        run: |\n")
-	ctx.steps = append(ctx.steps, "          set -euo pipefail\n")
-	ctx.steps = append(ctx.steps, "          SKILLS_DST=\"/tmp/gh-aw/${GH_AW_SKILL_DIR}\"\n")
-	ctx.steps = append(ctx.steps, "          mkdir -p \"${SKILLS_DST}\"\n")
-	ctx.steps = append(ctx.steps, "          echo \"Installing frontmatter skills to ${SKILLS_DST}\"\n")
-	ctx.steps = append(ctx.steps, "          echo \"Existing skills at destination may be replaced (--force) to ensure pinned refs are up to date\"\n")
-	for i := range ctx.data.Skills {
-		ctx.steps = append(ctx.steps, fmt.Sprintf("          skill_spec=\"${GH_AW_SKILL_SPEC_%d}\"\n", i))
-		ctx.steps = append(ctx.steps, "          echo \"Installing skill reference: ${skill_spec}\"\n")
-		// Keep this runtime owner/repo vs owner/repo/path detection aligned with
-		// isRepositorySkillSpec so expression-based refs behave the same after resolution.
-		ctx.steps = append(ctx.steps, "          skill_base=\"${skill_spec%@*}\"\n")
-		ctx.steps = append(ctx.steps, "          install_args=()\n")
-		ctx.steps = append(ctx.steps, "          if [[ \"${skill_base}\" == */* && \"${skill_base}\" != */*/* ]]; then\n")
-		ctx.steps = append(ctx.steps, "            install_args+=(--all)\n")
-		ctx.steps = append(ctx.steps, "          fi\n")
-		ctx.steps = append(ctx.steps, "          gh skill install \"${skill_spec}\" \"${install_args[@]}\" --dir \"${SKILLS_DST}\" --force\n")
-	}
-	ctx.steps = append(ctx.steps, "          SKILL_COUNT=$(find \"${SKILLS_DST}\" -name \"SKILL.md\" | wc -l | tr -d '[:space:]')\n")
-	ctx.steps = append(ctx.steps, "          echo \"Installed ${SKILL_COUNT} skill file(s)\"\n")
-	ctx.steps = append(ctx.steps, "          core_summary_path=\"${GITHUB_STEP_SUMMARY:-}\"\n")
-	ctx.steps = append(ctx.steps, "          if [ -n \"${core_summary_path}\" ]; then\n")
-	ctx.steps = append(ctx.steps, "            {\n")
-	ctx.steps = append(ctx.steps, "              echo \"### Frontmatter skills installed\"\n")
-	ctx.steps = append(ctx.steps, "              echo \"\"\n")
-	ctx.steps = append(ctx.steps, "              echo \"- Engine skill directory: \\`${GH_AW_SKILL_DIR}\\`\"\n")
-	ctx.steps = append(ctx.steps, "              echo \"- Requested references: \\`${GH_AW_SKILLS_SUMMARY}\\`\"\n")
-	ctx.steps = append(ctx.steps, "              echo \"- Installed SKILL.md files: ${SKILL_COUNT}\"\n")
-	ctx.steps = append(ctx.steps, "            } >> \"${core_summary_path}\"\n")
-	ctx.steps = append(ctx.steps, "          fi\n")
+	ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_SKILL_DIR", skillDir))
+	ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_FRONTMATTER_SKILLS", strings.Join(ctx.data.Skills, "\n")))
+	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)))
+	ctx.steps = append(ctx.steps, "        with:\n")
+	ctx.steps = append(ctx.steps, "          script: |\n")
+	ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("install_frontmatter_skills.cjs"))
 	return nil
 }
 
