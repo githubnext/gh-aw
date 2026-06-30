@@ -196,6 +196,7 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		handleDaily,
 		handleHourlyWeekdays,
 		handleHourly,
+		handleEveryMinute,
 		handleWeeklyAround,
 		handleWeeklySpecific,
 		handleWeekly,
@@ -322,6 +323,32 @@ func handleHourly(fuzzyCron, workflowIdentifier string) (string, bool, error) {
 	minute := stableHash(workflowIdentifier, 50) + 5
 	result := fmt.Sprintf("%d */%d * * *", minute, interval)
 	scheduleFuzzyScatterLog.Printf("FUZZY:HOURLY/%d scattered: minute=%d, result=%s", interval, minute, result)
+	return result, true, nil
+}
+
+// handleEveryMinute scatters "FUZZY:EVERY_MINUTE/N * * * *" to "M/N * * * *",
+// where M is a deterministic offset in [0, N-1] derived from the workflow identifier.
+// This ensures that concurrent "every N minutes" workflows start on different minutes,
+// distributing execution across the clock face and reducing simultaneous load spikes.
+func handleEveryMinute(fuzzyCron, workflowIdentifier string) (string, bool, error) {
+	const prefix = "FUZZY:EVERY_MINUTE/"
+	if !strings.HasPrefix(fuzzyCron, prefix) {
+		return "", false, nil
+	}
+	// parseHourlyInterval extracts the integer N from a "PREFIX/N ..." pattern;
+	// it is reused here because the parsing logic is identical.
+	interval, err := parseHourlyInterval(fuzzyCron, prefix, "invalid fuzzy every-minute pattern", "invalid interval in fuzzy every-minute pattern")
+	if err != nil {
+		return "", true, err
+	}
+	if interval < 1 {
+		return "", true, fmt.Errorf("invalid interval in fuzzy every-minute pattern: interval must be >= 1, got %d", interval)
+	}
+	// stableHash returns a value in [0, interval-1], so offset is always a valid
+	// starting minute that preserves the N-minute period.
+	offset := stableHash(workflowIdentifier, interval)
+	result := fmt.Sprintf("%d/%d * * * *", offset, interval)
+	scheduleFuzzyScatterLog.Printf("FUZZY:EVERY_MINUTE/%d scattered: offset=%d, result=%s", interval, offset, result)
 	return result, true, nil
 }
 
