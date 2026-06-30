@@ -32,7 +32,7 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.195"
+const DefaultClaudeCodeVersion Version = "2.1.196"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
@@ -125,7 +125,7 @@ const DefaultMCPGatewayVersion Version = "v0.3.32"
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.76"
+const DefaultPlaywrightMCPVersion Version = "0.0.77"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package
 // Used when tools.playwright.mode is "cli" to install the CLI tool instead of the MCP server.
