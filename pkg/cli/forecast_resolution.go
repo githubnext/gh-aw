@@ -10,8 +10,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var forecastResolutionLog = logger.New("cli:forecast_resolution")
 
 const (
 	forecastRateLimitMaxAttempts = 3
@@ -38,6 +41,7 @@ var (
 // When WorkflowIDs is empty, all agentic workflow IDs in the repository are returned.
 // When RepoOverride is set, workflows are discovered via the GitHub API instead of local files.
 func resolveForecastWorkflows(ctx context.Context, config ForecastConfig) ([]string, error) {
+	forecastResolutionLog.Printf("Resolving forecast workflows: repoOverride=%q, explicitIDs=%d", config.RepoOverride, len(config.WorkflowIDs))
 	if config.RepoOverride != "" {
 		return resolveForecastWorkflowsFromRemote(ctx, config.WorkflowIDs, config.RepoOverride, config.Verbose)
 	}
@@ -120,6 +124,7 @@ func fetchWorkflowsWithBackoff(ctx context.Context, ids []string, repoOverride s
 		}
 
 		backoff := forecastRateLimitBackoffDuration(attempt)
+		forecastResolutionLog.Printf("Rate limited discovering workflows in %s; backing off %s before retry %d/%d", repoOverride, backoff, attempt+1, forecastRateLimitMaxAttempts)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
 			fmt.Sprintf("GitHub API rate limit hit while discovering workflows in %s; backing off for %s before retry %d/%d",
 				repoOverride, backoff, attempt+1, forecastRateLimitMaxAttempts)))
@@ -129,6 +134,7 @@ func fetchWorkflowsWithBackoff(ctx context.Context, ids []string, repoOverride s
 	}
 
 	if len(ids) > 0 {
+		forecastResolutionLog.Printf("Rate limit exhausted in %s; returning %d caller-supplied workflow IDs as partial results", repoOverride, len(ids))
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
 			fmt.Sprintf("GitHub API rate limit exhausted while discovering workflows in %s; continuing with caller-supplied workflow IDs as partial results",
 				repoOverride)))
