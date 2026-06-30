@@ -279,7 +279,7 @@ Conforming projects SHOULD publish vectors in JSON (or equivalent structured dat
 - `source = "model-based"` for state-model-derived vectors
 - `source = "verification"` for metamorphic/property-derived vectors
 
-Reference vectors MUST be stored at `specs/test-vectors/bash-command-parser/` within the repository root and MUST be addressable via stable, version-qualified filenames following the pattern `<version>-<source>.json` (for example, `v1.1.0-model-based.json` and `v1.1.0-verification.json`). The canonical URI for the test vector collection is `specs/test-vectors/bash-command-parser/` relative to the repository root. Each implementation's native test runner MUST consume vectors from this canonical path.
+Reference vectors MUST be stored at `specs/test-vectors/bash-command-parser/` within the repository root and MUST be addressable via stable, version-qualified filenames following the pattern `<version>-<source>.json` (for example, `v1.1.0-model-based.json` and `v1.1.0-verification.json`). The canonical path for the test vector collection is `specs/test-vectors/bash-command-parser/` relative to the repository root. Each implementation's native test runner MUST consume vectors from this canonical path.
 
 ---
 
