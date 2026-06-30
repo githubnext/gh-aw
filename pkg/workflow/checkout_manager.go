@@ -45,6 +45,11 @@ type CheckoutConfig struct {
 	// Path within GITHUB_WORKSPACE to place the checkout. Defaults to the workspace root.
 	Path string `json:"path,omitempty"`
 
+	// PathExplicit tracks whether the workflow frontmatter explicitly provided a
+	// path: field. This preserves the distinction between an omitted path and an
+	// explicit root checkout (path: .), which is normalized to Path == "".
+	PathExplicit bool `json:"-"`
+
 	// GitHubToken overrides the default GITHUB_TOKEN for authentication.
 	// Use ${{ secrets.MY_TOKEN }} to reference a repository secret.
 	// Maps to the "token" input of actions/checkout.

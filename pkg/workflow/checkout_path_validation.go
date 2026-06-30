@@ -8,7 +8,7 @@ import (
 
 var checkoutPathValidationLog = newValidationLogger("checkout_path")
 
-// validateCrossRepoCheckoutPaths emits deprecation warnings for cross-repository
+// deriveAndWarnCrossRepoCheckoutPaths emits warnings for cross-repository
 // checkout entries that have no explicit path: field, and auto-derives a path from
 // the repository name.
 //
@@ -18,16 +18,20 @@ var checkoutPathValidationLog = newValidationLogger("checkout_path")
 // This mirrors what actions/checkout itself recommends when checking out multiple
 // repositories simultaneously.
 //
-// A deprecation warning is emitted for each affected entry so that workflow authors
-// can add the explicit path: field and opt out of the auto-derivation.
+// A warning is emitted for each affected entry so that workflow authors can add
+// the explicit path: field and opt out of the auto-derivation.
 //
 // Dynamic repository expressions (those containing "${{") are skipped: the compiler
 // cannot determine at compile time whether they target a different repository, and
 // common patterns such as `repository: ${{ github.repository }}` are valid
 // same-repository checkouts that should not receive a warning.
-func (c *Compiler) validateCrossRepoCheckoutPaths(checkoutConfigs []*CheckoutConfig, markdownPath string) {
+//
+// NOTE: This pass intentionally mutates the provided CheckoutConfig entries before
+// YAML generation. It also intentionally remains warning-only, even in strict mode,
+// to preserve backward compatibility with existing workflows.
+func (c *Compiler) deriveAndWarnCrossRepoCheckoutPaths(checkoutConfigs []*CheckoutConfig, markdownPath string) {
 	for _, cfg := range checkoutConfigs {
-		if cfg == nil || cfg.Repository == "" || cfg.Path != "" {
+		if cfg == nil || cfg.Repository == "" || cfg.Path != "" || cfg.PathExplicit {
 			continue
 		}
 
@@ -35,16 +39,25 @@ func (c *Compiler) validateCrossRepoCheckoutPaths(checkoutConfigs []*CheckoutCon
 		// targets a different repository (e.g. ${{ github.repository }} is the
 		// same repo checked out at a specific ref, which is a valid pattern for
 		// pull_request_target and should not trigger a warning).
-		if strings.Contains(cfg.Repository, "${{") {
+		repository := strings.TrimSpace(cfg.Repository)
+		if repository == "" || strings.Contains(repository, "${{") {
+			continue
+		}
+
+		repository = strings.TrimRight(repository, "/")
+		if repository == "" {
 			continue
 		}
 
 		checkoutPathValidationLog.Printf("cross-repo checkout %q has no explicit path", cfg.Repository)
-
 		// Static repository slug: auto-derive path from the repository-name portion.
-		repoName := cfg.Repository
-		if slash := strings.LastIndex(cfg.Repository, "/"); slash >= 0 {
-			repoName = cfg.Repository[slash+1:]
+		repoName := repository
+		if slash := strings.LastIndex(repository, "/"); slash >= 0 {
+			repoName = repository[slash+1:]
+		}
+		if repoName == "" {
+			checkoutPathValidationLog.Printf("skipping auto-derivation for cross-repo checkout %q: empty repository name", cfg.Repository)
+			continue
 		}
 
 		checkoutPathValidationLog.Printf("auto-deriving path %q for cross-repo checkout %q", repoName, cfg.Repository)
@@ -53,7 +66,7 @@ func (c *Compiler) validateCrossRepoCheckoutPaths(checkoutConfigs []*CheckoutCon
 		msg := strings.Join([]string{
 			fmt.Sprintf("checkout: repository %q has no explicit path: field.", cfg.Repository),
 			fmt.Sprintf("The compiler has auto-derived path: %q from the repository name.", repoName),
-			"This auto-derivation is deprecated. Add an explicit path: to silence this warning:",
+			"Add an explicit path: field to silence this warning. Auto-derivation may become an error in a future release:",
 			"",
 			"  checkout:",
 			"    - repository: " + cfg.Repository,

@@ -1,6 +1,11 @@
+//go:build !integration
+
 package workflow
 
 import (
+	"bytes"
+	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -8,21 +13,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestValidateCrossRepoCheckoutPaths verifies that cross-repo checkout entries
+// TestDeriveAndWarnCrossRepoCheckoutPaths verifies that cross-repo checkout entries
 // without an explicit path: get a warning and an auto-derived path.
-func TestValidateCrossRepoCheckoutPaths(t *testing.T) {
+func TestDeriveAndWarnCrossRepoCheckoutPaths(t *testing.T) {
 	const markdownPath = "test-workflow.md"
 
 	t.Run("no checkout configs produces no warning", func(t *testing.T) {
 		c := NewCompiler()
-		c.validateCrossRepoCheckoutPaths(nil, markdownPath)
+		c.deriveAndWarnCrossRepoCheckoutPaths(nil, markdownPath)
 		assert.Equal(t, 0, c.GetWarningCount())
 	})
 
 	t.Run("default-only checkout (no repository) produces no warning", func(t *testing.T) {
 		c := NewCompiler()
 		configs := []*CheckoutConfig{{Path: "."}}
-		c.validateCrossRepoCheckoutPaths(configs, markdownPath)
+		c.deriveAndWarnCrossRepoCheckoutPaths(configs, markdownPath)
 		assert.Equal(t, 0, c.GetWarningCount())
 		assert.Equal(t, ".", configs[0].Path, "path must not be modified")
 	})
@@ -32,7 +37,7 @@ func TestValidateCrossRepoCheckoutPaths(t *testing.T) {
 		configs := []*CheckoutConfig{
 			{Repository: "owner/repo", Path: "my-repo"},
 		}
-		c.validateCrossRepoCheckoutPaths(configs, markdownPath)
+		c.deriveAndWarnCrossRepoCheckoutPaths(configs, markdownPath)
 		assert.Equal(t, 0, c.GetWarningCount())
 		assert.Equal(t, "my-repo", configs[0].Path, "explicit path must not be changed")
 	})
@@ -42,7 +47,7 @@ func TestValidateCrossRepoCheckoutPaths(t *testing.T) {
 		configs := []*CheckoutConfig{
 			{Repository: "githubnext/gh-aw-side-repo"},
 		}
-		c.validateCrossRepoCheckoutPaths(configs, markdownPath)
+		c.deriveAndWarnCrossRepoCheckoutPaths(configs, markdownPath)
 		assert.Equal(t, 1, c.GetWarningCount())
 		assert.Equal(t, "gh-aw-side-repo", configs[0].Path, "path must be auto-derived from repo name")
 	})
@@ -52,7 +57,7 @@ func TestValidateCrossRepoCheckoutPaths(t *testing.T) {
 		configs := []*CheckoutConfig{
 			{Repository: "some-org/my-awesome-tool"},
 		}
-		c.validateCrossRepoCheckoutPaths(configs, markdownPath)
+		c.deriveAndWarnCrossRepoCheckoutPaths(configs, markdownPath)
 		require.Equal(t, 1, c.GetWarningCount())
 		assert.Equal(t, "my-awesome-tool", configs[0].Path)
 	})
@@ -64,7 +69,7 @@ func TestValidateCrossRepoCheckoutPaths(t *testing.T) {
 			{Repository: "owner/beta", Path: "explicit-beta"}, // already has path — unchanged
 			{Repository: "owner/gamma"},
 		}
-		c.validateCrossRepoCheckoutPaths(configs, markdownPath)
+		c.deriveAndWarnCrossRepoCheckoutPaths(configs, markdownPath)
 		assert.Equal(t, 2, c.GetWarningCount())
 		assert.Equal(t, "alpha", configs[0].Path)
 		assert.Equal(t, "explicit-beta", configs[1].Path, "pre-set path must not be changed")
@@ -74,7 +79,7 @@ func TestValidateCrossRepoCheckoutPaths(t *testing.T) {
 	t.Run("nil checkout entry in slice is skipped without panic", func(t *testing.T) {
 		c := NewCompiler()
 		configs := []*CheckoutConfig{nil}
-		require.NotPanics(t, func() { c.validateCrossRepoCheckoutPaths(configs, markdownPath) })
+		require.NotPanics(t, func() { c.deriveAndWarnCrossRepoCheckoutPaths(configs, markdownPath) })
 		assert.Equal(t, 0, c.GetWarningCount())
 	})
 
@@ -83,7 +88,7 @@ func TestValidateCrossRepoCheckoutPaths(t *testing.T) {
 		configs := []*CheckoutConfig{
 			{Repository: "${{ github.event.inputs.repo }}"},
 		}
-		c.validateCrossRepoCheckoutPaths(configs, markdownPath)
+		c.deriveAndWarnCrossRepoCheckoutPaths(configs, markdownPath)
 		assert.Equal(t, 0, c.GetWarningCount(), "dynamic expressions cannot be determined as cross-repo at compile time")
 		assert.Empty(t, configs[0].Path, "path must not be modified for dynamic repos")
 	})
@@ -93,27 +98,33 @@ func TestValidateCrossRepoCheckoutPaths(t *testing.T) {
 		configs := []*CheckoutConfig{
 			{Repository: "${{ github.repository }}"},
 		}
-		c.validateCrossRepoCheckoutPaths(configs, markdownPath)
+		c.deriveAndWarnCrossRepoCheckoutPaths(configs, markdownPath)
 		assert.Equal(t, 0, c.GetWarningCount(), "github.repository is a same-repo pattern used in pull_request_target")
 		assert.Empty(t, configs[0].Path)
 	})
 
 	t.Run("warning message for static repo contains suggested path", func(t *testing.T) {
+		path, stderrMsg, warnCount := warnCrossRepoPath(t, "acme/widget-service")
+		assert.Equal(t, "widget-service", path)
+		assert.Equal(t, 1, warnCount)
+		assert.Contains(t, stderrMsg, `checkout: repository "acme/widget-service" has no explicit path: field.`)
+		assert.Contains(t, stderrMsg, "path: widget-service")
+	})
+
+	t.Run("explicit root path remains opt-in when normalized to empty string", func(t *testing.T) {
 		c := NewCompiler()
-		// Capture stderr by checking warning count and path derivation;
-		// the actual message text is validated by the path value and warning count.
 		configs := []*CheckoutConfig{
-			{Repository: "acme/widget-service"},
+			{Repository: "owner/repo", PathExplicit: true},
 		}
-		c.validateCrossRepoCheckoutPaths(configs, markdownPath)
-		assert.Equal(t, "widget-service", configs[0].Path)
-		assert.Equal(t, 1, c.GetWarningCount())
+		c.deriveAndWarnCrossRepoCheckoutPaths(configs, markdownPath)
+		assert.Equal(t, 0, c.GetWarningCount(), "explicit root path must not trigger auto-derivation")
+		assert.Empty(t, configs[0].Path, "explicit root path should stay at workspace root")
 	})
 }
 
-// TestValidateCrossRepoCheckoutPathsViaCompiler verifies that the warning and path
+// TestDeriveAndWarnCrossRepoCheckoutPathsViaCompiler verifies that the warning and path
 // auto-derivation are triggered end-to-end when compiling a workflow.
-func TestValidateCrossRepoCheckoutPathsViaCompiler(t *testing.T) {
+func TestDeriveAndWarnCrossRepoCheckoutPathsViaCompiler(t *testing.T) {
 	t.Run("compiler emits warning for cross-repo checkout without path", func(t *testing.T) {
 		c := NewCompiler()
 
@@ -155,30 +166,47 @@ func minimalWorkflowData() *WorkflowData {
 	}
 }
 
-// warnCrossRepoPath is a helper used by tests that need to capture the warning message text.
-func warnCrossRepoPath(t *testing.T, repository string) (path string, warnCount int) {
+// warnCrossRepoPath returns the derived path, emitted warning text, and warning count.
+func warnCrossRepoPath(t *testing.T, repository string) (path string, stderrMsg string, warnCount int) {
 	t.Helper()
+	origStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	defer func() { os.Stderr = origStderr }()
+
 	c := NewCompiler()
 	cfg := &CheckoutConfig{Repository: repository}
-	c.validateCrossRepoCheckoutPaths([]*CheckoutConfig{cfg}, "test.md")
-	return cfg.Path, c.GetWarningCount()
+	c.deriveAndWarnCrossRepoCheckoutPaths([]*CheckoutConfig{cfg}, "test.md")
+
+	require.NoError(t, w.Close())
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, r)
+	require.NoError(t, err)
+	require.NoError(t, r.Close())
+
+	return cfg.Path, buf.String(), c.GetWarningCount()
 }
 
 func TestWarnCrossRepoPath_RepoNameExtraction(t *testing.T) {
 	tests := []struct {
 		repository   string
 		expectedPath string
+		expectedWarn int
 	}{
-		{"owner/repo", "repo"},
-		{"github/copilot", "copilot"},
-		{"githubnext/gh-aw-side-repo", "gh-aw-side-repo"},
-		{"a/b/c", "c"}, // only the last segment
+		{"owner/repo", "repo", 1},
+		{"github/copilot", "copilot", 1},
+		{"githubnext/gh-aw-side-repo", "gh-aw-side-repo", 1},
+		{"a/b/c", "c", 1},                               // only the last segment
+		{"just-repo-no-owner", "just-repo-no-owner", 1}, // no slash: use full string
+		{"owner/", "owner", 1},                          // trailing slash is trimmed before derivation
+		{"   ", "", 0},                                  // whitespace-only repository is ignored
 	}
 	for _, tt := range tests {
 		t.Run(tt.repository, func(t *testing.T) {
-			path, count := warnCrossRepoPath(t, tt.repository)
+			path, _, count := warnCrossRepoPath(t, tt.repository)
 			assert.Equal(t, tt.expectedPath, path)
-			assert.Equal(t, 1, count)
+			assert.Equal(t, tt.expectedWarn, count)
 		})
 	}
 }
@@ -194,7 +222,7 @@ func TestCrossRepoCheckoutPathAppearsInManifestStep(t *testing.T) {
 			{Repository: "githubnext/gh-aw-side-repo"},
 		}
 		c := NewCompiler()
-		c.validateCrossRepoCheckoutPaths(configs, "test.md")
+		c.deriveAndWarnCrossRepoCheckoutPaths(configs, "test.md")
 
 		cm := NewCheckoutManager(configs)
 		steps := cm.GenerateCheckoutManifestStep(getActionPin)
@@ -215,7 +243,7 @@ func TestCrossRepoCheckoutPathAppearsInCheckoutStep(t *testing.T) {
 		{Repository: "acme/my-lib"},
 	}
 	c := NewCompiler()
-	c.validateCrossRepoCheckoutPaths(configs, "test.md")
+	c.deriveAndWarnCrossRepoCheckoutPaths(configs, "test.md")
 
 	cm := NewCheckoutManager(configs)
 	lines := cm.GenerateAdditionalCheckoutSteps(getActionPin)

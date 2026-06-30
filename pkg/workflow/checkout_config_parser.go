@@ -101,6 +101,7 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		if !ok {
 			return nil, errors.New("checkout.path must be a string")
 		}
+		cfg.PathExplicit = true
 		// Normalize "." to empty string: both mean the workspace root and
 		// are treated identically by the checkout step generator.
 		if s == "." {
