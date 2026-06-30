@@ -1,35 +1,40 @@
 # Agent Performance — Latest Run
 
-**Timestamp:** 2026-06-29T14:01Z | **Run:** [§28377470831](https://github.com/github/gh-aw/actions/runs/28377470831)
+**Timestamp:** 2026-06-30T13:20Z | **Run:** [§28447234062](https://github.com/github/gh-aw/actions/runs/28447234062)
 
-## Summary: 63/100 Quality (→ stable) | 64/100 Effectiveness (→ stable) | 80/100 Health (↓2)
+## Summary: 62/100 Quality (↓1) | 63/100 Effectiveness (↓1) | 78/100 Health (→ stable)
 
 ## Top Performers
 1. Copilot SWE Agent (Q:92, E:91) — 80% merge rate (61/76 settled), highest-volume contributor
-2. PR Triage (Q:88, E:86) — consistent structured reports, 1/1 success today
-3. Team Status (Q:85, E:83) — 1/1 success, excellent daily health reports
-4. Static Analysis (Q:84, E:81) — 1/1 success, 11+ days zero High findings
-5. Workflow Health Manager (Q:82, E:80) — accurate P1/P2 tracking, good coordination
-6. Agentic Maintenance (Q:80, E:82) — 3/3 success, 100% reliable
-7. Auto-Triage Issues (Q:78, E:80) — 2/2 success, fully recovered (was P1 Jun 21–25)
-8. Bot Detection (Q:75, E:78) — 1/1 success
-9. PR Sous Chef (Q:74, E:76) — 1/1 success, consistent
+2. Issue Monster (Q:88, E:87) — 100% (5/5), consistent high-volume output
+3. PR Triage (Q:88, E:86) — 100% (1/1), structured reports
+4. Auto-Triage Issues (Q:84, E:82) — 100% (5/5), fully stable
+5. Avenger (Q:83, E:82) — 100% (2/2), proactive maintenance
+6. Team Status (Q:82, E:81) — 1/1 success, excellent daily reports
+7. Static Analysis (Q:81, E:80) — 1/1, 11+ days zero High findings
+8. Agentic Maintenance (Q:80, E:78) — reliable, but 50% today (1/2)
+9. Bot Detection (Q:76, E:76) — 1/1 success
+10. AIC Consumption Report (Q:75, E:75) — 1/1, good observability
+
+## P1 ESCALATION (NEW Jun 30)
+- **PR Sous Chef**: 100% red (5/5 failures today, was 1/1 yesterday). Root cause: `gpt-5.5` routed via /chat/completions, gets 400. Issue #42444 OPEN. Fix tracked in #42421. Secondary harness bug: burns all 4 retries on non-retryable 400s.
 
 ## Persistent P1 Underperformers (DO NOT RE-FILE)
-- Sub-Agent Model Resolution Audit: 100% red (Codex alpha 404). Issue #42033 OPEN.
-- PR Code Quality Reviewer: Tier-unsupported model. Issue #42095 OPEN.
-- Daily Safe Output Integrator: Tool denial 5/5. Issue #42125 OPEN.
-- Daily BYOK Ollama: api-proxy 503. Issue #41827 OPEN.
-- Go Logger Enhancement: jq ARG_MAX. Issue #42032 OPEN.
+- Sub-Agent Model Resolution Audit: 100% red (Codex alpha 404). #42033 OPEN.
+- PR Code Quality Reviewer: Tier-unsupported model. #42095 OPEN.
+- Daily Safe Output Integrator: Tool denial 5/5. #42333 OPEN.
+- Daily BYOK Ollama: api-proxy 503. #41827 OPEN.
+- Go Logger Enhancement: jq ARG_MAX. #42032 OPEN.
 
-## NEW FINDINGS (Jun 29)
-- **Escalating tool denial pattern**: Layout Spec Maintainer (#42204) joins Safe Output Integrator (#42125) and Formal Spec Verifier (#42105) — 3 agents now hitting tool denial limit. Systemic issue filed: #aw_toolden1
-- **AI Moderator no-safe-output**: #42234 filed (0/4 success, 2 action_req, 2 skipped)
-- **GitHub MCP Structural Analysis**: #42248 filed for missing tool — latest run SUCCEEDED (1/1), may be intermittent
-- **Q workflow high action_required rate**: 10/14 (71%) action_required — likely by design (awaiting human dispatch), monitor
+## NEW FINDINGS (Jun 30)
+- **Claude Code User Documentation Review**: cache-memory miss misconfiguration. #42482 filed (P2).
+- **Daily Hippo Learn**: hippo MCP tool unavailable (0 tools exposed). #42442 filed (P2).
+- **Harness retry waste**: burns all 4 retries on non-retryable 400 errors; documented in #42444.
+- **Missing tool pattern**: Team Evolution (#42342) + Hippo Learn (#42442) — 2 agents, systemic.
+- **CI integration test regression**: TestMCPGatewayDockerCommandUsesRunnerIdentityAndSocketGroup. #42423 OPEN (P1, filed by Workflow Health Mgr).
 
 ## Do Not Re-File (carry-forward)
-Code Simplifier issues CLOSED Jun 28. Do not re-file: #41827, #41987, #41988, #42032, #42033, #42095, #42105, #42124, #42125, #42128, #42140, #42204, #42234.
+#41827, #41987, #41988, #42032, #42033, #42095, #42329, #42332, #42333, #42342, #42356, #42370, #42398, #42421, #42423, #42444, #42471, #42482, #42442
 
 ## Engine Distribution (257 workflows)
 - copilot: 158 (61%)
