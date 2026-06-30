@@ -29,8 +29,8 @@ var statusLog = logger.New("cli:status_command")
 // same source of truth for the common workflow metadata fields.
 type WorkflowStatus struct {
 	WorkflowListItem
-	Status        string   `json:"status" console:"-"`
-	TimeRemaining string   `json:"time_remaining" console:"-"`
+	Status        string   `json:"status" console:"header:state"`
+	TimeRemaining string   `json:"time_remaining" console:"header:remaining"`
 	Dependencies  []string `json:"dependencies,omitempty" console:"-"`
 	RunID         int64    `json:"run_id,omitempty" console:"header:run id,omitempty"`
 	RunStatus     string   `json:"run_status,omitempty" console:"header:status,omitempty"`
