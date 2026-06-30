@@ -346,7 +346,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
 
     expect(capturedQuery).not.toContain("... on User");
     expect(capturedQuery).not.toContain("... on Organization");
-    expect(capturedQuery).not.toContain("owner {");
+    expect(capturedQuery).not.toMatch(/owner\s*\{/);
   });
 
   it("fetchIssueFields filters out nodes missing id or name (null entries and unknown types)", async () => {
