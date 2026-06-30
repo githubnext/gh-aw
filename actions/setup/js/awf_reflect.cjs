@@ -450,7 +450,7 @@ function inferWireApiForModel(providerType, modelName, modelsJson) {
     .toLowerCase()
     .trim();
   if (normalizedWireApi === "responses" || normalizedWireApi === "completions") {
-    return /** @type {"responses" | "completions"} */ (normalizedWireApi);
+    return /** @type {"responses" | "completions"} */ normalizedWireApi;
   }
   if (providerType === "anthropic") {
     return undefined;
@@ -526,9 +526,7 @@ function resolveCopilotSDKCustomProviderFromReflect(options) {
 
   const providerType = inferProviderTypeForModel(String(endpoint.provider || ""), model, options?.modelsJson ?? null);
   const wireApi = inferWireApiForModel(providerType, model, options?.modelsJson ?? null);
-  logger(
-    `sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} type=${providerType} baseUrl=${baseUrl} model=${model}${wireApi ? ` wireApi=${wireApi}` : ""})`
-  );
+  logger(`sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} type=${providerType} baseUrl=${baseUrl} model=${model}${wireApi ? ` wireApi=${wireApi}` : ""})`);
   return {
     model,
     provider: { type: providerType, baseUrl, ...(wireApi ? { wireApi } : {}) },
