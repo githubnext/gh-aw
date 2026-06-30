@@ -1,117 +1,72 @@
 # Git Simulator Strategy Notes
 
-Compact log of the 3600-cell Z3 sweep (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT,
-COMMIT innermost). Condensed 2026-06-25 to fit the 10 KB repo-memory budget.
+Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
+Condensed 06-30 to fit the 10 KB repo-memory budget. **48/3600 tested, all PASS.**
 
-## Results so far (40/3600, all PASS — no failures/rejections yet)
+## Coverage map
 
-All cells in the `tiny-none-single-*` corner. PATCH walked micro→large to
-COMPLETION; xlarge now PARTIAL (clean×{sgl,multi,mrg}+ahead-sgl, 06-28).
+- **tiny-none-single (idx 0-44): COMPLETE, all PASS.** PATCH micro→xlarge ×
+  {clean,ahead,diverged} × {single,multi,merge_msg}. Patch KB by tier: micro
+  1.2-4.6, small ~49-52, medium ~198-210, large ~1013-1116, xlarge ~4053-4060.
+- **tiny-none-few (idx 45-47): OPENED, all PASS.** few-micro-clean ×
+  {single,multi,merge_msg} → 2.28-2.66 KB.
 
-| PATCH tier | cells | branch×commit coverage | patch KB range | result |
-|-----------|-------|------------------------|----------------|--------|
-| micro (1 KB)   | idx 0-8   | full clean/ahead/diverged × all commits | 1.2–4.6   | pass |
-| small (50 KB)  | idx 9-17  | full clean/ahead/diverged × all commits | 48.7–52.1 | pass |
-| medium (200 KB)| idx 18-26 | full clean/ahead/diverged × all commits | 198–267*  | pass |
-| large (1000 KB)| idx 27-35 | full clean/ahead/diverged × all commits | 1013–1116 | pass |
-| xlarge (4000KB)| idx 36-39 | clean×{sgl,multi,mrg} + ahead-sgl ONLY   | 4052.9–4054.7 | pass |
+## The cap (grounded in source)
 
-*one 06-24 outlier at 267 KB from a base64-inflation bug, since fixed.
-Large CLOSED 06-27. xlarge OPENED 06-28; remaining idx 40-44 (ahead-
-multi/merge_msg + diverged×all).
+`max-patch-size` default = **4096 KB** (units KB, per-handler configurable):
+compiler_types.go:734, safe_outputs_config.go:482, handler_registry.go:466/528.
+Compared (in the ACTION RUNTIME / TS collector, not this Go/JS repo) against the
+`git format-patch` output (worst case). `max_patch_files` also handler-emitted,
+default ~hundreds (~800?); confirm before FILES=batch(100).
 
-## *** HEADLINE 06-28: xlarge rides ~99% of the REAL default cap ***
+## Durable size laws (hold across every tier tested)
 
-GROUNDED IN SOURCE (not a guess): the create-PR / push-to-branch patch cap is
-**`max-patch-size` default = 4096 KB** (compiler_types.go:734 "in KB (defaults to
-4096)"; safe_outputs_config.go:482 sets 4096 when unset; handler_registry.go:466,
-528 emit `max_patch_size: 4096`). Units = KB, per-handler configurable, NOT ~1 MB.
-A 06-28 sub-agent guessed ~1 MB and predicted "rejected" for idx 36 → RETRACTED;
-corrected vs source → PASS (4052.9 < 4096).
-- PATCH=xlarge (4000 KB payload) → **~4053–4055 KB** actual format-patch (~1.3–1.4%
-  base64-in-patch overhead). UNDER 4096 but only **~41–43 KB (~1%) headroom** —
-  the whole band rides the cap.
-- PREDICTION: first real `rejected` appears at xlarge × (diverged OR multi-file OR
-  bigger SIZE), where extra hunk/index/file headers tip net patch past 4096. Esp.
-  BRANCH=diverged (symmetric-diff adds history.md hunk), FILES few/many/batch.
-- ** 06-29 CORRECTION — DIVERGED does NOT inflate the feature patch.** xlarge band
-  CLOSED 06-29 (idx 40-43 ahead-multi/merge_msg + diverged-single/multi): all PASS
-  at 4053–4060 KB. The diverged history.md commit lives on MAIN, i.e. the merge-base
-  SIDE, so it is EXCLUDED from `MB..feature` — the patch the cap measures. Symmetric
-  two-dot `main..feature` over-counts it (cosmetic) but format-patch from merge-base
-  does not. So diverged adds ZERO patch bytes; only FILE-COUNT (per-file headers) or
-  bigger SIZE can breach 4096. Real `rejected` now expected first at xlarge×FILES>1.
-- Cap COMPARISON logic lives in the ACTION RUNTIME (TS collector), not this repo's
-  Go/JS (pkg only sets the value). Unconfirmed whether it measures payload bytes
-  or full format-patch bytes; if the latter (worst case), ~1% headroom is operative.
-
-## Durable confirmations (hold across every tier tested)
-
-- **No size effects through 1 MB.** create_pull_request patch generation and
-  append-only push succeed cleanly at micro→large. format-patch overhead is a
-  fixed ~1–2% of payload (header + base64 line-wrap), not super-linear: large
-  (1 MB) added only ~1.4% over the 1000 KiB payload. No rejection seen yet.
+- **patch ≈ payload + ~0.27 KB×files + ~Ncommits×(few-hundred-B From-header).**
+  Per-file format-patch header ~270 B (measured idx 45). At micro payload the
+  5-file header (~1.35 KB) dominates → total ~2.26× payload. format-patch overhead
+  is a fixed ~1-2% of payload at large scale (large 1 MB: +1.4%), NOT super-linear.
+- **No payload multiplier for COMMIT=multi (text).** N commits each appending text
+  to a file → patch SUM ≈ net diff (~1×), because git emits only newly-appended
+  lines per commit. (3× re-emission happens only for true binary blobs / line
+  rewrites.) So COMMIT alone never tips the cap.
+- **DIVERGED adds ZERO feature-patch bytes.** main's independent commit (history.md)
+  is merge-base-side, EXCLUDED from `merge-base..feature` (the patch the cap
+  measures). Two-dot `main..feature` over-counts it (cosmetic only). Append-only
+  push also makes actual_commit_count ≥ 2 even when COMMIT=single.
+- **merge_msg is structurally a normal commit.** Single-parent, `rev-list --merges`
+  empty, BUT format-patch names the artifact `0001-Merge-branch-...patch`. Cosmetic
+  filename leak — the standing signal that a downstream *message-text* merge
+  heuristic (vs --no-merges/parent-count) would misfire. Confirmed all branches.
 - **Append-only push = clean fast-forward, always.** Every ahead/diverged cell:
-  prior feature tip is ancestor of new tip (`merge-base --is-ancestor` OK); no
-  force-push; no `git merge main` on feature; `rev-list --merges feature` empty;
-  all parent counts = 1.
-- **merge_msg is structurally a normal commit.** A single-parent commit with a
-  "Merge branch 'x' into feature" *message* gives empty `rev-list --merges` and
-  parent count 1, BUT format-patch names the artifact
-  `0001-Merge-branch-x-into-feature.patch`. Cosmetic filename leak only — but the
-  clearest standing signal a downstream *message-text* merge heuristic (vs
-  `--no-merges`/parent-count) would misfire. Confirmed micro→medium, all branches.
-- **diverged over-counts net file diff.** When BRANCH=diverged, `git diff
-  main..feature` reports an extra file (history.md) purely from main's
-  independent commit (symmetric two-dot artifact), exceeding the declared FILES
-  dimension. The `merge-base..feature` diff correctly shows the declared payload.
-  Also: append-only push makes actual_commit_count ≥ 2 even when COMMIT=single.
-- **COMMIT=multi patch-SUM inflation is BINARY-only, NOT text-append.**
-  CORRECTED 06-27 (idx 34, large-diverged-multi): 3 commits each APPENDING ~333 KB
-  of base64 TEXT to the SAME file → patch SUM ≈ 1014 KB ≈ net diff (~1:1, NOT 3×).
-  Git's line-based diff emits only the newly appended lines per commit, not the
-  cumulative growing file, so multi-commit-to-one-file is CHEAP for text. The ~3×
-  the 06-26 note attributed to "append-to-same-file" was WRONG for text; that 3×
-  re-emission happens only when git emits a full GIT-binary-patch per revision
-  (true binary blob, or prepend/rewrite of existing lines forcing whole-hunk
-  re-emit). For our base64-text payloads, patch-SUM tracks net payload at every
-  commit count. So a downstream patch-SUM cap trips at ~the same threshold whether
-  1 squashed commit or N appends — no hidden multiplier for text. (The 06-26
-  idx-28 ~3001 KB figure was a binary-blob / non-append measurement artifact.)
-- **bundle < patch, gap widens with size.** `git bundle` (zlib pack) is smaller
-  than the .patch (base64-of-binary inflation): ~25% smaller at medium/large.
-  The .patch sum is the honest worst-case size metric for any downstream cap.
+  old tip is ancestor of new tip (`merge-base --is-ancestor` OK); no force-push; no
+  `git merge main` on feature; `rev-list --merges feature` empty; parent counts = 1.
+- **bundle < patch** (~25% smaller at medium/large; zlib vs base64). The .patch sum
+  is the honest worst-case metric for any downstream cap.
+
+## Rejection-edge analysis (NO real `rejected` seen yet)
+
+xlarge clean-single sits at ~4053 KB = ~99% of 4096 (~43 KB headroom). Adding F
+files costs only ~0.27 KB×(F-1): few→~4054, many→~4058, batch→~4080 — ALL under
+4096. **FILE-COUNT headers can't breach the cap** (batch lands ~16 KB short).
+COMMIT is 1× (text). DIVERGED is 0 bytes. So the first real `rejected` needs
+**SIZE>tiny** (stuff.md payload entering the diff) or a PATCH target tuned over
+4096 — NOT file-count, commits, or divergence. If a few-tier cell ever rejects,
+it's a real bug (over-count, or runtime measuring excluded commits).
 
 ## Conventions / caveats
 
-- **base64 sizing convention (standardized, fix for 06-24 bug):** truncate the
-  base64 STREAM to TARGET*1024 bytes — do NOT base64-encode TARGET bytes (that
-  inflates ~4/3). Use non-compressible /dev/urandom base64 so PATCH targets are
-  honest near thresholds. Held cleanly on 06-25 (all four within ~2% of target).
-- **Runtime note:** the `config-simulator` sub-agent type is NOT registered;
-  use `general-purpose` with full self-contained prompts (works fine).
-
-## Hypotheses to validate as coverage grows
-
-- **xlarge × extra-overhead = the rejection edge.** Now grounded: cap = 4096 KB,
-  xlarge clean-single already at 4053 KB (~99%). The remaining xlarge cells
-  (40-44) and any future xlarge with diverged/multi-file/bigger-SIZE are the
-  prime spots to finally cross 4096 → real `rejected`. COMMIT does NOT inflate
-  (1× for text), so COMMIT alone won't tip it; FILE-COUNT and DIVERGED will.
-- **FILES=batch (100 files)** and **HISTORY=deep (500)** far ahead in enumeration;
-  also note FILES>single adds per-file diff/index headers — at xlarge that header
-  overhead is exactly what could breach 4096. Plus possible `max_patch_files` cap
-  (handler emits `max_patch_files`, default seen ~800; confirm before batch).
-- Baseline corner healthy: no boundary effects below 1 MB at tiny/none/single.
+- **base64 sizing:** truncate the base64 STREAM to TARGET*1024 bytes total (do NOT
+  base64-encode TARGET bytes — inflates 4/3). Use /dev/urandom (non-compressible)
+  so PATCH targets are honest near thresholds.
+- **`config-simulator` subagent is TRUNCATED/unregistered** → use `general-purpose`
+  with self-contained prompts (works fine).
+- **Repo-memory budget is tight (10 KB +20% = 12 KB hard).** state.json grows ~95 B
+  per tested cell; keep strategies.md lean. Call push_repo_memory to validate.
 
 ## Next
 
-Next enumeration index: **44** → `tiny-none-single-xlarge-diverged-merge_msg` (sole
-remaining xlarge cell; closes the tiny-none-single PATCH walk). idx 40-43 CLOSED
-06-29 all PASS (4053-4060 KB). Diverged confirmed NOT a breach path — history.md is
-merge-base-side, excluded from MB..feature. After idx 44, enumeration leaves PATCH
-(0->4 wraps) and advances FILES single->few; the prime rejection candidate is now
-xlarge×FILES≥few (per-file diff/index headers stack on top of ~4053 KB → >4096).
-Also confirm possible `max_patch_files` cap (~800?) before FILES=batch. HISTORY=deep
-(500) still far ahead. REMINDER: `config-simulator` subagent unregistered → use
-`general-purpose`.
+Next index: **48** → `tiny-none-few-micro-ahead-single`. Enumeration walks FILES=few
+across PATCH micro→xlarge × branch × commit (idx 48-89); few-xlarge (~idx 84-89)
+predicted ~4054 KB → PASS. HISTORY=deep (500) and FILES=many/batch far ahead — the
+prime untested regions for a first rejection (SIZE still tiny throughout the early
+sweep, so payload stays small; watch when SIZE advances past tiny at idx 720).
