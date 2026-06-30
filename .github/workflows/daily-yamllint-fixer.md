@@ -14,7 +14,7 @@ permissions:
   issues: read
 engine:
   id: claude
-max-turns: 60
+max-turns: 120
 network:
   allowed:
     - defaults
