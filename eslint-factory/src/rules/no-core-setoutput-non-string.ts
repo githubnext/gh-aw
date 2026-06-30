@@ -4,14 +4,15 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 
 /**
  * Returns a description of the non-string value kind if the node is one of the
- * syntactically-guaranteed non-string forms targeted by this rule, or null if the
- * value may already be a string or cannot be determined without type information.
+ * low-false-positive forms targeted by this rule, or null if the value may already
+ * be a string or cannot be determined without type information.
  *
  * Targeted forms (low false-positive risk):
  *   - Numeric literal: 0, 42, 3.14
  *   - Boolean literal: true, false
  *   - Null literal
- *   - .length member access: always a number in JavaScript
+ *   - Identifier `undefined`
+ *   - .length member access: commonly numeric in practice
  */
 function nonStringKind(node: TSESTree.Node): string | null {
   if (node.type === AST_NODE_TYPES.Literal) {
@@ -20,14 +21,13 @@ function nonStringKind(node: TSESTree.Node): string | null {
     if (node.value === null) return "null";
   }
 
-  // expr.length — always a number; computed access (expr["length"]) is intentionally
+  if (node.type === AST_NODE_TYPES.Identifier && node.name === "undefined") {
+    return "undefined";
+  }
+
+  // expr.length — commonly numeric; computed access (expr["length"]) is intentionally
   // excluded because it is far less common and raises the FP risk slightly.
-  if (
-    node.type === AST_NODE_TYPES.MemberExpression &&
-    !node.computed &&
-    node.property.type === AST_NODE_TYPES.Identifier &&
-    node.property.name === "length"
-  ) {
+  if (node.type === AST_NODE_TYPES.MemberExpression && !node.computed && node.property.type === AST_NODE_TYPES.Identifier && node.property.name === "length") {
     return ".length (number)";
   }
 
@@ -41,13 +41,13 @@ export const noCoreSetOutputNonStringRule = createRule({
     hasSuggestions: true,
     docs: {
       description:
-        "Require core.setOutput value arguments to be explicit strings; passing numbers, booleans, null, or .length silently produces unexpected string representations (e.g. 'null', 'true') in downstream GitHub Actions workflow expressions",
+        "Require core.setOutput value arguments to be explicit strings; passing numbers, booleans, null, undefined, or .length can silently produce unexpected string representations (e.g. 'null', 'true') in downstream GitHub Actions workflow expressions. Detects only calls in the form core.setOutput(name, value).",
     },
     schema: [],
     messages: {
       nonStringValue:
-        "core.setOutput('{{name}}', {{valueText}}) passes a {{kind}} value. Implicit coercion may produce unexpected strings such as 'null' or 'true' in downstream workflow expressions. Wrap with String({{valueText}}) or use an explicit string literal.",
-      wrapWithString: "Wrap with String({{valueText}}) to make the coercion explicit and satisfy downstream workflow string comparisons.",
+        "The setOutput value {{valueText}} is a {{kind}}. Implicit coercion may produce unexpected strings such as 'null' or 'true' in downstream workflow expressions. Wrap with String({{valueText}}) or use an explicit string literal.",
+      wrapWithString: "Wrap with String({{valueText}}) to make coercion explicit. For null/undefined, use an explicit default (for example '') when empty-string semantics are intended.",
     },
   },
   defaultOptions: [],
@@ -66,28 +66,23 @@ export const noCoreSetOutputNonStringRule = createRule({
 
         // Property must be `setOutput` (direct or computed string-literal access)
         const prop = callee.property;
-        const isSetOutputProp =
-          (!callee.computed && prop.type === AST_NODE_TYPES.Identifier && prop.name === "setOutput") ||
-          (callee.computed && prop.type === AST_NODE_TYPES.Literal && prop.value === "setOutput");
+        const isSetOutputProp = (!callee.computed && prop.type === AST_NODE_TYPES.Identifier && prop.name === "setOutput") || (callee.computed && prop.type === AST_NODE_TYPES.Literal && prop.value === "setOutput");
         if (!isSetOutputProp) return;
 
         // core.setOutput expects exactly two arguments: (name, value)
         if (node.arguments.length !== 2) return;
 
-        const nameArg = node.arguments[0];
         const valueArg = node.arguments[1];
 
         const kind = nonStringKind(valueArg);
         if (kind === null) return;
 
-        const nameText =
-          nameArg.type === AST_NODE_TYPES.Literal && typeof nameArg.value === "string" ? nameArg.value : sourceCode.getText(nameArg);
         const valueText = sourceCode.getText(valueArg);
 
         context.report({
           node,
           messageId: "nonStringValue",
-          data: { name: nameText, kind, valueText },
+          data: { kind, valueText },
           suggest: [
             {
               messageId: "wrapWithString",

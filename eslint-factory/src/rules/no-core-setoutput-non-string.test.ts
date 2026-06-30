@@ -25,6 +25,7 @@ describe("no-core-setoutput-non-string", () => {
         `core.setOutput("count", String(items.length));`,
         `core.setOutput("count", items.length.toString());`,
         `core.setOutput("count", \`\${items.length}\`);`,
+        `core.setOutput("count", -1);`,
       ],
       invalid: [],
     });
@@ -32,20 +33,14 @@ describe("no-core-setoutput-non-string", () => {
 
   it("valid: non-core.setOutput calls are not flagged", () => {
     cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
-      valid: [
-        `other.setOutput("count", 0);`,
-        `setOutput("count", 0);`,
-        `myCore.setOutput("count", 0);`,
-      ],
+      valid: [`other.setOutput("count", 0);`, `setOutput("count", 0);`, `myCore.setOutput("count", 0);`],
       invalid: [],
     });
   });
 
   it("valid: computed string-literal setOutput with string value is accepted", () => {
     cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
-      valid: [
-        `core["setOutput"]("count", "42");`,
-      ],
+      valid: [`core["setOutput"]("count", "42");`],
       invalid: [],
     });
   });
@@ -59,7 +54,7 @@ describe("no-core-setoutput-non-string", () => {
           errors: [
             {
               messageId: "nonStringValue",
-              data: { name: "processed_count", kind: "numeric literal", valueText: "0" },
+              data: { kind: "numeric literal", valueText: "0" },
               suggestions: [{ messageId: "wrapWithString", data: { valueText: "0" }, output: `core.setOutput("processed_count", String(0));` }],
             },
           ],
@@ -86,7 +81,7 @@ describe("no-core-setoutput-non-string", () => {
           errors: [
             {
               messageId: "nonStringValue",
-              data: { name: "success", kind: "boolean literal", valueText: "true" },
+              data: { kind: "boolean literal", valueText: "true" },
               suggestions: [{ messageId: "wrapWithString", data: { valueText: "true" }, output: `core.setOutput("success", String(true));` }],
             },
           ],
@@ -104,6 +99,24 @@ describe("no-core-setoutput-non-string", () => {
     });
   });
 
+  it("invalid: undefined identifier value is flagged", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `core.setOutput("result", undefined);`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              data: { kind: "undefined", valueText: "undefined" },
+              suggestions: [{ messageId: "wrapWithString", data: { valueText: "undefined" }, output: `core.setOutput("result", String(undefined));` }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("invalid: null literal value is flagged", () => {
     cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
       valid: [],
@@ -113,7 +126,7 @@ describe("no-core-setoutput-non-string", () => {
           errors: [
             {
               messageId: "nonStringValue",
-              data: { name: "result", kind: "null", valueText: "null" },
+              data: { kind: "null", valueText: "null" },
               suggestions: [{ messageId: "wrapWithString", data: { valueText: "null" }, output: `core.setOutput("result", String(null));` }],
             },
           ],
@@ -131,7 +144,7 @@ describe("no-core-setoutput-non-string", () => {
           errors: [
             {
               messageId: "nonStringValue",
-              data: { name: "findings_count", kind: ".length (number)", valueText: "validFindings.length" },
+              data: { kind: ".length (number)", valueText: "validFindings.length" },
               suggestions: [
                 {
                   messageId: "wrapWithString",
