@@ -47,3 +47,15 @@ func TestValidateSafeOutputsMergePullRequestLabelValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateSafeOutputsMergePullRequestAllowedBranchesValidation(t *testing.T) {
+	config := &SafeOutputsConfig{
+		MergePullRequest: &MergePullRequestConfig{
+			AllowedBranches: []string{"feature branch"},
+		},
+	}
+
+	err := validateSafeOutputsMergePullRequest(config)
+	require.Error(t, err, "expected merge-pull-request allowed-branches validation to fail")
+	assert.Contains(t, err.Error(), `invalid glob pattern "feature branch" in safe-outputs.merge-pull-request.allowed-branches[0]`, "expected field-specific allowed-branches error")
+}

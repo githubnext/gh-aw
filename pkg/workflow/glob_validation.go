@@ -217,6 +217,28 @@ func runGlobValidation(pat string, isRef bool) []invalidGlobPattern {
 	return v.errs
 }
 
+func validateGlobPatternList(
+	patterns []string,
+	validate func(string) []invalidGlobPattern,
+	onInvalid func(index int, pattern string, messages []string) error,
+) error {
+	for i, pat := range patterns {
+		errs := validate(pat)
+		if len(errs) == 0 {
+			continue
+		}
+
+		msgs := make([]string, 0, len(errs))
+		for _, err := range errs {
+			msgs = append(msgs, err.Message)
+		}
+
+		return onInvalid(i, pat, msgs)
+	}
+
+	return nil
+}
+
 // validateRefGlob validates a GitHub Actions ref filter glob (branch or tag pattern).
 // It returns a non-empty slice of invalidGlobPattern when the pattern is invalid.
 func validateRefGlob(pat string) []invalidGlobPattern {
