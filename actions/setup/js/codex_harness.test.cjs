@@ -10,6 +10,7 @@ const {
   resolveCodexPromptFileArgs,
   injectJsonFlag,
   isRateLimitError,
+  isTokenPerMinuteRateLimitError,
   isAuthenticationFailedError,
   isMissingApiKeyError,
   isServerError,
@@ -88,6 +89,16 @@ describe("codex_harness.cjs", () => {
   describe("isRateLimitError", () => {
     it("returns true for rate_limit_exceeded error", () => {
       expect(isRateLimitError("Error: rate_limit_exceeded")).toBe(true);
+    });
+
+    describe("isTokenPerMinuteRateLimitError", () => {
+      it("returns true for OpenAI TPM-limit wording", () => {
+        expect(isTokenPerMinuteRateLimitError("Rate limit reached for gpt-4o-mini in organization org-xxx on tokens per min (TPM): Limit 200000, Used 166655, Requested 35398. Please try again in 615ms.")).toBe(true);
+      });
+
+      it("returns false for generic rate-limit wording", () => {
+        expect(isTokenPerMinuteRateLimitError("rate_limit_exceeded")).toBe(false);
+      });
     });
 
     it("returns true for 429 Too Many Requests", () => {
@@ -425,6 +436,7 @@ env_key = "OPENAI_API_KEY"
       const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
       if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || nonRetryableGuard.goalAlreadyActive || nonRetryableGuard.maxRunsExceeded) return false;
       const isRateLimit = isRateLimitError(result.output);
+      if (isTokenPerMinuteRateLimitError(result.output)) return false;
       if (isRateLimit && isReconnectExhaustedError(result.output)) return false;
       const isTransient = isRateLimit || isServerError(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
@@ -494,13 +506,13 @@ env_key = "OPENAI_API_KEY"
       expect(shouldRetry(result, 0)).toBe(false);
     });
 
-    it("retries on rate limit with format 'Rate limit reached for' without exhausted reconnects", () => {
+    it("does not retry on token-per-minute rate limit wording", () => {
       const result = {
         exitCode: 1,
         hasOutput: false,
         output: '{"type":"error","message":"Rate limit reached for gpt-4o-mini in organization org-xxx on tokens per min (TPM): Limit 200000, Used 50000, Requested 35000. Please try again in 615ms."}',
       };
-      expect(shouldRetry(result, 0)).toBe(true);
+      expect(shouldRetry(result, 0)).toBe(false);
     });
 
     it("does not retry when rate-limit reconnects are exhausted (N/N pattern)", () => {
