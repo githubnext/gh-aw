@@ -5,7 +5,7 @@ sidebar:
   badge: { text: 'Patterns', variant: 'note' }
 ---
 
-MemoryOps is a set of design patterns using [Cache Memory](/gh-aw/reference/cache-memory/) and [Repo Memory](/gh-aw/reference/repo-memory/) to persist state across workflow runs. Use memory to build workflows that record their progress, resume after interruptions, share data between workflows, incremental processing, trend analysis, multi-step tasks, and workflow coordination.
+MemoryOps is a set of patterns for using [Cache Memory](/gh-aw/reference/cache-memory/) and [Repo Memory](/gh-aw/reference/repo-memory/) to persist state across workflow runs. Use memory to record progress, resume after interruptions, share data between workflows, support incremental processing, analyze trends, and coordinate multi-step tasks.
 
 ```mermaid
 flowchart LR
@@ -15,42 +15,32 @@ flowchart LR
     s2 --> r3([Run 3])
 ```
 
-When writing prompting for using memory, you can usually use surprisingly high level descriptions of the information to be stored. You often don't even need to write a schema for the memory. The first run will write data with an appropriate schema, later runs will read it and see the implicit schema. The agent can adapt to changes in the schema over time as long as the data is still there. This makes memory a very flexible tool for stateful workflows without needing to define rigid schemas upfront.
+When prompting agents to use memory, high-level descriptions are often enough. You usually do not need to define a schema up front: the first run can write a practical structure, and later runs can read and evolve it as needed. That flexibility makes memory useful for stateful workflows without rigid schemas.
 
 ## Memory Types
 
-Three types of memory stores are available. Each has different use cases and access patterns.
+Three memory stores are available:
 
-[Cache Memory](/gh-aw/reference/cache-memory/) gives fast, ephemeral storage using GitHub Actions cache (7 days retention):
+| Type | Best for | Example | Default path |
+| --- | --- | --- | --- |
+| [Cache Memory](/gh-aw/reference/cache-memory/) | Temporary state, session data, short-term caching | `tools.cache-memory.key: my-workflow-state` | `/tmp/gh-aw/cache-memory/` |
+| [Repo Memory](/gh-aw/reference/repo-memory/) | Historical data, trend tracking, long-lived state | `tools.repo-memory.branch-name: memory/my-workflow` | `/tmp/gh-aw/repo-memory/default/` |
+| [Comment Memory](/gh-aw/reference/frontmatter-full/) | PR or issue follow-up context, review history, iterative updates | `tools.comment-memory.target: triggering` | `/tmp/gh-aw/comment-memory/` |
+
+Cache Memory uses GitHub Actions cache with 7-day retention. Repo Memory stores files in a dedicated Git branch. Comment Memory stores state in a managed issue or PR comment and updates it over time.
 
 ```yaml
 tools:
   cache-memory:
     key: my-workflow-state
-```
 
-Use for temporary state, session data, short-term caching. The memory is available at `/tmp/gh-aw/cache-memory/`.
-
-[Repo Memory](/gh-aw/reference/repo-memory/) gives persistent, version-controlled storage in a dedicated Git branch:
-
-```yaml
-tools:
   repo-memory:
     branch-name: memory/my-workflow
     file-glob: ["*.json", "*.jsonl"]
-```
 
-Use for historical data, trend tracking, permanent state. By default the memory is available at `/tmp/gh-aw/repo-memory/default/`.
-
-[Comment Memory](/gh-aw/reference/frontmatter-full/) gives persistent memory backed by a managed issue or PR comment:
-
-```yaml
-tools:
   comment-memory:
     target: triggering  # Use the issue/PR that triggered this workflow run
 ```
-
-Use for issue and PR follow-up context, review history, and iterative updates without creating a separate branch. A managed comment is automatically created and updated by the workflow for the configured memory ID. By default, memory files are available at `/tmp/gh-aw/comment-memory/`. Data persists in the managed issue or PR comment until that content is edited or removed.
 
 ## Pattern 1: Exhaustive Processing
 
@@ -126,7 +116,7 @@ Real examples: `.github/workflows/metrics-collector.md` (producer), trend analys
 
 ## Pattern 4: Data Caching
 
-Cache API responses to avoid rate limits and reduce workflow time. The agent checks for fresh cached data before making API calls, using suggested TTLs: repository metadata (24h), contributor lists (12h), issues/PRs (1h), workflow runs (30m).
+Cache API responses to avoid rate limits and reduce workflow time. Check for fresh cached data before making API calls. A reasonable starting point is repository metadata (24h), contributor lists (12h), issues and PRs (1h), and workflow runs (30m).
 
 ```markdown
 Fetch repository metadata and contributor lists. Cache the data for 24 hours
@@ -176,7 +166,7 @@ tools:
 
 ## Pattern 7: PR Comment Memory
 
-Use comment memory to keep task state in the pull request discussion, allowing each run to continue with the latest context directly from the PR.
+Use comment memory to keep task state in the pull request discussion, so each run can continue with the latest context from the PR itself.
 
 ```markdown
 Review this pull request in passes. Store the running checklist, unresolved
@@ -191,22 +181,22 @@ tools:
     memory-id: pr-review-state  # Separate state bucket in the managed comment
 ```
 
-This pattern works well for PRs that need multiple review cycles because state stays attached to the PR itself. Use a stable `memory-id` so repeated runs update the same state file at `/tmp/gh-aw/comment-memory/<memory-id>.md`. If the `memory-id` changes, the run writes to a different file and previous state is not updated.
+This works well for PRs that need multiple review cycles because state stays attached to the PR. Use a stable `memory-id` so repeated runs update the same state file at `/tmp/gh-aw/comment-memory/<memory-id>.md`; changing the `memory-id` writes to a different file instead.
 
 ## Best Practices
 
-### Use JSON Lines for Time-Series Data
-
-Append-only format ideal for logs and metrics:
+- Use JSON Lines for append-only logs and time-series data.
+- Include lightweight metadata so later runs can understand the structure.
+- Rotate old data to prevent unbounded growth.
 
 ```bash
 # Append without reading entire file
 echo '{"date": "2024-01-15", "value": 42}' >> data.jsonl
+
+# Keep only last 90 entries
+tail -n 90 history.jsonl > history-trimmed.jsonl
+mv history-trimmed.jsonl history.jsonl
 ```
-
-### Include Metadata
-
-Document your data structure:
 
 ```json
 {
@@ -217,16 +207,6 @@ Document your data structure:
   },
   "retention": "90 days"
 }
-```
-
-### Implement Data Rotation
-
-Prevent unbounded growth:
-
-```bash
-# Keep only last 90 entries
-tail -n 90 history.jsonl > history-trimmed.jsonl
-mv history-trimmed.jsonl history.jsonl
 ```
 
 ## Security Considerations
@@ -243,13 +223,10 @@ echo '{"user": "alice", "email": "alice@example.com"}' > users.json
 
 ## Troubleshooting
 
-**Cache not persisting**: Verify cache key is consistent across runs
-
-**Repo memory not updating**: Check `file-glob` patterns match your files and files are within `max-file-size` limit
-
-**Out of memory errors**: Process data in chunks instead of loading entirely, implement data rotation
-
-**Merge conflicts**: Use JSON Lines format (append-only), separate branches per workflow, or add run ID to filenames
+- **Cache not persisting**: Verify the cache key is consistent across runs.
+- **Repo memory not updating**: Check that `file-glob` matches your files and that they stay within the `max-file-size` limit.
+- **Out of memory errors**: Process data in chunks instead of loading everything at once, and rotate old data.
+- **Merge conflicts**: Prefer append-only JSON Lines, separate branches per workflow, or include the run ID in filenames.
 
 ## Related Documentation
 
