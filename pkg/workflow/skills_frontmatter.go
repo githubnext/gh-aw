@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-
-	"github.com/github/gh-aw/pkg/gitutil"
 )
 
 var skillSpecRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$`)
@@ -39,10 +37,6 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 				skillSpec,
 			)
 		}
-		_, ref, ok := strings.Cut(skillSpec, "@")
-		if !ok || !gitutil.IsValidFullSHA(ref) {
-			return fmt.Errorf("skills[%d] reference must be pinned to a full lowercase 40-character SHA: %q", i, skillSpec)
-		}
 	}
 
 	return nil
@@ -50,5 +44,8 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 
 func isRepositorySkillSpec(skillSpec string) bool {
 	base, _, _ := strings.Cut(skillSpec, "@")
+	// owner/repo has exactly one slash; owner/repo/skill/path has two or more.
+	// Expression-only specs have no static @ suffix and are treated as path-scoped
+	// until the resolved runtime value is inspected by the install step.
 	return strings.Count(base, "/") == 1
 }

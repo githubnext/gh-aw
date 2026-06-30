@@ -519,9 +519,9 @@ func (c *Compiler) addActivationVersionCheckStep(ctx *activationJobBuildContext)
 	ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("check_version_updates.cjs"))
 }
 
-func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext) {
+func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext) error {
 	if len(ctx.data.Skills) == 0 {
-		return
+		return nil
 	}
 
 	engineID := ""
@@ -531,8 +531,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	skillDir := GetEngineSkillDir(engineID)
 	skillSpecsJSON, err := json.Marshal(ctx.data.Skills)
 	if err != nil {
-		compilerActivationJobLog.Printf("Failed to marshal skills list for activation job: %v", err)
-		return
+		return fmt.Errorf("marshal activation skill specs: %w", err)
 	}
 	escapedSkillSpecsJSON := strings.ReplaceAll(string(skillSpecsJSON), "'", "''")
 
@@ -552,20 +551,25 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	ctx.steps = append(ctx.steps, "        env:\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_TOKEN: %s\n", c.resolveActivationToken(ctx.data)))
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_SKILL_DIR: %q\n", skillDir))
-	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_SKILLS: '%s'\n", escapedSkillSpecsJSON))
+	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_SKILLS_SUMMARY: '%s'\n", escapedSkillSpecsJSON))
+	for i, skillSpec := range ctx.data.Skills {
+		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", fmt.Sprintf("GH_AW_SKILL_SPEC_%d", i), skillSpec))
+	}
 	ctx.steps = append(ctx.steps, "        run: |\n")
 	ctx.steps = append(ctx.steps, "          set -euo pipefail\n")
 	ctx.steps = append(ctx.steps, "          SKILLS_DST=\"/tmp/gh-aw/${GH_AW_SKILL_DIR}\"\n")
 	ctx.steps = append(ctx.steps, "          mkdir -p \"${SKILLS_DST}\"\n")
 	ctx.steps = append(ctx.steps, "          echo \"Installing frontmatter skills to ${SKILLS_DST}\"\n")
 	ctx.steps = append(ctx.steps, "          echo \"Existing skills at destination may be replaced (--force) to ensure pinned refs are up to date\"\n")
-	for _, skillSpec := range ctx.data.Skills {
-		ctx.steps = append(ctx.steps, fmt.Sprintf("          echo \"Installing skill reference: %s\"\n", skillSpec))
-		if isRepositorySkillSpec(skillSpec) {
-			ctx.steps = append(ctx.steps, fmt.Sprintf("          gh skill install %q --all --dir \"${SKILLS_DST}\" --force\n", skillSpec))
-			continue
-		}
-		ctx.steps = append(ctx.steps, fmt.Sprintf("          gh skill install %q --dir \"${SKILLS_DST}\" --force\n", skillSpec))
+	for i := range ctx.data.Skills {
+		ctx.steps = append(ctx.steps, fmt.Sprintf("          skill_spec=\"${GH_AW_SKILL_SPEC_%d}\"\n", i))
+		ctx.steps = append(ctx.steps, "          echo \"Installing skill reference: ${skill_spec}\"\n")
+		ctx.steps = append(ctx.steps, "          skill_base=\"${skill_spec%@*}\"\n")
+		ctx.steps = append(ctx.steps, "          install_args=()\n")
+		ctx.steps = append(ctx.steps, "          if [[ \"${skill_base}\" == */* && \"${skill_base}\" != */*/* ]]; then\n")
+		ctx.steps = append(ctx.steps, "            install_args+=(--all)\n")
+		ctx.steps = append(ctx.steps, "          fi\n")
+		ctx.steps = append(ctx.steps, "          gh skill install \"${skill_spec}\" \"${install_args[@]}\" --dir \"${SKILLS_DST}\" --force\n")
 	}
 	ctx.steps = append(ctx.steps, "          SKILL_COUNT=$(find \"${SKILLS_DST}\" -name \"SKILL.md\" | wc -l | tr -d '[:space:]')\n")
 	ctx.steps = append(ctx.steps, "          echo \"Installed ${SKILL_COUNT} skill file(s)\"\n")
@@ -575,10 +579,11 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	ctx.steps = append(ctx.steps, "              echo \"### Frontmatter skills installed\"\n")
 	ctx.steps = append(ctx.steps, "              echo \"\"\n")
 	ctx.steps = append(ctx.steps, "              echo \"- Engine skill directory: \\`${GH_AW_SKILL_DIR}\\`\"\n")
-	ctx.steps = append(ctx.steps, "              echo \"- Requested references: \\`${GH_AW_SKILLS}\\`\"\n")
+	ctx.steps = append(ctx.steps, "              echo \"- Requested references: \\`${GH_AW_SKILLS_SUMMARY}\\`\"\n")
 	ctx.steps = append(ctx.steps, "              echo \"- Installed SKILL.md files: ${SKILL_COUNT}\"\n")
 	ctx.steps = append(ctx.steps, "            } >> \"${core_summary_path}\"\n")
 	ctx.steps = append(ctx.steps, "          fi\n")
+	return nil
 }
 
 func (c *Compiler) addActivationTextOutputStep(ctx *activationJobBuildContext) error {

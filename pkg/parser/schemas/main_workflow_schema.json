@@ -58,7 +58,7 @@
     },
     "skills": {
       "type": "array",
-      "description": "Optional list of external skill references to install during activation. Supports repository-wide installs (`owner/repo@<sha>`) and path-scoped installs (`owner/repo/skill/path@<sha>`). References must always be pinned to full 40-character lowercase commit SHAs.",
+      "description": "Optional list of external skill references to install during activation. Supports repository-wide installs (`owner/repo@<sha>`) and path-scoped installs (`owner/repo/skill/path@<sha>`). Static references must be pinned to a full 40-character lowercase commit SHA. GitHub Actions expressions (`${{ ... }}`) are also accepted and are evaluated at runtime.",
       "items": {
         "type": "string",
         "oneOf": [

@@ -201,6 +201,9 @@ func extractFrontmatterSkills(parsedFrontmatter *FrontmatterConfig, frontmatter 
 		return append([]string(nil), parsedFrontmatter.Skills...)
 	}
 
+	// Fall back to raw frontmatter when ParseFrontmatterConfig failed for non-skills reasons
+	// (e.g. unrecognized tool shapes). Safe because validateFrontmatterSkills already ran
+	// and succeeded on this frontmatter before we reach this point.
 	rawSkills, ok := frontmatter["skills"].([]any)
 	if !ok || len(rawSkills) == 0 {
 		return nil
