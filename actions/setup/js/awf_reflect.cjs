@@ -530,7 +530,7 @@ function resolveCopilotSDKCustomProviderFromReflect(options) {
   logger(`sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} type=${providerType} baseUrl=${baseUrl} model=${model})`);
   return {
     model,
-    provider: { type: providerType, baseUrl, ...(wireApi !== "completions" && { wireApi }) },
+    provider: { type: providerType, baseUrl, ...(wireApi !== "completions" ? { wireApi } : {}) },
   };
 }
 

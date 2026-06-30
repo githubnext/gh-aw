@@ -787,7 +787,7 @@ async function main() {
       if (subAgentModelIds.length > 0) {
         log(`copilot-sdk driver mode: found ${subAgentModelIds.length} sub-agent model(s): ${subAgentModelIds.join(", ")}`);
         const effectiveWireApi = inferWireApiForModels([resolvedModel, ...subAgentModelIds], modelsJson);
-        if (effectiveWireApi !== (providerWireApi || "completions")) {
+        if (effectiveWireApi === "responses") {
           log(`copilot-sdk driver mode: upgrading wireApi to "${effectiveWireApi}" to support sub-agent model(s)`);
           providerWireApi = effectiveWireApi;
         }
