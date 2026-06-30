@@ -9,7 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 )
 
-var skillSpecPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$`)
+var skillSpecRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$`)
 
 func validateFrontmatterSkills(frontmatter map[string]any) error {
 	rawSkills, hasSkills := frontmatter["skills"]
@@ -27,7 +27,7 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 		if !ok || strings.TrimSpace(skillSpec) == "" {
 			return fmt.Errorf("skills[%d] must be a non-empty string", i)
 		}
-		if !skillSpecPattern.MatchString(skillSpec) {
+		if !skillSpecRegexp.MatchString(skillSpec) {
 			return fmt.Errorf(
 				"skills[%d] must use owner/repo@<40-char-sha> or owner/repo/skill/path@<40-char-sha>: %q",
 				i,

@@ -540,7 +540,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	ctx.steps = append(ctx.steps, "        run: |\n")
 	ctx.steps = append(ctx.steps, "          set -euo pipefail\n")
 	ctx.steps = append(ctx.steps, "          bash \"${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh\"\n")
-	ctx.steps = append(ctx.steps, "          GH_VERSION=$(gh --version | head -1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+')\n")
+	ctx.steps = append(ctx.steps, "          GH_VERSION=$(gh --version | awk 'NR==1 {print $3}')\n")
 	ctx.steps = append(ctx.steps, "          REQUIRED=\"2.90.0\"\n")
 	ctx.steps = append(ctx.steps, "          echo \"gh version: ${GH_VERSION}\"\n")
 	ctx.steps = append(ctx.steps, "          if ! printf '%s\\n%s\\n' \"$REQUIRED\" \"$GH_VERSION\" | sort -V -C; then\n")
@@ -558,6 +558,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	ctx.steps = append(ctx.steps, "          SKILLS_DST=\"/tmp/gh-aw/${GH_AW_SKILL_DIR}\"\n")
 	ctx.steps = append(ctx.steps, "          mkdir -p \"${SKILLS_DST}\"\n")
 	ctx.steps = append(ctx.steps, "          echo \"Installing frontmatter skills to ${SKILLS_DST}\"\n")
+	ctx.steps = append(ctx.steps, "          echo \"Existing skills at destination may be replaced (--force) to ensure pinned refs are up to date\"\n")
 	for _, skillSpec := range ctx.data.Skills {
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          echo \"Installing skill reference: %s\"\n", skillSpec))
 		if isRepositorySkillSpec(skillSpec) {

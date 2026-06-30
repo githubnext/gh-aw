@@ -240,10 +240,18 @@ async function main(core, ctx) {
         core.warning("GH_AW_INFO_SKILLS must be a JSON array, ignoring");
         return null;
       }
-      const skills = parsed.filter(v => typeof v === "string" && v.length > 0);
+      const skills = [];
+      for (const [index, value] of parsed.entries()) {
+        if (typeof value === "string" && value.length > 0) {
+          skills.push(value);
+          continue;
+        }
+        core.warning(`Ignoring invalid GH_AW_INFO_SKILLS[${index}] value: ${JSON.stringify(value)}`);
+      }
       return skills.length > 0 ? skills : null;
-    } catch {
-      core.warning(`Failed to parse GH_AW_INFO_SKILLS: ${skillsEnv}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      core.warning(`Failed to parse GH_AW_INFO_SKILLS: ${skillsEnv} (${message})`);
       return null;
     }
   }
