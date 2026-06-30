@@ -564,6 +564,8 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	for i := range ctx.data.Skills {
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          skill_spec=\"${GH_AW_SKILL_SPEC_%d}\"\n", i))
 		ctx.steps = append(ctx.steps, "          echo \"Installing skill reference: ${skill_spec}\"\n")
+		// Keep this runtime owner/repo vs owner/repo/path detection aligned with
+		// isRepositorySkillSpec so expression-based refs behave the same after resolution.
 		ctx.steps = append(ctx.steps, "          skill_base=\"${skill_spec%@*}\"\n")
 		ctx.steps = append(ctx.steps, "          install_args=()\n")
 		ctx.steps = append(ctx.steps, "          if [[ \"${skill_base}\" == */* && \"${skill_base}\" != */*/* ]]; then\n")
