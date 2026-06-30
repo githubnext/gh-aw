@@ -35,6 +35,8 @@ tools:
   agentic-workflows:
   bash:
     - "*"
+features:
+  gh-aw-detection: true
 steps:
   - name: Setup Python
     uses: actions/setup-python@v6.3.0
