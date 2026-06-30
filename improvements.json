@@ -1,6 +1,18 @@
 {
-  "last_updated": "2026-06-29",
+  "last_updated": "2026-06-30",
   "pending_tasks": [
+    {
+      "file": "docs/src/content/docs/reference/repository-package-manifest.md",
+      "created": "2026-06-30",
+      "priority": "high",
+      "title": "Add GitHub-flavored WARNING admonition around 'Missing README.md causes package validation to fail' to surface critical constraint visually"
+    },
+    {
+      "file": ".github/workflows/smoke-agent-all-none.md",
+      "created": "2026-06-30",
+      "priority": "medium",
+      "title": "Improve run-failure message: replace generic 'Check the logs for details.' with hyperlinked '[View run logs]({run_url})'"
+    },
     {
       "file": ".github/workflows/pr-code-quality-reviewer.md",
       "created": "2026-06-29",
@@ -18,48 +30,6 @@
       "created": "2026-06-28",
       "priority": "high",
       "title": "Normalize status message emoji: replace 📐/🎨/📐 trio with consistent 🏛️ to match workflow identity; remove theatrical emoji switching"
-    },
-    {
-      "file": ".github/workflows/impeccable-skills-reviewer.md",
-      "created": "2026-06-28",
-      "priority": "medium",
-      "title": "Add actionable log link to run-failure message: append 'Check the [run logs]({run_url}) for details.'"
-    },
-    {
-      "file": ".github/workflows/smoke-gemini.md",
-      "created": "2026-06-27",
-      "priority": "high",
-      "title": "Fix theatrical run messages: replace 'Gemini awakens/MISSION COMPLETE!/encountered unexpected challenges' with declarative pass/fail/start summaries"
-    },
-    {
-      "file": "docs/src/content/docs/reference/repo-memory.md",
-      "created": "2026-06-27",
-      "priority": "medium",
-      "title": "Reformat Security section from two prose sentences into bulleted list; surface target-repo and branch protection as explicit bullets"
-    },
-    {
-      "file": ".github/workflows/smoke-pi.md",
-      "created": "2026-06-26",
-      "priority": "high",
-      "title": "Fix theatrical run messages: 'MISSION COMPLETE!' → declarative pass; 'encountered unexpected challenges...' → 'Review the run log for details.'"
-    },
-    {
-      "file": "docs/src/content/docs/blog/2026-06-08-migrating-from-effective-tokens-to-ai-credits.md",
-      "created": "2026-06-25",
-      "priority": "high",
-      "title": "Clarify gh aw fix --write recommendation; extend ET metric reference with compatibility timeline"
-    },
-    {
-      "file": ".github/workflows/architecture-guardian.md",
-      "created": "2026-06-24",
-      "priority": "high",
-      "title": "Fix theatrical status messages: 'Guardian online!' → declarative; 'Structure status unknown...' → 'Scan did not complete.'"
-    },
-    {
-      "file": "docs/src/content/docs/reference/measuring-impact.md",
-      "created": "2026-06-23",
-      "priority": "high",
-      "title": "Add starter metrics table to 'A Practical Measurement Model' section; consolidate three repeated prose metric lists"
     }
   ]
 }
