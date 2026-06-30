@@ -550,6 +550,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	ctx.steps = append(ctx.steps, "      - name: Install frontmatter skills\n")
 	ctx.steps = append(ctx.steps, "        env:\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_TOKEN: %s\n", c.resolveActivationToken(ctx.data)))
+	ctx.steps = append(ctx.steps, "          GH_HOST: github.com\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_SKILL_DIR: %q\n", skillDir))
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_SKILLS_SUMMARY: '%s'\n", escapedSkillSpecsJSON))
 	for i, skillSpec := range ctx.data.Skills {

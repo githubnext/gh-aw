@@ -301,6 +301,7 @@ jobs:
       - name: Install frontmatter skills
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_HOST: github.com
           GH_AW_SKILL_DIR: ".github/skills"
           GH_AW_SKILLS_SUMMARY: '["mattpocock/skills/diagnosing-bugs@801dca688564c529fa84f247f64472520d9ebe28","mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28","mattpocock/skills/improve-codebase-architecture@801dca688564c529fa84f247f64472520d9ebe28","mattpocock/skills/grill-with-docs@801dca688564c529fa84f247f64472520d9ebe28","mattpocock/skills/to-prd@801dca688564c529fa84f247f64472520d9ebe28","mattpocock/skills/codebase-design@801dca688564c529fa84f247f64472520d9ebe28","mattpocock/skills/domain-modeling@801dca688564c529fa84f247f64472520d9ebe28"]'
           GH_AW_SKILL_SPEC_0: "mattpocock/skills/diagnosing-bugs@801dca688564c529fa84f247f64472520d9ebe28"
