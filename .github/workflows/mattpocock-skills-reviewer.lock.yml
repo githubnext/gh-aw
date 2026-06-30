@@ -318,60 +318,109 @@ jobs:
           echo "Existing skills at destination may be replaced (--force) to ensure pinned refs are up to date"
           skill_spec="${GH_AW_SKILL_SPEC_0}"
           echo "Installing skill reference: ${skill_spec}"
+          skill_ref="${skill_spec##*@}"
           skill_base="${skill_spec%@*}"
-          install_args=()
-          if [[ "${skill_base}" == */* && "${skill_base}" != */*/* ]]; then
-            install_args+=(--all)
+          if [[ "${skill_base}" == */*/* ]]; then
+            skill_owner="${skill_base%%/*}"
+            skill_remaining="${skill_base#*/}"
+            skill_repo="${skill_owner}/${skill_remaining%%/*}"
+            skill_subpath="${skill_remaining#*/}"
+            gh skill install "${skill_repo}" "${skill_subpath}" --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          elif [[ "${skill_base}" == */* ]]; then
+            gh skill install "${skill_base}" --all --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          else
+            gh skill install "${skill_spec}" --dir "${SKILLS_DST}" --force
           fi
-          gh skill install "${skill_spec}" "${install_args[@]}" --dir "${SKILLS_DST}" --force
           skill_spec="${GH_AW_SKILL_SPEC_1}"
           echo "Installing skill reference: ${skill_spec}"
+          skill_ref="${skill_spec##*@}"
           skill_base="${skill_spec%@*}"
-          install_args=()
-          if [[ "${skill_base}" == */* && "${skill_base}" != */*/* ]]; then
-            install_args+=(--all)
+          if [[ "${skill_base}" == */*/* ]]; then
+            skill_owner="${skill_base%%/*}"
+            skill_remaining="${skill_base#*/}"
+            skill_repo="${skill_owner}/${skill_remaining%%/*}"
+            skill_subpath="${skill_remaining#*/}"
+            gh skill install "${skill_repo}" "${skill_subpath}" --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          elif [[ "${skill_base}" == */* ]]; then
+            gh skill install "${skill_base}" --all --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          else
+            gh skill install "${skill_spec}" --dir "${SKILLS_DST}" --force
           fi
-          gh skill install "${skill_spec}" "${install_args[@]}" --dir "${SKILLS_DST}" --force
           skill_spec="${GH_AW_SKILL_SPEC_2}"
           echo "Installing skill reference: ${skill_spec}"
+          skill_ref="${skill_spec##*@}"
           skill_base="${skill_spec%@*}"
-          install_args=()
-          if [[ "${skill_base}" == */* && "${skill_base}" != */*/* ]]; then
-            install_args+=(--all)
+          if [[ "${skill_base}" == */*/* ]]; then
+            skill_owner="${skill_base%%/*}"
+            skill_remaining="${skill_base#*/}"
+            skill_repo="${skill_owner}/${skill_remaining%%/*}"
+            skill_subpath="${skill_remaining#*/}"
+            gh skill install "${skill_repo}" "${skill_subpath}" --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          elif [[ "${skill_base}" == */* ]]; then
+            gh skill install "${skill_base}" --all --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          else
+            gh skill install "${skill_spec}" --dir "${SKILLS_DST}" --force
           fi
-          gh skill install "${skill_spec}" "${install_args[@]}" --dir "${SKILLS_DST}" --force
           skill_spec="${GH_AW_SKILL_SPEC_3}"
           echo "Installing skill reference: ${skill_spec}"
+          skill_ref="${skill_spec##*@}"
           skill_base="${skill_spec%@*}"
-          install_args=()
-          if [[ "${skill_base}" == */* && "${skill_base}" != */*/* ]]; then
-            install_args+=(--all)
+          if [[ "${skill_base}" == */*/* ]]; then
+            skill_owner="${skill_base%%/*}"
+            skill_remaining="${skill_base#*/}"
+            skill_repo="${skill_owner}/${skill_remaining%%/*}"
+            skill_subpath="${skill_remaining#*/}"
+            gh skill install "${skill_repo}" "${skill_subpath}" --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          elif [[ "${skill_base}" == */* ]]; then
+            gh skill install "${skill_base}" --all --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          else
+            gh skill install "${skill_spec}" --dir "${SKILLS_DST}" --force
           fi
-          gh skill install "${skill_spec}" "${install_args[@]}" --dir "${SKILLS_DST}" --force
           skill_spec="${GH_AW_SKILL_SPEC_4}"
           echo "Installing skill reference: ${skill_spec}"
+          skill_ref="${skill_spec##*@}"
           skill_base="${skill_spec%@*}"
-          install_args=()
-          if [[ "${skill_base}" == */* && "${skill_base}" != */*/* ]]; then
-            install_args+=(--all)
+          if [[ "${skill_base}" == */*/* ]]; then
+            skill_owner="${skill_base%%/*}"
+            skill_remaining="${skill_base#*/}"
+            skill_repo="${skill_owner}/${skill_remaining%%/*}"
+            skill_subpath="${skill_remaining#*/}"
+            gh skill install "${skill_repo}" "${skill_subpath}" --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          elif [[ "${skill_base}" == */* ]]; then
+            gh skill install "${skill_base}" --all --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          else
+            gh skill install "${skill_spec}" --dir "${SKILLS_DST}" --force
           fi
-          gh skill install "${skill_spec}" "${install_args[@]}" --dir "${SKILLS_DST}" --force
           skill_spec="${GH_AW_SKILL_SPEC_5}"
           echo "Installing skill reference: ${skill_spec}"
+          skill_ref="${skill_spec##*@}"
           skill_base="${skill_spec%@*}"
-          install_args=()
-          if [[ "${skill_base}" == */* && "${skill_base}" != */*/* ]]; then
-            install_args+=(--all)
+          if [[ "${skill_base}" == */*/* ]]; then
+            skill_owner="${skill_base%%/*}"
+            skill_remaining="${skill_base#*/}"
+            skill_repo="${skill_owner}/${skill_remaining%%/*}"
+            skill_subpath="${skill_remaining#*/}"
+            gh skill install "${skill_repo}" "${skill_subpath}" --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          elif [[ "${skill_base}" == */* ]]; then
+            gh skill install "${skill_base}" --all --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          else
+            gh skill install "${skill_spec}" --dir "${SKILLS_DST}" --force
           fi
-          gh skill install "${skill_spec}" "${install_args[@]}" --dir "${SKILLS_DST}" --force
           skill_spec="${GH_AW_SKILL_SPEC_6}"
           echo "Installing skill reference: ${skill_spec}"
+          skill_ref="${skill_spec##*@}"
           skill_base="${skill_spec%@*}"
-          install_args=()
-          if [[ "${skill_base}" == */* && "${skill_base}" != */*/* ]]; then
-            install_args+=(--all)
+          if [[ "${skill_base}" == */*/* ]]; then
+            skill_owner="${skill_base%%/*}"
+            skill_remaining="${skill_base#*/}"
+            skill_repo="${skill_owner}/${skill_remaining%%/*}"
+            skill_subpath="${skill_remaining#*/}"
+            gh skill install "${skill_repo}" "${skill_subpath}" --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          elif [[ "${skill_base}" == */* ]]; then
+            gh skill install "${skill_base}" --all --pin "${skill_ref}" --dir "${SKILLS_DST}" --force
+          else
+            gh skill install "${skill_spec}" --dir "${SKILLS_DST}" --force
           fi
-          gh skill install "${skill_spec}" "${install_args[@]}" --dir "${SKILLS_DST}" --force
           SKILL_COUNT=$(find "${SKILLS_DST}" -name "SKILL.md" | wc -l | tr -d '[:space:]')
           echo "Installed ${SKILL_COUNT} skill file(s)"
           core_summary_path="${GITHUB_STEP_SUMMARY:-}"

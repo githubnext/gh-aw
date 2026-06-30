@@ -40,8 +40,8 @@ func TestBuildActivationJob_AddsFrontmatterSkillsInstallSteps(t *testing.T) {
 	assert.Contains(t, steps, "GH_AW_SKILL_SPEC_0: \"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6\"", "expected first skill env var")
 	assert.Contains(t, steps, "GH_AW_SKILL_SPEC_1: \"githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6\"", "expected second skill env var")
 	assert.Contains(t, steps, "skill_spec=\"${GH_AW_SKILL_SPEC_0}\"", "expected runtime install loop to read first skill from env")
-	assert.Contains(t, steps, "install_args+=(--all)", "expected runtime repository-scope detection")
-	assert.Contains(t, steps, "gh skill install \"${skill_spec}\" \"${install_args[@]}\" --dir \"${SKILLS_DST}\" --force", "expected runtime install command to use quoted env values")
+	assert.Contains(t, steps, "gh skill install \"${skill_base}\" --all --pin \"${skill_ref}\" --dir \"${SKILLS_DST}\" --force", "expected repo-level install with --all and --pin")
+	assert.Contains(t, steps, "gh skill install \"${skill_repo}\" \"${skill_subpath}\" --pin \"${skill_ref}\" --dir \"${SKILLS_DST}\" --force", "expected path-level install with separate repo and skill args")
 	assert.Contains(t, steps, "### Frontmatter skills installed", "expected step summary output")
 }
 
