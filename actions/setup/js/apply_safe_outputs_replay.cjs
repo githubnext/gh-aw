@@ -108,11 +108,7 @@ function buildHandlerConfigFromOutput(agentOutputFile) {
   }
 
   // Normalize type: convert dashes to underscores (mirrors safe_outputs_append.cjs)
-  const config = Object.fromEntries(
-    validatedOutput.items
-      .filter(item => item.type && typeof item.type === "string")
-      .map(item => [item.type.replace(/-/g, "_"), {}])
-  );
+  const config = Object.fromEntries(validatedOutput.items.filter(item => item.type && typeof item.type === "string").map(item => [item.type.replace(/-/g, "_"), {}]));
 
   core.info(`Handler config built from ${validatedOutput.items.length} item(s): ${Object.keys(config).join(", ")}`);
   return config;
