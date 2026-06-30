@@ -364,7 +364,7 @@ func fetchPublicGitHubAPI(ctx context.Context, endpoint string) ([]byte, error) 
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := (&http.Client{Timeout: constants.DefaultHTTPClientTimeout}).Do(req)
 	if err != nil {
 		return nil, err
 	}
