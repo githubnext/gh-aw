@@ -5,7 +5,7 @@ import * as os from "os";
 import * as path from "path";
 
 const require = createRequire(import.meta.url);
-const { runWithCopilotSDK, parsePermissionConfigFromServerArgs } = require("./copilot_sdk_driver.cjs");
+const { runWithCopilotSDK, parsePermissionConfigFromServerArgs, parseWireApiEnv } = require("./copilot_sdk_driver.cjs");
 
 describe("copilot_sdk_driver.cjs", () => {
   let testSessionStateDir;
@@ -19,6 +19,19 @@ describe("copilot_sdk_driver.cjs", () => {
     if (prevSessionStateDir === undefined) delete process.env.GH_AW_SESSION_STATE_BASE_DIR;
     else process.env.GH_AW_SESSION_STATE_BASE_DIR = prevSessionStateDir;
     if (testSessionStateDir) fs.rmSync(testSessionStateDir, { recursive: true, force: true });
+  });
+
+  describe("parseWireApiEnv", () => {
+    it("accepts supported values case-insensitively", () => {
+      expect(parseWireApiEnv(" responses ")).toBe("responses");
+      expect(parseWireApiEnv("COMPLETIONS")).toBe("completions");
+    });
+
+    it("returns undefined for empty or unsupported values", () => {
+      expect(parseWireApiEnv("")).toBeUndefined();
+      expect(parseWireApiEnv("chat")).toBeUndefined();
+      expect(parseWireApiEnv(undefined)).toBeUndefined();
+    });
   });
 
   describe("runWithCopilotSDK", () => {

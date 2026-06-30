@@ -348,10 +348,14 @@ function isOpenAIModelName(model) {
  *
  * @param {object | null | undefined} modelsJson
  * @param {string} modelName
+ * @param {string | null | undefined} [providerName]
  * @returns {object | null}
  */
-function getCatalogModelEntry(modelsJson, modelName) {
+function getCatalogModelEntry(modelsJson, modelName, providerName) {
   const model = String(modelName || "")
+    .toLowerCase()
+    .trim();
+  const provider = String(providerName || "")
     .toLowerCase()
     .trim();
   if (!model || modelsJson == null || typeof modelsJson !== "object" || Array.isArray(modelsJson)) {
@@ -361,7 +365,15 @@ function getCatalogModelEntry(modelsJson, modelName) {
   if (!providers || typeof providers !== "object" || Array.isArray(providers)) {
     return null;
   }
-  for (const providerData of Object.values(providers)) {
+  const providerEntries = provider
+    ? Object.entries(providers).filter(
+        ([name]) =>
+          String(name || "")
+            .toLowerCase()
+            .trim() === provider
+      )
+    : Object.entries(providers);
+  for (const [, providerData] of providerEntries) {
     const models = providerData && typeof providerData === "object" ? providerData.models : null;
     if (!models || typeof models !== "object" || Array.isArray(models)) continue;
     for (const [catalogModel, catalogEntry] of Object.entries(models)) {
@@ -394,10 +406,10 @@ function getCatalogModelEntry(modelsJson, modelName) {
  *
  * @param {string} endpointProvider - The `provider` field from the AWF reflect endpoint entry.
  * @param {string} modelName - The resolved model name to use for heuristic fallback.
- * @param {object | null | undefined} modelsJson - Parsed models.json catalog (optional).
+ * @param {object | null | undefined} catalogEntryOrModelsJson - Matching models.json catalog entry or full catalog (optional).
  * @returns {"openai" | "azure" | "anthropic"}
  */
-function inferProviderTypeForModel(endpointProvider, modelName, modelsJson) {
+function inferProviderTypeForModel(endpointProvider, modelName, catalogEntryOrModelsJson) {
   // 1. Endpoint provider name mapping.
   const ep = String(endpointProvider || "")
     .toLowerCase()
@@ -410,10 +422,13 @@ function inferProviderTypeForModel(endpointProvider, modelName, modelsJson) {
   const model = String(modelName || "")
     .toLowerCase()
     .trim();
+  const catalogEntry =
+    catalogEntryOrModelsJson && typeof catalogEntryOrModelsJson === "object" && !Array.isArray(catalogEntryOrModelsJson) && "providers" in catalogEntryOrModelsJson
+      ? getCatalogModelEntry(catalogEntryOrModelsJson, model)
+      : catalogEntryOrModelsJson;
 
   // 2. Model catalog lookup.
   if (model) {
-    const catalogEntry = getCatalogModelEntry(modelsJson, model);
     const pt = catalogEntry && typeof catalogEntry.provider_type === "string" ? catalogEntry.provider_type.trim() : "";
     if (pt === "anthropic" || pt === "azure" || pt === "openai") return /** @type {"openai" | "azure" | "anthropic"} */ pt;
   }
@@ -432,28 +447,33 @@ function inferProviderTypeForModel(endpointProvider, modelName, modelsJson) {
  * Infer the SDK wire API for a model.
  *
  * Resolution order:
- *   1. `models.json` explicit `wire_api`/`wireApi`.
- *   2. For Anthropic provider types: undefined (wireApi ignored by SDK).
+ *   1. For Anthropic provider types: undefined (wireApi ignored by SDK).
+ *   2. `models.json` explicit `wire_api`/`wireApi`.
  *   3. Heuristic default for OpenAI/Azure-compatible models: "completions".
  *
  * @param {"openai" | "azure" | "anthropic"} providerType
  * @param {string} modelName
- * @param {object | null | undefined} modelsJson
+ * @param {object | null | undefined} catalogEntryOrModelsJson
  * @returns {"completions" | "responses" | undefined}
  */
-function inferWireApiForModel(providerType, modelName, modelsJson) {
+function inferWireApiForModel(providerType, modelName, catalogEntryOrModelsJson) {
+  if (providerType === "anthropic") {
+    return undefined;
+  }
   const model = String(modelName || "").trim();
   if (!model) return undefined;
-  const catalogEntry = getCatalogModelEntry(modelsJson, model);
-  const rawWireApi = catalogEntry && typeof catalogEntry.wire_api === "string" ? catalogEntry.wire_api : catalogEntry && typeof catalogEntry.wireApi === "string" ? catalogEntry.wireApi : "";
+  const catalogEntry =
+    catalogEntryOrModelsJson && typeof catalogEntryOrModelsJson === "object" && !Array.isArray(catalogEntryOrModelsJson) && "providers" in catalogEntryOrModelsJson
+      ? getCatalogModelEntry(catalogEntryOrModelsJson, model)
+      : catalogEntryOrModelsJson;
+  // Keep the camelCase fallback for defensive compatibility with injected catalog
+  // objects that bypass the normalized models.json pipeline.
+  const rawWireApi = typeof catalogEntry?.wire_api === "string" ? catalogEntry.wire_api : typeof catalogEntry?.wireApi === "string" ? catalogEntry.wireApi : "";
   const normalizedWireApi = String(rawWireApi || "")
     .toLowerCase()
     .trim();
   if (normalizedWireApi === "responses" || normalizedWireApi === "completions") {
     return /** @type {"responses" | "completions"} */ normalizedWireApi;
-  }
-  if (providerType === "anthropic") {
-    return undefined;
   }
   return "completions";
 }
@@ -524,8 +544,16 @@ function resolveCopilotSDKCustomProviderFromReflect(options) {
     return null;
   }
 
-  const providerType = inferProviderTypeForModel(String(endpoint.provider || ""), model, options?.modelsJson ?? null);
-  const wireApi = inferWireApiForModel(providerType, model, options?.modelsJson ?? null);
+  const endpointProvider = String(endpoint.provider || "");
+  const catalogProviderName =
+    String(endpointProvider || "")
+      .toLowerCase()
+      .trim() === "copilot"
+      ? "github-copilot"
+      : endpointProvider;
+  const catalogEntry = getCatalogModelEntry(options?.modelsJson ?? null, model, catalogProviderName);
+  const providerType = inferProviderTypeForModel(endpointProvider, model, catalogEntry);
+  const wireApi = inferWireApiForModel(providerType, model, catalogEntry);
   logger(`sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} type=${providerType} baseUrl=${baseUrl} model=${model}${wireApi ? ` wireApi=${wireApi}` : ""})`);
   return {
     model,
@@ -547,7 +575,9 @@ if (typeof module !== "undefined" && module.exports) {
     extractModelIds,
     fetchAWFReflect,
     fetchModelsFromUrl,
+    getCatalogModelEntry,
     inferProviderTypeForModel,
+    inferWireApiForModel,
     resolveCopilotSDKCustomProviderFromReflect,
   };
 }
