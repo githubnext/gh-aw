@@ -13,6 +13,14 @@ permissions:
   contents: read
   pull-requests: read
   copilot-requests: write
+skills:
+  - mattpocock/skills/diagnosing-bugs@801dca688564c529fa84f247f64472520d9ebe28
+  - mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
+  - mattpocock/skills/improve-codebase-architecture@801dca688564c529fa84f247f64472520d9ebe28
+  - mattpocock/skills/grill-with-docs@801dca688564c529fa84f247f64472520d9ebe28
+  - mattpocock/skills/to-prd@801dca688564c529fa84f247f64472520d9ebe28
+  - mattpocock/skills/codebase-design@801dca688564c529fa84f247f64472520d9ebe28
+  - mattpocock/skills/domain-modeling@801dca688564c529fa84f247f64472520d9ebe28
 
 sandbox:
   agent:
@@ -28,35 +36,6 @@ imports:
       min-integrity: approved
   - shared/otlp.md
 pre-agent-steps:
-  - name: Upgrade gh CLI
-    run: |
-      bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
-      GH_VERSION=$(gh --version | head -1 | grep -oP '\d+\.\d+\.\d+')
-      echo "gh version: ${GH_VERSION}"
-      REQUIRED="2.90.0"
-      if ! printf '%s\n%s\n' "$REQUIRED" "$GH_VERSION" | sort -V -C; then
-        echo "::error::gh ${GH_VERSION} is older than required ${REQUIRED} (gh skill support requires v2.90+)"
-        exit 1
-      fi
-  - name: Install Matt Pocock skills
-    env:
-      GH_TOKEN: ${{ github.token }}
-    run: |
-      set -euo pipefail
-      SKILLS_DST="${RUNNER_TEMP}/gh-aw/mattpocock-skills"
-      mkdir -p "${SKILLS_DST}"
-      # Install only the skills referenced in this workflow's prompt, rather than
-      # all published skills, to reduce install time and network overhead.
-      for skill in diagnosing-bugs tdd improve-codebase-architecture grill-with-docs to-prd codebase-design domain-modeling; do
-        gh skill install mattpocock/skills "${skill}" --dir "${SKILLS_DST}" --force
-      done
-      SKILL_COUNT=$(find "${SKILLS_DST}" -name "SKILL.md" | wc -l)
-      echo "Installed ${SKILL_COUNT} skill(s):"
-      find "${SKILLS_DST}" -name "SKILL.md" | head -20
-      if [ "${SKILL_COUNT}" -eq 0 ]; then
-        echo "::error::No SKILL.md files found after installing mattpocock/skills"
-        exit 1
-      fi
   - name: Pre-fetch PR diff
     env:
       GH_TOKEN: ${{ github.token }}

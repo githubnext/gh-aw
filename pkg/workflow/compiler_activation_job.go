@@ -41,6 +41,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if err := c.addActivationRepositoryAndOutputSteps(ctx); err != nil {
 		return nil, fmt.Errorf("failed to add activation repository and output steps: %w", err)
 	}
+	if err := c.addActivationSkillInstallSteps(ctx); err != nil {
+		return nil, fmt.Errorf("failed to add skill install steps: %w", err)
+	}
 	if err := c.addActivationCommandAndLabelOutputs(ctx); err != nil {
 		return nil, fmt.Errorf("failed to add activation command and label outputs: %w", err)
 	}
