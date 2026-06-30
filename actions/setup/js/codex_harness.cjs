@@ -64,7 +64,7 @@ const MAX_DELAY_MS = 60000;
 // the human-readable message Codex emits inside "Reconnecting..." / error lines:
 // "Rate limit reached for <model> in organization <org> on tokens per min (TPM): ..."
 const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError|Rate limit reached for [^\s]+(?: in organization [^\s]+)? on tokens per min/i;
-const TOKEN_PER_MIN_RATE_LIMIT_PATTERN = /on tokens per min/i;
+const TOKEN_PER_MIN_RATE_LIMIT_PATTERN = /Rate limit reached for [^\s]+(?: in organization [^\s]+)? on tokens per min/i;
 
 // Pattern to detect when Codex's internal stream-reconnect budget is fully spent.
 // Codex emits "Reconnecting... N/N (reason)" where both numbers are the same when
@@ -115,7 +115,7 @@ function isRateLimitError(output) {
  * @returns {boolean}
  */
 function isTokenPerMinuteRateLimitError(output) {
-  return isRateLimitError(output) && TOKEN_PER_MIN_RATE_LIMIT_PATTERN.test(output);
+  return TOKEN_PER_MIN_RATE_LIMIT_PATTERN.test(output);
 }
 
 /**
@@ -448,6 +448,7 @@ async function main() {
     }
 
     const isRateLimit = isRateLimitError(result.output);
+    const isTokenPerMinuteRateLimit = isTokenPerMinuteRateLimitError(result.output);
     const isAuthenticationFailed = isAuthenticationFailedError(result.output);
     const isMissingApiKey = isMissingApiKeyError(result.output);
     const isServer = isServerError(result.output);
@@ -458,6 +459,7 @@ async function main() {
       `attempt ${attempt + 1} failed:` +
         ` exitCode=${result.exitCode}` +
         ` isRateLimitError=${isRateLimit}` +
+        ` isTokenPerMinuteRateLimitError=${isTokenPerMinuteRateLimit}` +
         ` isAuthenticationFailedError=${isAuthenticationFailed}` +
         ` isMissingApiKeyError=${isMissingApiKey}` +
         ` isServerError=${isServer}` +
@@ -521,7 +523,7 @@ async function main() {
     // Token-per-minute limits indicate exhausted budget for the current workload profile.
     // Fresh-run retries immediately repeat the same prompt workload and can quickly
     // drain available credits without making forward progress.
-    if (isTokenPerMinuteRateLimitError(result.output)) {
+    if (isTokenPerMinuteRateLimit) {
       log(`attempt ${attempt + 1}: token-per-minute rate limit detected — not retrying (fresh runs can further drain token budget)`);
       break;
     }

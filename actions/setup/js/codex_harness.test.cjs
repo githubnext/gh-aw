@@ -99,6 +99,10 @@ describe("codex_harness.cjs", () => {
       it("returns false for generic rate-limit wording", () => {
         expect(isTokenPerMinuteRateLimitError("rate_limit_exceeded")).toBe(false);
       });
+
+      it("returns false for unrelated mention of tokens per min", () => {
+        expect(isTokenPerMinuteRateLimitError("rate_limit_exceeded while printing docs about 'on tokens per min'")).toBe(false);
+      });
     });
 
     it("returns true for 429 Too Many Requests", () => {
@@ -436,7 +440,8 @@ env_key = "OPENAI_API_KEY"
       const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
       if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || nonRetryableGuard.goalAlreadyActive || nonRetryableGuard.maxRunsExceeded) return false;
       const isRateLimit = isRateLimitError(result.output);
-      if (isTokenPerMinuteRateLimitError(result.output)) return false;
+      const isTokenPerMinuteRateLimit = isTokenPerMinuteRateLimitError(result.output);
+      if (isTokenPerMinuteRateLimit) return false;
       if (isRateLimit && isReconnectExhaustedError(result.output)) return false;
       const isTransient = isRateLimit || isServerError(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
@@ -515,15 +520,24 @@ env_key = "OPENAI_API_KEY"
       expect(shouldRetry(result, 0)).toBe(false);
     });
 
-    it("does not retry when rate-limit reconnects are exhausted (N/N pattern)", () => {
+    it("does not retry on token-per-minute rate limit wording even with partial output", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: true,
+        output: '{"type":"error","message":"Rate limit reached for gpt-4o-mini in organization org-xxx on tokens per min (TPM): Limit 200000, Used 50000, Requested 35000. Please try again in 615ms."}',
+      };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry when rate-limit reconnects are exhausted (non-TPM rate limit)", () => {
       // Simulates the real log format: multiple Reconnecting... lines appear in
       // the output as codex retries the stream. The final "5/5" line is what
       // triggers the exhausted-reconnect detection; intermediate lines (1/5, 2/5)
       // confirm that the function ignores non-final attempts.
       const output =
-        '{"type":"error","message":"Reconnecting... 1/5 (stream disconnected before completion: Rate limit reached for gpt-4o-mini on tokens per min (TPM): Limit 200000, Used 166655, Requested 35398. Please try again in 615ms.)"}\n' +
-        '{"type":"error","message":"Reconnecting... 2/5 (stream disconnected before completion: Rate limit reached for gpt-4o-mini on tokens per min (TPM): Limit 200000, Used 166655, Requested 35398. Please try again in 615ms.)"}\n' +
-        '{"type":"error","message":"Reconnecting... 5/5 (stream disconnected before completion: Rate limit reached for gpt-4o-mini on tokens per min (TPM): Limit 200000, Used 166655, Requested 35398. Please try again in 615ms.)"}';
+        '{"type":"error","message":"Reconnecting... 1/5 (stream disconnected before completion: RateLimitError)"}\n' +
+        '{"type":"error","message":"Reconnecting... 2/5 (stream disconnected before completion: RateLimitError)"}\n' +
+        '{"type":"error","message":"Reconnecting... 5/5 (stream disconnected before completion: RateLimitError)"}';
       const result = { exitCode: 1, hasOutput: true, output };
       expect(shouldRetry(result, 0)).toBe(false);
     });
