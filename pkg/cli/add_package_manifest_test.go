@@ -443,6 +443,23 @@ files:
 		assert.Equal(t, "Repo Assist", pkg.Name)
 	})
 
+	t.Run("rejects unsupported branding icon", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "aw.yml" {
+				return []byte(`name: Repo Assist
+branding:
+  icon: not-a-feather-icon
+  color: blue
+`), nil
+			}
+			return nil, createRepositoryPackageNotFoundError(path)
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `icon`)
+	})
+
 	t.Run("rejects docs field", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
