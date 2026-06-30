@@ -22,7 +22,7 @@ List available skills before choosing a strategy.
 
 **Use when**: the relevant skill is not obvious, the repository may not contain the right skill yet, or you want to discover installable skills before loading local ones.
 
-Query **GitHub Agent Finder** directly through its built-in REST API:
+Query **GitHub Agent Finder** through its REST API (ARD search shape: `query.text`; add `query.filter` to narrow by resource type):
 
 ```bash
 curl -s https://agentfinder.github.com/api/v1/search \
@@ -30,9 +30,7 @@ curl -s https://agentfinder.github.com/api/v1/search \
   -d '{"query":{"text":"<the user task, in plain language>"},"pageSize":10}'
 ```
 
-The request body should follow the ARD search shape with a `query.text` field. Add `query.filter` when you need to narrow by resource type.
-
-For example, to search specifically for skills:
+To search specifically for skills, add a type filter:
 
 ```bash
 curl -s https://agentfinder.github.com/api/v1/search \
@@ -55,12 +53,7 @@ Agent Finder helps locate candidates; **skill fusion** keeps the final prompt sm
 
 **Use when**: keeping the main prompt compact while shipping task-specific skill guidance with the workflow.
 
-Inline skills embed a complete skill or fragment under `## skill: \`name\``. Extraction runs in the setup/interpolation step (not at compile time): gh-aw writes each block to engine-specific skill locations and removes it from the main prompt body.
-
-Use to fuse:
-
-- A full skill when the workflow needs a self-contained capability.
-- Partial sections when only targeted guidance is needed.
+Inline skills embed a complete skill or fragment under `## skill: \`name\``. Extraction runs in the setup/interpolation step (not at compile time): gh-aw writes each block to engine-specific skill locations and removes it from the main prompt body. Fuse a full skill for a self-contained capability, or partial sections when only targeted guidance is needed.
 
 **Pattern**:
 
@@ -128,7 +121,7 @@ environment. Never prompt the user for credentials.
 | **Determinism** | Lower (agent chooses) | Higher (exact fragment) |
 | **Scale** | Poor (entire skills loaded) | Good (minimal content) |
 
-Fusion scales better because entire skills are never loaded. Prefer fusion when the task domain and required skill sections are known.
+Prefer fusion when the task domain and required skill sections are known; it never loads entire skills.
 
 ---
 
