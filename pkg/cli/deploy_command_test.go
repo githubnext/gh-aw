@@ -57,6 +57,10 @@ func TestNewDeployCommand_RegistersCoreFlags(t *testing.T) {
 			require.NotNil(t, flag, "expected flag %q to be registered", flagName)
 		})
 	}
+
+	repoFlag := cmd.Flags().Lookup("repo")
+	require.NotNil(t, repoFlag, "expected --repo flag to be registered")
+	assert.Contains(t, repoFlag.Usage, "required unless --org is provided")
 }
 
 func TestNewDeployCommand_CoolDownFlagUsageMatchesUpdate(t *testing.T) {

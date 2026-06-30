@@ -15,7 +15,7 @@ func NewSecretsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "secrets",
 		Short: "Manage GitHub Actions secrets for agentic workflows",
-		Long: `Manage GitHub Actions secrets for GitHub Agentic Workflows.
+		Long: `Manage GitHub Actions secrets for agentic workflows.
 
 This command provides tools for managing secrets required by agentic workflows, including
 AI API keys (Anthropic, OpenAI, GitHub Copilot) and GitHub tokens for workflow execution.
