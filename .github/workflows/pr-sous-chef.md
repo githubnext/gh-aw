@@ -4,7 +4,7 @@ emoji: "👨‍🍳"
 name: PR Sous Chef
 description: Keeps open non-draft PRs moving toward maintainer investigation by posting targeted Copilot nudges
 on:
-  schedule: every 15m
+  schedule: every 20m
   workflow_dispatch:
   skip-if-no-match: "is:pr is:open -is:draft"
 permissions:
