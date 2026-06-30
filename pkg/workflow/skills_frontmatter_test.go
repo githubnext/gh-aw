@@ -38,6 +38,7 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 		})
 		require.NoError(t, err)
 	})
+
 }
 
 func TestIsRepositorySkillSpec(t *testing.T) {

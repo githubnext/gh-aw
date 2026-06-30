@@ -10,8 +10,8 @@ import (
 )
 
 var skillSpecRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$`)
-var skillSpecExpressionRefRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@\$\{\{.*\}\}$`)
-var githubActionsExpressionRegexp = regexp.MustCompile(`^\$\{\{.*\}\}$`)
+var skillSpecExpressionRefRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@\$\{\{.+\}\}$`)
+var githubActionsExpressionRegexp = regexp.MustCompile(`^\$\{\{.+\}\}$`)
 
 func validateFrontmatterSkills(frontmatter map[string]any) error {
 	rawSkills, hasSkills := frontmatter["skills"]

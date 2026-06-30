@@ -66,11 +66,11 @@
             "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$"
           },
           {
-            "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)*)?@\\$\\{\\{.*\\}\\}$",
+            "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)*)?@\\$\\{\\{.+\\}\\}$",
             "description": "Skill reference with a GitHub Actions expression in the ref position."
           },
           {
-            "pattern": "^\\$\\{\\{.*\\}\\}$",
+            "pattern": "^\\$\\{\\{.+\\}\\}$",
             "description": "GitHub Actions expression that resolves to a full skill reference string at runtime."
           }
         ]
