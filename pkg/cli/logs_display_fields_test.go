@@ -14,13 +14,15 @@ func TestMissingToolSummaryDisplayFields(t *testing.T) {
 	// Create a MissingToolSummary with populated Display fields
 	summaries := []MissingToolSummary{
 		{
-			Tool:               "test-tool",
-			Count:              5,
-			Workflows:          []string{"workflow1", "workflow2", "workflow3"},
-			WorkflowsDisplay:   "workflow1, workflow2, workflow3", // This should be rendered
-			FirstReason:        "Tool not found in MCP server",
-			FirstReasonDisplay: "Tool not found in MCP server", // This should be rendered
-			RunIDs:             []int64{1, 2, 3},
+			Tool: "test-tool",
+			AggregatedSummaryBase: AggregatedSummaryBase{
+				Count:              5,
+				Workflows:          []string{"workflow1", "workflow2", "workflow3"},
+				WorkflowsDisplay:   "workflow1, workflow2, workflow3", // This should be rendered
+				FirstReason:        "Tool not found in MCP server",
+				FirstReasonDisplay: "Tool not found in MCP server", // This should be rendered
+				RunIDs:             []int64{1, 2, 3},
+			},
 		},
 	}
 

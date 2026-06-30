@@ -149,15 +149,22 @@ type MCPFailureReport struct {
 	ReportProvenance
 }
 
-// MissingToolSummary aggregates missing tool reports across runs
-type MissingToolSummary struct {
-	Tool               string   `json:"tool" console:"header:Tool"`
+// AggregatedSummaryBase holds the shared tail fields that appear byte-for-byte identically
+// in MissingToolSummary and MissingDataSummary (and as a subset in MCPFailureSummary).
+// Embedding this struct removes copy-paste drift risk across the aggregated-report types.
+type AggregatedSummaryBase struct {
 	Count              int      `json:"count" console:"header:Occurrences"`
-	Workflows          []string `json:"workflows" console:"-"`                     // List of workflow names that reported this tool
+	Workflows          []string `json:"workflows" console:"-"`                     // List of workflow names
 	WorkflowsDisplay   string   `json:"-" console:"header:Workflows,maxlen:40"`    // Formatted display of workflows
 	FirstReason        string   `json:"first_reason" console:"-"`                  // Reason from the first occurrence
 	FirstReasonDisplay string   `json:"-" console:"header:First Reason,maxlen:50"` // Formatted display of first reason
-	RunIDs             []int64  `json:"run_ids" console:"-"`                       // List of run IDs where this tool was reported
+	RunIDs             []int64  `json:"run_ids" console:"-"`                       // List of run IDs
+}
+
+// MissingToolSummary aggregates missing tool reports across runs
+type MissingToolSummary struct {
+	Tool string `json:"tool" console:"header:Tool"`
+	AggregatedSummaryBase
 }
 
 // MCPFailureSummary aggregates MCP server failure reports across runs
@@ -171,13 +178,8 @@ type MCPFailureSummary struct {
 
 // MissingDataSummary aggregates missing data reports across runs
 type MissingDataSummary struct {
-	DataType           string   `json:"data_type" console:"header:Data Type"`
-	Count              int      `json:"count" console:"header:Occurrences"`
-	Workflows          []string `json:"workflows" console:"-"`                     // List of workflow names that reported this data
-	WorkflowsDisplay   string   `json:"-" console:"header:Workflows,maxlen:40"`    // Formatted display of workflows
-	FirstReason        string   `json:"first_reason" console:"-"`                  // Reason from the first occurrence
-	FirstReasonDisplay string   `json:"-" console:"header:First Reason,maxlen:50"` // Formatted display of first reason
-	RunIDs             []int64  `json:"run_ids" console:"-"`                       // List of run IDs where this data was reported
+	DataType string `json:"data_type" console:"header:Data Type"`
+	AggregatedSummaryBase
 }
 
 // MCPToolUsageSummary aggregates MCP tool usage across all runs
