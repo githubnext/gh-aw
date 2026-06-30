@@ -5,8 +5,8 @@
 //   - OAuth client-credentials definition validates correctly
 //   - Missing tokenUrl/clientId/clientSecret produce helpful errors
 //   - Unknown auth strategy produces a clear error
-//   - Strict mode includes auth-binding secrets in required secret list
-//   - Existing built-in auth flows are unchanged (regression)
+//   - Strict mode includes inline auth secrets in required secret list
+//   - Existing built-in engine definitions remain present in the catalog (regression)
 
 package workflow
 
@@ -349,9 +349,8 @@ func TestRegisterInlineEngineDefinition_BackwardsCompatSimpleSecret(t *testing.T
 	compiler := newTestCompiler(t)
 
 	config := &EngineConfig{
-		ID:                   "codex",
-		IsInlineDefinition:   true,
-		InlineProviderSecret: "MY_API_KEY",
+		ID:                 "codex",
+		IsInlineDefinition: true,
 		InlineProviderAuth: &AuthDefinition{
 			Secret: "MY_API_KEY",
 			// Strategy intentionally empty (backwards compat)
@@ -392,38 +391,18 @@ func TestStrictModeGetEngineBaseEnvVarKeys_IncludesAuthSecrets(t *testing.T) {
 	assert.True(t, setutil.Contains(keys, "MY_CLIENT_SECRET"), "client secret should be in allowed env-var keys")
 }
 
-// TestBuiltInEngineAuthUnchanged is a regression test verifying that the built-in engines
-// (claude, codex, copilot, gemini) retain their original auth configuration after the
-// AuthDefinition changes.
-func TestBuiltInEngineAuthUnchanged(t *testing.T) {
+// TestBuiltInEngineCatalogIncludesBuiltIns is a regression test verifying that the built-in
+// engines remain present in the catalog after removing legacy auth bindings.
+func TestBuiltInEngineCatalogIncludesBuiltIns(t *testing.T) {
 	registry := NewEngineRegistry()
 	catalog := NewEngineCatalog(registry)
 
-	tests := []struct {
-		engineID       string
-		wantAuthSecret string // expected legacy AuthBinding secret
-	}{
-		{"claude", "ANTHROPIC_API_KEY"},
-		{"codex", "CODEX_API_KEY"},
-		{"copilot", "COPILOT_GITHUB_TOKEN"},
-		{"gemini", "GEMINI_API_KEY"},
-		{"opencode", "COPILOT_GITHUB_TOKEN"},
-		{"crush", "COPILOT_GITHUB_TOKEN"},
-		{"pi", "COPILOT_GITHUB_TOKEN"},
-	}
+	engineIDs := []string{"antigravity", "claude", "codex", "copilot", "crush", "gemini", "opencode", "pi"}
 
-	for _, tt := range tests {
-		t.Run(tt.engineID, func(t *testing.T) {
-			def := catalog.Get(tt.engineID)
-			require.NotNilf(t, def, "built-in engine %s should be in catalog", tt.engineID)
-
-			// Provider.Auth should be nil for built-in engines (they use AuthBinding only).
-			assert.Nil(t, def.Provider.Auth,
-				"built-in engine %s should have no Provider.Auth (uses legacy AuthBinding)", tt.engineID)
-
-			require.Lenf(t, def.Auth, 1, "engine %s should have exactly one AuthBinding", tt.engineID)
-			assert.Equal(t, tt.wantAuthSecret, def.Auth[0].Secret,
-				"engine %s AuthBinding.Secret should be unchanged", tt.engineID)
+	for _, engineID := range engineIDs {
+		t.Run(engineID, func(t *testing.T) {
+			def := catalog.Get(engineID)
+			require.NotNilf(t, def, "built-in engine %s should be in catalog", engineID)
 		})
 	}
 }

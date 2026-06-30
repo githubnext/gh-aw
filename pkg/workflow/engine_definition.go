@@ -53,8 +53,8 @@ const (
 )
 
 // AuthDefinition describes how the engine authenticates with a provider backend.
-// It extends the simple AuthBinding model to support OAuth client-credentials flows,
-// custom header injection, and template-based secret references.
+// It supports OAuth client-credentials flows, custom header injection, and
+// template-based secret references.
 //
 // For backwards compatibility, a plain auth.secret field without a strategy is treated as
 // AuthStrategyAPIKey.
@@ -72,12 +72,14 @@ type AuthDefinition struct {
 	TokenURL string `yaml:"token-url,omitempty"`
 
 	// ClientIDRef is the secret name that holds the OAuth client ID.
-	// Required for oauth-client-credentials strategy.
-	ClientIDRef string `yaml:"client-id-ref,omitempty"`
+	// The "Ref" suffix indicates this is a reference to a GitHub Actions secret name,
+	// not the secret value itself. Required for oauth-client-credentials strategy.
+	ClientIDRef string `yaml:"client-id,omitempty"`
 
 	// ClientSecretRef is the secret name that holds the OAuth client secret.
-	// Required for oauth-client-credentials strategy.
-	ClientSecretRef string `yaml:"client-secret-ref,omitempty"`
+	// The "Ref" suffix indicates this is a reference to a GitHub Actions secret name,
+	// not the secret value itself. Required for oauth-client-credentials strategy.
+	ClientSecretRef string `yaml:"client-secret,omitempty"`
 
 	// TokenField is the JSON field name in the token response that contains the access token.
 	// Defaults to "access_token" when empty.
@@ -119,12 +121,6 @@ type ModelSelection struct {
 	Supported []string `yaml:"supported,omitempty"`
 }
 
-// AuthBinding maps a logical authentication role to a secret name.
-type AuthBinding struct {
-	Role   string `yaml:"role"`
-	Secret string `yaml:"secret"`
-}
-
 // RequiredSecretNames returns the env-var names that must be provided at runtime for
 // this AuthDefinition. Returns an empty slice when Auth is nil.
 func (a *AuthDefinition) RequiredSecretNames() []string {
@@ -161,7 +157,6 @@ type EngineDefinition struct {
 	RuntimeID string            `yaml:"runtime-id,omitempty"`
 	Provider  ProviderSelection `yaml:"provider,omitempty"`
 	Models    ModelSelection    `yaml:"models,omitempty"`
-	Auth      []AuthBinding     `yaml:"auth,omitempty"`
 	Options   map[string]any    `yaml:"options,omitempty"`
 }
 

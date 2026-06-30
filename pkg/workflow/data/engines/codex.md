@@ -6,9 +6,6 @@ engine:
   runtime-id: codex
   provider:
     name: openai
-  auth:
-    - role: api-key
-      secret: CODEX_API_KEY
 ---
 
 <!-- # Codex

@@ -130,8 +130,8 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `UserAgent` | `string` | `engine.user-agent` | Custom user-agent string |
 | `Command` | `string` | `engine.command` | Custom executable path; skips installation steps when set |
 | `HarnessScript` | `string` | `engine.harness-script` | Custom Node.js harness script filename (replaces engine default) |
-| `CopilotSDK` | `bool` | `engine.copilot-sdk` | **(Experimental)** Enables GitHub Copilot SDK integration. When `true`, the compiler starts a headless Copilot CLI sidecar and sets `COPILOT_SDK_URI` on child processes so the SDK can connect to it. Implied when `CopilotSDKDriver` is non-empty. |
-| `CopilotSDKDriver` | `string` | `engine.copilot-sdk-driver` | **(Experimental)** Custom Copilot SDK driver script filename or command. Supports `.js`/`.cjs`/`.mjs` (Node.js), `.py` (Python), `.ts`/`.mts` (TypeScript), `.rb` (Ruby), or a bare command name for an arbitrary executable on `PATH`. Setting this field implies `copilot-sdk: true`. |
+| `CopilotSDK` | `bool` | `engine.copilot-sdk` | **(Experimental)** Enables GitHub Copilot SDK integration. When `true`, the compiler starts a headless Copilot CLI sidecar and sets `COPILOT_SDK_URI` on child processes so the SDK can connect to it. Also enabled automatically for the copilot engine when `Driver` is non-empty. |
+| `Driver` | `string` | `engine.driver` | **(Experimental)** Custom driver script filename or command. Supports `.js`/`.cjs`/`.mjs` (Node.js), `.py` (Python), `.ts`/`.mts` (TypeScript), `.rb` (Ruby), or a bare command name for an arbitrary executable on `PATH`. Setting this field implies `copilot-sdk: true` for the copilot engine. |
 | `Env` | `map[string]string` | `engine.env` | Extra environment variables injected into the agent job |
 | `Auth` | `*EngineAuthConfig` | `engine.auth` | Engine-level auth config for the API proxy sidecar |
 | `Config` | `string` | `engine.config` | Inline engine configuration JSON/YAML string |

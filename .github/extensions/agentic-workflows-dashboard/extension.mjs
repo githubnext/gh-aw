@@ -1,9 +1,12 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { execFile } from "node:child_process/promises";
+import { execFile as execFileCb } from "node:child_process";
+import { promisify } from "node:util";
 import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
+
+const execFile = promisify(execFileCb);
 
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 
@@ -109,6 +112,7 @@ async function startServer() {
             count: parseInt(reqUrl.searchParams.get("count") ?? String(DEFAULT_RUN_COUNT), 10),
             window: reqUrl.searchParams.get("window") ?? "7d",
             timeout: parseInt(reqUrl.searchParams.get("timeout") ?? String(DEFAULT_LOG_TIMEOUT_MINUTES), 10),
+            workflowName: reqUrl.searchParams.get("workflow_name") ?? "",
           })
         );
       } else if (pathname === "/api/usage") {

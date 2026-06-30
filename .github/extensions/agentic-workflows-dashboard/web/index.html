@@ -112,9 +112,27 @@
         <!-- Runs tab -->
         <section class="mt-3" x-cloak x-show="isActiveTab('runs')">
           <div class="Box">
-            <div class="Box-header d-flex flex-items-center flex-justify-between">
+            <div class="Box-header d-flex flex-items-center flex-justify-between flex-wrap gap-2">
               <h2 class="Box-title">Workflow runs <span class="Counter ml-1" x-text="runsPaged.totalItems"></span></h2>
-              <span class="color-fg-muted text-small" x-text="buildReportSummaryMessage(runsMeta)"></span>
+              <div class="d-flex flex-items-center gap-2">
+                <select
+                  class="form-select form-select-sm"
+                  @change="selectWorkflowFilter($event.target.value)"
+                  :disabled="loadingDefinitions || loadingRuns"
+                  aria-label="Select workflow"
+                >
+                  <option value="">— select a workflow —</option>
+                  <template x-for="def in definitions" :key="def.workflow">
+                    <option :value="def.workflow" :selected="selectedWorkflowFilter === def.workflow" x-text="def.workflow"></option>
+                  </template>
+                </select>
+                <span class="color-fg-muted text-small" x-show="selectedWorkflowFilter" x-text="buildReportSummaryMessage(runsMeta)"></span>
+              </div>
+            </div>
+            <!-- no workflow selected -->
+            <div class="Box-body color-fg-muted text-center py-4" x-show="!selectedWorkflowFilter && !loadingDefinitions">
+              <div>Select a workflow above to load its runs.</div>
+              <div class="text-small mt-1">Filtering by workflow avoids downloading logs for all workflows at once.</div>
             </div>
             <!-- loading -->
             <div class="Box-body p-0 awd-scroll" x-cloak x-show="loadingRuns">
@@ -142,13 +160,12 @@
             <!-- error -->
             <div class="Box-body flash flash-error" x-cloak x-show="!loadingRuns && errorRuns" x-text="errorRuns"></div>
             <!-- rows -->
-            <div class="Box-body p-0 awd-scroll" x-show="!loadingRuns && !errorRuns">
+            <div class="Box-body p-0 awd-scroll" x-show="selectedWorkflowFilter && !loadingRuns && !errorRuns">
               <template x-for="run in runsPaged.items" :key="run.run_id">
                 <div class="Box-row awd-run-row" :class="selectedRun && selectedRun.run_id === run.run_id ? 'is-selected' : ''" @click="viewRunDetails(run.run_id)">
                   <div class="d-flex flex-items-center flex-justify-between gap-2">
                     <div class="d-flex flex-items-center gap-2 text-small">
                       <span class="text-bold">#<span x-text="run.run_id"></span></span>
-                      <span class="color-fg-muted">· <span x-text="run.workflow_name"></span></span>
                       <span class="color-fg-muted" x-show="run.duration">· <span x-text="formatDuration(run.duration)"></span></span>
                       <span class="color-fg-muted">· <span x-text="formatAIC(run.aic ?? 0)"></span></span>
                     </div>
@@ -156,7 +173,7 @@
                   </div>
                 </div>
               </template>
-              <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingRuns && runsPaged.totalItems === 0">No runs found. Run <code>gh aw logs</code> to check availability.</div>
+              <div class="Box-row color-fg-muted text-center py-3" x-show="!loadingRuns && runsPaged.totalItems === 0">No runs found for this workflow in the selected window.</div>
             </div>
             <div class="Box-footer d-flex flex-items-center flex-justify-between" x-cloak x-show="!loadingRuns && runsPaged.totalPages > 1">
               <button class="btn btn-sm" :disabled="!runsPaged.hasPreviousPage" @click="loadRunPage(runsPaged.page - 1)">Previous</button>

@@ -6,9 +6,6 @@ engine:
   runtime-id: claude
   provider:
     name: anthropic
-  auth:
-    - role: api-key
-      secret: ANTHROPIC_API_KEY
 ---
 
 <!-- # Claude Code

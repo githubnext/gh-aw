@@ -123,7 +123,12 @@ func TestExtractEngineConfig_InlineDefinition(t *testing.T) {
 			assert.Equal(t, tt.expectedVersion, config.Version, "Version should match runtime.version")
 			assert.Equal(t, tt.expectedModel, config.Model, "Model should match provider.model")
 			assert.Equal(t, tt.expectedProviderID, config.InlineProviderID, "InlineProviderID should match provider.id")
-			assert.Equal(t, tt.expectedSecret, config.InlineProviderSecret, "InlineProviderSecret should match provider.auth.secret")
+			if tt.expectedSecret != "" {
+				require.NotNil(t, config.InlineProviderAuth, "InlineProviderAuth should be set when secret is expected")
+				assert.Equal(t, tt.expectedSecret, config.InlineProviderAuth.Secret, "InlineProviderAuth.Secret should match provider.auth.secret")
+			} else {
+				assert.Nil(t, config.InlineProviderAuth, "InlineProviderAuth should be nil when provider.auth is omitted")
+			}
 			assert.Equal(t, tt.expectedPermission, config.PermissionMode, "PermissionMode should match engine.permission-mode")
 		})
 	}
@@ -220,10 +225,12 @@ func TestRegisterInlineEngineDefinition_PreservesBuiltInDisplayName(t *testing.T
 	originalDisplayName := builtIn.DisplayName
 
 	config := &EngineConfig{
-		IsInlineDefinition:   true,
-		ID:                   "codex",
-		InlineProviderID:     "openai",
-		InlineProviderSecret: "MY_KEY",
+		IsInlineDefinition: true,
+		ID:                 "codex",
+		InlineProviderID:   "openai",
+		InlineProviderAuth: &AuthDefinition{
+			Secret: "MY_KEY",
+		},
 	}
 	c.registerInlineEngineDefinition(config)
 
@@ -233,9 +240,9 @@ func TestRegisterInlineEngineDefinition_PreservesBuiltInDisplayName(t *testing.T
 		"display name should be preserved from built-in definition")
 	assert.Equal(t, "openai", updated.Provider.Name,
 		"provider should be overridden by inline definition")
-	require.Len(t, updated.Auth, 1,
-		"auth binding should be set from inline definition")
-	assert.Equal(t, "MY_KEY", updated.Auth[0].Secret,
+	require.NotNil(t, updated.Provider.Auth,
+		"auth should be set from inline definition")
+	assert.Equal(t, "MY_KEY", updated.Provider.Auth.Secret,
 		"auth secret should be set from inline provider auth")
 }
 

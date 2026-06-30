@@ -11,7 +11,7 @@ function combineOutput(stdout, stderr) {
 }
 function spawnExecFile(file, args, options, callback) {
   const { env, cwd, maxBuffer = 10 * 1024 * 1024 } = options ?? {};
-  const spawnOptions = { env, cwd, stdio: ["ignore", "pipe", "pipe"], windowsHide: true };
+  const spawnOptions = { env, cwd, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: true };
   console.error(`${LOG} spawn file=${file} args=${JSON.stringify(args)} cwd=${cwd}`);
   const proc = spawn(file, args, spawnOptions);
   const stdoutChunks = [];
@@ -735,8 +735,8 @@ function createDashboardDataAccess({ runGhAw, cacheTTL = CACHE_TTL_MS, logsOutpu
       const output = await runGhAw(args);
       return { command: rawCmd, output };
     } catch (err) {
-      const error = err;
-      const msg = error.stderr || error.message || "Unknown error";
+      const e = asError(err);
+      const msg = e.stderr || e.message || "Unknown error";
       console.error(`${LOG2} execCommand error cmd="${rawCmd}": ${msg}`);
       return { command: rawCmd, output: msg, error: true };
     }

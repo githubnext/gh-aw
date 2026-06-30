@@ -12096,6 +12096,17 @@
               "type": "string",
               "pattern": "^(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*)(?:/(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*))*$",
               "description": "Custom inner driver script for engines that support driver mode (e.g. pi). Accepts a workspace-relative path ending with .js, .cjs, or .mjs (e.g. `.github/drivers/pi_agent_core_driver_sample_node.cjs`), or a bare filename without a path separator resolved from the gh-aw setup-action directory (e.g. `pi_agent_core_driver.cjs`)."
+            },
+            "extensions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Engine-specific plugin names to install before launching the engine. Currently used by the Pi engine: each entry is passed to `pi install <extension>`."
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Override the working directory for the engine's spawned process. Accepts a literal path or a GitHub Actions expression (e.g. `${{ github.workspace }}/subdir`). When set, passed as GH_AW_ENGINE_CWD to the engine execution environment."
             }
           },
           "required": ["id"],
@@ -12336,25 +12347,6 @@
                 }
               },
               "additionalProperties": false
-            },
-            "auth": {
-              "type": "array",
-              "description": "Authentication bindings \u2014 maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "role": {
-                    "type": "string",
-                    "description": "Logical authentication role (e.g. 'api-key', 'token')"
-                  },
-                  "secret": {
-                    "type": "string",
-                    "description": "Name of the GitHub Actions secret that provides credentials for this role"
-                  }
-                },
-                "required": ["role", "secret"],
-                "additionalProperties": false
-              }
             },
             "options": {
               "type": "object",
