@@ -56,7 +56,7 @@
     },
     "branding": {
       "type": "object",
-      "description": "GitHub Actions marketplace branding. See https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#branding",
+      "description": "Follows GitHub Actions marketplace branding. See https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#branding",
       "properties": {
         "icon": {
           "type": "string",
