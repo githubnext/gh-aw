@@ -385,8 +385,11 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs directory: sandbox/firewall/logs/squid-logs"))
 			}
 			analysis, err := analyzeMultipleFirewallLogs(squidSubDir, verbose)
-			if err != nil || analysis != nil {
-				return analysis, err
+			if err != nil {
+				return nil, err
+			}
+			if analysis != nil {
+				return analysis, nil
 			}
 		}
 		// Fall back to direct *.log files at the sandbox/firewall/logs/ level (older AWF layout).
