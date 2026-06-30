@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -263,6 +264,62 @@ engine: copilot
 			}
 		})
 	}
+}
+
+func TestParseFrontmatterSection_InvalidSkillsRef(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-invalid-skills-ref")
+
+	testContent := `---
+on: workflow_dispatch
+engine: copilot
+skills:
+  - githubnext/skills@main
+---
+
+# Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "invalid-skills.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	result, err := compiler.parseFrontmatterSection(testFile)
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t,
+		strings.Contains(err.Error(), "40-char-sha") || strings.Contains(err.Error(), "does not match pattern"),
+		"expected skills validation error, got: %v", err,
+	)
+}
+
+func TestParseFrontmatterSection_ExpressionSkillsRef(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-expression-skills-ref")
+
+	testContent := `---
+on: workflow_dispatch
+engine: copilot
+skills:
+  - ${{ inputs.skill_ref }}
+  - githubnext/skills@${{ github.sha }}
+---
+
+# Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "expression-skills.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	result, err := compiler.parseFrontmatterSection(testFile)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.frontmatterResult)
+	assert.Equal(t, []any{
+		"${{ inputs.skill_ref }}",
+		"githubnext/skills@${{ github.sha }}",
+	}, result.frontmatterResult.Frontmatter["skills"])
 }
 
 // TestParseFrontmatterSection_FileReadError tests file I/O error handling

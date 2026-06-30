@@ -965,6 +965,14 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			fmt.Fprintf(yaml, "          GH_AW_INFO_FEATURES: '%s'\n", escapedFeaturesJSON)
 		}
 	}
+	if len(data.Skills) > 0 {
+		if skillsJSON, err := json.Marshal(data.Skills); err == nil {
+			escapedSkillsJSON := strings.ReplaceAll(string(skillsJSON), "'", "''")
+			fmt.Fprintf(yaml, "          GH_AW_INFO_SKILLS: '%s'\n", escapedSkillsJSON)
+		} else {
+			compilerYamlLog.Printf("Failed to marshal skills for GH_AW_INFO_SKILLS, engine will not receive skill list: %v", err)
+		}
+	}
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")

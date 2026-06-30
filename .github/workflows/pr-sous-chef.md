@@ -38,15 +38,7 @@ tools:
     toolsets: [pull_requests, repos, issues]
   edit:
   bash:
-    - "cat *"
-    - "jq *"
-    - "date *"
-    - "git fetch:*"
-    - "git checkout:*"
-    - "git diff:*"
-    - "git status"
-    - "git restore:*"
-    - "make fmt"
+    - "*"
 steps:
   - name: Fetch open non-draft PR queue
     id: fetch-prs
