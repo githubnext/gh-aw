@@ -446,6 +446,20 @@ function inferWireApiForModel(modelId, modelsJson) {
 }
 
 /**
+ * Infer the wire API required by a set of model IDs.
+ * Returns "responses" if any model in the list requires it, "completions" otherwise.
+ * This is used when a session may involve multiple models (e.g. main model + sub-agent models).
+ *
+ * @param {string[]} modelIds
+ * @param {object | null | undefined} modelsJson
+ * @returns {"completions" | "responses"}
+ */
+function inferWireApiForModels(modelIds, modelsJson) {
+  if (!Array.isArray(modelIds)) return "completions";
+  return modelIds.some(id => inferWireApiForModel(id, modelsJson) === "responses") ? "responses" : "completions";
+}
+
+/**
  * Resolve Copilot SDK BYOK custom provider configuration from AWF /reflect data.
  * Chooses a configured endpoint and maps it to a provider base URL and type.
  * Returns null when no suitable endpoint is found (e.g. no reflect data, or endpoints not
@@ -536,6 +550,7 @@ if (typeof module !== "undefined" && module.exports) {
     fetchModelsFromUrl,
     inferProviderTypeForModel,
     inferWireApiForModel,
+    inferWireApiForModels,
     resolveCopilotSDKCustomProviderFromReflect,
   };
 }

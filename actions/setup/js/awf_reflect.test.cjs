@@ -20,6 +20,7 @@ const {
   fetchModelsFromUrl,
   inferProviderTypeForModel,
   inferWireApiForModel,
+  inferWireApiForModels,
   resolveCopilotSDKCustomProviderFromReflect,
 } = require("./awf_reflect.cjs");
 
@@ -397,6 +398,90 @@ describe("awf_reflect.cjs", () => {
     });
   });
 
+  describe("inferWireApiForModel", () => {
+    it("returns 'completions' for an unknown model", () => {
+      expect(inferWireApiForModel("unknown-model", null)).toBe("completions");
+      expect(inferWireApiForModel("unknown-model", {})).toBe("completions");
+    });
+
+    it("returns 'completions' for a model without a wire_api field", () => {
+      const modelsJson = {
+        providers: {
+          openai: { models: { "gpt-5.4": { provider_type: "openai", cost: {} } } },
+        },
+      };
+      expect(inferWireApiForModel("gpt-5.4", modelsJson)).toBe("completions");
+    });
+
+    it("returns 'responses' for gpt-5.5 which has wire_api: responses", () => {
+      const modelsJson = {
+        providers: {
+          openai: { models: { "gpt-5.5": { provider_type: "openai", wire_api: "responses", cost: {} } } },
+        },
+      };
+      expect(inferWireApiForModel("gpt-5.5", modelsJson)).toBe("responses");
+    });
+
+    it("finds a model across multiple providers", () => {
+      const modelsJson = {
+        providers: {
+          "github-copilot": { models: { "gpt-5.4": { provider_type: "openai", cost: {} } } },
+          openai: { models: { "gpt-5.5": { provider_type: "openai", wire_api: "responses", cost: {} } } },
+        },
+      };
+      expect(inferWireApiForModel("gpt-5.5", modelsJson)).toBe("responses");
+      expect(inferWireApiForModel("gpt-5.4", modelsJson)).toBe("completions");
+    });
+
+    it("returns 'completions' when modelsJson is null or undefined", () => {
+      expect(inferWireApiForModel("gpt-5.5", null)).toBe("completions");
+      expect(inferWireApiForModel("gpt-5.5", undefined)).toBe("completions");
+    });
+  });
+
+  describe("inferWireApiForModels", () => {
+    const modelsJson = {
+      providers: {
+        openai: {
+          models: {
+            "gpt-5.4": { provider_type: "openai", cost: {} },
+            "gpt-5.5": { provider_type: "openai", wire_api: "responses", cost: {} },
+            "gpt-5.5-pro": { provider_type: "openai", wire_api: "responses", cost: {} },
+          },
+        },
+      },
+    };
+
+    it("returns 'completions' when no model needs responses", () => {
+      expect(inferWireApiForModels(["gpt-5.4"], modelsJson)).toBe("completions");
+      expect(inferWireApiForModels(["gpt-5.4", "claude-sonnet-4.5"], modelsJson)).toBe("completions");
+    });
+
+    it("returns 'responses' when any model needs it", () => {
+      expect(inferWireApiForModels(["gpt-5.5"], modelsJson)).toBe("responses");
+      expect(inferWireApiForModels(["gpt-5.4", "gpt-5.5"], modelsJson)).toBe("responses");
+      expect(inferWireApiForModels(["gpt-5.5-pro", "gpt-5.4"], modelsJson)).toBe("responses");
+    });
+
+    it("returns 'responses' when a subagent model requires it and the main model does not", () => {
+      // Simulates main model = gpt-5.4 (completions), subagent = gpt-5.5 (responses)
+      expect(inferWireApiForModels(["gpt-5.4", "gpt-5.5"], modelsJson)).toBe("responses");
+    });
+
+    it("returns 'completions' for an empty list", () => {
+      expect(inferWireApiForModels([], modelsJson)).toBe("completions");
+    });
+
+    it("returns 'completions' when modelsJson is null", () => {
+      expect(inferWireApiForModels(["gpt-5.5"], null)).toBe("completions");
+    });
+
+    it("returns 'completions' for a non-array input", () => {
+      expect(inferWireApiForModels(null, modelsJson)).toBe("completions");
+      expect(inferWireApiForModels(undefined, modelsJson)).toBe("completions");
+    });
+  });
+
   describe("resolveCopilotSDKCustomProviderFromReflect", () => {
     it("resolves provider baseUrl and model from port when models_url is absent", () => {
       const reflectData = {
@@ -517,6 +602,34 @@ describe("awf_reflect.cjs", () => {
       });
       expect(result).toBeNull();
       expect(logs.some(l => l.includes("no reflect data provided"))).toBe(true);
+    });
+
+    it("omits wireApi from provider when model uses default completions API", () => {
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.4"] }],
+      };
+      const modelsJson = {
+        providers: {
+          openai: { models: { "gpt-5.4": { provider_type: "openai", cost: {} } } },
+        },
+      };
+      const result = resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "gpt-5.4", modelsJson });
+      expect(result).not.toBeNull();
+      expect(result.provider).not.toHaveProperty("wireApi");
+    });
+
+    it("includes wireApi: 'responses' in provider when model requires responses API", () => {
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.5"] }],
+      };
+      const modelsJson = {
+        providers: {
+          openai: { models: { "gpt-5.5": { provider_type: "openai", wire_api: "responses", cost: {} } } },
+        },
+      };
+      const result = resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "gpt-5.5", modelsJson });
+      expect(result).not.toBeNull();
+      expect(result.provider.wireApi).toBe("responses");
     });
   });
 });

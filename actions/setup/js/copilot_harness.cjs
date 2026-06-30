@@ -57,6 +57,7 @@ const {
   fetchAWFReflect,
   fetchModelsFromUrl,
   inferProviderTypeForModel,
+  inferWireApiForModels,
   resolveCopilotSDKCustomProviderFromReflect,
 } = require("./awf_reflect.cjs");
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
@@ -660,6 +661,50 @@ function resolvePromptFileArgs(args) {
 }
 
 /**
+ * Extract the `model:` value from a YAML frontmatter block at the start of a string.
+ * Returns an empty string if the content has no frontmatter or no model field.
+ *
+ * @param {string} content
+ * @returns {string}
+ */
+function extractModelFromAgentFrontmatter(content) {
+  const match = String(content || "").match(/^---\r?\n([\s\S]*?)\n---/);
+  if (!match) return "";
+  const modelMatch = match[1].match(/^model:\s*(.+)$/m);
+  return modelMatch ? modelMatch[1].trim() : "";
+}
+
+/**
+ * Scan `.github/agents/*.agent.md` files under `baseDir` and return the model
+ * identifiers declared in each file's YAML frontmatter.
+ * Silently ignores missing directory or unreadable files.
+ *
+ * @param {string} baseDir - Workspace root (typically GITHUB_WORKSPACE).
+ * @returns {string[]}
+ */
+function collectSubAgentModelIds(baseDir) {
+  if (!baseDir) return [];
+  const agentsDir = require("path").join(baseDir, ".github", "agents");
+  const modelIds = [];
+  try {
+    const files = fs.readdirSync(agentsDir);
+    for (const file of files) {
+      if (!file.endsWith(".agent.md")) continue;
+      try {
+        const content = fs.readFileSync(require("path").join(agentsDir, file), "utf8");
+        const model = extractModelFromAgentFrontmatter(content);
+        if (model) modelIds.push(model);
+      } catch {
+        // ignore unreadable files
+      }
+    }
+  } catch {
+    // directory doesn't exist or is unreadable — not an error
+  }
+  return modelIds;
+}
+
+/**
  * Main entry point: run copilot with retry logic for partially-executed sessions.
  */
 async function main() {
@@ -732,6 +777,22 @@ async function main() {
     providerWireApi = customProvider.provider.wireApi || "";
     resolvedModel = customProvider.model;
     log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${providerBaseUrl} type=${providerType} model=${resolvedModel})`);
+
+    // Upgrade wireApi to "responses" if any inline sub-agent model requires it.
+    // The session-level provider wireApi applies to all model calls, including sub-agents,
+    // so we must use "responses" whenever any model in the session needs it.
+    if (providerWireApi !== "responses") {
+      const workspace = process.env.GITHUB_WORKSPACE || "";
+      const subAgentModelIds = collectSubAgentModelIds(workspace);
+      if (subAgentModelIds.length > 0) {
+        log(`copilot-sdk driver mode: found ${subAgentModelIds.length} sub-agent model(s): ${subAgentModelIds.join(", ")}`);
+        const effectiveWireApi = inferWireApiForModels([resolvedModel, ...subAgentModelIds], modelsJson);
+        if (effectiveWireApi !== (providerWireApi || "completions")) {
+          log(`copilot-sdk driver mode: upgrading wireApi to "${effectiveWireApi}" to support sub-agent model(s)`);
+          providerWireApi = effectiveWireApi;
+        }
+      }
+    }
   }
 
   // Merge SDK env additions into the child process env only when the SDK helper
