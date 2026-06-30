@@ -120,8 +120,14 @@ The following toolsets are enabled by default when `toolsets:` is not specified:
 | `secret_protection` | Secret scanning | Secret detection and management |
 | `security_advisories` | Security advisories | Advisory creation and management |
 | `stargazers` | Repository stars | Star-related operations |
-| `users` | User profiles | `get_me`, `get_user`, `list_users` |
+| `users` | User profiles | `get_me` ⚠️ (see note below), `get_user`, `list_users` |
 | `search` | Advanced search | Search across repos, code, users |
+
+:::caution[`get_me` returns 403 under the integration token]
+`get_me` is **not recommended** in agentic workflows. It returns HTTP 403 when called under the GitHub Actions integration token (which is the default in all gh-aw runs). Do **not** call `get_me` to determine the agent's identity.
+
+**Canonical identity source**: The `<github-context>` block is injected at the start of every workflow prompt and contains `actor`, `repository`, `run_id`, and other context values. Always read identity from there.
+:::
 
 ## Available Tools by Toolset
 
@@ -177,7 +183,7 @@ This section maps individual tools to their respective toolsets to help with mig
 - `create_label` - Create a new label
 
 ### Users Toolset
-- `get_me` - Get current authenticated user information
+- `get_me` - ⚠️ **Not recommended** — returns HTTP 403 under the integration token. Use the `<github-context>` block (provided at the start of every prompt) to read your identity: `actor`, `repository`, `run_id`, etc.
 - `get_user` - Get user profile information
 - `list_users` - List users
 
@@ -280,7 +286,7 @@ Use this table to identify which toolset contains the tools you need:
 
 | `allowed:` Tools | Migrate to `toolsets:` |
 |------------------|------------------------|
-| `get_me` | `users` |
+| `get_me` ⚠️ (not recommended — returns 403; use `<github-context>` instead) | `users` |
 | `get_teams`, `get_team_members` | `context` |
 | `get_repository`, `get_file_contents`, `search_code`, `list_commits` | `repos` |
 | `issue_read`, `list_issues`, `create_issue`, `update_issue`, `search_issues` | `issues` |
