@@ -61,6 +61,7 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_FRONTMATTER_EMOJI = "";
     process.env.GH_AW_INFO_BODY_MODIFIED = "";
     process.env.GH_AW_INFO_FEATURES = "";
+    process.env.GH_AW_INFO_SKILLS = "";
 
     // Dynamic import to get fresh module state
     const module = await import("./generate_aw_info.cjs");
@@ -115,6 +116,16 @@ describe("generate_aw_info.cjs", () => {
       "gh-aw-detection": true,
       "custom-mode": "strict",
     });
+  });
+
+  it("should include frontmatter skills and log them with core.info", async () => {
+    process.env.GH_AW_INFO_SKILLS = JSON.stringify(["githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6", "githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6"]);
+
+    await main(mockCore, mockContext);
+
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.skills).toEqual(["githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6", "githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6"]);
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Configured frontmatter skills"));
   });
 
   it("should persist custom token weights in aw_info.json", async () => {

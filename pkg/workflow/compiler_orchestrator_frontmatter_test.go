@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -263,6 +264,33 @@ engine: copilot
 			}
 		})
 	}
+}
+
+func TestParseFrontmatterSection_InvalidSkillsRef(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-invalid-skills-ref")
+
+	testContent := `---
+on: workflow_dispatch
+engine: copilot
+skills:
+  - githubnext/skills@main
+---
+
+# Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "invalid-skills.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	result, err := compiler.parseFrontmatterSection(testFile)
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t,
+		strings.Contains(err.Error(), "40-char-sha") || strings.Contains(err.Error(), "does not match pattern"),
+		"expected skills validation error, got: %v", err,
+	)
 }
 
 // TestParseFrontmatterSection_FileReadError tests file I/O error handling
