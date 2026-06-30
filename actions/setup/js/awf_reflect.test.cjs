@@ -403,7 +403,7 @@ describe("awf_reflect.cjs", () => {
       };
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
         model: "gpt-5.4",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "completions" },
       });
     });
 
@@ -439,7 +439,7 @@ describe("awf_reflect.cjs", () => {
       };
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
         model: "gpt-4o",
-        provider: { type: "openai", baseUrl: "http://172.30.0.30:10002" },
+        provider: { type: "openai", baseUrl: "http://172.30.0.30:10002", wireApi: "completions" },
       });
     });
 
@@ -469,7 +469,7 @@ describe("awf_reflect.cjs", () => {
       };
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "gpt-5.4" })).toEqual({
         model: "gpt-5.4",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "completions" },
       });
     });
 
@@ -484,7 +484,22 @@ describe("awf_reflect.cjs", () => {
       };
       expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, modelsJson })).toEqual({
         model: "raptor-mini",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "completions" },
+      });
+    });
+
+    it("uses wire_api from modelsJson when provided", () => {
+      const reflectData = {
+        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.5"] }],
+      };
+      const modelsJson = {
+        providers: {
+          "github-copilot": { models: { "gpt-5.5": { provider_type: "openai", wire_api: "responses", cost: {} } } },
+        },
+      };
+      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData, model: "gpt-5.5", modelsJson })).toEqual({
+        model: "gpt-5.5",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" },
       });
     });
 

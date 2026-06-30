@@ -13,6 +13,7 @@
  *   COPILOT_MODEL                       — model override (optional)
  *   GH_AW_COPILOT_SDK_PROVIDER_BASE_URL — BYOK provider base URL (set by the harness)
  *   GH_AW_COPILOT_SDK_PROVIDER_TYPE    — BYOK provider type: "openai" | "azure" | "anthropic" (set by the harness)
+ *   GH_AW_COPILOT_SDK_PROVIDER_WIRE_API — BYOK provider wire API: "completions" | "responses" (set by the harness)
  *   GH_AW_COPILOT_SDK_SERVER_ARGS       — JSON-encoded allow-tool sidecar args (set by the engine)
  *
  * The sidecar is started and stopped by the harness; the driver only opens a
@@ -102,8 +103,12 @@ async function main() {
   /** @type {"openai" | "azure" | "anthropic"} */
   const providerType = rawProviderType === "anthropic" || rawProviderType === "azure" ? rawProviderType : "openai";
   log(`provider type: ${providerType}`);
+  const rawWireApi = String(process.env.GH_AW_COPILOT_SDK_PROVIDER_WIRE_API || "")
+    .toLowerCase()
+    .trim();
+  const wireApi = rawWireApi === "responses" || rawWireApi === "completions" ? rawWireApi : undefined;
   /** @type {import("@github/copilot-sdk").ProviderConfig} */
-  const provider = { type: providerType, baseUrl: providerBaseUrl };
+  const provider = { type: providerType, baseUrl: providerBaseUrl, ...(wireApi ? { wireApi } : {}) };
 
   // --- Build permission config from sidecar server args ----------------
   // GH_AW_COPILOT_SDK_SERVER_ARGS holds the JSON-encoded --allow-tool flags

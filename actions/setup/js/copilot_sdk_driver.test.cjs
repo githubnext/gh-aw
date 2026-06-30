@@ -776,7 +776,7 @@ describe("copilot_sdk_driver.cjs", () => {
         prompt: "test prompt",
         logger: () => {},
         model: "gpt-5.4",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" },
         sdkModule: {
           CopilotClient: FakeCopilotClient,
           RuntimeConnection: { forUri },
@@ -788,7 +788,7 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(createSession).toHaveBeenCalledWith(
         expect.objectContaining({
           model: "gpt-5.4",
-          provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+          provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" },
         })
       );
       expect(forUri).toHaveBeenCalledWith("http://127.0.0.1:3002", {});

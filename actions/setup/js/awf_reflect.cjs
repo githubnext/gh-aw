@@ -344,6 +344,40 @@ function isOpenAIModelName(model) {
 }
 
 /**
+ * Look up a model entry in the models.json catalog, case-insensitively.
+ *
+ * @param {object | null | undefined} modelsJson
+ * @param {string} modelName
+ * @returns {object | null}
+ */
+function getCatalogModelEntry(modelsJson, modelName) {
+  const model = String(modelName || "")
+    .toLowerCase()
+    .trim();
+  if (!model || modelsJson == null || typeof modelsJson !== "object" || Array.isArray(modelsJson)) {
+    return null;
+  }
+  const providers = modelsJson.providers;
+  if (!providers || typeof providers !== "object" || Array.isArray(providers)) {
+    return null;
+  }
+  for (const providerData of Object.values(providers)) {
+    const models = providerData && typeof providerData === "object" ? providerData.models : null;
+    if (!models || typeof models !== "object" || Array.isArray(models)) continue;
+    for (const [catalogModel, catalogEntry] of Object.entries(models)) {
+      if (
+        String(catalogModel || "")
+          .toLowerCase()
+          .trim() === model
+      ) {
+        return catalogEntry && typeof catalogEntry === "object" && !Array.isArray(catalogEntry) ? catalogEntry : null;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Infer the Copilot SDK provider type for a given endpoint provider name and model name.
  *
  * The SDK's `ProviderConfig.type` field determines which API format the SDK uses when
@@ -378,25 +412,10 @@ function inferProviderTypeForModel(endpointProvider, modelName, modelsJson) {
     .trim();
 
   // 2. Model catalog lookup.
-  if (modelsJson != null && model) {
-    const providers = modelsJson && typeof modelsJson === "object" && !Array.isArray(modelsJson) ? modelsJson.providers : null;
-    if (providers && typeof providers === "object") {
-      for (const providerData of Object.values(providers)) {
-        const models = providerData && typeof providerData === "object" ? providerData.models : null;
-        if (models && typeof models === "object") {
-          for (const [catalogModel, catalogEntry] of Object.entries(models)) {
-            if (
-              String(catalogModel || "")
-                .toLowerCase()
-                .trim() === model
-            ) {
-              const pt = catalogEntry && typeof catalogEntry.provider_type === "string" ? catalogEntry.provider_type.trim() : "";
-              if (pt === "anthropic" || pt === "azure" || pt === "openai") return /** @type {"openai" | "azure" | "anthropic"} */ pt;
-            }
-          }
-        }
-      }
-    }
+  if (model) {
+    const catalogEntry = getCatalogModelEntry(modelsJson, model);
+    const pt = catalogEntry && typeof catalogEntry.provider_type === "string" ? catalogEntry.provider_type.trim() : "";
+    if (pt === "anthropic" || pt === "azure" || pt === "openai") return /** @type {"openai" | "azure" | "anthropic"} */ pt;
   }
 
   // 3. Well-known model name heuristics.
@@ -407,6 +426,36 @@ function inferProviderTypeForModel(endpointProvider, modelName, modelsJson) {
 
   // 4. Default.
   return "openai";
+}
+
+/**
+ * Infer the SDK wire API for a model.
+ *
+ * Resolution order:
+ *   1. `models.json` explicit `wire_api`/`wireApi`.
+ *   2. For Anthropic provider types: undefined (wireApi ignored by SDK).
+ *   3. Heuristic default for OpenAI/Azure-compatible models: "completions".
+ *
+ * @param {"openai" | "azure" | "anthropic"} providerType
+ * @param {string} modelName
+ * @param {object | null | undefined} modelsJson
+ * @returns {"completions" | "responses" | undefined}
+ */
+function inferWireApiForModel(providerType, modelName, modelsJson) {
+  const model = String(modelName || "").trim();
+  if (!model) return undefined;
+  const catalogEntry = getCatalogModelEntry(modelsJson, model);
+  const rawWireApi = catalogEntry && typeof catalogEntry.wire_api === "string" ? catalogEntry.wire_api : catalogEntry && typeof catalogEntry.wireApi === "string" ? catalogEntry.wireApi : "";
+  const normalizedWireApi = String(rawWireApi || "")
+    .toLowerCase()
+    .trim();
+  if (normalizedWireApi === "responses" || normalizedWireApi === "completions") {
+    return /** @type {"responses" | "completions"} */ (normalizedWireApi);
+  }
+  if (providerType === "anthropic") {
+    return undefined;
+  }
+  return "completions";
 }
 
 /**
@@ -424,7 +473,7 @@ function inferProviderTypeForModel(endpointProvider, modelName, modelsJson) {
  *   modelsJson?: object | null,
  *   logger?: (msg: string) => void,
  * }} [options]
- * @returns {{ model: string, provider: { type: "openai" | "azure" | "anthropic", baseUrl: string } } | null}
+ * @returns {{ model: string, provider: { type: "openai" | "azure" | "anthropic", baseUrl: string, wireApi?: "completions" | "responses" } } | null}
  */
 function resolveCopilotSDKCustomProviderFromReflect(options) {
   const configuredModel = typeof options?.model === "string" ? options.model.trim() : "";
@@ -476,10 +525,13 @@ function resolveCopilotSDKCustomProviderFromReflect(options) {
   }
 
   const providerType = inferProviderTypeForModel(String(endpoint.provider || ""), model, options?.modelsJson ?? null);
-  logger(`sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} type=${providerType} baseUrl=${baseUrl} model=${model})`);
+  const wireApi = inferWireApiForModel(providerType, model, options?.modelsJson ?? null);
+  logger(
+    `sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} type=${providerType} baseUrl=${baseUrl} model=${model}${wireApi ? ` wireApi=${wireApi}` : ""})`
+  );
   return {
     model,
-    provider: { type: providerType, baseUrl },
+    provider: { type: providerType, baseUrl, ...(wireApi ? { wireApi } : {}) },
   };
 }
 

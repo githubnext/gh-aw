@@ -228,7 +228,8 @@
             "output": "2e-06",
             "cache_read": "2.5000000000000002e-08"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "completions"
         },
         "claude-sonnet-4": {
           "cost": {
@@ -245,7 +246,8 @@
             "output": "2e-06",
             "cache_read": "2.5000000000000002e-08"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "responses"
         },
         "gpt-5.2": {
           "cost": {
@@ -253,7 +255,8 @@
             "output": "1.4e-05",
             "cache_read": "1.75e-07"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "responses"
         },
         "claude-sonnet-4.6": {
           "cost": {
@@ -270,7 +273,8 @@
             "output": "1.5e-05",
             "cache_read": "2.5e-07"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "responses"
         },
         "gemini-3-flash-preview": {
           "cost": {
@@ -279,7 +283,8 @@
             "cache_read": "5.0000000000000004e-08",
             "input_audio": "1e-06"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "completions"
         },
         "gpt-5.5": {
           "cost": {
@@ -287,7 +292,8 @@
             "output": "3e-05",
             "cache_read": "5e-07"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "responses"
         },
         "claude-opus-4.5": {
           "cost": {
@@ -313,7 +319,8 @@
             "output": "1e-05",
             "cache_read": "1.25e-07"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "completions"
         },
         "gpt-4.1": {
           "cost": {
@@ -321,7 +328,8 @@
             "output": "8e-06",
             "cache_read": "5e-07"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "completions"
         },
         "gpt-5.4-nano": {
           "cost": {
@@ -329,7 +337,8 @@
             "output": "1.25e-06",
             "cache_read": "2e-08"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "responses"
         },
         "gemini-3.1-pro-preview": {
           "cost": {
@@ -337,7 +346,8 @@
             "output": "1.2e-05",
             "cache_read": "2.0000000000000002e-07"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "completions"
         },
         "gpt-5.3-codex": {
           "cost": {
@@ -345,7 +355,8 @@
             "output": "1.4e-05",
             "cache_read": "1.75e-07"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "responses"
         },
         "gemini-3.5-flash": {
           "cost": {
@@ -354,7 +365,8 @@
             "cache_read": "1.5e-07",
             "input_audio": "1.5e-06"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "completions"
         },
         "claude-sonnet-4.5": {
           "cost": {
@@ -371,7 +383,8 @@
             "output": "1.4e-05",
             "cache_read": "1.75e-07"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "responses"
         },
         "claude-opus-4.6": {
           "cost": {
@@ -406,7 +419,8 @@
             "output": "4.5e-06",
             "cache_read": "7.5e-08"
           },
-          "provider_type": "openai"
+          "provider_type": "openai",
+          "wire_api": "responses"
         }
       }
     },
