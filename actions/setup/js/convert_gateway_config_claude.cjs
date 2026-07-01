@@ -23,7 +23,7 @@ require("./shim.cjs");
  */
 
 const path = require("path");
-const { rewriteUrl, loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
+const { rewriteUrl, normalizeGatewayEntry, loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
 
 const OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json");
 
@@ -33,14 +33,10 @@ const OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-conf
  * @returns {Record<string, unknown>}
  */
 function transformClaudeEntry(entry, urlPrefix) {
-  const transformed = { ...entry };
-  // Claude uses "type": "http" for HTTP-based MCP servers
-  transformed.type = "http";
-  // Fix the URL to use the correct domain
-  if (typeof transformed.url === "string") {
-    transformed.url = rewriteUrl(transformed.url, urlPrefix);
-  }
-  return transformed;
+  return normalizeGatewayEntry(entry, urlPrefix, transformed => {
+    // Claude uses "type": "http" for HTTP-based MCP servers
+    transformed.type = "http";
+  });
 }
 
 function main() {
