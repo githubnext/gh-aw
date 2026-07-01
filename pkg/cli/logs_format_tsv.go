@@ -12,7 +12,7 @@ import (
 
 var logsTSVLog = logger.New("cli:logs_format_tsv")
 
-func logsTSVSummaryTokens(totalTokens int) string {
+func formatTSVSummaryTokens(totalTokens int) string {
 	if totalTokens == 0 {
 		return "n/a"
 	}
@@ -34,7 +34,7 @@ func renderLogsTSV(data LogsData) {
 	s := data.Summary
 	// Summary line with key aggregates
 	fmt.Fprintf(os.Stdout, "# %d runs | %s duration | %s tokens | %d turns | %d errors\n",
-		s.TotalRuns, s.TotalDuration, logsTSVSummaryTokens(s.TotalTokens), s.TotalTurns, s.TotalErrors)
+		s.TotalRuns, s.TotalDuration, formatTSVSummaryTokens(s.TotalTokens), s.TotalTurns, s.TotalErrors)
 
 	if len(data.Runs) == 0 {
 		return
@@ -117,7 +117,7 @@ func renderLogsTSVVerbose(data LogsData) {
 
 	s := data.Summary
 	fmt.Fprintf(os.Stdout, "# %d runs | %s duration | %s tokens | %d turns | %d errors | %d missing_tools | %d github_api_calls\n",
-		s.TotalRuns, s.TotalDuration, logsTSVSummaryTokens(s.TotalTokens), s.TotalTurns, s.TotalErrors, s.TotalMissingTools, s.TotalGitHubAPICalls)
+		s.TotalRuns, s.TotalDuration, formatTSVSummaryTokens(s.TotalTokens), s.TotalTurns, s.TotalErrors, s.TotalMissingTools, s.TotalGitHubAPICalls)
 
 	if len(data.Runs) == 0 {
 		return
