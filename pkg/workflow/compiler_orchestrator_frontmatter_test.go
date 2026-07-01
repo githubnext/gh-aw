@@ -313,13 +313,12 @@ skills:
 	compiler := NewCompiler()
 	result, err := compiler.parseFrontmatterSection(testFile)
 
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	require.NotNil(t, result.frontmatterResult)
-	assert.Equal(t, []any{
-		"${{ inputs.skill_ref }}",
-		"githubnext/skills@${{ github.sha }}",
-	}, result.frontmatterResult.Frontmatter["skills"])
+	require.Error(t, err, "expected error: GitHub Actions expressions are not allowed in skills refs")
+	assert.Nil(t, result)
+	assert.True(t,
+		strings.Contains(err.Error(), "40-char-sha") || strings.Contains(err.Error(), "does not match pattern"),
+		"expected skills validation error, got: %v", err,
+	)
 }
 
 func TestParseFrontmatterSection_ObjectSkillsRef(t *testing.T) {

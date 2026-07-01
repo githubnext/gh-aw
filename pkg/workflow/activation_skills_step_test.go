@@ -50,31 +50,6 @@ func TestBuildActivationJob_AddsFrontmatterSkillsInstallSteps(t *testing.T) {
 	assert.NotContains(t, steps, "GH_AW_SKILL_SPEC_0", "expected per-skill env vars to be removed")
 }
 
-func TestBuildActivationJob_AddsExpressionSkillInstallSteps(t *testing.T) {
-	compiler := NewCompiler(WithVersion("dev"))
-	compiler.SetActionMode(ActionModeDev)
-
-	data := &WorkflowData{
-		Name: "skills-workflow",
-		On: `"on":
-  workflow_dispatch:`,
-		AI: "copilot",
-		Skills: []string{
-			"${{ inputs.skill_ref }}",
-			"githubnext/skills@${{ github.sha }}",
-		},
-	}
-
-	job, err := compiler.buildActivationJob(data, false, "", "skills.lock.yml")
-	require.NoError(t, err)
-	require.NotNil(t, job)
-
-	steps := strings.Join(job.Steps, "")
-	assert.Contains(t, steps, "GH_AW_FRONTMATTER_SKILLS: \"${{ inputs.skill_ref }}\"", "expected first expression skill env var to preserve expression for runtime resolution")
-	assert.Contains(t, steps, "GH_AW_FRONTMATTER_SKILLS: \"githubnext/skills@${{ github.sha }}\"", "expected second expression skill env var to preserve expression for runtime resolution")
-	assert.NotContains(t, steps, "GH_AW_SKILL_SPEC_0", "expected per-skill env vars to be removed")
-}
-
 func TestBuildActivationJob_AddsPerSkillAuthSteps(t *testing.T) {
 	compiler := NewCompiler(WithVersion("dev"))
 	compiler.SetActionMode(ActionModeDev)
