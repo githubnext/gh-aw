@@ -1170,7 +1170,7 @@ jobs:
                   "rationale": {
                     "type": "string",
                     "sanitize": true,
-                    "maxLength": 1024
+                    "maxLength": 280
                   },
                   "repo": {
                     "type": "string",
