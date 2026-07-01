@@ -1,31 +1,34 @@
 {
-  "run_id": "28502021857",
-  "run_date": "2026-07-01T07:49:09Z",
+  "run_id": "28519998993",
+  "run_date": "2026-07-01T13:12:31Z",
   "repository": "github/gh-aw",
-  "total_prs": 5,
-  "new_this_run": 3,
+  "total_prs": 7,
+  "new_this_run": 5,
   "carried_over": 2,
   "summary": {
     "auto_merge": 1,
     "fast_track": 1,
-    "batch_review": 1,
-    "defer": 2,
+    "batch_review": 2,
+    "defer": 3,
     "close": 0
   },
   "distribution": {
-    "by_type": {"refactor": 2, "feature": 2, "chore": 1},
-    "by_risk": {"high": 2, "medium": 2, "low": 1},
-    "by_priority": {"high": 1, "medium": 2, "low": 2}
+    "by_type": {"feature": 3, "chore": 2, "refactor": 1},
+    "by_risk": {"high": 3, "medium": 2, "low": 2},
+    "by_priority": {"high": 1, "medium": 5, "low": 1}
   },
   "prs": [
-    {"number": 42676, "title": "Remove expression support from skills frontmatter; add skills to gh-aw-manifest", "type": "refactor", "risk": "high", "score": 70, "priority": "high", "action": "fast_track", "batch": null, "draft": false},
-    {"number": 42674, "title": "Improve Code Push Errors rendering for allowed-files violations", "type": "chore", "risk": "low", "score": 43, "priority": "medium", "action": "auto_merge", "batch": null, "draft": false},
-    {"number": 42678, "title": "Refactor gateway entry normalization across Claude/Copilot/Gemini converters", "type": "refactor", "risk": "medium", "score": 40, "priority": "medium", "action": "batch_review", "batch": null, "draft": true},
-    {"number": 42314, "title": "Add experimental Auggie engine support", "type": "feature", "risk": "high", "score": 38, "priority": "medium", "action": "defer", "batch": "experimental", "draft": true},
-    {"number": 42100, "title": "feat: add experimental BinEval evaluation support", "type": "feature", "risk": "high", "score": 35, "priority": "low", "action": "defer", "batch": "experimental", "draft": true}
+    {"number": 42740, "title": "refactor(copilot-sdk): multi-provider only — remove single-provider legacy", "type": "refactor", "risk": "high", "score": 65, "priority": "high", "action": "fast_track", "batch": null, "draft": false, "ci": "failing"},
+    {"number": 42735, "title": "Audit: attach experiment/variant provenance to report records", "type": "feature", "risk": "medium", "score": 55, "priority": "medium", "action": "batch_review", "batch": "audit-logs", "draft": false, "ci": "pending"},
+    {"number": 42759, "title": "Pass engine-specific agent type to gh skill install", "type": "feature", "risk": "medium", "score": 50, "priority": "medium", "action": "defer", "batch": null, "draft": true, "ci": "none"},
+    {"number": 42737, "title": "deps: bump default @playwright/mcp to 0.0.77", "type": "chore", "risk": "low", "score": 48, "priority": "medium", "action": "auto_merge", "batch": null, "draft": false, "ci": "passing"},
+    {"number": 42722, "title": "Remove misleading total_tokens: 0 from logs summary", "type": "chore", "risk": "low", "score": 46, "priority": "medium", "action": "batch_review", "batch": "audit-logs", "draft": false, "ci": "pending"},
+    {"number": 42314, "title": "Add experimental Auggie engine support", "type": "feature", "risk": "high", "score": 38, "priority": "medium", "action": "defer", "batch": "experimental", "draft": true, "ci": "none"},
+    {"number": 42100, "title": "feat: add experimental BinEval evaluation support", "type": "feature", "risk": "high", "score": 35, "priority": "low", "action": "defer", "batch": "experimental", "draft": true, "ci": "none"}
   ],
   "batches": {
-    "experimental": [42100, 42314]
+    "experimental": [42100, 42314],
+    "audit-logs": [42722, 42735]
   },
-  "merged_since_last_run": [42569, 42568, 42580, 42581, 42585, 42593, 42594, 42595, 42596, 42597]
+  "merged_since_last_run": [42676, 42674, 42678]
 }
