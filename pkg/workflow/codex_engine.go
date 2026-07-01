@@ -50,10 +50,11 @@ type CodexEngine struct {
 func NewCodexEngine() *CodexEngine {
 	return &CodexEngine{
 		BaseEngine: BaseEngine{
-			id:           "codex",
-			displayName:  "Codex",
-			description:  "Uses OpenAI Codex CLI with MCP server support",
-			experimental: false,
+			id:               "codex",
+			displayName:      "Codex",
+			description:      "Uses OpenAI Codex CLI with MCP server support",
+			experimental:     false,
+			ghSkillAgentName: "codex",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
 				MaxTurns:         true,  // AWF max-turns is supported for Codex runs

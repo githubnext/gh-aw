@@ -34,10 +34,11 @@ type PiEngine struct {
 func NewPiEngine() *PiEngine {
 	return &PiEngine{
 		BaseEngine: BaseEngine{
-			id:           "pi",
-			displayName:  "Pi",
-			description:  "Pi AI coding agent (experimental)",
-			experimental: true,
+			id:               "pi",
+			displayName:      "Pi",
+			description:      "Pi AI coding agent (experimental)",
+			experimental:     true,
+			ghSkillAgentName: "pi",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
 				MaxTurns:         true,

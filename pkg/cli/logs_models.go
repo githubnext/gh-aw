@@ -114,9 +114,11 @@ type ProcessedRun struct {
 
 // ReportProvenance holds the shared provenance fields common to all report record types.
 type ReportProvenance struct {
-	Timestamp    string `json:"timestamp"`
-	WorkflowName string `json:"workflow_name,omitempty"` // Tracks which workflow reported this
-	RunID        int64  `json:"run_id,omitempty"`        // Tracks which run reported this
+	Timestamp      string `json:"timestamp"`
+	WorkflowName   string `json:"workflow_name,omitempty"`   // Tracks which workflow reported this
+	RunID          int64  `json:"run_id,omitempty"`          // Tracks which run reported this
+	ExperimentName string `json:"experiment_name,omitempty"` // Assigned experiment name for this run (if present)
+	Variant        string `json:"variant,omitempty"`         // Assigned variant value for ExperimentName (if present)
 }
 
 // MissingToolReport represents a missing tool reported by an agentic workflow

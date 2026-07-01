@@ -118,12 +118,6 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 	return nil
 }
 
-func isRepositorySkillSpec(skillSpec string) bool {
-	base, _, _ := strings.Cut(skillSpec, "@")
-	// owner/repo has exactly one slash; owner/repo/skill/path has two or more.
-	return strings.Count(base, "/") == 1
-}
-
 func parseRawSkillReferences(rawSkills []any) []SkillReference {
 	skillsFrontmatterLog.Printf("parseRawSkillReferences: parsing %d raw skill entr(ies)", len(rawSkills))
 	refs := make([]SkillReference, 0, len(rawSkills))

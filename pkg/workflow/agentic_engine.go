@@ -100,6 +100,10 @@ type Engine interface {
 
 	// IsExperimental returns true if this engine is experimental
 	IsExperimental() bool
+
+	// GetGHSkillAgentName returns the gh skill --agent value for this engine.
+	// Returns an empty string when gh skill install does not support the engine.
+	GetGHSkillAgentName() string
 }
 
 // EngineCapabilities captures optional engine features.
@@ -314,6 +318,7 @@ type BaseEngine struct {
 	displayName             string
 	description             string
 	experimental            bool
+	ghSkillAgentName        string
 	capabilities            EngineCapabilities
 	dedicatedLLMGatewayPort int
 }
@@ -332,6 +337,10 @@ func (e *BaseEngine) GetDescription() string {
 
 func (e *BaseEngine) IsExperimental() bool {
 	return e.experimental
+}
+
+func (e *BaseEngine) GetGHSkillAgentName() string {
+	return e.ghSkillAgentName
 }
 
 func (e *BaseEngine) GetCapabilities() EngineCapabilities {

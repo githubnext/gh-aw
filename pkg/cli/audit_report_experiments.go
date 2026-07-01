@@ -150,6 +150,18 @@ func formatExperimentLabel(exp *ExperimentData) string {
 	return strings.Join(parts, ", ")
 }
 
+// firstExperimentAssignment returns the deterministic first experiment assignment
+// from exp, sorted by experiment name. It is used when callers need a stable
+// single experiment/variant pair for provenance fields.
+func firstExperimentAssignment(exp *ExperimentData) (name, variant string, ok bool) {
+	if exp == nil || len(exp.Assignments) == 0 {
+		return "", "", false
+	}
+	names := sliceutil.SortedKeys(exp.Assignments)
+	name = names[0]
+	return name, exp.Assignments[name], true
+}
+
 // experimentMatchesFilter reports whether exp satisfies the given experiment/variant
 // filter pair. Rules:
 //   - If experimentName is empty, every run passes (no filter active).

@@ -22,10 +22,11 @@ type ClaudeEngine struct {
 func NewClaudeEngine() *ClaudeEngine {
 	return &ClaudeEngine{
 		BaseEngine: BaseEngine{
-			id:           "claude",
-			displayName:  "Claude Code",
-			description:  "Uses Claude Code with full MCP tool support and allow-listing",
-			experimental: false,
+			id:               "claude",
+			displayName:      "Claude Code",
+			description:      "Uses Claude Code with full MCP tool support and allow-listing",
+			experimental:     false,
+			ghSkillAgentName: "claude-code",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
 				MaxTurns:         true,  // Claude supports max-turns feature
