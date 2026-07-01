@@ -110,8 +110,13 @@ func (c *Compiler) getActionPin(repo string) string {
 			if hasEmbedded {
 				cachedVersion := semverutil.ParseVersion(entry.Version)
 				embeddedVersion := semverutil.ParseVersion(latestEmbedded.Version)
-				if cachedVersion == nil || embeddedVersion == nil {
-					actionPinsLog.Printf("Ignoring cache entry with unparseable version for compiler-generated action %s: cache=%s embedded=%s",
+				if cachedVersion == nil {
+					actionPinsLog.Printf("Ignoring cache entry with unparseable cached version for compiler-generated action %s: cache=%s embedded=%s",
+						repo, entry.Version, latestEmbedded.Version)
+					return actionpins.FormatPinnedActionReference(repo, latestEmbedded.SHA, latestEmbedded.Version)
+				}
+				if embeddedVersion == nil {
+					actionPinsLog.Printf("Ignoring embedded version with unparseable version for compiler-generated action %s: cache=%s embedded=%s",
 						repo, entry.Version, latestEmbedded.Version)
 					return actionpins.FormatPinnedActionReference(repo, latestEmbedded.SHA, latestEmbedded.Version)
 				}
