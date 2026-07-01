@@ -109,7 +109,10 @@ describe("no-core-setoutput-non-string", () => {
             {
               messageId: "nonStringValue",
               data: { kind: "undefined", valueText: "undefined" },
-              suggestions: [{ messageId: "wrapWithString", data: { valueText: "undefined" }, output: `core.setOutput("result", String(undefined));` }],
+              suggestions: [
+                { messageId: "useEmptyString", output: `core.setOutput("result", "");` },
+                { messageId: "wrapWithString", data: { valueText: "undefined" }, output: `core.setOutput("result", String(undefined));` },
+              ],
             },
           ],
         },
@@ -127,7 +130,10 @@ describe("no-core-setoutput-non-string", () => {
             {
               messageId: "nonStringValue",
               data: { kind: "null", valueText: "null" },
-              suggestions: [{ messageId: "wrapWithString", data: { valueText: "null" }, output: `core.setOutput("result", String(null));` }],
+              suggestions: [
+                { messageId: "useEmptyString", output: `core.setOutput("result", "");` },
+                { messageId: "wrapWithString", data: { valueText: "null" }, output: `core.setOutput("result", String(null));` },
+              ],
             },
           ],
         },

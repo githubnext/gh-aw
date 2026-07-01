@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -48,6 +48,7 @@ export const noCoreSetOutputNonStringRule = createRule({
       nonStringValue:
         "The setOutput value {{valueText}} is a {{kind}}. Implicit coercion may produce unexpected strings such as 'null' or 'true' in downstream workflow expressions. Wrap with String({{valueText}}) or use an explicit string literal.",
       wrapWithString: "Wrap with String({{valueText}}) to make coercion explicit. For null/undefined, use an explicit default (for example '') when empty-string semantics are intended.",
+      useEmptyString: "Replace with \"\" (empty string) — use this when the intended output is empty rather than the literal word 'null' or 'undefined'.",
     },
   },
   defaultOptions: [],
@@ -79,15 +80,27 @@ export const noCoreSetOutputNonStringRule = createRule({
 
         const valueText = sourceCode.getText(valueArg);
 
+        const isNullOrUndefined = kind === "null" || kind === "undefined";
+
         context.report({
           node,
           messageId: "nonStringValue",
           data: { kind, valueText },
           suggest: [
+            ...(isNullOrUndefined
+              ? [
+                  {
+                    messageId: "useEmptyString" as const,
+                    fix(fixer: TSESLint.RuleFixer) {
+                      return fixer.replaceText(valueArg, `""`);
+                    },
+                  },
+                ]
+              : []),
             {
-              messageId: "wrapWithString",
+              messageId: "wrapWithString" as const,
               data: { valueText },
-              fix(fixer) {
+              fix(fixer: TSESLint.RuleFixer) {
                 return fixer.replaceText(valueArg, `String(${valueText})`);
               },
             },
