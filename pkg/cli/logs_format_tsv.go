@@ -18,7 +18,7 @@ var logsTSVLog = logger.New("cli:logs_format_tsv")
 //
 // Output format:
 //
-//	Line 1: Summary line (total_runs, total_duration, total_tokens, total_errors)
+//	Line 1: Summary line (total_runs, total_duration, total_turns, total_errors)
 //	Line 2: Column headers
 //	Lines 3+: One line per run with tab-separated fields
 func renderLogsTSV(data LogsData) {
@@ -26,8 +26,8 @@ func renderLogsTSV(data LogsData) {
 
 	s := data.Summary
 	// Summary line with key aggregates
-	fmt.Fprintf(os.Stdout, "# %d runs | %s duration | %d tokens | %d turns | %d errors\n",
-		s.TotalRuns, s.TotalDuration, s.TotalTokens, s.TotalTurns, s.TotalErrors)
+	fmt.Fprintf(os.Stdout, "# %d runs | %s duration | %d turns | %d errors\n",
+		s.TotalRuns, s.TotalDuration, s.TotalTurns, s.TotalErrors)
 
 	if len(data.Runs) == 0 {
 		return
@@ -109,8 +109,8 @@ func renderLogsTSVVerbose(data LogsData) {
 	logsTSVLog.Printf("Rendering %d runs as verbose TSV", data.Summary.TotalRuns)
 
 	s := data.Summary
-	fmt.Fprintf(os.Stdout, "# %d runs | %s duration | %d tokens | %d turns | %d errors | %d missing_tools | %d github_api_calls\n",
-		s.TotalRuns, s.TotalDuration, s.TotalTokens, s.TotalTurns, s.TotalErrors, s.TotalMissingTools, s.TotalGitHubAPICalls)
+	fmt.Fprintf(os.Stdout, "# %d runs | %s duration | %d turns | %d errors | %d missing_tools | %d github_api_calls\n",
+		s.TotalRuns, s.TotalDuration, s.TotalTurns, s.TotalErrors, s.TotalMissingTools, s.TotalGitHubAPICalls)
 
 	if len(data.Runs) == 0 {
 		return

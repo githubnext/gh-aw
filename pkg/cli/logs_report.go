@@ -56,7 +56,6 @@ type ContinuationData struct {
 type LogsSummary struct {
 	TotalRuns                     int     `json:"total_runs" console:"header:Total Runs"`
 	TotalDuration                 string  `json:"total_duration" console:"header:Total Duration"`
-	TotalTokens                   int     `json:"total_tokens" console:"header:Total Tokens,format:number"`
 	TotalAIC                      float64 `json:"total_aic,omitempty"`
 	TotalActionMinutes            float64 `json:"total_action_minutes" console:"header:Total Action Minutes"`
 	TotalTurns                    int     `json:"total_turns" console:"header:Total Turns"`
@@ -157,7 +156,6 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 
 	// Build summary
 	var totalDuration time.Duration
-	var totalTokens int
 	var totalAIC float64
 	var totalActionMinutes float64
 	var totalTurns int
@@ -191,7 +189,6 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		if run.Duration > 0 {
 			totalDuration += run.Duration
 		}
-		totalTokens += run.TokenUsage
 		if pr.TokenUsage != nil {
 			totalAIC += pr.TokenUsage.TotalAIC
 		}
@@ -347,7 +344,6 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	summary := LogsSummary{
 		TotalRuns:                     len(processedRuns),
 		TotalDuration:                 timeutil.FormatDuration(totalDuration),
-		TotalTokens:                   totalTokens,
 		TotalAIC:                      totalAIC,
 		TotalActionMinutes:            totalActionMinutes,
 		TotalTurns:                    totalTurns,
