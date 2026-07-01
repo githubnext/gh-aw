@@ -195,7 +195,6 @@ func TestRenderLogsJSON(t *testing.T) {
 		Summary: LogsSummary{
 			TotalRuns:              2,
 			TotalDuration:          "8m0s",
-			TotalTokens:            1500,
 			TotalTurns:             5,
 			TotalErrors:            1,
 			TotalWarnings:          1,
@@ -275,9 +274,6 @@ func TestRenderLogsJSON(t *testing.T) {
 	// Verify key fields
 	if parsedData.Summary.TotalRuns != 2 {
 		t.Errorf("Expected TotalRuns 2, got %d", parsedData.Summary.TotalRuns)
-	}
-	if parsedData.Summary.TotalTokens != 1500 {
-		t.Errorf("Expected TotalTokens 1500, got %d", parsedData.Summary.TotalTokens)
 	}
 	if parsedData.Summary.TotalEpisodes != 1 {
 		t.Errorf("Expected TotalEpisodes 1, got %d", parsedData.Summary.TotalEpisodes)

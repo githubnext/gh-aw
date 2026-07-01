@@ -382,7 +382,6 @@ func TestGeneratedSchemasValidateRealOutput(t *testing.T) {
 			Summary: LogsSummary{
 				TotalRuns:     5,
 				TotalDuration: "10m30s",
-				TotalTokens:   15000,
 				TotalTurns:    25,
 			},
 			Runs: []RunData{
