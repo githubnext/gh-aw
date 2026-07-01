@@ -1,6 +1,18 @@
 {
-  "last_updated": "2026-06-30",
+  "last_updated": "2026-07-01",
   "pending_tasks": [
+    {
+      "file": "docs/src/content/docs/blog/2026-01-13-meet-the-workflows-documentation.md",
+      "created": "2026-07-01",
+      "priority": "high",
+      "title": "Replace theatrical opening paragraph with professional blog introduction that matches the data-driven tone of the rest of the post"
+    },
+    {
+      "file": ".github/workflows/smoke-copilot.md",
+      "created": "2026-07-01",
+      "priority": "medium",
+      "title": "Fix run-success message: remove 'This is a developing story.' (contradicts success state) and replace 🎤 with ✅ for clear completion signal"
+    },
     {
       "file": "docs/src/content/docs/reference/repository-package-manifest.md",
       "created": "2026-06-30",
@@ -18,18 +30,6 @@
       "created": "2026-06-29",
       "priority": "high",
       "title": "Add 'See inline review comments for findings.' to run-success; add log link to run-failure"
-    },
-    {
-      "file": "pkg/workflow/template_injection_utils.go",
-      "created": "2026-06-29",
-      "priority": "medium",
-      "title": "Add source-file fix guidance to formatTemplateInjectionError: 'Make these changes in your source workflow markdown file (.md), then recompile.'"
-    },
-    {
-      "file": ".github/workflows/archie.md",
-      "created": "2026-06-28",
-      "priority": "high",
-      "title": "Normalize status message emoji: replace 📐/🎨/📐 trio with consistent 🏛️ to match workflow identity; remove theatrical emoji switching"
     }
   ]
 }
