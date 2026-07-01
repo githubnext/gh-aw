@@ -185,12 +185,12 @@ name: test
 		},
 		{
 			name: "unsupported future version fails",
-			content: `# gh-aw-metadata: {"schema_version":"v5"}
+			content: `# gh-aw-metadata: {"schema_version":"v6"}
 name: test
 `,
 			lockPath:    "future.lock.yml",
 			expectError: true,
-			errorText:   "unsupported schema version 'v5'",
+			errorText:   "unsupported schema version 'v6'",
 		},
 		{
 			name: "missing metadata fails",
@@ -255,8 +255,13 @@ func TestIsSchemaVersionSupported(t *testing.T) {
 			supported: true,
 		},
 		{
-			name:      "v5 is not supported",
-			version:   "v5",
+			name:      "v5 is supported",
+			version:   LockSchemaV5,
+			supported: true,
+		},
+		{
+			name:      "v6 is not supported",
+			version:   "v6",
 			supported: false,
 		},
 		{
@@ -296,7 +301,7 @@ func TestGenerateLockMetadata(t *testing.T) {
 	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: hash}, stopTime, false, AgentMetadataInfo{})
 
 	assert.NotNil(t, metadata, "Metadata should be created")
-	assert.Equal(t, LockSchemaV4, metadata.SchemaVersion, "Should use current schema version")
+	assert.Equal(t, LockSchemaV5, metadata.SchemaVersion, "Should use current schema version")
 	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
 	assert.Equal(t, stopTime, metadata.StopTime, "Should preserve stop time")
 	assert.Empty(t, metadata.CompilerVersion, "Dev builds should not include version")
@@ -309,7 +314,7 @@ func TestGenerateLockMetadataStrict(t *testing.T) {
 	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: hash}, stopTime, true, AgentMetadataInfo{})
 
 	assert.NotNil(t, metadata, "Metadata should be created")
-	assert.Equal(t, LockSchemaV4, metadata.SchemaVersion, "Should use v4 schema version")
+	assert.Equal(t, LockSchemaV5, metadata.SchemaVersion, "Should use v5 schema version")
 	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
 	assert.Equal(t, stopTime, metadata.StopTime, "Should preserve stop time")
 	assert.True(t, metadata.Strict, "Strict build should have Strict=true")
@@ -332,7 +337,7 @@ func TestGenerateLockMetadataReleaseBuild(t *testing.T) {
 	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: hash}, stopTime, false, AgentMetadataInfo{})
 
 	assert.NotNil(t, metadata, "Metadata should be created")
-	assert.Equal(t, LockSchemaV4, metadata.SchemaVersion, "Should use current schema version")
+	assert.Equal(t, LockSchemaV5, metadata.SchemaVersion, "Should use current schema version")
 	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
 	assert.Equal(t, stopTime, metadata.StopTime, "Should preserve stop time")
 	assert.Equal(t, "v0.1.2", metadata.CompilerVersion, "Release builds should include version")
@@ -343,7 +348,7 @@ func TestGenerateLockMetadataWithoutStopTime(t *testing.T) {
 	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: hash}, "", false, AgentMetadataInfo{})
 
 	assert.NotNil(t, metadata, "Metadata should be created")
-	assert.Equal(t, LockSchemaV4, metadata.SchemaVersion, "Should use current schema version")
+	assert.Equal(t, LockSchemaV5, metadata.SchemaVersion, "Should use current schema version")
 	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
 	assert.Empty(t, metadata.StopTime, "Stop time should be empty")
 }
@@ -552,6 +557,7 @@ func TestFormatSupportedVersions(t *testing.T) {
 	assert.Contains(t, formatted, "v2", "Should include v2")
 	assert.Contains(t, formatted, "v3", "Should include v3")
 	assert.Contains(t, formatted, "v4", "Should include v4")
+	assert.Contains(t, formatted, "v5", "Should include v5")
 }
 
 func TestLockMetadataJSONCompact(t *testing.T) {
@@ -573,6 +579,7 @@ func TestSchemaVersionAsString(t *testing.T) {
 	assert.Equal(t, "v2", string(LockSchemaV2))
 	assert.Equal(t, "v3", string(LockSchemaV3))
 	assert.Equal(t, "v4", string(LockSchemaV4))
+	assert.Equal(t, "v5", string(LockSchemaV5))
 }
 
 func TestExtractMetadataWithStopTime(t *testing.T) {
@@ -638,7 +645,7 @@ func TestGenerateLockMetadataWithAgentInfo(t *testing.T) {
 	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: hash}, "", false, agentInfo)
 
 	assert.NotNil(t, metadata, "Metadata should be created")
-	assert.Equal(t, LockSchemaV4, metadata.SchemaVersion, "Should use v4 schema version")
+	assert.Equal(t, LockSchemaV5, metadata.SchemaVersion, "Should use v5 schema version")
 	assert.Equal(t, "copilot", metadata.AgentID, "Should preserve agent ID")
 	assert.Equal(t, "gpt-5", metadata.AgentModel, "Should preserve agent model")
 	assert.Equal(t, "copilot", metadata.DetectionAgentID, "Should preserve detection agent ID")
@@ -708,4 +715,46 @@ name: test
 	assert.Equal(t, "2.1.160", metadata.EngineVersions["claude"], "Should extract engine versions")
 	assert.Equal(t, "1.0.0", metadata.EngineVersions["copilot-sdk"], "Should extract copilot-sdk version")
 	assert.Equal(t, `["self-hosted","linux"]`, metadata.AgentImageRunner, "Should extract agent image runner")
+}
+
+func TestLockMetadataToJSONWithSkills(t *testing.T) {
+	metadata := &LockMetadata{
+		SchemaVersion:   LockSchemaV5,
+		FrontmatterHash: "test123",
+		Skills: []string{
+			"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+			"githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6",
+		},
+	}
+
+	json, err := metadata.ToJSON()
+	require.NoError(t, err)
+	assert.Contains(t, json, `"schema_version":"v5"`)
+	assert.Contains(t, json, `"frontmatter_hash":"test123"`)
+	assert.Contains(t, json, `"skills":["githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6","githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6"]`)
+}
+
+func TestLockMetadataSkillsOmittedWhenEmpty(t *testing.T) {
+	metadata := &LockMetadata{
+		SchemaVersion:   LockSchemaV5,
+		FrontmatterHash: "test123",
+	}
+
+	json, err := metadata.ToJSON()
+	require.NoError(t, err)
+	assert.NotContains(t, json, `"skills"`, "Empty skills should be omitted")
+}
+
+func TestExtractMetadataWithSkills(t *testing.T) {
+	content := `# gh-aw-metadata: {"schema_version":"v5","frontmatter_hash":"abc123","skills":["githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6"]}
+name: test
+`
+	metadata, isLegacy, err := ExtractMetadataFromLockFile(content)
+	require.NoError(t, err, "Should parse v5 metadata with skills")
+	assert.False(t, isLegacy, "Should not be legacy")
+	require.NotNil(t, metadata)
+	assert.Equal(t, LockSchemaV5, metadata.SchemaVersion)
+	assert.Equal(t, "abc123", metadata.FrontmatterHash)
+	require.Len(t, metadata.Skills, 1, "Should extract one skill")
+	assert.Equal(t, "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6", metadata.Skills[0])
 }

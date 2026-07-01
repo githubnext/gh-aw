@@ -27,8 +27,10 @@ const (
 	LockSchemaV2 LockSchemaVersion = "v2"
 	// LockSchemaV3 is the lock file schema version that adds agent id/model and detection agent id/model fields
 	LockSchemaV3 LockSchemaVersion = "v3"
-	// LockSchemaV4 is the current lock file schema version (adds body_hash for full stale-check coverage)
+	// LockSchemaV4 is the lock file schema version that adds body_hash for full stale-check coverage
 	LockSchemaV4 LockSchemaVersion = "v4"
+	// LockSchemaV5 is the current lock file schema version (adds skills from frontmatter)
+	LockSchemaV5 LockSchemaVersion = "v5"
 )
 
 // LockMetadata represents the structured metadata embedded in lock files
@@ -45,6 +47,7 @@ type LockMetadata struct {
 	DetectionAgentModel string            `json:"detection_agent_model,omitempty"`
 	EngineVersions      map[string]string `json:"engine_versions,omitempty"`
 	AgentImageRunner    string            `json:"agent_image_runner,omitempty"`
+	Skills              []string          `json:"skills,omitempty"`
 }
 
 // AgentMetadataInfo holds agent and detection agent information for embedding in lock file metadata
@@ -63,6 +66,7 @@ var SupportedSchemaVersions = []LockSchemaVersion{
 	LockSchemaV2,
 	LockSchemaV3,
 	LockSchemaV4,
+	LockSchemaV5,
 }
 
 // IsSchemaVersionSupported checks if a schema version is supported
@@ -118,10 +122,10 @@ type LockHashInfo struct {
 // GenerateLockMetadata creates a LockMetadata struct for embedding in lock files
 // For release builds, the compiler version is included in the metadata
 func GenerateLockMetadata(hashInfo LockHashInfo, stopTime string, strict bool, agentInfo AgentMetadataInfo) *LockMetadata {
-	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t, hasBodyHash=%t", LockSchemaV4, strict, stopTime != "", hashInfo.BodyHash != "")
+	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t, hasBodyHash=%t", LockSchemaV5, strict, stopTime != "", hashInfo.BodyHash != "")
 
 	metadata := &LockMetadata{
-		SchemaVersion:       LockSchemaV4,
+		SchemaVersion:       LockSchemaV5,
 		FrontmatterHash:     hashInfo.FrontmatterHash,
 		BodyHash:            hashInfo.BodyHash,
 		StopTime:            stopTime,

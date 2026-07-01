@@ -112,6 +112,9 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		if metadata.CompilerVersion == "" && c.GetActionTag() != "" {
 			metadata.CompilerVersion = c.GetVersion()
 		}
+		if len(data.Skills) > 0 {
+			metadata.Skills = data.Skills
+		}
 		metadataJSON, err := metadata.ToJSON()
 		if err != nil {
 			// Fallback to legacy format if JSON serialization fails

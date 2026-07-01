@@ -211,7 +211,7 @@ This is the body of the workflow. It contains the agent instructions.
 	require.NoError(t, err, "Lock metadata should be parseable")
 	require.NotNil(t, metadata, "Lock metadata should exist")
 
-	assert.Equal(t, LockSchemaV4, metadata.SchemaVersion, "Should use v4 schema with body hash")
+	assert.Equal(t, LockSchemaV5, metadata.SchemaVersion, "Should use v5 schema with body hash")
 	assert.NotEmpty(t, metadata.BodyHash, "Body hash should be stored in lock metadata")
 	assert.Len(t, metadata.BodyHash, 64, "Body hash should be a 64-character hex string")
 
