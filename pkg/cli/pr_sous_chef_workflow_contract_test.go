@@ -33,4 +33,6 @@ func TestPRSousChefWorkflowAddCommentTargetContract(t *testing.T) {
 	assert.Contains(t, text, "skip_reason: \"sub_agent_error\"", "Workflow should skip failed sub-agent responses without retry")
 	assert.Contains(t, text, "eligible_count=", "fetch-prs step must export eligible_count output")
 	assert.Contains(t, text, ".prs | length", "eligible_count should reflect the number of eligible PRs")
+	assert.Contains(t, text, "dismiss_github_actions_reviews", "Workflow should provide a safe-output path for dismissing stale github-actions reviews")
+	assert.Contains(t, text, "missing_tool --tool \"dismiss_pull_request_review\"", "Workflow should request a dedicated dismiss-review safe-output when unavailable")
 }
