@@ -50,6 +50,9 @@ type activationJobBuildContext struct {
 	activationInferredPerms map[PermissionScope]PermissionLevel
 }
 
+// resolveActivationEngineID resolves the workflow engine for activation-time paths,
+// defaulting to the repository-wide default engine when frontmatter leaves it unset.
+// This keeps skill installation and activation artifact uploads on the same engine-specific directory.
 func resolveActivationEngineID(workflowData *WorkflowData) string {
 	engineID := strings.TrimSpace(ResolveEngineID(workflowData))
 	if engineID == "" {
