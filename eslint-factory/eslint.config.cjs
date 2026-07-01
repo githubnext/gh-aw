@@ -15,6 +15,7 @@ module.exports = [
       "gh-aw-custom/no-core-setoutput-non-string": "warn",
       "gh-aw-custom/no-unsafe-catch-error-property": "warn",
       "gh-aw-custom/no-unsafe-promise-catch-error-property": "warn",
+      "gh-aw-custom/prefer-get-error-message": "warn",
       "gh-aw-custom/require-json-parse-try-catch": "warn",
       "gh-aw-custom/require-parseInt-radix": "warn",
     },
