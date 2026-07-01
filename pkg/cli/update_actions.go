@@ -697,7 +697,13 @@ func updateSkillRefsInContentWithResolver(
 	resolver skillRefUpdateResolver,
 ) (bool, string, error) {
 	result, err := parser.ExtractFrontmatterFromContent(content)
-	if err != nil || result == nil || result.Frontmatter == nil {
+	if err != nil {
+		if verbose {
+			updateLog.Printf("Skipping skill update for content without parseable frontmatter: %v", err)
+		}
+		return false, content, nil
+	}
+	if result == nil || result.Frontmatter == nil {
 		return false, content, nil
 	}
 
@@ -756,12 +762,14 @@ func updateSkillRefValue(
 	coolDown time.Duration,
 	resolver skillRefUpdateResolver,
 ) (bool, string, error) {
-	skillRef = strings.TrimSpace(skillRef)
-	if skillRef == "" || strings.Contains(skillRef, "${{") {
+	trimmedSkillRef := strings.TrimSpace(skillRef)
+	if trimmedSkillRef == "" || strings.Contains(trimmedSkillRef, "${{") {
 		return false, skillRef, nil
 	}
-	spec, currentRef, ok := strings.Cut(skillRef, "@")
-	if !ok || strings.TrimSpace(spec) == "" || strings.TrimSpace(currentRef) == "" {
+	spec, currentRef, ok := strings.Cut(trimmedSkillRef, "@")
+	spec = strings.TrimSpace(spec)
+	currentRef = strings.TrimSpace(currentRef)
+	if !ok || spec == "" || currentRef == "" {
 		return false, skillRef, nil
 	}
 
@@ -770,7 +778,13 @@ func updateSkillRefValue(
 		return false, skillRef, nil
 	}
 	latestRef, err := resolver(ctx, repo, currentRef, allowMajor, verbose, coolDown)
-	if err != nil || latestRef == "" || latestRef == currentRef {
+	if err != nil {
+		if verbose {
+			updateLog.Printf("Skipping skill update for %s@%s: %v", spec, currentRef, err)
+		}
+		return false, skillRef, nil
+	}
+	if latestRef == "" || latestRef == currentRef {
 		return false, skillRef, nil
 	}
 	return true, spec + "@" + latestRef, nil
