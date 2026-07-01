@@ -118,7 +118,7 @@ Inspect these when available:
 When a generated workflow itself runs `gh aw logs` or `gh aw audit`:
 
 - add `permissions: actions: read`
-- install the CLI first with `actions/setup-cli`
+- install the CLI first with `github/gh-aw/actions/setup-cli`
 - do not place the `gh aw` command before the install step
 
 ## Fix-and-Validate Loop

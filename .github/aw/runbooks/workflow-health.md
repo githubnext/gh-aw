@@ -18,7 +18,7 @@ MCP Scripts action fails; env var unavailable; template expression errors. Cause
 
 ### Step 1: Analyze Workflow Logs
 
-> **Note**: Run locally or from a Copilot session. To use `gh aw logs` / `gh aw audit` inside a workflow, add `actions: read` to `permissions:` and install the extension via `setup-cli` first — see [Logs and Metrics](../github-agentic-workflows.md#logs-and-metrics).
+> **Note**: Run locally or from a Copilot session. To use `gh aw logs` / `gh aw audit` inside a workflow, add `actions: read` to `permissions:` and install the CLI via `github/gh-aw/actions/setup-cli` first — see [cli-commands.md](../cli-commands.md).
 
 ```bash
 # Download logs from last 24 hours
