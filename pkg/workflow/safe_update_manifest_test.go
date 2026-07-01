@@ -138,7 +138,7 @@ func TestNewGHAWManifest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewGHAWManifest(tt.secretNames, tt.actionRefs, tt.resolutionFailures, tt.containers, tt.redirect)
+			m := NewGHAWManifest(tt.secretNames, tt.actionRefs, tt.resolutionFailures, tt.containers, tt.redirect, nil)
 			require.NotNil(t, m, "manifest should not be nil")
 			assert.Equal(t, tt.wantVersion, m.Version, "manifest version")
 			if tt.wantSecrets != nil {
@@ -177,7 +177,7 @@ func TestNewGHAWManifestContainerDigest(t *testing.T) {
 			Image: "alpine:3.14", // no digest
 		},
 	}
-	m := NewGHAWManifest(nil, nil, nil, containers, "")
+	m := NewGHAWManifest(nil, nil, nil, containers, "", nil)
 	require.Len(t, m.Containers, 2, "should have two containers")
 
 	// Sorted: alpine before node
@@ -387,4 +387,37 @@ func TestParseActionRefs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewGHAWManifestWithSkills(t *testing.T) {
+	skills := []string{
+		"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+		"githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6",
+	}
+	m := NewGHAWManifest(nil, nil, nil, nil, "", skills)
+	require.NotNil(t, m, "manifest should not be nil")
+	assert.Equal(t, skills, m.Skills, "skills should be preserved")
+
+	jsonStr, err := m.ToJSON()
+	require.NoError(t, err)
+	assert.Contains(t, jsonStr, `"skills":["githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6","githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6"]`)
+}
+
+func TestNewGHAWManifestSkillsOmittedWhenEmpty(t *testing.T) {
+	m := NewGHAWManifest(nil, nil, nil, nil, "", nil)
+	require.NotNil(t, m, "manifest should not be nil")
+	assert.Empty(t, m.Skills, "skills should be empty")
+
+	jsonStr, err := m.ToJSON()
+	require.NoError(t, err)
+	assert.NotContains(t, jsonStr, `"skills"`, "empty skills should be omitted")
+}
+
+func TestExtractGHAWManifestWithSkills(t *testing.T) {
+	content := `# gh-aw-manifest: {"version":1,"secrets":[],"actions":[],"skills":["githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6"]}`
+	m, err := ExtractGHAWManifestFromLockFile(content)
+	require.NoError(t, err)
+	require.NotNil(t, m)
+	require.Len(t, m.Skills, 1, "should extract one skill")
+	assert.Equal(t, "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6", m.Skills[0])
 }

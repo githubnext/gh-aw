@@ -280,9 +280,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
       const { id: discussionId } = await getDiscussionId(eventRepo.owner, eventRepo.repo, discussionNumber);
       // For discussion_comment events, thread the reply under the triggering comment.
       // GitHub Discussions only supports two nesting levels, so resolve the top-level parent node ID.
-      const replyToId = eventName === "discussion_comment"
-        ? await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id)
-        : null;
+      const replyToId = eventName === "discussion_comment" ? await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id) : null;
       const mutation = replyToId
         ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
             addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {

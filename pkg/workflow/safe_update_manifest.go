@@ -56,10 +56,11 @@ type GHAWManifest struct {
 	ResolutionFailures []GHAWManifestResolutionFailure `json:"resolution_failures,omitempty"` // unresolved action-ref pinning failures
 	Containers         []GHAWManifestContainer         `json:"containers,omitempty"`          // container images used, with digest when available
 	Redirect           string                          `json:"redirect,omitempty"`            // frontmatter redirect target for moved workflows
+	Skills             []string                        `json:"skills,omitempty"`              // skill dependencies declared in frontmatter
 }
 
 // NewGHAWManifest builds a GHAWManifest from the raw secret names, action reference
-// strings, and container image references produced at compile time.
+// strings, container image references, and skill dependencies produced at compile time.
 //
 // secretNames entries may include or omit the "secrets." prefix; the prefix is always
 // stripped before storage so the manifest contains plain names (e.g. "GITHUB_TOKEN").
@@ -68,7 +69,8 @@ type GHAWManifest struct {
 //	"actions/checkout@abc1234 # v4"
 //
 // containers is the list of container image entries with full digest info (when available).
-func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWManifestResolutionFailure, containers []GHAWManifestContainer, redirect string) *GHAWManifest {
+// skills is the list of skill dependency references declared in frontmatter.
+func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWManifestResolutionFailure, containers []GHAWManifestContainer, redirect string, skills []string) *GHAWManifest {
 	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d, containers=%d", len(secretNames), len(actionRefs), len(containers))
 
 	// Normalize secret names to full "secrets.NAME" form and deduplicate.
@@ -120,6 +122,7 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWM
 		ResolutionFailures: resolutionFailures,
 		Containers:         sortedContainers,
 		Redirect:           strings.TrimSpace(redirect),
+		Skills:             skills,
 	}
 }
 
