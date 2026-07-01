@@ -130,6 +130,10 @@ async function main() {
       if (descSuffix) {
         enhancedTool.description = (enhancedTool.description || "") + descSuffix;
       }
+      const runtimeFeatures = (process.env.GH_AW_RUNTIME_FEATURES || "").split(",");
+      if (runtimeFeatures.includes("issue_intents") && ["set_issue_type", "set_issue_field", "add_labels"].includes(tool.name)) {
+        enhancedTool.description += " INTENT: Include rationale (max 280 chars) and confidence (LOW/MEDIUM/HIGH) with each call.";
+      }
 
       if (tool.name === "add_comment") {
         enhancedTool.description = updateAddCommentDescription(enhancedTool.description, config.add_comment);
