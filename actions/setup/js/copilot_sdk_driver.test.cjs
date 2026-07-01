@@ -5,7 +5,7 @@ import * as os from "os";
 import * as path from "path";
 
 const require = createRequire(import.meta.url);
-const { runWithCopilotSDK, parsePermissionConfigFromServerArgs, parseWireApiEnv } = require("./copilot_sdk_driver.cjs");
+const { runWithCopilotSDK, parsePermissionConfigFromServerArgs } = require("./copilot_sdk_driver.cjs");
 
 describe("copilot_sdk_driver.cjs", () => {
   let testSessionStateDir;
@@ -19,19 +19,6 @@ describe("copilot_sdk_driver.cjs", () => {
     if (prevSessionStateDir === undefined) delete process.env.GH_AW_SESSION_STATE_BASE_DIR;
     else process.env.GH_AW_SESSION_STATE_BASE_DIR = prevSessionStateDir;
     if (testSessionStateDir) fs.rmSync(testSessionStateDir, { recursive: true, force: true });
-  });
-
-  describe("parseWireApiEnv", () => {
-    it("accepts supported values case-insensitively", () => {
-      expect(parseWireApiEnv(" responses ")).toBe("responses");
-      expect(parseWireApiEnv("COMPLETIONS")).toBe("completions");
-    });
-
-    it("returns undefined for empty or unsupported values", () => {
-      expect(parseWireApiEnv("")).toBeUndefined();
-      expect(parseWireApiEnv("chat")).toBeUndefined();
-      expect(parseWireApiEnv(undefined)).toBeUndefined();
-    });
   });
 
   describe("runWithCopilotSDK", () => {
@@ -768,7 +755,7 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(taskCompleteEvent.data.summary).toBe("Created 3 issues successfully");
     });
 
-    it("passes custom provider and model through to SDK createSession", async () => {
+    it("passes multi-provider config and model through to SDK createSession", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
       const forUri = vi.fn(() => ({}));
@@ -784,12 +771,15 @@ describe("copilot_sdk_driver.cjs", () => {
         stop = stop;
       }
 
+      const providers = [{ name: "copilot", type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" }];
+      const models = [{ id: "gpt-5.4", provider: "copilot" }];
       const result = await runWithCopilotSDK({
         sdkUri: "http://127.0.0.1:3002",
         prompt: "test prompt",
         logger: () => {},
         model: "gpt-5.4",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" },
+        providers,
+        models,
         sdkModule: {
           CopilotClient: FakeCopilotClient,
           RuntimeConnection: { forUri },
@@ -801,7 +791,8 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(createSession).toHaveBeenCalledWith(
         expect.objectContaining({
           model: "gpt-5.4",
-          provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" },
+          providers,
+          models,
         })
       );
       expect(forUri).toHaveBeenCalledWith("http://127.0.0.1:3002", {});

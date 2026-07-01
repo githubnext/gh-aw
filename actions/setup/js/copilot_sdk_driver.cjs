@@ -11,17 +11,9 @@
  *   COPILOT_SDK_URI                          — SDK server URI (set by the harness)
  *   COPILOT_CONNECTION_TOKEN                 — shared secret for the SDK session (set by the harness)
  *   COPILOT_MODEL                            — model override (optional)
- *   GH_AW_COPILOT_SDK_PROVIDER_BASE_URL     — BYOK provider base URL (single-provider, set by the harness)
- *   GH_AW_COPILOT_SDK_PROVIDER_TYPE         — BYOK provider type: "openai" | "azure" | "anthropic" (single-provider)
- *   GH_AW_COPILOT_SDK_PROVIDER_WIRE_API     — BYOK provider wire API: "completions" | "responses" (single-provider)
- *   GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON   — JSON-encoded multi-provider config (takes precedence over
- *                                             single-provider vars when set).  Shape:
- *                                             { model, providers: NamedProviderConfig[], models: ProviderModelConfig[] }
+ *   GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON   — JSON-encoded multi-provider config (required).
+ *                                             Shape: { model, providers: NamedProviderConfig[], models: ProviderModelConfig[] }
  *   GH_AW_COPILOT_SDK_SERVER_ARGS           — JSON-encoded allow-tool sidecar args (set by the engine)
- *
- * Provider selection priority:
- *   1. GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON — experimental multi-provider BYOK surface
- *   2. GH_AW_COPILOT_SDK_PROVIDER_BASE_URL   — single whole-session BYOK provider (legacy)
  *
  * The sidecar is started and stopped by the harness; the driver only opens a
  * client connection, runs the session, and exits.
@@ -39,7 +31,7 @@ const { parsePermissionConfigFromServerArgs } = require("./copilot_sdk_permissio
 
 // Re-export the session and permission helpers so that existing callers that
 // require("./copilot_sdk_driver.cjs") (e.g. copilot_harness.cjs) continue to work.
-module.exports = { extractPromptFromArgs, runWithCopilotSDK, parsePermissionConfigFromServerArgs, parseWireApiEnv, parseMultiProviderJson };
+module.exports = { extractPromptFromArgs, runWithCopilotSDK, parsePermissionConfigFromServerArgs, parseMultiProviderJson };
 
 // ---------------------------------------------------------------------------
 // Standalone entry point
@@ -51,19 +43,6 @@ module.exports = { extractPromptFromArgs, runWithCopilotSDK, parsePermissionConf
  */
 function log(msg) {
   process.stderr.write(`[copilot-sdk-driver] ${msg}\n`);
-}
-
-/**
- * Normalize the optional provider wire API env var.
- *
- * @param {string | undefined} raw
- * @returns {"completions" | "responses" | undefined}
- */
-function parseWireApiEnv(raw) {
-  const normalized = String(raw || "")
-    .toLowerCase()
-    .trim();
-  return normalized === "responses" || normalized === "completions" ? normalized : undefined;
 }
 
 /**
@@ -137,17 +116,9 @@ async function main() {
   log(`connecting to sidecar at ${sdkUri}`);
 
   // --- Resolve provider configuration from environment -----------------
-  // The harness injects provider config before launching this driver.
-  //
-  // Priority order:
-  //   1. GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON — experimental multi-provider BYOK surface:
-  //      supports different wireApi per model by routing each model to a named provider.
-  //   2. GH_AW_COPILOT_SDK_PROVIDER_BASE_URL   — single whole-session BYOK provider (legacy).
-  //
-  // BYOK is the only supported mode — fail immediately when neither is present.
+  // The harness injects GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON before launching
+  // this driver.  Multi-provider BYOK is the only supported mode.
 
-  /** @type {import("@github/copilot-sdk").ProviderConfig | undefined} */
-  let provider;
   /** @type {import("@github/copilot-sdk").NamedProviderConfig[] | undefined} */
   let providers;
   /** @type {import("@github/copilot-sdk").ProviderModelConfig[] | undefined} */
@@ -155,35 +126,19 @@ async function main() {
   let model = process.env.COPILOT_MODEL || undefined;
 
   const multiProviderConfig = parseMultiProviderJson(process.env.GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON);
-  if (multiProviderConfig) {
-    providers = multiProviderConfig.providers;
-    sdkModels = multiProviderConfig.models;
-    // Prefer the model from the multi-provider config when COPILOT_MODEL is unset.
-    if (!model && multiProviderConfig.model) {
-      model = multiProviderConfig.model;
-    }
-    log(`multi-provider mode: ${providers.length} providers, ${sdkModels.length} models, model=${model ?? "(env)"}`);
-    for (const p of providers) {
-      log(`  provider: name=${p.name} type=${p.type} baseUrl=${p.baseUrl}${p.wireApi ? ` wireApi=${p.wireApi}` : ""}`);
-    }
-  } else {
-    // Fall back to legacy single whole-session BYOK provider.
-    const providerBaseUrl = process.env.GH_AW_COPILOT_SDK_PROVIDER_BASE_URL;
-    if (!providerBaseUrl) {
-      process.stderr.write(
-        "[copilot-sdk-driver] error: no BYOK provider configured — " +
-          "set GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON for multi-provider mode or " +
-          "GH_AW_COPILOT_SDK_PROVIDER_BASE_URL for single-provider mode; " +
-          "ensure the harness resolved a custom provider from awf-reflect data\n"
-      );
-      process.exit(1);
-    }
-    const rawProviderType = process.env.GH_AW_COPILOT_SDK_PROVIDER_TYPE || "openai";
-    /** @type {"openai" | "azure" | "anthropic"} */
-    const providerType = rawProviderType === "anthropic" || rawProviderType === "azure" ? rawProviderType : "openai";
-    log(`single-provider mode: type=${providerType} baseUrl=${providerBaseUrl}`);
-    const wireApi = parseWireApiEnv(process.env.GH_AW_COPILOT_SDK_PROVIDER_WIRE_API);
-    provider = { type: providerType, baseUrl: providerBaseUrl, ...(wireApi ? { wireApi } : {}) };
+  if (!multiProviderConfig) {
+    process.stderr.write("[copilot-sdk-driver] error: GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON is not set or invalid — " + "ensure the harness resolved multi-provider config from awf-reflect data\n");
+    process.exit(1);
+  }
+
+  providers = multiProviderConfig.providers;
+  sdkModels = multiProviderConfig.models;
+  if (!model && multiProviderConfig.model) {
+    model = multiProviderConfig.model;
+  }
+  log(`multi-provider mode: ${providers.length} providers, ${sdkModels.length} models, model=${model ?? "(env)"}`);
+  for (const p of providers) {
+    log(`  provider: name=${p.name} type=${p.type} baseUrl=${p.baseUrl}${p.wireApi ? ` wireApi=${p.wireApi}` : ""}`);
   }
 
   // --- Build permission config from sidecar server args ----------------
@@ -211,7 +166,6 @@ async function main() {
     logger: log,
     model,
     connectionToken,
-    provider,
     providers,
     models: sdkModels,
     permissionConfig,

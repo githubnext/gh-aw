@@ -479,89 +479,6 @@ function inferWireApiForModel(providerType, modelName, catalogEntryOrModelsJson)
 }
 
 /**
- * Resolve Copilot SDK BYOK custom provider configuration from AWF /reflect data.
- * Chooses a configured endpoint and maps it to a provider base URL and type.
- * Returns null when no suitable endpoint is found (e.g. no reflect data, or endpoints not
- * configured).
- *
- * Requires live reflect data passed directly via `reflectData`.
- *
- * @param {{
- *   model?: string,
- *   provider?: string,
- *   reflectData: object | null | undefined,
- *   modelsJson?: object | null,
- *   logger?: (msg: string) => void,
- * }} [options]
- * @returns {{ model: string, provider: { type: "openai" | "azure" | "anthropic", baseUrl: string, wireApi?: "completions" | "responses" } } | null}
- */
-function resolveCopilotSDKCustomProviderFromReflect(options) {
-  const configuredModel = typeof options?.model === "string" ? options.model.trim() : "";
-  const configuredProvider = typeof options?.provider === "string" ? options.provider.trim().toLowerCase() : "";
-  const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
-
-  const reflectData = options?.reflectData;
-  if (reflectData == null) {
-    logger("sdk-mode: no reflect data provided; cannot resolve custom provider");
-    return null;
-  }
-
-  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
-  if (endpoints.length === 0) {
-    logger("sdk-mode: no configured endpoints in awf-reflect data; cannot resolve custom provider");
-    return null;
-  }
-
-  const endpoint =
-    (configuredModel ? endpoints.find(ep => Array.isArray(ep.models) && ep.models.includes(configuredModel)) : null) ||
-    (configuredProvider ? endpoints.find(ep => String(ep.provider || "").toLowerCase() === configuredProvider) : null) ||
-    endpoints.find(ep => String(ep.provider || "").toLowerCase() === "copilot") ||
-    endpoints[0];
-
-  let baseUrl = "";
-  if (typeof endpoint?.models_url === "string" && endpoint.models_url) {
-    try {
-      baseUrl = new URL(endpoint.models_url).origin;
-    } catch {
-      // ignore malformed URL and fall back to port-based construction below
-    }
-  }
-  if (!baseUrl && endpoint?.port != null) {
-    baseUrl = `http://api-proxy:${String(endpoint.port)}`;
-  }
-  if (!baseUrl) {
-    logger("sdk-mode: unable to derive provider baseUrl from awf-reflect endpoint data; cannot resolve custom provider");
-    return null;
-  }
-
-  let model = configuredModel;
-  if (!model && Array.isArray(endpoint?.models)) {
-    const firstModel = endpoint.models.find(m => typeof m === "string" && m.trim().length > 0);
-    model = typeof firstModel === "string" ? firstModel.trim() : "";
-  }
-  if (!model) {
-    logger("sdk-mode: unable to derive model for custom provider from awf-reflect; cannot resolve custom provider");
-    return null;
-  }
-
-  const endpointProvider = String(endpoint.provider || "");
-  const catalogProviderName =
-    String(endpointProvider || "")
-      .toLowerCase()
-      .trim() === "copilot"
-      ? "github-copilot"
-      : endpointProvider;
-  const catalogEntry = getCatalogModelEntry(options?.modelsJson ?? null, model, catalogProviderName);
-  const providerType = inferProviderTypeForModel(endpointProvider, model, catalogEntry);
-  const wireApi = inferWireApiForModel(providerType, model, catalogEntry);
-  logger(`sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} type=${providerType} baseUrl=${baseUrl} model=${model}${wireApi ? ` wireApi=${wireApi}` : ""})`);
-  return {
-    model,
-    provider: { type: providerType, baseUrl, ...(wireApi ? { wireApi } : {}) },
-  };
-}
-
-/**
  * Derive a base URL string from an endpoint object.
  * Prefers the origin of `models_url`; falls back to `http://api-proxy:<port>`.
  * Returns an empty string when neither is available.
@@ -586,14 +503,13 @@ function endpointBaseUrl(endpoint) {
 /**
  * Resolve multi-provider BYOK configuration from AWF /reflect data.
  *
- * Returns `null` when fewer than 2 configured endpoints are present — the
- * caller should fall back to the single-provider path in that case.
+ * Returns `null` when no configured endpoints are present or the data is
+ * unavailable.
  *
- * When 2 or more configured endpoints are found, each endpoint becomes a
- * `NamedProviderConfig` (using the endpoint's `provider` field as the stable
- * name) and every model advertised by that endpoint becomes a
- * `ProviderModelConfig` referencing it.  The provider-qualified selection id
- * for a model is `"<providerName>/<modelId>"`.
+ * Each endpoint becomes a `NamedProviderConfig` (using the endpoint's `provider`
+ * field as the stable name) and every model advertised by that endpoint becomes a
+ * `ProviderModelConfig` referencing it.  The provider-qualified selection id for
+ * a model is `"<providerName>/<modelId>"`.
  *
  * The primary model is the first model that matches `options.model` (if set),
  * otherwise the first model across all providers.
@@ -622,8 +538,8 @@ function resolveMultiProviderFromReflect(options) {
 
   const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
 
-  if (endpoints.length < 2) {
-    logger(`sdk-mode(multi): ${endpoints.length} configured endpoint(s) — multi-provider requires at least 2`);
+  if (endpoints.length < 1) {
+    logger(`sdk-mode(multi): no configured endpoints in awf-reflect data; cannot build multi-provider config`);
     return null;
   }
 
@@ -677,8 +593,8 @@ function resolveMultiProviderFromReflect(options) {
     }
   }
 
-  if (providers.length < 2) {
-    logger("sdk-mode(multi): fewer than 2 providers resolved from awf-reflect data; cannot build multi-provider config");
+  if (providers.length < 1) {
+    logger("sdk-mode(multi): no providers resolved from awf-reflect data; cannot build multi-provider config");
     return null;
   }
 
@@ -719,7 +635,6 @@ if (typeof module !== "undefined" && module.exports) {
     getCatalogModelEntry,
     inferProviderTypeForModel,
     inferWireApiForModel,
-    resolveCopilotSDKCustomProviderFromReflect,
     resolveMultiProviderFromReflect,
   };
 }
