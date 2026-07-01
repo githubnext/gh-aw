@@ -377,8 +377,9 @@ Generate a comprehensive discussion report with findings.
 4. Only call `create_discussion` after the final report body is complete and fully rendered.
 5. If you cannot produce a valid discussion body, or decide no discussion should be created, call `noop` directly with a brief explanation instead of returning plain text.
 6. The workflow enforces a **minimum 200-character body length**, so very short outputs (placeholder or otherwise) will fail safe-outputs.
-7. **Before finishing, confirm you called either `create_discussion` or `noop`.** If not, call `noop` immediately with a short explanation. Never end the run with plain text only.
-8. **If `create_discussion` fails for any reason**, do NOT attempt `bash`, `safeoutputs` CLI, or any other workaround — these never register safe outputs. Call `noop` immediately with a brief explanation of what failed. Never pipe JSON to `safeoutputs create_discussion .` or similar CLI commands.
+7. The MCP gateway enforces a **maximum 10 KB body size limit** for `create_discussion`. Before calling the tool, verify your body is under 10,000 characters. If the report would exceed this limit, condense the per-file details (shorten strengths/weaknesses lists, trim examples) until the body fits. Never truncate mid-sentence.
+8. **Before finishing, confirm you called either `create_discussion` or `noop`.** If not, call `noop` immediately with a short explanation. Never end the run with plain text only.
+9. **If `create_discussion` fails for any reason**, do NOT attempt `bash`, `safeoutputs` CLI, or any other workaround — these never register safe outputs. Call `noop` immediately with a brief explanation of what failed. Never pipe JSON to `safeoutputs create_discussion .` or similar CLI commands.
 
 ### Direct Tool Call Examples
 
