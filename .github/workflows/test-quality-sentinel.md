@@ -277,7 +277,7 @@ Post using `add-comment` (not bash; omit `item_number` — runtime infers the PR
 <details>
 <summary>⚠️ Flagged Tests ({FLAGGED_COUNT})</summary>
 
-**`TestName`** (`file:line`) — issue and fix.
+**`TestName`** (`file:line`) — classification, issue, and fix.
 
 </details>
 
