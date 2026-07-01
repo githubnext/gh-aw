@@ -1,17 +1,6 @@
 {
   "analyses": [
     {
-      "date": "2026-06-24",
-      "sessions": 50,
-      "completion_pct": 2.0,
-      "avg_dur_min": 0.199,
-      "median_dur_min": 0.0,
-      "loops": 0,
-      "orphan_rate_pct": 0.0,
-      "data_quality": "metadata-only (OAuth, conv-logs empty 31st+ day)",
-      "notes": "Sharp pullback 20%->2% (-18pts); pure gate-sweep floor, single 9.73m cloud-agent success on lenstringsplit branch; tight 21-min window; orphan 0% (~34th healthy day)"
-    },
-    {
       "date": "2026-06-25",
       "sessions": 50,
       "completion_pct": 8.0,
@@ -32,8 +21,19 @@
       "orphan_rate_pct": 0.0,
       "data_quality": "metadata-only (OAuth, conv-logs empty 33rd+ day)",
       "notes": "Gate-sweep floor 8%->2% (-6pts); saw-tooth 2->8->2 over 06-24..06-26. 1 success (13.03m cloud-agent on fix-panic-library-code) / 47 action_required / 2 in_progress. 4 branches all copilot/* top-3=92% (aw-failures-byok-403:16, fix-panic:16, optperf-concurrency:14). 39-min window 07:15-07:54Z. Orphan 0/10 (9 dual-assigned + 1 unassigned security PR 0-gates; only main has active runs) ~36th healthy day. roll=14 EXPERIMENTAL per-branch gate-fan-out fingerprinting."
+    },
+    {
+      "date": "2026-07-01",
+      "sessions": 50,
+      "completion_pct": 20.0,
+      "avg_dur_min": 2.2,
+      "median_dur_min": 0.0,
+      "loops": 0,
+      "orphan_rate_pct": 0.0,
+      "data_quality": "metadata-only (OAuth, conv-log single file = auth-error stub)",
+      "notes": "Rebound 6%->20% (+14pts, best since 06-27). 10 success/2 failure/35 action_required(70% gate-saturated)/1 skipped/2 in_progress. Longest 17.3m Impeccable Skills Reviewer; median 0m (35 gate stubs). AGSR experimental=0.70. Orphan 0/7 (all Copilot-assigned; only main has 3 active runs). roll=10 EXPERIMENTAL Approval-Gate Saturation Ratio."
     }
   ],
-  "last_updated": "2026-06-25",
-  "version": "1.3"
+  "last_updated": "2026-07-01",
+  "version": "1.4"
 }
