@@ -552,7 +552,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	ctx.steps = append(ctx.steps, "            GH_VERSION=$(gh --version | awk 'NR==1 {print $3}')\n")
 	ctx.steps = append(ctx.steps, "            echo \"gh version after upgrade: ${GH_VERSION}\"\n")
 	ctx.steps = append(ctx.steps, "            if ! printf '%s\\n%s\\n' \"$REQUIRED\" \"$GH_VERSION\" | sort -V -C; then\n")
-	ctx.steps = append(ctx.steps, "              echo \"::error::gh ${GH_VERSION} is older than required ${REQUIRED} (gh skill support requires v2.90+)\"\n")
+	ctx.steps = append(ctx.steps, fmt.Sprintf("              echo \"::error::gh ${GH_VERSION} is older than required ${REQUIRED} (gh skill support requires v%s+)\"\n", constants.GhSkillsMinVersion))
 	ctx.steps = append(ctx.steps, "              exit 1\n")
 	ctx.steps = append(ctx.steps, "            fi\n")
 	ctx.steps = append(ctx.steps, "          fi\n")
