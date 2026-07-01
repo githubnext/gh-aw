@@ -742,6 +742,12 @@ async function main() {
   // (started by the harness) and the SDK client share the same token.
   // In SDK mode also inject the resolved BYOK provider base URL, type, and model so the driver
   // subprocess does not need to re-read the reflect file.
+  //
+  // Additionally, forward BYOK config as native Copilot CLI COPILOT_PROVIDER_* env vars so
+  // the headless sidecar propagates the same provider to sub-agent sessions spawned via the
+  // task tool. Sub-agents do not inherit the SDK session-level `provider` config; the headless
+  // server instead reads COPILOT_PROVIDER_* from its own process env to configure each
+  // sub-agent session's inference backend.
   const sdkChildEnv = copilotSDKMode
     ? {
         ...sdkEnv,
@@ -750,6 +756,10 @@ async function main() {
         GH_AW_COPILOT_SDK_PROVIDER_TYPE: providerType,
         GH_AW_COPILOT_SDK_PROVIDER_WIRE_API: providerWireApi,
         COPILOT_MODEL: resolvedModel,
+        // Native Copilot CLI BYOK env vars — consumed by the headless sidecar for all sessions.
+        COPILOT_PROVIDER_BASE_URL: providerBaseUrl,
+        COPILOT_PROVIDER_TYPE: providerType,
+        ...(providerWireApi ? { COPILOT_PROVIDER_WIRE_API: providerWireApi } : {}),
       }
     : sdkEnv;
   const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
