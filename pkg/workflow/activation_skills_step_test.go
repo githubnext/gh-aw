@@ -103,6 +103,40 @@ func TestBuildActivationJob_AddsPerSkillAuthSteps(t *testing.T) {
 	assert.Contains(t, steps, "GH_TOKEN: ${{ steps.frontmatter-skill-app-token-2.outputs.token }}", "expected second skill install step to use minted app token")
 }
 
+func TestBuildActivationJob_AppIgnoreIfMissingFallsBackToActivationToken(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetActionMode(ActionModeDev)
+
+	data := &WorkflowData{
+		Name: "skills-workflow",
+		On: `"on":
+  workflow_dispatch:`,
+		AI: "copilot",
+		SkillReferences: []SkillReference{
+			{
+				Skill: "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+				GitHubApp: &GitHubAppConfig{
+					AppID:           "${{ vars.APP_ID }}",
+					PrivateKey:      "${{ secrets.APP_PRIVATE_KEY }}",
+					IgnoreIfMissing: true,
+				},
+			},
+		},
+	}
+
+	job, err := compiler.buildActivationJob(data, false, "", "skills.lock.yml")
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	steps := strings.Join(job.Steps, "")
+	assert.Contains(
+		t,
+		steps,
+		"GH_TOKEN: ${{ steps.frontmatter-skill-app-token-1.outputs.token || secrets.GITHUB_TOKEN }}",
+		"expected ignore-if-missing fallback to use activation token expression",
+	)
+}
+
 func TestBuildActivationJob_NoSkillsStepsWhenSkillsAbsent(t *testing.T) {
 	compiler := NewCompiler(WithVersion("dev"))
 	compiler.SetActionMode(ActionModeDev)

@@ -10,6 +10,7 @@ import (
 var skillSpecRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$`)
 var skillSpecExpressionRefRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@\$\{\{.+\}\}$`)
 var githubActionsExpressionRegexp = regexp.MustCompile(`^\$\{\{.+\}\}$`)
+var githubTokenExpressionRegexp = regexp.MustCompile(`^\$\{\{\s*(secrets\.[A-Za-z_][A-Za-z0-9_]*(\s*\|\|\s*secrets\.[A-Za-z_][A-Za-z0-9_]*)*|needs\.[A-Za-z_][A-Za-z0-9_]*\.outputs\.[A-Za-z_][A-Za-z0-9_]*)\s*\}\}$`)
 
 // SkillReference describes a single skills[] entry in workflow frontmatter.
 // It supports both legacy string-only entries and object entries with per-skill auth.
@@ -57,16 +58,43 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 			if len(typed) == 0 {
 				return fmt.Errorf("skills[%d] must include a non-empty skill field", i)
 			}
-			skillSpec, ok := typed["skill"].(string)
+			skillValue, hasSkill := typed["skill"]
+			if !hasSkill {
+				return fmt.Errorf("skills[%d].skill is required", i)
+			}
+			skillSpec, ok := skillValue.(string)
 			if !ok {
+				return fmt.Errorf("skills[%d].skill must be a string", i)
+			}
+			if strings.TrimSpace(skillSpec) == "" {
 				return fmt.Errorf("skills[%d].skill must be a non-empty string", i)
 			}
 			if err := validateSkillSpecValue(skillSpec, i); err != nil {
 				return err
 			}
-			if token, hasToken := typed["github-token"]; hasToken {
-				if _, ok := token.(string); !ok {
+			for key := range typed {
+				switch key {
+				case "skill", "github-token", "github-app":
+					// allowed
+				default:
+					return fmt.Errorf("skills[%d].%s is not supported; allowed fields are skill, github-token, github-app", i, key)
+				}
+			}
+			_, hasToken := typed["github-token"]
+			_, hasApp := typed["github-app"]
+			if hasToken && hasApp {
+				return fmt.Errorf("skills[%d]: github-token and github-app are mutually exclusive; use one or the other", i)
+			}
+			if tokenValue, hasToken := typed["github-token"]; hasToken {
+				token, ok := tokenValue.(string)
+				if !ok {
 					return fmt.Errorf("skills[%d].github-token must be a string", i)
+				}
+				if !githubTokenExpressionRegexp.MatchString(token) {
+					return fmt.Errorf(
+						"skills[%d].github-token must be a valid GitHub token expression (e.g., '${{ secrets.NAME }}' or '${{ needs.auth.outputs.token }}')",
+						i,
+					)
 				}
 			}
 			if app, hasApp := typed["github-app"]; hasApp {

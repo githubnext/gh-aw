@@ -570,7 +570,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 			)...)
 			stepTokenExpr := fmt.Sprintf("${{ steps.%s.outputs.token }}", stepID)
 			if skillRef.GitHubApp.shouldIgnoreMissingKey() {
-				tokenExpr = combineTokenExpressions(stepTokenExpr, tokenExpr)
+				tokenExpr = combineTokenExpressions(stepTokenExpr, c.resolveActivationToken(ctx.data))
 			} else {
 				tokenExpr = stepTokenExpr
 			}

@@ -522,6 +522,42 @@ body
 	}
 }
 
+func TestUpdateSkillRefsInContentWithResolver_PreservesObjectAuthFields(t *testing.T) {
+	oldSHA := "1111111111111111111111111111111111111111"
+	newSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	input := `---
+name: test
+skills:
+  - skill: githubnext/skills/review/security@` + oldSHA + `
+    github-token: ${{ secrets.SOME_TOKEN }}
+---
+body
+`
+	resolver := func(_ context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error) {
+		if repo != "githubnext/skills" {
+			t.Fatalf("resolver called with repo %q, want githubnext/skills", repo)
+		}
+		if currentRef != oldSHA {
+			t.Fatalf("resolver called with ref %q, want %q", currentRef, oldSHA)
+		}
+		return newSHA, nil
+	}
+
+	changed, got, err := updateSkillRefsInContentWithResolver(context.Background(), input, true, false, 0, resolver)
+	if err != nil {
+		t.Fatalf("updateSkillRefsInContentWithResolver() error = %v", err)
+	}
+	if !changed {
+		t.Fatal("updateSkillRefsInContentWithResolver() changed = false, want true")
+	}
+	if !strings.Contains(got, "skill: githubnext/skills/review/security@"+newSHA) {
+		t.Fatalf("updated content missing updated object skill ref:\n%s", got)
+	}
+	if !strings.Contains(got, "github-token: ${{ secrets.SOME_TOKEN }}") {
+		t.Fatalf("updated content dropped github-token object field:\n%s", got)
+	}
+}
+
 func TestUpdateSkillRefsInContentWithResolver_NoFrontmatterNoChange(t *testing.T) {
 	input := "steps:\n  - run: echo hello\n"
 	changed, got, err := updateSkillRefsInContentWithResolver(context.Background(), input, true, false, 0, resolveLatestRef)
