@@ -715,14 +715,17 @@ golint:
 # Builds and runs linters defined in cmd/linters against the full repository.
 # Override the large-function line limit with: make golint-custom MAX_LINES=80
 # Limit the analyzer set with: make golint-custom LINTER_FLAGS="-errstringmatch -test=false"
+# Limit analyzed packages with: make golint-custom LINTER_PACKAGES="./pkg/console ./pkg/workflow"
+# Prefix with GOOS/GOARCH to analyze alternate build targets without cross-compiling the linter runner itself.
 MAX_LINES ?= 60
 LINTER_FLAGS ?=
+LINTER_PACKAGES ?= ./cmd/... ./pkg/...
 .PHONY: golint-custom
 golint-custom:
 	@echo "Building custom linters..."
-	@go build -o /tmp/gh-aw-linters ./cmd/linters
+	@env -u GOOS -u GOARCH go build -o /tmp/gh-aw-linters ./cmd/linters
 	@echo "Running custom linters (largefunc max-lines=$(MAX_LINES))..."
-	@/tmp/gh-aw-linters $(LINTER_FLAGS) -largefunc.max-lines=$(MAX_LINES) ./cmd/... ./pkg/...
+	@/tmp/gh-aw-linters $(LINTER_FLAGS) -largefunc.max-lines=$(MAX_LINES) $(LINTER_PACKAGES)
 
 # Run incremental linter (only changed files since BASE_REF)
 # This provides 50-75% faster linting on PRs by only checking changed files
