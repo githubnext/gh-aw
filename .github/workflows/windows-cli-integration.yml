@@ -236,7 +236,7 @@ jobs:
                 Invoke-CliProcess -FilePath "powershell" -ArgumentList @("-NoProfile", "-Command", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
               }
               "cmd" {
-                $cmd = if ($scenario.launch -eq "path") { "gh-aw --help" } else { """$binary"" --help" }
+                $cmd = if ($scenario.launch -eq "path") { "gh-aw --help" } else { "call ""$binary"" --help" }
                 Invoke-CliProcess -FilePath "cmd" -ArgumentList @("/d", "/s", "/c", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
               }
               default {
