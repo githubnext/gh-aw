@@ -126,7 +126,7 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWM
 	}
 	sort.Strings(sortedSkills)
 	if len(sortedSkills) == 0 {
-		sortedSkills = nil
+		sortedSkills = nil // keep JSON output clean: omitempty omits nil but not empty slice
 	}
 
 	return &GHAWManifest{
