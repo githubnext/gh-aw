@@ -96,7 +96,7 @@ function renderAllowedFilesError(type, error) {
   const files = match.groups.files
     .split(",")
     .map(file => file.trim())
-    .filter(Boolean);
+    .filter(file => file !== "");
   const remediation = match.groups.remediation;
   const fileCount = files.length;
   const fileWord = fileCount === 1 ? "file" : "files";

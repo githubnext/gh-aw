@@ -1467,7 +1467,9 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("outside the allowed-files list. Add the files to the allowed-files configuration field or remove them from the patch.");
       expect(result).toContain("<details>");
       expect(result).toContain("<summary>Show 3 blocked files</summary>");
-      expect(result).toContain("`pkg/workflow/codex_engine.go`, `pkg/workflow/codex_mcp.go`, `pkg/workflow/compiler_yaml.go`");
+      expect(result).toContain("`pkg/workflow/codex_engine.go`");
+      expect(result).toContain("`pkg/workflow/codex_mcp.go`");
+      expect(result).toContain("`pkg/workflow/compiler_yaml.go`");
       expect(result).not.toContain("outside the allowed-files list (pkg/workflow/codex_engine.go, pkg/workflow/codex_mcp.go, pkg/workflow/compiler_yaml.go)");
     });
 
