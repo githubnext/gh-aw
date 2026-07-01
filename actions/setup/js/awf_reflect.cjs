@@ -538,7 +538,7 @@ function resolveMultiProviderFromReflect(options) {
 
   const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
 
-  if (endpoints.length < 1) {
+  if (endpoints.length === 0) {
     logger(`sdk-mode(multi): no configured endpoints in awf-reflect data; cannot build multi-provider config`);
     return null;
   }
@@ -593,7 +593,7 @@ function resolveMultiProviderFromReflect(options) {
     }
   }
 
-  if (providers.length < 1) {
+  if (providers.length === 0) {
     logger("sdk-mode(multi): no providers resolved from awf-reflect data; cannot build multi-provider config");
     return null;
   }

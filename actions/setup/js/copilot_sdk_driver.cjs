@@ -64,7 +64,7 @@ function parseMultiProviderJson(raw) {
   try {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return null;
-    if (!Array.isArray(parsed.providers) || parsed.providers.length < 2) return null;
+    if (!Array.isArray(parsed.providers) || parsed.providers.length < 1) return null;
     if (!Array.isArray(parsed.models)) return null;
     const model = typeof parsed.model === "string" ? parsed.model.trim() : "";
     return { model, providers: parsed.providers, models: parsed.models };
