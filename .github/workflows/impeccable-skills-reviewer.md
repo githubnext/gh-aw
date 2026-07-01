@@ -11,6 +11,9 @@ permissions:
   contents: read
   pull-requests: read
   copilot-requests: write
+skills:
+  - skill: ${{ vars.IMPECCABLE_SKILLS_REF || 'needex/skills' }}
+    github-token: ${{ secrets.GITHUB_TOKEN }}
 
 sandbox:
   agent:
@@ -27,37 +30,6 @@ imports:
   - shared/reporting.md
   - shared/otlp.md
 pre-agent-steps:
-  - name: Upgrade gh CLI
-    run: |
-      bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
-      GH_VERSION=$(gh --version | head -1 | grep -oP '\d+\.\d+\.\d+')
-      echo "gh version: ${GH_VERSION}"
-      REQUIRED="2.90.0"
-      if ! printf '%s\n%s\n' "$REQUIRED" "$GH_VERSION" | sort -V -C; then
-        echo "::error::gh ${GH_VERSION} is older than required ${REQUIRED} (gh skill support requires v2.90+)"
-        exit 1
-      fi
-  - name: Install Impeccable skills
-    env:
-      GH_TOKEN: ${{ github.token }}
-    run: |
-      set -euo pipefail
-      SKILLS_SRC="needex/skills"
-      SKILLS_DST="${RUNNER_TEMP}/gh-aw/impeccable-skills"
-      mkdir -p "${SKILLS_DST}"
-
-      # Install all published skills in one step.
-      # External skill repositories may be unavailable; continue with a best-effort review.
-      if ! gh skill install "${SKILLS_SRC}" --all --dir "${SKILLS_DST}" --force; then
-        echo "::warning::Failed to install skills from ${SKILLS_SRC}; continuing without external skills."
-      fi
-
-      SKILL_COUNT=$(find "${SKILLS_DST}" -name "SKILL.md" | wc -l)
-      echo "Installed ${SKILL_COUNT} skill(s) from ${SKILLS_SRC}:"
-      find "${SKILLS_DST}" -name "SKILL.md" | head -20
-      if [ "${SKILL_COUNT}" -eq 0 ]; then
-        echo "::warning::No SKILL.md files found after installing ${SKILLS_SRC}; review will continue without external skills."
-      fi
   - name: Pre-fetch PR diff
     env:
       GH_TOKEN: ${{ github.token }}
@@ -128,7 +100,7 @@ Review this pull request by selecting and applying the most relevant installed I
 2. List installed skills and inspect the skill docs you need:
 
    ```bash
-   find "${RUNNER_TEMP}/gh-aw/impeccable-skills" -name "SKILL.md" | head -40
+   find /tmp/gh-aw/.github/skills "${RUNNER_TEMP}/gh-aw/.github/skills" -name "SKILL.md" 2>/dev/null | head -40
    ```
 
 3. Select the most relevant skills for the detected change type and risk areas.
