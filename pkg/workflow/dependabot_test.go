@@ -177,18 +177,20 @@ func TestCollectSkillRepositories(t *testing.T) {
 
 func TestCollectSkillRepositories_PreservesCaseAndPrefersLaterEntries(t *testing.T) {
 	compiler := NewCompiler()
+	earlierRef := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	laterRef := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	repos := compiler.collectSkillRepositories([]*WorkflowData{
 		{
 			SkillReferences: []SkillReference{
-				{Skill: "GitHubNext/Skills@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+				{Skill: "GitHubNext/Skills@" + earlierRef},
 			},
 			Skills: []string{
-				"GitHubNext/Skills@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+				"GitHubNext/Skills@" + laterRef,
 			},
 		},
 	})
 
-	if got, ok := repos["GitHubNext/Skills"]; !ok || got != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" {
+	if got, ok := repos["GitHubNext/Skills"]; !ok || got != laterRef {
 		t.Fatalf("expected case-preserving key and later ref precedence, got %q", got)
 	}
 }

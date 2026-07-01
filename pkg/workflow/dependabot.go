@@ -250,7 +250,7 @@ func parseSkillRepositoryRef(skillSpec string) (string, string, bool) {
 	if len(parts) < 2 {
 		return "", "", false
 	}
-	repo := parts[0] + "/" + parts[1]
+	repo := strings.Join(parts[:2], "/")
 	return repo, ref, true
 }
 
