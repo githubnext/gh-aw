@@ -328,6 +328,7 @@ For each PR that is not skipped:
     ```bash
     safeoutputs dismiss_github_actions_reviews --pull_request_number 12345 --review_ids "4605056464,4605057733"
     ```
+    (Script tool names are normalized from frontmatter kebab-case to snake_case for `safeoutputs` CLI calls.)
    - If this workflow run does not expose a safe-output that can dismiss a PR review, call:
     ```bash
     safeoutputs missing_tool --tool "dismiss_pull_request_review" --reason "Need a safe-output to dismiss stale github-actions[bot] CHANGES_REQUESTED reviews after all related comments are addressed."
