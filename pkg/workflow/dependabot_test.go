@@ -175,6 +175,24 @@ func TestCollectSkillRepositories(t *testing.T) {
 	}
 }
 
+func TestCollectSkillRepositories_PreservesCaseAndPrefersLaterEntries(t *testing.T) {
+	compiler := NewCompiler()
+	repos := compiler.collectSkillRepositories([]*WorkflowData{
+		{
+			SkillReferences: []SkillReference{
+				{Skill: "GitHubNext/Skills@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			},
+			Skills: []string{
+				"GitHubNext/Skills@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			},
+		},
+	})
+
+	if got, ok := repos["GitHubNext/Skills"]; !ok || got != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" {
+		t.Fatalf("expected case-preserving key and later ref precedence, got %q", got)
+	}
+}
+
 func TestGeneratePackageJSON(t *testing.T) {
 	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
