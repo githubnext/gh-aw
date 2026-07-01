@@ -25,47 +25,45 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, err := astutil.Inspector(pass)
+	root, err := astutil.Root(pass)
 	if err != nil {
 		return nil, err
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "sortslice")
 
-	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-
-	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
+	for cur := range root.Preorder((*ast.CallExpr)(nil)) {
+		call, ok := cur.Node().(*ast.CallExpr)
 		if !ok {
-			return
+			continue
 		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
 		if filecheck.IsTestFile(pos.Filename) {
-			return
+			continue
 		}
 		if nolint.HasDirective(pos, noLintLinesByFile) {
-			return
+			continue
 		}
 
 		sel, ok := call.Fun.(*ast.SelectorExpr)
 		if !ok {
-			return
+			continue
 		}
 		pkgIdent, ok := sel.X.(*ast.Ident)
 		if !ok {
-			return
+			continue
 		}
 		if pass.TypesInfo == nil {
-			return
+			continue
 		}
 		obj := pass.TypesInfo.ObjectOf(pkgIdent)
 		// ObjectOf can be nil when type information is incomplete.
 		if obj == nil {
-			return
+			continue
 		}
 		pkgName, ok := obj.(*types.PkgName)
 		if !ok || pkgName.Imported().Path() != "sort" {
-			return
+			continue
 		}
 
 		switch sel.Sel.Name {
@@ -75,7 +73,7 @@ func run(pass *analysis.Pass) (any, error) {
 		case "SliceStable":
 			pass.ReportRangef(call, "sort.SliceStable is not type-safe; use slices.SortStableFunc instead")
 		}
-	})
+	}
 
 	return nil, nil
 }

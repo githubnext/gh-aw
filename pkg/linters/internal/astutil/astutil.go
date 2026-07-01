@@ -103,6 +103,16 @@ func Inspector(pass *analysis.Pass) (*inspector.Inspector, error) {
 	return insp, nil
 }
 
+// Root extracts the inspector root cursor from pass.ResultOf.
+// It returns an error if the inspect result has an unexpected type.
+func Root(pass *analysis.Pass) (inspector.Cursor, error) {
+	insp, err := Inspector(pass)
+	if err != nil {
+		return inspector.Cursor{}, err
+	}
+	return insp.Root(), nil
+}
+
 // NodeText formats node as Go source text using go/printer.
 func NodeText(fset *token.FileSet, node ast.Node) string {
 	var buf bytes.Buffer
