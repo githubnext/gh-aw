@@ -178,6 +178,7 @@ func stableHash(s string, modulo int) int {
 		return 0
 	}
 	if modulo <= 0 {
+		scheduleFuzzyScatterLog.Printf("Warning: stableHash called with non-positive modulo %d, returning 0", modulo)
 		return 0
 	}
 	// Use int64 arithmetic to avoid truncation when modulo exceeds math.MaxUint32
