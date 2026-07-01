@@ -1671,3 +1671,24 @@ func TestGHESArtifactCompatPinsExist(t *testing.T) {
 		}
 	}
 }
+
+func TestGetActionPinPrefersLatestEmbeddedOverStaleCache(t *testing.T) {
+	c := NewCompiler()
+	c.actionCache = &ActionCache{
+		Entries: map[string]ActionCacheEntry{
+			"actions/cache/restore@v4": {
+				Repo:    "actions/cache/restore",
+				Version: "v4",
+				SHA:     "0057852bfaa89a56745cba8c7296529d2fc39830",
+			},
+		},
+	}
+	c.actionResolver = NewActionResolver(c.actionCache)
+
+	got := c.getActionPin("actions/cache/restore")
+	want := getActionPin("actions/cache/restore")
+
+	if got != want {
+		t.Fatalf("expected compiler-generated action pin to prefer latest embedded pin %q, got %q", want, got)
+	}
+}

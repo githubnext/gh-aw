@@ -62,7 +62,7 @@ func TestJSONOutputNotCorruptedByStderr(t *testing.T) {
 		t.Fatalf("Expected summary to be a map, got %T", jsonMap["summary"])
 	}
 
-	// Verify the summary contains required fields
+	// Verify the summary contains the stable total_runs field
 	if _, exists := summary["total_runs"]; !exists {
 		t.Errorf("Expected total_runs field in summary. Summary: %+v", summary)
 	}

@@ -72,7 +72,11 @@ func TestRenderLogsJSONEmptyRuns(t *testing.T) {
 		t.Fatalf("Failed to parse JSON as map: %v", err)
 	}
 
-	if _, ok := jsonMap["summary"].(map[string]any); !ok {
+	summary, ok := jsonMap["summary"].(map[string]any)
+	if !ok {
 		t.Fatalf("Expected summary to be a map, got %T", jsonMap["summary"])
+	}
+	if _, exists := summary["total_runs"]; !exists {
+		t.Fatalf("Expected total_runs field in summary. Summary: %+v", summary)
 	}
 }

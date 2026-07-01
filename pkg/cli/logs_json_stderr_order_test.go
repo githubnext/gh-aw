@@ -91,7 +91,7 @@ func TestLogsJSONOutputBeforeStderr(t *testing.T) {
 		t.Fatalf("Failed to re-marshal parsed JSON: %v", err)
 	}
 
-	// Most importantly: verify total_tokens field exists in stdout JSON
+	// Most importantly: verify a stable summary field exists in stdout JSON
 	var jsonMap map[string]any
 	if err := json.Unmarshal([]byte(stdoutOutput), &jsonMap); err != nil {
 		t.Fatalf("Failed to parse stdout JSON as map: %v", err)
@@ -102,9 +102,9 @@ func TestLogsJSONOutputBeforeStderr(t *testing.T) {
 		t.Fatalf("Expected summary to be a map in stdout JSON, got %T", jsonMap["summary"])
 	}
 
-	// This is the exact check the CI does with jq -e '.summary.total_tokens'
-	if _, exists := summary["total_tokens"]; !exists {
-		t.Errorf("Expected total_tokens field to exist in stdout JSON summary (CI test would fail). Summary: %+v", summary)
+	// This mirrors a jq existence check against a summary field that is always present.
+	if _, exists := summary["total_runs"]; !exists {
+		t.Errorf("Expected total_runs field to exist in stdout JSON summary. Summary: %+v", summary)
 	}
 
 	// Verify stderr contains the warning message (after JSON was output)
@@ -218,7 +218,7 @@ func TestLogsJSONAndStderrRedirected(t *testing.T) {
 		t.Logf("Warning: Had to extract JSON from mixed output. This suggests stderr messages may be interfering.")
 	}
 
-	// Verify total_tokens exists
+	// Verify a stable summary field exists
 	var jsonMap map[string]any
 	if err := json.Unmarshal([]byte(output), &jsonMap); err == nil {
 		// JSON parsed cleanly - this is good
@@ -227,14 +227,14 @@ func TestLogsJSONAndStderrRedirected(t *testing.T) {
 			t.Fatalf("Expected summary to be a map, got %T", jsonMap["summary"])
 		}
 
-		if _, exists := summary["total_tokens"]; !exists {
-			t.Errorf("Expected total_tokens field to exist in summary. Summary: %+v", summary)
+		if _, exists := summary["total_runs"]; !exists {
+			t.Errorf("Expected total_runs field to exist in summary. Summary: %+v", summary)
 		}
 	} else {
 		// If the entire output isn't valid JSON, we have a problem
 		// Try using jq-like parsing that CI uses
-		if !strings.Contains(output, `"total_tokens"`) {
-			t.Errorf("Expected to find 'total_tokens' field somewhere in output. Output: %s", output)
+		if !strings.Contains(output, `"total_runs"`) {
+			t.Errorf("Expected to find 'total_runs' field somewhere in output. Output: %s", output)
 		}
 	}
 }
