@@ -715,7 +715,7 @@ async function main() {
   // correct SDK endpoint URI.
   const sdkEnv = buildCopilotSDKEnv();
   const copilotSDKMode = isCopilotSDKEnabled();
-  let copilotConnectionToken;
+  let copilotConnectionToken = "";
   if (copilotSDKMode) {
     // The harness always generates the connection token when SDK mode is active.
     // The token is injected into the driver subprocess env so the harness-managed

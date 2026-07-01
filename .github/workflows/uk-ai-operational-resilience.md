@@ -30,7 +30,7 @@ tools:
   cli-proxy: true
   github:
     mode: gh-proxy
-    toolsets: [default, actions, repos, code_security]
+    toolsets: [default, actions, repos, code_security, issues]
   bash:
     - "git *"
     - "cat *"
@@ -40,6 +40,11 @@ tools:
     - "wc *"
     - "grep *"
   edit:
+safe-outputs:
+  create-issue:
+    max: 2
+    labels: [security, high-priority, ai-generated]
+    title-prefix: "[uk-ai-resilience] "
 pre-agent-steps:
   - name: Pre-compute recent changes governance context
     env:
@@ -198,6 +203,18 @@ Create one discussion report with:
    - unsupported dependency ratio
    - exception aging
    - exposure without recovery capability
+
+### Phase 6 — Create issues for high-priority items
+
+Create at most **2** GitHub issues per run for the highest-priority Tier B/C/D findings:
+
+- Prioritize Tier C/D findings first, then highest `remediation_priority` (`critical`, then `high`).
+- Before creating an issue, check for duplicate open issues and skip duplicates.
+- Each issue body must include:
+  - tier and risk-scoring breakdown
+  - remediation action and SLA urgency
+  - discussion report link
+- Do not exceed 2 issues in total for the run.
 
 ## Sub-agent orchestration rules
 

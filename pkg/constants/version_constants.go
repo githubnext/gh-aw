@@ -146,6 +146,11 @@ const DefaultGitHubScriptVersion Version = "v9"
 // of the inline engine execution path.
 const DefaultThreatDetectVersion Version = "v0.2.2"
 
+// GhSkillsMinVersion is the minimum gh CLI version required for frontmatter skill support
+// (installing gh extensions via `gh extension install`). Workflows that install frontmatter
+// skills must have at least this version of gh installed before running skill install steps.
+const GhSkillsMinVersion Version = "2.90.0"
+
 // DefaultBunVersion is the default version of Bun for runtime setup
 const DefaultBunVersion Version = "1.1"
 

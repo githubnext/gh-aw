@@ -274,50 +274,27 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
     ];
     const commentBody = commentParts.join("\n\n");
 
-    if (eventName === "discussion") {
-      // Parse discussion number from special format: "discussion:NUMBER"
+    if (eventName === "discussion" || eventName === "discussion_comment") {
+      // Parse discussion number from special format: "discussion:NUMBER" or "discussion_comment:NUMBER:COMMENT_ID"
       const discussionNumber = parseInt(endpoint.split(":")[1], 10);
       const { id: discussionId } = await getDiscussionId(eventRepo.owner, eventRepo.repo, discussionNumber);
-
-      const result = await github.graphql(
-        `
-        mutation($dId: ID!, $body: String!) {
-          addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-            comment { 
-              id 
-              url
+      // For discussion_comment events, thread the reply under the triggering comment.
+      // GitHub Discussions only supports two nesting levels, so resolve the top-level parent node ID.
+      const replyToId = eventName === "discussion_comment"
+        ? await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id)
+        : null;
+      const mutation = replyToId
+        ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+            addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
+              comment { id url }
             }
-          }
-        }`,
-        { dId: discussionId, body: commentBody }
-      );
-
-      const comment = result.addDiscussionComment.comment;
-      setCommentOutputs(comment.id, comment.url, eventRepo);
-      return;
-    } else if (eventName === "discussion_comment") {
-      // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
-      const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-      const { id: discussionId } = await getDiscussionId(eventRepo.owner, eventRepo.repo, discussionNumber);
-
-      // Get the comment node ID to use as the parent for threading.
-      // GitHub Discussions only supports two nesting levels, so if the triggering comment is
-      // itself a reply, we resolve the top-level parent's node ID.
-      const commentNodeId = await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id);
-
-      const result = await github.graphql(
-        `
-        mutation($dId: ID!, $body: String!, $replyToId: ID!) {
-          addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
-            comment { 
-              id 
-              url
+          }`
+        : `mutation($dId: ID!, $body: String!) {
+            addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+              comment { id url }
             }
-          }
-        }`,
-        { dId: discussionId, body: commentBody, replyToId: commentNodeId }
-      );
-
+          }`;
+      const result = await github.graphql(mutation, { dId: discussionId, body: commentBody, ...(replyToId ? { replyToId } : {}) });
       const comment = result.addDiscussionComment.comment;
       setCommentOutputs(comment.id, comment.url, eventRepo);
       return;

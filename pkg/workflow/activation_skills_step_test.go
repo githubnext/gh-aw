@@ -34,6 +34,7 @@ func TestBuildActivationJob_AddsFrontmatterSkillsInstallSteps(t *testing.T) {
 
 	steps := strings.Join(job.Steps, "")
 	assert.Contains(t, steps, "Upgrade gh CLI for frontmatter skills", "expected gh upgrade step in activation job")
+	assert.Contains(t, steps, "ensure_gh_cli_min_version.sh", "expected gh upgrade step to delegate to ensure_gh_cli_min_version.sh")
 	assert.Contains(t, steps, "Install frontmatter skill 1", "expected first frontmatter skill install step in activation job")
 	assert.Contains(t, steps, "Install frontmatter skill 2", "expected second frontmatter skill install step in activation job")
 	assert.Contains(t, steps, "GH_AW_SKILL_DIR: \".claude/skills\"", "expected engine skill directory env var")

@@ -215,29 +215,7 @@ func RenderTable(config TableConfig) string {
 	}
 
 	dataRowCount := len(config.Rows)
-
-	styleFunc := func(row, col int) lipgloss.Style {
-		if !ttyCheck() {
-			return lipgloss.NewStyle()
-		}
-		if row == table.HeaderRow {
-			headerStyle := styles.TableHeader
-			return headerStyle.PaddingLeft(1).PaddingRight(1)
-		}
-		if config.ShowTotal && len(config.TotalRow) > 0 && row == dataRowCount {
-			totalStyle := styles.TableTotal
-			return totalStyle.PaddingLeft(1).PaddingRight(1)
-		}
-		if row%2 == 0 {
-			cellStyle := styles.TableCell
-			return cellStyle.PaddingLeft(1).PaddingRight(1)
-		}
-		return lipgloss.NewStyle().
-			Foreground(styles.ColorForeground).
-			Background(styles.ColorTableAltRow).
-			PaddingLeft(1).
-			PaddingRight(1)
-	}
+	styleFunc := buildTableStyleFunc(config, ttyCheck, dataRowCount)
 
 	borderStyle := lipgloss.NewStyle()
 	if ttyCheck() {
@@ -255,6 +233,31 @@ func RenderTable(config TableConfig) string {
 	output.WriteString("\n")
 
 	return output.String()
+}
+
+// buildTableStyleFunc returns the lipgloss style function used by RenderTable.
+// config supplies the ShowTotal/TotalRow flags; ttyCheck detects terminal output;
+// dataRowCount is the number of data rows (excluding any total row).
+func buildTableStyleFunc(config TableConfig, ttyCheck func() bool, dataRowCount int) func(int, int) lipgloss.Style {
+	return func(row, col int) lipgloss.Style {
+		if !ttyCheck() {
+			return lipgloss.NewStyle()
+		}
+		if row == table.HeaderRow {
+			return styles.TableHeader.PaddingLeft(1).PaddingRight(1)
+		}
+		if config.ShowTotal && len(config.TotalRow) > 0 && row == dataRowCount {
+			return styles.TableTotal.PaddingLeft(1).PaddingRight(1)
+		}
+		if row%2 == 0 {
+			return styles.TableCell.PaddingLeft(1).PaddingRight(1)
+		}
+		return lipgloss.NewStyle().
+			Foreground(styles.ColorForeground).
+			Background(styles.ColorTableAltRow).
+			PaddingLeft(1).
+			PaddingRight(1)
+	}
 }
 
 // FormatCommandMessage formats a command execution message
