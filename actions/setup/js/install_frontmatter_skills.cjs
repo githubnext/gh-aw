@@ -99,7 +99,7 @@ function appendSkillInstallFailure(skillSpec, errorMessage) {
     if (fs.existsSync(SKILL_FAILURES_FILE)) {
       const raw = fs.readFileSync(SKILL_FAILURES_FILE, "utf8");
       const parsed = JSON.parse(raw);
-      failures = Array.isArray(parsed) ? parsed : [];
+      failures = Array.isArray(parsed) ? parsed.filter(entry => entry && typeof entry.skill === "string" && typeof entry.error === "string") : [];
     }
   } catch (parseErr) {
     // If reading/parsing fails, start fresh and warn so the issue is visible in logs

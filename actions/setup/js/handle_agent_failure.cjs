@@ -2131,6 +2131,7 @@ function buildSkillInstallFailureContext(hasSkillInstallFailures, skillInstallEr
   if (skillInstallErrors) {
     const errorLines = skillInstallErrors.split("\n").filter(line => line.trim());
     for (const errorLine of errorLines) {
+      // New format uses tab delimiter; keep colon parsing as a backward-compatible fallback.
       const tabIdx = errorLine.indexOf("\t");
       if (tabIdx >= 0) {
         const skill = errorLine.slice(0, tabIdx);
