@@ -23,7 +23,7 @@
 export interface RecruitmentBannerConfig {
 /**
  * Master switch. Leave `false` in the PR that introduces the banner; flip to `true` only
- * after you have tested it with your own recruitment link (see docs/RECRUITMENT_BANNER.md).
+ * after you have tested it with your own recruitment link (see docs/adr/46051-recruitment-banner-for-targeted-docs-research.md).
  */
 enabled: boolean;
 
@@ -66,7 +66,7 @@ requireUid: boolean;
 }
 
 export const recruitmentBanner: RecruitmentBannerConfig = {
-// Ships OFF. Flip to true only after testing — see docs/RECRUITMENT_BANNER.md.
+// Ships OFF. Flip to true only after testing — see docs/adr/46051-recruitment-banner-for-targeted-docs-research.md.
 enabled: false,
 
 // TODO(researcher): finalize before distributing the link. Do not change after distribution.
