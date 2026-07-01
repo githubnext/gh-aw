@@ -420,6 +420,14 @@ const TmpGhAwAssetsDirSlash = TmpGhAwAssetsDir + "/"
 // AgentStdioLogPath is the path for capturing agent standard I/O log output.
 const AgentStdioLogPath = TmpGhAwDir + "/agent-stdio.log"
 
+// CopilotExecExitCodePath is the path where the Copilot engine execution step writes its
+// exit code (a single decimal integer followed by a newline). Always written — even on
+// failure — so post-run triage can distinguish timeout kills, non-zero CLI exits, and
+// clean completions without parsing the full agent-stdio.log.
+// The file lives under TmpGhAwAgentDir so it is automatically included in the unified
+// agent artifact upload and scanned by the secret-redaction step.
+const CopilotExecExitCodePath = TmpGhAwAgentDir + "copilot-exec-exit-code.txt"
+
 // AwPromptsFile is the runtime prompt file path populated by the setup action.
 // Engine harnesses read this file to pass the compiled prompt to the AI engine.
 const AwPromptsFile = TmpGhAwDir + "/aw-prompts/prompt.txt"

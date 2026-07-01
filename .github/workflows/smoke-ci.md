@@ -32,6 +32,7 @@ engine:
     "$memory_file"; done; else printf "%b\n" "$HAIKU" >
     /tmp/gh-aw/comment-memory/default.md; fi; else safeoutputs noop --message "smoke-ci:
     push event - no PR context, no action needed"; fi'
+    2>&1 | tee /tmp/gh-aw/agent/copilot-exec.log
 imports:
   - shared/otlp.md
 tools:

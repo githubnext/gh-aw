@@ -401,7 +401,11 @@ func (e *CopilotEngine) buildCopilotFirewallCommand(workflowData *WorkflowData, 
 	if !isBYOKMode {
 		copilotCoreSecrets = []string{"COPILOT_GITHUB_TOKEN"}
 	}
-	return BuildAWFCommand(AWFCommandConfig{EngineName: "copilot", EngineCommand: engineCommand, LogFile: logFile, WorkflowData: workflowData, UsesTTY: false, AllowedDomains: allowedDomains, ResolveMaxAICreditsFromEnv: true, PathSetup: e.buildCopilotAWFPathSetup(workflowData, customCommandScriptSetup), ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, copilotCoreSecrets)})
+	awfCmd := BuildAWFCommand(AWFCommandConfig{EngineName: "copilot", EngineCommand: engineCommand, LogFile: logFile, WorkflowData: workflowData, UsesTTY: false, AllowedDomains: allowedDomains, ResolveMaxAICreditsFromEnv: true, PathSetup: e.buildCopilotAWFPathSetup(workflowData, customCommandScriptSetup), ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, copilotCoreSecrets)})
+	// Append exit-code capture: record the AWF pipeline's exit status to a known path so
+	// post-run triage can see why Execute GitHub Copilot CLI failed without parsing the full log.
+	return fmt.Sprintf("%s\n_gh_aw_exec_exit=$?\nprintf '%%d\\n' \"$_gh_aw_exec_exit\" > %s\n(exit \"$_gh_aw_exec_exit\")",
+		awfCmd, constants.CopilotExecExitCodePath)
 }
 
 func (e *CopilotEngine) buildCopilotAllowedDomains(workflowData *WorkflowData) string {
@@ -449,7 +453,10 @@ func (e *CopilotEngine) buildCopilotDirectCommand(workflowData *WorkflowData, co
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
-%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, preCommandSetup, copilotCommand, logFile)
+%s%s 2>&1 | tee %s
+_gh_aw_exec_exit=$?
+printf '%%d\n' "$_gh_aw_exec_exit" > %s
+(exit "$_gh_aw_exec_exit")`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, preCommandSetup, copilotCommand, logFile, constants.CopilotExecExitCodePath)
 }
 
 func (e *CopilotEngine) buildCopilotStepEnv(workflowData *WorkflowData, llmProvider, modelEnvVar, timeoutValue string, isBYOKMode, sandboxEnabled, modelConfigured bool, copilotSDKServerArgsJSON string) map[string]string {
