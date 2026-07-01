@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,15 +33,33 @@ func TestBuildByRepoIndex_GroupsByRepoAndSortsDescending(t *testing.T) {
 }
 
 func TestCountPinKeyMismatches_ReturnsOnlyVersionMismatches(t *testing.T) {
-	entries := map[string]ActionPin{
-		"actions/checkout@v5": {Repo: "actions/checkout", Version: "v5", SHA: "sha-1"},
-		"actions/setup-go@v5": {Repo: "actions/setup-go", Version: "v4", SHA: "sha-2"},
-		"invalid-key":         {Repo: "actions/cache", Version: "v4", SHA: "sha-3"},
-	}
+	t.Run("returns zero for empty entries", func(t *testing.T) {
+		assert.Zero(t, countPinKeyMismatches(map[string]ActionPin{}), "Expected empty input to produce zero mismatches")
+	})
 
-	count := countPinKeyMismatches(entries)
+	t.Run("returns zero when all key versions match", func(t *testing.T) {
+		entries := map[string]ActionPin{
+			"actions/checkout@v5": {Repo: "actions/checkout", Version: "v5", SHA: "sha-1"},
+			"actions/setup-go@v4": {Repo: "actions/setup-go", Version: "v4", SHA: "sha-2"},
+		}
+		assert.Zero(t, countPinKeyMismatches(entries), "Expected zero mismatches when key versions match pin versions")
+	})
 
-	assert.Equal(t, 1, count, "Expected only one key/version mismatch to be counted")
+	t.Run("ignores invalid keys without version suffix", func(t *testing.T) {
+		entries := map[string]ActionPin{
+			"invalid-key": {Repo: "actions/cache", Version: "v4", SHA: "sha-3"},
+		}
+		assert.Zero(t, countPinKeyMismatches(entries), "Expected invalid keys without @version to be ignored")
+	})
+
+	t.Run("counts only true key-version mismatches", func(t *testing.T) {
+		entries := map[string]ActionPin{
+			"actions/checkout@v5": {Repo: "actions/checkout", Version: "v5", SHA: "sha-1"},
+			"actions/setup-go@v5": {Repo: "actions/setup-go", Version: "v4", SHA: "sha-2"},
+			"invalid-key":         {Repo: "actions/cache", Version: "v4", SHA: "sha-3"},
+		}
+		assert.Equal(t, 1, countPinKeyMismatches(entries), "Expected only one key/version mismatch to be counted")
+	})
 }
 
 func TestInitWarnings_InitializesAndPreservesMap(t *testing.T) {
@@ -113,6 +132,65 @@ func TestFormatPinnedActionWithResolution_ConsistentVersionComment(t *testing.T)
 	}
 }
 
+func TestFindCompatiblePin_SemverFallback(t *testing.T) {
+	pins := []ActionPin{
+		{Repo: "actions/checkout", Version: "v5.2.0", SHA: "sha-v5-2"},
+		{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5-0"},
+		{Repo: "actions/checkout", Version: "v4.9.9", SHA: "sha-v4-9"},
+	}
+
+	tests := []struct {
+		name          string
+		version       string
+		wantFound     bool
+		wantVersion   string
+		availablePins []ActionPin
+	}{
+		{
+			name:          "exact-major",
+			version:       "v5",
+			wantFound:     true,
+			wantVersion:   "v5.2.0",
+			availablePins: pins,
+		},
+		{
+			name:        "exact-version",
+			version:     "v5.0.0",
+			wantFound:   true,
+			wantVersion: "v5.0.0",
+			availablePins: []ActionPin{
+				{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5-0"},
+				{Repo: "actions/checkout", Version: "v4.9.9", SHA: "sha-v4-9"},
+			},
+		},
+		{
+			name:          "no-match",
+			version:       "v6",
+			wantFound:     false,
+			availablePins: pins,
+		},
+		{
+			name:          "empty-version",
+			version:       "",
+			wantFound:     false,
+			availablePins: pins,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pin, found := findCompatiblePin(tt.availablePins, tt.version)
+			assert.Equal(t, tt.wantFound, found)
+			if tt.wantFound {
+				assert.Equal(t, tt.wantVersion, pin.Version)
+			} else {
+				assert.Empty(t, pin.Version)
+				assert.Empty(t, pin.SHA)
+			}
+		})
+	}
+}
+
 func TestFindVersionBySHA_ReturnsVersionForKnownSHA(t *testing.T) {
 	t.Run("returns version for a known SHA in embedded data", func(t *testing.T) {
 		pins := GetActionPinsByRepo("actions/checkout")
@@ -142,24 +220,33 @@ func TestGetContainerPin_ReturnsPinnedImage(t *testing.T) {
 	assert.Contains(t, pin.PinnedImage, "@sha256:", "Expected pinned image to include digest")
 }
 
-func TestGetContainerPin_MCPGatewayV036IsPinned(t *testing.T) {
-	const image = "ghcr.io/github/gh-aw-mcpg:v0.3.6"
+func TestGetContainerPin_MCPGatewayVersionsArePinned(t *testing.T) {
+	tests := []struct {
+		name   string
+		image  string
+		digest string
+	}{
+		{
+			name:   "v0.3.6",
+			image:  "ghcr.io/github/gh-aw-mcpg:v0.3.6",
+			digest: "sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c",
+		},
+		{
+			name:   "v0.3.9",
+			image:  "ghcr.io/github/gh-aw-mcpg:v0.3.9",
+			digest: "sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388",
+		},
+	}
 
-	pin, ok := GetContainerPin(image)
-	require.True(t, ok, "Expected embedded container pin for %s", image)
-	assert.Equal(t, image, pin.Image, "Expected image name to match key")
-	assert.Equal(t, "sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c", pin.Digest, "Expected v0.3.6 digest to match")
-	assert.Equal(t, image+"@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c", pin.PinnedImage, "Expected pinned image to include v0.3.6 digest")
-}
-
-func TestGetContainerPin_MCPGatewayV039IsPinned(t *testing.T) {
-	const image = "ghcr.io/github/gh-aw-mcpg:v0.3.9"
-
-	pin, ok := GetContainerPin(image)
-	require.True(t, ok, "Expected embedded container pin for %s", image)
-	assert.Equal(t, image, pin.Image, "Expected image name to match key")
-	assert.Equal(t, "sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388", pin.Digest, "Expected v0.3.9 digest to match")
-	assert.Equal(t, image+"@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388", pin.PinnedImage, "Expected pinned image to include v0.3.9 digest")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pin, ok := GetContainerPin(tt.image)
+			require.True(t, ok, "Expected embedded container pin for %s", tt.image)
+			assert.Equal(t, tt.image, pin.Image, "Expected image name to match key")
+			assert.Equal(t, tt.digest, pin.Digest, "Expected digest to match for %s", tt.image)
+			assert.Equal(t, tt.image+"@"+tt.digest, pin.PinnedImage, "Expected pinned image to include digest for %s", tt.image)
+		})
+	}
 }
 
 func TestGetContainerPin_DefaultMCPImagesArePinned(t *testing.T) {
@@ -199,7 +286,7 @@ func TestResolveActionPinDynamically_SkipsForSHAInput(t *testing.T) {
 
 	assert.False(t, ok, "Expected no dynamic resolution for SHA input")
 	assert.Empty(t, result, "Expected empty result when dynamic resolution is skipped")
-	assert.Equal(t, 0, resolver.called, "Expected resolver not to be called for SHA input")
+	assert.Zero(t, resolver.called, "Expected resolver not to be called for SHA input")
 }
 
 func TestResolveActionPinFromHardcodedPins_StrictModeNoFallback(t *testing.T) {
@@ -218,6 +305,64 @@ func TestResolveExactHardcodedPin_BySHA(t *testing.T) {
 
 	require.True(t, ok, "Expected exact SHA match to resolve")
 	assert.Contains(t, result, "sha-v5", "Expected result to include matched SHA")
+}
+
+func TestResolveExactHardcodedPin_ByVersion(t *testing.T) {
+	pins := []ActionPin{{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5"}}
+
+	result, ok := resolveExactHardcodedPin("actions/checkout", "v5.0.0", false, pins)
+
+	require.True(t, ok, "Expected exact version match to resolve")
+	assert.Contains(t, result, "sha-v5", "Expected result to include matched SHA")
+	assert.Contains(t, result, "v5.0.0", "Expected result to include matched version")
+}
+
+func TestResolveExactHardcodedPin_NoMatch(t *testing.T) {
+	pins := []ActionPin{{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5"}}
+
+	result, ok := resolveExactHardcodedPin("actions/checkout", "v4.0.0", false, pins)
+
+	assert.False(t, ok, "Expected no resolution when version does not match and input is not SHA")
+	assert.Empty(t, result, "Expected empty result when no exact match is found")
+}
+
+func TestResolveNonStrictHardcodedPin_CompatibleAndFallback(t *testing.T) {
+	pins := []ActionPin{
+		{Repo: "actions/checkout", Version: "v5.2.0", SHA: "sha-v5-2"},
+		{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5-0"},
+		{Repo: "actions/checkout", Version: "v4.9.9", SHA: "sha-v4-9"},
+	}
+
+	t.Run("uses semver-compatible pin when available", func(t *testing.T) {
+		ctx := &PinContext{Warnings: make(map[string]bool)}
+		expectedWarning := "Unable to resolve actions/checkout@v5 dynamically, using hardcoded pin for actions/checkout@v5.2.0"
+		var result string
+
+		stderrOutput := testutil.CaptureStderr(t, func() {
+			result = resolveNonStrictHardcodedPin("actions/checkout", "v5", pins, ctx)
+		})
+
+		assert.Contains(t, result, "sha-v5-2", "Expected highest semver-compatible pin to be selected")
+		assert.True(t, ctx.Warnings["actions/checkout@v5"], "Expected warning cache key to be recorded")
+		assert.Contains(t, stderrOutput, expectedWarning, "Expected warning to be emitted for compatible fallback")
+	})
+
+	t.Run("falls back to highest available pin and deduplicates warnings", func(t *testing.T) {
+		ctx := &PinContext{Warnings: make(map[string]bool)}
+		expectedWarning := "Unable to resolve actions/checkout@v9 dynamically, using hardcoded pin for actions/checkout@v5.2.0"
+		var first, second string
+
+		stderrOutput := testutil.CaptureStderr(t, func() {
+			first = resolveNonStrictHardcodedPin("actions/checkout", "v9", pins, ctx)
+			second = resolveNonStrictHardcodedPin("actions/checkout", "v9", pins, ctx)
+		})
+
+		assert.Contains(t, first, "sha-v5-2", "Expected fallback to highest available pin when no compatible version exists")
+		assert.Contains(t, second, "sha-v5-2", "Expected consistent fallback result on repeated calls")
+		assert.True(t, ctx.Warnings["actions/checkout@v9"], "Expected warning cache key to be recorded")
+		assert.Len(t, ctx.Warnings, 1, "Expected warning deduplication for repeated resolution attempts")
+		assert.Equal(t, 1, strings.Count(stderrOutput, expectedWarning), "Expected warning to be emitted exactly once for repeated fallback resolution")
+	})
 }
 
 func TestResolveActionPinFromHardcodedPins_SkipHardcodedFallback(t *testing.T) {
