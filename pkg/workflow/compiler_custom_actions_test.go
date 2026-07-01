@@ -277,6 +277,11 @@ Test workflow with script mode.
 	if !strings.Contains(lockStr, "if: always()") {
 		t.Error("Expected 'if: always()' guard on cleanup step in script mode")
 	}
+
+	// 11. Checkout actions folder should set clean: false to avoid workspace wipe
+	if !strings.Contains(lockStr, "clean: false") {
+		t.Error("Expected 'clean: false' in checkout step for script mode to avoid workspace cleanup removing .git")
+	}
 }
 
 // TestVersionToGitRef tests the versionToGitRef helper function used to derive
