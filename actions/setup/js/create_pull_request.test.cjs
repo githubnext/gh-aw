@@ -84,6 +84,7 @@ describe("create_pull_request - draft policy enforcement", () => {
         },
         issues: {
           addLabels: vi.fn().mockResolvedValue({}),
+          addAssignees: vi.fn().mockResolvedValue({}),
         },
       },
       graphql: vi.fn(),
@@ -1151,6 +1152,7 @@ describe("create_pull_request - auto-close-issue configuration", () => {
         },
         issues: {
           addLabels: vi.fn().mockResolvedValue({}),
+          addAssignees: vi.fn().mockResolvedValue({}),
         },
       },
       graphql: vi.fn(),
@@ -2159,6 +2161,7 @@ describe("create_pull_request - configured reviewers", () => {
         },
         issues: {
           addLabels: vi.fn().mockResolvedValue({}),
+          addAssignees: vi.fn().mockResolvedValue({}),
         },
       },
       graphql: vi.fn(),
@@ -2275,6 +2278,60 @@ describe("create_pull_request - configured reviewers", () => {
 
     expect(result.success).toBe(true);
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to request reviewers"));
+  });
+
+  it("should assign configured assignees to the created PR", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ assignees: ["user1", "user2"], allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.issues.addAssignees).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        issue_number: 42,
+        assignees: ["user1", "user2"],
+      })
+    );
+  });
+
+  it("should not assign assignees to the created PR when none remain after sanitization", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ assignees: ["copilot"], allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.issues.addAssignees).not.toHaveBeenCalled();
+  });
+
+  it("should continue successfully even if addAssignees fails", async () => {
+    global.github.rest.issues.addAssignees.mockRejectedValue(new Error("API error"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ assignees: ["user1"], allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to assign assignees"));
+  });
+
+  it("should strip copilot before assigning PR assignees", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ assignees: ["copilot", "user1"], allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.issues.addAssignees).toHaveBeenCalledWith(
+      expect.objectContaining({
+        issue_number: 42,
+        assignees: ["user1"],
+      })
+    );
   });
 
   it("should retry addLabels on race condition and warn after all retries exhausted", async () => {
