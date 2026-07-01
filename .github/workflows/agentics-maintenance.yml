@@ -107,6 +107,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
 
       - name: Setup Scripts
@@ -152,6 +153,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
 
       - name: Setup Scripts
@@ -239,6 +241,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
 
       - name: Setup Scripts
@@ -285,6 +288,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
 
       - name: Setup Scripts
@@ -593,6 +597,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
 
       - name: Setup Scripts
@@ -681,6 +686,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
 
       - name: Setup Scripts
@@ -725,6 +731,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
 
       - name: Setup Scripts
@@ -815,6 +822,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
 
       - name: Setup Node.js
