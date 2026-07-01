@@ -126,6 +126,15 @@ describe("install_frontmatter_skills", () => {
     expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining('["githubnext/skills@abc123","githubnext/skills/review/security@def456","${{ inputs.skill_ref }}"]'));
   });
 
+  it("omits --agent when no gh skill agent name is provided", async () => {
+    process.env.GH_AW_SKILL_DIR = ".claude/skills";
+    process.env.GH_AW_FRONTMATTER_SKILLS = "githubnext/skills@abc123";
+
+    await script.main();
+
+    expect(global.exec.exec).toHaveBeenCalledWith("gh", ["skill", "install", "githubnext/skills", "--all", "--pin", "abc123", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
+  });
+
   it("records failures without throwing when skill install fails", async () => {
     process.env.GH_AW_SKILL_DIR = ".claude/skills";
     process.env.GH_AW_FRONTMATTER_SKILLS = "bad/repo@abc123";

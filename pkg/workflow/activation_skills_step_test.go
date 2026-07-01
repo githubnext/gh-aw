@@ -112,6 +112,29 @@ func TestBuildActivationJob_DefaultsSkillInstallEngineToCopilot(t *testing.T) {
 	assert.Contains(t, steps, "GH_AW_SKILL_DIR: \".github/skills\"", "expected default engine skill directory env var")
 }
 
+func TestBuildActivationJob_UsesLegacyAIEngineForSkillArtifactPath(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetActionMode(ActionModeDev)
+
+	data := &WorkflowData{
+		Name: "skills-workflow",
+		On: `"on":
+  workflow_dispatch:`,
+		AI: "claude",
+		Skills: []string{
+			"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+		},
+	}
+
+	job, err := compiler.buildActivationJob(data, false, "", "skills.lock.yml")
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	steps := strings.Join(job.Steps, "")
+	assert.Contains(t, steps, "/tmp/gh-aw/.claude/skills", "expected activation artifact upload to include the legacy ai engine skill directory")
+	assert.NotContains(t, steps, "/tmp/gh-aw/.github/skills", "expected legacy ai workflows to avoid the default copilot skill directory")
+}
+
 func TestBuildActivationJob_AppIgnoreIfMissingFallsBackToActivationToken(t *testing.T) {
 	compiler := NewCompiler(WithVersion("dev"))
 	compiler.SetActionMode(ActionModeDev)

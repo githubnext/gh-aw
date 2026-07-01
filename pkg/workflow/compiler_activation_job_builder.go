@@ -50,6 +50,14 @@ type activationJobBuildContext struct {
 	activationInferredPerms map[PermissionScope]PermissionLevel
 }
 
+func resolveActivationEngineID(workflowData *WorkflowData) string {
+	engineID := strings.TrimSpace(ResolveEngineID(workflowData))
+	if engineID == "" {
+		return string(constants.DefaultEngine)
+	}
+	return engineID
+}
+
 // newActivationJobBuildContext initializes activation-job state with setup, aw_info, and base outputs.
 func (c *Compiler) newActivationJobBuildContext(
 	data *WorkflowData,
@@ -534,10 +542,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 		return nil
 	}
 
-	engineID := strings.TrimSpace(ResolveEngineID(ctx.data))
-	if engineID == "" {
-		engineID = string(constants.DefaultEngine)
-	}
+	engineID := resolveActivationEngineID(ctx.data)
 	skillDir := GetEngineSkillDir(engineID)
 	skillInstallAgentName := ""
 	if engine, err := GetGlobalEngineRegistry().GetEngine(strings.ToLower(engineID)); err == nil {
@@ -846,10 +851,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt-import-tree.json\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/"+constants.GithubRateLimitsFilename+"\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/base\n")
-	engineID := ""
-	if ctx.data.EngineConfig != nil {
-		engineID = ctx.data.EngineConfig.ID
-	}
+	engineID := resolveActivationEngineID(ctx.data)
 	// Include the engine-specific sub-agent staging directory only when inline agents are enabled.
 	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), ctx.data) {
 		subAgentDir := GetEngineSubAgentDir(engineID)
