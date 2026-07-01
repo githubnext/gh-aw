@@ -50,6 +50,15 @@ Strategy: fixed durations for trend comparisons, run-based windows for continuou
 When the window has no qualifying updates, call `noop` with the evaluated window in the message:
 `noop("No updates in last 24 full hours ({{window_start_utc}} to {{window_end_utc}})")`
 
+## Fallback for Incomplete Metadata
+
+When the digest or report depends on labels, metadata, or classification fields (for example customer-impact labels, priority tiers, team assignments, or area tags) that are absent or inconsistent:
+
+- summarize what data *was* available and note which fields are missing
+- group by the next-best available dimension (for example repository, author, date, or milestone)
+- use an explicit "Unclassified" bucket for items without required metadata — do not invent or assume classifications
+- call `noop` only when the reporting window itself has zero events; missing metadata alone is not a reason to skip the report
+
 ## Report Style and Structure
 
 ### Header Levels

@@ -886,6 +886,7 @@ func TestGenerateMainJobStepsRestoreActionsFolder(t *testing.T) {
 		assert.Contains(t, result, "Restore actions folder", "agent job should have restore step in dev mode with external root checkout")
 		assert.Contains(t, result, "repository: github/gh-aw", "restore step should checkout github/gh-aw")
 		assert.Contains(t, result, "actions/setup", "restore step should checkout actions/setup")
+		assert.Contains(t, result, "clean: false", "restore step should set clean: false to avoid workspace cleanup removing .git")
 	})
 
 	t.Run("restore step NOT added in dev mode with external subdirectory checkout only", func(t *testing.T) {

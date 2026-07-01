@@ -124,13 +124,14 @@ repo:${{ github.repository }} is:issue is:open label:documentation
 ```
 
 For each open issue:
-1. Read the issue body to understand the described gap.
-2. Check the referenced documentation file to verify the gap still exists.
+1. **Classify first**: If the issue clearly describes a site-build or UI concern — i.e., the fix would touch `docs/src/components/**`, `docs/astro.config.*`, the pagefind/search index, or CSS rather than Markdown/MDX content under `docs/src/content/docs/` — classify it as **site-build/UI (out of scope)**. Record it in the **Skipped Issues** section of the PR description as `#NNN — site-build/UI: needs Astro/site-build agent` and skip the remaining sub-steps for this issue.
+2. Read the issue body to understand the described gap.
+3. Check the referenced documentation file to verify the gap still exists.
    - **If the issue references an existing file**: confirm the content is missing or incorrect.
    - **If the issue references a file path that does not yet exist** (e.g., body says "Create `docs/guides/foo.md`"): treat this as a **confirmed new-file gap** and proceed to Step 5 to create the file.
-3. If confirmed, include a fix in this run's PR and reference the issue with `Closes #NNN`.
-4. If the gap is already fixed (file exists and contains the described content), note it and skip.
-5. If you choose not to address an open documentation issue in this run (e.g., it requires structural navigation changes, is out of scope, or cannot be confirmed), record it in the **Skipped Issues** section of the PR description (see Step 6).
+4. If confirmed, include a fix in this run's PR and reference the issue with `Closes #NNN`.
+5. If the gap is already fixed (file exists and contains the described content), note it and skip.
+6. If you choose not to address an open documentation issue in this run (e.g., it requires structural navigation changes, is out of scope, or cannot be confirmed), record it in the **Skipped Issues** section of the PR description (see Step 6).
 
 ### 1c. Scan Recently Closed Documentation Issues
 
@@ -141,6 +142,7 @@ repo:${{ github.repository }} is:issue is:closed label:documentation closed:>=YY
 ```
 
 For each closed issue:
+- **Classify first**: If the issue clearly describes a site-build or UI concern — i.e., the fix would touch `docs/src/components/**`, `docs/astro.config.*`, the pagefind/search index, or CSS rather than Markdown/MDX content under `docs/src/content/docs/` — classify it as **site-build/UI (out of scope)**. Record it in the **Skipped Issues** section of the PR description as `#NNN — site-build/UI: needs Astro/site-build agent` and skip all further processing for this issue.
 - **closed as completed**: Check whether a `[docs]` PR references it. If no such PR exists, also search for any merged PR that closes or fixes the issue by number (e.g. `closes #NNN`, `fixes #NNN`, `resolves #NNN` in the PR body). If such a PR is found and its documentation change is complete, skip the issue.
   - If no explicit issue-reference PR is found, run a fallback heuristic for likely spec-librarian/copilot fix PRs that omit issue numbers:
     1. Infer the package from the issue title/body (for example `pkg/constants`).

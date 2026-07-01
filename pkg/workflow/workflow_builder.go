@@ -49,6 +49,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		MaxDailyAICredits:     resolveMaxDailyAIC(result.Frontmatter, importsResult.MergedMaxDailyAICredits),
 		ImportedFiles:         importsResult.ImportedFiles,
 		Skills:                extractFrontmatterSkills(toolsResult.parsedFrontmatter, result.Frontmatter),
+		SkillReferences:       extractFrontmatterSkillReferences(toolsResult.parsedFrontmatter, result.Frontmatter),
 		ImportedMarkdown:      toolsResult.importedMarkdown, // Only imports WITH inputs
 		ImportPaths:           toolsResult.importPaths,      // Import paths for runtime-import macros (imports without inputs)
 		PromptImports:         toolsResult.promptImports,    // Ordered prompt contributions from imports
@@ -197,8 +198,27 @@ func extractLSPConfig(parsedFrontmatter *FrontmatterConfig, frontmatter map[stri
 }
 
 func extractFrontmatterSkills(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any) []string {
-	if parsedFrontmatter != nil && len(parsedFrontmatter.Skills) > 0 {
-		return append([]string(nil), parsedFrontmatter.Skills...)
+	refs := extractFrontmatterSkillReferences(parsedFrontmatter, frontmatter)
+	if len(refs) == 0 {
+		return nil
+	}
+
+	skills := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if ref.Skill == "" {
+			continue
+		}
+		skills = append(skills, ref.Skill)
+	}
+	if len(skills) == 0 {
+		return nil
+	}
+	return skills
+}
+
+func extractFrontmatterSkillReferences(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any) []SkillReference {
+	if parsedFrontmatter != nil && len(parsedFrontmatter.SkillReferences) > 0 {
+		return append([]SkillReference(nil), parsedFrontmatter.SkillReferences...)
 	}
 
 	// Fall back to raw frontmatter when ParseFrontmatterConfig failed for non-skills reasons
@@ -209,18 +229,7 @@ func extractFrontmatterSkills(parsedFrontmatter *FrontmatterConfig, frontmatter 
 		return nil
 	}
 
-	skills := make([]string, 0, len(rawSkills))
-	for _, rawSkill := range rawSkills {
-		skill, ok := rawSkill.(string)
-		if !ok || skill == "" {
-			continue
-		}
-		skills = append(skills, skill)
-	}
-	if len(skills) == 0 {
-		return nil
-	}
-	return skills
+	return parseRawSkillReferences(rawSkills)
 }
 
 func extractMainModelCostsOverlay(toolsResult *toolsProcessingResult, frontmatter map[string]any) map[string]any {

@@ -246,53 +246,44 @@ Guideline violations always force `REQUEST_CHANGES` regardless of numeric score.
 
 ## Step 7: Post PR Comment with Results
 
-Post a comment using `add-comment` (not bash). Do **not** set `item_number`; it auto-targets the PR:
-
-```json
-{"add_comment":{"body":"<full markdown report>"}}
-```
-
-Use this exact format for the report body:
+Post using `add-comment` (not bash; omit `item_number` — runtime infers the PR). Use this template:
 
 ```markdown
 ### 🧪 Test Quality Sentinel Report
 
 {SCORE_EMOJI} **Test Quality Score: {SCORE}/100 — {SCORE_LABEL}**
 
-> {One-sentence summary: e.g. "Analyzed {TOTAL} test(s): {DESIGN_COUNT} design, {IMPL_COUNT} implementation, {VIOLATIONS} guideline violation(s)."}
+> Analyzed {TOTAL} test(s): {DESIGN_COUNT} design, {IMPL_COUNT} implementation, {VIOLATIONS} violation(s).
 
 <details>
-<summary>📊 Metrics & Test Classification ({TOTAL} tests analyzed)</summary>
+<summary>📊 Metrics ({TOTAL} tests)</summary>
 
 | Metric | Value |
-|--------|-------|
-| New/modified tests analyzed | {TOTAL} |
-| ✅ Design tests (behavioral contracts) | {DESIGN_COUNT} ({DESIGN_PCT}%) |
-| ⚠️ Implementation tests (low value) | {IMPL_COUNT} ({IMPL_PCT}%) |
-| Tests with error/edge cases | {EDGE_COUNT} ({EDGE_PCT}%) |
-| Duplicate test clusters | {DUP_COUNT} |
-| Test inflation detected | {YES/NO} |
-| 🚨 Coding-guideline violations | {VIOLATIONS} |
+|---|---|
+| Analyzed | {TOTAL} (Go: {GO_COUNT}, JS: {JS_COUNT}) |
+| ✅ Design | {DESIGN_COUNT} ({DESIGN_PCT}%) |
+| ⚠️ Implementation | {IMPL_COUNT} ({IMPL_PCT}%) |
+| Edge/error coverage | {EDGE_COUNT} ({EDGE_PCT}%) |
+| Duplicate clusters | {DUP_COUNT} |
+| Inflation | {YES/NO} |
+| 🚨 Violations | {VIOLATIONS} |
 
-| Test | File | Classification | Issues Detected |
-|------|------|----------------|----------------|
-| `TestFoo` | `pkg/foo/foo_test.go:42` | ✅ Design | — |
-
-Go: {GO_COUNT} (`*_test.go`); JavaScript: {JS_COUNT} (`*.test.cjs`/`.test.js`).
+| Test | File | Classification | Issues |
+|---|---|---|---|
 
 </details>
 
-{If flagged tests exist:}
+{If violations or flagged tests:}
 <details>
-<summary>⚠️ Flagged Tests ({FLAGGED_COUNT} issue(s))</summary>
+<summary>⚠️ Flagged Tests ({FLAGGED_COUNT})</summary>
 
-**`TestName`** (`file:line`) — classification, issue, and suggested fix.
+**`TestName`** (`file:line`) — classification, issue, and fix.
 
 </details>
 
 ### Verdict
 
-> {✅/❌} **Check {passed/failed}.** {IMPL_PCT}% implementation tests (threshold: 30%).
+> {✅/❌} **{passed/failed}.** {IMPL_PCT}% implementation tests (threshold: 30%).
 ```
 
 ## Step 8: Submit PR Review Based on Result

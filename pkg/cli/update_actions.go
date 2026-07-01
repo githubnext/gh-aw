@@ -16,8 +16,10 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/goccy/go-yaml"
 )
 
 // isCoreAction returns true if the repo is a GitHub-maintained core action (actions/* org).
@@ -634,15 +636,22 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, wo
 			return nil
 		}
 
-		updated, newContent, err := updateActionRefsInContentWithDeps(ctx, deps, string(content), cache, coolDownCache, !disableReleaseBump, verbose, coolDown)
+		updatedActions, newContent, err := updateActionRefsInContentWithDeps(ctx, deps, string(content), cache, coolDownCache, !disableReleaseBump, verbose, coolDown)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update action refs in %s: %v", path, err)))
 			}
 			return nil
 		}
+		updatedSkills, newContent, err := updateSkillRefsInContent(ctx, newContent, !disableReleaseBump, verbose, coolDown)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update skill refs in %s: %v", path, err)))
+			}
+			return nil
+		}
 
-		if !updated {
+		if !updatedActions && !updatedSkills {
 			return nil
 		}
 
@@ -650,7 +659,7 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, wo
 			return fmt.Errorf("failed to write updated workflow %s: %w", path, err)
 		}
 
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated action references in "+d.Name()))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated action/skill references in "+d.Name()))
 		updatedFiles = append(updatedFiles, path)
 
 		// Recompile the updated workflow (unless --no-compile is set)
@@ -672,6 +681,113 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, wo
 	}
 
 	return nil
+}
+
+type skillRefUpdateResolver func(ctx context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error)
+
+func updateSkillRefsInContent(ctx context.Context, content string, allowMajor, verbose bool, coolDown time.Duration) (bool, string, error) {
+	return updateSkillRefsInContentWithResolver(ctx, content, allowMajor, verbose, coolDown, resolveLatestRef)
+}
+
+func updateSkillRefsInContentWithResolver(
+	ctx context.Context,
+	content string,
+	allowMajor, verbose bool,
+	coolDown time.Duration,
+	resolver skillRefUpdateResolver,
+) (bool, string, error) {
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		if verbose {
+			updateLog.Printf("Skipping skill update for content without parseable frontmatter: %v", err)
+		}
+		return false, content, nil
+	}
+	if result == nil || result.Frontmatter == nil {
+		return false, content, nil
+	}
+
+	rawSkills, ok := result.Frontmatter["skills"].([]any)
+	if !ok || len(rawSkills) == 0 {
+		return false, content, nil
+	}
+
+	changed := false
+	for i, rawSkill := range rawSkills {
+		switch typed := rawSkill.(type) {
+		case string:
+			updated, updatedRef, err := updateSkillRefValue(ctx, typed, allowMajor, verbose, coolDown, resolver)
+			if err != nil {
+				return false, content, err
+			}
+			if updated {
+				rawSkills[i] = updatedRef
+				changed = true
+			}
+		case map[string]any:
+			skillRef, ok := typed["skill"].(string)
+			if !ok {
+				continue
+			}
+			updated, updatedRef, err := updateSkillRefValue(ctx, skillRef, allowMajor, verbose, coolDown, resolver)
+			if err != nil {
+				return false, content, err
+			}
+			if updated {
+				typed["skill"] = updatedRef
+				changed = true
+			}
+		}
+	}
+	if !changed {
+		return false, content, nil
+	}
+	result.Frontmatter["skills"] = rawSkills
+
+	updatedFrontmatter, err := yaml.Marshal(result.Frontmatter)
+	if err != nil {
+		return false, content, fmt.Errorf("failed to marshal updated frontmatter: %w", err)
+	}
+	updatedContent, err := parser.ReconstructWorkflowFile(parser.QuoteCronExpressions(string(updatedFrontmatter)), result.Markdown)
+	if err != nil {
+		return false, content, fmt.Errorf("failed to reconstruct workflow file: %w", err)
+	}
+	return true, updatedContent, nil
+}
+
+func updateSkillRefValue(
+	ctx context.Context,
+	skillRef string,
+	allowMajor, verbose bool,
+	coolDown time.Duration,
+	resolver skillRefUpdateResolver,
+) (bool, string, error) {
+	trimmedSkillRef := strings.TrimSpace(skillRef)
+	if trimmedSkillRef == "" || strings.Contains(trimmedSkillRef, "${{") {
+		return false, skillRef, nil
+	}
+	spec, currentRef, ok := strings.Cut(trimmedSkillRef, "@")
+	spec = strings.TrimSpace(spec)
+	currentRef = strings.TrimSpace(currentRef)
+	if !ok || spec == "" || currentRef == "" {
+		return false, skillRef, nil
+	}
+
+	repo := gitutil.ExtractBaseRepo(spec)
+	if repo == "" {
+		return false, skillRef, nil
+	}
+	latestRef, err := resolver(ctx, repo, currentRef, allowMajor, verbose, coolDown)
+	if err != nil {
+		if verbose {
+			updateLog.Printf("Skipping skill update for %s@%s: %v", spec, currentRef, err)
+		}
+		return false, skillRef, nil
+	}
+	if latestRef == "" || latestRef == currentRef {
+		return false, skillRef, nil
+	}
+	return true, spec + "@" + latestRef, nil
 }
 
 func updateActionRefsInContentWithDeps(ctx context.Context, deps actionUpdateDeps, content string, cache map[string]latestReleaseResult, coolDownCache map[string]coolDownCheckResult, allowMajor, verbose bool, coolDown time.Duration) (bool, string, error) {

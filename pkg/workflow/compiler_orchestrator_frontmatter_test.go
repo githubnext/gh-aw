@@ -322,6 +322,42 @@ skills:
 	}, result.frontmatterResult.Frontmatter["skills"])
 }
 
+func TestParseFrontmatterSection_ObjectSkillsRef(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-object-skills-ref")
+
+	testContent := `---
+on: workflow_dispatch
+engine: copilot
+skills:
+  - skill: githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6
+    github-token: ${{ secrets.SKILL_PAT }}
+  - skill: githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6
+    github-app:
+      client-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+
+# Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "object-skills.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	result, err := compiler.parseFrontmatterSection(testFile)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.frontmatterResult)
+	skills, ok := result.frontmatterResult.Frontmatter["skills"].([]any)
+	require.True(t, ok)
+	require.Len(t, skills, 2)
+	first, ok := skills[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6", first["skill"])
+	assert.Equal(t, "${{ secrets.SKILL_PAT }}", first["github-token"])
+}
+
 // TestParseFrontmatterSection_FileReadError tests file I/O error handling
 func TestParseFrontmatterSection_FileReadError(t *testing.T) {
 	compiler := NewCompiler()

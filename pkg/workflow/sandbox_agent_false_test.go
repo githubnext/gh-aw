@@ -106,9 +106,9 @@ Test workflow to verify sandbox.agent: awf enables firewall.
 
 		lockStr := string(lockContent)
 
-		// Verify that AWF installation IS present
-		if !strings.Contains(lockStr, "sudo -E awf") {
-			t.Error("Expected AWF firewall to be enabled, but did not find 'sudo -E awf' command in lock file")
+		// Verify that AWF installation IS present (rootless by default)
+		if !strings.Contains(lockStr, "awf --config ") {
+			t.Error("Expected AWF firewall to be enabled, but did not find rootless 'awf --config' command in lock file")
 		}
 	})
 
@@ -153,8 +153,8 @@ Test workflow to verify default sandbox.agent behavior (awf).
 		lockStr := string(lockContent)
 
 		// With network restrictions and no sandbox config, firewall should be enabled by default
-		if !strings.Contains(lockStr, "sudo -E awf") {
-			t.Error("Expected firewall to be enabled by default with network restrictions, but did not find 'sudo -E awf' command in lock file")
+		if !strings.Contains(lockStr, "awf --config ") {
+			t.Error("Expected firewall to be enabled by default with network restrictions, but did not find rootless 'awf --config' command in lock file")
 		}
 	})
 }

@@ -100,6 +100,7 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
       - name: Setup Scripts
         id: setup
@@ -411,6 +412,7 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
       - name: Setup Scripts
         id: setup
@@ -1066,6 +1068,7 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
       - name: Setup Scripts
         id: setup
@@ -1313,6 +1316,7 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
       - name: Setup Scripts
         id: setup
@@ -1589,6 +1593,7 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
       - name: Setup Scripts
         id: setup

@@ -261,8 +261,8 @@ Test workflow where firewall is auto-enabled via network restrictions.
 		// Verify that bash tool is present
 		assert.Contains(t, lockStr, "bash", "Expected bash tool to be enabled when firewall is auto-enabled")
 
-		// Verify AWF is present
-		assert.Contains(t, lockStr, "sudo -E awf", "Expected AWF to be present when auto-enabled")
+		// Verify AWF is present (rootless by default)
+		assert.Contains(t, lockStr, "awf --config ", "Expected rootless AWF invocation to be present when auto-enabled")
 	})
 }
 

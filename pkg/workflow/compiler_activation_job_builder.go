@@ -520,7 +520,17 @@ func (c *Compiler) addActivationVersionCheckStep(ctx *activationJobBuildContext)
 }
 
 func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext) error {
-	if len(ctx.data.Skills) == 0 {
+	skillRefs := append([]SkillReference(nil), ctx.data.SkillReferences...)
+	if len(skillRefs) == 0 && len(ctx.data.Skills) > 0 {
+		skillRefs = make([]SkillReference, 0, len(ctx.data.Skills))
+		for _, skill := range ctx.data.Skills {
+			if strings.TrimSpace(skill) == "" {
+				continue
+			}
+			skillRefs = append(skillRefs, SkillReference{Skill: skill})
+		}
+	}
+	if len(skillRefs) == 0 {
 		return nil
 	}
 
@@ -542,15 +552,39 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	ctx.steps = append(ctx.steps, "            exit 1\n")
 	ctx.steps = append(ctx.steps, "          fi\n")
 
-	ctx.steps = append(ctx.steps, "      - name: Install frontmatter skills\n")
-	ctx.steps = append(ctx.steps, "        env:\n")
-	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_TOKEN: %s\n", c.resolveActivationToken(ctx.data)))
-	ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_SKILL_DIR", skillDir))
-	ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_FRONTMATTER_SKILLS", strings.Join(ctx.data.Skills, "\n")))
-	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)))
-	ctx.steps = append(ctx.steps, "        with:\n")
-	ctx.steps = append(ctx.steps, "          script: |\n")
-	ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("install_frontmatter_skills.cjs"))
+	for i, skillRef := range skillRefs {
+		tokenExpr := c.resolveActivationToken(ctx.data)
+		if skillRef.GitHubToken != "" {
+			tokenExpr = skillRef.GitHubToken
+		}
+		if skillRef.GitHubApp != nil {
+			stepNumber := i + 1
+			stepID := fmt.Sprintf("frontmatter-skill-app-token-%d", stepNumber)
+			ctx.steps = append(ctx.steps, c.buildGitHubAppTokenMintStepWithMeta(
+				skillRef.GitHubApp,
+				nil,
+				"",
+				"",
+				fmt.Sprintf("Generate GitHub App token for frontmatter skill %d", stepNumber),
+				stepID,
+			)...)
+			stepTokenExpr := fmt.Sprintf("${{ steps.%s.outputs.token }}", stepID)
+			if skillRef.GitHubApp.shouldIgnoreMissingKey() {
+				tokenExpr = combineTokenExpressions(stepTokenExpr, c.resolveActivationToken(ctx.data))
+			} else {
+				tokenExpr = stepTokenExpr
+			}
+		}
+		ctx.steps = append(ctx.steps, fmt.Sprintf("      - name: Install frontmatter skill %d\n", i+1))
+		ctx.steps = append(ctx.steps, "        env:\n")
+		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_TOKEN: %s\n", tokenExpr))
+		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_SKILL_DIR", skillDir))
+		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_FRONTMATTER_SKILLS", skillRef.Skill))
+		ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)))
+		ctx.steps = append(ctx.steps, "        with:\n")
+		ctx.steps = append(ctx.steps, "          script: |\n")
+		ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("install_frontmatter_skills.cjs"))
+	}
 	return nil
 }
 

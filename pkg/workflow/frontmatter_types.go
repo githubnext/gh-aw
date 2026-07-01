@@ -321,7 +321,8 @@ type FrontmatterConfig struct {
 	Strict             *bool             `json:"strict,omitempty"`  // Pointer to distinguish unset from false
 	Private            *bool             `json:"private,omitempty"` // If true, workflow cannot be added to other repositories
 	Labels             []string          `json:"labels,omitempty"`
-	Skills             []string          `json:"skills,omitempty"`
+	Skills             []any             `json:"skills,omitempty"`
+	SkillReferences    []SkillReference  `json:"-"`
 
 	// Configuration sections - using strongly-typed structs
 	Tools            *ToolsConfig               `json:"tools,omitempty"`

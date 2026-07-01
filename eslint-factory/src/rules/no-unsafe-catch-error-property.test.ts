@@ -342,14 +342,73 @@ try {
     });
   });
 
-  it("valid: typeof err === 'object' guard suppresses all warnings in the catch block", () => {
+  it("valid: typeof err === 'object' with non-null guard suppresses warnings in the catch block", () => {
     cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
       valid: [
-        `try { f(); } catch (err) { if (typeof err === 'object') { console.log(err.status); } }`,
         `try { f(); } catch (err) { if (typeof err === 'object' && err !== null) { console.log(err.status); } }`,
-        `try { f(); } catch (err) { if ('object' === typeof err) { console.log(err.status); } }`,
+        `try { f(); } catch (err) { if ('object' === typeof err && null !== err) { console.log(err.status); } }`,
+        `try { f(); } catch (err) { if (typeof err === 'object' && err != null) { console.log(err.status); } }`,
+        `try { f(); } catch (err) { if (err && typeof err === 'object') { console.log(err.status); } }`,
+        `try { f(); } catch (err) { if (!err) return; if (typeof err === 'object') { console.log(err.status); } }`,
       ],
       invalid: [],
+    });
+  });
+
+  it("invalid: bare typeof err === 'object' guard is insufficient", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { if (typeof err === 'object') { console.log(err.status); } }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "status", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "status" },
+                  output: `try { f(); } catch (err) { if (typeof err === 'object') { console.log((err instanceof Error ? err.status : undefined)); } }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `try { f(); } catch (err) { if ('object' === typeof err) { console.log(err.status); } }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "status", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "status" },
+                  output: `try { f(); } catch (err) { if ('object' === typeof err) { console.log((err instanceof Error ? err.status : undefined)); } }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          // Standalone err !== null in a separate if (without return) does not count as companion guard
+          code: `try { f(); } catch (err) { if (err !== null) { } if (typeof err === 'object') { console.log(err.status); } }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "status", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "status" },
+                  output: `try { f(); } catch (err) { if (err !== null) { } if (typeof err === 'object') { console.log((err instanceof Error ? err.status : undefined)); } }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
     });
   });
 
@@ -425,9 +484,9 @@ try {
     });
   });
 
-  it("valid: typeof err === 'object' guard suppresses .status access (mirrors real call sites)", () => {
+  it("valid: typeof err === 'object' with truthy err guard suppresses .status access", () => {
     cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
-      valid: [`try { f(); } catch (err) { if (typeof err === 'object' && err.status === 404) { } }`],
+      valid: [`try { f(); } catch (err) { if (err && typeof err === 'object' && err.status === 404) { } }`],
       invalid: [],
     });
   });

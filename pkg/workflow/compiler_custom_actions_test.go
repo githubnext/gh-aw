@@ -277,6 +277,11 @@ Test workflow with script mode.
 	if !strings.Contains(lockStr, "if: always()") {
 		t.Error("Expected 'if: always()' guard on cleanup step in script mode")
 	}
+
+	// 11. Checkout actions folder should set clean: false to avoid workspace wipe
+	if !strings.Contains(lockStr, "clean: false") {
+		t.Error("Expected 'clean: false' in checkout step for script mode to avoid workspace cleanup removing .git")
+	}
 }
 
 // TestVersionToGitRef tests the versionToGitRef helper function used to derive
@@ -356,6 +361,20 @@ func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
 
 	if !strings.Contains(combined, "repository: github/gh-aw") {
 		t.Error("Dev mode Checkout actions folder should include 'repository: github/gh-aw' (fix for #20658)")
+	}
+	if !strings.Contains(combined, "clean: false") {
+		t.Error("Dev mode Checkout actions folder should include 'clean: false' to avoid workspace cleanup removing .git")
+	}
+}
+
+// TestRestoreActionsSetupStepHasCleanFalse verifies that the Restore actions folder
+// step includes clean: false to avoid the workspace wipe that would break post-step
+// git commands (e.g. fatal: --local can only be used inside a git repository).
+func TestRestoreActionsSetupStepHasCleanFalse(t *testing.T) {
+	compiler := NewCompiler(WithVersion("v1.0.0"))
+	step := compiler.generateRestoreActionsSetupStep()
+	if !strings.Contains(step, "clean: false") {
+		t.Error("Restore actions folder step should include 'clean: false' to avoid workspace cleanup removing .git")
 	}
 }
 

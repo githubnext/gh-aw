@@ -110,6 +110,8 @@ repo:${{ github.repository }} is:issue is:closed label:documentation closed:>=YY
 
 (Replace YYYY-MM-DD with the date 7 days ago.)
 
+**Cache-memory skip list**: Before processing each issue, load the `site-build-ui-issues` cache-memory entry (a JSON array of issue numbers). Skip any issue whose number already appears in this list — it was classified as site-build/UI in a prior run and has no doc-content fix path; do not re-analyze it.
+
 For each issue found:
 - Record the issue number, title, body, and closing date.
 - Check whether a DDUw-created PR (label `documentation automation`, title prefix `[docs]`) was merged that references or addresses the issue in the same time window. If such a PR exists, DDUw likely already handled it — skip this issue.
@@ -156,6 +158,33 @@ grep -Pn "ArtifactName\s*=" pkg/constants/constants.go pkg/constants/job_constan
 For each constant found, verify that the artifact name value is listed in `docs/src/content/docs/reference/artifacts.md`. If a constant is missing from the reference page, treat it as a documentation gap and add it.
 
 Only proceed with issues where you can confirm the documentation gap still exists.
+
+---
+
+## Step 2b: Classify Issues — Content vs. Site-Build/UI
+
+Before investing further analysis, classify each confirmed gap by subject area.
+
+**Content (in scope)** — the fix involves editing Markdown or MDX files under `docs/src/content/docs/**`. Continue to Step 3 for these issues.
+
+**Site-Build/UI (out of scope)** — the fix involves any of the following:
+- Astro component files (`docs/src/components/**`)
+- `docs/astro.config.*` or `docs/public/`
+- Pagefind/search index configuration
+- CSS files (`docs/src/styles/**` or similar)
+- Any other non-Markdown/MDX file outside `docs/src/content/docs/`
+
+To classify, read the issue body and look for path references, error descriptions, and keywords. If the issue describes a search-index failure, a UI label wording, or a component rendering problem, it is site-build/UI.
+
+For each issue classified as **site-build/UI**:
+1. Do **not** attempt a Markdown fix.
+2. Load the current `site-build-ui-issues` cache-memory entry (JSON array). If the issue number is already present, skip it silently.
+3. If it is **not** yet in the list:
+   a. Append the issue number to the `site-build-ui-issues` array and save it back to cache-memory.
+   b. Record a one-line note for the run summary: `#NNN — site-build/UI — needs Astro/site-build agent, not doc-healer`.
+   c. If the issue body names a specific agent or team responsible for site-build work, include that name in the note.
+
+If after classification **no content issues remain**, skip Steps 3–5, proceed directly to Step 6 to create an improvement issue if you identified a systemic pattern, or to Step 7 if there is nothing actionable.
 
 ---
 
@@ -252,7 +281,7 @@ If after all analysis:
 Call `noop` with a summary:
 
 ```json
-{"noop": {"message": "No documentation gaps found that DDUw missed. Analyzed N issues and M recent commits."}}
+{"noop": {"message": "No documentation gaps found that DDUw missed. Analyzed N issues and M recent commits. Site-build/UI issues skipped: X (e.g. #NNN, #NNN)."}}
 ```
 
 ---

@@ -7,7 +7,32 @@ const UNSAFE_PROPERTIES = new Set(["message", "stack", "code", "status", "cause"
 interface CatchFrame {
   varName: string;
   hasGuard: boolean;
+  hasNonNullGuard: boolean;
   unsafeNodes: Array<{ node: TSESTree.MemberExpression; prop: string }>;
+}
+
+function isTypeofObjectCheck(node: TSESTree.Expression, varName: string): boolean {
+  if (node.type !== AST_NODE_TYPES.BinaryExpression || node.operator !== "===") return false;
+  const { left, right } = node;
+  return (
+    (left.type === AST_NODE_TYPES.UnaryExpression && left.operator === "typeof" && left.argument.type === AST_NODE_TYPES.Identifier && left.argument.name === varName && right.type === AST_NODE_TYPES.Literal && right.value === "object") ||
+    (right.type === AST_NODE_TYPES.UnaryExpression && right.operator === "typeof" && right.argument.type === AST_NODE_TYPES.Identifier && right.argument.name === varName && left.type === AST_NODE_TYPES.Literal && left.value === "object")
+  );
+}
+
+function isNonNullGuardCheck(node: TSESTree.Expression, varName: string): boolean {
+  if (node.type === AST_NODE_TYPES.Identifier) {
+    return node.name === varName;
+  }
+
+  if (node.type !== AST_NODE_TYPES.BinaryExpression || (node.operator !== "!==" && node.operator !== "!=")) {
+    return false;
+  }
+
+  const isVarRef = (value: TSESTree.Expression): value is TSESTree.Identifier => value.type === AST_NODE_TYPES.Identifier && value.name === varName;
+  const isNullLiteral = (value: TSESTree.Expression): value is TSESTree.Literal => value.type === AST_NODE_TYPES.Literal && value.value === null;
+
+  return (isVarRef(node.left) && isNullLiteral(node.right)) || (isVarRef(node.right) && isNullLiteral(node.left));
 }
 
 function isCatchCallback(node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): boolean {
@@ -45,14 +70,14 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
         const params = node.params;
         // Only handle simple identifier bindings; skip no-param and destructuring callbacks.
         if (params.length === 1 && params[0].type === AST_NODE_TYPES.Identifier) {
-          stack.push({ varName: params[0].name, hasGuard: false, unsafeNodes: [] });
+          stack.push({ varName: params[0].name, hasGuard: false, hasNonNullGuard: false, unsafeNodes: [] });
         } else {
-          stack.push({ varName: "", hasGuard: true, unsafeNodes: [] });
+          stack.push({ varName: "", hasGuard: true, hasNonNullGuard: true, unsafeNodes: [] });
         }
       } else {
         // Sentinel: prevents the outer .catch() frame from collecting accesses
         // to a shadowed parameter name inside this nested function.
-        stack.push({ varName: "", hasGuard: true, unsafeNodes: [] });
+        stack.push({ varName: "", hasGuard: true, hasNonNullGuard: true, unsafeNodes: [] });
       }
     }
 
@@ -101,7 +126,7 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
       },
 
       // Detect catchVar instanceof Error — also accepted as a safe guard
-      // Detect typeof catchVar === 'object' — also accepted as a safe guard
+      // Detect typeof catchVar === 'object' with a non-null companion guard
       BinaryExpression(node) {
         if (stack.length === 0) return;
         const top = stack[stack.length - 1];
@@ -112,25 +137,48 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
           return;
         }
 
-        // typeof varName === 'object' or 'object' === typeof varName
-        if (node.operator === "===") {
-          const { left, right } = node;
-          const isTypeofObject =
-            (left.type === AST_NODE_TYPES.UnaryExpression &&
-              left.operator === "typeof" &&
-              left.argument.type === AST_NODE_TYPES.Identifier &&
-              left.argument.name === top.varName &&
-              right.type === AST_NODE_TYPES.Literal &&
-              right.value === "object") ||
-            (right.type === AST_NODE_TYPES.UnaryExpression &&
-              right.operator === "typeof" &&
-              right.argument.type === AST_NODE_TYPES.Identifier &&
-              right.argument.name === top.varName &&
-              left.type === AST_NODE_TYPES.Literal &&
-              left.value === "object");
-          if (isTypeofObject) {
-            top.hasGuard = true;
+        if (isTypeofObjectCheck(node, top.varName) && top.hasNonNullGuard) {
+          top.hasGuard = true;
+        }
+      },
+
+      LogicalExpression(node) {
+        if (stack.length === 0) return;
+        const top = stack[stack.length - 1];
+        if (!top || top.hasGuard || !top.varName || node.operator !== "&&") return;
+
+        const conjuncts: TSESTree.Expression[] = [];
+        const collectConjuncts = (expr: TSESTree.Expression): void => {
+          if (expr.type === AST_NODE_TYPES.LogicalExpression && expr.operator === "&&") {
+            collectConjuncts(expr.left);
+            collectConjuncts(expr.right);
+            return;
           }
+          conjuncts.push(expr);
+        };
+        collectConjuncts(node);
+
+        const hasTypeofObject = conjuncts.some(expr => isTypeofObjectCheck(expr, top.varName));
+        const hasNonNullGuard = conjuncts.some(expr => isNonNullGuardCheck(expr, top.varName));
+        if (hasTypeofObject && hasNonNullGuard) {
+          top.hasGuard = true;
+          top.hasNonNullGuard = true;
+        }
+      },
+
+      IfStatement(node) {
+        if (stack.length === 0) return;
+        const top = stack[stack.length - 1];
+        if (!top || top.hasGuard || !top.varName) return;
+
+        if (
+          node.test.type === AST_NODE_TYPES.UnaryExpression &&
+          node.test.operator === "!" &&
+          node.test.argument.type === AST_NODE_TYPES.Identifier &&
+          node.test.argument.name === top.varName &&
+          node.consequent.type === AST_NODE_TYPES.ReturnStatement
+        ) {
+          top.hasNonNullGuard = true;
         }
       },
 

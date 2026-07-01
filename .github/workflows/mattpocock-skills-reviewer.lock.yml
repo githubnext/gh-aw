@@ -126,6 +126,7 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
       - name: Setup Scripts
         id: setup
@@ -298,11 +299,83 @@ jobs:
             echo "::error::gh ${GH_VERSION} is older than required ${REQUIRED} (gh skill support requires v2.90+)"
             exit 1
           fi
-      - name: Install frontmatter skills
+      - name: Install frontmatter skill 1
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_SKILL_DIR: ".github/skills"
-          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/diagnosing-bugs@801dca688564c529fa84f247f64472520d9ebe28\nmattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28\nmattpocock/skills/improve-codebase-architecture@801dca688564c529fa84f247f64472520d9ebe28\nmattpocock/skills/grill-with-docs@801dca688564c529fa84f247f64472520d9ebe28\nmattpocock/skills/to-prd@801dca688564c529fa84f247f64472520d9ebe28\nmattpocock/skills/codebase-design@801dca688564c529fa84f247f64472520d9ebe28\nmattpocock/skills/domain-modeling@801dca688564c529fa84f247f64472520d9ebe28"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/diagnosing-bugs@801dca688564c529fa84f247f64472520d9ebe28"
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/install_frontmatter_skills.cjs');
+            await main();
+      - name: Install frontmatter skill 2
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_SKILL_DIR: ".github/skills"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28"
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/install_frontmatter_skills.cjs');
+            await main();
+      - name: Install frontmatter skill 3
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_SKILL_DIR: ".github/skills"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/improve-codebase-architecture@801dca688564c529fa84f247f64472520d9ebe28"
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/install_frontmatter_skills.cjs');
+            await main();
+      - name: Install frontmatter skill 4
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_SKILL_DIR: ".github/skills"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/grill-with-docs@801dca688564c529fa84f247f64472520d9ebe28"
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/install_frontmatter_skills.cjs');
+            await main();
+      - name: Install frontmatter skill 5
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_SKILL_DIR: ".github/skills"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/to-prd@801dca688564c529fa84f247f64472520d9ebe28"
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/install_frontmatter_skills.cjs');
+            await main();
+      - name: Install frontmatter skill 6
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_SKILL_DIR: ".github/skills"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/codebase-design@801dca688564c529fa84f247f64472520d9ebe28"
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/install_frontmatter_skills.cjs');
+            await main();
+      - name: Install frontmatter skill 7
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_SKILL_DIR: ".github/skills"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/domain-modeling@801dca688564c529fa84f247f64472520d9ebe28"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -520,6 +593,7 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
       - name: Setup Scripts
         id: setup
@@ -1203,6 +1277,7 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
       - name: Setup Scripts
         id: setup
@@ -1472,6 +1547,7 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
       - name: Setup Scripts
         id: setup
@@ -1724,6 +1800,7 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
       - name: Setup Scripts
         id: setup
@@ -1810,6 +1887,7 @@ jobs:
           repository: github/gh-aw
           sparse-checkout: |
             actions
+          clean: false
           persist-credentials: false
       - name: Setup Scripts
         id: setup

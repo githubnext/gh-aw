@@ -58,20 +58,55 @@
     },
     "skills": {
       "type": "array",
-      "description": "Optional list of external skill references to install during activation. Supports repository-wide installs (`owner/repo@<sha>`) and path-scoped installs (`owner/repo/skill/path@<sha>`). Static references must be pinned to a full 40-character lowercase commit SHA. GitHub Actions expressions (`${{ ... }}`) are also accepted and are evaluated at runtime.",
+      "description": "Optional list of external skill references to install during activation. Supports repository-wide installs (`owner/repo@<sha>`) and path-scoped installs (`owner/repo/skill/path@<sha>`). Static references must be pinned to a full 40-character lowercase commit SHA. GitHub Actions expressions (`${{ ... }}`) are also accepted and are evaluated at runtime. Entries may also be objects to configure per-skill authentication via github-token or github-app.",
       "items": {
-        "type": "string",
         "oneOf": [
           {
+            "type": "string",
             "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$"
           },
           {
+            "type": "string",
             "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)*)?@\\$\\{\\{.+\\}\\}$",
             "description": "Skill reference with a GitHub Actions expression in the ref position."
           },
           {
+            "type": "string",
             "pattern": "^\\$\\{\\{.+\\}\\}$",
             "description": "GitHub Actions expression that resolves to a full skill reference string at runtime."
+          },
+          {
+            "type": "object",
+            "description": "Object-form skill reference with per-skill authentication.",
+            "required": ["skill"],
+            "additionalProperties": false,
+            "properties": {
+              "skill": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)*)?@\\$\\{\\{.+\\}\\}$"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^\\$\\{\\{.+\\}\\}$"
+                  }
+                ],
+                "description": "Skill reference string in the same format accepted by string-form entries."
+              },
+              "github-token": {
+                "$ref": "#/$defs/github_token",
+                "description": "Optional GitHub token expression used only for this skill install."
+              },
+              "github-app": {
+                "$ref": "#/$defs/github_app",
+                "description": "Optional GitHub App config used to mint a token for this skill install."
+              }
+            }
           }
         ]
       },

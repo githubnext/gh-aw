@@ -17,6 +17,7 @@ const {
   buildMissingToolAlternatives,
   buildInfrastructureIncompletePayload,
   buildCopilotProxyAuthFailureDiagnostic,
+  buildCopilotSDKChildEnv,
   envFlagEnabled,
   buildPromptFileFallbackInstruction,
   countPermissionDeniedIssues,
@@ -180,6 +181,47 @@ describe("copilot_harness.cjs", () => {
       expect(token).toMatch(/^[a-f0-9]{64}$/);
       expect(token).toBe("ab".repeat(32));
       expect(randomBytes).toHaveBeenCalledWith(32);
+    });
+  });
+
+  describe("buildCopilotSDKChildEnv", () => {
+    it("includes native and gh-aw provider vars when wireApi is configured", () => {
+      const env = buildCopilotSDKChildEnv({
+        sdkEnv: { COPILOT_SDK_URI: "http://127.0.0.1:4000" },
+        copilotSDKMode: true,
+        copilotConnectionToken: "token-123",
+        providerBaseUrl: "http://api-proxy:10002",
+        providerType: "openai",
+        providerWireApi: "completions",
+        resolvedModel: "gpt-5.4",
+      });
+
+      expect(env).toMatchObject({
+        COPILOT_SDK_URI: "http://127.0.0.1:4000",
+        COPILOT_CONNECTION_TOKEN: "token-123",
+        GH_AW_COPILOT_SDK_PROVIDER_BASE_URL: "http://api-proxy:10002",
+        GH_AW_COPILOT_SDK_PROVIDER_TYPE: "openai",
+        GH_AW_COPILOT_SDK_PROVIDER_WIRE_API: "completions",
+        COPILOT_MODEL: "gpt-5.4",
+        COPILOT_PROVIDER_BASE_URL: "http://api-proxy:10002",
+        COPILOT_PROVIDER_TYPE: "openai",
+        COPILOT_PROVIDER_WIRE_API: "completions",
+      });
+    });
+
+    it("omits wireApi vars when wireApi is empty", () => {
+      const env = buildCopilotSDKChildEnv({
+        sdkEnv: { COPILOT_SDK_URI: "http://127.0.0.1:4000" },
+        copilotSDKMode: true,
+        copilotConnectionToken: "token-123",
+        providerBaseUrl: "http://api-proxy:10002",
+        providerType: "openai",
+        providerWireApi: "",
+        resolvedModel: "gpt-5.4",
+      });
+
+      expect(env.GH_AW_COPILOT_SDK_PROVIDER_WIRE_API).toBeUndefined();
+      expect(env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
     });
   });
 
@@ -983,6 +1025,15 @@ describe("copilot_harness.cjs", () => {
 
     it("returns false for empty output", () => {
       expect(isHTTP400ResponseError("")).toBe(false);
+    });
+
+    it("matches the 'no model endpoints available given user constraints' SDK error", () => {
+      expect(isHTTP400ResponseError("[copilot-sdk-driver] [sdk-driver] error: 400 400 400 no model endpoints available given user constraints")).toBe(true);
+    });
+
+    it("matches the no-model-endpoints error embedded in larger output", () => {
+      const output = 'some prior output\n[copilot-sdk-driver] [sdk-driver] error: 400 400 400 no model endpoints available given user constraints\n{"type":"subagent.failed"}';
+      expect(isHTTP400ResponseError(output)).toBe(true);
     });
   });
 

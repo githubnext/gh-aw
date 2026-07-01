@@ -1,0 +1,252 @@
+---
+/**
+ * RecruitmentBanner.astro
+ *
+ * Overrides Starlight's built-in `Banner` component slot (wired in astro.config.mjs) to render a
+ * research recruitment banner that links to a survey, shown only to recruited participants.
+ *
+ * See ./../config/recruitmentBanner.ts and docs/adr/46051-recruitment-banner-for-targeted-docs-research.md for the why/how and the
+ * go-live checklist. Eligibility is decided on the client from the recruitment link
+ * (`?recruit=<slug>`), because this is a static GitHub Pages site with no server-side user.
+ *
+ * This override also preserves Starlight's native per-page frontmatter `banner` so existing
+ * behavior is unchanged.
+ */
+import { recruitmentBanner as cfg } from '../config/recruitmentBanner';
+
+const route = Astro.locals.starlightRoute;
+const frontmatterBanner = route?.entry?.data?.banner;
+
+const showRecruitment = cfg.enabled && Boolean(cfg.ctaUrl);
+const dataPaths = (cfg.paths ?? []).join(',');
+---
+
+{frontmatterBanner && <div class="sl-banner" set:html={frontmatterBanner.content} />}
+
+{
+showRecruitment && (
+<aside
+class="recruitment-banner"
+data-recruitment-banner
+data-slug={cfg.slug}
+data-cta-url={cfg.ctaUrl}
+data-paths={dataPaths}
+data-frequency={cfg.frequency}
+data-require-uid={String(cfg.requireUid)}
+role="region"
+aria-label="Research participation invitation"
+hidden
+>
+<div class="recruitment-banner__content">
+<p class="recruitment-banner__title">{cfg.title}</p>
+<p class="recruitment-banner__message">{cfg.message}</p>
+</div>
+<div class="recruitment-banner__actions">
+<a
+class="recruitment-banner__cta"
+data-recruitment-cta
+href={cfg.ctaUrl}
+target="_blank"
+rel="noopener noreferrer"
+>
+{cfg.ctaText}
+</a>
+<button
+type="button"
+class="recruitment-banner__dismiss"
+data-recruitment-dismiss
+aria-label="Dismiss this invitation"
+>
+&#10005;
+</button>
+</div>
+</aside>
+)
+}
+
+<style>
+.recruitment-banner {
+display: flex;
+gap: 1rem;
+align-items: center;
+justify-content: space-between;
+margin: 0 0 1.5rem;
+padding: 0.85rem 1rem;
+border: 1px solid var(--sl-color-accent);
+border-radius: 0.5rem;
+background: var(--sl-color-accent-low);
+color: var(--sl-color-white);
+}
+
+.recruitment-banner[hidden] {
+display: none;
+}
+
+.recruitment-banner__content {
+min-width: 0;
+}
+
+.recruitment-banner__title {
+margin: 0;
+font-weight: 600;
+line-height: 1.3;
+}
+
+.recruitment-banner__message {
+margin: 0.2rem 0 0;
+color: var(--sl-color-gray-2);
+font-size: var(--sl-text-sm);
+line-height: 1.4;
+}
+
+.recruitment-banner__actions {
+display: flex;
+align-items: center;
+gap: 0.5rem;
+flex-shrink: 0;
+}
+
+.recruitment-banner__cta {
+white-space: nowrap;
+padding: 0.4rem 0.85rem;
+border-radius: 0.4rem;
+background: var(--sl-color-accent);
+color: var(--sl-color-black);
+font-weight: 600;
+text-decoration: none;
+}
+
+.recruitment-banner__cta:hover {
+background: var(--sl-color-accent-high);
+}
+
+.recruitment-banner__dismiss {
+background: transparent;
+border: 0;
+color: inherit;
+cursor: pointer;
+font-size: 1rem;
+line-height: 1;
+padding: 0.25rem;
+opacity: 0.7;
+}
+
+.recruitment-banner__dismiss:hover {
+opacity: 1;
+}
+
+@media (max-width: 50rem) {
+.recruitment-banner {
+flex-direction: column;
+align-items: flex-start;
+}
+}
+</style>
+
+<script>
+  // Client-side eligibility + reveal. Runs on every page load (Starlight is MPA by default).
+  (function () {
+    const el = document.querySelector('[data-recruitment-banner]');
+    if (!el) return;
+
+    const slug = el.getAttribute('data-slug') || '';
+    const baseCtaUrl = el.getAttribute('data-cta-url') || '';
+    if (!slug || !baseCtaUrl) return;
+
+    const requireUid = el.getAttribute('data-require-uid') === 'true';
+    const paths = (el.getAttribute('data-paths') || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    // dotcom_id is numeric; cap length defensively to avoid propagating arbitrary long identifiers.
+    const uidPattern = /^[0-9]{1,20}$/;
+    const sanitizeUid = (value: string): string => (uidPattern.test(value) ? value : '');
+
+    const KEY = `gh-aw:recruit:${slug}`;
+    const DISMISS_KEY = `gh-aw:recruit-dismissed:${slug}`;
+
+    let store: Storage | null = null;
+    try {
+      store = window.localStorage;
+    } catch (e) {
+      store = null;
+    }
+    const get = (k: string): string | null => {
+      try {
+        return store && store.getItem(k);
+      } catch (e) {
+        return null;
+      }
+    };
+    const set = (k: string, v: string): void => {
+      try {
+        store && store.setItem(k, v);
+      } catch (e) {
+        /* ignore */
+      }
+    };
+
+    // 1) Capture eligibility from the recruitment link: ?recruit=<slug>&uid=<dotcom_id>
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('recruit') === slug) {
+      const incomingUid = sanitizeUid(params.get('uid') || '');
+      // '__present__' is a non-numeric sentinel meaning "eligible but no uid provided".
+      // It avoids collision with valid numeric uids (e.g. uid=1).
+      set(KEY, incomingUid || '__present__');
+    }
+
+    // 2) Respect dismissals (unless frequency is "always").
+    if (el.getAttribute('data-frequency') !== 'always' && get(DISMISS_KEY)) return;
+
+    // 3) Eligible only if we captured the recruitment link at some point.
+    const stored = get(KEY);
+    const uid = sanitizeUid(stored && stored !== '__present__' ? stored : '');
+    const eligible = Boolean(stored) && (!requireUid || Boolean(uid));
+    if (!eligible) return;
+
+    // 4) Optional path scoping.
+    if (paths.length) {
+      const here = window.location.pathname;
+      if (!paths.some((p) => here.startsWith(p))) return;
+    }
+
+    // 5) Build the CTA URL with UTM attribution + optional participant id.
+    const cta = el.querySelector('[data-recruitment-cta]') as HTMLAnchorElement | null;
+    try {
+      const u = new URL(baseCtaUrl, window.location.origin);
+      if (!['http:', 'https:'].includes(u.protocol)) throw new Error('Invalid CTA protocol');
+      if (!u.searchParams.has('utm_source')) u.searchParams.set('utm_source', 'inproduct_banner');
+      u.searchParams.set('utm_medium', 'docs');
+      u.searchParams.set('utm_campaign', slug);
+      if (uid) u.searchParams.set('pid', uid);
+      if (cta) cta.href = u.toString();
+    } catch (e) {
+      // CTA URL failed validation (invalid URL or non-http/https scheme); fail closed — keep
+      // the banner hidden rather than potentially exposing a javascript: href.
+      return;
+    }
+
+    // 6) Best-effort click tracking (no-op unless something listens for the event).
+    if (cta) {
+      cta.addEventListener('click', function () {
+        try {
+          window.dispatchEvent(new CustomEvent('banner_research_cta', { detail: { slug, uid } }));
+        } catch (e) {
+          /* ignore */
+        }
+      });
+    }
+
+    // 7) Dismiss handling.
+    const dismiss = el.querySelector('[data-recruitment-dismiss]');
+    if (dismiss) {
+      dismiss.addEventListener('click', function () {
+        set(DISMISS_KEY, '1');
+        el.setAttribute('hidden', '');
+      });
+    }
+
+    // 8) Reveal.
+    el.removeAttribute('hidden');
+  })();
+</script>
