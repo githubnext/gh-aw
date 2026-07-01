@@ -1646,6 +1646,40 @@ func TestBuildAWFCommand_IncludesChrootInjectScript(t *testing.T) {
 	})
 }
 
+func TestBuildModelsJSONPathExportScript(t *testing.T) {
+	t.Run("uses tmp path by default", func(t *testing.T) {
+		assert.Equal(t, `export GH_AW_MODELS_JSON_PATH="/tmp/gh-aw/models.json"`, buildModelsJSONPathExportScript(false))
+	})
+
+	t.Run("uses runner temp path for arc-dind", func(t *testing.T) {
+		assert.Equal(t, `export GH_AW_MODELS_JSON_PATH="${RUNNER_TEMP}/gh-aw/models.json"`, buildModelsJSONPathExportScript(true))
+	})
+}
+
+func TestRewriteArcDindPath(t *testing.T) {
+	t.Run("rewrites tmp gh-aw prefix", func(t *testing.T) {
+		assert.Equal(t, "${RUNNER_TEMP}/gh-aw/aw-prompts/prompt.txt", rewriteArcDindPath("/tmp/gh-aw/aw-prompts/prompt.txt"))
+	})
+
+	t.Run("rewrites multiple occurrences", func(t *testing.T) {
+		input := "/tmp/gh-aw/a /tmp/gh-aw/b"
+		expected := "${RUNNER_TEMP}/gh-aw/a ${RUNNER_TEMP}/gh-aw/b"
+		assert.Equal(t, expected, rewriteArcDindPath(input))
+	})
+
+	t.Run("leaves unrelated paths unchanged", func(t *testing.T) {
+		assert.Equal(t, "/tmp/not-gh-aw/file.txt", rewriteArcDindPath("/tmp/not-gh-aw/file.txt"))
+	})
+}
+
+func TestRewriteArcDindEngineCommand(t *testing.T) {
+	command := "copilot --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt"
+	rewritten := rewriteArcDindEngineCommand(command)
+
+	assert.Contains(t, rewritten, "export HOME=${RUNNER_TEMP}/gh-aw/home")
+	assert.Contains(t, rewritten, "copilot --prompt-file ${RUNNER_TEMP}/gh-aw/aw-prompts/prompt.txt")
+}
+
 func TestGetGeminiAPITarget(t *testing.T) {
 	tests := []struct {
 		name         string
