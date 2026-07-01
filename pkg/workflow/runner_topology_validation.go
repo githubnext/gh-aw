@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -18,6 +19,27 @@ func validateArcDindRootless(workflowData *WorkflowData) error {
 		return nil
 	}
 	runnerTopologyValidationLog.Print("Validating rootless execution for arc-dind topology")
+
+	// ARC/DinD requires AWF versions that include sysroot/chroot mount fixes.
+	// Enforce a minimum effective AWF version so workflow runs fail at compile time
+	// instead of failing at runtime with container startup/mount errors.
+	firewallConfig := getFirewallConfig(workflowData)
+	var configuredVersion string
+	if firewallConfig != nil {
+		configuredVersion = firewallConfig.Version
+	}
+	if !versionAtLeast(configuredVersion, string(constants.DefaultFirewallVersion), string(constants.AWFArcDindMinVersion)) {
+		effectiveVersion := configuredVersion
+		if effectiveVersion == "" {
+			effectiveVersion = string(constants.DefaultFirewallVersion)
+		}
+		return fmt.Errorf(
+			"runner.topology is arc-dind but AWF version %q is below minimum %q; set firewall.version or sandbox.agent.version to %s or newer",
+			effectiveVersion,
+			constants.AWFArcDindMinVersion,
+			constants.AWFArcDindMinVersion,
+		)
+	}
 
 	// Check custom steps, pre-steps, pre-agent-steps, and post-steps for sudo usage.
 	checks := []struct {

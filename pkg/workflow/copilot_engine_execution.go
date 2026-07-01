@@ -290,6 +290,9 @@ func (e *CopilotEngine) resolveCopilotCommand(workflowData *WorkflowData, sandbo
 		return customEngineCommandScriptPath, buildEngineCommandScriptSetup(workflowData.EngineConfig.Command)
 	}
 	if sandboxEnabled {
+		if isArcDindTopology(workflowData) {
+			return constants.GhAwRootDirShell + "/bin/copilot", ""
+		}
 		// AWF - use the installed binary directly
 		// The binary is mounted into the AWF container from /usr/local/bin/copilot
 		return constants.CopilotBinaryPath, ""

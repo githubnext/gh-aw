@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -1463,6 +1464,11 @@ printf 'docker-host=%%%%s\n' "$GH_AW_DOCKER_HOST"
 printf 'docker-host-path-prefix=%%%%s\n' "$GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
 `, awfArcDindDockerHostRegex, awfArcDindDockerHostRegex, awfArcDindHostPathPrefixFlag)
 
+	expectedPrefix := awfArcDindHostPathPrefixFlag
+	if runnerTemp := os.Getenv("RUNNER_TEMP"); runnerTemp != "" {
+		expectedPrefix = strings.ReplaceAll(expectedPrefix, "${RUNNER_TEMP}", runnerTemp)
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			script := fmt.Sprintf(scriptTemplate, tt.dockerHost)
@@ -1482,7 +1488,7 @@ printf 'docker-host-path-prefix=%%%%s\n' "$GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
 					"expected docker host passthrough value to NOT be set for DOCKER_HOST=%s", tt.dockerHost)
 			}
 			if tt.wantPrefixSet {
-				assert.Equal(t, awfArcDindHostPathPrefixFlag, gotPrefix,
+				assert.Equal(t, expectedPrefix, gotPrefix,
 					"expected --docker-host-path-prefix to be set for DOCKER_HOST=%s", tt.dockerHost)
 			} else {
 				assert.Empty(t, gotPrefix,
