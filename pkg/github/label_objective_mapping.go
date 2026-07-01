@@ -64,43 +64,53 @@ func (om *ObjectiveMapping) ComputeObjectiveValue(issueLabels []string) int {
 
 	switch logic {
 	case "sum":
-		total := 0
-		for _, v := range matchingValues {
-			total += v
-		}
-		labelObjectiveMappingLog.Printf("Computed objective value via sum: labels=%v, value=%d", matchedLabels, total)
-		return total
-
+		return om.computeValueSum(matchingValues, matchedLabels)
 	case "first":
-		// Return first issue label that's in priority_labels
-		if len(om.PriorityLabels) > 0 {
-			for _, issueLabel := range issueLabels {
-				for _, priorityLabel := range om.PriorityLabels {
-					if strings.EqualFold(issueLabel, priorityLabel) {
-						normalizedIssue := strings.ToLower(strings.TrimSpace(issueLabel))
-						if val, ok := om.LabelToValue[normalizedIssue]; ok {
-							labelObjectiveMappingLog.Printf("Computed objective value via issue label priority: label=%s, value=%d", issueLabel, val)
-							return val
-						}
+		return om.computeValueFirst(issueLabels, matchingValues, matchedLabels)
+	default: // "max"
+		return om.computeValueMax(matchingValues, matchedLabels)
+	}
+}
+
+func (om *ObjectiveMapping) computeValueSum(matchingValues []int, matchedLabels []string) int {
+	total := 0
+	for _, v := range matchingValues {
+		total += v
+	}
+	labelObjectiveMappingLog.Printf("Computed objective value via sum: labels=%v, value=%d", matchedLabels, total)
+	return total
+}
+
+func (om *ObjectiveMapping) computeValueFirst(issueLabels []string, matchingValues []int, matchedLabels []string) int {
+	// Return first issue label that's in priority_labels
+	if len(om.PriorityLabels) > 0 {
+		for _, issueLabel := range issueLabels {
+			for _, priorityLabel := range om.PriorityLabels {
+				if strings.EqualFold(issueLabel, priorityLabel) {
+					normalizedIssue := strings.ToLower(strings.TrimSpace(issueLabel))
+					if val, ok := om.LabelToValue[normalizedIssue]; ok {
+						labelObjectiveMappingLog.Printf("Computed objective value via issue label priority: label=%s, value=%d", issueLabel, val)
+						return val
 					}
 				}
 			}
 		}
-		// Fallback to first matching label
-		result := matchingValues[0]
-		labelObjectiveMappingLog.Printf("Computed objective value via first match: labels=%v, value=%d", matchedLabels, result)
-		return result
-
-	default: // "max"
-		maxVal := matchingValues[0]
-		for _, v := range matchingValues {
-			if v > maxVal {
-				maxVal = v
-			}
-		}
-		labelObjectiveMappingLog.Printf("Computed objective value via max: labels=%v, value=%d", matchedLabels, maxVal)
-		return maxVal
 	}
+	// Fallback to first matching label
+	result := matchingValues[0]
+	labelObjectiveMappingLog.Printf("Computed objective value via first match: labels=%v, value=%d", matchedLabels, result)
+	return result
+}
+
+func (om *ObjectiveMapping) computeValueMax(matchingValues []int, matchedLabels []string) int {
+	maxVal := matchingValues[0]
+	for _, v := range matchingValues {
+		if v > maxVal {
+			maxVal = v
+		}
+	}
+	labelObjectiveMappingLog.Printf("Computed objective value via max: labels=%v, value=%d", matchedLabels, maxVal)
+	return maxVal
 }
 
 // DefaultObjectiveMapping returns the built-in default label-to-value mapping.
