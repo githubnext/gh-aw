@@ -168,6 +168,7 @@ func avoidPeakMinutes(hour, minute int) int {
 
 // stableHash returns a deterministic hash value in the range [0, modulo)
 // using FNV-1a hash algorithm, which is stable across platforms and Go versions.
+// If modulo is <= 0, stableHash returns 0 (the range is empty/invalid).
 func stableHash(s string, modulo int) int {
 	h := fnv.New32a()
 	// hash.Hash.Write never returns an error in practice, but check to satisfy gosec G104
