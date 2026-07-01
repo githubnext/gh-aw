@@ -1,15 +1,17 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-Condensed 06-30 to fit the 10 KB repo-memory budget. **48/3600 tested, all PASS.**
+Condensed 06-30 to fit the 10 KB repo-memory budget. **52/3600 tested, all PASS.**
 
 ## Coverage map
 
 - **tiny-none-single (idx 0-44): COMPLETE, all PASS.** PATCH micro→xlarge ×
   {clean,ahead,diverged} × {single,multi,merge_msg}. Patch KB by tier: micro
   1.2-4.6, small ~49-52, medium ~198-210, large ~1013-1116, xlarge ~4053-4060.
-- **tiny-none-few (idx 45-47): OPENED, all PASS.** few-micro-clean ×
-  {single,multi,merge_msg} → 2.28-2.66 KB.
+- **tiny-none-few-micro (idx 45-51): all PASS.** clean(45-47) 2.28-2.66 KB;
+  ahead-single 2.22, ahead-multi 4.05, ahead-merge_msg 3.17, diverged-single 3.02.
+  few + push commit stays ~2-4 KB — nowhere near cap. merge_msg filename leak
+  reconfirmed at few (0001-Merge-branch-...patch, parent count 1, --merges empty).
 
 ## The cap (grounded in source)
 
@@ -65,8 +67,10 @@ it's a real bug (over-count, or runtime measuring excluded commits).
 
 ## Next
 
-Next index: **48** → `tiny-none-few-micro-ahead-single`. Enumeration walks FILES=few
-across PATCH micro→xlarge × branch × commit (idx 48-89); few-xlarge (~idx 84-89)
-predicted ~4054 KB → PASS. HISTORY=deep (500) and FILES=many/batch far ahead — the
+Next index: **52** → `tiny-none-few-micro-diverged-multi` (few-micro spans idx
+45-53; 52=diverged-multi, 53=diverged-merge_msg, then few-small opens at idx 54).
+few-xlarge (~idx 84-89) predicted ~4054 KB → PASS. NB: at micro payload, per-commit
+format-patch headers (~600 B/commit) dominate — ahead-multi (4 commits) hit 4.05 KB
+from ~1.6 KB net; that overhead never threatens the 4096 KB cap at these tiers. HISTORY=deep (500) and FILES=many/batch far ahead — the
 prime untested regions for a first rejection (SIZE still tiny throughout the early
 sweep, so payload stays small; watch when SIZE advances past tiny at idx 720).
