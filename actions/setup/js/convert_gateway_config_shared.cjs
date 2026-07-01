@@ -17,7 +17,8 @@ function rewriteUrl(url, urlPrefix) {
 }
 
 /**
- * Clone a gateway entry, apply provider-specific mutations, and rewrite URL.
+ * Shallow-clone a gateway entry, apply provider-specific mutations, and rewrite URL.
+ * Note: only the top-level object is cloned; nested fields (e.g., `headers`) are shared references.
  *
  * @param {Record<string, unknown>} entry
  * @param {string} urlPrefix
