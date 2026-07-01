@@ -349,16 +349,25 @@ describe("awf_reflect.cjs", () => {
       expect(inferProviderTypeForModel("openai", "gpt-4o", null)).toBe("openai");
     });
 
-    it("uses model name heuristic for claude-* models on copilot endpoint", () => {
-      expect(inferProviderTypeForModel("copilot", "claude-sonnet-4.6", null)).toBe("anthropic");
-      expect(inferProviderTypeForModel("copilot", "claude-opus-4-5", null)).toBe("anthropic");
+    it("uses explicit copilot provider mapping (always openai)", () => {
+      // GitHub Copilot provider is a multi-model proxy that always uses OpenAI wire protocol,
+      // regardless of model name (even for claude/anthropic models)
+      expect(inferProviderTypeForModel("copilot", "claude-sonnet-4.6", null)).toBe("openai");
+      expect(inferProviderTypeForModel("copilot", "claude-opus-4-5", null)).toBe("openai");
+      expect(inferProviderTypeForModel("github-copilot", "claude-haiku-4.5", null)).toBe("openai");
+      // Non-copilot providers still use model name heuristics
       expect(inferProviderTypeForModel("", "claude-haiku-4.5", null)).toBe("anthropic");
     });
 
-    it("uses model name heuristic for opus/haiku/sonnet suffix models", () => {
-      expect(inferProviderTypeForModel("copilot", "model-opus-4.6", null)).toBe("anthropic");
-      expect(inferProviderTypeForModel("copilot", "model-haiku-4.5", null)).toBe("anthropic");
-      expect(inferProviderTypeForModel("copilot", "model-sonnet-4", null)).toBe("anthropic");
+    it("uses model name heuristic for opus/haiku/sonnet suffix models when provider is not copilot", () => {
+      // copilot provider always returns openai
+      expect(inferProviderTypeForModel("copilot", "model-opus-4.6", null)).toBe("openai");
+      expect(inferProviderTypeForModel("copilot", "model-haiku-4.5", null)).toBe("openai");
+      expect(inferProviderTypeForModel("copilot", "model-sonnet-4", null)).toBe("openai");
+      // Non-copilot providers use model name heuristics
+      expect(inferProviderTypeForModel("", "model-opus-4.6", null)).toBe("anthropic");
+      expect(inferProviderTypeForModel("", "model-haiku-4.5", null)).toBe("anthropic");
+      expect(inferProviderTypeForModel("", "model-sonnet-4", null)).toBe("anthropic");
     });
 
     it("uses model name heuristic for gpt-* models", () => {
@@ -372,7 +381,7 @@ describe("awf_reflect.cjs", () => {
       expect(inferProviderTypeForModel("copilot", "o4-mini", null)).toBe("openai");
     });
 
-    it("looks up provider_type from modelsJson catalog", () => {
+    it("copilot provider always returns openai, even for anthropic models in catalog", () => {
       const modelsJson = {
         providers: {
           "github-copilot": {
@@ -384,12 +393,14 @@ describe("awf_reflect.cjs", () => {
         },
       };
       expect(inferProviderTypeForModel("copilot", "raptor-mini", modelsJson)).toBe("openai");
-      expect(inferProviderTypeForModel("copilot", "claude-sonnet-4", modelsJson)).toBe("anthropic");
+      // copilot provider mapping takes precedence over catalog provider_type
+      expect(inferProviderTypeForModel("copilot", "claude-sonnet-4", modelsJson)).toBe("openai");
     });
 
-    it("falls back to heuristics when model is not in catalog", () => {
+    it("copilot provider always returns openai, even for anthropic model name heuristics", () => {
       const modelsJson = { providers: { "github-copilot": { models: {} } } };
-      expect(inferProviderTypeForModel("copilot", "claude-unknown-model", modelsJson)).toBe("anthropic");
+      // copilot provider mapping takes precedence over model name heuristics
+      expect(inferProviderTypeForModel("copilot", "claude-unknown-model", modelsJson)).toBe("openai");
     });
 
     it("returns 'openai' by default for unknown models", () => {

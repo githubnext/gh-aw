@@ -251,6 +251,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
       models: providerModels,
       onPermissionRequest,
     };
+    log(`creating session with model="${sessionConfig.model || "(none)"}" providers=${providers?.length ?? 0} models=${providerModels?.length ?? 0}`);
     session = await client.createSession(sessionConfig);
     log(`session created: sessionId=${session.sessionId}`);
 

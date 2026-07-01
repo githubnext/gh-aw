@@ -575,15 +575,21 @@ function resolveMultiProviderFromReflect(options) {
 
     const endpointModels = Array.isArray(endpoint.models) ? endpoint.models.filter(m => typeof m === "string" && m.trim().length > 0) : [];
 
-    // Infer provider type and wire API using the first model as representative.
-    // wireApi is per-provider in the SDK — it applies uniformly to all models on the endpoint.
+    // Infer provider type and wire API using the configured model if available,
+    // otherwise fall back to the first model.
+    // For multi-model providers (e.g. Copilot), different models may have different wire APIs,
+    // so we prefer the configured model to ensure the correct wireApi is selected.
     const firstModel = endpointModels.length > 0 ? endpointModels[0] : "";
+    const modelForInference = configuredModel && endpointModels.includes(configuredModel) ? configuredModel : firstModel;
     const catalogProviderName = rawProviderName.toLowerCase() === "copilot" ? "github-copilot" : rawProviderName;
-    const catalogEntry = firstModel ? getCatalogModelEntry(options?.modelsJson ?? null, firstModel, catalogProviderName) : null;
-    const providerType = inferProviderTypeForModel(rawProviderName, firstModel, catalogEntry);
-    const wireApi = inferWireApiForModel(providerType, firstModel, catalogEntry);
+    const catalogEntry = modelForInference ? getCatalogModelEntry(options?.modelsJson ?? null, modelForInference, catalogProviderName) : null;
+    const providerType = inferProviderTypeForModel(rawProviderName, modelForInference, catalogEntry);
+    const wireApi = inferWireApiForModel(providerType, modelForInference, catalogEntry);
 
-    logger(`sdk-mode(multi): resolved provider="${providerName}" (raw="${rawProviderName}") type="${providerType}" wireApi="${wireApi || "(none)"}" ` + `firstModel="${firstModel}" modelCount=${endpointModels.length} baseUrl="${baseUrl}"`);
+    logger(
+      `sdk-mode(multi): resolved provider="${providerName}" (raw="${rawProviderName}") type="${providerType}" wireApi="${wireApi || "(none)"}" ` +
+        `inferredFrom="${modelForInference}" modelCount=${endpointModels.length} baseUrl="${baseUrl}"`
+    );
 
     providers.push({
       name: providerName,

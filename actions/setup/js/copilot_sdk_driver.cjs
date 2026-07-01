@@ -45,20 +45,6 @@ function log(msg) {
   process.stderr.write(`[copilot-sdk-driver] ${msg}\n`);
 }
 
-/**
- * Parse the GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON env var.
- *
- * Returns `null` when the env var is unset or contains invalid JSON.
- * On success returns `{ model, providers, models }` where the shapes match the
- * Copilot SDK `NamedProviderConfig` / `ProviderModelConfig` types.
- *
- * @param {string | undefined} raw
- * @returns {{
- *   model: string,
- *   providers: import("@github/copilot-sdk").NamedProviderConfig[],
- *   models: import("@github/copilot-sdk").ProviderModelConfig[],
- * } | null}
- */
 function isValidProviderConfig(p) {
   return p && typeof p.name === "string" && typeof p.type === "string" && typeof p.baseUrl === "string";
 }
@@ -67,10 +53,24 @@ function isValidModelConfig(m) {
   return m && typeof m.id === "string" && typeof m.provider === "string";
 }
 
-function parseMultiProviderJson(raw) {
-  if (!raw) return null;
+/**
+ * Parse the GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON env var.
+ *
+ * Returns `null` when the env var is unset or contains invalid JSON.
+ * On success returns `{ model, providers, models }` where the shapes match the
+ * Copilot SDK `NamedProviderConfig` / `ProviderModelConfig` types.
+ *
+ * @param {string | undefined} value
+ * @returns {{
+ *   model: string,
+ *   providers: import("@github/copilot-sdk").NamedProviderConfig[],
+ *   models: import("@github/copilot-sdk").ProviderModelConfig[],
+ * } | null}
+ */
+function parseMultiProviderJson(value) {
+  if (!value) return null;
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(value);
     if (!parsed || typeof parsed !== "object") return null;
     if (!Array.isArray(parsed.providers) || parsed.providers.length < 1) return null;
     if (!Array.isArray(parsed.models) || parsed.models.length < 1) return null;
@@ -130,23 +130,17 @@ async function main() {
   // The harness injects GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON before launching
   // this driver.  Multi-provider BYOK is the only supported mode.
 
-  /** @type {import("@github/copilot-sdk").NamedProviderConfig[] | undefined} */
-  let providers;
-  /** @type {import("@github/copilot-sdk").ProviderModelConfig[] | undefined} */
-  let sdkModels;
-  let model = process.env.COPILOT_MODEL || undefined;
-
   const multiProviderConfig = parseMultiProviderJson(process.env.GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON);
   if (!multiProviderConfig) {
     process.stderr.write("[copilot-sdk-driver] error: GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON is not set or invalid — " + "ensure the harness resolved multi-provider config from awf-reflect data\n");
     process.exit(1);
   }
 
-  providers = multiProviderConfig.providers;
-  sdkModels = multiProviderConfig.models;
-  if (!model && multiProviderConfig.model) {
-    model = multiProviderConfig.model;
-  }
+  /** @type {import("@github/copilot-sdk").NamedProviderConfig[]} */
+  const providers = multiProviderConfig.providers;
+  /** @type {import("@github/copilot-sdk").ProviderModelConfig[]} */
+  const sdkModels = multiProviderConfig.models;
+  let model = process.env.COPILOT_MODEL || multiProviderConfig.model || undefined;
   log(`multi-provider mode: ${providers.length} providers, ${sdkModels.length} models, model=${model ?? "(env)"}`);
   for (const p of providers) {
     log(`  provider: name=${p.name} type=${p.type} baseUrl=${p.baseUrl}${p.wireApi ? ` wireApi=${p.wireApi}` : ""}`);
