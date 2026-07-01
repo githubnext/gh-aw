@@ -195,6 +195,61 @@ func TestCollectSkillRepositories_PreservesCaseAndPrefersLaterEntries(t *testing
 	}
 }
 
+func TestParseSkillRepositoryRef(t *testing.T) {
+	tests := []struct {
+		name      string
+		skillSpec string
+		wantRepo  string
+		wantRef   string
+		wantOK    bool
+	}{
+		{
+			name:      "repo-only skill ref",
+			skillSpec: "githubnext/skills@1111111111111111111111111111111111111111",
+			wantRepo:  "githubnext/skills",
+			wantRef:   "1111111111111111111111111111111111111111",
+			wantOK:    true,
+		},
+		{
+			name:      "nested skill path ref",
+			skillSpec: "githubnext/skills/agentic-workflows@2222222222222222222222222222222222222222",
+			wantRepo:  "githubnext/skills",
+			wantRef:   "2222222222222222222222222222222222222222",
+			wantOK:    true,
+		},
+		{
+			name:      "missing at separator",
+			skillSpec: "githubnext/skills",
+			wantOK:    false,
+		},
+		{
+			name:      "missing ref",
+			skillSpec: "githubnext/skills@",
+			wantOK:    false,
+		},
+		{
+			name:      "invalid base",
+			skillSpec: "githubnext@3333333333333333333333333333333333333333",
+			wantOK:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotRepo, gotRef, gotOK := parseSkillRepositoryRef(tt.skillSpec)
+			if gotOK != tt.wantOK {
+				t.Fatalf("expected ok=%v, got %v", tt.wantOK, gotOK)
+			}
+			if gotRepo != tt.wantRepo {
+				t.Fatalf("expected repo %q, got %q", tt.wantRepo, gotRepo)
+			}
+			if gotRef != tt.wantRef {
+				t.Fatalf("expected ref %q, got %q", tt.wantRef, gotRef)
+			}
+		})
+	}
+}
+
 func TestGeneratePackageJSON(t *testing.T) {
 	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
