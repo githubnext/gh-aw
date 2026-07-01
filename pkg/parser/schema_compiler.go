@@ -117,8 +117,8 @@ func getParsedSchemaDoc(schemaJSON string) (any, error) {
 	}
 }
 
-// compileSchema compiles a JSON schema from a JSON string
-func compileSchema(schemaJSON, schemaURL string) (*jsonschema.Schema, error) {
+// CompileSchema compiles a JSON schema from a JSON string.
+func CompileSchema(schemaJSON, schemaURL string) (*jsonschema.Schema, error) {
 	schemaCompilerLog.Printf("Compiling JSON schema: %s", schemaURL)
 
 	// Create a new compiler
@@ -142,6 +142,11 @@ func compileSchema(schemaJSON, schemaURL string) (*jsonschema.Schema, error) {
 	}
 
 	return schema, nil
+}
+
+// compileSchema preserves existing package-local call sites.
+func compileSchema(schemaJSON, schemaURL string) (*jsonschema.Schema, error) {
+	return CompileSchema(schemaJSON, schemaURL)
 }
 
 // safeOutputMetaFields are the meta-configuration fields in safe-outputs that are NOT actual safe output types.
