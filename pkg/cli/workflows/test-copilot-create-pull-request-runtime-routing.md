@@ -25,7 +25,7 @@ This is a test workflow to verify that `create-pull-request` accepts runtime exp
 
 Please:
 1. Create a new file called `test-runtime-routing-demo.txt` with a simple message
-2. Use the `create_pull_request` safe output to create a pull request with your changes
+2. Use the `create-pull-request` safe output to create a pull request with your changes
 3. Confirm the created pull request automatically has:
    - The triggering actor assigned as a reviewer (check the Reviewers section in the GitHub PR sidebar)
    - The workflow input team assigned as a team reviewer (check the Reviewers section in the GitHub PR sidebar)

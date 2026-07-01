@@ -45,7 +45,8 @@ func TestCompileCreatePullRequestRuntimeRoutingWorkflow(t *testing.T) {
 	createPullRequestConfig, ok := handlerConfig["create_pull_request"]
 	require.True(t, ok, "handler config should include create_pull_request")
 	assert.Equal(t, "${{ github.actor }}", createPullRequestConfig["reviewers"], "reviewers expression should remain a runtime string in handler config")
-	// Handler config normalizes frontmatter keys like team-reviewers to team_reviewers.
+	// Handler config normalizes frontmatter keys like team-reviewers to team_reviewers
+	// to match JSON property naming conventions.
 	assert.Equal(t, "${{ inputs.review-team }}", createPullRequestConfig["team_reviewers"], "team_reviewers expression should remain a runtime string in handler config")
 	assert.Equal(t, "${{ github.actor }}", createPullRequestConfig["assignees"], "assignees expression should remain a runtime string in handler config")
 }
