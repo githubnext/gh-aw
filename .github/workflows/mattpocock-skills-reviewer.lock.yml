@@ -289,21 +289,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/add_workflow_run_comment.cjs');
             await main();
       - name: Upgrade gh CLI for frontmatter skills
-        run: |
-          set -euo pipefail
-          REQUIRED="2.90.0"
-          GH_VERSION=$(gh --version | awk 'NR==1 {print $3}')
-          echo "gh version: ${GH_VERSION}"
-          if ! printf '%s\n%s\n' "$REQUIRED" "$GH_VERSION" | sort -V -C; then
-            echo "gh ${GH_VERSION} is older than ${REQUIRED}, upgrading..."
-            bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
-            GH_VERSION=$(gh --version | awk 'NR==1 {print $3}')
-            echo "gh version after upgrade: ${GH_VERSION}"
-            if ! printf '%s\n%s\n' "$REQUIRED" "$GH_VERSION" | sort -V -C; then
-              echo "::error::gh ${GH_VERSION} is older than required ${REQUIRED} (gh skill support requires v2.90.0+)"
-              exit 1
-            fi
-          fi
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/ensure_gh_cli_min_version.sh" "2.90.0"
       - name: Install frontmatter skill 1
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
