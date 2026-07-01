@@ -2,7 +2,7 @@
   "counts": {
     "sub_agent_strategy": {
       "batch": 27,
-      "per_scenario": 15
+      "per_scenario": 16
     }
   },
   "runs": [
@@ -305,6 +305,13 @@
       "timestamp": "2026-06-30T16:13:09.066Z",
       "assignments": {
         "sub_agent_strategy": "batch"
+      }
+    },
+    {
+      "run_id": "28531423391",
+      "timestamp": "2026-07-01T16:12:06.390Z",
+      "assignments": {
+        "sub_agent_strategy": "per_scenario"
       }
     }
   ]
