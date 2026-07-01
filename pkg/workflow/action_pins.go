@@ -116,9 +116,12 @@ func (c *Compiler) getActionPin(repo string) string {
 					return actionpins.FormatPinnedActionReference(repo, latestEmbedded.SHA, latestEmbedded.Version)
 				}
 				if embeddedVersion == nil {
-					actionPinsLog.Printf("Ignoring embedded version with unparseable version for compiler-generated action %s: cache=%s embedded=%s",
+					actionPinsLog.Printf("Using cached version for compiler-generated action %s because embedded version is unparseable: cache=%s embedded=%s",
 						repo, entry.Version, latestEmbedded.Version)
-					return actionpins.FormatPinnedActionReference(repo, latestEmbedded.SHA, latestEmbedded.Version)
+					if resolver != nil {
+						resolver.MarkCacheKeyAsUsed(cacheKey)
+					}
+					return actionpins.FormatPinnedActionReference(repo, entry.SHA, entry.Version)
 				}
 				if embeddedVersion.IsNewer(cachedVersion) {
 					actionPinsLog.Printf("Ignoring stale cache entry for compiler-generated action %s: cache=%s embedded=%s",
