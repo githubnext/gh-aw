@@ -1457,6 +1457,20 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Protected Files");
     });
 
+    it("renders allowed-files errors with progressive disclosure", () => {
+      const errors =
+        "create_pull_request:Cannot create pull request: patch modifies files outside the allowed-files list " +
+        "(pkg/workflow/codex_engine.go, pkg/workflow/codex_mcp.go, pkg/workflow/compiler_yaml.go). " +
+        "Add the files to the allowed-files configuration field or remove them from the patch.";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("Code Push Failed");
+      expect(result).toContain("outside the allowed-files list. Add the files to the allowed-files configuration field or remove them from the patch.");
+      expect(result).toContain("<details>");
+      expect(result).toContain("<summary>Show 3 blocked files</summary>");
+      expect(result).toContain("`pkg/workflow/codex_engine.go`, `pkg/workflow/codex_mcp.go`, `pkg/workflow/compiler_yaml.go`");
+      expect(result).not.toContain("outside the allowed-files list (pkg/workflow/codex_engine.go, pkg/workflow/codex_mcp.go, pkg/workflow/compiler_yaml.go)");
+    });
+
     it("shows both sections when protected file and non-protected-file errors are mixed", () => {
       const errors = [
         "create_pull_request:Cannot create pull request: patch modifies package manifest files (package.json). Set allow-manifest-files: true in your workflow to allow this.",

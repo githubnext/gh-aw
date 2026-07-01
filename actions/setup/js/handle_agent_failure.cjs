@@ -4,7 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getDetectionCautionAlert, getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
-const { renderTemplate, renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
+const { renderTemplate, renderTemplateFromFile, getPromptPath, renderFilesList } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, extractExpirationDate, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
@@ -75,6 +75,30 @@ function extractRunId(runUrl) {
  */
 function buildWarningAlertLine(title, message) {
   return `\n> [!WARNING]\n> **${title}**: ${message}\n`;
+}
+
+/**
+ * Render an allowed-files error using progressive disclosure for the file list.
+ * @param {string} type
+ * @param {string} error
+ * @returns {string|null}
+ */
+function renderAllowedFilesError(type, error) {
+  const match = error.match(/^(.*outside the allowed-files list) \(([^)]+)\)\. (Add the files to the allowed-files configuration field or remove them from the (?:patch|bundle)\.)$/);
+  if (!match) {
+    return null;
+  }
+
+  const summary = match[1];
+  const files = match[2]
+    .split(",")
+    .map(file => file.trim())
+    .filter(Boolean);
+  const remediation = match[3];
+  const fileCount = files.length;
+  const fileLabel = fileCount === 1 ? "file" : "files";
+
+  return `- \`${type}\`: ${summary}. ${remediation}\n` + `\n<details>\n<summary>Show ${fileCount} blocked ${fileLabel}</summary>\n\n` + `${renderFilesList(files)}\n` + `\n</details>\n`;
 }
 
 /**
@@ -947,7 +971,7 @@ gh pr create --head aw/manual-apply
     }
     context += "\n**Code Push Errors:**\n";
     for (const { type, error } of otherErrors) {
-      context += `- \`${type}\`: ${error}\n`;
+      context += renderAllowedFilesError(type, error) || `- \`${type}\`: ${error}\n`;
     }
     context += "\n";
   } else if (manifestErrors.length > 0 || patchSizeErrors.length > 0 || patchApplyErrors.length > 0) {
