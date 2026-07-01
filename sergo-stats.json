@@ -1,9 +1,9 @@
 {
-  "total_runs": 52,
-  "total_findings": 362,
-  "total_tasks": 100,
-  "avg_success_score": 8.78,
-  "last_run": "2026-06-30",
+  "total_runs": 53,
+  "total_findings": 368,
+  "total_tasks": 102,
+  "avg_success_score": 8.79,
+  "last_run": "2026-07-01",
   "serena_lsp": "23 tools stable. activate_project --project. find_symbol broad 70s+ (prefer Grep). gh issue list --search BROKEN -> gh api issues?labels=sergo. gh api sergo BEFORE strategy + grep code (OPEN!=fixed).",
   "open_issues": "DO-NOT-REFILE (OPEN): syntactic holdouts #40243(osexit:59/fprintln:144/errstring:100)/#40435(fileclose:172+contextcancel:138); pattern-set #40244/#40434/#40581; #39732/#39733/#39981/#39982/#40733/#40734/#40947/#40436(doc-sync); R46 #41163/#41164; R47 #41376/#41377; R48 #41606(panicinlib FuncLit); R49 #41844(nolint-parity 5)/#41845(fmterrorfnoverbs %%); R50 #42004(httpstatuscode name-gate FN+FP); R51 #aw_sg51a1(hardcodedfilepath hasFormatVerb narrow). ALL landed-but-open common.",
   "patterns": {
@@ -21,9 +21,9 @@
   },
   "ci_enforce_14": "cgo.yml LINTER_FLAGS -test=false (test-skip moot in CI): errstringmatch panicinlibrarycode manualmutexunlock osexitinlibrary rawloginlib regexpcompileinfunction fprintlnsprintf strconvparseignorederror jsonmarshalignoredeerror uncheckedtypeassertion fmterrorfnoverbs tolowerequalfold httpnoctx timeafterleak. NOT-enforced probe-targets: sprintferrdot fileclose contextcancel sprintferrorsnew lenstringzero seenmapbool ossetenvlibrary errorfwrapv excessivefuncparams largefunc deferinloop errormessage.",
   "linters_R44": {
-    "registered": 38,
-    "delta": "R52: 37->38 38th=errortypeassertion(CLEAN type-resolved, ADR 42323, 0 prod viol, enforce-batch #aw_sg52a1). R51: 36->37 37th=osgetenvlibrary(clean clone, 77 TP enforce-ready). R50:36th=httpstatuscode(#42004). doc.go drifts=#40436. Detector: grep -c Analyzer main.go vs prev + doc-omitted-minus-known. CLEAN audits: errorfwrapv,ossetenv/osgetenv,largefunc,deferinloop,stringreplaceminusone,lenstringsplit,ctxbackground,regexpcompileinfunction,sortslice,manualmutexunlock,tolowerequalfold(type-resolved).",
-    "next_R53": "registry NOW 38 (errortypeassertion CLEAN known, ADR 42323)=watch 39th grep -c Analyzer main.go vs 38 + doc-omitted-minus-known. RECONCILE: R52 sg52a1=#aw_sg52a1 enforce-batch(errortypeassertion+execcommandwithoutcontext add to cgo.yml:1208). R51 sg51a1=#42174 OPEN. FRESH never-deep-audited: seenmapbool(#40733 double-report), errstringmatch(#40244 Contains-only), hardcodedfilepath-other-funcs(#42174 open). ENFORCE-GAP precedent ACTED+closed: #39324(timesleepnocontext) #39016(httpnoctx) #38282(execcommand prereqs)=team welcomes zero-violation enforce-readiness issues. TEST-SKIP gap: strconvparseignorederror+jsonmarshalignoredeerror NO filecheck. 5 syntactic holdouts #40243/#40435 open. scope_boundary_funclit family=ctxbackground#41164/wgdone#40947/panicinlib#41606 (ref=deferinloop). Prefer single-file precision 1-2 issues/run."
+    "registered": 39,
+    "delta": "R53: 38->39 39th=sprintfint(CLEAN type-resolved, 0 default-build viol, enforce-ready #aw_sg53a1; wasm blind-spot #aw_sg53a2). R52: 37->38 38th=errortypeassertion(CLEAN, ADR 42323, enforce-batch #42416 LANDED+CLOSED). R51: 37th=osgetenvlibrary(clean). R50:36th=httpstatuscode(#42004). doc.go drifts=#40436. Detector: grep -c Analyzer main.go vs prev + doc-omitted-minus-known. CLEAN audits: errorfwrapv,ossetenv/osgetenv,largefunc,deferinloop,stringreplaceminusone,lenstringsplit,ctxbackground,regexpcompileinfunction,sortslice,manualmutexunlock,tolowerequalfold(type-resolved).",
+    "next_R54": "registry NOW 39 (sprintfint CLEAN known)=watch 40th grep -c Analyzer main.go vs 39 + doc-omitted-minus-known. RECONCILE: R53 sg53a1=#aw_sg53a1 (sprintfint enforce-ready) + sg53a2=#aw_sg53a2 (BUILD-TAG BLIND SPOT wasm) both OPEN. R52 sg52a1=#42416 LANDED+CLOSED (cgo.yml LINTER_FLAGS now 16). R51 #42174 OPEN, #42004 OPEN. NEW PATTERN build_tag_blind_spot: multichecker default GOOS no -tags => *_wasm.go/*_windows.go escape ALL linters; probe build-tagged siblings for drift vs default (console_wasm.go:41 proved sprintfint TP). FRESH never-deep-audited: seenmapbool(#40733), errstringmatch(#40244), sprintferrdot. ENFORCE-GAP precedent ACTED+closed (#39324/#39016/#38282/#42416)=team welcomes zero-violation enforce-readiness. TEST-SKIP gap: strconvparseignorederror+jsonmarshalignoredeerror NO filecheck. 5 syntactic holdouts #40243/#40435. scope_boundary_funclit=ctxbackground#41164/wgdone#40947/panicinlib#41606. Prefer single-file precision 1-2 issues/run."
   },
   "repo_context": "pkg/: ~937 prod .go (947 incl test). 32 analyzers cmd/linters/main.go:55-86. astutil.IsPkgSelector(astutil.go:75-94)=canonical pkg-identity; internal/nolint=per-line suppress (20/32 wire); internal/filecheck.IsTestFile=test-skip. Linters in pkg/linters/. Issue flow: Write JSON /tmp/gh-aw/agent/issueN.json, `safeoutputs create_issue . < file`; labels['sergo']+temporary_id aw_sg44aN. Dedup `gh api ...issues?labels=sergo --jq` (gh issue list --search BROKEN). Bash blocks: go build, /tmp ls/cat/mkdir, multi-stmt, $var loops, grep|grep. Repo-memory: Glob/Read/Write/Edit ONLY. MEMORY 10KB TOTAL PATCH: surgical edits + append-only strategies, avoid full-rewriting both JSONs same run."
 }

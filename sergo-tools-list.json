@@ -1,8 +1,8 @@
 {
-  "last_updated": "2026-06-30T00:00:00Z",
+  "last_updated": "2026-07-01T00:00:00Z",
   "tool_count": 23,
-  "tool_change_R52": "LSP 23 stable. REGISTRY 37->38: NEW 38th=errortypeassertion (main.go:65; grep -c Analyzer=38; ADR docs/adr/42323) AUDITED CLEAN type-resolved: types.Identical(TypeOf(X),builtinError), excludes iface+named-iface-embed-error, TypeAssertExpr+TypeSwitchStmt, nolint+filecheck. ZERO prod viol (prod .(*) all ast/types nodes). ISSUE sg52a1=#aw_sg52a1 enforce-batch errortypeassertion+execcommandwithoutcontext add to cgo.yml:1208 LINTER_FLAGS(14). R51 sg51a1 LANDED=#42174 OPEN.",
-  "tool_change_R51": "LSP 23 stable. REGISTRY 36->37: NEW 37th=osgetenvlibrary (main.go:77; grep -c Analyzer=37) AUDITED CLEAN: type-resolved fn.Pkg().Path()=='os' Getenv/LookupEnv + nolint:37,58 + filecheck:49 + cmd/main skip:29; clone of ossetenvlibrary; 77 prod TP sites=enforce-ready. R50 #aw_sg50a1=#42004 LANDED OPEN. R51 sg51a1=#aw_sg51a1 hardcodedfilepath hasFormatVerb:88 verb-set narrow(%s%d%v%q%w%f only; missing %x/%t/%c/%g/%p/%e/%b/%o/%U) pattern_set_too_narrow latent-FP(0 prod TP, all 4 path-tmpl use %s). doc.go empty.",
+  "tool_change_R53": "LSP 23 stable. REGISTRY 38->39: NEW 39th=sprintfint (main.go:90; grep -c Analyzer=39) AUDITED CLEAN type-resolved: IsPkgSelector fmt:58, exact types.Typ[Int]:77 (excludes int64/uint/named-int autofix-safe), nolint:33/49+filecheck:46. ZERO default-build viol (only Sprintf(\"%d\") default sites: stringutil:59 any-typed multi-type-switch). sg53a1=#aw_sg53a1 enforce-ready add -sprintfint cgo.yml:1208 (LINTER_FLAGS now 16). NOVEL sg53a2=#aw_sg53a2 BUILD-TAG BLIND SPOT: multichecker.Main(Makefile:725) default GOOS no -tags => ~20 *_wasm.go(js||wasm) escape ALL 39 linters; PROOF console_wasm.go:41 Sprintf(\"%d\",int) latent sprintfint TP, default sibling console.go:110 already strconv.Itoa. R52 sg52a1=#42416 LANDED+CLOSED.",
+  "tool_change_R52": "REGISTRY 37->38: 38th=errortypeassertion(main.go:65; ADR docs/adr/42323) CLEAN type-resolved. sg52a1=#42416 LANDED+CLOSED enforce-batch errortypeassertion+execcommandwithoutcontext added to cgo.yml:1208 LINTER_FLAGS(now 16).",
   "tools": [
     "activate_project", "check_onboarding_performed", "delete_memory", "edit_memory",
     "find_file", "find_referencing_symbols", "find_symbol", "get_current_config",
