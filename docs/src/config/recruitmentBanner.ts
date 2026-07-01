@@ -49,7 +49,7 @@ ctaText: string;
 ctaUrl: string;
 
 /**
- * Optional path scoping. Each entry is matched as a substring of the current pathname
+ * Optional path scoping. Each entry is matched as a path prefix of the current pathname
  * (e.g. `/gh-aw/guides/`). Empty array = show on every docs page.
  */
 paths: string[];

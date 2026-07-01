@@ -190,7 +190,9 @@ align-items: flex-start;
     const params = new URLSearchParams(window.location.search);
     if (params.get('recruit') === slug) {
       const incomingUid = sanitizeUid(params.get('uid') || '');
-      set(KEY, incomingUid || '1');
+      // '__present__' is a non-numeric sentinel meaning "eligible but no uid provided".
+      // It avoids collision with valid numeric uids (e.g. uid=1).
+      set(KEY, incomingUid || '__present__');
     }
 
     // 2) Respect dismissals (unless frequency is "always").
@@ -198,7 +200,7 @@ align-items: flex-start;
 
     // 3) Eligible only if we captured the recruitment link at some point.
     const stored = get(KEY);
-    const uid = sanitizeUid(stored && stored !== '1' ? stored : '');
+    const uid = sanitizeUid(stored && stored !== '__present__' ? stored : '');
     const eligible = Boolean(stored) && (!requireUid || Boolean(uid));
     if (!eligible) return;
 
@@ -219,7 +221,9 @@ align-items: flex-start;
       if (uid) u.searchParams.set('pid', uid);
       if (cta) cta.href = u.toString();
     } catch (e) {
-      /* leave the configured href as-is */
+      // CTA URL failed validation (invalid URL or non-http/https scheme); fail closed — keep
+      // the banner hidden rather than potentially exposing a javascript: href.
+      return;
     }
 
     // 6) Best-effort click tracking (no-op unless something listens for the event).
