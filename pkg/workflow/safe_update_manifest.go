@@ -53,7 +53,7 @@ type GHAWManifest struct {
 	Version            int                             `json:"version"`
 	Secrets            []string                        `json:"secrets"`
 	Actions            []GHAWManifestAction            `json:"actions"`
-	Skills             []string                        `json:"skills,omitempty"`              // frontmatter skill specs (owner/repo@sha), sorted
+	Skills             []string                        `json:"skills,omitempty"`              // frontmatter skill specs (owner/repo@sha or owner/repo/skill/path@sha), sorted
 	ResolutionFailures []GHAWManifestResolutionFailure `json:"resolution_failures,omitempty"` // unresolved action-ref pinning failures
 	Containers         []GHAWManifestContainer         `json:"containers,omitempty"`          // container images used, with digest when available
 	Redirect           string                          `json:"redirect,omitempty"`            // frontmatter redirect target for moved workflows
