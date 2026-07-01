@@ -32,7 +32,7 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.195"
+const DefaultClaudeCodeVersion Version = "2.1.197"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
@@ -45,7 +45,7 @@ const DefaultCopilotVersion Version = "1.0.67"
 const DefaultCopilotSDKVersion Version = "1.0.4"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.142.4"
+const DefaultCodexVersion Version = "0.142.5"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.39.1"
@@ -57,7 +57,7 @@ const DefaultAntigravityVersion Version = "1.0.2-6113393518706688"
 const DefaultCrushVersion Version = "0.59.0"
 
 // DefaultPiVersion is the default version of the Pi CLI
-const DefaultPiVersion Version = "0.80.2"
+const DefaultPiVersion Version = "0.80.3"
 
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "1.2.14"
@@ -125,11 +125,11 @@ const DefaultMCPGatewayVersion Version = "v0.3.32"
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.76"
+const DefaultPlaywrightMCPVersion Version = "0.0.77"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package
 // Used when tools.playwright.mode is "cli" to install the CLI tool instead of the MCP server.
-const DefaultPlaywrightCLIVersion Version = "0.1.14"
+const DefaultPlaywrightCLIVersion Version = "0.1.15"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.61.1"
