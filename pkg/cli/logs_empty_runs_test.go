@@ -22,9 +22,6 @@ func TestBuildLogsDataEmptyRuns(t *testing.T) {
 	if logsData.Summary.TotalRuns != 0 {
 		t.Errorf("Expected TotalRuns to be 0, got %d", logsData.Summary.TotalRuns)
 	}
-	if logsData.Summary.TotalTokens != 0 {
-		t.Errorf("Expected TotalTokens to be 0, got %d", logsData.Summary.TotalTokens)
-	}
 
 	// Verify runs array is empty
 	if len(logsData.Runs) != 0 {
@@ -68,12 +65,8 @@ func TestRenderLogsJSONEmptyRuns(t *testing.T) {
 	if parsedData.Summary.TotalRuns != 0 {
 		t.Errorf("Expected TotalRuns 0, got %d", parsedData.Summary.TotalRuns)
 	}
-	if parsedData.Summary.TotalTokens != 0 {
-		t.Errorf("Expected TotalTokens 0, got %d", parsedData.Summary.TotalTokens)
-	}
 
-	// Verify the JSON contains the total_tokens field
-	// This is the key test - the field should be present even when zero
+	// Verify the JSON summary is valid
 	var jsonMap map[string]any
 	if err := json.Unmarshal([]byte(output), &jsonMap); err != nil {
 		t.Fatalf("Failed to parse JSON as map: %v", err)
@@ -83,8 +76,10 @@ func TestRenderLogsJSONEmptyRuns(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected summary to be a map, got %T", jsonMap["summary"])
 	}
-
-	if _, exists := summary["total_tokens"]; !exists {
-		t.Errorf("Expected total_tokens field to exist in summary, but it was missing. Summary: %+v", summary)
+	if _, exists := summary["total_runs"]; !exists {
+		t.Fatalf("Expected total_runs field in summary. Summary: %+v", summary)
+	}
+	if _, exists := summary["total_tokens"]; exists {
+		t.Fatalf("Expected total_tokens to be omitted when token data is unavailable. Summary: %+v", summary)
 	}
 }

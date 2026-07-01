@@ -17,6 +17,26 @@ function rewriteUrl(url, urlPrefix) {
 }
 
 /**
+ * Shallow-clone a gateway entry, apply provider-specific mutations, and rewrite URL.
+ * Note: only the top-level object is cloned; nested fields (e.g., `headers`) are shared references.
+ *
+ * @param {Record<string, unknown>} entry
+ * @param {string} urlPrefix
+ * @param {(transformed: Record<string, unknown>) => void} [mutate]
+ * @returns {Record<string, unknown>}
+ */
+function normalizeGatewayEntry(entry, urlPrefix, mutate) {
+  const transformed = { ...entry };
+  if (mutate) {
+    mutate(transformed);
+  }
+  if (typeof transformed.url === "string") {
+    transformed.url = rewriteUrl(transformed.url, urlPrefix);
+  }
+  return transformed;
+}
+
+/**
  * @param {string} name
  * @returns {string}
  */
@@ -129,6 +149,7 @@ function writeSecureOutput(outputPath, output) {
 
 module.exports = {
   rewriteUrl,
+  normalizeGatewayEntry,
   loadGatewayContext,
   logCLIFilters,
   filterAndTransformServers,

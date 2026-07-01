@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -14,21 +14,29 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
  *   - Identifier `undefined`
  *   - .length member access: commonly numeric in practice
  */
-function nonStringKind(node: TSESTree.Node): string | null {
+const NUMERIC_LITERAL_KIND = "numeric literal" as const;
+const BOOLEAN_LITERAL_KIND = "boolean literal" as const;
+const NULL_KIND = "null" as const;
+const UNDEFINED_KIND = "undefined" as const;
+const LENGTH_KIND = ".length (number)" as const;
+
+type NonStringKind = typeof NUMERIC_LITERAL_KIND | typeof BOOLEAN_LITERAL_KIND | typeof NULL_KIND | typeof UNDEFINED_KIND | typeof LENGTH_KIND;
+
+function nonStringKind(node: TSESTree.Node): NonStringKind | null {
   if (node.type === AST_NODE_TYPES.Literal) {
-    if (typeof node.value === "number") return "numeric literal";
-    if (typeof node.value === "boolean") return "boolean literal";
-    if (node.value === null) return "null";
+    if (typeof node.value === "number") return NUMERIC_LITERAL_KIND;
+    if (typeof node.value === "boolean") return BOOLEAN_LITERAL_KIND;
+    if (node.value === null) return NULL_KIND;
   }
 
   if (node.type === AST_NODE_TYPES.Identifier && node.name === "undefined") {
-    return "undefined";
+    return UNDEFINED_KIND;
   }
 
   // expr.length — commonly numeric; computed access (expr["length"]) is intentionally
   // excluded because it is far less common and raises the FP risk slightly.
   if (node.type === AST_NODE_TYPES.MemberExpression && !node.computed && node.property.type === AST_NODE_TYPES.Identifier && node.property.name === "length") {
-    return ".length (number)";
+    return LENGTH_KIND;
   }
 
   return null;
@@ -46,8 +54,9 @@ export const noCoreSetOutputNonStringRule = createRule({
     schema: [],
     messages: {
       nonStringValue:
-        "The setOutput value {{valueText}} is a {{kind}}. Implicit coercion may produce unexpected strings such as 'null' or 'true' in downstream workflow expressions. Wrap with String({{valueText}}) or use an explicit string literal.",
+        "The setOutput value {{valueText}} is a {{kind}}. Implicit coercion may produce unexpected strings such as 'null' or 'true' in downstream workflow expressions. Use an explicit string conversion and choose the suggestion that matches the intended output semantics.",
       wrapWithString: "Wrap with String({{valueText}}) to make coercion explicit. For null/undefined, use an explicit default (for example '') when empty-string semantics are intended.",
+      useEmptyString: "Replace with \"\" (empty string) — use this when the intended output is empty rather than the literal word 'null' or 'undefined'.",
     },
   },
   defaultOptions: [],
@@ -79,15 +88,27 @@ export const noCoreSetOutputNonStringRule = createRule({
 
         const valueText = sourceCode.getText(valueArg);
 
+        const isNullOrUndefined = kind === NULL_KIND || kind === UNDEFINED_KIND;
+
         context.report({
           node,
           messageId: "nonStringValue",
           data: { kind, valueText },
           suggest: [
+            ...(isNullOrUndefined
+              ? [
+                  {
+                    messageId: "useEmptyString" as const,
+                    fix(fixer: TSESLint.RuleFixer) {
+                      return fixer.replaceText(valueArg, `""`);
+                    },
+                  },
+                ]
+              : []),
             {
-              messageId: "wrapWithString",
+              messageId: "wrapWithString" as const,
               data: { valueText },
-              fix(fixer) {
+              fix(fixer: TSESLint.RuleFixer) {
                 return fixer.replaceText(valueArg, `String(${valueText})`);
               },
             },

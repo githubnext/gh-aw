@@ -4,7 +4,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-import { rewriteUrl, filterAndTransformServers, writeSecureOutput } from "./convert_gateway_config_shared.cjs";
+import { rewriteUrl, normalizeGatewayEntry, filterAndTransformServers, writeSecureOutput } from "./convert_gateway_config_shared.cjs";
 import { transformClaudeEntry } from "./convert_gateway_config_claude.cjs";
 import { transformCopilotEntry } from "./convert_gateway_config_copilot.cjs";
 import { transformGeminiEntry } from "./convert_gateway_config_gemini.cjs";
@@ -14,6 +14,19 @@ describe("convert gateway config shared pipeline", () => {
   it("rewrites gateway urls to the provided domain/port", () => {
     const rewritten = rewriteUrl("http://old.example:81/mcp/github", "http://host.docker.internal:80");
     expect(rewritten).toBe("http://host.docker.internal:80/mcp/github");
+  });
+
+  it("normalizes gateway entry with provider mutation and url rewrite", () => {
+    const entry = { type: "ignored", url: "http://old/mcp/github", headers: { Authorization: "token" } };
+    const normalized = normalizeGatewayEntry(entry, "http://host.docker.internal:80", transformed => {
+      transformed.type = "http";
+    });
+    expect(normalized).toEqual({
+      type: "http",
+      url: "http://host.docker.internal:80/mcp/github",
+      headers: { Authorization: "token" },
+    });
+    expect(entry).toEqual({ type: "ignored", url: "http://old/mcp/github", headers: { Authorization: "token" } });
   });
 
   it("filters CLI-mounted servers before applying engine transforms", () => {
