@@ -521,10 +521,10 @@ func TestAWFBasePathFlags(t *testing.T) {
 	})
 }
 
-// TestBuildAWFArgsAuditDir tests that BuildAWFArgs always includes --audit-dir
-// pointing to the AWF audit directory for policy-manifest.json and other audit files
+// TestBuildAWFArgsAuditDir tests that audit-dir and proxy-logs-dir are now in config,
+// not CLI flags for non-ARC/DinD workflows.
 func TestBuildAWFArgsAuditDir(t *testing.T) {
-	t.Run("includes --audit-dir flag with correct path", func(t *testing.T) {
+	t.Run("non-arc-dind omits audit-dir and proxy-logs-dir from CLI flags", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -546,8 +546,37 @@ func TestBuildAWFArgsAuditDir(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.Contains(t, argsStr, "--audit-dir", "Should include --audit-dir flag")
-		assert.Contains(t, argsStr, "/tmp/gh-aw/sandbox/firewall/audit", "Should include the audit directory path")
+		// Non-ARC/DinD: these should be in config, not CLI flags
+		assert.NotContains(t, argsStr, "--audit-dir", "audit-dir should be in config for non-arc-dind")
+		assert.NotContains(t, argsStr, "--proxy-logs-dir", "proxy-logs-dir should be in config for non-arc-dind")
+	})
+
+	t.Run("arc-dind includes audit-dir and proxy-logs-dir as CLI overrides", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		// ARC/DinD: CLI flags override config with ${RUNNER_TEMP} paths
+		assert.Contains(t, argsStr, "--audit-dir", "arc-dind should include --audit-dir CLI override")
+		assert.Contains(t, argsStr, "--proxy-logs-dir", "arc-dind should include --proxy-logs-dir CLI override")
 	})
 }
 

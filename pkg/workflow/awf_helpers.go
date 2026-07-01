@@ -638,14 +638,12 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfLogLevel = firewallConfig.LogLevel
 	}
 	awfArgs = append(awfArgs, "--log-level", awfLogLevel)
-	proxyLogsDir := string(constants.AWFProxyLogsDir)
-	auditDir := string(constants.AWFAuditDir)
+	// Logging paths: static values are now in config (logging.proxyLogsDir, logging.auditDir).
+	// For ARC/DinD, CLI flags with ${RUNNER_TEMP} paths override the config at runtime.
 	if isArcDindTopology(config.WorkflowData) {
-		proxyLogsDir = awfArcDindProxyLogsDirExpr
-		auditDir = awfArcDindAuditDirExpr
+		awfArgs = append(awfArgs, "--proxy-logs-dir", awfArcDindProxyLogsDirExpr)
+		awfArgs = append(awfArgs, "--audit-dir", awfArcDindAuditDirExpr)
 	}
-	awfArgs = append(awfArgs, "--proxy-logs-dir", proxyLogsDir)
-	awfArgs = append(awfArgs, "--audit-dir", auditDir)
 	if isFeatureEnabled(constants.AwfDiagnosticLogsFeatureFlag, config.WorkflowData) {
 		awfArgs = append(awfArgs, "--diagnostic-logs")
 		awfHelpersLog.Print("Added --diagnostic-logs because awf-diagnostic-logs feature flag is enabled")
