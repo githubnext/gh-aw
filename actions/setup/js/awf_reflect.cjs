@@ -583,6 +583,8 @@ function resolveMultiProviderFromReflect(options) {
     const providerType = inferProviderTypeForModel(rawProviderName, firstModel, catalogEntry);
     const wireApi = inferWireApiForModel(providerType, firstModel, catalogEntry);
 
+    logger(`sdk-mode(multi): resolved provider="${providerName}" (raw="${rawProviderName}") type="${providerType}" wireApi="${wireApi || "(none)"}" ` + `firstModel="${firstModel}" modelCount=${endpointModels.length} baseUrl="${baseUrl}"`);
+
     providers.push({
       name: providerName,
       type: providerType,
