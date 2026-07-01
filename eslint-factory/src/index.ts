@@ -1,6 +1,7 @@
 import { noCoreSetOutputNonStringRule } from "./rules/no-core-setoutput-non-string";
 import { noUnsafeCatchErrorPropertyRule } from "./rules/no-unsafe-catch-error-property";
 import { noUnsafePromiseCatchErrorPropertyRule } from "./rules/no-unsafe-promise-catch-error-property";
+import { preferGetErrorMessageRule } from "./rules/prefer-get-error-message";
 import { requireJsonParseTryCatchRule } from "./rules/require-json-parse-try-catch";
 import { requireParseIntRadixRule } from "./rules/require-parseInt-radix";
 
@@ -13,6 +14,7 @@ const plugin = {
     "no-core-setoutput-non-string": noCoreSetOutputNonStringRule,
     "no-unsafe-catch-error-property": noUnsafeCatchErrorPropertyRule,
     "no-unsafe-promise-catch-error-property": noUnsafePromiseCatchErrorPropertyRule,
+    "prefer-get-error-message": preferGetErrorMessageRule,
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,
     "require-parseInt-radix": requireParseIntRadixRule,
   },

@@ -176,6 +176,46 @@ tools:
 
 See [Tools](/gh-aw/reference/tools/) for complete documentation on built-in tools, GitHub toolsets, and MCP server configuration.
 
+### Frontmatter Skills (`skills:`)
+
+Installs external Copilot skills in the activation job before the agent runs.
+Each entry must be pinned to a 40-character lowercase commit SHA.
+
+Supported entry formats:
+
+- String form (shared authentication):
+  - `owner/repo@<40-char-sha>`
+  - `owner/repo/skill/path@<40-char-sha>`
+- Object form (per-skill authentication):
+  - `skill` (required)
+  - `github-token` (optional)
+  - `github-app` (optional)
+
+`github-token` and `github-app` are mutually exclusive for each object entry.
+`github-token` must be an expression such as `${{ secrets.NAME }}` or
+`${{ needs.auth.outputs.token }}`.
+
+```yaml wrap
+skills:
+  # Shared auth via workflow-level activation token
+  - mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
+
+  # Per-skill PAT (or fallback) for private skill repositories
+  - skill: mattpocock/skills/diagnosing-bugs@801dca688564c529fa84f247f64472520d9ebe28
+    github-token: ${{ secrets.MATT_SKILLS_PAT || secrets.GITHUB_TOKEN }}
+
+  # Per-skill GitHub App credentials
+  - skill: mattpocock/skills/domain-modeling@801dca688564c529fa84f247f64472520d9ebe28
+    github-app:
+      client-id: ${{ vars.MATT_SKILLS_APP_CLIENT_ID }}
+      private-key: ${{ secrets.MATT_SKILLS_APP_PRIVATE_KEY }}
+```
+
+See [Glossary: Frontmatter Skills](/gh-aw/reference/glossary/#frontmatter-skills-skills)
+for terminology, and
+[`mattpocock-skills-reviewer.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/mattpocock-skills-reviewer.md)
+for a full workflow example using `skills:`.
+
 ### MCP Scripts (`mcp-scripts:`)
 
 Enables defining custom MCP tools inline using JavaScript or shell scripts. See [MCP Scripts](/gh-aw/reference/mcp-scripts/) for complete documentation on creating custom tools with controlled secret access.

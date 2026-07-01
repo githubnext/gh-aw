@@ -129,7 +129,7 @@ const DefaultPlaywrightMCPVersion Version = "0.0.76"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package
 // Used when tools.playwright.mode is "cli" to install the CLI tool instead of the MCP server.
-const DefaultPlaywrightCLIVersion Version = "0.1.14"
+const DefaultPlaywrightCLIVersion Version = "0.1.15"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.61.1"

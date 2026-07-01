@@ -4,7 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getDetectionCautionAlert, getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
-const { renderTemplate, renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
+const { renderTemplate, renderTemplateFromFile, getPromptPath, renderFilesList } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, extractExpirationDate, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
@@ -42,6 +42,7 @@ const ELLIPSIS_LENGTH = ELLIPSIS.length;
 const ENGINE_RATE_LIMIT_429_RE =
   /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|\brate_limit_(?:error|exceeded)\b|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
 const ENGINE_MAX_RUNS_EXCEEDED_RE = /(?:\bmax_runs_exceeded\b|\bmaximum\s+llm\s+invocations\s+exceeded\b)/i;
+const ALLOWED_FILES_ERROR_RE = /^(?<summary>.*outside the allowed-files list) \((?<files>.+?)\)\. (?<remediation>Add the files to the allowed-files configuration field or remove them from the (?:patch|bundle)\.)$/;
 
 /**
  * Parse action failure issue expiration from environment.
@@ -75,6 +76,35 @@ function extractRunId(runUrl) {
  */
 function buildWarningAlertLine(title, message) {
   return `\n> [!WARNING]\n> **${title}**: ${message}\n`;
+}
+
+/**
+ * Render an allowed-files error using progressive disclosure for the file list.
+ * @param {string} type
+ * @param {string} error
+ * @returns {string|null}
+ */
+function renderAllowedFilesError(type, error) {
+  const match = error.match(ALLOWED_FILES_ERROR_RE);
+  if (!match?.groups) {
+    return null;
+  }
+
+  const summary = match.groups.summary;
+  const files = match.groups.files.split(",").map(file => file.trim());
+  const remediation = match.groups.remediation;
+  const fileCount = files.length;
+  const fileWord = fileCount === 1 ? "file" : "files";
+
+  return `- \`${type}\`: ${summary}. ${remediation}
+
+<details>
+<summary>Show ${fileCount} blocked ${fileWord}</summary>
+
+${renderFilesList(files)}
+
+</details>
+`;
 }
 
 /**
@@ -947,7 +977,7 @@ gh pr create --head aw/manual-apply
     }
     context += "\n**Code Push Errors:**\n";
     for (const { type, error } of otherErrors) {
-      context += `- \`${type}\`: ${error}\n`;
+      context += renderAllowedFilesError(type, error) || `- \`${type}\`: ${error}\n`;
     }
     context += "\n";
   } else if (manifestErrors.length > 0 || patchSizeErrors.length > 0 || patchApplyErrors.length > 0) {

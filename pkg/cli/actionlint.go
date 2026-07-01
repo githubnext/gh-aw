@@ -216,6 +216,7 @@ func runActionlintOnFiles(ctx context.Context, lockFiles []string, verbose bool,
 	return runActionlintOnFilesWithOptions(ctx, lockFiles, verbose, strict, actionlintRunOptions{
 		IncludeShellcheck: true,
 		IncludePyflakes:   true,
+		IgnorePatterns:    defaultGhAwActionlintIgnorePatterns,
 	})
 }
 

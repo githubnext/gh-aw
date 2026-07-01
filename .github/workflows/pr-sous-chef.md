@@ -24,9 +24,8 @@ checkout:
 network:
   allowed: ["defaults", "go"]
 engine:
-  id: copilot
-  copilot-sdk: true
-  model: claude-sonnet-4.5
+  id: pi
+  model: copilot/gpt-5.4
 strict: true
 imports:
   - shared/otlp.md

@@ -25,7 +25,7 @@ require("./shim.cjs");
  */
 
 const path = require("path");
-const { rewriteUrl, loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
+const { rewriteUrl, normalizeGatewayEntry, loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
 
 /**
  * Resolves the Copilot CLI MCP config output path from the runtime $HOME.
@@ -54,16 +54,12 @@ function resolveCopilotConfigOutputPath() {
  * @returns {Record<string, unknown>}
  */
 function transformCopilotEntry(entry, urlPrefix) {
-  const transformed = { ...entry };
-  // Add tools field if not present
-  if (!transformed.tools) {
-    transformed.tools = ["*"];
-  }
-  // Fix the URL to use the correct domain
-  if (typeof transformed.url === "string") {
-    transformed.url = rewriteUrl(transformed.url, urlPrefix);
-  }
-  return transformed;
+  return normalizeGatewayEntry(entry, urlPrefix, transformed => {
+    // Add tools field if not present
+    if (!transformed.tools) {
+      transformed.tools = ["*"];
+    }
+  });
 }
 
 function main() {

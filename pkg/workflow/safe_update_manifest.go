@@ -53,13 +53,14 @@ type GHAWManifest struct {
 	Version            int                             `json:"version"`
 	Secrets            []string                        `json:"secrets"`
 	Actions            []GHAWManifestAction            `json:"actions"`
+	Skills             []string                        `json:"skills,omitempty"`              // frontmatter skill specs (owner/repo@sha or owner/repo/skill/path@sha), sorted
 	ResolutionFailures []GHAWManifestResolutionFailure `json:"resolution_failures,omitempty"` // unresolved action-ref pinning failures
 	Containers         []GHAWManifestContainer         `json:"containers,omitempty"`          // container images used, with digest when available
 	Redirect           string                          `json:"redirect,omitempty"`            // frontmatter redirect target for moved workflows
 }
 
 // NewGHAWManifest builds a GHAWManifest from the raw secret names, action reference
-// strings, and container image references produced at compile time.
+// strings, container image references, and skill specs produced at compile time.
 //
 // secretNames entries may include or omit the "secrets." prefix; the prefix is always
 // stripped before storage so the manifest contains plain names (e.g. "GITHUB_TOKEN").
@@ -68,8 +69,9 @@ type GHAWManifest struct {
 //	"actions/checkout@abc1234 # v4"
 //
 // containers is the list of container image entries with full digest info (when available).
-func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWManifestResolutionFailure, containers []GHAWManifestContainer, redirect string) *GHAWManifest {
-	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d, containers=%d", len(secretNames), len(actionRefs), len(containers))
+// skillSpecs is the list of skill references from the workflow frontmatter.
+func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWManifestResolutionFailure, containers []GHAWManifestContainer, redirect string, skillSpecs []string) *GHAWManifest {
+	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d, containers=%d, skills=%d", len(secretNames), len(actionRefs), len(containers), len(skillSpecs))
 
 	// Normalize secret names to full "secrets.NAME" form and deduplicate.
 	seen := make(map[string]struct {
@@ -110,13 +112,28 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWM
 		}
 	})
 
-	safeUpdateManifestLog.Printf("Manifest built: version=%d, secrets=%d, actions=%d, containers=%d",
-		currentGHAWManifestVersion, len(secrets), len(actions), len(sortedContainers))
+	safeUpdateManifestLog.Printf("Manifest built: version=%d, secrets=%d, actions=%d, containers=%d, skills=%d",
+		currentGHAWManifestVersion, len(secrets), len(actions), len(sortedContainers), len(skillSpecs))
+
+	// Deduplicate and sort skill specs for deterministic output.
+	seenSkills := make(map[string]struct{}, len(skillSpecs))
+	sortedSkills := make([]string, 0, len(skillSpecs))
+	for _, s := range skillSpecs {
+		if s != "" && !setutil.Contains(seenSkills, s) {
+			seenSkills[s] = struct{}{}
+			sortedSkills = append(sortedSkills, s)
+		}
+	}
+	sort.Strings(sortedSkills)
+	if len(sortedSkills) == 0 {
+		sortedSkills = nil // keep JSON output clean: omitempty omits nil but not empty slice
+	}
 
 	return &GHAWManifest{
 		Version:            currentGHAWManifestVersion,
 		Secrets:            secrets,
 		Actions:            actions,
+		Skills:             sortedSkills,
 		ResolutionFailures: resolutionFailures,
 		Containers:         sortedContainers,
 		Redirect:           strings.TrimSpace(redirect),

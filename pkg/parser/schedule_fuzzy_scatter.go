@@ -168,6 +168,7 @@ func avoidPeakMinutes(hour, minute int) int {
 
 // stableHash returns a deterministic hash value in the range [0, modulo)
 // using FNV-1a hash algorithm, which is stable across platforms and Go versions.
+// If modulo is <= 0, stableHash returns 0 (the range is empty/invalid).
 func stableHash(s string, modulo int) int {
 	h := fnv.New32a()
 	// hash.Hash.Write never returns an error in practice, but check to satisfy gosec G104
@@ -176,7 +177,13 @@ func stableHash(s string, modulo int) int {
 		scheduleFuzzyScatterLog.Printf("Warning: hash write failed: %v", err)
 		return 0
 	}
-	return int(h.Sum32() % uint32(modulo))
+	if modulo <= 0 {
+		scheduleFuzzyScatterLog.Printf("Warning: stableHash called with non-positive modulo %d, returning 0", modulo)
+		return 0
+	}
+	// Use int64 arithmetic to avoid truncation when modulo exceeds math.MaxUint32
+	// on 64-bit platforms where int is 64 bits wide.
+	return int(int64(h.Sum32()) % int64(modulo))
 }
 
 // ScatterSchedule takes a fuzzy cron expression and a workflow identifier

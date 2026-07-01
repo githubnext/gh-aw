@@ -11,10 +11,6 @@ permissions:
   contents: read
   pull-requests: read
   copilot-requests: write
-skills:
-  - skill: ${{ vars.IMPECCABLE_SKILLS_REF }}
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-
 sandbox:
   agent:
     sudo: false

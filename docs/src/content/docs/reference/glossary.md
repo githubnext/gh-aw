@@ -454,6 +454,16 @@ safe-outputs:
 
 Custom GitHub token or GitHub App used by the activation job to post reactions and status comments on the triggering item. Configured via `github-token:` (for a PAT or token expression) or `github-app:` (to mint a short-lived installation token) inside the `on:` section. Affects only the activation job — agent job tokens are configured separately via `tools.github.github-token` or `safe-outputs.github-app`. See [Authentication Reference](/gh-aw/reference/auth/).
 
+### Bare Mode (`engine.bare`)
+
+An engine configuration field that disables automatic loading of context and custom instructions by the engine. Set `engine.bare: true` to prevent the engine from reading memory files, `AGENTS.md`, `CLAUDE.md`, or built-in system prompts that would otherwise be loaded automatically. Useful for triage, reporting, and ops workflows where the prompt is fully self-contained and repository code context adds noise. Supported by Copilot, Claude, Codex, and Gemini engines. See [AI Engines Reference](/gh-aw/reference/engines/#bare-mode-bare).
+
+```aw wrap
+engine:
+  id: copilot
+  bare: true
+```
+
 ### BYOK (Bring Your Own Key)
 
 A Copilot engine mode that routes AI requests to an external LLM provider (such as OpenAI, Anthropic, or a self-hosted Ollama/vLLM instance) instead of the default GitHub Copilot backend. Activated by setting `COPILOT_PROVIDER_BASE_URL` in `engine.env`. The three BYOK credential variables (`COPILOT_PROVIDER_BASE_URL`, `COPILOT_PROVIDER_API_KEY`, `COPILOT_PROVIDER_BEARER_TOKEN`) accept `${{ secrets.* }}` references under strict mode and are never exposed to the agent container. gh-aw automatically adds the provider hostname to the AWF allow-list when it can resolve a literal BYOK URL, and otherwise reuses the concrete provider hostname from `network.allowed` for the threat-detection Copilot step. Use `COPILOT_MODEL` to specify the target model. See [AI Engines Reference](/gh-aw/reference/engines/#copilot-bring-your-own-key-byok-mode).
@@ -465,6 +475,16 @@ A time-based trigger format. Use short syntax like `daily` or `weekly on monday`
 ### Ecosystem Identifiers
 
 Named shorthand references to predefined domain sets used in `network.allowed` and `safe-outputs.allowed-domains`. Instead of listing individual domain names, ecosystem identifiers expand to curated sets for a language runtime or service category. Common identifiers: `python` (PyPI/pip), `node` (npm), `go` (proxy.golang.org), `github` (GitHub domains), `dev-tools` (CI/CD services such as Codecov, Snyk, Shields.io), `local` (loopback addresses), and `default-safe-outputs` (a compound set combining `defaults` + `dev-tools` + `github` + `local`, recommended as a baseline for `safe-outputs.allowed-domains`). See [Network Permissions Reference](/gh-aw/reference/network/#ecosystem-identifiers).
+
+### Copilot SDK (`engine.copilot-sdk`)
+
+An engine option that enables the Copilot engine to run in SDK mode, giving the workflow direct access to the Copilot SDK runtime for advanced integration patterns such as inline sub-agents. Set `engine.copilot-sdk: true` to activate. Use `engine.copilot-sdk-driver` to replace the built-in driver with a custom Node.js script. Supports `max-tool-denials` to stop inference when tool requests are denied too frequently. See [AI Engines Reference](/gh-aw/reference/engines/#copilot-sdk-support).
+
+```aw wrap
+engine:
+  id: copilot
+  copilot-sdk: true
+```
 
 ### Engine
 
@@ -510,6 +530,24 @@ An `engine` configuration field specifying a custom API endpoint hostname for Gi
 engine:
   id: copilot
   api-target: api.acme.ghe.com
+```
+
+### Inline Sub-Agents
+
+Named agent definitions embedded directly in a workflow markdown file, without requiring a separate file in `.github/agents/`. Each sub-agent block starts with a `## agent: \`name\`` heading, contains optional YAML frontmatter (for model selection and a description), and ends at the next `##` heading or end of file. At compile time, inline sub-agent blocks are extracted to locations the engine can access natively. Supported for the Copilot engine. Sub-agent names must start with a lowercase letter and may only contain `a–z`, `0–9`, `_`, and `-`. See [Inline Sub-Agents Reference](/gh-aw/reference/inline-sub-agents/).
+
+```aw wrap
+engine:
+  id: copilot
+  copilot-sdk: true
+---
+
+## agent: `file-summarizer`
+---
+model: small
+description: Summarizes file contents briefly
+---
+You are a file summarization assistant.
 ```
 
 ### Inline Engine Definition
@@ -849,6 +887,14 @@ A token authenticating you to GitHub's APIs with specific permissions. Required 
 ### Skill Files
 
 Markdown files with YAML frontmatter stored in `.github/skills/` for repository-scoped Copilot Chat skills. Created by `gh aw init`, these files can be invoked by calling the skill in Copilot Chat to guide workflow creation, debugging, and updates. The `agentic-workflows` skill is a unified dispatcher routing requests to specialized prompts.
+
+### Frontmatter Skills (`skills:`)
+
+A frontmatter field that declares external skill repositories to install in the activation job before the agent runs. Each entry is a skill specification string (e.g., `owner/repo`, `owner/repo/path@sha`) pointing to a `.github/skills/` skill directory. The activation job installs each skill using the `gh skill install` command. When a skill fails to install, the failure is captured in the agent failure context and surfaces in failure issue/comment reports. Requires a recent version of the `gh` CLI. See [Skill Install Failure](#skill-install-failure) for error handling.
+
+### Skill Install Failure
+
+A failure category reported when one or more frontmatter skills could not be installed before the agent ran. Triggered by invalid skill references, inaccessible repositories, insufficient token permissions, or unsupported `gh` CLI versions. When skill install failures occur, they are captured by the `collect-skill-install-failures` activation step and included in the agent failure issue or comment via the `{skill_install_failure_context}` template. Resolve by verifying the skill reference format (`owner/repo` or `owner/repo/skill/path@sha`), confirming the token has read access to the skill repository, and ensuring a recent `gh` CLI version is available. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
 
 ### Fine-grained Personal Access Token
 

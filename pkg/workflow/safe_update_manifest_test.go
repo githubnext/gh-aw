@@ -17,12 +17,14 @@ func TestNewGHAWManifest(t *testing.T) {
 		resolutionFailures  []GHAWManifestResolutionFailure
 		containers          []GHAWManifestContainer
 		redirect            string
+		skillSpecs          []string
 		wantVersion         int
 		wantSecrets         []string
 		wantActionRepos     []string
 		wantFailures        []GHAWManifestResolutionFailure
 		wantContainerImages []string
 		wantRedirect        string
+		wantSkills          []string
 	}{
 		{
 			name:        "empty inputs",
@@ -134,11 +136,32 @@ func TestNewGHAWManifest(t *testing.T) {
 			wantSecrets:  []string{},
 			wantRedirect: "owner/repo/workflows/new.md@main",
 		},
+		{
+			name: "skills are sorted and deduplicated",
+			skillSpecs: []string{
+				"githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6",
+				"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+				"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6", // duplicate
+			},
+			wantVersion: 1,
+			wantSecrets: []string{},
+			wantSkills: []string{
+				"githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6",
+				"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+			},
+		},
+		{
+			name:        "nil skills produces nil skills field",
+			skillSpecs:  nil,
+			wantVersion: 1,
+			wantSecrets: []string{},
+			wantSkills:  nil,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewGHAWManifest(tt.secretNames, tt.actionRefs, tt.resolutionFailures, tt.containers, tt.redirect)
+			m := NewGHAWManifest(tt.secretNames, tt.actionRefs, tt.resolutionFailures, tt.containers, tt.redirect, tt.skillSpecs)
 			require.NotNil(t, m, "manifest should not be nil")
 			assert.Equal(t, tt.wantVersion, m.Version, "manifest version")
 			if tt.wantSecrets != nil {
@@ -162,6 +185,7 @@ func TestNewGHAWManifest(t *testing.T) {
 				assert.Equal(t, tt.wantFailures, m.ResolutionFailures, "resolution failures")
 			}
 			assert.Equal(t, tt.wantRedirect, m.Redirect, "manifest redirect")
+			assert.Equal(t, tt.wantSkills, m.Skills, "manifest skills")
 		})
 	}
 }
@@ -177,7 +201,7 @@ func TestNewGHAWManifestContainerDigest(t *testing.T) {
 			Image: "alpine:3.14", // no digest
 		},
 	}
-	m := NewGHAWManifest(nil, nil, nil, containers, "")
+	m := NewGHAWManifest(nil, nil, nil, containers, "", nil)
 	require.Len(t, m.Containers, 2, "should have two containers")
 
 	// Sorted: alpine before node

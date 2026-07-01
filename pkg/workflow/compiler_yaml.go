@@ -122,9 +122,10 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	}
 
 	// Embed the gh-aw-manifest immediately after gh-aw-metadata for easy machine parsing.
-	// The manifest records all secrets, external actions, and container images detected at
-	// compile time so that subsequent compilations can perform safe update enforcement.
-	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect)
+	// The manifest records all secrets, external actions, container images, and frontmatter
+	// skills detected at compile time so that subsequent compilations can perform safe update
+	// enforcement.
+	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills)
 	if manifestJSON, err := manifest.ToJSON(); err == nil {
 		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON)
 	} else {

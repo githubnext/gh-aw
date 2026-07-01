@@ -1457,6 +1457,48 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Protected Files");
     });
 
+    it("renders allowed-files errors with progressive disclosure", () => {
+      const errors =
+        "create_pull_request:Cannot create pull request: patch modifies files outside the allowed-files list " +
+        "(pkg/workflow/codex_engine.go, pkg/workflow/codex_mcp.go, pkg/workflow/compiler_yaml.go). " +
+        "Add the files to the allowed-files configuration field or remove them from the patch.";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("Code Push Failed");
+      expect(result).toContain("outside the allowed-files list. Add the files to the allowed-files configuration field or remove them from the patch.");
+      expect(result).toContain("<details>");
+      expect(result).toContain("<summary>Show 3 blocked files</summary>");
+      expect(result).toContain("`pkg/workflow/codex_engine.go`");
+      expect(result).toContain("`pkg/workflow/codex_mcp.go`");
+      expect(result).toContain("`pkg/workflow/compiler_yaml.go`");
+      expect(result).not.toContain("outside the allowed-files list (pkg/workflow/codex_engine.go, pkg/workflow/codex_mcp.go, pkg/workflow/compiler_yaml.go)");
+    });
+
+    it("falls back to raw error line for non-matching allowed-files text", () => {
+      const errors = "create_pull_request:Cannot create pull request: some other error message.";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("Cannot create pull request: some other error message.");
+      expect(result).not.toContain("<details>");
+    });
+
+    it("uses singular wording for one blocked file", () => {
+      const errors = "create_pull_request:Cannot create pull request: patch modifies files outside the allowed-files list " + "(pkg/foo.go). Add the files to the allowed-files configuration field or remove them from the patch.";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("<summary>Show 1 blocked file</summary>");
+      expect(result).toContain("`pkg/foo.go`");
+    });
+
+    it("renders bundle remediation variant", () => {
+      const errors =
+        "create_pull_request:Cannot create pull request: patch modifies files outside the allowed-files list " +
+        "(pkg/workflow/compiler(bundle).go, pkg/workflow/compiler_yaml.go). " +
+        "Add the files to the allowed-files configuration field or remove them from the bundle.";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("remove them from the bundle.");
+      expect(result).toContain("`pkg/workflow/compiler(bundle).go`");
+      expect(result).toContain("`pkg/workflow/compiler_yaml.go`");
+      expect(result).toContain("<summary>Show 2 blocked files</summary>");
+    });
+
     it("shows both sections when protected file and non-protected-file errors are mixed", () => {
       const errors = [
         "create_pull_request:Cannot create pull request: patch modifies package manifest files (package.json). Set allow-manifest-files: true in your workflow to allow this.",

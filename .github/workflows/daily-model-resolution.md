@@ -17,7 +17,7 @@ permissions:
   pull-requests: read
 tracker-id: daily-model-resolution
 engine:
-  id: codex
+  id: copilot
   model: gpt-5.4-mini
 strict: true
 tools:

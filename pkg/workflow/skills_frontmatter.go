@@ -12,8 +12,6 @@ import (
 var skillsFrontmatterLog = logger.New("workflow:skills_frontmatter")
 
 var skillSpecRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$`)
-var skillSpecExpressionRefRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@\$\{\{.+\}\}$`)
-var githubActionsExpressionRegexp = regexp.MustCompile(`^\$\{\{.+\}\}$`)
 var githubTokenExpressionRegexp = regexp.MustCompile(`^\$\{\{\s*(secrets\.[A-Za-z_][A-Za-z0-9_]*(\s*\|\|\s*secrets\.[A-Za-z_][A-Za-z0-9_]*)*|needs\.[A-Za-z_][A-Za-z0-9_]*\.outputs\.[A-Za-z_][A-Za-z0-9_]*)\s*\}\}$`)
 
 // SkillReference describes a single skills[] entry in workflow frontmatter.
@@ -28,12 +26,9 @@ func validateSkillSpecValue(skillSpec string, idx int) error {
 	if strings.TrimSpace(skillSpec) == "" {
 		return fmt.Errorf("skills[%d] must be a non-empty string. Example: skills[%d]: \"owner/repo@abc1234...\"", idx, idx)
 	}
-	if githubActionsExpressionRegexp.MatchString(skillSpec) || skillSpecExpressionRefRegexp.MatchString(skillSpec) {
-		return nil
-	}
 	if !skillSpecRegexp.MatchString(skillSpec) {
 		return fmt.Errorf(
-			"skills[%d] must use owner/repo@<40-char-sha>, owner/repo/skill/path@<40-char-sha>, or a GitHub Actions expression (got %q). Example: skills[%d]: \"owner/repo@abcdef1234567890abcdef1234567890abcdef12\"",
+			"skills[%d] must use owner/repo@<40-char-sha> or owner/repo/skill/path@<40-char-sha> (got %q). Example: skills[%d]: \"owner/repo@abcdef1234567890abcdef1234567890abcdef12\"",
 			idx,
 			skillSpec,
 			idx,
@@ -126,8 +121,6 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 func isRepositorySkillSpec(skillSpec string) bool {
 	base, _, _ := strings.Cut(skillSpec, "@")
 	// owner/repo has exactly one slash; owner/repo/skill/path has two or more.
-	// Expression-only specs have no static @ suffix and are treated as path-scoped
-	// until the resolved runtime value is inspected by the install step.
 	return strings.Count(base, "/") == 1
 }
 

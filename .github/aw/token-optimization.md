@@ -345,7 +345,7 @@ observability:
     headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
 ```
 
-Setup, agent, and conclusion spans carry token usage attributes. See [Frontmatter syntax](syntax.md#observability).
+Setup, agent, and conclusion spans carry token usage attributes. See [Frontmatter syntax](syntax-agentic.md#agentic-workflow-specific-fields).
 
 ### Add AgenticOps token workflows
 
