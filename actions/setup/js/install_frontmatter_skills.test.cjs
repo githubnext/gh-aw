@@ -24,6 +24,7 @@ describe("install_frontmatter_skills", () => {
 
     global.core = {
       info: vi.fn(),
+      warning: vi.fn(),
       summary: {
         addRaw: vi.fn().mockReturnThis(),
         write: vi.fn().mockResolvedValue(undefined),
@@ -49,6 +50,7 @@ describe("install_frontmatter_skills", () => {
     global.exec = originalExec;
     fs.rmSync(tempRoot, { recursive: true, force: true });
     fs.rmSync("/tmp/gh-aw/.claude", { recursive: true, force: true });
+    fs.rmSync("/tmp/gh-aw/skill_install_failures.json", { force: true });
   });
 
   it("splits repo-level and path-level skill specs into gh skill install arguments", () => {
@@ -83,5 +85,17 @@ describe("install_frontmatter_skills", () => {
     expect(global.exec.exec).toHaveBeenNthCalledWith(3, "gh", ["skill", "install", "${{ inputs.skill_ref }}", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
     expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("### Frontmatter skills installed"));
     expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining('["githubnext/skills@abc123","githubnext/skills/review/security@def456","${{ inputs.skill_ref }}"]'));
+  });
+
+  it("records failures without throwing when skill install fails", async () => {
+    process.env.GH_AW_SKILL_DIR = ".claude/skills";
+    process.env.GH_AW_FRONTMATTER_SKILLS = "bad/repo@abc123";
+    global.exec.exec = vi.fn().mockRejectedValue(new Error("exit code 1\nHTTP 404"));
+
+    await expect(script.main()).resolves.toBeUndefined();
+
+    const failures = JSON.parse(fs.readFileSync("/tmp/gh-aw/skill_install_failures.json", "utf8"));
+    expect(failures).toEqual([{ skill: "bad/repo@abc123", error: "exit code 1 HTTP 404" }]);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to install skill 'bad/repo@abc123'"));
   });
 });

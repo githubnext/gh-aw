@@ -2119,7 +2119,7 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
 /**
  * Build a context string when frontmatter skill installation failed.
  * @param {boolean} hasSkillInstallFailures - Whether any skill installs failed
- * @param {string} skillInstallErrors - Newline-separated list of "skill:error" entries
+ * @param {string} skillInstallErrors - Newline-separated list of "skill<TAB>error" entries
  * @returns {string} Formatted context string, or empty string if no failures
  */
 function buildSkillInstallFailureContext(hasSkillInstallFailures, skillInstallErrors) {
@@ -2131,6 +2131,13 @@ function buildSkillInstallFailureContext(hasSkillInstallFailures, skillInstallEr
   if (skillInstallErrors) {
     const errorLines = skillInstallErrors.split("\n").filter(line => line.trim());
     for (const errorLine of errorLines) {
+      const tabIdx = errorLine.indexOf("\t");
+      if (tabIdx >= 0) {
+        const skill = errorLine.slice(0, tabIdx);
+        const error = errorLine.slice(tabIdx + 1);
+        skillList += `- \`${skill}\`: ${error}\n`;
+        continue;
+      }
       const colonIdx = errorLine.indexOf(":");
       if (colonIdx >= 0) {
         const skill = errorLine.slice(0, colonIdx);

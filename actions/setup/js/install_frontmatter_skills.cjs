@@ -98,7 +98,8 @@ function appendSkillInstallFailure(skillSpec, errorMessage) {
   try {
     if (fs.existsSync(SKILL_FAILURES_FILE)) {
       const raw = fs.readFileSync(SKILL_FAILURES_FILE, "utf8");
-      failures = JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      failures = Array.isArray(parsed) ? parsed : [];
     }
   } catch (parseErr) {
     // If reading/parsing fails, start fresh and warn so the issue is visible in logs
@@ -106,7 +107,12 @@ function appendSkillInstallFailure(skillSpec, errorMessage) {
     failures = [];
   }
   failures.push({ skill: skillSpec, error: errorMessage });
-  fs.writeFileSync(SKILL_FAILURES_FILE, JSON.stringify(failures, null, 2), "utf8");
+  try {
+    fs.mkdirSync(path.dirname(SKILL_FAILURES_FILE), { recursive: true });
+    fs.writeFileSync(SKILL_FAILURES_FILE, JSON.stringify(failures, null, 2), "utf8");
+  } catch (writeErr) {
+    core.warning(`Could not write skill install failures file: ${writeErr instanceof Error ? writeErr.message : String(writeErr)}`);
+  }
 }
 
 /**
@@ -150,7 +156,7 @@ async function main() {
     try {
       await exec.exec("gh", command.args);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorMessage = (err instanceof Error ? err.message : String(err)).replace(/\r?\n/g, " ");
       core.warning(`Failed to install skill '${skillSpec}': ${errorMessage}`);
       failures.push({ skill: skillSpec, error: errorMessage });
       appendSkillInstallFailure(skillSpec, errorMessage);

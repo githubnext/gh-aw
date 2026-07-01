@@ -21,7 +21,7 @@ function readSkillInstallFailures() {
     if (!Array.isArray(parsed)) {
       return [];
     }
-    return parsed;
+    return parsed.filter(entry => entry && typeof entry.skill === "string" && typeof entry.error === "string");
   } catch (readErr) {
     // Warn so "no failures" vs "couldn't read failures file" is distinguishable in logs
     core.warning(`Could not read skill install failures file: ${readErr instanceof Error ? readErr.message : String(readErr)}`);
@@ -36,7 +36,7 @@ async function main() {
   core.info(`Skill install failures detected: ${failureCount}`);
 
   core.setOutput("failure_count", String(failureCount));
-  core.setOutput("errors", failures.map(f => `${f.skill}:${f.error}`).join("\n"));
+  core.setOutput("errors", failures.map(f => `${f.skill}\t${f.error.replace(/\r?\n/g, " ").replace(/\t/g, " ")}`).join("\n"));
 
   if (failureCount > 0) {
     core.warning(`${failureCount} skill(s) failed to install — see agent failure issue/comment for details`);
