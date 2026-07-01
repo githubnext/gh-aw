@@ -52,9 +52,14 @@
 // AWF invocation, and referenced via: awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json"
 //
 // Flags not yet represented in the config schema (--env-all, --exclude-env, --mount,
-// --container-workdir, --log-level, --proxy-logs-dir, --audit-dir, --enable-host-access,
+// --container-workdir, --log-level, --enable-host-access,
 // --allow-host-ports, --skip-pull, --tty, --difc-proxy-host, --difc-proxy-ca-cert,
 // --ssl-bump, --memory-limit, --diagnostic-logs) remain as CLI flags.
+//
+// Flags moved to config: --proxy-logs-dir → logging.proxyLogsDir,
+// --audit-dir → logging.auditDir, --docker-host-path-prefix → container.dockerHostPathPrefix.
+// For ARC/DinD, --proxy-logs-dir and --audit-dir CLI flags still override config at runtime
+// (they use ${RUNNER_TEMP} paths that require shell expansion).
 
 package workflow
 
@@ -163,6 +168,9 @@ type AWFConfigFile struct {
 
 	// Container contains container execution configuration.
 	Container *AWFContainerConfig `json:"container,omitempty"`
+
+	// Logging contains logging and diagnostics configuration.
+	Logging *AWFLoggingConfig `json:"logging,omitempty"`
 
 	// Chroot contains chroot execution overrides for split-filesystem ARC/DinD runners.
 	// This field is not populated at compile time; it is injected at runtime when DinD topology is detected.
@@ -279,12 +287,30 @@ type AWFAPITargetConfig struct {
 }
 
 // AWFContainerConfig is the "container" section of the AWF config file.
-// It maps to the --image-tag CLI flag.
+// It maps to container execution CLI flags.
 type AWFContainerConfig struct {
 	// ImageTag is the pinned AWF Docker image tag, with optional digest metadata.
 	// Format: "<tag>" or "<tag>,squid=sha256:...,agent=sha256:..."
 	// Maps to: --image-tag <value>
 	ImageTag string `json:"imageTag,omitempty"`
+
+	// DockerHostPathPrefix prefixes bind-mount source paths so the Docker daemon can
+	// resolve runner filesystem paths. Required for ARC DinD sidecar runners where the
+	// runner and daemon have separate filesystems.
+	// Maps to: --docker-host-path-prefix <value>
+	DockerHostPathPrefix string `json:"dockerHostPathPrefix,omitempty"`
+}
+
+// AWFLoggingConfig is the "logging" section of the AWF config file.
+// It maps to logging and diagnostics CLI flags.
+type AWFLoggingConfig struct {
+	// ProxyLogsDir is the directory path for Squid proxy access logs.
+	// Maps to: --proxy-logs-dir <path>
+	ProxyLogsDir string `json:"proxyLogsDir,omitempty"`
+
+	// AuditDir is the directory path for audit logs (policy-manifest.json, squid.conf, etc).
+	// Maps to: --audit-dir <path>
+	AuditDir string `json:"auditDir,omitempty"`
 }
 
 // AWFChrootConfig is the "chroot" section of the AWF config file.
@@ -522,12 +548,37 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	// ── Container section ─────────────────────────────────────────────────────
 	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
-	if awfImageTag != "" {
-		awfConfig.Container = &AWFContainerConfig{
+	if awfImageTag != "" || isArcDindTopology(config.WorkflowData) {
+		container := &AWFContainerConfig{
 			ImageTag: awfImageTag,
 		}
-		awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
+		// For ARC/DinD topology, set dockerHostPathPrefix in config.
+		// AWF uses this to prefix bind-mount source paths so the DinD daemon can resolve
+		// runner filesystem paths from its separate mount namespace.
+		// The config file is written at runtime, so ${RUNNER_TEMP} can be preserved for
+		// shell expansion before AWF reads the JSON.
+		if isArcDindTopology(config.WorkflowData) {
+			container.DockerHostPathPrefix = awfArcDindRootPathExpr
+			awfConfigLog.Printf("Container section: dockerHostPathPrefix=%s (arc-dind topology)", awfArcDindRootPathExpr)
+		}
+		awfConfig.Container = container
+		if awfImageTag != "" {
+			awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
+		}
 	}
+
+	// ── Logging section ──────────────────────────────────────────────────────
+	// Logging paths are set in config. For ARC/DinD, the config file is written at runtime,
+	// so ${RUNNER_TEMP} can be preserved for shell expansion before AWF reads the JSON.
+	awfConfig.Logging = &AWFLoggingConfig{
+		ProxyLogsDir: string(constants.AWFProxyLogsDir),
+		AuditDir:     string(constants.AWFAuditDir),
+	}
+	if isArcDindTopology(config.WorkflowData) {
+		awfConfig.Logging.ProxyLogsDir = awfArcDindProxyLogsDirExpr
+		awfConfig.Logging.AuditDir = awfArcDindAuditDirExpr
+	}
+	awfConfigLog.Printf("Logging section: proxyLogsDir=%s, auditDir=%s", awfConfig.Logging.ProxyLogsDir, awfConfig.Logging.AuditDir)
 
 	jsonStr, err := jsonutil.MarshalCompactNoHTMLEscape(awfConfig)
 	if err != nil {

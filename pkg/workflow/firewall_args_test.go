@@ -50,7 +50,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		dockerHostAssignmentSnippet := `GH_AW_DOCKER_HOST="${DOCKER_HOST}"`
 		dockerHostArgsRefSnippet := `${GH_AW_DOCKER_HOST:+--docker-host "$GH_AW_DOCKER_HOST"}`
 		conditionSnippet := `if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then`
-		flagAssignmentSnippet := `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"`
+		flagAssignmentSnippet := `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix ${RUNNER_TEMP}/gh-aw"`
 		argsRefSnippet := `${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}`
 
 		dockerHostInitIdx := strings.Index(stepContent, dockerHostInitSnippet)
@@ -262,7 +262,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		if strings.Contains(stepContent, `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""`) {
 			t.Error("Expected command to skip docker-host-path-prefix probe variable initialization for unsupported AWF versions")
 		}
-		if strings.Contains(stepContent, `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"`) {
+		if strings.Contains(stepContent, `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix ${RUNNER_TEMP}/gh-aw"`) {
 			t.Error("Expected command to skip docker-host-path-prefix assignment for unsupported AWF versions")
 		}
 		if strings.Contains(stepContent, `${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}`) {
@@ -292,6 +292,64 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		// Check that --ssl-bump flag is included
 		if !strings.Contains(stepContent, "--ssl-bump") {
 			t.Error("Expected AWF command to contain '--ssl-bump' flag")
+		}
+	})
+
+	t.Run("arc-dind uses daemon-visible paths and overlay mounts", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			RunnerConfig: &RunnerConfig{
+				Topology: RunnerTopologyArcDind,
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+		stepContent := requireCopilotExecutionStep(t, steps)
+
+		if !strings.Contains(stepContent, `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix ${RUNNER_TEMP}/gh-aw"`) {
+			t.Error("Expected arc-dind docker-host-path-prefix to use ${RUNNER_TEMP}/gh-aw")
+		}
+		if !strings.Contains(stepContent, `--mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro"`) {
+			t.Error("Expected read-only base mount for ${RUNNER_TEMP}/gh-aw")
+		}
+		if !strings.Contains(stepContent, `--mount "${RUNNER_TEMP}/gh-aw/home:${RUNNER_TEMP}/gh-aw/home:rw"`) {
+			t.Error("Expected read-write home overlay mount for arc-dind")
+		}
+		if !strings.Contains(stepContent, `--mount "${RUNNER_TEMP}/gh-aw/sandbox/agent:${RUNNER_TEMP}/gh-aw/sandbox/agent:rw"`) {
+			t.Error("Expected read-write sandbox/agent overlay mount for arc-dind")
+		}
+		if !strings.Contains(stepContent, `\"proxyLogsDir\":\"${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs\"`) {
+			t.Error("Expected proxyLogsDir in AWF config JSON to resolve under ${RUNNER_TEMP}/gh-aw")
+		}
+		if !strings.Contains(stepContent, `\"auditDir\":\"${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit\"`) {
+			t.Error("Expected auditDir in AWF config JSON to resolve under ${RUNNER_TEMP}/gh-aw")
+		}
+		if !strings.Contains(stepContent, "export HOME=${RUNNER_TEMP}/gh-aw/home") {
+			t.Error("Expected command to export HOME under ${RUNNER_TEMP}/gh-aw/home for arc-dind")
+		}
+		if !strings.Contains(stepContent, "--prompt-file ${RUNNER_TEMP}/gh-aw/aw-prompts/prompt.txt") {
+			t.Error("Expected prompt file path to be rewritten under ${RUNNER_TEMP}/gh-aw for arc-dind")
+		}
+		if !strings.Contains(stepContent, "--log-dir ${RUNNER_TEMP}/gh-aw/sandbox/agent/logs/") {
+			t.Error("Expected copilot log-dir to be rewritten under ${RUNNER_TEMP}/gh-aw for arc-dind")
+		}
+		if !strings.Contains(stepContent, "--add-dir ${RUNNER_TEMP}/gh-aw/") {
+			t.Error("Expected copilot --add-dir path to be rewritten under ${RUNNER_TEMP}/gh-aw for arc-dind")
+		}
+		if !strings.Contains(stepContent, `${RUNNER_TEMP}/gh-aw/bin/copilot`) {
+			t.Error("Expected arc-dind command to use Copilot binary staged under ${RUNNER_TEMP}/gh-aw/bin/copilot")
+		}
+		if strings.Contains(stepContent, "/usr/local/bin/copilot") {
+			t.Error("Expected arc-dind command not to reference /usr/local/bin/copilot")
 		}
 	})
 

@@ -726,6 +726,34 @@ func TestGenerateMainJobStepsWithDevMode(t *testing.T) {
 	}
 }
 
+func TestGenerateMainJobStepsArcDindRedirectsToolCacheToRunnerTemp(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	data := &WorkflowData{
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		MarkdownContent: "Test prompt",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		RunnerConfig: &RunnerConfig{
+			Topology: RunnerTopologyArcDind,
+		},
+		ParsedTools: NewTools(nil),
+	}
+
+	var yaml strings.Builder
+	err := compiler.generateMainJobSteps(&yaml, data)
+	require.NoError(t, err)
+
+	result := yaml.String()
+	assert.Contains(t, result, "- name: Redirect tool cache for ARC/DinD")
+	assert.Contains(t, result, `mkdir -p "${RUNNER_TEMP}/gh-aw/tool-cache"`)
+	assert.Contains(t, result, `echo "RUNNER_TOOL_CACHE=${RUNNER_TEMP}/gh-aw/tool-cache" >> "$GITHUB_ENV"`)
+	assert.NotContains(t, result, "/tmp/gh-aw/tool-cache")
+}
+
 func TestGenerateMainJobStepsWithDevMode_GhAwRuntimeBuildsFromSource(t *testing.T) {
 	originalRelease := IsRelease()
 	t.Cleanup(func() {
