@@ -492,7 +492,7 @@ func TestDailyCacheStrategyAnalyzerUsesCodexCompatibleModelsForExperiment(t *tes
 	}
 }
 
-func TestDailyModelResolutionUsesCodexCompatibleSubAgentModel(t *testing.T) {
+func TestDailyModelResolutionUsesCopilotEngineWithMiniSubAgentModel(t *testing.T) {
 	repoRoot, err := findRepoRoot()
 	if err != nil {
 		t.Fatalf("Failed to find repo root: %v", err)
@@ -505,13 +505,22 @@ func TestDailyModelResolutionUsesCodexCompatibleSubAgentModel(t *testing.T) {
 	}
 
 	workflow := string(content)
+
+	// Verify the top-level engine is copilot (not codex) so gpt-5.4-mini is accepted
+	if strings.Contains(workflow, "id: codex") {
+		t.Fatal("Expected daily-model-resolution workflow to use copilot engine, not codex (gpt-5.4-mini is not a valid Codex model)")
+	}
+	if !strings.Contains(workflow, "id: copilot") {
+		t.Fatal("Expected daily-model-resolution workflow to use copilot engine")
+	}
+
 	agentStart := strings.Index(workflow, "## agent: `run-analyzer`")
 	if agentStart == -1 {
 		t.Fatal("Expected daily-model-resolution workflow to define the run-analyzer sub-agent")
 	}
 	agentBlock := workflow[agentStart:]
 	if !strings.Contains(agentBlock, "\nmodel: gpt-5.4-mini\n") {
-		t.Fatal("Expected daily-model-resolution run-analyzer sub-agent to use explicit codex-compatible model gpt-5.4-mini")
+		t.Fatal("Expected daily-model-resolution run-analyzer sub-agent to use explicit model gpt-5.4-mini")
 	}
 }
 
