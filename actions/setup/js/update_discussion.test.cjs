@@ -855,4 +855,135 @@ describe("update_discussion", () => {
       expect(addLabelsCalls[0].variables.labelIds).toEqual(["LA_page2_1"]);
     });
   });
+
+  describe("non-discussion context fallback", () => {
+    it("should fail when triggering context is an issue (not a discussion)", async () => {
+      mockContext.eventName = "issues";
+      mockContext.payload = { issue: { number: 10 } };
+
+      const handler = await main({
+        target: "triggering",
+        allow_body: true,
+      });
+
+      const result = await handler({ type: "update_discussion", body: "Updated body" }, {});
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Not in discussion context");
+    });
+
+    it("should fail with invalid discussion number in target", async () => {
+      const handler = await main({
+        target: "abc",
+        allow_body: true,
+      });
+
+      const result = await handler({ type: "update_discussion", body: "Updated body" }, {});
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Invalid discussion number in target");
+    });
+
+    it("should fail with negative discussion number in target", async () => {
+      const handler = await main({
+        target: "-5",
+        allow_body: true,
+      });
+
+      const result = await handler({ type: "update_discussion", body: "Updated body" }, {});
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Invalid discussion number in target");
+    });
+  });
+
+  describe("existing labels removal before adding new ones", () => {
+    it("should remove existing labels before adding new ones", async () => {
+      // Override graphql to return existing labels on the discussion
+      mockGithub.graphql = async (/** @type {string} */ query, /** @type {any} */ variables) => {
+        graphqlCalls.push({ query, variables });
+
+        if (query.includes("discussion(number:")) {
+          return { repository: { discussion: { ...defaultDiscussion } } };
+        }
+
+        if (query.includes("labels(first: 100") && query.includes("repository(owner:")) {
+          return {
+            repository: {
+              labels: {
+                nodes: defaultLabels,
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          };
+        }
+
+        // Return existing labels on the discussion
+        if (query.includes("node(id:") && query.includes("on Discussion")) {
+          return { node: { labels: { nodes: [{ id: "LA_kwDO_old1" }, { id: "LA_kwDO_old2" }] } } };
+        }
+
+        if (query.includes("removeLabelsFromLabelable")) {
+          return { removeLabelsFromLabelable: { clientMutationId: "test" } };
+        }
+
+        if (query.includes("addLabelsToLabelable")) {
+          return { addLabelsToLabelable: { clientMutationId: "test" } };
+        }
+
+        throw new Error(`Unexpected GraphQL query: ${query.substring(0, 80)}`);
+      };
+
+      const handler = await main({
+        target: "*",
+        allow_labels: true,
+      });
+
+      const result = await handler({ type: "update_discussion", labels: ["bug"], discussion_number: 42 }, {});
+      expect(result.success).toBe(true);
+
+      // Remove mutation should have been called with existing label IDs
+      const removeCalls = graphqlCalls.filter(c => c.query.includes("removeLabelsFromLabelable"));
+      expect(removeCalls).toHaveLength(1);
+      expect(removeCalls[0].variables.labelIds).toEqual(["LA_kwDO_old1", "LA_kwDO_old2"]);
+
+      // Add mutation should have been called with new label ID
+      const addCalls = graphqlCalls.filter(c => c.query.includes("addLabelsToLabelable"));
+      expect(addCalls).toHaveLength(1);
+      expect(addCalls[0].variables.labelIds).toEqual(["LA_kwDO_bug"]);
+    });
+
+    it("should only add labels (no remove mutation) when discussion has no existing labels", async () => {
+      // mockGithub.graphql already returns empty nodes for discussion labels
+      const handler = await main({
+        target: "*",
+        allow_labels: true,
+      });
+
+      const result = await handler({ type: "update_discussion", labels: ["bug"], discussion_number: 42 }, {});
+      expect(result.success).toBe(true);
+
+      // No labels to remove
+      expect(getRemoveLabelsCalls()).toHaveLength(0);
+
+      // New labels should be added
+      expect(getAddLabelsCalls()).toHaveLength(1);
+    });
+
+    it("should warn and continue when label is not found in repository", async () => {
+      const handler = await main({
+        target: "*",
+        allow_labels: true,
+      });
+
+      // "nonexistent-label" is not in defaultLabels
+      const result = await handler({ type: "update_discussion", labels: ["bug", "nonexistent-label"], discussion_number: 42 }, {});
+      expect(result.success).toBe(true);
+
+      // Warning about unmatched label
+      expect(mockCore.warnings.some(msg => msg.includes("nonexistent-label"))).toBe(true);
+
+      // Only "bug" should be added
+      const addCalls = getAddLabelsCalls();
+      expect(addCalls).toHaveLength(1);
+      expect(addCalls[0].variables.labelIds).toEqual(["LA_kwDO_bug"]);
+    });
+  });
 });

@@ -40,16 +40,11 @@ async function fetchLabelNodeIds(githubClient, owner, repo, labelNames) {
   const allLabels = await fetchAllRepoLabels(githubClient, owner, repo);
   const labelMap = new Map(allLabels.map(/** @param {any} l */ l => [l.name.toLowerCase(), l.id]));
 
-  const labelIds = [];
-  const unmatched = [];
-  for (const name of labelNames) {
+  const labelIds = labelNames.flatMap(name => {
     const id = labelMap.get(name.toLowerCase());
-    if (id) {
-      labelIds.push(id);
-    } else {
-      unmatched.push(name);
-    }
-  }
+    return id ? [id] : [];
+  });
+  const unmatched = labelNames.filter(name => !labelMap.has(name.toLowerCase()));
 
   if (unmatched.length > 0) {
     core.warning(`Could not find label IDs for: ${unmatched.join(", ")}. Ensure these labels exist in the repository.`);
