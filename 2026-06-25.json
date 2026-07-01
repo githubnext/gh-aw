@@ -1,1 +1,56 @@
-{"date":"2026-06-25","overall":{"total_runs":100,"total_aic":6906.526,"total_action_minutes":1076.0},"workflows":[{"n":"PR Code Quality Reviewer","rc":8,"aic":680.475,"avg":85.059,"am":98.0,"err":0,"url":""},{"n":"Matt Pocock Skills Reviewer","rc":8,"aic":571.302,"avg":71.413,"am":92.0,"err":0,"url":""},{"n":"Contribution Check","rc":2,"aic":426.789,"avg":213.394,"am":32.0,"err":0,"url":""},{"n":"Daily AgentRx Trace Optimizer","rc":1,"aic":421.77,"avg":421.77,"am":19.0,"err":0,"url":""},{"n":"Test Quality Sentinel","rc":7,"aic":410.39,"avg":58.627,"am":75.0,"err":0,"url":""},{"n":"Daily CLI Tools Exploratory Tester","rc":1,"aic":393.376,"avg":393.376,"am":28.0,"err":0,"url":""},{"n":"daily-experiment-report","rc":1,"aic":345.349,"avg":345.349,"am":24.0,"err":0,"url":""},{"n":"PR Sous Chef","rc":6,"aic":311.274,"avg":51.879,"am":56.0,"err":0,"url":""},{"n":"Safe Output Health Monitor","rc":1,"aic":263.757,"avg":263.757,"am":15.0,"err":0,"url":""},{"n":"Copilot Session Insights","rc":1,"aic":257.969,"avg":257.969,"am":37.0,"err":0,"url":""},{"n":"GitHub API Consumption Report Agent","rc":1,"aic":249.411,"avg":249.411,"am":19.0,"err":0,"url":""},{"n":"Daily Safe Outputs Git Simulator","rc":1,"aic":247.022,"avg":247.022,"am":10.0,"err":0,"url":""},{"n":"Daily AW Cross-Repo Compile Check","rc":1,"aic":236.001,"avg":236.001,"am":67.0,"err":0,"url":""},{"n":"Copilot Agent Prompt Clustering Analysis","rc":1,"aic":183.809,"avg":183.809,"am":27.0,"err":0,"url":""},{"n":"Package Specification Extractor","rc":1,"aic":177.711,"avg":177.711,"am":13.0,"err":0,"url":""},{"n":"Go Fan","rc":1,"aic":152.58,"avg":152.58,"am":10.0,"err":0,"url":""},{"n":"PR Description Updater","rc":3,"aic":151.173,"avg":50.391,"am":29.0,"err":1,"url":""},{"n":"Design Decision Gate \ud83c\udfd7\ufe0f","rc":8,"aic":144.695,"avg":18.087,"am":51.0,"err":0,"url":""},{"n":"CLI Version Checker","rc":1,"aic":139.38,"avg":139.38,"am":9.0,"err":0,"url":""},{"n":"[aw] Failure Investigator (6h)","rc":1,"aic":133.266,"avg":133.266,"am":12.0,"err":0,"url":""},{"n":"Workflow Health Manager - Meta-Orchestrator","rc":1,"aic":117.146,"avg":117.146,"am":12.0,"err":0,"url":""},{"n":"Daily Semgrep Scan","rc":1,"aic":109.19,"avg":109.19,"am":12.0,"err":0,"url":""},{"n":"Terminal Stylist","rc":1,"aic":86.783,"avg":86.783,"am":10.0,"err":0,"url":""},{"n":"Functional Pragmatist","rc":1,"aic":77.738,"avg":77.738,"am":11.0,"err":0,"url":""},{"n":"Daily News","rc":1,"aic":77.173,"avg":77.173,"am":15.0,"err":0,"url":""},{"n":"Copilot PR Conversation NLP Analysis","rc":1,"aic":76.259,"avg":76.259,"am":22.0,"err":0,"url":""},{"n":"Daily Documentation Updater","rc":1,"aic":55.567,"avg":55.567,"am":8.0,"err":0,"url":""},{"n":"Daily Hippo Learn","rc":1,"aic":47.317,"avg":47.317,"am":9.0,"err":0,"url":""},{"n":"Daily Choice Type Test","rc":1,"aic":46.426,"avg":46.426,"am":6.0,"err":0,"url":""},{"n":"Daily MCP Tool Concurrency Analysis","rc":1,"aic":40.991,"avg":40.991,"am":10.0,"err":0,"url":""},{"n":"Issue Monster","rc":5,"aic":39.845,"avg":7.969,"am":34.0,"err":0,"url":""},{"n":"Sub-Issue Closer","rc":1,"aic":30.773,"avg":30.773,"am":7.0,"err":0,"url":""},{"n":"Daily Windows Terminal Integration Builder","rc":1,"aic":28.608,"avg":28.608,"am":7.0,"err":0,"url":""},{"n":"Team Status","rc":1,"aic":28.421,"avg":28.421,"am":6.0,"err":0,"url":""},{"n":"Daily Syntax Error Quality Check","rc":1,"aic":27.37,"avg":27.37,"am":7.0,"err":0,"url":""},{"n":"PR Triage Agent","rc":1,"aic":26.908,"avg":26.908,"am":7.0,"err":0,"url":""},{"n":"Multi-Device Docs Tester","rc":1,"aic":26.081,"avg":26.081,"am":8.0,"err":0,"url":""},{"n":"Draft PR Cleanup","rc":1,"aic":17.89,"avg":17.89,"am":6.0,"err":0,"url":""},{"n":"Daily Max AI Credits Test (Intentionally Fails)","rc":1,"aic":10.317,"avg":10.317,"am":5.0,"err":1,"url":""},{"n":"Daily Workflow Updater","rc":1,"aic":9.93,"avg":9.93,"am":7.0,"err":0,"url":""},{"n":"Package Specification Enforcer","rc":1,"aic":9.916,"avg":9.916,"am":6.0,"err":0,"url":""},{"n":"Constraint Solving \u2014 Problem of the Day","rc":1,"aic":7.957,"avg":7.957,"am":9.0,"err":0,"url":""},{"n":"Duplicate Code Detector","rc":1,"aic":6.95,"avg":6.95,"am":7.0,"err":0,"url":""},{"n":"AI Moderator","rc":1,"aic":3.471,"avg":3.471,"am":19.0,"err":0,"url":""},{"n":"Typist - Go Type Analysis","rc":1,"aic":0.0,"avg":0.0,"am":7.0,"err":1,"url":""},{"n":"Glossary Maintainer","rc":1,"aic":0.0,"avg":0.0,"am":6.0,"err":1,"url":""},{"n":"Dev","rc":1,"aic":0.0,"avg":0.0,"am":6.0,"err":1,"url":""},{"n":"Instructions Janitor","rc":1,"aic":0.0,"avg":0.0,"am":7.0,"err":1,"url":""},{"n":"Smoke CI","rc":5,"aic":0.0,"avg":0.0,"am":28.0,"err":0,"url":""},{"n":"Daily Rendering Scripts Verifier","rc":1,"aic":0.0,"avg":0.0,"am":8.0,"err":1,"url":""},{"n":"Auto-Triage Issues","rc":1,"aic":0.0,"avg":0.0,"am":6.0,"err":1,"url":""},{"n":"Code Scanning Fixer","rc":1,"aic":0.0,"avg":0.0,"am":7.0,"err":1,"url":""},{"n":"GitHub Remote MCP Authentication Test","rc":1,"aic":0.0,"avg":0.0,"am":4.0,"err":1,"url":""},{"n":"Daily Safe Outputs Conformance Checker","rc":1,"aic":0.0,"avg":0.0,"am":5.0,"err":1,"url":""},{"n":"Daily Sub-Agent Model Resolution Audit","rc":1,"aic":0.0,"avg":0.0,"am":6.0,"err":1,"url":""},{"n":"Schema Consistency Checker","rc":1,"aic":0.0,"avg":0.0,"am":5.0,"err":1,"url":""},{"n":"Static Analysis Report","rc":1,"aic":0.0,"avg":0.0,"am":8.0,"err":1,"url":""}]}
+{
+  "date": "2026-06-25",
+  "period_days": null,
+  "overall": {
+    "total_runs": 100,
+    "total_aic": 6906.526,
+    "total_action_minutes": 1076.0
+  },
+  "workflows": [
+    {
+      "n": "PR Code Quality Reviewer",
+      "rc": 8,
+      "aic": 680.475,
+      "avg": 85.059,
+      "am": 98.0,
+      "err": 0,
+      "url": ""
+    },
+    {
+      "n": "Matt Pocock Skills Reviewer",
+      "rc": 8,
+      "aic": 571.302,
+      "avg": 71.413,
+      "am": 92.0,
+      "err": 0,
+      "url": ""
+    },
+    {
+      "n": "Contribution Check",
+      "rc": 2,
+      "aic": 426.789,
+      "avg": 213.394,
+      "am": 32.0,
+      "err": 0,
+      "url": ""
+    },
+    {
+      "n": "Daily AgentRx Trace Optimizer",
+      "rc": 1,
+      "aic": 421.77,
+      "avg": 421.77,
+      "am": 19.0,
+      "err": 0,
+      "url": ""
+    },
+    {
+      "n": "Test Quality Sentinel",
+      "rc": 7,
+      "aic": 410.39,
+      "avg": 58.627,
+      "am": 75.0,
+      "err": 0,
+      "url": ""
+    }
+  ]
+}
