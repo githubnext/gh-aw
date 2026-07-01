@@ -182,7 +182,7 @@ Do NOT create an issue if there are no breaking changes.
 
 Create an issue with the following structure.
 
-{{#if experiments.tone_variant == "urgent" }}
+{{#if experiments.tone_variant == 'urgent' }}
 Use an urgent but evidence-based tone. Use phrases like "high compatibility risk", "immediate maintainer action recommended", and "user-facing impact likely" when supported by evidence. Emphasize user impact, compatibility risk, and the need for immediate maintainer review while keeping all claims tied to observed code changes.
 {{else}}
 Use a neutral engineering tone. Prefer phrasing like "potential compatibility concern", "review recommended", and "migration guidance provided". Emphasize factual compatibility analysis, concrete evidence, and migration guidance without urgency-heavy wording.
@@ -198,7 +198,7 @@ Use a neutral engineering tone. Prefer phrasing like "potential compatibility co
 - **Total Breaking Changes**: [NUMBER]
 - **Severity**: [CRITICAL/HIGH/MEDIUM]
 - **Commits Analyzed**: [NUMBER]
-{{#if experiments.tone_variant == "urgent" }}
+{{#if experiments.tone_variant == 'urgent' }}
 - **Status**: ⚠️ Requires Immediate Review
 {{else}}
 - **Status**: Review Recommended
@@ -244,7 +244,7 @@ Complete the following items to address these breaking changes:
 
 ### Recommendations
 
-{{#if experiments.tone_variant == "urgent" }}
+{{#if experiments.tone_variant == 'urgent' }}
 [Prioritized migration steps, version bump guidance, explicit owner action items, and a short statement of end-user risk.]
 {{else}}
 [Migration steps, version bump guidance, and action items - always visible]
