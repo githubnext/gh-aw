@@ -50,22 +50,19 @@ func TestCompileDependabotIntegration(t *testing.T) {
 	initGitRepo(t, tempDir)
 
 	// Create a test workflow with npm dependencies
-	workflowContent := `---
-on: push
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-	skills:
-	  - githubnext/skills@1111111111111111111111111111111111111111
-	steps:
-	  - run: npx @playwright/mcp@latest --help
-	---
-
-# Test Workflow
-
-This workflow uses npx to run Playwright MCP.
-`
+	workflowContent := "---\n" +
+		"on: push\n" +
+		"permissions:\n" +
+		"  contents: read\n" +
+		"  issues: read\n" +
+		"  pull-requests: read\n" +
+		"skills:\n" +
+		"  - githubnext/skills@1111111111111111111111111111111111111111\n" +
+		"steps:\n" +
+		"  - run: npx @playwright/mcp@latest --help\n" +
+		"---\n\n" +
+		"# Test Workflow\n\n" +
+		"This workflow uses npx to run Playwright MCP.\n"
 	workflowPath := filepath.Join(workflowsDir, "test-workflow.md")
 	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
 		t.Fatalf("failed to write workflow file: %v", err)

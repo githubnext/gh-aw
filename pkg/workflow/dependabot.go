@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -337,9 +338,7 @@ func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, skillR
 		if pkgJSON.SkillRepos == nil {
 			pkgJSON.SkillRepos = make(map[string]string)
 		}
-		for repo, ref := range skillRepos {
-			pkgJSON.SkillRepos[repo] = ref
-		}
+		maps.Copy(pkgJSON.SkillRepos, skillRepos)
 	}
 
 	// Write package.json with nice formatting

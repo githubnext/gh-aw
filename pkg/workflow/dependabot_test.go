@@ -128,30 +128,6 @@ func TestCollectNpmDependencies(t *testing.T) {
 		},
 	}
 
-	func TestCollectSkillRepositories(t *testing.T) {
-		compiler := NewCompiler()
-		repos := compiler.collectSkillRepositories([]*WorkflowData{
-			{
-				SkillReferences: []SkillReference{
-					{Skill: "githubnext/skills@1111111111111111111111111111111111111111"},
-					{Skill: "githubnext/skills/agentic-workflows@2222222222222222222222222222222222222222"},
-				},
-			},
-			{
-				Skills: []string{
-					"octocat/custom-skills@3333333333333333333333333333333333333333",
-				},
-			},
-		})
-
-		if got, ok := repos["githubnext/skills"]; !ok || got != "2222222222222222222222222222222222222222" {
-			t.Fatalf("expected githubnext/skills ref to be tracked, got %q", got)
-		}
-		if got, ok := repos["octocat/custom-skills"]; !ok || got != "3333333333333333333333333333333333333333" {
-			t.Fatalf("expected octocat/custom-skills ref to be tracked, got %q", got)
-		}
-	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			deps := compiler.collectNpmDependencies(tt.workflows)
@@ -170,7 +146,32 @@ func TestCollectNpmDependencies(t *testing.T) {
 					t.Errorf("dependency %d: expected version %q, got %q", i, expected.Version, dep.Version)
 				}
 			}
+
 		})
+	}
+}
+
+func TestCollectSkillRepositories(t *testing.T) {
+	compiler := NewCompiler()
+	repos := compiler.collectSkillRepositories([]*WorkflowData{
+		{
+			SkillReferences: []SkillReference{
+				{Skill: "githubnext/skills@1111111111111111111111111111111111111111"},
+				{Skill: "githubnext/skills/agentic-workflows@2222222222222222222222222222222222222222"},
+			},
+		},
+		{
+			Skills: []string{
+				"octocat/custom-skills@3333333333333333333333333333333333333333",
+			},
+		},
+	})
+
+	if got, ok := repos["githubnext/skills"]; !ok || got != "2222222222222222222222222222222222222222" {
+		t.Fatalf("expected githubnext/skills ref to be tracked, got %q", got)
+	}
+	if got, ok := repos["octocat/custom-skills"]; !ok || got != "3333333333333333333333333333333333333333" {
+		t.Fatalf("expected octocat/custom-skills ref to be tracked, got %q", got)
 	}
 }
 
