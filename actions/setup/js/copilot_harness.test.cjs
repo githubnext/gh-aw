@@ -984,6 +984,15 @@ describe("copilot_harness.cjs", () => {
     it("returns false for empty output", () => {
       expect(isHTTP400ResponseError("")).toBe(false);
     });
+
+    it("matches the 'no model endpoints available given user constraints' SDK error", () => {
+      expect(isHTTP400ResponseError("[copilot-sdk-driver] [sdk-driver] error: 400 400 400 no model endpoints available given user constraints")).toBe(true);
+    });
+
+    it("matches the no-model-endpoints error embedded in larger output", () => {
+      const output = 'some prior output\n[copilot-sdk-driver] [sdk-driver] error: 400 400 400 no model endpoints available given user constraints\n{"type":"subagent.failed"}';
+      expect(isHTTP400ResponseError(output)).toBe(true);
+    });
   });
 
   describe("no-auth-info detection pattern", () => {
