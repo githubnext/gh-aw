@@ -42,9 +42,7 @@ const ELLIPSIS_LENGTH = ELLIPSIS.length;
 const ENGINE_RATE_LIMIT_429_RE =
   /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|\brate_limit_(?:error|exceeded)\b|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
 const ENGINE_MAX_RUNS_EXCEEDED_RE = /(?:\bmax_runs_exceeded\b|\bmaximum\s+llm\s+invocations\s+exceeded\b)/i;
-const ALLOWED_FILES_ERROR_RE = new RegExp(
-  ["^(?<summary>.*outside the allowed-files list) ", "\\((?<files>[^)]+)\\)\\. ", "(?<remediation>Add the files to the allowed-files configuration field or remove them from the (?:patch|bundle)\\.)$"].join("")
-);
+const ALLOWED_FILES_ERROR_RE = /^(?<summary>.*outside the allowed-files list) \((?<files>.+)\)\. (?<remediation>Add the files to the allowed-files configuration field or remove them from the (?:patch|bundle)\.)$/;
 
 /**
  * Parse action failure issue expiration from environment.
@@ -93,10 +91,7 @@ function renderAllowedFilesError(type, error) {
   }
 
   const summary = match.groups.summary;
-  const files = match.groups.files
-    .split(",")
-    .map(file => file.trim())
-    .filter(file => file !== "");
+  const files = match.groups.files.split(",").map(file => file.trim());
   const remediation = match.groups.remediation;
   const fileCount = files.length;
   const fileWord = fileCount === 1 ? "file" : "files";
