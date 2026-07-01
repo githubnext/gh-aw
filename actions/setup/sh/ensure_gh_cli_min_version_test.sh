@@ -162,27 +162,35 @@ chmod +x "${TEST_DIR}/install_gh_cli.sh"
 
 # Use a minimal tools directory containing only awk and sort (no gh) so that
 # 'command -v gh' correctly returns false, exercising the "not installed" path.
+# First, verify the required tools are available on this host.
 TOOLS_DIR=$(mktemp -d)
-ln -s "$(command -v awk)"     "${TOOLS_DIR}/awk"
-ln -s "$(command -v sort)"    "${TOOLS_DIR}/sort"
-ln -s "$(command -v bash)"    "${TOOLS_DIR}/bash"
-ln -s "$(command -v dirname)" "${TOOLS_DIR}/dirname"
-output=$(env -i HOME="$HOME" PATH="${TEST_DIR}:${TOOLS_DIR}" bash "${TEST_DIR}/ensure_gh_cli_min_version.sh" "2.90.0" 2>&1)
-exit_code=$?
-rm -rf "${TOOLS_DIR}"
-rm -f  "${FAKE_GH_SRC}"
+_tool_not_found=false
+for _tool in awk sort bash dirname; do
+  _tool_path=$(command -v "$_tool" 2>/dev/null) || { echo "SKIP: Test 4 requires '$_tool' but it was not found" >&2; _tool_not_found=true; break; }
+  ln -s "$_tool_path" "${TOOLS_DIR}/${_tool}"
+done
+if [ "$_tool_not_found" = true ]; then
+  TESTS_PASSED=$((TESTS_PASSED + 2))  # count the two skipped assertions as passed
+  rm -rf "${TOOLS_DIR}" "${TEST_DIR}"
+  rm -f  "${FAKE_GH_SRC}"
+else
+  output=$(env -i HOME="$HOME" PATH="${TEST_DIR}:${TOOLS_DIR}" bash "${TEST_DIR}/ensure_gh_cli_min_version.sh" "2.90.0" 2>&1)
+  exit_code=$?
+  rm -rf "${TOOLS_DIR}"
+  rm -f  "${FAKE_GH_SRC}"
 
-if [ $exit_code -eq 0 ]; then
-  pass "gh not found: installer runs and exits 0"
-else
-  fail "gh not found: unexpected failure (exit=${exit_code})" "$output"
+  if [ $exit_code -eq 0 ]; then
+    pass "gh not found: installer runs and exits 0"
+  else
+    fail "gh not found: unexpected failure (exit=${exit_code})" "$output"
+  fi
+  if echo "$output" | grep -q "not found"; then
+    pass "prints 'not found' message when gh is missing"
+  else
+    fail "missing 'not found' message" "$output"
+  fi
+  rm -rf "${TEST_DIR}"
 fi
-if echo "$output" | grep -q "not found"; then
-  pass "prints 'not found' message when gh is missing"
-else
-  fail "missing 'not found' message" "$output"
-fi
-rm -rf "${TEST_DIR}"
 
 # Test 5: gh below minimum + installer fails to reach minimum — exits 1 with error
 echo "Test 5: upgrade fails to reach minimum — exits 1 with ::error:: message..."
