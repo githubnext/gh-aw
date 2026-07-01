@@ -868,7 +868,7 @@ workflow identifier and schedule expression.
 implementation **MUST** fail with a descriptive error and **MUST NOT** fall back to random
 scattering.
 
-**R-SAFE-004A**: If non-unique hash input causes repeated collisions across workflows, the
+**R-SAFE-005**: If non-unique hash input causes repeated collisions across workflows, the
 implementation **MUST** preserve deterministic behavior and **SHOULD** emit a warning indicating
 reduced distribution quality. Implementations **MUST NOT** silently switch to non-deterministic
 fallbacks to hide collisions.
@@ -1429,7 +1429,7 @@ error objects so that operators and CI pipelines can identify the failure type u
 | Error code | Trigger condition | Normative requirement |
 |---|---|---|
 | `R-SAFE-003` | Hash input material is empty (e.g., missing workflow identifier) | §8 R-SAFE-003: MUST fail with a descriptive error; MUST NOT fall back to random scattering |
-| `R-SAFE-004A` | Non-unique hash input causes repeated collision across workflows | §8 R-SAFE-004A: MUST log a diagnostic; MAY apply deterministic offset to resolve |
+| `R-SAFE-005` | Non-unique hash input causes repeated collision across workflows | §8 R-SAFE-005: MUST log a diagnostic; MAY apply deterministic offset to resolve |
 
 Operator-visible error messages for R-SAFE-003 MUST include the phrase "missing workflow
 identifier" or equivalent so the root cause is immediately actionable.

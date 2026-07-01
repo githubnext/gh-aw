@@ -69,11 +69,11 @@ Feedback should be filed as GitHub issues against the `github/gh-aw` repository.
 10. [Error Handling](#10-error-handling)
 11. [Implementation Requirements](#11-implementation-requirements)
 12. [Compliance Testing](#12-compliance-testing)
-13. [Norms](#norms)
-14. [Sync Notes](#13-sync-notes)
-15. [Appendices](#14-appendices)
-16. [References](#15-references)
-17. [Change Log](#16-change-log)
+13. [Norms](#13-norms)
+14. [Sync Notes](#14-sync-notes)
+15. [Appendices](#15-appendices)
+16. [References](#16-references)
+17. [Change Log](#17-change-log)
 
 ---
 
@@ -1010,7 +1010,7 @@ and adding new fixtures.
 
 ---
 
-## Norms
+## 13. Norms
 
 This section defines cross-cutting normative requirements that apply across sampling, projection, and
 consumer-facing output behavior.
@@ -1028,7 +1028,7 @@ consumer-facing output behavior.
 
 ---
 
-## 13. Sync Notes
+## 14. Sync Notes
 
 This section maps normative forecast requirements to implementation files.
 
@@ -1076,7 +1076,7 @@ Sync follow-up tasks:
 
 ---
 
-## 14. Appendices
+## 15. Appendices
 
 ### Appendix A: Worked Example
 
@@ -1153,7 +1153,7 @@ Safeguard requirements for this specification are now defined in §10.7.
 
 ---
 
-## 15. References
+## 16. References
 
 ### Normative References
 
@@ -1170,7 +1170,7 @@ Safeguard requirements for this specification are now defined in §10.7.
 
 ---
 
-## 16. Change Log
+## 17. Change Log
 
 ### Version 0.1.0 (Experimental Draft)
 
