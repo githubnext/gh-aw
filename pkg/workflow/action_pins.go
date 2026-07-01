@@ -128,6 +128,7 @@ func (c *Compiler) getActionPin(repo string) string {
 						repo, entry.Version, latestEmbedded.Version)
 					return actionpins.FormatPinnedActionReference(repo, latestEmbedded.SHA, latestEmbedded.Version)
 				}
+				// Equal or newer cached versions intentionally fall through to the cache entry below.
 			}
 			// Mark this cache key as used so it won't be pruned as orphaned
 			if resolver != nil {

@@ -1673,6 +1673,11 @@ func TestGHESArtifactCompatPinsExist(t *testing.T) {
 }
 
 func TestGetActionPinPrefersLatestEmbeddedOverStaleCache(t *testing.T) {
+	latestCacheRestorePin, ok := getLatestActionPinByRepo("actions/cache/restore")
+	if !ok {
+		t.Fatal("expected embedded pin for actions/cache/restore")
+	}
+
 	tests := []struct {
 		name       string
 		cacheEntry ActionCacheEntry
@@ -1691,8 +1696,8 @@ func TestGetActionPinPrefersLatestEmbeddedOverStaleCache(t *testing.T) {
 			name: "keeps equal cached version",
 			cacheEntry: ActionCacheEntry{
 				Repo:    "actions/cache/restore",
-				Version: "v6.1.0",
-				SHA:     "55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+				Version: latestCacheRestorePin.Version,
+				SHA:     latestCacheRestorePin.SHA,
 			},
 			want: getActionPin("actions/cache/restore"),
 		},
