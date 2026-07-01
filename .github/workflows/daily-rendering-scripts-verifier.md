@@ -97,44 +97,42 @@ Use the agentic-workflows MCP "status" tool to verify configuration.
 
 ## Phase 1: Find the Most Recent Run
 
-Download the single most recent agentic workflow run:
+Download the single most recent agentic workflow run including the agent output artifact:
 
 ```
 Use the agentic-workflows MCP "logs" tool with:
 - count: 1
 - start_date: "-7d"
-Output is saved to: /tmp/gh-aw/aw-mcp/logs
+- artifacts: ["agent", "usage"]
 ```
 
-Verify the download:
-```bash
-ls -la /tmp/gh-aw/aw-mcp/logs/
-find /tmp/gh-aw/aw-mcp/logs/ -maxdepth 2 -type d
-```
+The tool returns a JSON response with a `file_path` field pointing to a summary JSON in `/tmp/gh-aw/logs-cache/`.
+Record this `file_path` for use in Phase 2.
 
-If no logs are found, use `count: 5` and pick the most recently modified run directory.
+If no logs are found, retry with `count: 5` and use the most recent run.
 
 ## Phase 2: Identify the Engine and Agent Output File
 
-Examine the run directory to identify the engine and agent output file:
+Read the summary JSON at the `file_path` returned by the logs tool (use the Read tool — bash cannot access `/tmp/` in this environment):
 
-```bash
-# Find the most recent run directory
-RUN_DIR=$(find /tmp/gh-aw/aw-mcp/logs -maxdepth 1 -type d -name 'run-*' | sort -V | tail -1)
-echo "Most recent run directory: $RUN_DIR"
-
-# Inspect metadata
-cat "$RUN_DIR/aw_info.json" 2>/dev/null | jq '{engine: .engine, workflow: .workflow_name}' || echo "No aw_info.json found"
-
-# List available files
-find "$RUN_DIR" -type f | head -30
+```
+Read the file at the file_path returned in Phase 1.
 ```
 
-From `aw_info.json` identify:
-- **Engine**: `copilot`, `claude`, `codex`, `gemini`, `crush`, or `custom`
-- **Agent output file**: look for `agent-stdio.log` in the run directory or files inside `agent_output/`
+From the JSON extract:
+- `runs[0].logs_path` → the run directory (e.g. `/tmp/gh-aw/aw-mcp/logs/run-12345678`)
+- `runs[0].engine` → the engine type (e.g. `claude`, `copilot`, `codex`)
 
-Determine `AGENT_OUTPUT_FILE` and `ENGINE` for the next phase.
+Set these as `RUN_DIR` and `ENGINE` for the phases below.
+
+Confirm `agent-stdio.log` was downloaded by reading it:
+```
+Read {RUN_DIR}/agent-stdio.log
+```
+
+If `agent-stdio.log` is missing (e.g. the run used the Copilot engine which stores output differently), look for it inside `{RUN_DIR}/agent/` or `{RUN_DIR}/agent_output/`. Set `AGENT_OUTPUT_FILE` to the path of the file you found.
+
+If no agent output file is found at all, run Phase 3 (the `audit` MCP tool) which will report the correct path in its `overview.logs_path` field.
 
 ## Phase 3: Audit the Run
 
@@ -223,14 +221,11 @@ EOF
 Run the parser harness against the real agent output:
 
 ```bash
-# Replace these with the actual values discovered in Phase 2:
-#   ENGINE: one of copilot, claude, codex, gemini, crush, custom
-#   AGENT_OUTPUT_FILE: e.g. /tmp/gh-aw/aw-mcp/logs/run-12345678/agent-stdio.log
+# Use the ENGINE and AGENT_OUTPUT_FILE values determined in Phase 2.
+# Do NOT re-discover them here — bash cannot access /tmp/ in this environment.
+# ENGINE and AGENT_OUTPUT_FILE must be set from Phase 2 before running this block.
 
 cd ${{ github.workspace }}/actions/setup/js
-ENGINE="$(cat /tmp/gh-aw/aw-mcp/logs/run-*/aw_info.json 2>/dev/null | jq -r '.engine // empty' | head -1)"
-AGENT_OUTPUT_FILE="$(find /tmp/gh-aw/aw-mcp/logs/run-* -name 'agent-stdio.log' -type f | head -1)"
-
 echo "Engine: $ENGINE"
 echo "Agent output file: $AGENT_OUTPUT_FILE"
 
