@@ -35,6 +35,7 @@ type PackageJSON struct {
 	License         string            `json:"license,omitempty"`
 	Dependencies    map[string]string `json:"dependencies,omitempty"`
 	DevDependencies map[string]string `json:"devDependencies,omitempty"`
+	SkillRepos      map[string]string `json:"ghawSkillRepositories,omitempty"`
 }
 
 // DependabotConfig represents the structure of .github/dependabot.yml
@@ -80,17 +81,18 @@ func (c *Compiler) GenerateDependabotManifests(workflowDataList []*WorkflowData,
 
 	// Collect npm dependencies
 	npmDeps := c.collectNpmDependencies(workflowDataList)
-	if len(npmDeps) > 0 {
+	skillRepos := c.collectSkillRepositories(workflowDataList)
+	if len(npmDeps) > 0 || len(skillRepos) > 0 {
 		ecosystems["npm"] = struct {
 		}{}
-		dependabotLog.Printf("Found %d unique npm dependencies", len(npmDeps))
+		dependabotLog.Printf("Found %d unique npm dependencies and %d skill repositories", len(npmDeps), len(skillRepos))
 		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d npm dependencies in workflows", len(npmDeps))))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d npm dependencies and %d skill repositories in workflows", len(npmDeps), len(skillRepos))))
 		}
 
 		// Generate package.json
 		packageJSONPath := filepath.Join(workflowDir, "package.json")
-		if err := c.generatePackageJSON(packageJSONPath, npmDeps, forceOverwrite); err != nil {
+		if err := c.generatePackageJSON(packageJSONPath, npmDeps, skillRepos, forceOverwrite); err != nil {
 			if c.strictMode {
 				return fmt.Errorf("failed to generate package.json: %w", err)
 			}
@@ -215,6 +217,42 @@ func (c *Compiler) collectNpmDependencies(workflowDataList []*WorkflowData) []Np
 	return deps
 }
 
+// collectSkillRepositories collects all skill repository refs from workflow data.
+func (c *Compiler) collectSkillRepositories(workflowDataList []*WorkflowData) map[string]string {
+	repos := make(map[string]string)
+
+	for _, workflowData := range workflowDataList {
+		for _, ref := range workflowData.SkillReferences {
+			repo, version, ok := parseSkillRepositoryRef(ref.Skill)
+			if ok {
+				repos[repo] = version
+			}
+		}
+		// Fallback for paths where only raw Skills are populated.
+		for _, skillSpec := range workflowData.Skills {
+			repo, version, ok := parseSkillRepositoryRef(skillSpec)
+			if ok {
+				repos[repo] = version
+			}
+		}
+	}
+
+	return repos
+}
+
+func parseSkillRepositoryRef(skillSpec string) (string, string, bool) {
+	base, ref, ok := strings.Cut(strings.TrimSpace(skillSpec), "@")
+	if !ok || base == "" || ref == "" {
+		return "", "", false
+	}
+	parts := strings.Split(base, "/")
+	if len(parts) < 2 {
+		return "", "", false
+	}
+	repo := strings.ToLower(parts[0] + "/" + parts[1])
+	return repo, ref, true
+}
+
 // parseNpmPackage parses a package string like "@playwright/mcp@latest" into name and version
 func parseNpmPackage(pkg string) NpmDependency {
 	// Handle scoped packages (@org/package@version)
@@ -253,7 +291,7 @@ func parseNpmPackage(pkg string) NpmDependency {
 }
 
 // generatePackageJSON creates or updates package.json with dependencies
-func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, forceOverwrite bool) error {
+func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, skillRepos map[string]string, forceOverwrite bool) error {
 	dependabotLog.Printf("Generating package.json at %s", path)
 
 	var pkgJSON PackageJSON
@@ -293,6 +331,15 @@ func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, forceO
 	// Add/update dependencies
 	for _, dep := range deps {
 		pkgJSON.Dependencies[dep.Name] = dep.Version
+	}
+
+	if len(skillRepos) > 0 {
+		if pkgJSON.SkillRepos == nil {
+			pkgJSON.SkillRepos = make(map[string]string)
+		}
+		for repo, ref := range skillRepos {
+			pkgJSON.SkillRepos[repo] = ref
+		}
 	}
 
 	// Write package.json with nice formatting

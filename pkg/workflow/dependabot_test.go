@@ -128,6 +128,30 @@ func TestCollectNpmDependencies(t *testing.T) {
 		},
 	}
 
+	func TestCollectSkillRepositories(t *testing.T) {
+		compiler := NewCompiler()
+		repos := compiler.collectSkillRepositories([]*WorkflowData{
+			{
+				SkillReferences: []SkillReference{
+					{Skill: "githubnext/skills@1111111111111111111111111111111111111111"},
+					{Skill: "githubnext/skills/agentic-workflows@2222222222222222222222222222222222222222"},
+				},
+			},
+			{
+				Skills: []string{
+					"octocat/custom-skills@3333333333333333333333333333333333333333",
+				},
+			},
+		})
+
+		if got, ok := repos["githubnext/skills"]; !ok || got != "2222222222222222222222222222222222222222" {
+			t.Fatalf("expected githubnext/skills ref to be tracked, got %q", got)
+		}
+		if got, ok := repos["octocat/custom-skills"]; !ok || got != "3333333333333333333333333333333333333333" {
+			t.Fatalf("expected octocat/custom-skills ref to be tracked, got %q", got)
+		}
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			deps := compiler.collectNpmDependencies(tt.workflows)
@@ -159,9 +183,12 @@ func TestGeneratePackageJSON(t *testing.T) {
 		{Name: "@playwright/mcp", Version: "latest"},
 		{Name: "typescript", Version: "5.0.0"},
 	}
+	skillRepos := map[string]string{
+		"githubnext/skills": "1111111111111111111111111111111111111111",
+	}
 
 	// Test creating new package.json
-	err := compiler.generatePackageJSON(packageJSONPath, deps, false)
+	err := compiler.generatePackageJSON(packageJSONPath, deps, skillRepos, false)
 	if err != nil {
 		t.Fatalf("failed to generate package.json: %v", err)
 	}
@@ -200,6 +227,9 @@ func TestGeneratePackageJSON(t *testing.T) {
 	if pkgJSON.Dependencies["typescript"] != "5.0.0" {
 		t.Errorf("expected typescript@5.0.0, got %q", pkgJSON.Dependencies["typescript"])
 	}
+	if pkgJSON.SkillRepos["githubnext/skills"] != "1111111111111111111111111111111111111111" {
+		t.Errorf("expected githubnext/skills skill repo ref, got %q", pkgJSON.SkillRepos["githubnext/skills"])
+	}
 }
 
 func TestGeneratePackageJSON_MergeExisting(t *testing.T) {
@@ -224,7 +254,7 @@ func TestGeneratePackageJSON_MergeExisting(t *testing.T) {
 		{Name: "@playwright/mcp", Version: "latest"},
 	}
 
-	err := compiler.generatePackageJSON(packageJSONPath, newDeps, false)
+	err := compiler.generatePackageJSON(packageJSONPath, newDeps, nil, false)
 	if err != nil {
 		t.Fatalf("failed to merge package.json: %v", err)
 	}

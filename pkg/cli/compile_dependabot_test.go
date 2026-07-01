@@ -56,9 +56,11 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-steps:
-  - run: npx @playwright/mcp@latest --help
----
+	skills:
+	  - githubnext/skills@1111111111111111111111111111111111111111
+	steps:
+	  - run: npx @playwright/mcp@latest --help
+	---
 
 # Test Workflow
 
@@ -112,6 +114,9 @@ This workflow uses npx to run Playwright MCP.
 
 	if len(pkgJSON.Dependencies) == 0 {
 		t.Error("expected at least one dependency (@playwright/mcp)")
+	}
+	if pkgJSON.SkillRepos["githubnext/skills"] != "1111111111111111111111111111111111111111" {
+		t.Errorf("expected githubnext/skills ref to be captured, got %q", pkgJSON.SkillRepos["githubnext/skills"])
 	}
 
 	// Verify package-lock.json was created
