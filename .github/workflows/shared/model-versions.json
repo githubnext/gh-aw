@@ -25,7 +25,7 @@
       "successor": "copilot/gpt-5.4",
       "tier": "unstable"
     },
-    "codex alpha": {
+    "codex-alpha": {
       "status": "unavailable",
       "retirement_date": "2026-07-01",
       "successor": "gpt-5.4-mini",
