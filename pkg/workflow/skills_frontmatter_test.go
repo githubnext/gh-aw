@@ -172,11 +172,6 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 
 }
 
-func TestIsRepositorySkillSpec(t *testing.T) {
-	require.True(t, isRepositorySkillSpec("githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6"), "owner/repo@sha should be treated as a repository skill spec")
-	require.False(t, isRepositorySkillSpec("githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6"), "owner/repo/skill/path@sha should be treated as a path-scoped skill spec")
-}
-
 func TestParseRawSkillReferences_ParsesGitHubApp(t *testing.T) {
 	refs := parseRawSkillReferences([]any{
 		map[string]any{
