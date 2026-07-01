@@ -104,7 +104,7 @@ See [Using MCPs](/gh-aw/guides/mcps/).
 
 ### If my agent can use a skill, can agentic workflows use it too?
 
-Usually yes. For reusable packaging, use [imports](/gh-aw/reference/imports/) for workflow-level config and prompts, and [APM (Agent Package Manager)](https://microsoft.github.io/apm/) for skills and other agent primitives. See [APM Dependencies](/gh-aw/reference/dependencies/).
+Usually yes. Prefer frontmatter [`skills:`](/gh-aw/reference/frontmatter/#frontmatter-skills-skills) to install external skills for workflow runs. Use [imports](/gh-aw/reference/imports/) for workflow-level config and prompts, and [APM (Agent Package Manager)](https://microsoft.github.io/apm/) for reusable package distribution of skills and other agent primitives. See [APM Dependencies](/gh-aw/reference/dependencies/).
 
 ### The `plugins:` or `dependencies:` field I was using is gone - how do I install agent plugins now?
 

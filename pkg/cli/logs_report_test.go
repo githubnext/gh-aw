@@ -19,7 +19,6 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 		Summary: LogsSummary{
 			TotalRuns:         2,
 			TotalDuration:     "10m30s",
-			TotalTokens:       2500,
 			TotalTurns:        8,
 			TotalErrors:       1,
 			TotalWarnings:     3,

@@ -78,8 +78,7 @@ func TestLogsJSONOutputWithNoRuns(t *testing.T) {
 		t.Errorf("Expected TotalRuns to be 0, got %d", logsData.Summary.TotalRuns)
 	}
 
-	// Most importantly: verify total_tokens field exists
-	// This is what the CI test checks with jq -e '.summary.total_tokens'
+	// Verify all expected summary fields exist
 	var jsonMap map[string]any
 	if err := json.Unmarshal([]byte(output), &jsonMap); err != nil {
 		t.Fatalf("Failed to parse JSON as map: %v", err)
@@ -90,14 +89,8 @@ func TestLogsJSONOutputWithNoRuns(t *testing.T) {
 		t.Fatalf("Expected summary to be a map, got %T", jsonMap["summary"])
 	}
 
-	// This is the exact check the CI does
-	if _, exists := summary["total_tokens"]; !exists {
-		t.Errorf("Expected total_tokens field to exist in summary (CI test would fail). Summary: %+v", summary)
-	}
-
-	// Verify all expected summary fields exist
 	expectedFields := []string{
-		"total_runs", "total_duration", "total_tokens", "total_cost",
+		"total_runs", "total_duration",
 		"total_turns", "total_errors", "total_warnings", "total_missing_tools",
 		"total_episodes", "high_confidence_episodes",
 	}
@@ -268,7 +261,7 @@ func TestLogsJSONOutputStructure(t *testing.T) {
 	// Verify summary has all required fields
 	summary := parsed["summary"].(map[string]any)
 	requiredFields := []string{
-		"total_runs", "total_duration", "total_tokens",
+		"total_runs", "total_duration",
 		"total_turns", "total_errors", "total_warnings", "total_missing_tools",
 		"total_episodes", "high_confidence_episodes",
 	}
@@ -339,8 +332,5 @@ func TestSummaryFileWrittenWithNoRuns(t *testing.T) {
 	// Verify the structure is valid
 	if parsed.Summary.TotalRuns != 0 {
 		t.Errorf("Expected TotalRuns to be 0, got %d", parsed.Summary.TotalRuns)
-	}
-	if parsed.Summary.TotalTokens != 0 {
-		t.Errorf("Expected TotalTokens to be 0, got %d", parsed.Summary.TotalTokens)
 	}
 }

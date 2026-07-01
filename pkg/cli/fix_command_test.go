@@ -942,6 +942,141 @@ This workflow has sandbox disabled.
 	}
 }
 
+func TestFixCommand_AppToGitHubAppMigration(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+
+	content := `---
+on:
+  workflow_dispatch:
+
+engine: copilot
+app:
+  app-id: ${{ vars.APP_ID }}
+  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This workflow uses top-level app auth.
+`
+
+	if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	appCodemod := getCodemodByID("app-to-github-app")
+	if appCodemod == nil {
+		t.Fatal("app-to-github-app codemod not found")
+	}
+
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*appCodemod}, true, false)
+	if err != nil {
+		t.Fatalf("Failed to process workflow file: %v", err)
+	}
+
+	if !fixed {
+		t.Error("Expected file to be modified")
+	}
+
+	updated, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+	updatedStr := string(updated)
+
+	if strings.Contains(updatedStr, "\napp:\n") {
+		t.Error("Expected top-level 'app:' to be removed")
+	}
+
+	if !strings.Contains(updatedStr, "\ngithub-app:\n") {
+		t.Error("Expected top-level 'github-app:' to be added")
+	}
+
+	if !strings.Contains(updatedStr, "# Test Workflow") {
+		t.Error("Expected markdown heading to be preserved")
+	}
+
+	if !strings.Contains(updatedStr, "This workflow uses top-level app auth.") {
+		t.Error("Expected markdown body to be preserved")
+	}
+}
+
+func TestFixCommand_AppToGitHubAppMigration_Combined(t *testing.T) {
+	// Combined scenario: top-level app: and nested app: under tools.github both renamed in one pass.
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+
+	content := `---
+on:
+  workflow_dispatch:
+
+engine: copilot
+app:
+  app-id: ${{ vars.APP_ID }}
+  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+tools:
+  github:
+    mode: remote
+    app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This workflow uses both top-level app auth and nested app auth.
+`
+
+	if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	appCodemod := getCodemodByID("app-to-github-app")
+	if appCodemod == nil {
+		t.Fatal("app-to-github-app codemod not found")
+	}
+
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*appCodemod}, true, false)
+	if err != nil {
+		t.Fatalf("Failed to process workflow file: %v", err)
+	}
+
+	if !fixed {
+		t.Error("Expected file to be modified")
+	}
+
+	updated, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+	updatedStr := string(updated)
+
+	if strings.Contains(updatedStr, "\napp:\n") {
+		t.Error("Expected all 'app:' occurrences to be removed")
+	}
+
+	if strings.Count(updatedStr, "github-app:") != 2 {
+		t.Errorf("Expected two 'github-app:' occurrences, got %d", strings.Count(updatedStr, "github-app:"))
+	}
+
+	if !strings.Contains(updatedStr, "# Test Workflow") {
+		t.Error("Expected markdown heading to be preserved")
+	}
+
+	if !strings.Contains(updatedStr, "This workflow uses both top-level app auth and nested app auth.") {
+		t.Error("Expected markdown body to be preserved")
+	}
+}
+
 func TestFixCommand_SandboxFalseToAgentFalseMigration_NoSandbox(t *testing.T) {
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()

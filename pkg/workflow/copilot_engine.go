@@ -34,10 +34,11 @@ func NewCopilotEngine() *CopilotEngine {
 	copilotLog.Print("Creating new Copilot engine instance")
 	return &CopilotEngine{
 		BaseEngine: BaseEngine{
-			id:           "copilot",
-			displayName:  "GitHub Copilot CLI",
-			description:  "Uses GitHub Copilot CLI with MCP server support",
-			experimental: false,
+			id:               "copilot",
+			displayName:      "GitHub Copilot CLI",
+			description:      "Uses GitHub Copilot CLI with MCP server support",
+			experimental:     false,
+			ghSkillAgentName: "github-copilot",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
 				MaxTurns:         true,  // AWF max-turns is supported for Copilot runs

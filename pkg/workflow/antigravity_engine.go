@@ -19,10 +19,11 @@ type AntigravityEngine struct {
 func NewAntigravityEngine() *AntigravityEngine {
 	return &AntigravityEngine{
 		BaseEngine: BaseEngine{
-			id:           "antigravity",
-			displayName:  "Antigravity CLI",
-			description:  "Antigravity CLI with headless mode and LLM gateway support",
-			experimental: true,
+			id:               "antigravity",
+			displayName:      "Antigravity CLI",
+			description:      "Antigravity CLI with headless mode and LLM gateway support",
+			experimental:     true,
+			ghSkillAgentName: "antigravity",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
 				MaxTurns:         true,

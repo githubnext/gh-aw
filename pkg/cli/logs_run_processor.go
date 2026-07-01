@@ -265,8 +265,11 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				}
 				result.RedactedDomainsAnalysis = redactedDomainsAnalysis
 
+				// Resolve experiment assignment once for all extraction functions below.
+				expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runOutputDir))
+
 				// Extract missing tools if available
-				missingTools, missingErr := extractMissingToolsFromRun(runOutputDir, run, verbose)
+				missingTools, missingErr := extractMissingToolsFromRun(runOutputDir, run, verbose, expName, expVariant)
 				if missingErr != nil {
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools for run %d: %v", run.DatabaseID, missingErr)))
@@ -275,7 +278,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				result.MissingTools = missingTools
 
 				// Extract missing data if available
-				missingData, missingDataErr := extractMissingDataFromRun(runOutputDir, run, verbose)
+				missingData, missingDataErr := extractMissingDataFromRun(runOutputDir, run, verbose, expName, expVariant)
 				if missingDataErr != nil {
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing data for run %d: %v", run.DatabaseID, missingDataErr)))
@@ -284,7 +287,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				result.MissingData = missingData
 
 				// Extract noops if available
-				noops, noopErr := extractNoopsFromRun(runOutputDir, run, verbose)
+				noops, noopErr := extractNoopsFromRun(runOutputDir, run, verbose, expName, expVariant)
 				if noopErr != nil {
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract noops for run %d: %v", run.DatabaseID, noopErr)))
@@ -293,7 +296,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				result.Noops = noops
 
 				// Extract MCP failures if available
-				mcpFailures, mcpErr := extractMCPFailuresFromRun(runOutputDir, run, verbose)
+				mcpFailures, mcpErr := extractMCPFailuresFromRun(runOutputDir, run, verbose, expName, expVariant)
 				if mcpErr != nil {
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures for run %d: %v", run.DatabaseID, mcpErr)))

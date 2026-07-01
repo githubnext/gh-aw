@@ -34,6 +34,16 @@ var logsMetricsLog = logger.New("cli:logs_metrics")
 // extractJSONMetrics is available as an alias
 var extractJSONMetrics = workflow.ExtractJSONMetrics
 
+func buildReportProvenance(run WorkflowRun, timestamp, experimentName, variant string) ReportProvenance {
+	return ReportProvenance{
+		Timestamp:      timestamp,
+		WorkflowName:   run.WorkflowName,
+		RunID:          run.DatabaseID,
+		ExperimentName: experimentName,
+		Variant:        variant,
+	}
+}
+
 // extractLogMetrics extracts metrics from downloaded log files
 // workflowPath is optional and can be provided to help detect GitHub Copilot coding agent runs
 func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (LogMetrics, error) {
@@ -264,8 +274,10 @@ func ExtractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics {
 	return metrics
 }
 
-// extractMissingToolsFromRun extracts missing tool reports from a workflow run's artifacts
-func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([]MissingToolReport, error) {
+// extractMissingToolsFromRun extracts missing tool reports from a workflow run's artifacts.
+// experimentName and variant are the pre-resolved experiment assignment for this run; pass empty
+// strings when no experiment context is available.
+func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]MissingToolReport, error) {
 	logsMetricsLog.Printf("Extracting missing tools from run: %d", run.DatabaseID)
 	var missingTools []MissingToolReport
 
@@ -367,14 +379,10 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 			// Check if this is a missing-tool entry
 			if item.Type == "missing_tool" {
 				missingTool := MissingToolReport{
-					Tool:         item.Tool,
-					Reason:       item.Reason,
-					Alternatives: item.Alternatives,
-					ReportProvenance: ReportProvenance{
-						Timestamp:    item.Timestamp,
-						WorkflowName: run.WorkflowName,
-						RunID:        run.DatabaseID,
-					},
+					Tool:             item.Tool,
+					Reason:           item.Reason,
+					Alternatives:     item.Alternatives,
+					ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
 				}
 				missingTools = append(missingTools, missingTool)
 
@@ -398,8 +406,10 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 	return missingTools, nil
 }
 
-// extractNoopsFromRun extracts noop messages from a workflow run's artifacts
-func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopReport, error) {
+// extractNoopsFromRun extracts noop messages from a workflow run's artifacts.
+// experimentName and variant are the pre-resolved experiment assignment for this run; pass empty
+// strings when no experiment context is available.
+func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]NoopReport, error) {
 	logsMetricsLog.Printf("Extracting noops from run: %d", run.DatabaseID)
 	var noops []NoopReport
 
@@ -499,12 +509,8 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 			// Check if this is a noop entry
 			if item.Type == "noop" {
 				noop := NoopReport{
-					Message: item.Message,
-					ReportProvenance: ReportProvenance{
-						Timestamp:    item.Timestamp,
-						WorkflowName: run.WorkflowName,
-						RunID:        run.DatabaseID,
-					},
+					Message:          item.Message,
+					ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
 				}
 				noops = append(noops, noop)
 
@@ -528,8 +534,10 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 	return noops, nil
 }
 
-// extractMissingDataFromRun extracts missing data reports from a workflow run's artifacts
-func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool) ([]MissingDataReport, error) {
+// extractMissingDataFromRun extracts missing data reports from a workflow run's artifacts.
+// experimentName and variant are the pre-resolved experiment assignment for this run; pass empty
+// strings when no experiment context is available.
+func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]MissingDataReport, error) {
 	logsMetricsLog.Printf("Extracting missing data from run: %d", run.DatabaseID)
 	var missingData []MissingDataReport
 
@@ -632,15 +640,11 @@ func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 			// Check if this is a missing_data entry
 			if item.Type == "missing_data" {
 				missingDataItem := MissingDataReport{
-					DataType:     item.DataType,
-					Reason:       item.Reason,
-					Context:      item.Context,
-					Alternatives: item.Alternatives,
-					ReportProvenance: ReportProvenance{
-						Timestamp:    item.Timestamp,
-						WorkflowName: run.WorkflowName,
-						RunID:        run.DatabaseID,
-					},
+					DataType:         item.DataType,
+					Reason:           item.Reason,
+					Context:          item.Context,
+					Alternatives:     item.Alternatives,
+					ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
 				}
 				missingData = append(missingData, missingDataItem)
 
@@ -664,8 +668,10 @@ func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 	return missingData, nil
 }
 
-// extractMCPFailuresFromRun extracts MCP server failure reports from a workflow run's logs
-func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]MCPFailureReport, error) {
+// extractMCPFailuresFromRun extracts MCP server failure reports from a workflow run's logs.
+// experimentName and variant are the pre-resolved experiment assignment for this run; pass empty
+// strings when no experiment context is available.
+func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]MCPFailureReport, error) {
 	logsMetricsLog.Printf("Extracting MCP failures from run: %d", run.DatabaseID)
 	var mcpFailures []MCPFailureReport
 
@@ -689,7 +695,7 @@ func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 			!strings.Contains(fileName, "agent_output") &&
 			!strings.Contains(fileName, "access") {
 
-			failures, parseErr := extractMCPFailuresFromLogFile(path, run, verbose)
+			failures, parseErr := extractMCPFailuresFromLogFile(path, run, verbose, experimentName, variant)
 			if parseErr != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse MCP failures from %s: %v", filepath.Base(path), parseErr)))
@@ -715,7 +721,7 @@ func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 }
 
 // extractMCPFailuresFromLogFile parses a single log file for MCP server failures
-func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool) ([]MCPFailureReport, error) {
+func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool, experimentName, variant string) ([]MCPFailureReport, error) {
 	var mcpFailures []MCPFailureReport
 
 	content, err := os.ReadFile(logPath)
@@ -730,7 +736,7 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 	if err := json.Unmarshal(content, &logEntries); err == nil {
 		// Successfully parsed as JSON array, process entries
 		for _, entry := range logEntries {
-			processMCPFailureEntry(entry, run, verbose, &mcpFailures)
+			processMCPFailureEntry(entry, run, verbose, experimentName, variant, &mcpFailures)
 		}
 	} else {
 		// Fallback: Try to parse as JSON lines (Claude logs are typically NDJSON format)
@@ -748,14 +754,14 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 			}
 
 			// Look for system init entries that contain MCP server information
-			processMCPFailureEntry(entry, run, verbose, &mcpFailures)
+			processMCPFailureEntry(entry, run, verbose, experimentName, variant, &mcpFailures)
 		}
 	}
 
 	return mcpFailures, nil
 }
 
-func processMCPFailureEntry(entry map[string]any, run WorkflowRun, verbose bool, mcpFailures *[]MCPFailureReport) {
+func processMCPFailureEntry(entry map[string]any, run WorkflowRun, verbose bool, experimentName, variant string, mcpFailures *[]MCPFailureReport) {
 	entryType, ok := typeutil.LookupString(entry, "type")
 	if !ok || entryType != "system" {
 		return
@@ -786,13 +792,9 @@ func processMCPFailureEntry(entry map[string]any, run WorkflowRun, verbose bool,
 		}
 
 		failure := MCPFailureReport{
-			ServerName: serverName,
-			Status:     status,
-			ReportProvenance: ReportProvenance{
-				Timestamp:    timestamp,
-				WorkflowName: run.WorkflowName,
-				RunID:        run.DatabaseID,
-			},
+			ServerName:       serverName,
+			Status:           status,
+			ReportProvenance: buildReportProvenance(run, timestamp, experimentName, variant),
 		}
 
 		*mcpFailures = append(*mcpFailures, failure)

@@ -7,9 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/testutil"
-
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/testutil"
 )
 
 // TestExtractMissingToolsFromRun tests extracting missing tools from safe output artifact files
@@ -117,13 +116,13 @@ func TestExtractMissingToolsFromRun(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create the safe output artifact file
 			safeOutputFile := filepath.Join(tmpDir, constants.AgentOutputArtifactName)
-			err := os.WriteFile(safeOutputFile, []byte(tt.safeOutputContent), 0644)
+			err := os.WriteFile(safeOutputFile, []byte(tt.safeOutputContent), 0o644)
 			if err != nil {
 				t.Fatalf("Failed to create test safe output file: %v", err)
 			}
 
 			// Extract missing tools
-			tools, err := extractMissingToolsFromRun(tmpDir, testRun, false)
+			tools, err := extractMissingToolsFromRun(tmpDir, testRun, false, "", "")
 			if err != nil {
 				t.Fatalf("Error extracting missing tools: %v", err)
 			}
@@ -158,7 +157,63 @@ func TestExtractMissingToolsFromRun(t *testing.T) {
 			}
 
 			// Clean up for next test
-			os.Remove(safeOutputFile)
+			_ = os.Remove(safeOutputFile)
 		})
+	}
+}
+
+func TestExtractMissingToolsFromRun_IncludesExperimentProvenance(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	testRun := WorkflowRun{
+		DatabaseID:   67890,
+		WorkflowName: "Integration Test",
+	}
+
+	stateJSON := `{
+		"counts": {
+			"style": { "concise": 1, "detailed": 0 }
+		},
+		"runs": [
+			{
+				"run_id": "67890",
+				"timestamp": "2026-07-01T00:00:00Z",
+				"assignments": { "style": "concise" }
+			}
+		]
+	}`
+	if err := os.WriteFile(filepath.Join(tmpDir, "state.json"), []byte(stateJSON), 0o644); err != nil {
+		t.Fatalf("Failed to create state.json: %v", err)
+	}
+
+	safeOutput := `{
+		"items": [
+			{
+				"type": "missing_tool",
+				"tool": "terraform",
+				"reason": "Infrastructure automation needed",
+				"timestamp": "2024-01-01T12:00:00Z"
+			}
+		],
+		"errors": []
+	}`
+	if err := os.WriteFile(filepath.Join(tmpDir, constants.AgentOutputArtifactName), []byte(safeOutput), 0o644); err != nil {
+		t.Fatalf("Failed to create safe output file: %v", err)
+	}
+
+	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(tmpDir))
+	tools, err := extractMissingToolsFromRun(tmpDir, testRun, false, expName, expVariant)
+	if err != nil {
+		t.Fatalf("Error extracting missing tools: %v", err)
+	}
+	if len(tools) != 1 {
+		t.Fatalf("Expected 1 missing tool, got %d", len(tools))
+	}
+	asserted := tools[0]
+	if asserted.ExperimentName != "style" {
+		t.Fatalf("Expected experiment_name style, got %q", asserted.ExperimentName)
+	}
+	if asserted.Variant != "concise" {
+		t.Fatalf("Expected variant concise, got %q", asserted.Variant)
 	}
 }

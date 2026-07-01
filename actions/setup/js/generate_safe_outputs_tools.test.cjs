@@ -306,4 +306,48 @@ describe("generate_safe_outputs_tools", () => {
     expect(addCommentTool.description).toContain("Discussion comments are disabled for this workflow");
     expect(addCommentTool.description).not.toContain("Supports reply_to_id for discussion threading.");
   });
+
+  it("adds issue intent suffix for issue tools when issue_intents runtime feature is enabled", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        { name: "set_issue_type", description: "Sets issue type.", inputSchema: { type: "object", properties: {} } },
+        { name: "set_issue_field", description: "Sets issue field.", inputSchema: { type: "object", properties: {} } },
+        { name: "add_labels", description: "Adds labels.", inputSchema: { type: "object", properties: {} } },
+        { name: "create_issue", description: "Creates a GitHub issue.", inputSchema: { type: "object", properties: {} } },
+      ])
+    );
+    fs.writeFileSync(configPath, JSON.stringify({ set_issue_type: {}, set_issue_field: {}, add_labels: {}, create_issue: {} }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript({ GH_AW_RUNTIME_FEATURES: "other\nissue_intents\nanother=true" });
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const intentSuffix = "INTENT: Include rationale (max 280 chars) and confidence (LOW/MEDIUM/HIGH) with each call.";
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "create_issue").description).not.toContain(intentSuffix);
+  });
+
+  it("does not add issue intent suffix when issue_intents runtime feature is not enabled", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        { name: "set_issue_type", description: "Sets issue type.", inputSchema: { type: "object", properties: {} } },
+        { name: "set_issue_field", description: "Sets issue field.", inputSchema: { type: "object", properties: {} } },
+        { name: "add_labels", description: "Adds labels.", inputSchema: { type: "object", properties: {} } },
+      ])
+    );
+    fs.writeFileSync(configPath, JSON.stringify({ set_issue_type: {}, set_issue_field: {}, add_labels: {} }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript({ GH_AW_RUNTIME_FEATURES: "other\nanother=true" });
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const intentSuffix = "INTENT: Include rationale (max 280 chars) and confidence (LOW/MEDIUM/HIGH) with each call.";
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).not.toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).not.toContain(intentSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).not.toContain(intentSuffix);
+  });
 });

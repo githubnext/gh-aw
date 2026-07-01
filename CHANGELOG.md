@@ -438,6 +438,17 @@ Run `gh aw fix --write` to apply automatic updates across your repository.
 
 ### Breaking Changes
 
+#### Remove `imports.if` from workflow frontmatter
+
+`imports:` entries no longer accept an `if` condition. Conditional imports are
+now rejected so the compiled workflow structure stays explicit and stable at
+compile time.
+
+**Migration:**
+- Remove `if:` from `imports:` entries and keep imports unconditional
+- For experiment-specific prompt variants, move the condition into the workflow
+  body and use `{{#if ...}}` with `{{#runtime-import ...}}`
+
 #### Terminology Change: "Agent Task" → "Agent Session"
 
 The terminology for creating Copilot coding agent work items has been updated from "agent task" to "agent session" to better reflect their purpose and avoid confusion with other task concepts.
@@ -455,10 +466,11 @@ Run `gh aw fix` to automatically update your workflow files to use the new termi
 #### Replace removed `app:` with `github-app:`
 
 The deprecated `app:` workflow frontmatter field was removed and replaced with
-`github-app:`. Workflows still using `app:` will now fail validation.
+`github-app:`. Workflows still using top-level `app:` or nested `app:` auth
+blocks will now fail validation.
 
 **Migration:**
-- Replace `app:` with `github-app:`
+- Replace `app:` with `github-app:` everywhere in workflow frontmatter
 - Run `gh aw fix` to apply the codemod automatically
 
 #### Replace `supportsLLMGateway` flag with `llmGatewayPort`

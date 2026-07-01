@@ -324,6 +324,35 @@ func TestDeriveLastSelectedVariant(t *testing.T) {
 	}
 }
 
+func TestFirstExperimentAssignment(t *testing.T) {
+	t.Run("returns false for nil", func(t *testing.T) {
+		name, variant, ok := firstExperimentAssignment(nil)
+		assert.False(t, ok)
+		assert.Empty(t, name)
+		assert.Empty(t, variant)
+	})
+
+	t.Run("returns false for empty assignments", func(t *testing.T) {
+		name, variant, ok := firstExperimentAssignment(&ExperimentData{Assignments: map[string]string{}})
+		assert.False(t, ok)
+		assert.Empty(t, name)
+		assert.Empty(t, variant)
+	})
+
+	t.Run("returns alphabetically first assignment", func(t *testing.T) {
+		exp := &ExperimentData{
+			Assignments: map[string]string{
+				"style":   "concise",
+				"caveman": "yes",
+			},
+		}
+		name, variant, ok := firstExperimentAssignment(exp)
+		assert.True(t, ok)
+		assert.Equal(t, "caveman", name)
+		assert.Equal(t, "yes", variant)
+	})
+}
+
 func TestExtractExperimentDataWithRuns(t *testing.T) {
 	t.Run("uses last run record when runs array is present", func(t *testing.T) {
 		dir := t.TempDir()
