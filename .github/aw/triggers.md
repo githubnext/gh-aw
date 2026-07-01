@@ -186,3 +186,22 @@ on:
     branches: [main]
   workflow_dispatch:
 ```
+
+### Non-Technical Workflow Examples
+
+Documentation governance, PM digests, and compliance reviews follow the same trigger patterns as engineering workflows. Use these as a reference when building workflows for non-engineering personas.
+
+| Scenario | Trigger | Safe output |
+|---|---|---|
+| Weekly PM digest of shipped features and open blockers | `schedule: weekly` | `create-issue` with `close-older-issues: true` |
+| Documentation staleness review (flag docs not updated in 90+ days) | `schedule: weekly` | `create-issue` |
+| Compliance audit of open issues missing required labels | `schedule: daily on weekdays` | `create-issue` (one per audit window) |
+| Governance check on merged PRs missing sign-off label | `pull_request` with `types: [closed]` | `add-comment` on the PR; `create-issue` for policy violations |
+| On-demand stakeholder report | `slash_command` or `workflow_dispatch` | `create-issue` or `upload-artifact` |
+
+`noop` rules for these patterns:
+
+- **PM digest**: `noop` when no shipped features or open blockers changed in the reporting window.
+- **Documentation staleness**: `noop` when no docs have crossed the staleness threshold since the last run.
+- **Compliance audit**: `noop` when all issues already carry the required labels.
+- **Governance check**: `noop` when the merged PR already has the required sign-off label.

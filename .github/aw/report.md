@@ -108,6 +108,19 @@ Do not use emoji severity markers (`✅`, `⚠️`, `❌`, `🧪`).
 [Actionable next steps - keep visible]
 ```
 
+## Incomplete Metadata Fallback
+
+When customer-impact labels, severity classifications, or other expected metadata are absent from the data source, keep the report useful rather than deferring or omitting it.
+
+- **Do not invent classifications.** Report missing labels as `unclassified` or `unknown` rather than guessing.
+- **Group by available signal.** Fall back to the nearest available dimension (date, repository, workflow, author, or status) when the preferred grouping field is missing.
+- **Quantify the gap.** Include a line noting how many items lacked the expected metadata (for example `3 of 12 incidents had no customer-impact label`).
+- **Preserve `noop` intent.** If *all* items lack required metadata and no useful summary can be produced, call `noop` with an explanation rather than creating an empty or misleading report.
+
+Example fallback summary line to include in the report body:
+
+> `Note: 3 items could not be classified by customer impact (label not set). Shown as "unclassified" in the breakdown below.`
+
 ## Workflow Run References
 
 - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`

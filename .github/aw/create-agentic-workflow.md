@@ -148,6 +148,24 @@ Rules:
 - if a matching open issue already exists, add a linked `add-comment` on the PR referencing it instead of opening a duplicate issue
 - call `noop` explicitly whenever no actionable finding exists — do not comment with "no issues found" text
 
+### 2e. Coverage-analysis compact guidance
+
+For workflows that read or report test coverage (on PRs, scheduled, or on demand), always prefer existing artifacts over recomputing coverage:
+
+1. Find the latest successful CI run for the commit: `gh run list --commit "$HEAD_SHA" --status success --limit 5 --json databaseId,workflowName`
+2. Download the coverage artifact (try names: `coverage-report`, `coverage`, `test-results`): `gh run download <run-id> --name coverage-report --dir /tmp/coverage`
+3. If found, parse and analyze — do **not** re-run tests.
+4. If no artifact found, run tests with coverage and note in the report that data was computed fresh.
+
+Required when downloading CI artifacts:
+
+- `permissions: { actions: read }`
+- `tools.github.toolsets: [default, actions]`
+
+Call `noop` when coverage data is unchanged from the previous run (no delta, no newly uncovered areas).
+
+See [test-coverage.md](test-coverage.md) for the full frontmatter template and fallback network config.
+
 ### 2d. Compliance review compact guidance
 
 For dependency-license compliance and policy review on PRs:
