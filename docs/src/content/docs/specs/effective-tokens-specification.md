@@ -439,6 +439,13 @@ field-level causes to reduce MTTR.
 
 Normative requirements: **R-SAFE-009**, **R-SAFE-010**
 
+### 8.6 Deprecation-Era Conformance
+
+While this specification remains available as Deprecated documentation, ET output in `gh aw logs`
+and `gh aw audit` MUST be treated as a backward-compatibility alias for AIC-based reporting.
+Implementations MUST NOT introduce new ET-only output fields, ET-only APIs, or ET-only extension
+points.
+
 #### S-6: Output NaN/Inf Guards, Large-Count Overflow, and Zero-Invocation Edge Case
 
 This safeguard strengthens the existing S-1/S-4 requirements by specifying three additional
@@ -976,6 +983,25 @@ This section provides a normative reference table for all `R-OTL-*`, `R-SAFE-*`,
 | R-REG-007 | Registry | MUST NOT contain placeholder values (`TBD`, `null`, empty strings) for any model multiplier entry |
 | R-REG-008 | Registry | New model support MUST register the model with a concrete numeric multiplier before release; incomplete calibration MUST result in omission from the registry |
 | R-REG-009 | Registry | MUST preserve complete model history; deprecated models MUST remain unless explicitly deleted |
+
+---
+
+## Deprecation Lifecycle
+
+This specification is deprecated in favor of AI Credits (AIC). The deprecation lifecycle defines
+sunset criteria and compatibility obligations while ET remains available for legacy consumers.
+
+- **D-ET-001 (Sunset date and criteria)**: Beginning **2026-06-05** (deprecation date), ET MUST be
+  treated as legacy output. ET MAY remain visible only while at least one supported CLI surface
+  still requires backward-compatible ET fields in logs or audit output.
+- **D-ET-002 (Removal procedure)**: ET removal from default user-visible output MUST occur only in a
+  planned release that includes (a) release-note notice, (b) one full release-cycle warning period,
+  and (c) migration guidance to AIC equivalents for every removed field.
+- **D-ET-003 (Backward compatibility)**: During the deprecation window, implementations MUST preserve
+  existing ET field names and semantics for `gh aw logs` and `gh aw audit` consumers and MUST NOT
+  repurpose ET keys for new meanings.
+- **D-ET-004 (No new ET scope)**: New feature work MUST use AIC as the primary cost metric and MUST
+  NOT expand ET coverage beyond compatibility surfaces explicitly documented in this specification.
 
 ---
 

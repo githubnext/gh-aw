@@ -38,6 +38,17 @@ The frontmatter hash provides:
 
 The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
 
+## Terminology
+
+- **Frontmatter**: The YAML metadata block at the top of a workflow file that defines execution
+  behavior, tool configuration, and runtime options.
+- **BFS traversal**: Breadth-first traversal of the workflow import graph where imports are processed
+  level-by-level and sibling order follows the `imports:` declaration order.
+- **Diamond dependency**: An import-graph shape where multiple parent workflows reference the same
+  downstream workflow; the shared workflow is included once using first-seen BFS order.
+- **Canonical JSON**: A deterministic JSON representation with normalized key ordering and formatting
+  rules so equivalent input produces identical byte output across runtimes.
+
 ## Hash Algorithm
 
 ### 1. Input Collection
@@ -116,6 +127,22 @@ Include the following frontmatter fields in the hash computation:
 - Markdown body content (not part of frontmatter)
 - Comments and whitespace variations
 - Field ordering (normalized during processing)
+
+#### 2.1 Field Selection and Merge Strategy Table
+
+| Field | Included in hash | Merge strategy |
+|---|---|---|
+| `engine` | Yes | Replace |
+| `on` | Yes | Replace |
+| `permissions` | Yes | Deep merge |
+| `tools` | Yes | Deep merge |
+| `mcp-servers` | Yes | Deep merge |
+| `safe-outputs` | Yes | Append |
+| `mcp-scripts` | Yes | Append |
+| `steps` | Yes | Append |
+| `jobs` | Yes | Append |
+| `imports` | Yes | Track (ordered list) |
+| `inputs` | Yes | Deep merge by input key |
 
 ### 3. Canonical JSON Serialization
 
