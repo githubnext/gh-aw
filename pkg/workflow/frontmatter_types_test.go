@@ -68,10 +68,33 @@ func TestParseFrontmatterConfig(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		require.Equal(t, []string{
+		require.Equal(t, []any{
 			"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
 			"githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6",
 		}, config.Skills)
+		require.Equal(t, []SkillReference{
+			{Skill: "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6"},
+			{Skill: "githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6"},
+		}, config.SkillReferences)
+	})
+
+	t.Run("parses object-form skill entries", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"skills": []any{
+				map[string]any{
+					"skill":        "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+					"github-token": "${{ secrets.SOME_TOKEN }}",
+				},
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		require.Len(t, config.SkillReferences, 1)
+		require.Equal(t, "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6", config.SkillReferences[0].Skill)
+		require.Equal(t, "${{ secrets.SOME_TOKEN }}", config.SkillReferences[0].GitHubToken)
 	})
 
 	t.Run("parses complete workflow config", func(t *testing.T) {

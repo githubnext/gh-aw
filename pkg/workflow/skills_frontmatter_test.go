@@ -71,6 +71,60 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("accepts object form with github-token", func(t *testing.T) {
+		err := validateFrontmatterSkills(map[string]any{
+			"skills": []any{
+				map[string]any{
+					"skill":        "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+					"github-token": "${{ secrets.SOME_TOKEN }}",
+				},
+			},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("accepts object form with github-app", func(t *testing.T) {
+		err := validateFrontmatterSkills(map[string]any{
+			"skills": []any{
+				map[string]any{
+					"skill": "githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6",
+					"github-app": map[string]any{
+						"client-id":   "${{ vars.APP_ID }}",
+						"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("rejects object form without skill", func(t *testing.T) {
+		err := validateFrontmatterSkills(map[string]any{
+			"skills": []any{
+				map[string]any{
+					"github-token": "${{ secrets.SOME_TOKEN }}",
+				},
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "skills[0].skill")
+	})
+
+	t.Run("rejects object form github-app without private-key", func(t *testing.T) {
+		err := validateFrontmatterSkills(map[string]any{
+			"skills": []any{
+				map[string]any{
+					"skill": "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+					"github-app": map[string]any{
+						"client-id": "${{ vars.APP_ID }}",
+					},
+				},
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "skills[0].github-app")
+	})
+
 }
 
 func TestIsRepositorySkillSpec(t *testing.T) {

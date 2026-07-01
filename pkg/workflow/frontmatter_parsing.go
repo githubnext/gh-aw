@@ -91,6 +91,9 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	// structs without callers needing to type-assert config.Experiments entries.
 	config.ExperimentConfigs = extractExperimentConfigsFromFrontmatter(frontmatter)
 	config.ModelPolicyAllowed, config.ModelPolicyBlocked = extractModelPolicyFromFrontmatter(frontmatter)
+	if rawSkills, ok := frontmatter["skills"].([]any); ok {
+		config.SkillReferences = parseRawSkillReferences(rawSkills)
+	}
 
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%v", config.Name, config.Engine)
 	return &config, nil
