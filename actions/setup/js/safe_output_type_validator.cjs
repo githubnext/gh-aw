@@ -65,6 +65,14 @@ function normalizeIssueClosingKeywordBackticks(content) {
   return normalized.replace(ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN, "$1$2$3");
 }
 
+/**
+ * Normalize issue-intent rationale text while enforcing the GitHub API hard limit.
+ * sanitizeContent appends a truncation marker when it shortens content, so this
+ * helper slices again to ensure the final payload never exceeds 280 characters.
+ * @param {string} rationale
+ * @param {ValidateOptions} [options]
+ * @returns {string}
+ */
 function normalizeIssueIntentRationale(rationale, options) {
   const sanitizedRationale = sanitizeContent(unfenceMarkdown(rationale), {
     maxLength: ISSUE_INTENT_RATIONALE_MAX_LENGTH,
