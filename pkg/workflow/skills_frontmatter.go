@@ -26,16 +26,17 @@ type SkillReference struct {
 
 func validateSkillSpecValue(skillSpec string, idx int) error {
 	if strings.TrimSpace(skillSpec) == "" {
-		return fmt.Errorf("skills[%d] must be a non-empty string", idx)
+		return fmt.Errorf("skills[%d] must be a non-empty string. Example: skills[%d]: \"owner/repo@abc1234...\"", idx, idx)
 	}
 	if githubActionsExpressionRegexp.MatchString(skillSpec) || skillSpecExpressionRefRegexp.MatchString(skillSpec) {
 		return nil
 	}
 	if !skillSpecRegexp.MatchString(skillSpec) {
 		return fmt.Errorf(
-			"skills[%d] must use owner/repo@<40-char-sha>, owner/repo/skill/path@<40-char-sha>, or a GitHub Actions expression: %q",
+			"skills[%d] must use owner/repo@<40-char-sha>, owner/repo/skill/path@<40-char-sha>, or a GitHub Actions expression (got %q). Example: skills[%d]: \"owner/repo@abcdef1234567890abcdef1234567890abcdef12\"",
 			idx,
 			skillSpec,
+			idx,
 		)
 	}
 	return nil
@@ -49,7 +50,7 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 
 	skills, ok := rawSkills.([]any)
 	if !ok {
-		return errors.New("skills must be an array of skill references")
+		return errors.New("skills must be an array of skill references. Example: skills: [\"owner/repo@sha\"]")
 	}
 
 	skillsFrontmatterLog.Printf("validateFrontmatterSkills: validating %d skill entr(ies)", len(skills))
@@ -62,18 +63,18 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 			}
 		case map[string]any:
 			if len(typed) == 0 {
-				return fmt.Errorf("skills[%d] must include a non-empty skill field", i)
+				return fmt.Errorf("skills[%d] must include a non-empty skill field. Example: skills[%d]: {skill: \"owner/repo@sha\"}", i, i)
 			}
 			skillValue, hasSkill := typed["skill"]
 			if !hasSkill {
-				return fmt.Errorf("skills[%d].skill is required", i)
+				return fmt.Errorf("skills[%d].skill is required. Example: skills[%d].skill: \"owner/repo@sha\"", i, i)
 			}
 			skillSpec, ok := skillValue.(string)
 			if !ok {
-				return fmt.Errorf("skills[%d].skill must be a string", i)
+				return fmt.Errorf("skills[%d].skill must be a string. Example: skills[%d].skill: \"owner/repo@sha\"", i, i)
 			}
 			if strings.TrimSpace(skillSpec) == "" {
-				return fmt.Errorf("skills[%d].skill must be a non-empty string", i)
+				return fmt.Errorf("skills[%d].skill must be a non-empty string. Example: skills[%d].skill: \"owner/repo@sha\"", i, i)
 			}
 			if err := validateSkillSpecValue(skillSpec, i); err != nil {
 				return err
@@ -94,11 +95,12 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 			if tokenValue, hasToken := typed["github-token"]; hasToken {
 				token, ok := tokenValue.(string)
 				if !ok {
-					return fmt.Errorf("skills[%d].github-token must be a string", i)
+					return fmt.Errorf("skills[%d].github-token must be a string. Example: skills[%d].github-token: \"${{ secrets.MY_TOKEN }}\"", i, i)
 				}
 				if !githubTokenExpressionRegexp.MatchString(token) {
 					return fmt.Errorf(
-						"skills[%d].github-token must be a valid GitHub token expression (e.g., '${{ secrets.NAME }}' or '${{ needs.auth.outputs.token }}')",
+						"skills[%d].github-token must be a valid GitHub token expression. Example: skills[%d].github-token: \"${{ secrets.NAME }}\" or \"${{ needs.auth.outputs.token }}\"",
+						i,
 						i,
 					)
 				}
@@ -106,15 +108,15 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 			if app, hasApp := typed["github-app"]; hasApp {
 				appMap, ok := app.(map[string]any)
 				if !ok {
-					return fmt.Errorf("skills[%d].github-app must be an object", i)
+					return fmt.Errorf("skills[%d].github-app must be an object. Example: skills[%d].github-app: {client-id: \"Iv1.abc\", private-key: \"...\"}", i, i)
 				}
 				parsed := parseAppConfig(appMap)
 				if !parsed.hasRequiredCredentials() {
-					return fmt.Errorf("skills[%d].github-app must include non-empty client-id/app-id and private-key", i)
+					return fmt.Errorf("skills[%d].github-app must include non-empty client-id/app-id and private-key. Example: skills[%d].github-app: {client-id: \"Iv1.abc\", private-key: \"...\"}", i, i)
 				}
 			}
 		default:
-			return fmt.Errorf("skills[%d] must be a string or object", i)
+			return fmt.Errorf("skills[%d] must be a string or object. Example: skills[%d]: \"owner/repo@sha\" or {skill: \"owner/repo@sha\"}", i, i)
 		}
 	}
 
