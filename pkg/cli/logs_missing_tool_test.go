@@ -122,7 +122,7 @@ func TestExtractMissingToolsFromRun(t *testing.T) {
 			}
 
 			// Extract missing tools
-			tools, err := extractMissingToolsFromRun(tmpDir, testRun, false)
+			tools, err := extractMissingToolsFromRun(tmpDir, testRun, false, "", "")
 			if err != nil {
 				t.Fatalf("Error extracting missing tools: %v", err)
 			}
@@ -201,7 +201,8 @@ func TestExtractMissingToolsFromRun_IncludesExperimentProvenance(t *testing.T) {
 		t.Fatalf("Failed to create safe output file: %v", err)
 	}
 
-	tools, err := extractMissingToolsFromRun(tmpDir, testRun, false)
+	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(tmpDir))
+	tools, err := extractMissingToolsFromRun(tmpDir, testRun, false, expName, expVariant)
 	if err != nil {
 		t.Fatalf("Error extracting missing tools: %v", err)
 	}

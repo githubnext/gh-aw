@@ -114,7 +114,7 @@ func TestExtractNoopsFromRun(t *testing.T) {
 			}
 
 			// Extract noops
-			noops, err := extractNoopsFromRun(tmpDir, testRun, false)
+			noops, err := extractNoopsFromRun(tmpDir, testRun, false, "", "")
 			if err != nil {
 				t.Fatalf("Error extracting noops: %v", err)
 			}
@@ -187,7 +187,7 @@ func TestExtractNoopsFlattenedStructure(t *testing.T) {
 	}
 
 	// Extract noops - should find the file at root
-	noops, err := extractNoopsFromRun(runDir, testRun, false)
+	noops, err := extractNoopsFromRun(runDir, testRun, false, "", "")
 	if err != nil {
 		t.Fatalf("Error extracting noops from flattened structure: %v", err)
 	}
@@ -215,5 +215,100 @@ func TestExtractNoopsFlattenedStructure(t *testing.T) {
 		if noop.RunID != testRun.DatabaseID {
 			t.Errorf("Expected run ID %d, got %d", testRun.DatabaseID, noop.RunID)
 		}
+	}
+}
+
+func TestExtractNoopsFromRun_IncludesExperimentProvenance(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	testRun := WorkflowRun{
+		DatabaseID:   55555,
+		WorkflowName: "Noop Experiment Workflow",
+	}
+
+	stateJSON := `{
+		"counts": {
+			"response_style": { "brief": 1, "verbose": 0 }
+		},
+		"runs": [
+			{
+				"run_id": "55555",
+				"timestamp": "2026-07-01T00:00:00Z",
+				"assignments": { "response_style": "brief" }
+			}
+		]
+	}`
+	if err := os.WriteFile(filepath.Join(tmpDir, "state.json"), []byte(stateJSON), 0o644); err != nil {
+		t.Fatalf("Failed to create state.json: %v", err)
+	}
+
+	safeOutput := `{
+		"items": [
+			{
+				"type": "noop",
+				"message": "No action required for this run",
+				"timestamp": "2026-07-01T01:00:00Z"
+			}
+		],
+		"errors": []
+	}`
+	if err := os.WriteFile(filepath.Join(tmpDir, constants.AgentOutputArtifactName), []byte(safeOutput), 0o644); err != nil {
+		t.Fatalf("Failed to create safe output file: %v", err)
+	}
+
+	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(tmpDir))
+	noops, err := extractNoopsFromRun(tmpDir, testRun, false, expName, expVariant)
+	if err != nil {
+		t.Fatalf("Error extracting noops: %v", err)
+	}
+	if len(noops) != 1 {
+		t.Fatalf("Expected 1 noop report, got %d", len(noops))
+	}
+	noop := noops[0]
+	if noop.Message != "No action required for this run" {
+		t.Errorf("Expected message 'No action required for this run', got %q", noop.Message)
+	}
+	if noop.ExperimentName != "response_style" {
+		t.Fatalf("Expected experiment_name response_style, got %q", noop.ExperimentName)
+	}
+	if noop.Variant != "brief" {
+		t.Fatalf("Expected variant brief, got %q", noop.Variant)
+	}
+}
+
+func TestExtractNoopsFromRun_NoExperimentProvenance(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	testRun := WorkflowRun{
+		DatabaseID:   66666,
+		WorkflowName: "No Experiment Noop Workflow",
+	}
+
+	safeOutput := `{
+		"items": [
+			{
+				"type": "noop",
+				"message": "Nothing to do here",
+				"timestamp": "2026-07-01T02:00:00Z"
+			}
+		],
+		"errors": []
+	}`
+	if err := os.WriteFile(filepath.Join(tmpDir, constants.AgentOutputArtifactName), []byte(safeOutput), 0o644); err != nil {
+		t.Fatalf("Failed to create safe output file: %v", err)
+	}
+
+	noops, err := extractNoopsFromRun(tmpDir, testRun, false, "", "")
+	if err != nil {
+		t.Fatalf("Error extracting noops: %v", err)
+	}
+	if len(noops) != 1 {
+		t.Fatalf("Expected 1 noop report, got %d", len(noops))
+	}
+	if noops[0].ExperimentName != "" {
+		t.Errorf("Expected empty experiment_name, got %q", noops[0].ExperimentName)
+	}
+	if noops[0].Variant != "" {
+		t.Errorf("Expected empty variant, got %q", noops[0].Variant)
 	}
 }

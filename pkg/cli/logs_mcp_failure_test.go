@@ -39,7 +39,7 @@ func TestExtractMCPFailuresFromSafeOutputsServer(t *testing.T) {
 	}
 
 	// Test the extraction function
-	failures, err := extractMCPFailuresFromRun(runDir, run, true)
+	failures, err := extractMCPFailuresFromRun(runDir, run, true, "", "")
 	if err != nil {
 		t.Fatalf("Failed to extract MCP failures: %v", err)
 	}
@@ -135,7 +135,8 @@ func TestExtractMCPFailuresFromRun_IncludesExperimentProvenance(t *testing.T) {
 	}
 
 	run := WorkflowRun{DatabaseID: 123, WorkflowName: "Experiment Workflow"}
-	failures, err := extractMCPFailuresFromRun(runDir, run, false)
+	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runDir))
+	failures, err := extractMCPFailuresFromRun(runDir, run, false, expName, expVariant)
 	if err != nil {
 		t.Fatalf("Failed to extract MCP failures: %v", err)
 	}

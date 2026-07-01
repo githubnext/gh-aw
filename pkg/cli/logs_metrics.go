@@ -274,11 +274,12 @@ func ExtractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics {
 	return metrics
 }
 
-// extractMissingToolsFromRun extracts missing tool reports from a workflow run's artifacts
-func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([]MissingToolReport, error) {
+// extractMissingToolsFromRun extracts missing tool reports from a workflow run's artifacts.
+// experimentName and variant are the pre-resolved experiment assignment for this run; pass empty
+// strings when no experiment context is available.
+func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]MissingToolReport, error) {
 	logsMetricsLog.Printf("Extracting missing tools from run: %d", run.DatabaseID)
 	var missingTools []MissingToolReport
-	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runDir))
 
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
@@ -381,7 +382,7 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 					Tool:             item.Tool,
 					Reason:           item.Reason,
 					Alternatives:     item.Alternatives,
-					ReportProvenance: buildReportProvenance(run, item.Timestamp, expName, expVariant),
+					ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
 				}
 				missingTools = append(missingTools, missingTool)
 
@@ -405,11 +406,12 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 	return missingTools, nil
 }
 
-// extractNoopsFromRun extracts noop messages from a workflow run's artifacts
-func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopReport, error) {
+// extractNoopsFromRun extracts noop messages from a workflow run's artifacts.
+// experimentName and variant are the pre-resolved experiment assignment for this run; pass empty
+// strings when no experiment context is available.
+func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]NoopReport, error) {
 	logsMetricsLog.Printf("Extracting noops from run: %d", run.DatabaseID)
 	var noops []NoopReport
-	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runDir))
 
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
@@ -508,7 +510,7 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 			if item.Type == "noop" {
 				noop := NoopReport{
 					Message:          item.Message,
-					ReportProvenance: buildReportProvenance(run, item.Timestamp, expName, expVariant),
+					ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
 				}
 				noops = append(noops, noop)
 
@@ -532,11 +534,12 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 	return noops, nil
 }
 
-// extractMissingDataFromRun extracts missing data reports from a workflow run's artifacts
-func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool) ([]MissingDataReport, error) {
+// extractMissingDataFromRun extracts missing data reports from a workflow run's artifacts.
+// experimentName and variant are the pre-resolved experiment assignment for this run; pass empty
+// strings when no experiment context is available.
+func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]MissingDataReport, error) {
 	logsMetricsLog.Printf("Extracting missing data from run: %d", run.DatabaseID)
 	var missingData []MissingDataReport
-	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runDir))
 
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
@@ -641,7 +644,7 @@ func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 					Reason:           item.Reason,
 					Context:          item.Context,
 					Alternatives:     item.Alternatives,
-					ReportProvenance: buildReportProvenance(run, item.Timestamp, expName, expVariant),
+					ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
 				}
 				missingData = append(missingData, missingDataItem)
 
@@ -665,11 +668,12 @@ func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 	return missingData, nil
 }
 
-// extractMCPFailuresFromRun extracts MCP server failure reports from a workflow run's logs
-func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]MCPFailureReport, error) {
+// extractMCPFailuresFromRun extracts MCP server failure reports from a workflow run's logs.
+// experimentName and variant are the pre-resolved experiment assignment for this run; pass empty
+// strings when no experiment context is available.
+func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]MCPFailureReport, error) {
 	logsMetricsLog.Printf("Extracting MCP failures from run: %d", run.DatabaseID)
 	var mcpFailures []MCPFailureReport
-	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runDir))
 
 	// Look for agent output logs that contain the system init entry with MCP server status
 	// This information is available in the raw log files, typically with names containing "log"
@@ -691,7 +695,7 @@ func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 			!strings.Contains(fileName, "agent_output") &&
 			!strings.Contains(fileName, "access") {
 
-			failures, parseErr := extractMCPFailuresFromLogFile(path, run, verbose, expName, expVariant)
+			failures, parseErr := extractMCPFailuresFromLogFile(path, run, verbose, experimentName, variant)
 			if parseErr != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse MCP failures from %s: %v", filepath.Base(path), parseErr)))

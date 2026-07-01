@@ -611,27 +611,31 @@ func collectAuditAnalysisResults(run WorkflowRun, runOutputDir string, verbose b
 }
 
 func launchCoreAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResults, run WorkflowRun, runOutputDir string, verbose bool) {
+	// Resolve experiment assignment once so all goroutines reuse the same values
+	// rather than each reading state.json independently.
+	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runOutputDir))
+
 	launchMetricsAnalysis(wg, results, runOutputDir, verbose, run.WorkflowPath)
 	launchJobDetailsAnalysis(wg, results, run.DatabaseID, verbose)
 	runAuditAnalysis(wg, verbose, "extractMissingToolsFromRun", "Failed to extract missing tools", func(v []MissingToolReport) {
 		results.missingTools = v
 	}, func() ([]MissingToolReport, error) {
-		return extractMissingToolsFromRun(runOutputDir, run, verbose)
+		return extractMissingToolsFromRun(runOutputDir, run, verbose, expName, expVariant)
 	})
 	runAuditAnalysis(wg, verbose, "extractMissingDataFromRun", "Failed to extract missing data", func(v []MissingDataReport) {
 		results.missingData = v
 	}, func() ([]MissingDataReport, error) {
-		return extractMissingDataFromRun(runOutputDir, run, verbose)
+		return extractMissingDataFromRun(runOutputDir, run, verbose, expName, expVariant)
 	})
 	runAuditAnalysis(wg, verbose, "extractNoopsFromRun", "Failed to extract noops", func(v []NoopReport) {
 		results.noops = v
 	}, func() ([]NoopReport, error) {
-		return extractNoopsFromRun(runOutputDir, run, verbose)
+		return extractNoopsFromRun(runOutputDir, run, verbose, expName, expVariant)
 	})
 	runAuditAnalysis(wg, verbose, "extractMCPFailuresFromRun", "Failed to extract MCP failures", func(v []MCPFailureReport) {
 		results.mcpFailures = v
 	}, func() ([]MCPFailureReport, error) {
-		return extractMCPFailuresFromRun(runOutputDir, run, verbose)
+		return extractMCPFailuresFromRun(runOutputDir, run, verbose, expName, expVariant)
 	})
 	runAuditAnalysis(wg, verbose, "analyzeAccessLogs", "Failed to analyze access logs", func(v *DomainAnalysis) {
 		results.accessAnalysis = v

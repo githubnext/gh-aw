@@ -61,7 +61,7 @@ func TestMissingToolDetectionIntegration(t *testing.T) {
 	}
 
 	// Extract missing tools
-	missingTools, err := extractMissingToolsFromRun(runDir, testRun, false)
+	missingTools, err := extractMissingToolsFromRun(runDir, testRun, false, "", "")
 	if err != nil {
 		t.Fatalf("Error extracting missing tools: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestMissingToolTypeConsistency(t *testing.T) {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	tools, err := extractMissingToolsFromRun(runDir, testRun, false)
+	tools, err := extractMissingToolsFromRun(runDir, testRun, false, "", "")
 	if err != nil {
 		t.Fatalf("Error extracting with correct type: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestMissingToolTypeConsistency(t *testing.T) {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	tools, err = extractMissingToolsFromRun(runDir, testRun, false)
+	tools, err = extractMissingToolsFromRun(runDir, testRun, false, "", "")
 	if err != nil {
 		t.Fatalf("Error extracting with incorrect type: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestMissingToolFlattenedStructure(t *testing.T) {
 	}
 
 	// Extract missing tools - should find the file at root
-	missingTools, err := extractMissingToolsFromRun(runDir, testRun, false)
+	missingTools, err := extractMissingToolsFromRun(runDir, testRun, false, "", "")
 	if err != nil {
 		t.Fatalf("Error extracting missing tools from flattened structure: %v", err)
 	}

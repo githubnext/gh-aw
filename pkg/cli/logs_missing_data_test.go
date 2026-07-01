@@ -51,7 +51,8 @@ func TestExtractMissingDataFromRun_IncludesExperimentProvenance(t *testing.T) {
 		t.Fatalf("Failed to create safe output file: %v", err)
 	}
 
-	reports, err := extractMissingDataFromRun(tmpDir, testRun, false)
+	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(tmpDir))
+	reports, err := extractMissingDataFromRun(tmpDir, testRun, false, expName, expVariant)
 	if err != nil {
 		t.Fatalf("Error extracting missing data: %v", err)
 	}
@@ -93,7 +94,7 @@ func TestExtractMissingDataFromRun_NoExperimentProvenance(t *testing.T) {
 		t.Fatalf("Failed to create safe output file: %v", err)
 	}
 
-	reports, err := extractMissingDataFromRun(tmpDir, testRun, false)
+	reports, err := extractMissingDataFromRun(tmpDir, testRun, false, "", "")
 	if err != nil {
 		t.Fatalf("Error extracting missing data: %v", err)
 	}

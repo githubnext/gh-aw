@@ -363,6 +363,8 @@ Single-run returns JSON with:
 - downloaded_files: List of artifact files (path, size, size_formatted, description, is_directory)
 - missing_tools: Tools that were requested but not available (tool, reason, alternatives, timestamp, workflow_name, run_id, experiment_name, variant)
 - mcp_failures: MCP server failures (server_name, status, timestamp, workflow_name, run_id, experiment_name, variant)
+- noop_reports: Noop signals from agents (message, timestamp, workflow_name, run_id, experiment_name, variant)
+- missing_data: Missing data reports (data_type, reason, context, alternatives, timestamp, workflow_name, run_id, experiment_name, variant)
 - errors: Error details (file, line, type, message)
 - warnings: Warning details (file, line, type, message)
 - tool_usage: Tool usage statistics (name, call_count, max_output_size, max_duration)

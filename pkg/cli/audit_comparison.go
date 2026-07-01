@@ -116,7 +116,8 @@ func loadAuditComparisonSnapshotFromArtifacts(run WorkflowRun, logsPath string, 
 		return auditComparisonSnapshot{}, fmt.Errorf("failed to analyze baseline firewall logs: %w", err)
 	}
 
-	mcpFailures, err := extractMCPFailuresFromRun(logsPath, run, verbose)
+	mcpExpName, mcpExpVariant, _ := firstExperimentAssignment(extractExperimentData(logsPath))
+	mcpFailures, err := extractMCPFailuresFromRun(logsPath, run, verbose, mcpExpName, mcpExpVariant)
 	if err != nil {
 		auditComparisonLog.Printf("Baseline MCP failure extraction failed for run %d: %v", run.DatabaseID, err)
 		return auditComparisonSnapshot{}, fmt.Errorf("failed to extract baseline MCP failures: %w", err)
@@ -187,7 +188,8 @@ func loadAuditComparisonCandidate(run WorkflowRun, logsPath string, verbose bool
 	if firewallAnalysis, firewallErr := analyzeFirewallLogs(logsPath, verbose); firewallErr == nil {
 		processedRun.FirewallAnalysis = firewallAnalysis
 	}
-	if mcpFailures, mcpErr := extractMCPFailuresFromRun(logsPath, run, verbose); mcpErr == nil {
+	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(logsPath))
+	if mcpFailures, mcpErr := extractMCPFailuresFromRun(logsPath, run, verbose, expName, expVariant); mcpErr == nil {
 		processedRun.MCPFailures = mcpFailures
 	}
 	awContext, _, _, taskDomain, behaviorFingerprint, _ := deriveRunAgenticAnalysis(processedRun, metrics)
