@@ -661,6 +661,9 @@ func findFieldLocationsInSchema(schemaDoc any, targetField, currentPath string) 
 	return fuzzyMatches
 }
 
+// collectExactFieldMatches returns all locations in allLocations where the field
+// name case-insensitively equals targetField, excluding the currentPath location.
+// Duplicate (fieldName, schemaPath) pairs are suppressed.
 func collectExactFieldMatches(allLocations []schemaFieldLocation, targetField, currentPath string) []schemaFieldLocation {
 	seen := make(map[string]struct{})
 	var exactMatches []schemaFieldLocation
@@ -681,6 +684,9 @@ func collectExactFieldMatches(allLocations []schemaFieldLocation, targetField, c
 	return exactMatches
 }
 
+// collectFuzzyFieldMatches returns locations whose field names are within
+// maxPathSearchDistance Levenshtein edits of targetLower, excluding currentPath.
+// Results are sorted by distance ascending, then by schema path for stable output.
 func collectFuzzyFieldMatches(allLocations []schemaFieldLocation, targetLower, currentPath string) []schemaFieldLocation {
 	seen := make(map[string]struct{})
 	var fuzzyMatches []schemaFieldLocation

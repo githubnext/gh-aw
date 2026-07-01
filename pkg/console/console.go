@@ -236,6 +236,8 @@ func RenderTable(config TableConfig) string {
 }
 
 // buildTableStyleFunc returns the lipgloss style function used by RenderTable.
+// config supplies the ShowTotal/TotalRow flags; ttyCheck detects terminal output;
+// dataRowCount is the number of data rows (excluding any total row).
 func buildTableStyleFunc(config TableConfig, ttyCheck func() bool, dataRowCount int) func(int, int) lipgloss.Style {
 	return func(row, col int) lipgloss.Style {
 		if !ttyCheck() {

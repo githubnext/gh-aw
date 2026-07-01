@@ -72,6 +72,7 @@ func (om *ObjectiveMapping) ComputeObjectiveValue(issueLabels []string) int {
 	}
 }
 
+// computeValueSum adds all matching label values and logs the result.
 func (om *ObjectiveMapping) computeValueSum(matchingValues []int, matchedLabels []string) int {
 	total := 0
 	for _, v := range matchingValues {
@@ -81,6 +82,9 @@ func (om *ObjectiveMapping) computeValueSum(matchingValues []int, matchedLabels 
 	return total
 }
 
+// computeValueFirst returns the value for the highest-priority matching label.
+// It walks issueLabels in priority order; if none match, it falls back to the
+// first label in matchingValues.
 func (om *ObjectiveMapping) computeValueFirst(issueLabels []string, matchingValues []int, matchedLabels []string) int {
 	// Return first issue label that's in priority_labels
 	if len(om.PriorityLabels) > 0 {
@@ -102,6 +106,7 @@ func (om *ObjectiveMapping) computeValueFirst(issueLabels []string, matchingValu
 	return result
 }
 
+// computeValueMax returns the highest value among all matching labels.
 func (om *ObjectiveMapping) computeValueMax(matchingValues []int, matchedLabels []string) int {
 	maxVal := matchingValues[0]
 	for _, v := range matchingValues {
