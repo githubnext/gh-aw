@@ -61,6 +61,29 @@ metadata:
 
 Keys must be 1–64 characters; values are string-only, up to 1024 characters.
 
+### Skills (`skills:`)
+
+Installs external skills during workflow activation. Use either string entries or object entries for per-skill authentication.
+
+```yaml wrap
+skills:
+  - mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
+  - skill: ${{ vars.IMPECCABLE_SKILLS_REF }}
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+Static skill references must use a full 40-character lowercase commit SHA. GitHub Actions expressions are also supported for runtime resolution.
+
+Object entries support these fields:
+
+- `skill` (required): skill reference string
+- `github-token` (optional): token expression for this skill install
+- `github-app` (optional): GitHub App config for this skill install
+
+`github-token` and `github-app` are mutually exclusive for a single skill entry.
+
+See [Frontmatter (Full)](/gh-aw/reference/frontmatter-full/) for full schema details and [APM Dependencies](/gh-aw/reference/dependencies/) for package-based distribution.
+
 ### Trigger Events (`on:`)
 
 The `on:` section uses standard GitHub Actions syntax to define workflow triggers, with additional fields for security and approval controls:
@@ -475,4 +498,4 @@ See [Network Permissions - Strict Mode Validation](/gh-aw/reference/network/#str
 
 ## Related Documentation
 
-See also: [Trigger Events](/gh-aw/reference/triggers/), [AI Engines](/gh-aw/reference/engines/), [CLI Commands](/gh-aw/setup/cli/), [Workflow Structure](/gh-aw/reference/workflow-structure/), [Network Permissions](/gh-aw/reference/network/), [Feature Flags](/gh-aw/reference/feature-flags/), [Custom Steps and Jobs](/gh-aw/reference/steps-jobs/), [OpenTelemetry Guide](/gh-aw/guides/open-telemetry/), [Command Triggers](/gh-aw/reference/command-triggers/), [MCPs](/gh-aw/guides/mcps/), [Tools](/gh-aw/reference/tools/), [Imports](/gh-aw/reference/imports/)
+See also: [Trigger Events](/gh-aw/reference/triggers/), [AI Engines](/gh-aw/reference/engines/), [CLI Commands](/gh-aw/setup/cli/), [Workflow Structure](/gh-aw/reference/workflow-structure/), [Network Permissions](/gh-aw/reference/network/), [Feature Flags](/gh-aw/reference/feature-flags/), [Custom Steps and Jobs](/gh-aw/reference/steps-jobs/), [OpenTelemetry Guide](/gh-aw/guides/open-telemetry/), [Command Triggers](/gh-aw/reference/command-triggers/), [MCPs](/gh-aw/guides/mcps/), [Tools](/gh-aw/reference/tools/), [Imports](/gh-aw/reference/imports/), [Frontmatter (Full)](/gh-aw/reference/frontmatter-full/), [APM Dependencies](/gh-aw/reference/dependencies/)
