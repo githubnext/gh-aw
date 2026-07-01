@@ -82,9 +82,9 @@ func (om *ObjectiveMapping) computeValueSum(matchingValues []int, matchedLabels 
 	return total
 }
 
-// computeValueFirst returns the value for the highest-priority matching label.
-// It walks issueLabels in priority order; if none match, it falls back to the
-// first label in matchingValues.
+// computeValueFirst returns the value for the first issue label that appears in PriorityLabels.
+// It iterates issueLabels in their existing order and returns the value for the first one
+// found in PriorityLabels; if none match, it falls back to the first value in matchingValues.
 func (om *ObjectiveMapping) computeValueFirst(issueLabels []string, matchingValues []int, matchedLabels []string) int {
 	// Return first issue label that's in priority_labels
 	if len(om.PriorityLabels) > 0 {
