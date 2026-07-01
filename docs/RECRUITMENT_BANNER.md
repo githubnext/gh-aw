@@ -36,7 +36,7 @@ click for any analytics you wire up.
 
 ## Configure it (edit `docs/src/config/recruitmentBanner.ts`)
 
-1. **`ctaUrl`** — your real survey / booking URL (replace the `REPLACE-WITH-YOUR-SURVEY-URL` placeholder).
+1. **`ctaUrl`** — your real survey / booking URL.
 2. **`title` / `message` / `ctaText`** — keep it tight and honest; mention any incentive in `message`.
 3. **`slug`** — stable, kebab-case; it must match the `?recruit=<slug>` in the link you distribute,
    and **must not change** once distributed.

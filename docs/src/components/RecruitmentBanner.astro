@@ -166,14 +166,14 @@ store = window.localStorage;
 } catch (e) {
 store = null;
 }
-const get = (k: string) => {
+const get = (k: string): string | null => {
 try {
 return store && store.getItem(k);
 } catch (e) {
 return null;
 }
 };
-const set = (k: string, v: string) => {
+const set = (k: string, v: string): void => {
 try {
 store && store.setItem(k, v);
 } catch (e) {
@@ -199,7 +199,7 @@ if (!eligible) return;
 // 4) Optional path scoping.
 if (paths.length) {
 const here = window.location.pathname;
-if (!paths.some((p) => here.indexOf(p) !== -1)) return;
+if (!paths.some((p) => here.includes(p))) return;
 }
 
 // 5) Build the CTA URL with UTM attribution + optional participant id.
