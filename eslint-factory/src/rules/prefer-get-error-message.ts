@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -17,7 +17,7 @@ export const preferGetErrorMessageRule = createRule({
     schema: [],
     messages: {
       preferGetErrorMessage: "Prefer getErrorMessage({{errorVar}}) from error_helpers.cjs. It safely handles non-Error throws and sanitizes HTML error-page responses.",
-      replaceWithGetErrorMessage: "Replace with getErrorMessage({{errorVar}}).",
+      replaceWithGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) — ensure getErrorMessage is imported from error_helpers.cjs before applying.",
     },
   },
   defaultOptions: [],
@@ -47,7 +47,7 @@ export const preferGetErrorMessageRule = createRule({
             {
               messageId: "replaceWithGetErrorMessage",
               data: { errorVar },
-              fix(fixer: TSESLint.RuleFixer) {
+              fix(fixer) {
                 return fixer.replaceText(node, `getErrorMessage(${errorVar})`);
               },
             },

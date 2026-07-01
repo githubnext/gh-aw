@@ -45,6 +45,27 @@ describe("prefer-get-error-message", () => {
     });
   });
 
+  it("valid: mismatched variable names in consequent are intentionally excluded", () => {
+    cjsRuleTester.run("prefer-get-error-message", preferGetErrorMessageRule, {
+      valid: [`const msg = err instanceof Error ? other.message : String(err);`],
+      invalid: [],
+    });
+  });
+
+  it("valid: mismatched variable names in alternate are intentionally excluded", () => {
+    cjsRuleTester.run("prefer-get-error-message", preferGetErrorMessageRule, {
+      valid: [`const msg = err instanceof Error ? err.message : String(other);`],
+      invalid: [],
+    });
+  });
+
+  it("valid: member-expression LHS in instanceof is intentionally excluded", () => {
+    cjsRuleTester.run("prefer-get-error-message", preferGetErrorMessageRule, {
+      valid: [`const msg = this.err instanceof Error ? this.err.message : String(this.err);`],
+      invalid: [],
+    });
+  });
+
   it("valid: alternate must be String(err)", () => {
     cjsRuleTester.run("prefer-get-error-message", preferGetErrorMessageRule, {
       valid: [`const msg = err instanceof Error ? err.message : \`\${err}\`;`],
