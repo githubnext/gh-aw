@@ -1,37 +1,31 @@
 {
-  "run_id": "28486872548",
-  "run_date": "2026-07-01T01:21:59Z",
+  "run_id": "28502021857",
+  "run_date": "2026-07-01T07:49:09Z",
   "repository": "github/gh-aw",
-  "total_prs": 12,
+  "total_prs": 5,
+  "new_this_run": 3,
+  "carried_over": 2,
   "summary": {
     "auto_merge": 1,
-    "fast_track": 3,
-    "batch_review": 3,
-    "defer": 7,
+    "fast_track": 1,
+    "batch_review": 1,
+    "defer": 2,
     "close": 0
   },
   "distribution": {
-    "by_type": {"feature": 7, "bug": 2, "chore": 2, "docs": 1},
-    "by_risk": {"high": 5, "medium": 4, "low": 3},
-    "by_priority": {"high": 1, "medium": 7, "low": 4}
+    "by_type": {"refactor": 2, "feature": 2, "chore": 1},
+    "by_risk": {"high": 2, "medium": 2, "low": 1},
+    "by_priority": {"high": 1, "medium": 2, "low": 2}
   },
   "prs": [
-    {"number": 42597, "title": "[WIP] Add A/B test for tone variant in breaking change checker", "type": "feature", "risk": "medium", "score": 28, "priority": "low", "action": "defer", "batch": "draft-wip", "draft": true},
-    {"number": 42596, "title": "docs(aw): strengthen guidance for coverage analysis", "type": "docs", "risk": "low", "score": 27, "priority": "low", "action": "defer", "batch": "draft-wip", "draft": true},
-    {"number": 42595, "title": "docs: add opt-in recruitment banner to Starlight", "type": "feature", "risk": "medium", "score": 32, "priority": "low", "action": "defer", "batch": "draft-wip", "draft": true},
-    {"number": 42594, "title": "Support per-skill GitHub auth in frontmatter skills", "type": "feature", "risk": "high", "score": 64, "priority": "medium", "action": "fast_track", "batch": null, "draft": false},
-    {"number": 42593, "title": "fix: detect no model endpoints available as http_400_response_error", "type": "bug", "risk": "medium", "score": 54, "priority": "medium", "action": "fast_track", "batch": null, "draft": false},
-    {"number": 42585, "title": "safe-outputs: pre-flight workflow scope check + full-branch allowed_files", "type": "feature", "risk": "high", "score": 69, "priority": "high", "action": "fast_track", "batch": null, "draft": false},
-    {"number": 42581, "title": "fix(eslint-factory): require-parseInt-radix false negative on radix 0/1", "type": "bug", "risk": "low", "score": 44, "priority": "medium", "action": "batch_review", "batch": "eslint-fixes", "draft": false},
-    {"number": 42580, "title": "Promote errortypeassertion and execcommandwithoutcontext to blocking CI", "type": "chore", "risk": "medium", "score": 42, "priority": "medium", "action": "batch_review", "batch": "eslint-fixes", "draft": false},
-    {"number": 42569, "title": "Bump default Claude Code and Playwright MCP versions; regenerate lockfiles", "type": "chore", "risk": "low", "score": 46, "priority": "medium", "action": "auto_merge", "batch": null, "draft": false},
-    {"number": 42568, "title": "eslint-factory: require null-safe companion for typeof err === object", "type": "feature", "risk": "medium", "score": 44, "priority": "medium", "action": "batch_review", "batch": "eslint-fixes", "draft": false},
+    {"number": 42676, "title": "Remove expression support from skills frontmatter; add skills to gh-aw-manifest", "type": "refactor", "risk": "high", "score": 70, "priority": "high", "action": "fast_track", "batch": null, "draft": false},
+    {"number": 42674, "title": "Improve Code Push Errors rendering for allowed-files violations", "type": "chore", "risk": "low", "score": 43, "priority": "medium", "action": "auto_merge", "batch": null, "draft": false},
+    {"number": 42678, "title": "Refactor gateway entry normalization across Claude/Copilot/Gemini converters", "type": "refactor", "risk": "medium", "score": 40, "priority": "medium", "action": "batch_review", "batch": null, "draft": true},
     {"number": 42314, "title": "Add experimental Auggie engine support", "type": "feature", "risk": "high", "score": 38, "priority": "medium", "action": "defer", "batch": "experimental", "draft": true},
     {"number": 42100, "title": "feat: add experimental BinEval evaluation support", "type": "feature", "risk": "high", "score": 35, "priority": "low", "action": "defer", "batch": "experimental", "draft": true}
   ],
   "batches": {
-    "eslint-fixes": [42568, 42580, 42581],
-    "draft-wip": [42595, 42596, 42597],
     "experimental": [42100, 42314]
-  }
+  },
+  "merged_since_last_run": [42569, 42568, 42580, 42581, 42585, 42593, 42594, 42595, 42596, 42597]
 }
