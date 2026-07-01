@@ -541,21 +541,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	skillDir := GetEngineSkillDir(engineID)
 
 	ctx.steps = append(ctx.steps, "      - name: Upgrade gh CLI for frontmatter skills\n")
-	ctx.steps = append(ctx.steps, "        run: |\n")
-	ctx.steps = append(ctx.steps, "          set -euo pipefail\n")
-	ctx.steps = append(ctx.steps, fmt.Sprintf("          REQUIRED=\"%s\"\n", constants.GhSkillsMinVersion))
-	ctx.steps = append(ctx.steps, "          GH_VERSION=$(gh --version | awk 'NR==1 {print $3}')\n")
-	ctx.steps = append(ctx.steps, "          echo \"gh version: ${GH_VERSION}\"\n")
-	ctx.steps = append(ctx.steps, "          if ! printf '%s\\n%s\\n' \"$REQUIRED\" \"$GH_VERSION\" | sort -V -C; then\n")
-	ctx.steps = append(ctx.steps, "            echo \"gh ${GH_VERSION} is older than ${REQUIRED}, upgrading...\"\n")
-	ctx.steps = append(ctx.steps, "            bash \"${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh\"\n")
-	ctx.steps = append(ctx.steps, "            GH_VERSION=$(gh --version | awk 'NR==1 {print $3}')\n")
-	ctx.steps = append(ctx.steps, "            echo \"gh version after upgrade: ${GH_VERSION}\"\n")
-	ctx.steps = append(ctx.steps, "            if ! printf '%s\\n%s\\n' \"$REQUIRED\" \"$GH_VERSION\" | sort -V -C; then\n")
-	ctx.steps = append(ctx.steps, fmt.Sprintf("              echo \"::error::gh ${GH_VERSION} is older than required ${REQUIRED} (gh skill support requires v%s+)\"\n", constants.GhSkillsMinVersion))
-	ctx.steps = append(ctx.steps, "              exit 1\n")
-	ctx.steps = append(ctx.steps, "            fi\n")
-	ctx.steps = append(ctx.steps, "          fi\n")
+	ctx.steps = append(ctx.steps, fmt.Sprintf("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/ensure_gh_cli_min_version.sh\" \"%s\"\n", constants.GhSkillsMinVersion))
 
 	for i, skillRef := range skillRefs {
 		tokenExpr := c.resolveActivationToken(ctx.data)
