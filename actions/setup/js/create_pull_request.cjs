@@ -770,7 +770,7 @@ async function main(config = {}) {
     core.info(`Configured team reviewers: ${configTeamReviewers.join(", ")}`);
   }
   if (configAssignees && configAssignees.length > 0) {
-    core.info(`Configured assignees (for fallback issues): ${configAssignees.join(", ")}`);
+    core.info(`Configured assignees (for pull request and fallback issues): ${configAssignees.join(", ")}`);
   }
   if (titlePrefix) {
     core.info(`Title prefix: ${titlePrefix}`);
@@ -2292,6 +2292,21 @@ ${patchPreview}`;
             } catch (copilotError) {
               core.warning(`Failed to request copilot as reviewer for PR #${pullRequest.number}: ${copilotError instanceof Error ? copilotError.message : String(copilotError)}`);
             }
+          }
+        }
+
+        if (configAssignees && configAssignees.length > 0) {
+          core.info(`Assigning assignees to pull request #${pullRequest.number}: ${JSON.stringify(configAssignees)}`);
+          try {
+            await githubClient.rest.issues.addAssignees({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              issue_number: pullRequest.number,
+              assignees: configAssignees,
+            });
+            core.info(`Assigned assignees to pull request #${pullRequest.number}: ${JSON.stringify(configAssignees)}`);
+          } catch (assigneeError) {
+            core.warning(`Failed to assign assignees to PR #${pullRequest.number}: ${assigneeError instanceof Error ? assigneeError.message : String(assigneeError)}`);
           }
         }
 

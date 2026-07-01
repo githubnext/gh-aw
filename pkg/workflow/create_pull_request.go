@@ -37,9 +37,9 @@ type CreatePullRequestsConfig struct {
 	RequireTemporaryID             bool     `yaml:"require-temporary-id,omitempty"` // When true, create_pull_request tool calls must include temporary_id.
 	Labels                         []string `yaml:"labels,omitempty"`
 	AllowedLabels                  []string `yaml:"allowed-labels,omitempty"`                      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
-	Reviewers                      []string `yaml:"reviewers,omitempty"`                           // List of users/bots to assign as reviewers to the pull request
-	TeamReviewers                  []string `yaml:"team-reviewers,omitempty"`                      // List of team slugs to assign as team reviewers to the pull request
-	Assignees                      []string `yaml:"assignees,omitempty"`                           // List of users to assign to any fallback issue created by create-pull-request
+	Reviewers                      []string `yaml:"reviewers,omitempty"`                           // List of users/bots to assign as reviewers to the pull request. Accepts a static list or a single GitHub Actions expression.
+	TeamReviewers                  []string `yaml:"team-reviewers,omitempty"`                      // List of team slugs to assign as team reviewers to the pull request. Accepts a static list or a single GitHub Actions expression.
+	Assignees                      []string `yaml:"assignees,omitempty"`                           // List of users to assign to the created pull request and any fallback issue. Accepts a static list or a single GitHub Actions expression.
 	FallbackLabels                 []string `yaml:"fallback-labels,omitempty"`                     // List of labels to apply to fallback issues created when PR creation cannot proceed. If omitted, fallback issues reuse PR labels.
 	Draft                          *string  `yaml:"draft,omitempty"`                               // Pointer to distinguish between unset (nil), literal bool, and expression values
 	IfNoChanges                    string   `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn" (default), "error", or "ignore"

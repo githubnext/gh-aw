@@ -1198,8 +1198,9 @@ func TestAddTemplatableStringSliceBuilder(t *testing.T) {
 }
 
 // TestParsePullRequestsConfigExpressionFields verifies that create-pull-request
-// accepts GitHub Actions expression strings for labels, allowed-repos,
-// allowed-base-branches, and allowed-branches.
+// accepts GitHub Actions expression strings for labels, reviewers,
+// team-reviewers, assignees, allowed-repos, allowed-base-branches, and
+// allowed-branches.
 func TestParsePullRequestsConfigExpressionFields(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1212,6 +1213,24 @@ func TestParsePullRequestsConfigExpressionFields(t *testing.T) {
 			field:    "labels",
 			expr:     "${{ inputs.labels }}",
 			getField: func(c *CreatePullRequestsConfig) []string { return c.Labels },
+		},
+		{
+			name:     "reviewers as expression",
+			field:    "reviewers",
+			expr:     "${{ github.event.pull_request.user.login }}",
+			getField: func(c *CreatePullRequestsConfig) []string { return c.Reviewers },
+		},
+		{
+			name:     "team-reviewers as expression",
+			field:    "team-reviewers",
+			expr:     "${{ inputs['review-team'] }}",
+			getField: func(c *CreatePullRequestsConfig) []string { return c.TeamReviewers },
+		},
+		{
+			name:     "assignees as expression",
+			field:    "assignees",
+			expr:     "${{ github.event.pull_request.user.login }}",
+			getField: func(c *CreatePullRequestsConfig) []string { return c.Assignees },
 		},
 		{
 			name:     "allowed-repos as expression",
@@ -1382,6 +1401,39 @@ func TestHandlerConfigExpressionFields(t *testing.T) {
 			handler:   "create_pull_request",
 			configKey: "labels",
 			wantArray: true,
+		},
+		{
+			name: "create_pull_request reviewers expression stored as string",
+			safeOuts: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					Reviewers: []string{"${{ github.event.pull_request.user.login }}"},
+				},
+			},
+			handler:   "create_pull_request",
+			configKey: "reviewers",
+			wantValue: "${{ github.event.pull_request.user.login }}",
+		},
+		{
+			name: "create_pull_request team_reviewers expression stored as string",
+			safeOuts: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TeamReviewers: []string{"${{ inputs['review-team'] }}"},
+				},
+			},
+			handler:   "create_pull_request",
+			configKey: "team_reviewers",
+			wantValue: "${{ inputs['review-team'] }}",
+		},
+		{
+			name: "create_pull_request assignees expression stored as string",
+			safeOuts: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					Assignees: []string{"${{ github.event.pull_request.user.login }}"},
+				},
+			},
+			handler:   "create_pull_request",
+			configKey: "assignees",
+			wantValue: "${{ github.event.pull_request.user.login }}",
 		},
 		{
 			name: "create_pull_request allowed_repos expression stored as string",

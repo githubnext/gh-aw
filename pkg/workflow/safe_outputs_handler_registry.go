@@ -484,9 +484,9 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
 			AddTemplatableStringSlice("labels", c.Labels).
 			AddStringSlice("fallback_labels", c.FallbackLabels).
-			AddStringSlice("reviewers", c.Reviewers).
-			AddStringSlice("team_reviewers", c.TeamReviewers).
-			AddStringSlice("assignees", c.Assignees).
+			AddTemplatableStringSlice("reviewers", c.Reviewers).
+			AddTemplatableStringSlice("team_reviewers", c.TeamReviewers).
+			AddTemplatableStringSlice("assignees", c.Assignees).
 			AddTemplatableBool("draft", c.Draft).
 			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
 			AddTemplatableBool("allow_empty", c.AllowEmpty).
