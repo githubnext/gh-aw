@@ -62,12 +62,14 @@ func renderLogsCompact(data LogsData) {
 	summaryParts := []string{
 		"runs=" + strconv.Itoa(s.TotalRuns),
 		"duration=" + s.TotalDuration,
-		"tokens=" + strconv.Itoa(s.TotalTokens),
 		"turns=" + strconv.Itoa(s.TotalTurns),
 		"errors=" + strconv.Itoa(s.TotalErrors),
 	}
 	if s.TotalAIC > 0 {
 		summaryParts = append(summaryParts, "aic="+formatCompactAIC(s.TotalAIC))
+	}
+	if s.TotalTokens > 0 {
+		summaryParts = append(summaryParts, "tokens="+strconv.Itoa(s.TotalTokens))
 	}
 	if s.TotalWarnings > 0 {
 		summaryParts = append(summaryParts, "warnings="+strconv.Itoa(s.TotalWarnings))
@@ -229,7 +231,6 @@ func renderLogsCompactVerbose(data LogsData) {
 	summaryParts := []string{
 		"runs=" + strconv.Itoa(s.TotalRuns),
 		"duration=" + s.TotalDuration,
-		"tokens=" + strconv.Itoa(s.TotalTokens),
 		"action_min=" + fmt.Sprintf("%.1f", s.TotalActionMinutes),
 		"turns=" + strconv.Itoa(s.TotalTurns),
 		"errors=" + strconv.Itoa(s.TotalErrors),

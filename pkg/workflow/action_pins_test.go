@@ -1671,3 +1671,71 @@ func TestGHESArtifactCompatPinsExist(t *testing.T) {
 		}
 	}
 }
+
+func TestGetActionPinPrefersLatestEmbeddedOverStaleCache(t *testing.T) {
+	latestCacheRestorePin, ok := getLatestActionPinByRepo("actions/cache/restore")
+	if !ok {
+		t.Fatal("expected embedded pin for actions/cache/restore")
+	}
+
+	tests := []struct {
+		name       string
+		cacheEntry ActionCacheEntry
+		want       string
+	}{
+		{
+			name: "prefers newer embedded pin over stale cache",
+			cacheEntry: ActionCacheEntry{
+				Repo:    "actions/cache/restore",
+				Version: "v4",
+				SHA:     "0057852bfaa89a56745cba8c7296529d2fc39830",
+			},
+			want: getActionPin("actions/cache/restore"),
+		},
+		{
+			name: "keeps equal cached version",
+			cacheEntry: ActionCacheEntry{
+				Repo:    "actions/cache/restore",
+				Version: latestCacheRestorePin.Version,
+				SHA:     latestCacheRestorePin.SHA,
+			},
+			want: getActionPin("actions/cache/restore"),
+		},
+		{
+			name: "keeps newer cached version",
+			cacheEntry: ActionCacheEntry{
+				Repo:    "actions/cache/restore",
+				Version: "v999.0.0",
+				SHA:     "1111111111111111111111111111111111111111",
+			},
+			want: "actions/cache/restore@1111111111111111111111111111111111111111 # v999.0.0",
+		},
+		{
+			name: "falls back when cached version is unparseable",
+			cacheEntry: ActionCacheEntry{
+				Repo:    "actions/cache/restore",
+				Version: "not-a-version",
+				SHA:     "2222222222222222222222222222222222222222",
+			},
+			want: getActionPin("actions/cache/restore"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewCompiler()
+			cacheKey := formatActionCacheKey(tt.cacheEntry.Repo, tt.cacheEntry.Version)
+			c.actionCache = &ActionCache{
+				Entries: map[string]ActionCacheEntry{
+					cacheKey: tt.cacheEntry,
+				},
+			}
+			c.actionResolver = NewActionResolver(c.actionCache)
+
+			got := c.getActionPin(tt.cacheEntry.Repo)
+			if got != tt.want {
+				t.Fatalf("expected compiler-generated action pin %q, got %q", tt.want, got)
+			}
+		})
+	}
+}

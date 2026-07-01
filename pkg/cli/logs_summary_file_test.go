@@ -21,7 +21,6 @@ func TestWriteSummaryFile(t *testing.T) {
 		Summary: LogsSummary{
 			TotalRuns:         3,
 			TotalDuration:     "1h30m",
-			TotalTokens:       15000,
 			TotalTurns:        25,
 			TotalErrors:       2,
 			TotalWarnings:     5,
@@ -75,9 +74,6 @@ func TestWriteSummaryFile(t *testing.T) {
 	// Verify key fields
 	if parsedData.Summary.TotalRuns != logsData.Summary.TotalRuns {
 		t.Errorf("Expected TotalRuns %d, got %d", logsData.Summary.TotalRuns, parsedData.Summary.TotalRuns)
-	}
-	if parsedData.Summary.TotalTokens != logsData.Summary.TotalTokens {
-		t.Errorf("Expected TotalTokens %d, got %d", logsData.Summary.TotalTokens, parsedData.Summary.TotalTokens)
 	}
 	if len(parsedData.Runs) != len(logsData.Runs) {
 		t.Errorf("Expected %d runs, got %d", len(logsData.Runs), len(parsedData.Runs))

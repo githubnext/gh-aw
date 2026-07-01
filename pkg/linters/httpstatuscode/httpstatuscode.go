@@ -91,34 +91,29 @@ var httpStatusNames = map[int]string{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, err := astutil.Inspector(pass)
+	root, err := astutil.Root(pass)
 	if err != nil {
 		return nil, err
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "httpstatuscode")
 
-	nodeFilter := []ast.Node{
-		(*ast.BinaryExpr)(nil),
-		(*ast.SwitchStmt)(nil),
-	}
-
-	insp.Preorder(nodeFilter, func(n ast.Node) {
-		switch node := n.(type) {
+	for cur := range root.Preorder((*ast.BinaryExpr)(nil), (*ast.SwitchStmt)(nil)) {
+		switch node := cur.Node().(type) {
 		case *ast.BinaryExpr:
 			if node.Op != token.EQL && node.Op != token.NEQ {
-				return
+				continue
 			}
 			lit, other := extractStatusLiteral(node)
 			if lit == nil {
-				return
+				continue
 			}
 			if !isHTTPStatusContext(pass, other) {
-				return
+				continue
 			}
 			checkAndReport(pass, lit, noLintLinesByFile)
 		case *ast.SwitchStmt:
 			if node.Tag == nil || !isHTTPStatusContext(pass, node.Tag) {
-				return
+				continue
 			}
 			for _, s := range node.Body.List {
 				cc, ok := s.(*ast.CaseClause)
@@ -134,7 +129,7 @@ func run(pass *analysis.Pass) (any, error) {
 				}
 			}
 		}
-	})
+	}
 
 	return nil, nil
 }

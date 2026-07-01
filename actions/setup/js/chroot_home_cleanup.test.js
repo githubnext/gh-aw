@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const POST_SCRIPT_PATH = path.join(__dirname, "..", "post.js");
 const CLEAN_SCRIPT_PATH = path.join(__dirname, "..", "clean.sh");
+const INSTALL_COPILOT_CLI_SCRIPT_PATH = path.join(__dirname, "..", "sh", "install_copilot_cli.sh");
 
 const tempDirs = [];
 
@@ -134,5 +135,21 @@ describe("clean.sh chroot-home cleanup", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("Cleaned up /tmp/awf-*-chroot-home directories (sudo)");
     expect(fs.readFileSync(logPath, "utf8")).toContain("-exec rm -rf -- {} +");
+  });
+});
+
+describe("install_copilot_cli.sh chroot-home cleanup", () => {
+  it("cleans stale chroot-home directories before starting Copilot CLI installation", () => {
+    const script = fs.readFileSync(INSTALL_COPILOT_CLI_SCRIPT_PATH, "utf8");
+
+    const ownershipFixIndex = script.indexOf('sudo chown -R "$(id -u):$(id -g)" "$COPILOT_DIR"');
+    const cleanupBannerIndex = script.indexOf('echo "Cleaning up stale AWF chroot home directories..."');
+    const cleanupCommandIndex = script.indexOf(
+      "sudo find /tmp -maxdepth 1 -name 'awf-*-chroot-home' -type d -exec rm -rf -- {} + 2>/dev/null || true"
+    );
+
+    expect(ownershipFixIndex).toBeGreaterThanOrEqual(0);
+    expect(cleanupBannerIndex).toBeGreaterThan(ownershipFixIndex);
+    expect(cleanupCommandIndex).toBeGreaterThan(cleanupBannerIndex);
   });
 });

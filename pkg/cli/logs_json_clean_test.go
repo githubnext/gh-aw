@@ -62,9 +62,9 @@ func TestJSONOutputNotCorruptedByStderr(t *testing.T) {
 		t.Fatalf("Expected summary to be a map, got %T", jsonMap["summary"])
 	}
 
-	// This is what the CI test checks: jq -e '.summary.total_tokens'
-	if _, exists := summary["total_tokens"]; !exists {
-		t.Errorf("Expected total_tokens field in summary. Summary: %+v", summary)
+	// Verify the summary contains the stable total_runs field
+	if _, exists := summary["total_runs"]; !exists {
+		t.Errorf("Expected total_runs field in summary. Summary: %+v", summary)
 	}
 
 	// Verify the output doesn't contain any stderr-like messages
@@ -202,7 +202,7 @@ func TestStderrMessagesAfterJSON(t *testing.T) {
 		t.Fatalf("Expected summary in JSON part, got %T", jsonMap["summary"])
 	}
 
-	if _, exists := summary["total_tokens"]; !exists {
-		t.Errorf("Expected total_tokens in JSON summary. Summary: %+v", summary)
+	if _, exists := summary["total_runs"]; !exists {
+		t.Errorf("Expected total_runs in JSON summary. Summary: %+v", summary)
 	}
 }

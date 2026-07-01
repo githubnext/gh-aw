@@ -4,6 +4,7 @@ package parser
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 )
@@ -556,6 +557,23 @@ func TestStableHash(t *testing.T) {
 	hash3 := stableHash("different-workflow", 100)
 	if hash1 == hash3 {
 		t.Logf("Warning: different strings produced same hash (rare but possible)")
+	}
+
+	// Test zero modulo returns 0 (guard against divide-by-zero)
+	if got := stableHash("any", 0); got != 0 {
+		t.Errorf("stableHash(_, 0) = %d, want 0", got)
+	}
+
+	// Test negative modulo returns 0 safely
+	if got := stableHash("any", -1); got != 0 {
+		t.Errorf("stableHash(_, -1) = %d, want 0", got)
+	}
+
+	// Test modulo larger than math.MaxUint32 to guard against truncation regression
+	const largeModulo = math.MaxUint32 + 1 // 4_294_967_296
+	hashLarge := stableHash("test-workflow", largeModulo)
+	if hashLarge < 0 || hashLarge >= largeModulo {
+		t.Errorf("stableHash out of range for large modulo: got %d, want [0, %d)", hashLarge, largeModulo)
 	}
 }
 

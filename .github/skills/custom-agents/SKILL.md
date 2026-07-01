@@ -398,6 +398,24 @@ You are an experienced code reviewer focused on code quality, security, and best
 
 The gh-aw (GitHub Agentic Workflows) tool supports custom agent files through the `imports` field in workflow frontmatter. Any markdown files under the `.github/agents/` directory are treated as custom agent files when imported.
 
+### Preferred way to install skills in workflows
+
+Use the `skills:` frontmatter field as the preferred way to install external skills for workflow runs. This installs skills during activation and persists them correctly between jobs.
+
+Use `imports:` for workflow prompt/context files (including local custom agent files), not as the primary skill installation path.
+
+```markdown
+on: pull_request
+engine:
+  id: copilot
+skills:
+  - mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
+imports:
+  - .github/agents/code-reviewer.md
+
+# Workflow prompt
+```
+
 ### Configuration
 
 ```markdown

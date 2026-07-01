@@ -6,6 +6,7 @@ import (
 
 	actionpins "github.com/github/gh-aw/pkg/actionpins"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var actionPinsLog = logger.New("workflow:action_pins")
@@ -99,11 +100,36 @@ func (c *Compiler) getActionPin(repo string) string {
 	}
 
 	// Check the cache for any existing entry for this repo (regardless of version).
-	// Compiler-generated actions don't specify versions, so we use any cached entry we have.
+	// Compiler-generated actions don't specify versions, so prefer a cached entry only
+	// when it is at least as new as the latest embedded pin.
 	cache := c.GetSharedActionCache()
 	resolver := c.GetSharedActionResolver()
+	latestEmbedded, hasEmbedded := getLatestActionPinByRepo(repo)
 	if cache != nil {
 		if cacheKey, entry, found := cache.FindAnyEntryForRepo(repo); found {
+			if hasEmbedded {
+				cachedVersion := semverutil.ParseVersion(entry.Version)
+				embeddedVersion := semverutil.ParseVersion(latestEmbedded.Version)
+				if cachedVersion == nil {
+					actionPinsLog.Printf("Ignoring cache entry with unparseable cached version for compiler-generated action %s: cache=%s embedded=%s",
+						repo, entry.Version, latestEmbedded.Version)
+					return actionpins.FormatPinnedActionReference(repo, latestEmbedded.SHA, latestEmbedded.Version)
+				}
+				if embeddedVersion == nil {
+					actionPinsLog.Printf("Using cached version for compiler-generated action %s because embedded version is unparseable: cache=%s embedded=%s",
+						repo, entry.Version, latestEmbedded.Version)
+					if resolver != nil {
+						resolver.MarkCacheKeyAsUsed(cacheKey)
+					}
+					return actionpins.FormatPinnedActionReference(repo, entry.SHA, entry.Version)
+				}
+				if embeddedVersion.IsNewer(cachedVersion) {
+					actionPinsLog.Printf("Ignoring stale cache entry for compiler-generated action %s: cache=%s embedded=%s",
+						repo, entry.Version, latestEmbedded.Version)
+					return actionpins.FormatPinnedActionReference(repo, latestEmbedded.SHA, latestEmbedded.Version)
+				}
+				// Equal or newer cached versions intentionally fall through to the cache entry below.
+			}
 			// Mark this cache key as used so it won't be pruned as orphaned
 			if resolver != nil {
 				resolver.MarkCacheKeyAsUsed(cacheKey)
@@ -112,7 +138,7 @@ func (c *Compiler) getActionPin(repo string) string {
 		}
 	}
 
-	// Fall back to embedded pins if no cache entry exists
+	// Fall back to embedded pins if no suitable cache entry exists
 	return getActionPin(repo)
 }
 
