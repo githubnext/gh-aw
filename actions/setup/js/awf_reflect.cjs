@@ -417,7 +417,9 @@ function inferProviderTypeForModel(endpointProvider, modelName, catalogEntryOrMo
   if (ep === "anthropic") return "anthropic";
   if (ep === "azure" || ep === "azure-openai" || ep === "azure_openai") return "azure";
   if (ep === "openai") return "openai";
-  // For "copilot", "github-copilot", and unknown providers, fall through to model-based lookup.
+  // GitHub Copilot provider is a multi-model proxy that always uses OpenAI wire protocol.
+  if (ep === "copilot" || ep === "github-copilot") return "openai";
+  // For unknown providers, fall through to model-based lookup.
 
   const model = String(modelName || "")
     .toLowerCase()
