@@ -20,28 +20,6 @@ function parseSkillSpecs(rawSkills) {
  */
 
 /**
- * @param {string} engineID
- * @returns {string}
- */
-function getSkillInstallAgent(engineID) {
-  switch ((engineID || "").trim().toLowerCase()) {
-    case "copilot":
-      return "github-copilot";
-    case "claude":
-      return "claude-code";
-    case "gemini":
-      return "gemini-cli";
-    case "codex":
-    case "antigravity":
-    case "opencode":
-    case "pi":
-      return (engineID || "").trim().toLowerCase();
-    default:
-      return "";
-  }
-}
-
-/**
  * @param {string} skillSpec
  * @param {string} skillsDst
  * @param {string} skillInstallAgent
@@ -163,8 +141,7 @@ async function writeSkillSummary(skillDir, skills, installedSkillCount, failures
 
 async function main() {
   const skillDir = process.env.GH_AW_SKILL_DIR || "";
-  const engineID = process.env.GH_AW_INFO_ENGINE_ID || "";
-  const skillInstallAgent = getSkillInstallAgent(engineID);
+  const skillInstallAgent = process.env.GH_AW_GH_SKILL_AGENT_NAME || "";
   const skills = parseSkillSpecs(process.env.GH_AW_FRONTMATTER_SKILLS || "");
   const skillsDst = path.join("/tmp/gh-aw", skillDir);
 
@@ -200,4 +177,4 @@ async function main() {
   await writeSkillSummary(skillDir, skills, installedSkillCount, failures);
 }
 
-module.exports = { main, parseSkillSpecs, getSkillInstallAgent, buildSkillInstallCommand, countInstalledSkillFiles, appendSkillInstallFailure };
+module.exports = { main, parseSkillSpecs, buildSkillInstallCommand, countInstalledSkillFiles, appendSkillInstallFailure };

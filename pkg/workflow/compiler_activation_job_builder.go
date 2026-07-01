@@ -534,14 +534,15 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 		return nil
 	}
 
-	engineID := ""
-	if ctx.data.EngineConfig != nil {
-		engineID = ctx.data.EngineConfig.ID
-	}
-	if engineID == "" && ctx.data.AI != "" {
-		engineID = ctx.data.AI
+	engineID := strings.TrimSpace(ResolveEngineID(ctx.data))
+	if engineID == "" {
+		engineID = string(constants.DefaultEngine)
 	}
 	skillDir := GetEngineSkillDir(engineID)
+	skillInstallAgentName := ""
+	if engine, err := GetGlobalEngineRegistry().GetEngine(strings.ToLower(engineID)); err == nil {
+		skillInstallAgentName = engine.GetGHSkillAgentName()
+	}
 
 	ctx.steps = append(ctx.steps, "      - name: Upgrade gh CLI for frontmatter skills\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/ensure_gh_cli_min_version.sh\" \"%s\"\n", constants.GhSkillsMinVersion))
@@ -573,6 +574,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 		ctx.steps = append(ctx.steps, "        env:\n")
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_TOKEN: %s\n", tokenExpr))
 		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_INFO_ENGINE_ID", engineID))
+		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_GH_SKILL_AGENT_NAME", skillInstallAgentName))
 		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_SKILL_DIR", skillDir))
 		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_FRONTMATTER_SKILLS", skillRef.Skill))
 		ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)))

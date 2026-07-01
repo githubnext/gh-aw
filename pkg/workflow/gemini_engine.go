@@ -19,10 +19,11 @@ type GeminiEngine struct {
 func NewGeminiEngine() *GeminiEngine {
 	return &GeminiEngine{
 		BaseEngine: BaseEngine{
-			id:           "gemini",
-			displayName:  "Google Gemini CLI",
-			description:  "Google Gemini CLI with headless mode and LLM gateway support",
-			experimental: false,
+			id:               "gemini",
+			displayName:      "Google Gemini CLI",
+			description:      "Google Gemini CLI with headless mode and LLM gateway support",
+			experimental:     false,
+			ghSkillAgentName: "gemini-cli",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
 				MaxTurns:         true,

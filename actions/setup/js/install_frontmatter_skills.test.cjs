@@ -17,6 +17,7 @@ describe("install_frontmatter_skills", () => {
     originalEnv = {
       GH_AW_SKILL_DIR: process.env.GH_AW_SKILL_DIR,
       GH_AW_INFO_ENGINE_ID: process.env.GH_AW_INFO_ENGINE_ID,
+      GH_AW_GH_SKILL_AGENT_NAME: process.env.GH_AW_GH_SKILL_AGENT_NAME,
       GH_AW_FRONTMATTER_SKILLS: process.env.GH_AW_FRONTMATTER_SKILLS,
     };
     originalCore = global.core;
@@ -46,6 +47,11 @@ describe("install_frontmatter_skills", () => {
       delete process.env.GH_AW_INFO_ENGINE_ID;
     } else {
       process.env.GH_AW_INFO_ENGINE_ID = originalEnv.GH_AW_INFO_ENGINE_ID;
+    }
+    if (originalEnv.GH_AW_GH_SKILL_AGENT_NAME === undefined) {
+      delete process.env.GH_AW_GH_SKILL_AGENT_NAME;
+    } else {
+      process.env.GH_AW_GH_SKILL_AGENT_NAME = originalEnv.GH_AW_GH_SKILL_AGENT_NAME;
     }
     if (originalEnv.GH_AW_FRONTMATTER_SKILLS === undefined) {
       delete process.env.GH_AW_FRONTMATTER_SKILLS;
@@ -99,18 +105,6 @@ describe("install_frontmatter_skills", () => {
     ]);
   });
 
-  it("maps supported gh-aw engine IDs to gh skill agent values", () => {
-    expect(script.getSkillInstallAgent("copilot")).toBe("github-copilot");
-    expect(script.getSkillInstallAgent("claude")).toBe("claude-code");
-    expect(script.getSkillInstallAgent("codex")).toBe("codex");
-    expect(script.getSkillInstallAgent("gemini")).toBe("gemini-cli");
-    expect(script.getSkillInstallAgent("antigravity")).toBe("antigravity");
-    expect(script.getSkillInstallAgent("opencode")).toBe("opencode");
-    expect(script.getSkillInstallAgent("pi")).toBe("pi");
-    expect(script.getSkillInstallAgent("crush")).toBe("");
-    expect(script.getSkillInstallAgent("")).toBe("");
-  });
-
   it("omits --pin when the resolved skill spec is unpinned", () => {
     expect(script.buildSkillInstallCommand("githubnext/skills/review/security", "/tmp/gh-aw/.claude/skills").args).toEqual(["skill", "install", "githubnext/skills", "review/security", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
   });
@@ -118,6 +112,7 @@ describe("install_frontmatter_skills", () => {
   it("reads skill specs from the env var and installs them at runtime", async () => {
     process.env.GH_AW_SKILL_DIR = ".claude/skills";
     process.env.GH_AW_INFO_ENGINE_ID = "claude";
+    process.env.GH_AW_GH_SKILL_AGENT_NAME = "claude-code";
     process.env.GH_AW_FRONTMATTER_SKILLS = ["githubnext/skills@abc123", "githubnext/skills/review/security@def456", "${{ inputs.skill_ref }}"].join("\n");
     fs.mkdirSync("/tmp/gh-aw/.claude/skills/example", { recursive: true });
     fs.writeFileSync("/tmp/gh-aw/.claude/skills/example/SKILL.md", "# test\n", "utf8");
