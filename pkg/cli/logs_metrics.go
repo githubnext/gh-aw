@@ -34,6 +34,19 @@ var logsMetricsLog = logger.New("cli:logs_metrics")
 // extractJSONMetrics is available as an alias
 var extractJSONMetrics = workflow.ExtractJSONMetrics
 
+func buildReportProvenance(runDir string, run WorkflowRun, timestamp string) ReportProvenance {
+	provenance := ReportProvenance{
+		Timestamp:    timestamp,
+		WorkflowName: run.WorkflowName,
+		RunID:        run.DatabaseID,
+	}
+	if name, variant, ok := firstExperimentAssignment(extractExperimentData(runDir)); ok {
+		provenance.ExperimentName = name
+		provenance.Variant = variant
+	}
+	return provenance
+}
+
 // extractLogMetrics extracts metrics from downloaded log files
 // workflowPath is optional and can be provided to help detect GitHub Copilot coding agent runs
 func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (LogMetrics, error) {
@@ -367,14 +380,10 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 			// Check if this is a missing-tool entry
 			if item.Type == "missing_tool" {
 				missingTool := MissingToolReport{
-					Tool:         item.Tool,
-					Reason:       item.Reason,
-					Alternatives: item.Alternatives,
-					ReportProvenance: ReportProvenance{
-						Timestamp:    item.Timestamp,
-						WorkflowName: run.WorkflowName,
-						RunID:        run.DatabaseID,
-					},
+					Tool:             item.Tool,
+					Reason:           item.Reason,
+					Alternatives:     item.Alternatives,
+					ReportProvenance: buildReportProvenance(runDir, run, item.Timestamp),
 				}
 				missingTools = append(missingTools, missingTool)
 
@@ -499,12 +508,8 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 			// Check if this is a noop entry
 			if item.Type == "noop" {
 				noop := NoopReport{
-					Message: item.Message,
-					ReportProvenance: ReportProvenance{
-						Timestamp:    item.Timestamp,
-						WorkflowName: run.WorkflowName,
-						RunID:        run.DatabaseID,
-					},
+					Message:          item.Message,
+					ReportProvenance: buildReportProvenance(runDir, run, item.Timestamp),
 				}
 				noops = append(noops, noop)
 
@@ -632,15 +637,11 @@ func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 			// Check if this is a missing_data entry
 			if item.Type == "missing_data" {
 				missingDataItem := MissingDataReport{
-					DataType:     item.DataType,
-					Reason:       item.Reason,
-					Context:      item.Context,
-					Alternatives: item.Alternatives,
-					ReportProvenance: ReportProvenance{
-						Timestamp:    item.Timestamp,
-						WorkflowName: run.WorkflowName,
-						RunID:        run.DatabaseID,
-					},
+					DataType:         item.DataType,
+					Reason:           item.Reason,
+					Context:          item.Context,
+					Alternatives:     item.Alternatives,
+					ReportProvenance: buildReportProvenance(runDir, run, item.Timestamp),
 				}
 				missingData = append(missingData, missingDataItem)
 
@@ -689,7 +690,7 @@ func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 			!strings.Contains(fileName, "agent_output") &&
 			!strings.Contains(fileName, "access") {
 
-			failures, parseErr := extractMCPFailuresFromLogFile(path, run, verbose)
+			failures, parseErr := extractMCPFailuresFromLogFile(path, run, verbose, runDir)
 			if parseErr != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse MCP failures from %s: %v", filepath.Base(path), parseErr)))
@@ -715,8 +716,12 @@ func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 }
 
 // extractMCPFailuresFromLogFile parses a single log file for MCP server failures
-func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool) ([]MCPFailureReport, error) {
+func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool, runDirOverride ...string) ([]MCPFailureReport, error) {
 	var mcpFailures []MCPFailureReport
+	runDir := filepath.Dir(logPath)
+	if len(runDirOverride) > 0 && runDirOverride[0] != "" {
+		runDir = runDirOverride[0]
+	}
 
 	content, err := os.ReadFile(logPath)
 	if err != nil {
@@ -730,7 +735,7 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 	if err := json.Unmarshal(content, &logEntries); err == nil {
 		// Successfully parsed as JSON array, process entries
 		for _, entry := range logEntries {
-			processMCPFailureEntry(entry, run, verbose, &mcpFailures)
+			processMCPFailureEntry(entry, runDir, run, verbose, &mcpFailures)
 		}
 	} else {
 		// Fallback: Try to parse as JSON lines (Claude logs are typically NDJSON format)
@@ -748,14 +753,14 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 			}
 
 			// Look for system init entries that contain MCP server information
-			processMCPFailureEntry(entry, run, verbose, &mcpFailures)
+			processMCPFailureEntry(entry, runDir, run, verbose, &mcpFailures)
 		}
 	}
 
 	return mcpFailures, nil
 }
 
-func processMCPFailureEntry(entry map[string]any, run WorkflowRun, verbose bool, mcpFailures *[]MCPFailureReport) {
+func processMCPFailureEntry(entry map[string]any, runDir string, run WorkflowRun, verbose bool, mcpFailures *[]MCPFailureReport) {
 	entryType, ok := typeutil.LookupString(entry, "type")
 	if !ok || entryType != "system" {
 		return
@@ -786,13 +791,9 @@ func processMCPFailureEntry(entry map[string]any, run WorkflowRun, verbose bool,
 		}
 
 		failure := MCPFailureReport{
-			ServerName: serverName,
-			Status:     status,
-			ReportProvenance: ReportProvenance{
-				Timestamp:    timestamp,
-				WorkflowName: run.WorkflowName,
-				RunID:        run.DatabaseID,
-			},
+			ServerName:       serverName,
+			Status:           status,
+			ReportProvenance: buildReportProvenance(runDir, run, timestamp),
 		}
 
 		*mcpFailures = append(*mcpFailures, failure)

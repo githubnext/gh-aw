@@ -105,3 +105,47 @@ func TestExtractMCPFailuresFromLogFileDirectly(t *testing.T) {
 		t.Errorf("Expected status 'failed', got '%s'", failure.Status)
 	}
 }
+
+func TestExtractMCPFailuresFromRun_IncludesExperimentProvenance(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	runDir := filepath.Join(tmpDir, "run-123")
+	if err := os.MkdirAll(runDir, 0o755); err != nil {
+		t.Fatalf("Failed to create run directory: %v", err)
+	}
+
+	stateJSON := `{
+		"counts": {
+			"tone_variant": { "operator_friendly": 2, "formal": 1 }
+		},
+		"runs": [
+			{
+				"run_id": "123",
+				"timestamp": "2026-07-01T00:00:00Z",
+				"assignments": { "tone_variant": "operator_friendly" }
+			}
+		]
+	}`
+	if err := os.WriteFile(filepath.Join(runDir, "state.json"), []byte(stateJSON), 0o644); err != nil {
+		t.Fatalf("Failed to write state.json: %v", err)
+	}
+
+	logContent := `{"type":"system","subtype":"init","mcp_servers":[{"name":"safeoutputs","status":"failed"}]}`
+	if err := os.WriteFile(filepath.Join(runDir, "agent.log"), []byte(logContent), 0o644); err != nil {
+		t.Fatalf("Failed to write log file: %v", err)
+	}
+
+	run := WorkflowRun{DatabaseID: 123, WorkflowName: "Experiment Workflow"}
+	failures, err := extractMCPFailuresFromRun(runDir, run, false)
+	if err != nil {
+		t.Fatalf("Failed to extract MCP failures: %v", err)
+	}
+	if len(failures) != 1 {
+		t.Fatalf("Expected 1 failure, got %d", len(failures))
+	}
+	if failures[0].ExperimentName != "tone_variant" {
+		t.Fatalf("Expected experiment_name tone_variant, got %q", failures[0].ExperimentName)
+	}
+	if failures[0].Variant != "operator_friendly" {
+		t.Fatalf("Expected variant operator_friendly, got %q", failures[0].Variant)
+	}
+}
