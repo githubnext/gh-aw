@@ -378,6 +378,7 @@ Generate a comprehensive discussion report with findings.
 5. If you cannot produce a valid discussion body, or decide no discussion should be created, call `noop` directly with a brief explanation instead of returning plain text.
 6. The workflow enforces a **minimum 200-character body length**, so very short outputs (placeholder or otherwise) will fail safe-outputs.
 7. **Before finishing, confirm you called either `create_discussion` or `noop`.** If not, call `noop` immediately with a short explanation. Never end the run with plain text only.
+8. **If `create_discussion` fails for any reason**, do NOT attempt `bash`, `safeoutputs` CLI, or any other workaround — these never register safe outputs. Call `noop` immediately with a brief explanation of what failed. Never pipe JSON to `safeoutputs create_discussion .` or similar CLI commands.
 
 ### Direct Tool Call Examples
 
