@@ -558,13 +558,14 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 			tokenExpr = skillRef.GitHubToken
 		}
 		if skillRef.GitHubApp != nil {
-			stepID := fmt.Sprintf("frontmatter-skill-app-token-%d", i)
+			stepNumber := i + 1
+			stepID := fmt.Sprintf("frontmatter-skill-app-token-%d", stepNumber)
 			ctx.steps = append(ctx.steps, c.buildGitHubAppTokenMintStepWithMeta(
 				skillRef.GitHubApp,
 				nil,
 				"",
 				"",
-				fmt.Sprintf("Generate GitHub App token for frontmatter skill %d", i+1),
+				fmt.Sprintf("Generate GitHub App token for frontmatter skill %d", stepNumber),
 				stepID,
 			)...)
 			stepTokenExpr := fmt.Sprintf("${{ steps.%s.outputs.token }}", stepID)

@@ -3,7 +3,6 @@ package workflow
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"regexp"
 	"strings"
 )
@@ -116,7 +115,7 @@ func parseRawSkillReferences(rawSkills []any) []SkillReference {
 				ref.GitHubToken = token
 			}
 			if appMap, ok := typed["github-app"].(map[string]any); ok {
-				ref.GitHubApp = parseAppConfig(maps.Clone(appMap))
+				ref.GitHubApp = parseAppConfig(appMap)
 			}
 			refs = append(refs, ref)
 		}

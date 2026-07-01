@@ -99,8 +99,8 @@ func TestBuildActivationJob_AddsPerSkillAuthSteps(t *testing.T) {
 	steps := strings.Join(job.Steps, "")
 	assert.Contains(t, steps, "GH_TOKEN: ${{ secrets.SKILL_PAT }}", "expected first skill install step to use per-skill github-token")
 	assert.Contains(t, steps, "Generate GitHub App token for frontmatter skill 2", "expected app token mint step for second skill")
-	assert.Contains(t, steps, "id: frontmatter-skill-app-token-1", "expected deterministic app token step id")
-	assert.Contains(t, steps, "GH_TOKEN: ${{ steps.frontmatter-skill-app-token-1.outputs.token }}", "expected second skill install step to use minted app token")
+	assert.Contains(t, steps, "id: frontmatter-skill-app-token-2", "expected deterministic app token step id")
+	assert.Contains(t, steps, "GH_TOKEN: ${{ steps.frontmatter-skill-app-token-2.outputs.token }}", "expected second skill install step to use minted app token")
 }
 
 func TestBuildActivationJob_NoSkillsStepsWhenSkillsAbsent(t *testing.T) {
