@@ -39,6 +39,35 @@ tools:
   bash:
     - "*"
 steps:
+  - name: Pre-flight model lifecycle validation
+    shell: bash
+    run: |
+      set -euo pipefail
+      REG=".github/workflows/shared/model-versions.json"
+      MODEL="copilot/gpt-5.4"
+      if [ ! -f "$REG" ]; then
+        echo "::error title=Model registry missing::$REG is required for pre-flight model validation."
+        exit 1
+      fi
+      status="$(jq -r --arg model "$MODEL" '.models[$model].status // "unknown"' "$REG")"
+      successor="$(jq -r --arg model "$MODEL" '.models[$model].successor // empty' "$REG")"
+      case "$status" in
+        active)
+          echo "validated model lifecycle entry: $MODEL (active)"
+          ;;
+        retired|unavailable)
+          if [ -n "$successor" ]; then
+            echo "::error title=Model unavailable::$MODEL is $status. Use successor: $successor."
+          else
+            echo "::error title=Model unavailable::$MODEL is $status. Choose an active model from $REG."
+          fi
+          exit 1
+          ;;
+        *)
+          echo "::error title=Model missing from registry::$MODEL is not listed in $REG."
+          exit 1
+          ;;
+      esac
   - name: Fetch open non-draft PR queue
     id: fetch-prs
     env:

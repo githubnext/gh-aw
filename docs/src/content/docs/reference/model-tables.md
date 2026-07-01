@@ -64,7 +64,7 @@ Meta-aliases reference other aliases by name. They are resolved recursively unti
 | `small` | `mini` |
 | `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `gemini-flash-lite` |
 | `large` | `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
-| `agent` | `sonnet-6x` → `gpt-5.5` → `gpt-5.4` → `gpt-5.3` → `gemini-pro` → `any` |
+| `agent` | `sonnet-6x` → `gpt-5.4` → `gpt-5.3` → `gemini-pro` → `any` |
 | `small-agent` | `haiku` → `gpt-5-mini` → `gemini-flash` |
 | `copilot` | `agent` |
 | `claude` | `agent` |

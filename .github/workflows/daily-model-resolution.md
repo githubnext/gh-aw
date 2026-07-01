@@ -23,6 +23,40 @@ strict: true
 tools:
   agentic-workflows: true
   bash: true
+steps:
+  - name: Pre-flight model lifecycle validation
+    shell: bash
+    run: |
+      set -euo pipefail
+      REG=".github/workflows/shared/model-versions.json"
+      if [ ! -f "$REG" ]; then
+        echo "::error title=Model registry missing::$REG is required for pre-flight model validation."
+        exit 1
+      fi
+      validate_model() {
+        local model="$1"
+        local status successor
+        status="$(jq -r --arg model "$model" '.models[$model].status // "unknown"' "$REG")"
+        successor="$(jq -r --arg model "$model" '.models[$model].successor // empty' "$REG")"
+        case "$status" in
+          active)
+            echo "validated model lifecycle entry: $model (active)"
+            ;;
+          retired|unavailable)
+            if [ -n "$successor" ]; then
+              echo "::error title=Model unavailable::$model is $status. Use successor: $successor."
+            else
+              echo "::error title=Model unavailable::$model is $status. Choose an active model from $REG."
+            fi
+            return 1
+            ;;
+          *)
+            echo "::error title=Model missing from registry::$model is not listed in $REG."
+            return 1
+            ;;
+        esac
+      }
+      validate_model "gpt-5.4-mini"
 safe-outputs:
   create-issue:
     expires: 3d

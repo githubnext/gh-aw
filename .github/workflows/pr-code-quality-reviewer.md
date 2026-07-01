@@ -12,6 +12,7 @@ on:
     events: [pull_request_comment, pull_request_review_comment]
 engine:
   id: copilot
+  model: copilot/gpt-5.4
   copilot-sdk: true
 permissions:
   contents: read
@@ -44,6 +45,41 @@ safe-outputs:
     run-started: "🔎 [{workflow_name}]({run_url}) is reviewing code quality for this {event_type}..."
     run-success: "✅ [{workflow_name}]({run_url}) completed the code quality review."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during code quality review."
+steps:
+  - name: Pre-flight model lifecycle validation
+    shell: bash
+    run: |
+      set -euo pipefail
+      REG=".github/workflows/shared/model-versions.json"
+      if [ ! -f "$REG" ]; then
+        echo "::error title=Model registry missing::$REG is required for pre-flight model validation."
+        exit 1
+      fi
+      validate_model() {
+        local model="$1"
+        local status successor
+        status="$(jq -r --arg model "$model" '.models[$model].status // "unknown"' "$REG")"
+        successor="$(jq -r --arg model "$model" '.models[$model].successor // empty' "$REG")"
+        case "$status" in
+          active)
+            echo "validated model lifecycle entry: $model (active)"
+            ;;
+          retired|unavailable)
+            if [ -n "$successor" ]; then
+              echo "::error title=Model unavailable::$model is $status. Use successor: $successor."
+            else
+              echo "::error title=Model unavailable::$model is $status. Choose an active model from $REG."
+            fi
+            return 1
+            ;;
+          *)
+            echo "::error title=Model missing from registry::$model is not listed in $REG."
+            return 1
+            ;;
+        esac
+      }
+      validate_model "copilot/gpt-5.4"
+      validate_model "claude-haiku-4.5"
 timeout-minutes: 15
 
 ---

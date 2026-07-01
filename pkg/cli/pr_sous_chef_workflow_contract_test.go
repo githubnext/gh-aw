@@ -35,4 +35,6 @@ func TestPRSousChefWorkflowAddCommentTargetContract(t *testing.T) {
 	assert.Contains(t, text, ".prs | length", "eligible_count should reflect the number of eligible PRs")
 	assert.Contains(t, text, "dismiss_github_actions_reviews", "Workflow should provide a safe-output path for dismissing stale github-actions reviews")
 	assert.Contains(t, text, "missing_tool --tool \"dismiss_pull_request_review\"", "Workflow should request a dedicated dismiss-review safe-output when unavailable")
+	assert.Contains(t, text, "Pre-flight model lifecycle validation", "Workflow should validate model lifecycle before agent execution")
+	assert.Contains(t, text, ".github/workflows/shared/model-versions.json", "Workflow should reference centralized model lifecycle registry")
 }

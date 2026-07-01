@@ -347,6 +347,7 @@ them into:
 - Individual provider files: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/models.json`
 - Raw provider responses: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/raw.json`
 - Predownloaded models.dev API index: `/tmp/gh-aw/agent/model-inventory/models-dev/api.json`
+- Lifecycle registry: `.github/workflows/shared/model-versions.json`
 - Copilot live provider metadata: `/tmp/gh-aw/agent/model-inventory/reflect.json` (generated in
   Step 0 below; filter `.endpoints[] | select(.provider == "copilot") | .models`). If the
   file contains an `error` field, treat Copilot data as unavailable for this run and
@@ -566,7 +567,25 @@ Look for:
    - `reasoning-model` → a model with extended reasoning/thinking capability
    - `vision-model` → a model that supports image input
 
-### Step 5: Propose Alias Mapping Updates
+### Step 5: Run Lifecycle Retirement Scan
+
+Read `.github/workflows/shared/model-versions.json` and compare it against:
+
+- Current workflow model pins under `.github/workflows/*.md`
+- Current built-in aliases in `pkg/workflow/data/model_aliases.json`
+
+Flag any model that is marked `retired` or `unavailable` but still appears in:
+- workflow engine model pins,
+- sub-agent model pins,
+- or the `agent`/engine default alias chain.
+
+For each flagged model include:
+- the model name,
+- status (`retired` or `unavailable`),
+- configured successor (if any),
+- and exact file paths where it is still referenced.
+
+### Step 6: Propose Alias Mapping Updates
 
 For each finding from Step 4, produce a concrete JSON snippet showing the proposed new or updated
 alias entry in the `aliases` object in `pkg/workflow/data/model_aliases.json`. Use the alias pattern syntax:
@@ -585,7 +604,7 @@ Focus on aliases that provide genuine value to workflow authors. Prioritize:
 - Adding new semantic task-oriented aliases
 - Updating patterns that are stale
 
-### Step 6: Create Issue
+### Step 7: Create Issue
 
 If you found any meaningful updates to propose, create a GitHub issue using `create_issue`.
 

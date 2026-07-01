@@ -1,0 +1,47 @@
+{
+  "version": "2026-07-01",
+  "description": "Central lifecycle registry for pinned workflow models and known retirement events.",
+  "defaults": {
+    "copilot": "copilot/gpt-5.4",
+    "codex": "gpt-5.4-mini",
+    "claude": "claude-haiku-4.5"
+  },
+  "models": {
+    "copilot/gpt-5.4": {
+      "status": "active",
+      "tier": "stable"
+    },
+    "gpt-5.4-mini": {
+      "status": "active",
+      "tier": "stable"
+    },
+    "claude-haiku-4.5": {
+      "status": "active",
+      "tier": "stable"
+    },
+    "gpt-5.5": {
+      "status": "retired",
+      "retirement_date": "2026-07-01",
+      "successor": "copilot/gpt-5.4",
+      "tier": "unstable"
+    },
+    "codex alpha": {
+      "status": "unavailable",
+      "retirement_date": "2026-07-01",
+      "successor": "gpt-5.4-mini",
+      "tier": "unstable"
+    },
+    "claude-sonnet-5": {
+      "status": "retired",
+      "retirement_date": "2026-07-01",
+      "successor": "claude-sonnet-4.6",
+      "tier": "unstable"
+    },
+    "tier-unsupported": {
+      "status": "unavailable",
+      "retirement_date": "2026-07-01",
+      "successor": "copilot/gpt-5.4",
+      "tier": "unstable"
+    }
+  }
+}

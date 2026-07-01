@@ -23,6 +23,8 @@ func TestPRCodeQualityReviewerWorkflowSubAgentModelContract(t *testing.T) {
 	require.NoError(t, err, "Should read pr-code-quality-reviewer workflow")
 
 	text := string(content)
+	assert.Contains(t, text, "model: copilot/gpt-5.4", "Workflow should pin a stable top-level engine model")
+	assert.Contains(t, text, "Pre-flight model lifecycle validation", "Workflow should validate model lifecycle before agent execution")
 	assert.Contains(t, text, "## agent: `grumpy-coder`", "Workflow should define the grumpy-coder sub-agent")
 	assert.Contains(t, text, "model: claude-haiku-4.5", "Sub-agent should pin a supported Haiku model")
 	assert.NotContains(t, text, "model: inherited", "Sub-agent should not inherit an unsupported tier-specific model")

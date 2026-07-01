@@ -37,3 +37,9 @@ gh aw audit 24814681146
 
 - `/AGENTS.md` for development/agent workflow conventions
 - `/skills/*/SKILL.md` for focused domain guidance (GitHub MCP, docs, errors, etc.)
+
+## Model pinning guidance
+
+- Prefer stable, explicitly pinned models in workflow frontmatter (for example `copilot/gpt-5.4`).
+- Use `.github/workflows/shared/model-versions.json` as the lifecycle registry for active, retired, and successor models.
+- Avoid relying on cutting-edge model aliases for critical workflows unless you also provide a stable fallback path.
