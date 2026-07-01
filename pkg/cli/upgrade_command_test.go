@@ -22,11 +22,11 @@ func TestUpgradeCommandHelpTextConsistency(t *testing.T) {
 	preReleasesFlag := cmd.Flags().Lookup("pre-releases")
 	require.NotNil(t, preReleasesFlag, "--pre-releases flag should exist")
 	assert.Contains(t, preReleasesFlag.Usage, "Include pre-release versions", "--pre-releases description should mention pre-release upgrades")
-	assert.Contains(t, preReleasesFlag.Usage, "installed by exact tag", "--pre-releases description should explain prerelease pinning")
-	assert.Contains(t, cmd.Example, "stable releases are the default", "help text should distinguish stable releases from prereleases")
+	assert.Contains(t, preReleasesFlag.Usage, "installed by exact tag", "--pre-releases description should explain pre-release pinning")
+	assert.Contains(t, cmd.Example, "stable releases are the default", "help text should distinguish stable releases from pre-release versions")
 
-	disableCodemodFlag := cmd.Flags().Lookup("disable-codemod")
-	require.NotNil(t, disableCodemodFlag, "--disable-codemod flag should exist")
-	assert.Equal(t, "stringSlice", disableCodemodFlag.Value.Type())
-	assert.Contains(t, disableCodemodFlag.Usage, "Disable specific codemod IDs", "--disable-codemod usage should describe codemod exclusion")
+	noCodemodFlag := cmd.Flags().Lookup("no-codemod")
+	require.NotNil(t, noCodemodFlag, "--no-codemod flag should exist")
+	assert.Equal(t, "stringSlice", noCodemodFlag.Value.Type())
+	assert.Contains(t, noCodemodFlag.Usage, "Disable specific codemod IDs", "--no-codemod usage should describe codemod exclusion")
 }

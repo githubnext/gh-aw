@@ -20,7 +20,7 @@ func NewAddWizardCommand(validateEngine func(string) error) *cobra.Command {
 		Long: `Interactively add one or more agentic workflows with guided setup.
 
 This command walks you through:
-  - Selecting an AI engine (Copilot, Claude, Codex, Gemini, or Crush)
+  - Selecting an AI engine (copilot, claude, codex, gemini, or crush)
   - Configuring API keys and secrets
   - Creating a pull request with the workflow
   - Optionally running the workflow immediately
@@ -34,7 +34,7 @@ Workflow specifications:
   - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
   - GitHub URL: "https://github.com/owner/repo/blob/branch/path/to/workflow.md"
   - Arbitrary URL: "https://example.com/workflow.md" (fetches and dispatches on Content-Type)
-    - text/markdown → treated as a gh-aw workflow markdown file
+    - text/markdown → treated as a gh-aw workflow Markdown file
     - application/json → converted from a JSON workflow definition
   - Local file: "./path/to/workflow.md"
   - Version can be tag, branch, or SHA (for remote workflows)
@@ -63,17 +63,26 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workflows := args
 			engineOverride, _ := cmd.Flags().GetString("engine")
+			nameFlag, _ := cmd.Flags().GetString("name")
+			forceFlag, _ := cmd.Flags().GetBool("force")
+			appendText, _ := cmd.Flags().GetString("append")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
 			workflowDir, _ := cmd.Flags().GetString("dir")
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
+			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
+			disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
+			disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
 			noSecret, _ := cmd.Flags().GetBool("no-secret")
 			skipSecretLegacy, _ := cmd.Flags().GetBool("skip-secret")
 			skipSecret := noSecret || skipSecretLegacy
 
 			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
 
+			if nameFlag != "" && len(workflows) > 1 {
+				return errors.New("--name flag cannot be used when adding multiple workflows at once")
+			}
 			if err := validateEngine(engineOverride); err != nil {
 				return err
 			}
@@ -87,20 +96,33 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			}
 
 			return RunAddInteractive(cmd.Context(), &AddInteractiveConfig{
-				WorkflowSpecs:   workflows,
-				Verbose:         verbose,
-				EngineOverride:  engineOverride,
-				NoGitattributes: noGitattributes,
-				WorkflowDir:     workflowDir,
-				NoStopAfter:     noStopAfter,
-				StopAfter:       stopAfter,
-				SkipSecret:      skipSecret,
+				WorkflowSpecs:          workflows,
+				Verbose:                verbose,
+				EngineOverride:         engineOverride,
+				Name:                   nameFlag,
+				Force:                  forceFlag,
+				AppendText:             appendText,
+				NoGitattributes:        noGitattributes,
+				WorkflowDir:            workflowDir,
+				NoStopAfter:            noStopAfter,
+				StopAfter:              stopAfter,
+				DisableSecurityScanner: disableSecurityScanner,
+				SkipSecret:             skipSecret,
 			})
 		},
 	}
 
+	// Add name flag
+	cmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
+
 	// Add AI engine flag
 	addEngineFlag(cmd)
+
+	// Add force flag
+	cmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
+
+	// Add append flag
+	cmd.Flags().String("append", "", "Append extra content to the end of an agentic workflow on installation")
 
 	// Add no-gitattributes flag
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
@@ -113,6 +135,11 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 
 	// Add stop-after flag
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
+
+	// Add no-security-scanner flag (--disable-security-scanner is kept as an undocumented alias)
+	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow Markdown content")
+	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow Markdown content")
+	_ = cmd.Flags().MarkHidden("disable-security-scanner")
 
 	// Add no-secret flag (--skip-secret is kept as an undocumented alias)
 	cmd.Flags().Bool("no-secret", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")

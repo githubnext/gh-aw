@@ -37,14 +37,14 @@ func NewProjectCommand() *cobra.Command {
 		Short: "Create GitHub Projects V2 boards",
 		Long: `Create GitHub Projects V2 boards linked to repositories.
 
-GitHub Projects V2 provides kanban-style project boards for tracking issues,
+GitHub Projects V2 provides Kanban-style project boards for tracking issues,
 pull requests, and tasks across repositories.
 
 This command allows you to create new projects owned by users or organizations
 and optionally link them to specific repositories.
 
 Available subcommands:
-  - new - Create a new GitHub Project V2 board`,
+  - new - Create a new GitHub Projects V2 board`,
 		Example: `  gh aw project new "My Project" --owner @me                      # Create user project
   gh aw project new "Team Board" --owner myorg                    # Create org project
   gh aw project new "Bugs" --owner myorg --link myorg/myrepo     # Create and link to repo`,
@@ -60,8 +60,8 @@ Available subcommands:
 func NewProjectNewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "new <title>",
-		Short: "Create a new GitHub Project V2 board",
-		Long: `Create a new GitHub Project V2 board owned by a user or organization.
+		Short: "Create a new GitHub Projects V2 board",
+		Long: `Create a new GitHub Projects V2 board owned by a user or organization.
 
 The project can optionally be linked to a specific repository.
 

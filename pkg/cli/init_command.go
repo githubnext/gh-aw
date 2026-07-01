@@ -30,7 +30,7 @@ This command:
 - Creates the custom agent at .github/agents/agentic-workflows.md
 - Removes old prompt files from .github/prompts/ if they exist
 - Configures VSCode settings (.vscode/settings.json)
-- Generates/updates .github/workflows/agentics-maintenance.yml if any workflows use expires field for discussions or issues
+- Generates/updates .github/workflows/agentics-maintenance.yml if any workflows use the expires field for discussions or issues
 
 By default (without --no-mcp):
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
@@ -50,7 +50,7 @@ With --codespaces flag:
 - Configures permissions for current repo: actions:write, contents:write, discussions:read, issues:read, pull-requests:write, workflows:write
 - Configures permissions for additional repos (in same org): actions:read, contents:read, discussions:read, issues:read, pull-requests:read, workflows:read
 - Adds GitHub Copilot extensions and gh aw CLI installation
-- Use with an empty value (--codespaces "") for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
+- Use with an empty value (--codespaces "") for current repository only, or with comma-separated repos (--codespaces repo1,repo2)
 
 With --completions flag:
 - Automatically detects your shell (bash, zsh, fish, or PowerShell)
@@ -68,7 +68,7 @@ After running this command, you can:
   ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp                       # Skip MCP configuration
   ` + string(constants.CLIExtensionPrefix) + ` init --no-skill                     # Skip dispatcher skill creation
   ` + string(constants.CLIExtensionPrefix) + ` init --no-agent                     # Skip custom agent creation
-  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces ""               # Configure Codespaces for current repo only
+  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces ""               # Configure Codespaces for current repository only
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2       # Codespaces with additional repos
   ` + string(constants.CLIExtensionPrefix) + ` init --completions                  # Install shell completions
   ` + string(constants.CLIExtensionPrefix) + ` init --create-pull-request          # Initialize and create a pull request`,
@@ -143,7 +143,7 @@ After running this command, you can:
 	cmd.Flags().Bool("no-mcp", false, "Skip configuring gh-aw MCP server integration for GitHub Copilot Agent")
 	cmd.Flags().Bool("no-skill", false, "Skip creating the agentic-workflows dispatcher skill")
 	cmd.Flags().Bool("no-agent", false, "Skip creating the Agentic Workflows custom agent")
-	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use with an empty value for the current repo only")
+	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use with an empty value for the current repository only")
 	cmd.Flags().Bool("completions", false, "Install shell completion for the detected shell (bash, zsh, fish, or PowerShell)")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the initialization changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")

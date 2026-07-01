@@ -516,12 +516,12 @@ func TestGetAllCodemods(t *testing.T) {
 	}
 }
 
-func TestNewFixCommand_HasDisableCodemodFlag(t *testing.T) {
+func TestNewFixCommand_HasNoCodemodFlag(t *testing.T) {
 	cmd := NewFixCommand()
 	require.NotNil(t, cmd)
 
-	flag := cmd.Flags().Lookup("disable-codemod")
-	require.NotNil(t, flag, "fix command should register --disable-codemod")
+	flag := cmd.Flags().Lookup("no-codemod")
+	require.NotNil(t, flag, "fix command should register --no-codemod")
 	assert.Equal(t, "stringSlice", flag.Value.Type())
 	assert.Contains(t, flag.Usage, "Disable specific codemod IDs")
 }

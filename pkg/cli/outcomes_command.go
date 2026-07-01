@@ -61,6 +61,7 @@ This answers the question: "Did this workflow's actions actually help?"`,
 	addJSONFlag(cmd)
 	addRepoFlag(cmd)
 	addOutputFlag(cmd, "")
+	cmd.Flags().Lookup("output").Usage = "Output directory for generated files (default: \".github/aw/logs\")"
 	cmd.Flags().String("outcomes-dir", "", "Write outcome JSONL to this directory for OTLP export")
 	cmd.AddCommand(NewOutcomesHistorySubcommand())
 

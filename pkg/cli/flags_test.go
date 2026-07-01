@@ -267,7 +267,7 @@ func createCompileCommandStub() *cobra.Command {
 
 func createNewCommandStub() *cobra.Command {
 	cmd := &cobra.Command{Use: "new"}
-	cmd.Flags().BoolP("force", "f", false, "Overwrite existing files")
+	cmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files")
 	cmd.Flags().BoolP("interactive", "i", false, "Launch interactive wizard")
 	return cmd
 }

@@ -12,7 +12,7 @@ import (
 func TestAddWizardCommandMentionsCrush(t *testing.T) {
 	cmd := NewAddWizardCommand(func(string) error { return nil })
 	require.NotNil(t, cmd, "Add wizard command should be created")
-	assert.Contains(t, cmd.Long, "Copilot, Claude, Codex, Gemini, or Crush", "Add wizard help should mention all interactive engine options")
+	assert.Contains(t, cmd.Long, "copilot, claude, codex, gemini, or crush", "Add wizard help should mention all interactive engine options")
 }
 
 func TestAddWizardCommand_UsesStandardThreePartWorkflowSpecWording(t *testing.T) {
@@ -23,4 +23,14 @@ func TestAddWizardCommand_UsesStandardThreePartWorkflowSpecWording(t *testing.T)
 	assert.Contains(t, cmd.Long, "shorthand source specs resolve on your enterprise host by default.")
 	assert.Contains(t, cmd.Long, "For github/*, githubnext/*, and microsoft/* sources, shorthand resolves on github.com.")
 	assert.Contains(t, cmd.Long, "Use full https://github.com/... source URLs for other public github.com workflows.")
+}
+
+func TestAddWizardCommand_NameFlagRejectsMultipleWorkflows(t *testing.T) {
+	cmd := NewAddWizardCommand(func(string) error { return nil })
+	require.NotNil(t, cmd)
+	cmd.SetArgs([]string{"workflow-one", "workflow-two", "--name", "custom-name"})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.EqualError(t, err, "--name flag cannot be used when adding multiple workflows at once")
 }

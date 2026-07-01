@@ -39,7 +39,7 @@ func NewForecastCommand() *cobra.Command {
 		Long: `[EXPERIMENTAL] Forecast AI Credit (AIC) usage for agentic workflows by sampling
 recent run history and projecting forward on a per-week or per-month basis.
 
-The forecaster downloads a sample of recent completed workflow runs and derives
+The forecaster downloads a sample of recently completed workflow runs and derives
 per-run metrics (AIC, duration, success rate). When runs have been
 previously processed by 'gh aw logs', cached token-usage data is used. The
 observed run frequency is then projected to the target period using a Monte Carlo

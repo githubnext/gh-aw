@@ -30,7 +30,7 @@ func NewDeployCommand(validateEngine func(string) error) *cobra.Command {
 		Short: "Deploy agentic workflows to a target repository using a pull request",
 		Long: `Deploy one or more workflows to a target repository by combining clone, update, add, compile, and pull request creation.
 
-The command clones the target repository, updates existing workflows from source, adds the specified workflows, recompiles lock files with purge enabled, and opens a pull request.`,
+The command clones the target repository, updates existing workflows from source, adds the specified workflows, recompiles .lock.yml files with purge enabled, and opens a pull request.`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/ci-doctor --repo owner/repo
   ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/repo-assist githubnext/agentics/ci-doctor --repo owner/repo --force
   ` + string(constants.CLIExtensionPrefix) + ` deploy ./my-workflow.md --repo owner/repo
@@ -90,17 +90,17 @@ func validateDeployArgs(cmd *cobra.Command, args []string) error {
 }
 
 func registerDeployFlags(cmd *cobra.Command) {
-	cmd.Flags().StringP("repo", "r", "", "Target repository in [HOST/]owner/repo format (required unless --org is provided)")
+	cmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format; required unless --org is provided)")
 	cmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
 	addEngineFlag(cmd)
 	cmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
-	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
+	cmd.Flags().String("append", "", "Append extra content to the end of an agentic workflow on installation")
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
-	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
-	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
+	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow Markdown content")
+	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow Markdown content")
 	_ = cmd.Flags().MarkHidden("disable-security-scanner")
 	cmd.Flags().String("cool-down", defaultDeployCooldown, coolDownFlagUsage)
 	cmd.Flags().String("org", "", "Deploy workflows across repositories in an organization")

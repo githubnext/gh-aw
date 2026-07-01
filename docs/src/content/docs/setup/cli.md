@@ -120,7 +120,7 @@ Use `gh aw version` to print the current version.
 
 ### The `--push` Flag
 
-`gh aw run --push` stages all changes, commits them, and pushes before dispatching the workflow. It requires a clean working directory.
+`gh aw run --push` stages workflow files only (including transitive imports), commits them, and pushes before dispatching the workflow. It does not require a clean working directory.
 
 For `init`, `update`, and `upgrade`, use `--create-pull-request` instead.
 
@@ -140,7 +140,7 @@ gh aw init --engine claude              # Skip Copilot-specific artifacts
 gh aw init --no-mcp                     # Skip MCP server integration
 gh aw init --no-skill                   # Skip dispatcher skill creation
 gh aw init --no-agent                   # Skip custom agent creation
-gh aw init --codespaces ""              # Configure Codespaces for current repo only
+gh aw init --codespaces ""              # Configure Codespaces for current repository only
 gh aw init --codespaces repo1,repo2     # Configure Codespaces with additional repos
 gh aw init --completions                # Install shell completions
 gh aw init --create-pull-request        # Initialize and open a pull request
@@ -265,9 +265,9 @@ gh aw fix my-workflow --write          # Fix specific workflow
 gh aw fix --list-codemods              # List available codemods
 ```
 
-**Options:** `--dir/-d`, `--disable-codemod`, `--list-codemods`, `--write`
+**Options:** `--dir/-d`, `--no-codemod`, `--list-codemods`, `--write`
 
-Use `--disable-codemod` (repeatable) to skip specific codemod IDs by name.
+Use `--no-codemod` (repeatable) to skip specific codemod IDs by name.
 
 Available codemods include:
 
@@ -708,11 +708,11 @@ gh aw upgrade --audit --json               # Dependency audit in JSON format
 gh aw upgrade --org my-org --create-issue --yes  # Auto-accept per-repo confirmations (required in CI)
 ```
 
-**Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--disable-codemod`, `--create-pull-request`, `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
+**Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--no-codemod`, `--create-pull-request`, `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
 
 Org mode (`--org`) previews or creates upgrade pull requests across every repository in an organization. Use `--repos` to limit org mode to repositories matching one or more glob patterns, `--create-issue` to open an issue in each org repository with agentic workflows (requires `--org`), and `--yes/-y` to auto-accept org-mode create confirmations (required in CI).
 
-Use `--disable-codemod` (repeatable) to skip specific codemod IDs during the embedded fix step. This flag is ignored when `--no-fix` is set.
+Use `--no-codemod` (repeatable) to skip specific codemod IDs during the embedded fix step. This flag is ignored when `--no-fix` is set.
 
 #### `env`
 
@@ -822,7 +822,7 @@ gh aw completion fish                 # Generate fish script
 gh aw completion powershell           # Generate powershell script
 ```
 
-**Subcommands:** `install`, `uninstall`, `bash`, `zsh`, `fish`, `powershell`. See [Shell Completions](#shell-completions).
+**Subcommands:** `install`, `uninstall`. **Shell values:** `bash`, `zsh`, `fish`, `powershell`. See [Shell Completions](#shell-completions).
 
 #### `project`
 
@@ -830,7 +830,7 @@ Create and manage GitHub Projects V2 boards.
 
 ##### `project new`
 
-Create a new GitHub Project V2 owned by a user or organization with optional repository linking.
+Create a new GitHub Projects V2 board owned by a user or organization with optional repository linking.
 
 ```bash wrap
 gh aw project new "My Project" --owner @me                      # Create user project

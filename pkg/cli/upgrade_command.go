@@ -41,7 +41,7 @@ This command:
   1. Updates the dispatcher agent file to the latest template (like 'init' command)
   2. Applies automatic codemods to fix deprecated fields in all workflows (like 'fix --write')
   3. Updates GitHub Actions versions in .github/aw/actions-lock.json (unless --no-actions is set)
-  4. Compiles all workflows to generate lock files (like 'compile' command)
+  4. Compiles all workflows to generate .lock.yml files (like 'compile' command)
 
 Flag behavior:
 - --no-fix skips codemods, action version updates, and workflow compilation
@@ -60,7 +60,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` upgrade                    # Upgrade all workflows
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods, actions, and compilation)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-actions      # Skip updating GitHub Actions versions
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-compile      # Skip recompiling workflows (do not modify lock files)
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-compile      # Skip recompiling workflows (do not modify .lock.yml files)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --create-pull-request  # Upgrade and open a pull request
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org       # Preview upgrade pull requests across an organization
@@ -71,7 +71,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org --create-issue --yes  # Auto-accept per-repo confirmations (required in CI)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit           # Check dependency health without upgrading
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit --json    # Output audit results in JSON format
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --pre-releases    # Include prerelease versions when self-upgrading the extension (stable releases are the default)`,
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --pre-releases    # Include pre-release versions when self-upgrading the extension (stable releases are the default)`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -86,7 +86,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			noCompile, _ := cmd.Flags().GetBool("no-compile")
 			auditFlag, _ := cmd.Flags().GetBool("audit")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
-			disabledCodemods, _ := cmd.Flags().GetStringSlice("disable-codemod")
+			disabledCodemods, _ := cmd.Flags().GetStringSlice("no-codemod")
 			skipExtensionUpgrade, _ := cmd.Flags().GetBool("skip-extension-upgrade")
 			approveUpgrade, _ := cmd.Flags().GetBool("approve")
 			preReleases, _ := cmd.Flags().GetBool("pre-releases")
@@ -152,16 +152,16 @@ This command always upgrades all Markdown files in .github/workflows.`,
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	cmd.Flags().Bool("no-fix", false, "Skip codemods, action version updates, and workflow compilation (only update agent files)")
 	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions (ignored when --no-fix is set)")
-	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files; ignored when --no-fix is set)")
-	cmd.Flags().StringSlice("disable-codemod", nil, "Disable specific codemod IDs during the fix step (repeatable)")
-	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the upgrade changes")
+	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify .lock.yml files; ignored when --no-fix is set)")
+	cmd.Flags().StringSlice("no-codemod", nil, "Disable specific codemod IDs during the fix step (repeatable)")
+	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the workflow changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("create-issue", false, "Open a GitHub issue in each org repository with agentic workflows (requires --org)")
 	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode create confirmations (required in CI)")
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
 	cmd.Flags().Bool("pre-releases", false, "Include pre-release versions when checking for extension upgrades; pre-releases are installed by exact tag")
-	cmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
+	cmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement.")
 	cmd.Flags().Bool("skip-extension-upgrade", false, "Skip automatic extension upgrade (used internally to prevent recursion after upgrade)")
 	_ = cmd.Flags().MarkHidden("skip-extension-upgrade")
 	cmd.Flags().String("org", "", "Preview or create upgrade pull requests across an organization")

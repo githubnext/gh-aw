@@ -39,7 +39,7 @@ This command fetches workflow runs, downloads their artifacts, and extracts them
 organized folders named by run ID. It also provides an overview table with aggregate
 metrics including duration, token usage, and cost information.
 
-By default only the compact usage artifact is downloaded (token usage, run metadata).
+By default, only the compact usage artifact is downloaded (token usage, run metadata).
 Use --artifacts all to download all artifacts, or specify individual sets such as
 --artifacts agent,firewall to fetch only what you need.
 

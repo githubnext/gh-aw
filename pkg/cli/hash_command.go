@@ -22,7 +22,7 @@ func NewHashCommand() *cobra.Command {
 The hash includes:
 - All frontmatter fields from the main workflow
 - Frontmatter from all imported workflows (BFS traversal)
-- Template expressions containing env. or vars. from the markdown body
+- Template expressions containing env. or vars. from the Markdown body
 - Version information (gh-aw, awf, agents)
 
 The hash can be used to detect configuration changes between compilation and execution.`,

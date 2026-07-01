@@ -92,7 +92,7 @@ func TestNewInitCommand(t *testing.T) {
 		t.Error("Expected 'codespaces' flag to be defined")
 		return
 	}
-	if !strings.Contains(codespaceFlag.Usage, "or use with an empty value for the current repo only") {
+	if !strings.Contains(codespaceFlag.Usage, "or use with an empty value for the current repository only") {
 		t.Errorf("Expected codespaces flag help text to include article fixes, got %q", codespaceFlag.Usage)
 	}
 

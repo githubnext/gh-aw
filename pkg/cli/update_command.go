@@ -59,8 +59,8 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist --major # Allow major version updates
   ` + string(constants.CLIExtensionPrefix) + ` update --force            # Force update even if no changes
   ` + string(constants.CLIExtensionPrefix) + ` update --no-release-bump     # Update without force-bumping all action versions
-  ` + string(constants.CLIExtensionPrefix) + ` update --no-compile           # Update without regenerating lock files
-  ` + string(constants.CLIExtensionPrefix) + ` update --no-redirect          # Refuse workflows that use redirect frontmatter
+  ` + string(constants.CLIExtensionPrefix) + ` update --no-compile           # Update without regenerating .lock.yml files
+  ` + string(constants.CLIExtensionPrefix) + ` update --no-redirect          # Refuse updates for workflows that use redirect frontmatter
   ` + string(constants.CLIExtensionPrefix) + ` update --dir custom/workflows  # Update workflows in custom directory
   ` + string(constants.CLIExtensionPrefix) + ` update --repo owner/repo        # Update workflows in another repository
   ` + string(constants.CLIExtensionPrefix) + ` update --create-pull-request   # Update and open a pull request
@@ -170,15 +170,15 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 	cmd.Flags().Bool("no-release-bump", false, "Disable automatic major version bumps for all actions (only core actions/* are force-updated)")
 	cmd.Flags().Bool("disable-release-bump", false, "Disable automatic major version bumps for all actions (only core actions/* are force-updated)")
 	_ = cmd.Flags().MarkHidden("disable-release-bump")
-	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
-	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
+	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow Markdown content")
+	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow Markdown content")
 	_ = cmd.Flags().MarkHidden("disable-security-scanner")
-	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files)")
+	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify .lock.yml files)")
 	cmd.Flags().Bool("no-redirect", false, "Refuse updates when redirect frontmatter is present")
 	cmd.Flags().String("org", "", "Preview or create workflow update pull requests across an organization")
 	cmd.Flags().StringSlice("repos", nil, "Limit --org mode to repositories matching one or more glob patterns")
 	addRepoFlag(cmd)
-	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the update changes")
+	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the workflow changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	cmd.Flags().Bool("create-issue", false, "Open a GitHub issue in each org repository that has pending workflow updates (requires --org)")
 	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode create confirmations (required in CI)")

@@ -32,7 +32,7 @@ Workflow specifications:
   - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
   - GitHub URL: "https://github.com/owner/repo/blob/branch/path/to/workflow.md"
   - Arbitrary URL: "https://example.com/workflow.md" (fetches and dispatches on Content-Type)
-    - text/markdown → treated as a gh-aw workflow markdown file
+    - text/markdown → treated as a gh-aw workflow Markdown file
     - application/json → converted from a JSON workflow definition
   - Local file: "./path/to/workflow.md" (adds a workflow from local filesystem)
   - Local wildcard: "./*.md" or "./dir/*.md" (adds all .md files matching pattern)
@@ -179,7 +179,7 @@ func registerAddCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
 
 	// Add append flag to add command
-	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
+	cmd.Flags().String("append", "", "Append extra content to the end of an agentic workflow on installation")
 
 	// Add no-gitattributes flag to add command
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
@@ -194,8 +194,8 @@ func registerAddCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
 	// Add no-security-scanner flag to add command (--disable-security-scanner is kept as an undocumented alias)
-	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
-	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
+	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow Markdown content")
+	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow Markdown content")
 	_ = cmd.Flags().MarkHidden("disable-security-scanner")
 
 	// Register completions for add command
