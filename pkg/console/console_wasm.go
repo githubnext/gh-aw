@@ -5,6 +5,7 @@ package console
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -38,7 +39,7 @@ func FormatError(err CompilerError) string {
 
 	if len(err.Context) > 0 && err.Position.Line > 0 {
 		maxLineNum := err.Position.Line + len(err.Context)/2
-		lineNumWidth := len(fmt.Sprintf("%d", maxLineNum))
+		lineNumWidth := len(strconv.Itoa(maxLineNum))
 		for i, line := range err.Context {
 			lineNum := err.Position.Line - len(err.Context)/2 + i
 			if lineNum < 1 {

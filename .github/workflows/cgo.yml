@@ -1207,6 +1207,9 @@ jobs:
     - name: Run custom linters
       run: make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -manualmutexunlock -osexitinlibrary -rawloginlib -regexpcompileinfunction -fprintlnsprintf -strconvparseignorederror -jsonmarshalignoredeerror -uncheckedtypeassertion -fmterrorfnoverbs -tolowerequalfold -httpnoctx -timeafterleak -errortypeassertion -execcommandwithoutcontext -test=false"
 
+    - name: Run custom linters (wasm)
+      run: GOOS=js GOARCH=wasm make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -manualmutexunlock -osexitinlibrary -rawloginlib -regexpcompileinfunction -fprintlnsprintf -strconvparseignorederror -jsonmarshalignoredeerror -uncheckedtypeassertion -fmterrorfnoverbs -tolowerequalfold -httpnoctx -timeafterleak -errortypeassertion -execcommandwithoutcontext -test=false" LINTER_PACKAGES="./pkg/console ./pkg/parser ./pkg/styles ./pkg/tty ./pkg/workflow"
+
       # Ensure no action shell scripts invoke python or python3
     - name: Lint action shell scripts
       run: make lint-action-sh
