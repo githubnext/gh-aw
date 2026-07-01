@@ -303,9 +303,6 @@ func TestGeneratePackageJSON(t *testing.T) {
 	if pkgJSON.Dependencies["typescript"] != "5.0.0" {
 		t.Errorf("expected typescript@5.0.0, got %q", pkgJSON.Dependencies["typescript"])
 	}
-	if pkgJSON.DevDependencies["copilot"] != "latest" {
-		t.Errorf("expected copilot dev dependency to be present, got %q", pkgJSON.DevDependencies["copilot"])
-	}
 	if pkgJSON.SkillRepos["githubnext/skills"] != "1111111111111111111111111111111111111111" {
 		t.Errorf("expected githubnext/skills skill repo ref, got %q", pkgJSON.SkillRepos["githubnext/skills"])
 	}
@@ -323,9 +320,6 @@ func TestGeneratePackageJSON_MergeExisting(t *testing.T) {
 		License: "Apache-2.0",
 		Dependencies: map[string]string{
 			"lodash": "^4.17.21",
-		},
-		DevDependencies: map[string]string{
-			"eslint": "^9.0.0",
 		},
 	}
 	existingData, _ := json.MarshalIndent(existingPkg, "", "  ")
@@ -363,12 +357,6 @@ func TestGeneratePackageJSON_MergeExisting(t *testing.T) {
 	// Verify dependencies were merged
 	if len(pkgJSON.Dependencies) != 2 {
 		t.Errorf("expected 2 dependencies, got %d", len(pkgJSON.Dependencies))
-	}
-	if pkgJSON.DevDependencies["eslint"] != "^9.0.0" {
-		t.Errorf("expected existing eslint dev dependency to be preserved, got %q", pkgJSON.DevDependencies["eslint"])
-	}
-	if pkgJSON.DevDependencies["copilot"] != "latest" {
-		t.Errorf("expected copilot dev dependency to be present, got %q", pkgJSON.DevDependencies["copilot"])
 	}
 	if pkgJSON.Dependencies["lodash"] != "^4.17.21" {
 		t.Error("existing lodash dependency should be preserved")

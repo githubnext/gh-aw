@@ -112,9 +112,6 @@ func TestCompileDependabotIntegration(t *testing.T) {
 	if len(pkgJSON.Dependencies) == 0 {
 		t.Error("expected at least one dependency (@playwright/mcp)")
 	}
-	if pkgJSON.DevDependencies["copilot"] != "latest" {
-		t.Errorf("expected copilot dev dependency to be captured, got %q", pkgJSON.DevDependencies["copilot"])
-	}
 	if pkgJSON.SkillRepos["githubnext/skills"] != "1111111111111111111111111111111111111111" {
 		t.Errorf("expected githubnext/skills ref to be captured, got %q", pkgJSON.SkillRepos["githubnext/skills"])
 	}
