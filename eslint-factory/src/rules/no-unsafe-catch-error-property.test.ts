@@ -391,6 +391,23 @@ try {
             },
           ],
         },
+        {
+          // Standalone err !== null in a separate if (without return) does not count as companion guard
+          code: `try { f(); } catch (err) { if (err !== null) { } if (typeof err === 'object') { console.log(err.status); } }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "status", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "status" },
+                  output: `try { f(); } catch (err) { if (err !== null) { } if (typeof err === 'object') { console.log((err instanceof Error ? err.status : undefined)); } }`,
+                },
+              ],
+            },
+          ],
+        },
       ],
     });
   });

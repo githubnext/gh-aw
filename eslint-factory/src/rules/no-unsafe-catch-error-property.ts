@@ -126,11 +126,6 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
           return;
         }
 
-        if (isNonNullGuardCheck(node, top.varName)) {
-          top.hasNonNullGuard = true;
-          return;
-        }
-
         if (isTypeofObjectCheck(node, top.varName) && top.hasNonNullGuard) {
           top.hasGuard = true;
         }

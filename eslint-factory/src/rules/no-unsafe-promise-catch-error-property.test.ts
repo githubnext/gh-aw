@@ -265,6 +265,11 @@ describe("no-unsafe-promise-catch-error-property", () => {
           code: `promise.catch(err => { if ('object' === typeof err) { console.log(err.status); } });`,
           errors: [{ messageId: "unsafeProperty", data: { prop: "status", errorVar: "err" } }],
         },
+        {
+          // Standalone err !== null in a separate if (without return) does not count as companion guard
+          code: `promise.catch(err => { if (err !== null) { } if (typeof err === 'object') { console.log(err.status); } });`,
+          errors: [{ messageId: "unsafeProperty", data: { prop: "status", errorVar: "err" } }],
+        },
       ],
     });
   });
