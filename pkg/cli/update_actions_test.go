@@ -7,7 +7,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/semverutil"
@@ -470,6 +472,67 @@ func TestUpdateActionRefsInContent_AllOrgsUpdatedWhenAllowMajor(t *testing.T) {
 	}
 	if got != want {
 		t.Errorf("updateActionRefsInContent() output mismatch\nGot:\n%s\nWant:\n%s", got, want)
+	}
+}
+
+func TestUpdateSkillRefsInContentWithResolver_UpdatesStringAndObjectSkillRefs(t *testing.T) {
+	oldRepoSkillSHA := "1111111111111111111111111111111111111111"
+	oldPathSkillSHA := "2222222222222222222222222222222222222222"
+	newRepoSkillSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	newPathSkillSHA := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	input := `---
+name: test
+skills:
+  - githubnext/skills@` + oldRepoSkillSHA + `
+  - skill: githubnext/skills/review/security@` + oldPathSkillSHA + `
+  - ${{ inputs.dynamic_skill }}
+---
+body
+`
+
+	resolver := func(_ context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error) {
+		if repo != "githubnext/skills" {
+			t.Fatalf("resolver called with repo %q, want githubnext/skills", repo)
+		}
+		switch currentRef {
+		case oldRepoSkillSHA:
+			return newRepoSkillSHA, nil
+		case oldPathSkillSHA:
+			return newPathSkillSHA, nil
+		default:
+			return currentRef, nil
+		}
+	}
+
+	changed, got, err := updateSkillRefsInContentWithResolver(context.Background(), input, true, false, 0, resolver)
+	if err != nil {
+		t.Fatalf("updateSkillRefsInContentWithResolver() error = %v", err)
+	}
+	if !changed {
+		t.Fatal("updateSkillRefsInContentWithResolver() changed = false, want true")
+	}
+	if !strings.Contains(got, "githubnext/skills@"+newRepoSkillSHA) {
+		t.Fatalf("updated content missing updated repo skill ref:\n%s", got)
+	}
+	if !strings.Contains(got, "githubnext/skills/review/security@"+newPathSkillSHA) {
+		t.Fatalf("updated content missing updated path skill ref:\n%s", got)
+	}
+	if !strings.Contains(got, "- ${{ inputs.dynamic_skill }}") {
+		t.Fatalf("updated content unexpectedly modified expression skill ref:\n%s", got)
+	}
+}
+
+func TestUpdateSkillRefsInContentWithResolver_NoFrontmatterNoChange(t *testing.T) {
+	input := "steps:\n  - run: echo hello\n"
+	changed, got, err := updateSkillRefsInContentWithResolver(context.Background(), input, true, false, 0, resolveLatestRef)
+	if err != nil {
+		t.Fatalf("updateSkillRefsInContentWithResolver() error = %v", err)
+	}
+	if changed {
+		t.Fatal("updateSkillRefsInContentWithResolver() changed = true, want false")
+	}
+	if got != input {
+		t.Fatalf("content changed unexpectedly:\n got: %q\nwant: %q", got, input)
 	}
 }
 
