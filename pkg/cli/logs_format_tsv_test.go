@@ -3,34 +3,12 @@
 package cli
 
 import (
-	"bytes"
-	"os"
 	"strings"
 	"testing"
 )
 
-func captureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-
-	oldStdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("Failed to create stdout pipe: %v", err)
-	}
-	os.Stdout = w
-
-	fn()
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
-	return buf.String()
-}
-
 func TestRenderLogsTSVSummaryPreservesTokenField(t *testing.T) {
-	output := captureStdout(t, func() {
+	output, _ := captureOutput(t, func() error {
 		renderLogsTSV(LogsData{
 			Summary: LogsSummary{
 				TotalRuns:     2,
@@ -39,6 +17,7 @@ func TestRenderLogsTSVSummaryPreservesTokenField(t *testing.T) {
 				TotalErrors:   1,
 			},
 		})
+		return nil
 	})
 
 	lines := strings.Split(strings.TrimSpace(output), "\n")
@@ -51,7 +30,7 @@ func TestRenderLogsTSVSummaryPreservesTokenField(t *testing.T) {
 }
 
 func TestRenderLogsTSVVerboseSummaryPreservesTokenField(t *testing.T) {
-	output := captureStdout(t, func() {
+	output, _ := captureOutput(t, func() error {
 		renderLogsTSVVerbose(LogsData{
 			Summary: LogsSummary{
 				TotalRuns:           2,
@@ -63,6 +42,7 @@ func TestRenderLogsTSVVerboseSummaryPreservesTokenField(t *testing.T) {
 				TotalGitHubAPICalls: 3,
 			},
 		})
+		return nil
 	})
 
 	lines := strings.Split(strings.TrimSpace(output), "\n")
