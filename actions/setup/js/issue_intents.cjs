@@ -26,6 +26,8 @@ function normalizeIssueIntentMetadata(source) {
 
   if (typeof source.rationale === "string") {
     const sanitizedRationale = sanitizeContent(source.rationale, { maxLength: ISSUE_INTENT_RATIONALE_MAX_LENGTH }).trim();
+    // sanitizeContent appends "\n[Content truncated due to length]" when it truncates,
+    // so clamp again to guarantee the GitHub API hard limit.
     const rationale = sanitizedRationale.length > ISSUE_INTENT_RATIONALE_MAX_LENGTH ? sanitizedRationale.slice(0, ISSUE_INTENT_RATIONALE_MAX_LENGTH) : sanitizedRationale;
     if (rationale) {
       metadata.rationale = rationale;

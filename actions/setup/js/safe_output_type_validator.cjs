@@ -24,6 +24,7 @@ const MAX_BODY_LENGTH = 65000;
  * Reference: https://github.com/dead-claudia/github-limits
  */
 const MAX_GITHUB_USERNAME_LENGTH = 39;
+const ISSUE_INTENT_RATIONALE_MAX_LENGTH = 280;
 
 /**
  * @typedef {{ allowedAliases?: string[], maxBotMentions?: number, normalizeIssueClosingKeywords?: boolean }} ValidateOptions
@@ -62,6 +63,17 @@ function normalizeIssueClosingKeywordBackticks(content) {
   normalized = normalized.replace(ISSUE_CLOSING_BOTH_BACKTICK_PATTERN, "$1$2$3");
   normalized = normalized.replace(ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN, "$1$2$3");
   return normalized.replace(ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN, "$1$2$3");
+}
+
+function normalizeIssueIntentRationale(rationale, options) {
+  const sanitizedRationale = sanitizeContent(unfenceMarkdown(rationale), {
+    maxLength: ISSUE_INTENT_RATIONALE_MAX_LENGTH,
+    allowedAliases: options?.allowedAliases || [],
+    maxBotMentions: options?.maxBotMentions,
+  }).trim();
+  // sanitizeContent appends "\n[Content truncated due to length]" when it truncates,
+  // so clamp again to guarantee the GitHub API hard limit.
+  return sanitizedRationale.length > ISSUE_INTENT_RATIONALE_MAX_LENGTH ? sanitizedRationale.slice(0, ISSUE_INTENT_RATIONALE_MAX_LENGTH) : sanitizedRationale;
 }
 
 /**
@@ -132,12 +144,7 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
           error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].rationale must be a string`,
         };
       }
-      const sanitizedRationale = sanitizeContent(unfenceMarkdown(label.rationale), {
-        maxLength: 280,
-        allowedAliases: options?.allowedAliases || [],
-        maxBotMentions: options?.maxBotMentions,
-      }).trim();
-      const rationale = sanitizedRationale.length > 280 ? sanitizedRationale.slice(0, 280) : sanitizedRationale;
+      const rationale = normalizeIssueIntentRationale(label.rationale, options);
       if (rationale) {
         normalizedLabel.rationale = rationale;
       }

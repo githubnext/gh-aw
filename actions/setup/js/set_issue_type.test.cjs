@@ -431,4 +431,28 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
       delete process.env.GH_AW_RUNTIME_FEATURES;
     }
   });
+
+  it("should preserve issue_intents rationale of exactly 280 characters", () => {
+    const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
+
+    const metadata = normalizeIssueIntentMetadata({ rationale: "a".repeat(280) });
+
+    expect(metadata.rationale).toBe("a".repeat(280));
+  });
+
+  it("should truncate issue_intents rationale of 281 characters", () => {
+    const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
+
+    const metadata = normalizeIssueIntentMetadata({ rationale: "a".repeat(281) });
+
+    expect(metadata.rationale).toBe("a".repeat(280));
+  });
+
+  it("should omit empty issue_intents rationale after sanitization", () => {
+    const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
+
+    const metadata = normalizeIssueIntentMetadata({ rationale: "   " });
+
+    expect(metadata).not.toHaveProperty("rationale");
+  });
 });

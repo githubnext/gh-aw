@@ -329,21 +329,19 @@ describe("safe_output_type_validator", () => {
       expect(result.normalizedItem.labels).toEqual([{ name: "bug", rationale: "Known failure mode", confidence: "HIGH", suggest: true }]);
     });
 
-    it("should truncate structured label rationale to 280 characters", async () => {
+    it("should truncate structured label rationale for all issue-intent label mutations", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem(
-        {
-          type: "add_labels",
-          item_number: 123,
-          labels: [{ name: "bug", rationale: "a".repeat(350) }],
-        },
-        "add_labels",
-        1
-      );
+      for (const [type, item] of [
+        ["add_labels", { type: "add_labels", item_number: 123, labels: [{ name: "bug", rationale: "a".repeat(350) }] }],
+        ["remove_labels", { type: "remove_labels", item_number: 123, labels: [{ name: "bug", rationale: "a".repeat(350) }] }],
+        ["update_issue", { type: "update_issue", issue_number: 123, labels: [{ name: "bug", rationale: "a".repeat(350) }] }],
+      ]) {
+        const result = validateItem(item, type, 1);
 
-      expect(result.isValid).toBe(true);
-      expect(result.normalizedItem.labels[0].rationale).toBe("a".repeat(280));
+        expect(result.isValid).toBe(true);
+        expect(result.normalizedItem.labels[0].rationale).toBe("a".repeat(280));
+      }
     });
 
     it("should fail add_labels when structured label entry is invalid", async () => {
