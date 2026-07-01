@@ -58,6 +58,7 @@ const {
   fetchModelsFromUrl,
   inferProviderTypeForModel,
   resolveCopilotSDKCustomProviderFromReflect,
+  resolveMultiProviderFromReflect,
 } = require("./awf_reflect.cjs");
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
@@ -499,6 +500,11 @@ function detectCopilotErrors(output) {
 
 /**
  * Build child-process environment additions for Copilot SDK mode.
+ *
+ * When `multiProviderJson` is set, the driver will use the experimental
+ * multi-provider BYOK surface and the single-provider env vars are still
+ * populated from the primary provider for the headless sidecar.
+ *
  * @param {{
  *   sdkEnv: NodeJS.ProcessEnv,
  *   copilotSDKMode: boolean,
@@ -507,10 +513,11 @@ function detectCopilotErrors(output) {
  *   providerType: string,
  *   providerWireApi: string,
  *   resolvedModel: string,
+ *   multiProviderJson?: string,
  * }} options
  * @returns {NodeJS.ProcessEnv}
  */
-function buildCopilotSDKChildEnv({ sdkEnv, copilotSDKMode, copilotConnectionToken, providerBaseUrl, providerType, providerWireApi, resolvedModel }) {
+function buildCopilotSDKChildEnv({ sdkEnv, copilotSDKMode, copilotConnectionToken, providerBaseUrl, providerType, providerWireApi, resolvedModel, multiProviderJson }) {
   if (!copilotSDKMode) {
     return sdkEnv;
   }
@@ -520,6 +527,7 @@ function buildCopilotSDKChildEnv({ sdkEnv, copilotSDKMode, copilotConnectionToke
     GH_AW_COPILOT_SDK_PROVIDER_BASE_URL: providerBaseUrl,
     GH_AW_COPILOT_SDK_PROVIDER_TYPE: providerType,
     ...(providerWireApi ? { GH_AW_COPILOT_SDK_PROVIDER_WIRE_API: providerWireApi } : {}),
+    ...(multiProviderJson ? { GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON: multiProviderJson } : {}),
     COPILOT_MODEL: resolvedModel,
     // Native Copilot CLI BYOK env vars — consumed by the headless sidecar for all sessions.
     COPILOT_PROVIDER_BASE_URL: providerBaseUrl,
@@ -749,24 +757,50 @@ async function main() {
   // Resolve BYOK custom provider from live reflect data (SDK mode only).
   // BYOK is the only supported mode for SDK sessions — fail immediately if the provider
   // cannot be resolved so retries are not wasted on a misconfigured environment.
+  //
+  // Resolution order:
+  //   1. Multi-provider (experimental): tried first when ≥2 configured endpoints exist.
+  //      Enables different wireApi values per model by routing each model to its own
+  //      named provider.
+  //   2. Single-provider (legacy): used when only 1 endpoint is configured.
   let providerBaseUrl = "";
   let providerType = "openai";
   let providerWireApi = "";
   let resolvedModel = "";
+  let multiProviderJson = "";
   if (copilotSDKMode) {
     const configuredModel = process.env.COPILOT_MODEL || "";
     const configuredProvider = process.env.GH_AW_LLM_PROVIDER || "";
     const modelsJson = loadModelsJson();
-    const customProvider = resolveCopilotSDKCustomProviderFromReflect({ model: configuredModel, provider: configuredProvider, reflectData: awfReflectData, modelsJson, logger: log });
-    if (!customProvider) {
-      log("copilot-sdk driver mode: BYOK provider is required but could not be resolved from awf-reflect data — aborting");
-      process.exit(1);
+
+    // Try multi-provider first (requires ≥2 configured endpoints).
+    const multiProvider = resolveMultiProviderFromReflect({ model: configuredModel, reflectData: awfReflectData, modelsJson, logger: log });
+    if (multiProvider) {
+      resolvedModel = multiProvider.model;
+      multiProviderJson = JSON.stringify({ model: multiProvider.model, providers: multiProvider.providers, models: multiProvider.models });
+      // Set the primary provider's details as single-provider vars for the headless sidecar
+      // (which still reads COPILOT_PROVIDER_* to configure its own sub-agent backend).
+      const primaryProviderName = multiProvider.models.find(m => m.id === resolvedModel)?.provider ?? multiProvider.providers[0]?.name;
+      const primaryProvider = multiProvider.providers.find(p => p.name === primaryProviderName) ?? multiProvider.providers[0];
+      providerBaseUrl = primaryProvider?.baseUrl ?? "";
+      providerType = primaryProvider?.type ?? "openai";
+      providerWireApi = primaryProvider?.wireApi ?? "";
+      log(
+        `copilot-sdk driver mode: multi-provider config resolved (${multiProvider.providers.length} providers, ${multiProvider.models.length} models, model=${resolvedModel})`
+      );
+    } else {
+      // Fall back to single-provider.
+      const customProvider = resolveCopilotSDKCustomProviderFromReflect({ model: configuredModel, provider: configuredProvider, reflectData: awfReflectData, modelsJson, logger: log });
+      if (!customProvider) {
+        log("copilot-sdk driver mode: BYOK provider is required but could not be resolved from awf-reflect data — aborting");
+        process.exit(1);
+      }
+      providerBaseUrl = customProvider.provider.baseUrl;
+      providerType = customProvider.provider.type || "openai";
+      providerWireApi = customProvider.provider.wireApi || "";
+      resolvedModel = customProvider.model;
+      log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${providerBaseUrl} type=${providerType}${providerWireApi ? ` wireApi=${providerWireApi}` : ""} model=${resolvedModel})`);
     }
-    providerBaseUrl = customProvider.provider.baseUrl;
-    providerType = customProvider.provider.type || "openai";
-    providerWireApi = customProvider.provider.wireApi || "";
-    resolvedModel = customProvider.model;
-    log(`copilot-sdk driver mode: BYOK provider resolved (baseUrl=${providerBaseUrl} type=${providerType}${providerWireApi ? ` wireApi=${providerWireApi}` : ""} model=${resolvedModel})`);
   }
 
   // Merge SDK env additions into the child process env only when the SDK helper
@@ -791,6 +825,7 @@ async function main() {
     providerType,
     providerWireApi,
     resolvedModel,
+    multiProviderJson,
   });
   const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
 
@@ -1157,6 +1192,7 @@ if (typeof module !== "undefined" && module.exports) {
     isModelAvailableInReflectData,
     isModelAvailableInReflectFile,
     resolveCopilotSDKCustomProviderFromReflect,
+    resolveMultiProviderFromReflect,
     inferProviderTypeForModel,
     countPermissionDeniedIssues,
     detectCopilotErrors,
