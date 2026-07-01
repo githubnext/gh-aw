@@ -170,7 +170,7 @@ To explicitly disable expiration (useful when create-issue has a default expirat
 
 #### Issue Grouping
 
-The `group` field (default: `false`) organizes multiple issues as sub-issues under a parent issue. The parent is managed using the workflow ID as the group identifier, children are linked through GitHub sub-issue relationships, each parent can hold up to 64 sub-issues, and the parent stores metadata for the tracked children. This is useful for workflows that create sets of related issues, such as plans broken into tasks or batch processing runs.
+The `group` field (default: `false`) organizes multiple issues as sub-issues under a parent issue. The parent is identified by a `<!-- gh-aw-group: ... -->` marker derived from the workflow name; children are linked through GitHub sub-issue relationships; and each parent can hold up to 64 sub-issues. This is useful for workflows that create sets of related issues, such as plans broken into tasks or batch processing runs.
 
 
 ```yaml wrap
@@ -184,7 +184,7 @@ safe-outputs:
 
 #### Auto-Close Older Issues
 
-The `close-older-issues` field (default: `false`) closes previous open issues from the same workflow after a new issue is created. It searches for open issues with the same workflow-id marker, closes up to 10 of them as "not planned," and adds a comment linking to the new issue. The cleanup runs only if new issue creation succeeds, which makes it a good fit for recurring reports or status updates where only the latest issue should remain open.
+The `close-older-issues` field (default: `false`) closes previous open issues from the same workflow after a new issue is created. It searches for open issues using the `gh-aw-workflow-id` marker (or `gh-aw-close-key` when `close-older-key` is set), closes up to 10 of them as "not planned," and adds a comment linking to the new issue. In reusable-workflow scenarios, the `gh-aw-workflow-call-id` marker is used for precise per-caller matching, so issues from different callers sharing the same reusable workflow are not cross-closed. The cleanup runs only if new issue creation succeeds, which makes it a good fit for recurring reports or status updates where only the latest issue should remain open.
 
 ```yaml wrap
 safe-outputs:
@@ -196,7 +196,7 @@ safe-outputs:
 
 #### Group By Day
 
-The `group-by-day` field (default: `false`) groups same-day workflow runs into a single issue. The handler looks for an existing open issue created **today (UTC)** with the same workflow-id marker, or `close-older-key` if set, and posts the new content as a **comment** instead of creating a new issue. This is useful for frequent scheduled workflows, such as runs every four hours, because all runs for the day contribute to one issue. Posting as a comment does not consume a max-count slot; if the pre-check fails, normal issue creation is used as a fallback.
+The `group-by-day` field (default: `false`) groups same-day workflow runs into a single issue. The handler looks for an existing open issue created **today (UTC)** using the workflow marker (`gh-aw-workflow-id`, or `gh-aw-workflow-call-id` in reusable-workflow scenarios, or `gh-aw-close-key` when `close-older-key` is set), and posts the new content as a **comment** instead of creating a new issue. This is useful for frequent scheduled workflows, such as runs every four hours, because all runs for the day contribute to one issue. Posting as a comment does not consume a max-count slot; if the pre-check fails, normal issue creation is used as a fallback.
 
 ```yaml wrap
 safe-outputs:
