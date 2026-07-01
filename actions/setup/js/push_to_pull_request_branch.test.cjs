@@ -1110,9 +1110,9 @@ index 0000000..abc1234
           return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\trefs/heads/feature-branch\n", stderr: "" };
         }
         if (argList[0] === "log") {
-          // Pre-flight workflow check uses --not origin/HEAD; return empty to avoid
+          // Pre-flight workflow check targets .github/workflows/; return empty to avoid
           // short-circuiting the fallback path with a workflows_scope_required error.
-          if (argList.includes("origin/HEAD")) {
+          if (argList.includes(".github/workflows/")) {
             return { exitCode: 0, stdout: "", stderr: "" };
           }
           return { exitCode: 0, stdout: "Test commit\n", stderr: "" };
@@ -1453,9 +1453,9 @@ index 0000000..abc1234
       const originalGetExecOutput = mockExec.getExecOutput;
       mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
         const argList = Array.isArray(args) ? args : [];
-        // Pre-flight git log returns a workflow file path, simulating branch history
-        // that contains .github/workflows/** changes from earlier commits.
-        if (cmd === "git" && argList[0] === "log" && argList.includes("--not") && argList.includes("origin/HEAD")) {
+        // Pre-flight git log targets .github/workflows/ directory — returns a workflow
+        // file path to simulate branch history containing .github/workflows/** changes.
+        if (cmd === "git" && argList[0] === "log" && argList.includes(".github/workflows/")) {
           return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
         }
         // The git push should NOT be reached — pre-flight check fires first
@@ -1489,7 +1489,7 @@ index 0000000..abc1234
       const originalGetExecOutput = mockExec.getExecOutput;
       mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
         const argList = Array.isArray(args) ? args : [];
-        if (cmd === "git" && argList[0] === "log" && argList.includes("--not") && argList.includes("origin/HEAD")) {
+        if (cmd === "git" && argList[0] === "log" && argList.includes(".github/workflows/")) {
           preflightCalled = true;
           return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
         }

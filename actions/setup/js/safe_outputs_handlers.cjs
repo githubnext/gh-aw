@@ -1259,7 +1259,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // before any transport artifacts are generated.
     if (Array.isArray(pushConfig.allowed_files) && pushConfig.allowed_files.length > 0) {
       try {
-        const branchHistoryFiles = execGitSync(["log", "--name-only", "--pretty=format:", `origin/${baseBranch}..${entry.branch}`], { cwd: pushGitCwd })
+        const branchHistoryFiles = execGitSync(["log", "--name-only", "--pretty=format:", `origin/${baseBranch}..${pushPinnedSha ?? entry.branch}`, "--"], { cwd: pushGitCwd })
           .toString()
           .split("\n")
           .map(s => s.trim())
