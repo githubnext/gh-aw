@@ -67,7 +67,8 @@ const MODEL_NOT_SUPPORTED_PATTERN =
 // NOTE: keep in sync with HTTP_400_RESPONSE_ERROR_PATTERN in copilot_harness.cjs.
 // Also matches "400 400 400 no model endpoints available given user constraints" which is emitted
 // by the Copilot SDK when no model endpoints are available for the user's configured constraints.
-const HTTP_400_RESPONSE_ERROR_PATTERN = /Response status code does not indicate success:\s*400(?:\s*\(Bad Request\))?|no model endpoints available given user constraints/i;
+const HTTP_400_RESPONSE_ERROR_PATTERN =
+  /(?:Response status code does not indicate success:\s*400(?:\s*\(Bad Request\))?|no model endpoints available given user constraints)/i;
 
 // Pattern: Copilot/CAPI quota exhaustion and rate-limit responses.
 // Matches all observed forms:
