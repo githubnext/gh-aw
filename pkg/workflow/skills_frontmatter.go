@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var skillsFrontmatterLog = logger.New("workflow:skills_frontmatter")
 
 var skillSpecRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$`)
 var skillSpecExpressionRefRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@\$\{\{.+\}\}$`)
@@ -47,6 +51,8 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 	if !ok {
 		return errors.New("skills must be an array of skill references")
 	}
+
+	skillsFrontmatterLog.Printf("validateFrontmatterSkills: validating %d skill entr(ies)", len(skills))
 
 	for i, rawSkill := range skills {
 		switch typed := rawSkill.(type) {
@@ -124,6 +130,7 @@ func isRepositorySkillSpec(skillSpec string) bool {
 }
 
 func parseRawSkillReferences(rawSkills []any) []SkillReference {
+	skillsFrontmatterLog.Printf("parseRawSkillReferences: parsing %d raw skill entr(ies)", len(rawSkills))
 	refs := make([]SkillReference, 0, len(rawSkills))
 	for _, rawSkill := range rawSkills {
 		switch typed := rawSkill.(type) {
@@ -151,5 +158,6 @@ func parseRawSkillReferences(rawSkills []any) []SkillReference {
 	if len(refs) == 0 {
 		return nil
 	}
+	skillsFrontmatterLog.Printf("parseRawSkillReferences: parsed %d skill reference(s)", len(refs))
 	return refs
 }
