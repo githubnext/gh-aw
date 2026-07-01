@@ -9,12 +9,13 @@ import (
 var githubAppCodemodLog = logger.New("cli:codemod_github_app")
 
 // getGitHubAppCodemod creates a codemod for renaming 'app:' to 'github-app:' in workflow frontmatter.
-// The 'app:' field under tools.github, safe-outputs, and checkout is deprecated in favour of 'github-app:'.
+// The deprecated 'app:' field can appear at the top level and under tools.github,
+// safe-outputs, and checkout.
 func getGitHubAppCodemod() Codemod {
 	return Codemod{
 		ID:           "app-to-github-app",
 		Name:         "Rename 'app' to 'github-app'",
-		Description:  "Renames the deprecated 'app:' field to 'github-app:' in tools.github, safe-outputs, and checkout configurations.",
+		Description:  "Renames the deprecated 'app:' field to 'github-app:' at the top level and in tools.github, safe-outputs, and checkout configurations.",
 		IntroducedIn: "0.15.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			if !hasDeprecatedAppField(frontmatter) {
@@ -29,8 +30,15 @@ func getGitHubAppCodemod() Codemod {
 	}
 }
 
-// hasDeprecatedAppField returns true if any of the target sections contain a deprecated 'app:' field.
+// hasDeprecatedAppField returns true if the deprecated 'app:' field is present at the
+// top level or in one of the supported nested sections.
 func hasDeprecatedAppField(frontmatter map[string]any) bool {
+	// Check top-level app
+	if _, hasApp := frontmatter["app"]; hasApp {
+		githubAppCodemodLog.Print("Deprecated 'app' field found at top level")
+		return true
+	}
+
 	// Check tools.github.app
 	if toolsAny, hasTools := frontmatter["tools"]; hasTools {
 		if toolsMap, ok := toolsAny.(map[string]any); ok {
@@ -78,7 +86,8 @@ func hasDeprecatedAppField(frontmatter map[string]any) bool {
 	return false
 }
 
-// renameAppToGitHubApp renames 'app:' to 'github-app:' within tools.github, safe-outputs, and checkout blocks.
+// renameAppToGitHubApp renames top-level 'app:' keys and nested 'app:' keys within
+// tools.github, safe-outputs, and checkout blocks.
 func renameAppToGitHubApp(lines []string) ([]string, bool) {
 	var result []string
 	modified := false
@@ -143,7 +152,18 @@ func renameAppToGitHubApp(lines []string) ([]string, bool) {
 			continue
 		}
 
-		// Rename 'app:' to 'github-app:' when inside a target block
+		// Rename a top-level 'app:' key.
+		if strings.HasPrefix(trimmed, "app:") && isTopLevelKey(line) {
+			newLine, replaced := findAndReplaceInLine(line, "app", "github-app")
+			if replaced {
+				result = append(result, newLine)
+				modified = true
+				githubAppCodemodLog.Printf("Renamed top-level 'app' to 'github-app' on line %d", i+1)
+				continue
+			}
+		}
+
+		// Rename nested 'app:' keys when inside a target block
 		if strings.HasPrefix(trimmed, "app:") {
 			lineIndent := getIndentation(line)
 			shouldRename := false
