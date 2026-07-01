@@ -557,6 +557,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddBoolPtr("fallback_as_pull_request", c.FallbackAsPullRequest).
 			AddBoolPtr("signed_commits", c.SignedCommits).
 			AddBoolPtr("check_branch_protection", c.CheckBranchProtection).
+			AddIfTrue("allow_workflows", c.AllowWorkflows).
 			Build()
 	},
 	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {

@@ -16,15 +16,15 @@ import (
 // tool validation (WithSkipValidation(true)).
 
 func setupGHCommand(ctx context.Context, args ...string) *exec.Cmd {
-	return exec.Command("echo", "gh CLI not available in Wasm")
+	return ghUnavailableCommand(ctx)
 }
 
 func ExecGH(args ...string) *exec.Cmd {
-	return exec.Command("echo", "gh CLI not available in Wasm")
+	return ghUnavailableCommand(context.Background())
 }
 
 func ExecGHContext(ctx context.Context, args ...string) *exec.Cmd {
-	return exec.Command("echo", "gh CLI not available in Wasm")
+	return ghUnavailableCommand(ctx)
 }
 
 func ExecGHWithOutput(args ...string) (stdout, stderr bytes.Buffer, err error) {
@@ -41,6 +41,13 @@ func RunGHContext(ctx context.Context, spinnerMessage string, args ...string) ([
 
 func RunGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
 	return nil, errors.New("gh CLI not available in Wasm")
+}
+
+func ghUnavailableCommand(ctx context.Context) *exec.Cmd {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return exec.CommandContext(ctx, "echo", "gh CLI not available in Wasm")
 }
 
 func ForceGHHostEnv(cmd *exec.Cmd, host string) {
