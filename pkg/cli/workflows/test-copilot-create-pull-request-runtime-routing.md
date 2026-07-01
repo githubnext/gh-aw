@@ -27,9 +27,9 @@ Please:
 1. Create a new file called `test-runtime-routing-demo.txt` with a simple message
 2. Create a pull request with your changes
 3. Confirm the created pull request automatically has:
-   - The triggering actor assigned as a reviewer
-   - The workflow input team assigned as a team reviewer
-   - The triggering actor assigned as an assignee
+   - The triggering actor assigned as a reviewer (check the Reviewers section in the GitHub PR sidebar)
+   - The workflow input team assigned as a team reviewer (check the Reviewers section in the GitHub PR sidebar)
+   - The triggering actor assigned as an assignee (check the Assignees section in the GitHub PR sidebar)
    - The title prefix "[TEST-RUNTIME-ROUTING]"
    - Draft status: true
 
