@@ -176,7 +176,12 @@ func stableHash(s string, modulo int) int {
 		scheduleFuzzyScatterLog.Printf("Warning: hash write failed: %v", err)
 		return 0
 	}
-	return int(h.Sum32() % uint32(modulo))
+	if modulo <= 0 {
+		return 0
+	}
+	// Use int64 arithmetic to avoid truncation when modulo exceeds math.MaxUint32
+	// on 64-bit platforms where int is 64 bits wide.
+	return int(int64(h.Sum32()) % int64(modulo))
 }
 
 // ScatterSchedule takes a fuzzy cron expression and a workflow identifier
