@@ -4,10 +4,10 @@
 
 Renamed the deprecated `app:` workflow field to `github-app:` and added the codemod plus schema/Go updates to keep tooling in sync.
 
-**⚠️ Breaking Change**: The `app:` workflow field has been renamed to `github-app:`. Workflows using `app:` will fail validation.
+**⚠️ Breaking Change**: The `app:` workflow field has been renamed to `github-app:`. Workflows using top-level `app:` or nested `app:` auth blocks will fail validation.
 
 **Migration guide:**
-- Replace `app:` with `github-app:` in your workflow frontmatter
+- Replace `app:` with `github-app:` everywhere in your workflow frontmatter, including the top-level fallback and nested auth blocks
 - Example:
   ```yaml
   # Before

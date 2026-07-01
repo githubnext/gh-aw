@@ -116,6 +116,31 @@ checkout:
 		assert.False(t, hasDeprecatedAppFieldInContent(result), "Should not contain old app field")
 	})
 
+	t.Run("renames top-level app to github-app", func(t *testing.T) {
+		content := `---
+engine: copilot
+app:
+  app-id: ${{ vars.APP_ID }}
+  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+
+# Test Workflow
+`
+		frontmatter := map[string]any{
+			"engine": "copilot",
+			"app": map[string]any{
+				"app-id":      "${{ vars.APP_ID }}",
+				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+		}
+
+		result, modified, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "Should not error when applying codemod")
+		assert.True(t, modified, "Should modify content")
+		assert.Contains(t, result, "github-app:", "Should contain github-app field")
+		assert.False(t, hasDeprecatedAppFieldInContent(result), "Should not contain old app field")
+	})
+
 	t.Run("does not modify workflows without app field", func(t *testing.T) {
 		content := `---
 engine: copilot
@@ -309,5 +334,56 @@ tools:
 		assert.True(t, modified, "Should modify content")
 		assert.Contains(t, result, "# GitHub App for token minting", "Should preserve comment")
 		assert.Contains(t, result, "github-app:  # Use a GitHub App", "Should preserve inline comment")
+	})
+
+	t.Run("renames top-level app and nested app in the same document", func(t *testing.T) {
+		content := `---
+engine: copilot
+app:
+  app-id: ${{ vars.APP_ID }}
+  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+tools:
+  github:
+    mode: remote
+    app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+safe-outputs:
+  app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+
+# Test Workflow
+`
+		frontmatter := map[string]any{
+			"engine": "copilot",
+			"app": map[string]any{
+				"app-id":      "${{ vars.APP_ID }}",
+				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+			"tools": map[string]any{
+				"github": map[string]any{
+					"mode": "remote",
+					"app": map[string]any{
+						"app-id":      "${{ vars.APP_ID }}",
+						"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+			"safe-outputs": map[string]any{
+				"app": map[string]any{
+					"app-id":      "${{ vars.APP_ID }}",
+					"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+			},
+		}
+
+		result, modified, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "Should not error when applying codemod")
+		assert.True(t, modified, "Should modify content")
+		assert.False(t, hasDeprecatedAppFieldInContent(result), "Should not contain any old app fields")
+		// Expect all three app: occurrences replaced with github-app:
+		assert.Equal(t, 3, strings.Count(result, "github-app:"), "Should have three github-app: occurrences")
 	})
 }
