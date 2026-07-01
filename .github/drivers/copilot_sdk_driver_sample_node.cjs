@@ -43,6 +43,14 @@ function extractAssistantContent(message) {
   return "";
 }
 
+function isValidProviderConfig(p) {
+  return p && typeof p.name === "string" && typeof p.type === "string" && typeof p.baseUrl === "string";
+}
+
+function isValidModelConfig(m) {
+  return m && typeof m.id === "string" && typeof m.provider === "string";
+}
+
 function parseMultiProviderJson(raw) {
   if (!raw) return null;
   try {
@@ -50,6 +58,9 @@ function parseMultiProviderJson(raw) {
     if (!parsed || typeof parsed !== "object") return null;
     if (!Array.isArray(parsed.providers) || parsed.providers.length < 1) return null;
     if (!Array.isArray(parsed.models) || parsed.models.length < 1) return null;
+    // Validate minimal shape: providers must have name/type/baseUrl, models must have id/provider
+    if (!parsed.providers.every(isValidProviderConfig)) return null;
+    if (!parsed.models.every(isValidModelConfig)) return null;
     const model = typeof parsed.model === "string" ? parsed.model.trim() : "";
     return { model, providers: parsed.providers, models: parsed.models };
   } catch {
@@ -114,4 +125,6 @@ if (require.main === module) {
 module.exports = {
   buildSessionConfig,
   parseMultiProviderJson,
+  isValidProviderConfig,
+  isValidModelConfig,
 };
