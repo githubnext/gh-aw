@@ -1125,10 +1125,8 @@ async function main(config = {}) {
           // even if the current changeset itself does not touch workflow files.
           // Failing here avoids leaving the local branch in a renamed state after
           // a rejected push, and surfaces the error before any side effects.
-          {
-            const preflightError = await runWorkflowScopePreflightCheck(exec, baseGitOpts, allowWorkflows, pullRequest?.base?.ref, "Review branch", core);
-            if (preflightError) return preflightError;
-          }
+          const preflightError = await runWorkflowScopePreflightCheck(exec, baseGitOpts, allowWorkflows, pullRequest?.base?.ref, "Review branch", core);
+          if (preflightError) return preflightError;
 
           // Rename current local branch to review branch
           await exec.exec("git", ["checkout", "-b", reviewBranchName], baseGitOpts);
@@ -1302,10 +1300,8 @@ async function main(config = {}) {
             // Pre-flight: check full branch history for workflow file changes.
             // Like the review branch path, creating a new fallback branch ref triggers
             // GitHub's scope check on the full commit history, not just the new commits.
-            {
-              const preflightError = await runWorkflowScopePreflightCheck(exec, baseGitOpts, allowWorkflows, pullRequest?.base?.ref, "Fallback branch", core);
-              if (preflightError) return preflightError;
-            }
+            const preflightError = await runWorkflowScopePreflightCheck(exec, baseGitOpts, allowWorkflows, pullRequest?.base?.ref, "Fallback branch", core);
+            if (preflightError) return preflightError;
 
             await exec.exec("git", ["checkout", "-b", fallbackBranchName], baseGitOpts);
             // Use getExecOutput to capture stderr for 'workflows' scope diagnostics

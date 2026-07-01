@@ -1301,7 +1301,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
               };
             }
           }
-        } // end else (pushPinnedSha available)
+        }
       } catch (fullBranchCheckError) {
         // Non-fatal: if origin/baseBranch is not available locally or git fails,
         // skip the full-branch check and continue.  The apply-time policy check in
