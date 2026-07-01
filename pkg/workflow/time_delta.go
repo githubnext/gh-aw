@@ -134,7 +134,7 @@ func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, 
 			delta.Hours = value
 		case "m":
 			if !allowMinutes {
-				return nil, fmt.Errorf("minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +%dh instead of +%dm. Example: +2h", (value+59)/60, value)
+				return nil, fmt.Errorf("minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +%dh instead of +%dm. Example: +90m -> +2h", (value+59)/60, value)
 			}
 			delta.Minutes = value
 		default:
