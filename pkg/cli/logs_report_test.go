@@ -59,20 +59,24 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 		},
 		MissingTools: []MissingToolSummary{
 			{
-				Tool:               "terraform",
-				Count:              5,
-				Workflows:          []string{"workflow-a", "workflow-b", "workflow-c"},
-				WorkflowsDisplay:   "workflow-a, workflow-b, workflow-c",
-				FirstReason:        "Infrastructure automation needed",
-				FirstReasonDisplay: "Infrastructure automation needed",
+				Tool: "terraform",
+				AggregatedSummaryBase: AggregatedSummaryBase{
+					Count:              5,
+					Workflows:          []string{"workflow-a", "workflow-b", "workflow-c"},
+					WorkflowsDisplay:   "workflow-a, workflow-b, workflow-c",
+					FirstReason:        "Infrastructure automation needed",
+					FirstReasonDisplay: "Infrastructure automation needed",
+				},
 			},
 			{
-				Tool:               "kubectl",
-				Count:              3,
-				Workflows:          []string{"k8s-deploy"},
-				WorkflowsDisplay:   "k8s-deploy",
-				FirstReason:        "K8s management required",
-				FirstReasonDisplay: "K8s management required",
+				Tool: "kubectl",
+				AggregatedSummaryBase: AggregatedSummaryBase{
+					Count:              3,
+					Workflows:          []string{"k8s-deploy"},
+					WorkflowsDisplay:   "k8s-deploy",
+					FirstReason:        "K8s management required",
+					FirstReasonDisplay: "K8s management required",
+				},
 			},
 		},
 		MCPFailures: []MCPFailureSummary{
@@ -443,11 +447,13 @@ func TestAggregateSummaryItems(t *testing.T) {
 		},
 		func(tool MissingToolReport) *MissingToolSummary {
 			return &MissingToolSummary{
-				Tool:        tool.Tool,
-				Count:       1,
-				Workflows:   []string{tool.WorkflowName},
-				FirstReason: tool.Reason,
-				RunIDs:      []int64{tool.RunID},
+				Tool: tool.Tool,
+				AggregatedSummaryBase: AggregatedSummaryBase{
+					Count:       1,
+					Workflows:   []string{tool.WorkflowName},
+					FirstReason: tool.Reason,
+					RunIDs:      []int64{tool.RunID},
+				},
 			}
 		},
 		func(summary *MissingToolSummary, tool MissingToolReport) {

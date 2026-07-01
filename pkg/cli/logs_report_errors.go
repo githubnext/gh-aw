@@ -77,11 +77,13 @@ func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary
 		// createSummary: create new summary for first occurrence
 		func(tool MissingToolReport) *MissingToolSummary {
 			return &MissingToolSummary{
-				Tool:        tool.Tool,
-				Count:       1,
-				Workflows:   []string{tool.WorkflowName},
-				FirstReason: tool.Reason,
-				RunIDs:      []int64{tool.RunID},
+				Tool: tool.Tool,
+				AggregatedSummaryBase: AggregatedSummaryBase{
+					Count:       1,
+					Workflows:   []string{tool.WorkflowName},
+					FirstReason: tool.Reason,
+					RunIDs:      []int64{tool.RunID},
+				},
 			}
 		},
 		// updateSummary: update existing summary with new occurrence
@@ -121,11 +123,13 @@ func buildMissingDataSummary(processedRuns []ProcessedRun) []MissingDataSummary 
 		// createSummary: create new summary for first occurrence
 		func(data MissingDataReport) *MissingDataSummary {
 			return &MissingDataSummary{
-				DataType:    data.DataType,
-				Count:       1,
-				Workflows:   []string{data.WorkflowName},
-				FirstReason: data.Reason,
-				RunIDs:      []int64{data.RunID},
+				DataType: data.DataType,
+				AggregatedSummaryBase: AggregatedSummaryBase{
+					Count:       1,
+					Workflows:   []string{data.WorkflowName},
+					FirstReason: data.Reason,
+					RunIDs:      []int64{data.RunID},
+				},
 			}
 		},
 		// updateSummary: update existing summary with new occurrence

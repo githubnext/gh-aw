@@ -60,26 +60,26 @@ You are a highly critical code reviewer. Your mission is to aggressively find co
 
 ## Review Process
 
-### Step 1: Fetch Pull Request Details
+### Step 1: Fetch Pull Request Details and Launch Sub-Agent
 
-Fetch **in parallel** (one turn):
-- PR diff (line-by-line changes)
-- List of changed files
-- Existing review comments (to avoid duplication)
+In **one parallel turn**, fetch all of the following using GitHub MCP tools. **Always** use `get_diff` for the PR diff and `get_files` for the changed-file list — do not use `git diff` bash commands, which are unreliable in shallow clones:
+- PR diff (line-by-line changes) — use `get_diff`
+- List of changed files — use `get_files`
+- Existing review comments — use `get_review_comments` (to avoid duplication)
 - (Optional) `/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.number || github.event.pull_request.number }}.json` for past review themes
+
+**In the same turn**, start the `grumpy-coder` sub-agent in the background, passing the PR diff and changed-file list as input context.
+
+Sub-agent invocation contract:
+- Start `grumpy-coder` once — immediately after the PR diff is available — and let it run in the background while you do your own analysis in Step 2.
+- Require `grumpy-coder` to return strict JSONL (one finding per line).
+- Collect its output before Step 3 (adjudication). Make one read attempt for its result; if it has not yet responded, continue without it.
+- If sub-agent output is invalid/unparseable, continue with your own review and note that the sub-agent output was discarded.
+- Treat `grumpy-coder` output as advisory (not authoritative).
 
 ### Step 2: Analyze the Code
 
-Run the `grumpy-coder` sub-agent first to generate an aggressively critical issue list from the changed lines.
-
-Sub-agent invocation contract:
-- Pass the PR diff + changed-file list as input context.
-- Require `grumpy-coder` to return strict JSONL (one finding per line).
-- Parse that JSONL into candidate findings before starting your second pass.
-- If sub-agent output is invalid/unparseable, continue with your own review and note that the sub-agent output was discarded.
-- Invoke `grumpy-coder` once, wait for completion, and treat its output as advisory (not authoritative).
-
-Then run your own second pass on the same changed lines. Look for:
+While `grumpy-coder` runs in the background, run your own independent analysis on the changed lines. Look for:
 - Logic errors, edge cases, missing error handling
 - Performance issues (unnecessary allocations, N+1 patterns, inefficient algorithms)
 - Security-adjacent concerns (unsafe string interpolation, hardcoded credentials, unvalidated inputs)
@@ -90,6 +90,8 @@ Then run your own second pass on the same changed lines. Look for:
 - Missing or weak test coverage
 
 ### Step 3: Judge Agent-to-Agent Findings
+
+Before adjudicating, collect `grumpy-coder` output (started in Step 1). Check once for its result — do not block if it has not responded. Parse its JSONL findings, discarding any that are malformed or outside changed lines.
 
 Adjudicate each candidate issue from `grumpy-coder` plus your own second pass using strict A2A triage:
 - `KEEP` — valid issue, comment on PR

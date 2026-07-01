@@ -13,11 +13,10 @@ Serena is an **LSP MCP server** for semantic code analysis. Use ONLY when you ne
 
 **Don't use Serena for:**
 - Text patterns → `grep`
-- File edits → `edit` tool
+- File edits / YAML/JSON/Markdown → `edit` tool
 - Commands → `bash`
-- YAML/JSON/Markdown → `edit` tool
 
-If `grep` or `bash` can solve it in 1-2 commands, don't use Serena.
+If `grep` or `bash` solves it in 1-2 commands, don't use Serena.
 
 ## Configuration
 
@@ -59,7 +58,7 @@ imports:
 
 ### 1. Activate Serena First
 
-Call `activate_project` before any other Serena tool, passing the workspace path.
+Call `activate_project` (passing the workspace path) before any other Serena tool.
 
 ### 2. Combine with Other Tools
 
@@ -90,10 +89,7 @@ cache-memory: true  # Store analysis history
 
 ## Common Pitfalls
 
-❌ **Using Serena for non-code files** - Use `edit` for YAML/JSON/Markdown
-❌ **Forgetting activate_project** - Always call first
-❌ **Not combining with bash** - Use bash for file discovery
-❌ **Missing language configuration** - Must specify language(s)
+❌ Serena on non-code files (use `edit`) ❌ Forgetting `activate_project` first ❌ Not using bash for file discovery ❌ Missing `languages` config
 
 ## Supported Languages
 

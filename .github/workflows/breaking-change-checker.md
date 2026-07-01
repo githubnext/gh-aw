@@ -12,6 +12,24 @@ permissions:
 engine:
   id: copilot
   copilot-sdk: true
+experiments:
+  tone_variant:
+    variants: [neutral, urgent]
+    description: "Measure whether a more urgent compatibility-reporting tone improves issue triage engagement versus a neutral engineering tone."
+    hypothesis: "H0: no change in issue_engagement_rate. H1: urgent increases issue_engagement_rate by >=7 percentage points without degrading run_success_rate."
+    metric: issue_engagement_rate
+    secondary_metrics: [issue_comment_count_72h, time_to_first_assignee_action_hours]
+    guardrail_metrics:
+      - name: run_success_rate
+        direction: min
+        threshold: 0.9
+      - name: empty_output_rate
+        direction: min
+        threshold: 0.0
+    min_samples: 194
+    weight: [50, 50]
+    start_date: "2026-06-30"
+    issue: 42467
 tracker-id: breaking-change-checker
 sandbox:
   agent:
@@ -162,7 +180,13 @@ Do NOT create an issue if there are no breaking changes.
 
 ### If Breaking Changes Found
 
-Create an issue with the following structure:
+Create an issue with the following structure.
+
+{{#if experiments.tone_variant == 'urgent' }}
+Use an urgent but evidence-based tone. Use phrases like "high compatibility risk", "immediate maintainer action recommended", and "user-facing impact likely" when supported by evidence. Emphasize user impact, compatibility risk, and the need for immediate maintainer review while keeping all claims tied to observed code changes.
+{{else}}
+Use a neutral engineering tone. Prefer phrasing like "potential compatibility concern", "review recommended", and "migration guidance provided". Emphasize factual compatibility analysis, concrete evidence, and migration guidance without urgency-heavy wording.
+{{/if}}
 
 **Title**: Daily Breaking Change Analysis - [DATE]
 
@@ -174,7 +198,11 @@ Create an issue with the following structure:
 - **Total Breaking Changes**: [NUMBER]
 - **Severity**: [CRITICAL/HIGH/MEDIUM]
 - **Commits Analyzed**: [NUMBER]
+{{#if experiments.tone_variant == 'urgent' }}
 - **Status**: ⚠️ Requires Immediate Review
+{{else}}
+- **Status**: Review Recommended
+{{/if}}
 
 ### Critical Breaking Changes
 
@@ -216,7 +244,11 @@ Complete the following items to address these breaking changes:
 
 ### Recommendations
 
+{{#if experiments.tone_variant == 'urgent' }}
+[Prioritized migration steps, version bump guidance, explicit owner action items, and a short statement of end-user risk.]
+{{else}}
 [Migration steps, version bump guidance, and action items - always visible]
+{{/if}}
 
 ### Reference
 
