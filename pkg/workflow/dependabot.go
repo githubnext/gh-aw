@@ -334,6 +334,13 @@ func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, skillR
 		pkgJSON.Dependencies[dep.Name] = dep.Version
 	}
 
+	if pkgJSON.DevDependencies == nil {
+		pkgJSON.DevDependencies = make(map[string]string)
+	}
+	if _, exists := pkgJSON.DevDependencies["copilot"]; !exists {
+		pkgJSON.DevDependencies["copilot"] = "latest"
+	}
+
 	if len(skillRepos) > 0 {
 		if pkgJSON.SkillRepos == nil {
 			pkgJSON.SkillRepos = make(map[string]string)
