@@ -117,6 +117,7 @@ async function main() {
   // This filters out non-tool config entries like dispatch_workflow, call_workflow,
   // mentions, max_bot_mentions, etc.
   const enabledToolNames = new Set(Object.keys(config).filter(k => sourceToolNames.has(k)));
+  const runtimeFeatures = (process.env.GH_AW_RUNTIME_FEATURES || "").split(",");
 
   // Filter predefined tools to those enabled in config and apply enhancements
   const filteredTools = allTools
@@ -130,7 +131,6 @@ async function main() {
       if (descSuffix) {
         enhancedTool.description = (enhancedTool.description || "") + descSuffix;
       }
-      const runtimeFeatures = (process.env.GH_AW_RUNTIME_FEATURES || "").split(",");
       if (runtimeFeatures.includes("issue_intents") && ["set_issue_type", "set_issue_field", "add_labels"].includes(tool.name)) {
         enhancedTool.description += " INTENT: Include rationale (max 280 chars) and confidence (LOW/MEDIUM/HIGH) with each call.";
       }
