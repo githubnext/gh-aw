@@ -59,16 +59,16 @@ export const requireParseIntRadixRule = createRule({
 
     /**
      * Returns true when the second argument is a radix value that is safe (not equivalent to "no radix").
-     * radix 0 and the identifier `undefined` both behave identically to omitting the radix entirely, so
-     * they are treated as invalid. Any other value — including non-literal identifiers — is accepted.
+     * Literal 0/null and the global identifiers `undefined`/`NaN` all coerce to 0, so they are treated as
+     * invalid. Any other value — including non-literal or locally shadowed identifiers — is accepted.
      */
     function isValidSecondArg(arg: TSESTree.CallExpressionArgument): boolean {
-      // Literal 0 is spec-equivalent to no radix
-      if (arg.type === "Literal" && arg.value === 0) {
+      // Literal 0/null are spec-equivalent to no radix
+      if (arg.type === "Literal" && (arg.value === 0 || arg.value === null)) {
         return false;
       }
-      // The identifier `undefined` is equivalent to no radix
-      if (arg.type === "Identifier" && arg.name === "undefined") {
+      // The global identifiers `undefined`/`NaN` are equivalent to no radix
+      if (arg.type === "Identifier" && (arg.name === "undefined" || arg.name === "NaN") && !hasLocalBinding(arg, arg.name)) {
         return false;
       }
       return true;
@@ -83,17 +83,27 @@ export const requireParseIntRadixRule = createRule({
         // Do not offer a fix when the first argument is a spread (e.g. parseInt(...args)):
         // inserting ", 10" after a SpreadElement produces broken output.
         const firstArg = node.arguments[0];
+        const secondArg = node.arguments[1];
         const suggest =
-          node.arguments.length === 1 && firstArg.type !== "SpreadElement"
+          secondArg && !isValidSecondArg(secondArg)
             ? [
                 {
                   messageId: "addRadix10" as const,
                   fix(fixer: TSESLint.RuleFixer) {
-                    return fixer.insertTextAfter(firstArg, ", 10");
+                    return fixer.replaceText(secondArg, "10");
                   },
                 },
               ]
-            : undefined;
+            : node.arguments.length === 1 && firstArg.type !== "SpreadElement"
+              ? [
+                  {
+                    messageId: "addRadix10" as const,
+                    fix(fixer: TSESLint.RuleFixer) {
+                      return fixer.insertTextAfter(firstArg, ", 10");
+                    },
+                  },
+                ]
+              : undefined;
 
         // Report only the global parseInt binding. Aliased (const p = parseInt; p(x))
         // and destructured (const { parseInt } = Number; parseInt(x)) bindings are
