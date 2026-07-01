@@ -310,6 +310,7 @@ jobs:
 			yaml.WriteString("        with:\n")
 			yaml.WriteString("          sparse-checkout: |\n")
 			yaml.WriteString("            actions\n")
+			yaml.WriteString("          clean: false\n")
 			yaml.WriteString("          persist-credentials: false\n\n")
 		}
 
@@ -378,6 +379,7 @@ jobs:
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          sparse-checkout: |\n")
 		yaml.WriteString("            actions\n")
+		yaml.WriteString("          clean: false\n")
 		yaml.WriteString("          persist-credentials: false\n\n")
 	}
 

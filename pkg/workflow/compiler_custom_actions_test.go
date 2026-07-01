@@ -367,6 +367,17 @@ func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
 	}
 }
 
+// TestRestoreActionsSetupStepHasCleanFalse verifies that the Restore actions folder
+// step includes clean: false to avoid the workspace wipe that would break post-step
+// git commands (e.g. fatal: --local can only be used inside a git repository).
+func TestRestoreActionsSetupStepHasCleanFalse(t *testing.T) {
+	compiler := NewCompiler(WithVersion("v1.0.0"))
+	step := compiler.generateRestoreActionsSetupStep()
+	if !strings.Contains(step, "clean: false") {
+		t.Error("Restore actions folder step should include 'clean: false' to avoid workspace cleanup removing .git")
+	}
+}
+
 // TestCheckoutActionsFolderDevModeAlwaysEmitsCheckout verifies that dev mode always
 // emits the checkout step regardless of the compiler version, using a runtime macro
 // for the ref instead of a compile-time SHA.
