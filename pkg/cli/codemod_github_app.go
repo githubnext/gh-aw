@@ -153,7 +153,7 @@ func renameAppToGitHubApp(lines []string) ([]string, bool) {
 		}
 
 		// Rename a top-level 'app:' key.
-		if strings.HasPrefix(trimmed, "app:") && getIndentation(line) == "" {
+		if strings.HasPrefix(trimmed, "app:") && isTopLevelKey(line) {
 			newLine, replaced := findAndReplaceInLine(line, "app", "github-app")
 			if replaced {
 				result = append(result, newLine)
