@@ -38,6 +38,7 @@ func TestBuildActivationJob_AddsFrontmatterSkillsInstallSteps(t *testing.T) {
 	assert.Contains(t, steps, "ensure_gh_cli_min_version.sh", "expected gh upgrade step to delegate to ensure_gh_cli_min_version.sh")
 	assert.Contains(t, steps, "Install frontmatter skill 1", "expected first frontmatter skill install step in activation job")
 	assert.Contains(t, steps, "Install frontmatter skill 2", "expected second frontmatter skill install step in activation job")
+	assert.Contains(t, steps, "GH_AW_INFO_ENGINE_ID: \"claude\"", "expected engine id env var for gh skill agent mapping")
 	assert.Contains(t, steps, "GH_AW_SKILL_DIR: \".claude/skills\"", "expected engine skill directory env var")
 	assert.Contains(t, steps, "GH_AW_FRONTMATTER_SKILLS: \"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6\"", "expected first skill env var")
 	assert.Contains(t, steps, "GH_AW_FRONTMATTER_SKILLS: \"githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6\"", "expected second skill env var")
@@ -80,6 +81,7 @@ func TestBuildActivationJob_AddsPerSkillAuthSteps(t *testing.T) {
 
 	steps := strings.Join(job.Steps, "")
 	assert.Contains(t, steps, "GH_TOKEN: ${{ secrets.SKILL_PAT }}", "expected first skill install step to use per-skill github-token")
+	assert.Contains(t, steps, "GH_AW_INFO_ENGINE_ID: \"copilot\"", "expected AI fallback engine id env var for gh skill agent mapping")
 	assert.Contains(t, steps, "Generate GitHub App token for frontmatter skill 2", "expected app token mint step for second skill")
 	assert.Contains(t, steps, "id: frontmatter-skill-app-token-2", "expected deterministic app token step id")
 	assert.Contains(t, steps, "GH_TOKEN: ${{ steps.frontmatter-skill-app-token-2.outputs.token }}", "expected second skill install step to use minted app token")

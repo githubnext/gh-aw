@@ -20,35 +20,59 @@ function parseSkillSpecs(rawSkills) {
  */
 
 /**
+ * @param {string} engineID
+ * @returns {string}
+ */
+function getSkillInstallAgent(engineID) {
+  switch ((engineID || "").trim().toLowerCase()) {
+    case "copilot":
+      return "github-copilot";
+    case "claude":
+      return "claude-code";
+    case "gemini":
+      return "gemini-cli";
+    case "codex":
+    case "antigravity":
+    case "opencode":
+    case "pi":
+      return (engineID || "").trim().toLowerCase();
+    default:
+      return "";
+  }
+}
+
+/**
  * @param {string} skillSpec
  * @param {string} skillsDst
+ * @param {string} skillInstallAgent
  * @returns {SkillInstallCommand}
  */
-function buildSkillInstallCommand(skillSpec, skillsDst) {
+function buildSkillInstallCommand(skillSpec, skillsDst, skillInstallAgent = "") {
   const atIndex = skillSpec.lastIndexOf("@");
   const hasPin = atIndex >= 0;
   const skillBase = hasPin ? skillSpec.slice(0, atIndex) : skillSpec;
   const skillRef = hasPin ? skillSpec.slice(atIndex + 1) : "";
   const parts = skillBase.split("/");
   const pinArgs = skillRef ? ["--pin", skillRef] : [];
+  const agentArgs = skillInstallAgent ? ["--agent", skillInstallAgent] : [];
 
   if (parts.length >= 3) {
     return {
       displaySpec: skillSpec,
-      args: ["skill", "install", `${parts[0]}/${parts[1]}`, parts.slice(2).join("/"), ...pinArgs, "--dir", skillsDst, "--force"],
+      args: ["skill", "install", `${parts[0]}/${parts[1]}`, parts.slice(2).join("/"), ...pinArgs, ...agentArgs, "--dir", skillsDst, "--force"],
     };
   }
 
   if (parts.length === 2) {
     return {
       displaySpec: skillSpec,
-      args: ["skill", "install", skillBase, "--all", ...pinArgs, "--dir", skillsDst, "--force"],
+      args: ["skill", "install", skillBase, "--all", ...pinArgs, ...agentArgs, "--dir", skillsDst, "--force"],
     };
   }
 
   return {
     displaySpec: skillSpec,
-    args: ["skill", "install", skillSpec, "--dir", skillsDst, "--force"],
+    args: ["skill", "install", skillSpec, ...agentArgs, "--dir", skillsDst, "--force"],
   };
 }
 
@@ -139,12 +163,17 @@ async function writeSkillSummary(skillDir, skills, installedSkillCount, failures
 
 async function main() {
   const skillDir = process.env.GH_AW_SKILL_DIR || "";
+  const engineID = process.env.GH_AW_INFO_ENGINE_ID || "";
+  const skillInstallAgent = getSkillInstallAgent(engineID);
   const skills = parseSkillSpecs(process.env.GH_AW_FRONTMATTER_SKILLS || "");
   const skillsDst = path.join("/tmp/gh-aw", skillDir);
 
   fs.mkdirSync(skillsDst, { recursive: true });
 
   core.info(`Installing frontmatter skills to ${skillsDst}`);
+  if (skillInstallAgent) {
+    core.info(`Installing frontmatter skills for gh skill agent ${skillInstallAgent}`);
+  }
   core.info("Existing skills at destination may be replaced (--force) to ensure pinned refs are up to date");
 
   /** @type {Array<{skill: string; error: string}>} */
@@ -152,7 +181,7 @@ async function main() {
 
   for (const skillSpec of skills) {
     core.info(`Installing skill reference: ${skillSpec}`);
-    const command = buildSkillInstallCommand(skillSpec, skillsDst);
+    const command = buildSkillInstallCommand(skillSpec, skillsDst, skillInstallAgent);
     try {
       await exec.exec("gh", command.args);
     } catch (err) {
@@ -171,4 +200,4 @@ async function main() {
   await writeSkillSummary(skillDir, skills, installedSkillCount, failures);
 }
 
-module.exports = { main, parseSkillSpecs, buildSkillInstallCommand, countInstalledSkillFiles, appendSkillInstallFailure };
+module.exports = { main, parseSkillSpecs, getSkillInstallAgent, buildSkillInstallCommand, countInstalledSkillFiles, appendSkillInstallFailure };

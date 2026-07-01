@@ -16,6 +16,7 @@ describe("install_frontmatter_skills", () => {
   beforeEach(() => {
     originalEnv = {
       GH_AW_SKILL_DIR: process.env.GH_AW_SKILL_DIR,
+      GH_AW_INFO_ENGINE_ID: process.env.GH_AW_INFO_ENGINE_ID,
       GH_AW_FRONTMATTER_SKILLS: process.env.GH_AW_FRONTMATTER_SKILLS,
     };
     originalCore = global.core;
@@ -41,6 +42,11 @@ describe("install_frontmatter_skills", () => {
     } else {
       process.env.GH_AW_SKILL_DIR = originalEnv.GH_AW_SKILL_DIR;
     }
+    if (originalEnv.GH_AW_INFO_ENGINE_ID === undefined) {
+      delete process.env.GH_AW_INFO_ENGINE_ID;
+    } else {
+      process.env.GH_AW_INFO_ENGINE_ID = originalEnv.GH_AW_INFO_ENGINE_ID;
+    }
     if (originalEnv.GH_AW_FRONTMATTER_SKILLS === undefined) {
       delete process.env.GH_AW_FRONTMATTER_SKILLS;
     } else {
@@ -54,7 +60,19 @@ describe("install_frontmatter_skills", () => {
   });
 
   it("splits repo-level and path-level skill specs into gh skill install arguments", () => {
-    expect(script.buildSkillInstallCommand("githubnext/skills@abc123", "/tmp/gh-aw/.claude/skills").args).toEqual(["skill", "install", "githubnext/skills", "--all", "--pin", "abc123", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
+    expect(script.buildSkillInstallCommand("githubnext/skills@abc123", "/tmp/gh-aw/.claude/skills", "claude-code").args).toEqual([
+      "skill",
+      "install",
+      "githubnext/skills",
+      "--all",
+      "--pin",
+      "abc123",
+      "--agent",
+      "claude-code",
+      "--dir",
+      "/tmp/gh-aw/.claude/skills",
+      "--force",
+    ]);
     expect(script.buildSkillInstallCommand("githubnext/skills/review/security@abc123", "/tmp/gh-aw/.claude/skills").args).toEqual([
       "skill",
       "install",
@@ -68,21 +86,33 @@ describe("install_frontmatter_skills", () => {
     ]);
   });
 
+  it("maps supported gh-aw engine IDs to gh skill agent values", () => {
+    expect(script.getSkillInstallAgent("copilot")).toBe("github-copilot");
+    expect(script.getSkillInstallAgent("claude")).toBe("claude-code");
+    expect(script.getSkillInstallAgent("codex")).toBe("codex");
+    expect(script.getSkillInstallAgent("gemini")).toBe("gemini-cli");
+    expect(script.getSkillInstallAgent("opencode")).toBe("opencode");
+    expect(script.getSkillInstallAgent("pi")).toBe("pi");
+    expect(script.getSkillInstallAgent("crush")).toBe("");
+    expect(script.getSkillInstallAgent("")).toBe("");
+  });
+
   it("omits --pin when the resolved skill spec is unpinned", () => {
     expect(script.buildSkillInstallCommand("githubnext/skills/review/security", "/tmp/gh-aw/.claude/skills").args).toEqual(["skill", "install", "githubnext/skills", "review/security", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
   });
 
   it("reads skill specs from the env var and installs them at runtime", async () => {
     process.env.GH_AW_SKILL_DIR = ".claude/skills";
+    process.env.GH_AW_INFO_ENGINE_ID = "claude";
     process.env.GH_AW_FRONTMATTER_SKILLS = ["githubnext/skills@abc123", "githubnext/skills/review/security@def456", "${{ inputs.skill_ref }}"].join("\n");
     fs.mkdirSync("/tmp/gh-aw/.claude/skills/example", { recursive: true });
     fs.writeFileSync("/tmp/gh-aw/.claude/skills/example/SKILL.md", "# test\n", "utf8");
 
     await script.main();
 
-    expect(global.exec.exec).toHaveBeenNthCalledWith(1, "gh", ["skill", "install", "githubnext/skills", "--all", "--pin", "abc123", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
-    expect(global.exec.exec).toHaveBeenNthCalledWith(2, "gh", ["skill", "install", "githubnext/skills", "review/security", "--pin", "def456", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
-    expect(global.exec.exec).toHaveBeenNthCalledWith(3, "gh", ["skill", "install", "${{ inputs.skill_ref }}", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
+    expect(global.exec.exec).toHaveBeenNthCalledWith(1, "gh", ["skill", "install", "githubnext/skills", "--all", "--pin", "abc123", "--agent", "claude-code", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
+    expect(global.exec.exec).toHaveBeenNthCalledWith(2, "gh", ["skill", "install", "githubnext/skills", "review/security", "--pin", "def456", "--agent", "claude-code", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
+    expect(global.exec.exec).toHaveBeenNthCalledWith(3, "gh", ["skill", "install", "${{ inputs.skill_ref }}", "--agent", "claude-code", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
     expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("### Frontmatter skills installed"));
     expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining('["githubnext/skills@abc123","githubnext/skills/review/security@def456","${{ inputs.skill_ref }}"]'));
   });

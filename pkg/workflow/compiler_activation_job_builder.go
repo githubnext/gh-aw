@@ -538,6 +538,9 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	if ctx.data.EngineConfig != nil {
 		engineID = ctx.data.EngineConfig.ID
 	}
+	if engineID == "" && ctx.data.AI != "" {
+		engineID = ctx.data.AI
+	}
 	skillDir := GetEngineSkillDir(engineID)
 
 	ctx.steps = append(ctx.steps, "      - name: Upgrade gh CLI for frontmatter skills\n")
@@ -569,6 +572,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 		ctx.steps = append(ctx.steps, fmt.Sprintf("      - name: Install frontmatter skill %d\n", i+1))
 		ctx.steps = append(ctx.steps, "        env:\n")
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_TOKEN: %s\n", tokenExpr))
+		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_INFO_ENGINE_ID", engineID))
 		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_SKILL_DIR", skillDir))
 		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_FRONTMATTER_SKILLS", skillRef.Skill))
 		ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)))
