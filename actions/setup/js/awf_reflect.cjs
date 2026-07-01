@@ -510,8 +510,8 @@ function endpointBaseUrl(endpoint) {
  *
  * Each endpoint becomes a `NamedProviderConfig` (using the endpoint's `provider`
  * field as the stable name) and every model advertised by that endpoint becomes a
- * `ProviderModelConfig` referencing it.  The provider-qualified selection id for
- * a model is `"<providerName>/<modelId>"`.
+ * `ProviderModelConfig` tuple `{ id, provider }` referencing it.  Callers can
+ * derive provider-qualified selection ids as `"<providerName>/<modelId>"` if needed.
  *
  * The primary model is the first model that matches `options.model` (if set),
  * otherwise the first model across all providers.

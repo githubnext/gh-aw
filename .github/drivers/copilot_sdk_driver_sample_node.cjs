@@ -43,15 +43,32 @@ function extractAssistantContent(message) {
   return "";
 }
 
+function parseMultiProviderJson(raw) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    if (!Array.isArray(parsed.providers) || parsed.providers.length < 1) return null;
+    if (!Array.isArray(parsed.models) || parsed.models.length < 1) return null;
+    const model = typeof parsed.model === "string" ? parsed.model.trim() : "";
+    return { model, providers: parsed.providers, models: parsed.models };
+  } catch {
+    return null;
+  }
+}
+
 function buildSessionConfig(model, onPermissionRequest) {
   const config = {
     onPermissionRequest,
     model,
   };
 
-  const providerBaseUrl = process.env.GH_AW_COPILOT_SDK_PROVIDER_BASE_URL;
-  if (providerBaseUrl) {
-    config.provider = { type: "openai", baseUrl: providerBaseUrl };
+  // Multi-provider BYOK configuration (preferred)
+  const multiProviderJson = process.env.GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON;
+  const multiProviderConfig = parseMultiProviderJson(multiProviderJson);
+  if (multiProviderConfig) {
+    config.providers = multiProviderConfig.providers;
+    config.models = multiProviderConfig.models;
   }
 
   return config;
@@ -96,4 +113,5 @@ if (require.main === module) {
 
 module.exports = {
   buildSessionConfig,
+  parseMultiProviderJson,
 };

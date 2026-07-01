@@ -65,7 +65,18 @@ function parseMultiProviderJson(raw) {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return null;
     if (!Array.isArray(parsed.providers) || parsed.providers.length < 1) return null;
-    if (!Array.isArray(parsed.models)) return null;
+    if (!Array.isArray(parsed.models) || parsed.models.length < 1) return null;
+    // Validate minimal shape: providers must have name/type/baseUrl, models must have id/provider
+    for (const p of parsed.providers) {
+      if (!p || typeof p.name !== "string" || typeof p.type !== "string" || typeof p.baseUrl !== "string") {
+        return null;
+      }
+    }
+    for (const m of parsed.models) {
+      if (!m || typeof m.id !== "string" || typeof m.provider !== "string") {
+        return null;
+      }
+    }
     const model = typeof parsed.model === "string" ? parsed.model.trim() : "";
     return { model, providers: parsed.providers, models: parsed.models };
   } catch {

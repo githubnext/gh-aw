@@ -500,9 +500,9 @@ function detectCopilotErrors(output) {
 /**
  * Build child-process environment additions for Copilot SDK mode.
  *
- * When `multiProviderJson` is set, the driver will use the experimental
- * multi-provider BYOK surface and the single-provider env vars are still
- * populated from the primary provider for the headless sidecar.
+ * When `multiProviderJson` is set, the driver will use multi-provider BYOK.
+ * `COPILOT_PROVIDER_*` env vars are still populated from the primary provider
+ * for the headless sidecar (sub-agent sessions).
  *
  * @param {{
  *   sdkEnv: NodeJS.ProcessEnv,
