@@ -7,8 +7,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
+
+var logsUsageActivityLog = logger.New("cli:logs_usage_activity")
 
 const usageActivitySummarySchema = "usage-activity-summary/v1"
 
@@ -69,13 +72,16 @@ func loadUsageActivitySummary(runDir string) (*usageActivitySummary, error) {
 		}
 		var summary usageActivitySummary
 		if err := json.Unmarshal(raw, &summary); err != nil {
+			logsUsageActivityLog.Printf("loadUsageActivitySummary: failed to parse %s, trying next candidate", cleanPath)
 			lastErr = fmt.Errorf("parse usage activity summary %s: %w", cleanPath, err)
 			continue
 		}
 		if summary.Schema != usageActivitySummarySchema {
+			logsUsageActivityLog.Printf("loadUsageActivitySummary: unsupported schema %q in %s (expected %q)", summary.Schema, cleanPath, usageActivitySummarySchema)
 			lastErr = fmt.Errorf("unsupported usage activity summary schema %q in %s (expected %q)", summary.Schema, cleanPath, usageActivitySummarySchema)
 			continue
 		}
+		logsUsageActivityLog.Printf("loadUsageActivitySummary: loaded summary from %s", cleanPath)
 		return &summary, nil
 	}
 	return nil, lastErr
@@ -93,6 +99,7 @@ func applyUsageActivitySummaryToResult(summary *usageActivitySummary, result *Do
 	}
 
 	if summary.Firewall != nil && result.FirewallAnalysis == nil {
+		logsUsageActivityLog.Printf("applyUsageActivitySummaryToResult: backfilling firewall analysis (total=%d allowed=%d blocked=%d)", summary.Firewall.TotalRequests, summary.Firewall.AllowedRequests, summary.Firewall.BlockedRequests)
 		requestsByDomain := maps.Clone(summary.Firewall.RequestsByDomain)
 		if requestsByDomain == nil {
 			requestsByDomain = map[string]DomainRequestStats{}
@@ -129,6 +136,7 @@ func applyUsageActivitySummaryToResult(summary *usageActivitySummary, result *Do
 	}
 
 	if summary.Gateway != nil && result.MCPToolUsage == nil {
+		logsUsageActivityLog.Printf("applyUsageActivitySummaryToResult: backfilling MCP tool usage from %d gateway server(s)", len(summary.Gateway.Servers))
 		servers := make([]MCPServerStats, 0, len(summary.Gateway.Servers))
 		for _, server := range summary.Gateway.Servers {
 			servers = append(servers, MCPServerStats{

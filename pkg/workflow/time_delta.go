@@ -68,7 +68,7 @@ func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, 
 	// Must start with '+'
 	if !strings.HasPrefix(deltaStr, "+") {
 		timeDeltaLog.Printf("Time delta validation failed: missing '+' prefix")
-		return nil, fmt.Errorf("time delta must start with '+', got: %s", deltaStr)
+		return nil, fmt.Errorf("time delta must start with '+', got: %s. Example: +3d", deltaStr)
 	}
 
 	// Remove the '+' prefix
@@ -83,7 +83,7 @@ func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, 
 	matches := timeDeltaPattern.FindAllStringSubmatch(deltaStr, -1)
 
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("invalid time delta format: +%s. Expected format like +25h, +3d, +1w, +1mo, +1d12h30m", deltaStr)
+		return nil, fmt.Errorf("invalid time delta format: +%s. Expected format like +25h, +3d, +1w, +1mo, +1d12h30m. Example: +1d12h30m", deltaStr)
 	}
 
 	// Check that all characters are consumed by matches
@@ -92,7 +92,7 @@ func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, 
 		consumed += len(match[0])
 	}
 	if consumed != len(deltaStr) {
-		return nil, fmt.Errorf("invalid time delta format: +%s. Extra characters detected", deltaStr)
+		return nil, fmt.Errorf("invalid time delta format: +%s. Extra characters detected. Example: +2w3d", deltaStr)
 	}
 
 	delta := &TimeDelta{}
@@ -116,7 +116,7 @@ func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, 
 
 		value, err := strconv.Atoi(valueStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid number '%s' in time delta: +%s", valueStr, deltaStr)
+			return nil, fmt.Errorf("invalid number '%s' in time delta: +%s. Example: +3d", valueStr, deltaStr)
 		}
 
 		if value < 0 {
@@ -134,11 +134,11 @@ func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, 
 			delta.Hours = value
 		case "m":
 			if !allowMinutes {
-				return nil, fmt.Errorf("minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +%dh instead of +%dm", (value+59)/60, value)
+				return nil, fmt.Errorf("minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +%dh instead of +%dm. Example: +90m -> +2h", (value+59)/60, value)
 			}
 			delta.Minutes = value
 		default:
-			return nil, fmt.Errorf("unsupported time unit '%s' in time delta: +%s", unit, deltaStr)
+			return nil, fmt.Errorf("unsupported time unit '%s' in time delta: +%s. Example: +2w (supported units: mo, w, d, h, m)", unit, deltaStr)
 		}
 	}
 
@@ -292,7 +292,7 @@ func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("unable to parse date-time: %s. Supported formats include: YYYY-MM-DD HH:MM:SS, MM/DD/YYYY, January 2 2006, 1st June 2025, etc", dateTimeStr)
+	return "", fmt.Errorf("unable to parse date-time: %s. Supported formats include: YYYY-MM-DD HH:MM:SS, MM/DD/YYYY, January 2 2006, 1st June 2025, etc. Example: 2026-07-01 14:30:00", dateTimeStr)
 }
 
 // isRelativeDate checks if a date string is a relative time delta (starts with + or -)

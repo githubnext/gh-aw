@@ -101,6 +101,15 @@ steps:
       name: geo-optimizer-results
       path: /tmp/gh-aw/agent/geo-optimizer
 
+safe-outputs:
+  create-issue:
+    expires: 7d
+    title-prefix: "[geo-optimizer] "
+    labels: [geo, automation]
+    assignees: [copilot]
+    max: 1
+  noop:
+
 imports:
   - uses: shared/daily-audit-base.md
     with:
@@ -220,6 +229,47 @@ Use today's date derived from the metadata.json timestamp.
 
 ---
 *Automated audit powered by [geo-optimizer-skill](https://github.com/Auriti-Labs/geo-optimizer-skill) · [Run logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*
+```
+
+---
+
+## Phase 4: Create Improvement Issue
+
+After successfully publishing the discussion report, identify the **single highest-impact recommendation** from the entire audit and create one GitHub issue for it.
+
+### Selecting the top recommendation
+
+Pick the recommendation that:
+1. Has the highest estimated score impact (e.g. largest point gain)
+2. Is concrete and actionable (not "improve content quality" in general)
+3. Covers a gap not already tracked by an open issue
+
+If **all scores are already Excellent (90+/100)** and there are no actionable recommendations, use `noop` and skip issue creation.
+
+### Issue title
+
+`[geo-optimizer] <one-line summary of the improvement>`
+
+### Issue body
+
+```markdown
+## GEO Improvement: <short title>
+
+**Source audit**: [GEO Audit Report — YYYY-MM-DD](<link to the discussion you just created>)
+**Audit date**: <date from metadata>
+**Run**: <link to GitHub Actions run>
+
+### Finding
+
+> <exact quote or paraphrase of the recommendation from the audit JSON>
+
+### Why this matters
+
+<1–2 sentences on what AI-engine citation signal this fixes and approximate score impact>
+
+### Suggested fix
+
+<Specific, actionable steps to implement the improvement>
 ```
 
 ---

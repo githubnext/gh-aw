@@ -1800,6 +1800,208 @@ describe("safe_outputs_handlers", () => {
         process.env.GITHUB_REF_NAME = "feature-branch"; // restore for sibling tests
       }
     });
+
+    describe("full-branch allowed_files check", () => {
+      /**
+       * Creates a git repo whose history contains a file that violates `allowed_files`
+       * (a .js file when only .md is allowed).  Sets up `origin/main` as the tracking ref
+       * so `execGitSync` can compute the range `origin/main..<branch>`.
+       */
+      function createRepoWithDisallowedHistoryFile() {
+        const repoDir = path.join(testWorkspaceDir, "allowed-files-repo");
+        fs.mkdirSync(repoDir, { recursive: true });
+
+        execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+        execSync("git config user.email 'test@example.com'", { cwd: repoDir, stdio: "pipe" });
+        execSync("git config user.name 'Test User'", { cwd: repoDir, stdio: "pipe" });
+
+        // Base commit on main
+        fs.writeFileSync(path.join(repoDir, "README.md"), "base\n");
+        execSync("git add README.md", { cwd: repoDir, stdio: "pipe" });
+        execSync("git commit -m 'base commit'", { cwd: repoDir, stdio: "pipe" });
+        const mainSha = execSync("git rev-parse HEAD", { cwd: repoDir, stdio: "pipe" }).toString().trim();
+
+        // Create feature branch
+        execSync("git checkout -b feature/work", { cwd: repoDir, stdio: "pipe" });
+
+        // Commit an .md file (allowed)
+        fs.writeFileSync(path.join(repoDir, "notes.md"), "notes\n");
+        execSync("git add notes.md", { cwd: repoDir, stdio: "pipe" });
+        execSync("git commit -m 'add notes'", { cwd: repoDir, stdio: "pipe" });
+
+        // Commit a .js file (disallowed when allowed_files is ["*.md"])
+        fs.writeFileSync(path.join(repoDir, "script.js"), "console.log('hi');\n");
+        execSync("git add script.js", { cwd: repoDir, stdio: "pipe" });
+        execSync("git commit -m 'add script'", { cwd: repoDir, stdio: "pipe" });
+
+        // Set up origin/main tracking ref
+        execSync("git remote add origin https://github.com/test-owner/test-repo.git", { cwd: repoDir, stdio: "pipe" });
+        execSync(`git update-ref refs/remotes/origin/main ${mainSha}`, { cwd: repoDir, stdio: "pipe" });
+
+        return { repoDir };
+      }
+
+      it("returns isError when branch history contains a file outside allowed_files", async () => {
+        let repoDir;
+        try {
+          ({ repoDir } = createRepoWithDisallowedHistoryFile());
+        } catch {
+          // Skip if git not available in test environment
+          return;
+        }
+
+        process.env.GITHUB_BASE_REF = "main";
+        process.env.GITHUB_WORKSPACE = repoDir;
+        const localHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+          push_to_pull_request_branch: {
+            allowed_files: ["*.md"],
+          },
+        });
+
+        try {
+          const result = await localHandlers.pushToPullRequestBranchHandler({ branch: "feature/work" });
+
+          expect(result.isError).toBe(true);
+          const data = JSON.parse(result.content[0].text);
+          expect(data.result).toBe("error");
+          expect(data.error).toContain("allowed-files");
+          expect(data.disallowed_files).toBeDefined();
+          expect(data.disallowed_files).toContain("script.js");
+          // Safe output must NOT have been recorded for a disallowed branch
+          expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+        } finally {
+          delete process.env.GITHUB_BASE_REF;
+          process.env.GITHUB_WORKSPACE = testWorkspaceDir;
+        }
+      });
+
+      it("does not block when all branch history files are within allowed_files", async () => {
+        const repoDir = path.join(testWorkspaceDir, "allowed-files-ok-repo");
+        fs.mkdirSync(repoDir, { recursive: true });
+        try {
+          execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+          execSync("git config user.email 'test@example.com'", { cwd: repoDir, stdio: "pipe" });
+          execSync("git config user.name 'Test User'", { cwd: repoDir, stdio: "pipe" });
+
+          fs.writeFileSync(path.join(repoDir, "README.md"), "base\n");
+          execSync("git add README.md", { cwd: repoDir, stdio: "pipe" });
+          execSync("git commit -m 'base commit'", { cwd: repoDir, stdio: "pipe" });
+          const mainSha = execSync("git rev-parse HEAD", { cwd: repoDir, stdio: "pipe" }).toString().trim();
+
+          execSync("git checkout -b feature/docs-only", { cwd: repoDir, stdio: "pipe" });
+          fs.writeFileSync(path.join(repoDir, "CHANGELOG.md"), "## v1.0\n");
+          execSync("git add CHANGELOG.md", { cwd: repoDir, stdio: "pipe" });
+          execSync("git commit -m 'add changelog'", { cwd: repoDir, stdio: "pipe" });
+
+          execSync("git remote add origin https://github.com/test-owner/test-repo.git", { cwd: repoDir, stdio: "pipe" });
+          execSync(`git update-ref refs/remotes/origin/main ${mainSha}`, { cwd: repoDir, stdio: "pipe" });
+        } catch {
+          return; // Skip if git not available
+        }
+
+        process.env.GITHUB_BASE_REF = "main";
+        process.env.GITHUB_WORKSPACE = repoDir;
+        const localHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+          push_to_pull_request_branch: {
+            allowed_files: ["*.md"],
+          },
+        });
+
+        try {
+          const result = await localHandlers.pushToPullRequestBranchHandler({ branch: "feature/docs-only" });
+
+          // The allowed_files check should pass; any subsequent failure is unrelated to it
+          // (e.g. missing patch file in the test environment is acceptable).
+          if (result.isError) {
+            const data = JSON.parse(result.content[0].text);
+            // Must NOT be an allowed_files error
+            expect(data.error).not.toContain("allowed-files configuration");
+            expect(data.disallowed_files).toBeUndefined();
+          }
+        } finally {
+          delete process.env.GITHUB_BASE_REF;
+          process.env.GITHUB_WORKSPACE = testWorkspaceDir;
+        }
+      });
+
+      it("exempts files matching excluded_files from the allowed_files check", async () => {
+        let repoDir;
+        try {
+          ({ repoDir } = createRepoWithDisallowedHistoryFile());
+        } catch {
+          return;
+        }
+
+        process.env.GITHUB_BASE_REF = "main";
+        process.env.GITHUB_WORKSPACE = repoDir;
+        // excluded_files exempts .js files, so script.js should not trigger the error
+        const localHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+          push_to_pull_request_branch: {
+            allowed_files: ["*.md"],
+            excluded_files: ["*.js"],
+          },
+        });
+
+        try {
+          const result = await localHandlers.pushToPullRequestBranchHandler({ branch: "feature/work" });
+
+          // .js file is exempted by excluded_files; the check should not block on it
+          if (result.isError) {
+            const data = JSON.parse(result.content[0].text);
+            expect(data.error).not.toContain("allowed-files configuration");
+            expect(data.disallowed_files).toBeUndefined();
+          }
+        } finally {
+          delete process.env.GITHUB_BASE_REF;
+          process.env.GITHUB_WORKSPACE = testWorkspaceDir;
+        }
+      });
+
+      it("is non-fatal when origin/baseBranch is not available (continues without blocking)", async () => {
+        const repoDir = path.join(testWorkspaceDir, "no-origin-repo");
+        fs.mkdirSync(repoDir, { recursive: true });
+        try {
+          execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+          execSync("git config user.email 'test@example.com'", { cwd: repoDir, stdio: "pipe" });
+          execSync("git config user.name 'Test User'", { cwd: repoDir, stdio: "pipe" });
+
+          fs.writeFileSync(path.join(repoDir, "README.md"), "base\n");
+          execSync("git add README.md", { cwd: repoDir, stdio: "pipe" });
+          execSync("git commit -m 'base'", { cwd: repoDir, stdio: "pipe" });
+
+          execSync("git checkout -b feature/work", { cwd: repoDir, stdio: "pipe" });
+          // Add a disallowed file — but since origin/main is absent the check must be skipped
+          fs.writeFileSync(path.join(repoDir, "script.js"), "// disallowed\n");
+          execSync("git add script.js", { cwd: repoDir, stdio: "pipe" });
+          execSync("git commit -m 'disallowed file'", { cwd: repoDir, stdio: "pipe" });
+          // No remote / no origin/main tracking ref
+        } catch {
+          return;
+        }
+
+        process.env.GITHUB_BASE_REF = "main";
+        process.env.GITHUB_WORKSPACE = repoDir;
+        const localHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+          push_to_pull_request_branch: {
+            allowed_files: ["*.md"],
+          },
+        });
+
+        try {
+          const result = await localHandlers.pushToPullRequestBranchHandler({ branch: "feature/work" });
+
+          // The non-fatal catch must not have blocked execution with an allowed-files error
+          if (result.isError) {
+            const data = JSON.parse(result.content[0].text);
+            expect(data.error).not.toContain("allowed-files configuration");
+            expect(data.disallowed_files).toBeUndefined();
+          }
+        } finally {
+          delete process.env.GITHUB_BASE_REF;
+          process.env.GITHUB_WORKSPACE = testWorkspaceDir;
+        }
+      });
+    });
   });
 
   describe("handler structure", () => {

@@ -84,23 +84,16 @@ function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo, opti
  * @returns {Record<string, any>|null}
  */
 function parseObject(value) {
-  if (!value) {
-    return null;
-  }
+  if (!value) return null;
   if (typeof value === "string") {
     const trimmed = value.trim();
-    if (!trimmed) {
-      return null;
-    }
+    if (!trimmed) return null;
     try {
       const parsed = JSON.parse(trimmed);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed;
-      }
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
     } catch {
       return null;
     }
-    return null;
   }
   if (typeof value === "object" && !Array.isArray(value)) {
     return /** @type {Record<string, any>} */ value;
@@ -396,31 +389,18 @@ function buildCommentBody(eventName, runUrl, workflowNameOverride) {
  */
 async function postDiscussionComment(discussionNumber, commentBody, replyToNodeId = null, eventRepo = context.repo) {
   const discussionId = await getDiscussionNodeId(discussionNumber, eventRepo);
-
-  /** @type {any} */
-  let result;
-  if (replyToNodeId) {
-    result = await github.graphql(
-      `
-      mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+  const mutation = replyToNodeId
+    ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
         addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
           comment { id url }
         }
-      }`,
-      { dId: discussionId, body: commentBody, replyToId: replyToNodeId }
-    );
-  } else {
-    result = await github.graphql(
-      `
-      mutation($dId: ID!, $body: String!) {
+      }`
+    : `mutation($dId: ID!, $body: String!) {
         addDiscussionComment(input: { discussionId: $dId, body: $body }) {
           comment { id url }
         }
-      }`,
-      { dId: discussionId, body: commentBody }
-    );
-  }
-
+      }`;
+  const result = await github.graphql(mutation, { dId: discussionId, body: commentBody, ...(replyToNodeId ? { replyToId: replyToNodeId } : {}) });
   const comment = result.addDiscussionComment.comment;
   return setCommentOutputs(comment.id, comment.url, eventRepo);
 }

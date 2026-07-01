@@ -1110,6 +1110,11 @@ index 0000000..abc1234
           return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\trefs/heads/feature-branch\n", stderr: "" };
         }
         if (argList[0] === "log") {
+          // Pre-flight workflow check targets .github/workflows/; return empty to avoid
+          // short-circuiting the fallback path with a workflows_scope_required error.
+          if (argList.includes(".github/workflows/")) {
+            return { exitCode: 0, stdout: "", stderr: "" };
+          }
           return { exitCode: 0, stdout: "Test commit\n", stderr: "" };
         }
         if (argList[0] === "diff-tree") {
@@ -1439,6 +1444,72 @@ index 0000000..abc1234
       // Generic push failure should NOT be typed as workflows_scope_required
       expect(result.error_type).toBeUndefined();
       expect(result.error).toContain("Failed to create review PR");
+    });
+
+    it("should fail pre-flight with workflows_scope_required when branch history contains workflow files", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      createPatchFile("review-branch-preflight-workflow-files");
+
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        // Pre-flight git log targets .github/workflows/ directory — returns a workflow
+        // file path to simulate branch history containing .github/workflows/** changes.
+        if (cmd === "git" && argList[0] === "log" && argList.includes(".github/workflows/")) {
+          return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
+        }
+        // The git push should NOT be reached — pre-flight check fires first
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          throw new Error("git push should not be called when pre-flight check fires");
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      const module = await loadModule();
+      // allow_workflows not set (default false) — pre-flight check is active
+      const handler = await module.main({});
+      const result = await handler({ branch: "review-branch-preflight-workflow-files" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error_type).toBe("workflows_scope_required");
+      expect(result.error).toContain("'workflows' scope");
+      expect(result.error).toContain("allow-workflows");
+      // Pre-flight fires before checkout — no "Failed to create review PR" message
+      const errorCalls = mockCore.error.mock.calls.map(c => c[0]);
+      expect(errorCalls.some(msg => msg.includes("Failed to create review PR"))).toBe(false);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Pre-flight check"));
+    });
+
+    it("should skip pre-flight check and attempt push when allow_workflows is true", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      createPatchFile("review-branch-allow-workflows-skip-preflight");
+
+      let preflightCalled = false;
+      let pushCalled = false;
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args, options) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (cmd === "git" && argList[0] === "log" && argList.includes(".github/workflows/")) {
+          preflightCalled = true;
+          return { exitCode: 0, stdout: ".github/workflows/ci.yml\n", stderr: "" };
+        }
+        if (cmd === "git" && argList[0] === "push" && argList[1] === "origin") {
+          pushCalled = true;
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        return originalGetExecOutput(cmd, args, options);
+      });
+
+      const module = await loadModule();
+      // allow_workflows: true — skip the pre-flight check
+      const handler = await module.main({ allow_workflows: true });
+      const result = await handler({ branch: "review-branch-allow-workflows-skip-preflight" }, {});
+
+      // Pre-flight check should NOT have run
+      expect(preflightCalled).toBe(false);
+      // Push should have been attempted
+      expect(pushCalled).toBe(true);
+      expect(result.success).toBe(true);
     });
   });
 

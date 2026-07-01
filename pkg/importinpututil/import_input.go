@@ -6,7 +6,11 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var importInputLog = logger.New("importinpututil:import_input")
 
 // ResolvePathValue resolves either a top-level input key ("count") or a one-level
 // dotted object sub-key ("config.apiKey") from import inputs.
@@ -14,17 +18,21 @@ func ResolvePathValue(inputs map[string]any, inputPath string) (any, bool) {
 	top, sub, hasDot := strings.Cut(inputPath, ".")
 	if !hasDot {
 		value, ok := inputs[top]
+		importInputLog.Printf("ResolvePathValue: top-level key %q found=%t", top, ok)
 		return value, ok
 	}
 	topVal, topOK := inputs[top]
 	if !topOK {
+		importInputLog.Printf("ResolvePathValue: parent key %q not found for path %q", top, inputPath)
 		return nil, false
 	}
 	obj, isMap := topVal.(map[string]any)
 	if !isMap {
+		importInputLog.Printf("ResolvePathValue: parent key %q is not an object for path %q", top, inputPath)
 		return nil, false
 	}
 	value, ok := obj[sub]
+	importInputLog.Printf("ResolvePathValue: sub-key %q under %q found=%t", sub, top, ok)
 	return value, ok
 }
 
@@ -38,6 +46,7 @@ func FormatResolvedValue(value any) (string, bool) {
 	case map[string]any:
 		return marshalValue(v)
 	case nil:
+		importInputLog.Print("FormatResolvedValue: nil value, no substitution")
 		return "", false
 	default:
 		return formatReflectiveValue(v)
