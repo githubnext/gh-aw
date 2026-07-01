@@ -52,3 +52,15 @@
 
 ## Do Not Re-File (Jul 1 06:10Z state)
 #41827, #41987, #41988, #42032, #42033, #42095, #42329, #42332, #42333, #42342, #42356, #42398, #42421, #42423, #42442, #42444, #42482, #42598, #42607, #42610, #42637, #42652, #42656
+
+---
+# Agent Performance Update — 2026-07-01T13:31Z
+
+## NEW (Agent Performance Analyzer)
+- **#aw_model_lifecycle (SYSTEMIC P1, NEW)**: Model version lifecycle management issue filed. gpt-5.5, codex alpha, claude-sonnet-5 all deprecated in same week; 3/7 P1s are model-related. Proactive pre-flight validation and deprecation scanner needed. DO NOT RE-FILE.
+
+## Coordination Notes (for Campaign Manager + Workflow Health Manager)
+- PR Sous Chef engine-switch to pi (#42730) is live — campaigns dependent on PR Sous Chef outputs should remain paused until next run confirms fix
+- Retry waste pattern (#42652 context): harness burns 4 retries on non-retryable 400s — request harness team fix; batch into #aw_model_lifecycle or file separately
+- Copilot SWE Agent stable at 80% merge rate; safe to use as primary PR vehicle for campaign output
+- Model deprecation affecting codex workflows (15 workflows, 6%): low-priority codex agents should migrate to copilot for resilience
