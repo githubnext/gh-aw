@@ -57,6 +57,7 @@ type LogsSummary struct {
 	TotalRuns                     int     `json:"total_runs" console:"header:Total Runs"`
 	TotalDuration                 string  `json:"total_duration" console:"header:Total Duration"`
 	TotalAIC                      float64 `json:"total_aic,omitempty"`
+	TotalTokens                   int     `json:"total_tokens,omitempty" console:"header:Total Tokens,format:number,omitempty"`
 	TotalActionMinutes            float64 `json:"total_action_minutes" console:"header:Total Action Minutes"`
 	TotalTurns                    int     `json:"total_turns" console:"header:Total Turns"`
 	TotalSteeringEvents           int     `json:"total_steering_events,omitempty" console:"header:Total Steering Events,format:number,omitempty"`
@@ -157,6 +158,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// Build summary
 	var totalDuration time.Duration
 	var totalAIC float64
+	var totalTokens int
 	var totalActionMinutes float64
 	var totalTurns int
 	var totalSteeringEvents int
@@ -192,6 +194,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		if pr.TokenUsage != nil {
 			totalAIC += pr.TokenUsage.TotalAIC
 		}
+		totalTokens += run.TokenUsage
 		totalActionMinutes += run.ActionMinutes
 		totalTurns += run.Turns
 		if pr.TokenUsage != nil {
@@ -345,6 +348,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		TotalRuns:                     len(processedRuns),
 		TotalDuration:                 timeutil.FormatDuration(totalDuration),
 		TotalAIC:                      totalAIC,
+		TotalTokens:                   totalTokens,
 		TotalActionMinutes:            totalActionMinutes,
 		TotalTurns:                    totalTurns,
 		TotalSteeringEvents:           totalSteeringEvents,

@@ -79,4 +79,7 @@ func TestRenderLogsJSONEmptyRuns(t *testing.T) {
 	if _, exists := summary["total_runs"]; !exists {
 		t.Fatalf("Expected total_runs field in summary. Summary: %+v", summary)
 	}
+	if _, exists := summary["total_tokens"]; exists {
+		t.Fatalf("Expected total_tokens to be omitted when token data is unavailable. Summary: %+v", summary)
+	}
 }

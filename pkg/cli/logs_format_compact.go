@@ -68,6 +68,9 @@ func renderLogsCompact(data LogsData) {
 	if s.TotalAIC > 0 {
 		summaryParts = append(summaryParts, "aic="+formatCompactAIC(s.TotalAIC))
 	}
+	if s.TotalTokens > 0 {
+		summaryParts = append(summaryParts, "tokens="+strconv.Itoa(s.TotalTokens))
+	}
 	if s.TotalWarnings > 0 {
 		summaryParts = append(summaryParts, "warnings="+strconv.Itoa(s.TotalWarnings))
 	}

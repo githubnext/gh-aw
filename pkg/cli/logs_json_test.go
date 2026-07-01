@@ -111,6 +111,9 @@ func TestBuildLogsData(t *testing.T) {
 	if logsData.Summary.TotalRuns != 2 {
 		t.Errorf("Expected TotalRuns to be 2, got %d", logsData.Summary.TotalRuns)
 	}
+	if logsData.Summary.TotalTokens != 1500 {
+		t.Errorf("Expected TotalTokens to be 1500, got %d", logsData.Summary.TotalTokens)
+	}
 	if logsData.Summary.TotalTurns != 5 {
 		t.Errorf("Expected TotalTurns to be 5, got %d", logsData.Summary.TotalTurns)
 	}
