@@ -77,4 +77,4 @@ Rejected to avoid accidental launch. Banner ships disabled and requires an expli
 
 ---
 
-*ADR created from the original recruitment banner operator doc and pending final review before status changes from Draft.*
+*This ADR is the operator guidance document for the recruitment banner, replacing the earlier draft at `docs/RECRUITMENT_BANNER.md` (removed in the same PR). Pending final review before status changes from Draft.*
