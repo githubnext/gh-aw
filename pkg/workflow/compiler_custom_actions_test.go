@@ -357,6 +357,9 @@ func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
 	if !strings.Contains(combined, "repository: github/gh-aw") {
 		t.Error("Dev mode Checkout actions folder should include 'repository: github/gh-aw' (fix for #20658)")
 	}
+	if !strings.Contains(combined, "clean: false") {
+		t.Error("Dev mode Checkout actions folder should include 'clean: false' to avoid workspace cleanup removing .git")
+	}
 }
 
 // TestCheckoutActionsFolderDevModeAlwaysEmitsCheckout verifies that dev mode always

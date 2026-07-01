@@ -53,6 +53,7 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 			"            actions\n",
 			"          path: /tmp/gh-aw/actions-source\n",
 			"          fetch-depth: 1\n",
+			"          clean: false\n",
 			"          persist-credentials: false\n",
 		)
 		return lines
@@ -70,6 +71,7 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 			"          repository: github/gh-aw\n",
 			"          sparse-checkout: |\n",
 			"            actions\n",
+			"          clean: false\n",
 			"          persist-credentials: false\n",
 		}
 		return lines
@@ -101,6 +103,7 @@ func (c *Compiler) generateRestoreActionsSetupStep() string {
 	step.WriteString("          sparse-checkout: |\n")
 	step.WriteString("            actions/setup\n")
 	step.WriteString("          sparse-checkout-cone-mode: true\n")
+	step.WriteString("          clean: false\n")
 	step.WriteString("          persist-credentials: false\n")
 	return step.String()
 }
