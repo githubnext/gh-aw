@@ -195,6 +195,19 @@ describe("detect_agent_errors.cjs", () => {
       expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("CAPIError: 400 Bad Request")).toBe(false);
       expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("Error: 400 Bad Request")).toBe(false);
     });
+
+    it("matches the Copilot SDK 'no model endpoints available given user constraints' error", () => {
+      expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("[copilot-sdk-driver] [sdk-driver] error: 400 400 400 no model endpoints available given user constraints")).toBe(true);
+    });
+
+    it("matches the no-model-endpoints error embedded in larger output", () => {
+      const output = 'some prior output\n[copilot-sdk-driver] [sdk-driver] error: 400 400 400 no model endpoints available given user constraints\n{"type":"subagent.failed"}';
+      expect(HTTP_400_RESPONSE_ERROR_PATTERN.test(output)).toBe(true);
+    });
+
+    it("does not match 'no model endpoints available' without a leading 400", () => {
+      expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("no model endpoints available given user constraints")).toBe(false);
+    });
   });
 
   describe("detectErrors", () => {
