@@ -132,11 +132,12 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
           error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].rationale must be a string`,
         };
       }
-      const rationale = sanitizeContent(unfenceMarkdown(label.rationale), {
-        maxLength: 1024,
+      const sanitizedRationale = sanitizeContent(unfenceMarkdown(label.rationale), {
+        maxLength: 280,
         allowedAliases: options?.allowedAliases || [],
         maxBotMentions: options?.maxBotMentions,
       }).trim();
+      const rationale = sanitizedRationale.length > 280 ? sanitizedRationale.slice(0, 280) : sanitizedRationale;
       if (rationale) {
         normalizedLabel.rationale = rationale;
       }

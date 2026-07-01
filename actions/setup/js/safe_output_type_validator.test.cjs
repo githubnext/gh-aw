@@ -116,7 +116,7 @@ const SAMPLE_VALIDATION_CONFIG = {
     fields: {
       issue_number: { issueOrPRNumber: true },
       issue_type: { required: true, type: "string", sanitize: true, maxLength: 128 },
-      rationale: { type: "string", sanitize: true, maxLength: 1024 },
+      rationale: { type: "string", sanitize: true, maxLength: 280 },
       confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
       suggest: { type: "boolean" },
     },
@@ -129,7 +129,7 @@ const SAMPLE_VALIDATION_CONFIG = {
       field_name: { type: "string", sanitize: true, maxLength: 128 },
       field_node_id: { type: "string", maxLength: 256 },
       value: { required: true, type: "string", sanitize: true, maxLength: 256 },
-      rationale: { type: "string", sanitize: true, maxLength: 1024 },
+      rationale: { type: "string", sanitize: true, maxLength: 280 },
       confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
       suggest: { type: "boolean" },
     },

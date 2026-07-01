@@ -602,7 +602,8 @@
                   },
                   "rationale": {
                     "type": "string",
-                    "description": "Optional rationale for the change."
+                    "maxLength": 280,
+                    "description": "Optional rationale for the change (max 280 characters)."
                   },
                   "confidence": {
                     "type": "string",
@@ -662,7 +663,8 @@
                   },
                   "rationale": {
                     "type": "string",
-                    "description": "Optional rationale for the change."
+                    "maxLength": 280,
+                    "description": "Optional rationale for the change (max 280 characters)."
                   },
                   "confidence": {
                     "type": "string",
@@ -922,7 +924,8 @@
                   },
                   "rationale": {
                     "type": "string",
-                    "description": "Optional rationale for the change."
+                    "maxLength": 280,
+                    "description": "Optional rationale for the change (max 280 characters)."
                   },
                   "confidence": {
                     "type": "string",
@@ -1350,7 +1353,8 @@
         },
         "rationale": {
           "type": "string",
-          "description": "Optional rationale for the change."
+          "maxLength": 280,
+          "description": "Optional rationale for the change (max 280 characters)."
         },
         "confidence": {
           "type": "string",
@@ -1401,7 +1405,8 @@
         },
         "rationale": {
           "type": "string",
-          "description": "Optional rationale for the change."
+          "maxLength": 280,
+          "description": "Optional rationale for the change (max 280 characters)."
         },
         "confidence": {
           "type": "string",
