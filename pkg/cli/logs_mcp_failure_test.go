@@ -87,7 +87,7 @@ func TestExtractMCPFailuresFromLogFileDirectly(t *testing.T) {
 		t.Fatalf("Failed to write temporary log file: %v", err)
 	}
 
-	failures, err := extractMCPFailuresFromLogFile(tmpFile, run, true)
+	failures, err := extractMCPFailuresFromLogFile(tmpFile, run, true, "", "")
 	if err != nil {
 		t.Fatalf("Failed to extract MCP failures from log file: %v", err)
 	}
