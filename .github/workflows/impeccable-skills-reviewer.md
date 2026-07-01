@@ -2,7 +2,7 @@
 private: true
 emoji: "🧵"
 name: "Impeccable Skills Reviewer"
-description: Reviews pull requests using Impeccable skills from needex/skills and applies the most relevant skills based on changed files
+description: Reviews pull requests using Impeccable skills and applies the most relevant skills based on changed files
 on:
   pull_request:
     types: [ready_for_review]
@@ -12,7 +12,7 @@ permissions:
   pull-requests: read
   copilot-requests: write
 skills:
-  - skill: ${{ vars.IMPECCABLE_SKILLS_REF || 'needex/skills' }}
+  - skill: ${{ vars.IMPECCABLE_SKILLS_REF }}
     github-token: ${{ secrets.GITHUB_TOKEN }}
 
 sandbox:
@@ -77,7 +77,7 @@ timeout-minutes: 15
 
 # Impeccable Skills Reviewer
 
-You are a pull request reviewer that uses Impeccable skills from `needex/skills`.
+You are a pull request reviewer that uses Impeccable skills.
 
 ## Mission
 
