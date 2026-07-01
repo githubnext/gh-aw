@@ -156,17 +156,18 @@ function isWorkflowsScopeRejection(stderr) {
  * @param {{ getExecOutput: Function }} exec - @actions/exec module (or compatible mock)
  * @param {Record<string, any>} gitOptions - Base git exec options (cwd, env, etc.)
  * @param {string | undefined} baseBranch - PR base branch name (e.g. "main"); falls back to origin/HEAD when not provided
+ * @param {typeof core} coreLogger - Actions core logger used for debug output
  * @returns {Promise<string[]>} Unique workflow file paths found in the branch history
  */
-async function detectWorkflowFileChanges(exec, gitOptions, baseBranch) {
-  const baseline = baseBranch ? `origin/${baseBranch}` : "origin/HEAD";
+async function detectWorkflowFileChanges(exec, gitOptions, baseBranch, coreLogger) {
+  const baseline = baseBranch && baseBranch.trim() ? `origin/${baseBranch}` : "origin/HEAD";
   try {
     const result = await exec.getExecOutput("git", ["log", "--name-only", "--pretty=format:", "HEAD", "--not", baseline, "--", ".github/workflows/"], { ...gitOptions, ignoreReturnCode: true });
     if (result.exitCode !== 0) {
       // Non-zero exit means the baseline ref was not resolvable or git failed;
       // treat as no workflow changes so the push proceeds and any real scope
       // rejection surfaces downstream.
-      core.debug(`detectWorkflowFileChanges: git log exited ${result.exitCode} (baseline '${baseline}' may be unavailable); skipping pre-flight`);
+      coreLogger.debug(`detectWorkflowFileChanges: git log exited ${result.exitCode} (baseline '${baseline}' may be unavailable); skipping pre-flight`);
       return [];
     }
     return [
@@ -178,7 +179,7 @@ async function detectWorkflowFileChanges(exec, gitOptions, baseBranch) {
       ),
     ];
   } catch (err) {
-    core.debug(`detectWorkflowFileChanges: git log threw (baseline '${baseline}'); skipping pre-flight: ${err instanceof Error ? err.message : String(err)}`);
+    coreLogger.debug(`detectWorkflowFileChanges: git log threw (baseline '${baseline}'); skipping pre-flight: ${err instanceof Error ? err.message : String(err)}`);
     return [];
   }
 }
@@ -201,7 +202,7 @@ async function detectWorkflowFileChanges(exec, gitOptions, baseBranch) {
  */
 async function runWorkflowScopePreflightCheck(exec, gitOptions, allowWorkflows, baseBranch, context, coreLogger) {
   if (allowWorkflows) return null;
-  const workflowFiles = await detectWorkflowFileChanges(exec, gitOptions, baseBranch);
+  const workflowFiles = await detectWorkflowFileChanges(exec, gitOptions, baseBranch, coreLogger);
   if (workflowFiles.length > 0) {
     coreLogger.info(`Pre-flight check: branch history contains workflow file changes (${workflowFiles.join(", ")}). Failing before push attempt.`);
     return buildWorkflowsScopeError(`${context} pre-flight`, coreLogger);

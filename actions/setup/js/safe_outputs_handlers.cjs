@@ -1259,41 +1259,49 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // before any transport artifacts are generated.
     if (Array.isArray(pushConfig.allowed_files) && pushConfig.allowed_files.length > 0) {
       try {
-        const branchHistoryFiles = execGitSync(["log", "--name-only", "--pretty=format:", `origin/${baseBranch}..${pushPinnedSha ?? entry.branch}`, "--"], { cwd: pushGitCwd })
-          .toString()
-          .split("\n")
-          .map(s => s.trim())
-          .filter(Boolean);
+        // Use the pinned SHA as the range head to avoid any TOCTOU window between
+        // the time the SHA was recorded and the time of the git log query.  If no
+        // pinned SHA is available (e.g. non-bundle path), skip the check so we do
+        // not race against a mutable ref; the apply-time check still enforces policy.
+        if (!pushPinnedSha) {
+          server.debug("Full-branch allowed-files check skipped: branch SHA not pinned (non-bundle path)");
+        } else {
+          const branchHistoryFiles = execGitSync(["log", "--name-only", "--pretty=format:", `origin/${baseBranch}..${pushPinnedSha}`, "--"], { cwd: pushGitCwd })
+            .toString()
+            .split("\n")
+            .map(s => s.trim())
+            .filter(Boolean);
 
-        if (branchHistoryFiles.length > 0) {
-          const allowedPatterns = pushConfig.allowed_files.map(p => globPatternToRegex(p));
-          // Files matching excluded_files are intentionally exempt: they will be stripped
-          // from the patch at generation time via :(exclude) pathspecs, so they won't be
-          // present in the final changeset applied to the branch.
-          const excludedPatterns = Array.isArray(pushConfig.excluded_files) ? pushConfig.excluded_files.map(p => globPatternToRegex(p)) : [];
-          const uniqueFiles = [...new Set(branchHistoryFiles)];
-          const disallowedFiles = uniqueFiles.filter(f => !allowedPatterns.some(re => re.test(f)) && !excludedPatterns.some(re => re.test(f)));
+          if (branchHistoryFiles.length > 0) {
+            const allowedPatterns = pushConfig.allowed_files.map(p => globPatternToRegex(p));
+            // Files matching excluded_files are intentionally exempt: they will be stripped
+            // from the patch at generation time via :(exclude) pathspecs, so they won't be
+            // present in the final changeset applied to the branch.
+            const excludedPatterns = Array.isArray(pushConfig.excluded_files) ? pushConfig.excluded_files.map(p => globPatternToRegex(p)) : [];
+            const uniqueFiles = [...new Set(branchHistoryFiles)];
+            const disallowedFiles = uniqueFiles.filter(f => !allowedPatterns.some(re => re.test(f)) && !excludedPatterns.some(re => re.test(f)));
 
-          if (disallowedFiles.length > 0) {
-            const sample = disallowedFiles.slice(0, 5);
-            const remaining = disallowedFiles.length - sample.length;
-            const filesStr = remaining > 0 ? `${sample.join(", ")} (+${remaining} more)` : sample.join(", ");
-            server.debug(`Full-branch allowed-files check failed: ${filesStr}`);
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    result: "error",
-                    error: `Cannot push to pull request branch: the branch '${entry.branch}' history contains commits that modify files outside the allowed-files configuration: ${filesStr}. Remove the disallowed file changes from your commits and retry, or update the allowed-files configuration to include these files.`,
-                    disallowed_files: disallowedFiles,
-                  }),
-                },
-              ],
-              isError: true,
-            };
+            if (disallowedFiles.length > 0) {
+              const sample = disallowedFiles.slice(0, 5);
+              const remaining = disallowedFiles.length - sample.length;
+              const filesStr = remaining > 0 ? `${sample.join(", ")} (+${remaining} more)` : sample.join(", ");
+              server.debug(`Full-branch allowed-files check failed: ${filesStr}`);
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({
+                      result: "error",
+                      error: `Cannot push to pull request branch: the branch '${entry.branch}' history contains commits that modify files outside the allowed-files configuration: ${filesStr}. Remove the disallowed file changes from your commits and retry, or update the allowed-files configuration to include these files.`,
+                      disallowed_files: disallowedFiles,
+                    }),
+                  },
+                ],
+                isError: true,
+              };
+            }
           }
-        }
+        } // end else (pushPinnedSha available)
       } catch (fullBranchCheckError) {
         // Non-fatal: if origin/baseBranch is not available locally or git fails,
         // skip the full-branch check and continue.  The apply-time policy check in
