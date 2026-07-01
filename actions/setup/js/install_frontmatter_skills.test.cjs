@@ -84,6 +84,19 @@ describe("install_frontmatter_skills", () => {
       "/tmp/gh-aw/.claude/skills",
       "--force",
     ]);
+    expect(script.buildSkillInstallCommand("githubnext/skills/review/security@abc123", "/tmp/gh-aw/.claude/skills", "claude-code").args).toEqual([
+      "skill",
+      "install",
+      "githubnext/skills",
+      "review/security",
+      "--pin",
+      "abc123",
+      "--agent",
+      "claude-code",
+      "--dir",
+      "/tmp/gh-aw/.claude/skills",
+      "--force",
+    ]);
   });
 
   it("maps supported gh-aw engine IDs to gh skill agent values", () => {
@@ -91,6 +104,7 @@ describe("install_frontmatter_skills", () => {
     expect(script.getSkillInstallAgent("claude")).toBe("claude-code");
     expect(script.getSkillInstallAgent("codex")).toBe("codex");
     expect(script.getSkillInstallAgent("gemini")).toBe("gemini-cli");
+    expect(script.getSkillInstallAgent("antigravity")).toBe("antigravity");
     expect(script.getSkillInstallAgent("opencode")).toBe("opencode");
     expect(script.getSkillInstallAgent("pi")).toBe("pi");
     expect(script.getSkillInstallAgent("crush")).toBe("");
