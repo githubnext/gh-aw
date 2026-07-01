@@ -73,7 +73,10 @@ func TestBuiltinModelAliases(t *testing.T) {
 	// Meta-aliases reference other alias names (resolved recursively by AWF).
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite"}, aliases["mini"], "mini should reference haiku, gpt-5-mini, gpt-5-nano, and gemini-flash-lite")
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gemini-flash-lite", "mini"}, aliases["summarization"], "summarization should reference fast/lightweight models")
-	assert.Equal(t, []string{"sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"}, aliases["large"], "large should reference sonnet, gpt-5-pro, gpt-5, and gemini-pro")
+	assert.Equal(t, []string{"fable", "sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"}, aliases["large"], "large should list fable first, then sonnet, gpt-5-pro, gpt-5, and gemini-pro")
+	assert.Equal(t, []string{"copilot/*fable*", "anthropic/*fable*"}, aliases["fable"], "fable should map to provider-specific fable patterns")
+	assert.Equal(t, []string{"copilot/gpt-5.6*", "openai/gpt-5.6*"}, aliases["gpt-5.6"], "gpt-5.6 should map to provider-specific gpt-5.6 patterns")
+	assert.Equal(t, []string{"copilot/gemini-omni*", "google/gemini-omni*", "gemini/gemini-omni*"}, aliases["gemini-omni"], "gemini-omni should map to provider-specific gemini-omni patterns")
 	assert.Equal(t, []string{"copilot/*", "anthropic/*", "openai/*", "google/*", "gemini/*"}, aliases["any"], "any should provide a provider-wide catch-all fallback chain")
 	assert.Equal(t, []string{"sonnet-6x", "gpt-5.5", "gpt-5.4", "gpt-5.3", "gemini-pro", "any"}, aliases["agent"], "agent should default to the configured high-capability fallback chain before any-model fallback")
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gemini-flash"}, aliases["small-agent"], "small-agent should default to the small/fast model fallback chain")

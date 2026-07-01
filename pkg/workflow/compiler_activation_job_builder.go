@@ -576,6 +576,20 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 		ctx.steps = append(ctx.steps, "          script: |\n")
 		ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("install_frontmatter_skills.cjs"))
 	}
+
+	// Collect skill install failures written by each install step into a shared file.
+	// Runs with if: always() so failures are captured even if a prior step was unexpectedly hard-failed.
+	ctx.steps = append(ctx.steps, "      - name: Collect skill install failures\n")
+	ctx.steps = append(ctx.steps, "        id: collect-skill-install-failures\n")
+	ctx.steps = append(ctx.steps, "        if: always()\n")
+	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)))
+	ctx.steps = append(ctx.steps, "        with:\n")
+	ctx.steps = append(ctx.steps, "          script: |\n")
+	ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("collect_skill_install_failures.cjs"))
+
+	ctx.outputs["skill_install_failure_count"] = "${{ steps.collect-skill-install-failures.outputs.failure_count || '0' }}"
+	ctx.outputs["skill_install_errors"] = "${{ steps.collect-skill-install-failures.outputs.errors || '' }}"
+
 	return nil
 }
 

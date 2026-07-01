@@ -226,7 +226,7 @@ Please check the repository for any open issues and create a summary.
 		t.Errorf("Lock file should contain jobs section")
 	}
 
-	t.Logf("Integration test passed - successfully compiled workflow to %s", lockFilePath)
+	t.Logf("Successfully compiled workflow to %s", lockFilePath)
 }
 
 func TestCompileWithIncludeWithEmptyFrontmatterUnderPty(t *testing.T) {

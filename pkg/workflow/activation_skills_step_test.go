@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -41,6 +42,11 @@ func TestBuildActivationJob_AddsFrontmatterSkillsInstallSteps(t *testing.T) {
 	assert.Contains(t, steps, "GH_AW_FRONTMATTER_SKILLS: \"githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6\"", "expected first skill env var")
 	assert.Contains(t, steps, "GH_AW_FRONTMATTER_SKILLS: \"githubnext/skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6\"", "expected second skill env var")
 	assert.Contains(t, steps, "const { main } = require('${{ runner.temp }}/gh-aw/actions/install_frontmatter_skills.cjs');", "expected github-script runtime loader for skill install")
+	assert.Contains(t, steps, "collect-skill-install-failures", "expected collect failures step in activation job")
+	assert.Contains(t, steps, "collect_skill_install_failures.cjs", "expected collect failures script in activation job")
+	outputs := fmt.Sprintf("%v", job.Outputs)
+	assert.Contains(t, outputs, "skill_install_failure_count", "expected skill install failure count output wiring")
+	assert.Contains(t, outputs, "skill_install_errors", "expected skill install errors output wiring")
 	assert.NotContains(t, steps, "GH_AW_SKILL_SPEC_0", "expected per-skill env vars to be removed")
 }
 

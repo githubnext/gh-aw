@@ -280,6 +280,12 @@ func buildAgentFailureActivationStatusVars(data *WorkflowData) []string {
 	}
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.%s.outputs.lockdown_check_failed }}\n", constants.ActivationJobName))
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_STALE_LOCK_FILE_FAILED: ${{ needs.%s.outputs.stale_lock_file_failed }}\n", constants.ActivationJobName))
+	// SkillReferences holds structured skill refs (with github-token/github-app); Skills holds raw
+	// skill specs from simple frontmatter. Both result in activation-job skill install steps.
+	if len(data.SkillReferences) > 0 || len(data.Skills) > 0 {
+		envVars = append(envVars, fmt.Sprintf("          GH_AW_SKILL_INSTALL_FAILURE_COUNT: ${{ needs.%s.outputs.skill_install_failure_count || '0' }}\n", constants.ActivationJobName))
+		envVars = append(envVars, fmt.Sprintf("          GH_AW_SKILL_INSTALL_ERRORS: ${{ needs.%s.outputs.skill_install_errors || '' }}\n", constants.ActivationJobName))
+	}
 	if hasMaxDailyAICGuardrail(data) {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.%s.outputs.daily_ai_credits_exceeded }}\n", constants.ActivationJobName))
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_DAILY_AI_CREDITS_TOTAL_EFFECTIVE_TOKENS: ${{ needs.%s.outputs.daily_ai_credits_total_effective_tokens }}\n", constants.ActivationJobName))

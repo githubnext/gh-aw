@@ -250,6 +250,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if len(config.Reviewers) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Reviewers %s will be assigned.", formatStringList(config.Reviewers)))
 			}
+			if len(config.Assignees) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Assignees %s will be assigned to the created pull request and any fallback issue.", formatStringList(config.Assignees)))
+			}
 			if config.RequireTemporaryID {
 				constraints = append(constraints, "temporary_id is required.")
 			}

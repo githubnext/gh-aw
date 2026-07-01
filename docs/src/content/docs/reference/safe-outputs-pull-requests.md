@@ -33,7 +33,7 @@ safe-outputs:
     labels: [automation]          # labels to attach
     reviewers: [user1, copilot]   # reviewers (use 'copilot' for bot)
     team-reviewers: [platform-reviewers] # team slugs to request as reviewers
-    assignees: [user1]            # assignees for fallback issues
+    assignees: [user1]            # assignees for the created PR and any fallback issue
     draft: true                   # create as draft — enforced as policy (default: true)
     max: 3                        # max PRs per run (default: 1)
     expires: 14                   # auto-close after N days (same-repo only; also accepts 2h, 7d, 2w, 1m, 1y)
@@ -70,6 +70,19 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for `targe
 `base-branch` sets the PR's target branch. Defaults to `github.base_ref` (PR event) or `github.ref_name` (push event). Use `allowed-base-branches` to let the agent pick the target branch at runtime — the agent supplies a `base` value in the tool call and it is accepted only if it matches one of the configured glob patterns.
 
 `allowed-branches` restricts which _source_ branch names the agent may use. The effective branch (agent-provided, or the checkout branch as fallback) must match a configured glob.
+
+### Runtime reviewers and assignees
+
+`reviewers`, `team-reviewers`, and `assignees` accept either a static list or a single GitHub Actions expression string. This lets you route a cross-repository PR back to the triggering actor or a runtime-selected team without recompiling the workflow.
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    target-repo: "acme/shared-infra"
+    reviewers: ${{ github.event.pull_request.user.login }}
+    team-reviewers: ${{ inputs.review-team }}
+    assignees: ${{ github.event.pull_request.user.login }}
+```
 
 ### Branch naming
 

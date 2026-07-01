@@ -197,6 +197,7 @@ function buildFailureMatchCategories(options) {
   if (options.isTimedOut) categories.push("timed_out");
   if (options.hasAssignmentErrors) categories.push("assignment_errors");
   if (options.hasAssignCopilotFailures) categories.push("assign_copilot_failures");
+  if (options.hasSkillInstallFailures) categories.push("skill_install_failures");
   if (options.hasCreateDiscussionErrors) categories.push("create_discussion_errors");
   if (options.hasCodePushFailures) categories.push("code_push_failures");
   if (options.hasRepoMemoryValidationErrors) categories.push("repo_memory_validation_errors");
@@ -2116,7 +2117,44 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
 }
 
 /**
- * Build the secret verification failure context for the agent failure issue/comment.
+ * Build a context string when frontmatter skill installation failed.
+ * @param {boolean} hasSkillInstallFailures - Whether any skill installs failed
+ * @param {string} skillInstallErrors - Newline-separated list of "skill<TAB>error" entries
+ * @returns {string} Formatted context string, or empty string if no failures
+ */
+function buildSkillInstallFailureContext(hasSkillInstallFailures, skillInstallErrors) {
+  if (!hasSkillInstallFailures) {
+    return "";
+  }
+
+  let skillList = "";
+  if (skillInstallErrors) {
+    const errorLines = skillInstallErrors.split("\n").filter(line => line.trim());
+    for (const errorLine of errorLines) {
+      // New format uses tab delimiter; keep colon parsing as a backward-compatible fallback.
+      const tabIdx = errorLine.indexOf("\t");
+      if (tabIdx >= 0) {
+        const skill = errorLine.slice(0, tabIdx);
+        const error = errorLine.slice(tabIdx + 1);
+        skillList += `- \`${skill}\`: ${error}\n`;
+        continue;
+      }
+      const colonIdx = errorLine.indexOf(":");
+      if (colonIdx >= 0) {
+        const skill = errorLine.slice(0, colonIdx);
+        const error = errorLine.slice(colonIdx + 1);
+        skillList += `- \`${skill}\`: ${error}\n`;
+      } else {
+        skillList += `- ${errorLine}\n`;
+      }
+    }
+  }
+
+  const templatePath = getPromptPath("skill_install_failure.md");
+  return "\n" + renderTemplateFromFile(templatePath, { skills: skillList });
+}
+
+/**
  * For the Copilot engine, adds a suggestion to use `permissions.copilot-requests: write`
  * to enable Copilot inference through the org without a personal access token.
  * @param {string} secretVerificationResult - The secret verification result ("failed" or other)
@@ -2696,6 +2734,8 @@ async function main() {
     const assignmentErrorCount = process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0";
     const assignCopilotErrors = process.env.GH_AW_ASSIGN_COPILOT_ERRORS || "";
     const assignCopilotFailureCount = process.env.GH_AW_ASSIGN_COPILOT_FAILURE_COUNT || "0";
+    const skillInstallErrors = process.env.GH_AW_SKILL_INSTALL_ERRORS || "";
+    const skillInstallFailureCount = process.env.GH_AW_SKILL_INSTALL_FAILURE_COUNT || "0";
     const createDiscussionErrors = process.env.GH_AW_CREATE_DISCUSSION_ERRORS || "";
     const createDiscussionErrorCount = process.env.GH_AW_CREATE_DISCUSSION_ERROR_COUNT || "0";
     const codePushFailureErrors = process.env.GH_AW_CODE_PUSH_FAILURE_ERRORS || "";
@@ -2800,6 +2840,7 @@ async function main() {
     core.info(`Secret verification result: ${secretVerificationResult}`);
     core.info(`Assignment error count: ${assignmentErrorCount}`);
     core.info(`Assign copilot failure count: ${assignCopilotFailureCount}`);
+    core.info(`Skill install failure count: ${skillInstallFailureCount}`);
     core.info(`Create discussion error count: ${createDiscussionErrorCount}`);
     core.info(`Code push failure count: ${codePushFailureCount}`);
     core.info(`Checkout PR success: ${checkoutPRSuccess}`);
@@ -2838,6 +2879,9 @@ async function main() {
 
     // Check if there are copilot assignment failures for created issues (regardless of agent job status)
     const hasAssignCopilotFailures = parseInt(assignCopilotFailureCount, 10) > 0;
+
+    // Check if any frontmatter skill installs failed (regardless of agent job status)
+    const hasSkillInstallFailures = parseInt(skillInstallFailureCount, 10) > 0;
 
     // Check if there are create_discussion errors (regardless of agent job status)
     const hasCreateDiscussionErrors = parseInt(createDiscussionErrorCount, 10) > 0;
@@ -2974,6 +3018,7 @@ async function main() {
       !isTimedOut &&
       !hasAssignmentErrors &&
       !hasAssignCopilotFailures &&
+      !hasSkillInstallFailures &&
       !hasCreateDiscussionErrors &&
       !hasCodePushFailures &&
       !hasPushRepoMemoryFailure &&
@@ -3096,6 +3141,7 @@ async function main() {
       isTimedOut,
       hasAssignmentErrors,
       hasAssignCopilotFailures,
+      hasSkillInstallFailures,
       hasCreateDiscussionErrors,
       hasCodePushFailures,
       hasRepoMemoryValidationErrors: repoMemoryValidationErrors.length > 0,
@@ -3289,6 +3335,9 @@ async function main() {
         // Build copilot assignment failure context for created issues
         const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
 
+        // Build skill install failure context
+        const skillInstallFailureContext = buildSkillInstallFailureContext(hasSkillInstallFailures, skillInstallErrors);
+
         // Build credential auth error context (firewall audit.jsonl 401/403 from provider endpoints)
         const credentialAuthErrorContext = buildCredentialAuthErrorContext();
 
@@ -3304,6 +3353,7 @@ async function main() {
           credential_auth_error_context: credentialAuthErrorContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
+          skill_install_failure_context: skillInstallFailureContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
           code_push_failure_context: codePushFailureContext,
           repo_memory_validation_context: repoMemoryValidationContext,
@@ -3500,6 +3550,9 @@ async function main() {
         // Build copilot assignment failure context for created issues
         const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
 
+        // Build skill install failure context
+        const skillInstallFailureContext = buildSkillInstallFailureContext(hasSkillInstallFailures, skillInstallErrors);
+
         // Build credential auth error context (firewall audit.jsonl 401/403 from provider endpoints)
         const credentialAuthErrorContext = buildCredentialAuthErrorContext();
 
@@ -3519,6 +3572,7 @@ async function main() {
           credential_auth_error_context: credentialAuthErrorContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
+          skill_install_failure_context: skillInstallFailureContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
           code_push_failure_context: codePushFailureContext,
           repo_memory_validation_context: repoMemoryValidationContext,
