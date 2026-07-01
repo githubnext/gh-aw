@@ -327,11 +327,11 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		if !strings.Contains(stepContent, `--mount "${RUNNER_TEMP}/gh-aw/sandbox/agent:${RUNNER_TEMP}/gh-aw/sandbox/agent:rw"`) {
 			t.Error("Expected read-write sandbox/agent overlay mount for arc-dind")
 		}
-		if !strings.Contains(stepContent, `--proxy-logs-dir '${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs'`) {
-			t.Error("Expected proxy logs dir to be daemon-visible under ${RUNNER_TEMP}/gh-aw")
+		if !strings.Contains(stepContent, `\"proxyLogsDir\":\"${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs\"`) {
+			t.Error("Expected proxyLogsDir in AWF config JSON to resolve under ${RUNNER_TEMP}/gh-aw")
 		}
-		if !strings.Contains(stepContent, `--audit-dir '${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit'`) {
-			t.Error("Expected audit dir to be daemon-visible under ${RUNNER_TEMP}/gh-aw")
+		if !strings.Contains(stepContent, `\"auditDir\":\"${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit\"`) {
+			t.Error("Expected auditDir in AWF config JSON to resolve under ${RUNNER_TEMP}/gh-aw")
 		}
 		if !strings.Contains(stepContent, "export HOME=${RUNNER_TEMP}/gh-aw/home") {
 			t.Error("Expected command to export HOME under ${RUNNER_TEMP}/gh-aw/home for arc-dind")

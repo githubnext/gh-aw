@@ -89,17 +89,20 @@ func escapeBareShellDollarSigns(s string) string {
 	return result.String()
 }
 
-// shellEscapeArgWithVarPreserved escapes arg for use as a double-quoted shell argument,
-// preserving ${{ }} GitHub Actions expressions and a specific ${varName} shell variable
-// reference intact while escaping all other bare $ signs.
+// shellEscapeArgWithVarsPreserved escapes arg for use as a double-quoted shell argument,
+// preserving ${{ }} GitHub Actions expressions and specific ${varName} shell variable
+// references intact while escaping all other bare $ signs.
 //
 // This is used for the AWF config JSON when a local shell variable (such as
 // ${GH_AW_MAX_AI_CREDITS}) has been injected into the JSON: the variable reference
 // must survive into the shell so bash can expand it, and any ${{ }} expressions in
 // the JSON (e.g. from AllowedDomains) must remain verbatim for GitHub Actions to
 // evaluate. All other bare $ signs (e.g. "$schema") are escaped as \$.
-func shellEscapeArgWithVarPreserved(arg, varName string) string {
-	varRef := "${" + varName + "}"
+func shellEscapeArgWithVarsPreserved(arg string, varNames ...string) string {
+	varRefs := make([]string, 0, len(varNames))
+	for _, varName := range varNames {
+		varRefs = append(varRefs, "${"+varName+"}")
+	}
 	escaped := strings.ReplaceAll(arg, `"`, `\"`)
 	var result strings.Builder
 	result.Grow(len(escaped) + 2)
@@ -113,7 +116,7 @@ func shellEscapeArgWithVarPreserved(arg, varName string) string {
 		case i+2 < len(escaped) && escaped[i+1] == '{' && escaped[i+2] == '{':
 			// ${{ }}: GitHub Actions expression — leave as-is so GA can evaluate it.
 			result.WriteByte(escaped[i])
-		case strings.HasPrefix(escaped[i:], varRef):
+		case hasAnyPrefix(escaped[i:], varRefs):
 			// ${varName}: shell variable reference — leave as-is so bash expands it.
 			result.WriteByte(escaped[i])
 		default:
@@ -123,6 +126,15 @@ func shellEscapeArgWithVarPreserved(arg, varName string) string {
 	}
 	result.WriteByte('"')
 	return result.String()
+}
+
+func hasAnyPrefix(s string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // that allows ${VAR_NAME} variables to be expanded at runtime.

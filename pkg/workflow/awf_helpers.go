@@ -350,16 +350,24 @@ fi`,
 			awfHelpersLog.Printf("Injected maxAiCredits local var reference into AWF config JSON")
 		}
 		// Write the config JSON to ${RUNNER_TEMP}/gh-aw/awf-config.json before AWF runs.
-		// When ${GH_AW_MAX_AI_CREDITS} is injected, use shellEscapeArgWithVarPreserved
+		// When the generated JSON contains compiler-owned runtime variables such as
+		// ${GH_AW_MAX_AI_CREDITS} or ${RUNNER_TEMP}, use shellEscapeArgWithVarsPreserved
 		// which always uses double-quote wrapping: it escapes bare $ signs (e.g.
 		// "$schema" → "\$schema") while preserving both ${{ }} GitHub Actions expressions
-		// (e.g. in AllowedDomains) and the ${GH_AW_MAX_AI_CREDITS} variable reference so
-		// bash expands it to the runtime-resolved value. When no variable is injected,
+		// (e.g. in AllowedDomains) and approved shell variable references so bash expands
+		// them to runtime-resolved values. When no such variables are injected,
 		// shellEscapeArg handles escaping normally.
 		// Also copy it to /tmp/gh-aw/awf-config.json for the unified agent artifact upload.
 		var printfArg string
+		preservedVars := make([]string, 0, 2)
 		if maxAICreditsExportLine != "" {
-			printfArg = shellEscapeArgWithVarPreserved(awfConfigJSON, awfMaxAICreditsVarName)
+			preservedVars = append(preservedVars, awfMaxAICreditsVarName)
+		}
+		if strings.Contains(awfConfigJSON, awfArcDindRootPathExpr) {
+			preservedVars = append(preservedVars, "RUNNER_TEMP")
+		}
+		if len(preservedVars) > 0 {
+			printfArg = shellEscapeArgWithVarsPreserved(awfConfigJSON, preservedVars...)
 		} else {
 			printfArg = shellEscapeArg(awfConfigJSON)
 		}
@@ -638,12 +646,6 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfLogLevel = firewallConfig.LogLevel
 	}
 	awfArgs = append(awfArgs, "--log-level", awfLogLevel)
-	// Logging paths: static values are now in config (logging.proxyLogsDir, logging.auditDir).
-	// For ARC/DinD, CLI flags with ${RUNNER_TEMP} paths override the config at runtime.
-	if isArcDindTopology(config.WorkflowData) {
-		awfArgs = append(awfArgs, "--proxy-logs-dir", awfArcDindProxyLogsDirExpr)
-		awfArgs = append(awfArgs, "--audit-dir", awfArcDindAuditDirExpr)
-	}
 	if isFeatureEnabled(constants.AwfDiagnosticLogsFeatureFlag, config.WorkflowData) {
 		awfArgs = append(awfArgs, "--diagnostic-logs")
 		awfHelpersLog.Print("Added --diagnostic-logs because awf-diagnostic-logs feature flag is enabled")

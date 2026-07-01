@@ -521,8 +521,8 @@ func TestAWFBasePathFlags(t *testing.T) {
 	})
 }
 
-// TestBuildAWFArgsAuditDir tests that audit-dir and proxy-logs-dir are now in config,
-// not CLI flags for non-ARC/DinD workflows.
+// TestBuildAWFArgsAuditDir tests that audit-dir and proxy-logs-dir are emitted in config,
+// not CLI flags, for both standard and ARC/DinD workflows.
 func TestBuildAWFArgsAuditDir(t *testing.T) {
 	t.Run("non-arc-dind omits audit-dir and proxy-logs-dir from CLI flags", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -551,7 +551,7 @@ func TestBuildAWFArgsAuditDir(t *testing.T) {
 		assert.NotContains(t, argsStr, "--proxy-logs-dir", "proxy-logs-dir should be in config for non-arc-dind")
 	})
 
-	t.Run("arc-dind includes audit-dir and proxy-logs-dir as CLI overrides", func(t *testing.T) {
+	t.Run("arc-dind also omits audit-dir and proxy-logs-dir from CLI flags", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -574,9 +574,8 @@ func TestBuildAWFArgsAuditDir(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		// ARC/DinD: CLI flags override config with ${RUNNER_TEMP} paths
-		assert.Contains(t, argsStr, "--audit-dir", "arc-dind should include --audit-dir CLI override")
-		assert.Contains(t, argsStr, "--proxy-logs-dir", "arc-dind should include --proxy-logs-dir CLI override")
+		assert.NotContains(t, argsStr, "--audit-dir", "arc-dind audit-dir should be emitted via config JSON")
+		assert.NotContains(t, argsStr, "--proxy-logs-dir", "arc-dind proxy-logs-dir should be emitted via config JSON")
 	})
 }
 

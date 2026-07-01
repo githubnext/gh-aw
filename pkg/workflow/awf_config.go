@@ -555,11 +555,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		// For ARC/DinD topology, set dockerHostPathPrefix in config.
 		// AWF uses this to prefix bind-mount source paths so the DinD daemon can resolve
 		// runner filesystem paths from its separate mount namespace.
-		// Note: the runtime probe (--docker-host-path-prefix CLI flag with ${RUNNER_TEMP}/gh-aw)
-		// still overrides this at runtime, but setting it in config provides a static baseline.
+		// The config file is written at runtime, so ${RUNNER_TEMP} can be preserved for
+		// shell expansion before AWF reads the JSON.
 		if isArcDindTopology(config.WorkflowData) {
-			container.DockerHostPathPrefix = string(constants.TmpGhAwDir)
-			awfConfigLog.Printf("Container section: dockerHostPathPrefix=%s (arc-dind topology)", constants.TmpGhAwDir)
+			container.DockerHostPathPrefix = awfArcDindRootPathExpr
+			awfConfigLog.Printf("Container section: dockerHostPathPrefix=%s (arc-dind topology)", awfArcDindRootPathExpr)
 		}
 		awfConfig.Container = container
 		if awfImageTag != "" {
@@ -568,13 +568,17 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	// ── Logging section ──────────────────────────────────────────────────────
-	// Static logging paths are set in config. For ARC/DinD, the CLI flags
-	// (--proxy-logs-dir, --audit-dir) with ${RUNNER_TEMP} paths override these at runtime.
+	// Logging paths are set in config. For ARC/DinD, the config file is written at runtime,
+	// so ${RUNNER_TEMP} can be preserved for shell expansion before AWF reads the JSON.
 	awfConfig.Logging = &AWFLoggingConfig{
 		ProxyLogsDir: string(constants.AWFProxyLogsDir),
 		AuditDir:     string(constants.AWFAuditDir),
 	}
-	awfConfigLog.Printf("Logging section: proxyLogsDir=%s, auditDir=%s", constants.AWFProxyLogsDir, constants.AWFAuditDir)
+	if isArcDindTopology(config.WorkflowData) {
+		awfConfig.Logging.ProxyLogsDir = awfArcDindProxyLogsDirExpr
+		awfConfig.Logging.AuditDir = awfArcDindAuditDirExpr
+	}
+	awfConfigLog.Printf("Logging section: proxyLogsDir=%s, auditDir=%s", awfConfig.Logging.ProxyLogsDir, awfConfig.Logging.AuditDir)
 
 	jsonStr, err := jsonutil.MarshalCompactNoHTMLEscape(awfConfig)
 	if err != nil {

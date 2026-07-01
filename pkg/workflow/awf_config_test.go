@@ -149,7 +149,9 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
 		assert.Contains(t, jsonStr, `"runner":{"topology":"arc-dind"}`, "should emit runner topology")
-		assert.Contains(t, jsonStr, `"dockerHostPathPrefix":"/tmp/gh-aw"`, "should emit dockerHostPathPrefix for arc-dind")
+		assert.Contains(t, jsonStr, `"dockerHostPathPrefix":"${RUNNER_TEMP}/gh-aw"`, "should emit dockerHostPathPrefix for arc-dind")
+		assert.Contains(t, jsonStr, `"proxyLogsDir":"${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"`, "should emit arc-dind proxyLogsDir")
+		assert.Contains(t, jsonStr, `"auditDir":"${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit"`, "should emit arc-dind auditDir")
 	})
 
 	t.Run("runner section omitted when no topology set", func(t *testing.T) {
