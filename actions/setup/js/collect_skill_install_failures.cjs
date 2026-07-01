@@ -22,7 +22,9 @@ function readSkillInstallFailures() {
       return [];
     }
     return parsed;
-  } catch (_) {
+  } catch (readErr) {
+    // Warn so "no failures" vs "couldn't read failures file" is distinguishable in logs
+    core.warning(`Could not read skill install failures file: ${readErr instanceof Error ? readErr.message : String(readErr)}`);
     return [];
   }
 }

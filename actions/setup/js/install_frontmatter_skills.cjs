@@ -100,8 +100,9 @@ function appendSkillInstallFailure(skillSpec, errorMessage) {
       const raw = fs.readFileSync(SKILL_FAILURES_FILE, "utf8");
       failures = JSON.parse(raw);
     }
-  } catch (_) {
-    // If parsing fails, start fresh
+  } catch (parseErr) {
+    // If reading/parsing fails, start fresh and warn so the issue is visible in logs
+    core.warning(`Could not read skill install failures file, starting fresh: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
     failures = [];
   }
   failures.push({ skill: skillSpec, error: errorMessage });

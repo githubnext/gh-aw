@@ -2,7 +2,7 @@
 
 - The skill repository does not exist or is not accessible with the configured token
 - The skill reference is invalid or points to a non-existent branch/tag/commit
-- The `gh` CLI version is too old (requires v2.90+)
+- The `gh` CLI version is too old (requires a recent version that supports `gh skill install`)
 - Network connectivity to the skill host is blocked by the firewall
 
 **Failed skills:**
