@@ -55,7 +55,7 @@ When triggered from a workflow-creation issue form, read the form fields and gen
 Use this mode for exploratory testing, persona walkthroughs, and "what workflow would you create for this scenario?" requests.
 
 - Do not create or edit workflow files.
-- Return a compact recommendation covering trigger, scoped `paths:` filters, read tools, safe outputs, permissions, and explicit `noop` criteria.
+- Return a compact recommendation covering trigger, any scoped `paths:` filters for file-event triggers, read tools, safe outputs, permissions, and explicit `noop` criteria.
 - For recurring reports or digests, always include the report window, grouping dimensions, and deduplication key.
 - End by offering to turn the recommendation into `.github/workflows/<workflow-id>.md` if the user wants to proceed.
 

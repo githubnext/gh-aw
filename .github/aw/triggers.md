@@ -62,6 +62,8 @@ For recurring PM, stakeholder, and other information-worker digests, specify all
 | Grouping dimensions | Group by the dimensions the audience already uses to make decisions | team, area, milestone, owner, severity, status, repository |
 | Deduplication key | Derive one stable key per scope and window before creating output | `pm-digest:platform:2026-W27`, `stakeholder-digest:mobile:2026-07-02` |
 
+Use week-based keys for weekly digests and calendar-date keys for daily or monthly reports.
+
 Duplicate-suppression rule:
 
 - Search for an existing open issue with the same key before creating a new digest.
