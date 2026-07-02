@@ -154,13 +154,50 @@ func TestFindCompatiblePin_SemverFallback(t *testing.T) {
 			availablePins: pins,
 		},
 		{
-			name:        "exact-version",
+			// major-compatible-match: requesting v5.0.0 from a list without v5.2.0 returns v5.0.0 —
+			// the function performs major-compatible matching, not exact-version matching.
+			name:        "major-compatible-match",
 			version:     "v5.0.0",
 			wantFound:   true,
 			wantVersion: "v5.0.0",
 			availablePins: []ActionPin{
 				{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5-0"},
 				{Repo: "actions/checkout", Version: "v4.9.9", SHA: "sha-v4-9"},
+			},
+		},
+		{
+			// first-compatible-not-exact: requesting v5.0.0 from [v5.2.0, v5.0.0] returns v5.2.0
+			// because findCompatiblePin returns the FIRST major-compatible match, not the exact one.
+			name:          "first-compatible-not-exact",
+			version:       "v5.0.0",
+			wantFound:     true,
+			wantVersion:   "v5.2.0",
+			availablePins: pins,
+		},
+		{
+			// returns-first-compatible-not-highest: list order determines the result.
+			// With an unsorted list [v5.0.0, v5.2.0], requesting v5 returns v5.0.0 (the first
+			// major-compatible entry), not v5.2.0. Callers (e.g. resolveNonStrictHardcodedPin) must
+			// supply a pre-sorted (descending) slice via GetActionPinsByRepo to get the highest pin.
+			name:        "returns-first-compatible-not-highest",
+			version:     "v5",
+			wantFound:   true,
+			wantVersion: "v5.0.0",
+			availablePins: []ActionPin{
+				{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-low"},
+				{Repo: "actions/checkout", Version: "v5.2.0", SHA: "sha-high"},
+			},
+		},
+		{
+			// minor-version-constraint: IsCompatible performs major-only comparison, so
+			// requesting v5.1 from [v5.2.0, v5.0.0] returns v5.2.0 (same major, first match).
+			name:        "minor-version-constraint",
+			version:     "v5.1",
+			wantFound:   true,
+			wantVersion: "v5.2.0",
+			availablePins: []ActionPin{
+				{Repo: "actions/checkout", Version: "v5.2.0", SHA: "sha-a"},
+				{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-b"},
 			},
 		},
 		{
@@ -184,8 +221,7 @@ func TestFindCompatiblePin_SemverFallback(t *testing.T) {
 			if tt.wantFound {
 				assert.Equal(t, tt.wantVersion, pin.Version)
 			} else {
-				assert.Empty(t, pin.Version)
-				assert.Empty(t, pin.SHA)
+				assert.Equal(t, ActionPin{}, pin, "expected zero-value ActionPin when not found")
 			}
 		})
 	}
@@ -326,7 +362,18 @@ func TestResolveExactHardcodedPin_NoMatch(t *testing.T) {
 	assert.Empty(t, result, "Expected empty result when no exact match is found")
 }
 
-func TestResolveNonStrictHardcodedPin_CompatibleAndFallback(t *testing.T) {
+func TestResolveExactHardcodedPin_VersionTakesPrecedenceOverSHA(t *testing.T) {
+	// When isAlreadySHA=false, only the version-match path runs; the SHA-match loop is
+	// skipped entirely. This test uses a pin whose Version and SHA fields are identical
+	// to make the path selection explicit: the version loop matches and returns before
+	// the SHA loop would ever execute.
+	pins := []ActionPin{{Repo: "actions/checkout", Version: "sha-v5", SHA: "sha-v5"}}
+	result, ok := resolveExactHardcodedPin("actions/checkout", "sha-v5", false, pins)
+	require.True(t, ok, "Expected version-match path to resolve when isAlreadySHA=false")
+	assert.Contains(t, result, "sha-v5", "Expected result to include the matched pin's SHA/version")
+}
+
+func TestResolveNonStrictHardcodedPin_SelectsHighestCompatible(t *testing.T) {
 	pins := []ActionPin{
 		{Repo: "actions/checkout", Version: "v5.2.0", SHA: "sha-v5-2"},
 		{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5-0"},
@@ -335,7 +382,6 @@ func TestResolveNonStrictHardcodedPin_CompatibleAndFallback(t *testing.T) {
 
 	t.Run("uses semver-compatible pin when available", func(t *testing.T) {
 		ctx := &PinContext{Warnings: make(map[string]bool)}
-		expectedWarning := "Unable to resolve actions/checkout@v5 dynamically, using hardcoded pin for actions/checkout@v5.2.0"
 		var result string
 
 		stderrOutput := testutil.CaptureStderr(t, func() {
@@ -344,25 +390,45 @@ func TestResolveNonStrictHardcodedPin_CompatibleAndFallback(t *testing.T) {
 
 		assert.Contains(t, result, "sha-v5-2", "Expected highest semver-compatible pin to be selected")
 		assert.True(t, ctx.Warnings["actions/checkout@v5"], "Expected warning cache key to be recorded")
-		assert.Contains(t, stderrOutput, expectedWarning, "Expected warning to be emitted for compatible fallback")
+		// Assert on the stable unstyled message fragment to avoid ANSI-code fragility.
+		assert.Contains(t, stderrOutput, "using hardcoded pin for actions/checkout@v5.2.0", "Expected warning to be emitted for compatible fallback")
 	})
 
-	t.Run("falls back to highest available pin and deduplicates warnings", func(t *testing.T) {
+	t.Run("deduplicates warning on compatible path", func(t *testing.T) {
 		ctx := &PinContext{Warnings: make(map[string]bool)}
-		expectedWarning := "Unable to resolve actions/checkout@v9 dynamically, using hardcoded pin for actions/checkout@v5.2.0"
-		var first, second string
 
 		stderrOutput := testutil.CaptureStderr(t, func() {
-			first = resolveNonStrictHardcodedPin("actions/checkout", "v9", pins, ctx)
-			second = resolveNonStrictHardcodedPin("actions/checkout", "v9", pins, ctx)
+			resolveNonStrictHardcodedPin("actions/checkout", "v5", pins, ctx)
+			resolveNonStrictHardcodedPin("actions/checkout", "v5", pins, ctx)
 		})
 
-		assert.Contains(t, first, "sha-v5-2", "Expected fallback to highest available pin when no compatible version exists")
-		assert.Contains(t, second, "sha-v5-2", "Expected consistent fallback result on repeated calls")
-		assert.True(t, ctx.Warnings["actions/checkout@v9"], "Expected warning cache key to be recorded")
-		assert.Len(t, ctx.Warnings, 1, "Expected warning deduplication for repeated resolution attempts")
-		assert.Equal(t, 1, strings.Count(stderrOutput, expectedWarning), "Expected warning to be emitted exactly once for repeated fallback resolution")
+		assert.Equal(t, 1, strings.Count(stderrOutput, "using hardcoded pin for actions/checkout@v5.2.0"),
+			"Expected warning emitted exactly once for repeated compatible resolution")
+		assert.Len(t, ctx.Warnings, 1)
 	})
+}
+
+func TestResolveNonStrictHardcodedPin_FallsBackToHighestWhenNoCompatible(t *testing.T) {
+	pins := []ActionPin{
+		{Repo: "actions/checkout", Version: "v5.2.0", SHA: "sha-v5-2"},
+		{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5-0"},
+		{Repo: "actions/checkout", Version: "v4.9.9", SHA: "sha-v4-9"},
+	}
+
+	ctx := &PinContext{Warnings: make(map[string]bool)}
+	var first, second string
+
+	stderrOutput := testutil.CaptureStderr(t, func() {
+		first = resolveNonStrictHardcodedPin("actions/checkout", "v9", pins, ctx)
+		second = resolveNonStrictHardcodedPin("actions/checkout", "v9", pins, ctx)
+	})
+
+	assert.Contains(t, first, "sha-v5-2", "Expected fallback to highest available pin when no compatible version exists")
+	assert.Contains(t, second, "sha-v5-2", "Expected consistent fallback result on repeated calls")
+	assert.True(t, ctx.Warnings["actions/checkout@v9"], "Expected warning cache key to be recorded")
+	assert.Len(t, ctx.Warnings, 1, "Expected warning deduplication for repeated resolution attempts")
+	// Assert on the stable unstyled message fragment to avoid ANSI-code fragility.
+	assert.Equal(t, 1, strings.Count(stderrOutput, "using hardcoded pin for actions/checkout@v5.2.0"), "Expected warning to be emitted exactly once for repeated fallback resolution")
 }
 
 func TestResolveActionPinFromHardcodedPins_SkipHardcodedFallback(t *testing.T) {
