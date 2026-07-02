@@ -86,6 +86,22 @@ func BadDeferWithCtx(ctx context.Context, d time.Duration) {
 	_ = ctx
 }
 
+// Bad: parenthesized deferred closure shares outer context lifetime.
+func BadDeferParenWithCtx(ctx context.Context, d time.Duration) {
+	defer (func() {
+		time.Sleep(d) // want `use select with ctx\.Done\(\) instead of time\.Sleep to allow context cancellation`
+	})()
+	_ = ctx
+}
+
+// Bad: parenthesized goroutine closure shares outer context lifetime.
+func BadGoParenWithCtx(ctx context.Context, d time.Duration) {
+	go (func() {
+		time.Sleep(d) // want `use select with ctx\.Done\(\) instead of time\.Sleep to allow context cancellation`
+	})()
+	_ = ctx
+}
+
 func register(fn func()) {
 	fn()
 }

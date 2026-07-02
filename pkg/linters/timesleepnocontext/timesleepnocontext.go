@@ -77,13 +77,38 @@ func run(pass *analysis.Pass) (any, error) {
 }
 
 func isGoOrDeferClosure(funcLitCur inspector.Cursor) bool {
-	parent := funcLitCur.Parent()
-	call, ok := parent.Node().(*ast.CallExpr)
-	if !ok || call.Fun != funcLitCur.Node() {
+	// Walk up from the FuncLit, unwrapping any ParenExpr wrappers, to find the
+	// enclosing CallExpr. This handles parenthesized forms like defer (func(){})().
+	cur := funcLitCur.Parent()
+	for {
+		if cur.Node() == nil {
+			return false
+		}
+		if _, ok := cur.Node().(*ast.ParenExpr); ok {
+			cur = cur.Parent()
+			continue
+		}
+		break
+	}
+
+	call, ok := cur.Node().(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	// Unwrap ParenExpr from call.Fun and verify it resolves to our FuncLit.
+	callee := call.Fun
+	for {
+		if paren, ok := callee.(*ast.ParenExpr); ok {
+			callee = paren.X
+		} else {
+			break
+		}
+	}
+	if callee != funcLitCur.Node() {
 		return false
 	}
 
-	grandparent := parent.Parent().Node()
+	grandparent := cur.Parent().Node()
 	if grandparent == nil {
 		return false
 	}
