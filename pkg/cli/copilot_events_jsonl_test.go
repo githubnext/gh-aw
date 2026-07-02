@@ -159,6 +159,25 @@ func TestParseEventsJSONLFile(t *testing.T) {
 			wantSequences: 0,
 		},
 		{
+			name: "does not fall back when session.shutdown modelMetrics is present but sums to zero",
+			content: realFormatEventsLine("user.message", `{"content":"Do something"}`) + "\n" +
+				realFormatEventsLine("assistant.message", `{"content":"Done","usage":{"input_tokens":400,"output_tokens":50}}`) + "\n" +
+				realFormatEventsLine("session.shutdown", `{"shutdownType":"routine","modelMetrics":{}}`) + "\n",
+			wantTurns:     1,
+			wantToolCalls: []string{},
+			wantTokens:    0,
+			wantSequences: 0,
+		},
+		{
+			name: "fallback excludes cache tokens from per-event usage",
+			content: realFormatEventsLine("user.message", `{"content":"Do something"}`) + "\n" +
+				realFormatEventsLine("assistant.message", `{"content":"Done","usage":{"input_tokens":100,"output_tokens":20,"cache_creation_input_tokens":500,"cache_read_input_tokens":300}}`) + "\n",
+			wantTurns:     1,
+			wantToolCalls: []string{},
+			wantTokens:    120,
+			wantSequences: 0,
+		},
+		{
 			name: "prefers session.shutdown totals when both shutdown and per-event usage exist",
 			content: realFormatEventsLine("user.message", `{"content":"Do something"}`) + "\n" +
 				realFormatEventsLine("assistant.message", `{"content":"Done","usage":{"input_tokens":400,"output_tokens":50}}`) + "\n" +

@@ -23,6 +23,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stats"
+	"github.com/github/gh-aw/pkg/typeutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -198,6 +199,7 @@ func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, er
 	turns := 0
 	totalTokens := 0
 	fallbackTokens := 0
+	sawShutdownModelMetrics := false
 	foundAnyEvent := false
 
 	// Per-turn timestamps used to compute Time Between Turns (TBT)
@@ -263,12 +265,18 @@ func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, er
 
 		case "session.shutdown":
 			// Aggregate token usage across all models from modelMetrics.
-			for model, m := range entry.Data.ModelMetrics {
-				if m.Usage != nil {
-					modelTokens := m.Usage.InputTokens + m.Usage.OutputTokens
-					totalTokens += modelTokens
-					copilotEventsJSONLLog.Printf("session.shutdown: model=%s inputTokens=%d outputTokens=%d",
-						model, m.Usage.InputTokens, m.Usage.OutputTokens)
+			// Track whether the field was present (even if empty) so the fallback
+			// is only applied when modelMetrics is truly absent (nil), not when the
+			// totals happen to sum to zero.
+			if entry.Data.ModelMetrics != nil {
+				sawShutdownModelMetrics = true
+				for model, m := range entry.Data.ModelMetrics {
+					if m.Usage != nil {
+						modelTokens := m.Usage.InputTokens + m.Usage.OutputTokens
+						totalTokens += modelTokens
+						copilotEventsJSONLLog.Printf("session.shutdown: model=%s inputTokens=%d outputTokens=%d",
+							model, m.Usage.InputTokens, m.Usage.OutputTokens)
+					}
 				}
 			}
 			copilotEventsJSONLLog.Printf("session.shutdown: type=%s totalTokens=%d",
@@ -295,7 +303,7 @@ func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, er
 	}
 
 	metrics.TokenUsage = totalTokens
-	if metrics.TokenUsage == 0 && fallbackTokens > 0 {
+	if !sawShutdownModelMetrics && fallbackTokens > 0 {
 		metrics.TokenUsage = fallbackTokens
 	}
 	metrics.Turns = turns
@@ -337,9 +345,12 @@ func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, er
 
 func extractFallbackEventTokens(entry copilotEventsJSONLEntry) int {
 	if entry.Data.Usage != nil {
-		// ExtractJSONTokenUsage expects a full event/document map and knows how to
-		// parse usage when it appears at key "usage", so wrap the nested usage map.
-		if tokens := workflow.ExtractJSONTokenUsage(map[string]any{"usage": entry.Data.Usage}); tokens > 0 {
+		// Only count input and output tokens; deliberately exclude cache tokens
+		// (cache_creation_input_tokens, cache_read_input_tokens) to avoid
+		// overcounting in fallback mode.
+		inputTokens := usageField(entry.Data.Usage, "input_tokens", "prompt_tokens")
+		outputTokens := usageField(entry.Data.Usage, "output_tokens", "completion_tokens")
+		if tokens := inputTokens + outputTokens; tokens > 0 {
 			return tokens
 		}
 	}
@@ -354,4 +365,13 @@ func extractFallbackEventTokens(entry copilotEventsJSONLEntry) int {
 		return entry.AlternateUsageInputTokens + entry.AlternateUsageOutputTokens
 	}
 	return 0
+}
+
+// usageField reads primaryKey from a usage map, falling back to aliasKey when
+// the primary is absent or zero (e.g. "input_tokens" → "prompt_tokens").
+func usageField(usage map[string]any, primaryKey, aliasKey string) int {
+	if v := typeutil.ConvertToInt(usage[primaryKey]); v != 0 {
+		return v
+	}
+	return typeutil.ConvertToInt(usage[aliasKey])
 }
