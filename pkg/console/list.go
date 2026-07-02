@@ -5,7 +5,6 @@ package console
 import (
 	"errors"
 	"fmt"
-	"os"
 
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/logger"
@@ -65,15 +64,16 @@ func ShowInteractiveList(title string, items []ListItem) (string, error) {
 // showTextList displays a non-interactive numbered list for non-TTY environments
 func showTextList(title string, items []ListItem) (string, error) {
 	listLog.Printf("Showing text list: title=%s, items=%d", title, len(items))
+	out := stderrWriter()
 
-	fmt.Fprintf(os.Stderr, "\n%s\n\n", title)
+	fmt.Fprintf(out, "\n%s\n\n", title)
 	for i, item := range items {
-		fmt.Fprintf(os.Stderr, "  %d) %s\n", i+1, item.title)
+		fmt.Fprintf(out, "  %d) %s\n", i+1, item.title)
 		if item.description != "" {
-			fmt.Fprintf(os.Stderr, "     %s\n", item.description)
+			fmt.Fprintf(out, "     %s\n", item.description)
 		}
 	}
-	fmt.Fprintf(os.Stderr, "\nSelect (1-%d): ", len(items))
+	fmt.Fprintf(out, "\nSelect (1-%d): ", len(items))
 
 	var choice int
 	_, err := fmt.Scanf("%d", &choice)

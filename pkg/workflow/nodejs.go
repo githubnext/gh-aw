@@ -157,10 +157,30 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 		if len(awfInstall) > 0 {
 			steps = append(steps, awfInstall)
 		}
+
+		// Install Docker Compose plugin for ARC/DinD runners where it may not be pre-installed.
+		if isArcDindTopology(workflowData) {
+			steps = append(steps, generateDockerComposeInstallStep())
+		}
 	}
 
 	if len(npmSteps) > 1 {
 		steps = append(steps, npmSteps[1:]...) // CLI installation and subsequent steps
+	}
+
+	// Copy Copilot CLI to daemon-visible path for ARC/DinD.
+	// The install script puts copilot at /usr/local/bin/copilot which is inside the
+	// sysroot image — not the runner's filesystem. On ARC/DinD, the AWF command
+	// references ${RUNNER_TEMP}/gh-aw/bin/copilot which is daemon-visible.
+	if isFirewallEnabled(workflowData) && isArcDindTopology(workflowData) {
+		copyStep := GitHubActionStep([]string{
+			"      - name: Copy Copilot CLI to daemon-visible path",
+			"        run: |",
+			"          mkdir -p \"${RUNNER_TEMP}/gh-aw/bin\"",
+			"          cp /usr/local/bin/copilot \"${RUNNER_TEMP}/gh-aw/bin/copilot\"",
+			"          chmod +x \"${RUNNER_TEMP}/gh-aw/bin/copilot\"",
+		})
+		steps = append(steps, copyStep)
 	}
 
 	return steps

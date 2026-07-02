@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"hash/fnv"
+	"image/color"
 	"os"
 	"strings"
 	"sync"
@@ -30,22 +31,30 @@ var (
 	// DEBUG_COLORS environment variable to control color output.
 	debugColors = os.Getenv("DEBUG_COLORS") != "0" //nolint:osgetenvlibrary
 
-	// Color palette for namespace coloring, using adaptive styles.
-	colorPalette = []lipgloss.Style{
-		lipgloss.NewStyle().Foreground(styles.ColorInfo),
-		lipgloss.NewStyle().Foreground(styles.ColorSuccess),
-		lipgloss.NewStyle().Foreground(styles.ColorWarning),
-		lipgloss.NewStyle().Foreground(styles.ColorPurple),
-		lipgloss.NewStyle().Foreground(styles.ColorYellow),
-		lipgloss.NewStyle().Foreground(styles.ColorError),
-		lipgloss.NewStyle().Foreground(styles.ColorComment),
-		lipgloss.NewStyle().Foreground(styles.ColorForeground),
-		lipgloss.NewStyle().Foreground(styles.ColorBorder),
-		lipgloss.NewStyle().Foreground(styles.ColorInfo),
-		lipgloss.NewStyle().Foreground(styles.ColorSuccess),
-		lipgloss.NewStyle().Foreground(styles.ColorPurple),
+	basePaletteColors = []color.Color{
+		styles.ColorInfo,
+		styles.ColorSuccess,
+		styles.ColorWarning,
+		styles.ColorPurple,
+		styles.ColorYellow,
+		styles.ColorError,
+		styles.ColorComment,
+		styles.ColorForeground,
+		styles.ColorBorder,
 	}
+
+	// Color palette for namespace coloring, using adaptive styles.
+	colorPalette = buildColorPalette()
 )
+
+func buildColorPalette() []lipgloss.Style {
+	order := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 3}
+	palette := make([]lipgloss.Style, 0, len(order))
+	for _, idx := range order {
+		palette = append(palette, lipgloss.NewStyle().Foreground(basePaletteColors[idx]))
+	}
+	return palette
+}
 
 // initDebugEnv resolves the effective debug pattern.
 // If DEBUG is set, it takes precedence. Otherwise, if ACTIONS_RUNNER_DEBUG=true,
@@ -115,7 +124,7 @@ func (l *Logger) Printf(format string, args ...any) {
 	diff := l.tickTime()
 
 	message := fmt.Sprintf(format, args...)
-	lipgloss.Fprintf(os.Stderr, "%s %s +%s\n", l.label, message, timeutil.FormatDuration(diff))
+	lipgloss.Fprintf(stderrWriter(), "%s %s +%s\n", l.label, message, timeutil.FormatDuration(diff))
 }
 
 // Print prints a message if the logger is enabled.
@@ -128,7 +137,7 @@ func (l *Logger) Print(args ...any) {
 	diff := l.tickTime()
 
 	message := fmt.Sprint(args...)
-	lipgloss.Fprintf(os.Stderr, "%s %s +%s\n", l.label, message, timeutil.FormatDuration(diff))
+	lipgloss.Fprintf(stderrWriter(), "%s %s +%s\n", l.label, message, timeutil.FormatDuration(diff))
 }
 
 func (l *Logger) tickTime() time.Duration {

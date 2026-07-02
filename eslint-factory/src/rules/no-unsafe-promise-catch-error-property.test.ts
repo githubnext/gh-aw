@@ -80,6 +80,18 @@ describe("no-unsafe-promise-catch-error-property", () => {
     });
   });
 
+  it("valid: truthiness-gated unsafe property access is allowed", () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [
+        `promise.catch(err => core.setFailed(err && err.stack ? err.stack : String(err)));`,
+        `promise.catch(err => err && err.message ? err.message : 'unknown');`,
+        `promise.catch(err => err !== null && err.stack ? err.stack : 'none');`,
+        `promise.catch(err => err && err.message && err.stack ? err.stack : 'none');`,
+      ],
+      invalid: [],
+    });
+  });
+
   it("invalid: err.message without guard is flagged in arrow function callback", () => {
     cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
       valid: [],
@@ -95,6 +107,54 @@ describe("no-unsafe-promise-catch-error-property", () => {
                   messageId: "useGetErrorMessage",
                   data: { errorVar: "err" },
                   output: `promise.catch(err => { core.setFailed(getErrorMessage(err)); });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: err.message before truthiness check is still flagged", () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `promise.catch(err => { const hasMessage = err.message && err; });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "message", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `promise.catch(err => { const hasMessage = getErrorMessage(err) && err; });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: truthiness-guarded access does not suppress later unguarded access", () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `promise.catch(err => { const stack = err && err.stack; core.setFailed(err.message); });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "message", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `promise.catch(err => { const stack = err && err.stack; core.setFailed(getErrorMessage(err)); });`,
                 },
               ],
             },

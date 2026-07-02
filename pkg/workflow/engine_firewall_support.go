@@ -97,11 +97,15 @@ func (c *Compiler) checkFirewallDisable(networkPermissions *NetworkPermissions) 
 }
 
 // generateSquidLogsUploadStep creates a GitHub Actions step to upload Squid logs as artifact.
-func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
+func generateSquidLogsUploadStep(workflowName string, workflowData *WorkflowData) GitHubActionStep {
 	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
 	artifactName := "firewall-logs-" + sanitizedName
-	// Firewall logs are now at a known location in the sandbox folder structure
+	// Firewall logs location: /tmp/gh-aw on standard runners, ${{ runner.temp }}/gh-aw on ARC/DinD.
+	// Use ${{ runner.temp }} (Actions expression) because `with:` blocks don't expand shell vars.
 	firewallLogsDir := constants.AWFProxyLogsDir + "/"
+	if isArcDindTopology(workflowData) {
+		firewallLogsDir = "${{ runner.temp }}/gh-aw/sandbox/firewall/logs/"
+	}
 
 	stepLines := []string{
 		"      - name: Upload Firewall Logs",
@@ -119,8 +123,15 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 
 // generateFirewallLogParsingStep creates a GitHub Actions step to parse firewall logs and create step summary.
 func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowData) GitHubActionStep {
-	// Firewall logs are at a known location in the sandbox folder structure
+	// Firewall logs are at a known location in the sandbox folder structure.
+	// On ARC/DinD, /tmp/gh-aw is not daemon-visible so logs land under runner.temp/gh-aw.
 	firewallLogsDir := constants.AWFProxyLogsDir
+	// For env: blocks, use ${{ runner.temp }} (Actions expression) since shell vars aren't expanded there.
+	firewallLogsDirEnv := constants.AWFProxyLogsDir
+	if isArcDindTopology(workflowData) {
+		firewallLogsDir = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"
+		firewallLogsDirEnv = "${{ runner.temp }}/gh-aw/sandbox/firewall/logs"
+	}
 	firewallDir := path.Dir(firewallLogsDir)
 
 	stepLines := []string{
@@ -128,7 +139,7 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 		"        if: always()",
 		"        continue-on-error: true",
 		"        env:",
-		"          AWF_LOGS_DIR: " + firewallLogsDir,
+		"          AWF_LOGS_DIR: " + firewallLogsDirEnv,
 		"        run: |",
 	}
 
@@ -164,7 +175,7 @@ func defaultGetSquidLogsSteps(workflowData *WorkflowData, debugLog *logger.Logge
 	if isFirewallEnabled(workflowData) {
 		debugLog.Printf("Adding Squid logs upload and parsing steps for workflow: %s", workflowData.Name)
 
-		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
+		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name, workflowData)
 		steps = append(steps, squidLogsUpload)
 
 		// Add firewall log parsing step to create step summary

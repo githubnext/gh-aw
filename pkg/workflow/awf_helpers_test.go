@@ -2068,3 +2068,31 @@ func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
 		assert.Equal(t, "custom-awf", cmd, "Custom command should take precedence over sudo rootless mode")
 	})
 }
+
+func TestBuildAWFCommand_ArcDindPreCreatesMountDirs(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:    "copilot",
+		EngineCommand: "copilot run",
+		LogFile:       "/tmp/log.txt",
+		PathSetup:     "export PATH=/usr/bin:$PATH",
+		WorkflowData: &WorkflowData{
+			Name:            "Test",
+			AI:              "copilot",
+			MarkdownContent: "test",
+			RunnerConfig:    &RunnerConfig{Topology: RunnerTopologyArcDind},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{ID: "awf"},
+			},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+
+	// Verify mount source directories are pre-created before AWF invocation
+	assert.Contains(t, command, `mkdir -p "${RUNNER_TEMP}/gh-aw/home" "${RUNNER_TEMP}/gh-aw/sandbox/agent"`,
+		"should pre-create rw mount source directories for arc-dind")
+
+	// Verify the mounts themselves are present
+	assert.Contains(t, command, `--mount "${RUNNER_TEMP}/gh-aw/home:${RUNNER_TEMP}/gh-aw/home:rw"`)
+	assert.Contains(t, command, `--mount "${RUNNER_TEMP}/gh-aw/sandbox/agent:${RUNNER_TEMP}/gh-aw/sandbox/agent:rw"`)
+}
