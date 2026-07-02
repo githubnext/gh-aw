@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/syncutil"
 )
 
 const (
@@ -42,8 +42,7 @@ type rawModel struct {
 type pricingCache = map[string]map[string]map[string]float64
 
 var (
-	once  sync.Once
-	cache pricingCache
+	catalogCache syncutil.OnceLoader[pricingCache]
 
 	// httpClientFactory is overridable for tests.
 	httpClientFactory = func() *http.Client {
@@ -101,11 +100,11 @@ func FindPricing(ctx context.Context, provider, model string) (map[string]float6
 // process. Network failures are logged and result in an empty (non-nil) cache so
 // subsequent calls are instant no-ops.
 func ensureCatalog(ctx context.Context) pricingCache {
-	once.Do(func() {
+	downloaded, _ := catalogCache.Get(func() (pricingCache, error) {
 		downloaded, err := downloadAndParseCatalog(ctx)
 		if err != nil {
 			log.Printf("models.dev catalog download failed (pricing fallback unavailable): %v", err)
-			downloaded = pricingCache{}
+			return pricingCache{}, nil
 		} else {
 			total := 0
 			for _, models := range downloaded {
@@ -113,9 +112,9 @@ func ensureCatalog(ctx context.Context) pricingCache {
 			}
 			log.Printf("Downloaded models.dev catalog: %d providers, %d total models", len(downloaded), total)
 		}
-		cache = downloaded
+		return downloaded, nil
 	})
-	return cache
+	return downloaded
 }
 
 func downloadAndParseCatalog(ctx context.Context) (pricingCache, error) {

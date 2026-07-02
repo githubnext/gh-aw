@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -110,18 +109,15 @@ func TestParseCostMap(t *testing.T) {
 }
 
 func TestFindPricing(t *testing.T) {
-	origCache := cache
 	origURL := catalogURL
 	origFactory := httpClientFactory
 	t.Cleanup(func() {
-		once = sync.Once{}
-		cache = origCache
+		catalogCache.Reset()
 		catalogURL = origURL
 		httpClientFactory = origFactory
 	})
 
-	once = sync.Once{}
-	cache = nil
+	catalogCache.Reset()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
