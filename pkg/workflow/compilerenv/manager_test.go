@@ -7,6 +7,60 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestManager_WithInjectedGetter demonstrates the dependency-injection pattern:
+// a Manager constructed with a custom EnvGetter reads from that getter instead
+// of os.Getenv, enabling deterministic tests without modifying the process environment.
+func TestManager_WithInjectedGetter(t *testing.T) {
+	env := map[string]string{
+		DefaultMaxTurns:           "20",
+		DefaultTimeoutMinutes:     "45",
+		DefaultMaxTurnCacheMisses: "9",
+		DefaultDetectionModel:     "gpt-5.5-mini",
+		DefaultUTC:                "-08:00",
+	}
+	m := New(func(key string) string { return env[key] })
+
+	assert.Equal(t, "20", m.ResolveDefaultMaxTurns("7"), "injected env should override fallback")
+	assert.Equal(t, 45, m.ResolveDefaultTimeoutMinutes(20))
+	assert.Equal(t, 9, m.ResolveDefaultMaxTurnCacheMisses(5))
+	assert.Equal(t, "gpt-5.5-mini", m.ResolveDefaultDetectionModel(""))
+	assert.Equal(t, "-08:00", m.ResolveDefaultUTC("+00:00"))
+}
+
+// TestManager_FallbackWhenEnvEmpty confirms that Manager methods return the
+// fallback value when the injected getter returns empty strings.
+func TestManager_FallbackWhenEnvEmpty(t *testing.T) {
+	m := New(func(string) string { return "" })
+
+	assert.Equal(t, "7", m.ResolveDefaultMaxTurns("7"))
+	assert.Equal(t, 20, m.ResolveDefaultTimeoutMinutes(20))
+	assert.Equal(t, 5, m.ResolveDefaultMaxTurnCacheMisses(5))
+	assert.Equal(t, "gpt-5.5-mini", m.ResolveDefaultDetectionModel("gpt-5.5-mini"))
+	assert.Equal(t, "+00:00", m.ResolveDefaultUTC("+00:00"))
+}
+
+// TestManager_PolicyModelsAllowed exercises ResolvePolicyModelsAllowed on a
+// Manager with an injected getter.
+func TestManager_PolicyModelsAllowed(t *testing.T) {
+	env := map[string]string{PolicyModelsAllowed: "gpt-5,claude-sonnet"}
+	m := New(func(key string) string { return env[key] })
+
+	got, ok := m.ResolvePolicyModelsAllowed()
+	assert.True(t, ok)
+	assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, got)
+}
+
+// TestManager_PolicyModelsBlocked exercises ResolvePolicyModelsBlocked on a
+// Manager with an injected getter.
+func TestManager_PolicyModelsBlocked(t *testing.T) {
+	env := map[string]string{PolicyModelsBlocked: "gpt-5-pro,claude-opus"}
+	m := New(func(key string) string { return env[key] })
+
+	got, ok := m.ResolvePolicyModelsBlocked()
+	assert.True(t, ok)
+	assert.Equal(t, []string{"gpt-5-pro", "claude-opus"}, got)
+}
+
 func TestBuildDefaultMaxTurnsExpression(t *testing.T) {
 	assert.Equal(t,
 		"${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}",
