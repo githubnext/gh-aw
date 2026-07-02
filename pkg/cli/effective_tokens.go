@@ -37,8 +37,12 @@ func providerIncludesCacheReadsInInput(normalizedProvider string) bool {
 	// the provider field.
 	// We include both "azure-openai" and "azure_openai" to handle observed
 	// provider naming variants in historical logs.
+	// "github-copilot" and its raw aliases ("github", "copilot", "github_models")
+	// proxy both OpenAI and Anthropic models, both of which bundle cache-read
+	// tokens inside the reported input total, so §3.5 applies.
 	switch normalizedProvider {
-	case "", "anthropic", "openai", "azure-openai", "azure_openai":
+	case "", "anthropic", "openai", "azure-openai", "azure_openai",
+		"github-copilot", "github", "copilot", "github_models":
 		return true
 	default:
 		return false
