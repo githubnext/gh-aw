@@ -23,6 +23,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stats"
+	"github.com/github/gh-aw/pkg/typeutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -188,6 +189,7 @@ func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, er
 	var currentSequence []string
 	turns := 0
 	totalTokens := 0
+	fallbackTokens := 0
 	foundAnyEvent := false
 
 	// Per-turn timestamps used to compute Time Between Turns (TBT)
@@ -207,6 +209,10 @@ func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, er
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			copilotEventsJSONLLog.Printf("Skipping malformed events.jsonl line: %v", err)
 			continue
+		}
+		var rawEntry map[string]any
+		if err := json.Unmarshal([]byte(line), &rawEntry); err == nil {
+			fallbackTokens += extractFallbackEventTokens(rawEntry)
 		}
 
 		foundAnyEvent = true
@@ -284,6 +290,9 @@ func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, er
 	}
 
 	metrics.TokenUsage = totalTokens
+	if metrics.TokenUsage == 0 && fallbackTokens > 0 {
+		metrics.TokenUsage = fallbackTokens
+	}
 	metrics.Turns = turns
 
 	// Compute Time Between Turns (TBT) from per-turn timestamps.
@@ -319,4 +328,32 @@ func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, er
 	}
 
 	return metrics, nil
+}
+
+func extractFallbackEventTokens(rawEntry map[string]any) int {
+	// First try canonical token extraction on the full entry.
+	if tokens := workflow.ExtractJSONTokenUsage(rawEntry); tokens > 0 {
+		return tokens
+	}
+
+	// Then try nested data payloads.
+	if data, ok := rawEntry["data"].(map[string]any); ok {
+		if tokens := workflow.ExtractJSONTokenUsage(data); tokens > 0 {
+			return tokens
+		}
+	}
+
+	// Support flattened usage fields present in newer event mirrors.
+	input := typeutil.ConvertToInt(rawEntry["usage_input_tokens"])
+	output := typeutil.ConvertToInt(rawEntry["usage_output_tokens"])
+	if input > 0 || output > 0 {
+		return input + output
+	}
+	input = typeutil.ConvertToInt(rawEntry["usageInputTokens"])
+	output = typeutil.ConvertToInt(rawEntry["usageOutputTokens"])
+	if input > 0 || output > 0 {
+		return input + output
+	}
+
+	return 0
 }
