@@ -748,9 +748,11 @@ func TestGenerateMainJobStepsArcDindRedirectsToolCacheToRunnerTemp(t *testing.T)
 	require.NoError(t, err)
 
 	result := yaml.String()
-	assert.Contains(t, result, "- name: Redirect tool cache for ARC/DinD")
+	assert.Contains(t, result, "- name: Redirect tool cache and install paths for ARC/DinD")
 	assert.Contains(t, result, `mkdir -p "${RUNNER_TEMP}/gh-aw/tool-cache"`)
 	assert.Contains(t, result, `echo "RUNNER_TOOL_CACHE=${RUNNER_TEMP}/gh-aw/tool-cache" >> "$GITHUB_ENV"`)
+	assert.Contains(t, result, `echo "DOTNET_INSTALL_DIR=${RUNNER_TEMP}/gh-aw/tool-cache/dotnet" >> "$GITHUB_ENV"`)
+	assert.Contains(t, result, `echo "GOPATH=${RUNNER_TEMP}/gh-aw/tool-cache/go" >> "$GITHUB_ENV"`)
 	assert.NotContains(t, result, "/tmp/gh-aw/tool-cache")
 }
 
