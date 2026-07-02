@@ -93,13 +93,12 @@ function createStandardFormatResult(fieldMapping) {
   const { numberField, urlField, urlSource } = fieldMapping;
 
   return function formatSuccessResult(itemNumber, updatedItem) {
-    const result = {
+    return {
       success: true,
       [numberField]: itemNumber,
       [urlField]: updatedItem[urlSource],
       title: updatedItem.title,
     };
-    return result;
   };
 }
 

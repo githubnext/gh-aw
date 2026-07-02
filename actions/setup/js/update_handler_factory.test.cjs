@@ -351,6 +351,80 @@ describe("update_handler_factory.cjs", () => {
       expect(captureAfter).toHaveBeenCalledWith({ html_url: "https://example.com/issues/42", title: "Updated title" }, { title: "Before title" }, expect.objectContaining({ title: "Test" }));
     });
 
+    it("should work when only captureBefore is configured (no captureAfter)", async () => {
+      const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 42 });
+      const mockBuildUpdateData = vi.fn().mockReturnValue({ success: true, data: { title: "Test" } });
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com/issues/42", title: "Updated title" });
+      const mockFormatSuccessResult = vi.fn().mockReturnValue({ success: true, number: 42 });
+      const captureBefore = vi.fn().mockResolvedValue({ title: "Before title" });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: mockResolveItemNumber,
+        buildUpdateData: mockBuildUpdateData,
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: mockFormatSuccessResult,
+        captureExecutionMetadata: { captureBefore },
+      });
+
+      const handler = await handlerFactory({});
+      const result = await handler({ title: "Test" });
+
+      expect(result.success).toBe(true);
+      expect(result.before_state).toEqual({ title: "Before title" });
+      // after_state should not be present when captureAfter is missing
+      expect(result.after_state).toBeUndefined();
+      expect(captureBefore).toHaveBeenCalled();
+    });
+
+    it("should work when only captureAfter is configured (no captureBefore)", async () => {
+      const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 42 });
+      const mockBuildUpdateData = vi.fn().mockReturnValue({ success: true, data: { title: "Test" } });
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com/issues/42", title: "Updated title" });
+      const mockFormatSuccessResult = vi.fn().mockReturnValue({ success: true, number: 42 });
+      const captureAfter = vi.fn().mockResolvedValue({ title: "After title" });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: mockResolveItemNumber,
+        buildUpdateData: mockBuildUpdateData,
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: mockFormatSuccessResult,
+        captureExecutionMetadata: { captureAfter },
+      });
+
+      const handler = await handlerFactory({});
+      const result = await handler({ title: "Test" });
+
+      expect(result.success).toBe(true);
+      expect(result.after_state).toEqual({ title: "After title" });
+      // captureAfter was called with null beforeState since captureBefore was not configured
+      expect(captureAfter).toHaveBeenCalledWith(expect.objectContaining({ title: "Updated title" }), null, expect.anything());
+    });
+
+    it("should log cross-repo update when item has explicit repo field", async () => {
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com", title: "Updated" });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 42 }),
+        buildUpdateData: vi.fn().mockReturnValue({ success: true, data: { title: "Test" } }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+      });
+
+      const handler = await handlerFactory({ "target-repo": "other-owner/other-repo", allowed_repos: ["other-owner/other-repo"] });
+      await handler({ title: "Test", repo: "other-owner/other-repo" });
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Cross-repo update"));
+    });
+
     it("should pass additional config to log message", async () => {
       const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 42 });
       const mockBuildUpdateData = vi.fn().mockReturnValue({ success: true, data: { title: "Test" } });
