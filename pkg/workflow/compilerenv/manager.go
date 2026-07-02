@@ -11,6 +11,31 @@ import (
 
 var managerLog = logger.New("compilerenv:manager")
 
+// EnvGetter is a function type for looking up environment variables.
+// It mirrors the signature of os.Getenv and is used to decouple library
+// logic from direct process-environment access.
+type EnvGetter func(string) string
+
+// Manager resolves enterprise env-var overrides through an injected EnvGetter.
+// Construct one with New for explicit env control (e.g., in tests); package-level
+// Resolve* convenience functions delegate to a default Manager backed by os.Getenv.
+type Manager struct {
+	getenv EnvGetter
+}
+
+// New creates a Manager using the provided EnvGetter for environment lookups.
+func New(getenv EnvGetter) *Manager {
+	if getenv == nil {
+		panic("compilerenv: getenv must not be nil")
+	}
+	return &Manager{getenv: getenv}
+}
+
+// defaultManager is the package-level Manager backed by the process environment.
+// os.Getenv is passed as a function reference and called lazily on each Resolve*
+// invocation, so values reflect the environment at call time.
+var defaultManager = New(os.Getenv)
+
 const (
 	// DefaultMaxDailyAICredits is the enterprise override for the top-level
 	// max-daily-ai-credits guardrail when it is not explicitly configured in
@@ -66,35 +91,53 @@ const (
 
 // ResolveDefaultMaxTurns returns fallback when the env var is unset/invalid,
 // otherwise returns the parsed override as a string.
-func ResolveDefaultMaxTurns(fallback string) string {
-	if parsed, ok := parsePositiveIntEnvVar(DefaultMaxTurns); ok {
+func (m *Manager) ResolveDefaultMaxTurns(fallback string) string {
+	if parsed, ok := m.parsePositiveIntEnvVar(DefaultMaxTurns); ok {
 		return strconv.Itoa(parsed)
 	}
 	return fallback
 }
 
+// ResolveDefaultMaxTurns is a convenience wrapper that delegates to the
+// default process-environment Manager.
+func ResolveDefaultMaxTurns(fallback string) string {
+	return defaultManager.ResolveDefaultMaxTurns(fallback)
+}
+
 // ResolveDefaultTimeoutMinutes returns fallback when the env var is unset/invalid,
 // otherwise returns the parsed override.
-func ResolveDefaultTimeoutMinutes(fallback int) int {
-	if parsed, ok := parsePositiveIntEnvVar(DefaultTimeoutMinutes); ok {
+func (m *Manager) ResolveDefaultTimeoutMinutes(fallback int) int {
+	if parsed, ok := m.parsePositiveIntEnvVar(DefaultTimeoutMinutes); ok {
 		return parsed
 	}
 	return fallback
+}
+
+// ResolveDefaultTimeoutMinutes is a convenience wrapper that delegates to the
+// default process-environment Manager.
+func ResolveDefaultTimeoutMinutes(fallback int) int {
+	return defaultManager.ResolveDefaultTimeoutMinutes(fallback)
 }
 
 // ResolveDefaultMaxTurnCacheMisses returns fallback when the env var is unset/invalid,
 // otherwise returns the parsed override.
-func ResolveDefaultMaxTurnCacheMisses(fallback int) int {
-	if parsed, ok := parsePositiveIntEnvVar(DefaultMaxTurnCacheMisses); ok {
+func (m *Manager) ResolveDefaultMaxTurnCacheMisses(fallback int) int {
+	if parsed, ok := m.parsePositiveIntEnvVar(DefaultMaxTurnCacheMisses); ok {
 		return parsed
 	}
 	return fallback
 }
 
+// ResolveDefaultMaxTurnCacheMisses is a convenience wrapper that delegates to
+// the default process-environment Manager.
+func ResolveDefaultMaxTurnCacheMisses(fallback int) int {
+	return defaultManager.ResolveDefaultMaxTurnCacheMisses(fallback)
+}
+
 // ResolveDefaultDetectionModel returns fallback when the env var is unset,
 // otherwise returns the trimmed override value.
-func ResolveDefaultDetectionModel(fallback string) string {
-	raw := strings.TrimSpace(os.Getenv(DefaultDetectionModel))
+func (m *Manager) ResolveDefaultDetectionModel(fallback string) string {
+	raw := strings.TrimSpace(m.getenv(DefaultDetectionModel))
 	if raw == "" {
 		return fallback
 	}
@@ -102,10 +145,16 @@ func ResolveDefaultDetectionModel(fallback string) string {
 	return raw
 }
 
+// ResolveDefaultDetectionModel is a convenience wrapper that delegates to the
+// default process-environment Manager.
+func ResolveDefaultDetectionModel(fallback string) string {
+	return defaultManager.ResolveDefaultDetectionModel(fallback)
+}
+
 // ResolveDefaultUTC returns fallback when the env var is unset, otherwise
 // returns the trimmed override value.
-func ResolveDefaultUTC(fallback string) string {
-	raw := strings.TrimSpace(os.Getenv(DefaultUTC))
+func (m *Manager) ResolveDefaultUTC(fallback string) string {
+	raw := strings.TrimSpace(m.getenv(DefaultUTC))
 	if raw == "" {
 		return fallback
 	}
@@ -113,11 +162,17 @@ func ResolveDefaultUTC(fallback string) string {
 	return raw
 }
 
+// ResolveDefaultUTC is a convenience wrapper that delegates to the default
+// process-environment Manager.
+func ResolveDefaultUTC(fallback string) string {
+	return defaultManager.ResolveDefaultUTC(fallback)
+}
+
 // parsePositiveIntEnvVar parses an environment variable as a base-10 positive int.
 // It returns (value, true) when the variable is set to a valid value > 0.
 // For unset, empty, non-numeric, or non-positive values, it returns (0, false).
-func parsePositiveIntEnvVar(name string) (int, bool) {
-	raw := strings.TrimSpace(os.Getenv(name))
+func (m *Manager) parsePositiveIntEnvVar(name string) (int, bool) {
+	raw := strings.TrimSpace(m.getenv(name))
 	if raw == "" {
 		return 0, false
 	}
@@ -176,18 +231,30 @@ func BuildModelOverrideExpressionEmptyFallback(primaryVar, enterpriseDefaultVar 
 
 // ResolvePolicyModelsAllowed returns configured allowed model policy entries.
 // When the env var is unset/empty, ok=false and callers should use frontmatter policy.
+func (m *Manager) ResolvePolicyModelsAllowed() ([]string, bool) {
+	return m.resolveModelListEnv(PolicyModelsAllowed)
+}
+
+// ResolvePolicyModelsAllowed is a convenience wrapper that delegates to the
+// default process-environment Manager.
 func ResolvePolicyModelsAllowed() ([]string, bool) {
-	return resolveModelListEnv(PolicyModelsAllowed)
+	return defaultManager.ResolvePolicyModelsAllowed()
 }
 
 // ResolvePolicyModelsBlocked returns configured blocked model policy entries.
 // When the env var is unset/empty, ok=false and callers should use frontmatter policy.
-func ResolvePolicyModelsBlocked() ([]string, bool) {
-	return resolveModelListEnv(PolicyModelsBlocked)
+func (m *Manager) ResolvePolicyModelsBlocked() ([]string, bool) {
+	return m.resolveModelListEnv(PolicyModelsBlocked)
 }
 
-func resolveModelListEnv(name string) ([]string, bool) {
-	raw := strings.TrimSpace(os.Getenv(name))
+// ResolvePolicyModelsBlocked is a convenience wrapper that delegates to the
+// default process-environment Manager.
+func ResolvePolicyModelsBlocked() ([]string, bool) {
+	return defaultManager.ResolvePolicyModelsBlocked()
+}
+
+func (m *Manager) resolveModelListEnv(name string) ([]string, bool) {
+	raw := strings.TrimSpace(m.getenv(name))
 	if raw == "" {
 		return nil, false
 	}

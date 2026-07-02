@@ -7494,7 +7494,7 @@ safe-outputs:
   # defines a named dispatch tool with its own event_type, target repository, input
   # schema, and execution limits.
   # (optional)
-  dispatch_repository:
+  dispatch-repository:
     {}
 
   # Call reusable workflows via workflow_call fan-out. The compiler generates static
