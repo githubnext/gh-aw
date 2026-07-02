@@ -200,7 +200,7 @@ func intensityChar(count int) string {
 func intensityStyle(count int, isTerminal bool) lipgloss.Style {
 	if !isTerminal {
 		// Keep glyph rendering unchanged while preventing ANSI escapes in piped output.
-		return lipgloss.Style{}
+		return lipgloss.NewStyle()
 	}
 
 	switch {

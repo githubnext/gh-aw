@@ -51,11 +51,12 @@ func ConfirmAction(title, affirmative, negative string) (bool, error) {
 // showTextConfirm displays a non-interactive confirmation prompt for non-TTY environments
 func showTextConfirm(title, affirmative, negative string, reader io.Reader) (bool, error) {
 	confirmLog.Printf("Showing text confirm: title=%s", title)
+	out := stderrWriter()
 
-	fmt.Fprintf(os.Stderr, "\n%s\n\n", title)
-	fmt.Fprintf(os.Stderr, "  1) %s\n", affirmative)
-	fmt.Fprintf(os.Stderr, "  2) %s\n", negative)
-	fmt.Fprintf(os.Stderr, "\nEnter y/yes/1 to confirm, n/no/2 to cancel: ")
+	fmt.Fprintf(out, "\n%s\n\n", title)
+	fmt.Fprintf(out, "  1) %s\n", affirmative)
+	fmt.Fprintf(out, "  2) %s\n", negative)
+	fmt.Fprintf(out, "\nEnter y/yes/1 to confirm, n/no/2 to cancel: ")
 
 	var input string
 	_, err := fmt.Fscan(reader, &input)

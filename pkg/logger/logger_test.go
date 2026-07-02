@@ -4,6 +4,7 @@ package logger
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -319,6 +320,19 @@ func TestNoColorEnvironment(t *testing.T) {
 	})
 	if strings.Contains(output, "\x1b[") {
 		t.Errorf("logger output should not contain ANSI color escapes when NO_COLOR is set, got %q", output)
+	}
+}
+
+func TestColorProfileWriterStripsANSIWithNoColor(t *testing.T) {
+	var buf bytes.Buffer
+	w := newColorProfileWriter(&buf, []string{"NO_COLOR=1", "TERM=xterm-256color"})
+
+	if _, err := fmt.Fprint(w, "\x1b[38;2;255;0;0mhello\x1b[0m"); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	if strings.Contains(buf.String(), "\x1b[") {
+		t.Fatalf("expected NO_COLOR writer output to be ANSI-free, got %q", buf.String())
 	}
 }
 
