@@ -2,6 +2,7 @@ package timesleepnocontext
 
 import (
 	"context"
+	"net/http"
 	"time"
 )
 
@@ -56,6 +57,53 @@ func GoodFuncLitWithOwnCtx() {
 
 func doWork(fn func(context.Context, time.Duration)) {
 	fn(context.Background(), time.Second)
+}
+
+// Good: callback context source is request-scoped, not the outer registration context.
+func GoodHTTPHandleFuncCallbackInCtxFunc(ctx context.Context, d time.Duration) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/wait", func(w http.ResponseWriter, r *http.Request) {
+		_ = w
+		_ = r
+		time.Sleep(d)
+	})
+	_ = ctx
+}
+
+// Good: ordinary synchronous callback closure should not be attributed to outer ctx.
+func GoodSyncCallbackInCtxFunc(ctx context.Context, d time.Duration) {
+	register(func() {
+		time.Sleep(d)
+	})
+	_ = ctx
+}
+
+// Bad: deferred closure shares outer context lifetime.
+func BadDeferWithCtx(ctx context.Context, d time.Duration) {
+	defer func() {
+		time.Sleep(d) // want `use select with ctx\.Done\(\) instead of time\.Sleep to allow context cancellation`
+	}()
+	_ = ctx
+}
+
+// Bad: parenthesized deferred closure shares outer context lifetime.
+func BadDeferParenWithCtx(ctx context.Context, d time.Duration) {
+	defer (func() {
+		time.Sleep(d) // want `use select with ctx\.Done\(\) instead of time\.Sleep to allow context cancellation`
+	})()
+	_ = ctx
+}
+
+// Bad: parenthesized goroutine closure shares outer context lifetime.
+func BadGoParenWithCtx(ctx context.Context, d time.Duration) {
+	go (func() {
+		time.Sleep(d) // want `use select with ctx\.Done\(\) instead of time\.Sleep to allow context cancellation`
+	})()
+	_ = ctx
+}
+
+func register(fn func()) {
+	fn()
 }
 
 // Good: inline nolint suppresses intentional sleep.

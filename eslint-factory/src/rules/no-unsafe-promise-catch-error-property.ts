@@ -36,8 +36,14 @@ function isNonNullGuardCheck(node: TSESTree.Expression, varName: string): boolea
 }
 
 function getUnsafePropertyName(node: TSESTree.Expression, varName: string): string | null {
-  if (node.type !== AST_NODE_TYPES.MemberExpression || node.computed) return null;
-  return node.object.type === AST_NODE_TYPES.Identifier && node.object.name === varName && node.property.type === AST_NODE_TYPES.Identifier && UNSAFE_PROPERTIES.has(node.property.name) ? node.property.name : null;
+  if (node.type !== AST_NODE_TYPES.MemberExpression) return null;
+  if (node.object.type !== AST_NODE_TYPES.Identifier || node.object.name !== varName) return null;
+
+  if (!node.computed) {
+    return node.property.type === AST_NODE_TYPES.Identifier && UNSAFE_PROPERTIES.has(node.property.name) ? node.property.name : null;
+  }
+
+  return node.property.type === AST_NODE_TYPES.Literal && typeof node.property.value === "string" && UNSAFE_PROPERTIES.has(node.property.value) ? node.property.value : null;
 }
 
 function collectConjuncts(node: TSESTree.Expression): TSESTree.Expression[] {
@@ -119,8 +125,9 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
     },
     schema: [],
     messages: {
-      unsafeProperty: "Direct access to .{{prop}} on promise rejection '{{errorVar}}' is unsafe — the rejection value may not be an Error instance. Use getErrorMessage({{errorVar}}) from error_helpers.cjs instead.",
+      unsafeProperty: "Direct access to .{{prop}} on promise rejection '{{errorVar}}' is unsafe — the rejection value may not be an Error instance.",
       useGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) from error_helpers.cjs for safe error message extraction.",
+      wrapWithInstanceof: "Wrap with '({{errorVar}} instanceof Error ? {{errorVar}}.{{prop}} : undefined)' to guard against non-Error throws.",
     },
   },
   defaultOptions: [],
@@ -152,6 +159,10 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
 
       for (const { node: memberExpr, prop } of frame.unsafeNodes) {
         const { varName } = frame;
+        const parent = memberExpr.parent;
+        const isChained =
+          parent != null &&
+          ((parent.type === AST_NODE_TYPES.MemberExpression && (parent as TSESTree.MemberExpression).object === memberExpr) || (parent.type === AST_NODE_TYPES.CallExpression && (parent as TSESTree.CallExpression).callee === memberExpr));
         context.report({
           node: memberExpr,
           messageId: "unsafeProperty",
@@ -167,7 +178,17 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
                     },
                   },
                 ]
-              : undefined,
+              : isChained
+                ? []
+                : [
+                    {
+                      messageId: "wrapWithInstanceof" as const,
+                      data: { errorVar: varName, prop },
+                      fix(fixer) {
+                        return fixer.replaceText(memberExpr, `(${varName} instanceof Error ? ${varName}.${prop} : undefined)`);
+                      },
+                    },
+                  ],
         });
       }
     }
@@ -239,6 +260,7 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
       },
 
       // Collect catchVar.message / catchVar.stack / catchVar.code / catchVar.status / catchVar.cause / catchVar.name accesses
+      // Also detects computed string-literal access: catchVar["message"], catchVar["status"], etc.
       MemberExpression(node) {
         if (stack.length === 0) return;
         const top = stack[stack.length - 1];
