@@ -313,3 +313,19 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 
 	return GitHubActionStep(stepLines)
 }
+
+// generateDockerComposeInstallStep creates a step that installs the Docker Compose
+// CLI plugin. ARC/DinD runners may not have Docker Compose pre-installed, but AWF
+// requires it to orchestrate the squid-proxy, agent, and api-proxy containers.
+func generateDockerComposeInstallStep() GitHubActionStep {
+	return GitHubActionStep([]string{
+		"      - name: Install Docker Compose plugin",
+		"        run: |",
+		`          DOCKER_CONFIG="${DOCKER_CONFIG:-$HOME/.docker}"`,
+		`          mkdir -p "$DOCKER_CONFIG/cli-plugins"`,
+		`          curl -fsSL "https://github.com/docker/compose/releases/download/v2.36.2/docker-compose-linux-x86_64" \`,
+		`            -o "$DOCKER_CONFIG/cli-plugins/docker-compose"`,
+		`          chmod +x "$DOCKER_CONFIG/cli-plugins/docker-compose"`,
+		`          docker compose version`,
+	})
+}

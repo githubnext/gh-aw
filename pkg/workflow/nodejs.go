@@ -157,6 +157,11 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 		if len(awfInstall) > 0 {
 			steps = append(steps, awfInstall)
 		}
+
+		// Install Docker Compose plugin for ARC/DinD runners where it may not be pre-installed.
+		if isArcDindTopology(workflowData) {
+			steps = append(steps, generateDockerComposeInstallStep())
+		}
 	}
 
 	if len(npmSteps) > 1 {
