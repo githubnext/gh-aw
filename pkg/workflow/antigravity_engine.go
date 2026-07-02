@@ -19,10 +19,14 @@ type AntigravityEngine struct {
 func NewAntigravityEngine() *AntigravityEngine {
 	return &AntigravityEngine{
 		BaseEngine: BaseEngine{
-			id:               "antigravity",
-			displayName:      "Antigravity CLI",
-			description:      "Antigravity CLI with headless mode and LLM gateway support",
-			experimental:     true,
+			id:           "antigravity",
+			displayName:  "Antigravity CLI",
+			description:  "Antigravity CLI with headless mode and LLM gateway support",
+			experimental: true,
+			// undocumented: the maintainer decision (closed-unmerged PR #42294) is that
+			// the antigravity engine must not appear in engines.md or the schema.
+			// Set true so drift detectors skip this engine and do not re-file docs issues.
+			undocumented:     true,
 			ghSkillAgentName: "antigravity",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,

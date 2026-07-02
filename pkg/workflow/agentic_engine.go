@@ -101,6 +101,11 @@ type Engine interface {
 	// IsExperimental returns true if this engine is experimental
 	IsExperimental() bool
 
+	// IsUndocumented returns true if this engine is intentionally excluded from
+	// public reference documentation and schema drift checks.
+	// Drift detectors must skip engines where IsUndocumented() returns true.
+	IsUndocumented() bool
+
 	// GetGHSkillAgentName returns the gh skill --agent value for this engine.
 	// Returns an empty string when gh skill install does not support the engine.
 	GetGHSkillAgentName() string
@@ -314,10 +319,16 @@ type CodingAgentEngine interface {
 
 // BaseEngine provides common functionality for agentic engines
 type BaseEngine struct {
-	id                      string
-	displayName             string
-	description             string
-	experimental            bool
+	id           string
+	displayName  string
+	description  string
+	experimental bool
+	// undocumented marks the engine as intentionally excluded from public reference
+	// documentation (engines.md) and schema drift checks. Drift detectors must skip
+	// engines where IsUndocumented() returns true rather than re-filing reconciliation
+	// issues. Defaults to false; only set to true when a maintainer has decided the
+	// engine should not appear in public docs.
+	undocumented            bool
 	ghSkillAgentName        string
 	capabilities            EngineCapabilities
 	dedicatedLLMGatewayPort int
@@ -337,6 +348,10 @@ func (e *BaseEngine) GetDescription() string {
 
 func (e *BaseEngine) IsExperimental() bool {
 	return e.experimental
+}
+
+func (e *BaseEngine) IsUndocumented() bool {
+	return e.undocumented
 }
 
 func (e *BaseEngine) GetGHSkillAgentName() string {
@@ -552,6 +567,22 @@ func (r *EngineRegistry) GetSupportedEngines() []string {
 	agenticEngineLog.Print("Getting list of supported engines")
 	engines := sliceutil.SortedKeys(r.engines)
 	return engines
+}
+
+// GetDocumentedEngines returns a sorted list of engine IDs that are documented in the
+// public reference (engines.md) and included in schema drift checks.
+// Engines marked with undocumented: true are intentionally excluded and must not be
+// re-added by automated drift detectors or documentation healers.
+func (r *EngineRegistry) GetDocumentedEngines() []string {
+	agenticEngineLog.Print("Getting list of documented engines")
+	var ids []string
+	for id, engine := range r.engines {
+		if !engine.IsUndocumented() {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // IsValidEngine checks if an engine ID is valid

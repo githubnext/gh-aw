@@ -18,6 +18,7 @@ func TestAntigravityEngine(t *testing.T) {
 		assert.Equal(t, "Antigravity CLI", engine.GetDisplayName(), "Display name should be 'Antigravity CLI'")
 		assert.NotEmpty(t, engine.GetDescription(), "Description should not be empty")
 		assert.True(t, engine.IsExperimental(), "Antigravity engine should be experimental")
+		assert.True(t, engine.IsUndocumented(), "Antigravity engine should be marked undocumented")
 	})
 
 	t.Run("capabilities", func(t *testing.T) {

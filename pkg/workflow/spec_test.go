@@ -274,14 +274,15 @@ func TestSpec_Engine_RegistryLookupAndIdentity(t *testing.T) {
 // TestSpec_Engine_DocumentedEnginesRegistered validates that every AI engine documented
 // in the workflow package README.md is registered and reports the documented identity.
 // Spec: the engine architecture lists copilot, claude, codex, gemini, crush, opencode,
-// pi, and antigravity engines, each created by a New<Name>Engine constructor.
+// and pi engines, each created by a New<Name>Engine constructor.
+// Note: antigravity is registered but intentionally excluded from public docs (IsUndocumented() == true).
 func TestSpec_Engine_DocumentedEnginesRegistered(t *testing.T) {
 	registry := workflow.GetGlobalEngineRegistry()
 	require.NotNil(t, registry, "GetGlobalEngineRegistry() must return a non-nil registry")
 
 	documentedEngines := []string{
 		"copilot", "claude", "codex", "gemini",
-		"crush", "opencode", "pi", "antigravity",
+		"crush", "opencode", "pi",
 	}
 
 	for _, id := range documentedEngines {
@@ -291,8 +292,28 @@ func TestSpec_Engine_DocumentedEnginesRegistered(t *testing.T) {
 			require.NotNil(t, engine, "documented engine %q must be non-nil", id)
 			assert.Equal(t, id, engine.GetID(),
 				"engine %q must report its documented ID via GetID()", id)
+			assert.False(t, engine.IsUndocumented(),
+				"engine %q must not be marked undocumented", id)
 		})
 	}
+}
+
+// TestSpec_Engine_AntigravityIsUndocumented validates that the antigravity engine is
+// registered but intentionally excluded from public reference documentation and schema
+// drift checks (IsUndocumented() == true). This records the maintainer decision from
+// closed-unmerged PR #42294 in code so drift detectors do not re-file docs issues.
+func TestSpec_Engine_AntigravityIsUndocumented(t *testing.T) {
+	registry := workflow.GetGlobalEngineRegistry()
+	require.NotNil(t, registry, "GetGlobalEngineRegistry() must return a non-nil registry")
+
+	engine, err := registry.GetEngine("antigravity")
+	require.NoError(t, err, "antigravity engine must still be registered for runtime use")
+	require.NotNil(t, engine, "antigravity engine must be non-nil")
+
+	assert.True(t, engine.IsUndocumented(),
+		"antigravity must be marked undocumented so drift detectors skip it")
+	assert.NotContains(t, registry.GetDocumentedEngines(), "antigravity",
+		"GetDocumentedEngines() must exclude antigravity")
 }
 
 // TestSpec_Engine_GlobalRegistrySingleton validates the documented thread-safety contract that
