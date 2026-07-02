@@ -107,7 +107,6 @@ func resolveProviderAndModelForPricing(engineConfig *EngineConfig) (string, stri
 		model = strings.ToLower(embeddedModel)
 	}
 
-	provider = normalizeProviderForPricing(provider)
 	if provider == "" || model == "" {
 		return "", "", false
 	}
