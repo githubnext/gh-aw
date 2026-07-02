@@ -97,10 +97,10 @@ const HTTP_400_RESPONSE_ERROR_PATTERN = /(?:Response status code does not indica
 // This is a persistent policy configuration error — retrying will not help.
 const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 
-// Pattern to detect "model not supported" error (e.g. Copilot Pro/Education users hitting
-// a model that is unavailable for their subscription tier).
+// Pattern to detect "model not supported" / unavailable errors (e.g. Copilot users hitting
+// a model that is unavailable for their subscription tier or current policy enablement).
 // This is a persistent configuration error — retrying with --continue will not help.
-const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
+const MODEL_NOT_SUPPORTED_PATTERN = /(?:The requested model is not supported|No model available\.\s*Check policy enablement under GitHub Settings\s*>\s*Copilot)/i;
 
 // Pattern to detect missing authentication credentials.
 // On a --continue attempt this may indicate that the Copilot CLI's on-disk session

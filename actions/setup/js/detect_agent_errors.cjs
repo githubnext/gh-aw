@@ -55,13 +55,14 @@ const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 // Pattern: Configured model is invalid or unavailable.
 // Covers common engine/provider variants:
 //   - "The requested model is not supported"
+//   - "No model available. Check policy enablement under GitHub Settings > Copilot"
 //   - "invalid model name '...'"
 //   - "unknown model <id>"
 //   - "model ... not found"
 //   - "model ... does not exist"
 //   - "Model not found" (standalone, e.g. AIC api-proxy 404: "404 Not Found: Model not found")
 const MODEL_NOT_SUPPORTED_PATTERN =
-  /(?:The requested model is not supported|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable)|404\b[^\n]*\bModel\s+not\s+found)/i;
+  /(?:The requested model is not supported|No model available\.\s*Check policy enablement under GitHub Settings\s*>\s*Copilot|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable)|404\b[^\n]*\bModel\s+not\s+found)/i;
 
 // Pattern: Generic HTTP 400 Bad Request responses emitted by engine / SDK wrappers.
 // NOTE: keep in sync with HTTP_400_RESPONSE_ERROR_PATTERN in copilot_harness.cjs.

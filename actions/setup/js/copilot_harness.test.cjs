@@ -897,7 +897,7 @@ describe("copilot_harness.cjs", () => {
   describe("MCP policy error prevents retry", () => {
     // Inline the same retry logic as the driver, including MCP policy check
     const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
-    const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
+    const MODEL_NOT_SUPPORTED_PATTERN = /(?:The requested model is not supported|No model available\.\s*Check policy enablement under GitHub Settings\s*>\s*Copilot)/i;
     const MAX_RETRIES = 3;
 
     /**
@@ -934,6 +934,15 @@ describe("copilot_harness.cjs", () => {
       expect(shouldRetry(result, 0)).toBe(false);
     });
 
+    it("does not retry Copilot SDK no-model policy-enablement errors", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: true,
+        output: "Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot",
+      };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
     it("still retries non-policy errors with output", () => {
       const result = { exitCode: 1, hasOutput: true, output: "CAPIError: 400 Bad Request" };
       expect(shouldRetry(result, 0)).toBe(true);
@@ -941,10 +950,15 @@ describe("copilot_harness.cjs", () => {
   });
 
   describe("model-not-supported detection pattern", () => {
-    const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
+    const MODEL_NOT_SUPPORTED_PATTERN = /(?:The requested model is not supported|No model available\.\s*Check policy enablement under GitHub Settings\s*>\s*Copilot)/i;
 
     it("matches the exact error from the issue report", () => {
       const errorOutput = "Execution failed: CAPIError: 400 The requested model is not supported.";
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    it("matches the Copilot SDK no-model policy-enablement error", () => {
+      const errorOutput = "Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot";
       expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
     });
 
@@ -991,6 +1005,17 @@ describe("copilot_harness.cjs", () => {
         expect(content).toContain("agentic_engine_timeout=true");
         expect(content).toContain("model_not_supported_error=false");
         expect(content).toContain("http_400_response_error=true");
+      });
+
+      it("detects Copilot SDK no-model policy-enablement output", () => {
+        const output = "Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot";
+        expect(detectCopilotErrors(output)).toEqual({
+          inferenceAccessError: false,
+          mcpPolicyError: false,
+          agenticEngineTimeout: false,
+          modelNotSupportedError: true,
+          http400ResponseError: false,
+        });
       });
     });
 

@@ -106,6 +106,11 @@ describe("detect_agent_errors.cjs", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test(log)).toBe(true);
     });
 
+    it("matches Copilot SDK policy-enableable no-model errors", () => {
+      const errorOutput = "Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot";
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
+    });
+
     it("matches invalid/unknown model name variants", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("invalid model name 'claude-sonnet-999'")).toBe(true);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("unknown model gpt-unknown")).toBe(true);
@@ -253,6 +258,16 @@ describe("detect_agent_errors.cjs", () => {
 
     it("detects model not supported error only", () => {
       const result = detectErrors("Execution failed: CAPIError: 400 The requested model is not supported.");
+      expect(result.inferenceAccessError).toBe(false);
+      expect(result.mcpPolicyError).toBe(false);
+      expect(result.agenticEngineTimeout).toBe(false);
+      expect(result.modelNotSupportedError).toBe(true);
+      expect(result.http400ResponseError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(false);
+    });
+
+    it("detects Copilot SDK no-model policy-enablement errors as model-not-supported", () => {
+      const result = detectErrors("Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot");
       expect(result.inferenceAccessError).toBe(false);
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);

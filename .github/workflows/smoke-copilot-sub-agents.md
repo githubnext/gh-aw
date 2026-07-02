@@ -12,7 +12,7 @@ strict: true
 engine:
   id: copilot
   copilot-sdk: true
-  model: gpt-5.3-codex
+  model: gpt-5.4
   bare: true
 safe-outputs:
   create-issue:
