@@ -111,6 +111,30 @@ describe("no-unsafe-promise-catch-error-property", () => {
     });
   });
 
+  it("invalid: err.message before truthiness check is still flagged", () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `promise.catch(err => { const hasMessage = err.message && err; });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "message", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `promise.catch(err => { const hasMessage = getErrorMessage(err) && err; });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("invalid: err.stack without guard is flagged", () => {
     cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
       valid: [],

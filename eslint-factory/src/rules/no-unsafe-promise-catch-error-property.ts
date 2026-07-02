@@ -165,11 +165,22 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
 
         const hasTypeofObject = conjuncts.some(expr => isTypeofObjectCheck(expr, top.varName));
         const hasNonNullGuard = conjuncts.some(expr => isNonNullGuardCheck(expr, top.varName));
-        const hasUnsafePropAccess = conjuncts.some(expr => isUnsafePropertyAccess(expr, top.varName));
+        let hasSeenNonNullGuardBefore = false;
+        let hasGuardedUnsafePropAccess = false;
+        for (const conjunct of conjuncts) {
+          if (isNonNullGuardCheck(conjunct, top.varName)) {
+            hasSeenNonNullGuardBefore = true;
+            continue;
+          }
+          if (hasSeenNonNullGuardBefore && isUnsafePropertyAccess(conjunct, top.varName)) {
+            hasGuardedUnsafePropAccess = true;
+            break;
+          }
+        }
         if (hasTypeofObject && hasNonNullGuard) {
           top.hasGuard = true;
           top.hasNonNullGuard = true;
-        } else if (hasNonNullGuard && hasUnsafePropAccess) {
+        } else if (hasGuardedUnsafePropAccess) {
           top.hasGuard = true;
         }
       },
