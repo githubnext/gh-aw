@@ -120,7 +120,7 @@ Use `gh aw version` to print the current version.
 
 ### The `--push` Flag
 
-`gh aw run --push` stages workflow files only (including transitive imports), commits them, and pushes before dispatching the workflow. It does not require a clean working directory.
+`gh aw run --push` stages workflow files only (including transitive imports), commits them, and pushes before dispatching the workflow. It does not require a clean working directory, but will abort if there are already staged files that are not part of the workflow set — commit or unstage those files before using `--push`.
 
 For `init`, `update`, and `upgrade`, use `--create-pull-request` instead.
 

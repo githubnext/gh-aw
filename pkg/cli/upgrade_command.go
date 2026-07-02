@@ -87,6 +87,8 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			auditFlag, _ := cmd.Flags().GetBool("audit")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			disabledCodemods, _ := cmd.Flags().GetStringSlice("no-codemod")
+			disabledCodemodsLegacy, _ := cmd.Flags().GetStringSlice("disable-codemod")
+			disabledCodemods = append(disabledCodemods, disabledCodemodsLegacy...)
 			skipExtensionUpgrade, _ := cmd.Flags().GetBool("skip-extension-upgrade")
 			approveUpgrade, _ := cmd.Flags().GetBool("approve")
 			preReleases, _ := cmd.Flags().GetBool("pre-releases")
@@ -154,6 +156,8 @@ This command always upgrades all Markdown files in .github/workflows.`,
 	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions (ignored when --no-fix is set)")
 	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify .lock.yml files; ignored when --no-fix is set)")
 	cmd.Flags().StringSlice("no-codemod", nil, "Disable specific codemod IDs during the fix step (repeatable)")
+	cmd.Flags().StringSlice("disable-codemod", nil, "Disable specific codemod IDs during the fix step (repeatable)")
+	_ = cmd.Flags().MarkHidden("disable-codemod")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the workflow changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output

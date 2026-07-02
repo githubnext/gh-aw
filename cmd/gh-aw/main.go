@@ -790,7 +790,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during execution")
 	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Add a string parameter in key=value format (can be used multiple times)")
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
-	runCmd.Flags().Bool("dry-run", false, "Preview execution without applying any changes")
+	runCmd.Flags().Bool("dry-run", false, "Validate workflow without actually triggering execution on GitHub Actions")
 	runCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 	runCmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement.")
 	// Register completions for run command

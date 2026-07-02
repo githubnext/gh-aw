@@ -70,6 +70,8 @@ all steps and additionally:
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			dir, _ := cmd.Flags().GetString("dir")
 			disabledCodemods, _ := cmd.Flags().GetStringSlice("no-codemod")
+			disabledCodemodsLegacy, _ := cmd.Flags().GetStringSlice("disable-codemod")
+			disabledCodemods = append(disabledCodemods, disabledCodemodsLegacy...)
 
 			if listCodemods {
 				return listAvailableCodemods()
@@ -83,6 +85,8 @@ all steps and additionally:
 	cmd.Flags().Bool("list-codemods", false, "List all available codemods and exit")
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	cmd.Flags().StringSlice("no-codemod", nil, "Disable specific codemod IDs during the fix step (repeatable)")
+	cmd.Flags().StringSlice("disable-codemod", nil, "Disable specific codemod IDs during the fix step (repeatable)")
+	_ = cmd.Flags().MarkHidden("disable-codemod")
 
 	// Register completions
 	cmd.ValidArgsFunction = CompleteWorkflowNames
