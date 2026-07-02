@@ -1689,4 +1689,43 @@ func TestGenerateConfigureGitCredentialsSteps(t *testing.T) {
 		assert.Contains(t, combined, `${GH_AW_SUBREPO_0}.git`)
 		assert.Contains(t, combined, `${GH_AW_SUBREPO_1}.git`)
 	})
+
+	// Regression: when persist-credentials: true is used in actions/checkout, it stores
+	// an http.<server>/.extraheader in .git/config. Without explicit cleanup, git sends
+	// two conflicting Authorization headers (checkout token via extraheader + push token
+	// via URL), causing failures in cross-org scenarios where the checkout token is
+	// scoped to a different org than the push target.
+	t.Run("multi-repo clears http extraheader after remote set-url for each sub-repo", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "org/other-repo", Path: "./other-repo"},
+		})
+		steps := cm.GenerateConfigureGitCredentialsSteps(token, alwaysTrue)
+		combined := strings.Join(steps, "")
+
+		assert.Contains(t, combined, `config --unset-all "http.${GITHUB_SERVER_URL}/.extraheader"`,
+			"must clear the extraheader that actions/checkout persists with persist-credentials: true")
+		// The cleanup must be idempotent (2>/dev/null || true) so it doesn't fail when no extraheader was set.
+		assert.Contains(t, combined, "2>/dev/null || true",
+			"extraheader cleanup must be idempotent")
+	})
+
+	t.Run("cross-org push: sub-repo cleanup appears after remote set-url", func(t *testing.T) {
+		// Regression: in cross-org setups (checkout repo = workflow-org/workflow-repo,
+		// push target = target-org/target-repo), actions/checkout persists the workflow-org
+		// checkout token as an extraheader. GenerateConfigureGitCredentialsSteps must unset
+		// that extraheader after rewriting the remote URL to use the push token, so that
+		// the only credential used for push is the push token.
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "target-org/target-repo", Path: "./target-repo"},
+		})
+		steps := cm.GenerateConfigureGitCredentialsSteps(token, alwaysTrue)
+		combined := strings.Join(steps, "")
+
+		remoteSetUrlIdx := strings.Index(combined, "remote set-url origin")
+		unsetExtraheaderIdx := strings.Index(combined, "config --unset-all")
+		require.Greater(t, remoteSetUrlIdx, -1, "remote set-url must be present")
+		require.Greater(t, unsetExtraheaderIdx, -1, "extraheader cleanup must be present")
+		assert.Greater(t, unsetExtraheaderIdx, remoteSetUrlIdx,
+			"extraheader cleanup must follow remote set-url so the push token is the sole credential")
+	})
 }

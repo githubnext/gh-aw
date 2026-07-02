@@ -258,6 +258,40 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"name: Checkout repository",
 				// Subdirectory checkout is re-authenticated so the handler can push to it.
 				`git -C "a" remote set-url origin`,
+				// Regression: extraheader from actions/checkout (persist-credentials: true) must
+				// be cleared so the push token (not the checkout token) is the sole credential.
+				`git -C "a" config --unset-all "http.${GITHUB_SERVER_URL}/.extraheader"`,
+			},
+		},
+		{
+			// Regression for cross-org push failure: when a safe_outputs github-app is
+			// configured to push to a target org, actions/checkout stores the workflow-org
+			// checkout token as an http.extraheader. Without explicit cleanup, git pushes to
+			// the target org send two conflicting Authorization headers, failing the push.
+			// The "Configure Git credentials" step must clear the extraheader for sub-repos.
+			name: "safe-outputs github-app cross-org: extraheader cleared for sub-repo checkout",
+			safeOutputs: &SafeOutputsConfig{
+				GitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.APP_ID }}",
+					PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{Repository: "target-org/target-repo", Path: "target-repo"},
+			},
+			checkContains: []string{
+				// The app token must reach the git-credentials step for push auth.
+				"GIT_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}",
+				// The sub-repo remote must be rewritten to use the push token.
+				`git -C "target-repo" remote set-url origin`,
+				// The extraheader from the default GITHUB_TOKEN checkout must be cleared
+				// to prevent conflicting auth headers in the cross-org push.
+				`git -C "target-repo" config --unset-all "http.${GITHUB_SERVER_URL}/.extraheader"`,
+			},
+			checkNotContains: []string{
+				// The app token must NOT appear as a checkout with.token.
+				"token: ${{ steps.safe-outputs-app-token.outputs.token }}",
 			},
 		},
 		{

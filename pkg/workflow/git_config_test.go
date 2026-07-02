@@ -218,7 +218,36 @@ func TestCredentialsCleanerStepsHelper(t *testing.T) {
 	})
 }
 
-// TestGitConfigurationSkippedWhenCheckoutDisabled verifies that git credential steps
+// TestConfigureGitCredentialsShellScript verifies that the configure_git_credentials.sh
+// shell script clears the http.extraheader that actions/checkout persists when
+// persist-credentials: true is used. Without this, cross-org push scenarios fail because
+// git sends two conflicting Authorization headers: the checkout token (via extraheader)
+// and the push token (via URL). This is a regression guard for the safe-outputs push-token
+// isolation fix.
+func TestConfigureGitCredentialsShellScript(t *testing.T) {
+	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "configure_git_credentials.sh")
+	content, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("Failed to read configure_git_credentials.sh: %v", err)
+	}
+	scriptContent := string(content)
+
+	// Regression: the script must unset the http.extraheader that actions/checkout
+	// persists with persist-credentials: true to prevent conflicting Authorization
+	// headers in cross-org push scenarios.
+	if !strings.Contains(scriptContent, "--unset-all") {
+		t.Error("configure_git_credentials.sh must call git config --unset-all to clear the persisted extraheader")
+	}
+	if !strings.Contains(scriptContent, "extraheader") {
+		t.Error("configure_git_credentials.sh must reference extraheader in the cleanup command")
+	}
+	// The cleanup must be idempotent (2>/dev/null || true) so it doesn't fail when no
+	// extraheader was set (e.g. when persist-credentials: false was used).
+	if !strings.Contains(scriptContent, "2>/dev/null || true") {
+		t.Error("configure_git_credentials.sh extraheader cleanup must be idempotent (2>/dev/null || true)")
+	}
+}
+
 // are not emitted when checkout: false is set in the workflow frontmatter.
 func TestGitConfigurationSkippedWhenCheckoutDisabled(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "git-config-checkout-false-test")

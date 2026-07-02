@@ -337,6 +337,10 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 		steps = append(steps,
 			fmt.Sprintf("          # Re-authenticate git for %s\n", commentRef),
 			fmt.Sprintf("          git -C %s remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${GIT_SERVER_URL_STRIPPED}/${%s}.git\"\n", gitDir, repo.envVarName),
+			// Remove the http.extraheader that actions/checkout persists with persist-credentials: true.
+			// Without this, git sends two conflicting Authorization headers (checkout token via
+			// extraheader + push token via URL), which breaks cross-org push scenarios.
+			fmt.Sprintf("          git -C %s config --unset-all \"http.${GITHUB_SERVER_URL}/.extraheader\" 2>/dev/null || true\n", gitDir),
 		)
 	}
 	steps = append(steps,
@@ -402,8 +406,11 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	// Apply user overrides only when NOT in trial mode to avoid conflicting
 	// repository/token values in the same checkout step. Note that safe_outputs push
 	// auth is intentionally isolated from checkout auth: this step only emits tokens
-	// from checkout config (or trial mode), while push auth is applied later by
-	// CheckoutManager.GenerateConfigureGitCredentialsSteps.
+	// from checkout config (or trial mode). Push auth is applied later by
+	// CheckoutManager.GenerateConfigureGitCredentialsSteps, which also calls
+	// git config --unset-all http.<server>/.extraheader to remove the extraheader that
+	// actions/checkout persists with persist-credentials: true, preventing conflicting
+	// Authorization headers in cross-org push scenarios.
 	if !trialMode && override != nil {
 		if override.key.wiki {
 			// Wiki checkout: use "{repository}.wiki" as the effective repository.

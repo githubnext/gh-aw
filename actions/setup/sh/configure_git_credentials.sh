@@ -94,6 +94,11 @@ TOKEN="${GITHUB_TOKEN:-${GIT_TOKEN:-}}"
 if [ -n "${REPO}" ] && [ -n "${URL}" ] && [ -n "${TOKEN}" ]; then
   URL_STRIPPED="${URL#https://}"
   git remote set-url origin "https://x-access-token:${TOKEN}@${URL_STRIPPED}/${REPO}.git"
+  # Remove the http.extraheader that actions/checkout persists with persist-credentials: true.
+  # Without this, git sends two conflicting Authorization headers (the checkout token via
+  # extraheader + the push token via the URL), which can fail in cross-org setups where
+  # the checkout token is scoped to a different org than the push target.
+  git config --unset-all "http.${URL}/.extraheader" 2>/dev/null || true
 fi
 
 echo "Git configured with standard GitHub Actions identity" >&2
