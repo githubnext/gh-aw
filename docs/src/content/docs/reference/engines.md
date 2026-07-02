@@ -298,7 +298,7 @@ The value must be a bare filename — no directory separators, no `..`, and no s
 
 ### Harness Retry Count
 
-The built-in Copilot and Claude harness scripts keep their existing defaults of **3 retries** after the initial run (4 total attempts total), but you can now override the retry policy with environment variables:
+The built-in Copilot and Claude harness scripts keep their existing defaults of **3 retries** after the initial run (4 total attempts), but you can now override the retry policy with environment variables:
 
 - `GH_AW_HARNESS_MAX_RETRIES`
 - `GH_AW_HARNESS_INITIAL_DELAY_MS`

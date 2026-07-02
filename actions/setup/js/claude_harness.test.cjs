@@ -518,6 +518,28 @@ process.exit(0);
         maxDelayMs: 10000,
       });
     });
+
+    it("falls back to defaults for invalid env values and clamps max delay", () => {
+      const logs = [];
+      const retryConfig = resolveRetryConfig(
+        {
+          GH_AW_HARNESS_MAX_RETRIES: "-1",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "6000",
+          GH_AW_HARNESS_BACKOFF_MULTIPLIER: "0",
+          GH_AW_HARNESS_MAX_DELAY_MS: "1000",
+        },
+        msg => logs.push(msg)
+      );
+      expect(retryConfig).toEqual({
+        maxRetries: 3,
+        initialDelayMs: 6000,
+        backoffMultiplier: 2,
+        maxDelayMs: 6000,
+      });
+      expect(logs.some(msg => msg.includes("GH_AW_HARNESS_MAX_RETRIES"))).toBe(true);
+      expect(logs.some(msg => msg.includes("GH_AW_HARNESS_BACKOFF_MULTIPLIER"))).toBe(true);
+      expect(logs.some(msg => msg.includes("clamping max delay"))).toBe(true);
+    });
   });
 
   describe("noop pre-flight and retry guard", () => {

@@ -1586,14 +1586,14 @@ describe("copilot_harness.cjs", () => {
       });
     });
 
-    it("falls back to defaults for invalid env values and clamps max delay", () => {
+    it("falls back to defaults for invalid env values", () => {
       const logs = [];
       const retryConfig = resolveRetryConfig(
         {
           GH_AW_HARNESS_MAX_RETRIES: "-1",
           GH_AW_HARNESS_INITIAL_DELAY_MS: "abc",
           GH_AW_HARNESS_BACKOFF_MULTIPLIER: "0",
-          GH_AW_HARNESS_MAX_DELAY_MS: "1000",
+          GH_AW_HARNESS_MAX_DELAY_MS: "bogus",
         },
         msg => logs.push(msg)
       );
@@ -1601,11 +1601,25 @@ describe("copilot_harness.cjs", () => {
         maxRetries: 3,
         initialDelayMs: 5000,
         backoffMultiplier: 2,
-        maxDelayMs: 5000,
+        maxDelayMs: 60000,
       });
       expect(logs.some(msg => msg.includes("GH_AW_HARNESS_MAX_RETRIES"))).toBe(true);
       expect(logs.some(msg => msg.includes("GH_AW_HARNESS_INITIAL_DELAY_MS"))).toBe(true);
       expect(logs.some(msg => msg.includes("GH_AW_HARNESS_BACKOFF_MULTIPLIER"))).toBe(true);
+      expect(logs.some(msg => msg.includes("GH_AW_HARNESS_MAX_DELAY_MS"))).toBe(true);
+    });
+
+    it("clamps max delay when it is lower than the configured initial delay", () => {
+      const logs = [];
+      const retryConfig = resolveRetryConfig(
+        {
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "4000",
+          GH_AW_HARNESS_MAX_DELAY_MS: "1000",
+        },
+        msg => logs.push(msg)
+      );
+      expect(retryConfig.initialDelayMs).toBe(4000);
+      expect(retryConfig.maxDelayMs).toBe(4000);
       expect(logs.some(msg => msg.includes("clamping max delay"))).toBe(true);
     });
 
