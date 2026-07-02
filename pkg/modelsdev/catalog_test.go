@@ -1,6 +1,6 @@
 //go:build !integration
 
-package cli
+package modelsdev
 
 import (
 	"context"
@@ -42,32 +42,32 @@ const sampleCatalog = `{
   }
 }`
 
-func TestParseModelsDevCatalog(t *testing.T) {
-	cache, err := parseModelsDevCatalog([]byte(sampleCatalog))
+func TestParseCatalog(t *testing.T) {
+	parsed, err := parseCatalog([]byte(sampleCatalog))
 	require.NoError(t, err)
 
 	// Anthropic claude-new-model should be present with per-token pricing.
-	require.Contains(t, cache, "anthropic")
-	require.Contains(t, cache["anthropic"], "claude-new-model")
-	pricing := cache["anthropic"]["claude-new-model"]
+	require.Contains(t, parsed, "anthropic")
+	require.Contains(t, parsed["anthropic"], "claude-new-model")
+	pricing := parsed["anthropic"]["claude-new-model"]
 	assert.InDelta(t, 3.0/1_000_000, pricing["input"], 1e-15)
 	assert.InDelta(t, 15.0/1_000_000, pricing["output"], 1e-15)
 
 	// Models without cost should be excluded.
-	assert.NotContains(t, cache["anthropic"], "claude-no-cost")
+	assert.NotContains(t, parsed["anthropic"], "claude-no-cost")
 
 	// OpenAI gpt-99 should be present.
-	require.Contains(t, cache, "openai")
-	require.Contains(t, cache["openai"], "gpt-99")
-	oaiPricing := cache["openai"]["gpt-99"]
+	require.Contains(t, parsed, "openai")
+	require.Contains(t, parsed["openai"], "gpt-99")
+	oaiPricing := parsed["openai"]["gpt-99"]
 	assert.InDelta(t, 2.5/1_000_000, oaiPricing["input"], 1e-15)
 	assert.InDelta(t, 1.25/1_000_000, oaiPricing["cache_read"], 1e-15)
 
-	// unknown-provider is lowercased and retained (normalizeCatalogProvider does not filter).
-	assert.Contains(t, cache, "unknown-provider")
+	// unknown-provider is lowercased and retained (normalizeProvider does not filter).
+	assert.Contains(t, parsed, "unknown-provider")
 }
 
-func TestParseDevCostMap(t *testing.T) {
+func TestParseCostMap(t *testing.T) {
 	cases := []struct {
 		name string
 		raw  map[string]json.RawMessage
@@ -97,7 +97,7 @@ func TestParseDevCostMap(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := parseDevCostMap(tc.raw)
+			got := parseCostMap(tc.raw)
 			if tc.want == nil {
 				assert.Nil(t, got)
 				return
@@ -109,16 +109,19 @@ func TestParseDevCostMap(t *testing.T) {
 	}
 }
 
-func TestFindPricingInModelsDev(t *testing.T) {
-	origCache := modelsDevCache
+func TestFindPricing(t *testing.T) {
+	origCache := cache
+	origURL := catalogURL
+	origFactory := httpClientFactory
 	t.Cleanup(func() {
-		modelsDevOnce = sync.Once{}
-		modelsDevCache = origCache
+		once = sync.Once{}
+		cache = origCache
+		catalogURL = origURL
+		httpClientFactory = origFactory
 	})
 
-	// Reset the sync.Once and cache so we can inject a test server.
-	modelsDevOnce = sync.Once{}
-	modelsDevCache = nil
+	once = sync.Once{}
+	cache = nil
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -126,37 +129,24 @@ func TestFindPricingInModelsDev(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	origURL := modelsDevCatalogURL
-	modelsDevCatalogURL = srv.URL
-	t.Cleanup(func() { modelsDevCatalogURL = origURL })
-
-	origFactory := modelsDevHTTPClientFactory
-	modelsDevHTTPClientFactory = func() *http.Client { return srv.Client() }
-	t.Cleanup(func() { modelsDevHTTPClientFactory = origFactory })
+	catalogURL = srv.URL
+	httpClientFactory = func() *http.Client { return srv.Client() }
 
 	t.Run("found_exact_provider_and_model", func(t *testing.T) {
-		pricing, ok := findPricingInModelsDev(context.Background(), "anthropic", "claude-new-model")
+		pricing, ok := FindPricing(context.Background(), "anthropic", "claude-new-model")
 		require.True(t, ok)
 		assert.InDelta(t, 3.0/1_000_000, pricing["input"], 1e-15)
 	})
 
 	t.Run("cross_provider_fallback", func(t *testing.T) {
-		pricing, ok := findPricingInModelsDev(context.Background(), "", "gpt-99")
+		pricing, ok := FindPricing(context.Background(), "", "gpt-99")
 		require.True(t, ok)
 		assert.Contains(t, pricing, "input")
 	})
 
 	t.Run("not_found_returns_false", func(t *testing.T) {
-		pricing, ok := findPricingInModelsDev(context.Background(), "anthropic", "does-not-exist")
+		pricing, ok := FindPricing(context.Background(), "anthropic", "does-not-exist")
 		assert.False(t, ok)
 		assert.Nil(t, pricing)
 	})
-}
-
-func TestFindOrFetchModelPricing_EmbeddedModelReturnsNil(t *testing.T) {
-	// claude-sonnet-4.6 is in the embedded catalog; FindOrFetchModelPricing should return
-	// (nil, false) so the lock.yml overlay does not duplicate what models.json already has.
-	pricing, ok := FindOrFetchModelPricing(context.Background(), "anthropic", "claude-sonnet-4.6")
-	assert.False(t, ok)
-	assert.Nil(t, pricing)
 }

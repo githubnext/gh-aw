@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/modelsdev"
 )
 
 var modelCostsLog = logger.New("cli:model_costs")
@@ -211,5 +212,5 @@ func FindOrFetchModelPricing(ctx context.Context, provider, model string) (map[s
 		// will supply the pricing — no need to inject it into the lock.yml overlay.
 		return nil, false
 	}
-	return findPricingInModelsDev(ctx, provider, model)
+	return modelsdev.FindPricing(ctx, provider, model)
 }
