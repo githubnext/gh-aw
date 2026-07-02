@@ -40,6 +40,24 @@ safe-outputs:
   close-discussion:
     required-category: "Ideas"
 timeout-minutes: 10
+experiments:
+  reasoning_depth:
+    variants: [shallow, baseline, deep]
+    description: "Tests whether lighter or more reflective planning instructions produce better agent-ready sub-issues for /plan requests."
+    hypothesis: "H0: no change in plan quality score or success rate. H1: deep improves quality score by >=8%, or shallow reduces run cost/latency by >=15% with no material quality loss."
+    metric: plan_quality_score
+    secondary_metrics: [run_duration_ms, issue_creation_count, output_token_estimate]
+    guardrail_metrics:
+      - name: workflow_success_rate
+        direction: min
+        threshold: 0.95
+      - name: empty_plan_rate
+        direction: min
+        threshold: 0.02
+    min_samples: 137
+    weight: [34, 33, 33]
+    start_date: "2026-07-02"
+    issue: 42941
 
 
 ---
@@ -138,6 +156,26 @@ All created issues will be automatically grouped under a parent tracking issue.
 ## Instructions
 
 Review instructions in `.github/instructions/*.instructions.md` if you need guidance.
+
+{{#if experiments.reasoning_depth == 'shallow'}}
+## Planning Approach
+
+Use a concise, single-pass approach. Scan the issue for 3-5 concrete deliverables and immediately draft sub-issues. Skip elaborate reflection—prioritize speed and directness. Do not produce analysis prose; go straight to the sub-issue list.
+{{#elseif experiments.reasoning_depth == 'deep'}}
+## Planning Approach
+
+Before drafting any sub-issue, complete an explicit reflection step:
+1. **Enumerate** all distinct work items you identify in the issue.
+2. **Sequence check**: Determine which tasks have hard dependencies on other tasks.
+3. **Independence check**: Confirm each sub-issue can be handed to a separate agent without blocking.
+4. **Acceptance-criteria check**: Ensure each task has at least one testable success condition.
+
+Only after completing this reflection, proceed to create the sub-issues.
+{{#else}}
+## Planning Approach
+
+Use the standard planning approach: analyze the issue thoroughly, then create well-structured sub-issues with clear objectives and acceptance criteria.
+{{/if}}
 
 ## Begin Planning
 

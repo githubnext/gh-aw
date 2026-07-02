@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAntigravityEngineParseLogMetrics(t *testing.T) {
-	engine := NewAntigravityEngine()
+func TestGeminiEngineParseLogMetrics(t *testing.T) {
+	engine := NewGeminiEngine()
 
 	t.Run("parses metrics from json lines", func(t *testing.T) {
 		logContent := `not-json

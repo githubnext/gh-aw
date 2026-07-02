@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/goccy/go-yaml"
 )
 
@@ -179,8 +180,8 @@ func parseRepoSlugLiteral(slug string) (string, string, bool) {
 		return "", "", false
 	}
 
-	owner, repo, found := strings.Cut(slug, "/")
-	if !found || owner == "" || repo == "" || strings.Contains(repo, "/") {
+	owner, repo, err := repoutil.SplitRepoSlug(slug)
+	if err != nil {
 		return "", "", false
 	}
 

@@ -80,6 +80,7 @@ jobs:
             param(
               [Parameter(Mandatory)] [string] $FilePath,
               [string[]] $ArgumentList = @(),
+              [string] $RawArguments = "",
               [int] $TimeoutMs = 30000,
               [string] $WorkingDirectory = (Get-Location).Path,
               [hashtable] $EnvironmentOverrides = @{},
@@ -97,8 +98,12 @@ jobs:
             $psi.RedirectStandardOutput = $true
             $psi.RedirectStandardError = $true
 
-            foreach ($arg in $ArgumentList) {
-              [void]$psi.ArgumentList.Add($arg)
+            if ($RawArguments) {
+              $psi.Arguments = $RawArguments
+            } else {
+              foreach ($arg in $ArgumentList) {
+                [void]$psi.ArgumentList.Add($arg)
+              }
             }
 
             if ($MinimalEnvironment) {
@@ -123,12 +128,14 @@ jobs:
               }
             }
 
+            $displayArgs = if ($RawArguments) { $RawArguments } else { $ArgumentList -join ' ' }
+
             $proc = [System.Diagnostics.Process]::Start($psi)
             $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
             $stderrTask = $proc.StandardError.ReadToEndAsync()
             if (-not $proc.WaitForExit($TimeoutMs)) {
               try { $proc.Kill($true) } catch {}
-              throw "TIMEOUT: '$FilePath $($ArgumentList -join ' ')' exceeded ${TimeoutMs}ms"
+              throw "TIMEOUT: '$FilePath $displayArgs' exceeded ${TimeoutMs}ms"
             }
 
             $proc.WaitForExit()
@@ -148,7 +155,7 @@ jobs:
                 throw "Expected error pattern '$ExpectedErrorPattern' not found"
               }
             } elseif ($proc.ExitCode -ne 0) {
-              throw "Exit code $($proc.ExitCode) for '$FilePath $($ArgumentList -join ' ')'`n$output"
+              throw "Exit code $($proc.ExitCode) for '$FilePath $displayArgs'`n$output"
             }
 
             return @{
@@ -236,8 +243,13 @@ jobs:
                 Invoke-CliProcess -FilePath "powershell" -ArgumentList @("-NoProfile", "-Command", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
               }
               "cmd" {
-                $cmd = if ($scenario.launch -eq "path") { "gh-aw --help" } else { "call ""$binary"" --help" }
-                Invoke-CliProcess -FilePath "cmd" -ArgumentList @("/d", "/s", "/c", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
+                if ($scenario.launch -eq "path") {
+                  Invoke-CliProcess -FilePath "cmd" -ArgumentList @("/d", "/s", "/c", "gh-aw --help") -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
+                } else {
+                  # Use RawArguments to bypass .NET's \"..\" quoting which conflicts with cmd.exe's ""..""
+                  # syntax. The outer "" pair is stripped by cmd /s, leaving "path\exe.exe" --help.
+                  Invoke-CliProcess -FilePath "cmd" -RawArguments "/d /s /c `"`"$binary`" --help`"" -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
+                }
               }
               default {
                 throw "Unknown shell scenario: $($scenario.shell)"
