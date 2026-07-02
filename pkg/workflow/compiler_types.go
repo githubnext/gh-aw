@@ -109,6 +109,12 @@ type Compiler struct {
 	ghesArtifactCompat      bool                     // If true, emit GHES-compatible v3.x pins for artifact actions instead of the latest v7/v8
 	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login; not goroutine-safe (Compiler is used sequentially)
 	copilotRequestsTipShown map[string]bool          // Tracks markdown paths that already emitted the copilot-requests enable tip in this compiler instance
+	// modelPricingResolver is an optional callback for resolving per-token pricing of models that
+	// are absent from the embedded models.json catalog. When non-nil it is called during
+	// buildInitialWorkflowData for the workflow's configured model; any returned pricing is merged
+	// into WorkflowData.ModelCosts so it is embedded in GH_AW_INFO_MODEL_COSTS in the lock.yml.
+	// Injected by the cli package (which has access to the embedded catalog and models.dev download).
+	modelPricingResolver func(ctx context.Context, provider, model string) (map[string]float64, bool)
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
@@ -162,6 +168,20 @@ func (c *Compiler) SetSkipValidation(skip bool) {
 // SetContext sets the context used for network operations such as SHA resolution.
 func (c *Compiler) SetContext(ctx context.Context) {
 	c.ctx = ctx
+}
+
+// SetModelPricingResolver registers a callback used to resolve pricing for models that are
+// not present in the embedded models.json catalog. The resolver receives the workflow's
+// inference provider and model name; it should return per-token pricing (USD) and true when
+// pricing is available, or (nil, false) when it is not. Injected by the cli package so that
+// the compiler can fetch missing pricing from models.dev without a circular import.
+func (c *Compiler) SetModelPricingResolver(fn func(ctx context.Context, provider, model string) (map[string]float64, bool)) {
+	c.modelPricingResolver = fn
+}
+
+// HasModelPricingResolver reports whether a model pricing resolver callback is configured.
+func (c *Compiler) HasModelPricingResolver() bool {
+	return c.modelPricingResolver != nil
 }
 
 // SetRequireDocker configures whether Docker must be available for container image validation.

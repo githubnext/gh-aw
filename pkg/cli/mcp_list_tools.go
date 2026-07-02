@@ -172,12 +172,14 @@ func NewMCPListToolsSubcommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "list-tools [workflow]",
-		Short: "List available tools for a specific MCP server",
-		Long: `List available tools for a specific MCP server.
+		Short: "List available tools for a specific MCP server, or find workflows using it",
+		Long: `List available tools for a specific MCP server, or find workflows using it.
 
-This command connects to the specified MCP server and displays all available tools.
-It reuses the same infrastructure as 'mcp inspect' to establish connections and
-query server capabilities.
+When no workflow argument is provided, this command searches workflows in .github/workflows
+for references to the specified MCP server and returns matching workflow IDs.
+When a workflow is provided, it connects to the specified MCP server and displays all
+available tools. It reuses the same infrastructure as 'mcp inspect' to establish
+connections and query server capabilities.
 
 The workflow-id-or-file can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")

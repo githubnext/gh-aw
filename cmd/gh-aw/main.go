@@ -327,6 +327,7 @@ Three flags govern this. --gh-aw-ref is mutually exclusive with the other two;
 		staged, _ := cmd.Flags().GetBool("staged")
 		approve, _ := cmd.Flags().GetBool("approve")
 		validateImages, _ := cmd.Flags().GetBool("validate-images")
+		disableModelsDevLookup, _ := cmd.Flags().GetBool("no-models-dev-lookup")
 		priorManifestFile, _ := cmd.Flags().GetString("prior-manifest-file")
 		ghes, _ := cmd.Flags().GetBool("ghes")
 		verbose, _ := cmd.Flags().GetBool("verbose")
@@ -389,6 +390,7 @@ Three flags govern this. --gh-aw-ref is mutually exclusive with the other two;
 			Staged:                 staged,
 			Approve:                approve,
 			ValidateImages:         validateImages,
+			DisableModelsDevLookup: disableModelsDevLookup,
 			PriorManifestFile:      priorManifestFile,
 			GHESCompat:             ghes,
 			UseSamples:             useSamples,
@@ -748,6 +750,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("staged", false, "Force all safe-outputs into staged mode")
 	compileCmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	compileCmd.Flags().Bool("validate-images", false, "Require Docker to be available for container image validation. Without this flag, container image validation is silently skipped when Docker is not installed or the daemon is not running")
+	compileCmd.Flags().Bool("no-models-dev-lookup", false, "Disable compile-time models.dev pricing lookup for models missing from the embedded catalog")
 	compileCmd.Flags().String("prior-manifest-file", "", "Path to a JSON file containing pre-cached gh-aw-manifests (map[lockFile]*GHAWManifest); used by the MCP server to supply a tamper-proof manifest baseline captured at startup")
 	compileCmd.Flags().Bool("ghes", false, "Enable GitHub Enterprise Server (GHES) compatibility mode: emit upload-artifact@v3 and download-artifact@v3 instead of the latest v7/v8 which are not supported on GHES. Overrides the aw.json ghes field")
 	if err := compileCmd.Flags().MarkHidden("prior-manifest-file"); err != nil {

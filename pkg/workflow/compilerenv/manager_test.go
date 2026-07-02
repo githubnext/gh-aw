@@ -7,6 +7,110 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestManager_WithInjectedGetter smoke-tests all Resolve* methods through a
+// single injected EnvGetter map so the DI pattern is exercised end-to-end.
+func TestManager_WithInjectedGetter(t *testing.T) {
+	env := map[string]string{
+		DefaultMaxTurns:           "20",
+		DefaultTimeoutMinutes:     "45",
+		DefaultMaxTurnCacheMisses: "9",
+		DefaultDetectionModel:     "gpt-5.5-mini",
+		DefaultUTC:                "-08:00",
+	}
+	m := New(func(key string) string { return env[key] })
+
+	t.Run("ResolveDefaultMaxTurns", func(t *testing.T) {
+		assert.Equal(t, "20", m.ResolveDefaultMaxTurns("7"), "injected env should override fallback")
+	})
+
+	t.Run("ResolveDefaultTimeoutMinutes", func(t *testing.T) {
+		assert.Equal(t, 45, m.ResolveDefaultTimeoutMinutes(20))
+	})
+
+	t.Run("ResolveDefaultMaxTurnCacheMisses", func(t *testing.T) {
+		assert.Equal(t, 9, m.ResolveDefaultMaxTurnCacheMisses(5))
+	})
+
+	t.Run("ResolveDefaultDetectionModel", func(t *testing.T) {
+		assert.Equal(t, "gpt-5.5-mini", m.ResolveDefaultDetectionModel(""))
+	})
+
+	t.Run("ResolveDefaultUTC", func(t *testing.T) {
+		assert.Equal(t, "-08:00", m.ResolveDefaultUTC("+00:00"))
+	})
+}
+
+func TestNew_PanicsOnNilGetter(t *testing.T) {
+	assert.PanicsWithValue(t, "compilerenv: getenv must not be nil", func() {
+		New(nil)
+	})
+}
+
+// TestManager_FallbackWhenEnvEmpty confirms that Manager methods return the
+// fallback value when the injected getter returns empty strings.
+func TestManager_FallbackWhenEnvEmpty(t *testing.T) {
+	m := New(func(string) string { return "" })
+
+	assert.Equal(t, "7", m.ResolveDefaultMaxTurns("7"))
+	assert.Equal(t, 20, m.ResolveDefaultTimeoutMinutes(20))
+	assert.Equal(t, 5, m.ResolveDefaultMaxTurnCacheMisses(5))
+	assert.Equal(t, "gpt-5.5-mini", m.ResolveDefaultDetectionModel("gpt-5.5-mini"))
+	assert.Equal(t, "+00:00", m.ResolveDefaultUTC("+00:00"))
+}
+
+// TestManager_PolicyModelsAllowed exercises ResolvePolicyModelsAllowed on a
+// Manager with an injected getter.
+func TestManager_PolicyModelsAllowed(t *testing.T) {
+	t.Run("happy path", func(t *testing.T) {
+		env := map[string]string{PolicyModelsAllowed: "gpt-5,claude-sonnet"}
+		m := New(func(key string) string { return env[key] })
+
+		got, ok := m.ResolvePolicyModelsAllowed()
+		assert.True(t, ok)
+		assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, got)
+	})
+
+	t.Run("deduplicates repeated entries", func(t *testing.T) {
+		env := map[string]string{PolicyModelsAllowed: "gpt-5,gpt-5,claude-sonnet,gpt-5"}
+		m := New(func(key string) string { return env[key] })
+
+		got, ok := m.ResolvePolicyModelsAllowed()
+		assert.True(t, ok)
+		assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, got)
+	})
+}
+
+// TestManager_PolicyModelsBlocked exercises ResolvePolicyModelsBlocked on a
+// Manager with an injected getter.
+func TestManager_PolicyModelsBlocked(t *testing.T) {
+	t.Run("happy path", func(t *testing.T) {
+		env := map[string]string{PolicyModelsBlocked: "gpt-5-pro,claude-opus"}
+		m := New(func(key string) string { return env[key] })
+
+		got, ok := m.ResolvePolicyModelsBlocked()
+		assert.True(t, ok)
+		assert.Equal(t, []string{"gpt-5-pro", "claude-opus"}, got)
+	})
+
+	t.Run("comma and newline separators", func(t *testing.T) {
+		env := map[string]string{PolicyModelsBlocked: "gpt-5-pro,\nclaude-opus"}
+		m := New(func(key string) string { return env[key] })
+
+		got, ok := m.ResolvePolicyModelsBlocked()
+		assert.True(t, ok)
+		assert.Equal(t, []string{"gpt-5-pro", "claude-opus"}, got)
+	})
+
+	t.Run("deduplicates repeated entries", func(t *testing.T) {
+		env := map[string]string{PolicyModelsBlocked: "gpt-5-pro,\nclaude-opus,\ngpt-5-pro"}
+		m := New(func(key string) string { return env[key] })
+
+		got, ok := m.ResolvePolicyModelsBlocked()
+		assert.True(t, ok)
+		assert.Equal(t, []string{"gpt-5-pro", "claude-opus"}, got)
+	})
+}
+
 func TestBuildDefaultMaxTurnsExpression(t *testing.T) {
 	assert.Equal(t,
 		"${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}",

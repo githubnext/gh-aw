@@ -8,6 +8,20 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+func TestCreateAndConfigureCompiler_RegistersModelPricingResolverByDefault(t *testing.T) {
+	compiler := createAndConfigureCompiler(CompileConfig{})
+	if !compiler.HasModelPricingResolver() {
+		t.Fatal("expected model pricing resolver to be registered by default")
+	}
+}
+
+func TestCreateAndConfigureCompiler_SkipsModelPricingResolverWhenDisabled(t *testing.T) {
+	compiler := createAndConfigureCompiler(CompileConfig{DisableModelsDevLookup: true})
+	if compiler.HasModelPricingResolver() {
+		t.Fatal("expected model pricing resolver to be nil when models.dev lookup is disabled")
+	}
+}
+
 // TestSetupRepositoryContext_ValidScheduleSeedLocksSlug verifies that when
 // --schedule-seed contains a valid "owner/repo" slug, setupRepositoryContext
 // sets it on the compiler AND locks it so per-file git-remote detection

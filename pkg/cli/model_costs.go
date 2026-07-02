@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/modelsdev"
 )
 
 var modelCostsLog = logger.New("cli:model_costs")
@@ -193,4 +195,22 @@ func computeModelInferenceCostUSD(provider, model string, inputTokens, outputTok
 
 func computeModelInferenceAIC(provider, model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int) float64 {
 	return usdToAIC(computeModelInferenceCostUSD(provider, model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens))
+}
+
+// FindOrFetchModelPricing resolves per-token pricing for the given provider/model.
+// It checks the embedded catalog first; for models absent from the embedded catalog it
+// attempts to download the models.dev catalog (at most once per process) and queries
+// that. Returns (nil, false) when the model is found in the embedded catalog (runtime
+// already has it) or when no pricing can be resolved.
+//
+// This function is intended for compile-time use: the workflow compiler calls it to
+// inject pricing for unknown models into GH_AW_INFO_MODEL_COSTS in the compiled lock.yml
+// so that the agent job can perform cost accounting without a live catalog download.
+func FindOrFetchModelPricing(ctx context.Context, provider, model string) (map[string]float64, bool) {
+	if _, ok := findModelPricing(provider, model); ok {
+		// Model is already in the embedded catalog; the runtime actions/setup/js/models.json
+		// will supply the pricing — no need to inject it into the lock.yml overlay.
+		return nil, false
+	}
+	return modelsdev.FindPricing(ctx, provider, model)
 }
