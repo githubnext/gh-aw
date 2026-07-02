@@ -96,7 +96,7 @@ func resolveProviderAndModelForPricing(engineConfig *EngineConfig) (string, stri
 
 	if strings.Contains(model, "/") {
 		parts := strings.SplitN(model, "/", 2)
-		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		if parts[0] == "" || parts[1] == "" {
 			return "", "", false
 		}
 		embeddedProvider := normalizeProviderForPricing(parts[0])
