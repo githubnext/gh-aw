@@ -5,7 +5,7 @@ sidebar:
   order: 1000
 ---
 
-This glossary provides definitions for key technical terms and concepts used in GitHub Agentic Workflows.
+Definitions of key terms used in GitHub Agentic Workflows.
 
 ## Core Concepts
 
@@ -133,16 +133,7 @@ The observable repository state that follows a [safe output](#safe-outputs). Whi
 
 ### Outcome State
 
-The classification assigned to each evaluated safe output result. The six outcome states are:
-
-- `accepted` — kept, merged, completed, or otherwise accepted
-- `rejected` — explicitly undone, closed, or not accepted
-- `pending` — exists but has not reached a terminal state
-- `ignored` — received no meaningful follow-up within the evaluation window
-- `lifecycle` — closed or removed by the workflow itself as part of normal operation (for example, a stale-issue workflow), not a rejection
-- `lifecycle_close` — a `close_issue` or `close_pull_request` output where the closing actor was a lifecycle bot and no non-bot actor has since reopened it
-
-See [Outcomes](/gh-aw/reference/outcomes/).
+The classification assigned to an evaluated safe output result. The six states are `accepted`, `rejected`, `pending`, `ignored`, `lifecycle`, and `lifecycle_close`. See [Outcomes](/gh-aw/reference/outcomes/) for the exact criteria for each state.
 
 ### Accepted Outcome
 
@@ -207,41 +198,19 @@ Customizable messages workflows can display during execution. Configured in `saf
 
 ### Failure Issue Reporting (`report-failure-as-issue:`)
 
-A `safe-outputs` option controlling whether workflow run failures are automatically reported as GitHub issues. Defaults to `true` when safe outputs are configured.
+A `safe-outputs` option that controls whether workflow failures are automatically reported as GitHub issues. Defaults to `true` when safe outputs are configured.
 
-**Simple boolean (opt-out all failures):**
-
-```yaml
-safe-outputs:
-  report-failure-as-issue: false
-```
-
-**Category filtering (selective reporting):**
-
-Filter which failure types trigger issue creation. Categories can be included (default) or excluded (using `!` prefix):
+Use `false` to disable failure issues entirely, or provide a list of included and excluded categories. Entries prefixed with `!` are exclusions; if the list contains only exclusions, every other category is reported.
 
 ```yaml
 safe-outputs:
   report-failure-as-issue:
-    - agent_failure           # Include: report genuine agent-side failures
-    - missing_safe_outputs    # Include: report missing outputs
-    - "!inference_access_error"  # Exclude: don't report AI server errors
+    - agent_failure
+    - missing_safe_outputs
+    - "!inference_access_error"
 ```
 
-**Exclusion-only syntax:**
-
-When only exclusions are specified, all categories except those are reported:
-
-```yaml
-safe-outputs:
-  report-failure-as-issue:
-    - "!report_incomplete"           # Exclude infrastructure failures
-    - "!ai_credits_rate_limit_error" # Exclude rate limits
-```
-
-Common categories include: `agent_failure`, `timed_out`, `missing_safe_outputs`, `report_incomplete` (infrastructure failures), `missing_tool`, `missing_data`, `inference_access_error` (AI server transient errors), `ai_credits_rate_limit_error`, and others.
-
-See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete documentation.
+Common categories include `agent_failure`, `timed_out`, `missing_safe_outputs`, `report_incomplete`, `missing_tool`, `missing_data`, `inference_access_error`, and `ai_credits_rate_limit_error`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for the full list.
 
 ### Failure Issue Repository (`failure-issue-repo:`)
 
@@ -427,16 +396,9 @@ A field available on `create-issue:`, `add-comment:`, and `create-pull-request:`
 
 ### Mention Filtering (`mentions:`)
 
-A `safe-outputs` configuration section that controls how `@mentions` in AI-generated content are handled before being applied to GitHub. By default, mentions of repository collaborators and event context participants (issue/PR author, assignees, etc.) are allowed; other usernames are escaped with backticks. Set `mentions: false` to escape all mentions globally.
+A `safe-outputs` section that controls how `@mentions` in AI-generated content are handled before GitHub writes are applied. By default, mentions of repository collaborators and event-context participants are allowed, and other usernames are escaped with backticks. Set `mentions: false` to escape all mentions.
 
-Key fields under `safe-outputs.mentions`:
-- `allowed-collaborators` (deprecated alias: `allow-team-members`) — allow repository collaborators (default: `true`)
-- `allow-context` — allow event context participants (default: `true`)
-- `allowed` — list of individual users or bots always allowed regardless of collaboration status
-- `allowed-teams` — list of GitHub team slugs (`org/team-slug` or bare `team-slug`) whose members are always allowed; requires `read:org` scope on the workflow token
-- `max` — maximum unescaped mentions per output message (default: 50)
-
-Use `gh aw fix mentions-allow-team-members-to-allowed-collaborators` to migrate `allow-team-members` to `allowed-collaborators`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#mention-filtering-mentions).
+Under `safe-outputs.mentions`, `allowed-collaborators` (deprecated alias: `allow-team-members`) and `allow-context` both default to `true`; `allowed` adds specific users or bots; `allowed-teams` adds team members (requires `read:org`); and `max` caps unescaped mentions per message (default `50`). Use `gh aw fix mentions-allow-team-members-to-allowed-collaborators` to migrate the deprecated alias. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#mention-filtering-mentions).
 
 ```aw wrap
 safe-outputs:
@@ -970,14 +932,9 @@ An experimental CLI command that projects future AI Credits (AIC) consumption us
 
 ### Time Between Turns (TBT)
 
-The elapsed time between consecutive LLM API calls in an agentic workflow run. A "turn" is one complete LLM inference request; TBT measures the gap from when the model finishes one response (and tool calls are dispatched) to when the next request is sent (after all tool results are collected). TBT is an important performance and cost metric because LLM inference providers implement prompt caching with a fixed TTL:
+The elapsed time between consecutive LLM API calls in a workflow run. TBT matters because provider-side prompt caches expire: Anthropic currently uses a 5-minute TTL, and OpenAI has a similar cache with variable TTL. If TBT exceeds the cache window, the full prompt must be reprocessed, increasing cost.
 
-- **Anthropic** reduced their cache TTL from 1 hour to **5 minutes**. If the TBT for any turn exceeds 5 minutes, the cached prompt context expires and the full prompt must be re-processed, significantly increasing token costs.
-- **OpenAI** has a similar server-side prompt cache with variable TTL.
-
-`gh aw audit` reports both average and maximum TBT in the Session Analysis section. A cache warning is emitted when the TBT used for cache analysis exceeds the Anthropic 5-minute threshold: the maximum observed TBT for Copilot engine runs, where precise per-turn timestamps are available in the `events.jsonl` session log, or the estimated average TBT for other engines, where TBT is derived from total wall time divided by turn count.
-
-To reduce TBT — and keep prompt caches warm — minimize blocking tool calls, parallelize independent tool invocations, and avoid long-running shell commands in the critical path between turns.
+`gh aw audit` reports average and maximum TBT in the Session Analysis section and warns when cache analysis exceeds Anthropic's 5-minute threshold. To keep caches warm, minimize blocking tool calls, parallelize independent work, and avoid long-running shell commands between turns.
 
 ### Ambient Context
 
@@ -1289,12 +1246,4 @@ Pattern for incrementally processing a backlog of work items using a durable que
 
 ## Related Resources
 
-For detailed documentation on specific topics, see:
-
-- [Frontmatter Reference](/gh-aw/reference/frontmatter/)
-- [Tools Reference](/gh-aw/reference/tools/)
-- [MCP Scripts Reference](/gh-aw/reference/mcp-scripts/)
-- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
-- [Using MCPs Guide](/gh-aw/guides/mcps/)
-- [Security Guide](/gh-aw/introduction/architecture/)
-- [AI Engines Reference](/gh-aw/reference/engines/)
+For more detail, see the [Frontmatter Reference](/gh-aw/reference/frontmatter/), [Tools Reference](/gh-aw/reference/tools/), [MCP Scripts Reference](/gh-aw/reference/mcp-scripts/), [Safe Outputs Reference](/gh-aw/reference/safe-outputs/), [Using MCPs Guide](/gh-aw/guides/mcps/), [Security Guide](/gh-aw/introduction/architecture/), and [AI Engines Reference](/gh-aw/reference/engines/).
