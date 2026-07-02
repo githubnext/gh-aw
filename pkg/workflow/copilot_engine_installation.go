@@ -321,10 +321,11 @@ func generateDockerComposeInstallStep() GitHubActionStep {
 	return GitHubActionStep([]string{
 		"      - name: Install Docker Compose plugin",
 		"        run: |",
-		`          DOCKER_CONFIG="${DOCKER_CONFIG:-$HOME/.docker}"`,
+		`          export DOCKER_CONFIG="${DOCKER_CONFIG:-$HOME/.docker}"`,
 		`          mkdir -p "$DOCKER_CONFIG/cli-plugins"`,
-		`          curl -fsSL "https://github.com/docker/compose/releases/download/v2.36.2/docker-compose-linux-x86_64" \`,
-		`            -o "$DOCKER_CONFIG/cli-plugins/docker-compose"`,
+		`          arch="$(uname -m)"`,
+		`          case "$arch" in x86_64|amd64) arch="x86_64" ;; aarch64|arm64) arch="aarch64" ;; *) echo "Unsupported architecture for docker compose plugin: $arch" >&2; exit 1 ;; esac`,
+		`          curl -fsSL "https://github.com/docker/compose/releases/download/v2.36.2/docker-compose-linux-$arch" -o "$DOCKER_CONFIG/cli-plugins/docker-compose"`,
 		`          chmod +x "$DOCKER_CONFIG/cli-plugins/docker-compose"`,
 		`          docker compose version`,
 	})
