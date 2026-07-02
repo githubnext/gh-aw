@@ -1,44 +1,34 @@
 {
-  "run_id": "28572743533",
-  "run_date": "2026-07-02T07:23:24Z",
-  "repository": "github/gh-aw",
-  "total_prs": 11,
+  "run_date": "2026-07-02T12:52:09Z",
+  "run_id": "28591321991",
   "summary": {
-    "auto_merge": 1,
-    "fast_track": 3,
-    "batch_review": 4,
-    "defer": 2,
+    "total": 10,
+    "new": 7,
+    "reconfirmed": 3,
+    "fast_track": 5,
+    "batch_review": 1,
+    "defer": 4,
+    "auto_merge": 0,
     "close": 0
   },
-  "risk_distribution": {
-    "low": 3,
-    "medium": 5,
-    "high": 3
-  },
-  "category_distribution": {
-    "refactor": 4,
-    "feature": 3,
-    "chore": 2,
-    "docs": 1,
-    "test": 1
-  },
-  "batches": {
-    "batch-refactor-001": [42912, 42875, 42868],
-    "batch-chore-001": [42877, 42832],
-    "batch-test-001": [42834],
-    "batch-experimental": [42314, 42100]
-  },
-  "candidates": [
-    {"number": 42912, "title": "refactor: deduplicate skip-if query handlers", "category": "refactor", "risk": "medium", "score": 42, "action": "batch_review", "draft": true, "ci": "passing"},
-    {"number": 42877, "title": "Roll back default Playwright CLI pin", "category": "chore", "risk": "low", "score": 45, "action": "batch_review", "draft": true, "ci": "none"},
-    {"number": 42876, "title": "Instrument Copilot execution step to persist stderr", "category": "feature", "risk": "medium", "score": 64, "action": "fast_track", "draft": true, "ci": "none"},
-    {"number": 42875, "title": "Refactor parser remote fetch into focused modules", "category": "refactor", "risk": "medium", "score": 47, "action": "batch_review", "draft": true, "ci": "none"},
-    {"number": 42870, "title": "Align Copilot SDK driver docs with engine.driver", "category": "docs", "risk": "low", "score": 40, "action": "fast_track", "draft": true, "ci": "none"},
-    {"number": 42868, "title": "Consolidate duplicate log parsers", "category": "refactor", "risk": "medium", "score": 52, "action": "batch_review", "draft": false, "ci": "none"},
-    {"number": 42834, "title": "Improve actionpins internal test coverage", "category": "test", "risk": "low", "score": 43, "action": "auto_merge", "draft": false, "ci": "passing"},
-    {"number": 42832, "title": "fix(cli): resolve 32 CLI consistency issues", "category": "chore", "risk": "medium", "score": 52, "action": "batch_review", "draft": false, "ci": "none"},
-    {"number": 42740, "title": "refactor(copilot-sdk): multi-provider only", "category": "refactor", "risk": "high", "score": 75, "action": "fast_track", "draft": false, "ci": "passing"},
-    {"number": 42314, "title": "Add experimental Auggie engine support", "category": "feature", "risk": "high", "score": 50, "action": "defer", "draft": true, "ci": "none"},
-    {"number": 42100, "title": "feat: add experimental BinEval evaluation support", "category": "feature", "risk": "high", "score": 45, "action": "defer", "draft": true, "ci": "none"}
+  "prs": [
+    {"number": 42955, "title": "[WIP] Add experiment campaign for A/B test on reasoning depth", "category": "feature", "risk": "medium", "score": 30, "action": "defer", "draft": true},
+    {"number": 42954, "title": "[WIP] Fix no-unsafe-promise-catch-error-property guard logic", "category": "bug", "risk": "low", "score": 10, "action": "defer", "draft": true, "note": "zero files changed, possible duplicate of 42953"},
+    {"number": 42953, "title": "fix(eslint): bring no-unsafe-promise-catch-error-property to parity with sibling rule", "category": "bug", "risk": "low", "score": 61, "action": "fast_track", "ci": "passing"},
+    {"number": 42952, "title": "Bump CLI versions: Claude 2.1.198, Copilot 1.0.68, SDK 1.0.5, Codex 0.142.5, Pi 0.80.3", "category": "chore", "risk": "medium", "score": 50, "action": "batch_review", "draft": true},
+    {"number": 42946, "title": "timesleepnocontext: stop crossing non-go/defer FuncLit boundaries", "category": "bug", "risk": "low", "score": 53, "action": "fast_track", "ci": "running"},
+    {"number": 42945, "title": "Honor NO_COLOR/color-profile degradation for Lip Gloss v2 output paths", "category": "feature", "risk": "high", "score": 68, "action": "fast_track", "ci": "blocked", "review": "changes_requested"},
+    {"number": 42937, "title": "test: multi-checkout cross-org credential wiring integration tests", "category": "test", "risk": "low", "score": 60, "action": "fast_track", "ci": "passing"},
+    {"number": 42740, "title": "refactor(copilot-sdk): multi-provider only — remove single-provider legacy", "category": "refactor", "risk": "high", "action": "fast_track", "reconfirmed": true},
+    {"number": 42314, "title": "Add experimental Auggie engine support", "category": "feature", "risk": "high", "action": "defer", "draft": true, "reconfirmed": true},
+    {"number": 42100, "title": "feat: add experimental BinEval evaluation support", "category": "feature", "risk": "high", "action": "defer", "draft": true, "reconfirmed": true, "note": "conflicting priority labels pr-priority:medium + pr-priority:low"}
+  ],
+  "batches": [
+    {"id": "pr-batch:eslint-fixes", "prs": [42953], "note": "eslint rule fix — watch for follow-up from 42954"},
+    {"id": "pr-batch:experimental", "prs": [42314, 42100], "note": "experimental engine integrations, both drafts"}
+  ],
+  "flags": [
+    "PR 42954 has zero files changed — likely superseded by 42953",
+    "PR 42100 has conflicting priority labels (medium + low)"
   ]
 }
