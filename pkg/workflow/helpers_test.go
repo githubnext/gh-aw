@@ -19,3 +19,12 @@ func findSubstring(s, substr string) bool {
 	}
 	return false
 }
+
+func toolCallCountsByName(toolCalls []ToolCallInfo) map[string]int {
+	counts := make(map[string]int, len(toolCalls))
+	for _, toolCall := range toolCalls {
+		counts[toolCall.Name] = toolCall.CallCount
+	}
+
+	return counts
+}

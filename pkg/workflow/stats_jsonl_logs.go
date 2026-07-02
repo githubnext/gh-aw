@@ -34,7 +34,9 @@ func parseStatsJSONLMetrics(logContent string, verbose bool, engineName string, 
 		}
 
 		applyStatsJSONResponseMetrics(response, &metrics, toolCallCounts)
-		log.Printf("Parsed JSON response: response_len=%d, stats_present=%v", len(response.Response), response.Stats != nil)
+		if verbose {
+			log.Printf("Parsed JSON response: response_len=%d, stats_present=%v", len(response.Response), response.Stats != nil)
+		}
 	}
 
 	for toolName, count := range toolCallCounts {

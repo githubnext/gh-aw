@@ -172,5 +172,8 @@ func (r Resolver) statusForLabels(labels []string) AttributionStatus {
 }
 
 func cloneStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
 	return slices.Clone(values)
 }
