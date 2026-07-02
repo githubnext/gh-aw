@@ -776,6 +776,15 @@ async function main() {
     providerBaseUrl = primaryProvider?.baseUrl ?? "";
     providerType = primaryProvider?.type ?? "openai";
     providerWireApi = primaryProvider?.wireApi ?? "";
+
+    // For BYOK copilot providers, prefix the model with "copilot/" so subagents treat it as BYOK.
+    // The headless sidecar reads COPILOT_MODEL to configure sub-agent sessions spawned via the task tool,
+    // and the "copilot/" prefix signals to use the custom provider config from COPILOT_PROVIDER_* env vars.
+    const isCopilotProvider = primaryProviderName && (primaryProviderName.toLowerCase().includes("copilot") || primaryProviderName.toLowerCase().includes("github-copilot"));
+    if (isCopilotProvider && resolvedModel && !resolvedModel.includes("/")) {
+      resolvedModel = `copilot/${resolvedModel}`;
+    }
+
     log(`copilot-sdk driver mode: multi-provider config resolved (${multiProvider.providers.length} providers, ${multiProvider.models.length} models, model=${resolvedModel})`);
   }
 
