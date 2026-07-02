@@ -51,9 +51,6 @@ func buildColorPalette() []lipgloss.Style {
 	order := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 3}
 	palette := make([]lipgloss.Style, 0, len(order))
 	for _, idx := range order {
-		if idx >= len(basePaletteColors) {
-			panic(fmt.Sprintf("logger: buildColorPalette index %d out of range (len=%d)", idx, len(basePaletteColors)))
-		}
 		palette = append(palette, lipgloss.NewStyle().Foreground(basePaletteColors[idx]))
 	}
 	return palette
