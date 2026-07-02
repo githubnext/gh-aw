@@ -301,6 +301,20 @@ fi`,
 			awfArcDindHomePathExpr, awfArcDindHomePathExpr,
 			awfArcDindRootPathExpr+"/sandbox/agent", awfArcDindRootPathExpr+"/sandbox/agent",
 		)
+		// Pre-create the rw mount source directories. AWF validates that mount source
+		// paths exist before starting containers, so these must be created on the host
+		// before the AWF invocation. The parent ${RUNNER_TEMP}/gh-aw/ already exists
+		// (created by actions/setup), but the subdirectories may not.
+		arcDindDockerHostProbe += fmt.Sprintf("\nmkdir -p \"%s\" \"%s\"",
+			awfArcDindHomePathExpr,
+			awfArcDindRootPathExpr+"/sandbox/agent",
+		)
+		// Copy prompt files to daemon-visible path. On ARC/DinD, /tmp/gh-aw/ is NOT
+		// accessible to the Docker daemon. The activation job writes prompts to
+		// /tmp/gh-aw/aw-prompts/, so we copy them to ${RUNNER_TEMP}/gh-aw/aw-prompts/.
+		arcDindDockerHostProbe += fmt.Sprintf("\nif [ -d /tmp/gh-aw/aw-prompts ]; then cp -a /tmp/gh-aw/aw-prompts \"%s/aw-prompts\"; fi",
+			awfArcDindRootPathExpr,
+		)
 	}
 
 	// Generate a JSON config file and reference it via --config "${RUNNER_TEMP}/gh-aw/awf-config.json".

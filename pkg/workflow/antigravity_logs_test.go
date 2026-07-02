@@ -35,12 +35,3 @@ func TestAntigravityEngineParseLogMetrics(t *testing.T) {
 		}, metrics)
 	})
 }
-
-func toolCallCountsByName(toolCalls []ToolCallInfo) map[string]int {
-	counts := make(map[string]int, len(toolCalls))
-	for _, toolCall := range toolCalls {
-		counts[toolCall.Name] = toolCall.CallCount
-	}
-
-	return counts
-}

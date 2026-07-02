@@ -478,7 +478,7 @@ Named shorthand references to predefined domain sets used in `network.allowed` a
 
 ### Copilot SDK (`engine.copilot-sdk`)
 
-An engine option that enables the Copilot engine to run in SDK mode, giving the workflow direct access to the Copilot SDK runtime for advanced integration patterns such as inline sub-agents. Set `engine.copilot-sdk: true` to activate. Use `engine.copilot-sdk-driver` to replace the built-in driver with a custom Node.js script. Supports `max-tool-denials` to stop inference when tool requests are denied too frequently. See [AI Engines Reference](/gh-aw/reference/engines/#copilot-sdk-support).
+An engine option that enables the Copilot engine to run in SDK mode, giving the workflow direct access to the Copilot SDK runtime for advanced integration patterns such as inline sub-agents. Set `engine.copilot-sdk: true` to activate, or set `engine.driver` on the Copilot engine to enable SDK mode automatically while replacing the built-in driver. Supports `max-tool-denials` to stop inference when tool requests are denied too frequently. See [AI Engines Reference](/gh-aw/reference/engines/#copilot-sdk-support).
 
 ```aw wrap
 engine:
@@ -590,7 +590,7 @@ See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Engine Driver (`engine.driver`)
 
-A Pi engine configuration field that replaces the built-in `pi` CLI with a Node.js driver script. When set, `gh aw` launches the driver with Node.js instead of the `pi` CLI; the driver must emit JSONL compatible with the existing log parser so step summaries and token tracking work unchanged. A bare filename (e.g. `pi_agent_core_driver.cjs`) resolves from the gh-aw setup-action directory; a path containing `/` resolves workspace-relative.
+An engine configuration field that replaces the built-in runtime entrypoint for engines that support driver mode. For the Pi engine, `gh aw` launches the driver with Node.js instead of the `pi` CLI; the driver must emit JSONL compatible with the existing log parser so step summaries and token tracking work unchanged. For the Copilot engine, setting `engine.driver` replaces the built-in SDK driver and enables `engine.copilot-sdk` automatically. A bare filename (e.g. `pi_agent_core_driver.cjs`) resolves from the gh-aw setup-action directory; a path containing `/` resolves workspace-relative.
 
 ```aw wrap
 engine:
@@ -668,6 +668,16 @@ Optional workflow metadata for categorization and organization. Enables filterin
 ### Model Alias
 
 A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to the best available concrete model at compile time. Aliases are defined as ordered lists of provider-scoped glob patterns; the first pattern that matches an available model wins. Meta-aliases reference other aliases and are resolved recursively. Built-in vendor aliases and meta-aliases are listed in the [Model Aliases & Multipliers Reference](/gh-aw/reference/model-tables/). Custom aliases can be defined in workflow frontmatter using the [Model Alias Format Specification](/gh-aw/specs/model-alias-specification/).
+
+### Model Policy (`models.allowed`, `models.blocked`)
+
+An experimental frontmatter feature that restricts which AI models a workflow may use at runtime. Configured under the `models:` top-level key with two fields: `allowed` (a list of model names or glob patterns the workflow is permitted to use) and `blocked` (a list of patterns unconditionally refused). Both lists are enforced by the AWF proxy via `apiProxy.allowedModels` and `disallowedModels`. Across imports, policies from multiple files are merged as unions. Environment-variable overrides are supported for runtime flexibility.
+
+```aw wrap
+models:
+  allowed: ["gpt-5", "claude-*"]
+  blocked: ["*-preview"]
+```
 
 ### Max AI Credits (`max-ai-credits`)
 
@@ -1048,6 +1058,17 @@ A GitHub Next project that builds on GitHub Agentic Workflows to enable continuo
 ### ARC (Actions Runner Controller)
 
 A Kubernetes operator that manages GitHub Actions self-hosted runners as pods. When combined with the Docker-in-Docker (DinD) sidecar pattern, the runner container and the Docker daemon container have separate `/tmp` filesystems. AWF detects this topology at runtime by inspecting `DOCKER_HOST` and automatically passes `--docker-host-path-prefix` to bridge the split mount paths. From AWF `v0.27.1`+, AWF also automatically injects the `chroot.binariesSourcePath` and `chroot.identity.*` config fields at runtime, so workflows no longer need a bootstrap action to copy binaries or pre-seed `/etc/passwd`. No manual configuration is required. See the [AWF sandbox reference](/gh-aw/reference/sandbox/).
+
+### Runner Topology (`runner.topology`)
+
+A frontmatter field that declares the runner infrastructure topology for a workflow. The only supported value is `arc-dind`, which targets GitHub ARC (Actions Runner Controller) runners using rootless Docker-in-Docker. When set, the compiler emits the topology in the AWF config, redirects the tool cache to a shared volume, and validates that no generated step requires root. AWF then activates split-filesystem handling, network isolation, sysroot staging, and DinD pre-staging automatically.
+
+```aw wrap
+runner:
+  topology: arc-dind
+```
+
+See [ARC](#arc-actions-runner-controller) and [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
 ### AWF (Agent Workflow Firewall)
 

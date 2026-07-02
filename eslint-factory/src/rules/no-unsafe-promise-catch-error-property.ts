@@ -35,6 +35,77 @@ function isNonNullGuardCheck(node: TSESTree.Expression, varName: string): boolea
   return (isVarRef(node.left) && isNullLiteral(node.right)) || (isVarRef(node.right) && isNullLiteral(node.left));
 }
 
+function getUnsafePropertyName(node: TSESTree.Expression, varName: string): string | null {
+  if (node.type !== AST_NODE_TYPES.MemberExpression) return null;
+  if (node.object.type !== AST_NODE_TYPES.Identifier || node.object.name !== varName) return null;
+
+  if (!node.computed) {
+    return node.property.type === AST_NODE_TYPES.Identifier && UNSAFE_PROPERTIES.has(node.property.name) ? node.property.name : null;
+  }
+
+  return node.property.type === AST_NODE_TYPES.Literal && typeof node.property.value === "string" && UNSAFE_PROPERTIES.has(node.property.value) ? node.property.value : null;
+}
+
+function collectConjuncts(node: TSESTree.Expression): TSESTree.Expression[] {
+  if (node.type !== AST_NODE_TYPES.LogicalExpression || node.operator !== "&&") {
+    return [node];
+  }
+
+  return [...collectConjuncts(node.left), ...collectConjuncts(node.right)];
+}
+
+function hasOrderedTruthinessGuard(conjuncts: TSESTree.Expression[], varName: string, prop?: string): boolean {
+  let hasSeenNonNullGuardBefore = false;
+  for (const conjunct of conjuncts) {
+    if (isNonNullGuardCheck(conjunct, varName)) {
+      hasSeenNonNullGuardBefore = true;
+      continue;
+    }
+
+    const unsafeProp = getUnsafePropertyName(conjunct, varName);
+    if (hasSeenNonNullGuardBefore && unsafeProp && (!prop || unsafeProp === prop)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isTruthinessGuardedUnsafeAccess(node: TSESTree.MemberExpression, varName: string): boolean {
+  const prop = getUnsafePropertyName(node, varName);
+  if (!prop) return false;
+
+  let current: TSESTree.Node = node;
+  let logicalChain: TSESTree.LogicalExpression | null = null;
+  while (current.parent?.type === AST_NODE_TYPES.LogicalExpression && current.parent.operator === "&&") {
+    logicalChain = current.parent;
+    current = current.parent;
+  }
+
+  if (logicalChain) {
+    const conjuncts = collectConjuncts(logicalChain);
+    const nodeIndex = conjuncts.findIndex(conjunct => conjunct === node);
+    if (nodeIndex >= 0 && hasOrderedTruthinessGuard(conjuncts.slice(0, nodeIndex + 1), varName)) {
+      return true;
+    }
+  }
+
+  current = node;
+  while (current.parent) {
+    if (current.parent.type === AST_NODE_TYPES.ConditionalExpression && current.parent.consequent === current && hasOrderedTruthinessGuard(collectConjuncts(current.parent.test), varName, prop)) {
+      return true;
+    }
+
+    if (current.parent.type === AST_NODE_TYPES.IfStatement && current.parent.consequent === current && hasOrderedTruthinessGuard(collectConjuncts(current.parent.test), varName, prop)) {
+      return true;
+    }
+
+    current = current.parent;
+  }
+
+  return false;
+}
+
 function isCatchCallback(node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): boolean {
   const parent = node.parent;
   if (!parent || parent.type !== AST_NODE_TYPES.CallExpression) return false;
@@ -54,8 +125,9 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
     },
     schema: [],
     messages: {
-      unsafeProperty: "Direct access to .{{prop}} on promise rejection '{{errorVar}}' is unsafe — the rejection value may not be an Error instance. Use getErrorMessage({{errorVar}}) from error_helpers.cjs instead.",
+      unsafeProperty: "Direct access to .{{prop}} on promise rejection '{{errorVar}}' is unsafe — the rejection value may not be an Error instance.",
       useGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) from error_helpers.cjs for safe error message extraction.",
+      wrapWithInstanceof: "Wrap with '({{errorVar}} instanceof Error ? {{errorVar}}.{{prop}} : undefined)' to guard against non-Error throws.",
     },
   },
   defaultOptions: [],
@@ -87,6 +159,10 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
 
       for (const { node: memberExpr, prop } of frame.unsafeNodes) {
         const { varName } = frame;
+        const parent = memberExpr.parent;
+        const isChained =
+          parent != null &&
+          ((parent.type === AST_NODE_TYPES.MemberExpression && (parent as TSESTree.MemberExpression).object === memberExpr) || (parent.type === AST_NODE_TYPES.CallExpression && (parent as TSESTree.CallExpression).callee === memberExpr));
         context.report({
           node: memberExpr,
           messageId: "unsafeProperty",
@@ -102,7 +178,17 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
                     },
                   },
                 ]
-              : undefined,
+              : isChained
+                ? []
+                : [
+                    {
+                      messageId: "wrapWithInstanceof" as const,
+                      data: { errorVar: varName, prop },
+                      fix(fixer) {
+                        return fixer.replaceText(memberExpr, `(${varName} instanceof Error ? ${varName}.${prop} : undefined)`);
+                      },
+                    },
+                  ],
         });
       }
     }
@@ -146,18 +232,9 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
         if (stack.length === 0) return;
         const top = stack[stack.length - 1];
         if (!top || top.hasGuard || !top.varName || node.operator !== "&&") return;
+        if (node.parent?.type === AST_NODE_TYPES.LogicalExpression && node.parent.operator === "&&") return;
 
-        const conjuncts: TSESTree.Expression[] = [];
-        const collectConjuncts = (expr: TSESTree.Expression): void => {
-          if (expr.type === AST_NODE_TYPES.LogicalExpression && expr.operator === "&&") {
-            collectConjuncts(expr.left);
-            collectConjuncts(expr.right);
-            return;
-          }
-          conjuncts.push(expr);
-        };
-        collectConjuncts(node);
-
+        const conjuncts = collectConjuncts(node);
         const hasTypeofObject = conjuncts.some(expr => isTypeofObjectCheck(expr, top.varName));
         const hasNonNullGuard = conjuncts.some(expr => isNonNullGuardCheck(expr, top.varName));
         if (hasTypeofObject && hasNonNullGuard) {
@@ -183,15 +260,15 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
       },
 
       // Collect catchVar.message / catchVar.stack / catchVar.code / catchVar.status / catchVar.cause / catchVar.name accesses
+      // Also detects computed string-literal access: catchVar["message"], catchVar["status"], etc.
       MemberExpression(node) {
         if (stack.length === 0) return;
         const top = stack[stack.length - 1];
         if (!top || !top.varName) return;
 
-        const obj = node.object;
-        const prop = node.property;
-        if (!node.computed && obj.type === AST_NODE_TYPES.Identifier && obj.name === top.varName && prop.type === AST_NODE_TYPES.Identifier && UNSAFE_PROPERTIES.has(prop.name)) {
-          top.unsafeNodes.push({ node, prop: prop.name });
+        const prop = getUnsafePropertyName(node, top.varName);
+        if (prop && !isTruthinessGuardedUnsafeAccess(node, top.varName)) {
+          top.unsafeNodes.push({ node, prop });
         }
       },
     };

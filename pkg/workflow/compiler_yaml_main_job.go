@@ -254,6 +254,26 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 
 	}
 
+	// ARC/DinD: ensure Node.js is at a daemon-visible path.
+	// On ARC runners, setup-node may find a pre-cached node at the original tool cache
+	// (e.g. /home/runner/_work/_tool/node/...) which is NOT under RUNNER_TEMP and therefore
+	// not bind-mounted into the AWF container. This step copies node to the redirected
+	// tool cache if needed and sets GH_AW_NODE_BIN for the AWF entrypoint.
+	if isArcDindTopology(data) {
+		yaml.WriteString("      - name: Ensure Node.js is at daemon-visible path\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          NODE_BIN=\"$(command -v node)\"\n")
+		yaml.WriteString("          NODE_PREFIX=\"$(dirname \"$(dirname \"$NODE_BIN\")\")\"\n")
+		yaml.WriteString("          TOOL_DEST=\"${RUNNER_TEMP}/gh-aw/tool-cache/node\"\n")
+		yaml.WriteString("          if [[ \"$NODE_PREFIX\" != \"${RUNNER_TEMP}\"/* ]]; then\n")
+		yaml.WriteString("            echo \"Node at $NODE_PREFIX is not under RUNNER_TEMP, copying to $TOOL_DEST\"\n")
+		yaml.WriteString("            mkdir -p \"$TOOL_DEST\"\n")
+		yaml.WriteString("            cp -a \"$NODE_PREFIX\"/. \"$TOOL_DEST\"/\n")
+		yaml.WriteString("            echo \"${TOOL_DEST}/bin\" >> \"$GITHUB_PATH\"\n")
+		yaml.WriteString("            echo \"GH_AW_NODE_BIN=${TOOL_DEST}/bin/node\" >> \"$GITHUB_ENV\"\n")
+		yaml.WriteString("          fi\n")
+	}
+
 	// Create /tmp/gh-aw/ base directory for all temporary files
 	// This must be created before custom steps so they can use the temp directory
 	yaml.WriteString("      - name: Create gh-aw temp directory\n")
@@ -668,13 +688,22 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	// Include firewall audit/observability logs in the unified agent artifact
 	// so all agent job outputs ship as a single artifact (AWF v0.25.0+).
 	if isFirewallEnabled(data) {
-		paths = append(paths, constants.AWFConfigFilePath)
-		paths = append(paths, constants.AWFProxyLogsDir+"/")
-		paths = append(paths, constants.AWFAuditDir+"/")
-		// Include the AWF /reflect payload persisted by the agent harness.
-		// Co-located under /tmp/gh-aw/sandbox/firewall/ so the existing
-		// chmod -R a+rX step covers its permissions before upload.
-		paths = append(paths, constants.AWFReflectFilePath)
+		if isArcDindTopology(data) {
+			// On ARC/DinD, logs are under ${{ runner.temp }}/gh-aw (daemon-visible path).
+			// Use ${{ runner.temp }} because `with:` blocks expand Actions expressions, not shell vars.
+			paths = append(paths, "${{ runner.temp }}/gh-aw/awf-config.json")
+			paths = append(paths, "${{ runner.temp }}/gh-aw/sandbox/firewall/logs/")
+			paths = append(paths, "${{ runner.temp }}/gh-aw/sandbox/firewall/audit/")
+			paths = append(paths, "${{ runner.temp }}/gh-aw/sandbox/firewall/awf-reflect.json")
+		} else {
+			paths = append(paths, constants.AWFConfigFilePath)
+			paths = append(paths, constants.AWFProxyLogsDir+"/")
+			paths = append(paths, constants.AWFAuditDir+"/")
+			// Include the AWF /reflect payload persisted by the agent harness.
+			// Co-located under /tmp/gh-aw/sandbox/firewall/ so the existing
+			// chmod -R a+rX step covers its permissions before upload.
+			paths = append(paths, constants.AWFReflectFilePath)
+		}
 	}
 
 	return paths

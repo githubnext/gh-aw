@@ -131,6 +131,19 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 				dockerLog.Printf("Added AWF cli-proxy sidecar container: %s", cliProxyImage)
 			}
 		}
+
+		// Add build-tools sysroot image for ARC/DinD topology.
+		// AWF uses this as an init container to populate the sysroot volume with
+		// system binaries (gcc, make, libraries) that are invisible on the DinD daemon's FS.
+		if isArcDindTopology(workflowData) {
+			buildToolsImage := constants.DefaultFirewallRegistry + "/build-tools:" + awfImageTag
+			if !setutil.Contains(imageSet, buildToolsImage) {
+				images = append(images, buildToolsImage)
+				imageSet[buildToolsImage] = struct {
+				}{}
+				dockerLog.Printf("Added AWF build-tools sysroot container for arc-dind: %s", buildToolsImage)
+			}
+		}
 	}
 
 	// Collect sandbox.mcp container (MCP gateway)
