@@ -1,9 +1,9 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-06-25
-**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260622.220/images/ubuntu/Ubuntu2404-Readme.md)
+**Last Updated**: 2026-07-02
+**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260628.225/images/ubuntu/Ubuntu2404-Readme.md)
 **Ubuntu Version**: 24.04 LTS
-**Image Version**: 20260622.220.1
+**Image Version**: 20260628.225.1
 **Kernel Version**: 6.17.0-1018-azure
 
 ## Overview
@@ -14,7 +14,7 @@ The runner image is maintained by GitHub in the [actions/runner-images](https://
 
 ## Recent Changes
 
-> **Image updated to version 20260622.220.1** (June 2026). Key updates include: Rust 1.96.0, Maven 3.9.16, Gradle 9.6.0, Firefox 152.0.1, Go 1.26.4 added, AWS CLI 2.35.10, Azure CLI 2.87.0, Google Cloud CLI 573.0.0.
+> **Image updated to version 20260628.225.1** (July 2026). Key updates include: Rust 1.96.0, Maven 3.9.16, Gradle 9.6.1, Firefox 152.0.3, Node.js 22.23.1, AWS CLI 2.35.11, Azure CLI 2.87.0, Google Cloud CLI 574.0.0. New cached Go 1.26.4. Kotlin 2.4.0, Swift 6.3.2. Multiple .NET SDK versions (8.x, 9.x, 10.x).
 
 ## Included Software Summary
 
@@ -22,29 +22,29 @@ The Ubuntu 24.04 runner includes:
 - **Operating System**: Ubuntu 24.04 LTS with Linux kernel 6.17.0
 - **Language Runtimes**: Node.js, Python, Ruby, Go, Java, PHP, Rust, Swift, Kotlin, Julia, and more
 - **Container Tools**: Docker 28.0.4, Docker Compose 2.38.2, Podman, Buildah, Skopeo
-- **Build Tools**: CMake, Make, Gradle, Maven, Ant, Bazel
-- **Databases**: PostgreSQL 16.13, MySQL 8.0.45, SQLite 3.45.1
-- **CI/CD Tools**: GitHub CLI, Azure CLI, AWS CLI, Google Cloud CLI
-- **Testing Tools**: Selenium, multiple browsers (Chrome, Firefox, Edge)
-- **Package Managers**: npm, pip, gem, cargo, composer, and more
+- **Build Tools**: CMake 3.31.6, Make, Gradle 9.6.1, Maven 3.9.16, Ant, Bazel 9.1.1
+- **Databases**: PostgreSQL 16.14, MySQL 8.0.46, SQLite 3.45.1
+- **CI/CD Tools**: GitHub CLI 2.95.0, Azure CLI 2.87.0, AWS CLI 2.35.11, Google Cloud CLI 574.0.0
+- **Testing Tools**: Selenium 4.45.0, multiple browsers (Chrome, Firefox, Edge)
+- **Package Managers**: npm, pip, gem, cargo, composer, helm, and more
 
 ## Operating System
 
 - **Distribution**: Ubuntu 24.04 LTS (Noble Numbat)
 - **Kernel**: Linux 6.17.0-1018-azure
 - **Architecture**: x86_64
-- **Systemd Version**: 255.4-1ubuntu8.15
+- **Systemd Version**: 255.4-1ubuntu8.16
 
 ## Language Runtimes
 
 ### Node.js
-- **Available Versions**: 22.23.0, 24.17.0 (managed via n)
-- **Default Version**: 20.x (system default)
+- **Available Versions**: 22.23.1, 24.18.0 (managed via n)
+- **Default Version**: 22.x (system default)
 - **Package Managers**:
-  - npm: 10.x
+  - npm: 10.9.8
   - yarn: 1.22.22
   - pnpm (via npm install)
-- **Version Manager**: nvm 0.40.4
+- **Version Manager**: nvm 0.40.5
 
 ### Python
 - **Installed Version**: 3.12.3 (system default)
@@ -53,7 +53,7 @@ The Ubuntu 24.04 runner includes:
 - **Package Managers**:
   - pip: 24.0
   - pip3: 24.0
-  - pipx: 1.11.1
+  - pipx: 1.15.0
 - **Additional Tools**: Miniconda 26.3.2
 
 ### Ruby
@@ -76,7 +76,7 @@ Multiple Java versions are pre-installed:
 
 ### PHP
 - **Version**: 8.3.6
-- **Package Manager**: Composer 2.9.5
+- **Package Manager**: Composer 2.10.1
 - **Testing Tool**: PHPUnit 8.5.52
 - **Extensions**: Xdebug and PCOV (Xdebug enabled by default)
 
@@ -84,11 +84,11 @@ Multiple Java versions are pre-installed:
 - **Version**: 1.96.0
 - **Cargo**: 1.96.0
 - **Rustup**: 1.29.0
-- **Rustfmt**: 1.8.0
+- **Rustfmt**: 1.9.0
 
 ### Other Languages
-- **Kotlin**: 2.3.20-release-208
-- **Swift**: 6.3
+- **Kotlin**: 2.4.0-release-281
+- **Swift**: 6.3.2
 - **Julia**: 1.12.6
 - **Perl**: 5.38.2
 - **Bash**: 5.2.21(1)-release
@@ -104,7 +104,7 @@ Multiple Java versions are pre-installed:
 - **Client Version**: 28.0.4
 - **Server Version**: 28.0.4
 - **Docker Compose**: 2.38.2
-- **Docker Buildx**: 0.33.0
+- **Docker Buildx**: 0.35.0
 - **Credential Helpers**: Amazon ECR Credential Helper 0.12.0
 
 ### Alternative Container Tools
@@ -113,10 +113,10 @@ Multiple Java versions are pre-installed:
 - **Skopeo**: 1.13.3
 
 ### Kubernetes Tools
-- **kubectl**: 1.35.3
-- **helm**: 3.20.2
+- **kubectl**: 1.36.2
+- **helm**: 3.21.2
 - **minikube**: 1.38.1
-- **kind**: 0.31.0
+- **kind**: 0.32.0
 - **kustomize**: 5.8.1
 
 ## Build Tools
@@ -127,32 +127,32 @@ Multiple Java versions are pre-installed:
 - **Autoconf**: 2.71-3
 - **Automake**: 1.16.5
 - **gcc/g++**: 13.2.0 (default), with 12.4.0 and 14.2.0 also available
-- **Bazel**: 9.0.2
+- **Bazel**: 9.1.1
 - **Bazelisk**: 1.28.1
 
 ## Project Management & Build Systems
 
 - **Maven**: 3.9.16
-- **Gradle**: 9.6.0
+- **Gradle**: 9.6.1
 - **Ant**: 1.10.14
 - **Lerna**: 9.0.7
 
 ### Haskell Build Tools
 - **Cabal**: 3.16.1.0
 - **GHC**: 9.14.1
-- **GHCup**: 0.1.50.2
-- **Stack**: 3.9.3
+- **GHCup**: 0.2.6.2
+- **Stack**: 3.11.1
 
 ## Databases & Services
 
 ### PostgreSQL
-- **Version**: 16.13
+- **Version**: 16.14
 - **Default User**: postgres
 - **Service Status**: Disabled by default
 - **Start Command**: `sudo systemctl start postgresql.service`
 
 ### MySQL
-- **Version**: 8.0.45-0ubuntu0.24.04.1
+- **Version**: 8.0.46-0ubuntu0.24.04.3
 - **Default User**: root
 - **Default Password**: root
 - **Service Status**: Disabled by default
@@ -178,40 +178,40 @@ Multiple Java versions are pre-installed:
 ## CI/CD Tools
 
 ### GitHub CLI
-- **Version**: 2.89.0
+- **Version**: 2.95.0
 - **Installed**: Pre-configured and ready to use
 
 ### Cloud Provider CLIs
-- **AWS CLI**: 2.35.10
+- **AWS CLI**: 2.35.11
   - AWS SAM CLI: 1.162.1
-  - AWS CLI Session Manager Plugin: 1.2.804.0
+  - AWS CLI Session Manager Plugin: 1.2.835.0
 - **Azure CLI**: 2.87.0
-  - Azure DevOps Extension: 1.0.2
-- **Google Cloud CLI**: 573.0.0
+  - Azure DevOps Extension: 1.0.5
+- **Google Cloud CLI**: 574.0.0
 
 ### Infrastructure as Code
 - **Terraform**: Not pre-installed
-- **Pulumi**: 3.230.0
-- **Ansible**: 2.20.4
-- **Packer**: 1.15.1
-- **Bicep**: 0.42.1
+- **Pulumi**: 3.248.0
+- **Ansible**: 2.21.1
+- **Packer**: 1.15.4
+- **Bicep**: 0.44.1
 
 ### Other DevOps Tools
-- **Fastlane**: 2.232.2
+- **Fastlane**: 2.236.1
 - **CodeQL Action Bundle**: 2.25.6
 
 ## Browsers and Testing Tools
 
 ### Browsers
-- **Google Chrome**: 137.x (stable)
-- **Chromium**: 137.x
-- **Microsoft Edge**: 137.x (stable)
-- **Mozilla Firefox**: 152.0.1
+- **Google Chrome**: 149.0.7827.200
+- **Chromium**: 149.0.7827.0
+- **Microsoft Edge**: 149.0.4022.98
+- **Mozilla Firefox**: 152.0.3
 
 ### Browser Drivers
-- **ChromeDriver**: 137.x
-- **Microsoft Edge WebDriver**: 137.x
-- **Geckodriver**: 0.36.0
+- **ChromeDriver**: 149.0.7827.155
+- **Microsoft Edge WebDriver**: 149.0.4022.98
+- **Geckodriver**: 0.37.0
 - **Selenium Server**: 4.45.0
 
 ### Environment Variables
@@ -225,14 +225,14 @@ Multiple Java versions are pre-installed:
 ## .NET Tools
 
 - **.NET SDK Versions**: 8.0.128, 8.0.206, 8.0.319, 8.0.422, 9.0.118, 9.0.205, 9.0.315, 10.0.109, 10.0.204, 10.0.301
-- **nbgv**: 3.9.50+6feeb89450
+- **nbgv**: 3.10.85+c46e47c69b
 
 ## PowerShell Tools
 
-- **PowerShell**: 7.4.14
+- **PowerShell**: 7.6.3
 - **PowerShell Modules**:
-  - Az: 14.6.0
-  - Microsoft.Graph: 2.36.1
+  - Az: 15.6.1
+  - Microsoft.Graph: 2.38.0
   - Pester: 5.7.1
   - PSScriptAnalyzer: 1.25.0
 
@@ -258,12 +258,12 @@ Multiple Java versions are pre-installed:
 ## System Utilities
 
 ### Package Managers
-- **Homebrew**: 5.1.6 (installed at /home/linuxbrew, not in PATH by default)
-- **Vcpkg**: Installed from commit b80e006657
+- **Homebrew**: 6.0.5 (installed at /home/linuxbrew, not in PATH by default)
+- **Vcpkg**: Installed from commit a040002471
 - **Miniconda**: 26.3.2
 
 ### Version Control
-- **Git**: 2.53.0
+- **Git**: 2.54.0
 - **Git LFS**: 3.7.1
 - **Git-ftp**: 1.6.0
 - **Mercurial**: 6.7.2
@@ -281,13 +281,13 @@ Multiple Java versions are pre-installed:
 
 ### Utilities
 - **jq**: 1.7.1 (JSON processor)
-- **yq**: 4.52.5 (YAML processor)
+- **yq**: 4.53.3 (YAML processor)
 - **yamllint**: 1.38.0
 - **curl**: 8.5.0
 - **wget**: 1.21.4
 - **rsync**: 3.2.7
 - **aria2**: 1.37.0 (download utility)
-- **AzCopy**: 10.32.2
+- **AzCopy**: 10.32.4
 - **newman**: 6.2.2 (Postman CLI)
 - **shellcheck**: 0.9.0
 
@@ -374,8 +374,8 @@ RUN apt-get install -y \
 Install Node.js using NodeSource or nvm:
 
 ```dockerfile
-# Install Node.js 20 (current LTS)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+# Install Node.js 22 LTS
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y nodejs
 
 # Install yarn and pnpm globally
@@ -579,8 +579,8 @@ RUN apt-get update && apt-get upgrade -y && \
     openssh-client \
     rsync
 
-# Install Node.js 20 LTS
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+# Install Node.js 22 LTS
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g yarn pnpm
 
@@ -782,7 +782,7 @@ RUN pip install \
 ## References
 
 - **Runner Image Repository**: https://github.com/actions/runner-images
-- **Ubuntu 24.04 Documentation**: https://github.com/actions/runner-images/blob/ubuntu24/20260622.220/images/ubuntu/Ubuntu2404-Readme.md
+- **Ubuntu 24.04 Documentation**: https://github.com/actions/runner-images/blob/ubuntu24/20260628.225/images/ubuntu/Ubuntu2404-Readme.md
 - **Ubuntu Server Documentation**: https://ubuntu.com/server/docs
 - **Docker Documentation**: https://docs.docker.com/
 - **GitHub Actions Documentation**: https://docs.github.com/en/actions
