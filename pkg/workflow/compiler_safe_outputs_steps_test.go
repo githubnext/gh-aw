@@ -109,6 +109,25 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			checkContains: []string{
 				"GIT_TOKEN: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
 			},
+			checkNotContains: []string{
+				"token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+			},
+		},
+		{
+			name: "safe-outputs github-app token is not used by checkout step",
+			safeOutputs: &SafeOutputsConfig{
+				GitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.APP_ID }}",
+					PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			checkContains: []string{
+				"GIT_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}",
+			},
+			checkNotContains: []string{
+				"token: ${{ steps.safe-outputs-app-token.outputs.token }}",
+			},
 		},
 		{
 			name: "push-to-pull-request-branch per-config token flows into git credentials",
