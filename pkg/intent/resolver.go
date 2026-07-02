@@ -1,6 +1,10 @@
 package intent
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"slices"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var resolverLog = logger.New("intent:resolver")
 
@@ -168,10 +172,5 @@ func (r Resolver) statusForLabels(labels []string) AttributionStatus {
 }
 
 func cloneStrings(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-	cloned := make([]string, len(values))
-	copy(cloned, values)
-	return cloned
+	return slices.Clone(values)
 }

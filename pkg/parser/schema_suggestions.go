@@ -187,7 +187,7 @@ func generateFieldSuggestions(invalidProps, acceptedFields []string) string {
 	// Find closest matches using Levenshtein distance
 	var suggestions []string
 	for _, invalidProp := range invalidProps {
-		closest := FindClosestMatches(invalidProp, acceptedFields, maxClosestMatches)
+		closest := stringutil.FindClosestMatches(invalidProp, acceptedFields, maxClosestMatches)
 		suggestions = append(suggestions, closest...)
 	}
 
@@ -309,7 +309,7 @@ func enumSuggestion(errorMessage, jsonPath, frontmatterContent string) (string, 
 		return "", true
 	}
 
-	closest := sliceutil.Deduplicate(FindClosestMatches(userValue, enumValues, maxClosestMatches))
+	closest := sliceutil.Deduplicate(stringutil.FindClosestMatches(userValue, enumValues, maxClosestMatches))
 	if len(closest) == 1 {
 		return fmt.Sprintf("Did you mean '%s'?", closest[0]), true
 	}
@@ -699,7 +699,7 @@ func collectFuzzyFieldMatches(allLocations []schemaFieldLocation, targetLower, c
 			continue
 		}
 		seen[key] = struct{}{}
-		dist := LevenshteinDistance(targetLower, strings.ToLower(loc.FieldName))
+		dist := stringutil.LevenshteinDistance(targetLower, strings.ToLower(loc.FieldName))
 		if dist > 0 && dist <= maxPathSearchDistance {
 			loc.Distance = dist
 			fuzzyMatches = append(fuzzyMatches, loc)

@@ -1,9 +1,8 @@
 package cli
 
 import (
-	"slices"
-
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var firewallReportLog = logger.New("cli:logs_report_firewall")
@@ -72,17 +71,7 @@ func aggregateDomainStats(processedRuns []ProcessedRun, getAnalysis func(*Proces
 
 // convertDomainsToSortedSlices converts domain maps to sorted slices
 func convertDomainsToSortedSlices(allowedMap, blockedMap map[string]struct{}) (allowed, blocked []string) {
-	for domain := range allowedMap {
-		allowed = append(allowed, domain)
-	}
-	slices.Sort(allowed)
-
-	for domain := range blockedMap {
-		blocked = append(blocked, domain)
-	}
-	slices.Sort(blocked)
-
-	return allowed, blocked
+	return sliceutil.SortedKeys(allowedMap), sliceutil.SortedKeys(blockedMap)
 }
 
 // buildAccessLogSummary aggregates access log data across all runs
@@ -189,16 +178,9 @@ func buildRedactedDomainsSummary(processedRuns []ProcessedRun) *RedactedDomainsL
 		return nil
 	}
 
-	// Convert set to sorted slice
-	var allDomains []string
-	for domain := range allDomainsSet {
-		allDomains = append(allDomains, domain)
-	}
-	slices.Sort(allDomains)
-
 	return &RedactedDomainsLogSummary{
-		TotalDomains: len(allDomains),
-		Domains:      allDomains,
+		TotalDomains: len(allDomainsSet),
+		Domains:      sliceutil.SortedKeys(allDomainsSet),
 		ByWorkflow:   byWorkflow,
 	}
 }
