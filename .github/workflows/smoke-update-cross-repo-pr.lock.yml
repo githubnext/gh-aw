@@ -1938,6 +1938,7 @@ jobs:
           GIT_SERVER_URL_STRIPPED="${GITHUB_SERVER_URL#https://}"
           # Re-authenticate git for gh-aw-side-repo
           git -C "gh-aw-side-repo" remote set-url origin "https://x-access-token:${GIT_TOKEN}@${GIT_SERVER_URL_STRIPPED}/${GH_AW_SUBREPO_0}.git"
+          git -C "gh-aw-side-repo" config --unset-all "http.${GITHUB_SERVER_URL}/.extraheader" 2>/dev/null || true
           echo "Git configured with standard GitHub Actions identity"
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config

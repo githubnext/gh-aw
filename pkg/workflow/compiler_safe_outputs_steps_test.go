@@ -181,6 +181,10 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
+			// Regression guard: safe_outputs github-app push token must NOT override the
+			// checkout token. The checkout step must retain credentials (persist-credentials: true)
+			// for git operations, but the app token is only used for push auth via GIT_TOKEN —
+			// it must never appear as checkout with.token.
 			name: "safe-outputs github-app token is not used by checkout step",
 			safeOutputs: &SafeOutputsConfig{
 				GitHubApp: &GitHubAppConfig{
@@ -191,9 +195,14 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 			checkContains: []string{
 				"GIT_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}",
+				// Regression: persist-credentials must be true so git operations work;
+				// the app token is NOT what drives checkout auth.
+				"persist-credentials: true",
 			},
 			checkNotContains: []string{
 				"token: ${{ steps.safe-outputs-app-token.outputs.token }}",
+				// Credentials must NOT be stripped in the safe_outputs job.
+				"persist-credentials: false",
 			},
 		},
 		{
