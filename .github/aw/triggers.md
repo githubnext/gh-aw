@@ -65,6 +65,7 @@ For recurring PM, stakeholder, and other information-worker digests, specify all
 Duplicate-suppression rule:
 
 - Search for an existing open issue with the same key before creating a new digest.
+- Search by a stable title prefix or dedicated label that includes the key before creating a new digest.
 - If one exists, update it with `add-comment` instead of opening a duplicate issue.
 - If the selected window has zero qualifying updates, call `noop`.
 
