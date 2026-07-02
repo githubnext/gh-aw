@@ -233,10 +233,12 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	// This step must run before any runtime setup steps (setup-go, setup-node, etc.) so that
 	// those actions pick up the redirected path when they write into RUNNER_TOOL_CACHE.
 	if isArcDindTopology(data) {
-		yaml.WriteString("      - name: Redirect tool cache for ARC/DinD\n")
+		yaml.WriteString("      - name: Redirect tool cache and install paths for ARC/DinD\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/tool-cache\"\n")
 		yaml.WriteString("          echo \"RUNNER_TOOL_CACHE=${RUNNER_TEMP}/gh-aw/tool-cache\" >> \"$GITHUB_ENV\"\n")
+		yaml.WriteString("          echo \"DOTNET_INSTALL_DIR=${RUNNER_TEMP}/gh-aw/tool-cache/dotnet\" >> \"$GITHUB_ENV\"\n")
+		yaml.WriteString("          echo \"GOPATH=${RUNNER_TEMP}/gh-aw/tool-cache/go\" >> \"$GITHUB_ENV\"\n")
 	}
 
 	if needsCheckout || !customStepsContainCheckout {
