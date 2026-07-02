@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"hash/fnv"
 	"image/color"
-	"io"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
 	lipgloss "charm.land/lipgloss/v2"
-	"github.com/charmbracelet/colorprofile"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
@@ -56,14 +54,6 @@ func buildColorPalette() []lipgloss.Style {
 		palette = append(palette, lipgloss.NewStyle().Foreground(basePaletteColors[idx]))
 	}
 	return palette
-}
-
-func newColorProfileWriter(w io.Writer, environ []string) io.Writer {
-	return colorprofile.NewWriter(w, environ)
-}
-
-func stderrWriter() io.Writer {
-	return newColorProfileWriter(os.Stderr, os.Environ())
 }
 
 // initDebugEnv resolves the effective debug pattern.
