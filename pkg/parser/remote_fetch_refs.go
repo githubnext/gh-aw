@@ -130,6 +130,14 @@ func buildCommitLookupAPIPath(owner, repo, ref string) string {
 	return fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, url.PathEscape(ref))
 }
 
+// ResolveRefToSHAForHost resolves a git ref to its full commit SHA on a specific GitHub host.
+// Use this when the target repository is on a different host than the one configured via GH_HOST.
+// host is the hostname without scheme (e.g., "github.com", "myorg.ghe.com").
+// An empty host uses the default configured host (GH_HOST or github.com).
+func ResolveRefToSHAForHost(owner, repo, ref, host string) (string, error) {
+	return resolveRefToSHA(owner, repo, ref, host)
+}
+
 // resolveRefToSHAViaPublicAPI resolves a git ref to its commit SHA using an
 // unauthenticated call to the public GitHub API. Used as a last-resort fallback
 // when both authenticated API and git ls-remote fail.

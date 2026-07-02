@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	pathpkg "path"
@@ -309,14 +308,6 @@ func DownloadFileFromGitHubForHost(owner, repo, path, ref, host string) ([]byte,
 	return downloadFileFromGitHubWithDepth(owner, repo, path, ref, 0, host)
 }
 
-// ResolveRefToSHAForHost resolves a git ref to its full commit SHA on a specific GitHub host.
-// Use this when the target repository is on a different host than the one configured via GH_HOST.
-// host is the hostname without scheme (e.g., "github.com", "myorg.ghe.com").
-// An empty host uses the default configured host (GH_HOST or github.com).
-func ResolveRefToSHAForHost(owner, repo, ref, host string) (string, error) {
-	return resolveRefToSHA(owner, repo, ref, host)
-}
-
 func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 	return downloadFileFromGitHubWithDepth(owner, repo, path, ref, 0, "")
 }
@@ -376,32 +367,6 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 	}
 
 	return content, nil
-}
-
-func createRESTClientForHost(host string) (*api.RESTClient, error) {
-	opts := api.ClientOptions{Timeout: constants.DefaultHTTPClientTimeout}
-	if host != "" {
-		opts.Host = host
-	}
-	return api.NewRESTClient(opts)
-}
-
-func buildContentsAPIPath(owner, repo, path, ref string) string {
-	pathSegments := strings.Split(path, "/")
-	for i := range pathSegments {
-		pathSegments[i] = url.PathEscape(pathSegments[i])
-	}
-	return fmt.Sprintf(
-		"repos/%s/%s/contents/%s?ref=%s",
-		owner,
-		repo,
-		strings.Join(pathSegments, "/"),
-		url.QueryEscape(ref),
-	)
-}
-
-func fetchRemoteFileContent(client *api.RESTClient, owner, repo, path, ref string, fileContent any) error {
-	return client.Get(buildContentsAPIPath(owner, repo, path, ref), fileContent)
 }
 
 // downloadFileViaPublicAPI downloads a file from a public GitHub repository

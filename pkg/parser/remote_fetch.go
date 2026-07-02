@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -359,4 +361,30 @@ func writeDownloadedIncludeToTempFile(content []byte) (string, error) {
 	cleanupOnError = false
 	fileClosed = true
 	return tempFile.Name(), nil
+}
+
+func createRESTClientForHost(host string) (*api.RESTClient, error) {
+	opts := api.ClientOptions{Timeout: constants.DefaultHTTPClientTimeout}
+	if host != "" {
+		opts.Host = host
+	}
+	return api.NewRESTClient(opts)
+}
+
+func buildContentsAPIPath(owner, repo, path, ref string) string {
+	pathSegments := strings.Split(path, "/")
+	for i := range pathSegments {
+		pathSegments[i] = url.PathEscape(pathSegments[i])
+	}
+	return fmt.Sprintf(
+		"repos/%s/%s/contents/%s?ref=%s",
+		owner,
+		repo,
+		strings.Join(pathSegments, "/"),
+		url.QueryEscape(ref),
+	)
+}
+
+func fetchRemoteFileContent(client *api.RESTClient, owner, repo, path, ref string, fileContent any) error {
+	return client.Get(buildContentsAPIPath(owner, repo, path, ref), fileContent)
 }
