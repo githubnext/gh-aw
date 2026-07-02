@@ -18,6 +18,25 @@ List available skills before choosing a strategy.
 
 ---
 
+## Frontmatter `skills:` (SHA-Pinned Installs)
+
+Declare external skills to install at activation time with the top-level `skills:` array. At activation, `gh aw` installs each via `gh skill install` and wires it into the engine — no manual vendoring.
+
+```yaml
+skills:
+  - owner/repo@<40-char-sha>              # repository-wide install
+  - owner/repo/skill/path@<40-char-sha>   # path-scoped install
+  - skill: owner/repo@<40-char-sha>       # object form: per-skill auth
+    github-token: ${{ secrets.SKILLS_TOKEN }}
+```
+
+- Static references must be pinned to a full 40-character lowercase commit SHA; `${{ ... }}` expressions are allowed in the ref position and resolved at runtime.
+- Object entries set per-skill auth via `github-token` or `github-app`.
+
+This is distinct from the prompt-side strategies below (hint / fusion / inline), which shape skill *content* into the prompt rather than installing skill packages.
+
+---
+
 ## Strategy 0 — Agent Finder (Discovery First)
 
 **Use when**: the relevant skill is not obvious, the repository may not contain the right skill yet, or you want to discover installable skills before loading local ones.
