@@ -1,8 +1,8 @@
 # ADR-42816: Add httprespbodyclose Custom Go Linter
 
 **Date**: 2026-07-01
-**Status**: Draft
-**Deciders**: pelikhan, linter-miner automation
+**Status**: Accepted
+**Deciders**: gh-aw maintainers, @copilot
 
 ---
 
@@ -38,7 +38,3 @@ The `fileclosenotdeferred` linter already handles deferred-close enforcement for
 #### Neutral
 - The linter skips test files by convention (via `filecheck.IsTestFile`), consistent with other analyzers in the suite.
 - A new package directory (`pkg/linters/httprespbodyclose/`) is added, contributing to the total package count of the linter suite.
-
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*

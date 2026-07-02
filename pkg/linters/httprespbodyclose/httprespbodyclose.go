@@ -62,10 +62,7 @@ func inspectFuncDecl(pass *analysis.Pass, n ast.Node, noLintLinesByFile map[stri
 	for _, state := range respVars {
 		if state.hasManualClose && !state.hasDeferClose {
 			if !nolint.HasDirective(pass.Fset.PositionFor(state.assignPos, false), noLintLinesByFile) {
-				pass.Report(analysis.Diagnostic{
-					Pos:     state.assignPos,
-					Message: "HTTP response Body.Close() should be deferred immediately after receiving the response to prevent resource leaks",
-				})
+				reportMissingDefer(pass, state)
 			}
 		}
 	}
@@ -113,6 +110,9 @@ func markBodyClose(pass *analysis.Pass, respVars map[types.Object]*respVarState,
 	}
 	if state, found := respVars[obj]; found {
 		state.hasManualClose = true
+		if !state.manualClosePos.IsValid() {
+			state.manualClosePos = call.Pos()
+		}
 	}
 }
 
@@ -147,10 +147,7 @@ func trackHTTPAssignment(pass *analysis.Pass, respVars map[types.Object]*respVar
 		// Report any prior unresolved violation before overwriting state.
 		if prev, exists := respVars[obj]; exists && prev.hasManualClose && !prev.hasDeferClose {
 			if !nolint.HasDirective(pass.Fset.PositionFor(prev.assignPos, false), noLintLinesByFile) {
-				pass.Report(analysis.Diagnostic{
-					Pos:     prev.assignPos,
-					Message: "HTTP response Body.Close() should be deferred immediately after receiving the response to prevent resource leaks",
-				})
+				reportMissingDefer(pass, prev)
 			}
 		}
 		respVars[obj] = &respVarState{assignPos: callPos}
@@ -159,8 +156,25 @@ func trackHTTPAssignment(pass *analysis.Pass, respVars map[types.Object]*respVar
 
 type respVarState struct {
 	assignPos      token.Pos
+	manualClosePos token.Pos
 	hasDeferClose  bool
 	hasManualClose bool
+}
+
+func reportMissingDefer(pass *analysis.Pass, state *respVarState) {
+	diag := analysis.Diagnostic{
+		Pos:     state.assignPos,
+		Message: "HTTP response Body.Close() should be deferred immediately after receiving the response to prevent resource leaks",
+	}
+	if state.manualClosePos.IsValid() {
+		diag.Related = []analysis.RelatedInformation{
+			{
+				Pos:     state.manualClosePos,
+				Message: "manual Body.Close() call",
+			},
+		}
+	}
+	pass.Report(diag)
 }
 
 // isHTTPResponsePtr reports whether t is *net/http.Response.

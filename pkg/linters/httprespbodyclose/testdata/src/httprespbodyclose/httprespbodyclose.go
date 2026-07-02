@@ -30,3 +30,89 @@ func GoodDeferClose(client *http.Client, req *http.Request) ([]byte, error) {
 func GoodNoClose(client *http.Client, req *http.Request) (*http.Response, error) {
 	return client.Do(req)
 }
+
+// GoodCloseInsideClosure closes the outer response inside a closure — not flagged.
+func GoodCloseInsideClosure(client *http.Client, req *http.Request) {
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	go func() {
+		_ = resp.Body.Close()
+	}()
+}
+
+// GoodShadowedResp closes both outer and inner shadowed responses with defer — not flagged.
+func GoodShadowedResp(client *http.Client, req1, req2 *http.Request) error {
+	resp, err := client.Do(req1)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if true {
+		resp, err := client.Do(req2)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+	}
+	return nil
+}
+
+// BadReopenManualCloseThenDefer reports the first assignment when resp is reused.
+func BadReopenManualCloseThenDefer(client *http.Client, req1, req2 *http.Request) error {
+	resp, err := client.Do(req1) // want `HTTP response Body\.Close\(\) should be deferred immediately after receiving the response to prevent resource leaks`
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+
+	resp, err = client.Do(req2)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
+// BadManualCloseAssigned reports Body.Close() used on assignment RHS.
+func BadManualCloseAssigned(client *http.Client, req *http.Request) ([]byte, error) {
+	resp, err := client.Do(req) // want `HTTP response Body\.Close\(\) should be deferred immediately after receiving the response to prevent resource leaks`
+	if err != nil {
+		return nil, err
+	}
+	data, readErr := io.ReadAll(resp.Body)
+	closeErr := resp.Body.Close()
+	if readErr != nil {
+		return nil, readErr
+	}
+	return data, closeErr
+}
+
+// SuppressedOnAssignment uses nolint on assignment, so no diagnostic should be reported.
+func SuppressedOnAssignment(client *http.Client, req *http.Request) ([]byte, error) {
+	resp, err := client.Do(req) //nolint:httprespbodyclose
+	if err != nil {
+		return nil, err
+	}
+	data, readErr := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	return data, readErr
+}
+
+// SuppressedAcrossReassignment suppresses the prior-assignment report path.
+func SuppressedAcrossReassignment(client *http.Client, req1, req2 *http.Request) error {
+	resp, err := client.Do(req1) //nolint:httprespbodyclose
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+
+	resp, err = client.Do(req2)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
