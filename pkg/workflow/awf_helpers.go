@@ -301,6 +301,14 @@ fi`,
 			awfArcDindHomePathExpr, awfArcDindHomePathExpr,
 			awfArcDindRootPathExpr+"/sandbox/agent", awfArcDindRootPathExpr+"/sandbox/agent",
 		)
+		// Pre-create the rw mount source directories. AWF validates that mount source
+		// paths exist before starting containers, so these must be created on the host
+		// before the AWF invocation. The parent ${RUNNER_TEMP}/gh-aw/ already exists
+		// (created by actions/setup), but the subdirectories may not.
+		arcDindDockerHostProbe += fmt.Sprintf("\nmkdir -p \"%s\" \"%s\"",
+			awfArcDindHomePathExpr,
+			awfArcDindRootPathExpr+"/sandbox/agent",
+		)
 	}
 
 	// Generate a JSON config file and reference it via --config "${RUNNER_TEMP}/gh-aw/awf-config.json".
