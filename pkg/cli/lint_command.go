@@ -72,7 +72,7 @@ By default, shellcheck and pyflakes integrations are disabled for generated run 
 		},
 	}
 
-	cmd.Flags().StringP("dir", "d", constants.GetWorkflowDir(), "Workflow directory")
+	cmd.Flags().StringP("dir", "d", constants.GetWorkflowDir(), "Workflow directory (used when no arguments are provided)")
 	cmd.Flags().Bool("shellcheck", false, "Enable shellcheck integration in actionlint")
 	cmd.Flags().Bool("pyflakes", false, "Enable pyflakes integration in actionlint")
 

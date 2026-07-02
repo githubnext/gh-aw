@@ -429,7 +429,7 @@ This command only works with workflows that have workflow_dispatch triggers.
   gh aw run daily-perf-improver --auto-merge-prs  # Auto-merge any PRs created during execution
   gh aw run daily-perf-improver -F name=value -F env=prod  # Pass workflow inputs
   gh aw run daily-perf-improver --push  # Commit and push workflow files before running
-  gh aw run daily-perf-improver --dry-run  # Validate without actually running
+  gh aw run daily-perf-improver --dry-run  # Validate without triggering execution on GitHub Actions
   gh aw run daily-perf-improver --json  # Output results in JSON format`,
 	Args: cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
