@@ -390,7 +390,11 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		fmt.Fprintf(&sb, "          token: %s\n", effectiveToken)
 	}
 
-	// Apply user overrides (only when NOT in trial mode to avoid conflicts)
+	// Apply user overrides only when NOT in trial mode to avoid conflicting
+	// repository/token values in the same checkout step. Note that safe_outputs push
+	// auth is intentionally isolated from checkout auth: this step only emits tokens
+	// from checkout config (or trial mode), while push auth is applied later by
+	// CheckoutManager.GenerateConfigureGitCredentialsSteps.
 	if !trialMode && override != nil {
 		if override.key.wiki {
 			// Wiki checkout: use "{repository}.wiki" as the effective repository.
@@ -475,7 +479,8 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 // reference the correct app token minting step when app authentication is configured.
 // When keepCredentialsForPush is true (safe_outputs job), credentials are retained
 // (persist-credentials: true) and the post-checkout cleanup step is suppressed so a later
-// git fetch/push can authenticate.
+// git fetch/push can authenticate after CheckoutManager.GenerateConfigureGitCredentialsSteps
+// rewrites remotes with the resolved push token.
 func generateCheckoutStepLines(entry *resolvedCheckout, index int, keepCredentialsForPush bool, getActionPin func(string) string) []string {
 	checkoutManagerLog.Printf("Generating checkout step lines: index=%d, repo=%q, path=%q, ref=%q, appAuth=%v",
 		index, entry.key.repository, entry.key.path, entry.ref, entry.githubApp != nil)
