@@ -45,7 +45,7 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
     },
     schema: [],
     messages: {
-      unsafeProperty: "Direct access to .{{prop}} on caught error '{{errorVar}}' is unsafe — the thrown value may not be an Error instance. Use getErrorMessage({{errorVar}}) from error_helpers.cjs instead.",
+      unsafeProperty: "Direct access to .{{prop}} on caught error '{{errorVar}}' is unsafe — the thrown value may not be an Error instance.",
       useGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) from error_helpers.cjs for safe error message extraction.",
       wrapWithInstanceof: "Wrap with '({{errorVar}} instanceof Error ? {{errorVar}}.{{prop}} : undefined)' to guard against non-Error throws.",
     },
@@ -74,6 +74,10 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
 
         for (const { node: memberExpr, prop } of frame.unsafeNodes) {
           const { varName } = frame;
+          const parent = memberExpr.parent;
+          const isChained =
+            parent != null &&
+            ((parent.type === AST_NODE_TYPES.MemberExpression && (parent as TSESTree.MemberExpression).object === memberExpr) || (parent.type === AST_NODE_TYPES.CallExpression && (parent as TSESTree.CallExpression).callee === memberExpr));
           context.report({
             node: memberExpr,
             messageId: "unsafeProperty",
@@ -89,15 +93,17 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
                       },
                     },
                   ]
-                : [
-                    {
-                      messageId: "wrapWithInstanceof" as const,
-                      data: { errorVar: varName, prop },
-                      fix(fixer) {
-                        return fixer.replaceText(memberExpr, `(${varName} instanceof Error ? ${varName}.${prop} : undefined)`);
+                : isChained
+                  ? []
+                  : [
+                      {
+                        messageId: "wrapWithInstanceof" as const,
+                        data: { errorVar: varName, prop },
+                        fix(fixer) {
+                          return fixer.replaceText(memberExpr, `(${varName} instanceof Error ? ${varName}.${prop} : undefined)`);
+                        },
                       },
-                    },
-                  ],
+                    ],
           });
         }
       },

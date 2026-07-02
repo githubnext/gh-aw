@@ -491,34 +491,27 @@ try {
     });
   });
 
-  it("valid: nested try/catch — inner guard does not affect the outer catch block", () => {
+  it("invalid: chained access on non-message prop is flagged but wrapWithInstanceof suggestion is suppressed", () => {
     cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
       valid: [],
       invalid: [
         {
-          // Outer catch has no guard, inner does — outer is still flagged
-          code: `
-try {
-  f();
-} catch (err) {
-  try {
-    g();
-  } catch (err2) {
-    core.setFailed(getErrorMessage(err2));
-  }
-  core.setFailed(err.message);
-}`.trim(),
+          code: `try { f(); } catch (err) { console.log(err.stack.length); }`,
           errors: [
             {
               messageId: "unsafeProperty",
-              data: { prop: "message", errorVar: "err" },
-              suggestions: [
-                {
-                  messageId: "useGetErrorMessage",
-                  data: { errorVar: "err" },
-                  output: `try {\n  f();\n} catch (err) {\n  try {\n    g();\n  } catch (err2) {\n    core.setFailed(getErrorMessage(err2));\n  }\n  core.setFailed(getErrorMessage(err));\n}`,
-                },
-              ],
+              data: { prop: "stack", errorVar: "err" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          code: `try { f(); } catch (err) { console.log(err.code.toString()); }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "code", errorVar: "err" },
+              suggestions: [],
             },
           ],
         },

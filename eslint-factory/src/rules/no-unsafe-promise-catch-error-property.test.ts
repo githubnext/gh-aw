@@ -66,9 +66,9 @@ describe("no-unsafe-promise-catch-error-property", () => {
     });
   });
 
-  it("valid: computed property access on .catch() callback param is not flagged", () => {
+  it("valid: dynamic computed property access on .catch() callback param is not flagged", () => {
     cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
-      valid: [`promise.catch(err => { console.log(err["message"]); });`, `promise.catch(err => { const prop = "message"; console.log(err[prop]); });`],
+      valid: [`promise.catch(err => { const prop = "message"; console.log(err[prop]); });`],
       invalid: [],
     });
   });
@@ -114,7 +114,13 @@ describe("no-unsafe-promise-catch-error-property", () => {
             {
               messageId: "unsafeProperty",
               data: { prop: "stack", errorVar: "err" },
-              suggestions: [],
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "stack" },
+                  output: `promise.catch(err => { console.log((err instanceof Error ? err.stack : undefined)); });`,
+                },
+              ],
             },
           ],
         },
@@ -132,6 +138,13 @@ describe("no-unsafe-promise-catch-error-property", () => {
             {
               messageId: "unsafeProperty",
               data: { prop: "code", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "code" },
+                  output: `promise.catch(err => { if ((err instanceof Error ? err.code : undefined) === "ENOENT") { } });`,
+                },
+              ],
             },
           ],
         },
@@ -184,7 +197,13 @@ describe("no-unsafe-promise-catch-error-property", () => {
             {
               messageId: "unsafeProperty",
               data: { prop: "stack", errorVar: "err" },
-              suggestions: [],
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "stack" },
+                  output: `promise.catch(err => { console.log(err.message); console.log((err instanceof Error ? err.stack : undefined)); });`,
+                },
+              ],
             },
           ],
         },
@@ -259,16 +278,52 @@ describe("no-unsafe-promise-catch-error-property", () => {
       invalid: [
         {
           code: `promise.catch(err => { if (typeof err === 'object') { console.log(err.status); } });`,
-          errors: [{ messageId: "unsafeProperty", data: { prop: "status", errorVar: "err" } }],
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "status", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "status" },
+                  output: `promise.catch(err => { if (typeof err === 'object') { console.log((err instanceof Error ? err.status : undefined)); } });`,
+                },
+              ],
+            },
+          ],
         },
         {
           code: `promise.catch(err => { if ('object' === typeof err) { console.log(err.status); } });`,
-          errors: [{ messageId: "unsafeProperty", data: { prop: "status", errorVar: "err" } }],
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "status", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "status" },
+                  output: `promise.catch(err => { if ('object' === typeof err) { console.log((err instanceof Error ? err.status : undefined)); } });`,
+                },
+              ],
+            },
+          ],
         },
         {
           // Standalone err !== null in a separate if (without return) does not count as companion guard
           code: `promise.catch(err => { if (err !== null) { } if (typeof err === 'object') { console.log(err.status); } });`,
-          errors: [{ messageId: "unsafeProperty", data: { prop: "status", errorVar: "err" } }],
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "status", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "status" },
+                  output: `promise.catch(err => { if (err !== null) { } if (typeof err === 'object') { console.log((err instanceof Error ? err.status : undefined)); } });`,
+                },
+              ],
+            },
+          ],
         },
       ],
     });
@@ -284,6 +339,13 @@ describe("no-unsafe-promise-catch-error-property", () => {
             {
               messageId: "unsafeProperty",
               data: { prop: "status", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "status" },
+                  output: `promise.catch(err => { if ((err instanceof Error ? err.status : undefined) === 404) { } });`,
+                },
+              ],
             },
           ],
         },
@@ -301,6 +363,13 @@ describe("no-unsafe-promise-catch-error-property", () => {
             {
               messageId: "unsafeProperty",
               data: { prop: "cause", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "cause" },
+                  output: `promise.catch(err => { console.log((err instanceof Error ? err.cause : undefined)); });`,
+                },
+              ],
             },
           ],
         },
@@ -318,6 +387,13 @@ describe("no-unsafe-promise-catch-error-property", () => {
             {
               messageId: "unsafeProperty",
               data: { prop: "name", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "name" },
+                  output: `promise.catch(err => { console.log((err instanceof Error ? err.name : undefined)); });`,
+                },
+              ],
             },
           ],
         },
@@ -343,6 +419,106 @@ describe("no-unsafe-promise-catch-error-property", () => {
                   output: `outer.catch(err => { inner.catch(err2 => { core.setFailed(getErrorMessage(err2)); }); core.setFailed(getErrorMessage(err)); });`,
                 },
               ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('invalid: computed string-literal err["message"] is flagged and suggests getErrorMessage', () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `promise.catch(err => { console.log(err["message"]); });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "message", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `promise.catch(err => { console.log(getErrorMessage(err)); });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('invalid: computed string-literal err["stack"] is flagged and suggests wrapWithInstanceof', () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `promise.catch(err => { console.log(err["stack"]); });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "stack", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "stack" },
+                  output: `promise.catch(err => { console.log((err instanceof Error ? err.stack : undefined)); });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('invalid: computed string-literal err["code"] is flagged and suggests wrapWithInstanceof', () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `promise.catch(err => { if (err["code"] === "ENOENT") { } });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "code", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "code" },
+                  output: `promise.catch(err => { if ((err instanceof Error ? err.code : undefined) === "ENOENT") { } });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: chained access on non-message prop is flagged but wrapWithInstanceof suggestion is suppressed", () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `promise.catch(err => { console.log(err.stack.length); });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "stack", errorVar: "err" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          code: `promise.catch(err => { console.log(err.code.toString()); });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "code", errorVar: "err" },
+              suggestions: [],
             },
           ],
         },

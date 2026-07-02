@@ -54,8 +54,9 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
     },
     schema: [],
     messages: {
-      unsafeProperty: "Direct access to .{{prop}} on promise rejection '{{errorVar}}' is unsafe — the rejection value may not be an Error instance. Use getErrorMessage({{errorVar}}) from error_helpers.cjs instead.",
+      unsafeProperty: "Direct access to .{{prop}} on promise rejection '{{errorVar}}' is unsafe — the rejection value may not be an Error instance.",
       useGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) from error_helpers.cjs for safe error message extraction.",
+      wrapWithInstanceof: "Wrap with '({{errorVar}} instanceof Error ? {{errorVar}}.{{prop}} : undefined)' to guard against non-Error throws.",
     },
   },
   defaultOptions: [],
@@ -87,6 +88,10 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
 
       for (const { node: memberExpr, prop } of frame.unsafeNodes) {
         const { varName } = frame;
+        const parent = memberExpr.parent;
+        const isChained =
+          parent != null &&
+          ((parent.type === AST_NODE_TYPES.MemberExpression && (parent as TSESTree.MemberExpression).object === memberExpr) || (parent.type === AST_NODE_TYPES.CallExpression && (parent as TSESTree.CallExpression).callee === memberExpr));
         context.report({
           node: memberExpr,
           messageId: "unsafeProperty",
@@ -102,7 +107,17 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
                     },
                   },
                 ]
-              : undefined,
+              : isChained
+                ? []
+                : [
+                    {
+                      messageId: "wrapWithInstanceof" as const,
+                      data: { errorVar: varName, prop },
+                      fix(fixer) {
+                        return fixer.replaceText(memberExpr, `(${varName} instanceof Error ? ${varName}.${prop} : undefined)`);
+                      },
+                    },
+                  ],
         });
       }
     }
@@ -183,6 +198,7 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
       },
 
       // Collect catchVar.message / catchVar.stack / catchVar.code / catchVar.status / catchVar.cause / catchVar.name accesses
+      // Also detects computed string-literal access: catchVar["message"], catchVar["status"], etc.
       MemberExpression(node) {
         if (stack.length === 0) return;
         const top = stack[stack.length - 1];
@@ -190,8 +206,18 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
 
         const obj = node.object;
         const prop = node.property;
-        if (!node.computed && obj.type === AST_NODE_TYPES.Identifier && obj.name === top.varName && prop.type === AST_NODE_TYPES.Identifier && UNSAFE_PROPERTIES.has(prop.name)) {
+        if (obj.type !== AST_NODE_TYPES.Identifier || obj.name !== top.varName) return;
+
+        // Non-computed dot access: err.message / err.stack / err.code / err.status / err.cause / err.name
+        if (!node.computed && prop.type === AST_NODE_TYPES.Identifier && UNSAFE_PROPERTIES.has(prop.name)) {
           top.unsafeNodes.push({ node, prop: prop.name });
+          return;
+        }
+
+        // Computed string-literal access: err["message"] / err["stack"] / err["status"] / etc.
+        // Dynamic access (err[prop]) is kept out of scope intentionally.
+        if (node.computed && prop.type === AST_NODE_TYPES.Literal && typeof prop.value === "string" && UNSAFE_PROPERTIES.has(prop.value)) {
+          top.unsafeNodes.push({ node, prop: prop.value });
         }
       },
     };
