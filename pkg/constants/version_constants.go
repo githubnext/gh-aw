@@ -73,7 +73,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.5.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.27.16"
+const DefaultFirewallVersion Version = "v0.27.20"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -104,6 +104,11 @@ const AWFTokenSteeringMinVersion Version = "v0.25.44"
 // for ARC/DinD split runner/daemon filesystem topologies, removing the need
 // for bootstrap actions that manually copy binaries and pre-seed /etc/passwd.
 const AWFChrootConfigMinVersion Version = "v0.27.1"
+
+// AWFArcDindMinVersion is the minimum AWF version required for runner.topology=arc-dind.
+// Earlier versions have known sysroot/chroot mount-handling bugs that can prevent
+// the agent container from starting in split-filesystem ARC/DinD environments.
+const AWFArcDindMinVersion Version = "v0.27.20"
 
 // CopilotNoAskUserMinVersion is the minimum Copilot CLI version that supports the --no-ask-user
 // flag, which enables fully autonomous agentic runs by suppressing interactive prompts.

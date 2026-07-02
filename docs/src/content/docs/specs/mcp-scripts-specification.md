@@ -36,8 +36,10 @@ This document is governed by the GitHub Agentic Workflows project specifications
 7. [Security Model](#7-security-model)
 8. [Large Output Handling](#8-large-output-handling)
 9. [Integration with MCP Gateway](#9-integration-with-mcp-gateway)
-10. [Compliance Testing](#10-compliance-testing)
-11. [Sync Notes](#sync-notes)
+10. [Safeguards](#10-safeguards)
+11. [Norms](#11-norms)
+12. [Compliance Testing](#12-compliance-testing)
+13. [Sync Notes](#13-sync-notes)
 
 ---
 
@@ -1032,13 +1034,67 @@ MCP Scripts server:
 
 ---
 
-## 10. Compliance Testing
+## 10. Safeguards
 
-### 10.1 Test Suite Requirements
+This section elevates the MCP Scripts threat model and mitigation requirements for direct normative
+reference.
+
+### Threat Model
+
+- **S-MCP-001**: Secret leakage vectors include tool stdout/stderr, JSON responses, dependency
+  installer logs, and exception stack traces.
+- **S-MCP-002**: Container escape attempts can originate from shell/python/go tools via privilege
+  escalation paths such as host mounts, kernel interfaces, or unrestricted network egress.
+- **S-MCP-003**: Cross-tool contamination risk exists when one invocation attempts to read another
+  tool's environment bindings or temporary artifacts.
+
+### Required Mitigations
+
+- **S-MCP-004**: Implementations MUST enforce secret isolation, output sanitization, execution
+  isolation, and network isolation defaults exactly as described in §7.1–§7.4 and Appendix D.
+- **S-MCP-005**: Dependency installation MUST fail closed when package integrity cannot be
+  established.
+
+### Residual Risk
+
+Logic-level metadata exfiltration and zero-day container runtime vulnerabilities remain residual
+risks. Operators SHOULD pair this specification with least-privilege repository controls and
+continuous runtime patching.
+
+---
+
+## 11. Norms
+
+This section elevates the security norms from §7.6 into top-level normative requirements.
+
+### Secret Rotation Norms
+
+- **N-SN-ROT-01**: Workflows that use long-lived secrets SHOULD define an explicit rotation policy.
+- **N-SN-ROT-02**: Implementations SHOULD NOT cache secret values across tool invocations beyond a
+  single workflow run, and any in-process cache MUST be cleared at run end.
+- **N-SN-ROT-03**: When secret rotation is detected, implementations MUST NOT reuse stale cached
+  secret values from before the rotation event.
+
+### Secret Scope Norms
+
+- **N-SN-SCOPE-01**: Secrets declared in workflow `env:` MUST be scoped to the minimum required
+  access level.
+- **N-SN-SCOPE-02**: Implementations MUST NOT propagate a tool's declared secrets to child
+  processes or containers outside that tool's execution scope.
+- **N-SN-SCOPE-03**: When the same secret is declared for multiple tools, each tool MUST receive
+  only its own environment-variable binding and MUST NOT gain access to sibling tool bindings.
+- **N-SN-SCOPE-04**: Secrets MUST NOT be included in tool result objects, logs, or output returned
+  to MCP clients.
+
+---
+
+## 12. Compliance Testing
+
+### 12.1 Test Suite Requirements
 
 A conforming implementation MUST pass the following test categories:
 
-#### 10.1.1 Configuration Tests
+#### 12.1.1 Configuration Tests
 
 - **T-CFG-001**: Valid tool with JavaScript implementation
 - **T-CFG-002**: Valid tool with Shell implementation
@@ -1051,7 +1107,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-CFG-009**: Reject tool with multiple implementations
 - **T-CFG-010**: Reject tool with invalid timeout
 
-#### 10.1.2 Input Validation Tests
+#### 12.1.2 Input Validation Tests
 
 - **T-VAL-001**: Required parameter validation
 - **T-VAL-002**: Optional parameter with default
@@ -1060,7 +1116,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-VAL-005**: Invalid type rejection
 - **T-VAL-006**: Missing required parameter error
 
-#### 10.1.3 Execution Tests
+#### 12.1.3 Execution Tests
 
 - **T-EXE-001**: JavaScript tool successful execution
 - **T-EXE-002**: Shell tool successful execution
@@ -1071,7 +1127,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-EXE-007**: Tool execution error handling
 - **T-EXE-008**: Tool with JSON output parsing
 
-#### 10.1.4 Security Tests
+#### 12.1.4 Security Tests
 
 - **T-SEC-001**: Secret isolation verification
 - **T-SEC-002**: Environment variable isolation
@@ -1083,8 +1139,10 @@ A conforming implementation MUST pass the following test categories:
 - **T-SEC-008**: GitHub Actions global objects access control
 - **T-MCP-050**: Go sandbox network isolation (no unrestricted outbound access without explicit
   `network.allowed` entries)
+- **T-MCP-051**: Secret-scope isolation for SN-SCOPE-01 through SN-SCOPE-04 (per-tool binding only,
+  no cross-tool secret leakage, no secret values in returned output)
 
-#### 10.1.5 Large Output Tests
+#### 12.1.5 Large Output Tests
 
 - **T-OUT-001**: Output under 500 characters (direct return)
 - **T-OUT-002**: Output over 500 characters (file save)
@@ -1092,7 +1150,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-OUT-004**: File accessibility to agent
 - **T-OUT-005**: JSON schema preview generation
 
-#### 10.1.6 Dependencies Tests
+#### 12.1.6 Dependencies Tests
 
 - **T-DEP-001**: npm dependency installation for JavaScript tools
 - **T-DEP-002**: pip dependency installation for Python tools
@@ -1101,7 +1159,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-DEP-005**: Dependency caching behavior
 - **T-DEP-006**: Dependency installation failure handling
 
-#### 10.1.7 Integration Tests
+#### 12.1.7 Integration Tests
 
 - **T-INT-001**: MCP Gateway configuration generation
 - **T-INT-002**: HTTP MCP server startup
@@ -1109,12 +1167,12 @@ A conforming implementation MUST pass the following test categories:
 - **T-INT-004**: JSON-RPC request handling
 - **T-INT-005**: Error response format
 
-#### 10.1.8 Negative Tests
+#### 12.1.8 Negative Tests
 
 - **T-MS-NEG-001**: Tool definition with missing `script` (or `run`, `py`, `go`) field — implementation MUST reject the configuration at compile time with an error identifying the missing implementation field. The error MUST reference the tool name and the required field names.
 - **T-MS-NEG-002**: Tool input schema referencing an undefined type (e.g., `type: "uuid"`) — implementation MUST reject the schema at validation time with an error indicating the unsupported type. The error MUST include the tool name, parameter name, and the invalid type value.
 
-### 10.2 Compliance Checklist
+### 12.2 Compliance Checklist
 
 | Requirement | Test ID | Level | Status |
 |-------------|---------|-------|--------|
@@ -1126,6 +1184,7 @@ A conforming implementation MUST pass the following test categories:
 | Secret isolation | T-SEC-001, T-SEC-002 | 1 | Required |
 | Process isolation | T-SEC-003 | 2 | Standard |
 | Go sandbox network isolation | T-MCP-050 | 3 | Complete |
+| Secret scope norms (SN-SCOPE-01–04) | T-MCP-051 | 2 | Standard |
 | Timeout handling | T-EXE-006 | 2 | Standard |
 | Large output handling | T-OUT-* | 3 | Complete |
 | Dependencies support | T-DEP-* | 2 | Standard |
@@ -1134,7 +1193,7 @@ A conforming implementation MUST pass the following test categories:
 | Missing implementation field rejection | T-MS-NEG-001 | 1 | Required |
 | Invalid input schema type rejection | T-MS-NEG-002 | 1 | Required |
 
-### 10.3 Test Execution
+### 12.3 Test Execution
 
 Implementations SHOULD provide:
 
@@ -1559,7 +1618,7 @@ repository-level least privilege and continuous runtime patching.
 
 ---
 
-## Sync Notes
+## 13. Sync Notes
 
 This section maps each normative section of the MCP Scripts Specification to the Go source
 files in `pkg/workflow/` that implement it. This mapping is maintained to assist contributors
@@ -1577,6 +1636,14 @@ and run `go test ./pkg/workflow/...` to verify conformance.
 | §7 | Security Model | `pkg/workflow/mcp_scripts_renderer.go` (`collectMCPScriptsSecrets`, `renderMCPScriptsMCPConfigWithOptions`), `pkg/workflow/mcp_scripts_parser.go` (env/secret field parsing) |
 | §8 | Large Output Handling | `pkg/workflow/mcp_scripts_generator.go` (output truncation logic), `actions/setup/js/mcp_scripts_mcp_server_http.cjs` (HTTP transport output streaming) |
 | §9 | Integration with MCP Gateway | `pkg/workflow/mcp_scripts_renderer.go` (`renderMCPScriptsMCPConfigWithOptions`), `pkg/workflow/mcp_scripts_generator.go` (`GenerateMCPScriptsMCPServerScript`, `GenerateMCPScriptsToolsConfig`) |
+| §10 | Safeguards | `pkg/workflow/mcp_scripts_renderer.go`, `pkg/workflow/mcp_scripts_generator.go`, `actions/setup/js/mcp_scripts_mcp_server_http.cjs` |
+| §11 | Norms | `pkg/workflow/mcp_scripts_renderer.go`, `pkg/workflow/mcp_scripts_parser.go` |
+
+Sync follow-up tasks:
+
+- Add/maintain compliance coverage for **T-MCP-051** in
+  `pkg/workflow/mcp_scripts_renderer_test.go` for SN-SCOPE-01 through SN-SCOPE-04 secret-scope
+  behavior.
 
 ### Security Marker Sync Map
 

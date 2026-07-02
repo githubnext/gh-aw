@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -520,10 +521,10 @@ func TestAWFBasePathFlags(t *testing.T) {
 	})
 }
 
-// TestBuildAWFArgsAuditDir tests that BuildAWFArgs always includes --audit-dir
-// pointing to the AWF audit directory for policy-manifest.json and other audit files
+// TestBuildAWFArgsAuditDir tests that audit-dir and proxy-logs-dir are emitted in config,
+// not CLI flags, for both standard and ARC/DinD workflows.
 func TestBuildAWFArgsAuditDir(t *testing.T) {
-	t.Run("includes --audit-dir flag with correct path", func(t *testing.T) {
+	t.Run("non-arc-dind omits audit-dir and proxy-logs-dir from CLI flags", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -545,8 +546,36 @@ func TestBuildAWFArgsAuditDir(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.Contains(t, argsStr, "--audit-dir", "Should include --audit-dir flag")
-		assert.Contains(t, argsStr, "/tmp/gh-aw/sandbox/firewall/audit", "Should include the audit directory path")
+		// Non-ARC/DinD: these should be in config, not CLI flags
+		assert.NotContains(t, argsStr, "--audit-dir", "audit-dir should be in config for non-arc-dind")
+		assert.NotContains(t, argsStr, "--proxy-logs-dir", "proxy-logs-dir should be in config for non-arc-dind")
+	})
+
+	t.Run("arc-dind also omits audit-dir and proxy-logs-dir from CLI flags", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.NotContains(t, argsStr, "--audit-dir", "arc-dind audit-dir should be emitted via config JSON")
+		assert.NotContains(t, argsStr, "--proxy-logs-dir", "arc-dind proxy-logs-dir should be emitted via config JSON")
 	})
 }
 
@@ -1463,6 +1492,11 @@ printf 'docker-host=%%%%s\n' "$GH_AW_DOCKER_HOST"
 printf 'docker-host-path-prefix=%%%%s\n' "$GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
 `, awfArcDindDockerHostRegex, awfArcDindDockerHostRegex, awfArcDindHostPathPrefixFlag)
 
+	expectedPrefix := awfArcDindHostPathPrefixFlag
+	if runnerTemp := os.Getenv("RUNNER_TEMP"); runnerTemp != "" {
+		expectedPrefix = strings.ReplaceAll(expectedPrefix, "${RUNNER_TEMP}", runnerTemp)
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			script := fmt.Sprintf(scriptTemplate, tt.dockerHost)
@@ -1482,7 +1516,7 @@ printf 'docker-host-path-prefix=%%%%s\n' "$GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
 					"expected docker host passthrough value to NOT be set for DOCKER_HOST=%s", tt.dockerHost)
 			}
 			if tt.wantPrefixSet {
-				assert.Equal(t, awfArcDindHostPathPrefixFlag, gotPrefix,
+				assert.Equal(t, expectedPrefix, gotPrefix,
 					"expected --docker-host-path-prefix to be set for DOCKER_HOST=%s", tt.dockerHost)
 			} else {
 				assert.Empty(t, gotPrefix,
@@ -1638,6 +1672,40 @@ func TestBuildAWFCommand_IncludesChrootInjectScript(t *testing.T) {
 		assert.NotContains(t, command, "binariesSourcePath",
 			"command should NOT include chroot inject script for old AWF version")
 	})
+}
+
+func TestBuildModelsJSONPathExportScript(t *testing.T) {
+	t.Run("uses tmp path by default", func(t *testing.T) {
+		assert.Equal(t, `export GH_AW_MODELS_JSON_PATH="/tmp/gh-aw/models.json"`, buildModelsJSONPathExportScript(false))
+	})
+
+	t.Run("uses runner temp path for arc-dind", func(t *testing.T) {
+		assert.Equal(t, `export GH_AW_MODELS_JSON_PATH="${RUNNER_TEMP}/gh-aw/models.json"`, buildModelsJSONPathExportScript(true))
+	})
+}
+
+func TestRewriteArcDindPath(t *testing.T) {
+	t.Run("rewrites tmp gh-aw prefix", func(t *testing.T) {
+		assert.Equal(t, "${RUNNER_TEMP}/gh-aw/aw-prompts/prompt.txt", rewriteArcDindPath("/tmp/gh-aw/aw-prompts/prompt.txt"))
+	})
+
+	t.Run("rewrites multiple occurrences", func(t *testing.T) {
+		input := "/tmp/gh-aw/a /tmp/gh-aw/b"
+		expected := "${RUNNER_TEMP}/gh-aw/a ${RUNNER_TEMP}/gh-aw/b"
+		assert.Equal(t, expected, rewriteArcDindPath(input))
+	})
+
+	t.Run("leaves unrelated paths unchanged", func(t *testing.T) {
+		assert.Equal(t, "/tmp/not-gh-aw/file.txt", rewriteArcDindPath("/tmp/not-gh-aw/file.txt"))
+	})
+}
+
+func TestRewriteArcDindEngineCommand(t *testing.T) {
+	command := "copilot --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt"
+	rewritten := rewriteArcDindEngineCommand(command)
+
+	assert.Contains(t, rewritten, "export HOME=${RUNNER_TEMP}/gh-aw/home")
+	assert.Contains(t, rewritten, "copilot --prompt-file ${RUNNER_TEMP}/gh-aw/aw-prompts/prompt.txt")
 }
 
 func TestGetGeminiAPITarget(t *testing.T) {

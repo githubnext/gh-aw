@@ -3,6 +3,7 @@ package workflow
 import (
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -74,6 +75,36 @@ func TestValidateArcDindRootless(t *testing.T) {
 		wd := &WorkflowData{
 			RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
 			CustomSteps:  "      - name: avoid sudo operations\n        run: echo hello\n",
+		}
+		assert.NoError(t, validateArcDindRootless(wd))
+	})
+
+	t.Run("error when arc-dind pins AWF older than minimum", func(t *testing.T) {
+		wd := &WorkflowData{
+			RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+					Version: "v0.27.19",
+				},
+			},
+		}
+		err := validateArcDindRootless(wd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "arc-dind")
+		assert.Contains(t, err.Error(), string(constants.AWFArcDindMinVersion))
+	})
+
+	t.Run("no error when arc-dind uses minimum required AWF version", func(t *testing.T) {
+		wd := &WorkflowData{
+			RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+					Version: string(constants.AWFArcDindMinVersion),
+				},
+			},
+			CustomSteps: "      - run: echo hello\n",
 		}
 		assert.NoError(t, validateArcDindRootless(wd))
 	})

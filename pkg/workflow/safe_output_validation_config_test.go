@@ -229,6 +229,16 @@ func TestFieldValidationMarshaling(t *testing.T) {
 	}
 }
 
+func TestIssueIntentRationaleMaxLength(t *testing.T) {
+	if got := ValidationConfig["set_issue_type"].Fields["rationale"].MaxLength; got != 280 {
+		t.Fatalf("set_issue_type rationale maxLength = %d, want 280", got)
+	}
+
+	if got := ValidationConfig["set_issue_field"].Fields["rationale"].MaxLength; got != 280 {
+		t.Fatalf("set_issue_field rationale maxLength = %d, want 280", got)
+	}
+}
+
 func TestUpdateDiscussionValidationConfig(t *testing.T) {
 	// Verify update_discussion accepts label-only updates (regression test for
 	// https://github.com/github/gh-aw/issues/24979 where label-only updates were
