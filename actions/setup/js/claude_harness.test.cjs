@@ -20,6 +20,7 @@ const {
   hasNumerousPermissionDeniedIssues,
   extractDeniedCommands,
   buildMissingToolPermissionIssuePayload,
+  resolveRetryConfig,
 } = require("./claude_harness.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
@@ -489,6 +490,33 @@ process.exit(0);
     it("does not retry when first attempt fails authentication", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Authentication failed (Request ID: 123)" };
       expect(shouldRetry(result, 0)).toBe(false);
+    });
+  });
+
+  describe("retry configuration", () => {
+    it("uses the default retry settings when env vars are unset", () => {
+      expect(resolveRetryConfig({})).toEqual({
+        maxRetries: 3,
+        initialDelayMs: 5000,
+        backoffMultiplier: 2,
+        maxDelayMs: 60000,
+      });
+    });
+
+    it("accepts env overrides for retry settings", () => {
+      expect(
+        resolveRetryConfig({
+          GH_AW_HARNESS_MAX_RETRIES: "6",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "250",
+          GH_AW_HARNESS_BACKOFF_MULTIPLIER: "1.25",
+          GH_AW_HARNESS_MAX_DELAY_MS: "10000",
+        })
+      ).toEqual({
+        maxRetries: 6,
+        initialDelayMs: 250,
+        backoffMultiplier: 1.25,
+        maxDelayMs: 10000,
+      });
     });
   });
 

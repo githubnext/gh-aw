@@ -49,6 +49,7 @@ const {
   isSDKSessionIdleTimeoutError,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
+  resolveRetryConfig,
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
 } = require("./copilot_harness.cjs");
@@ -1563,28 +1564,63 @@ describe("copilot_harness.cjs", () => {
 
   describe("retry configuration", () => {
     it("has sensible default values", () => {
-      // These match the constants in copilot_harness.cjs
-      const MAX_RETRIES = 3;
-      const INITIAL_DELAY_MS = 5000;
-      const BACKOFF_MULTIPLIER = 2;
-      const MAX_DELAY_MS = 60000;
+      const retryConfig = resolveRetryConfig({});
+      expect(retryConfig.maxRetries).toBe(3);
+      expect(retryConfig.initialDelayMs).toBe(5000);
+      expect(retryConfig.backoffMultiplier).toBe(2);
+      expect(retryConfig.maxDelayMs).toBe(60000);
+    });
 
-      expect(MAX_RETRIES).toBeGreaterThan(0);
-      expect(INITIAL_DELAY_MS).toBeGreaterThan(0);
-      expect(BACKOFF_MULTIPLIER).toBeGreaterThan(1);
-      expect(MAX_DELAY_MS).toBeGreaterThanOrEqual(INITIAL_DELAY_MS);
+    it("accepts env overrides for retry parameters", () => {
+      const retryConfig = resolveRetryConfig({
+        GH_AW_HARNESS_MAX_RETRIES: "7",
+        GH_AW_HARNESS_INITIAL_DELAY_MS: "1500",
+        GH_AW_HARNESS_BACKOFF_MULTIPLIER: "1.5",
+        GH_AW_HARNESS_MAX_DELAY_MS: "45000",
+      });
+      expect(retryConfig).toEqual({
+        maxRetries: 7,
+        initialDelayMs: 1500,
+        backoffMultiplier: 1.5,
+        maxDelayMs: 45000,
+      });
+    });
+
+    it("falls back to defaults for invalid env values and clamps max delay", () => {
+      const logs = [];
+      const retryConfig = resolveRetryConfig(
+        {
+          GH_AW_HARNESS_MAX_RETRIES: "-1",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "abc",
+          GH_AW_HARNESS_BACKOFF_MULTIPLIER: "0",
+          GH_AW_HARNESS_MAX_DELAY_MS: "1000",
+        },
+        msg => logs.push(msg)
+      );
+      expect(retryConfig).toEqual({
+        maxRetries: 3,
+        initialDelayMs: 5000,
+        backoffMultiplier: 2,
+        maxDelayMs: 5000,
+      });
+      expect(logs.some(msg => msg.includes("GH_AW_HARNESS_MAX_RETRIES"))).toBe(true);
+      expect(logs.some(msg => msg.includes("GH_AW_HARNESS_INITIAL_DELAY_MS"))).toBe(true);
+      expect(logs.some(msg => msg.includes("GH_AW_HARNESS_BACKOFF_MULTIPLIER"))).toBe(true);
+      expect(logs.some(msg => msg.includes("clamping max delay"))).toBe(true);
     });
 
     it("exponential backoff does not exceed max delay", () => {
-      const INITIAL_DELAY_MS = 5000;
-      const BACKOFF_MULTIPLIER = 2;
-      const MAX_DELAY_MS = 60000;
-      const MAX_RETRIES = 3;
+      const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = resolveRetryConfig({
+        GH_AW_HARNESS_MAX_RETRIES: "3",
+        GH_AW_HARNESS_INITIAL_DELAY_MS: "5000",
+        GH_AW_HARNESS_BACKOFF_MULTIPLIER: "2",
+        GH_AW_HARNESS_MAX_DELAY_MS: "60000",
+      });
 
-      let delay = INITIAL_DELAY_MS;
-      for (let i = 0; i < MAX_RETRIES; i++) {
-        delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
-        expect(delay).toBeLessThanOrEqual(MAX_DELAY_MS);
+      let delay = initialDelayMs;
+      for (let i = 0; i < maxRetries; i++) {
+        delay = Math.min(delay * backoffMultiplier, maxDelayMs);
+        expect(delay).toBeLessThanOrEqual(maxDelayMs);
       }
     });
   });

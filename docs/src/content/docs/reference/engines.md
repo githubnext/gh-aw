@@ -298,9 +298,24 @@ The value must be a bare filename — no directory separators, no `..`, and no s
 
 ### Harness Retry Count
 
-Built-in harness scripts (`copilot_harness.cjs`, `claude_harness.cjs`, `codex_harness.cjs`) currently use a fixed retry budget of **3 retries** after the initial run (4 total attempts).
+The built-in Copilot and Claude harness scripts keep their existing defaults of **3 retries** after the initial run (4 total attempts total), but you can now override the retry policy with environment variables:
 
-To specify a different retry count, provide a custom harness script and implement your own retry policy there. At present, `engine.harness` customization is only applied for the Copilot engine.
+- `GH_AW_HARNESS_MAX_RETRIES`
+- `GH_AW_HARNESS_INITIAL_DELAY_MS`
+- `GH_AW_HARNESS_BACKOFF_MULTIPLIER`
+- `GH_AW_HARNESS_MAX_DELAY_MS`
+
+The smallest workflow-level override is to set them through `engine.env`:
+
+```yaml wrap
+engine:
+  id: copilot
+  env:
+    GH_AW_HARNESS_MAX_RETRIES: "6"
+    GH_AW_HARNESS_INITIAL_DELAY_MS: "10000"
+    GH_AW_HARNESS_BACKOFF_MULTIPLIER: "2"
+    GH_AW_HARNESS_MAX_DELAY_MS: "180000"
+```
 
 **Validation rules:**
 
