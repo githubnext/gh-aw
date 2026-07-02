@@ -322,18 +322,18 @@ tool requests are repeatedly denied. The default is `5`.
 This field is only supported when `engine.id: copilot` and
 `engine.copilot-sdk: true`.
 
-Use `engine.copilot-sdk-driver` to replace the built-in
-`copilot_sdk_driver.cjs` implementation:
+Use `engine.driver` to replace the built-in
+`copilot_sdk_driver.cjs` implementation. On the Copilot engine,
+setting `engine.driver` also enables `engine.copilot-sdk: true`:
 
 ```yaml wrap
 engine:
   id: copilot
-  copilot-sdk: true
-  copilot-sdk-driver: .github/drivers/custom-copilot-driver.js
+  driver: .github/drivers/custom-copilot-driver.js
 max-tool-denials: 8
 ```
 
-`copilot-sdk-driver` must be a **relative path from the workspace root**
+`engine.driver` must be a **relative path from the workspace root**
 (no absolute paths, `..`, backslashes, or shell metacharacters). It supports:
 
 - script filenames ending with `.js`, `.cjs`, `.mjs`,
@@ -376,8 +376,7 @@ sidecar and driver process.
 ```yaml wrap
 engine:
   id: copilot
-  copilot-sdk: true
-  copilot-sdk-driver: .github/drivers/my_driver.ts
+  driver: .github/drivers/my_driver.ts
   model: gpt-5
   env:
     COPILOT_SDK_SEND_TIMEOUT_MS: "900000"

@@ -478,7 +478,7 @@ Named shorthand references to predefined domain sets used in `network.allowed` a
 
 ### Copilot SDK (`engine.copilot-sdk`)
 
-An engine option that enables the Copilot engine to run in SDK mode, giving the workflow direct access to the Copilot SDK runtime for advanced integration patterns such as inline sub-agents. Set `engine.copilot-sdk: true` to activate. Use `engine.copilot-sdk-driver` to replace the built-in driver with a custom Node.js script. Supports `max-tool-denials` to stop inference when tool requests are denied too frequently. See [AI Engines Reference](/gh-aw/reference/engines/#copilot-sdk-support).
+An engine option that enables the Copilot engine to run in SDK mode, giving the workflow direct access to the Copilot SDK runtime for advanced integration patterns such as inline sub-agents. Set `engine.copilot-sdk: true` to activate, or set `engine.driver` on the Copilot engine to enable SDK mode automatically while replacing the built-in driver. Supports `max-tool-denials` to stop inference when tool requests are denied too frequently. See [AI Engines Reference](/gh-aw/reference/engines/#copilot-sdk-support).
 
 ```aw wrap
 engine:
@@ -590,7 +590,7 @@ See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Engine Driver (`engine.driver`)
 
-A Pi engine configuration field that replaces the built-in `pi` CLI with a Node.js driver script. When set, `gh aw` launches the driver with Node.js instead of the `pi` CLI; the driver must emit JSONL compatible with the existing log parser so step summaries and token tracking work unchanged. A bare filename (e.g. `pi_agent_core_driver.cjs`) resolves from the gh-aw setup-action directory; a path containing `/` resolves workspace-relative.
+An engine configuration field that replaces the built-in runtime entrypoint for engines that support driver mode. For the Pi engine, `gh aw` launches the driver with Node.js instead of the `pi` CLI; the driver must emit JSONL compatible with the existing log parser so step summaries and token tracking work unchanged. For the Copilot engine, setting `engine.driver` replaces the built-in SDK driver and enables `engine.copilot-sdk` automatically. A bare filename (e.g. `pi_agent_core_driver.cjs`) resolves from the gh-aw setup-action directory; a path containing `/` resolves workspace-relative.
 
 ```aw wrap
 engine:

@@ -113,8 +113,7 @@ func (c *Compiler) validateEngineHarnessScript(workflowData *WorkflowData) error
 	return validateEngineScriptFilename("engine.harness", workflowData.EngineConfig.HarnessScript)
 }
 
-// validateEngineDriver validates the shared engine.driver field (also accepted as
-// engine.copilot-sdk-driver for backward compatibility with the copilot engine).
+// validateEngineDriver validates the shared engine.driver field.
 // engine.driver must be either:
 //   - a relative path (with safe segments separated by '/') ending with a supported
 //     extension for the engine in use, or
