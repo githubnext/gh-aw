@@ -116,7 +116,7 @@ const SAMPLE_VALIDATION_CONFIG = {
     fields: {
       issue_number: { issueOrPRNumber: true },
       issue_type: { required: true, type: "string", sanitize: true, maxLength: 128 },
-      rationale: { type: "string", sanitize: true, maxLength: 1024 },
+      rationale: { type: "string", sanitize: true, maxLength: 280 },
       confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
       suggest: { type: "boolean" },
     },
@@ -129,7 +129,7 @@ const SAMPLE_VALIDATION_CONFIG = {
       field_name: { type: "string", sanitize: true, maxLength: 128 },
       field_node_id: { type: "string", maxLength: 256 },
       value: { required: true, type: "string", sanitize: true, maxLength: 256 },
-      rationale: { type: "string", sanitize: true, maxLength: 1024 },
+      rationale: { type: "string", sanitize: true, maxLength: 280 },
       confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
       suggest: { type: "boolean" },
     },
@@ -327,6 +327,21 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem.labels).toEqual([{ name: "bug", rationale: "Known failure mode", confidence: "HIGH", suggest: true }]);
+    });
+
+    it("should truncate structured label rationale for all issue-intent label mutations", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      for (const [type, item] of [
+        ["add_labels", { type: "add_labels", item_number: 123, labels: [{ name: "bug", rationale: "a".repeat(350) }] }],
+        ["remove_labels", { type: "remove_labels", item_number: 123, labels: [{ name: "bug", rationale: "a".repeat(350) }] }],
+        ["update_issue", { type: "update_issue", issue_number: 123, labels: [{ name: "bug", rationale: "a".repeat(350) }] }],
+      ]) {
+        const result = validateItem(item, type, 1);
+
+        expect(result.isValid).toBe(true);
+        expect(result.normalizedItem.labels[0].rationale).toBe("a".repeat(280));
+      }
     });
 
     it("should fail add_labels when structured label entry is invalid", async () => {

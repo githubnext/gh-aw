@@ -69,10 +69,11 @@ Feedback should be filed as GitHub issues against the `github/gh-aw` repository.
 10. [Error Handling](#10-error-handling)
 11. [Implementation Requirements](#11-implementation-requirements)
 12. [Compliance Testing](#12-compliance-testing)
-13. [Sync Notes](#13-sync-notes)
-14. [Appendices](#14-appendices)
-15. [References](#15-references)
-16. [Change Log](#16-change-log)
+13. [Norms](#13-norms)
+14. [Sync Notes](#14-sync-notes)
+15. [Appendices](#15-appendices)
+16. [References](#16-references)
+17. [Change Log](#17-change-log)
 
 ---
 
@@ -1009,7 +1010,25 @@ and adding new fixtures.
 
 ---
 
-## 13. Sync Notes
+## 13. Norms
+
+This section defines cross-cutting normative requirements that apply across sampling, projection, and
+consumer-facing output behavior.
+
+- **N-FC-001 (Minimum sample-size floor)**: Implementations MUST apply the minimum sample-size floor
+  in §7.6 before presenting percentile projections as valid planning signals. If the floor is not
+  met, implementations MUST still return output but MUST include the validity warning described in
+  §7.6.
+- **N-FC-002 (Projection immutability)**: Once a projection result is computed for a given input set
+  and random seed policy, the emitted P10/P50/P90 values MUST be immutable within that command
+  invocation and MUST be reused consistently across console and JSON output paths.
+- **N-FC-003 (Caller percentile obligations)**: Callers consuming forecast output MUST treat P10, P50,
+  and P90 as a set. Callers MUST NOT present P50 alone as a complete risk estimate and SHOULD include
+  percentile spread when using forecast data for budgeting or promotion decisions.
+
+---
+
+## 14. Sync Notes
 
 This section maps normative forecast requirements to implementation files.
 
@@ -1030,6 +1049,12 @@ Sync procedure:
 
 Sync follow-up tasks:
 
+- **[Open]** Add and verify explicit AIC-primary / ET-legacy migration assertions for forecast
+  reporting paths so that ET-facing surfaces remain compatibility-only where applicable.
+- **[Open]** Track promotion-gate evidence until three confirmed production runs are documented in
+  the Promotion Tracking table (§Status of This Document, criterion 1).
+- **[Open]** Close the forecast compliance-test gap for promotion criterion 3 by recording sustained
+  CI evidence covering both local and remote discovery paths over a full promotion review window.
 - **[Resolved]** Expand forecast fixtures to cover invalid/non-finite `λ` derivation paths and
   zero-projection fallback behavior. Resolved in `pkg/cli/forecast_montecarlo_test.go` via
   `TestRunMonteCarloNonFiniteLambda` and `TestRunMonteCarloZeroLambdaFallback`.
@@ -1051,7 +1076,7 @@ Sync follow-up tasks:
 
 ---
 
-## 14. Appendices
+## 15. Appendices
 
 ### Appendix A: Worked Example
 
@@ -1128,7 +1153,7 @@ Safeguard requirements for this specification are now defined in §10.7.
 
 ---
 
-## 15. References
+## 16. References
 
 ### Normative References
 
@@ -1145,7 +1170,7 @@ Safeguard requirements for this specification are now defined in §10.7.
 
 ---
 
-## 16. Change Log
+## 17. Change Log
 
 ### Version 0.1.0 (Experimental Draft)
 

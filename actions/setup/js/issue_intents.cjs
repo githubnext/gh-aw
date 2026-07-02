@@ -7,7 +7,7 @@ const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { hasRuntimeFeature, parseRuntimeFeatures } = require("./runtime_features.cjs");
 
 const ISSUE_INTENTS_FEATURE = "issue_intents";
-const ISSUE_INTENT_RATIONALE_MAX_LENGTH = 1024;
+const ISSUE_INTENT_RATIONALE_MAX_LENGTH = 280;
 
 function hasIssueIntentsRuntimeFeature() {
   if (typeof global.hasRuntimeFeature === "function") {
@@ -25,7 +25,10 @@ function normalizeIssueIntentMetadata(source) {
   const metadata = {};
 
   if (typeof source.rationale === "string") {
-    const rationale = sanitizeContent(source.rationale, { maxLength: ISSUE_INTENT_RATIONALE_MAX_LENGTH }).trim();
+    const sanitizedRationale = sanitizeContent(source.rationale, { maxLength: ISSUE_INTENT_RATIONALE_MAX_LENGTH }).trim();
+    // sanitizeContent appends "\n[Content truncated due to length]" when it truncates,
+    // so clamp again to guarantee the GitHub API hard limit.
+    const rationale = sanitizedRationale.length > ISSUE_INTENT_RATIONALE_MAX_LENGTH ? sanitizedRationale.slice(0, ISSUE_INTENT_RATIONALE_MAX_LENGTH) : sanitizedRationale;
     if (rationale) {
       metadata.rationale = rationale;
     }
