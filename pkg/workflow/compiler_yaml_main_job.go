@@ -688,13 +688,21 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	// Include firewall audit/observability logs in the unified agent artifact
 	// so all agent job outputs ship as a single artifact (AWF v0.25.0+).
 	if isFirewallEnabled(data) {
-		paths = append(paths, constants.AWFConfigFilePath)
-		paths = append(paths, constants.AWFProxyLogsDir+"/")
-		paths = append(paths, constants.AWFAuditDir+"/")
-		// Include the AWF /reflect payload persisted by the agent harness.
-		// Co-located under /tmp/gh-aw/sandbox/firewall/ so the existing
-		// chmod -R a+rX step covers its permissions before upload.
-		paths = append(paths, constants.AWFReflectFilePath)
+		if isArcDindTopology(data) {
+			// On ARC/DinD, logs are under ${RUNNER_TEMP}/gh-aw (daemon-visible path)
+			paths = append(paths, "${RUNNER_TEMP}/gh-aw/awf-config.json")
+			paths = append(paths, "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs/")
+			paths = append(paths, "${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit/")
+			paths = append(paths, "${RUNNER_TEMP}/gh-aw/sandbox/firewall/awf-reflect.json")
+		} else {
+			paths = append(paths, constants.AWFConfigFilePath)
+			paths = append(paths, constants.AWFProxyLogsDir+"/")
+			paths = append(paths, constants.AWFAuditDir+"/")
+			// Include the AWF /reflect payload persisted by the agent harness.
+			// Co-located under /tmp/gh-aw/sandbox/firewall/ so the existing
+			// chmod -R a+rX step covers its permissions before upload.
+			paths = append(paths, constants.AWFReflectFilePath)
+		}
 	}
 
 	return paths
