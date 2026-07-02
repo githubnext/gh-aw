@@ -60,10 +60,11 @@ func FindPricing(ctx context.Context, provider, model string) (map[string]float6
 	}
 
 	normalizedProvider := normalizeProvider(provider)
-	normalizedModel := strings.ToLower(strings.TrimSpace(model))
-	if normalizedModel == "" {
+	trimmedModel := strings.TrimSpace(model)
+	if trimmedModel == "" {
 		return nil, false
 	}
+	normalizedModel := strings.ToLower(trimmedModel)
 	comparableModel := normalizeComparableModelID(normalizedModel)
 
 	// Provider-scoped exact match.
@@ -163,10 +164,11 @@ func parseCatalog(data []byte) (pricingCache, error) {
 			parsed[normalizedProvider] = make(map[string]map[string]float64)
 		}
 		for modelName, model := range provider.Models {
-			normalizedModel := strings.ToLower(strings.TrimSpace(modelName))
-			if normalizedModel == "" {
+			trimmedModel := strings.TrimSpace(modelName)
+			if trimmedModel == "" {
 				continue
 			}
+			normalizedModel := strings.ToLower(trimmedModel)
 			pricing := parseCostMap(model.Cost)
 			if len(pricing) > 0 {
 				parsed[normalizedProvider][normalizedModel] = pricing

@@ -126,7 +126,7 @@ func modelCostsHasPricingFor(modelCosts map[string]any, provider, model string) 
 		return false
 	}
 	for pName, pData := range providersMap {
-		if provider != "" && strings.ToLower(pName) != provider {
+		if provider != "" && !strings.EqualFold(pName, provider) {
 			continue
 		}
 		pMap, ok := pData.(map[string]any)
@@ -142,7 +142,7 @@ func modelCostsHasPricingFor(modelCosts map[string]any, provider, model string) 
 			continue
 		}
 		for mName := range modelsMap {
-			if strings.ToLower(mName) == model {
+			if strings.EqualFold(mName, model) {
 				return true
 			}
 		}
