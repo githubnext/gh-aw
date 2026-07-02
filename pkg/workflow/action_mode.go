@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var actionModeLog = logger.New("workflow:action_mode")
@@ -73,8 +74,8 @@ func DetectActionMode(version string) ActionMode {
 }
 
 // detectActionMode is the testable core of DetectActionMode. It accepts an explicit
-// EnvGetter so that callers can provide env values without relying on os.Getenv directly.
-func detectActionMode(version string, getenv func(string) string) ActionMode {
+// compilerenv.EnvGetter so callers can provide env values without relying on process env.
+func detectActionMode(version string, getenv compilerenv.EnvGetter) ActionMode {
 	actionModeLog.Printf("Detecting action mode: version=%s, isRelease=%v", version, IsRelease())
 
 	// Check for explicit override via environment variable

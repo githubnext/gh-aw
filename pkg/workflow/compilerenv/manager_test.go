@@ -27,6 +27,12 @@ func TestManager_WithInjectedGetter(t *testing.T) {
 	assert.Equal(t, "-08:00", m.ResolveDefaultUTC("+00:00"))
 }
 
+func TestNew_PanicsOnNilGetter(t *testing.T) {
+	assert.PanicsWithValue(t, "compilerenv: getenv must not be nil", func() {
+		New(nil)
+	})
+}
+
 // TestManager_FallbackWhenEnvEmpty confirms that Manager methods return the
 // fallback value when the injected getter returns empty strings.
 func TestManager_FallbackWhenEnvEmpty(t *testing.T) {

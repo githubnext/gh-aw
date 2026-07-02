@@ -25,11 +25,15 @@ type Manager struct {
 
 // New creates a Manager using the provided EnvGetter for environment lookups.
 func New(getenv EnvGetter) *Manager {
+	if getenv == nil {
+		panic("compilerenv: getenv must not be nil")
+	}
 	return &Manager{getenv: getenv}
 }
 
 // defaultManager is the package-level Manager backed by the process environment.
-// Package-level Resolve* functions delegate to this Manager.
+// os.Getenv is passed as a function reference and called lazily on each Resolve*
+// invocation, so values reflect the environment at call time.
 var defaultManager = New(os.Getenv)
 
 const (
