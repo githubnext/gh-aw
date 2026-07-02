@@ -23,7 +23,6 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stats"
-	"github.com/github/gh-aw/pkg/typeutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -40,11 +39,15 @@ var copilotEventsJSONLLog = logger.New("cli:copilot_events_jsonl")
 //
 //	<logDir>/sandbox/agent/logs/copilot-session-state/<uuid>/events.jsonl
 type copilotEventsJSONLEntry struct {
-	Type      string                      `json:"type"`
-	ID        string                      `json:"id"`
-	Timestamp string                      `json:"timestamp"`
-	ParentID  string                      `json:"parentId,omitempty"`
-	Data      copilotEventsJSONLEntryData `json:"data"`
+	Type                       string                      `json:"type"`
+	ID                         string                      `json:"id"`
+	Timestamp                  string                      `json:"timestamp"`
+	ParentID                   string                      `json:"parentId,omitempty"`
+	UsageInputTokens           int                         `json:"usage_input_tokens,omitempty"`
+	UsageOutputTokens          int                         `json:"usage_output_tokens,omitempty"`
+	AlternateUsageInputTokens  int                         `json:"usageInputTokens,omitempty"`
+	AlternateUsageOutputTokens int                         `json:"usageOutputTokens,omitempty"`
+	Data                       copilotEventsJSONLEntryData `json:"data"`
 }
 
 // copilotEventsJSONLEntryData holds the type-specific payload for each event.
@@ -68,7 +71,12 @@ type copilotEventsJSONLEntryData struct {
 	Model   string `json:"model,omitempty"`
 
 	// user.message / assistant.message / reasoning fields
-	Content string `json:"content,omitempty"`
+	Content string         `json:"content,omitempty"`
+	Usage   map[string]any `json:"usage,omitempty"`
+	// Alternate input/output token fields that may appear directly on this Data
+	// payload (instead of nested under the Usage object above).
+	InputTokens  int `json:"input_tokens,omitempty"`
+	OutputTokens int `json:"output_tokens,omitempty"`
 
 	// session.shutdown fields
 	ShutdownType string                          `json:"shutdownType,omitempty"`
@@ -210,10 +218,7 @@ func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, er
 			copilotEventsJSONLLog.Printf("Skipping malformed events.jsonl line: %v", err)
 			continue
 		}
-		var rawEntry map[string]any
-		if err := json.Unmarshal([]byte(line), &rawEntry); err == nil {
-			fallbackTokens += extractFallbackEventTokens(rawEntry)
-		}
+		fallbackTokens += extractFallbackEventTokens(entry)
 
 		foundAnyEvent = true
 
@@ -330,30 +335,23 @@ func parseEventsJSONLMetrics(path string, verbose bool) (workflow.LogMetrics, er
 	return metrics, nil
 }
 
-func extractFallbackEventTokens(rawEntry map[string]any) int {
-	// First try canonical token extraction on the full entry.
-	if tokens := workflow.ExtractJSONTokenUsage(rawEntry); tokens > 0 {
-		return tokens
-	}
-
-	// Then try nested data payloads.
-	if data, ok := rawEntry["data"].(map[string]any); ok {
-		if tokens := workflow.ExtractJSONTokenUsage(data); tokens > 0 {
+func extractFallbackEventTokens(entry copilotEventsJSONLEntry) int {
+	if entry.Data.Usage != nil {
+		// ExtractJSONTokenUsage expects a full event/document map and knows how to
+		// parse usage when it appears at key "usage", so wrap the nested usage map.
+		if tokens := workflow.ExtractJSONTokenUsage(map[string]any{"usage": entry.Data.Usage}); tokens > 0 {
 			return tokens
 		}
 	}
 
-	// Support flattened usage fields present in newer event mirrors.
-	input := typeutil.ConvertToInt(rawEntry["usage_input_tokens"])
-	output := typeutil.ConvertToInt(rawEntry["usage_output_tokens"])
-	if input > 0 || output > 0 {
-		return input + output
+	if entry.Data.InputTokens > 0 || entry.Data.OutputTokens > 0 {
+		return entry.Data.InputTokens + entry.Data.OutputTokens
 	}
-	input = typeutil.ConvertToInt(rawEntry["usageInputTokens"])
-	output = typeutil.ConvertToInt(rawEntry["usageOutputTokens"])
-	if input > 0 || output > 0 {
-		return input + output
+	if entry.UsageInputTokens > 0 || entry.UsageOutputTokens > 0 {
+		return entry.UsageInputTokens + entry.UsageOutputTokens
 	}
-
+	if entry.AlternateUsageInputTokens > 0 || entry.AlternateUsageOutputTokens > 0 {
+		return entry.AlternateUsageInputTokens + entry.AlternateUsageOutputTokens
+	}
 	return 0
 }
