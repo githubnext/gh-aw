@@ -85,7 +85,7 @@ Fetch **all open and closed** issues from the sandbox repo that are in the Actio
 - A reference to the original issue number in the body (look for patterns like `community#N`, `#N`, `Originally filed as #N`, or `Source: ...`)
 - One or more labels applied by the labeler workflow
 
-Use the GitHub `search_issues` tool with query `repo:{sandbox_repo} label:Actions` OR `repo:{sandbox_repo}` (depending on how the labeler workflow labels issues in the sandbox) to list candidate issues. If that returns nothing, fall back to listing all issues: `repo:{sandbox_repo} is:issue`.
+Use the GitHub `search_issues` tool with query `repo:{sandbox_repo} label:Actions` to list candidate issues. If that returns nothing (the Actions label may not be applied in the sandbox), fall back to `repo:{sandbox_repo} is:issue` to fetch all issues — note that this broader fallback may include unrelated issues, so apply extra care when filtering for labeled issues in the next step.
 
 Save raw results to `/tmp/gh-aw/labeling-report/sandbox/issues.json`.
 
@@ -148,9 +148,13 @@ Write and run a Python script at `/tmp/gh-aw/labeling-report/analysis/metrics.py
 
 ```python
 #!/usr/bin/env python3
-"""Compute labeling accuracy metrics for the Actions labeler sandbox evaluation."""
+"""Compute labeling accuracy metrics for the Actions labeling sandbox evaluation."""
 import json
+import os
 from collections import defaultdict
+
+sandbox_repo = os.environ.get('SANDBOX_REPO', '${{ inputs.sandbox_repo }}')
+community_repo = os.environ.get('COMMUNITY_REPO', '${{ inputs.community_repo }}')
 
 with open('/tmp/gh-aw/labeling-report/analysis/pairs.json') as f:
     pairs = json.load(f)
@@ -210,8 +214,8 @@ for label, counts in sorted(label_stats.items()):
 
 results = {
     'summary': {
-        'sandbox_repo': '${{ inputs.sandbox_repo }}',
-        'community_repo': '${{ inputs.community_repo }}',
+    'sandbox_repo': sandbox_repo,
+    'community_repo': community_repo,
         'total_sandbox_issues': len(pairs),
         'matched': n,
         'unmatched': len(unmatched),
@@ -236,9 +240,9 @@ s = results['summary']
 print(f"Matched: {s['matched']} | Exact match rate: {s['exact_match_rate']} | Precision: {s['precision']} | Recall: {s['recall']} | F1: {s['f1']}")
 ```
 
-Run it:
+Run it, passing the inputs as environment variables:
 ```bash
-python3 /tmp/gh-aw/labeling-report/analysis/metrics.py
+SANDBOX_REPO='${{ inputs.sandbox_repo }}' COMMUNITY_REPO='${{ inputs.community_repo }}' python3 /tmp/gh-aw/labeling-report/analysis/metrics.py
 ```
 
 Load the results:
@@ -252,7 +256,7 @@ Use the `create_issue` safe-output to post the report to this repository.
 
 ### Report Format
 
-**Title**: `Actions Labeler Sandbox Evaluation — <today's date>`
+**Title**: `Actions Labeling Sandbox Evaluation — <today's date>`
 
 **Body**:
 
