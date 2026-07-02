@@ -1,0 +1,235 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="100%" height="100%" fill="white"/>
+<text x="800.0" y="35" text-anchor="middle" font-family="Arial" font-size="28" font-weight="bold" fill="#374151">Commit Activity &amp; Contributors - Last 30 Days</text>
+<line x1="90" y1="810.0" x2="1510" y2="810.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="815.0" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">0</text>
+<line x1="90" y1="799.3" x2="1510" y2="799.3" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="804.3" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">1</text>
+<line x1="90" y1="788.6" x2="1510" y2="788.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="793.6" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">2</text>
+<line x1="90" y1="777.8" x2="1510" y2="777.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="782.8" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">3</text>
+<line x1="90" y1="767.1" x2="1510" y2="767.1" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="772.1" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">4</text>
+<line x1="90" y1="756.4" x2="1510" y2="756.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="761.4" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">5</text>
+<line x1="90" y1="745.7" x2="1510" y2="745.7" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="750.7" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">6</text>
+<line x1="90" y1="734.9" x2="1510" y2="734.9" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="739.9" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">7</text>
+<line x1="90" y1="724.2" x2="1510" y2="724.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="729.2" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">8</text>
+<line x1="90" y1="713.5" x2="1510" y2="713.5" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="718.5" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">9</text>
+<line x1="90" y1="702.8" x2="1510" y2="702.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="707.8" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">10</text>
+<line x1="90" y1="692.0" x2="1510" y2="692.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="697.0" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">11</text>
+<line x1="90" y1="681.3" x2="1510" y2="681.3" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="686.3" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">12</text>
+<line x1="90" y1="670.6" x2="1510" y2="670.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="675.6" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">13</text>
+<line x1="90" y1="659.9" x2="1510" y2="659.9" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="664.9" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">14</text>
+<line x1="90" y1="649.1" x2="1510" y2="649.1" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="654.1" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">15</text>
+<line x1="90" y1="638.4" x2="1510" y2="638.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="643.4" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">16</text>
+<line x1="90" y1="627.7" x2="1510" y2="627.7" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="632.7" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">17</text>
+<line x1="90" y1="617.0" x2="1510" y2="617.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="622.0" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">18</text>
+<line x1="90" y1="606.2" x2="1510" y2="606.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="611.2" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">19</text>
+<line x1="90" y1="595.5" x2="1510" y2="595.5" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="600.5" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">20</text>
+<line x1="90" y1="584.8" x2="1510" y2="584.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="589.8" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">21</text>
+<line x1="90" y1="574.1" x2="1510" y2="574.1" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="579.1" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">22</text>
+<line x1="90" y1="563.3" x2="1510" y2="563.3" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="568.3" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">23</text>
+<line x1="90" y1="552.6" x2="1510" y2="552.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="557.6" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">24</text>
+<line x1="90" y1="541.9" x2="1510" y2="541.9" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="546.9" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">25</text>
+<line x1="90" y1="531.2" x2="1510" y2="531.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="536.2" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">26</text>
+<line x1="90" y1="520.4" x2="1510" y2="520.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="525.4" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">27</text>
+<line x1="90" y1="509.7" x2="1510" y2="509.7" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="514.7" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">28</text>
+<line x1="90" y1="499.0" x2="1510" y2="499.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="504.0" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">29</text>
+<line x1="90" y1="488.3" x2="1510" y2="488.3" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="493.3" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">30</text>
+<line x1="90" y1="477.5" x2="1510" y2="477.5" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="482.5" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">31</text>
+<line x1="90" y1="466.8" x2="1510" y2="466.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="471.8" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">32</text>
+<line x1="90" y1="456.1" x2="1510" y2="456.1" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="461.1" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">33</text>
+<line x1="90" y1="445.4" x2="1510" y2="445.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="450.4" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">34</text>
+<line x1="90" y1="434.6" x2="1510" y2="434.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="439.6" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">35</text>
+<line x1="90" y1="423.9" x2="1510" y2="423.9" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="428.9" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">36</text>
+<line x1="90" y1="413.2" x2="1510" y2="413.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="418.2" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">37</text>
+<line x1="90" y1="402.5" x2="1510" y2="402.5" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="407.5" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">38</text>
+<line x1="90" y1="391.7" x2="1510" y2="391.7" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="396.7" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">39</text>
+<line x1="90" y1="381.0" x2="1510" y2="381.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="386.0" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">40</text>
+<line x1="90" y1="370.3" x2="1510" y2="370.3" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="375.3" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">41</text>
+<line x1="90" y1="359.6" x2="1510" y2="359.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="364.6" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">42</text>
+<line x1="90" y1="348.8" x2="1510" y2="348.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="353.8" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">43</text>
+<line x1="90" y1="338.1" x2="1510" y2="338.1" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="343.1" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">44</text>
+<line x1="90" y1="327.4" x2="1510" y2="327.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="332.4" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">45</text>
+<line x1="90" y1="316.7" x2="1510" y2="316.7" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="321.7" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">46</text>
+<line x1="90" y1="305.9" x2="1510" y2="305.9" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="310.9" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">47</text>
+<line x1="90" y1="295.2" x2="1510" y2="295.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="300.2" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">48</text>
+<line x1="90" y1="284.5" x2="1510" y2="284.5" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="289.5" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">49</text>
+<line x1="90" y1="273.8" x2="1510" y2="273.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="278.8" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">50</text>
+<line x1="90" y1="263.0" x2="1510" y2="263.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="268.0" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">51</text>
+<line x1="90" y1="252.3" x2="1510" y2="252.3" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="257.3" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">52</text>
+<line x1="90" y1="241.6" x2="1510" y2="241.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="246.6" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">53</text>
+<line x1="90" y1="230.9" x2="1510" y2="230.9" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="235.9" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">54</text>
+<line x1="90" y1="220.1" x2="1510" y2="220.1" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="225.1" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">55</text>
+<line x1="90" y1="209.4" x2="1510" y2="209.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="214.4" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">56</text>
+<line x1="90" y1="198.7" x2="1510" y2="198.7" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="203.7" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">57</text>
+<line x1="90" y1="188.0" x2="1510" y2="188.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="193.0" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">58</text>
+<line x1="90" y1="177.2" x2="1510" y2="177.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="182.2" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">59</text>
+<line x1="90" y1="166.5" x2="1510" y2="166.5" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="171.5" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">60</text>
+<line x1="90" y1="155.8" x2="1510" y2="155.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="160.8" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">61</text>
+<line x1="90" y1="145.1" x2="1510" y2="145.1" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="150.1" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">62</text>
+<line x1="90" y1="134.3" x2="1510" y2="134.3" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="139.3" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">63</text>
+<line x1="90" y1="123.6" x2="1510" y2="123.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="128.6" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">64</text>
+<line x1="90" y1="112.9" x2="1510" y2="112.9" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="117.9" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">65</text>
+<line x1="90" y1="102.2" x2="1510" y2="102.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="107.2" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">66</text>
+<line x1="90" y1="91.4" x2="1510" y2="91.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="96.4" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">67</text>
+<line x1="90" y1="80.7" x2="1510" y2="80.7" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="85.7" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">68</text>
+<line x1="90" y1="70.0" x2="1510" y2="70.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="80" y="75.0" text-anchor="end" font-family="Arial" font-size="14" fill="#374151">69</text>
+<text x="1520" y="815.0" text-anchor="start" font-family="Arial" font-size="14" fill="#F58518">0</text>
+<text x="1520" y="630.0" text-anchor="start" font-family="Arial" font-size="14" fill="#F58518">1</text>
+<text x="1520" y="445.0" text-anchor="start" font-family="Arial" font-size="14" fill="#F58518">2</text>
+<text x="1520" y="260.0" text-anchor="start" font-family="Arial" font-size="14" fill="#F58518">3</text>
+<text x="1520" y="75.0" text-anchor="start" font-family="Arial" font-size="14" fill="#F58518">4</text>
+<line x1="113.7" y1="70" x2="113.7" y2="810" stroke="#e5e7eb" stroke-width="1"/>
+<text x="113.7" y="865" text-anchor="middle" font-family="Arial" font-size="14" fill="#374151">06-03</text>
+<line x1="445.0" y1="70" x2="445.0" y2="810" stroke="#e5e7eb" stroke-width="1"/>
+<text x="445.0" y="865" text-anchor="middle" font-family="Arial" font-size="14" fill="#374151">06-10</text>
+<line x1="823.7" y1="70" x2="823.7" y2="810" stroke="#e5e7eb" stroke-width="1"/>
+<text x="823.7" y="865" text-anchor="middle" font-family="Arial" font-size="14" fill="#374151">06-18</text>
+<line x1="1155.0" y1="70" x2="1155.0" y2="810" stroke="#e5e7eb" stroke-width="1"/>
+<text x="1155.0" y="865" text-anchor="middle" font-family="Arial" font-size="14" fill="#374151">06-25</text>
+<line x1="1486.3" y1="70" x2="1486.3" y2="810" stroke="#e5e7eb" stroke-width="1"/>
+<text x="1486.3" y="865" text-anchor="middle" font-family="Arial" font-size="14" fill="#374151">07-02</text>
+<line x1="90" y1="810" x2="1510" y2="810" stroke="#374151" stroke-width="2"/>
+<line x1="90" y1="70" x2="90" y2="810" stroke="#374151" stroke-width="2"/>
+<line x1="1510" y1="70" x2="1510" y2="810" stroke="#F58518" stroke-width="2"/>
+<text x="800.0" y="890" text-anchor="middle" font-family="Arial" font-size="18" fill="#374151">Date</text>
+<text x="25" y="450.0" transform="rotate(-90 25,450.0)" text-anchor="middle" font-family="Arial" font-size="18" fill="#374151">Commits</text>
+<text x="1580" y="450.0" transform="rotate(90 1580,450.0)" text-anchor="middle" font-family="Arial" font-size="18" fill="#F58518">Contributors</text>
+<rect x="97.1" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="144.4" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="191.8" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="239.1" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="286.4" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="333.8" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="381.1" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="428.4" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="475.8" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="523.1" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="570.4" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="617.8" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="665.1" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="712.4" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="759.8" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="807.1" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="854.4" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="901.8" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="949.1" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="996.4" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="1043.8" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="1091.1" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="1138.4" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="1185.8" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="1233.1" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="1280.4" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="1327.8" y="810.0" width="33.1" height="0.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="1375.1" y="499.0" width="33.1" height="311.0" fill="#4C78A8" opacity="0.85"/>
+<rect x="1422.4" y="80.7" width="33.1" height="729.3" fill="#4C78A8" opacity="0.85"/>
+<rect x="1469.8" y="777.8" width="33.1" height="32.2" fill="#4C78A8" opacity="0.85"/>
+<polyline fill="none" stroke="#2F4B7C" stroke-width="4" points="113.7,810.0 161.0,810.0 208.3,810.0 255.7,810.0 303.0,810.0 350.3,810.0 397.7,810.0 445.0,810.0 492.3,810.0 539.7,810.0 587.0,810.0 634.3,810.0 681.7,810.0 729.0,810.0 776.3,810.0 823.7,810.0 871.0,810.0 918.3,810.0 965.7,810.0 1013.0,810.0 1060.3,810.0 1107.7,810.0 1155.0,810.0 1202.3,810.0 1249.7,810.0 1297.0,810.0 1344.3,810.0 1391.7,765.6 1439.0,661.4 1486.3,656.7"/>
+<polyline fill="none" stroke="#F58518" stroke-width="4" points="113.7,810.0 161.0,810.0 208.3,810.0 255.7,810.0 303.0,810.0 350.3,810.0 397.7,810.0 445.0,810.0 492.3,810.0 539.7,810.0 587.0,810.0 634.3,810.0 681.7,810.0 729.0,810.0 776.3,810.0 823.7,810.0 871.0,810.0 918.3,810.0 965.7,810.0 1013.0,810.0 1060.3,810.0 1107.7,810.0 1155.0,810.0 1202.3,810.0 1249.7,810.0 1297.0,810.0 1344.3,810.0 1391.7,440.0 1439.0,255.0 1486.3,440.0"/>
+<circle cx="113.7" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="161.0" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="208.3" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="255.7" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="303.0" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="350.3" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="397.7" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="445.0" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="492.3" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="539.7" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="587.0" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="634.3" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="681.7" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="729.0" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="776.3" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="823.7" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="871.0" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="918.3" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="965.7" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="1013.0" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="1060.3" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="1107.7" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="1155.0" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="1202.3" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="1249.7" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="1297.0" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="1344.3" cy="810.0" r="4" fill="#F58518"/>
+<circle cx="1391.7" cy="440.0" r="4" fill="#F58518"/>
+<circle cx="1439.0" cy="255.0" r="4" fill="#F58518"/>
+<circle cx="1486.3" cy="440.0" r="4" fill="#F58518"/>
+<line x1="1439.0" y1="80.7" x2="1370.0" y2="80.0" stroke="#374151" stroke-width="2"/>
+<text x="1380.0" y="75.0" font-family="Arial" font-size="16" fill="#374151">Peak commits: 68</text>
+<line x1="110" y1="55" x2="140" y2="55" stroke="#4C78A8" stroke-width="4"/>
+<text x="150" y="60" font-family="Arial" font-size="15" fill="#374151">Commits</text>
+<line x1="370" y1="55" x2="400" y2="55" stroke="#2F4B7C" stroke-width="4"/>
+<text x="410" y="60" font-family="Arial" font-size="15" fill="#374151">Commits (7d avg)</text>
+<line x1="630" y1="55" x2="660" y2="55" stroke="#F58518" stroke-width="4"/>
+<text x="670" y="60" font-family="Arial" font-size="15" fill="#374151">Unique contributors</text>
+</svg>
