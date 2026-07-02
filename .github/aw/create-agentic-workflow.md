@@ -56,7 +56,7 @@ Use this mode for exploratory testing, persona walkthroughs, and "what workflow 
 
 - Do not create or edit workflow files.
 - Return a compact recommendation covering trigger, any scoped `paths:` filters for file-event triggers, read tools, safe outputs, permissions, and explicit `noop` criteria.
-- For recurring reports or digests, always include the report window, grouping dimensions, and deduplication key.
+- For recurring reports or digests, always include the report window, grouping dimensions, and deduplication key. See [triggers.md](triggers.md) for key-format examples.
 - End by offering to turn the recommendation into `.github/workflows/<workflow-id>.md` if the user wants to proceed.
 
 ## Design Checklist
