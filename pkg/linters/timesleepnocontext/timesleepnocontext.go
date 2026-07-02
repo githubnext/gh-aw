@@ -83,7 +83,12 @@ func isGoOrDeferClosure(funcLitCur inspector.Cursor) bool {
 		return false
 	}
 
-	switch parent.Parent().Node().(type) {
+	grandparent := parent.Parent().Node()
+	if grandparent == nil {
+		return false
+	}
+
+	switch grandparent.(type) {
 	case *ast.GoStmt, *ast.DeferStmt:
 		return true
 	default:
