@@ -1,101 +1,44 @@
 {
-  "run_id": "28558548389",
-  "run_date": "2026-07-02T01:17:37Z",
+  "run_id": "28572743533",
+  "run_date": "2026-07-02T07:23:24Z",
   "repository": "github/gh-aw",
-  "total_prs": 5,
-  "new_this_run": 2,
-  "carried_over": 3,
-  "closed_since_last_run": [
-    {"number": 42815, "outcome": "merged"},
-    {"number": 42809, "outcome": "merged"},
-    {"number": 42805, "outcome": "merged"},
-    {"number": 42812, "outcome": "closed"}
-  ],
+  "total_prs": 11,
   "summary": {
     "auto_merge": 1,
-    "fast_track": 1,
-    "batch_review": 1,
+    "fast_track": 3,
+    "batch_review": 4,
     "defer": 2,
     "close": 0
   },
-  "distribution": {
-    "by_type": {
-      "test": 1,
-      "chore": 1,
-      "refactor": 1,
-      "feature": 2
-    },
-    "by_risk": {
-      "high": 3,
-      "medium": 1,
-      "low": 1
-    },
-    "by_priority": {
-      "high": 1,
-      "medium": 3,
-      "low": 1
-    }
+  "risk_distribution": {
+    "low": 3,
+    "medium": 5,
+    "high": 3
   },
-  "prs": [
-    {
-      "number": 42834,
-      "title": "Improve actionpins internal test coverage for fallback and pin-resolution edge cases",
-      "type": "test",
-      "risk": "low",
-      "score": 44,
-      "priority": "medium",
-      "action": "auto_merge",
-      "batch": "batch-test-001",
-      "draft": false,
-      "ci": "none"
-    },
-    {
-      "number": 42832,
-      "title": "fix(cli): resolve 32 CLI consistency issues (2026-07-01)",
-      "type": "chore",
-      "risk": "medium",
-      "score": 50,
-      "priority": "medium",
-      "action": "batch_review",
-      "batch": null,
-      "draft": false,
-      "ci": "changes_requested"
-    },
-    {
-      "number": 42740,
-      "title": "refactor(copilot-sdk): multi-provider only — remove single-provider legacy",
-      "type": "refactor",
-      "risk": "high",
-      "score": 67,
-      "priority": "high",
-      "action": "fast_track",
-      "batch": null,
-      "draft": false,
-      "ci": "partial_failure"
-    },
-    {
-      "number": 42314,
-      "title": "Add experimental Auggie engine support",
-      "type": "feature",
-      "risk": "high",
-      "score": 38,
-      "priority": "medium",
-      "action": "defer",
-      "batch": "experimental",
-      "draft": true,
-      "ci": "none"
-    },
-    {
-      "number": 42100,
-      "title": "feat: add experimental BinEval evaluation support",
-      "type": "feature",
-      "risk": "high",
-      "score": 33,
-      "priority": "low",
-      "action": "defer",
-      "batch": "experimental",
-      "draft": true,
-      "ci": "none"
-    }
+  "category_distribution": {
+    "refactor": 4,
+    "feature": 3,
+    "chore": 2,
+    "docs": 1,
+    "test": 1
+  },
+  "batches": {
+    "batch-refactor-001": [42912, 42875, 42868],
+    "batch-chore-001": [42877, 42832],
+    "batch-test-001": [42834],
+    "batch-experimental": [42314, 42100]
+  },
+  "candidates": [
+    {"number": 42912, "title": "refactor: deduplicate skip-if query handlers", "category": "refactor", "risk": "medium", "score": 42, "action": "batch_review", "draft": true, "ci": "passing"},
+    {"number": 42877, "title": "Roll back default Playwright CLI pin", "category": "chore", "risk": "low", "score": 45, "action": "batch_review", "draft": true, "ci": "none"},
+    {"number": 42876, "title": "Instrument Copilot execution step to persist stderr", "category": "feature", "risk": "medium", "score": 64, "action": "fast_track", "draft": true, "ci": "none"},
+    {"number": 42875, "title": "Refactor parser remote fetch into focused modules", "category": "refactor", "risk": "medium", "score": 47, "action": "batch_review", "draft": true, "ci": "none"},
+    {"number": 42870, "title": "Align Copilot SDK driver docs with engine.driver", "category": "docs", "risk": "low", "score": 40, "action": "fast_track", "draft": true, "ci": "none"},
+    {"number": 42868, "title": "Consolidate duplicate log parsers", "category": "refactor", "risk": "medium", "score": 52, "action": "batch_review", "draft": false, "ci": "none"},
+    {"number": 42834, "title": "Improve actionpins internal test coverage", "category": "test", "risk": "low", "score": 43, "action": "auto_merge", "draft": false, "ci": "passing"},
+    {"number": 42832, "title": "fix(cli): resolve 32 CLI consistency issues", "category": "chore", "risk": "medium", "score": 52, "action": "batch_review", "draft": false, "ci": "none"},
+    {"number": 42740, "title": "refactor(copilot-sdk): multi-provider only", "category": "refactor", "risk": "high", "score": 75, "action": "fast_track", "draft": false, "ci": "passing"},
+    {"number": 42314, "title": "Add experimental Auggie engine support", "category": "feature", "risk": "high", "score": 50, "action": "defer", "draft": true, "ci": "none"},
+    {"number": 42100, "title": "feat: add experimental BinEval evaluation support", "category": "feature", "risk": "high", "score": 45, "action": "defer", "draft": true, "ci": "none"}
   ]
 }
