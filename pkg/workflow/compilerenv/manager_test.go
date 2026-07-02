@@ -7,9 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestManager_WithInjectedGetter demonstrates the dependency-injection pattern:
-// a Manager constructed with a custom EnvGetter reads from that getter instead
-// of os.Getenv, enabling deterministic tests without modifying the process environment.
+// TestManager_WithInjectedGetter smoke-tests all Resolve* methods through a
+// single injected EnvGetter map so the DI pattern is exercised end-to-end.
 func TestManager_WithInjectedGetter(t *testing.T) {
 	env := map[string]string{
 		DefaultMaxTurns:           "20",
@@ -20,11 +19,25 @@ func TestManager_WithInjectedGetter(t *testing.T) {
 	}
 	m := New(func(key string) string { return env[key] })
 
-	assert.Equal(t, "20", m.ResolveDefaultMaxTurns("7"), "injected env should override fallback")
-	assert.Equal(t, 45, m.ResolveDefaultTimeoutMinutes(20))
-	assert.Equal(t, 9, m.ResolveDefaultMaxTurnCacheMisses(5))
-	assert.Equal(t, "gpt-5.5-mini", m.ResolveDefaultDetectionModel(""))
-	assert.Equal(t, "-08:00", m.ResolveDefaultUTC("+00:00"))
+	t.Run("ResolveDefaultMaxTurns", func(t *testing.T) {
+		assert.Equal(t, "20", m.ResolveDefaultMaxTurns("7"), "injected env should override fallback")
+	})
+
+	t.Run("ResolveDefaultTimeoutMinutes", func(t *testing.T) {
+		assert.Equal(t, 45, m.ResolveDefaultTimeoutMinutes(20))
+	})
+
+	t.Run("ResolveDefaultMaxTurnCacheMisses", func(t *testing.T) {
+		assert.Equal(t, 9, m.ResolveDefaultMaxTurnCacheMisses(5))
+	})
+
+	t.Run("ResolveDefaultDetectionModel", func(t *testing.T) {
+		assert.Equal(t, "gpt-5.5-mini", m.ResolveDefaultDetectionModel(""))
+	})
+
+	t.Run("ResolveDefaultUTC", func(t *testing.T) {
+		assert.Equal(t, "-08:00", m.ResolveDefaultUTC("+00:00"))
+	})
 }
 
 func TestNew_PanicsOnNilGetter(t *testing.T) {
@@ -48,23 +61,45 @@ func TestManager_FallbackWhenEnvEmpty(t *testing.T) {
 // TestManager_PolicyModelsAllowed exercises ResolvePolicyModelsAllowed on a
 // Manager with an injected getter.
 func TestManager_PolicyModelsAllowed(t *testing.T) {
-	env := map[string]string{PolicyModelsAllowed: "gpt-5,claude-sonnet"}
-	m := New(func(key string) string { return env[key] })
+	t.Run("happy path", func(t *testing.T) {
+		env := map[string]string{PolicyModelsAllowed: "gpt-5,claude-sonnet"}
+		m := New(func(key string) string { return env[key] })
 
-	got, ok := m.ResolvePolicyModelsAllowed()
-	assert.True(t, ok)
-	assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, got)
+		got, ok := m.ResolvePolicyModelsAllowed()
+		assert.True(t, ok)
+		assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, got)
+	})
+
+	t.Run("deduplicates repeated entries", func(t *testing.T) {
+		env := map[string]string{PolicyModelsAllowed: "gpt-5,gpt-5,claude-sonnet,gpt-5"}
+		m := New(func(key string) string { return env[key] })
+
+		got, ok := m.ResolvePolicyModelsAllowed()
+		assert.True(t, ok)
+		assert.Equal(t, []string{"gpt-5", "claude-sonnet"}, got)
+	})
 }
 
 // TestManager_PolicyModelsBlocked exercises ResolvePolicyModelsBlocked on a
 // Manager with an injected getter.
 func TestManager_PolicyModelsBlocked(t *testing.T) {
-	env := map[string]string{PolicyModelsBlocked: "gpt-5-pro,claude-opus"}
-	m := New(func(key string) string { return env[key] })
+	t.Run("happy path", func(t *testing.T) {
+		env := map[string]string{PolicyModelsBlocked: "gpt-5-pro,claude-opus"}
+		m := New(func(key string) string { return env[key] })
 
-	got, ok := m.ResolvePolicyModelsBlocked()
-	assert.True(t, ok)
-	assert.Equal(t, []string{"gpt-5-pro", "claude-opus"}, got)
+		got, ok := m.ResolvePolicyModelsBlocked()
+		assert.True(t, ok)
+		assert.Equal(t, []string{"gpt-5-pro", "claude-opus"}, got)
+	})
+
+	t.Run("comma and newline separators", func(t *testing.T) {
+		env := map[string]string{PolicyModelsBlocked: "gpt-5-pro,\nclaude-opus,\ngpt-5-pro"}
+		m := New(func(key string) string { return env[key] })
+
+		got, ok := m.ResolvePolicyModelsBlocked()
+		assert.True(t, ok)
+		assert.Equal(t, []string{"gpt-5-pro", "claude-opus"}, got)
+	})
 }
 
 func TestBuildDefaultMaxTurnsExpression(t *testing.T) {
