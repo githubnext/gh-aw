@@ -669,6 +669,16 @@ Optional workflow metadata for categorization and organization. Enables filterin
 
 A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to the best available concrete model at compile time. Aliases are defined as ordered lists of provider-scoped glob patterns; the first pattern that matches an available model wins. Meta-aliases reference other aliases and are resolved recursively. Built-in vendor aliases and meta-aliases are listed in the [Model Aliases & Multipliers Reference](/gh-aw/reference/model-tables/). Custom aliases can be defined in workflow frontmatter using the [Model Alias Format Specification](/gh-aw/specs/model-alias-specification/).
 
+### Model Policy (`models.allowed`, `models.blocked`)
+
+An experimental frontmatter feature that restricts which AI models a workflow may use at runtime. Configured under the `models:` top-level key with two fields: `allowed` (a list of model names or glob patterns the workflow is permitted to use) and `blocked` (a list of patterns unconditionally refused). Both lists are enforced by the AWF proxy via `apiProxy.allowedModels` and `disallowedModels`. Across imports, policies from multiple files are merged as unions. Environment-variable overrides are supported for runtime flexibility.
+
+```aw wrap
+models:
+  allowed: ["gpt-5", "claude-*"]
+  blocked: ["*-preview"]
+```
+
 ### Max AI Credits (`max-ai-credits`)
 
 A top-level frontmatter field that caps the total AI Credits (AIC) the AWF proxy will spend within a single workflow run. Applies to all engines and maps to `apiProxy.maxAiCredits` in the compiled lock file. Defaults to `1000` when omitted. Accepts an integer, an optional `K`/`M` suffix string (for example, `100M`), or a GitHub Actions expression that resolves to an integer at runtime. Example:
@@ -1048,6 +1058,17 @@ A GitHub Next project that builds on GitHub Agentic Workflows to enable continuo
 ### ARC (Actions Runner Controller)
 
 A Kubernetes operator that manages GitHub Actions self-hosted runners as pods. When combined with the Docker-in-Docker (DinD) sidecar pattern, the runner container and the Docker daemon container have separate `/tmp` filesystems. AWF detects this topology at runtime by inspecting `DOCKER_HOST` and automatically passes `--docker-host-path-prefix` to bridge the split mount paths. From AWF `v0.27.1`+, AWF also automatically injects the `chroot.binariesSourcePath` and `chroot.identity.*` config fields at runtime, so workflows no longer need a bootstrap action to copy binaries or pre-seed `/etc/passwd`. No manual configuration is required. See the [AWF sandbox reference](/gh-aw/reference/sandbox/).
+
+### Runner Topology (`runner.topology`)
+
+A frontmatter field that declares the runner infrastructure topology for a workflow. The only supported value is `arc-dind`, which targets GitHub ARC (Actions Runner Controller) runners using rootless Docker-in-Docker. When set, the compiler emits the topology in the AWF config, redirects the tool cache to a shared volume, and validates that no generated step requires root. AWF then activates split-filesystem handling, network isolation, sysroot staging, and DinD pre-staging automatically.
+
+```aw wrap
+runner:
+  topology: arc-dind
+```
+
+See [ARC](#arc-actions-runner-controller) and [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
 ### AWF (Agent Workflow Firewall)
 
