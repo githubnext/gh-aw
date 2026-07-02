@@ -630,6 +630,8 @@ const (
 )
 
 func buildCopilotCommandWithFailureDiagnostics(command string) string {
+	// Capture command stderr to a dedicated artifact file while preserving stderr in the job log.
+	// Note: "%%s" is required below because this is a fmt.Sprintf template.
 	return fmt.Sprintf(`mkdir -p %s
 rm -f %s %s
 set +e
