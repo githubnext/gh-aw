@@ -100,10 +100,11 @@ func (c *Compiler) checkFirewallDisable(networkPermissions *NetworkPermissions) 
 func generateSquidLogsUploadStep(workflowName string, workflowData *WorkflowData) GitHubActionStep {
 	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
 	artifactName := "firewall-logs-" + sanitizedName
-	// Firewall logs location: /tmp/gh-aw on standard runners, ${RUNNER_TEMP}/gh-aw on ARC/DinD
+	// Firewall logs location: /tmp/gh-aw on standard runners, ${{ runner.temp }}/gh-aw on ARC/DinD.
+	// Use ${{ runner.temp }} (Actions expression) because `with:` blocks don't expand shell vars.
 	firewallLogsDir := constants.AWFProxyLogsDir + "/"
 	if isArcDindTopology(workflowData) {
-		firewallLogsDir = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs/"
+		firewallLogsDir = "${{ runner.temp }}/gh-aw/sandbox/firewall/logs/"
 	}
 
 	stepLines := []string{
@@ -123,10 +124,13 @@ func generateSquidLogsUploadStep(workflowName string, workflowData *WorkflowData
 // generateFirewallLogParsingStep creates a GitHub Actions step to parse firewall logs and create step summary.
 func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowData) GitHubActionStep {
 	// Firewall logs are at a known location in the sandbox folder structure.
-	// On ARC/DinD, /tmp/gh-aw is not daemon-visible so logs land under ${RUNNER_TEMP}/gh-aw.
+	// On ARC/DinD, /tmp/gh-aw is not daemon-visible so logs land under runner.temp/gh-aw.
 	firewallLogsDir := constants.AWFProxyLogsDir
+	// For env: blocks, use ${{ runner.temp }} (Actions expression) since shell vars aren't expanded there.
+	firewallLogsDirEnv := constants.AWFProxyLogsDir
 	if isArcDindTopology(workflowData) {
 		firewallLogsDir = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"
+		firewallLogsDirEnv = "${{ runner.temp }}/gh-aw/sandbox/firewall/logs"
 	}
 	firewallDir := path.Dir(firewallLogsDir)
 
@@ -135,7 +139,7 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 		"        if: always()",
 		"        continue-on-error: true",
 		"        env:",
-		"          AWF_LOGS_DIR: " + firewallLogsDir,
+		"          AWF_LOGS_DIR: " + firewallLogsDirEnv,
 		"        run: |",
 	}
 
