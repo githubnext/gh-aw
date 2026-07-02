@@ -36,8 +36,20 @@ Engineering-focused:
 Non-engineering personas:
 
 - **Documentation governance**: trigger `schedule` (weekly) or `pull_request` with `paths:` scoped to docs directories, check for stale ownership, broken links, or missing metadata using `github` (`gh-proxy`), publish findings with `create-issue` for pages needing owner action, call `noop` when all docs pass checks.
-- **PM / roadmap health digest**: trigger `schedule` (weekly on weekdays), aggregate open issues by label, milestone, or area using `github` (`gh-proxy`), publish a structured summary with `create-issue` and `close-older-issues: true`, use an explicit window such as `last 7 full days ending at run start (UTC)`, derive a stable key such as `pm-digest:<scope>:<YYYY-Www>`, and call `noop` when the window has zero qualifying updates.
-- **Product/stakeholder digest**: trigger `schedule` plus optional `workflow_dispatch`, define an explicit window (for example `last 7 full days ending at run start (UTC)` or `since previous successful run`), choose grouping dimensions up front (for example team, service, owner, severity, or status), publish with `create-issue` by default, reuse a stable deduplication key for the same scope and window, and call `noop` when there are no updates in that window.
+- **PM / roadmap health digest**:
+  - trigger `schedule` (weekly on weekdays)
+  - aggregate open issues by label, milestone, or area using `github` (`gh-proxy`)
+  - publish a structured summary with `create-issue` and `close-older-issues: true`
+  - use an explicit window such as `last 7 full days ending at run start (UTC)`
+  - derive a stable key such as `pm-digest:<scope>:<YYYY-Www>`
+  - call `noop` when the window has zero qualifying updates
+- **Product/stakeholder digest**:
+  - trigger `schedule` plus optional `workflow_dispatch`
+  - define an explicit window such as `last 7 full days ending at run start (UTC)` or `since previous successful run`
+  - choose grouping dimensions up front (for example team, service, owner, severity, or status)
+  - publish with `create-issue` by default
+  - reuse a stable deduplication key for the same scope and window
+  - call `noop` when there are no updates in that window
 - **Compliance review (regulatory/policy)**: trigger `schedule` (monthly) or `pull_request` with `paths:` scoped to policy files, read current policy state via `github` (`gh-proxy`), produce a structured compliance report per control or requirement, publish with `create-issue` and `close-older-issues: true`, call `noop` when all controls pass.
 
 ### Program Manager and Information-Worker Digest Defaults

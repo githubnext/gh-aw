@@ -45,7 +45,8 @@ When triggered from a workflow-creation issue form, read the form fields and gen
 - Keep the conversation short and iterative.
 - Translate user intent into workflow structure.
 - Ask about the trigger, desired action, and required write outputs.
-- When the user asks for exploration, evaluation, or scenario design rather than file creation, stay in ad hoc evaluation mode and do not create `.github/workflows/*.md`.
+- When the user asks for exploration, evaluation, or scenario design rather than file creation, stay in ad hoc evaluation mode.
+- In ad hoc evaluation mode, do not create `.github/workflows/*.md`.
 - Do not overwhelm the user with long option dumps unless they ask.
 - If the request exceeds the single-job model, explain the constraint and recommend traditional GitHub Actions.
 
