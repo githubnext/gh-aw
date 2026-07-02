@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
@@ -51,12 +52,16 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
-			funcType := enclosingFuncType(encl.Node())
+			funcNode := encl.Node()
+			funcType := enclosingFuncType(funcNode)
 			if funcType == nil {
 				continue
 			}
 			ctxParamName, hasCtx := contextParamName(pass, funcType)
 			if !hasCtx {
+				if _, isFuncLit := funcNode.(*ast.FuncLit); isFuncLit && !isGoOrDeferClosure(encl) {
+					break
+				}
 				continue
 			}
 			pass.Report(analysis.Diagnostic{
@@ -69,6 +74,21 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	return nil, nil
+}
+
+func isGoOrDeferClosure(funcLitCur inspector.Cursor) bool {
+	parent := funcLitCur.Parent()
+	call, ok := parent.Node().(*ast.CallExpr)
+	if !ok || call.Fun != funcLitCur.Node() {
+		return false
+	}
+
+	switch parent.Parent().Node().(type) {
+	case *ast.GoStmt, *ast.DeferStmt:
+		return true
+	default:
+		return false
+	}
 }
 
 // isTimeSleepCall reports whether call is a call to time.Sleep.
