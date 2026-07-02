@@ -151,6 +151,15 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	if !strings.Contains(stepContent, "/tmp/gh-aw/test.log") {
 		t.Errorf("Expected command to contain log file name in step content:\n%s", stepContent)
 	}
+	if !strings.Contains(stepContent, "copilot-cli-exec.stderr.log") {
+		t.Errorf("Expected execution step to capture stderr to copilot-cli-exec.stderr.log, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "copilot-cli-exec.exitcode") {
+		t.Errorf("Expected execution step to capture failure exit code to copilot-cli-exec.exitcode, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "GH_AW_COPILOT_EXEC_EXIT_CODE=$?") {
+		t.Errorf("Expected execution step to preserve Copilot CLI exit code, got:\n%s", stepContent)
+	}
 
 	if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
 		t.Errorf("Expected command to pass prompt file path directly, got:\n%s", stepContent)

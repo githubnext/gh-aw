@@ -621,7 +621,37 @@ func (e *CopilotEngine) buildCopilotExecutionStep(workflowData *WorkflowData, co
 	// Inject GH_TOKEN for CLI proxy (added after filtering since it uses a special
 	// fallback expression that is always allowed when cli-proxy is enabled)
 	addCliProxyGHTokenToEnv(filteredEnv, workflowData)
-	return GitHubActionStep(FormatStepWithCommandAndEnv(stepLines, command, filteredEnv))
+	return GitHubActionStep(FormatStepWithCommandAndEnv(stepLines, buildCopilotCommandWithFailureDiagnostics(command), filteredEnv))
+}
+
+const (
+	copilotExecutionStderrPath   = logsFolder + "copilot-cli-exec.stderr.log"
+	copilotExecutionExitCodePath = logsFolder + "copilot-cli-exec.exitcode"
+)
+
+func buildCopilotCommandWithFailureDiagnostics(command string) string {
+	return fmt.Sprintf(`mkdir -p %s
+rm -f %s %s
+set +e
+(
+%s
+) 2> >(tee -a %s >&2)
+GH_AW_COPILOT_EXEC_EXIT_CODE=$?
+set -e
+if [ "$GH_AW_COPILOT_EXEC_EXIT_CODE" -ne 0 ]; then
+  printf '%%s\n' "$GH_AW_COPILOT_EXEC_EXIT_CODE" > %s
+else
+  rm -f %s
+fi
+exit "$GH_AW_COPILOT_EXEC_EXIT_CODE"`,
+		logsFolder,
+		copilotExecutionStderrPath,
+		copilotExecutionExitCodePath,
+		command,
+		copilotExecutionStderrPath,
+		copilotExecutionExitCodePath,
+		copilotExecutionStderrPath,
+	)
 }
 
 // copilotSupportsNoAskUser returns true when the effective Copilot CLI version supports the
