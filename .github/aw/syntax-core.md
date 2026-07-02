@@ -105,6 +105,12 @@ The YAML frontmatter supports these fields:
   - Exceptions: `id-token: write` is allowed to enable OIDC token minting; `copilot-requests: write` is recommended when targeting the Copilot coding agent so it can authenticate with `${{ github.token }}`
 - **`runs-on:`** - Runner type for the main agent job (string, array, or object)
 - **`runs-on-slim:`** - Runner type for all framework/generated jobs (activation, safe-outputs, unlock, etc.). Defaults to `ubuntu-slim`. `safe-outputs.runs-on` takes precedence for safe-output jobs specifically.
+- **`runner:`** - Runner topology configuration (object). `topology: arc-dind` (only enum value) targets GitHub ARC runners with rootless Docker-in-Docker: gh-aw emits the topology in the AWF config, redirects the tool cache to a shared volume, and validates that no generated step requires root. AWF then activates split-filesystem handling, network isolation, sysroot staging, and DinD pre-staging automatically.
+
+  ```yaml
+  runner:
+    topology: arc-dind
+  ```
 - **`timeout-minutes:`** - Agent execution step timeout in minutes (integer or GitHub Actions expression, defaults to 20 minutes; custom and safe-output jobs use the GitHub Actions platform default of 360 minutes unless explicitly set). Expressions are useful in compiled workflows that define `workflow_call` inputs, for example `timeout-minutes: ${{ inputs.timeout }}`. This setting applies to the workflow being compiled, not to plain GitHub Actions caller jobs that use job-level `uses:` (GitHub does not allow `timeout-minutes` on those caller jobs).
 - **`concurrency:`** - Concurrency control (string or object)
   - **`queue:`** - Pending run queue behavior for the concurrency group (`single` or `max`, defaults to `single`). `single` keeps one pending run and replaces older pending runs; `max` allows up to 100 pending runs in FIFO order (useful for conclusion jobs that must not be dropped).

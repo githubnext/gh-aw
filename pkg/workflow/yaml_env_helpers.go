@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var yamlEnvHelpersLog = logger.New("workflow:yaml_env_helpers")
 
 // writeYAMLEnv emits a single YAML env variable with proper escaping.
 // Uses %q to produce a valid YAML double-quoted scalar that escapes ", \, newlines, and control characters,
@@ -45,6 +49,7 @@ func quoteYAMLValueContainingColonSpace(value string) string {
 //     regular mapping key or inline on a list item in YAML syntax.
 func quoteEnvValuesContainingColonSpace(yamlStr string) string {
 	lines := strings.Split(yamlStr, "\n")
+	yamlEnvHelpersLog.Printf("Scanning %d YAML lines for env values needing quoting", len(lines))
 	inEnv := false
 	envIndent := 0
 	envChildIndent := -1
@@ -84,6 +89,7 @@ func quoteEnvValuesContainingColonSpace(yamlStr string) string {
 		quotedValue := quoteYAMLValueContainingColonSpace(line[idx+2:])
 		if quotedValue != line[idx+2:] {
 			lines[i] = line[:idx+2] + quotedValue
+			yamlEnvHelpersLog.Printf("Quoted env value on line %d containing ': '", i+1)
 		}
 	}
 
