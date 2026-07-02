@@ -60,7 +60,7 @@ pre-agent-steps:
   - name: Build skills manifest
     run: |
       find /tmp/gh-aw/.github/skills "${RUNNER_TEMP}/gh-aw/.github/skills" -name "SKILL.md" 2>/dev/null \
-        | head -40 | xargs -I{} cat {} > /tmp/gh-aw/agent/skills-manifest.txt 2>/dev/null || true
+        | sort -u | head -40 | xargs -I{} cat {} > /tmp/gh-aw/agent/skills-manifest.txt 2>/dev/null || true
       echo "Skills manifest prepared ($(wc -c < /tmp/gh-aw/agent/skills-manifest.txt) bytes)"
 tools:
   cli-proxy: true
@@ -152,11 +152,8 @@ Inputs are already pre-fetched on disk:
 - `/tmp/gh-aw/agent/skills-manifest.txt` — concatenated content of all installed SKILL.md files
 
 Tasks:
-1. Read the first 200 lines of `/tmp/gh-aw/agent/pr-diff.patch` and `/tmp/gh-aw/agent/pr-meta.json`.
-2. Read `/tmp/gh-aw/agent/skills-manifest.txt` to discover available skills. If the file is missing or empty, run:
-   ```
-   find /tmp/gh-aw/.github/skills "${RUNNER_TEMP}/gh-aw/.github/skills" -name "SKILL.md" 2>/dev/null | head -40
-   ```
+1. Read `/tmp/gh-aw/agent/pr-meta.json` and up to 200 lines of `/tmp/gh-aw/agent/pr-diff.patch` (the full diff is already truncated to 3000 lines; reading 200 lines is sufficient for change-type classification).
+2. Read `/tmp/gh-aw/agent/skills-manifest.txt` to discover available skills. If the file is missing or empty, return an empty array immediately.
 3. Select 1–3 SKILL.md paths most relevant to the PR's change type and risk areas.
 
 Return a JSON array of absolute file paths only — no prose, no explanation:
