@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,6 +18,11 @@ func TestNewLintCommand(t *testing.T) {
 	assert.Equal(t, "lint", cmd.Name(), "Command name should be 'lint'")
 	require.NotNil(t, cmd.Flags().Lookup("dir"), "lint command should have a --dir flag")
 	assert.Equal(t, "d", cmd.Flags().Lookup("dir").Shorthand, "--dir should have -d shorthand")
+	assert.Equal(t,
+		"Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)",
+		cmd.Flags().Lookup("dir").Usage,
+		"--dir usage should describe env override and default",
+	)
 	require.NotNil(t, cmd.Flags().Lookup("shellcheck"), "lint command should have a --shellcheck flag")
 	require.NotNil(t, cmd.Flags().Lookup("pyflakes"), "lint command should have a --pyflakes flag")
 	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unknown permission scope "copilot-requests"`,
@@ -51,28 +55,11 @@ func TestResolveLockFilesForLint(t *testing.T) {
 		assert.Equal(t, []string{lockA, lockB}, files, "should return sorted .lock.yml files only")
 	})
 
-	t.Run("defaults to constants workflow dir when workflow dir is empty", func(t *testing.T) {
-		t.Setenv("GH_AW_WORKFLOWS_DIR", "")
-
-		rootDir := t.TempDir()
-		defaultDir := filepath.Join(rootDir, constants.GetWorkflowDir())
-		require.NoError(t, os.MkdirAll(defaultDir, 0o755), "should create default workflow directory")
-
-		defaultLockA := filepath.Join(defaultDir, "default-a.lock.yml")
-		defaultLockB := filepath.Join(defaultDir, "default-b.lock.yml")
-		require.NoError(t, os.WriteFile(defaultLockA, []byte("name: default-a"), 0o644), "should create default lock file a")
-		require.NoError(t, os.WriteFile(defaultLockB, []byte("name: default-b"), 0o644), "should create default lock file b")
-
-		originalWD, err := os.Getwd()
-		require.NoError(t, err, "should read current working directory")
-		t.Cleanup(func() {
-			_ = os.Chdir(originalWD)
-		})
-		require.NoError(t, os.Chdir(rootDir), "should switch to temp working directory")
-
+	t.Run("defaults to GetWorkflowDir when workflow dir is empty", func(t *testing.T) {
+		t.Setenv("GH_AW_WORKFLOWS_DIR", tempDir)
 		files, err := resolveLockFilesForLint(nil, "")
 		require.NoError(t, err, "should resolve lock files from default workflow directory when --dir is empty")
-		assert.Equal(t, []string{defaultLockA, defaultLockB}, files, "should fallback to default workflow directory")
+		assert.Equal(t, []string{lockA, lockB}, files, "should fallback to default workflow directory")
 	})
 
 	t.Run("accepts explicit lock file path", func(t *testing.T) {
