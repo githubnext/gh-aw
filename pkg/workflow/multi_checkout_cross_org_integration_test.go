@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -81,14 +82,12 @@ checkout:
 		"org-c checkout must use ORG_C_PAT")
 
 	// All cross-repo checkouts must disable credential persistence.
-	// There must be no persist-credentials: true for any of the cross-org checkouts
-	// (safe-outputs job is the only place where persist-credentials: true is allowed).
-	assert.NotContains(t, compiled, "token: ${{ secrets.ORG_A_PAT }}\n          persist-credentials: true",
-		"org-a checkout must not keep credentials")
-	assert.NotContains(t, compiled, "token: ${{ secrets.ORG_B_PAT }}\n          persist-credentials: true",
-		"org-b checkout must not keep credentials")
-	assert.NotContains(t, compiled, "token: ${{ secrets.ORG_C_PAT }}\n          persist-credentials: true",
-		"org-c checkout must not keep credentials")
+	assert.Contains(t, compiled, "persist-credentials: false\n          repository: org-a/repo-one",
+		"org-a checkout must disable credential persistence")
+	assert.Contains(t, compiled, "persist-credentials: false\n          repository: org-b/repo-two",
+		"org-b checkout must disable credential persistence")
+	assert.Contains(t, compiled, "persist-credentials: false\n          repository: org-c/repo-three",
+		"org-c checkout must disable credential persistence")
 
 	// The checkout manifest must record all three repos so safe-outputs handlers can
 	// resolve the correct on-disk path and token for each org without network calls.
@@ -96,14 +95,20 @@ checkout:
 		"Checkout manifest must declare three entries")
 	assert.Contains(t, compiled, `GH_AW_CHECKOUT_REPO_0: "org-a/repo-one"`,
 		"Manifest must record org-a/repo-one as entry 0")
+	assert.Contains(t, compiled, `GH_AW_CHECKOUT_PATH_0: "repos/org-a"`,
+		"Manifest must record repos/org-a as entry 0 path")
 	assert.Contains(t, compiled, "GH_AW_CHECKOUT_TOKEN_0: ${{ secrets.ORG_A_PAT }}",
 		"Manifest entry 0 must wire ORG_A_PAT")
 	assert.Contains(t, compiled, `GH_AW_CHECKOUT_REPO_1: "org-b/repo-two"`,
 		"Manifest must record org-b/repo-two as entry 1")
+	assert.Contains(t, compiled, `GH_AW_CHECKOUT_PATH_1: "repos/org-b"`,
+		"Manifest must record repos/org-b as entry 1 path")
 	assert.Contains(t, compiled, "GH_AW_CHECKOUT_TOKEN_1: ${{ secrets.ORG_B_PAT }}",
 		"Manifest entry 1 must wire ORG_B_PAT")
 	assert.Contains(t, compiled, `GH_AW_CHECKOUT_REPO_2: "org-c/repo-three"`,
 		"Manifest must record org-c/repo-three as entry 2")
+	assert.Contains(t, compiled, `GH_AW_CHECKOUT_PATH_2: "repos/org-c"`,
+		"Manifest must record repos/org-c as entry 2 path")
 	assert.Contains(t, compiled, "GH_AW_CHECKOUT_TOKEN_2: ${{ secrets.ORG_C_PAT }}",
 		"Manifest entry 2 must wire ORG_C_PAT")
 
@@ -191,6 +196,10 @@ checkout:
 		"Checkout step for org-a must be emitted")
 	assert.Contains(t, compiled, "name: Checkout org-b/repo-two into repos/org-b",
 		"Checkout step for org-b must be emitted")
+	assert.Contains(t, compiled, "persist-credentials: false\n          repository: org-a/repo-one",
+		"org-a checkout must disable credential persistence")
+	assert.Contains(t, compiled, "persist-credentials: false\n          repository: org-b/repo-two",
+		"org-b checkout must disable credential persistence")
 
 	// The checkout manifest must wire the app-minted tokens for each entry so that
 	// safe-outputs handlers can authenticate against the correct org repo.
@@ -198,10 +207,14 @@ checkout:
 		"Checkout manifest must declare two entries")
 	assert.Contains(t, compiled, `GH_AW_CHECKOUT_REPO_0: "org-a/repo-one"`,
 		"Manifest must record org-a/repo-one as entry 0")
+	assert.Contains(t, compiled, `GH_AW_CHECKOUT_PATH_0: "repos/org-a"`,
+		"Manifest must record repos/org-a as entry 0 path")
 	assert.Contains(t, compiled, "GH_AW_CHECKOUT_TOKEN_0: ${{ steps.checkout-app-token-0.outputs.token }}",
 		"Manifest entry 0 must reference the app-minted token for org-a")
 	assert.Contains(t, compiled, `GH_AW_CHECKOUT_REPO_1: "org-b/repo-two"`,
 		"Manifest must record org-b/repo-two as entry 1")
+	assert.Contains(t, compiled, `GH_AW_CHECKOUT_PATH_1: "repos/org-b"`,
+		"Manifest must record repos/org-b as entry 1 path")
 	assert.Contains(t, compiled, "GH_AW_CHECKOUT_TOKEN_1: ${{ steps.checkout-app-token-1.outputs.token }}",
 		"Manifest entry 1 must reference the app-minted token for org-b")
 }
@@ -295,6 +308,12 @@ checkout:
 		"Checkout step for org-c must be emitted")
 	assert.Contains(t, compiled, "token: ${{ steps.checkout-app-token-2.outputs.token }}",
 		"org-c checkout must consume the minted token from checkout-app-token-2")
+	assert.Contains(t, compiled, "persist-credentials: false\n          repository: org-a/repo-one",
+		"org-a checkout must disable credential persistence")
+	assert.Contains(t, compiled, "persist-credentials: false\n          repository: org-b/repo-two",
+		"org-b checkout must disable credential persistence")
+	assert.Contains(t, compiled, "persist-credentials: false\n          repository: org-c/repo-three",
+		"org-c checkout must disable credential persistence")
 
 	// The checkout manifest must carry the correct three entries with their respective
 	// credential expressions so safe-outputs handlers can authenticate per-repo.
@@ -303,23 +322,38 @@ checkout:
 
 	assert.Contains(t, compiled, `GH_AW_CHECKOUT_REPO_0: "org-a/repo-one"`,
 		"Manifest entry 0 must be org-a/repo-one")
+	assert.Contains(t, compiled, `GH_AW_CHECKOUT_PATH_0: "repos/org-a"`,
+		"Manifest entry 0 must record repos/org-a")
 	assert.Contains(t, compiled, "GH_AW_CHECKOUT_TOKEN_0: ${{ secrets.ORG_A_PAT }}",
 		"Manifest entry 0 must carry the ORG_A_PAT directly")
 
 	assert.Contains(t, compiled, `GH_AW_CHECKOUT_REPO_1: "org-b/repo-two"`,
 		"Manifest entry 1 must be org-b/repo-two")
+	assert.Contains(t, compiled, `GH_AW_CHECKOUT_PATH_1: "repos/org-b"`,
+		"Manifest entry 1 must record repos/org-b")
 	assert.Contains(t, compiled, "GH_AW_CHECKOUT_TOKEN_1: ${{ steps.checkout-app-token-1.outputs.token }}",
 		"Manifest entry 1 must reference the minted token for org-b")
 
 	assert.Contains(t, compiled, `GH_AW_CHECKOUT_REPO_2: "org-c/repo-three"`,
 		"Manifest entry 2 must be org-c/repo-three")
+	assert.Contains(t, compiled, `GH_AW_CHECKOUT_PATH_2: "repos/org-c"`,
+		"Manifest entry 2 must record repos/org-c")
 	assert.Contains(t, compiled, "GH_AW_CHECKOUT_TOKEN_2: ${{ steps.checkout-app-token-2.outputs.token }}",
 		"Manifest entry 2 must reference the minted token for org-c")
 
-	// All cross-org checkout steps must disable credential persistence to prevent
-	// tokens leaking to subsequent steps that run without credentials by design.
-	assert.NotContains(t, compiled, "token: ${{ secrets.ORG_A_PAT }}\n          persist-credentials: true",
-		"org-a checkout must not keep credentials")
+	// App-token minting steps must appear before their corresponding checkout steps.
+	mintIdx1 := strings.Index(compiled, "id: checkout-app-token-1")
+	mintIdx2 := strings.Index(compiled, "id: checkout-app-token-2")
+	checkoutOrgB := strings.Index(compiled, "name: Checkout org-b/repo-two into repos/org-b")
+	checkoutOrgC := strings.Index(compiled, "name: Checkout org-c/repo-three into repos/org-c")
+	require.Greater(t, mintIdx1, -1, "checkout-app-token-1 minting step must be present")
+	require.Greater(t, mintIdx2, -1, "checkout-app-token-2 minting step must be present")
+	require.Greater(t, checkoutOrgB, -1, "Checkout step for org-b must be present")
+	require.Greater(t, checkoutOrgC, -1, "Checkout step for org-c must be present")
+	assert.Less(t, mintIdx1, checkoutOrgB,
+		"checkout-app-token-1 minting step must appear before the org-b checkout step")
+	assert.Less(t, mintIdx2, checkoutOrgC,
+		"checkout-app-token-2 minting step must appear before the org-c checkout step")
 }
 
 // TestMultiCheckoutCrossOrgStepOrdering verifies that app-token minting steps are
@@ -369,10 +403,10 @@ checkout:
 	// corresponding checkout step in the compiled output. The token expression
 	// ${{ steps.checkout-app-token-N.outputs.token }} must resolve at runtime,
 	// so the minting step must precede the checkout step that consumes its output.
-	mintIdx0 := indexOf(compiled, "id: checkout-app-token-0")
-	mintIdx1 := indexOf(compiled, "id: checkout-app-token-1")
-	checkoutOrgA := indexOf(compiled, "name: Checkout org-a/repo-one into repos/org-a")
-	checkoutOrgB := indexOf(compiled, "name: Checkout org-b/repo-two into repos/org-b")
+	mintIdx0 := strings.Index(compiled, "id: checkout-app-token-0")
+	mintIdx1 := strings.Index(compiled, "id: checkout-app-token-1")
+	checkoutOrgA := strings.Index(compiled, "name: Checkout org-a/repo-one into repos/org-a")
+	checkoutOrgB := strings.Index(compiled, "name: Checkout org-b/repo-two into repos/org-b")
 
 	require.Greater(t, mintIdx0, -1, "checkout-app-token-0 minting step must be present")
 	require.Greater(t, mintIdx1, -1, "checkout-app-token-1 minting step must be present")
@@ -383,17 +417,6 @@ checkout:
 		"checkout-app-token-0 minting step must appear before the org-a checkout step")
 	assert.Less(t, mintIdx1, checkoutOrgB,
 		"checkout-app-token-1 minting step must appear before the org-b checkout step")
-}
-
-// indexOf returns the byte offset of substr in s, or -1 if not found.
-func indexOf(s, substr string) int {
-	if len(substr) > len(s) {
-		return -1
-	}
-	for i := range len(s) - len(substr) + 1 {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
-	}
-	return -1
+	assert.Less(t, mintIdx0, mintIdx1,
+		"checkout-app-token steps must be emitted in declaration order")
 }
