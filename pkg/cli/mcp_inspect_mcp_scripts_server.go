@@ -66,9 +66,11 @@ func waitForServerReady(ctx context.Context, port int, timeout time.Duration, ve
 		}
 		resp, err := client.Do(req)
 		if err == nil {
-			if closeErr := resp.Body.Close(); closeErr != nil {
-				mcpInspectLog.Printf("Warning: failed to close response body: %v", closeErr)
-			}
+			defer func() {
+				if closeErr := resp.Body.Close(); closeErr != nil {
+					mcpInspectLog.Printf("Warning: failed to close response body: %v", closeErr)
+				}
+			}()
 			if verbose {
 				mcpInspectLog.Printf("Server is ready on port %d", port)
 			}

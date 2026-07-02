@@ -135,7 +135,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"issue_number": {IssueOrPRNumber: true},
 			"issue_type":   {Required: true, Type: "string", Sanitize: true, MaxLength: 128}, // Empty string clears the type
-			"rationale":    {Type: "string", Sanitize: true, MaxLength: 1024},
+			"rationale":    {Type: "string", Sanitize: true, MaxLength: 280},
 			"confidence":   {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}},
 			"suggest":      {Type: "boolean"},
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
@@ -149,7 +149,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"field_name":    {Type: "string", Sanitize: true, MaxLength: 128},
 			"field_node_id": {Type: "string", MaxLength: 256},
 			"value":         {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
-			"rationale":     {Type: "string", Sanitize: true, MaxLength: 1024},
+			"rationale":     {Type: "string", Sanitize: true, MaxLength: 280},
 			"confidence":    {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}},
 			"suggest":       {Type: "boolean"},
 			"repo":          {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"

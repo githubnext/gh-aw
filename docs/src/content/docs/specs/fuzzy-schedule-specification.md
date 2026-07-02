@@ -868,7 +868,7 @@ workflow identifier and schedule expression.
 implementation **MUST** fail with a descriptive error and **MUST NOT** fall back to random
 scattering.
 
-**R-SAFE-004**: If non-unique hash input causes repeated collisions across workflows, the
+**R-SAFE-005**: If non-unique hash input causes repeated collisions across workflows, the
 implementation **MUST** preserve deterministic behavior and **SHOULD** emit a warning indicating
 reduced distribution quality. Implementations **MUST NOT** silently switch to non-deterministic
 fallbacks to hide collisions.
@@ -1375,6 +1375,22 @@ Sun  │ ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  · 
 Legend: · = 0  ░ = 1–2  ▒ = 3–5  ▓ = 6–10  █ = >10 triggers/hour
 ```
 
+### 12.4 Field-Level Schema
+
+The following field-level schema defines the minimum calendar object contract for implementations
+that expose this output in structured form (for testing, diagnostics, or internal adapters).
+
+| Field | Type | Description | Required |
+|---|---|---|---|
+| `title` | `string` | Calendar heading text (for example, `Schedule Heatmap (UTC)`). | Required |
+| `timezone` | `string` | Timezone label used by the grid; MUST be `UTC` for conforming output. | Required |
+| `hours` | `string[]` | Ordered 24-item hour label array from `00` through `23`. | Required |
+| `days` | `string[]` | Ordered 7-item day label array in `Mon` through `Sun` order. | Required |
+| `cells` | `string[][]` | 7×24 glyph matrix representing trigger density for each day/hour slot. | Required |
+| `legend` | `string` | Human-readable bucket mapping for density glyphs. | Required |
+| `workflow_count` | `number` | Count of scheduled workflows represented by the calendar. | Optional |
+| `styled` | `boolean` | Whether ANSI styling was applied in the rendered output. | Optional |
+
 ### Version 1.2.0 (Draft) — 2026-05-12
 
 - **Changed**: Daily, weekly, bi-weekly, and tri-weekly scattering now share the weighted 622-slot
@@ -1413,7 +1429,7 @@ error objects so that operators and CI pipelines can identify the failure type u
 | Error code | Trigger condition | Normative requirement |
 |---|---|---|
 | `R-SAFE-003` | Hash input material is empty (e.g., missing workflow identifier) | §8 R-SAFE-003: MUST fail with a descriptive error; MUST NOT fall back to random scattering |
-| `R-SAFE-004` | Non-unique hash input causes repeated collision across workflows | §8 R-SAFE-004: MUST log a diagnostic; MAY apply deterministic offset to resolve |
+| `R-SAFE-005` | Non-unique hash input causes repeated collision across workflows | §8 R-SAFE-005: MUST log a diagnostic; MAY apply deterministic offset to resolve |
 
 Operator-visible error messages for R-SAFE-003 MUST include the phrase "missing workflow
 identifier" or equivalent so the root cause is immediately actionable.
@@ -1428,6 +1444,12 @@ jitter is applied and no warning is required.
 **N-ZERO-002**: A zero-width `around` schedule (i.e., `around HH:MM` with an effective ±0 window
 due to clamping) MUST be treated identically to N-ZERO-001 and MUST NOT produce a different output
 on successive compilations.
+
+### 13.4 Unsupported Period-Type Rejection
+
+**R-SAFE-004**: Implementations MUST reject unsupported period types such as `monthly` and `yearly`
+at parse time. The parser MUST return a deterministic validation error and MUST NOT silently coerce
+unsupported period types into supported schedules.
 
 ---
 

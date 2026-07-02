@@ -384,4 +384,75 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
       delete process.env.GH_AW_RUNTIME_FEATURES;
     }
   });
+
+  it("should truncate issue_intents rationale to 280 characters", async () => {
+    process.env.GH_AW_RUNTIME_FEATURES = "issue_intents";
+
+    const issueNodeId = "I_kwDO_testissue";
+    const issueTypeNodeId = "IT_kwDO_bug";
+    const longRationale = "a".repeat(350);
+
+    mockGithub.rest.issues.get.mockResolvedValueOnce({ data: { node_id: issueNodeId } });
+    mockGithub.graphql.mockImplementation(async query => {
+      if (query.includes("repository(owner")) {
+        return {
+          repository: {
+            issueTypes: {
+              nodes: [{ id: issueTypeNodeId, name: "Bug" }],
+            },
+          },
+        };
+      }
+      if (query.includes("updateIssue")) {
+        return { updateIssue: { issue: { id: issueNodeId } } };
+      }
+      return {};
+    });
+
+    try {
+      const { main } = require("./set_issue_type.cjs");
+      const featureHandler = await main({ max: 5 });
+
+      const result = await featureHandler(
+        {
+          type: "set_issue_type",
+          issue_number: 42,
+          issue_type: "Bug",
+          rationale: longRationale,
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      const mutationCall = mockGithub.graphql.mock.calls.find(([query]) => typeof query === "string" && query.includes("IssueTypeUpdateInput"));
+      expect(mutationCall).toBeDefined();
+      expect(mutationCall[1].issueType.rationale).toBe("a".repeat(280));
+    } finally {
+      delete process.env.GH_AW_RUNTIME_FEATURES;
+    }
+  });
+
+  it("should preserve issue_intents rationale of exactly 280 characters", () => {
+    const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
+
+    const metadata = normalizeIssueIntentMetadata({ rationale: "a".repeat(280) });
+
+    expect(metadata.rationale).toBe("a".repeat(280));
+  });
+
+  it("should truncate issue_intents rationale of 281 characters", () => {
+    const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
+
+    const metadata = normalizeIssueIntentMetadata({ rationale: "a".repeat(281) });
+
+    expect(metadata.rationale).toBe("a".repeat(280));
+  });
+
+  it("should omit empty issue_intents rationale after sanitization", () => {
+    const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
+
+    const metadata = normalizeIssueIntentMetadata({ rationale: "   " });
+
+    expect(metadata).not.toHaveProperty("rationale");
+  });
 });
