@@ -34,3 +34,27 @@ func TestAddWizardCommand_NameFlagRejectsMultipleWorkflows(t *testing.T) {
 	require.Error(t, err)
 	assert.EqualError(t, err, "--name flag cannot be used when adding multiple workflows at once")
 }
+
+func TestAddWizardCommand_HasForceFlag(t *testing.T) {
+	cmd := NewAddWizardCommand(func(string) error { return nil })
+	flag := cmd.Flags().Lookup("force")
+	require.NotNil(t, flag, "add-wizard should register --force")
+	assert.Equal(t, "bool", flag.Value.Type())
+	shortFlag := cmd.Flags().ShorthandLookup("f")
+	require.NotNil(t, shortFlag, "-f shorthand should be registered")
+	assert.Equal(t, "force", shortFlag.Name)
+}
+
+func TestAddWizardCommand_HasAppendFlag(t *testing.T) {
+	cmd := NewAddWizardCommand(func(string) error { return nil })
+	flag := cmd.Flags().Lookup("append")
+	require.NotNil(t, flag, "add-wizard should register --append")
+	assert.Equal(t, "string", flag.Value.Type())
+}
+
+func TestAddWizardCommand_HasNoSecurityScannerFlag(t *testing.T) {
+	cmd := NewAddWizardCommand(func(string) error { return nil })
+	flag := cmd.Flags().Lookup("no-security-scanner")
+	require.NotNil(t, flag, "add-wizard should register --no-security-scanner")
+	assert.Equal(t, "bool", flag.Value.Type())
+}

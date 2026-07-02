@@ -67,6 +67,40 @@ func TestShortFlagConsistency(t *testing.T) {
 			shouldExist:  true,
 			description:  "compile should have force short flag",
 		},
+		{
+			name:         "add-wizard command has -f for --force",
+			shortFlag:    "f",
+			longFlag:     "force",
+			commandSetup: func() *cobra.Command { return NewAddWizardCommand(func(string) error { return nil }) },
+			shouldExist:  true,
+			description:  "add-wizard should have force short flag",
+		},
+
+		// -n flag (name)
+		{
+			name:         "add command has -n for --name",
+			shortFlag:    "n",
+			longFlag:     "name",
+			commandSetup: func() *cobra.Command { return NewAddCommand(validateEngineStub) },
+			shouldExist:  true,
+			description:  "add should have name short flag",
+		},
+		{
+			name:         "deploy command has -n for --name",
+			shortFlag:    "n",
+			longFlag:     "name",
+			commandSetup: func() *cobra.Command { return NewDeployCommand(validateEngineStub) },
+			shouldExist:  true,
+			description:  "deploy should have name short flag",
+		},
+		{
+			name:         "add-wizard command has -n for --name",
+			shortFlag:    "n",
+			longFlag:     "name",
+			commandSetup: func() *cobra.Command { return NewAddWizardCommand(func(string) error { return nil }) },
+			shouldExist:  true,
+			description:  "add-wizard should have name short flag",
+		},
 
 		// -F flag (raw-field in run command)
 		{
