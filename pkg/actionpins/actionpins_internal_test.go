@@ -154,8 +154,9 @@ func TestFindCompatiblePin_SemverFallback(t *testing.T) {
 			availablePins: pins,
 		},
 		{
-			// major-compatible-match: requesting v5.0.0 from a list without v5.2.0 returns v5.0.0 —
-			// the function performs major-compatible matching, not exact-version matching.
+			// major-compatible-match: requesting v5.0.0 from a list that contains only v5.0.0 and
+			// v4.9.9 returns v5.0.0 — the function uses major-compatible matching, not exact-version
+			// matching. The only v5.x present happens to be v5.0.0, so the result looks exact.
 			name:        "major-compatible-match",
 			version:     "v5.0.0",
 			wantFound:   true,
@@ -167,7 +168,9 @@ func TestFindCompatiblePin_SemverFallback(t *testing.T) {
 		},
 		{
 			// first-compatible-not-exact: requesting v5.0.0 from [v5.2.0, v5.0.0] returns v5.2.0
-			// because findCompatiblePin returns the FIRST major-compatible match, not the exact one.
+			// because findCompatiblePin returns the first major-compatible match, not the exact one.
+			// This is a consequence of the pre-sorted (descending) slice contract; see
+			// returns-first-compatible-not-highest for the complementary case with an unsorted list.
 			name:          "first-compatible-not-exact",
 			version:       "v5.0.0",
 			wantFound:     true,
