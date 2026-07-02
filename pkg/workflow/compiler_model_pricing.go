@@ -116,7 +116,7 @@ func modelCostsHasPricingFor(modelCosts map[string]any, provider, model string) 
 
 // mergeModelPricingIntoModelCosts builds (or extends) the ModelCosts overlay map with a
 // pricing entry for the given provider/model. Returns a new map to avoid mutating the
-// input. Per-token float64 pricing values are serialised as decimal strings to match the
+// input. Per-token float64 pricing values are serialized as decimal strings to match the
 // models.json schema expected by merge_frontmatter_models.cjs at runtime.
 func mergeModelPricingIntoModelCosts(modelCosts map[string]any, provider, model string, pricing map[string]float64) map[string]any {
 	// Serialise float64 per-token prices to strings (models.json cost format).

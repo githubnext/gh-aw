@@ -181,7 +181,7 @@ func findPricingInModelsDev(ctx context.Context, provider, model string) (map[st
 			if pricing, ok := providerModels[normalizedModel]; ok {
 				return pricing, true
 			}
-			// Comparable (dot/underscore-normalised) model ID match.
+			// Comparable (dot/underscore-normalized) model ID match.
 			for mn, pricing := range providerModels {
 				if normalizeComparableModelID(mn) == comparableModel {
 					return pricing, true
