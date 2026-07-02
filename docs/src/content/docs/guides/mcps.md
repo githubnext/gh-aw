@@ -63,6 +63,8 @@ The GitHub MCP server is built into agentic workflows and provides comprehensive
 
 The `default` toolset includes: `context`, `repos`, `issues`, `pull_requests`. When used in workflows, `[default]` expands to action-friendly toolsets that work with GitHub Actions tokens. Note: The `users` toolset is not included by default as GitHub Actions tokens do not support user operations.
 
+For token-efficient discovery, prefer lean tools such as `search_repositories`, `list_discussions`, and `list_branches` before calling heavier responses like `list_issues` and `list_code_scanning_alerts`. When those heavier tools are required, request trimmed payloads (for example issue body excerpts) and avoid returning `rule.help` unless the full remediation text is needed.
+
 > [!WARNING]
 > **`get_me` is not usable under the integration token.** It returns HTTP 403 in all standard gh-aw runs. Do not call `get_me` to discover the agent's identity. Instead, read identity fields directly from the `<github-context>` block that is injected into every workflow prompt — it contains `actor`, `repository`, `run_id`, and other context values.
 

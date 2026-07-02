@@ -28,6 +28,8 @@ tools:
 
 **Default**: `context`, `repos`, `issues`, `pull_requests`, `users`
 
+For lower MCP token usage, start with lean discovery tools (`search_repositories`, `list_discussions`, `list_branches`) and only call heavier tools (`list_issues`, `list_code_scanning_alerts`) when needed. For heavy tools, prefer excerpted responses (for example an issue body snippet) and omit `rule.help` unless full rule guidance is required.
+
 Some key toolsets are:
 
 - `context` (user/team info)
@@ -65,6 +67,8 @@ tools:
 The shorthand form `"issue_read:1"` is **not** interpreted as a call limit — it is treated as a literal (and therefore unknown) tool name.
 
 This complements toolset selection: `toolsets` decides which API groups are loaded, while `allowed` further narrows which individual tools the agent may invoke and how many times.
+
+Because `allowed` is enforced client-side by the MCP gateway, it can also be used as a cost guardrail: keep high-volume tools out of the allowlist unless the workflow actually needs them.
 
 ## GitHub Integrity Filtering (`tools.github.min-integrity`)
 
