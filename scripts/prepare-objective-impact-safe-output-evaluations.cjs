@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
@@ -23,25 +22,22 @@ function readJSON(filePath, fallback) {
   }
 }
 
-// Atomically write content to a file using a temp-file-then-rename pattern.
-// Using O_EXCL with a cryptographically random suffix prevents TOCTOU and
-// symlink attacks (CWE-377, CWE-378). crypto.randomBytes is used instead of
-// process.pid to make the temp file name unpredictable.
+// Atomically write content to a file using a private temp directory created
+// alongside the destination. mkdtempSync creates the directory with restricted
+// permissions, which avoids predictable temp-file races and keeps rename on the
+// same filesystem as the destination file.
 function writeFileAtomic(filePath, content) {
-  const tmp = filePath + "." + crypto.randomBytes(8).toString("hex") + ".tmp";
-  let fd;
+  const baseName = path.basename(filePath);
+  const parentDir = path.dirname(filePath);
+  const tmpDir = fs.mkdtempSync(path.join(parentDir, `.${baseName}.tmp-`));
+  const tmpFile = path.join(tmpDir, baseName);
   try {
-    fd = fs.openSync(tmp, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL, 0o666);
-    fs.writeFileSync(fd, content);
-    fs.closeSync(fd);
-    fd = undefined;
-    fs.renameSync(tmp, filePath);
+    fs.writeFileSync(tmpFile, content);
+    fs.renameSync(tmpFile, filePath);
   } catch (err) {
-    if (typeof fd === "number") {
-      try { fs.closeSync(fd); } catch {}
-    }
-    try { fs.unlinkSync(tmp); } catch {}
     throw err;
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 }
 
