@@ -5,11 +5,7 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 type AsyncFuncNode = TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression;
 
 function isAsyncFuncNode(node: TSESTree.Node): node is AsyncFuncNode {
-  return (
-    node.type === AST_NODE_TYPES.FunctionDeclaration ||
-    node.type === AST_NODE_TYPES.FunctionExpression ||
-    node.type === AST_NODE_TYPES.ArrowFunctionExpression
-  );
+  return node.type === AST_NODE_TYPES.FunctionDeclaration || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.ArrowFunctionExpression;
 }
 
 export const requireAsyncEntrypointCatchRule = createRule({
@@ -18,14 +14,12 @@ export const requireAsyncEntrypointCatchRule = createRule({
     type: "problem",
     hasSuggestions: true,
     docs: {
-      description:
-        "Require bare calls to module-scope async functions (e.g. main()) to be chained with .catch() so that unhandled promise rejections are not silently swallowed or reported without context in GitHub Actions scripts.",
+      description: "Require bare calls to module-scope async functions (e.g. main()) to be chained with .catch() so that unhandled promise rejections are not silently swallowed or reported without context in GitHub Actions scripts.",
     },
     schema: [],
     messages: {
-      requireCatch:
-        "Bare call to async function '{{name}}()' outside an async context will produce an unhandled rejection if it rejects. Chain .catch(err => { ... }) to handle errors explicitly.",
-      addCatch: "Chain .catch(err => { throw err; }) to surface rejections explicitly. Replace the re-throw body with a real handler (e.g. core.setFailed) as appropriate.",
+      requireCatch: "Bare call to async function '{{name}}()' outside an async context will produce an unhandled rejection if it rejects. Chain .catch(err => { ... }) to handle errors explicitly.",
+      addCatch: "Chain .catch(err => { console.error(err); process.exitCode = 1; }) to handle rejections explicitly. Replace the handler with project-specific failure reporting as appropriate.",
     },
   },
   defaultOptions: [],
@@ -38,18 +32,19 @@ export const requireAsyncEntrypointCatchRule = createRule({
     /** Returns true if the node is inside an async function body (making `await` available). */
     function isInsideAsyncFunction(node: TSESTree.Node): boolean {
       const ancestors = sourceCode.getAncestors(node);
-      for (const ancestor of ancestors) {
-        if (isAsyncFuncNode(ancestor) && ancestor.async) {
-          return true;
+      for (let i = ancestors.length - 1; i >= 0; i -= 1) {
+        const ancestor = ancestors[i];
+        if (isAsyncFuncNode(ancestor)) {
+          return ancestor.async;
         }
       }
       return false;
     }
 
     return {
-      // Collect every async function declaration regardless of nesting depth.
+      // Collect module-scope async function declarations.
       FunctionDeclaration(node) {
-        if (node.async && node.id?.name) {
+        if (node.async && node.id?.name && node.parent.type === AST_NODE_TYPES.Program) {
           asyncFunctionNames.add(node.id.name);
         }
       },
@@ -76,7 +71,7 @@ export const requireAsyncEntrypointCatchRule = createRule({
             {
               messageId: "addCatch",
               fix(fixer: TSESLint.RuleFixer) {
-                return fixer.replaceText(node, `${name}().catch(err => { throw err; })`);
+                return fixer.insertTextAfter(node, ".catch(err => { console.error(err); process.exitCode = 1; })");
               },
             },
           ],
