@@ -30,6 +30,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
 	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
 	"github.com/github/gh-aw/pkg/linters/httpnoctx"
+	"github.com/github/gh-aw/pkg/linters/httprespbodyclose"
 	"github.com/github/gh-aw/pkg/linters/httpstatuscode"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
@@ -73,6 +74,7 @@ func main() {
 		fmterrorfnoverbs.Analyzer,
 		hardcodedfilepath.Analyzer,
 		httpnoctx.Analyzer,
+		httprespbodyclose.Analyzer,
 		httpstatuscode.Analyzer,
 		largefunc.Analyzer,
 		manualmutexunlock.Analyzer,

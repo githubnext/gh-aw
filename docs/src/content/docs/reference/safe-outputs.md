@@ -22,6 +22,8 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ## Available Safe Output Types
 
+The tables below summarize the built-in safe output handlers. `noop`, `missing-tool`, and `missing-data` are always available, and `create-issue` is auto-injected only when no non-system safe outputs are configured.
+
 ### Issues & Discussions
 
 | Output | Key | Description |
@@ -168,16 +170,8 @@ To explicitly disable expiration (useful when create-issue has a default expirat
 
 #### Issue Grouping
 
-The `group` field (default: `false`) automatically organizes multiple issues as sub-issues under a parent issue. When enabled:
+The `group` field (default: `false`) organizes multiple issues as sub-issues under a parent issue. The parent is identified by a `<!-- gh-aw-group: ... -->` marker derived from the workflow name; children are linked through GitHub sub-issue relationships; and each parent can hold up to 64 sub-issues. This is useful for workflows that create sets of related issues, such as plans broken into tasks or batch processing runs.
 
-- Parent issues are automatically created and managed using the workflow ID as the group identifier
-- Child issues are linked to the parent using GitHub's sub-issue relationships
-- Maximum of 64 sub-issues per parent issue
-- Parent issues include metadata tracking all sub-issues
-
-This is useful for workflows that create multiple related issues, such as planning workflows that break down epics into tasks, or batch processing workflows that create issues for individual items.
-
-**Example:**
 
 ```yaml wrap
 safe-outputs:
@@ -190,7 +184,7 @@ safe-outputs:
 
 #### Auto-Close Older Issues
 
-The `close-older-issues` field (default: `false`) automatically closes previous open issues from the same workflow when a new issue is created. This is useful for workflows that generate recurring reports or status updates, ensuring only the latest issue remains open.
+The `close-older-issues` field (default: `false`) closes previous open issues from the same workflow after a new issue is created. It searches for open issues using the `gh-aw-workflow-id` marker (or `gh-aw-close-key` when `close-older-key` is set), closes up to 10 of them as "not planned," and adds a comment linking to the new issue. In reusable-workflow scenarios, the `gh-aw-workflow-call-id` marker is used for precise per-caller matching, so issues from different callers sharing the same reusable workflow are not cross-closed. The cleanup runs only if new issue creation succeeds, which makes it a good fit for recurring reports or status updates where only the latest issue should remain open.
 
 ```yaml wrap
 safe-outputs:
@@ -200,16 +194,9 @@ safe-outputs:
     close-older-issues: true
 ```
 
-When enabled:
-
-- Searches for open issues containing the same workflow-id marker in their body
-- Closes found issues as "not planned" with a comment linking to the new issue
-- Maximum 10 older issues will be closed
-- Only runs if the new issue creation succeeds
-
 #### Group By Day
 
-The `group-by-day` field (default: `false`) groups multiple same-day workflow runs into a single issue. When enabled, the handler searches for an existing open issue created **today (UTC)** with the same workflow-id marker (or `close-older-key` if set). If found, the new content is posted as a **comment** on that existing issue instead of creating a new one.
+The `group-by-day` field (default: `false`) groups same-day workflow runs into a single issue. The handler looks for an existing open issue created **today (UTC)** using the workflow marker (`gh-aw-workflow-id`, or `gh-aw-workflow-call-id` in reusable-workflow scenarios, or `gh-aw-close-key` when `close-older-key` is set), and posts the new content as a **comment** instead of creating a new issue. This is useful for frequent scheduled workflows, such as runs every four hours, because all runs for the day contribute to one issue. Posting as a comment does not consume a max-count slot; if the pre-check fails, normal issue creation is used as a fallback.
 
 ```yaml wrap
 safe-outputs:
@@ -219,8 +206,6 @@ safe-outputs:
     close-older-issues: true
     group-by-day: true
 ```
-
-This is useful for scheduled workflows (e.g. every 4 hours) that produce recurring daily reports: all runs on the same day contribute to one issue, eliminating duplicate open/closed issues. The max-count slot is not consumed when posting as a comment; on failure of the pre-check, normal issue creation proceeds as a fallback.
 
 #### Title-Based Deduplication
 

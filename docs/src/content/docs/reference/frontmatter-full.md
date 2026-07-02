@@ -2320,13 +2320,13 @@ engine:
   # (optional)
   copilot-sdk: true
 
-  # Custom Copilot SDK driver script or command (copilot engine only). Setting this
-  # field implies `copilot-sdk: true`. Accepts a relative path from the workspace
-  # root with a supported language extension (.js, .cjs, .mjs, .py, .ts, .mts, .rb),
-  # e.g. `.github/drivers/my_driver.py`, or a bare command name without an extension
-  # for an arbitrary executable in PATH.
+  # Custom inner driver script for engines that support driver mode (e.g. pi).
+  # Accepts a workspace-relative path ending with .js, .cjs, or .mjs (e.g.
+  # `.github/drivers/pi_agent_core_driver_sample_node.cjs`), or a bare filename
+  # without a path separator resolved from the gh-aw setup-action directory (e.g.
+  # `pi_agent_core_driver.cjs`).
   # (optional)
-  copilot-sdk-driver: "example-value"
+  driver: "example-value"
 
 # Format 3: Inline engine definition: specifies a runtime adapter and optional
 # provider settings directly in the workflow frontmatter, without requiring a

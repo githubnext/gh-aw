@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
+
+var mcpRendererSectionHelpersLog = logger.New("workflow:mcp_renderer_section_helpers")
 
 func writeJSONStringMapEntries(yaml *strings.Builder, values map[string]string, indent string) {
 	for i, key := range sliceutil.SortedKeys(values) {
@@ -111,6 +114,9 @@ func buildGitHubMCPEnvVars(tokenValue, hostValue string, readOnly, lockdown bool
 		envVars["GITHUB_TOOLSETS"] = toolsets
 	}
 
+	// Note: tokenValue is a secret and is intentionally not logged.
+	mcpRendererSectionHelpersLog.Printf("Built GitHub MCP env vars: host=%s, readOnly=%v, lockdown=%v, hasToolsets=%v", hostValue, readOnly, lockdown, toolsets != "")
+
 	return envVars
 }
 
@@ -130,6 +136,9 @@ func buildGitHubMCPRemoteHeaders(authValue string, readOnly, lockdown bool, tool
 	if toolsets != "" {
 		headers["X-MCP-Toolsets"] = toolsets
 	}
+
+	// Note: authValue is a secret and is intentionally not logged.
+	mcpRendererSectionHelpersLog.Printf("Built GitHub MCP remote headers: readOnly=%v, lockdown=%v, hasToolsets=%v", readOnly, lockdown, toolsets != "")
 
 	return headers
 }

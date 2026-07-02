@@ -256,12 +256,10 @@ func createPatchFromPR(sourceOwner, sourceRepo string, prInfo *PRInfo, verbose b
 } // applyPatchToRepo applies a patch to the target repository and returns the branch name
 func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo string, verbose bool) (string, error) {
 	// Get current branch to restore later
-	cmd := exec.Command("git", "branch", "--show-current")
-	currentBranchOutput, err := cmd.Output()
+	currentBranch, err := getCurrentBranch()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current branch: %w", err)
 	}
-	currentBranch := strings.TrimSpace(string(currentBranchOutput))
 
 	// Get the default branch of the target repository
 	defaultBranchOutput, err := workflow.RunGH("Fetching default branch...", "api", fmt.Sprintf("/repos/%s/%s", targetOwner, targetRepo), "--jq", ".default_branch")
@@ -275,7 +273,7 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Checking out and updating %s branch...", defaultBranch)))
 	}
 
-	cmd = exec.Command("git", "checkout", defaultBranch)
+	cmd := exec.Command("git", "checkout", defaultBranch)
 	if err := cmd.Run(); err != nil {
 		return "", fmt.Errorf("failed to checkout default branch %s: %w", defaultBranch, err)
 	}
@@ -291,8 +289,7 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating branch: "+branchName))
 	}
 
-	cmd = exec.Command("git", "checkout", "-b", branchName)
-	if err := cmd.Run(); err != nil {
+	if err := createAndSwitchBranch(branchName, verbose); err != nil {
 		return "", fmt.Errorf("failed to create new branch: %w", err)
 	}
 

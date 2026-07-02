@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -81,8 +82,8 @@ func setVersionLabelCache(sourceRepo string, tagMap map[string]string) {
 // SHA to tag name. The second return value is false when tag loading fails.
 func loadRepoTagMap(ctx context.Context, sourceRepo string) (map[string]string, bool) {
 	tagMap := make(map[string]string)
-	owner, repoName, ok := splitOwnerRepo(sourceRepo)
-	if !ok {
+	owner, repoName, err := repoutil.SplitRepoSlug(sourceRepo)
+	if err != nil {
 		return tagMap, false
 	}
 
@@ -117,14 +118,4 @@ func loadRepoTagMap(ctx context.Context, sourceRepo string) (map[string]string, 
 		}
 	}
 	return tagMap, true
-}
-
-// splitOwnerRepo splits "owner/repo" into (owner, repo, true). Returns
-// ("", "", false) if the string does not contain exactly one slash.
-func splitOwnerRepo(ownerRepo string) (string, string, bool) {
-	parts := strings.SplitN(ownerRepo, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", "", false
-	}
-	return parts[0], parts[1], true
 }

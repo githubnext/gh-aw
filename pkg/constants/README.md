@@ -11,6 +11,7 @@ The package is organized into focused files:
 | File | Contents |
 |------|----------|
 | `constants.go` | Core types, formatting constants, runtime config, container images, mounts, AWF |
+| `bot_constants.go` | Canonical Copilot bot identity lists |
 | `engine_constants.go` | AI engine names, options, system secrets, model env vars, Copilot CLI commands |
 | `feature_constants.go` | Feature flag identifiers |
 | `job_constants.go` | GitHub Actions job names, step IDs, artifact names, output keys |
@@ -138,6 +139,19 @@ constants.EnvVarGitHubTrustedUsers   // "GH_AW_GITHUB_TRUSTED_USERS"   (tools.gi
 ```go
 constants.CopilotBYOKDummyAPIKey // "dummy-byok-key-for-offline-mode" — placeholder key used for AWF runtime BYOK detection
 constants.CopilotBYOKDefaultModel // "claude-sonnet-4.6" — explicit fallback used when GH_AW_MODEL_*_COPILOT is unset
+```
+
+### Copilot Bot Names
+
+`CopilotBotNames` (`[]string`) is the canonical list of all GitHub identifiers associated with the Copilot family — both runtime bot logins and recognised input aliases. When any entry from this list appears in a workflow's `bots:` field, it is expanded to the entire set.
+
+```go
+constants.CopilotBotNames // []string{
+                          //   "copilot-swe-agent",     // Copilot Coding Agent runtime login
+                          //   "Copilot",               // @Copilot interactive bot
+                          //   "copilot",               // base copilot bot form / canonical alias
+                          //   "@app/copilot-swe-agent", // GitHub App slug alias
+                          // }
 ```
 
 ### Copilot Stem Commands

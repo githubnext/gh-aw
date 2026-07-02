@@ -17,18 +17,21 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - Values limited to 1024 characters
   - Example: `metadata: { team: "platform", priority: "high" }`
 - **`github-token:`** - Default GitHub token for workflow (must use `${{ secrets.* }}` syntax)
-- **`on.roles:`** - Repository access roles that can trigger workflow (array or "all")
-  - Default: `[admin, maintainer, write]`
-  - Available roles: `admin`, `maintainer`, `write`, `read`, `all`
-- **`bots:`** - Bot identifiers allowed to trigger workflow regardless of role permissions (array)
-  - Example: `bots: [dependabot[bot], renovate[bot], github-actions[bot]]`
-  - Bot must be active (installed) on repository to trigger workflow
+- **`on.roles:`** - Repository access roles that can trigger workflow (array or `"all"`). Default `[admin, maintainer, write]`; available roles: `admin`, `maintainer`, `write`, `read`, `all`.
+- **`bots:`** - Bot identifiers allowed to trigger workflow regardless of role permissions (array; e.g. `[dependabot[bot], renovate[bot], github-actions[bot]]`). The bot must be active (installed) on the repository to trigger.
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`; strongly recommended)
   - Prefer `strict: true`; `strict: false` is dangerous, should be extremely rare, and must be carefully security reviewed before use
 - **`max-turns:`** - AWF turn cap applied consistently across all agentic engines (integer or expression, e.g. `${{ inputs.max-turns }}`). The engine-level `engine.max-turns` is a deprecated alias kept for backward compatibility — prefer this top-level field. Not supported by the `gemini` engine.
 - **`max-runs:`** - Deprecated legacy alias for the AWF invocation cap (`apiProxy.maxRuns`, defaults to `500` when omitted). Use `max-turns` instead; run `gh aw fix` to migrate.
 - **`max-ai-credits:`** - Per-run AI Credits (AIC) budget enforced by the AWF firewall (integer or `K`/`M` short-form string like `100M`; default `1000`). Set a negative value to disable enforcement and token steering. See [token-optimization.md](token-optimization.md).
 - **`max-turn-cache-misses:`** - Maximum consecutive AWF cache misses allowed before the API proxy blocks further requests (integer, default `5`). Maps to `apiProxy.maxCacheMisses`; precedence is frontmatter → `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` env override → built-in default.
+- **`models:`** - Model policy and optional pricing (object). Experimental policy fields `allowed` / `blocked` (lists of model names or patterns) restrict which models the workflow may use; they map to AWF `apiProxy.allowedModels` / `disallowedModels` and merge as unions across imports. Environment-variable overrides are supported. The separate `providers` field supplies custom pricing (see [token-optimization.md](token-optimization.md)).
+
+  ```yaml
+  models:
+    allowed: ["gpt-5", "claude-*"]
+    blocked: ["*-preview"]
+  ```
 - **`max-daily-ai-credits:`** - Per-user 24-hour AI Credits (AIC) guardrail: activation blocks execution once the triggering user's aggregated AI Credits for this workflow over the last 24h exceed the threshold (integer or `K`/`M` short-form string, or `-1`). Enabled by default with a system default threshold; set `-1` to disable or an explicit value to override. See [token-optimization.md](token-optimization.md).
 - **`user-rate-limit:`** - Rate limiting configuration to prevent users from triggering the workflow too frequently (object)
   - **`max-runs-per-window:`** - Maximum runs allowed per user per time window (required, integer 1-10)
@@ -45,10 +48,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
       ignored-roles: [admin, maintain]
     ```
 
-- **`check-for-updates:`** - Control whether the activation job checks if the compiled `gh-aw` version is still supported (boolean, default: `true`)
-  - When `true` (default): blocked versions fail fast; below-recommended versions emit a warning
-  - When `false`: skips the version check; the compiler emits a warning at compile time
-  - Use `check-for-updates: false` only when deploying in isolated environments where version update checks are not feasible
+- **`check-for-updates:`** - Whether the activation job checks that the compiled `gh-aw` version is still supported (boolean, default `true`). When `true`, blocked versions fail fast and below-recommended versions warn. Set `false` only for isolated environments (compiler then warns at compile time).
 
 - **`features:`** - Feature flags for experimental or optional features (object)
   - Each flag is a key-value pair; boolean flags (`true`/`false`) or string values are accepted
@@ -303,7 +303,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, or `web-search`. Supports AWF firewall and LLM gateway.
   - **`opencode` engine** (experimental): Provider-agnostic, open-source AI coding agent (BYOK). Defaults to Copilot routing via `COPILOT_GITHUB_TOKEN` (or `${{ github.token }}` with `copilot-requests` feature). Supports 75+ models via `provider/model` format. Supports AWF firewall and LLM gateway.
   - **`engine.driver:`** — canonical field to run a custom inner driver script instead of the engine's built-in CLI. For the `pi` engine it launches the driver directly with Node.js (e.g. built-in `pi_agent_core_driver.cjs`, or a workspace-relative path like `.github/drivers/pi_agent_core_driver_sample_node.cjs`); the driver must emit JSONL compatible with `parse_pi_log.cjs` so step summaries and token tracking keep working. Accepts a bare basename (resolved from the setup-action directory) or a workspace-relative path; no absolute paths, no `..`, only `.js`/`.cjs`/`.mjs` (pi).
-  - **`copilot-sdk` / `copilot-sdk-driver`** (experimental, copilot only): set `copilot-sdk: true` to start a headless Copilot CLI SDK sidecar; `copilot-sdk-driver: <path-or-command>` is the copilot-specific alias of `driver:` and supplies a custom driver (`.js`/`.cjs`/`.mjs`/`.py`/`.ts`/`.mts`/`.rb`, or a bare PATH command), implying `copilot-sdk: true`. Setting `driver:` on the copilot engine also enables `copilot-sdk` automatically. Tune the repeated-tool-denial safeguard with the top-level `max-tool-denials:` field (default `5`).
+  - **`copilot-sdk` / `engine.driver`** (experimental, copilot only): set `copilot-sdk: true` to start a headless Copilot CLI SDK sidecar. Set `driver: <path-or-command>` on the copilot engine to supply a custom SDK driver (`.js`/`.cjs`/`.mjs`/`.py`/`.ts`/`.mts`/`.rb`, or a bare PATH command); this also enables `copilot-sdk: true` automatically. Tune the repeated-tool-denial safeguard with the top-level `max-tool-denials:` field (default `5`).
   - **`engine.auth:`** — keyless Workload Identity Federation via the AWF API proxy instead of a static API key; requires `id-token: write`. Set `type: github-oidc` (only supported type) plus `provider: azure` (`azure-tenant-id`, `azure-client-id`, optional `azure-scope`/`azure-cloud`) for Azure OpenAI, or `provider: anthropic` (`federation-rule-id`, `organization-id`, `service-account-id`, `workspace-id`) for Claude. Optional `audience:`. Maps to `AWF_AUTH_*` env vars.
 
 - **`network:`** - Network access control for AI engines (top-level field)
@@ -346,6 +346,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
       agent: false
     ```
 
+  - **`sandbox.agent.sudo`** (boolean) controls whether AWF runs in root mode. Default is `false`: AWF runs rootless in network-isolation egress mode (`--network-isolation`), with MCP sidecars attached as bridge containers on the internal `awf-net` network. Set `sudo: true` for the legacy root mode; in strict mode explicit `sudo: true` is an error (warning otherwise).
   - **Strict mode**: `sandbox.agent` blocks without an explicit `id: awf` are rejected in strict mode. Any non-nil, non-disabled agent config without `id`/`type` defaults to AWF at runtime.
 
 - **`tools:`** - Tool configuration for the coding agent (`github`, `agentic-workflows`, `edit`, `web-fetch`, `web-search`, `bash`, `playwright`, custom MCP server names, plus `timeout`/`startup-timeout`/`cli-proxy`). See [syntax-tools-imports.md](syntax-tools-imports.md#tool-configuration) for the full schema (GitHub `mode`/`toolsets`/integrity fields, bash allowlist decision rule, Playwright CLI mode).

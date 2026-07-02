@@ -9,7 +9,7 @@ const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
-const { addReaction, addDiscussionReaction } = require("./add_reaction.cjs");
+const { addReaction, addDiscussionReaction, getDiscussionNodeId } = require("./add_reaction.cjs");
 
 /**
  * Event type descriptions for comment messages
@@ -106,9 +106,9 @@ async function resolveEventEndpoints(eventName, owner, repo, payload) {
         return null;
       }
       // Discussions use GraphQL API - get the node ID
-      const discussion = await getDiscussionId(owner, repo, discussionNumber);
+      const discussionNodeId = await getDiscussionNodeId(owner, repo, discussionNumber);
       return {
-        reactionEndpoint: discussion.id, // Store node ID for GraphQL
+        reactionEndpoint: discussionNodeId, // Store node ID for GraphQL
         commentUpdateEndpoint: `discussion:${discussionNumber}`, // Special format to indicate discussion
       };
     }
@@ -187,37 +187,6 @@ async function main() {
 }
 
 /**
- * Get the node ID for a discussion
- * @param {string} owner - Repository owner
- * @param {string} repo - Repository name
- * @param {number} discussionNumber - Discussion number
- * @returns {Promise<{id: string, url: string}>} Discussion details
- */
-async function getDiscussionId(owner, repo, discussionNumber) {
-  const { repository } = await github.graphql(
-    `
-    query($owner: String!, $repo: String!, $num: Int!) {
-      repository(owner: $owner, name: $repo) {
-        discussion(number: $num) { 
-          id 
-          url
-        }
-      }
-    }`,
-    { owner, repo, num: discussionNumber }
-  );
-
-  if (!repository || !repository.discussion) {
-    throw new Error(`${ERR_NOT_FOUND}: Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-  }
-
-  return {
-    id: repository.discussion.id,
-    url: repository.discussion.url,
-  };
-}
-
-/**
  * Helper function to set comment outputs
  * @param {string} commentId - The comment ID
  * @param {string} commentUrl - The comment URL
@@ -277,7 +246,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
     if (eventName === "discussion" || eventName === "discussion_comment") {
       // Parse discussion number from special format: "discussion:NUMBER" or "discussion_comment:NUMBER:COMMENT_ID"
       const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-      const { id: discussionId } = await getDiscussionId(eventRepo.owner, eventRepo.repo, discussionNumber);
+      const discussionId = await getDiscussionNodeId(eventRepo.owner, eventRepo.repo, discussionNumber);
       // For discussion_comment events, thread the reply under the triggering comment.
       // GitHub Discussions only supports two nesting levels, so resolve the top-level parent node ID.
       const replyToId = eventName === "discussion_comment" ? await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id) : null;
