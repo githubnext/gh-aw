@@ -340,6 +340,9 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 			// Remove the http.extraheader that actions/checkout persists with persist-credentials: true.
 			// Without this, git sends two conflicting Authorization headers (checkout token via
 			// extraheader + push token via URL), which breaks cross-org push scenarios.
+			// Note: GITHUB_SERVER_URL (e.g. "https://github.com") is the full URL used as the
+			// git config key; GIT_SERVER_URL_STRIPPED (e.g. "github.com") is only used in the
+			// token-in-URL remote string above — these are intentionally different variables.
 			fmt.Sprintf("          git -C %s config --unset-all \"http.${GITHUB_SERVER_URL}/.extraheader\" 2>/dev/null || true\n", gitDir),
 		)
 	}

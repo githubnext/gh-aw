@@ -234,12 +234,11 @@ func TestConfigureGitCredentialsShellScript(t *testing.T) {
 
 	// Regression: the script must unset the http.extraheader that actions/checkout
 	// persists with persist-credentials: true to prevent conflicting Authorization
-	// headers in cross-org push scenarios.
-	if !strings.Contains(scriptContent, "--unset-all") {
-		t.Error("configure_git_credentials.sh must call git config --unset-all to clear the persisted extraheader")
-	}
-	if !strings.Contains(scriptContent, "extraheader") {
-		t.Error("configure_git_credentials.sh must reference extraheader in the cleanup command")
+	// headers in cross-org push scenarios. Check for both tokens together in a single
+	// git config command so the test can't be satisfied by unrelated uses of either token.
+	const unsetExtraheaderCmd = `config --unset-all "http.`
+	if !strings.Contains(scriptContent, unsetExtraheaderCmd) || !strings.Contains(scriptContent, `/.extraheader"`) {
+		t.Error(`configure_git_credentials.sh must contain: git config --unset-all "http.<server>/.extraheader"`)
 	}
 	// The cleanup must be idempotent (2>/dev/null || true) so it doesn't fail when no
 	// extraheader was set (e.g. when persist-credentials: false was used).
