@@ -497,4 +497,32 @@ describe("no-unsafe-promise-catch-error-property", () => {
       ],
     });
   });
+
+  it("invalid: chained access on non-message prop is flagged but wrapWithInstanceof suggestion is suppressed", () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `promise.catch(err => { console.log(err.stack.length); });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "stack", errorVar: "err" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          code: `promise.catch(err => { console.log(err.code.toString()); });`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "code", errorVar: "err" },
+              suggestions: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
 });
