@@ -28,8 +28,11 @@ func (c *Compiler) resolveModelPricingIfMissing(modelCosts map[string]any, engin
 		return modelCosts
 	}
 
-	provider := resolveEngineProviderForPricing(engineConfig)
-	model := strings.ToLower(strings.TrimSpace(engineConfig.Model))
+	provider, model, ok := resolveProviderAndModelForPricing(engineConfig)
+	if !ok {
+		compilerModelPricingLog.Printf("Skipping external pricing lookup: unable to normalize provider/model for %q", engineConfig.Model)
+		return modelCosts
+	}
 
 	// If the frontmatter overlay already supplies pricing for this model, leave it intact.
 	if modelCostsHasPricingFor(modelCosts, provider, model) {
@@ -57,10 +60,10 @@ func (c *Compiler) resolveModelPricingIfMissing(modelCosts map[string]any, engin
 // well-known mapping from engine ID.
 func resolveEngineProviderForPricing(engineConfig *EngineConfig) string {
 	if engineConfig.LLMProvider != "" {
-		return strings.ToLower(strings.TrimSpace(engineConfig.LLMProvider))
+		return normalizeProviderForPricing(engineConfig.LLMProvider)
 	}
 	if engineConfig.InlineProviderID != "" {
-		return strings.ToLower(strings.TrimSpace(engineConfig.InlineProviderID))
+		return normalizeProviderForPricing(engineConfig.InlineProviderID)
 	}
 	// Infer provider from the built-in engine ID.
 	switch strings.ToLower(strings.TrimSpace(engineConfig.ID)) {
@@ -73,6 +76,42 @@ func resolveEngineProviderForPricing(engineConfig *EngineConfig) string {
 	default:
 		return ""
 	}
+}
+
+func normalizeProviderForPricing(provider string) string {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "github", "copilot", "github_models":
+		return "github-copilot"
+	default:
+		return strings.ToLower(strings.TrimSpace(provider))
+	}
+}
+
+func resolveProviderAndModelForPricing(engineConfig *EngineConfig) (string, string, bool) {
+	provider := resolveEngineProviderForPricing(engineConfig)
+	model := strings.ToLower(strings.TrimSpace(engineConfig.Model))
+	if model == "" {
+		return "", "", false
+	}
+
+	if strings.Contains(model, "/") {
+		parts := strings.SplitN(model, "/", 2)
+		if len(parts) != 2 {
+			return "", "", false
+		}
+		embeddedProvider := normalizeProviderForPricing(parts[0])
+		embeddedModel := strings.TrimSpace(parts[1])
+		if embeddedProvider != "" {
+			provider = embeddedProvider
+		}
+		model = strings.ToLower(embeddedModel)
+	}
+
+	provider = normalizeProviderForPricing(provider)
+	if provider == "" || model == "" {
+		return "", "", false
+	}
+	return provider, model, true
 }
 
 // modelCostsHasPricingFor reports whether the ModelCosts overlay already contains a models

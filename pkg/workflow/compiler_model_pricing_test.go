@@ -94,6 +94,7 @@ func TestResolveEngineProviderForPricing(t *testing.T) {
 		want   string
 	}{
 		{"LLMProvider wins", &EngineConfig{LLMProvider: "openai", InlineProviderID: "other", ID: "claude"}, "openai"},
+		{"LLMProvider alias normalized", &EngineConfig{LLMProvider: "github_models", ID: "claude"}, "github-copilot"},
 		{"InlineProviderID second", &EngineConfig{InlineProviderID: "openai", ID: "claude"}, "openai"},
 		{"claude engine → anthropic", &EngineConfig{ID: "claude"}, "anthropic"},
 		{"codex engine → openai", &EngineConfig{ID: "codex"}, "openai"},
@@ -162,5 +163,41 @@ func TestResolveModelPricingIfMissing_ResolverReturnsNothing(t *testing.T) {
 	})
 	result := c.resolveModelPricingIfMissing(nil, &EngineConfig{Model: "mystery-model", ID: "claude"})
 	// Should return the original (nil) map unchanged.
+	assert.Nil(t, result)
+}
+
+func TestResolveModelPricingIfMissing_SplitsQualifiedModelAndNormalizesProvider(t *testing.T) {
+	c := &Compiler{}
+	c.SetModelPricingResolver(func(_ context.Context, provider, model string) (map[string]float64, bool) {
+		assert.Equal(t, "github-copilot", provider)
+		assert.Equal(t, "claude-sonnet-4.6", model)
+		return map[string]float64{"input": 3e-06}, true
+	})
+
+	result := c.resolveModelPricingIfMissing(nil, &EngineConfig{
+		ID:    "unknown-engine",
+		Model: "github_models/claude-sonnet-4.6",
+	})
+	require.NotNil(t, result)
+	providers := result["providers"].(map[string]any)
+	require.Contains(t, providers, "github-copilot")
+	models := providers["github-copilot"].(map[string]any)["models"].(map[string]any)
+	assert.Contains(t, models, "claude-sonnet-4.6")
+}
+
+func TestResolveModelPricingIfMissing_SkipsWhenProviderCannotBeNormalized(t *testing.T) {
+	c := &Compiler{}
+	called := false
+	c.SetModelPricingResolver(func(_ context.Context, _, _ string) (map[string]float64, bool) {
+		called = true
+		return map[string]float64{"input": 1e-06}, true
+	})
+
+	result := c.resolveModelPricingIfMissing(nil, &EngineConfig{
+		ID:    "unknown-engine",
+		Model: "claude-sonnet-4.6",
+	})
+
+	assert.False(t, called)
 	assert.Nil(t, result)
 }

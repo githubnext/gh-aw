@@ -110,6 +110,12 @@ func TestParseDevCostMap(t *testing.T) {
 }
 
 func TestFindPricingInModelsDev(t *testing.T) {
+	origCache := modelsDevCache
+	t.Cleanup(func() {
+		modelsDevOnce = sync.Once{}
+		modelsDevCache = origCache
+	})
+
 	// Reset the sync.Once and cache so we can inject a test server.
 	modelsDevOnce = sync.Once{}
 	modelsDevCache = nil
