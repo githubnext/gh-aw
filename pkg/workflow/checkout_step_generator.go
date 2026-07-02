@@ -386,7 +386,16 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		if trialLogicalRepoSlug != "" {
 			fmt.Fprintf(&sb, "          repository: %s\n", trialLogicalRepoSlug)
 		}
-		effectiveToken := getEffectiveGitHubToken("")
+		// In the safe_outputs job (keepCredentialsForPush=true) use the safe-outputs
+		// token chain (GH_AW_GITHUB_TOKEN || GITHUB_TOKEN), which excludes the
+		// read-only GH_AW_GITHUB_MCP_SERVER_TOKEN that is scoped to the MCP server
+		// and is never appropriate for a push-capable checkout.
+		var effectiveToken string
+		if cm.keepCredentialsForPush {
+			effectiveToken = getEffectiveSafeOutputGitHubToken("")
+		} else {
+			effectiveToken = getEffectiveGitHubToken("")
+		}
 		fmt.Fprintf(&sb, "          token: %s\n", effectiveToken)
 	}
 

@@ -311,6 +311,29 @@ func TestCheckoutPushTokenIsolation(t *testing.T) {
 		assert.NotContains(t, combined, pushToken, "pushToken must not override an explicit checkout token")
 		assert.Equal(t, 1, strings.Count(combined, "token: "), "token must be emitted exactly once")
 	})
+
+	t.Run("trial mode in safe_outputs job uses safe-output token chain not MCP token", func(t *testing.T) {
+		cm := NewCheckoutManager(nil)
+		cm.SetKeepCredentialsForPush(true)
+		cm.SetPushToken(pushToken)
+		lines := cm.GenerateDefaultCheckoutStep(true, "owner/trial-repo", getPin)
+		combined := strings.Join(lines, "")
+		// Trial checkout in safe_outputs must use the safe-output chain (GH_AW_GITHUB_TOKEN || GITHUB_TOKEN).
+		assert.Contains(t, combined, "token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}", "safe_outputs trial mode must use the safe-output token chain")
+		// The read-only MCP server token must never appear in a safe_outputs checkout.
+		assert.NotContains(t, combined, "GH_AW_GITHUB_MCP_SERVER_TOKEN", "MCP server token must not appear in a safe_outputs checkout")
+		// The push token must not appear in the checkout step.
+		assert.NotContains(t, combined, pushToken, "pushToken must not be injected in trial mode checkout")
+	})
+
+	t.Run("trial mode in agent job (not safe_outputs) uses full agent token chain", func(t *testing.T) {
+		cm := NewCheckoutManager(nil)
+		// keepCredentialsForPush is false for the agent job.
+		lines := cm.GenerateDefaultCheckoutStep(true, "owner/trial-repo", getPin)
+		combined := strings.Join(lines, "")
+		// Agent trial mode must use the full token chain including the MCP token.
+		assert.Contains(t, combined, "GH_AW_GITHUB_MCP_SERVER_TOKEN", "agent trial mode should use the full agent token chain")
+	})
 }
 
 // TestGenerateAdditionalCheckoutSteps verifies that non-default checkouts are emitted correctly.

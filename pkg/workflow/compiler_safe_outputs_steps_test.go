@@ -88,11 +88,11 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
-			// Trial mode must never inject the safe-outputs push token into the checkout
-			// with.token field. The trial checkout always uses the standard fallback token
-			// (GH_AW_GITHUB_MCP_SERVER_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN) regardless
-			// of what safe-outputs token is configured, so the agent can check out the workflow
-			// repo under trial identity without needing push credentials.
+			// Trial mode within safe_outputs must use the safe-outputs token chain
+			// (GH_AW_GITHUB_TOKEN || GITHUB_TOKEN) for the checkout, not the agent
+			// token chain that includes the read-only GH_AW_GITHUB_MCP_SERVER_TOKEN.
+			// The safe-outputs push token still reaches GIT_TOKEN in the "Configure Git
+			// credentials" step for push operations.
 			name:      "trial mode does not inject safe-outputs token into checkout",
 			trialMode: true,
 			trialRepo: "org/trial-repo",
@@ -103,10 +103,14 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			checkContains: []string{
 				// The safe-outputs token must still reach the git-credentials step for push auth.
 				"GIT_TOKEN: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+				// Trial mode checkout must use the safe-outputs token chain (no MCP token).
+				"token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			},
 			checkNotContains: []string{
 				// The safe-outputs token must NOT be used as the checkout with.token.
 				"token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+				// The read-only MCP server token must never appear in a safe_outputs checkout.
+				"GH_AW_GITHUB_MCP_SERVER_TOKEN",
 			},
 		},
 		{
