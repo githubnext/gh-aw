@@ -88,6 +88,69 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
+			// Trial mode must never inject the safe-outputs push token into the checkout
+			// with.token field. The trial checkout always uses the standard fallback token
+			// (GH_AW_GITHUB_MCP_SERVER_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN) regardless
+			// of what safe-outputs token is configured, so the agent can check out the workflow
+			// repo under trial identity without needing push credentials.
+			name:      "trial mode does not inject safe-outputs token into checkout",
+			trialMode: true,
+			trialRepo: "org/trial-repo",
+			safeOutputs: &SafeOutputsConfig{
+				GitHubToken:        "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			checkContains: []string{
+				// The safe-outputs token must still reach the git-credentials step for push auth.
+				"GIT_TOKEN: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+			},
+			checkNotContains: []string{
+				// The safe-outputs token must NOT be used as the checkout with.token.
+				"token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+			},
+		},
+		{
+			// Side repos (additional checkouts) must not inherit the safe-outputs push token.
+			// Only the "Configure Git credentials" step should use it; the checkout step itself
+			// must leave token: unset so actions/checkout uses the default GITHUB_TOKEN.
+			name: "side repo checkout does not inherit safe-outputs token",
+			safeOutputs: &SafeOutputsConfig{
+				GitHubToken:        "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{Repository: "org/sidelib", Path: "sidelib"},
+			},
+			checkContains: []string{
+				// The safe-outputs token must reach the git-credentials step.
+				"GIT_TOKEN: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+			},
+			checkNotContains: []string{
+				// The safe-outputs token must NOT appear in the side-repo checkout step.
+				"token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+			},
+		},
+		{
+			// When a side repo declares its own checkout token, that token must be used
+			// for the checkout step and the safe-outputs push token must not override it.
+			name: "side repo checkout-specific token is not overridden by safe-outputs token",
+			safeOutputs: &SafeOutputsConfig{
+				GitHubToken:        "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{Repository: "org/sidelib", Path: "sidelib", GitHubToken: "${{ secrets.CHECKOUT_TOKEN }}"},
+			},
+			checkContains: []string{
+				// The checkout-specific token must govern the side-repo checkout step.
+				"token: ${{ secrets.CHECKOUT_TOKEN }}",
+			},
+			checkNotContains: []string{
+				// The safe-outputs token must NOT appear as a checkout with.token.
+				"token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+			},
+		},
+		{
 			name: "create-pr per-config github-token flows into git credentials",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
