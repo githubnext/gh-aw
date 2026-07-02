@@ -16,8 +16,7 @@ network:
   - defaults
   - github
 imports:
-- shared/reporting.md
-- shared/otlp.md
+- shared/reporting-otlp.md
 safe-outputs:
   create-issue:
     close-older-issues: true

@@ -23,9 +23,7 @@ safe-outputs:
   add-comment: {}
 imports:
   - shared/github-guard-policy.md
-  - shared/reporting.md
-
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 ---
 
 # Issue Triage Agent

@@ -32,10 +32,7 @@ safe-outputs:
 
 timeout-minutes: 5
 imports:
-  - shared/reporting.md
-
-
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 ---
 
 # Repository Tree Map Generator

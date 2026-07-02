@@ -33,13 +33,12 @@ sandbox:
 
 engine: claude
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/mcp/arxiv.md
   - shared/mcp/tavily.md
   - shared/mcp/microsoft-docs.md
   - shared/mcp/deepwiki.md
   - shared/mcp/markitdown.md
-  - shared/otlp.md
 tools:
   cli-proxy: true
   edit:

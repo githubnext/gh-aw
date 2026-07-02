@@ -19,8 +19,7 @@ network:
   - github
   - go
 imports:
-- shared/reporting.md
-- shared/otlp.md
+- shared/reporting-otlp.md
 safe-outputs:
   create-pull-request:
     draft: false

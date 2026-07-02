@@ -60,9 +60,8 @@ imports:
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [default, actions]
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/noop-reminder.md
-  - shared/otlp.md
 features:
   gh-aw-detection: true
 ---

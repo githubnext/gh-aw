@@ -36,10 +36,9 @@ engine:
 imports:
   - shared/github-guard-policy.md
   - shared/gh.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/github-queries-mcp-script.md
   - shared/mcp/serena-go.md
-  - shared/otlp.md
 network:
   allowed:
     - defaults

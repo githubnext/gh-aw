@@ -121,8 +121,7 @@ safe-outputs:
     run-failure: "❌ [{workflow_name}]({run_url}) {status} during test quality analysis."
 timeout-minutes: 15
 imports:
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 features:
   gh-aw-detection: true
 ---

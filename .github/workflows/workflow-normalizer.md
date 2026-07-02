@@ -28,9 +28,7 @@ safe-outputs:
     labels: [cookie]
     max: 1
 imports:
-  - shared/reporting.md
-
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 ---
 
 # Workflow Normalizer

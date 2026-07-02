@@ -23,8 +23,7 @@ imports:
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
-  - shared/reporting.md
-  - shared/otlp.md
+  - shared/reporting-otlp.md
 pre-agent-steps:
   - name: Pre-fetch PR diff
     env:
