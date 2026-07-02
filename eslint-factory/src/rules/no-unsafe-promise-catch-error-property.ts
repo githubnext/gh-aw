@@ -35,6 +35,11 @@ function isNonNullGuardCheck(node: TSESTree.Expression, varName: string): boolea
   return (isVarRef(node.left) && isNullLiteral(node.right)) || (isVarRef(node.right) && isNullLiteral(node.left));
 }
 
+function isUnsafePropertyAccess(node: TSESTree.Expression, varName: string): boolean {
+  if (node.type !== AST_NODE_TYPES.MemberExpression || node.computed) return false;
+  return node.object.type === AST_NODE_TYPES.Identifier && node.object.name === varName && node.property.type === AST_NODE_TYPES.Identifier && UNSAFE_PROPERTIES.has(node.property.name);
+}
+
 function isCatchCallback(node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): boolean {
   const parent = node.parent;
   if (!parent || parent.type !== AST_NODE_TYPES.CallExpression) return false;
@@ -160,9 +165,12 @@ export const noUnsafePromiseCatchErrorPropertyRule = createRule({
 
         const hasTypeofObject = conjuncts.some(expr => isTypeofObjectCheck(expr, top.varName));
         const hasNonNullGuard = conjuncts.some(expr => isNonNullGuardCheck(expr, top.varName));
+        const hasUnsafePropAccess = conjuncts.some(expr => isUnsafePropertyAccess(expr, top.varName));
         if (hasTypeofObject && hasNonNullGuard) {
           top.hasGuard = true;
           top.hasNonNullGuard = true;
+        } else if (hasNonNullGuard && hasUnsafePropAccess) {
+          top.hasGuard = true;
         }
       },
 

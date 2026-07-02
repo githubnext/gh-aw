@@ -80,6 +80,13 @@ describe("no-unsafe-promise-catch-error-property", () => {
     });
   });
 
+  it("valid: truthiness-gated unsafe property access is allowed", () => {
+    cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
+      valid: [`promise.catch(err => core.setFailed(err && err.stack ? err.stack : String(err)));`, `promise.catch(err => err && err.message ? err.message : 'unknown');`],
+      invalid: [],
+    });
+  });
+
   it("invalid: err.message without guard is flagged in arrow function callback", () => {
     cjsRuleTester.run("no-unsafe-promise-catch-error-property", noUnsafePromiseCatchErrorPropertyRule, {
       valid: [],
