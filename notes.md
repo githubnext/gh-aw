@@ -1,5 +1,10 @@
 # Copilot Session Insights — repo memory
 
+## 2026-07-02 snapshot
+- 50 sessions; **8% completion** (4 success, 46 action_required) — floor regime after 20% on 07-01.
+- provenance_inversion holds (4th+ obs): 4 successes = agent-exec (2 cloud-agent + 2 PR-comment), only non-zero-dur runs (max 11.98m, median 0); 46 action_required = CI/infra gates.
+- Orphans 0 (max gates/branch=3); 18 open PRs (11 Copilot-assigned, 7 unassigned, none with active gate sweep) → 0% NORMAL. Conv logs OAuth stub. Standard run (roll=85).
+
 ## 2026-06-28 snapshot
 - 50 sessions; **10% completion** (5 success, 45 action_required) — **saw-tooth pullback −30pt** from 06-27 (40%); 30d-avg 13.2%.
 - Bimodal: 45/50 zero-dur gate sweeps; median 0 vs mean 1.42m; nonzero=5 (max 21.65m); 128-min window.

@@ -32,8 +32,19 @@
       "orphan_rate_pct": 0.0,
       "data_quality": "metadata-only (OAuth, conv-log single file = auth-error stub)",
       "notes": "Rebound 6%->20% (+14pts, best since 06-27). 10 success/2 failure/35 action_required(70% gate-saturated)/1 skipped/2 in_progress. Longest 17.3m Impeccable Skills Reviewer; median 0m (35 gate stubs). AGSR experimental=0.70. Orphan 0/7 (all Copilot-assigned; only main has 3 active runs). roll=10 EXPERIMENTAL Approval-Gate Saturation Ratio."
+    },
+    {
+      "date": "2026-07-02",
+      "sessions": 50,
+      "completion_pct": 8.0,
+      "avg_dur_min": 0.732,
+      "median_dur_min": 0.0,
+      "loops": 0,
+      "orphan_rate_pct": 0.0,
+      "data_quality": "metadata-only (OAuth stub)",
+      "notes": "floor regime; provenance inversion holds (4 successes=agent-exec, 46=CI gates); 0 orphans, max gates/branch=3"
     }
   ],
-  "last_updated": "2026-07-01",
+  "last_updated": "2026-07-02",
   "version": "1.4"
 }
