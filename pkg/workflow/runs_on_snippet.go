@@ -3,8 +3,11 @@ package workflow
 import (
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var runsOnSnippetLog = logger.New("workflow:runs_on_snippet")
 
 func runsOnMarshalOptions() []yaml.EncodeOption {
 	opts := append([]yaml.EncodeOption{}, DefaultMarshalOptions...)
@@ -27,6 +30,7 @@ func renderRunsOnSnippet(value any) string {
 		yamlBytes, err = yaml.MarshalWithOptions(map[string]any{"runs-on": value}, runsOnMarshalOptions()...)
 	}
 	if err != nil {
+		runsOnSnippetLog.Printf("Failed to marshal runs-on snippet: %v", err)
 		return ""
 	}
 
@@ -51,6 +55,8 @@ func normalizeRunsOnSnippet(value string) string {
 				return rendered
 			}
 		}
+	} else {
+		runsOnSnippetLog.Printf("Could not parse runs-on snippet as YAML map, using raw form: %v", err)
 	}
 	return ensureRunsOnContinuationIndent(snippet)
 }

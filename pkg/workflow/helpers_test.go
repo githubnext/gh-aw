@@ -19,3 +19,14 @@ func findSubstring(s, substr string) bool {
 	}
 	return false
 }
+
+// toolCallCountsByName converts a slice of ToolCallInfo into a map of tool name to call count.
+// Used across engine-level log parsing tests.
+func toolCallCountsByName(toolCalls []ToolCallInfo) map[string]int {
+	counts := make(map[string]int, len(toolCalls))
+	for _, toolCall := range toolCalls {
+		counts[toolCall.Name] = toolCall.CallCount
+	}
+
+	return counts
+}

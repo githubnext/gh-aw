@@ -197,7 +197,7 @@ func ensureToolsetPermissions(lines []string, missing map[workflow.PermissionSco
 	}
 
 	insertLines := make([]string, 0, len(remaining))
-	for _, key := range sortedRemainingPermissionKeys(remaining) {
+	for _, key := range sliceutil.SortedKeys(remaining) {
 		insertLines = append(insertLines, fmt.Sprintf("%s  %s: %s", permissionsIndent, key, remaining[key]))
 	}
 
@@ -236,10 +236,5 @@ func sortedMissingPermissionKeys(missing map[workflow.PermissionScope]workflow.P
 	for _, scope := range sliceutil.SortedKeys(missing) {
 		keys = append(keys, string(scope))
 	}
-	return keys
-}
-
-func sortedRemainingPermissionKeys(remaining map[string]workflow.PermissionLevel) []string {
-	keys := sliceutil.SortedKeys(remaining)
 	return keys
 }

@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var llmProviderLog = logger.New("workflow:llm_provider")
 
 const (
 	LLMProviderGitHub    = "github"
@@ -31,9 +34,13 @@ func normalizeLLMProvider(provider string) string {
 
 func resolveEngineLLMProvider(workflowData *WorkflowData, defaultProvider string) string {
 	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.LLMProvider == "" {
-		return normalizeLLMProvider(defaultProvider)
+		provider := normalizeLLMProvider(defaultProvider)
+		llmProviderLog.Printf("Resolved LLM provider from default: %s", provider)
+		return provider
 	}
-	return normalizeLLMProvider(workflowData.EngineConfig.LLMProvider)
+	provider := normalizeLLMProvider(workflowData.EngineConfig.LLMProvider)
+	llmProviderLog.Printf("Resolved LLM provider from engine config: %s", provider)
+	return provider
 }
 
 func llmProviderProfileFor(provider string) llmProviderProfile {
@@ -71,8 +78,10 @@ func llmProviderSecretExpression(provider string, workflowData *WorkflowData) st
 	switch normalizeLLMProvider(provider) {
 	case LLMProviderGitHub:
 		if hasCopilotRequestsWritePermission(workflowData) {
+			llmProviderLog.Print("Using github.token for GitHub Copilot (copilot-requests write permission present)")
 			return "${{ github.token }}"
 		}
+		llmProviderLog.Print("Using COPILOT_GITHUB_TOKEN secret for GitHub Copilot")
 		return "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 	case LLMProviderOpenAI:
 		return "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}"
