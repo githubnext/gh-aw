@@ -93,6 +93,15 @@ func TestManager_PolicyModelsBlocked(t *testing.T) {
 	})
 
 	t.Run("comma and newline separators", func(t *testing.T) {
+		env := map[string]string{PolicyModelsBlocked: "gpt-5-pro,\nclaude-opus"}
+		m := New(func(key string) string { return env[key] })
+
+		got, ok := m.ResolvePolicyModelsBlocked()
+		assert.True(t, ok)
+		assert.Equal(t, []string{"gpt-5-pro", "claude-opus"}, got)
+	})
+
+	t.Run("deduplicates repeated entries", func(t *testing.T) {
 		env := map[string]string{PolicyModelsBlocked: "gpt-5-pro,\nclaude-opus,\ngpt-5-pro"}
 		m := New(func(key string) string { return env[key] })
 
