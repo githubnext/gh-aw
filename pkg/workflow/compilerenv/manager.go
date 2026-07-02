@@ -26,7 +26,7 @@ type Manager struct {
 // New creates a Manager using the provided EnvGetter for environment lookups.
 func New(getenv EnvGetter) *Manager {
 	if getenv == nil {
-		panic("compilerenv: getenv must not be nil")
+		getenv = os.Getenv
 	}
 	return &Manager{getenv: getenv}
 }

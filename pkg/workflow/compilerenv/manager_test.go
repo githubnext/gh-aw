@@ -40,10 +40,10 @@ func TestManager_WithInjectedGetter(t *testing.T) {
 	})
 }
 
-func TestNew_PanicsOnNilGetter(t *testing.T) {
-	assert.PanicsWithValue(t, "compilerenv: getenv must not be nil", func() {
-		New(nil)
-	})
+func TestNew_NilGetterUsesProcessEnv(t *testing.T) {
+	t.Setenv(DefaultMaxTurns, "12")
+	m := New(nil)
+	assert.Equal(t, "12", m.ResolveDefaultMaxTurns("7"))
 }
 
 // TestManager_FallbackWhenEnvEmpty confirms that Manager methods return the
