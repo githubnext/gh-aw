@@ -525,4 +525,78 @@ try {
       ],
     });
   });
+
+  it("invalid: guard appears after access (guard-after-access false negative fix)", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          // err.message is accessed before the instanceof guard — must still be flagged
+          code: `try { f(); } catch (err) { core.setFailed(err.message); if (err instanceof Error) { rethrow(err); } }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "message", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { core.setFailed(getErrorMessage(err)); if (err instanceof Error) { rethrow(err); } }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          // getErrorMessage guard appears after access — access before it must still be flagged
+          code: `try { f(); } catch (err) { console.log(err.message); getErrorMessage(err); }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "message", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { console.log(getErrorMessage(err)); getErrorMessage(err); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: guard in sibling branch does not suppress access outside guarded block", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          // instanceof guard is in one branch; err.message is in a sibling branch
+          code: `try { f(); } catch (err) { if (condition) { if (err instanceof Error) { } } else { core.setFailed(err.message); } }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "message", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { if (condition) { if (err instanceof Error) { } } else { core.setFailed(getErrorMessage(err)); } }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("valid: access inside instanceof Error if-block is still guarded", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [`try { f(); } catch (err) { if (err instanceof Error) { console.log(err.stack); } }`],
+      invalid: [],
+    });
+  });
 });

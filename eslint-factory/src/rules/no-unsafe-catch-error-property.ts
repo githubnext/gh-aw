@@ -6,8 +6,8 @@ const UNSAFE_PROPERTIES = new Set(["message", "stack", "code", "status", "cause"
 
 interface CatchFrame {
   varName: string;
-  hasGuard: boolean;
   hasNonNullGuard: boolean;
+  guardedRanges: Array<[number, number]>;
   unsafeNodes: Array<{ node: TSESTree.MemberExpression; prop: string }>;
 }
 
@@ -33,6 +33,25 @@ function isNonNullGuardCheck(node: TSESTree.Expression, varName: string): boolea
   const isNullLiteral = (value: TSESTree.Expression): value is TSESTree.Literal => value.type === AST_NODE_TYPES.Literal && value.value === null;
 
   return (isVarRef(node.left) && isNullLiteral(node.right)) || (isVarRef(node.right) && isNullLiteral(node.left));
+}
+
+/** Returns the range of the block that is guarded when `node` is the test of an if/ternary. */
+function getGuardedRangeFromParent(node: TSESTree.Expression): [number, number] | null {
+  const parent = node.parent;
+  if (parent?.type === AST_NODE_TYPES.IfStatement && parent.test === node && parent.consequent.range) {
+    return [parent.consequent.range[0], parent.consequent.range[1]];
+  }
+  if (parent?.type === AST_NODE_TYPES.ConditionalExpression && parent.test === node && parent.consequent.range) {
+    return [parent.consequent.range[0], parent.consequent.range[1]];
+  }
+  return null;
+}
+
+/** Returns true when `node` falls inside any of the recorded guarded ranges. */
+function isInGuardedRange(node: TSESTree.Node, guardedRanges: Array<[number, number]>): boolean {
+  if (!node.range) return false;
+  const start = node.range[0];
+  return guardedRanges.some(([gs, ge]) => start >= gs && start < ge);
 }
 
 export const noUnsafeCatchErrorPropertyRule = createRule({
@@ -61,16 +80,16 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
         // Only handle simple identifier bindings; skip bare catch {} and destructuring patterns.
         // Push a sentinel frame so CatchClause:exit always has a matching pop.
         if (!param || param.type !== AST_NODE_TYPES.Identifier) {
-          catchStack.push({ varName: "", hasGuard: true, hasNonNullGuard: true, unsafeNodes: [] });
+          catchStack.push({ varName: "", hasNonNullGuard: true, guardedRanges: [], unsafeNodes: [] });
           return;
         }
 
-        catchStack.push({ varName: param.name, hasGuard: false, hasNonNullGuard: false, unsafeNodes: [] });
+        catchStack.push({ varName: param.name, hasNonNullGuard: false, guardedRanges: [], unsafeNodes: [] });
       },
 
       "CatchClause:exit"() {
         const frame = catchStack.pop();
-        if (!frame || !frame.varName || frame.hasGuard) return;
+        if (!frame || !frame.varName) return;
 
         for (const { node: memberExpr, prop } of frame.unsafeNodes) {
           const { varName } = frame;
@@ -106,11 +125,13 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
       CallExpression(node) {
         if (catchStack.length === 0) return;
         const top = catchStack[catchStack.length - 1];
-        if (!top || top.hasGuard || !top.varName) return;
+        if (!top || !top.varName) return;
 
         const firstArg = node.arguments[0];
         if (node.callee.type === AST_NODE_TYPES.Identifier && node.callee.name === "getErrorMessage" && node.arguments.length >= 1 && firstArg.type === AST_NODE_TYPES.Identifier && firstArg.name === top.varName) {
-          top.hasGuard = true;
+          if (node.range) {
+            top.guardedRanges.push([node.range[0], Infinity]);
+          }
         }
       },
 
@@ -119,22 +140,24 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
       BinaryExpression(node) {
         if (catchStack.length === 0) return;
         const top = catchStack[catchStack.length - 1];
-        if (!top || top.hasGuard || !top.varName) return;
+        if (!top || !top.varName) return;
 
         if (node.operator === "instanceof" && node.left.type === AST_NODE_TYPES.Identifier && node.left.name === top.varName) {
-          top.hasGuard = true;
+          const range = getGuardedRangeFromParent(node);
+          if (range) top.guardedRanges.push(range);
           return;
         }
 
         if (isTypeofObjectCheck(node, top.varName) && top.hasNonNullGuard) {
-          top.hasGuard = true;
+          const range = getGuardedRangeFromParent(node);
+          if (range) top.guardedRanges.push(range);
         }
       },
 
       LogicalExpression(node) {
         if (catchStack.length === 0) return;
         const top = catchStack[catchStack.length - 1];
-        if (!top || top.hasGuard || !top.varName || node.operator !== "&&") return;
+        if (!top || !top.varName || node.operator !== "&&") return;
 
         const conjuncts: TSESTree.Expression[] = [];
         const collectConjuncts = (expr: TSESTree.Expression): void => {
@@ -150,15 +173,26 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
         const hasTypeofObject = conjuncts.some(expr => isTypeofObjectCheck(expr, top.varName));
         const hasNonNullGuard = conjuncts.some(expr => isNonNullGuardCheck(expr, top.varName));
         if (hasTypeofObject && hasNonNullGuard) {
-          top.hasGuard = true;
+          const range = getGuardedRangeFromParent(node);
+          if (range) top.guardedRanges.push(range);
           top.hasNonNullGuard = true;
+
+          // Also guard accesses within this && chain that appear after the guard conjuncts:
+          // short-circuit evaluation ensures they are only reached once the guard is satisfied.
+          if (node.range) {
+            const guardConjuncts = conjuncts.filter(c => isTypeofObjectCheck(c, top.varName) || isNonNullGuardCheck(c, top.varName));
+            const lastGuardEnd = Math.max(...guardConjuncts.map(c => c.range?.[1] ?? 0));
+            if (lastGuardEnd > 0 && lastGuardEnd < node.range[1]) {
+              top.guardedRanges.push([lastGuardEnd, node.range[1]]);
+            }
+          }
         }
       },
 
       IfStatement(node) {
         if (catchStack.length === 0) return;
         const top = catchStack[catchStack.length - 1];
-        if (!top || top.hasGuard || !top.varName) return;
+        if (!top || !top.varName) return;
 
         if (
           node.test.type === AST_NODE_TYPES.UnaryExpression &&
@@ -185,14 +219,18 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
 
         // Non-computed dot access: err.message / err.stack / err.code / err.status / err.cause / err.name
         if (!node.computed && prop.type === AST_NODE_TYPES.Identifier && UNSAFE_PROPERTIES.has(prop.name)) {
-          top.unsafeNodes.push({ node, prop: prop.name });
+          if (!isInGuardedRange(node, top.guardedRanges)) {
+            top.unsafeNodes.push({ node, prop: prop.name });
+          }
           return;
         }
 
         // Computed string-literal access: err["message"] / err["stack"] / err["status"] / etc.
         // Dynamic access (err[prop]) is kept out of scope intentionally.
         if (node.computed && prop.type === AST_NODE_TYPES.Literal && typeof prop.value === "string" && UNSAFE_PROPERTIES.has(prop.value)) {
-          top.unsafeNodes.push({ node, prop: prop.value });
+          if (!isInGuardedRange(node, top.guardedRanges)) {
+            top.unsafeNodes.push({ node, prop: prop.value });
+          }
         }
       },
     };
