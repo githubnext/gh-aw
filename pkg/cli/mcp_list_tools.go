@@ -172,7 +172,7 @@ func NewMCPListToolsSubcommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "list-tools [workflow]",
-		Short: "List available tools for a specific MCP server",
+		Short: "List available tools for a specific MCP server, or find workflows using it",
 		Long: `List available tools for a specific MCP server.
 
 This command connects to the specified MCP server and displays all available tools.
