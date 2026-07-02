@@ -337,57 +337,6 @@ func TestSpec_ScheduleDetection_IsWeeklyCron(t *testing.T) {
 	}
 }
 
-// TestSpec_PublicAPI_LevenshteinDistance validates the documented behavior of
-// LevenshteinDistance as described in the package README.md.
-//
-// Specification: Computes edit distance between two strings.
-func TestSpec_PublicAPI_LevenshteinDistance(t *testing.T) {
-	tests := []struct {
-		name     string
-		a, b     string
-		expected int
-	}{
-		{
-			name:     "identical strings have distance 0",
-			a:        "hello",
-			b:        "hello",
-			expected: 0,
-		},
-		{
-			name:     "one insertion has distance 1",
-			a:        "cat",
-			b:        "cats",
-			expected: 1,
-		},
-		{
-			name:     "one substitution has distance 1",
-			a:        "cat",
-			b:        "bat",
-			expected: 1,
-		},
-		{
-			name:     "empty string has distance equal to length of other",
-			a:        "",
-			b:        "abc",
-			expected: 3,
-		},
-		{
-			name:     "both empty have distance 0",
-			a:        "",
-			b:        "",
-			expected: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := LevenshteinDistance(tt.a, tt.b)
-			assert.Equal(t, tt.expected, result,
-				"LevenshteinDistance(%q, %q) should compute correct edit distance", tt.a, tt.b)
-		})
-	}
-}
-
 // TestSpec_PublicAPI_IsValidGitHubIdentifier validates the documented behavior
 // of IsValidGitHubIdentifier as described in the package README.md.
 //

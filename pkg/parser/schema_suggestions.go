@@ -235,13 +235,6 @@ func FindClosestMatches(target string, candidates []string, maxResults int) []st
 	return results
 }
 
-// LevenshteinDistance computes the Levenshtein distance between two strings.
-// This is the minimum number of single-character edits (insertions, deletions, or substitutions)
-// required to change one string into the other.
-func LevenshteinDistance(a, b string) int {
-	return stringutil.LevenshteinDistance(a, b)
-}
-
 // generateExampleJSONForPath generates an example JSON object for a specific schema path
 func generateExampleJSONForPath(schemaDoc any, jsonPath string) string {
 	schemaMap, ok := schemaDoc.(map[string]any)
