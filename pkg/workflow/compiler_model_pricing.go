@@ -96,14 +96,12 @@ func resolveProviderAndModelForPricing(engineConfig *EngineConfig) (string, stri
 
 	if strings.Contains(model, "/") {
 		parts := strings.SplitN(model, "/", 2)
-		if len(parts) != 2 {
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 			return "", "", false
 		}
 		embeddedProvider := normalizeProviderForPricing(parts[0])
 		embeddedModel := strings.TrimSpace(parts[1])
-		if embeddedProvider != "" {
-			provider = embeddedProvider
-		}
+		provider = embeddedProvider
 		model = strings.ToLower(embeddedModel)
 	}
 

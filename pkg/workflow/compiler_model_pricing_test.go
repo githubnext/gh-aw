@@ -201,3 +201,16 @@ func TestResolveModelPricingIfMissing_SkipsWhenProviderCannotBeNormalized(t *tes
 	assert.False(t, called)
 	assert.Nil(t, result)
 }
+
+func TestResolveModelPricingIfMissing_SkipsMalformedQualifiedModel(t *testing.T) {
+	c := &Compiler{}
+	called := false
+	c.SetModelPricingResolver(func(_ context.Context, _, _ string) (map[string]float64, bool) {
+		called = true
+		return map[string]float64{"input": 1e-06}, true
+	})
+
+	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &EngineConfig{Model: "/gpt-4.1"}))
+	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &EngineConfig{Model: "openai/"}))
+	assert.False(t, called)
+}
