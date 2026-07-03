@@ -97,7 +97,7 @@ func parseNonNegativeIntOrExpressionValue(raw any) string {
 		if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
 			return trimmed
 		}
-		engineLog.Printf("Ignoring invalid harness-max-retries value: %q", rawStr)
+		engineLog.Printf("Ignoring invalid harness.max-retries value: %q", rawStr)
 	}
 	return ""
 }

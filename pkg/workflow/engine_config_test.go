@@ -426,14 +426,16 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "codex", Version: "beta", Model: "gpt-4o", MaxTurns: "3", UserAgent: "complete-custom-agent", Env: map[string]string{"CUSTOM_VAR": "value1"}},
 		},
 		{
-			name: "object format - harness retry policy fields (integer literals)",
+			name: "object format - harness sub-object retry policy fields (integer literals)",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
-					"id":                         "copilot",
-					"harness-max-retries":        6,
-					"harness-initial-delay-ms":   10000,
-					"harness-backoff-multiplier": 2,
-					"harness-max-delay-ms":       180000,
+					"id": "copilot",
+					"harness": map[string]any{
+						"max-retries":        6,
+						"initial-delay-ms":   10000,
+						"backoff-multiplier": 2,
+						"max-delay-ms":       180000,
+					},
 				},
 			},
 			expectedEngineSetting: "copilot",
@@ -446,14 +448,16 @@ func TestExtractEngineConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "object format - harness retry policy fields (GitHub Actions expressions)",
+			name: "object format - harness sub-object retry policy fields (GitHub Actions expressions)",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
-					"id":                         "claude",
-					"harness-max-retries":        "${{ vars.RETRY_COUNT }}",
-					"harness-initial-delay-ms":   "${{ vars.RETRY_DELAY }}",
-					"harness-backoff-multiplier": "${{ vars.BACKOFF }}",
-					"harness-max-delay-ms":       "${{ vars.MAX_DELAY }}",
+					"id": "claude",
+					"harness": map[string]any{
+						"max-retries":        "${{ vars.RETRY_COUNT }}",
+						"initial-delay-ms":   "${{ vars.RETRY_DELAY }}",
+						"backoff-multiplier": "${{ vars.BACKOFF }}",
+						"max-delay-ms":       "${{ vars.MAX_DELAY }}",
+					},
 				},
 			},
 			expectedEngineSetting: "claude",
@@ -466,15 +470,18 @@ func TestExtractEngineConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "object format - harness-max-retries allows zero",
+			name: "object format - harness sub-object use and max-retries allows zero",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
-					"id":                  "codex",
-					"harness-max-retries": 0,
+					"id": "codex",
+					"harness": map[string]any{
+						"use":         "custom_harness.cjs",
+						"max-retries": 0,
+					},
 				},
 			},
 			expectedEngineSetting: "codex",
-			expectedConfig:        &EngineConfig{ID: "codex", HarnessMaxRetries: "0"},
+			expectedConfig:        &EngineConfig{ID: "codex", HarnessScript: "custom_harness.cjs", HarnessMaxRetries: "0"},
 		},
 	}
 

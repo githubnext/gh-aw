@@ -11996,9 +11996,42 @@
               "description": "Custom executable path for the AI engine CLI. When specified, the workflow will skip the standard installation steps and use this command instead. The command should be the full path to the executable or a command available in PATH."
             },
             "harness": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]*\\.(?:js|cjs|mjs)$",
-              "description": "Custom Node.js harness script filename for an agentic engine. This replaces the engine's built-in harness wrapper (when the engine supports one) and must end with .js, .cjs, or .mjs."
+              "description": "Harness configuration for the AI engine. Accepts either a bare filename string (legacy) or an object with sub-keys for fine-grained control.",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]*\\.(?:js|cjs|mjs)$",
+                  "description": "Custom Node.js harness script filename (legacy form). This replaces the engine's built-in harness wrapper and must end with .js, .cjs, or .mjs."
+                },
+                {
+                  "type": "object",
+                  "description": "Harness configuration object with optional sub-keys for script override and retry policy.",
+                  "properties": {
+                    "use": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]*\\.(?:js|cjs|mjs)$",
+                      "description": "Custom Node.js harness script filename. This replaces the engine's built-in harness wrapper and must end with .js, .cjs, or .mjs."
+                    },
+                    "max-retries": {
+                      "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }],
+                      "description": "Maximum retry attempts after the initial run (0 = no retries). Accepts a literal integer or a GitHub Actions expression."
+                    },
+                    "initial-delay-ms": {
+                      "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }],
+                      "description": "Delay in ms before the first retry. Accepts a literal integer or a GitHub Actions expression."
+                    },
+                    "backoff-multiplier": {
+                      "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "string" }],
+                      "description": "Multiplier applied to the delay after each retry. Accepts a literal integer or a GitHub Actions expression."
+                    },
+                    "max-delay-ms": {
+                      "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }],
+                      "description": "Maximum delay cap in ms. Accepts a literal integer or a GitHub Actions expression."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
             },
             "env": {
               "type": "object",
