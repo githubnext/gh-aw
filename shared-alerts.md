@@ -38,3 +38,26 @@ Copilot SWE Agent (83% merge rate) · Issue Monster · PR Triage Agent · Auto-T
 
 ## Do Not Re-File (Jul 2)
 #41827,#41987,#41988,#42032,#42033,#42095,#42329,#42332,#42333,#42342,#42356,#42398,#42421,#42423,#42442,#42444,#42482,#42598,#42607,#42610,#42637,#42652,#42656,#42730,#42765,#42766,#42824,#42867,#42872,#42883,#42889,#42890,#42899,#42908,#42918,#42919,#42921,#42930,#42943,#42960,#42966,#42970,#42971
+
+---
+## Update: 2026-07-03T05:41Z (Workflow Health Manager)
+
+## P0 🚨 (New)
+- **Copilot BYOK stream_options (#43031):** SDK injects OpenAI-only `stream_options` into Anthropic provider calls → HTTP 400 kills agent deterministically. Multiple BYOK workflows affected. DO NOT RE-FILE.
+
+## P1 Updates
+- **PR Code Quality Reviewer:** #42095 closed but fresh failure today (§28639714841) — may need new tracking issue. Monitor next run.
+- All other P1s from Jul 2 still open (see workflow-health-latest.md).
+
+## P2 New Today
+- Code Simplifier (#43110): seccomp blocks binary execution  
+- yamllint Fixer (#43108): 3rd push rejection — escalate to repair campaign
+- Smoke Copilot AOAI (#43101): missing tool
+- Smoke Antigravity (#43087): no safe outputs
+- Impeccable Skills Reviewer (#43079): engine crash
+
+## Health Score Jul 3
+- 72/100 (↓3) · P0: 1 · P1: 9 · P2: 20+ · open [aw]: 30
+
+## Do Not Re-File (cumulative through Jul 3)
+#41827,#41987,#41988,#42032,#42033,#42329,#42332,#42333,#42342,#42356,#42398,#42423,#42442,#42482,#42598,#42607,#42637,#42824,#42867,#42872,#42883,#42889,#42890,#42899,#42908,#42918,#42919,#42921,#42930,#42943,#42960,#43031,#43040,#43079,#43087,#43101,#43108,#43110
