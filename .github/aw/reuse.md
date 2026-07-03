@@ -43,12 +43,9 @@ imports:
   - path: shared/tool-setup.md
     with:
       environment: staging
-    env:
-      MY_OVERRIDE: "value"   # env vars for the import's context
-    checkout: main            # ref to check out for this import
 ```
 
-`with:` values are accessed inside the shared file as `${{ github.aw.import-inputs.<name> }}`.
+`path`/`uses` and `with`/`inputs` are the only valid keys on an import entry. To supply environment variables or a checkout ref, set top-level `env:`/`checkout:` frontmatter inside the imported file itself; those are merged into the importing workflow (see [syntax-tools-imports.md](syntax-tools-imports.md)). `with:` values are accessed inside the shared file as `${{ github.aw.import-inputs.<name> }}`.
 
 ---
 
