@@ -348,6 +348,18 @@ constants.ExpressionBreakThreshold   // 100 — threshold at which long lines ge
 constants.CLIExtensionPrefix         // "gh aw" — user-facing CLI prefix
 ```
 
+## File Permission Constants
+
+Standard `fs.FileMode` values for consistent file and directory creation:
+
+```go
+constants.FilePermSensitive  // 0o600 — owner-only read/write (config files, credentials)
+constants.FilePermPublic     // 0o644 — owner read/write + world read (normal files)
+constants.FilePermExecutable // 0o755 — owner/group/world executable (scripts, binaries)
+constants.DirPermSensitive   // 0o750 — owner+group access (sensitive directories)
+constants.DirPermPublic      // 0o755 — standard non-sensitive directory access
+```
+
 ## Runtime Configuration
 
 ```go
