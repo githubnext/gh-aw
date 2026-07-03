@@ -1,12 +1,12 @@
 ### 📊 Performance Summary
 
-**Date**: 2026-06-30  
-**Analysis Status**: ✅ All benchmarks stable
+**Date**: 2026-07-03  
+**Analysis Status**: ✅ All benchmarks stable (baseline run — first entry in history)
 
 ### 🎯 Key Metrics
 
-- **Total Benchmarks**: 8
-- **Stable**: 1
+- **Total Benchmarks**: 9
+- **Stable**: 0
 - **Warnings**: 0
 - **Regressions**: 0
 - **Improvements**: 0
@@ -14,96 +14,63 @@
 <details>
 <summary>📈 Detailed Benchmark Results</summary>
 
-#### ✨ CompileComplexWorkflow
+#### ℹ️ CompileComplexWorkflow
 
-- **Current**: 5.33ms
-- **Historical Average**: 6.83ms
-- **Change**: -21.9%
-- **Memory**: 1526242 B/op
-- **Allocations**: 10930 allocs/op
-- **Status**: ✅ IMPROVEMENT: -21.9% faster than historical average
+- **Current**: 5.44ms
+- **Memory**: 1,586,266 B/op
+- **Allocations**: 11211 allocs/op
 
-#### ✨ CompileMCPWorkflow
+#### ℹ️ CompileMCPWorkflow
 
-- **Current**: 327.77µs
-- **Historical Average**: 411.36µs
-- **Change**: -20.3%
-- **Memory**: 127600 B/op
-- **Allocations**: 2255 allocs/op
-- **Status**: ✅ IMPROVEMENT: -20.3% faster than historical average
+- **Current**: 323.05µs
+- **Memory**: 127,856 B/op
+- **Allocations**: 2261 allocs/op
 
-#### ✨ CompileMemoryUsage
+#### ℹ️ CompileMemoryUsage
 
-- **Current**: 4.85ms
-- **Historical Average**: 6.07ms
-- **Change**: -20.1%
-- **Memory**: 1279842 B/op
-- **Allocations**: 9159 allocs/op
-- **Status**: ✅ IMPROVEMENT: -20.1% faster than historical average
+- **Current**: 4.87ms
+- **Memory**: 1,441,944 B/op
+- **Allocations**: 9406 allocs/op
 
-#### ✨ CompileSimpleWorkflow
+#### ℹ️ CompileSimpleWorkflow
 
-- **Current**: 3.39ms
-- **Historical Average**: 4.55ms
-- **Change**: -25.6%
-- **Memory**: 969333 B/op
-- **Allocations**: 6012 allocs/op
-- **Status**: ✅ IMPROVEMENT: -25.7% faster than historical average
+- **Current**: 3.85ms
+- **Memory**: 991,549 B/op
+- **Allocations**: 6205 allocs/op
 
-#### ✓ ExtractWorkflowNameFromFile
+#### ℹ️ ExtractWorkflowNameFromFile
 
-- **Current**: 7.35µs
-- **Historical Average**: 7.15µs
-- **Change**: +2.9%
+- **Current**: 7.21µs
 - **Memory**: 262 B/op
 - **Allocations**: 7 allocs/op
-- **Status**: ✓ STABLE: 2.9% change from historical average
 
-#### ✨ ParseWorkflow
+#### ℹ️ FindIncludesInContent
 
-- **Current**: 254.84µs
-- **Historical Average**: 288.49µs
-- **Change**: -11.7%
-- **Memory**: 94168 B/op
-- **Allocations**: 1689 allocs/op
-- **Status**: ✅ IMPROVEMENT: -11.7% faster than historical average
+- **Current**: 161ns
+- **Memory**: 64 B/op
+- **Allocations**: 1 allocs/op
 
-#### ✨ Validation
+#### ℹ️ ParseWorkflow
 
-- **Current**: 32.54µs
-- **Historical Average**: 55.44µs
-- **Change**: -41.3%
-- **Memory**: 3290 B/op
+- **Current**: 261.31µs
+- **Memory**: 94,376 B/op
+- **Allocations**: 1695 allocs/op
+
+#### ℹ️ Validation
+
+- **Current**: 33.55µs
+- **Memory**: 3,290 B/op
 - **Allocations**: 55 allocs/op
-- **Status**: ✅ IMPROVEMENT: -41.3% faster than historical average
 
-#### ✨ YAMLGeneration
+#### ℹ️ YAMLGeneration
 
-- **Current**: 3.78ms
-- **Historical Average**: 5.52ms
-- **Change**: -31.5%
-- **Memory**: 934522 B/op
-- **Allocations**: 5464 allocs/op
-- **Status**: ✅ IMPROVEMENT: -31.5% faster than historical average
-
-</details>
-
-<details>
-<summary>📉 Historical Comparisons</summary>
-
-#### ✨ Improvements
-
-- **CompileSimpleWorkflow**: -25.6% faster (was 4.55ms, now 3.39ms)
-- **CompileComplexWorkflow**: -21.9% faster (was 6.83ms, now 5.33ms)
-- **CompileMCPWorkflow**: -20.3% faster (was 411.36µs, now 327.77µs)
-- **CompileMemoryUsage**: -20.1% faster (was 6.07ms, now 4.85ms)
-- **ParseWorkflow**: -11.7% faster (was 288.49µs, now 254.84µs)
-- **Validation**: -41.3% faster (was 55.44µs, now 32.54µs)
-- **YAMLGeneration**: -31.5% faster (was 5.52ms, now 3.78ms)
+- **Current**: 3.77ms
+- **Memory**: 939,669 B/op
+- **Allocations**: 5666 allocs/op
 
 </details>
 
 ### 💡 Recommendations
 
-1. Continue monitoring performance daily
-2. Performance is stable - good work!
+1. Baseline established — history will grow over daily runs
+2. Performance is within expected range — good work!
