@@ -128,31 +128,27 @@ Store as JSON Lines in `/tmp/gh-aw/repo-memory/default/history.jsonl`:
 
 {{#if experiments.output_format == 'full_detail' }}
 Generate **6 high-quality charts** to visualize code metrics and trends using Python, matplotlib, and seaborn. All charts must be uploaded as assets and embedded in the discussion report.
+{{#else}}
+Generate **2 high-quality charts** focusing on the most actionable signals:
+{{/if}}
 
 ### Required Charts
 
 | # | Filename | Description |
 |---|----------|-------------|
+{{#if experiments.output_format == 'full_detail' }}
 | 1 | `loc_by_language.png` | Horizontal bar chart of LOC by language (sorted descending, percentage labels, language-type colors, total LOC in title). |
 | 2 | `top_directories.png` | Horizontal bar chart of top 10 directories by LOC (full paths, LOC and percent, highlight `cmd`/`pkg`/`docs`/`workflows`, distinct directory-type colors). |
 | 3 | `quality_score_breakdown.png` | Stacked bar or pie breakdown: Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target with red→green gradient. |
 | 4 | `test_coverage.png` | Grouped comparison of test vs source LOC by language, ratio visualization, optional trend indicator, recommended ratio marker (0.5–1.0). |
 | 5 | `code_churn.png` | Diverging bars for top 10 most changed source files (7d); **exclude** `*.lock.yml` and `actions-lock.json`; show added/deleted/net, color by file type. |
 | 6 | `historical_trends.png` | Multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. |
-
-All charts save to `/tmp/gh-aw/python/charts/<filename>`.
 {{#else}}
-Generate **2 high-quality charts** focusing on the most actionable signals:
-
-### Required Charts
-
-| # | Filename | Description |
-|---|----------|-------------|
 | 1 | `quality_score_breakdown.png` | Stacked bar or pie breakdown: Test Coverage 30%, Code Organization 25%, Documentation 20%, Churn Stability 15%, Comment Density 10%; show current vs target with red→green gradient. |
 | 2 | `historical_trends.png` | Multi-line 30-day trends for total LOC, test coverage %, and quality score with optional multi-axis scales, 7-day moving averages, and >10% annotations. |
+{{/if}}
 
 All charts save to `/tmp/gh-aw/python/charts/<filename>`.
-{{/if}}
 
 ### Python Script
 

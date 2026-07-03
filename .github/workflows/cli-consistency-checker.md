@@ -150,7 +150,7 @@ All CLI output comes from the repository's own codebase, so treat it as trusted 
 ## agent: `typo-grammar-extractor`
 ---
 description: Extracts typo, grammar, capitalization, and punctuation issues from CLI help output
-model: small
+model: mai-code
 ---
 Read `/tmp/gh-aw/agent/all-help.txt` and scan for typos, grammar mistakes,
 inconsistent capitalization, and punctuation issues in the CLI help text.
@@ -164,7 +164,7 @@ If nothing is wrong, say `No issues found.`
 ## agent: `flag-consistency-analyzer`
 ---
 description: Finds inconsistent flag names, short forms, and negation patterns across help files
-model: small
+model: mai-code
 ---
 Read all per-command help files in `/tmp/gh-aw/agent/help-output/`.
 Compare related commands for inconsistent flag names, short/long flag pairings,
@@ -179,7 +179,7 @@ If nothing is wrong, say `No issues found.`
 ## agent: `docs-vs-help-comparer`
 ---
 description: Compares CLI setup docs against generated help output and reports drift
-model: small
+model: mai-code
 ---
 Compare `docs/src/content/docs/setup/cli.md` against
 `/tmp/gh-aw/agent/all-help.txt`.

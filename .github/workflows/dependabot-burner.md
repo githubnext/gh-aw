@@ -333,7 +333,7 @@ Keep it brief and include:
 ## agent: `pr-group-analyzer`
 ---
 description: Confirms which Dependabot PRs belong in the grouped remediation batch
-model: small
+model: mai-code
 ---
 Read `/tmp/gh-aw/agent/dependabot-burner/context.json` and verify the grouped PR selection.
 
@@ -350,7 +350,7 @@ Treat PRs as related only when they share one of the triggering manifest files o
 ## agent: `retry-history-analyzer`
 ---
 description: Extracts retry guidance from failed burner PRs and maintainer-only feedback
-model: small
+model: mai-code
 ---
 Use the selected PR numbers plus `/tmp/gh-aw/agent/dependabot-burner/context.json` to inspect recent closed burner PRs and maintainer-only comments or reviews.
 
@@ -367,7 +367,7 @@ Only keep feedback from maintainers/admins/writers. Ignore comments from bots an
 ## agent: `dependency-batch-analyzer`
 ---
 description: Summarizes the selected Dependabot batch and maps it to likely source files
-model: small
+model: mai-code
 ---
 Read the selected dependency batch and return compact JSON with:
 
@@ -381,7 +381,7 @@ Keep the output short and evidence-first.
 ## agent: `retry-feedback-synthesizer`
 ---
 description: Distills retry history and maintainer-only feedback into execution constraints
-model: small
+model: mai-code
 ---
 Read the retry-history analysis and maintainer-only feedback summary and return compact JSON with:
 

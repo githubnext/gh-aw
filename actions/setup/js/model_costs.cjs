@@ -102,6 +102,7 @@ function providerIncludesCacheReadsInInput(provider) {
     case "openai":
     case "azure-openai":
     case "azure_openai":
+    case "github-copilot": // proxies OpenAI and Anthropic models that bundle cache reads in input
       return true;
     default:
       return false;

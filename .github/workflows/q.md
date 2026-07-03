@@ -448,7 +448,7 @@ Begin your investigation now. Gather live data, analyze it thoroughly, make targ
 
 ## agent: `log-triage`
 ---
-model: small
+model: mai-code
 description: Parse downloaded gh-aw log JSON files and emit a structured findings summary covering missing tools, permission errors, repetitive MCP calls, and high-cost runs
 ---
 You are a log triage assistant. You receive a newline-separated list of file paths pointing to downloaded gh-aw log JSON files (located under `/tmp/gh-aw/aw-mcp/logs`).
@@ -476,7 +476,7 @@ Include a brief `summary` string (1–3 sentences) describing the most significa
 
 ## agent: `workflow-file-scanner`
 ---
-model: small
+model: mai-code
 description: Read a target .github/workflows/<name>.md file and emit its frontmatter fields, tools, permissions, imports, safe-outputs, prompt-section count, and any obvious config issues
 ---
 You are a workflow file analysis assistant. You receive a single file path to a `.github/workflows/<name>.md` workflow file.

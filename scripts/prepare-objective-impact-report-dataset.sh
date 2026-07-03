@@ -226,5 +226,3 @@ jq -n \
     ]
   }
 ' > "$DATA_DIR/dataset-manifest.json"
-
-node scripts/prepare-objective-impact-safe-output-evaluations.cjs
