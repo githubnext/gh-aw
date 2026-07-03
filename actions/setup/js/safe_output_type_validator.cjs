@@ -711,6 +711,9 @@ function validateItem(item, itemType, lineNum, options) {
   }
 
   const normalizedItem = { ...item };
+  for (const fieldName of Object.keys(typeConfig.fields)) {
+    delete normalizedItem[fieldName];
+  }
   const errors = [];
 
   // Run custom validation first if defined
@@ -732,6 +735,8 @@ function validateItem(item, itemType, lineNum, options) {
       delete normalizedItem[fieldName];
     } else if (result.normalizedValue !== undefined) {
       normalizedItem[fieldName] = result.normalizedValue;
+    } else if (Object.prototype.hasOwnProperty.call(item, fieldName)) {
+      normalizedItem[fieldName] = fieldValue;
     }
   }
 
