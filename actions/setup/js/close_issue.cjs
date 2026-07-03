@@ -33,19 +33,25 @@ function parseDuplicateOf(value, defaultOwner, defaultRepo) {
   // Bare number or "#NUMBER" — positive integers only (no #0 or 0)
   const bareMatch = str.match(/^#?([1-9]\d*)$/);
   if (bareMatch) {
-    return { owner: defaultOwner, repo: defaultRepo, issueNumber: parseInt(bareMatch[1], 10) };
+    const issueNumber = parseInt(bareMatch[1], 10);
+    if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) return null;
+    return { owner: defaultOwner, repo: defaultRepo, issueNumber };
   }
 
   // "owner/repo#NUMBER" — owner and repo must not contain '/' or '#'
   const refMatch = str.match(/^([\w.-]+)\/([\w.-]+)#([1-9]\d*)$/);
   if (refMatch) {
-    return { owner: refMatch[1], repo: refMatch[2], issueNumber: parseInt(refMatch[3], 10) };
+    const issueNumber = parseInt(refMatch[3], 10);
+    if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) return null;
+    return { owner: refMatch[1], repo: refMatch[2], issueNumber };
   }
 
   // GitHub issue URL: https://github.com/owner/repo/issues/NUMBER — stop at path/query/fragment
   const urlMatch = str.match(/^https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/([1-9]\d*)(?:[?#/].*)?$/);
   if (urlMatch) {
-    return { owner: urlMatch[1], repo: urlMatch[2], issueNumber: parseInt(urlMatch[3], 10) };
+    const issueNumber = parseInt(urlMatch[3], 10);
+    if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) return null;
+    return { owner: urlMatch[1], repo: urlMatch[2], issueNumber };
   }
 
   return null;
@@ -262,6 +268,9 @@ async function main(config = {}) {
 
         // When duplicate_of is provided and state_reason is DUPLICATE, create the native duplicate relationship
         const stateReasonUpper = stateReason.toUpperCase();
+        if (item.duplicate_of !== undefined && item.duplicate_of !== null && stateReasonUpper !== "DUPLICATE") {
+          core.warning(`duplicate_of is set but state_reason is ${stateReason} (not DUPLICATE); native duplicate marking will be skipped`);
+        }
         if (item.duplicate_of !== undefined && item.duplicate_of !== null && stateReasonUpper === "DUPLICATE") {
           const parsed = parseDuplicateOf(item.duplicate_of, owner, repo);
           if (parsed) {
@@ -283,7 +292,7 @@ async function main(config = {}) {
             return closePromise.then(async closedEntity => {
               try {
                 await markIssueAsDuplicate(github, closedEntity.node_id, parsed.owner, parsed.repo, parsed.issueNumber);
-                core.info(`✓ Marked issue #${entityNumber} as duplicate of #${parsed.issueNumber}`);
+                core.info(`✓ Marked issue #${entityNumber} as duplicate of ${parsed.owner}/${parsed.repo}#${parsed.issueNumber}`);
               } catch (dupError) {
                 core.warning(`Failed to mark native duplicate relationship for #${entityNumber}: ${getErrorMessage(dupError)}`);
               }

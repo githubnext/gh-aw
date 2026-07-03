@@ -1166,5 +1166,89 @@ describe("close_issue", () => {
       expect(graphqlCalls.length).toBe(0);
       expect(mockCore.warnings.some(w => w.includes("cannot be a duplicate of itself"))).toBe(true);
     });
+
+    it("should call markAsDuplicate when state_reason is lowercase 'duplicate'", async () => {
+      const handler = await main({ max: 10 });
+      const graphqlCalls = [];
+
+      mockGithub.rest.issues.get = async ({ owner, repo, issue_number }) => ({
+        data: {
+          number: issue_number,
+          title: "Test Issue",
+          labels: [],
+          html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}`,
+          state: "open",
+          node_id: `node_${issue_number}`,
+        },
+      });
+
+      mockGithub.rest.issues.update = async params => ({
+        data: {
+          number: params.issue_number,
+          title: "Test Issue",
+          html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          node_id: `node_${params.issue_number}`,
+        },
+      });
+
+      mockGithub.graphql = async (mutation, variables) => {
+        graphqlCalls.push(variables);
+        return {};
+      };
+
+      const result = await handler({ issue_number: 1000, body: "Duplicate", state_reason: "duplicate", duplicate_of: "#99" }, {});
+
+      expect(result.success).toBe(true);
+      expect(graphqlCalls.length).toBe(1);
+      expect(graphqlCalls[0].canonicalId).toBe("node_99");
+    });
+
+    it("should warn and succeed when REST fetch for canonical issue fails", async () => {
+      const handler = await main({ max: 10, state_reason: "DUPLICATE" });
+
+      mockGithub.rest.issues.update = async params => ({
+        data: {
+          number: params.issue_number,
+          title: "Test Issue",
+          html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          node_id: `node_${params.issue_number}`,
+        },
+      });
+
+      // issues.get for canonical issue (10) throws; all other calls succeed
+      mockGithub.rest.issues.get = async ({ owner, repo, issue_number }) => {
+        if (issue_number === 10) throw new Error("Not Found");
+        return {
+          data: {
+            number: issue_number,
+            title: "Test Issue",
+            labels: [],
+            html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}`,
+            state: "open",
+          },
+        };
+      };
+
+      const result = await handler({ issue_number: 1001, body: "Duplicate close", duplicate_of: 10 }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockCore.warnings.some(w => w.includes("Failed to mark native duplicate"))).toBe(true);
+    });
+
+    it("should warn when duplicate_of is set but state_reason is not DUPLICATE", async () => {
+      const handler = await main({ max: 10 });
+      const graphqlCalls = [];
+
+      mockGithub.graphql = async (mutation, variables) => {
+        graphqlCalls.push(variables);
+        return {};
+      };
+
+      const result = await handler({ issue_number: 1002, body: "Completed", state_reason: "COMPLETED", duplicate_of: 50 }, {});
+
+      expect(result.success).toBe(true);
+      expect(graphqlCalls.length).toBe(0);
+      expect(mockCore.warnings.some(w => w.includes("not DUPLICATE"))).toBe(true);
+    });
   });
 });
