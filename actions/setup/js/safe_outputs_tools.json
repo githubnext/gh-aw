@@ -512,7 +512,7 @@
   },
   {
     "name": "dismiss_pull_request_review",
-    "description": "Dismiss a pull request review. The review must be authored by the same workflow actor who is dismissing it. By default, the actor is inferred from the current GitHub Actions context (typically github-actions[bot]). You must provide a justification of at least 20 characters.",
+    "description": "Dismiss a pull request review. The review must be authored by the same workflow actor who is dismissing it. By default, the actor is inferred from the current GitHub Actions context (github.actor / GITHUB_ACTOR). You must provide a justification of at least 20 characters.",
     "inputSchema": {
       "type": "object",
       "required": ["review_id", "justification"],
