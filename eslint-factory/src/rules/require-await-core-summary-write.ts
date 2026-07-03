@@ -14,6 +14,17 @@ function isWriteProperty(node: TSESTree.MemberExpression): boolean {
   return isDirectAccess || isComputedAccess;
 }
 
+function getRootIdentifier(node: TSESTree.Node): string | null {
+  if (node.type === "Identifier") return node.name;
+  if (node.type === "MemberExpression") return getRootIdentifier(node.object);
+  if (node.type === "CallExpression") return getRootIdentifier(node.callee);
+  return null;
+}
+
+function isCoreLikeIdentifier(name: string): boolean {
+  return /^core/i.test(name);
+}
+
 /**
  * Checks whether a node is rooted in a `.summary` member access, possibly through
  * a chain of method calls (e.g., `core.summary.addRaw(x).write()`).
@@ -25,6 +36,8 @@ function isWriteProperty(node: TSESTree.MemberExpression): boolean {
  *   - `coreObj.summary` (any identifier alias)
  */
 function rootsSummary(node: TSESTree.Node): boolean {
+  const rootIdentifier = getRootIdentifier(node);
+  if (!rootIdentifier || !isCoreLikeIdentifier(rootIdentifier)) return false;
   if (node.type === "MemberExpression") {
     const property = node.property;
     const isSummaryProp = (!node.computed && property.type === "Identifier" && property.name === "summary") || (node.computed && property.type === "Literal" && property.value === "summary");
@@ -42,7 +55,7 @@ function rootsSummary(node: TSESTree.Node): boolean {
  * whether `await` is currently valid — the suggestion is only safe to apply
  * in an async context.
  */
-function isInsideAsyncFunction(node: TSESTree.Node, ancestors: TSESTree.Node[]): boolean {
+function isInsideAsyncFunction(ancestors: TSESTree.Node[]): boolean {
   for (let i = ancestors.length - 1; i >= 0; i--) {
     const ancestor = ancestors[i];
     if (ASYNC_FUNCTION_TYPES.has(ancestor.type)) {
@@ -90,7 +103,7 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
         // Only offer the `await` suggestion when already inside an async function —
         // applying `await` outside an async context would produce a syntax error.
         const ancestors = context.sourceCode.getAncestors(node);
-        const suggest = isInsideAsyncFunction(node, ancestors)
+        const suggest = isInsideAsyncFunction(ancestors)
           ? [
               {
                 messageId: "addAwait" as const,

@@ -33,7 +33,7 @@ describe("require-await-core-summary-write", () => {
         `async function f() { const p = core.summary.write(); }`,
         `async function f() { return core.summary.addRaw(x).write(); }`,
         // assignment expression (without declaration) also propagates the Promise
-        `async function f() { p = core.summary.write(); }`,
+        `async function f() { let p; p = core.summary.write(); }`,
       ],
       invalid: [],
     });
@@ -46,6 +46,14 @@ describe("require-await-core-summary-write", () => {
         {
           code: `async function f() { core.summary.write(); }`,
           errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { await core.summary.write(); }` }] }],
+        },
+        {
+          code: `const f = async () => { core.summary.write(); };`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `const f = async () => { await core.summary.write(); };` }] }],
+        },
+        {
+          code: `const f = async function() { core.summary.write(); };`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `const f = async function() { await core.summary.write(); };` }] }],
         },
       ],
     });
@@ -85,7 +93,7 @@ describe("require-await-core-summary-write", () => {
 
   it("valid: unrelated .write() calls are not flagged", () => {
     cjsRuleTester.run("require-await-core-summary-write", requireAwaitCoreSummaryWriteRule, {
-      valid: [`fs.write(fd, buffer);`, `stream.write(data);`, `core.info("hello");`, `foo.bar.write();`],
+      valid: [`fs.write(fd, buffer);`, `stream.write(data);`, `core.info("hello");`, `foo.bar.write();`, `fs.summary.write();`, `db.summary.write();`, `foo.bar.summary.write();`],
       invalid: [],
     });
   });
@@ -102,6 +110,10 @@ describe("require-await-core-summary-write", () => {
         {
           // Inside a non-async function: flagged, but no suggestion
           code: `function f() { core.summary.write(); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [] }],
+        },
+        {
+          code: `const f = () => { core.summary.write(); };`,
           errors: [{ messageId: "requireAwait", suggestions: [] }],
         },
       ],
@@ -136,6 +148,15 @@ describe("require-await-core-summary-write", () => {
             {
               messageId: "requireAwait",
               suggestions: [{ messageId: "addAwait", output: `async function f() { await coreObj.summary.write(); }` }],
+            },
+          ],
+        },
+        {
+          code: `(async () => { core.summary.write(); })()`,
+          errors: [
+            {
+              messageId: "requireAwait",
+              suggestions: [{ messageId: "addAwait", output: `(async () => { await core.summary.write(); })()` }],
             },
           ],
         },
