@@ -1623,6 +1623,25 @@ describe("copilot_harness.cjs", () => {
       expect(logs.some(msg => msg.includes("clamping max delay"))).toBe(true);
     });
 
+    it("accepts max-retries=0 to disable retries entirely", () => {
+      const retryConfig = resolveRetryConfig({ GH_AW_HARNESS_MAX_RETRIES: "0" });
+      expect(retryConfig.maxRetries).toBe(0);
+    });
+
+    it("clamps max-retries to 100 when given an excessively large value", () => {
+      const logs = [];
+      const retryConfig = resolveRetryConfig({ GH_AW_HARNESS_MAX_RETRIES: "9999" }, msg => logs.push(msg));
+      expect(retryConfig.maxRetries).toBe(100);
+      expect(logs.some(msg => msg.includes("GH_AW_HARNESS_MAX_RETRIES"))).toBe(true);
+    });
+
+    it("rejects non-decimal integer formats such as '1e3' and '0x10'", () => {
+      const config1 = resolveRetryConfig({ GH_AW_HARNESS_MAX_RETRIES: "1e3" });
+      expect(config1.maxRetries).toBe(3);
+      const config2 = resolveRetryConfig({ GH_AW_HARNESS_INITIAL_DELAY_MS: "0x10" });
+      expect(config2.initialDelayMs).toBe(5000);
+    });
+
     it("exponential backoff does not exceed max delay", () => {
       const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = resolveRetryConfig({
         GH_AW_HARNESS_MAX_RETRIES: "3",
