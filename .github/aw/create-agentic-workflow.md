@@ -45,8 +45,20 @@ When triggered from a workflow-creation issue form, read the form fields and gen
 - Keep the conversation short and iterative.
 - Translate user intent into workflow structure.
 - Ask about the trigger, desired action, and required write outputs.
+- When the user asks for exploration, evaluation, or scenario design rather than file creation, stay in ad hoc evaluation mode.
+- In ad hoc evaluation mode, do not create `.github/workflows/*.md`.
 - Do not overwhelm the user with long option dumps unless they ask.
 - If the request exceeds the single-job model, explain the constraint and recommend traditional GitHub Actions.
+
+## Ad Hoc Evaluation Mode
+
+Use this mode for exploratory testing, persona walkthroughs, and "what workflow would you create for this scenario?" requests.
+
+- Do not create or edit workflow files.
+- Return a compact recommendation covering trigger, any scoped `paths:` filters for file-event triggers, read tools, safe outputs, permissions, and explicit `noop` criteria.
+- For recurring reports or digests, always include the report window, grouping dimensions, and deduplication key. See [triggers.md](triggers.md) for key-format examples.
+- Exit ad hoc evaluation mode only when the user explicitly asks to create, implement, or write the workflow file.
+- End by offering to turn the recommendation into `.github/workflows/<workflow-id>.md` if the user wants to proceed.
 
 ## Design Checklist
 
@@ -99,6 +111,16 @@ When the digest depends on labels, metadata, or classification fields (for examp
 - group by the next-best available dimension (for example repository, author, date, or milestone)
 - use an explicit "Unclassified" bucket for items without required metadata — do not invent or assume classifications
 - call `noop` only when the reporting window itself has zero events; missing metadata is not a reason to skip the digest
+
+### 2aa. Persona-oriented scenario quick map
+
+Use these defaults when the requester frames the automation in non-engineering persona language:
+
+| Persona or scenario | Trigger and scope | Typical tools and outputs | Required prompt details |
+|---|---|---|---|
+| Program Manager or information-worker digest | `schedule` plus `workflow_dispatch` for previews, reruns, and backfills | `github` (`gh-proxy`); `create-issue` by default | Define the report window, grouping dimensions, deduplication key, and `noop` behavior for empty windows |
+| Designer or design-governance review | `pull_request` with `paths:` scoped to UI, design-token, copy, or asset files | `github` (`gh-proxy`); optional `playwright`; `add-comment` on the PR | State the review rubric (for example accessibility, token consistency, asset policy), and call `noop` when scoped files are unchanged |
+| Legal / compliance / documentation-policy review | `pull_request` with scoped `paths:` or `schedule` for recurring audits | `github` (`gh-proxy`); `add-comment` for findings; `create-issue` only for violations needing follow-up | Classify findings against the policy, search for existing open issues before escalating, and call `noop` when there is no in-scope change or violation |
 
 ### 2b. Backend review compact guidance
 
