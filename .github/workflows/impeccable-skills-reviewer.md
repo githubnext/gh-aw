@@ -67,7 +67,7 @@ safe-outputs:
     run-success: "🧵 [{workflow_name}]({run_url}) has completed the skills-based review. ✅"
     run-failure: "🧵 [{workflow_name}]({run_url}) {status} during the skills-based review."
 max-daily-ai-credits: 10000
-timeout-minutes: 15
+timeout-minutes: 20
 
 ---
 
