@@ -42,6 +42,7 @@ func (c *Compiler) generateArcDindArtifactConsolidationStep(yaml *strings.Builde
 	// permissions/timestamps, --no-clobber skips existing files.
 	yaml.WriteString("          # Consolidate /tmp/gh-aw/ into ${RUNNER_TEMP}/gh-aw/ for single-root artifact upload\n")
 	yaml.WriteString("          if [ -d /tmp/gh-aw ]; then\n")
+	yaml.WriteString("            mkdir -p \"${RUNNER_TEMP}/gh-aw\"\n")
 	fmt.Fprintf(yaml, "            cp -a --no-clobber /tmp/gh-aw/. \"${RUNNER_TEMP}/gh-aw/\" 2>/dev/null || \\\n")
 	fmt.Fprintf(yaml, "              cp -a /tmp/gh-aw/. \"${RUNNER_TEMP}/gh-aw/\" 2>/dev/null || true\n")
 	yaml.WriteString("          fi\n")
