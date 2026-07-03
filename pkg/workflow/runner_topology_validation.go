@@ -86,13 +86,17 @@ func findRootRequiringPatterns(content string) []string {
 			continue
 		}
 
-		if _, ok := seen["sudo"]; containsSudoCommand(trimmed) && !ok {
-			seen["sudo"] = struct{}{}
-			violations = append(violations, "sudo")
+		if containsSudoCommand(trimmed) {
+			if _, ok := seen["sudo"]; !ok {
+				seen["sudo"] = struct{}{}
+				violations = append(violations, "sudo")
+			}
 		}
-		if _, ok := seen["apt-get install"]; containsAptGetInstall(trimmed) && !ok {
-			seen["apt-get install"] = struct{}{}
-			violations = append(violations, "apt-get install")
+		if containsAptGetInstall(trimmed) {
+			if _, ok := seen["apt-get install"]; !ok {
+				seen["apt-get install"] = struct{}{}
+				violations = append(violations, "apt-get install")
+			}
 		}
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -59,6 +60,7 @@ func probeServer(ctx context.Context, client *http.Client, url string) (bool, er
 		return false, nil //nolint:nilerr // probe failure is expected during startup
 	}
 	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
 		if closeErr := resp.Body.Close(); closeErr != nil {
 			mcpInspectLog.Printf("Warning: failed to close response body: %v", closeErr)
 		}
