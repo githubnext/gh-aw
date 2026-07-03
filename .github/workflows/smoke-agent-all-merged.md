@@ -61,14 +61,14 @@ Test GitHub MCP tool access under this guard policy by performing these operatio
 
 ### Step 1: Search public repositories
 
-Use `search_repositories` to search for `topic:actions` and return the top 3 results. Record:
+Use `search_repositories` with `perPage: 3` to search for `topic:actions` and return the top 3 results. Record:
 - Repository full name (owner/repo)
 - Star count
 - Whether access was allowed or denied
 
 ### Step 2: Search repositories in the github org
 
-Use `search_repositories` to search for `org:github gh-aw` to find repositories in the github org. Record:
+Use `search_repositories` with `perPage: 3` to search for `org:github gh-aw` to find repositories in the github org. Record:
 - Repository full name
 - Whether access was allowed or denied
 

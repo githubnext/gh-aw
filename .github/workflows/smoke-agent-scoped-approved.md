@@ -66,7 +66,7 @@ Use `list_issues` on `${{ github.repository }}` with `state: open` and `per_page
 
 ### Step 2: Search repositories in the github org (should succeed)
 
-Use `search_repositories` to search for `org:github gh-aw`. These match `github/*` pattern. Record:
+Use `search_repositories` with `perPage: 3` to search for `org:github gh-aw`. These match `github/*` pattern. Record:
 - Repository full name
 - Whether access was allowed or denied
 
@@ -78,7 +78,7 @@ Use `list_issues` on `actions/checkout` with `state: open` and `per_page: 3`. Th
 
 ### Step 4: Search repositories outside github org (should be blocked)
 
-Use `search_repositories` to search for `topic:actions org:actions` to find repos in the `actions` org. These should NOT be accessible. Record:
+Use `search_repositories` with `perPage: 3` to search for `topic:actions org:actions` to find repos in the `actions` org. These should NOT be accessible. Record:
 - Whether access was allowed or denied
 - Any error message received
 
