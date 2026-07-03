@@ -496,7 +496,7 @@ This workflow tests that copilot assignment is wired in consolidated safe output
 	}
 }
 
-func TestOutputIssueDeduplcateByTitleBoolTrue(t *testing.T) {
+func TestOutputIssueDeduplicateByTitleBoolTrue(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "output-issue-dedup-bool")
 
 	testContent := `---
@@ -542,7 +542,7 @@ This workflow tests that deduplicate-by-title: true is emitted in the handler co
 	}
 }
 
-func TestOutputIssueDeduplcateByTitleIntZero(t *testing.T) {
+func TestOutputIssueDeduplicateByTitleIntZero(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "output-issue-dedup-zero")
 
 	testContent := `---
