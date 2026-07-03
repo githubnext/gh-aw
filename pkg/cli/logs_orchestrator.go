@@ -251,6 +251,11 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	// When no date filters, we fetch up to 'count' runs with artifacts (old behavior for backward compatibility)
 	fetchAllInRange := startDate != "" || endDate != ""
 
+	// countLimitReached is set when the loop exits because len(processedRuns) >= count in
+	// fetchAllInRange mode.  It signals that more runs may be available in the date window
+	// and drives continuation-data generation so callers can page through the full range.
+	var countLimitReached bool
+
 	// Iterative algorithm: keep fetching runs until we have enough or exhaust available runs
 outerLoop:
 	for iteration < MaxIterations {
@@ -285,8 +290,13 @@ outerLoop:
 			}
 		}
 
-		// Stop if we've collected enough processed runs
+		// Stop if we've collected enough processed runs.
+		// In fetchAllInRange mode, record that we hit the count limit so the caller
+		// can paginate to retrieve runs that fall outside this batch.
 		if len(processedRuns) >= count {
+			if fetchAllInRange {
+				countLimitReached = true
+			}
 			break
 		}
 
@@ -681,14 +691,33 @@ outerLoop:
 		processedRuns = processedRuns[:count]
 	}
 
-	// Build continuation data if timeout was reached and there are processed runs
+	// Build continuation data if timeout was reached and there are processed runs,
+	// OR if a date-range fetch hit the count limit (more runs may exist in the window).
 	var continuation *ContinuationData
-	if timeoutReached && len(processedRuns) > 0 {
+	switch {
+	case timeoutReached && len(processedRuns) > 0:
 		// Get the oldest run ID from processed runs to use as before_run_id for continuation
 		oldestRunID := processedRuns[len(processedRuns)-1].Run.DatabaseID
 
 		continuation = &ContinuationData{
 			Message:      "Timeout reached. Use these parameters to continue fetching more logs.",
+			WorkflowName: workflowName,
+			Count:        count,
+			StartDate:    startDate,
+			EndDate:      endDate,
+			Engine:       engine,
+			Branch:       ref,
+			AfterRunID:   afterRunID,
+			BeforeRunID:  oldestRunID, // Continue from where we left off
+			Timeout:      timeoutMinutes,
+		}
+	case countLimitReached && len(processedRuns) > 0:
+		// In fetchAllInRange mode the date window may contain more runs than count.
+		// Provide a continuation cursor so callers can page through the full range.
+		oldestRunID := processedRuns[len(processedRuns)-1].Run.DatabaseID
+
+		continuation = &ContinuationData{
+			Message:      "Count limit reached. Use these parameters to continue fetching more logs from the same date range.",
 			WorkflowName: workflowName,
 			Count:        count,
 			StartDate:    startDate,
