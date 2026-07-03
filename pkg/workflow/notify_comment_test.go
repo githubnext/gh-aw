@@ -1355,6 +1355,9 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(allSteps, "safe-outputs-items") {
 		t.Errorf("Expected safe-outputs-items artifact name to appear in the download step.\nGenerated steps:\n%s", allSteps)
 	}
+	if !strings.Contains(allSteps, "id: download-safe-outputs-manifest") {
+		t.Errorf("Expected download step to have an id field for observability.\nGenerated steps:\n%s", allSteps)
+	}
 	// Verify download step appears before collect step so the manifest is available
 	// when generate_usage_activity_summary.cjs runs.
 	downloadIdx := strings.Index(allSteps, "Download safe outputs items manifest")

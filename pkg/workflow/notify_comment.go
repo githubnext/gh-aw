@@ -84,6 +84,7 @@ func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string)
 	safeOutputsItemsArtifactName := prefix + constants.SafeOutputItemsArtifactName
 	return []string{
 		"      - name: Download safe outputs items manifest\n",
+		"        id: download-safe-outputs-manifest\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")),

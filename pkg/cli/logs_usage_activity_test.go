@@ -276,3 +276,30 @@ func TestLoadUsageActivitySummaryWithSafeOutputs(t *testing.T) {
 	assert.Equal(t, 4, summary.SafeOutputs.TotalItems, "total_items should be parsed from JSON")
 	assert.Equal(t, map[string]int{"create_issue": 3, "add_comment": 1}, summary.SafeOutputs.ItemsByType, "items_by_type should be parsed from JSON")
 }
+
+// TestLoadThenApplyUsageActivitySummaryBackfillsSafeItemsCount exercises the processor
+// call order: loadUsageActivitySummary followed by applyUsageActivitySummaryToResult,
+// verifying that SafeItemsCount is backfilled end-to-end from a summary.json file.
+func TestLoadThenApplyUsageActivitySummaryBackfillsSafeItemsCount(t *testing.T) {
+	t.Parallel()
+
+	runDir := t.TempDir()
+	summaryPath := filepath.Join(runDir, "usage", "activity", "summary.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(summaryPath), 0o755))
+	require.NoError(t, os.WriteFile(summaryPath, []byte(`{
+		"schema":"`+usageActivitySummarySchema+`",
+		"safe_outputs":{
+			"total_items":5,
+			"items_by_type":{"create_issue":3,"add_comment":2}
+		}
+	}`), 0o644))
+
+	summary, err := loadUsageActivitySummary(runDir)
+	require.NoError(t, err, "loadUsageActivitySummary should succeed")
+	require.NotNil(t, summary, "summary should be non-nil")
+
+	result := DownloadResult{}
+	applyUsageActivitySummaryToResult(summary, &result, true)
+
+	assert.Equal(t, 5, result.Run.SafeItemsCount, "SafeItemsCount should be backfilled from safe_outputs.total_items through the full load+apply pipeline")
+}

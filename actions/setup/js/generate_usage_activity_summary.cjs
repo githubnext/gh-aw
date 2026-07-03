@@ -376,14 +376,15 @@ function parseGatewayLogs() {
 
 /**
  * Parse the safe-output-items manifest and aggregate item counts by type.
- * Reads /tmp/gh-aw/safe-output-items.jsonl written by the safe_outputs job
- * and downloaded into the conclusion job via the safe-outputs-items artifact.
+ * Reads the JSONL file written by the safe_outputs job and downloaded into
+ * the conclusion job via the safe-outputs-items artifact.
  *
+ * @param {string} [manifestPath] - Path to the manifest file (defaults to MANIFEST_FILE_PATH)
  * @returns {{ total_items: number, items_by_type: Record<string, number> } | null}
  */
-function parseSafeOutputsManifest() {
-  const manifestPath = "/tmp/gh-aw/safe-output-items.jsonl";
+const MANIFEST_FILE_PATH = "/tmp/gh-aw/safe-output-items.jsonl";
 
+function parseSafeOutputsManifest(manifestPath = MANIFEST_FILE_PATH) {
   if (!fs.existsSync(manifestPath)) {
     return null;
   }
@@ -471,4 +472,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { parseFirewallLogs, parseSessionLogs, parseGatewayLogs, parseSafeOutputsManifest };
+module.exports = { parseFirewallLogs, parseSessionLogs, parseGatewayLogs, parseSafeOutputsManifest, MANIFEST_FILE_PATH };

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
@@ -83,39 +84,39 @@ describe("generate_usage_activity_summary.cjs", () => {
   });
 
   describe("parseSafeOutputsManifest", () => {
-    const manifestPath = "/tmp/gh-aw/safe-output-items.jsonl";
+    /** Unique manifest file path per test to avoid cross-test interference */
+    let manifestPath;
+
+    beforeEach(() => {
+      const testTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "safe-outputs-test-"));
+      manifestPath = path.join(testTmpDir, "safe-output-items.jsonl");
+    });
 
     afterEach(() => {
-      if (fs.existsSync(manifestPath)) {
-        fs.unlinkSync(manifestPath);
+      const dir = path.dirname(manifestPath);
+      if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true });
       }
     });
 
     it("returns null when the manifest file does not exist", () => {
-      // Ensure file is absent
-      if (fs.existsSync(manifestPath)) {
-        fs.unlinkSync(manifestPath);
-      }
-      const result = parseSafeOutputsManifest();
+      const result = parseSafeOutputsManifest(manifestPath);
       expect(result).toBeNull();
     });
 
     it("returns null when the manifest file is empty", () => {
-      fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
       fs.writeFileSync(manifestPath, "");
-      const result = parseSafeOutputsManifest();
+      const result = parseSafeOutputsManifest(manifestPath);
       expect(result).toBeNull();
     });
 
     it("returns null when the manifest contains only blank lines", () => {
-      fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
       fs.writeFileSync(manifestPath, "\n\n\n");
-      const result = parseSafeOutputsManifest();
+      const result = parseSafeOutputsManifest(manifestPath);
       expect(result).toBeNull();
     });
 
     it("counts items by type from a valid manifest", () => {
-      fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
       const lines = [
         JSON.stringify({ type: "create_issue", url: "https://github.com/owner/repo/issues/1" }),
         JSON.stringify({ type: "create_issue", url: "https://github.com/owner/repo/issues/2" }),
@@ -123,7 +124,7 @@ describe("generate_usage_activity_summary.cjs", () => {
       ].join("\n");
       fs.writeFileSync(manifestPath, lines);
 
-      const result = parseSafeOutputsManifest();
+      const result = parseSafeOutputsManifest(manifestPath);
 
       expect(result).not.toBeNull();
       expect(result.total_items).toBe(3);
@@ -131,7 +132,6 @@ describe("generate_usage_activity_summary.cjs", () => {
     });
 
     it("skips lines with missing or empty type field", () => {
-      fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
       const lines = [
         JSON.stringify({ type: "create_issue", url: "https://github.com/owner/repo/issues/1" }),
         JSON.stringify({ url: "https://example.com" }), // no type field
@@ -140,7 +140,7 @@ describe("generate_usage_activity_summary.cjs", () => {
       ].join("\n");
       fs.writeFileSync(manifestPath, lines);
 
-      const result = parseSafeOutputsManifest();
+      const result = parseSafeOutputsManifest(manifestPath);
 
       expect(result).not.toBeNull();
       expect(result.total_items).toBe(1);
