@@ -7,9 +7,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var versionLabelLog = logger.New("cli:update_version_labels")
 
 // repoTagEntry holds a tag name and its resolved commit SHA.
 type repoTagEntry struct {
@@ -35,18 +38,23 @@ var (
 func resolveVersionLabel(ctx context.Context, sourceRepo, ref string) string {
 	if !IsCommitSHA(ref) {
 		// Already a tag or branch – just return as-is.
+		versionLabelLog.Printf("resolveVersionLabel: ref %q is not a commit SHA, returning as-is", ref)
 		return ref
 	}
 
 	if tagMap, ok := getVersionLabelCache(sourceRepo); ok {
 		if tag, ok := tagMap[ref]; ok {
+			versionLabelLog.Printf("resolveVersionLabel: cache hit for %s@%s -> %s", sourceRepo, shortRef(ref), tag)
 			return tag
 		}
+		versionLabelLog.Printf("resolveVersionLabel: cache present for %s but no tag for %s", sourceRepo, shortRef(ref))
 		return shortRef(ref)
 	}
 
+	versionLabelLog.Printf("resolveVersionLabel: cache miss for %s, loading tags", sourceRepo)
 	tagMap, ok := loadRepoTagMap(ctx, sourceRepo)
 	if !ok {
+		versionLabelLog.Printf("resolveVersionLabel: tag load failed for %s, falling back to short ref", sourceRepo)
 		return shortRef(ref)
 	}
 
@@ -101,6 +109,7 @@ func loadRepoTagMap(ctx context.Context, sourceRepo string) (map[string]string, 
 		if len(tags) == 0 {
 			break
 		}
+		versionLabelLog.Printf("loadRepoTagMap: fetched %d tag(s) for %s (page %d)", len(tags), sourceRepo, page)
 
 		for _, t := range tags {
 			sha := strings.TrimSpace(t.Commit.SHA)

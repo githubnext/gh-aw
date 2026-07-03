@@ -46,7 +46,7 @@ const {
 } = require("./awf_reflect.cjs");
 const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
-const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
+const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
 
 // Maximum number of retry attempts after the initial run
@@ -424,17 +424,33 @@ async function main() {
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
   const driverStartTime = Date.now();
+  // Soft-timeout guard: polled at the top of the retry loop and after each backoff sleep.
+  // It does not preempt a running attempt — if a single invocation runs past the soft
+  // deadline the guard fires on the next iteration. Individual attempts are expected to
+  // complete within the SOFT_TIMEOUT_BUFFER_MS window.
+  const softTimeoutGuard = buildSoftTimeoutGuard(driverStartTime);
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     // Codex does not support --continue: every retry is a fresh run from scratch.
     // Context from the interrupted session is not recoverable, but transient API
     // failures (rate limits, server errors) may resolve on the next attempt.
 
+    if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
+      emitSoftTimeoutSignal(softTimeoutGuard, `before attempt ${attempt + 1}`, "Codex harness", log);
+      lastExitCode = 1;
+      break;
+    }
+
     if (attempt > 0) {
       log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt (fresh run)`);
       await sleep(delay);
       delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
       log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
+      if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
+        emitSoftTimeoutSignal(softTimeoutGuard, "after backoff sleep", "Codex harness", log);
+        lastExitCode = 1;
+        break;
+      }
     }
 
     const result = await runProcess({ command, args: resolvedArgs, attempt, log, logArgs: safeArgs, env: codexChildEnv });
