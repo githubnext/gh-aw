@@ -1,34 +1,160 @@
 {
-  "run_date": "2026-07-02T12:52:09Z",
-  "run_id": "28591321991",
+  "run_date": "2026-07-03T01:01:31Z",
+  "run_id": "28631342177",
   "summary": {
-    "total": 10,
-    "new": 7,
-    "reconfirmed": 3,
-    "fast_track": 5,
+    "total": 12,
+    "new": 11,
+    "reconfirmed": 1,
+    "fast_track": 9,
     "batch_review": 1,
-    "defer": 4,
+    "defer": 2,
     "auto_merge": 0,
     "close": 0
   },
   "prs": [
-    {"number": 42955, "title": "[WIP] Add experiment campaign for A/B test on reasoning depth", "category": "feature", "risk": "medium", "score": 30, "action": "defer", "draft": true},
-    {"number": 42954, "title": "[WIP] Fix no-unsafe-promise-catch-error-property guard logic", "category": "bug", "risk": "low", "score": 10, "action": "defer", "draft": true, "note": "zero files changed, possible duplicate of 42953"},
-    {"number": 42953, "title": "fix(eslint): bring no-unsafe-promise-catch-error-property to parity with sibling rule", "category": "bug", "risk": "low", "score": 61, "action": "fast_track", "ci": "passing"},
-    {"number": 42952, "title": "Bump CLI versions: Claude 2.1.198, Copilot 1.0.68, SDK 1.0.5, Codex 0.142.5, Pi 0.80.3", "category": "chore", "risk": "medium", "score": 50, "action": "batch_review", "draft": true},
-    {"number": 42946, "title": "timesleepnocontext: stop crossing non-go/defer FuncLit boundaries", "category": "bug", "risk": "low", "score": 53, "action": "fast_track", "ci": "running"},
-    {"number": 42945, "title": "Honor NO_COLOR/color-profile degradation for Lip Gloss v2 output paths", "category": "feature", "risk": "high", "score": 68, "action": "fast_track", "ci": "blocked", "review": "changes_requested"},
-    {"number": 42937, "title": "test: multi-checkout cross-org credential wiring integration tests", "category": "test", "risk": "low", "score": 60, "action": "fast_track", "ci": "passing"},
-    {"number": 42740, "title": "refactor(copilot-sdk): multi-provider only — remove single-provider legacy", "category": "refactor", "risk": "high", "action": "fast_track", "reconfirmed": true},
-    {"number": 42314, "title": "Add experimental Auggie engine support", "category": "feature", "risk": "high", "action": "defer", "draft": true, "reconfirmed": true},
-    {"number": 42100, "title": "feat: add experimental BinEval evaluation support", "category": "feature", "risk": "high", "action": "defer", "draft": true, "reconfirmed": true, "note": "conflicting priority labels pr-priority:medium + pr-priority:low"}
+    {
+      "number": 43057,
+      "title": "Fail fast on empty safeoutputs schema and add Copilot soft-time convergence guard",
+      "category": "bug",
+      "risk": "high",
+      "score": 90,
+      "action": "fast_track",
+      "draft": false
+    },
+    {
+      "number": 43005,
+      "title": "Isolate safe_outputs checkout auth from safe-outputs app/token credentials",
+      "category": "bug",
+      "risk": "high",
+      "score": 79,
+      "action": "fast_track",
+      "draft": false,
+      "note": "65 files changed, state: blocked"
+    },
+    {
+      "number": 43056,
+      "title": "fix(safe-outputs): bundle safe-outputs-items manifest to restore SafeItemsCount",
+      "category": "bug",
+      "risk": "high",
+      "score": 75,
+      "action": "batch_review",
+      "draft": false,
+      "review": "changes_requested",
+      "note": "265 files changed, broken since 2026-05-31"
+    },
+    {
+      "number": 43048,
+      "title": "fix: stop double-charging cache-read tokens for github-copilot provider",
+      "category": "bug",
+      "risk": "low",
+      "score": 64,
+      "action": "fast_track",
+      "draft": false
+    },
+    {
+      "number": 43054,
+      "title": "Harden temp writes in safe-output evaluation script",
+      "category": "bug",
+      "risk": "medium",
+      "score": 62,
+      "action": "fast_track",
+      "draft": true
+    },
+    {
+      "number": 43051,
+      "title": "Make Copilot/Claude harness retry policy configurable via GH_AW_HARNESS_*",
+      "category": "feature",
+      "risk": "medium",
+      "score": 57,
+      "action": "fast_track",
+      "draft": true
+    },
+    {
+      "number": 43064,
+      "title": "Render AWF steering signals from Copilot events in step summary and logs",
+      "category": "feature",
+      "risk": "low",
+      "score": 50,
+      "action": "fast_track",
+      "draft": true
+    },
+    {
+      "number": 43052,
+      "title": "Add regression coverage for create-issue deduplicate-by-title handler config emission",
+      "category": "test",
+      "risk": "low",
+      "score": 43,
+      "action": "fast_track",
+      "draft": true
+    },
+    {
+      "number": 43055,
+      "title": "Trim search_repositories token cost with explicit small-page pagination in workflow prompts",
+      "category": "chore",
+      "risk": "low",
+      "score": 42,
+      "action": "fast_track",
+      "draft": false
+    },
+    {
+      "number": 43053,
+      "title": "Reduce ambient prompt bloat in core analysis workflows",
+      "category": "chore",
+      "risk": "low",
+      "score": 31,
+      "action": "fast_track",
+      "draft": true
+    },
+    {
+      "number": 43063,
+      "title": "[WIP] Update model inventory and resolve alias gaps",
+      "category": "chore",
+      "risk": "low",
+      "score": 30,
+      "action": "defer",
+      "draft": true,
+      "note": "zero files changed"
+    },
+    {
+      "number": 42314,
+      "title": "Add experimental Auggie engine support",
+      "category": "feature",
+      "risk": "high",
+      "score": 18,
+      "action": "defer",
+      "draft": true,
+      "note": "stale 3+ days, reconfirmed from prior run"
+    }
   ],
   "batches": [
-    {"id": "pr-batch:eslint-fixes", "prs": [42953], "note": "eslint rule fix — watch for follow-up from 42954"},
-    {"id": "pr-batch:experimental", "prs": [42314, 42100], "note": "experimental engine integrations, both drafts"}
+    {
+      "id": "pr-batch:prompt-optimization",
+      "prs": [
+        43055,
+        43053
+      ],
+      "note": "Prompt text reduction in workflow specs"
+    },
+    {
+      "id": "pr-batch:security-hardening",
+      "prs": [
+        43057,
+        43054
+      ],
+      "note": "Runtime hardening + CodeQL security fix"
+    },
+    {
+      "id": "pr-batch:experimental",
+      "prs": [
+        42314
+      ],
+      "note": "Experimental engine drafts - monitor"
+    }
   ],
   "flags": [
-    "PR 42954 has zero files changed — likely superseded by 42953",
-    "PR 42100 has conflicting priority labels (medium + low)"
+    "PR 43056 has CHANGES_REQUESTED and 265 files changed \u2014 needs author response",
+    "PR 43005 state:blocked with 65 files \u2014 needs unblocking",
+    "7 of 12 PRs are in draft state",
+    "PR 43063 has zero files changed \u2014 WIP"
   ]
 }
