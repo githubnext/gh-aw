@@ -495,3 +495,94 @@ This workflow tests that copilot assignment is wired in consolidated safe output
 		t.Error("Did not expect legacy assign_copilot_to_created_issues output wiring in safe_outputs job")
 	}
 }
+
+func TestOutputIssueDeduplcateByTitleBoolTrue(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "output-issue-dedup-bool")
+
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+strict: false
+safe-outputs:
+  create-issue:
+    deduplicate-by-title: true
+    title-prefix: "Dedup - "
+---
+
+# Test Deduplicate By Title Bool True
+
+This workflow tests that deduplicate-by-title: true is emitted in the handler config.
+`
+
+	testFile := filepath.Join(tmpDir, "test-dedup-bool.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test-dedup-bool.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	if !strings.Contains(lockContent, `\"deduplicate_by_title\":true`) {
+		t.Errorf("Expected deduplicate_by_title:true in handler config; lock content snippet: %s",
+			lockContent[max(0, strings.Index(lockContent, "create_issue")-20):min(len(lockContent), strings.Index(lockContent, "create_issue")+200)])
+	}
+}
+
+func TestOutputIssueDeduplcateByTitleIntZero(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "output-issue-dedup-zero")
+
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+strict: false
+safe-outputs:
+  create-issue:
+    deduplicate-by-title: 0
+    title-prefix: "Dedup0 - "
+---
+
+# Test Deduplicate By Title Int Zero
+
+This workflow tests that deduplicate-by-title: 0 is emitted in the handler config.
+`
+
+	testFile := filepath.Join(tmpDir, "test-dedup-zero.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test-dedup-zero.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	if !strings.Contains(lockContent, `\"deduplicate_by_title\":0`) {
+		t.Errorf("Expected deduplicate_by_title:0 in handler config")
+	}
+}

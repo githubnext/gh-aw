@@ -86,6 +86,66 @@ func preprocessIntFieldAsString(configData map[string]any, fieldName string, deb
 	return nil
 }
 
+// preprocessBoolOrIntField validates a field that accepts either a boolean or a
+// non-negative integer (for example "deduplicate-by-title").
+//
+// Valid inputs:
+//   - bool: passed through unchanged.
+//   - non-negative int, int64, float64 (whole number), or uint64: float64 is
+//     normalised to int in place so downstream code receives a consistent type.
+//   - GitHub Actions expression string (starts with "${{" and ends with "}}"): passed
+//     through unchanged.
+//
+// Any other value – negative integers, fractional floats, or free-form strings –
+// causes an error to be returned without modifying configData.
+func preprocessBoolOrIntField(configData map[string]any, fieldName string, debugLog *logger.Logger) error {
+	if configData == nil {
+		return nil
+	}
+	val, exists := configData[fieldName]
+	if !exists {
+		return nil
+	}
+	switch v := val.(type) {
+	case bool:
+		// Booleans are valid; leave unchanged.
+		return nil
+	case int:
+		if v < 0 {
+			return fmt.Errorf("field %q must be a boolean or a non-negative integer, got negative integer %d", fieldName, v)
+		}
+		return nil
+	case int64:
+		if v < 0 {
+			return fmt.Errorf("field %q must be a boolean or a non-negative integer, got negative integer %d", fieldName, v)
+		}
+		return nil
+	case uint64:
+		// uint64 is always non-negative.
+		return nil
+	case float64:
+		if v != float64(int(v)) {
+			return fmt.Errorf("field %q must be a boolean or a non-negative integer, got fractional number %v", fieldName, v)
+		}
+		if v < 0 {
+			return fmt.Errorf("field %q must be a boolean or a non-negative integer, got negative number %v", fieldName, v)
+		}
+		// Normalise float64 to int so downstream handlers receive a consistent type.
+		configData[fieldName] = int(v)
+		if debugLog != nil {
+			debugLog.Printf("Converted %s float64(%v) to int before unmarshaling", fieldName, v)
+		}
+		return nil
+	case string:
+		if !isExpression(v) {
+			return fmt.Errorf("field %q must be a boolean or a non-negative integer (e.g. 'deduplicate-by-title: true' or 'deduplicate-by-title: 0'), got string %q", fieldName, v)
+		}
+		return nil
+	default:
+		return fmt.Errorf("field %q must be a boolean or a non-negative integer, got unsupported type %T", fieldName, val)
+	}
+}
+
 // preprocessStringArrayFieldAsTemplatable handles a string-array config field that also
 // accepts a GitHub Actions expression string (e.g. "${{ inputs.labels }}").
 //

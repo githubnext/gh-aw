@@ -1831,3 +1831,101 @@ func TestAllListEncodingForms(t *testing.T) {
 		}
 	})
 }
+
+func TestParseCreateIssuesConfigDeduplicateByTitle(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    any
+		wantNil  bool
+		wantBool *bool
+		wantInt  *int
+	}{
+		{
+			name:     "bool true is accepted",
+			value:    true,
+			wantBool: func() *bool { v := true; return &v }(),
+		},
+		{
+			name:     "bool false is accepted",
+			value:    false,
+			wantBool: func() *bool { v := false; return &v }(),
+		},
+		{
+			name:    "integer 0 is accepted",
+			value:   0,
+			wantInt: func() *int { v := 0; return &v }(),
+		},
+		{
+			name:    "integer 1 is accepted",
+			value:   1,
+			wantInt: func() *int { v := 1; return &v }(),
+		},
+		{
+			name:    "negative integer -1 is rejected",
+			value:   -1,
+			wantNil: true,
+		},
+		{
+			name:    "free-form string is rejected",
+			value:   "invalid-string",
+			wantNil: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := &Compiler{}
+			outputMap := map[string]any{
+				"create-issue": map[string]any{
+					"deduplicate-by-title": tt.value,
+				},
+			}
+
+			result := compiler.parseCreateIssuesConfig(outputMap)
+			if tt.wantNil {
+				if result != nil {
+					t.Errorf("expected nil result for invalid deduplicate-by-title value %v, got non-nil", tt.value)
+				}
+				return
+			}
+			if result == nil {
+				t.Fatalf("expected non-nil result for deduplicate-by-title value %v, got nil", tt.value)
+			}
+			if tt.wantBool != nil {
+				got, ok := result.DeduplicateByTitle.(bool)
+				if !ok {
+					t.Fatalf("expected bool, got %T (%v)", result.DeduplicateByTitle, result.DeduplicateByTitle)
+				}
+				if got != *tt.wantBool {
+					t.Errorf("expected DeduplicateByTitle=%v, got %v", *tt.wantBool, got)
+				}
+			}
+			if tt.wantInt != nil {
+				got, ok := parseBoolOrIntAsInt(result.DeduplicateByTitle)
+				if !ok {
+					t.Fatalf("expected integer value, got %T (%v)", result.DeduplicateByTitle, result.DeduplicateByTitle)
+				}
+				if got != *tt.wantInt {
+					t.Errorf("expected DeduplicateByTitle=%d, got %d", *tt.wantInt, got)
+				}
+			}
+		})
+	}
+}
+
+// parseBoolOrIntAsInt converts a bool-or-int value to int, handling the uint64
+// type that goccy/go-yaml produces for non-negative YAML integers.
+func parseBoolOrIntAsInt(v any) (int, bool) {
+	switch n := v.(type) {
+	case int:
+		return n, true
+	case int64:
+		return int(n), true
+	case uint64:
+		return int(n), true
+	case float64:
+		return int(n), true
+	default:
+		return 0, false
+	}
+}

@@ -6,11 +6,14 @@ import "github.com/github/gh-aw/pkg/logger"
 //
 // BoolFields and IntFields list config field names that should be normalized through
 // templatable preprocessing before YAML unmarshaling.
+// BoolOrIntFields lists config field names that accept either a boolean or a non-negative
+// integer (for example "deduplicate-by-title"). Values are validated before unmarshaling.
 // HandleExpires enables shared expires normalization via preprocessExpiresField.
 type CreateParseOptions struct {
-	BoolFields    []string
-	IntFields     []string
-	HandleExpires bool
+	BoolFields      []string
+	IntFields       []string
+	BoolOrIntFields []string
+	HandleExpires   bool
 }
 
 // parseCreateEntityConfig parses create-* config scaffolding shared by issue/discussion/PR handlers.
@@ -65,6 +68,13 @@ func parseCreateEntityConfig[T any](
 
 	for _, field := range opts.IntFields {
 		if err := preprocessIntFieldAsString(configData, field, debugLog); err != nil {
+			debugLog.Printf("Invalid %s value: %v", field, err)
+			return nil
+		}
+	}
+
+	for _, field := range opts.BoolOrIntFields {
+		if err := preprocessBoolOrIntField(configData, field, debugLog); err != nil {
 			debugLog.Printf("Invalid %s value: %v", field, err)
 			return nil
 		}

@@ -34,9 +34,10 @@ func (c *Compiler) parseCreateIssuesConfig(outputMap map[string]any) *CreateIssu
 		outputMap,
 		"create-issue",
 		CreateParseOptions{
-			BoolFields:    []string{"close-older-issues", "group", "footer", "group-by-day"},
-			IntFields:     []string{"max"},
-			HandleExpires: true,
+			BoolFields:      []string{"close-older-issues", "group", "footer", "group-by-day"},
+			IntFields:       []string{"max"},
+			BoolOrIntFields: []string{"deduplicate-by-title"},
+			HandleExpires:   true,
 		},
 		createIssueLog,
 		func(err error) *CreateIssuesConfig {
