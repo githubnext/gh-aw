@@ -77,9 +77,20 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 // buildUsageArtifactUploadSteps creates steps that collect and upload a compact usage artifact.
 // The artifact includes aw_info.json, aw-info.jsonl, agent_usage.json, agent_usage.jsonl, detection_usage.jsonl, and agent/detection token usage JSONL files (when present).
+// It also downloads the safe-outputs-items artifact so that generate_usage_activity_summary.cjs
+// can include safe-output item counts in the activity summary without requiring a separate artifact download.
 func buildUsageArtifactUploadSteps(prefix string, pinAction func(string) string) []string {
 	usageArtifactName := prefix + "usage"
+	safeOutputsItemsArtifactName := prefix + constants.SafeOutputItemsArtifactName
 	return []string{
+		"      - name: Download safe outputs items manifest\n",
+		"        id: download-safe-outputs-manifest\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")),
+		"        with:\n",
+		fmt.Sprintf("          name: %s\n", safeOutputsItemsArtifactName),
+		"          path: /tmp/gh-aw/\n",
 		"      - name: Collect usage artifact files\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",

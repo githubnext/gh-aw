@@ -53,6 +53,8 @@ const {
   parseCopilotSDKServerArgsFromEnv,
 } = require("./copilot_harness.cjs");
 
+const { buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
+
 const agentTempDir = "/tmp/gh-aw/agent";
 
 function makeHarnessTempDir(name) {
@@ -2020,6 +2022,49 @@ process.exit(1);`,
       // Harness exits 0 because noop means the work is done
       expect(result.status).toBe(0);
       expect(result.stderr).toContain("noop message found in safe-outputs — not retrying");
+    });
+
+    it("exits 1 and emits soft-timeout signal when guard deadline is exceeded before next retry", () => {
+      const tempDir = makeHarnessTempDir("copilot-soft-timeout-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub records the call, writes a line to stdout so hasOutput=true (enabling retry),
+      // then sleeps past the soft-timeout window before exiting 1.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.stdout.write("running\\n");
+// Sleep 1.5 s so the soft deadline (clamped to start+1 s for 0.001-min timeout) is elapsed
+const end = Date.now() + 1500;
+while (Date.now() < end) {}
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "fix the bug", "utf8");
+
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: {
+          ...process.env,
+          COPILOT_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_SAFEOUTPUTS_CLI: "true",
+          GH_AW_TIMEOUT_MINUTES: "0.001",
+        },
+        encoding: "utf8",
+        timeout: 20000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      // Stub was called once; soft deadline fires before attempt 2
+      expect(callCount).toBe(1);
+      // Harness exits 1 (soft-timeout signal)
+      expect(result.status).toBe(1);
+      // Guard log appears in stderr
+      expect(result.stderr).toContain("soft-timeout guard reached");
     });
   });
 

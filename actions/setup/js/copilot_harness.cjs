@@ -61,7 +61,7 @@ const {
 } = require("./awf_reflect.cjs");
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
-const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
+const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
 const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
 const { loadModelsJson } = require("./model_costs.cjs");
 
@@ -832,6 +832,11 @@ async function main() {
   // This prevents a broken --continue recovery from resurrecting --continue on the next attempt.
   let continueDisabledPermanently = false;
   const driverStartTime = Date.now();
+  // Soft-timeout guard: polled at the top of the retry loop and after each backoff sleep.
+  // It does not preempt a running attempt — if a single invocation runs past the soft
+  // deadline the guard fires on the next iteration. Individual attempts are expected to
+  // complete within the SOFT_TIMEOUT_BUFFER_MS window.
+  const softTimeoutGuard = buildSoftTimeoutGuard(driverStartTime);
   const detectedCopilotErrors = {
     inferenceAccessError: false,
     mcpPolicyError: false,
@@ -873,6 +878,11 @@ async function main() {
       // Unified retry loop for CLI and driver modes.
       // --continue is a CLI concept; in SDK mode retries always restart the session fresh.
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
+          emitSoftTimeoutSignal(softTimeoutGuard, `before attempt ${attempt + 1}`, "Copilot harness", log);
+          lastExitCode = 1;
+          break;
+        }
         // Add --continue flag on CLI retries so the copilot session continues from where it left off
         const currentArgs = !copilotSDKMode && attempt > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
 
@@ -882,6 +892,11 @@ async function main() {
           await sleep(delay);
           delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
           log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
+          if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
+            emitSoftTimeoutSignal(softTimeoutGuard, "after backoff sleep", "Copilot harness", log);
+            lastExitCode = 1;
+            break;
+          }
         }
 
         // Redact --prompt / -p value from logs to avoid leaking prompt content
