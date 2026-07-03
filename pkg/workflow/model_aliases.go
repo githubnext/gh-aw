@@ -89,7 +89,7 @@ func loadBuiltinModelAliases() (map[string][]string, error) {
 //   - "mini"  → haiku, gpt-5-mini, gpt-5-nano, gemini-flash-lite, copilot/raptor*mini*
 //   - "large" → sonnet, gpt-5-pro, gpt-5, gemini-pro
 //   - "any"   → copilot/*, anthropic/*, openai/*, google/*, gemini/*
-//   - "agent" → sonnet-6x, gpt-5.4, gpt-5, gemini-pro, haiku, any
+//   - "agent" → sonnet-6x, gpt-5.4, gpt-5.3, gemini-pro, any
 //
 // Per-engine default aliases:
 //   - "copilot" → agent, gpt-5.4, sonnet, gpt-5, any
