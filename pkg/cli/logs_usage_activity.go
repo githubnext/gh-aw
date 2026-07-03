@@ -16,10 +16,11 @@ var logsUsageActivityLog = logger.New("cli:logs_usage_activity")
 const usageActivitySummarySchema = "usage-activity-summary/v1"
 
 type usageActivitySummary struct {
-	Schema   string                 `json:"schema,omitempty"`
-	Firewall *usageActivityFirewall `json:"firewall,omitempty"`
-	Session  *usageActivitySession  `json:"session,omitempty"`
-	Gateway  *usageActivityGateway  `json:"gateway,omitempty"`
+	Schema      string                    `json:"schema,omitempty"`
+	Firewall    *usageActivityFirewall    `json:"firewall,omitempty"`
+	Session     *usageActivitySession     `json:"session,omitempty"`
+	Gateway     *usageActivityGateway     `json:"gateway,omitempty"`
+	SafeOutputs *usageActivitySafeOutputs `json:"safe_outputs,omitempty"`
 }
 
 type usageActivityFirewall struct {
@@ -53,6 +54,11 @@ type usageActivityGatewayServer struct {
 	ServerName    string `json:"server_name"`
 	ToolCallCount int    `json:"tool_call_count"`
 	FailedCalls   int    `json:"failed_calls"`
+}
+
+type usageActivitySafeOutputs struct {
+	TotalItems  int            `json:"total_items"`
+	ItemsByType map[string]int `json:"items_by_type,omitempty"`
 }
 
 func loadUsageActivitySummary(runDir string) (*usageActivitySummary, error) {
@@ -155,5 +161,13 @@ func applyUsageActivitySummaryToResult(summary *usageActivitySummary, result *Do
 			ToolCalls: []MCPToolCall{},
 			Servers:   servers,
 		}
+	}
+
+	// Backfill safe output item count from usage summary when the safe-outputs-items
+	// artifact was not downloaded separately. The count is 0-safe: only backfill when
+	// the summary reports at least one item to avoid masking genuine zero-item runs.
+	if summary.SafeOutputs != nil && result.Run.SafeItemsCount == 0 && summary.SafeOutputs.TotalItems > 0 {
+		logsUsageActivityLog.Printf("applyUsageActivitySummaryToResult: backfilling safe output item count from usage summary (total=%d)", summary.SafeOutputs.TotalItems)
+		result.Run.SafeItemsCount = summary.SafeOutputs.TotalItems
 	}
 }

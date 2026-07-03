@@ -6,6 +6,7 @@
 //   firewall: total/allowed/blocked request counters
 //   session: aggregate Copilot session event counters
 //   gateway: total/failed tool-call counters with per-server breakdown
+//   safe_outputs: total item count and per-type breakdown from safe-output-items manifest
 
 const fs = require("fs");
 const { globSync } = require("node:fs");
@@ -374,6 +375,63 @@ function parseGatewayLogs() {
 }
 
 /**
+ * Parse the safe-output-items manifest and aggregate item counts by type.
+ * Reads the JSONL file written by the safe_outputs job and downloaded into
+ * the conclusion job via the safe-outputs-items artifact.
+ *
+ * @param {string} [manifestPath] - Path to the manifest file (defaults to MANIFEST_FILE_PATH)
+ * @returns {{ total_items: number, items_by_type: Record<string, number> } | null}
+ */
+const MANIFEST_FILE_PATH = "/tmp/gh-aw/safe-output-items.jsonl";
+
+function parseSafeOutputsManifest(manifestPath = MANIFEST_FILE_PATH) {
+  if (!fs.existsSync(manifestPath)) {
+    return null;
+  }
+
+  let content;
+  try {
+    content = fs.readFileSync(manifestPath, "utf-8");
+  } catch (err) {
+    return null;
+  }
+
+  const itemsByType = {};
+  let totalItems = 0;
+
+  for (const raw of content.split("\n")) {
+    const line = raw.trim();
+    if (!line || !line.startsWith("{")) {
+      continue;
+    }
+
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+
+    const itemType = String(entry.type || "").trim();
+    if (!itemType) {
+      continue;
+    }
+
+    totalItems += 1;
+    itemsByType[itemType] = (itemsByType[itemType] || 0) + 1;
+  }
+
+  if (totalItems === 0) {
+    return null;
+  }
+
+  return {
+    total_items: totalItems,
+    items_by_type: itemsByType,
+  };
+}
+
+/**
  * Main function to generate usage activity summary
  */
 function main() {
@@ -397,6 +455,12 @@ function main() {
     summary.gateway = gateway;
   }
 
+  // Parse safe outputs manifest
+  const safeOutputs = parseSafeOutputsManifest();
+  if (safeOutputs) {
+    summary.safe_outputs = safeOutputs;
+  }
+
   // Write summary to file
   const outputPath = "/tmp/gh-aw/usage/activity/summary.json";
   fs.writeFileSync(outputPath, JSON.stringify(summary, null, 2), "utf-8");
@@ -408,4 +472,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { parseFirewallLogs, parseSessionLogs, parseGatewayLogs };
+module.exports = { parseFirewallLogs, parseSessionLogs, parseGatewayLogs, parseSafeOutputsManifest, MANIFEST_FILE_PATH };

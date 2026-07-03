@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
+const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
 
 describe("harness_retry_guard.cjs", () => {
   it("detects AI credits exceeded markers", () => {
@@ -116,5 +116,45 @@ describe("harness_retry_guard.cjs", () => {
   it("does not falsely detect max_runs_exceeded for unrelated output", () => {
     const result = detectNonRetryableHarnessGuard("transient network timeout");
     expect(result.maxRunsExceeded).toBe(false);
+  });
+});
+
+describe("buildSoftTimeoutGuard", () => {
+  it("returns null when GH_AW_TIMEOUT_MINUTES is missing", () => {
+    expect(buildSoftTimeoutGuard(1_000, {})).toBeNull();
+  });
+
+  it("returns null for zero timeout", () => {
+    expect(buildSoftTimeoutGuard(1_000, { GH_AW_TIMEOUT_MINUTES: "0" })).toBeNull();
+  });
+
+  it("returns null for negative timeout", () => {
+    expect(buildSoftTimeoutGuard(1_000, { GH_AW_TIMEOUT_MINUTES: "-5" })).toBeNull();
+  });
+
+  it("returns null for NaN timeout", () => {
+    expect(buildSoftTimeoutGuard(1_000, { GH_AW_TIMEOUT_MINUTES: "NaN" })).toBeNull();
+  });
+
+  it("returns null for non-numeric timeout", () => {
+    expect(buildSoftTimeoutGuard(1_000, { GH_AW_TIMEOUT_MINUTES: "abc" })).toBeNull();
+  });
+
+  it("computes a deadline before hard timeout", () => {
+    const guard = buildSoftTimeoutGuard(10_000, { GH_AW_TIMEOUT_MINUTES: "15" });
+    expect(guard).toEqual({
+      timeoutMinutes: 15,
+      softDeadlineMs: 820000,
+    });
+  });
+
+  it("clamps deadline to start+1000ms when timeout is shorter than the buffer", () => {
+    // 1 minute (60_000ms) < SOFT_TIMEOUT_BUFFER_MS (90_000ms): deadline should be clamped to start + 1000ms
+    const guard = buildSoftTimeoutGuard(10_000, { GH_AW_TIMEOUT_MINUTES: "1" });
+    expect(guard).not.toBeNull();
+    expect(guard).toEqual({
+      timeoutMinutes: 1,
+      softDeadlineMs: 11_000,
+    });
   });
 });

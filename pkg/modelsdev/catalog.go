@@ -67,15 +67,19 @@ func FindPricing(ctx context.Context, provider, model string) (map[string]float6
 	normalizedModel := strings.ToLower(trimmedModel)
 	comparableModel := normalizeComparableModelID(normalizedModel)
 
+	log.Printf("FindPricing: looking up provider=%q model=%q", normalizedProvider, normalizedModel)
+
 	// Provider-scoped exact match.
 	if normalizedProvider != "" {
 		if providerModels, ok := catalog[normalizedProvider]; ok {
 			if pricing, ok := providerModels[normalizedModel]; ok {
+				log.Printf("FindPricing: provider-scoped exact match for %q/%q", normalizedProvider, normalizedModel)
 				return pricing, true
 			}
 			// Comparable (dot/underscore-normalized) model ID match.
 			for mn, pricing := range providerModels {
 				if normalizeComparableModelID(mn) == comparableModel {
+					log.Printf("FindPricing: provider-scoped comparable match %q for %q", mn, normalizedModel)
 					return pricing, true
 				}
 			}
@@ -85,15 +89,18 @@ func FindPricing(ctx context.Context, provider, model string) (map[string]float6
 	// Cross-provider fallback (when provider is unknown or empty).
 	for _, providerModels := range catalog {
 		if pricing, ok := providerModels[normalizedModel]; ok {
+			log.Printf("FindPricing: cross-provider fallback match for model %q", normalizedModel)
 			return pricing, true
 		}
 		for mn, pricing := range providerModels {
 			if normalizeComparableModelID(mn) == comparableModel {
+				log.Printf("FindPricing: cross-provider comparable match %q for %q", mn, normalizedModel)
 				return pricing, true
 			}
 		}
 	}
 
+	log.Printf("FindPricing: no pricing found for provider=%q model=%q", normalizedProvider, normalizedModel)
 	return nil, false
 }
 

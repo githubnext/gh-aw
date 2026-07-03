@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
@@ -8,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const req = createRequire(import.meta.url);
-const { parseFirewallLogs } = req("./generate_usage_activity_summary.cjs");
+const { parseFirewallLogs, parseSafeOutputsManifest } = req("./generate_usage_activity_summary.cjs");
 
 describe("generate_usage_activity_summary.cjs", () => {
   /** Unique directory for each test to avoid cross-test interference */
@@ -79,6 +80,71 @@ describe("generate_usage_activity_summary.cjs", () => {
       expect(result.blocked_requests).toBe(1);
       expect(result.allowed_domains).toContain("api.github.com:443");
       expect(result.blocked_domains).toContain("blocked.example.com:443");
+    });
+  });
+
+  describe("parseSafeOutputsManifest", () => {
+    /** Unique manifest file path per test to avoid cross-test interference */
+    let manifestPath;
+
+    beforeEach(() => {
+      const testTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "safe-outputs-test-"));
+      manifestPath = path.join(testTmpDir, "safe-output-items.jsonl");
+    });
+
+    afterEach(() => {
+      const dir = path.dirname(manifestPath);
+      if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns null when the manifest file does not exist", () => {
+      const result = parseSafeOutputsManifest(manifestPath);
+      expect(result).toBeNull();
+    });
+
+    it("returns null when the manifest file is empty", () => {
+      fs.writeFileSync(manifestPath, "");
+      const result = parseSafeOutputsManifest(manifestPath);
+      expect(result).toBeNull();
+    });
+
+    it("returns null when the manifest contains only blank lines", () => {
+      fs.writeFileSync(manifestPath, "\n\n\n");
+      const result = parseSafeOutputsManifest(manifestPath);
+      expect(result).toBeNull();
+    });
+
+    it("counts items by type from a valid manifest", () => {
+      const lines = [
+        JSON.stringify({ type: "create_issue", url: "https://github.com/owner/repo/issues/1" }),
+        JSON.stringify({ type: "create_issue", url: "https://github.com/owner/repo/issues/2" }),
+        JSON.stringify({ type: "add_comment", url: "https://github.com/owner/repo/issues/1#issuecomment-1" }),
+      ].join("\n");
+      fs.writeFileSync(manifestPath, lines);
+
+      const result = parseSafeOutputsManifest(manifestPath);
+
+      expect(result).not.toBeNull();
+      expect(result.total_items).toBe(3);
+      expect(result.items_by_type).toEqual({ create_issue: 2, add_comment: 1 });
+    });
+
+    it("skips lines with missing or empty type field", () => {
+      const lines = [
+        JSON.stringify({ type: "create_issue", url: "https://github.com/owner/repo/issues/1" }),
+        JSON.stringify({ url: "https://example.com" }), // no type field
+        JSON.stringify({ type: "", url: "https://example.com" }), // empty type
+        "not json at all",
+      ].join("\n");
+      fs.writeFileSync(manifestPath, lines);
+
+      const result = parseSafeOutputsManifest(manifestPath);
+
+      expect(result).not.toBeNull();
+      expect(result.total_items).toBe(1);
+      expect(result.items_by_type).toEqual({ create_issue: 1 });
     });
   });
 });
