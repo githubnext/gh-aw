@@ -156,10 +156,22 @@ const AWFDefaultCommand = "sudo -E awf"
 // AWFProxyLogsDir is the default directory for AWF proxy logs
 const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 
+// AWFProxyLogsDirExpr is the host-side AWF proxy logs path resolved by Actions expression.
+const AWFProxyLogsDirExpr = GhAwRootDir + "/sandbox/firewall/logs"
+
+// AWFProxyLogsDirShell is the host-side AWF proxy logs path resolved by shell env expansion.
+const AWFProxyLogsDirShell = GhAwRootDirShell + "/sandbox/firewall/logs"
+
 // AWFAuditDir is the directory for AWF audit files (policy-manifest.json, squid.conf, docker-compose.redacted.yml).
 // These files are written by AWF when --audit-dir is specified and provide structured policy/configuration data
 // needed by the `awf logs audit` command for enriching log entries with policy rule matching.
 const AWFAuditDir = "/tmp/gh-aw/sandbox/firewall/audit"
+
+// AWFAuditDirExpr is the host-side AWF audit dir path resolved by Actions expression.
+const AWFAuditDirExpr = GhAwRootDir + "/sandbox/firewall/audit"
+
+// AWFAuditDirShell is the host-side AWF audit dir path resolved by shell env expansion.
+const AWFAuditDirShell = GhAwRootDirShell + "/sandbox/firewall/audit"
 
 // PreAgentAuditFilePath is the path where the pre-agent workspace audit report is saved.
 // The audit step runs after all pre-agent preparation (skills, agents, MCP servers) is
@@ -247,15 +259,6 @@ const GhAwRootDir = "${{ runner.temp }}/gh-aw"
 // Use this inside shell `run:` blocks where the env var is already available.
 // This is shorter than the Actions expression and avoids expression-length issues.
 const GhAwRootDirShell = "${RUNNER_TEMP}/gh-aw"
-
-// AWFProxyLogsDirExpr is the host-side AWF proxy logs path resolved by Actions expression.
-const AWFProxyLogsDirExpr = GhAwRootDir + "/sandbox/firewall/logs"
-
-// AWFProxyLogsDirShell is the host-side AWF proxy logs path resolved by shell env expansion.
-const AWFProxyLogsDirShell = GhAwRootDirShell + "/sandbox/firewall/logs"
-
-// AWFAuditDirExpr is the host-side AWF audit dir path resolved by Actions expression.
-const AWFAuditDirExpr = GhAwRootDir + "/sandbox/firewall/audit"
 
 // DefaultGhAwMount is the mount path for the gh-aw directory in containerized MCP servers
 // The gh-aw binary and supporting files are mounted read-only from the runner temp directory.
