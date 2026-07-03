@@ -365,11 +365,11 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-call-test-copilot-call-worker"`,
-			description: "workflow_call workers must use compile-time workflow ID, not github.workflow, to prevent gateway/worker concurrency group collision",
+  group: "gh-aw-call-test-copilot-call-worker-${{ github.run_id }}"`,
+			description: "workflow_call workers must use compile-time workflow ID and run_id to avoid caller-name collisions and fan-out queue contention",
 		},
 		{
-			name: "workflow_call without WorkflowID falls back to github.workflow expression",
+			name: "workflow_call without WorkflowID falls back to github.workflow plus run_id expression",
 			workflowData: &WorkflowData{
 				On: `on:
   workflow_call:`,
@@ -378,8 +378,22 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}"`,
-			description: "workflow_call without a WorkflowID falls back to the standard github.workflow expression",
+  group: "gh-aw-${{ github.workflow }}-${{ github.run_id }}"`,
+			description: "workflow_call without WorkflowID still appends run_id so worker runs remain collision-free",
+		},
+		{
+			name: "workflow_call mixed with workflow_dispatch still uses hard-baked ID and run_id",
+			workflowData: &WorkflowData{
+				On: `on:
+  workflow_call:
+  workflow_dispatch:`,
+				WorkflowID:  "mixed-call-worker",
+				Concurrency: "",
+			},
+			isAliasTrigger: false,
+			expected: `concurrency:
+  group: "gh-aw-mixed-call-worker-${{ github.run_id }}"`,
+			description: "workflow_call mixed with workflow_dispatch should still use compile-time ID and run_id",
 		},
 	}
 
