@@ -1,5 +1,4 @@
 ./cmd/gh-aw/main_entry_test.go|2026-05-09
-./pkg/agentdrain/anomaly_test.go|2026-05-16
 ./pkg/agentdrain/miner_test.go|2026-04-19
 ./pkg/cli/actions_test.go|2026-05-02
 ./pkg/cli/audit_agent_output_test.go|2026-05-08
@@ -29,3 +28,4 @@
 ./pkg/parser/frontmatter_extraction_test.go|2026-05-31
 ./pkg/constants/permissions_policy_test.go|2026-06-17
 ./pkg/actionpins/spec_test.go|2026-06-30
+./pkg/agentdrain/anomaly_test.go|2026-07-03
