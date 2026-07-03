@@ -137,7 +137,7 @@ description: Safe-output reference for update, label, milestone, project, releas
   safe-outputs:
     assign-milestone:
       allowed: [v1.0, v2.0]           # Optional: restrict to specific milestone titles
-      auto-create: true               # Optional: auto-create milestones from the allowed list if missing (default: false)
+      auto_create: true               # Optional: auto-create milestones from the allowed list if missing (default: false)
       max: 1                          # Optional: max assignments (default: 1)
       target-repo: "owner/repo"       # Optional: cross-repository
   ```

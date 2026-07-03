@@ -26,10 +26,9 @@ func SetProcessEnvLookup(lookup func(string) (string, bool)) {
 
 func lookupProcessEnv(key string) string {
 	processEnvLookupMu.RLock()
-	fn := processEnvLookup
-	processEnvLookupMu.RUnlock()
+	defer processEnvLookupMu.RUnlock()
 	// Intentionally ignore the existence flag to preserve os.Getenv semantics:
 	// missing variables and explicitly empty variables are both treated as "".
-	value, _ := fn(key)
+	value, _ := processEnvLookup(key)
 	return value
 }

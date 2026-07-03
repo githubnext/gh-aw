@@ -48,6 +48,7 @@ The following components and functions are exported by the `console` package:
 | `RenderTitleBox` / `RenderErrorBox` / `RenderInfoSection` | funcs | Section rendering helpers |
 | `RenderComposedSections` | func | Composes and prints multiple sections |
 | `FormatSuccessMessage` / `FormatInfoMessage` / `FormatWarningMessage` / `FormatErrorMessage` | funcs | Styled status message formatting |
+| `FormatSuccessMessageStderr` / `FormatInfoMessageStderr` / `FormatListItemStderr` / `FormatSectionHeaderStderr` | funcs | Stderr-TTY-aware variants of matching format functions |
 | `FormatCommandMessage` / `FormatProgressMessage` / `FormatVerboseMessage` | funcs | Additional message styles |
 | `FormatError` | func | Renders a structured `CompilerError` with context |
 | `FormatErrorChain` | func | Renders a wrapped-error chain |
@@ -358,7 +359,9 @@ All `Format*` functions return a styled string ready to be printed to `os.Stderr
 | Function | Style | Typical use |
 |----------|-------|-------------|
 | `FormatSuccessMessage(message string) string` | Green, bold | Operation completed successfully |
+| `FormatSuccessMessageStderr(message string) string` | Green, bold (stderr TTY) | Success message using stderr TTY detection |
 | `FormatInfoMessage(message string) string` | Cyan, bold | General informational output |
+| `FormatInfoMessageStderr(message string) string` | Cyan, bold (stderr TTY) | Info message using stderr TTY detection |
 | `FormatWarningMessage(message string) string` | Orange, bold | Non-fatal warnings |
 | `FormatErrorMessage(message string) string` | Red, bold | Recoverable error messages |
 | `FormatCommandMessage(command string) string` | Purple | CLI commands and code snippets |
@@ -366,10 +369,24 @@ All `Format*` functions return a styled string ready to be printed to `os.Stderr
 | `FormatPromptMessage(message string) string` | Cyan | Interactive prompt labels |
 | `FormatVerboseMessage(message string) string` | Muted/comment | Verbose/debug detail |
 | `FormatListItem(item string) string` | Foreground | Individual list entries |
+| `FormatListItemStderr(item string) string` | Foreground (stderr TTY) | List entry using stderr TTY detection |
 | `FormatListHeader(header string) string` | Plain (WASM only) | Section headers inside lists |
 | `FormatSectionHeader(header string) string` | Bold, bordered | Section titles in output |
+| `FormatSectionHeaderStderr(header string) string` | Bold, bordered (stderr TTY) | Section title using stderr TTY detection |
 | `FormatLocationMessage(message string) string` | Foreground (WASM only) | File and location paths |
 | `FormatCountMessage(message string) string` | Foreground (WASM only) | Counts and metrics |
+
+### Stderr TTY Variants
+
+The `*Stderr` variants (`FormatSuccessMessageStderr`, `FormatInfoMessageStderr`, `FormatListItemStderr`, `FormatSectionHeaderStderr`) check whether **`os.Stderr`** is a terminal rather than `os.Stdout`. Use these when writing to `os.Stderr` directly, so that color stripping is applied correctly in non-interactive contexts (e.g., piped stderr).
+
+```go
+// Use Stderr variants when writing directly to os.Stderr
+fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Already configured"))
+fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Updated "+filePath))
+fmt.Fprintln(os.Stderr, console.FormatSectionHeaderStderr("Section Title"))
+fmt.Fprintln(w, console.FormatListItemStderr("Detail item"))
+```
 
 ### Usage Pattern
 

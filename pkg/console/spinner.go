@@ -117,7 +117,8 @@ func NewSpinner(message string) *SpinnerWrapper {
 		// tea.WithInput(nil) disables stdin reading so the spinner does not consume key
 		// events that should be handled by subsequent interactive forms (e.g. huh.Select).
 		// Ctrl+C is still handled via OS signal delivery (SIGINT), which bubbletea
-		// processes independently of the input reader.
+		// processes independently of the input reader. This input-disabled path is
+		// officially supported as of bubbletea v2.0.7 (charmbracelet/bubbletea#1680).
 		s.program = tea.NewProgram(model, tea.WithOutput(out), tea.WithoutRenderer(), tea.WithInput(nil))
 	}
 	return s
