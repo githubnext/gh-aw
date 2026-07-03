@@ -6,6 +6,10 @@ description: Keeps open non-draft PRs moving toward maintainer investigation by 
 on:
   schedule: every 15m
   workflow_dispatch:
+  slash_command:
+    strategy: centralized
+    name: souschef
+    events: [pull_request_comment]
   skip-if-no-match: "is:pr is:open -is:draft"
 permissions:
   contents: read
