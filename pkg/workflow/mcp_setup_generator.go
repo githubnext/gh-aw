@@ -732,11 +732,12 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	containerCmd.WriteString(" --name awmg-mcpg")
 	if !isAWFNetworkIsolationEnabled(workflowData) {
 		containerCmd.WriteString(" --add-host host.docker.internal:127.0.0.1")
-	} else if HasMCPScripts(workflowData.MCPScripts) {
+	} else if shouldRewriteLocalhostToDocker(workflowData) {
 		// In bridge (network-isolation) mode the container's loopback differs from the
 		// host's, so host.docker.internal:127.0.0.1 would not resolve to the host.
 		// Use host-gateway (Docker 20.10+) instead so the gateway container can reach
-		// the mcp-scripts HTTP server that is running directly on the runner host.
+		// any host-side server (mcp-scripts HTTP server, custom HTTP MCP tools with
+		// localhost URLs) that is running directly on the runner host.
 		containerCmd.WriteString(" --add-host host.docker.internal:host-gateway")
 	}
 	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")
