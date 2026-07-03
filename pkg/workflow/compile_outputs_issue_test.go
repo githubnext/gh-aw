@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -428,6 +429,62 @@ This workflow tests the create-issue job generation.
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContent)
+}
+
+func TestOutputIssueJobGenerationEmitsDeduplicateByTitleVariants(t *testing.T) {
+	testCases := []struct {
+		name           string
+		yamlValue      string
+		expectedConfig string
+	}{
+		{name: "true", yamlValue: "true", expectedConfig: `\"deduplicate_by_title\":true`},
+		{name: "zero", yamlValue: "0", expectedConfig: `\"deduplicate_by_title\":0`},
+		{name: "one", yamlValue: "1", expectedConfig: `\"deduplicate_by_title\":1`},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "output-issue-dedup-"+tc.name)
+
+			testContent := fmt.Sprintf(`---
+on: push
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+safe-outputs:
+  create-issue:
+    max: 1
+    deduplicate-by-title: %s
+---
+
+# Test Output Issue Dedup Variant
+
+This workflow tests create-issue handler config emission.
+`, tc.yamlValue)
+
+			testFile := filepath.Join(tmpDir, "test-output-issue-dedup.md")
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Unexpected error compiling workflow with output issue: %v", err)
+			}
+
+			lockFile := filepath.Join(tmpDir, "test-output-issue-dedup.lock.yml")
+			content, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read generated lock file: %v", err)
+			}
+
+			lockContent := string(content)
+			if !strings.Contains(lockContent, tc.expectedConfig) {
+				t.Errorf("Expected %s in handler config", tc.expectedConfig)
+			}
+		})
+	}
 }
 
 func TestOutputIssueJobGenerationWithCopilotAssigneeUsesHandlerManagerOnly(t *testing.T) {
