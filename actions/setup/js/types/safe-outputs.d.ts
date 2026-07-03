@@ -97,6 +97,14 @@ interface CloseIssueItem extends BaseSafeOutputItem {
   body: string;
   /** Optional issue number (uses triggering issue if not provided) */
   issue_number?: number | string;
+  /**
+   * Optional canonical issue reference when closing as a duplicate.
+   * Accepts: bare number (123), #-prefixed number (#123),
+   * owner/repo#number (github/gh-aw#123), or a full GitHub issue URL.
+   * When provided together with state_reason: "duplicate", creates a native
+   * GitHub duplicate relationship (marked_as_duplicate timeline event).
+   */
+  duplicate_of?: number | string;
 }
 
 /**

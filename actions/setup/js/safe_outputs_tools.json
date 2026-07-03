@@ -211,6 +211,11 @@
           "description": "Issue number to close. This is the numeric ID from the GitHub URL (e.g., 901 in github.com/owner/repo/issues/901). If omitted, closes the issue that triggered this workflow (requires an issue event trigger).",
           "x-synonyms": ["issueNumber"]
         },
+        "duplicate_of": {
+          "type": ["number", "string"],
+          "description": "Issue number or URL of the canonical original issue when closing as a duplicate. Accepts: a bare number (e.g. 123), a #-prefixed number (e.g. #123), an owner/repo#number reference (e.g. github/gh-aw#123), or a full GitHub issue URL. When provided together with state_reason: duplicate, creates a native GitHub duplicate relationship (marked_as_duplicate timeline event). Omit if not closing as a duplicate.",
+          "x-synonyms": ["duplicateOf"]
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -1088,7 +1093,7 @@
         },
         "branch": {
           "type": "string",
-          "description": "The local branch name that contains the committed changes to push (e.g., \"feature/my-fix\"). Providing this explicitly prevents race conditions in batch workflows where the working tree may have been checked out to a different PR's branch between commit and tool-call time. When omitted, the branch is inferred from the current git HEAD — only safe for single-PR workflows."
+          "description": "The local branch name that contains the committed changes to push (e.g., \"feature/my-fix\"). Providing this explicitly prevents race conditions in batch workflows where the working tree may have been checked out to a different PR's branch between commit and tool-call time. When omitted, the branch is inferred from the current git HEAD \u2014 only safe for single-PR workflows."
         },
         "pull_request_number": {
           "type": ["number", "string"],

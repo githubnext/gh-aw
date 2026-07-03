@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, it, expect, beforeEach } from "vitest";
-const { main } = require("./close_issue.cjs");
+const { main, parseDuplicateOf } = require("./close_issue.cjs");
 
 describe("close_issue", () => {
   let mockCore;
@@ -862,6 +862,253 @@ describe("close_issue", () => {
 
       expect(result.success).toBe(true);
       expect(commentCalls.length).toBe(1);
+    });
+  });
+
+  describe("parseDuplicateOf", () => {
+    it("should parse a bare number", () => {
+      const result = parseDuplicateOf(123, "owner", "repo");
+      expect(result).toEqual({ owner: "owner", repo: "repo", issueNumber: 123 });
+    });
+
+    it("should parse a numeric string", () => {
+      const result = parseDuplicateOf("456", "owner", "repo");
+      expect(result).toEqual({ owner: "owner", repo: "repo", issueNumber: 456 });
+    });
+
+    it("should parse a #-prefixed number", () => {
+      const result = parseDuplicateOf("#789", "owner", "repo");
+      expect(result).toEqual({ owner: "owner", repo: "repo", issueNumber: 789 });
+    });
+
+    it("should parse owner/repo#number format", () => {
+      const result = parseDuplicateOf("other-org/other-repo#42", "owner", "repo");
+      expect(result).toEqual({ owner: "other-org", repo: "other-repo", issueNumber: 42 });
+    });
+
+    it("should parse a full GitHub issue URL", () => {
+      const result = parseDuplicateOf("https://github.com/my-org/my-repo/issues/101", "owner", "repo");
+      expect(result).toEqual({ owner: "my-org", repo: "my-repo", issueNumber: 101 });
+    });
+
+    it("should return null for undefined", () => {
+      expect(parseDuplicateOf(undefined, "owner", "repo")).toBeNull();
+    });
+
+    it("should return null for null", () => {
+      expect(parseDuplicateOf(null, "owner", "repo")).toBeNull();
+    });
+
+    it("should return null for empty string", () => {
+      expect(parseDuplicateOf("", "owner", "repo")).toBeNull();
+    });
+
+    it("should return null for unparseable value", () => {
+      expect(parseDuplicateOf("not-a-valid-ref", "owner", "repo")).toBeNull();
+    });
+  });
+
+  describe("duplicate_of native marking", () => {
+    it("should call markAsDuplicate mutation when duplicate_of and state_reason DUPLICATE are set", async () => {
+      const handler = await main({ max: 10, state_reason: "DUPLICATE" });
+      const graphqlCalls = [];
+      const updateCalls = [];
+
+      mockGithub.rest.issues.get = async ({ owner, repo, issue_number }) => ({
+        data: {
+          number: issue_number,
+          title: "Test Issue",
+          labels: [],
+          html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}`,
+          state: "open",
+          node_id: `node_${issue_number}`,
+        },
+      });
+
+      mockGithub.rest.issues.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      mockGithub.graphql = async (mutation, variables) => {
+        graphqlCalls.push({ mutation, variables });
+        return { markAsDuplicate: { duplicate: { id: "node_100", number: 100 } } };
+      };
+
+      const result = await handler({ issue_number: 100, body: "Closing as duplicate", duplicate_of: 50 }, {});
+
+      expect(result.success).toBe(true);
+      expect(graphqlCalls.length).toBe(1);
+      expect(graphqlCalls[0].variables.duplicateId).toBe("node_100");
+      expect(graphqlCalls[0].variables.canonicalId).toBe("node_50");
+    });
+
+    it("should call markAsDuplicate with item-level state_reason DUPLICATE", async () => {
+      const handler = await main({ max: 10 });
+      const graphqlCalls = [];
+
+      mockGithub.rest.issues.get = async ({ owner, repo, issue_number }) => ({
+        data: {
+          number: issue_number,
+          title: "Test Issue",
+          labels: [],
+          html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}`,
+          state: "open",
+          node_id: `node_${issue_number}`,
+        },
+      });
+
+      mockGithub.rest.issues.update = async params => ({
+        data: {
+          number: params.issue_number,
+          title: "Test Issue",
+          html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+        },
+      });
+
+      mockGithub.graphql = async (mutation, variables) => {
+        graphqlCalls.push(variables);
+        return {};
+      };
+
+      const result = await handler({ issue_number: 200, body: "Duplicate", state_reason: "DUPLICATE", duplicate_of: "#99" }, {});
+
+      expect(result.success).toBe(true);
+      expect(graphqlCalls.length).toBe(1);
+      expect(graphqlCalls[0].canonicalId).toBe("node_99");
+    });
+
+    it("should skip markAsDuplicate when state_reason is not DUPLICATE", async () => {
+      const handler = await main({ max: 10 });
+      const graphqlCalls = [];
+
+      mockGithub.graphql = async (mutation, variables) => {
+        graphqlCalls.push(variables);
+        return {};
+      };
+
+      const result = await handler({ issue_number: 300, body: "Completed", state_reason: "COMPLETED", duplicate_of: 50 }, {});
+
+      expect(result.success).toBe(true);
+      expect(graphqlCalls.length).toBe(0);
+    });
+
+    it("should skip markAsDuplicate when duplicate_of is absent", async () => {
+      const handler = await main({ max: 10, state_reason: "DUPLICATE" });
+      const graphqlCalls = [];
+
+      mockGithub.graphql = async (mutation, variables) => {
+        graphqlCalls.push(variables);
+        return {};
+      };
+
+      const result = await handler({ issue_number: 400, body: "Duplicate no ref" }, {});
+
+      expect(result.success).toBe(true);
+      expect(graphqlCalls.length).toBe(0);
+    });
+
+    it("should warn and skip markAsDuplicate for unparseable duplicate_of", async () => {
+      const handler = await main({ max: 10, state_reason: "DUPLICATE" });
+      const graphqlCalls = [];
+
+      mockGithub.graphql = async (mutation, variables) => {
+        graphqlCalls.push(variables);
+        return {};
+      };
+
+      const result = await handler({ issue_number: 500, body: "Duplicate", duplicate_of: "not-parseable" }, {});
+
+      expect(result.success).toBe(true);
+      expect(graphqlCalls.length).toBe(0);
+      expect(mockCore.warnings.some(w => w.includes("could not be parsed"))).toBe(true);
+    });
+
+    it("should continue close successfully when markAsDuplicate mutation fails", async () => {
+      const handler = await main({ max: 10, state_reason: "DUPLICATE" });
+
+      mockGithub.rest.issues.get = async ({ owner, repo, issue_number }) => ({
+        data: {
+          number: issue_number,
+          title: "Test Issue",
+          labels: [],
+          html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}`,
+          state: "open",
+          node_id: `node_${issue_number}`,
+        },
+      });
+
+      mockGithub.rest.issues.update = async params => ({
+        data: {
+          number: params.issue_number,
+          title: "Test Issue",
+          html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+        },
+      });
+
+      mockGithub.graphql = async () => {
+        throw new Error("GraphQL mutation failed: forbidden");
+      };
+
+      const result = await handler({ issue_number: 600, body: "Duplicate close", duplicate_of: 10 }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockCore.warnings.some(w => w.includes("Failed to mark native duplicate"))).toBe(true);
+    });
+
+    it("should parse owner/repo#number duplicate_of and call mutation with correct repo", async () => {
+      const handler = await main({ max: 10, state_reason: "DUPLICATE" });
+      const graphqlCalls = [];
+      const getIssueCalls = [];
+
+      mockGithub.rest.issues.get = async ({ owner, repo, issue_number }) => {
+        getIssueCalls.push({ owner, repo, issue_number });
+        return {
+          data: {
+            number: issue_number,
+            title: "Test Issue",
+            labels: [],
+            html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}`,
+            state: "open",
+            node_id: `node_${owner}_${repo}_${issue_number}`,
+          },
+        };
+      };
+
+      mockGithub.rest.issues.update = async params => ({
+        data: {
+          number: params.issue_number,
+          title: "Test Issue",
+          html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+        },
+      });
+
+      mockGithub.graphql = async (mutation, variables) => {
+        graphqlCalls.push(variables);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          issue_number: 700,
+          body: "Duplicate of cross-repo issue",
+          duplicate_of: "other-org/other-repo#123",
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(graphqlCalls.length).toBe(1);
+      // The canonical node ID should come from the cross-repo issue
+      expect(graphqlCalls[0].canonicalId).toBe("node_other-org_other-repo_123");
+      // The duplicate node ID should come from the current repo issue
+      expect(graphqlCalls[0].duplicateId).toBe("node_test-owner_test-repo_700");
     });
   });
 });
