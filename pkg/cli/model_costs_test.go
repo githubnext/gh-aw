@@ -89,6 +89,15 @@ func TestComputeModelInferenceAICGitHubCopilotCacheReadDeduction(t *testing.T) {
 	}
 }
 
+func TestComputeModelInferenceAICGitHubCopilotNoCacheRead(t *testing.T) {
+	// With no cache reads, github-copilot pricing should match anthropic exactly:
+	// net input remains inputTokens, so no subtraction is applied.
+	aicViaGitHubCopilot := computeModelInferenceAIC("github-copilot", "claude-sonnet-4.6", 1000, 200, 0, 0, 0)
+	aicViaAnthropic := computeModelInferenceAIC("anthropic", "claude-sonnet-4.6", 1000, 200, 0, 0, 0)
+	assert.InDelta(t, aicViaAnthropic, aicViaGitHubCopilot, 1e-9,
+		"zero cache reads must not alter the charged input token count")
+}
+
 func TestFindOrFetchModelPricing_EmbeddedModelReturnsNil(t *testing.T) {
 	// claude-sonnet-4.6 is in the embedded catalog; FindOrFetchModelPricing should return
 	// (nil, false) so the lock.yml overlay does not duplicate what models.json already has.

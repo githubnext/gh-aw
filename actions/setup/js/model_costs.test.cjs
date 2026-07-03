@@ -175,4 +175,35 @@ describe("model_costs.cjs", () => {
       expect(aic).toBeCloseTo(0.492, 6);
     }
   });
+
+  it("clamps net input to 0 when cache_read exceeds input (§3.5 boundary)", async () => {
+    writeModelsFixture({
+      "github-copilot": {
+        models: {
+          "claude-sonnet-4.6": {
+            cost: {
+              input: "0.000003",
+              output: "0.000015",
+              cache_read: "0.0000003",
+            },
+          },
+        },
+      },
+    });
+
+    const { computeInferenceAIC } = await import("./model_costs.cjs");
+    const aic = computeInferenceAIC({
+      provider: "github-copilot",
+      model: "claude-sonnet-4.6",
+      inputTokens: 1000,
+      outputTokens: 200,
+      cacheReadTokens: 1200,
+      cacheWriteTokens: 0,
+    });
+
+    // net input = max(1000 − 1200, 0) = 0
+    // cost = 0×0.000003 + 200×0.000015 + 1200×0.0000003 = 0.00336
+    // AIC  = 0.00336 / 0.01 = 0.336
+    expect(aic).toBeCloseTo(0.336, 6);
+  });
 });
