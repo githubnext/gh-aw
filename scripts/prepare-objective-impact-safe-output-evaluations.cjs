@@ -32,10 +32,16 @@ function writeFileAtomic(filePath, content) {
   const tmpDir = fs.mkdtempSync(path.join(parentDir, `.${baseName}.tmp-`));
   const tmpFile = path.join(tmpDir, baseName);
   try {
-    fs.writeFileSync(tmpFile, content);
-    fs.renameSync(tmpFile, filePath);
-  } catch (err) {
-    throw err;
+    try {
+      fs.writeFileSync(tmpFile, content);
+    } catch (err) {
+      throw new Error(`failed to write temp file ${tmpFile}`, { cause: err });
+    }
+    try {
+      fs.renameSync(tmpFile, filePath);
+    } catch (err) {
+      throw new Error(`failed to rename temp file ${tmpFile} to ${filePath}`, { cause: err });
+    }
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
