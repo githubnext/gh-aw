@@ -72,7 +72,8 @@ This will take you through an interactive process to:
 4. **Add the workflow** - Adds the workflow file (`.md`) and its generated GitHub Actions lock file (`.lock.yml`) to `.github/workflows/`.
 5. **Optionally trigger an initial run** - Starts the workflow immediately.
 
-The `.lock.yml` is the compiled GitHub Actions workflow generated from your markdown — it is what actually runs, and it is regenerated automatically, so you never edit it by hand. See [Lock File](/gh-aw/reference/workflow-structure/#lock-file-header) for the full explanation.
+> [!NOTE]
+> The `.lock.yml` is the compiled GitHub Actions workflow generated from your markdown — it is what actually runs, and it is regenerated automatically, so you never edit it by hand. See [Lock File](/gh-aw/reference/workflow-structure/#lock-file-header) for the full explanation.
 
 > [!NOTE]
 > **Setting up `COPILOT_GITHUB_TOKEN`?**
@@ -125,7 +126,7 @@ To customize it now:
 
 2. Edit the section "What to include" to list things you are having trouble with regularly in your repository: your issue backlog, your CI setup, your testing, the performance of your software, your roadmap. Any or all of these, or anything else you want to improve. You can also customize the style and process sections to guide the coding agent's behavior.
 
-3. If you changed the [frontmatter](/gh-aw/reference/frontmatter/) (the configuration block between the `---` markers at the top of the file), regenerate the compiled workflow by running:
+3. If you changed the [frontmatter](/gh-aw/reference/frontmatter/) (the YAML configuration block between the `---` markers at the top of the file), regenerate the compiled workflow by running:
 
    ```text
    gh aw compile

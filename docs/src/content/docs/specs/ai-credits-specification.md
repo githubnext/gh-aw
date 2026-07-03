@@ -147,6 +147,15 @@ If a model entry omits optional price fields, implementations MUST apply the fol
 
 For providers that include cache-read tokens in total input tokens, implementations MUST subtract `cache_read_tokens` from `input_tokens` before applying input price and MUST NOT double-charge cache-read usage.
 
+The following providers are known to bundle cache-read tokens in the reported input total and MUST have §3.5 applied:
+
+| Provider (normalized) | Notes |
+|-----------------------|-------|
+| `anthropic` | Direct Anthropic API |
+| `openai` | Direct OpenAI API |
+| `azure-openai` / `azure_openai` | Azure-hosted OpenAI |
+| `github-copilot` (and aliases `github`, `copilot`, `github_models`) | GitHub Copilot proxy — proxies both OpenAI and Anthropic models, which bundle cache-read tokens in input |
+
 ### 3.6 Aggregation
 
 For grouped runs (for example, episodes), implementations MUST aggregate AIC by summing per-invocation AIC values.

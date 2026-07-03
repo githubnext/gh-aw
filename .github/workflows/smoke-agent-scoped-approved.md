@@ -60,25 +60,25 @@ Test GitHub MCP tool access under this guard policy by performing these operatio
 
 ### Step 1: List issues from this repository (should succeed)
 
-Use `list_issues` on `${{ github.repository }}` with `state: open` and `per_page: 3`. This is `github/gh-aw` which is in the allowed repos list. Record:
+Use `list_issues` on `${{ github.repository }}` with `state: open` and `perPage: 3`. This is `github/gh-aw` which is in the allowed repos list. Record:
 - Issue number and title
 - Whether access was allowed or denied
 
 ### Step 2: Search repositories in the github org (should succeed)
 
-Use `search_repositories` to search for `org:github gh-aw`. These match `github/*` pattern. Record:
+Use `search_repositories` with `perPage: 3` to search for `org:github gh-aw`. These match `github/*` pattern. Record:
 - Repository full name
 - Whether access was allowed or denied
 
 ### Step 3: List issues from a non-github org repository (should be blocked)
 
-Use `list_issues` on `actions/checkout` with `state: open` and `per_page: 3`. This is NOT in the `github/*` scope so access should be denied. Record:
+Use `list_issues` on `actions/checkout` with `state: open` and `perPage: 3`. This is NOT in the `github/*` scope so access should be denied. Record:
 - Whether access was allowed or denied
 - Any error message received
 
 ### Step 4: Search repositories outside github org (should be blocked)
 
-Use `search_repositories` to search for `topic:actions org:actions` to find repos in the `actions` org. These should NOT be accessible. Record:
+Use `search_repositories` with `perPage: 3` to search for `topic:actions org:actions` to find repos in the `actions` org. These should NOT be accessible. Record:
 - Whether access was allowed or denied
 - Any error message received
 
