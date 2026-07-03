@@ -152,12 +152,7 @@ Present a structured summary and ask for approval before generation.
 | "link a sub-issue" | `link-sub-issue` |
 | "add labels", "remove labels" | `add-labels`, `remove-labels` |
 | "replace a label with another" | `replace-label` |
-| "report missing data needed for the task" | `missing-data` (system type, auto-enabled) |
-| "report unavailable or missing tool/permission" | `missing-tool` (system type, auto-enabled) |
-| "signal task could not be completed due to infrastructure failure" | `report-incomplete` (system type, auto-enabled) |
 | "nothing visible", "just analyze" | no safe outputs required |
-
-> **System types** (`missing-data`, `missing-tool`, `report-incomplete`) are error-signaling outputs that are automatically available in every workflow without being declared in `safe-outputs:`. They emit structured infrastructure signals (not task results) and can be disabled explicitly (e.g. `missing-tool: false`) but should rarely be suppressed.
 
 ### Network Mapping
 
@@ -317,14 +312,8 @@ After confirmation, generate one workflow file using the same skeleton style as 
 ---
 emoji: <emoji>
 description: <brief description>
-strict: true
 on:
   <trigger config>
-max-turns: <integer or omit>
-max-ai-credits: <integer or omit for default 1000>
-max-daily-ai-credits: <integer or omit to leave disabled>
-user-rate-limit: <object or omit>
-models: <object or omit>
 permissions:
   contents: read
   issues: read
