@@ -107,6 +107,8 @@ function parseRetryConfigNumber(rawValue, { envVar, defaultValue, minimum, allow
     return defaultValue;
   }
   const parsed = Number(rawValue);
+  // Accept only finite numbers that meet the minimum bound, and require whole
+  // numbers unless the caller explicitly opts into float support.
   const isValidNumber = Number.isFinite(parsed) && parsed >= minimum && (allowFloat || Number.isInteger(parsed));
   if (isValidNumber) {
     return parsed;
