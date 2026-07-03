@@ -40,6 +40,7 @@ const ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOS
 const ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN = new RegExp(`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)(\\s+)\`(${ISSUE_REFERENCE_PATTERN})\``, "gi");
 const NORMALIZE_CLOSER_BODY_TYPES = new Set(["create_issue", "add_comment", "create_pull_request"]);
 const ISSUE_INTENT_LABEL_TYPES = new Set(["add_labels", "remove_labels", "update_issue"]);
+const ISSUE_INTENT_TOP_LEVEL_TYPES = new Set(["set_issue_type", "set_issue_field"]);
 const LENIENT_ISSUE_INTENT_FIELDS = new Set(["rationale", "confidence"]);
 
 /**
@@ -90,10 +91,11 @@ function normalizeIssueIntentRationale(rationale, options) {
  * the entire safe-output item to be rejected when they are malformed.
  * @param {string} fieldName
  * @param {FieldValidation} validation
+ * @param {string} itemType
  * @returns {boolean}
  */
-function shouldStripInvalidIssueIntentField(fieldName, validation) {
-  return !validation.required && LENIENT_ISSUE_INTENT_FIELDS.has(fieldName);
+function shouldStripInvalidIssueIntentField(fieldName, validation, itemType) {
+  return !validation.required && LENIENT_ISSUE_INTENT_FIELDS.has(fieldName) && ISSUE_INTENT_TOP_LEVEL_TYPES.has(itemType);
 }
 
 /**
@@ -165,24 +167,26 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
     }
     if (label.confidence !== undefined) {
       if (label.confidence !== null && label.confidence !== "") {
-        const confidenceRaw = String(label.confidence).trim().toUpperCase();
-        /** @type {"LOW"|"MEDIUM"|"HIGH"|undefined} */
-        let confidence;
-        switch (confidenceRaw) {
-          case "LOW":
-            confidence = "LOW";
-            break;
-          case "MEDIUM":
-            confidence = "MEDIUM";
-            break;
-          case "HIGH":
-            confidence = "HIGH";
-            break;
-          default:
-            confidence = undefined;
-        }
-        if (confidence) {
-          normalizedLabel.confidence = confidence;
+        if (typeof label.confidence === "string") {
+          const confidenceRaw = label.confidence.trim().toUpperCase();
+          /** @type {"LOW"|"MEDIUM"|"HIGH"|undefined} */
+          let confidence;
+          switch (confidenceRaw) {
+            case "LOW":
+              confidence = "LOW";
+              break;
+            case "MEDIUM":
+              confidence = "MEDIUM";
+              break;
+            case "HIGH":
+              confidence = "HIGH";
+              break;
+            default:
+              confidence = undefined;
+          }
+          if (confidence) {
+            normalizedLabel.confidence = confidence;
+          }
         }
       }
     }
@@ -466,7 +470,7 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
   // Handle type validation
   if (validation.type === "string") {
     if (typeof value !== "string") {
-      if (shouldStripInvalidIssueIntentField(fieldName, validation)) {
+      if (shouldStripInvalidIssueIntentField(fieldName, validation, itemType)) {
         return { isValid: true, removeField: true };
       }
       // For required fields, use "requires a" format for both missing and wrong type
@@ -497,10 +501,10 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
 
     // Handle enum validation
     if (validation.enum) {
-      const normalizedValue = value.toLowerCase ? value.toLowerCase() : value;
+      const normalizedValue = value.trim().toLowerCase();
       const normalizedEnum = validation.enum.map(e => (e.toLowerCase ? e.toLowerCase() : e));
       if (!normalizedEnum.includes(normalizedValue)) {
-        if (shouldStripInvalidIssueIntentField(fieldName, validation)) {
+        if (shouldStripInvalidIssueIntentField(fieldName, validation, itemType)) {
           return { isValid: true, removeField: true };
         }
         // Use special format for 2-option enums: "'field' must be 'A' or 'B'"
@@ -532,7 +536,9 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
 
     // Handle sanitization
     let finalValue = value;
-    if (validation.sanitize) {
+    if (fieldName === "rationale" && shouldStripInvalidIssueIntentField(fieldName, validation, itemType)) {
+      finalValue = normalizeIssueIntentRationale(value, options);
+    } else if (validation.sanitize) {
       // Apply unfencing to remove accidental outer markdown fences before sanitization
       finalValue = sanitizeContent(unfenceMarkdown(value), {
         maxLength: validation.maxLength || MAX_BODY_LENGTH,

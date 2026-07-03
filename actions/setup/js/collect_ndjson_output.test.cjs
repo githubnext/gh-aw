@@ -225,7 +225,7 @@ describe("collect_ndjson_output.cjs", () => {
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"set_issue_type": true, "set_issue_field": true}',
         configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+      (fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();

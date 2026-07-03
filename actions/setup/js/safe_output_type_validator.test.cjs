@@ -344,21 +344,38 @@ describe("safe_output_type_validator", () => {
       }
     });
 
-    it("should strip invalid optional issue-intent fields from structured labels", async () => {
+    it("should strip non-string rationale from structured labels", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
       const result = validateItem(
         {
           type: "add_labels",
           item_number: 123,
-          labels: [{ name: "bug", rationale: 42, confidence: 0.95, suggest: true }],
+          labels: [{ name: "bug", rationale: 42, confidence: "HIGH", suggest: true }],
         },
         "add_labels",
         1
       );
 
       expect(result.isValid).toBe(true);
-      expect(result.normalizedItem.labels).toEqual([{ name: "bug", suggest: true }]);
+      expect(result.normalizedItem.labels).toEqual([{ name: "bug", confidence: "HIGH", suggest: true }]);
+    });
+
+    it("should strip non-enum confidence from structured labels", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem(
+        {
+          type: "add_labels",
+          item_number: 123,
+          labels: [{ name: "bug", rationale: "triage context", confidence: 0.95, suggest: true }],
+        },
+        "add_labels",
+        1
+      );
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.labels).toEqual([{ name: "bug", rationale: "triage context", suggest: true }]);
     });
 
     it("should fail add_labels when structured label entry is invalid", async () => {
@@ -965,6 +982,10 @@ describe("safe_output_type_validator", () => {
       const fieldResult = validateItem({ type: "set_issue_field", field_name: "Priority", value: "P1", confidence: "medium", rationale: "Customer escalation" }, "set_issue_field", 1);
       expect(fieldResult.isValid).toBe(true);
       expect(fieldResult.normalizedItem.confidence).toBe("MEDIUM");
+
+      const spacedResult = validateItem({ type: "set_issue_type", issue_type: "Bug", confidence: " medium " }, "set_issue_type", 1);
+      expect(spacedResult.isValid).toBe(true);
+      expect(spacedResult.normalizedItem.confidence).toBe("MEDIUM");
     });
 
     it("should strip invalid optional issue-intent fields instead of rejecting the item", async () => {
@@ -977,6 +998,10 @@ describe("safe_output_type_validator", () => {
       const fieldResult = validateItem({ type: "set_issue_field", field_name: "Priority", value: "P1", confidence: "0.95", rationale: { why: "bad" } }, "set_issue_field", 1);
       expect(fieldResult.isValid).toBe(true);
       expect(fieldResult.normalizedItem).toEqual({ type: "set_issue_field", field_name: "Priority", value: "P1" });
+
+      const longRationaleResult = validateItem({ type: "set_issue_type", issue_type: "Bug", rationale: "a".repeat(350) }, "set_issue_type", 1);
+      expect(longRationaleResult.isValid).toBe(true);
+      expect(longRationaleResult.normalizedItem.rationale).toHaveLength(280);
     });
   });
 
