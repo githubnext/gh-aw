@@ -552,15 +552,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		container := &AWFContainerConfig{
 			ImageTag: awfImageTag,
 		}
-		// For ARC/DinD topology, set dockerHostPathPrefix in config.
-		// AWF uses this to prefix bind-mount source paths so the DinD daemon can resolve
-		// runner filesystem paths from its separate mount namespace.
-		// The config file is written at runtime, so ${RUNNER_TEMP} can be preserved for
-		// shell expansion before AWF reads the JSON.
-		if isArcDindTopology(config.WorkflowData) {
-			container.DockerHostPathPrefix = awfArcDindRootPathExpr
-			awfConfigLog.Printf("Container section: dockerHostPathPrefix=%s (arc-dind topology)", awfArcDindRootPathExpr)
-		}
+		// NOTE: dockerHostPathPrefix is intentionally NOT set for arc-dind topology.
+		// With sysroot-stage active, the Docker daemon can access all needed paths:
+		//  - Workspace & RUNNER_TEMP: on the shared work volume (/home/runner/_work/)
+		//  - System binaries: provided by the sysroot named volume (not bind mounts)
+		//  - Kernel VFS (/dev, /sys): daemon's own kernel
+		// Setting a prefix would incorrectly translate the workspace mount source to
+		// a non-existent path (e.g. /prefix/home/runner/_work/repo → empty dir),
+		// causing the agent to see an empty workspace. See gh-aw#34896.
 		awfConfig.Container = container
 		if awfImageTag != "" {
 			awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
