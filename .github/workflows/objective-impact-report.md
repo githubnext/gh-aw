@@ -38,8 +38,13 @@ pre-agent-steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
+    run: bash scripts/prepare-objective-impact-report-dataset.sh
+  - name: Prepare safe-output issue evaluations
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
     run: |
-      bash scripts/prepare-objective-impact-report-dataset.sh
       node <<'NODE'
       const fs = require("fs");
       const path = require("path");
@@ -48,7 +53,7 @@ pre-agent-steps:
         evaluateItem,
         normalizeOutcome,
         readJSONL,
-      } = require(path.join(process.cwd(), "actions/setup/js/evaluate_outcomes.cjs"));
+      } = require(path.join(process.env.GITHUB_WORKSPACE || process.cwd(), "actions/setup/js/evaluate_outcomes.cjs"));
 
       const DATA_DIR = "/tmp/gh-aw/agent/objective-impact-report";
       const RUNS_DIR = path.join(DATA_DIR, "safe-output-runs");
