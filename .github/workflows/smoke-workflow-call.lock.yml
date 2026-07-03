@@ -112,7 +112,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-smoke-workflow-call"
 
 run-name: "Smoke Workflow Call"
 

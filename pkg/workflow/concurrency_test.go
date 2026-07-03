@@ -351,6 +351,36 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.run_id }}"`,
 			description: "Rendered slash_command YAML (issue_comment + workflow_dispatch) uses issue number via isIssueWorkflow",
 		},
+		{
+			name: "workflow_call worker uses hard-baked workflow ID to avoid caller-name deadlock",
+			workflowData: &WorkflowData{
+				On: `on:
+  workflow_call:
+    inputs:
+      sentinel:
+        required: true
+        type: string`,
+				WorkflowID:  "call-test-copilot-call-worker",
+				Concurrency: "",
+			},
+			isAliasTrigger: false,
+			expected: `concurrency:
+  group: "gh-aw-call-test-copilot-call-worker"`,
+			description: "workflow_call workers must use compile-time workflow ID, not github.workflow, to prevent gateway/worker concurrency group collision",
+		},
+		{
+			name: "workflow_call without WorkflowID falls back to github.workflow expression",
+			workflowData: &WorkflowData{
+				On: `on:
+  workflow_call:`,
+				WorkflowID:  "",
+				Concurrency: "",
+			},
+			isAliasTrigger: false,
+			expected: `concurrency:
+  group: "gh-aw-${{ github.workflow }}"`,
+			description: "workflow_call without a WorkflowID falls back to the standard github.workflow expression",
+		},
 	}
 
 	for _, tt := range tests {

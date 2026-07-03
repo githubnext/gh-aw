@@ -228,7 +228,15 @@ func hasBotSelfCancelRisk(workflowData *WorkflowData) bool {
 
 // buildConcurrencyGroupKeys builds an array of keys for the concurrency group
 func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool) []string {
-	keys := []string{"gh-aw", "${{ github.workflow }}"}
+	// For workflow_call workers, github.workflow resolves to the *calling* workflow's
+	// name at runtime, not the callee's.  Both the gateway and the worker would therefore
+	// share the same concurrency group, causing a deadlock.  Hard-bake the compile-time
+	// workflow ID (filename without extension) to give each worker a unique group.
+	workflowKey := "${{ github.workflow }}"
+	if hasWorkflowCallTrigger(workflowData.On) && workflowData.WorkflowID != "" {
+		workflowKey = workflowData.WorkflowID
+	}
+	keys := []string{"gh-aw", workflowKey}
 
 	// Whether this workflow exposes inputs.item_number via workflow_dispatch (label trigger shorthand).
 	// When true, include it in the concurrency key so that manual dispatches for different items
