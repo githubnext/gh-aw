@@ -75,13 +75,13 @@ Use `search_repositories` with `perPage: 3` to search for `org:github gh-aw` to 
 
 ### Step 3: List issues from this repository
 
-Use `list_issues` on `${{ github.repository }}` with `state: open` and `per_page: 3`. Record:
+Use `list_issues` on `${{ github.repository }}` with `state: open` and `perPage: 3`. Record:
 - Issue number and title
 - Whether access was allowed or denied
 
 ### Step 4: List issues from a different public repository
 
-Use `list_issues` on `github/docs` with `state: open` and `per_page: 3`. Record:
+Use `list_issues` on `github/docs` with `state: open` and `perPage: 3`. Record:
 - Issue number and title
 - Whether access was allowed or denied
 
