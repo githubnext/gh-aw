@@ -1458,7 +1458,7 @@ func TestResolveRepositoryPackage_SkillsAndAgents(t *testing.T) {
 	}
 
 	t.Run("explicit skills and agents from manifest", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1505,7 +1505,7 @@ files:
 	})
 
 	t.Run("includes field infers workflow skill and agent types", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1545,7 +1545,7 @@ includes:
 	})
 
 	t.Run("auto-scans skills and agents when absent from manifest", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1596,7 +1596,7 @@ files:
 	})
 
 	t.Run("missing skill directory produces warning not error", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1634,7 +1634,7 @@ files:
 	})
 
 	t.Run("explicit skill without marker produces warning", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1673,7 +1673,7 @@ files:
 	})
 
 	t.Run("no skills or agents when directories absent", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1708,7 +1708,7 @@ files:
 	})
 
 	t.Run("manifest skills copied first then auto-scanned additional skills appended", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1764,7 +1764,7 @@ files:
 	})
 
 	t.Run("auto-scan errors are warnings when manifest skills are explicit", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1806,7 +1806,7 @@ files:
 	})
 
 	t.Run("skill folder nested files are included recursively", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1884,7 +1884,7 @@ func TestResolveWorkflows_SkillsAndAgents(t *testing.T) {
 	agentMD := []byte("# My Agent\nThis is an agent.\n")
 	workflowMD := []byte("---\nname: Review\non: issues\n---\n")
 
-	downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 		switch filePath {
 		case "aw.yml":
 			return []byte(`name: Full Package

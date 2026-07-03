@@ -343,8 +343,12 @@ func isWorkflowSpec(path string) bool {
 	return IsWorkflowSpec(path)
 }
 
-// downloadIncludeFromWorkflowSpec downloads an include file from GitHub using workflowspec
-// It first checks the cache, and only downloads if not cached
+// downloadIncludeFromWorkflowSpec downloads an include file from GitHub using workflowspec.
+// It first checks the cache, and only downloads if not cached.
+//
+// NOTE: This function is called from ResolveIncludePath which has no context.Context
+// parameter. Threading ctx through ResolveIncludePath and its 6+ callers across multiple
+// packages is tracked as a follow-up task; context.Background() is used in the interim.
 func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, error) {
 	remoteLog.Printf("Downloading from workflowspec: %s", spec)
 	owner, repo, filePath, ref, err := parseWorkflowSpecParts(spec)
