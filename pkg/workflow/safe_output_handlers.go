@@ -117,6 +117,19 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 		},
 	},
 	{
+		Key:         "dismiss-pull-request-review",
+		Aliases:     []string{"dismiss-review"},
+		StructField: "DismissPullRequestReview",
+		ToolName:    "dismiss_pull_request_review",
+		NewConfig:   func() any { return &DismissPullRequestReviewConfig{} },
+		PermissionBuilder: func(safeOutputs *SafeOutputsConfig) *Permissions {
+			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "DismissPullRequestReview") {
+				return nil
+			}
+			return NewPermissionsContentsReadPRWrite()
+		},
+	},
+	{
 		Key:         "add-comment",
 		StructField: "AddComments",
 		ToolName:    "add_comment",

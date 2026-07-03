@@ -1979,6 +1979,31 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   };
 
   /**
+   * Handler for dismiss_pull_request_review tool (MCP server phase).
+   * Enforces justification minimum length and actor-author consistency before recording.
+   */
+  const dismissPullRequestReviewHandler = args => {
+    const justification = (args && typeof args.justification === "string" ? args.justification : "").trim();
+    if (justification.length < 20) {
+      throw {
+        code: -32602,
+        message: `${ERR_VALIDATION}: dismiss_pull_request_review: 'justification' must be at least 20 characters`,
+      };
+    }
+
+    const actor = (process.env.GITHUB_ACTOR || context?.actor || "github-actions[bot]").trim() || "github-actions[bot]";
+    const author = args && typeof args.author === "string" ? args.author.trim() : "";
+    if (author && author !== actor) {
+      throw {
+        code: -32602,
+        message: `${ERR_VALIDATION}: dismiss_pull_request_review: 'author' must match current workflow actor (${actor})`,
+      };
+    }
+
+    return defaultHandler("dismiss_pull_request_review")(args);
+  };
+
+  /**
    * Recursively copy all regular files from srcDir into destDir, preserving the relative
    * path structure under srcDir. Non-regular entries (sockets, devices, pipes, symlinks)
    * are skipped silently.
@@ -2187,6 +2212,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     addCommentHandler,
     createPullRequestReviewCommentHandler,
     submitPullRequestReviewHandler,
+    dismissPullRequestReviewHandler,
     updateIssueHandler,
     updatePullRequestHandler,
   };

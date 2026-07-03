@@ -7201,6 +7201,91 @@
           ],
           "description": "Enable AI agents to submit consolidated pull request reviews with a status decision. Works with create-pull-request-review-comment to batch inline comments into a single review."
         },
+        "dismiss-pull-request-review": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for dismissing pull request reviews previously submitted by the current workflow actor.",
+              "properties": {
+                "max": {
+                  "description": "Maximum number of review dismissals to perform (default: 10) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target PR for review dismissal: 'triggering' (default, current PR), '*' (any PR, requires pull_request_number in agent output), or explicit PR number."
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository review dismissal. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' where review dismissals are allowed. The target repository (current or target-repo) is always implicitly allowed."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
+                },
+                "samples": {
+                  "description": "Internal hidden feature. Optional list of declarative sample payloads that exercise this safe-output handler. Used by the hidden `gh aw compile --use-samples` flag to replace the agentic step with a deterministic replay through the safe-outputs MCP server. Each entry should conform to the corresponding MCP tool inputSchema.",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  ]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable pull request review dismissal with default configuration"
+            }
+          ],
+          "description": "Enable AI agents to dismiss pull request reviews authored by the current workflow actor."
+        },
+        "dismiss-review": {
+          "$ref": "#/properties/safe-outputs/properties/dismiss-pull-request-review"
+        },
         "reply-to-pull-request-review-comment": {
           "oneOf": [
             {

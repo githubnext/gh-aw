@@ -511,6 +511,54 @@
     }
   },
   {
+    "name": "dismiss_pull_request_review",
+    "description": "Dismiss a pull request review. The review must be authored by the same workflow actor who is dismissing it. By default, the actor is inferred from the current GitHub Actions context (typically github-actions[bot]). You must provide a justification of at least 20 characters.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["review_id", "justification"],
+      "properties": {
+        "review_id": {
+          "type": ["number", "string"],
+          "description": "The numeric review ID to dismiss.",
+          "x-synonyms": ["reviewId"]
+        },
+        "justification": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Reason for dismissing the review. Must be at least 20 characters."
+        },
+        "author": {
+          "type": "string",
+          "description": "Optional expected review author login. If provided, it must match the current workflow actor."
+        },
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number containing the review. If omitted, uses the triggering PR context.",
+          "x-synonyms": ["pullRequestNumber"]
+        },
+        "repo": {
+          "type": "string",
+          "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
+        },
+        "secrecy": {
+          "type": "string",
+          "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+        },
+        "integrity": {
+          "type": "string",
+          "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        }
+      },
+      "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number"]
+      }
+    }
+  },
+  {
     "name": "resolve_pull_request_review_thread",
     "description": "Resolve a review thread on a pull request. Use this to mark a review conversation as resolved after addressing the feedback. The thread_id must be the node ID of the review thread (e.g., PRRT_kwDO...).",
     "inputSchema": {

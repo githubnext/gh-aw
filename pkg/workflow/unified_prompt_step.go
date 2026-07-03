@@ -574,6 +574,9 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.MarkPullRequestAsReadyForReview != nil {
 		tools = append(tools, toolWithMaxBudget("mark_pull_request_as_ready_for_review", safeOutputs.MarkPullRequestAsReadyForReview.Max))
 	}
+	if safeOutputs.DismissPullRequestReview != nil {
+		tools = append(tools, toolWithMaxBudget("dismiss_pull_request_review", safeOutputs.DismissPullRequestReview.Max))
+	}
 	if safeOutputs.CreatePullRequestReviewComments != nil {
 		tools = append(tools, toolWithMaxBudget("create_pull_request_review_comment", safeOutputs.CreatePullRequestReviewComments.Max))
 	}
