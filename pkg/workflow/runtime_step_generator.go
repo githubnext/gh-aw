@@ -54,6 +54,9 @@ func generateEnvCaptureStep(envVar string, captureCmd string) GitHubActionStep {
 	}
 }
 
+// mergeRuntimeWithFields combines pre-formatted runtime defaults with user
+// overrides, formatting req.ExtraFields for YAML as they are merged.
+// User-provided fields take precedence over runtime defaults.
 func mergeRuntimeWithFields(req *RuntimeRequirement) map[string]string {
 	allExtraFields := make(map[string]string)
 
@@ -66,6 +69,8 @@ func mergeRuntimeWithFields(req *RuntimeRequirement) map[string]string {
 	return allExtraFields
 }
 
+// appendSortedWithFieldEntries appends pre-formatted with: entries in stable
+// sorted key order so generated workflow output is deterministic.
 func appendSortedWithFieldEntries(step GitHubActionStep, withFields map[string]string) GitHubActionStep {
 	for _, key := range sliceutil.SortedKeys(withFields) {
 		step = append(step, fmt.Sprintf("          %s: %s", key, withFields[key]))
