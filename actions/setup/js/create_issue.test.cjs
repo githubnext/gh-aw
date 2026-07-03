@@ -476,18 +476,18 @@ describe("create_issue", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
     });
 
-    it("should drop fuzzy duplicates based on Levenshtein distance", async () => {
+    it("should accept resolved templatable boolean strings", async () => {
       const handler = await main({
-        deduplicate_by_title: 1,
+        deduplicate_by_title: "true",
       });
 
-      const first = await handler({ title: "Fix login bug" });
-      const second = await handler({ title: "Fix login bag" });
+      const first = await handler({ title: "Duplicate title" });
+      const second = await handler({ title: "Duplicate title" });
 
       expect(first.success).toBe(true);
       expect(second.success).toBe(true);
       expect(second.dropped_duplicate).toBe(true);
-      expect(second.duplicate_distance).toBe(1);
+      expect(second.duplicate_distance).toBe(0);
       expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
     });
 
@@ -663,6 +663,7 @@ describe("create_issue", () => {
 
     it("should reject invalid deduplicate-by-title configuration", async () => {
       await expect(main({ deduplicate_by_title: "invalid" })).rejects.toThrow("deduplicate-by-title");
+      await expect(main({ deduplicate_by_title: 1 })).rejects.toThrow("deduplicate-by-title");
       await expect(main({ deduplicate_by_title: 101 })).rejects.toThrow("deduplicate-by-title");
     });
   });

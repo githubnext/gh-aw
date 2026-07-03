@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
-	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 // assertTokenInProcessSafeOutputsEnv verifies that a given environment variable name
@@ -150,7 +149,7 @@ engine: claude
 strict: false
 safe-outputs:
   create-issue:
-    deduplicate-by-title: 1
+    deduplicate-by-title: true
     title-prefix: "[genai] "
     labels: [copilot, automation]
 ---
@@ -200,9 +199,54 @@ This workflow tests the output configuration parsing.
 		}
 	}
 
-	deduplicateByTitle, ok := typeutil.ParseIntValue(workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle)
-	if !ok || deduplicateByTitle != 1 {
-		t.Errorf("Expected deduplicate-by-title to parse as 1, got %#v", workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle)
+	if workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle == nil || *workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle != "true" {
+		t.Errorf("Expected deduplicate-by-title to parse as \"true\", got %#v", workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle)
+	}
+}
+
+func TestOutputConfigParsingWithTemplatableDeduplicateByTitle(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "output-config-dedup-expression-test")
+
+	testContent := `---
+on:
+  workflow_dispatch:
+    inputs:
+      dedup:
+        type: boolean
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+strict: false
+safe-outputs:
+  create-issue:
+    deduplicate-by-title: ${{ inputs.dedup }}
+    title-prefix: "[genai] "
+---
+
+# Test Output Configuration
+
+This workflow tests templatable deduplicate-by-title parsing.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-config-expression.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with templatable deduplicate-by-title: %v", err)
+	}
+
+	if workflowData.SafeOutputs == nil || workflowData.SafeOutputs.CreateIssues == nil {
+		t.Fatal("Expected issue configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle == nil || *workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle != "${{ inputs.dedup }}" {
+		t.Errorf("Expected deduplicate-by-title to preserve expression, got %#v", workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle)
 	}
 }
 
@@ -351,7 +395,7 @@ engine: claude
 strict: false
 safe-outputs:
   create-issue:
-    deduplicate-by-title: 1
+    deduplicate-by-title: true
     title-prefix: "[genai] "
     labels: [copilot]
 ---
@@ -418,7 +462,7 @@ This workflow tests the create-issue job generation.
 		t.Error("Expected copilot label in handler config")
 	}
 
-	if !strings.Contains(lockContent, `\"deduplicate_by_title\":1`) {
+	if !strings.Contains(lockContent, `\"deduplicate_by_title\":true`) {
 		t.Error("Expected deduplicate_by_title in handler config")
 	}
 

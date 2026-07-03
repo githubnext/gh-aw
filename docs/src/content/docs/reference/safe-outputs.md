@@ -120,7 +120,7 @@ safe-outputs:
     expires: 7                       # auto-close after 7 days (or false to disable)
     group: true                      # group as sub-issues under parent
     close-older-issues: true         # close previous issues from same workflow
-    deduplicate-by-title: 1          # drop duplicate titles (true=exact, integer=edit distance)
+    deduplicate-by-title: true       # drop duplicate titles (exact-match deduplication)
     normalize-closing-keywords: true # strip backticks around recognized issue-closing keywords in body text
     target-repo: "owner/repo"        # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
@@ -212,16 +212,19 @@ safe-outputs:
 The `deduplicate-by-title` field drops duplicate issues by comparing titles before creation. Accepts:
 
 - `true` — match titles exactly (after normalization)
-- integer `0`–`100` — match titles within the given Levenshtein edit distance (e.g., `1` allows one-character differences)
+- `false` — disable title-based deduplication
+- `${{ ... }}` — a GitHub Actions expression that resolves to `true` or `false` at runtime
 
 Deduplication runs at both the MCP tool-call boundary (within-run drops with immediate `duplicate_dropped` feedback to the agent) and at apply time (within-run plus open and recently-closed repository issues). Dropped items are recorded in the safe-output summary with the matched title, edit distance, and source (`mcp-precheck`, `within-run`, or `repo-level`).
+
+Legacy integer values can be rewritten automatically with `gh aw fix --write`.
 
 ```yaml wrap
 safe-outputs:
   create-issue:
     title-prefix: "[triage] "
     labels: [bug]
-    deduplicate-by-title: 1   # tolerate one-character title differences
+    deduplicate-by-title: ${{ inputs.deduplicate }}
 ```
 
 #### Searching for Workflow-Created Items

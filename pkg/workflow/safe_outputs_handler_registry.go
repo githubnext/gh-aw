@@ -22,13 +22,13 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddTemplatableBool("group", c.Group).
 			AddTemplatableBool("close_older_issues", c.CloseOlderIssues).
+			AddTemplatableBool("deduplicate_by_title", c.DeduplicateByTitle).
 			AddIfNotEmpty("close_older_key", c.CloseOlderKey).
 			AddTemplatableBool("group_by_day", c.GroupByDay).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
-			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
-			AddBoolOrInt("deduplicate_by_title", c.DeduplicateByTitle)
+			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
 		return builder.Build()
 	},
 	"add_comment": func(cfg *SafeOutputsConfig) map[string]any {

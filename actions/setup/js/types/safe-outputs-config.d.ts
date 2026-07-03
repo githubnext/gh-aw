@@ -13,7 +13,7 @@ interface SafeOutputConfig {
  */
 interface CreateIssueConfig extends SafeOutputConfig {
   "title-prefix"?: string;
-  "deduplicate-by-title"?: boolean | number;
+  "deduplicate-by-title"?: boolean | string;
   labels?: string[];
   "target-repo"?: string;
   "allowed-repos"?: string[];

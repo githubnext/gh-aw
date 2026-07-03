@@ -3464,8 +3464,7 @@ safe-outputs:
     max: "example-value"
 
     # Title-based deduplication for create-issue. Set to true for exact title
-    # matching, or provide a non-negative integer to deduplicate by Levenshtein edit
-    # distance (e.g., 1 allows one-character differences). Applies within-run and
+    # matching. Supports templatable boolean values and applies within-run and
     # against open/recently-closed repository issues.
     # (optional)
     # Accepted formats:
@@ -3473,8 +3472,8 @@ safe-outputs:
     # Format 1: boolean
     deduplicate-by-title: true
 
-    # Format 2: integer
-    deduplicate-by-title: 1
+    # Format 2: GitHub Actions expression resolving to a boolean
+    deduplicate-by-title: ${{ inputs.deduplicate }}
 
     # Target repository in format 'owner/repo' for cross-repository issue creation.
     # Takes precedence over trial target repo settings.

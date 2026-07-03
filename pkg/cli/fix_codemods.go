@@ -61,6 +61,7 @@ func GetAllCodemods() []Codemod {
 		getAssignToAgentDefaultAgentCodemod(),                      // Rename deprecated default-agent to name in assign-to-agent
 		getPlaywrightDomainsToNetworkAllowedCodemod(),              // Migrate tools.playwright.allowed_domains to network.allowed
 		getExpiresIntegerToDayStringCodemod(),                      // Convert expires integer (days) to string with 'd' suffix
+		getSafeOutputDeduplicateByTitleIntegerCodemod(),            // Convert legacy create-issue deduplicate-by-title integers to boolean true
 		getGitHubAppCodemod(),                                      // Rename deprecated 'app' to 'github-app'
 		getGitHubAppClientIDCodemod(),                              // Rename deprecated github-app.app-id to github-app.client-id
 		getSafeOutputRequireTitlePrefixCodemod(),                   // Rename deprecated safe-outputs title-prefix constraint fields

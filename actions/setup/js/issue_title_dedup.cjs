@@ -1,28 +1,23 @@
 // @ts-check
 
 const { levenshteinDistance } = require("./levenshtein_distance.cjs");
-const MAX_DEDUPLICATE_BY_TITLE_DISTANCE = 100;
 
 /**
  * Parse create-issue deduplication config.
- * - true  => enabled with exact-match distance 0
- * - false => disabled
- * - N     => enabled with Levenshtein max distance N
+ * - true / "true"   => enabled with exact-match distance 0
+ * - false / "false" => disabled
  *
  * @param {unknown} value
  * @returns {{ enabled: boolean, maxDistance: number }}
  */
 function parseDeduplicateByTitle(value) {
-  if (value === undefined || value === null || value === false) {
+  if (value === undefined || value === null || value === false || value === "false") {
     return { enabled: false, maxDistance: 0 };
   }
-  if (value === true) {
+  if (value === true || value === "true") {
     return { enabled: true, maxDistance: 0 };
   }
-  if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0 && value <= MAX_DEDUPLICATE_BY_TITLE_DISTANCE) {
-    return { enabled: true, maxDistance: value };
-  }
-  throw new Error(`deduplicate-by-title must be a boolean or a non-negative integer (0-${MAX_DEDUPLICATE_BY_TITLE_DISTANCE})`);
+  throw new Error("deduplicate-by-title must be a boolean");
 }
 
 /**

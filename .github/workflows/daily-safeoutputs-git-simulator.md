@@ -32,7 +32,7 @@ safe-outputs:
     labels: ["git-simulator", "safe-outputs", "automated"]
     max: 10
     close-older-issues: false
-    deduplicate-by-title: 3
+    deduplicate-by-title: true
   create-pull-request:
     draft: true
     expires: 1d
