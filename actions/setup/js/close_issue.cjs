@@ -33,6 +33,7 @@ function parseDuplicateOf(value, defaultOwner, defaultRepo) {
   // Bare number or "#NUMBER" — positive integers only (no #0 or 0)
   const bareMatch = str.match(/^#?([1-9]\d*)$/);
   if (bareMatch) {
+    if (bareMatch[1].length > 15) return null;
     const issueNumber = parseInt(bareMatch[1], 10);
     if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) return null;
     return { owner: defaultOwner, repo: defaultRepo, issueNumber };
@@ -41,6 +42,7 @@ function parseDuplicateOf(value, defaultOwner, defaultRepo) {
   // "owner/repo#NUMBER" — owner and repo must not contain '/' or '#'
   const refMatch = str.match(/^([\w.-]+)\/([\w.-]+)#([1-9]\d*)$/);
   if (refMatch) {
+    if (refMatch[3].length > 15) return null;
     const issueNumber = parseInt(refMatch[3], 10);
     if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) return null;
     return { owner: refMatch[1], repo: refMatch[2], issueNumber };
@@ -49,6 +51,7 @@ function parseDuplicateOf(value, defaultOwner, defaultRepo) {
   // GitHub issue URL: https://github.com/owner/repo/issues/NUMBER — stop at path/query/fragment
   const urlMatch = str.match(/^https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/([1-9]\d*)(?:[?#/].*)?$/);
   if (urlMatch) {
+    if (urlMatch[3].length > 15) return null;
     const issueNumber = parseInt(urlMatch[3], 10);
     if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) return null;
     return { owner: urlMatch[1], repo: urlMatch[2], issueNumber };

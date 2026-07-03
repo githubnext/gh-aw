@@ -924,6 +924,12 @@ describe("close_issue", () => {
       // extra path after issue number is captured by the (?:[?#/].*)? anchor — verify it strips cleanly
       expect(result).toEqual({ owner: "org", repo: "repo", issueNumber: 42 });
     });
+
+    it("should return null for issue numbers with more than 15 digits", () => {
+      expect(parseDuplicateOf("9999999999999999", "owner", "repo")).toBeNull();
+      expect(parseDuplicateOf("org/repo#9999999999999999", "owner", "repo")).toBeNull();
+      expect(parseDuplicateOf("https://github.com/org/repo/issues/9999999999999999", "owner", "repo")).toBeNull();
+    });
   });
 
   describe("duplicate_of native marking", () => {
