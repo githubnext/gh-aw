@@ -530,11 +530,15 @@ tools:
 		"Shell should compute MCP_GATEWAY_UID before docker command")
 	require.Contains(t, yamlStr, runnerGIDComputeSnippet,
 		"Shell should compute MCP_GATEWAY_GID before docker command")
-	// Note: --add-host host.docker.internal is NOT present in network isolation mode (the default).
-	// Network isolation mode (sudo: false / omitted) uses --network bridge instead of --network host.
-	// See TestMCPGatewayDockerCommandUsesBridgeInNetworkIsolationMode for bridge-mode assertions.
+	// In bridge/network-isolation mode, --add-host host.docker.internal:127.0.0.1 is never
+	// added (the container loopback differs from the host loopback). --add-host with
+	// host-gateway is only injected when mcp-scripts are present so the gateway container
+	// can reach the mcp-scripts server running on the host.
+	// This workflow has no mcp-scripts, so neither mapping is present.
 	require.NotContains(t, yamlStr, `--add-host host.docker.internal:127.0.0.1`,
-		"Docker command should not add host.docker.internal mapping in default network isolation mode")
+		"Docker command should not add host.docker.internal:127.0.0.1 mapping in bridge mode")
+	require.NotContains(t, yamlStr, `--add-host host.docker.internal:host-gateway`,
+		"Docker command should not add host-gateway mapping in bridge mode without mcp-scripts")
 	require.Contains(t, yamlStr, `docker run -i --rm --network bridge`,
 		"Docker command should use bridge networking in default network isolation mode")
 	require.Contains(t, yamlStr, userSnippet,
@@ -604,14 +608,67 @@ tools:
 	require.NotContains(t, yamlStr, `--network host`,
 		"Docker command should not use host networking in network isolation mode")
 	require.NotContains(t, yamlStr, `--add-host host.docker.internal:127.0.0.1`,
-		"Docker command should not inject host.docker.internal mapping in network isolation mode")
+		"Docker command should not inject host.docker.internal:127.0.0.1 mapping in network isolation mode")
+	require.NotContains(t, yamlStr, `--add-host host.docker.internal:host-gateway`,
+		"Docker command should not inject host-gateway mapping in bridge mode without mcp-scripts")
 	require.Contains(t, yamlStr, `export MCP_GATEWAY_DOMAIN="awmg-mcpg"`,
 		"MCP gateway domain should use the internal container name in network isolation mode")
 	require.Contains(t, yamlStr, `export MCP_GATEWAY_HOST_DOMAIN="localhost"`,
 		"MCP gateway host domain should be localhost in network isolation mode so host-side clients can connect")
 }
 
-// TestMultipleHTTPMCPSecretsPassedToGatewayContainer verifies that multiple HTTP MCP servers
+// TestMCPGatewayDockerCommandAddsHostGatewayForMCPScriptsInBridgeMode verifies that when
+// mcp-scripts are configured in network-isolation (bridge) mode, the gateway container command
+// includes --add-host host.docker.internal:host-gateway so the gateway can reach the
+// mcp-scripts HTTP server running on the runner host.
+func TestMCPGatewayDockerCommandAddsHostGatewayForMCPScriptsInBridgeMode(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+sandbox:
+  agent:
+    sudo: false
+tools:
+  github:
+    mode: remote
+    toolsets: [repos]
+mcp-scripts:
+  my-tool:
+    description: "A test tool"
+    inputs:
+      text:
+        type: string
+        description: "Input text"
+    run: echo "$INPUT_TEXT"
+---
+
+# Test MCP Scripts Host Gateway
+`
+
+	compiler := NewCompiler()
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.md")
+
+	err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+	require.NoError(t, err, "Failed to write test input file")
+
+	err = compiler.CompileWorkflow(inputFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	outputFile := stringutil.MarkdownToLockFile(inputFile)
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err, "Failed to read output file")
+	yamlStr := string(content)
+
+	require.Contains(t, yamlStr, `docker run -i --rm --network bridge`,
+		"Docker command should use bridge networking in network isolation mode")
+	require.Contains(t, yamlStr, `--add-host host.docker.internal:host-gateway`,
+		"Docker command must add host-gateway mapping in bridge mode when mcp-scripts are present so the gateway can reach the mcp-scripts server on the host")
+	require.NotContains(t, yamlStr, `--add-host host.docker.internal:127.0.0.1`,
+		"Docker command should not inject the host loopback mapping in bridge mode")
+}
+
 // with different secrets all get their environment variables passed to the gateway container
 func TestMultipleHTTPMCPSecretsPassedToGatewayContainer(t *testing.T) {
 	frontmatter := `---
