@@ -341,12 +341,14 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					}
 				}
 				result.GitHubRateLimitUsage = rateLimitUsage
+				// Count safe output items created in GitHub (from manifest artifact).
+				// This runs before applyUsageActivitySummaryToResult so that the summary
+				// backfill only activates when the manifest returned zero items.
+				result.Run.SafeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))
+
 				// Fill missing activity summaries from usage artifact precomputes.
 				// This call is unconditional but only backfills fields that are still empty.
 				applyUsageActivitySummaryToResult(usageActivitySummary, &result, !hasFirewallArtifact)
-
-				// Count safe output items created in GitHub (from manifest artifact)
-				result.Run.SafeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))
 
 				// Fetch job details for the summary
 				jobDetails, jobErr := fetchJobDetails(run.DatabaseID, verbose)

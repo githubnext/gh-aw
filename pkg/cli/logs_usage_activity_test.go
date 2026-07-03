@@ -303,3 +303,37 @@ func TestLoadThenApplyUsageActivitySummaryBackfillsSafeItemsCount(t *testing.T) 
 
 	assert.Equal(t, 5, result.Run.SafeItemsCount, "SafeItemsCount should be backfilled from safe_outputs.total_items through the full load+apply pipeline")
 }
+
+// TestExtractThenApplyProcessorOrderingBackfillsSafeItemsCount verifies the processor
+// call order: extractCreatedItemsFromManifest runs first (setting SafeItemsCount=0 when
+// no manifest exists), then applyUsageActivitySummaryToResult backfills from the summary.
+// This test would fail if the order were reversed (apply then extract), because extract
+// would unconditionally overwrite the backfilled value with 0.
+func TestExtractThenApplyProcessorOrderingBackfillsSafeItemsCount(t *testing.T) {
+	t.Parallel()
+
+	// Set up a run directory with a summary but NO manifest file.
+	// extractCreatedItemsFromManifest will return nil (→ len=0).
+	// applyUsageActivitySummaryToResult must then backfill SafeItemsCount=5.
+	runDir := t.TempDir()
+	summaryPath := filepath.Join(runDir, "usage", "activity", "summary.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(summaryPath), 0o755))
+	require.NoError(t, os.WriteFile(summaryPath, []byte(`{
+		"schema":"`+usageActivitySummarySchema+`",
+		"safe_outputs":{
+			"total_items":5,
+			"items_by_type":{"create_issue":3,"add_comment":2}
+		}
+	}`), 0o644))
+
+	// Processor order: extract first, then apply (mirrors logs_run_processor.go).
+	result := DownloadResult{}
+	result.Run.SafeItemsCount = len(extractCreatedItemsFromManifest(runDir))
+
+	summary, err := loadUsageActivitySummary(runDir)
+	require.NoError(t, err)
+	require.NotNil(t, summary)
+	applyUsageActivitySummaryToResult(summary, &result, true)
+
+	assert.Equal(t, 5, result.Run.SafeItemsCount, "SafeItemsCount should be backfilled from summary when no manifest is present")
+}
