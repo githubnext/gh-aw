@@ -1359,7 +1359,7 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	// when generate_usage_activity_summary.cjs runs.
 	downloadIdx := strings.Index(allSteps, "Download safe outputs items manifest")
 	collectIdx := strings.Index(allSteps, "Collect usage artifact files")
-	if downloadIdx <= 0 || collectIdx <= 0 || downloadIdx >= collectIdx {
+	if downloadIdx == -1 || collectIdx == -1 || downloadIdx >= collectIdx {
 		t.Errorf("Expected 'Download safe outputs items manifest' to appear before 'Collect usage artifact files'.\ndownloadIdx=%d collectIdx=%d\nGenerated steps:\n%s", downloadIdx, collectIdx, allSteps)
 	}
 }
