@@ -141,7 +141,7 @@ func ensureCheckoutFalseForPullRequestTarget(lines []string) ([]string, bool) {
 					if strings.TrimSpace(next) == "" {
 						continue
 					}
-					if len(next) > 0 && (next[0] == ' ' || next[0] == '\t') {
+					if next != "" && (next[0] == ' ' || next[0] == '\t') {
 						return lines, false
 					}
 					break

@@ -72,7 +72,7 @@ func renameModeToTypeInMCPServers(lines []string) ([]string, bool) {
 		}
 
 		// Check if we've left mcp-servers block
-		if inMCPServers && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+		if inMCPServers && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
 			if hasExitedBlock(line, mcpServersIndent) {
 				inMCPServers = false
 			}

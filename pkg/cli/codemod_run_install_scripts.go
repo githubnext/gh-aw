@@ -171,7 +171,7 @@ func detectFrontmatterIndent(lines []string) string {
 			continue
 		}
 		ind := getIndentation(line)
-		if len(ind) > 0 {
+		if ind != "" {
 			return ind
 		}
 	}

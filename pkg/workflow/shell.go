@@ -158,7 +158,7 @@ func buildDockerCommandWithExpandableVars(cmd string) string {
 	var result strings.Builder
 	result.WriteString("'")
 	remaining := cmd
-	for len(remaining) > 0 {
+	for remaining != "" {
 		// Find the next variable reference
 		nextIdx := -1
 		nextVar := ""

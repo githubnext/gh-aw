@@ -193,12 +193,12 @@ func validateModelIdentifierStrings(identifiers []string, context string) []stri
 		p, err := ParseModelIdentifier(id)
 		if err != nil {
 			// V-MAF-001 / V-MAF-006
-			errs = append(errs, fmt.Sprintf("%s: %s", context, err.Error()))
+			errs = append(errs, fmt.Sprintf("%s: %s", context, err))
 			continue
 		}
 		// V-MAF-002 and V-MAF-003: validate known parameter values.
 		if err := ValidateKnownParams(p.Params); err != nil {
-			errs = append(errs, fmt.Sprintf("%s: %s", context, err.Error()))
+			errs = append(errs, fmt.Sprintf("%s: %s", context, err))
 		}
 	}
 	return errs

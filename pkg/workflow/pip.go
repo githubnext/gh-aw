@@ -63,7 +63,7 @@ func extractUvPackages(workflowData *WorkflowData) []string {
 
 // extractUvFromCommands extracts uv package names from command strings
 func extractUvFromCommands(commands string) []string {
-	pipLog.Printf("Extracting uv packages from commands: line_count=%d", len(strings.Split(commands, "\n")))
+	pipLog.Printf("Extracting uv packages from commands: line_count=%d", strings.Count(commands, "\n")+1)
 	var packages []string
 	lines := strings.Split(commands, "\n")
 

@@ -66,7 +66,7 @@ func replaceBashAnonymousWithTrue(lines []string) ([]string, bool) {
 		}
 
 		// Check if we've left the tools block
-		if inToolsBlock && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") {
+		if inToolsBlock && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
 			if hasExitedBlock(line, toolsIndent) {
 				inToolsBlock = false
 			}

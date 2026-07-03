@@ -431,7 +431,7 @@ func extractWorkflowNameFromFile(filePath string) (title string, err error) {
 		// Capitalize first letter of each word
 		words := strings.Fields(baseName)
 		for i, word := range words {
-			if len(word) > 0 {
+			if word != "" {
 				words[i] = strings.ToUpper(word[:1]) + word[1:]
 			}
 		}

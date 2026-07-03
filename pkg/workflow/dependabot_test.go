@@ -605,7 +605,9 @@ func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
 	// Verify package.json content
 	data, _ := os.ReadFile(packageJSONPath)
 	var pkgJSON PackageJSON
-	json.Unmarshal(data, &pkgJSON)
+	if err := json.Unmarshal(data, &pkgJSON); err != nil {
+		t.Fatalf("Failed to unmarshal package.json: %v", err)
+	}
 
 	if len(pkgJSON.Dependencies) != 1 {
 		t.Errorf("expected 1 dependency, got %d", len(pkgJSON.Dependencies))

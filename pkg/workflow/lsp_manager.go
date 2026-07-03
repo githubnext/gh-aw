@@ -223,7 +223,7 @@ func (m *LSPManager) RuntimeRequirements() []RuntimeRequirement {
 		return nil
 	}
 
-	seen := make(map[string]bool)
+	seen := make(map[string]struct{})
 	var result []RuntimeRequirement
 
 	langs := make([]string, 0, len(m.servers))
@@ -237,10 +237,10 @@ func (m *LSPManager) RuntimeRequirements() []RuntimeRequirement {
 		if !ok || spec.RuntimeID == "" {
 			continue
 		}
-		if seen[spec.RuntimeID] {
+		if _, ok := seen[spec.RuntimeID]; ok {
 			continue
 		}
-		seen[spec.RuntimeID] = true
+		seen[spec.RuntimeID] = struct{}{}
 		runtime := findRuntimeByID(spec.RuntimeID)
 		if runtime == nil {
 			lspManagerLog.Printf("LSP language %q specifies unknown runtime ID %q; skipping runtime requirement", language, spec.RuntimeID)

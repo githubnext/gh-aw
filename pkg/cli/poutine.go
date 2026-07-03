@@ -282,7 +282,7 @@ func parseAndDisplayPoutineOutput(stdout, targetFile string, verbose bool) (int,
 	trimmed := strings.TrimSpace(stdout)
 	if !strings.HasPrefix(trimmed, "{") {
 		// Non-JSON output, likely an error
-		if len(trimmed) > 0 {
+		if trimmed != "" {
 			return 0, fmt.Errorf("unexpected poutine output format: %s", trimmed)
 		}
 		return 0, nil
@@ -392,7 +392,7 @@ func parseAndDisplayPoutineOutputForDirectory(stdout string, verbose bool, gitRo
 	trimmed := strings.TrimSpace(stdout)
 	if !strings.HasPrefix(trimmed, "{") {
 		// Non-JSON output, likely an error
-		if len(trimmed) > 0 {
+		if trimmed != "" {
 			return 0, fmt.Errorf("unexpected poutine output format: %s", trimmed)
 		}
 		return 0, nil

@@ -127,7 +127,7 @@ func removeFieldFromPlaywright(lines []string, fieldName string) ([]string, bool
 		}
 
 		// Check if we've left the tools block
-		if inTools && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") {
+		if inTools && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
 			if hasExitedBlock(line, toolsIndent) {
 				inTools = false
 				inPlaywright = false
@@ -143,7 +143,7 @@ func removeFieldFromPlaywright(lines []string, fieldName string) ([]string, bool
 		}
 
 		// Check if we've left the playwright block
-		if inPlaywright && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") {
+		if inPlaywright && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
 			if hasExitedBlock(line, playwrightIndent) {
 				inPlaywright = false
 			}

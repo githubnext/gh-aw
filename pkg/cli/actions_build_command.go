@@ -76,7 +76,7 @@ func ActionsValidateCommand() error {
 	for _, actionName := range actionDirs {
 		actionPath := filepath.Join(actionsDir, actionName)
 		if err := validateActionYml(actionPath); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ %s/action.yml: %s", actionName, err.Error())))
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ %s/action.yml: %s", actionName, err)))
 			allValid = false
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ %s/action.yml is valid", actionName)))

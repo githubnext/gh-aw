@@ -45,6 +45,27 @@ func findAvailablePort(startPort int, verbose bool) int {
 
 var errMCPScriptsServerStartupTimeout = errors.New("mcp-scripts HTTP server failed to start within timeout")
 
+// probeServer performs a single HTTP readiness probe against the given URL.
+// It returns true if the server responded successfully. The response body is
+// deferred-closed inside this helper so that neither the defer-in-loop nor the
+// missing-body-close linters fire on the call site.
+func probeServer(ctx context.Context, client *http.Client, url string) (bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return false, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, nil //nolint:nilerr // probe failure is expected during startup
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			mcpInspectLog.Printf("Warning: failed to close response body: %v", closeErr)
+		}
+	}()
+	return true, nil
+}
+
 // waitForServerReady waits for the HTTP server to be ready by polling the endpoint.
 func waitForServerReady(ctx context.Context, port int, timeout time.Duration, verbose bool) error {
 	deadline := time.Now().Add(timeout)
@@ -59,18 +80,12 @@ func waitForServerReady(ctx context.Context, port int, timeout time.Duration, ve
 			return ctx.Err()
 		default:
 		}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		ready, err := probeServer(ctx, client, url)
 		if err != nil {
 			mcpInspectLog.Printf("Failed to create request: %v", err)
 			return err
 		}
-		resp, err := client.Do(req)
-		if err == nil {
-			defer func() {
-				if closeErr := resp.Body.Close(); closeErr != nil {
-					mcpInspectLog.Printf("Warning: failed to close response body: %v", closeErr)
-				}
-			}()
+		if ready {
 			if verbose {
 				mcpInspectLog.Printf("Server is ready on port %d", port)
 			}

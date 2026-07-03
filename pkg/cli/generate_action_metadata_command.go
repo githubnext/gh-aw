@@ -84,7 +84,7 @@ func GenerateActionMetadataCommand() error {
 		contentBytes, err := os.ReadFile(jsPath)
 		if err != nil {
 			generateActionMetadataLog.Printf("Skipping %s: failed to read file: %v", filename, err)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠ Skipping %s: %s", filename, err.Error())))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠ Skipping %s: %s", filename, err)))
 			continue
 		}
 		content := string(contentBytes)
@@ -94,7 +94,7 @@ func GenerateActionMetadataCommand() error {
 		// Extract metadata
 		metadata, err := extractActionMetadata(filename, content)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to extract metadata from %s: %s", filename, err.Error())))
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to extract metadata from %s: %s", filename, err)))
 			continue
 		}
 
@@ -205,7 +205,7 @@ func generateHumanReadableName(actionName string) string {
 	// Replace underscores with spaces and capitalize words
 	words := strings.Split(actionName, "_")
 	for i, word := range words {
-		if len(word) > 0 {
+		if word != "" {
 			words[i] = strings.ToUpper(word[:1]) + word[1:]
 		}
 	}

@@ -11,7 +11,7 @@ var xmlCommentsLog = logger.New("workflow:xml_comments")
 // removeXMLComments removes XML comments (<!-- -->) from markdown content
 // while preserving comments that appear within code blocks
 func removeXMLComments(content string) string {
-	xmlCommentsLog.Printf("Removing XML comments from content: %d lines", len(strings.Split(content, "\n")))
+	xmlCommentsLog.Printf("Removing XML comments from content: %d lines", strings.Count(content, "\n")+1)
 
 	// Track if we're inside a code block to avoid removing comments in code
 	lines := strings.Split(content, "\n")
