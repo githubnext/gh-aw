@@ -198,7 +198,7 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	runtimeSetupSteps, customStepsContainCheckout := c.prepareRuntimeSetupAndCheckoutInfo(data)
 	compilerYamlLog.Printf("Custom steps contain checkout: %t (len(customSteps)=%d)", customStepsContainCheckout, len(data.CustomSteps))
 
-	c.generateArcDindRuntimePrelude(yaml, data, needsCheckout, customStepsContainCheckout, runtimeSetupSteps)
+	c.emitRuntimeSetupPrelude(yaml, data, needsCheckout, customStepsContainCheckout, runtimeSetupSteps)
 
 	// Create /tmp/gh-aw/ base directory for all temporary files
 	// This must be created before custom steps so they can use the temp directory
@@ -269,7 +269,7 @@ func (c *Compiler) prepareRuntimeSetupAndCheckoutInfo(data *WorkflowData) ([]Git
 	return runtimeSetupSteps, customStepsContainCheckout
 }
 
-func (c *Compiler) generateArcDindRuntimePrelude(yaml *strings.Builder, data *WorkflowData, needsCheckout bool, customStepsContainCheckout bool, runtimeSetupSteps []GitHubActionStep) {
+func (c *Compiler) emitRuntimeSetupPrelude(yaml *strings.Builder, data *WorkflowData, needsCheckout bool, customStepsContainCheckout bool, runtimeSetupSteps []GitHubActionStep) {
 	// Redirect tool cache for ARC/DinD runners BEFORE runtime setup steps.
 	// On ARC, the standard RUNNER_TOOL_CACHE=/opt/hostedtoolcache is invisible to the DinD
 	// daemon's filesystem. Redirecting to ${RUNNER_TEMP}/gh-aw/tool-cache ensures the cache
@@ -281,7 +281,8 @@ func (c *Compiler) generateArcDindRuntimePrelude(yaml *strings.Builder, data *Wo
 		c.generateArcDindToolCacheRedirectStep(yaml)
 	}
 
-	if needsCheckout || !customStepsContainCheckout {
+	runtimeStepsEmittedEarly := needsCheckout || !customStepsContainCheckout
+	if runtimeStepsEmittedEarly {
 		// Case 1 or 3: Add runtime steps before custom steps
 		// This ensures checkout -> runtime -> custom steps order
 		compilerYamlLog.Printf("Adding %d runtime steps before custom steps (needsCheckout=%t, !customStepsContainCheckout=%t)", len(runtimeSetupSteps), needsCheckout, !customStepsContainCheckout)
@@ -298,7 +299,10 @@ func (c *Compiler) generateArcDindRuntimePrelude(yaml *strings.Builder, data *Wo
 	// (e.g. /home/runner/_work/_tool/node/...) which is NOT under RUNNER_TEMP and therefore
 	// not bind-mounted into the AWF container. This step copies node to the redirected
 	// tool cache if needed and sets GH_AW_NODE_BIN for the AWF entrypoint.
-	if isArcDindTopology(data) {
+	// Only emit when runtime steps (including setup-node) were already emitted above;
+	// when they are deferred to after a custom checkout, this step would run before
+	// setup-node and could relocate an absent or wrong node binary.
+	if isArcDindTopology(data) && runtimeStepsEmittedEarly {
 		c.generateArcDindNodePathStep(yaml)
 	}
 }
