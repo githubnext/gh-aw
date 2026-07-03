@@ -1,50 +1,39 @@
 {
-  "analyses": [
-    {
-      "date": "2026-06-25",
-      "sessions": 50,
-      "completion_pct": 8.0,
-      "avg_dur_min": 1.5,
-      "median_dur_min": 0.0,
-      "loops": 0,
-      "orphan_rate_pct": 0.0,
-      "data_quality": "metadata-only (OAuth, conv-logs empty 32nd+ day)",
-      "notes": "Recovery uptick 2%->8% (+6pts). 46 action_required gate-sweep + 4 success, all 4 from 'Addressing comment on PR' cloud-agent runs (14.6/14.6/16.2/29.8m) on 4 distinct copilot/* branches -> provenance_inversion holds. 6 branches all copilot/*; top-2 retry-loop-drained-tokens-2(21)+remove-strict-false(15)=72%. 36-min window 06:47-07:22Z. Orphan 0/6 (all Copilot-assigned, only main has active runs) ~35th healthy day. roll=68 standard."
-    },
-    {
-      "date": "2026-06-26",
-      "sessions": 50,
-      "completion_pct": 2.0,
-      "avg_dur_min": 0.266,
-      "median_dur_min": 0.0,
-      "loops": 0,
-      "orphan_rate_pct": 0.0,
-      "data_quality": "metadata-only (OAuth, conv-logs empty 33rd+ day)",
-      "notes": "Gate-sweep floor 8%->2% (-6pts); saw-tooth 2->8->2 over 06-24..06-26. 1 success (13.03m cloud-agent on fix-panic-library-code) / 47 action_required / 2 in_progress. 4 branches all copilot/* top-3=92% (aw-failures-byok-403:16, fix-panic:16, optperf-concurrency:14). 39-min window 07:15-07:54Z. Orphan 0/10 (9 dual-assigned + 1 unassigned security PR 0-gates; only main has active runs) ~36th healthy day. roll=14 EXPERIMENTAL per-branch gate-fan-out fingerprinting."
-    },
-    {
-      "date": "2026-07-01",
-      "sessions": 50,
-      "completion_pct": 20.0,
-      "avg_dur_min": 2.2,
-      "median_dur_min": 0.0,
-      "loops": 0,
-      "orphan_rate_pct": 0.0,
-      "data_quality": "metadata-only (OAuth, conv-log single file = auth-error stub)",
-      "notes": "Rebound 6%->20% (+14pts, best since 06-27). 10 success/2 failure/35 action_required(70% gate-saturated)/1 skipped/2 in_progress. Longest 17.3m Impeccable Skills Reviewer; median 0m (35 gate stubs). AGSR experimental=0.70. Orphan 0/7 (all Copilot-assigned; only main has 3 active runs). roll=10 EXPERIMENTAL Approval-Gate Saturation Ratio."
-    },
-    {
-      "date": "2026-07-02",
-      "sessions": 50,
-      "completion_pct": 8.0,
-      "avg_dur_min": 0.732,
-      "median_dur_min": 0.0,
-      "loops": 0,
-      "orphan_rate_pct": 0.0,
-      "data_quality": "metadata-only (OAuth stub)",
-      "notes": "floor regime; provenance inversion holds (4 successes=agent-exec, 46=CI gates); 0 orphans, max gates/branch=3"
-    }
-  ],
-  "last_updated": "2026-07-02",
-  "version": "1.4"
+ "analyses": [
+  {
+   "date": "2026-07-01",
+   "sessions": 50,
+   "completion_pct": 20.0,
+   "avg_dur_min": 2.2,
+   "median_dur_min": 0.0,
+   "loops": 0,
+   "orphan_rate_pct": 0.0,
+   "data_quality": "metadata-only (OAuth, conv-log single file = auth-error stub)",
+   "notes": "Rebound 6%->20% (+14pts, best since 06-27). 10 success/2 failure/35 action_required(70% gate-saturated)/1 skipped/2 in_progress. Longest 17.3m Impeccable Skills Reviewer; median 0m (35 gate stubs). AGSR experimental=0.70. Orphan 0/7 (all Copilot-assigned; only main has 3 active runs). roll=10 EXPERIMENTAL Approval-Gate Saturation Ratio."
+  },
+  {
+   "date": "2026-07-02",
+   "sessions": 50,
+   "completion_pct": 8.0,
+   "avg_dur_min": 0.732,
+   "median_dur_min": 0.0,
+   "loops": 0,
+   "orphan_rate_pct": 0.0,
+   "data_quality": "metadata-only (OAuth stub)",
+   "notes": "floor regime; provenance inversion holds (4 successes=agent-exec, 46=CI gates); 0 orphans, max gates/branch=3"
+  },
+  {
+   "date": "2026-07-03",
+   "sessions": 50,
+   "completion_pct": 4.0,
+   "avg_dur_min": 0.186,
+   "median_dur_min": 0.0,
+   "loops": 0,
+   "orphan_rate_pct": 0.0,
+   "data_quality": "metadata-only (conv-logs empty 36th day)",
+   "notes": "floor regime continues 20->8->4% over 07-01..07-03; below 30d-mean ~13%. 2 success (PR Sous Chef 8.62m + Skillet 0.48m, both agentic on lint-monster-targeted-cleanup)/46 action_required/2 in_progress. provenance_inversion holds (successes=agentic, 0/4 core gates). 8 copilot/* branches top-2=58%. Orphan 0/12 (11 Copilot-assigned, 1 unassigned codeql PR 0-gate; active runs all main) ~39th healthy day. roll=8 EXPERIMENTAL Gate-Bundle Composition Divergence: only 3/8 branches fire full 4/4 core CI gate set, GBCD=62.5%, refines per_branch_gate_fanout."
+  }
+ ],
+ "last_updated": "2026-07-03",
+ "version": "1.5"
 }

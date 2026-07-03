@@ -1,5 +1,12 @@
 # Copilot Session Insights — repo memory
 
+## 2026-07-03 snapshot
+- 50 sessions; **4% completion** (2 success, 46 action_required, 2 in_progress) — floor regime continues (20%→8%→4% over 07-01..07-03); below 30d-mean ~13% & 15d-mean ~10%.
+- provenance_inversion holds (5th+ obs): 2 successes = agentic (PR Sous Chef 8.62m + Skillet 0.48m, both on lint-monster-targeted-cleanup, 0/4 core CI gates); 46 action_required = CI gate sweeps (median 0m, avg 0.19m).
+- Concentration: 8 `copilot/*` branches; top-2 duplicate-code-fix(16)+runtime-cloning(13)=58%. 22.5-min window (07:18–07:40Z).
+- Orphans 0 (active runs all on `main`; max gates/copilot-branch=0); 12 open PRs (11 Copilot-assigned, 1 unassigned fresh codeql PR #43148 0-gate) → 0% NORMAL, ~39th healthy day. 0 escalations.
+- Conv logs empty (36th day). **EXPERIMENTAL run (roll=8): Gate-Bundle Composition Divergence (GBCD)** — only 3/8 branches fire full 4/4 core CI gate set (Smoke CI+CGO+CWI+Doc-Deploy); lint/doc branches fire 0/4 (lightweight agentic wf); update-checkout fires 2/4 + moderation. Refines per_branch_gate_fanout: bundle is change-TYPE-adaptive, not uniform per PR-open. Effectiveness Medium; recommend Refine.
+
 ## 2026-07-02 snapshot
 - 50 sessions; **8% completion** (4 success, 46 action_required) — floor regime after 20% on 07-01.
 - provenance_inversion holds (4th+ obs): 4 successes = agent-exec (2 cloud-agent + 2 PR-comment), only non-zero-dur runs (max 11.98m, median 0); 46 action_required = CI/infra gates.
@@ -13,10 +20,7 @@
 - Orphans 0; 14 open PRs (11 Copilot-assigned, 3 idle 0-gate), 1 in-progress run (main) → 0% NORMAL, ~38th healthy day. 0 escalations.
 - Conv logs empty 35+ days; standard run (roll=67).
 
-## 2026-06-27 snapshot (prior peak)
-- 40% completion (20 succ); +38pt upturn from 06-26 (2%), highest since 05-26 (46%); 6 branches top-2 nolint+fmterror @13=52%; orphan 0/10 ~37th healthy day.
-
-_(Per-day detail lives in session-trends.jsonl / session-insights-history.jsonl.)_
+_(Prior peak 06-27: 40% (20 succ). Per-day detail in session-trends.jsonl / session-insights-history.jsonl.)_
 
 ## Active patterns
 - provenance_inversion (06-07): successes come from agentic runs (PR-comment / cloud-agent), never gate sweeps. Holds 06-28 (all 5).
@@ -25,4 +29,5 @@ _(Per-day detail lives in session-trends.jsonl / session-insights-history.jsonl.
 - recovery_regression_oscillation: saw-tooth persists; spikes (38-40%) between troughs (0-10%).
 - conversation_log_fetch_failure: 35th+ day (longest unresolved risk; behavioral/loop/context analysis unavailable — metrics are CI/infra metadata only).
 - gate_footprint_refire_signature (06-20): refire ratio = runs/distinct-workflows distinguishes broad CI from narrow re-fire.
-- per_branch_gate_fanout (06-26): each PR-open fires a full ~8-workflow gate bundle; gate_count = f(PR-open), not branch health.
+- per_branch_gate_fanout (06-26): each PR-open fires a gate bundle; gate_count = f(PR-open), not branch health. **Refined 07-03 (GBCD):** bundle composition is change-TYPE-adaptive — code-change branches fire full 4/4 core CI gates, lint/doc branches fire 0/4 (lightweight agentic wf only), spec branches fire 2/4 + moderation. "~8-workflow uniform bundle" was an over-generalization from a code-heavy snapshot.
+- gate_bundle_composition_divergence (07-03, experimental): fraction of open branches deviating from the full core CI gate set; 62.5% (5/8) diverged today. Distinguishes deterministic CI overhead from change-type-specific triggers.
