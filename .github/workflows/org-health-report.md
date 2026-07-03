@@ -98,6 +98,7 @@ mkdir -p /tmp/gh-aw/cache-memory/org-health
 
 1. **Use GitHub MCP search_repositories tool** to find repositories:
    - Query: `org:github archived:false`
+   - Set `perPage: 5` for exploratory repository discovery (increase only if needed)
    - Fetch repositories in batches with pagination
    - Add 2-3 second delays between pages to avoid rate limiting
    - Save repository list to `/tmp/gh-aw/agent/org-health/repos/repositories.json`
