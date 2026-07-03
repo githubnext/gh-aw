@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="400" style="background:#fff;font-family:Arial,sans-serif;">
+  <text x="350" y="35" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">Blocked Domains Frequency</text>
+  <line x1="180.0" y1="60" x2="180.0" y2="340" stroke="#eee" stroke-width="1"/>
+  <text x="180.0" y="358" text-anchor="middle" font-size="11" fill="#666">0</text>
+  <line x1="290.0" y1="60" x2="290.0" y2="340" stroke="#eee" stroke-width="1"/>
+  <text x="290.0" y="358" text-anchor="middle" font-size="11" fill="#666">3</text>
+  <line x1="400.0" y1="60" x2="400.0" y2="340" stroke="#eee" stroke-width="1"/>
+  <text x="400.0" y="358" text-anchor="middle" font-size="11" fill="#666">7</text>
+  <line x1="510.0" y1="60" x2="510.0" y2="340" stroke="#eee" stroke-width="1"/>
+  <text x="510.0" y="358" text-anchor="middle" font-size="11" fill="#666">11</text>
+  <line x1="620.0" y1="60" x2="620.0" y2="340" stroke="#eee" stroke-width="1"/>
+  <text x="620.0" y="358" text-anchor="middle" font-size="11" fill="#666">15</text>
+  <line x1="180" y1="60" x2="180" y2="340" stroke="#999" stroke-width="1.5"/>
+  <line x1="180" y1="340" x2="620" y2="340" stroke="#999" stroke-width="1.5"/>
+  <rect x="180" y="86.7" width="366.7" height="40.0" fill="#e74c3c" opacity="0.85" rx="2"/>
+  <text x="551.7" y="110.7" font-size="11" fill="#333">13</text>
+  <text x="172" y="110.7" text-anchor="end" font-size="11" fill="#555">awmg-mcpg:8080</text>
+  <rect x="180" y="180.0" width="56.4" height="40.0" fill="#e74c3c" opacity="0.85" rx="2"/>
+  <text x="241.4" y="204.0" font-size="11" fill="#333">2</text>
+  <text x="172" y="204.0" text-anchor="end" font-size="11" fill="#555">models.dev:443</text>
+  <rect x="180" y="273.3" width="56.4" height="40.0" fill="#e74c3c" opacity="0.85" rx="2"/>
+  <text x="241.4" y="297.3" font-size="11" fill="#333">2</text>
+  <text x="172" y="297.3" text-anchor="end" font-size="11" fill="#555">api.sentrux.dev:443</text>
+  <text x="400" y="390" text-anchor="middle" font-size="12" fill="#666">Block Count</text>
+</svg>
