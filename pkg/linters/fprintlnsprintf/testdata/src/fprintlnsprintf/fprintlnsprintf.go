@@ -13,6 +13,10 @@ func flaggedAlreadyNewline(name string) {
 	fmt.Fprintln(os.Stderr, fmt.Sprintf("hello %s\n", name)) // want "use fmt.Fprintf"
 }
 
+func flaggedAlreadyNewlineNoArgs() {
+	fmt.Fprintln(os.Stderr, fmt.Sprintf("done\n")) // want "use fmt.Fprintf"
+}
+
 func notFlagged(name string) {
 	fmt.Fprintln(os.Stderr, "plain string")
 	fmt.Fprintln(os.Stderr, "prefix", fmt.Sprintf("hello %s", name))

@@ -713,10 +713,10 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 		if isArcDindTopology(data) {
 			// On ARC/DinD, logs are under ${{ runner.temp }}/gh-aw (daemon-visible path).
 			// Use ${{ runner.temp }} because `with:` blocks expand Actions expressions, not shell vars.
-			paths = append(paths, "${{ runner.temp }}/gh-aw/awf-config.json")
-			paths = append(paths, "${{ runner.temp }}/gh-aw/sandbox/firewall/logs/")
-			paths = append(paths, "${{ runner.temp }}/gh-aw/sandbox/firewall/audit/")
-			paths = append(paths, "${{ runner.temp }}/gh-aw/sandbox/firewall/awf-reflect.json")
+			paths = append(paths, constants.AWFConfigFilePathExpr)
+			paths = append(paths, constants.AWFProxyLogsDirExpr+"/")
+			paths = append(paths, constants.AWFAuditDirExpr+"/")
+			paths = append(paths, constants.AWFReflectFilePathExpr)
 		} else {
 			paths = append(paths, constants.AWFConfigFilePath)
 			paths = append(paths, constants.AWFProxyLogsDir+"/")

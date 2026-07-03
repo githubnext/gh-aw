@@ -86,31 +86,13 @@ Use [workflow-patterns.md](workflow-patterns.md) and [triggers.md](triggers.md) 
 
 ### 2a. Reporting and digest compact guidance
 
-For recurring reports, audits, and stakeholder digests:
+For recurring reports, audits, and stakeholder digests, set these create-specific defaults:
 
 - default to `create-issue`; use `create-discussion` only when the requester explicitly wants threaded discussion
 - use `add-comment` only when updating an existing issue or pull request instead of creating a new report destination
-- define the report window explicitly (for example `last 7 full days ending at workflow start (UTC)` or `since previous successful run`)
-- define the grouping dimensions explicitly (for example by team, service, owner, severity, status, or repository)
 - add `workflow_dispatch` when manual reruns, backfills, or preview runs should be possible
-- require `noop` when the selected window has no qualifying updates
 
-**Duplicate-suppression checklist for recurring reports and audits:**
-
-- [ ] Define a stable deduplication key (for example `workflow + window-date` or `scope + YYYY-W01` using ISO week notation)
-- [ ] Search for an existing open issue with that key before creating a new one (for example by title prefix or label)
-- [ ] If a matching open issue exists, update it with `add-comment` instead of creating a duplicate
-- [ ] If the window has zero qualifying updates, call `noop` — never create an empty or placeholder report
-- [ ] Escalate with a new issue only when no open issue covers the same scope and window
-
-**Fallback when customer-impact metadata is incomplete:**
-
-When the digest depends on labels, metadata, or classification fields (for example customer-impact labels, priority tiers, or team assignments) that are absent or inconsistent:
-
-- summarize what data *was* available and note which fields are missing
-- group by the next-best available dimension (for example repository, author, date, or milestone)
-- use an explicit "Unclassified" bucket for items without required metadata — do not invent or assume classifications
-- call `noop` only when the reporting window itself has zero events; missing metadata is not a reason to skip the digest
+Follow [triggers.md](triggers.md) for the report window, grouping dimensions, deduplication key, and empty-window `noop` rule, and [workflow-patterns.md](workflow-patterns.md) for the digest/incident skeletons. When the digest depends on missing or inconsistent metadata, group by the next-best available dimension, use an explicit "Unclassified" bucket, and never invent classifications — call `noop` only when the window itself has zero events.
 
 ### 2aa. Persona-oriented scenario quick map
 

@@ -5,8 +5,6 @@ package fprintlnsprintf
 import (
 	"go/ast"
 	"go/token"
-	"strconv"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -97,20 +95,10 @@ func buildFprintfFix(call *ast.CallExpr, sprintfCall *ast.CallExpr) []analysis.S
 		return nil // not a plain double-quoted literal
 	}
 
-	// Decode the literal to check for a trailing newline so we don't produce
-	// a double \n when the format string already ends with one.
-	decoded, err := strconv.Unquote(raw)
-	if err != nil {
-		return nil
-	}
-
-	// Build the replacement format literal: append \n only when not already present.
-	var newFormatLit []byte
-	if strings.HasSuffix(decoded, "\n") {
-		newFormatLit = []byte(raw) // already ends with \n; keep as-is
-	} else {
-		newFormatLit = []byte(raw[:len(raw)-1] + `\n"`)
-	}
+	// Build the replacement format literal. The Fprintln call we are replacing
+	// always writes one trailing newline, so the replacement format must always
+	// gain one as well.
+	newFormatLit := []byte(raw[:len(raw)-1] + `\n"`)
 
 	outerSel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
@@ -123,7 +111,7 @@ func buildFprintfFix(call *ast.CallExpr, sprintfCall *ast.CallExpr) []analysis.S
 			{Pos: outerSel.Sel.Pos(), End: outerSel.Sel.End(), NewText: []byte("Fprintf")},
 			// 2. Delete "fmt.Sprintf(" — from the start of sprintfCall to after its "("
 			{Pos: sprintfCall.Pos(), End: sprintfCall.Lparen + 1, NewText: nil},
-			// 3. Replace the format literal (adding \n if not already present).
+			// 3. Replace the format literal (always adding one trailing \n).
 			{Pos: formatLit.Pos(), End: formatLit.End(), NewText: newFormatLit},
 			// 4. Delete the closing ")" of fmt.Sprintf(...)
 			{Pos: sprintfCall.Rparen, End: sprintfCall.Rparen + 1, NewText: nil},
