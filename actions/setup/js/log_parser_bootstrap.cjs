@@ -280,10 +280,10 @@ async function runLogParser(options) {
           parserName,
         });
 
-        // Wrap the agent log in a details/summary section (open by default)
+        // Wrap the agent log in a details/summary section (closed for progressive disclosure)
         const wrappedAgentLog = wrapAgentLogInSection(copilotCliStyleMarkdown, {
           parserName,
-          open: true,
+          open: false,
         });
 
         // Add safe outputs preview to step summary
@@ -313,10 +313,10 @@ async function runLogParser(options) {
           }
         }
 
-        // Wrap the original markdown in a details/summary section (open by default)
+        // Wrap the original markdown in a details/summary section (closed for progressive disclosure)
         const wrappedAgentLog = wrapAgentLogInSection(markdown, {
           parserName,
-          open: true,
+          open: false,
         });
 
         // Write wrapped markdown to step summary if available

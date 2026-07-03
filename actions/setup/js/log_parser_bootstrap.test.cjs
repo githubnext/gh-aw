@@ -46,7 +46,7 @@ describe("log_parser_bootstrap.cjs", () => {
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
             expect(mockParseLog).toHaveBeenCalledWith("Test log content"),
             expect(mockCore.info).toHaveBeenCalledWith("TestParser log parsed successfully"),
-            expect(mockCore.summary.addRaw).toHaveBeenCalledWith("<details open>\n<summary>Agentic Conversation</summary>\n\n## Parsed Log\n\nSuccess!\n</details>"),
+            expect(mockCore.summary.addRaw).toHaveBeenCalledWith("<details>\n<summary>Agentic Conversation</summary>\n\n## Parsed Log\n\nSuccess!\n</details>"),
             expect(mockCore.summary.write).toHaveBeenCalled(),
             fs.unlinkSync(logFile),
             fs.rmdirSync(tmpDir));
@@ -58,7 +58,7 @@ describe("log_parser_bootstrap.cjs", () => {
           const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: !1 });
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
             expect(mockCore.info).toHaveBeenCalledWith("TestParser log parsed successfully"),
-            expect(mockCore.summary.addRaw).toHaveBeenCalledWith("<details open>\n<summary>Agentic Conversation</summary>\n\n## Result\n\n</details>"),
+            expect(mockCore.summary.addRaw).toHaveBeenCalledWith("<details>\n<summary>Agentic Conversation</summary>\n\n## Result\n\n</details>"),
             expect(mockCore.setFailed).not.toHaveBeenCalled(),
             fs.unlinkSync(logFile),
             fs.rmdirSync(tmpDir));
