@@ -27,6 +27,9 @@ function logInvalidEnvValue(logger, envVar, rawValue, defaultValue) {
   }
 }
 
+const DECIMAL_INT_PATTERN = /^\d+$/;
+const DECIMAL_FLOAT_PATTERN = /^\d+(?:\.\d+)?$/;
+
 /**
  * Parse a retry config number from an environment variable.
  * Only accepts decimal-digit strings (e.g. "42" or "1.5" when allowFloat is true).
@@ -42,9 +45,8 @@ function parseRetryConfigNumber(env, { envVar, defaultValue, minimum, allowFloat
     return defaultValue;
   }
   const trimmed = String(rawValue).trim();
-  const isDecimalInt = /^\d+$/.test(trimmed);
-  const isDecimalFloat = /^\d+(?:\.\d+)?$/.test(trimmed);
-  if (allowFloat ? !isDecimalFloat : !isDecimalInt) {
+  const isValid = allowFloat ? DECIMAL_FLOAT_PATTERN.test(trimmed) : DECIMAL_INT_PATTERN.test(trimmed);
+  if (!isValid) {
     logInvalidEnvValue(logger, envVar, rawValue, defaultValue);
     return defaultValue;
   }
