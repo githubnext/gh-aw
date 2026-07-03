@@ -41,7 +41,7 @@ Non-engineering personas:
   - aggregate open issues by label, milestone, or area using `github` (`gh-proxy`)
   - publish a structured summary with `create-issue` and `close-older-issues: true`
   - use an explicit window such as `last 7 full days ending at run start (UTC)`
-  - derive a stable key such as `pm-digest:<scope>:<YYYY-Wnn>`
+  - derive a stable key such as `pm-digest:<scope>:2026-W27`
   - call `noop` when the window has zero qualifying updates
 - **Product/stakeholder digest**:
   - trigger `schedule` plus optional `workflow_dispatch`
