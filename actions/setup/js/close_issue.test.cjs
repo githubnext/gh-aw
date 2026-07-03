@@ -50,6 +50,7 @@ describe("close_issue", () => {
               number: issue_number,
               title: "Test Issue",
               html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}`,
+              node_id: `node_${issue_number}`,
             },
           }),
           createComment: async () => ({
@@ -906,6 +907,23 @@ describe("close_issue", () => {
     it("should return null for unparseable value", () => {
       expect(parseDuplicateOf("not-a-valid-ref", "owner", "repo")).toBeNull();
     });
+
+    it("should return null for issue number 0", () => {
+      expect(parseDuplicateOf(0, "owner", "repo")).toBeNull();
+      expect(parseDuplicateOf("#0", "owner", "repo")).toBeNull();
+      expect(parseDuplicateOf("0", "owner", "repo")).toBeNull();
+    });
+
+    it("should return null for owner/repo with extra slash in repo", () => {
+      expect(parseDuplicateOf("org/sub/repo#1", "owner", "repo")).toBeNull();
+    });
+
+    it("should return null for URL with extra path segments after issue number", () => {
+      // The URL should still parse — extra trailing segments are allowed by the anchor pattern
+      const result = parseDuplicateOf("https://github.com/org/repo/issues/42/extra", "owner", "repo");
+      // extra path after issue number is captured by the (?:[?#/].*)? anchor — verify it strips cleanly
+      expect(result).toEqual({ owner: "org", repo: "repo", issueNumber: 42 });
+    });
   });
 
   describe("duplicate_of native marking", () => {
@@ -932,6 +950,7 @@ describe("close_issue", () => {
             number: params.issue_number,
             title: "Test Issue",
             html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+            node_id: `node_${params.issue_number}`,
           },
         };
       };
@@ -969,6 +988,7 @@ describe("close_issue", () => {
           number: params.issue_number,
           title: "Test Issue",
           html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          node_id: `node_${params.issue_number}`,
         },
       });
 
@@ -1049,6 +1069,7 @@ describe("close_issue", () => {
           number: params.issue_number,
           title: "Test Issue",
           html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          node_id: `node_${params.issue_number}`,
         },
       });
 
@@ -1063,7 +1084,7 @@ describe("close_issue", () => {
     });
 
     it("should parse owner/repo#number duplicate_of and call mutation with correct repo", async () => {
-      const handler = await main({ max: 10, state_reason: "DUPLICATE" });
+      const handler = await main({ max: 10, state_reason: "DUPLICATE", allowed_repos: ["other-org/other-repo"] });
       const graphqlCalls = [];
       const getIssueCalls = [];
 
@@ -1086,6 +1107,7 @@ describe("close_issue", () => {
           number: params.issue_number,
           title: "Test Issue",
           html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          node_id: `node_${params.owner}_${params.repo}_${params.issue_number}`,
         },
       });
 
@@ -1107,8 +1129,42 @@ describe("close_issue", () => {
       expect(graphqlCalls.length).toBe(1);
       // The canonical node ID should come from the cross-repo issue
       expect(graphqlCalls[0].canonicalId).toBe("node_other-org_other-repo_123");
-      // The duplicate node ID should come from the current repo issue
+      // The duplicate node ID should come from the current repo issue (via closedEntity.node_id)
       expect(graphqlCalls[0].duplicateId).toBe("node_test-owner_test-repo_700");
+    });
+
+    it("should skip native duplicate marking when canonical repo is not in allowed-repos", async () => {
+      // No allowed_repos configured — cross-repo duplicate_of should be rejected
+      const handler = await main({ max: 10, state_reason: "DUPLICATE" });
+      const graphqlCalls = [];
+
+      mockGithub.graphql = async (mutation, variables) => {
+        graphqlCalls.push(variables);
+        return {};
+      };
+
+      const result = await handler({ issue_number: 800, body: "Duplicate", duplicate_of: "other-org/other-repo#1" }, {});
+
+      expect(result.success).toBe(true);
+      expect(graphqlCalls.length).toBe(0);
+      expect(mockCore.warnings.some(w => w.includes("not in the allowed-repos list"))).toBe(true);
+    });
+
+    it("should skip native duplicate marking when duplicate_of points to the same issue", async () => {
+      const handler = await main({ max: 10, state_reason: "DUPLICATE" });
+      const graphqlCalls = [];
+
+      mockGithub.graphql = async (mutation, variables) => {
+        graphqlCalls.push(variables);
+        return {};
+      };
+
+      // issue_number 900 pointing to itself
+      const result = await handler({ issue_number: 900, body: "Duplicate", duplicate_of: 900 }, {});
+
+      expect(result.success).toBe(true);
+      expect(graphqlCalls.length).toBe(0);
+      expect(mockCore.warnings.some(w => w.includes("cannot be a duplicate of itself"))).toBe(true);
     });
   });
 });

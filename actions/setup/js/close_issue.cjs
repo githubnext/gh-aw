@@ -5,7 +5,7 @@
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
  */
 
-const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo, validateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { createCloseEntityHandler, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
@@ -30,20 +30,20 @@ function parseDuplicateOf(value, defaultOwner, defaultRepo) {
 
   const str = String(value).trim();
 
-  // Bare number or "#NUMBER"
-  const bareMatch = str.match(/^#?(\d+)$/);
+  // Bare number or "#NUMBER" — positive integers only (no #0 or 0)
+  const bareMatch = str.match(/^#?([1-9]\d*)$/);
   if (bareMatch) {
     return { owner: defaultOwner, repo: defaultRepo, issueNumber: parseInt(bareMatch[1], 10) };
   }
 
-  // "owner/repo#NUMBER"
-  const refMatch = str.match(/^([^/]+)\/([^#]+)#(\d+)$/);
+  // "owner/repo#NUMBER" — owner and repo must not contain '/' or '#'
+  const refMatch = str.match(/^([\w.-]+)\/([\w.-]+)#([1-9]\d*)$/);
   if (refMatch) {
     return { owner: refMatch[1], repo: refMatch[2], issueNumber: parseInt(refMatch[3], 10) };
   }
 
-  // GitHub issue URL: https://github.com/owner/repo/issues/NUMBER
-  const urlMatch = str.match(/^https?:\/\/(?:[^/]+)\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
+  // GitHub issue URL: https://github.com/owner/repo/issues/NUMBER — stop at path/query/fragment
+  const urlMatch = str.match(/^https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/([1-9]\d*)(?:[?#/].*)?$/);
   if (urlMatch) {
     return { owner: urlMatch[1], repo: urlMatch[2], issueNumber: parseInt(urlMatch[3], 10) };
   }
@@ -56,23 +56,31 @@ function parseDuplicateOf(value, defaultOwner, defaultRepo) {
  * This creates a native "marked this as a duplicate of #X" timeline event.
  *
  * @param {any} github - Authenticated GitHub client (must support graphql)
- * @param {string} duplicateOwner - Owner of the duplicate issue's repo
- * @param {string} duplicateRepo - Repo of the duplicate issue
- * @param {number} duplicateNumber - Issue number being marked as duplicate
+ * @param {string} duplicateNodeId - GraphQL node ID of the issue being marked as a duplicate
  * @param {string} canonicalOwner - Owner of the canonical issue's repo
  * @param {string} canonicalRepo - Repo of the canonical issue
  * @param {number} canonicalNumber - Issue number that is the canonical original
  * @returns {Promise<void>}
  */
-async function markIssueAsDuplicate(github, duplicateOwner, duplicateRepo, duplicateNumber, canonicalOwner, canonicalRepo, canonicalNumber) {
-  // Fetch node IDs for both issues via REST (node_id is included in issues.get response)
-  const [{ data: duplicateData }, { data: canonicalData }] = await Promise.all([
-    github.rest.issues.get({ owner: duplicateOwner, repo: duplicateRepo, issue_number: duplicateNumber }),
-    github.rest.issues.get({ owner: canonicalOwner, repo: canonicalRepo, issue_number: canonicalNumber }),
-  ]);
+async function markIssueAsDuplicate(github, duplicateNodeId, canonicalOwner, canonicalRepo, canonicalNumber) {
+  if (!duplicateNodeId) {
+    throw new Error(`node_id missing for duplicate issue`);
+  }
 
-  const duplicateNodeId = duplicateData.node_id;
+  const { data: canonicalData } = await github.rest.issues.get({
+    owner: canonicalOwner,
+    repo: canonicalRepo,
+    issue_number: canonicalNumber,
+  });
+
   const canonicalNodeId = canonicalData.node_id;
+  if (!canonicalNodeId) {
+    throw new Error(`node_id missing for canonical issue ${canonicalOwner}/${canonicalRepo}#${canonicalNumber}`);
+  }
+
+  if (duplicateNodeId === canonicalNodeId) {
+    throw new Error(`Cannot mark issue as a duplicate of itself`);
+  }
 
   await github.graphql(
     `mutation($duplicateId: ID!, $canonicalId: ID!) {
@@ -257,10 +265,24 @@ async function main(config = {}) {
         if (item.duplicate_of !== undefined && item.duplicate_of !== null && stateReasonUpper === "DUPLICATE") {
           const parsed = parseDuplicateOf(item.duplicate_of, owner, repo);
           if (parsed) {
+            // Validate canonical repo against the same allowedRepos policy
+            const canonicalRepoSlug = `${parsed.owner}/${parsed.repo}`;
+            const repoValidation = validateRepo(canonicalRepoSlug, defaultTargetRepo, allowedRepos);
+            if (!repoValidation.valid) {
+              core.warning(`Skipping native duplicate marking: canonical repo "${canonicalRepoSlug}" is not in the allowed-repos list`);
+              return closePromise;
+            }
+
+            // Guard against marking an issue as a duplicate of itself
+            if (parsed.owner === owner && parsed.repo === repo && parsed.issueNumber === entityNumber) {
+              core.warning(`Skipping native duplicate marking: issue #${entityNumber} cannot be a duplicate of itself`);
+              return closePromise;
+            }
+
             core.info(`Marking issue #${entityNumber} as duplicate of ${parsed.owner}/${parsed.repo}#${parsed.issueNumber}`);
             return closePromise.then(async closedEntity => {
               try {
-                await markIssueAsDuplicate(github, owner, repo, entityNumber, parsed.owner, parsed.repo, parsed.issueNumber);
+                await markIssueAsDuplicate(github, closedEntity.node_id, parsed.owner, parsed.repo, parsed.issueNumber);
                 core.info(`✓ Marked issue #${entityNumber} as duplicate of #${parsed.issueNumber}`);
               } catch (dupError) {
                 core.warning(`Failed to mark native duplicate relationship for #${entityNumber}: ${getErrorMessage(dupError)}`);
