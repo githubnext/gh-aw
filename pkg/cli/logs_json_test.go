@@ -745,10 +745,11 @@ func TestBuildLogsDataWithCountLimitContinuation(t *testing.T) {
 
 	// Simulate what DownloadWorkflowLogs emits when fetchAllInRange is true and the
 	// count limit is reached before all runs in the date window are fetched.
-	// "-1d" is a relative date shorthand accepted by the --start-date flag.
+	// DownloadWorkflowLogs receives resolved absolute dates (the CLI resolves relative
+	// shorthands like "-1d" before calling it), so use a concrete date here.
 	continuation := &ContinuationData{
 		Message:     "Count limit reached. Use these parameters to continue fetching more logs from the same date range.",
-		StartDate:   "-1d",
+		StartDate:   "2026-06-01",
 		Count:       100,
 		BeforeRunID: 19999, // oldest processed run
 		Timeout:     3,
@@ -762,8 +763,8 @@ func TestBuildLogsDataWithCountLimitContinuation(t *testing.T) {
 	if logsData.Continuation.BeforeRunID != 19999 {
 		t.Errorf("Expected BeforeRunID 19999, got %d", logsData.Continuation.BeforeRunID)
 	}
-	if logsData.Continuation.StartDate != "-1d" {
-		t.Errorf("Expected StartDate '-1d', got %q", logsData.Continuation.StartDate)
+	if logsData.Continuation.StartDate != "2026-06-01" {
+		t.Errorf("Expected StartDate '2026-06-01', got %q", logsData.Continuation.StartDate)
 	}
 
 	// Verify round-trip JSON serialisation preserves continuation.
