@@ -1,6 +1,6 @@
 "use strict";
 
-const { getEnvPositiveIntOrDefault, parseStrictPositiveInteger } = require("./copilot_sdk_permissions.cjs");
+const { getEnvPositiveIntOrDefault } = require("./copilot_sdk_permissions.cjs");
 
 // Maximum number of retry attempts after the initial run
 const DEFAULT_MAX_RETRIES = 3;
@@ -30,55 +30,19 @@ function logInvalidEnvValue(logger, envVar, rawValue, defaultValue) {
 
 /**
  * @param {NodeJS.ProcessEnv} env
- * @param {string} envVar
- * @param {number} defaultValue
- * @param {(message: string) => void} [logger]
- * @returns {number}
- */
-function readEnvPositiveIntOrDefault(env, envVar, defaultValue, logger) {
-  const rawValue = env[envVar];
-  if (rawValue == null || rawValue === "") {
-    return defaultValue;
-  }
-  const parsed = getEnvPositiveIntOrDefault(envVar, INVALID_POSITIVE_INT_FALLBACK, env);
-  if (Number.isSafeInteger(parsed) && parsed > 0) {
-    return parsed;
-  }
-  logInvalidEnvValue(logger, envVar, rawValue, defaultValue);
-  return defaultValue;
-}
-
-/**
- * @param {NodeJS.ProcessEnv} env
- * @param {string} envVar
- * @param {number} defaultValue
- * @param {(message: string) => void} [logger]
- * @returns {number}
- */
-function readEnvNonNegativeIntOrDefault(env, envVar, defaultValue, logger) {
-  const rawValue = env[envVar];
-  if (rawValue == null || rawValue === "") {
-    return defaultValue;
-  }
-  const trimmed = String(rawValue).trim();
-  if (/^\d+$/.test(trimmed)) {
-    const parsed = Number.parseInt(trimmed, 10);
-    if (Number.isSafeInteger(parsed)) {
-      return parsed;
-    }
-  }
-  logInvalidEnvValue(logger, envVar, rawValue, defaultValue);
-  return defaultValue;
-}
-
-/**
- * @param {string | undefined} rawValue
  * @param {{envVar: string, defaultValue: number, minimum: number, allowFloat?: boolean, logger?: (message: string) => void}} options
  * @returns {number}
  */
-function parseRetryConfigNumber(rawValue, { envVar, defaultValue, minimum, allowFloat = false, logger }) {
+function parseRetryConfigNumber(env, { envVar, defaultValue, minimum, allowFloat = false, logger }) {
+  const rawValue = env[envVar];
   if (rawValue == null || rawValue === "") {
     return defaultValue;
+  }
+  if (!allowFloat && minimum >= 1) {
+    const parsedPositiveInt = getEnvPositiveIntOrDefault(envVar, INVALID_POSITIVE_INT_FALLBACK, env);
+    if (Number.isSafeInteger(parsedPositiveInt) && parsedPositiveInt >= minimum) {
+      return parsedPositiveInt;
+    }
   }
   const parsed = Number(rawValue);
   const isValidNumber = Number.isFinite(parsed) && parsed >= minimum && (allowFloat || Number.isInteger(parsed));
@@ -95,16 +59,31 @@ function parseRetryConfigNumber(rawValue, { envVar, defaultValue, minimum, allow
  * @returns {{maxRetries: number, initialDelayMs: number, backoffMultiplier: number, maxDelayMs: number}}
  */
 function resolveRetryConfig(env = process.env, logger = () => {}) {
-  const maxRetries = readEnvNonNegativeIntOrDefault(env, HARNESS_MAX_RETRIES_ENV, DEFAULT_MAX_RETRIES, logger);
-  const initialDelayMs = readEnvPositiveIntOrDefault(env, HARNESS_INITIAL_DELAY_MS_ENV, DEFAULT_INITIAL_DELAY_MS, logger);
-  const backoffMultiplier = parseRetryConfigNumber(env[HARNESS_BACKOFF_MULTIPLIER_ENV], {
+  const maxRetries = parseRetryConfigNumber(env, {
+    envVar: HARNESS_MAX_RETRIES_ENV,
+    defaultValue: DEFAULT_MAX_RETRIES,
+    minimum: 0,
+    logger,
+  });
+  const initialDelayMs = parseRetryConfigNumber(env, {
+    envVar: HARNESS_INITIAL_DELAY_MS_ENV,
+    defaultValue: DEFAULT_INITIAL_DELAY_MS,
+    minimum: 1,
+    logger,
+  });
+  const backoffMultiplier = parseRetryConfigNumber(env, {
     envVar: HARNESS_BACKOFF_MULTIPLIER_ENV,
     defaultValue: DEFAULT_BACKOFF_MULTIPLIER,
     minimum: 1,
     allowFloat: true,
     logger,
   });
-  let maxDelayMs = readEnvPositiveIntOrDefault(env, HARNESS_MAX_DELAY_MS_ENV, DEFAULT_MAX_DELAY_MS, logger);
+  let maxDelayMs = parseRetryConfigNumber(env, {
+    envVar: HARNESS_MAX_DELAY_MS_ENV,
+    defaultValue: DEFAULT_MAX_DELAY_MS,
+    minimum: 1,
+    logger,
+  });
   if (maxDelayMs < initialDelayMs) {
     if (typeof logger === "function") {
       logger(`warning: ${HARNESS_MAX_DELAY_MS_ENV}=${maxDelayMs} is lower than ${HARNESS_INITIAL_DELAY_MS_ENV}=${initialDelayMs}; clamping max delay to initial delay`);
