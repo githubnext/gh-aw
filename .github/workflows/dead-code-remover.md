@@ -79,7 +79,7 @@ Inline sub-agent block syntax: `agent` names the sub-agent, `model` selects a sm
 After it runs, parse its stdout JSON and use `skip` / `candidates` as inputs for later phases.
 
 ## agent: discover-candidates
-model: small
+model: kiwi
 task: |
   Run: deadcode ./cmd/... ./internal/tools/...
   Read: /tmp/gh-aw/cache-memory/dead-code-processed.jsonl (if present)

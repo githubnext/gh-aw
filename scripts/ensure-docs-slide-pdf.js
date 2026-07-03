@@ -145,6 +145,7 @@ async function readPdfBytes() {
 async function main() {
   const pdfBytes = await readPdfBytes();
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
+  // codeql[js/http-to-file-access]: readPdfBytes() only downloads from a fixed GitHub media URL and validates content type, size, and PDF signature before this write.
   fs.writeFileSync(OUTPUT_PATH, pdfBytes);
   console.log(`✓ Slide PDF ready at ${OUTPUT_PATH}`);
 }

@@ -288,7 +288,7 @@ Thresholds (from `.architecture.yml` or defaults):
 ## agent: `violation-classifier`
 ---
 description: Applies numeric thresholds to the pre-computed metrics JSON and returns a structured list of violations grouped by severity
-model: small
+model: kiwi
 ---
 You are a violation classification assistant. Read the pre-computed metrics JSON, apply the thresholds, and return a structured categorization of all findings.
 

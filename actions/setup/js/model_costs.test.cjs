@@ -132,4 +132,78 @@ describe("model_costs.cjs", () => {
     });
     expect(aic).toBeGreaterThan(0);
   });
+
+  it("subtracts cache reads from input for github-copilot provider (§3.5, no double-charge)", async () => {
+    // github-copilot proxies OpenAI and Anthropic models, which bundle cache-read tokens
+    // inside the reported input total.  §3.5 requires the cache reads to be subtracted
+    // from input_tokens before the input price is applied, preventing double-charging.
+    //
+    // Pricing used in this fixture:
+    //   input:      $0.000003 / token
+    //   output:     $0.000015 / token
+    //   cache_read: $0.0000003 / token
+    //
+    // With 1000 input, 200 output, 400 cache_read:
+    //   net input = 1000 − 400 = 600
+    //   cost = 600×0.000003 + 200×0.000015 + 400×0.0000003 = 0.0018 + 0.003 + 0.00012 = 0.00492
+    //   AIC  = 0.00492 / 0.01 = 0.492
+    writeModelsFixture({
+      "github-copilot": {
+        models: {
+          "claude-sonnet-4.6": {
+            cost: {
+              input: "0.000003",
+              output: "0.000015",
+              cache_read: "0.0000003",
+            },
+          },
+        },
+      },
+    });
+
+    const { computeInferenceAIC } = await import("./model_costs.cjs");
+
+    for (const provider of ["github-copilot", "github_models", "github", "copilot"]) {
+      const aic = computeInferenceAIC({
+        provider,
+        model: "claude-sonnet-4.6",
+        inputTokens: 1000,
+        outputTokens: 200,
+        cacheReadTokens: 400,
+        cacheWriteTokens: 0,
+      });
+      expect(aic).toBeCloseTo(0.492, 6);
+    }
+  });
+
+  it("clamps net input to 0 when cache_read exceeds input (§3.5 boundary)", async () => {
+    writeModelsFixture({
+      "github-copilot": {
+        models: {
+          "claude-sonnet-4.6": {
+            cost: {
+              input: "0.000003",
+              output: "0.000015",
+              cache_read: "0.0000003",
+            },
+          },
+        },
+      },
+    });
+
+    const { computeInferenceAIC } = await import("./model_costs.cjs");
+    const aic = computeInferenceAIC({
+      provider: "github-copilot",
+      model: "claude-sonnet-4.6",
+      inputTokens: 1000,
+      outputTokens: 200,
+      cacheReadTokens: 1200,
+      cacheWriteTokens: 0,
+    });
+
+    // net input = max(1000 − 1200, 0) = 0
+    // cost = 0×0.000003 + 200×0.000015 + 1200×0.0000003 = 0.00336
+    // AIC  = 0.00336 / 0.01 = 0.336
+    expect(aic).toBeCloseTo(0.336, 6);
+  });
 });

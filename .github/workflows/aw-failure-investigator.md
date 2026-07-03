@@ -424,20 +424,7 @@ Group failures into clusters:
 
 Return only JSON — no prose:
 ```json
-{
-  "clusters": [
-    {
-      "id": "cluster-1",
-      "severity": "P0",
-      "representative_run_id": 123,
-      "comparator_run_id": 456,
-      "workflows": ["workflow-name"],
-      "error_signature": "one-line dominant error",
-      "run_ids": [123, 789],
-      "truncated_error_logs": []
-    }
-  ]
-}
+{"clusters":[{"id":"cluster-1","severity":"P0|P1|P2","representative_run_id":123,"comparator_run_id":456,"workflows":["workflow-name"],"error_signature":"one-line dominant error","run_ids":[123,789],"truncated_error_logs":[]}]}
 ```
 
 ## agent: `issue-matcher`
@@ -453,14 +440,7 @@ For each cluster, determine whether an existing issue already tracks it. Match b
 
 Return only JSON — no prose:
 ```json
-{
-  "matched": [
-    {"cluster_id": "cluster-1", "issue_number": 42, "confidence": "high"}
-  ],
-  "gaps": [
-    {"cluster_id": "cluster-2", "reason": "no existing issue covers this signature"}
-  ]
-}
+{"matched":[{"cluster_id":"cluster-1","issue_number":42,"confidence":"high|medium|low"}],"gaps":[{"cluster_id":"cluster-2","reason":"no existing issue covers this signature"}]}
 ```
 
 ## agent: `cluster-evidence-extractor`
@@ -477,7 +457,5 @@ Extract dominant error, tool-failure pattern, anomalies, and failure class.
 
 Return only JSON:
 ```json
-{
-  "cluster_evidence": [{"cluster_id":"", "dominant_error":"", "tool_failure_pattern":"", "anomalies":[],"failure_class":"","evidence_run_ids":[]}]
-}
+{"cluster_evidence":[{"cluster_id":"cluster-1","dominant_error":"one-line dominant error","tool_failure_pattern":"tool_name + failing step pattern","anomalies":[],"failure_class":"infra|tool|data|policy|unknown","evidence_run_ids":[123,789]}]}
 ```

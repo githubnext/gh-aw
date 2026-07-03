@@ -22,6 +22,9 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 | [`gh aw logs`](#logs) | Download and analyze agentic workflow logs and artifacts |
 | [`gh aw audit`](#audit) | Audit and compare workflow runs |
 
+> [!TIP]
+> New to `gh aw`? You can stop here for day-one usage and jump to [Commands](#commands) when you're ready. The advanced enterprise setup is collapsed below and can be skipped for most users.
+
 ## Installation
 
 Install the GitHub CLI extension:
@@ -68,6 +71,9 @@ In GitHub Actions, use the `setup-cli` action for platform detection and checksu
 
 See the [setup-cli action README](https://github.com/github/gh-aw/blob/main/actions/setup-cli/README.md) for full details.
 
+<details>
+<summary><strong>Advanced: GitHub Enterprise Server Support</strong></summary>
+
 ### GitHub Enterprise Server Support
 
 For GitHub Enterprise Server deployments:
@@ -107,6 +113,7 @@ The setup action installs the script at `/opt/gh-aw/actions/configure_gh_for_ghe
 
 > [!NOTE]
 > Custom steps run outside the agent firewall sandbox and have access to standard GitHub Actions environment variables including `GITHUB_SERVER_URL`, `GITHUB_TOKEN`, and `GH_TOKEN`.
+</details>
 
 ## Global Options
 

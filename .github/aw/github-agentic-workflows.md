@@ -75,6 +75,14 @@ Use the smallest trigger that matches the requested automation.
 
 See also: [workflow-constraints.md](workflow-constraints.md)
 
+## Ad Hoc Scenario Evaluation
+
+Installed gh-aw agents should support scenario evaluation requests that do not create workflow files.
+
+- Treat prompts such as `agentic-workflows evaluate this scenario without creating files` as ad hoc evaluation mode.
+- Return a compact design recommendation covering trigger, scope, tools, permissions, safe outputs, `noop` behavior, and any report window / grouping / deduplication requirements.
+- Offer to turn the recommendation into `.github/workflows/<workflow-id>.md` only if the user asks to proceed.
+
 ## PR Checks with Linked References
 
 When a PR analysis requires verifying or attaching a linked artifact (design doc, policy link, architecture decision record, or approval), follow this compact pattern:

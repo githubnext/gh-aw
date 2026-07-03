@@ -732,7 +732,7 @@ Execute all phases systematically and maintain an objective, data-driven approac
 
 ## agent: `metrics-extractor`
 ---
-model: small
+model: mai-code
 description: Reads shared repo-memory metric files and returns structured JSON with all relevant performance data
 ---
 You are a metrics extraction assistant. When given a newline-separated list of file paths (one path per line), read each file using bash and return a single JSON object containing all data found.
@@ -745,7 +745,7 @@ Return the result as a single valid JSON object with no additional commentary.
 
 ## agent: `pattern-detector`
 ---
-model: small
+model: mai-code
 description: Classifies agent behavioral patterns from profiles and returns a structured categorization of issues found
 ---
 You are an agent behavior classification assistant. When given a JSON object containing agent profiles (with fields such as output counts, types, success rates, and resource usage), classify each agent's behavioral patterns.
