@@ -233,7 +233,7 @@ function writeStepSummaryWithTokenUsage(coreObj) {
     coreObj.summary.addRaw(timelineMd);
   }
 
-  coreObj.summary.write();
+  await coreObj.summary.write();
 }
 
 /**

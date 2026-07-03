@@ -76,7 +76,7 @@ async function main() {
       requestsByDomain,
     });
 
-    core.summary.addRaw(summary).write();
+    await core.summary.addRaw(summary).write();
     core.info("Firewall log summary generated successfully");
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${error instanceof Error ? error.message : String(error)}`);
