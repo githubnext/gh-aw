@@ -918,7 +918,7 @@ describe("close_issue", () => {
       expect(parseDuplicateOf("org/sub/repo#1", "owner", "repo")).toBeNull();
     });
 
-    it("should return null for URL with extra path segments after issue number", () => {
+    it("should parse URL and ignore trailing path segment after issue number", () => {
       // The URL should still parse — extra trailing segments are allowed by the anchor pattern
       const result = parseDuplicateOf("https://github.com/org/repo/issues/42/extra", "owner", "repo");
       // extra path after issue number is captured by the (?:[?#/].*)? anchor — verify it strips cleanly
