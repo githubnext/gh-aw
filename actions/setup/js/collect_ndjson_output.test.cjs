@@ -74,6 +74,29 @@ describe("collect_ndjson_output.cjs", () => {
             customValidation: "requiresOneOf:status,title,body",
             fields: { status: { type: "string", enum: ["open", "closed"] }, title: { type: "string", sanitize: !0, maxLength: 128 }, body: { type: "string", sanitize: !0, maxLength: 65e3 }, issue_number: { issueOrPRNumber: !0 } },
           },
+          set_issue_type: {
+            defaultMax: 5,
+            fields: {
+              issue_number: { issueOrPRNumber: !0 },
+              issue_type: { required: !0, type: "string", sanitize: !0, maxLength: 128 },
+              rationale: { type: "string", sanitize: !0, maxLength: 280 },
+              confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
+              suggest: { type: "boolean" },
+            },
+          },
+          set_issue_field: {
+            defaultMax: 5,
+            customValidation: "requiresOneOf:field_name,field_node_id",
+            fields: {
+              issue_number: { issueOrPRNumber: !0 },
+              field_name: { type: "string", sanitize: !0, maxLength: 128 },
+              field_node_id: { type: "string", maxLength: 256 },
+              value: { required: !0, type: "string", sanitize: !0, maxLength: 256 },
+              rationale: { type: "string", sanitize: !0, maxLength: 280 },
+              confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
+              suggest: { type: "boolean" },
+            },
+          },
           create_pull_request_review_comment: {
             defaultMax: 1,
             customValidation: "startLineLessOrEqualLine",
@@ -194,6 +217,24 @@ describe("collect_ndjson_output.cjs", () => {
       expect(outputCall).toBeDefined();
       const parsedOutput = JSON.parse(outputCall[1]);
       (expect(parsedOutput.items).toHaveLength(2), expect(parsedOutput.items[0].type).toBe("create_issue"), expect(parsedOutput.items[1].type).toBe("add_comment"), expect(parsedOutput.errors).toHaveLength(0));
+    }),
+    it("should strip invalid optional issue intent fields instead of dropping valid items", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
+        ndjsonContent =
+          '{"type": "set_issue_type", "issue_type": "Bug", "confidence": 0.9, "rationale": 17, "suggest": true}\n{"type": "set_issue_field", "field_name": "Priority", "value": "P1", "confidence": "0.95", "rationale": {"why": "bad"}}';
+      (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
+      const __config = '{"set_issue_type": true, "set_issue_field": true}',
+        configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+      const setOutputCalls = mockCore.setOutput.mock.calls,
+        outputCall = setOutputCalls.find(call => "output" === call[0]);
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.errors).toHaveLength(0);
+      expect(parsedOutput.items).toEqual([
+        { type: "set_issue_type", issue_type: "Bug", suggest: !0 },
+        { type: "set_issue_field", field_name: "Priority", value: "P1" },
+      ]);
     }),
     it("should reject items with unexpected output types", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt",

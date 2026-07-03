@@ -40,6 +40,7 @@ const ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOS
 const ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN = new RegExp(`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)(\\s+)\`(${ISSUE_REFERENCE_PATTERN})\``, "gi");
 const NORMALIZE_CLOSER_BODY_TYPES = new Set(["create_issue", "add_comment", "create_pull_request"]);
 const ISSUE_INTENT_LABEL_TYPES = new Set(["add_labels", "remove_labels", "update_issue"]);
+const LENIENT_ISSUE_INTENT_FIELDS = new Set(["rationale", "confidence"]);
 
 /**
  * Remove markdown backticks around recognized issue-closing keyword references.
@@ -82,6 +83,17 @@ function normalizeIssueIntentRationale(rationale, options) {
   // sanitizeContent appends "\n[Content truncated due to length]" when it truncates,
   // so clamp again to guarantee the GitHub API hard limit.
   return sanitizedRationale.length > ISSUE_INTENT_RATIONALE_MAX_LENGTH ? sanitizedRationale.slice(0, ISSUE_INTENT_RATIONALE_MAX_LENGTH) : sanitizedRationale;
+}
+
+/**
+ * Optional issue-intent enrichment fields should be stripped rather than causing
+ * the entire safe-output item to be rejected when they are malformed.
+ * @param {string} fieldName
+ * @param {FieldValidation} validation
+ * @returns {boolean}
+ */
+function shouldStripInvalidIssueIntentField(fieldName, validation) {
+  return !validation.required && LENIENT_ISSUE_INTENT_FIELDS.has(fieldName);
 }
 
 /**
@@ -145,13 +157,7 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
 
     /** @type {{ name: string, rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} */
     const normalizedLabel = { name };
-    if (label.rationale !== undefined) {
-      if (typeof label.rationale !== "string") {
-        return {
-          isValid: false,
-          error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].rationale must be a string`,
-        };
-      }
+    if (typeof label.rationale === "string") {
       const rationale = normalizeIssueIntentRationale(label.rationale, options);
       if (rationale) {
         normalizedLabel.rationale = rationale;
@@ -160,7 +166,7 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
     if (label.confidence !== undefined) {
       if (label.confidence !== null && label.confidence !== "") {
         const confidenceRaw = String(label.confidence).trim().toUpperCase();
-        /** @type {"LOW"|"MEDIUM"|"HIGH"} */
+        /** @type {"LOW"|"MEDIUM"|"HIGH"|undefined} */
         let confidence;
         switch (confidenceRaw) {
           case "LOW":
@@ -173,12 +179,11 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
             confidence = "HIGH";
             break;
           default:
-            return {
-              isValid: false,
-              error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].confidence must be one of: LOW, MEDIUM, HIGH`,
-            };
+            confidence = undefined;
         }
-        normalizedLabel.confidence = confidence;
+        if (confidence) {
+          normalizedLabel.confidence = confidence;
+        }
       }
     }
     if (label.suggest !== undefined) {
@@ -417,7 +422,7 @@ function validateIssueNumberOrTemporaryId(value, fieldName, lineNum) {
  * @param {string} itemType - The item type for error messages
  * @param {number} lineNum - Line number for error messages
  * @param {ValidateOptions} [options] - Optional sanitization options
- * @returns {{isValid: boolean, normalizedValue?: any, error?: string}}
+ * @returns {{isValid: boolean, normalizedValue?: any, error?: string, removeField?: boolean}}
  */
 function validateField(value, fieldName, validation, itemType, lineNum, options) {
   // For positiveInteger fields, delegate required check to validatePositiveInteger
@@ -461,6 +466,9 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
   // Handle type validation
   if (validation.type === "string") {
     if (typeof value !== "string") {
+      if (shouldStripInvalidIssueIntentField(fieldName, validation)) {
+        return { isValid: true, removeField: true };
+      }
       // For required fields, use "requires a" format for both missing and wrong type
       if (validation.required) {
         const fieldType = validation.typeHint || "string";
@@ -492,6 +500,9 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
       const normalizedValue = value.toLowerCase ? value.toLowerCase() : value;
       const normalizedEnum = validation.enum.map(e => (e.toLowerCase ? e.toLowerCase() : e));
       if (!normalizedEnum.includes(normalizedValue)) {
+        if (shouldStripInvalidIssueIntentField(fieldName, validation)) {
+          return { isValid: true, removeField: true };
+        }
         // Use special format for 2-option enums: "'field' must be 'A' or 'B'"
         // Use standard format for more options: "'field' must be one of: A, B, C"
         let errorMsg;
@@ -711,6 +722,8 @@ function validateItem(item, itemType, lineNum, options) {
 
     if (!result.isValid) {
       errors.push(result.error);
+    } else if (result.removeField) {
+      delete normalizedItem[fieldName];
     } else if (result.normalizedValue !== undefined) {
       normalizedItem[fieldName] = result.normalizedValue;
     }
