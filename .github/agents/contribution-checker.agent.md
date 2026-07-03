@@ -85,17 +85,13 @@ Return a single **JSON object** (no extra text):
 }
 ```
 
-Where:
-- `verdict` is one of: `🔴`, `⚠️`, `🟡`, `🟢`, `❓`
-- `on_topic` is `yes`, `no`, or `unclear`
-- `focused` is `yes` or `no`
-- `deps` is `yes` or `no`
-- `tests` is `yes` or `no`
-- `lines` is the total lines changed (integer)
-- `quality` is one of: `spam`, `needs-work`, `lgtm`, `no-guidelines`
-- `existing_labels` is an array of the PR's current labels, or `[]` if none
-- `title` is the PR title
-- `author` is the PR author's username
+Field values:
+- `verdict`: `🔴`, `⚠️`, `🟡`, `🟢`, or `❓`
+- `on_topic`: `yes`, `no`, or `unclear`
+- `focused`, `deps`, `tests`: `yes` or `no`
+- `lines`: total lines changed (integer)
+- `quality`: `spam`, `needs-work`, `lgtm`, or `no-guidelines`
+- `existing_labels`: array of the PR's current labels, or `[]`
 
 ### Comment Field
 
