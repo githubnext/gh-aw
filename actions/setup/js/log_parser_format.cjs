@@ -57,6 +57,9 @@ function createLogParserFormatters(deps) {
   } = deps;
 
   const INTERNAL_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"];
+  const AWF_TOKEN_WARNING_RE = /\[AWF TOKEN WARNING\][^\n\r]+/g;
+  const AWF_STEERING_MESSAGE_RE = /Agent is still running\.[^\n\r]*A completion notification will arrive as a new turn[^.\n\r]*\.?/g;
+  const AWF_WAITING_GUIDANCE_RE = /Consider telling the user you're waiting[^.\n\r]*\.?/g;
 
   /**
    * Selects an outer markdown code fence that is longer than any backtick run
@@ -500,6 +503,69 @@ function createLogParserFormatters(deps) {
     appendConversationLine(lines, "", state);
   }
 
+  function collectAwfSteeringMessages(renderEntries) {
+    /** @type {string[]} */
+    const messages = [];
+    const seen = new Set();
+
+    const addMatches = (value, pattern) => {
+      if (typeof value !== "string") return;
+      const matches = value.match(pattern);
+      if (!matches) return;
+      for (const match of matches) {
+        const normalized = match.trim();
+        if (!normalized || seen.has(normalized)) continue;
+        seen.add(normalized);
+        messages.push(normalized);
+      }
+    };
+
+    const addFromValue = value => {
+      if (typeof value !== "string") return;
+      addMatches(value, AWF_TOKEN_WARNING_RE);
+      addMatches(value, AWF_STEERING_MESSAGE_RE);
+      addMatches(value, AWF_WAITING_GUIDANCE_RE);
+    };
+
+    for (const entry of renderEntries) {
+      if (entry.type === "assistant" && entry.message?.content) {
+        for (const content of entry.message.content) {
+          if (content.type === "text") addFromValue(content.text);
+          if (content.type === "thinking") addFromValue(content.thinking);
+        }
+      }
+      if (entry.type === "user" && entry.message?.content) {
+        for (const content of entry.message.content) {
+          if (content.type !== "tool_result") continue;
+          if (typeof content.content === "string") {
+            addFromValue(content.content);
+            continue;
+          }
+          if (content.content && typeof content.content === "object") {
+            try {
+              addFromValue(JSON.stringify(content.content));
+            } catch {
+              // ignore non-serializable content
+            }
+          }
+        }
+      }
+    }
+
+    return messages;
+  }
+
+  function appendAwfSteering(lines, messages) {
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return;
+    }
+    lines.push("AWF Steering:");
+    for (const message of messages) {
+      lines.push(`  - ${message}`);
+    }
+    lines.push("");
+  }
+
   function appendStatistics(lines, logEntries, toolUsePairs) {
     const lastEntry = logEntries[logEntries.length - 1];
     lines.push("Statistics:");
@@ -559,6 +625,7 @@ function createLogParserFormatters(deps) {
     const renderEntries = normalizeEntriesForRendering(logEntries);
     const lines = [];
     const toolUsePairs = collectToolUsePairs(renderEntries);
+    const awfSteeringMessages = collectAwfSteeringMessages(renderEntries);
 
     const state = {
       conversationLineCount: 0,
@@ -604,6 +671,7 @@ function createLogParserFormatters(deps) {
       lines.push("");
     }
 
+    appendAwfSteering(lines, awfSteeringMessages);
     appendStatistics(lines, renderEntries, toolUsePairs);
 
     return lines;

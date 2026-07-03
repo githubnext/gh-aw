@@ -22,6 +22,8 @@ const main = createEngineLogParser({
 });
 
 const AWF_TOKEN_WARNING_RE = /\[AWF TOKEN WARNING\][^\n\r]+/g;
+const AWF_STEERING_MESSAGE_RE = /Agent is still running\.[^\n\r]*A completion notification will arrive as a new turn[^.\n\r]*\.?/g;
+const AWF_WAITING_GUIDANCE_RE = /Consider telling the user you're waiting[^.\n\r]*\.?/g;
 
 /**
  * Extracts AWF token steering warnings from parsed Copilot log entries.
@@ -35,9 +37,9 @@ function extractAwfTokenWarnings(logEntries) {
   const warnings = [];
   const seen = new Set();
 
-  const addMatches = value => {
+  const addMatches = (value, pattern) => {
     if (typeof value !== "string") return;
-    const matches = value.match(AWF_TOKEN_WARNING_RE);
+    const matches = value.match(pattern);
     if (!matches) return;
     for (const match of matches) {
       const normalized = match.trim();
@@ -50,7 +52,9 @@ function extractAwfTokenWarnings(logEntries) {
   const visit = value => {
     if (!value) return;
     if (typeof value === "string") {
-      addMatches(value);
+      addMatches(value, AWF_TOKEN_WARNING_RE);
+      addMatches(value, AWF_STEERING_MESSAGE_RE);
+      addMatches(value, AWF_WAITING_GUIDANCE_RE);
       return;
     }
     if (Array.isArray(value)) {

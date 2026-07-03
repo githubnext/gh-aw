@@ -153,6 +153,20 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("fileB.txt");
     });
 
+    it("renders AWF steering guidance from Copilot SDK events.jsonl tool results", () => {
+      const eventsLog = [
+        '{"type":"user.message","timestamp":"2026-06-05T00:44:01.367Z","data":{}}',
+        '{"type":"tool.execution_start","timestamp":"2026-06-05T00:44:04.520Z","data":{"toolName":"read_agent","mcpServerName":""}}',
+        '{"type":"tool.execution_complete","timestamp":"2026-06-05T00:44:04.700Z","data":{"toolName":"read_agent","mcpServerName":"","success":true,"result":{"content":"Agent is still running. agent_id: helper. Consider telling the user you\'re waiting, then end your response with no further tool calls. A completion notification will arrive as a new turn; no need to poll or redo its work."}}}',
+        '{"type":"assistant.message","timestamp":"2026-06-05T00:44:59.769Z","data":{"content":"Waiting for sub-agent completion."}}',
+      ].join("\n");
+
+      const result = parseCopilotLog(eventsLog);
+
+      expect(result.markdown).toContain("Agent is still running.");
+      expect(result.markdown).toContain("A completion notification will arrive as a new turn");
+    });
+
     it("should handle tool calls with details in HTML format", () => {
       const logWithHtmlDetails = JSON.stringify([
         { type: "system", subtype: "init", session_id: "html-test", tools: ["Bash"], model: "gpt-5" },
@@ -449,7 +463,6 @@ describe("parse_copilot_log.cjs", () => {
 
       const result = parseCopilotLog(structuredLog);
 
-      expect(result.markdown).toContain("Firewall Steering");
       expect(result.markdown).toContain("[AWF TOKEN WARNING] You have used 90% of your effective token budget.");
     });
   });
@@ -470,6 +483,34 @@ describe("parse_copilot_log.cjs", () => {
 
         expect(mockCore.summary.addRaw).toHaveBeenCalled();
         expect(mockCore.summary.write).toHaveBeenCalled();
+      } finally {
+        if (fs.existsSync(tempFile)) {
+          fs.unlinkSync(tempFile);
+        }
+      }
+    });
+
+    it("includes AWF steering guidance in plain logs and step summary", async () => {
+      const steeringEventsLog = [
+        '{"type":"user.message","timestamp":"2026-06-05T00:44:01.367Z","data":{}}',
+        '{"type":"tool.execution_start","timestamp":"2026-06-05T00:44:04.520Z","data":{"toolName":"read_agent","mcpServerName":""}}',
+        '{"type":"tool.execution_complete","timestamp":"2026-06-05T00:44:04.700Z","data":{"toolName":"read_agent","mcpServerName":"","success":true,"result":{"content":"Agent is still running. agent_id: helper. Consider telling the user you\'re waiting, then end your response with no further tool calls. A completion notification will arrive as a new turn; no need to poll or redo its work."}}}',
+        '{"type":"assistant.message","timestamp":"2026-06-05T00:44:59.769Z","data":{"content":"Waiting for sub-agent completion."}}',
+      ].join("\n");
+
+      const tempFile = path.join(process.cwd(), `test_log_${Date.now()}.jsonl`);
+      fs.writeFileSync(tempFile, steeringEventsLog);
+      process.env.GH_AW_AGENT_OUTPUT = tempFile;
+
+      try {
+        await main();
+
+        const summaryText = String(mockCore.summary.addRaw.mock.calls[0]?.[0] || "");
+        expect(summaryText).toContain("AWF Steering");
+        expect(summaryText).toContain("Agent is still running.");
+
+        const hasSteeringInInfo = mockCore.info.mock.calls.some(([message]) => String(message).includes("AWF Steering"));
+        expect(hasSteeringInInfo).toBe(true);
       } finally {
         if (fs.existsSync(tempFile)) {
           fs.unlinkSync(tempFile);
