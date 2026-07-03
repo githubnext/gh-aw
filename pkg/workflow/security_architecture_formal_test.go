@@ -1,6 +1,6 @@
 //go:build !integration
 
-// Package workflow – security architecture formal model tests.
+// Package workflow - security architecture formal model tests.
 //
 // This file encodes the formal specification predicates (P1–P10) for the
 // gh-aw 7-layer security architecture defined in
@@ -30,19 +30,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// secArchConformanceLevel is a typed integer representing a spec conformance class.
+// formalConformanceLevel is a typed integer representing a spec conformance class.
 // Basic=1, Standard=2, Complete=3 (spec Section 2).
-type secArchConformanceLevel int
+type formalConformanceLevel int
 
 const (
-	secArchConformanceBasic    secArchConformanceLevel = 1
-	secArchConformanceStandard secArchConformanceLevel = 2
-	secArchConformanceComplete secArchConformanceLevel = 3
+	formalConformanceLevelBasic    formalConformanceLevel = 1
+	formalConformanceLevelStandard formalConformanceLevel = 2
+	formalConformanceLevelComplete formalConformanceLevel = 3
 )
 
 // formalConformanceMonotonicity checks the spec invariant:
 // Complete >= Standard >= Basic.
-func formalConformanceMonotonicity(basic, standard, complete secArchConformanceLevel) bool {
+func formalConformanceMonotonicity(basic, standard, complete formalConformanceLevel) bool {
 	return complete >= standard && standard >= basic
 }
 
@@ -240,25 +240,25 @@ func TestFormal_P6_SecurityFailureHaltsExecution(t *testing.T) {
 func TestFormal_P7_ConformanceLevelMonotonicity(t *testing.T) {
 	assert.True(t,
 		formalConformanceMonotonicity(
-			secArchConformanceBasic,
-			secArchConformanceStandard,
-			secArchConformanceComplete,
+			formalConformanceLevelBasic,
+			formalConformanceLevelStandard,
+			formalConformanceLevelComplete,
 		),
 		"Complete >= Standard >= Basic must hold")
 
 	// A reversed assignment must violate the invariant.
 	assert.False(t,
 		formalConformanceMonotonicity(
-			secArchConformanceComplete,
-			secArchConformanceStandard,
-			secArchConformanceBasic,
+			formalConformanceLevelComplete,
+			formalConformanceLevelStandard,
+			formalConformanceLevelBasic,
 		),
 		"reversed level assignment must not satisfy the monotonicity invariant")
 
 	// The level constants themselves must satisfy the ordering numerically.
 	assert.True(t,
-		int(secArchConformanceComplete) >= int(secArchConformanceStandard) &&
-			int(secArchConformanceStandard) >= int(secArchConformanceBasic),
+		int(formalConformanceLevelComplete) >= int(formalConformanceLevelStandard) &&
+			int(formalConformanceLevelStandard) >= int(formalConformanceLevelBasic),
 		"conformance level constants must be positive integers satisfying the ordering")
 }
 
