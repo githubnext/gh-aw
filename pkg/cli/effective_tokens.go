@@ -37,8 +37,11 @@ func providerIncludesCacheReadsInInput(normalizedProvider string) bool {
 	// the provider field.
 	// We include both "azure-openai" and "azure_openai" to handle observed
 	// provider naming variants in historical logs.
+	// Callers should pass the catalog-normalized provider so canonical aliases like
+	// "github", "copilot", and "github_models" collapse to "github-copilot"
+	// before this check.
 	switch normalizedProvider {
-	case "", "anthropic", "openai", "azure-openai", "azure_openai":
+	case "", "anthropic", "openai", "azure-openai", "azure_openai", "github-copilot":
 		return true
 	default:
 		return false

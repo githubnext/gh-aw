@@ -61,27 +61,27 @@ Test GitHub MCP tool access under this guard policy by performing these operatio
 
 ### Step 1: Search public repositories
 
-Use `search_repositories` to search for `topic:actions` and return the top 3 results. Record:
+Use `search_repositories` with `perPage: 3` to search for `topic:actions` and return the top 3 results. Record:
 - Repository full name (owner/repo)
 - Star count
 - Whether access was allowed or denied
 
 ### Step 2: Search private/internal repositories
 
-Use `search_repositories` to search for `org:github gh-aw` to find repositories in the github org. Record:
+Use `search_repositories` with `perPage: 3` to search for `org:github gh-aw` to find repositories in the github org. Record:
 - Repository full name
 - Visibility (public/private/internal)
 - Whether access was allowed or denied
 
 ### Step 3: List issues from this repository
 
-Use `list_issues` on `${{ github.repository }}` with `state: open` and `per_page: 3`. Record:
+Use `list_issues` on `${{ github.repository }}` with `state: open` and `perPage: 3`. Record:
 - Issue number and title
 - Whether access was allowed or denied
 
 ### Step 4: List issues from a different public repository
 
-Use `list_issues` on `github/docs` with `state: open` and `per_page: 3`. Record:
+Use `list_issues` on `github/docs` with `state: open` and `perPage: 3`. Record:
 - Issue number and title
 - Whether access was allowed or denied
 

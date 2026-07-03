@@ -232,7 +232,7 @@ Call the `create-pull-request` safe output with:
 ## agent: `discussion-miner`
 ---
 description: Mines GitHub Discussions and Issues for recurring Go code patterns, anti-patterns, and bugs that could be caught by a static linter
-model: small
+model: kiwi
 ---
 You are a Go code-review analyst. Your job is to search GitHub Discussions and Issues in the current repository for evidence of recurring Go code patterns or errors that could benefit from automatic static analysis.
 

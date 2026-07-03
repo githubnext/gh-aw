@@ -167,7 +167,7 @@ func computeModelInferenceCostUSD(provider, model string, inputTokens, outputTok
 
 	input := inputTokens
 	cacheRead := cacheReadTokens
-	if cacheRead > 0 && providerIncludesCacheReadsInInput(strings.ToLower(strings.TrimSpace(provider))) {
+	if cacheRead > 0 && providerIncludesCacheReadsInInput(normalizeCatalogProvider(provider)) {
 		input = max(inputTokens-cacheReadTokens, 0)
 	}
 

@@ -81,6 +81,15 @@ issue_read --method get_comments --issue_number 123 --perPage 20
 search_code --query "function language:go" --perPage 10
 ```
 
+#### Repository Search
+
+```bash
+# Exploratory repository search: keep pages very small
+search_repositories --query "org:github archived:false" --perPage 3
+```
+
+Use `perPage: 1-5` for exploratory `search_repositories` calls, and only increase after narrowing the query.
+
 ### Error Messages to Watch For
 
 If you see these errors, add pagination:
