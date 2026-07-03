@@ -155,7 +155,7 @@ async function addIssueComment(github, owner, repo, issueNumber, message) {
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
  * @param {string} [stateReason] - The reason for closing: "COMPLETED", "NOT_PLANNED", or "DUPLICATE"
- * @returns {Promise<{number: number, html_url: string, title: string}>} Issue details
+ * @returns {Promise<{number: number, html_url: string, title: string, node_id: string}>} Issue details
  */
 async function closeIssue(github, owner, repo, issueNumber, stateReason) {
   const { data: issue } = await github.rest.issues.update({
