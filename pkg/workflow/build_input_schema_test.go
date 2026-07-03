@@ -246,6 +246,26 @@ func TestBuildInputSchemaChoiceWithoutOptions(t *testing.T) {
 	assert.False(t, hasEnum, "should not have enum when no options")
 }
 
+// TestBuildInputSchemaChoiceWithInvalidOptionsType tests choice type with a non-slice
+// options field falls back to a regular string property.
+func TestBuildInputSchemaChoiceWithInvalidOptionsType(t *testing.T) {
+	inputs := map[string]any{
+		"env": map[string]any{
+			"type":        "choice",
+			"description": "Environment",
+			"options":     "staging",
+		},
+	}
+
+	properties, _ := buildInputSchema(inputs, defaultDescFn)
+
+	prop, ok := properties["env"].(map[string]any)
+	require.True(t, ok, "env property should exist")
+	assert.Equal(t, "string", prop["type"], "choice with invalid options type maps to string")
+	_, hasEnum := prop["enum"]
+	assert.False(t, hasEnum, "should not have enum when options is not a slice")
+}
+
 // TestBuildInputSchemaUnknownType tests that unknown type defaults to string.
 func TestBuildInputSchemaUnknownType(t *testing.T) {
 	inputs := map[string]any{

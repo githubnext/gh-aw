@@ -20,59 +20,9 @@ func buildInputSchema(inputs map[string]any, descriptionFn func(inputName string
 	required = []string{}
 
 	for inputName, inputDef := range inputs {
-		inputDefMap, ok := inputDef.(map[string]any)
+		prop, inputType, inputRequired, ok := buildInputSchemaProperty(inputName, inputDef, descriptionFn)
 		if !ok {
-			buildInputSchemaLog.Printf("Skipping input %q: expected map, got %T", inputName, inputDef)
 			continue
-		}
-
-		inputType := "string"
-		inputDescription := descriptionFn(inputName)
-		inputRequired := false
-
-		if desc, ok := inputDefMap["description"].(string); ok && desc != "" {
-			inputDescription = desc
-		}
-
-		if req, ok := inputDefMap["required"].(bool); ok {
-			inputRequired = req
-		}
-
-		// Map GitHub Actions input types to JSON Schema types.
-		if typeStr, ok := inputDefMap["type"].(string); ok {
-			switch typeStr {
-			case "number":
-				inputType = "number"
-			case "boolean":
-				inputType = "boolean"
-			case "choice":
-				inputType = "string"
-				if options, ok := inputDefMap["options"].([]any); ok && len(options) > 0 {
-					prop := map[string]any{
-						"type":        inputType,
-						"description": inputDescription,
-						"enum":        options,
-					}
-					if defaultVal, ok := inputDefMap["default"]; ok {
-						prop["default"] = defaultVal
-					}
-					properties[inputName] = prop
-					if inputRequired {
-						required = append(required, inputName)
-					}
-					continue
-				}
-			case "environment":
-				inputType = "string"
-			}
-		}
-
-		prop := map[string]any{
-			"type":        inputType,
-			"description": inputDescription,
-		}
-		if defaultVal, ok := inputDefMap["default"]; ok {
-			prop["default"] = defaultVal
 		}
 		buildInputSchemaLog.Printf("Input %q: type=%s, required=%v", inputName, inputType, inputRequired)
 		properties[inputName] = prop
@@ -84,4 +34,54 @@ func buildInputSchema(inputs map[string]any, descriptionFn func(inputName string
 
 	buildInputSchemaLog.Printf("Built input schema: %d properties, %d required", len(properties), len(required))
 	return properties, required
+}
+
+func buildInputSchemaProperty(inputName string, inputDef any, descriptionFn func(inputName string) string) (prop map[string]any, inputType string, inputRequired bool, ok bool) {
+	inputDefMap, ok := inputDef.(map[string]any)
+	if !ok {
+		buildInputSchemaLog.Printf("Skipping input %q: expected map, got %T", inputName, inputDef)
+		return nil, "", false, false
+	}
+
+	inputType = "string"
+	inputDescription, inputRequired := getInputSchemaMetadata(inputName, inputDefMap, descriptionFn)
+	if typeStr, ok := inputDefMap["type"].(string); ok {
+		switch typeStr {
+		case "number":
+			inputType = "number"
+		case "boolean":
+			inputType = "boolean"
+		case "choice":
+			if options, ok := inputDefMap["options"].([]any); ok && len(options) > 0 {
+				prop = newInputSchemaProperty(inputType, inputDescription, inputDefMap)
+				prop["enum"] = options
+				return prop, inputType, inputRequired, true
+			}
+		}
+	}
+
+	return newInputSchemaProperty(inputType, inputDescription, inputDefMap), inputType, inputRequired, true
+}
+
+func getInputSchemaMetadata(inputName string, inputDefMap map[string]any, descriptionFn func(inputName string) string) (string, bool) {
+	inputDescription := descriptionFn(inputName)
+	if desc, ok := inputDefMap["description"].(string); ok && desc != "" {
+		inputDescription = desc
+	}
+	inputRequired := false
+	if req, ok := inputDefMap["required"].(bool); ok {
+		inputRequired = req
+	}
+	return inputDescription, inputRequired
+}
+
+func newInputSchemaProperty(inputType, inputDescription string, inputDefMap map[string]any) map[string]any {
+	prop := map[string]any{
+		"type":        inputType,
+		"description": inputDescription,
+	}
+	if defaultVal, ok := inputDefMap["default"]; ok {
+		prop["default"] = defaultVal
+	}
+	return prop
 }

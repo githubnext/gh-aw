@@ -54,40 +54,8 @@ func computeAntigravityToolsCore(tools map[string]any) []string {
 		return toolsCore
 	}
 
-	// Map bash neutral tool to run_shell_command
 	if bashConfig, hasBash := tools["bash"]; hasBash {
-		bashCommands, ok := bashConfig.([]any)
-		if !ok || len(bashCommands) == 0 {
-			// bash with no specific commands - allow all shell commands
-			antigravityToolsLog.Print("bash (no specific commands) → run_shell_command")
-			toolsCore = append(toolsCore, "run_shell_command")
-		} else {
-			// Check for wildcard (* or :*)
-			hasWildcard := false
-			for _, cmd := range bashCommands {
-				if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
-					hasWildcard = true
-					break
-				}
-			}
-			if hasWildcard {
-				antigravityToolsLog.Print("bash wildcard → run_shell_command")
-				toolsCore = append(toolsCore, "run_shell_command")
-			} else {
-				// Add an entry for each specific command: run_shell_command(cmd)
-				for _, cmd := range bashCommands {
-					if cmdStr, ok := cmd.(string); ok {
-						// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
-						// all engines emit the canonical prefix form (run_shell_command(jq))
-						// regardless of whether the command was written with or without the wildcard.
-						normalized, _ := normalizeBashCommand(cmdStr)
-						entry := fmt.Sprintf("run_shell_command(%s)", normalized)
-						antigravityToolsLog.Printf("bash %q → %s", cmdStr, entry)
-						toolsCore = append(toolsCore, entry)
-					}
-				}
-			}
-		}
+		toolsCore = appendAntigravityBashTools(toolsCore, bashConfig)
 	}
 
 	// Map edit neutral tool to write_file and replace (Antigravity's file write tools)
@@ -106,6 +74,44 @@ func computeAntigravityToolsCore(tools map[string]any) []string {
 
 	sort.Strings(toolsCore)
 	return toolsCore
+}
+
+func appendAntigravityBashTools(toolsCore []string, bashConfig any) []string {
+	bashCommands, ok := bashConfig.([]any)
+	if !ok || len(bashCommands) == 0 {
+		antigravityToolsLog.Print("bash (no specific commands) → run_shell_command")
+		return append(toolsCore, "run_shell_command")
+	}
+	if hasAntigravityBashWildcard(bashCommands) {
+		antigravityToolsLog.Print("bash wildcard → run_shell_command")
+		return append(toolsCore, "run_shell_command")
+	}
+
+	for _, cmd := range bashCommands {
+		cmdStr, ok := cmd.(string)
+		if !ok {
+			continue
+		}
+		// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
+		// all engines emit the canonical prefix form (run_shell_command(jq))
+		// regardless of whether the command was written with or without the wildcard.
+		normalized, _ := normalizeBashCommand(cmdStr)
+		entry := fmt.Sprintf("run_shell_command(%s)", normalized)
+		antigravityToolsLog.Printf("bash %q → %s", cmdStr, entry)
+		toolsCore = append(toolsCore, entry)
+	}
+
+	return toolsCore
+}
+
+func hasAntigravityBashWildcard(bashCommands []any) bool {
+	for _, cmd := range bashCommands {
+		cmdStr, ok := cmd.(string)
+		if ok && (cmdStr == "*" || cmdStr == ":*") {
+			return true
+		}
+	}
+	return false
 }
 
 // generateAntigravitySettingsStep creates a GitHub Actions step that writes the

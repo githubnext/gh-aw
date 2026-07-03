@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/actionpins"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/testutil"
 )
@@ -67,6 +68,32 @@ func TestActionResolverCache(t *testing.T) {
 	}
 	if sha != "test-sha-123" {
 		t.Errorf("Expected SHA 'test-sha-123', got '%s'", sha)
+	}
+}
+
+func TestActionResolverEmbeddedPinDoesNotWriteCache(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+	resolver := NewActionResolver(cache)
+
+	pins := actionpins.GetActionPinsByRepo("actions/checkout")
+	if len(pins) == 0 {
+		t.Fatal("expected embedded pins for actions/checkout")
+	}
+
+	version := pins[0].Version
+	sha, err := resolver.ResolveSHA(context.Background(), "actions/checkout", version)
+	if err != nil {
+		t.Fatalf("expected embedded pin resolution to succeed, got: %v", err)
+	}
+	if sha != pins[0].SHA {
+		t.Fatalf("expected embedded SHA %q, got %q", pins[0].SHA, sha)
+	}
+	if _, found := cache.Get("actions/checkout", version); found {
+		t.Fatalf("expected embedded pin resolution not to write %q to cache", version)
+	}
+	if !resolver.GetUsedCacheKeys()[formatActionCacheKey("actions/checkout", version)] {
+		t.Fatalf("expected used cache keys to include actions/checkout@%s", version)
 	}
 }
 

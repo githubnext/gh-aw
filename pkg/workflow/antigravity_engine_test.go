@@ -487,6 +487,16 @@ func TestComputeAntigravityToolsCore(t *testing.T) {
 		assert.Contains(t, result, "run_shell_command(cat)", "Should normalize 'cat *'")
 		assert.NotContains(t, result, "run_shell_command(jq *)", "Should not emit run_shell_command with wildcard suffix")
 	})
+
+	t.Run("bash ignores non-string command entries", func(t *testing.T) {
+		tools := map[string]any{
+			"bash": []any{"grep", 123, nil},
+		}
+		result := computeAntigravityToolsCore(tools)
+		assert.Contains(t, result, "run_shell_command(grep)", "Should keep valid string commands")
+		assert.NotContains(t, result, "run_shell_command(123)", "Should ignore non-string bash entries")
+		assert.NotContains(t, result, "run_shell_command(<nil>)", "Should ignore nil bash entries")
+	})
 }
 
 func TestGenerateAntigravitySettingsStep(t *testing.T) {
