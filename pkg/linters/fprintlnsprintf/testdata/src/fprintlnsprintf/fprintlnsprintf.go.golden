@@ -10,7 +10,11 @@ func flagged(name string) {
 }
 
 func flaggedAlreadyNewline(name string) {
-	fmt.Fprintf(os.Stderr, "hello %s\n", name) // want "use fmt.Fprintf"
+	fmt.Fprintf(os.Stderr, "hello %s\n\n", name) // want "use fmt.Fprintf"
+}
+
+func flaggedAlreadyNewlineNoArgs() {
+	fmt.Fprintf(os.Stderr, "done\n\n") // want "use fmt.Fprintf"
 }
 
 func notFlagged(name string) {
