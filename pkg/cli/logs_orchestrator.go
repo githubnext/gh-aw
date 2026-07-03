@@ -694,30 +694,16 @@ outerLoop:
 	// Build continuation data if timeout was reached and there are processed runs,
 	// OR if a date-range fetch hit the count limit (more runs may exist in the window).
 	var continuation *ContinuationData
-	switch {
-	case timeoutReached && len(processedRuns) > 0:
-		// Get the oldest run ID from processed runs to use as before_run_id for continuation
+	if len(processedRuns) > 0 && (timeoutReached || countLimitReached) {
+		// Use the oldest processed run as the before_run_id cursor for the next page.
 		oldestRunID := processedRuns[len(processedRuns)-1].Run.DatabaseID
-
-		continuation = &ContinuationData{
-			Message:      "Timeout reached. Use these parameters to continue fetching more logs.",
-			WorkflowName: workflowName,
-			Count:        count,
-			StartDate:    startDate,
-			EndDate:      endDate,
-			Engine:       engine,
-			Branch:       ref,
-			AfterRunID:   afterRunID,
-			BeforeRunID:  oldestRunID, // Continue from where we left off
-			Timeout:      timeoutMinutes,
+		message := "Timeout reached. Use these parameters to continue fetching more logs."
+		if countLimitReached {
+			// In fetchAllInRange mode the date window may contain more runs than count.
+			message = "Count limit reached. Use these parameters to continue fetching more logs from the same date range."
 		}
-	case countLimitReached && len(processedRuns) > 0:
-		// In fetchAllInRange mode the date window may contain more runs than count.
-		// Provide a continuation cursor so callers can page through the full range.
-		oldestRunID := processedRuns[len(processedRuns)-1].Run.DatabaseID
-
 		continuation = &ContinuationData{
-			Message:      "Count limit reached. Use these parameters to continue fetching more logs from the same date range.",
+			Message:      message,
 			WorkflowName: workflowName,
 			Count:        count,
 			StartDate:    startDate,
@@ -725,7 +711,7 @@ outerLoop:
 			Engine:       engine,
 			Branch:       ref,
 			AfterRunID:   afterRunID,
-			BeforeRunID:  oldestRunID, // Continue from where we left off
+			BeforeRunID:  oldestRunID,
 			Timeout:      timeoutMinutes,
 		}
 	}

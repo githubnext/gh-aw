@@ -745,6 +745,7 @@ func TestBuildLogsDataWithCountLimitContinuation(t *testing.T) {
 
 	// Simulate what DownloadWorkflowLogs emits when fetchAllInRange is true and the
 	// count limit is reached before all runs in the date window are fetched.
+	// "-1d" is a relative date shorthand accepted by the --start-date flag.
 	continuation := &ContinuationData{
 		Message:     "Count limit reached. Use these parameters to continue fetching more logs from the same date range.",
 		StartDate:   "-1d",
