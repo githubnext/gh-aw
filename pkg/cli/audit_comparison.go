@@ -435,14 +435,14 @@ func buildAuditComparison(currentConclusion string, current auditComparisonSnaps
 }
 
 func recommendAuditComparisonAction(label, currentConclusion string, delta *AuditComparisonDelta) string {
-	if delta == nil || label == "stable" {
-		return "No action needed; this run matches the selected successful baseline closely."
-	}
 	if currentConclusion != "" && currentConclusion != "success" {
 		if currentConclusion == "failure" {
 			return "Investigate failure; run concluded with errors before treating it as matching the selected successful baseline."
 		}
 		return fmt.Sprintf("Investigate the %s conclusion before treating this run as matching the selected successful baseline.", strings.ReplaceAll(currentConclusion, "_", " "))
+	}
+	if delta == nil || label == "stable" {
+		return "No action needed; this run matches the selected successful baseline closely."
 	}
 
 	if delta.Posture.Before == "read_only" && delta.Posture.After == "write_capable" {
