@@ -5,6 +5,28 @@ import (
 	"strconv"
 )
 
+func cloneRuntimeWithActionOverrides(base *Runtime, actionRepo, actionVersion string) *Runtime {
+	customRuntime := &Runtime{
+		ID:              base.ID,
+		Name:            base.Name,
+		ActionRepo:      base.ActionRepo,
+		ActionVersion:   base.ActionVersion,
+		VersionField:    base.VersionField,
+		DefaultVersion:  base.DefaultVersion,
+		Commands:        base.Commands,
+		ExtraWithFields: base.ExtraWithFields,
+	}
+
+	if actionRepo != "" {
+		customRuntime.ActionRepo = actionRepo
+	}
+	if actionVersion != "" {
+		customRuntime.ActionVersion = actionVersion
+	}
+
+	return customRuntime
+}
+
 // applyRuntimeOverrides applies runtime version overrides from frontmatter
 func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*RuntimeRequirement) {
 	runtimeSetupLog.Printf("Applying runtime overrides for %d configured runtimes", len(runtimes))
@@ -70,27 +92,7 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 			// If action-repo or action-version is specified, create a custom Runtime
 			if actionRepo != "" || actionVersion != "" {
 				runtimeSetupLog.Printf("Applying custom action config for runtime %s: repo=%s, version=%s", runtimeID, actionRepo, actionVersion)
-				// Clone the existing runtime to avoid modifying the global knownRuntimes
-				customRuntime := &Runtime{
-					ID:              existing.Runtime.ID,
-					Name:            existing.Runtime.Name,
-					ActionRepo:      existing.Runtime.ActionRepo,
-					ActionVersion:   existing.Runtime.ActionVersion,
-					VersionField:    existing.Runtime.VersionField,
-					DefaultVersion:  existing.Runtime.DefaultVersion,
-					Commands:        existing.Runtime.Commands,
-					ExtraWithFields: existing.Runtime.ExtraWithFields,
-				}
-
-				// Apply overrides
-				if actionRepo != "" {
-					customRuntime.ActionRepo = actionRepo
-				}
-				if actionVersion != "" {
-					customRuntime.ActionVersion = actionVersion
-				}
-
-				existing.Runtime = customRuntime
+				existing.Runtime = cloneRuntimeWithActionOverrides(existing.Runtime, actionRepo, actionVersion)
 			}
 		} else {
 			// Check if this is a known runtime
@@ -101,24 +103,7 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 					// Clone the known runtime if we need to customize it
 					if actionRepo != "" || actionVersion != "" {
 						runtimeSetupLog.Printf("Cloning known runtime %s with custom action config: repo=%s, version=%s", runtimeID, actionRepo, actionVersion)
-						runtime = &Runtime{
-							ID:              knownRuntime.ID,
-							Name:            knownRuntime.Name,
-							ActionRepo:      knownRuntime.ActionRepo,
-							ActionVersion:   knownRuntime.ActionVersion,
-							VersionField:    knownRuntime.VersionField,
-							DefaultVersion:  knownRuntime.DefaultVersion,
-							Commands:        knownRuntime.Commands,
-							ExtraWithFields: knownRuntime.ExtraWithFields,
-						}
-
-						// Apply overrides
-						if actionRepo != "" {
-							runtime.ActionRepo = actionRepo
-						}
-						if actionVersion != "" {
-							runtime.ActionVersion = actionVersion
-						}
+						runtime = cloneRuntimeWithActionOverrides(knownRuntime, actionRepo, actionVersion)
 					} else {
 						runtimeSetupLog.Printf("Using known runtime %s as-is", runtimeID)
 						runtime = knownRuntime

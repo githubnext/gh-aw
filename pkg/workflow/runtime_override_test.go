@@ -230,6 +230,49 @@ func TestApplyRuntimeOverrides(t *testing.T) {
 	}
 }
 
+func TestApplyRuntimeOverrides_KnownRuntimeActionOverrides(t *testing.T) {
+	var knownNode *Runtime
+	for _, runtime := range knownRuntimes {
+		if runtime.ID == "node" {
+			knownNode = runtime
+			break
+		}
+	}
+	if knownNode == nil {
+		t.Fatal("expected known node runtime to exist")
+	}
+
+	requirements := map[string]*RuntimeRequirement{}
+
+	applyRuntimeOverrides(map[string]any{
+		"node": map[string]any{
+			"version":        "22",
+			"action-repo":    "custom/setup-node",
+			"action-version": "v5",
+		},
+	}, requirements)
+
+	nodeReq, ok := requirements["node"]
+	if !ok {
+		t.Fatal("expected node requirement to be added")
+	}
+	if nodeReq.Version != "22" {
+		t.Fatalf("expected version 22, got %s", nodeReq.Version)
+	}
+	if nodeReq.Runtime == knownNode {
+		t.Fatal("expected action overrides to clone the known runtime")
+	}
+	if nodeReq.Runtime.ActionRepo != "custom/setup-node" {
+		t.Fatalf("expected ActionRepo custom/setup-node, got %s", nodeReq.Runtime.ActionRepo)
+	}
+	if nodeReq.Runtime.ActionVersion != "v5" {
+		t.Fatalf("expected ActionVersion v5, got %s", nodeReq.Runtime.ActionVersion)
+	}
+	if knownNode.ActionRepo == "custom/setup-node" {
+		t.Fatal("expected known runtime to remain unchanged")
+	}
+}
+
 func TestDetectRuntimeRequirementsWithOverrides(t *testing.T) {
 	tests := []struct {
 		name     string
