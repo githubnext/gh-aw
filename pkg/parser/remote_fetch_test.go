@@ -74,7 +74,7 @@ func TestGitFallbackRequiresNonEmptyRef(t *testing.T) {
 }
 
 func TestListContentsRecursivelyWithDepth_MaxDepthGuard(t *testing.T) {
-	_, err := listContentsRecursivelyWithDepth(nil, "owner", "repo", "main", "skills/demo/deep", 11, 10)
+	_, err := listContentsRecursivelyWithDepth(t.Context(), nil, "owner", "repo", "main", "skills/demo/deep", 11, 10)
 	if err == nil {
 		t.Fatal("expected depth limit error")
 	}

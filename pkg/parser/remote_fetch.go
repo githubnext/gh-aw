@@ -752,14 +752,14 @@ func downloadFileViaGitClone(owner, repo, path, ref, host string) ([]byte, error
 // checkRemoteSymlink checks if a path in a remote GitHub repository is a symlink.
 // Returns the symlink target and true if it is a symlink, or empty string and false otherwise.
 // A nil error with false means the path is not a symlink (e.g., it's a directory or file).
-func checkRemoteSymlink(client *api.RESTClient, owner, repo, dirPath, ref string) (string, bool, error) {
+func checkRemoteSymlink(ctx context.Context, client *api.RESTClient, owner, repo, dirPath, ref string) (string, bool, error) {
 	endpoint := buildContentsAPIPath(owner, repo, dirPath, ref)
 	remoteLog.Printf("Checking if path component is symlink: %s/%s/%s@%s", owner, repo, dirPath, ref)
 
 	// The Contents API returns a JSON object for files/symlinks but a JSON array for directories.
 	// Decode into json.RawMessage first to distinguish these cases without error-driven control flow.
 	var raw json.RawMessage
-	err := client.Get(endpoint, &raw)
+	err := client.DoWithContext(ctx, http.MethodGet, endpoint, nil, &raw)
 	if err != nil {
 		remoteLog.Printf("Contents API error for %s: %v", dirPath, err)
 		return "", false, err
@@ -796,7 +796,7 @@ func checkRemoteSymlink(client *api.RESTClient, owner, repo, dirPath, ref string
 // fetching .github/workflows/shared/elastic-tools.md returns 404.
 // This function walks the path components and resolves any symlinks found.
 // The caller must provide a REST client (already authenticated for the correct host).
-func resolveRemoteSymlinks(client *api.RESTClient, owner, repo, filePath, ref string) (string, error) {
+func resolveRemoteSymlinks(ctx context.Context, client *api.RESTClient, owner, repo, filePath, ref string) (string, error) {
 	parts := strings.Split(filePath, "/")
 	if len(parts) <= 1 {
 		return "", fmt.Errorf("no directory components to resolve in path: %s", filePath)
@@ -810,7 +810,7 @@ func resolveRemoteSymlinks(client *api.RESTClient, owner, repo, filePath, ref st
 
 	for i := 1; i < len(parts); i++ {
 		dirPath := strings.Join(parts[:i], "/")
-		resolvedPath, found, err := resolveRemoteSymlinkComponent(client, owner, repo, filePath, ref, parts, i, dirPath)
+		resolvedPath, found, err := resolveRemoteSymlinkComponent(ctx, client, owner, repo, filePath, ref, parts, i, dirPath)
 		if err != nil {
 			return "", err
 		}
@@ -824,13 +824,14 @@ func resolveRemoteSymlinks(client *api.RESTClient, owner, repo, filePath, ref st
 }
 
 func resolveRemoteSymlinkComponent(
+	ctx context.Context,
 	client *api.RESTClient,
 	owner, repo, filePath, ref string,
 	parts []string,
 	index int,
 	dirPath string,
 ) (string, bool, error) {
-	target, isSymlink, err := checkRemoteSymlink(client, owner, repo, dirPath, ref)
+	target, isSymlink, err := checkRemoteSymlink(ctx, client, owner, repo, dirPath, ref)
 	if err != nil {
 		if errorutil.IsNotFoundError(err) {
 			remoteLog.Printf("Path component %s returned 404, skipping", dirPath)
@@ -923,7 +924,7 @@ func downloadFileFromGitHubWithDepth(ctx context.Context, owner, repo, path, ref
 		Name     string `json:"name"`
 	}
 
-	err = fetchRemoteFileContent(client, owner, repo, path, ref, &fileContent)
+	err = fetchRemoteFileContent(ctx, client, owner, repo, path, ref, &fileContent)
 	if err != nil {
 		if gitutil.IsAuthError(err.Error()) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
@@ -981,8 +982,8 @@ func buildContentsAPIPath(owner, repo, path, ref string) string {
 	)
 }
 
-func fetchRemoteFileContent(client *api.RESTClient, owner, repo, path, ref string, fileContent any) error {
-	return client.Get(buildContentsAPIPath(owner, repo, path, ref), fileContent)
+func fetchRemoteFileContent(ctx context.Context, client *api.RESTClient, owner, repo, path, ref string, fileContent any) error {
+	return client.DoWithContext(ctx, http.MethodGet, buildContentsAPIPath(owner, repo, path, ref), nil, fileContent)
 }
 
 // downloadFileViaPublicAPI downloads a file from a public GitHub repository
@@ -1021,7 +1022,7 @@ func retryDownloadViaResolvedSymlink(
 	host string,
 ) ([]byte, bool, error) {
 	remoteLog.Printf("File not found at %s/%s/%s@%s, checking for symlinks in path (depth: %d)", owner, repo, path, ref, symlinkDepth)
-	resolvedPath, resolveErr := resolveRemoteSymlinks(client, owner, repo, path, ref)
+	resolvedPath, resolveErr := resolveRemoteSymlinks(ctx, client, owner, repo, path, ref)
 	if resolveErr == nil && resolvedPath != path {
 		remoteLog.Printf("Retrying download with symlink-resolved path: %s -> %s", path, resolvedPath)
 		content, err := downloadFileFromGitHubWithDepth(ctx, owner, repo, resolvedPath, ref, symlinkDepth+1, host)
@@ -1060,7 +1061,7 @@ func listWorkflowFilesForHost(ctx context.Context, owner, repo, ref, workflowPat
 
 	// Fetch directory contents from GitHub API
 	endpoint := buildContentsAPIPath(owner, repo, workflowPath, ref)
-	err = client.Get(endpoint, &contents)
+	err = client.DoWithContext(ctx, http.MethodGet, endpoint, nil, &contents)
 	if err != nil {
 		errStr := err.Error()
 
@@ -1117,7 +1118,7 @@ func listDirAllFilesForHost(ctx context.Context, owner, repo, ref, dirPath, host
 	}
 
 	endpoint := buildContentsAPIPath(owner, repo, dirPath, ref)
-	err = client.Get(endpoint, &contents)
+	err = client.DoWithContext(ctx, http.MethodGet, endpoint, nil, &contents)
 	if err != nil {
 		errStr := err.Error()
 		if gitutil.IsAuthError(errStr) {
@@ -1223,7 +1224,7 @@ func listDirAllFilesRecursivelyForHost(ctx context.Context, owner, repo, ref, di
 		return listDirAllFilesRecursivelyViaGitForHost(owner, repo, ref, dirPath, host)
 	}
 
-	files, err := listContentsRecursively(client, owner, repo, ref, dirPath)
+	files, err := listContentsRecursively(ctx, client, owner, repo, ref, dirPath)
 	if err != nil {
 		errStr := err.Error()
 		if gitutil.IsAuthError(errStr) {
@@ -1246,12 +1247,12 @@ func listDirAllFilesRecursivelyForHost(ctx context.Context, owner, repo, ref, di
 
 // listContentsRecursively uses the GitHub Contents API to recursively enumerate all
 // files under dirPath. Each subdirectory triggers an additional API call.
-func listContentsRecursively(client *api.RESTClient, owner, repo, ref, dirPath string) ([]string, error) {
+func listContentsRecursively(ctx context.Context, client *api.RESTClient, owner, repo, ref, dirPath string) ([]string, error) {
 	const maxSkillDirRecursionDepth = 10
-	return listContentsRecursivelyWithDepth(client, owner, repo, ref, dirPath, 0, maxSkillDirRecursionDepth)
+	return listContentsRecursivelyWithDepth(ctx, client, owner, repo, ref, dirPath, 0, maxSkillDirRecursionDepth)
 }
 
-func listContentsRecursivelyWithDepth(client *api.RESTClient, owner, repo, ref, dirPath string, depth, maxDepth int) ([]string, error) {
+func listContentsRecursivelyWithDepth(ctx context.Context, client *api.RESTClient, owner, repo, ref, dirPath string, depth, maxDepth int) ([]string, error) {
 	if depth > maxDepth {
 		return nil, fmt.Errorf("maximum skill directory recursion depth exceeded at %q (max depth: %d)", dirPath, maxDepth)
 	}
@@ -1263,7 +1264,7 @@ func listContentsRecursivelyWithDepth(client *api.RESTClient, owner, repo, ref, 
 	}
 
 	endpoint := buildContentsAPIPath(owner, repo, dirPath, ref)
-	if err := client.Get(endpoint, &contents); err != nil {
+	if err := client.DoWithContext(ctx, http.MethodGet, endpoint, nil, &contents); err != nil {
 		return nil, fmt.Errorf("failed to list dir files from %s/%s (path: %s): %w", owner, repo, dirPath, err)
 	}
 
@@ -1273,7 +1274,7 @@ func listContentsRecursivelyWithDepth(client *api.RESTClient, owner, repo, ref, 
 		case "file":
 			files = append(files, item.Path)
 		case "dir":
-			subFiles, err := listContentsRecursivelyWithDepth(client, owner, repo, ref, item.Path, depth+1, maxDepth)
+			subFiles, err := listContentsRecursivelyWithDepth(ctx, client, owner, repo, ref, item.Path, depth+1, maxDepth)
 			if err != nil {
 				return nil, err
 			}
@@ -1376,7 +1377,7 @@ func listDirSubdirsForHost(ctx context.Context, owner, repo, ref, dirPath, host 
 	}
 
 	endpoint := buildContentsAPIPath(owner, repo, dirPath, ref)
-	err = client.Get(endpoint, &contents)
+	err = client.DoWithContext(ctx, http.MethodGet, endpoint, nil, &contents)
 	if err != nil {
 		errStr := err.Error()
 		if gitutil.IsAuthError(errStr) {

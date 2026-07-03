@@ -193,7 +193,6 @@ type frontmatterImportsOpts struct {
 //   - currentBaseDir: directory of that file inside the source repo (used to resolve relative paths)
 //
 // Parameters that remain constant across all recursion levels (in opts):
-//   - ctx: context for cancellation and deadline propagation
 //   - owner, repo, ref: source repository coordinates
 //   - originalBaseDir: directory of the top-level workflow (used to map remote paths → local paths)
 //   - targetDir: the `.github/workflows` directory in the user's repo
