@@ -76,6 +76,8 @@ func computeAntigravityToolsCore(tools map[string]any) []string {
 	return toolsCore
 }
 
+// appendAntigravityBashTools maps the neutral bash tool configuration to
+// Antigravity shell tool entries and appends them to toolsCore.
 func appendAntigravityBashTools(toolsCore []string, bashConfig any) []string {
 	bashCommands, ok := bashConfig.([]any)
 	if !ok || len(bashCommands) == 0 {
@@ -104,6 +106,8 @@ func appendAntigravityBashTools(toolsCore []string, bashConfig any) []string {
 	return toolsCore
 }
 
+// hasAntigravityBashWildcard reports whether the bash command allowlist
+// contains the unrestricted '*' or ':*' wildcard forms.
 func hasAntigravityBashWildcard(bashCommands []any) bool {
 	for _, cmd := range bashCommands {
 		cmdStr, ok := cmd.(string)

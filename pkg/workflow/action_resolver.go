@@ -138,6 +138,8 @@ func (r *ActionResolver) ResolveSHA(ctx context.Context, repo, version string) (
 	return sha, nil
 }
 
+// resolveFromEmbeddedPins returns the SHA from the embedded action pin set for
+// the requested repo/version when a semver-compatible pin is available.
 func (r *ActionResolver) resolveFromEmbeddedPins(repo, version string) (string, bool) {
 	// Check embedded action pins for a semver-compatible version before making
 	// a network call. The embedded pins are the source-of-truth for known versions
@@ -149,10 +151,7 @@ func (r *ActionResolver) resolveFromEmbeddedPins(repo, version string) (string, 
 
 	for _, pin := range actionpins.GetActionPinsByRepo(repo) {
 		pinVersion := semverutil.EnsureVPrefix(pin.Version)
-		if requestedIsPrecise && pinVersion != requested {
-			continue
-		}
-		if !requestedIsPrecise && !semverutil.IsCompatible(pinVersion, requested) {
+		if (requestedIsPrecise && pinVersion != requested) || (!requestedIsPrecise && !semverutil.IsCompatible(pinVersion, requested)) {
 			continue
 		}
 		resolverLog.Printf("Embedded pin hit for %s@%s → %s (%s)", repo, version, pin.SHA, pin.Version)

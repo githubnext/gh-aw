@@ -36,6 +36,8 @@ func buildInputSchema(inputs map[string]any, descriptionFn func(inputName string
 	return properties, required
 }
 
+// buildInputSchemaProperty converts a single workflow input definition into a
+// JSON Schema property plus its resolved type and required flag.
 func buildInputSchemaProperty(inputName string, inputDef any, descriptionFn func(inputName string) string) (prop map[string]any, inputType string, inputRequired bool, ok bool) {
 	inputDefMap, ok := inputDef.(map[string]any)
 	if !ok {
@@ -63,6 +65,8 @@ func buildInputSchemaProperty(inputName string, inputDef any, descriptionFn func
 	return newInputSchemaProperty(inputType, inputDescription, inputDefMap), inputType, inputRequired, true
 }
 
+// getInputSchemaMetadata resolves the effective description and required flag
+// for an input definition, applying the description fallback when needed.
 func getInputSchemaMetadata(inputName string, inputDefMap map[string]any, descriptionFn func(inputName string) string) (string, bool) {
 	inputDescription := descriptionFn(inputName)
 	if desc, ok := inputDefMap["description"].(string); ok && desc != "" {
@@ -75,6 +79,8 @@ func getInputSchemaMetadata(inputName string, inputDefMap map[string]any, descri
 	return inputDescription, inputRequired
 }
 
+// newInputSchemaProperty builds a JSON Schema property map with the provided
+// type, description, and any default value present on the input definition.
 func newInputSchemaProperty(inputType, inputDescription string, inputDefMap map[string]any) map[string]any {
 	prop := map[string]any{
 		"type":        inputType,
