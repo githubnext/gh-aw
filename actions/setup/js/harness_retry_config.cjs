@@ -14,6 +14,7 @@ const HARNESS_MAX_RETRIES_ENV = "GH_AW_HARNESS_MAX_RETRIES";
 const HARNESS_INITIAL_DELAY_MS_ENV = "GH_AW_HARNESS_INITIAL_DELAY_MS";
 const HARNESS_BACKOFF_MULTIPLIER_ENV = "GH_AW_HARNESS_BACKOFF_MULTIPLIER";
 const HARNESS_MAX_DELAY_MS_ENV = "GH_AW_HARNESS_MAX_DELAY_MS";
+const INVALID_POSITIVE_INT_FALLBACK = Number.NaN;
 
 /**
  * @param {((message: string) => void) | undefined} logger
@@ -22,7 +23,7 @@ const HARNESS_MAX_DELAY_MS_ENV = "GH_AW_HARNESS_MAX_DELAY_MS";
  * @param {number} defaultValue
  */
 function logInvalidEnvValue(logger, envVar, rawValue, defaultValue) {
-  if (logger) {
+  if (typeof logger === "function") {
     logger(`warning: ignoring invalid ${envVar}=${JSON.stringify(rawValue)}; using default ${defaultValue}`);
   }
 }
@@ -39,8 +40,9 @@ function readEnvPositiveIntOrDefault(env, envVar, defaultValue, logger) {
   if (rawValue == null || rawValue === "") {
     return defaultValue;
   }
-  if (parseStrictPositiveInteger(rawValue) !== undefined) {
-    return getEnvPositiveIntOrDefault(envVar, defaultValue, env);
+  const parsed = getEnvPositiveIntOrDefault(envVar, INVALID_POSITIVE_INT_FALLBACK, env);
+  if (Number.isSafeInteger(parsed) && parsed > 0) {
+    return parsed;
   }
   logInvalidEnvValue(logger, envVar, rawValue, defaultValue);
   return defaultValue;
@@ -104,7 +106,9 @@ function resolveRetryConfig(env = process.env, logger = () => {}) {
   });
   let maxDelayMs = readEnvPositiveIntOrDefault(env, HARNESS_MAX_DELAY_MS_ENV, DEFAULT_MAX_DELAY_MS, logger);
   if (maxDelayMs < initialDelayMs) {
-    logger(`warning: ${HARNESS_MAX_DELAY_MS_ENV}=${maxDelayMs} is lower than ${HARNESS_INITIAL_DELAY_MS_ENV}=${initialDelayMs}; clamping max delay to initial delay`);
+    if (typeof logger === "function") {
+      logger(`warning: ${HARNESS_MAX_DELAY_MS_ENV}=${maxDelayMs} is lower than ${HARNESS_INITIAL_DELAY_MS_ENV}=${initialDelayMs}; clamping max delay to initial delay`);
+    }
     maxDelayMs = initialDelayMs;
   }
   return { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs };
