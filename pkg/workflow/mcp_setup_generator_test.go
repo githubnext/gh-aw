@@ -669,7 +669,8 @@ mcp-scripts:
 		"Docker command should not inject the host loopback mapping in bridge mode")
 }
 
-// with different secrets all get their environment variables passed to the gateway container
+// TestMultipleHTTPMCPSecretsPassedToGatewayContainer verifies that multiple HTTP MCP servers with
+// different secrets all get their environment variables passed to the gateway container
 func TestMultipleHTTPMCPSecretsPassedToGatewayContainer(t *testing.T) {
 	frontmatter := `---
 on: workflow_dispatch
