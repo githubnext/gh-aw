@@ -31,10 +31,13 @@ default ~hundreds (~800?); confirm before FILES=batch(100).
   Per-file format-patch header ~270 B (measured idx 45). At micro payload the
   5-file header (~1.35 KB) dominates → total ~2.26× payload. format-patch overhead
   is a fixed ~1-2% of payload at large scale (large 1 MB: +1.4%), NOT super-linear.
-- **No payload multiplier for COMMIT=multi (text).** N commits each appending text
-  to a file → patch SUM ≈ net diff (~1×), because git emits only newly-appended
-  lines per commit. (3× re-emission happens only for true binary blobs / line
-  rewrites.) So COMMIT alone never tips the cap.
+- **COMMIT=multi multiplier is LINE-SHAPE dependent (REVISED idx58).** Old "~1×"
+  law holds ONLY when appends are many SHORT lines. With FEW VERY LONG lines
+  (single-line base64 chunk ~3.4K chars/file), unified-diff 3-line CONTEXT re-emits
+  each prior long line every round → measured **~2.06×** at idx58 (PR 3-commit sum
+  102.8 KB vs 50 KB payload; added-'+'-bytes still ~1×≈51 KB, the overshoot is all
+  context). Toward ~N× as lines lengthen. Still nowhere near cap at small payload,
+  but the diff-sizer must assume up-to-~N× for long-line content, not 1×.
 - **DIVERGED adds ZERO feature-patch bytes.** main's independent commit (history.md)
   is merge-base-side, EXCLUDED from `merge-base..feature` (the patch the cap
   measures). Two-dot `main..feature` over-counts it (cosmetic only). Append-only
@@ -66,13 +69,17 @@ it's a real bug (over-count, or runtime measuring excluded commits).
   so PATCH targets are honest near thresholds.
 - **`config-simulator` subagent is TRUNCATED/unregistered** → use `general-purpose`
   with self-contained prompts (works fine).
-- **Repo-memory budget is tight (10 KB +20% = 12 KB hard).** state.json grows ~95 B
-  per tested cell; keep strategies.md lean. Call push_repo_memory to validate.
+- **Repo-memory budget is tight (10 KB +20% = 12 KB hard).** 07-03: state.json
+  now MINIFIED (no indent) → ~62 B/cell; sat at 12 KB after idx59. When it next
+  breaches, switch `tested` to FAILURES-ONLY: drop the contiguous passing prefix
+  (enumeration already starts at next_index, so [0,next_index) with no entry = pass)
+  and keep only fail/error/rejected cells for re-validation. Call push_repo_memory.
 
 ## Next
 
-Next index: **56** → `tiny-none-few-small-clean-merge_msg` (few-small spans idx
-54-62). few-xlarge (~idx 84-89) predicted ~4054 KB → PASS. HISTORY=deep (500) and
+Next index: **60** → `tiny-none-few-small-diverged-single` (few-small spans idx
+54-62; idx56-59 clean-merge_msg + ahead-{single,multi,merge_msg} all PASS 07-03,
+patches 51-113 KB). few-xlarge (~idx 84-89) predicted ~4054 KB → PASS. HISTORY=deep (500) and
 FILES=many/batch far ahead — prime untested regions for a first rejection. SIZE
 stays tiny (payload small) until idx 720, so no real `rejected` expected before
 then unless a PATCH tier is tuned over 4096 KB or a downstream over-count bug fires.
