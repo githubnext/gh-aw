@@ -376,11 +376,24 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "codex", UserAgent: "my-custom-agent-hyphen"},
 		},
 		{
-			name: "object format - with copilot harness script",
+			name: "object format - harness string short form (legacy)",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
 					"id":      "copilot",
 					"harness": "custom_copilot_harness.cjs",
+				},
+			},
+			expectedEngineSetting: "copilot",
+			expectedConfig:        &EngineConfig{ID: "copilot", HarnessScript: "custom_copilot_harness.cjs"},
+		},
+		{
+			name: "object format - harness sub-object use-only (long form)",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+					"harness": map[string]any{
+						"use": "custom_copilot_harness.cjs",
+					},
 				},
 			},
 			expectedEngineSetting: "copilot",
