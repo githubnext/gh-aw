@@ -756,6 +756,44 @@ func TestGenerateMainJobStepsArcDindRedirectsToolCacheToRunnerTemp(t *testing.T)
 	assert.NotContains(t, result, "/tmp/gh-aw/tool-cache")
 }
 
+func TestGenerateMainJobStepsArcDindSkipsNodePathStepWhenRuntimeStepsDeferred(t *testing.T) {
+	// When custom steps contain a checkout action, needsCheckout is false and
+	// customStepsContainCheckout is true, so runtime steps (including setup-node) are
+	// deferred to after the custom checkout. In that case the Node relocation step must
+	// NOT be emitted here because setup-node hasn't run yet and `command -v node` may be
+	// empty or point to the wrong binary.
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	customStepsWithCheckout := `      - name: Custom checkout
+        uses: actions/checkout@v4
+`
+
+	data := &WorkflowData{
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		MarkdownContent: "Test prompt",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		RunnerConfig: &RunnerConfig{
+			Topology: RunnerTopologyArcDind,
+		},
+		CustomSteps: customStepsWithCheckout,
+		ParsedTools: NewTools(nil),
+	}
+
+	var yaml strings.Builder
+	err := compiler.generateMainJobSteps(&yaml, data)
+	require.NoError(t, err)
+
+	result := yaml.String()
+	// Tool cache redirect is always emitted on ARC/DinD regardless of checkout placement.
+	assert.Contains(t, result, "- name: Redirect tool cache and install paths for ARC/DinD")
+	// Node relocation step must be suppressed when runtime steps are deferred.
+	assert.NotContains(t, result, "- name: Ensure Node.js is at daemon-visible path")
+}
+
 func TestGenerateMainJobStepsWithDevMode_GhAwRuntimeBuildsFromSource(t *testing.T) {
 	originalRelease := IsRelease()
 	t.Cleanup(func() {

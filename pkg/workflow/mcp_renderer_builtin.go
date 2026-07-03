@@ -97,7 +97,7 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, 
 	yaml.WriteString("          args = [\"-w\", \"$GITHUB_WORKSPACE\"]\n")
 	yaml.WriteString("          entrypoint = \"sh\"\n")
 	yaml.WriteString("          entrypointArgs = [\"-c\", \"sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh\"]\n")
-	yaml.WriteString("          env_vars = [\"DEBUG\", \"DEFAULT_BRANCH\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST\", \"GITHUB_REPOSITORY\", \"GITHUB_TOKEN\", \"GITHUB_WORKSPACE\", \"RUNNER_TEMP\"]\n")
+	yaml.WriteString("          env_vars = [\"DEBUG\", \"DEFAULT_BRANCH\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST\", \"GITHUB_REPOSITORY\", \"GITHUB_SHA\", \"GITHUB_TOKEN\", \"GITHUB_WORKSPACE\", \"RUNNER_TEMP\"]\n")
 
 	// Check if GitHub tool has guard-policies configured (or auto-lockdown will run)
 	// If so, generate a linked write-sink guard-policy for safeoutputs
@@ -264,6 +264,7 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		{"GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", false},
 		{"GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST", "GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST", false},
 		{"GITHUB_REPOSITORY", "GITHUB_REPOSITORY", false},
+		{"GITHUB_SHA", "GITHUB_SHA", false},
 		{"GITHUB_TOKEN", "GITHUB_TOKEN", false},
 		{"GITHUB_WORKSPACE", "GITHUB_WORKSPACE", false},
 		{"RUNNER_TEMP", "RUNNER_TEMP", false},

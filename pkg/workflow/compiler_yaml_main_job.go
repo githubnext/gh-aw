@@ -195,84 +195,10 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 // It mutates data.CustomSteps (via deduplication) and returns whether the custom steps
 // themselves contain a checkout action (used by the caller to compute needsGitConfig).
 func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, data *WorkflowData, needsCheckout bool) bool {
-	// Add automatic runtime setup steps if needed
-	// This detects runtimes from custom steps and MCP configs
-	runtimeRequirements := DetectRuntimeRequirements(data)
-
-	// Deduplicate runtime setup steps from custom steps
-	// This removes any runtime setup action steps (like actions/setup-go) from custom steps
-	// since we're adding them. It also preserves user-customized setup actions and
-	// filters those runtimes from requirements so we don't generate duplicates.
-	if len(runtimeRequirements) > 0 && data.CustomSteps != "" {
-		deduplicatedCustomSteps, filteredRequirements, err := DeduplicateRuntimeSetupStepsFromCustomSteps(data.CustomSteps, runtimeRequirements)
-		if err != nil {
-			compilerYamlLog.Printf("Warning: failed to deduplicate runtime setup steps: %v", err)
-		} else {
-			data.CustomSteps = deduplicatedCustomSteps
-			runtimeRequirements = filteredRequirements
-		}
-	}
-
-	// Generate runtime setup steps (after filtering out user-customized ones)
-	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements, data)
-	compilerYamlLog.Printf("Detected runtime requirements: %d runtimes, %d setup steps", len(runtimeRequirements), len(runtimeSetupSteps))
-
-	// Decision logic for where to place runtime steps:
-	// 1. If we added checkout above (needsCheckout == true), add runtime steps now (after checkout, before custom steps)
-	// 2. If custom steps contain checkout, add runtime steps AFTER the first checkout in custom steps
-	// 3. Otherwise, add runtime steps now (before custom steps)
-
-	customStepsContainCheckout := data.CustomSteps != "" && ContainsCheckout(data.CustomSteps)
+	runtimeSetupSteps, customStepsContainCheckout := c.prepareRuntimeSetupAndCheckoutInfo(data)
 	compilerYamlLog.Printf("Custom steps contain checkout: %t (len(customSteps)=%d)", customStepsContainCheckout, len(data.CustomSteps))
 
-	// Redirect tool cache for ARC/DinD runners BEFORE runtime setup steps.
-	// On ARC, the standard RUNNER_TOOL_CACHE=/opt/hostedtoolcache is invisible to the DinD
-	// daemon's filesystem. Redirecting to ${RUNNER_TEMP}/gh-aw/tool-cache ensures the cache
-	// lives on the daemon-visible shared workspace volume.
-	// ensures setup-* actions install to a path visible to both runner and DinD containers.
-	// This step must run before any runtime setup steps (setup-go, setup-node, etc.) so that
-	// those actions pick up the redirected path when they write into RUNNER_TOOL_CACHE.
-	if isArcDindTopology(data) {
-		yaml.WriteString("      - name: Redirect tool cache and install paths for ARC/DinD\n")
-		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/tool-cache\"\n")
-		yaml.WriteString("          echo \"RUNNER_TOOL_CACHE=${RUNNER_TEMP}/gh-aw/tool-cache\" >> \"$GITHUB_ENV\"\n")
-		yaml.WriteString("          echo \"DOTNET_INSTALL_DIR=${RUNNER_TEMP}/gh-aw/tool-cache/dotnet\" >> \"$GITHUB_ENV\"\n")
-		yaml.WriteString("          echo \"GOPATH=${RUNNER_TEMP}/gh-aw/tool-cache/go\" >> \"$GITHUB_ENV\"\n")
-	}
-
-	if needsCheckout || !customStepsContainCheckout {
-		// Case 1 or 3: Add runtime steps before custom steps
-		// This ensures checkout -> runtime -> custom steps order
-		compilerYamlLog.Printf("Adding %d runtime steps before custom steps (needsCheckout=%t, !customStepsContainCheckout=%t)", len(runtimeSetupSteps), needsCheckout, !customStepsContainCheckout)
-		for _, step := range runtimeSetupSteps {
-			for _, line := range step {
-				yaml.WriteString(line)
-				yaml.WriteByte('\n')
-			}
-		}
-
-	}
-
-	// ARC/DinD: ensure Node.js is at a daemon-visible path.
-	// On ARC runners, setup-node may find a pre-cached node at the original tool cache
-	// (e.g. /home/runner/_work/_tool/node/...) which is NOT under RUNNER_TEMP and therefore
-	// not bind-mounted into the AWF container. This step copies node to the redirected
-	// tool cache if needed and sets GH_AW_NODE_BIN for the AWF entrypoint.
-	if isArcDindTopology(data) {
-		yaml.WriteString("      - name: Ensure Node.js is at daemon-visible path\n")
-		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          NODE_BIN=\"$(command -v node)\"\n")
-		yaml.WriteString("          NODE_PREFIX=\"$(dirname \"$(dirname \"$NODE_BIN\")\")\"\n")
-		yaml.WriteString("          TOOL_DEST=\"${RUNNER_TEMP}/gh-aw/tool-cache/node\"\n")
-		yaml.WriteString("          if [[ \"$NODE_PREFIX\" != \"${RUNNER_TEMP}\"/* ]]; then\n")
-		yaml.WriteString("            echo \"Node at $NODE_PREFIX is not under RUNNER_TEMP, copying to $TOOL_DEST\"\n")
-		yaml.WriteString("            mkdir -p \"$TOOL_DEST\"\n")
-		yaml.WriteString("            cp -a \"$NODE_PREFIX\"/. \"$TOOL_DEST\"/\n")
-		yaml.WriteString("            echo \"${TOOL_DEST}/bin\" >> \"$GITHUB_PATH\"\n")
-		yaml.WriteString("            echo \"GH_AW_NODE_BIN=${TOOL_DEST}/bin/node\" >> \"$GITHUB_ENV\"\n")
-		yaml.WriteString("          fi\n")
-	}
+	c.emitRuntimeSetupPrelude(yaml, data, needsCheckout, customStepsContainCheckout, runtimeSetupSteps)
 
 	// Create /tmp/gh-aw/ base directory for all temporary files
 	// This must be created before custom steps so they can use the temp directory
@@ -298,26 +224,7 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	// integrity filtering before the agent runs. Must start before custom steps.
 	c.generateStartDIFCProxyStep(yaml, data)
 
-	// Add custom steps if present
-	if data.CustomSteps != "" {
-		// When the DIFC proxy is active, inject proxy routing env vars as step-level env
-		// on each custom step. Step-level env takes precedence over $GITHUB_ENV without
-		// mutating it, so GHE host values are preserved for non-proxied steps.
-		customStepsToEmit := data.CustomSteps
-		if hasDIFCProxyNeeded(data) {
-			customStepsToEmit = injectProxyEnvIntoCustomSteps(customStepsToEmit)
-		}
-		if customStepsContainCheckout && len(runtimeSetupSteps) > 0 {
-			// Custom steps contain checkout and we have runtime steps to insert
-			// Insert runtime steps after the first checkout step
-			compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps to insert after checkout", len(runtimeSetupSteps))
-			c.addCustomStepsWithRuntimeInsertion(yaml, customStepsToEmit, runtimeSetupSteps, data.ParsedTools)
-		} else {
-			// No checkout in custom steps or no runtime steps, just add custom steps as-is
-			compilerYamlLog.Printf("Calling addCustomStepsAsIs (customStepsContainCheckout=%t, runtimeStepsCount=%d)", customStepsContainCheckout, len(runtimeSetupSteps))
-			c.addCustomStepsAsIs(yaml, customStepsToEmit)
-		}
-	}
+	c.emitCustomSteps(yaml, data, customStepsContainCheckout, runtimeSetupSteps)
 
 	// Add cache steps if cache configuration is present
 	compilerYamlLog.Printf("Generating cache steps for workflow")
@@ -332,6 +239,121 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	generateRepoMemorySteps(yaml, data)
 
 	return customStepsContainCheckout
+}
+
+func (c *Compiler) prepareRuntimeSetupAndCheckoutInfo(data *WorkflowData) ([]GitHubActionStep, bool) {
+	// Add automatic runtime setup steps if needed
+	// This detects runtimes from custom steps and MCP configs
+	runtimeRequirements := DetectRuntimeRequirements(data)
+
+	// Deduplicate runtime setup steps from custom steps
+	// This removes any runtime setup action steps (like actions/setup-go) from custom steps
+	// since we're adding them. It also preserves user-customized setup actions and
+	// filters those runtimes from requirements so we don't generate duplicates.
+	if len(runtimeRequirements) > 0 && data.CustomSteps != "" {
+		deduplicatedCustomSteps, filteredRequirements, err := DeduplicateRuntimeSetupStepsFromCustomSteps(data.CustomSteps, runtimeRequirements)
+		if err != nil {
+			compilerYamlLog.Printf("Warning: failed to deduplicate runtime setup steps: %v", err)
+		} else {
+			data.CustomSteps = deduplicatedCustomSteps
+			runtimeRequirements = filteredRequirements
+		}
+	}
+
+	// Generate runtime setup steps (after filtering out user-customized ones)
+	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements, data)
+	compilerYamlLog.Printf("Detected runtime requirements: %d runtimes, %d setup steps", len(runtimeRequirements), len(runtimeSetupSteps))
+
+	customStepsContainCheckout := data.CustomSteps != "" && ContainsCheckout(data.CustomSteps)
+
+	return runtimeSetupSteps, customStepsContainCheckout
+}
+
+func (c *Compiler) emitRuntimeSetupPrelude(yaml *strings.Builder, data *WorkflowData, needsCheckout bool, customStepsContainCheckout bool, runtimeSetupSteps []GitHubActionStep) {
+	// Redirect tool cache for ARC/DinD runners BEFORE runtime setup steps.
+	// On ARC, the standard RUNNER_TOOL_CACHE=/opt/hostedtoolcache is invisible to the DinD
+	// daemon's filesystem. Redirecting to ${RUNNER_TEMP}/gh-aw/tool-cache ensures the cache
+	// lives on the daemon-visible shared workspace volume.
+	// ensures setup-* actions install to a path visible to both runner and DinD containers.
+	// This step must run before any runtime setup steps (setup-go, setup-node, etc.) so that
+	// those actions pick up the redirected path when they write into RUNNER_TOOL_CACHE.
+	if isArcDindTopology(data) {
+		c.generateArcDindToolCacheRedirectStep(yaml)
+	}
+
+	runtimeStepsEmittedEarly := needsCheckout || !customStepsContainCheckout
+	if runtimeStepsEmittedEarly {
+		// Case 1 or 3: Add runtime steps before custom steps
+		// This ensures checkout -> runtime -> custom steps order
+		compilerYamlLog.Printf("Adding %d runtime steps before custom steps (needsCheckout=%t, !customStepsContainCheckout=%t)", len(runtimeSetupSteps), needsCheckout, !customStepsContainCheckout)
+		for _, step := range runtimeSetupSteps {
+			for _, line := range step {
+				yaml.WriteString(line)
+				yaml.WriteByte('\n')
+			}
+		}
+	}
+
+	// ARC/DinD: ensure Node.js is at a daemon-visible path.
+	// On ARC runners, setup-node may find a pre-cached node at the original tool cache
+	// (e.g. /home/runner/_work/_tool/node/...) which is NOT under RUNNER_TEMP and therefore
+	// not bind-mounted into the AWF container. This step copies node to the redirected
+	// tool cache if needed and sets GH_AW_NODE_BIN for the AWF entrypoint.
+	// Only emit when runtime steps (including setup-node) were already emitted above;
+	// when they are deferred to after a custom checkout, this step would run before
+	// setup-node and could relocate an absent or wrong node binary.
+	if isArcDindTopology(data) && runtimeStepsEmittedEarly {
+		c.generateArcDindNodePathStep(yaml)
+	}
+}
+
+func (c *Compiler) generateArcDindToolCacheRedirectStep(yaml *strings.Builder) {
+	yaml.WriteString("      - name: Redirect tool cache and install paths for ARC/DinD\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/tool-cache\"\n")
+	yaml.WriteString("          echo \"RUNNER_TOOL_CACHE=${RUNNER_TEMP}/gh-aw/tool-cache\" >> \"$GITHUB_ENV\"\n")
+	yaml.WriteString("          echo \"DOTNET_INSTALL_DIR=${RUNNER_TEMP}/gh-aw/tool-cache/dotnet\" >> \"$GITHUB_ENV\"\n")
+	yaml.WriteString("          echo \"GOPATH=${RUNNER_TEMP}/gh-aw/tool-cache/go\" >> \"$GITHUB_ENV\"\n")
+}
+
+func (c *Compiler) generateArcDindNodePathStep(yaml *strings.Builder) {
+	yaml.WriteString("      - name: Ensure Node.js is at daemon-visible path\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          NODE_BIN=\"$(command -v node)\"\n")
+	yaml.WriteString("          NODE_PREFIX=\"$(dirname \"$(dirname \"$NODE_BIN\")\")\"\n")
+	yaml.WriteString("          TOOL_DEST=\"${RUNNER_TEMP}/gh-aw/tool-cache/node\"\n")
+	yaml.WriteString("          if [[ \"$NODE_PREFIX\" != \"${RUNNER_TEMP}\"/* ]]; then\n")
+	yaml.WriteString("            echo \"Node at $NODE_PREFIX is not under RUNNER_TEMP, copying to $TOOL_DEST\"\n")
+	yaml.WriteString("            mkdir -p \"$TOOL_DEST\"\n")
+	yaml.WriteString("            cp -a \"$NODE_PREFIX\"/. \"$TOOL_DEST\"/\n")
+	yaml.WriteString("            echo \"${TOOL_DEST}/bin\" >> \"$GITHUB_PATH\"\n")
+	yaml.WriteString("            echo \"GH_AW_NODE_BIN=${TOOL_DEST}/bin/node\" >> \"$GITHUB_ENV\"\n")
+	yaml.WriteString("          fi\n")
+}
+
+func (c *Compiler) emitCustomSteps(yaml *strings.Builder, data *WorkflowData, customStepsContainCheckout bool, runtimeSetupSteps []GitHubActionStep) {
+	// Add custom steps if present
+	if data.CustomSteps == "" {
+		return
+	}
+
+	// When the DIFC proxy is active, inject proxy routing env vars as step-level env
+	// on each custom step. Step-level env takes precedence over $GITHUB_ENV without
+	// mutating it, so GHE host values are preserved for non-proxied steps.
+	customStepsToEmit := data.CustomSteps
+	if hasDIFCProxyNeeded(data) {
+		customStepsToEmit = injectProxyEnvIntoCustomSteps(customStepsToEmit)
+	}
+	if customStepsContainCheckout && len(runtimeSetupSteps) > 0 {
+		// Custom steps contain checkout and we have runtime steps to insert
+		// Insert runtime steps after the first checkout step
+		compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps to insert after checkout", len(runtimeSetupSteps))
+		c.addCustomStepsWithRuntimeInsertion(yaml, customStepsToEmit, runtimeSetupSteps, data.ParsedTools)
+	} else {
+		// No checkout in custom steps or no runtime steps, just add custom steps as-is
+		compilerYamlLog.Printf("Calling addCustomStepsAsIs (customStepsContainCheckout=%t, runtimeStepsCount=%d)", customStepsContainCheckout, len(runtimeSetupSteps))
+		c.addCustomStepsAsIs(yaml, customStepsToEmit)
+	}
 }
 
 // generateEngineInstallAndPreAgentSteps emits git credential configuration, the PR-ready-for-review

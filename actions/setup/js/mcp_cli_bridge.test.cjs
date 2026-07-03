@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import fs from "fs";
+import os from "os";
+import path from "path";
 
-import { formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync, showHelp, showToolHelp, writeStdoutAndFlush } from "./mcp_cli_bridge.cjs";
+import { ensureSafeOutputsTools, formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync, showHelp, showToolHelp, writeStdoutAndFlush } from "./mcp_cli_bridge.cjs";
 
 describe("mcp_cli_bridge.cjs", () => {
   let originalCore;
@@ -152,6 +155,39 @@ describe("mcp_cli_bridge.cjs", () => {
       count: 3,
       max_tokens: 3000,
     });
+  });
+
+  it("recovers empty safeoutputs schema from fallback tools path", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bridge-safeoutputs-"));
+    const fallbackPath = path.join(tempDir, "tools.json");
+    fs.writeFileSync(fallbackPath, JSON.stringify([{ name: "report_incomplete" }]), "utf8");
+    const originalPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = fallbackPath;
+    try {
+      const recovered = ensureSafeOutputsTools([], "safeoutputs", path.join(tempDir, "empty.json"));
+      expect(recovered).toHaveLength(1);
+      expect(recovered[0].name).toBe("report_incomplete");
+      expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("recovered"));
+    } finally {
+      if (originalPath === undefined) {
+        delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+      } else {
+        process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = originalPath;
+      }
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails fast when safeoutputs schema is empty", () => {
+    const originalPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+    delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+    try {
+      expect(() => ensureSafeOutputsTools([], "safeoutputs", "/tmp/gh-aw/mcp-cli/tools/safeoutputs.json")).toThrow(/tool schema is empty/);
+    } finally {
+      if (originalPath !== undefined) {
+        process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = originalPath;
+      }
+    }
   });
 
   it("coerces scientific notation when schema properties are unavailable", () => {

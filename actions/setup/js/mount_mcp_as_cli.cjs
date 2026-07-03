@@ -33,6 +33,7 @@ const RUNNER_TEMP = process.env.RUNNER_TEMP || "/home/runner/work/_temp";
 const CLI_BIN_DIR = `${RUNNER_TEMP}/gh-aw/mcp-cli/bin`;
 const TOOLS_DIR = `${RUNNER_TEMP}/gh-aw/mcp-cli/tools`;
 const AWF_GATEWAY_IP = "172.30.0.1";
+const SAFEOUTPUTS_SERVER_NAME = "safeoutputs";
 
 /** MCP servers that are handled differently and should not be user-facing CLIs.
  *  Note: safeoutputs and mcpscripts are NOT excluded — they are always CLI-mounted
@@ -41,6 +42,59 @@ const INTERNAL_SERVERS = new Set(["github"]);
 
 /** Default timeout (ms) for HTTP calls to the local MCP gateway */
 const DEFAULT_HTTP_TIMEOUT_MS = 15000;
+
+/**
+ * Parse a tools JSON file and return a validated tools array.
+ *
+ * @param {string} toolsPath
+ * @param {typeof import("@actions/core")} core
+ * @returns {Array<{name: string, description?: string, inputSchema?: unknown}>}
+ */
+function loadToolsFromJSONFile(toolsPath, core) {
+  try {
+    if (!fs.existsSync(toolsPath)) {
+      return [];
+    }
+    const parsed = JSON.parse(fs.readFileSync(toolsPath, "utf8"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    core.warning(`  Failed to read tools file ${toolsPath}: ${err instanceof Error ? err.message : String(err)}`);
+    return [];
+  }
+}
+
+/**
+ * Recover safeoutputs tools from the generated safe-outputs tools.json when MCP
+ * tools/list returned an empty result.
+ *
+ * @param {Array<{name: string, description?: string, inputSchema?: unknown}>} tools
+ * @param {typeof import("@actions/core")} core
+ * @returns {Array<{name: string, description?: string, inputSchema?: unknown}>}
+ */
+function recoverSafeOutputsToolsIfNeeded(tools, core) {
+  if (tools.length > 0) {
+    return tools;
+  }
+  const fallbackPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || `${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json`;
+  const recovered = loadToolsFromJSONFile(fallbackPath, core);
+  if (recovered.length > 0) {
+    core.warning(`  safeoutputs tools/list returned empty; recovered ${recovered.length} tool(s) from ${fallbackPath}`);
+    return recovered;
+  }
+  throw new Error(`safeoutputs tool schema is empty (tools/list returned 0 and fallback ${fallbackPath} is empty/missing). ` + `Failing fast to avoid agent runs without discoverable safe-output tools.`);
+}
+
+/**
+ * Per-server post-fetch validator registry.
+ * Each entry receives the fetched tool list and the @actions/core instance, and returns
+ * a (possibly replaced) tool list. Throwing here aborts the mount step for that server.
+ * Add an entry here when a server needs special validation after tools/list.
+ *
+ * @type {Record<string, (tools: Array<{name: string, description?: string, inputSchema?: unknown}>, core: typeof import("@actions/core")) => Array<{name: string, description?: string, inputSchema?: unknown}>>}
+ */
+const SERVER_VALIDATORS = {
+  [SAFEOUTPUTS_SERVER_NAME]: (tools, core) => recoverSafeOutputsToolsIfNeeded(tools, core),
+};
 
 /**
  * Validate that a server name is safe to use as a filename and in shell scripts.
@@ -404,7 +458,11 @@ async function main() {
     const toolsFile = path.join(TOOLS_DIR, `${name}.json`);
 
     // Query tools from the server using the host-accessible URL (mount step runs on host)
-    const tools = await fetchMCPTools(url, apiKey, core);
+    let tools = await fetchMCPTools(url, apiKey, core);
+    const validate = SERVER_VALIDATORS[name];
+    if (validate) {
+      tools = validate(tools, core);
+    }
     core.info(`  Found ${tools.length} tool(s)`);
 
     // Cache the tool list
@@ -453,4 +511,16 @@ async function main() {
   core.setOutput("mounted-servers", mountedServers.join(","));
 }
 
-module.exports = { AWF_GATEWAY_IP, main, fetchMCPTools, generateCLIWrapperScript, isValidServerName, shellEscapeDoubleQuoted, parseMCPResponseBody, toContainerUrl };
+module.exports = {
+  AWF_GATEWAY_IP,
+  main,
+  fetchMCPTools,
+  generateCLIWrapperScript,
+  isValidServerName,
+  shellEscapeDoubleQuoted,
+  parseMCPResponseBody,
+  toContainerUrl,
+  loadToolsFromJSONFile,
+  recoverSafeOutputsToolsIfNeeded,
+  SERVER_VALIDATORS,
+};
