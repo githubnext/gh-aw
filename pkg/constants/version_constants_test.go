@@ -9,8 +9,8 @@ import (
 
 func TestDefaultPlaywrightCLIVersionOutsideCooldownWindow(t *testing.T) {
 	const (
-		expectedVersion    Version = "0.1.14"
-		publishedAtRFC3339         = "2026-06-10T00:20:51.773Z"
+		expectedVersion    Version = "0.1.15"
+		publishedAtRFC3339         = "2026-06-30T14:53:08.941Z"
 		minReleaseAge              = 72 * time.Hour
 	)
 
