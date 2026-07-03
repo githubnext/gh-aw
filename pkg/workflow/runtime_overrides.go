@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 )
 
@@ -11,6 +13,9 @@ func cloneRuntimeWithActionOverrides(base *Runtime, actionRepo, actionVersion st
 	}
 
 	customRuntime := *base
+	customRuntime.Commands = slices.Clone(base.Commands)
+	customRuntime.ManifestFiles = slices.Clone(base.ManifestFiles)
+	customRuntime.ExtraWithFields = maps.Clone(base.ExtraWithFields)
 
 	if actionRepo != "" {
 		customRuntime.ActionRepo = actionRepo

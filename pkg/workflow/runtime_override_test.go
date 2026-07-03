@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"maps"
+	"reflect"
 	"testing"
 )
 
@@ -241,6 +243,10 @@ func TestApplyRuntimeOverrides_KnownRuntimeActionOverrides(t *testing.T) {
 	if knownNode == nil {
 		t.Fatal("expected known node runtime to exist")
 	}
+	originalKnownNode := *knownNode
+	originalKnownNode.Commands = append([]string(nil), knownNode.Commands...)
+	originalKnownNode.ManifestFiles = append([]string(nil), knownNode.ManifestFiles...)
+	originalKnownNode.ExtraWithFields = maps.Clone(knownNode.ExtraWithFields)
 
 	requirements := map[string]*RuntimeRequirement{}
 
@@ -273,6 +279,9 @@ func TestApplyRuntimeOverrides_KnownRuntimeActionOverrides(t *testing.T) {
 	}
 	if knownNode.ActionVersion != "v6" {
 		t.Fatalf("expected known runtime ActionVersion to remain v6, got %s", knownNode.ActionVersion)
+	}
+	if !reflect.DeepEqual(*knownNode, originalKnownNode) {
+		t.Fatal("expected all known runtime fields to remain unchanged")
 	}
 }
 
