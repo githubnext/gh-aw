@@ -224,7 +224,7 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	// integrity filtering before the agent runs. Must start before custom steps.
 	c.generateStartDIFCProxyStep(yaml, data)
 
-	c.emitCustomStepsWithOptionalRuntimeInsertion(yaml, data, customStepsContainCheckout, runtimeSetupSteps)
+	c.emitCustomSteps(yaml, data, customStepsContainCheckout, runtimeSetupSteps)
 
 	// Add cache steps if cache configuration is present
 	compilerYamlLog.Printf("Generating cache steps for workflow")
@@ -327,7 +327,7 @@ func (c *Compiler) generateArcDindNodePathStep(yaml *strings.Builder) {
 	yaml.WriteString("          fi\n")
 }
 
-func (c *Compiler) emitCustomStepsWithOptionalRuntimeInsertion(yaml *strings.Builder, data *WorkflowData, customStepsContainCheckout bool, runtimeSetupSteps []GitHubActionStep) {
+func (c *Compiler) emitCustomSteps(yaml *strings.Builder, data *WorkflowData, customStepsContainCheckout bool, runtimeSetupSteps []GitHubActionStep) {
 	// Add custom steps if present
 	if data.CustomSteps == "" {
 		return
@@ -345,12 +345,11 @@ func (c *Compiler) emitCustomStepsWithOptionalRuntimeInsertion(yaml *strings.Bui
 		// Insert runtime steps after the first checkout step
 		compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps to insert after checkout", len(runtimeSetupSteps))
 		c.addCustomStepsWithRuntimeInsertion(yaml, customStepsToEmit, runtimeSetupSteps, data.ParsedTools)
-		return
+	} else {
+		// No checkout in custom steps or no runtime steps, just add custom steps as-is
+		compilerYamlLog.Printf("Calling addCustomStepsAsIs (customStepsContainCheckout=%t, runtimeStepsCount=%d)", customStepsContainCheckout, len(runtimeSetupSteps))
+		c.addCustomStepsAsIs(yaml, customStepsToEmit)
 	}
-
-	// No checkout in custom steps or no runtime steps, just add custom steps as-is
-	compilerYamlLog.Printf("Calling addCustomStepsAsIs (customStepsContainCheckout=%t, runtimeStepsCount=%d)", customStepsContainCheckout, len(runtimeSetupSteps))
-	c.addCustomStepsAsIs(yaml, customStepsToEmit)
 }
 
 // generateEngineInstallAndPreAgentSteps emits git credential configuration, the PR-ready-for-review
