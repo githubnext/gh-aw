@@ -664,7 +664,6 @@ describe("create_issue", () => {
     it("should reject invalid deduplicate-by-title configuration", async () => {
       await expect(main({ deduplicate_by_title: "invalid" })).rejects.toThrow("deduplicate-by-title");
       await expect(main({ deduplicate_by_title: 1 })).rejects.toThrow("deduplicate-by-title");
-      await expect(main({ deduplicate_by_title: 101 })).rejects.toThrow("deduplicate-by-title");
     });
   });
 

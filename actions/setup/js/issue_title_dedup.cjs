@@ -17,7 +17,7 @@ function parseDeduplicateByTitle(value) {
   if (value === true || value === "true") {
     return { enabled: true, maxDistance: 0 };
   }
-  throw new Error("deduplicate-by-title must be a boolean");
+  throw new Error("deduplicate-by-title must be a boolean or a resolved boolean string ('true' or 'false')");
 }
 
 /**
