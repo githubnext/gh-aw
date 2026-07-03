@@ -268,8 +268,11 @@ func TestApplyRuntimeOverrides_KnownRuntimeActionOverrides(t *testing.T) {
 	if nodeReq.Runtime.ActionVersion != "v5" {
 		t.Fatalf("expected ActionVersion v5, got %s", nodeReq.Runtime.ActionVersion)
 	}
-	if knownNode.ActionRepo == "custom/setup-node" {
-		t.Fatal("expected known runtime to remain unchanged")
+	if knownNode.ActionRepo != "actions/setup-node" {
+		t.Fatalf("expected known runtime ActionRepo to remain actions/setup-node, got %s", knownNode.ActionRepo)
+	}
+	if knownNode.ActionVersion != "v6" {
+		t.Fatalf("expected known runtime ActionVersion to remain v6, got %s", knownNode.ActionVersion)
 	}
 }
 

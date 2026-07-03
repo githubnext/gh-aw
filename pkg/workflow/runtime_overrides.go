@@ -6,16 +6,11 @@ import (
 )
 
 func cloneRuntimeWithActionOverrides(base *Runtime, actionRepo, actionVersion string) *Runtime {
-	customRuntime := &Runtime{
-		ID:              base.ID,
-		Name:            base.Name,
-		ActionRepo:      base.ActionRepo,
-		ActionVersion:   base.ActionVersion,
-		VersionField:    base.VersionField,
-		DefaultVersion:  base.DefaultVersion,
-		Commands:        base.Commands,
-		ExtraWithFields: base.ExtraWithFields,
+	if base == nil {
+		return nil
 	}
+
+	customRuntime := *base
 
 	if actionRepo != "" {
 		customRuntime.ActionRepo = actionRepo
@@ -24,7 +19,7 @@ func cloneRuntimeWithActionOverrides(base *Runtime, actionRepo, actionVersion st
 		customRuntime.ActionVersion = actionVersion
 	}
 
-	return customRuntime
+	return &customRuntime
 }
 
 // applyRuntimeOverrides applies runtime version overrides from frontmatter
