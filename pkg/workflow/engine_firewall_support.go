@@ -104,7 +104,7 @@ func generateSquidLogsUploadStep(workflowName string, workflowData *WorkflowData
 	// Use ${{ runner.temp }} (Actions expression) because `with:` blocks don't expand shell vars.
 	firewallLogsDir := constants.AWFProxyLogsDir + "/"
 	if isArcDindTopology(workflowData) {
-		firewallLogsDir = "${{ runner.temp }}/gh-aw/sandbox/firewall/logs/"
+		firewallLogsDir = constants.AWFProxyLogsDirExpr + "/"
 	}
 
 	stepLines := []string{
@@ -129,8 +129,8 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 	// For env: blocks, use ${{ runner.temp }} (Actions expression) since shell vars aren't expanded there.
 	firewallLogsDirEnv := constants.AWFProxyLogsDir
 	if isArcDindTopology(workflowData) {
-		firewallLogsDir = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"
-		firewallLogsDirEnv = "${{ runner.temp }}/gh-aw/sandbox/firewall/logs"
+		firewallLogsDir = constants.AWFProxyLogsDirShell
+		firewallLogsDirEnv = constants.AWFProxyLogsDirExpr
 	}
 	firewallDir := path.Dir(firewallLogsDir)
 
