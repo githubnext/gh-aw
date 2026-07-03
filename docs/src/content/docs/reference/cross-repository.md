@@ -115,7 +115,7 @@ safe-outputs:
     title-prefix: "[component] "
 ```
 
-Without `target-repo`, safe outputs operate on the repository where the workflow is running.
+Without `target-repo`, safe outputs operate on the repository where the workflow is running. In trial mode, the trial target repository becomes the default safe-output target; an explicit `safe-outputs.*.target-repo` still takes precedence over the trial target setting.
 
 ### Wildcard Target Repository (`target-repo: "*"`)
 
@@ -154,9 +154,11 @@ When `allowed-repos` is specified:
 - Target repository (from `target-repo` or current repo) is always implicitly allowed
 - Creates a union of allowed destinations
 
+In side-repository workflows, `checkout.current: true` does not retarget safe outputs on its own. Use `target-repo` on each safe output that should write to the main repository.
+
 ### Checkout Requirement for `push-to-pull-request-branch`
 
-Unlike other safe output types, `push-to-pull-request-branch` with `target-repo` requires the target repository to be **checked out into the workflow workspace** using the `checkout:` frontmatter field with a `path:` specified. Without a checkout, the agent has no local git history to create and push a patch from.
+Unlike other safe output types, `push-to-pull-request-branch` with `target-repo` requires the target repository to be **checked out into the workflow workspace** using the `checkout:` frontmatter field with a `path:` specified. Without a checkout, the agent has no local git history to create and push a patch from. When `create-pull-request` or `push-to-pull-request-branch` is enabled, the `safe_outputs` job reuses the same checkout manager configuration as the agent job, so the implicit safe-output checkout mirrors the agent's repository layout.
 
 See the [Scheduled Push to Pull-Request Branch](#example-scheduled-push-to-pull-request-branch) example and the [Push to PR Branch cross-repo usage](/gh-aw/reference/safe-outputs-pull-requests/#cross-repo-usage) documentation for a complete setup.
 

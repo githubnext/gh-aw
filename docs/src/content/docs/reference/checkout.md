@@ -7,6 +7,8 @@ sidebar:
 
 The `checkout:` frontmatter field controls how `actions/checkout` is invoked in the agent job. Configure custom checkout settings, check out multiple repositories, or disable checkout entirely.
 
+The same `checkout:` specification is also reused by the trusted `safe_outputs` job when content-writing safe outputs need local git state. This keeps repository paths, fetch settings, and target selection consistent across the agent and safe-output phases.
+
 By default, the agent checks out the repository where the workflow is running with a shallow fetch (`fetch-depth: 1`). If triggered by a pull request event, it also checks out the PR head ref. For most workflows, this default checkout is sufficient and no `checkout:` configuration is necessary.
 
 Use `checkout:` when you need to check out additional branches, check out multiple repositories, or to disable checkout entirely for workflows that don't need to access code or can access code dynamically through the GitHub Tools.
@@ -59,6 +61,20 @@ checkout:
 | `current` | boolean | Marks this checkout as the primary working repository. The agent uses this as the default target for all GitHub operations. Only one checkout may set `current: true`; the compiler rejects workflows where multiple checkouts enable it. |
 | `force-clean-git-credentials` | boolean | When `true`, the checkout step is generated with `persist-credentials: true` and followed by a dedicated cleanup step that scrubs both repo and submodule git credentials. Use this for submodule-heavy or sparse checkouts where the default `persist-credentials: false` post-step cleanup fails. See [Cleaning Submodule Credentials](#cleaning-submodule-credentials). |
 
+## Agent Checkout and Safe-Outputs Checkout
+
+`checkout:` is compiled once through the checkout manager and then reused by multiple jobs:
+
+- The **agent job** always uses it.
+- The **`safe_outputs` job** uses the same checkout layout only when `create-pull-request` or `push-to-pull-request-branch` needs local repository content.
+
+This means `repository`, `path`, `current`, `fetch-depth`, `fetch`, and `sparse-checkout` behave the same way in both jobs. The important difference is credential handling:
+
+- In the **agent job**, generated checkout steps use `persist-credentials: false`, so git credentials are removed after checkout.
+- In the **`safe_outputs` job**, those same checkouts are recreated in a trusted context with credentials retained because the handler code may need to `fetch` or `push`.
+
+If a checkout entry declares `github-token` or `github-app`, that credential stays attached to that checkout in both jobs. Safe outputs do **not** overwrite per-checkout credentials, and there is no `safe-outputs:` syntax for replacing a specific checkout entry's `github-token` or `github-app`. If a checkout entry omits credentials, the `safe_outputs` job can fall back to its own resolved git token for that checkout.
+
 ## Fetching Additional Refs
 
 By default, `actions/checkout` performs a shallow clone (`fetch-depth: 1`) of a single ref. For workflows that need to work with other branches — for example, a scheduled workflow that must push changes to open pull-request branches — use the `fetch:` option to retrieve additional refs after the checkout step.
@@ -107,7 +123,7 @@ The generated checkout step uses `persist-credentials: false`, so the git creden
 - Deepening a shallow clone (`git fetch --unshallow`)
 - On-demand blob fetches in partial (blobless) clones — operations on files absent from the initial checkout
 
-Fetch everything the workflow needs at checkout time using `fetch-depth` and [`fetch:`](#fetching-additional-refs), and write changes through safe-output tools such as [`push-to-pull-request-branch`](/gh-aw/reference/safe-outputs-pull-requests/) rather than a direct `git push`. The agent is instructed not to configure credential helpers or run `git credential fill`, because authentication cannot succeed; credential errors are reported as a limitation instead of worked around.
+Fetch everything the workflow needs at checkout time using `fetch-depth` and [`fetch:`](#fetching-additional-refs), and write changes through safe-output tools such as [`push-to-pull-request-branch`](/gh-aw/reference/safe-outputs-pull-requests/) rather than a direct `git push`. The agent is instructed not to configure credential helpers or run `git credential fill`, because authentication cannot succeed; credential errors are reported as a limitation instead of worked around. The trusted `safe_outputs` job is the separate path that can perform later authenticated git operations when content-writing safe outputs are enabled.
 
 ## Disabling Checkout (`checkout: false`)
 
@@ -139,6 +155,8 @@ checkout:
 > ```
 >
 > Without this instruction, the agent starts in `$GITHUB_WORKSPACE` (the side repository checkout) and must infer the correct directory on its own.
+
+For `create-pull-request` and `push-to-pull-request-branch`, `current: true` also helps the safe-output handlers choose the correct patch workspace when the handler targets that same repository. It does not, by itself, redirect writes to another repository; use `safe-outputs.*.target-repo` for that.
 
 ## Cleaning Submodule Credentials
 

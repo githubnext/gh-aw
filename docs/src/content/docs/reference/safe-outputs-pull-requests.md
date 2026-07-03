@@ -369,7 +369,7 @@ Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger 
 
 ### Checkout token for git operations
 
-`create-pull-request` and `push-to-pull-request-branch` run their git operations (fetch/push) against a repository that the `safe_outputs` job checks out with credentials persisted in `.git/config`. A **single** token is persisted into that checkout, resolved with this precedence:
+`create-pull-request` and `push-to-pull-request-branch` run their git operations (fetch/push) against a repository that the `safe_outputs` job checks out with credentials persisted in `.git/config`. The `safe_outputs` job rebuilds its workspace from the workflow's `checkout:` block by using the same checkout manager as the agent job. A **single fallback token** is then available for checkouts that do not already declare their own credentials, resolved with this precedence:
 
 1. `create-pull-request.github-token`
 2. `push-to-pull-request-branch.github-token`
@@ -377,7 +377,9 @@ Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger 
 4. `safe-outputs.github-token`
 5. The default `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
 
-Because only one token can govern the shared checkout, **if you configure both `create-pull-request` and `push-to-pull-request-branch` for the same repository, give them the same token.** If they specify different `github-token` values, the higher-precedence one wins for the checkout, so the other output's git operations run with a token you did not intend. Set the token once at `safe-outputs.github-token` (or `safe-outputs.github-app`) and let both outputs inherit it, or set identical `github-token` values on each.
+If a `checkout:` entry already has its own `github-token` or `github-app`, that checkout-specific credential wins and is not overwritten by any of the safe-output settings above. There is no separate `safe-outputs:` syntax to override a specific checkout entry after the fact; change the `checkout:` entry itself if that repository needs different credentials.
+
+Because only one fallback token can govern checkouts that do not already have explicit credentials, **if you configure both `create-pull-request` and `push-to-pull-request-branch` for the same repository, give them the same token.** If they specify different `github-token` values, the higher-precedence one wins for the fallback checkout path, so the other output's git operations run with a token you did not intend. Set the token once at `safe-outputs.github-token` (or `safe-outputs.github-app`) and let both outputs inherit it, or set identical `github-token` values on each.
 
 :::note
 This applies to the git checkout used by the handlers' `fetch`/`push`. The GitHub API calls each handler makes still honor that handler's own `github-token` precedence.
