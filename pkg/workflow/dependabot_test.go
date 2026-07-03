@@ -337,9 +337,14 @@ func TestGenerateDependabotConfig_PreserveExisting(t *testing.T) {
 	}
 
 	// Verify file was preserved (no error means it was skipped)
-	data, _ := os.ReadFile(dependabotPath)
+	data, err := os.ReadFile(dependabotPath)
+	if err != nil {
+		t.Fatalf("Failed to read dependabot.yml: %v", err)
+	}
 	var config DependabotConfig
-	yaml.Unmarshal(data, &config)
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		t.Fatalf("Failed to unmarshal dependabot.yml: %v", err)
+	}
 	if len(config.Updates) != 1 {
 		t.Error("existing config should be preserved without force flag")
 	}
@@ -603,7 +608,10 @@ func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
 	}
 
 	// Verify package.json content
-	data, _ := os.ReadFile(packageJSONPath)
+	data, err := os.ReadFile(packageJSONPath)
+	if err != nil {
+		t.Fatalf("Failed to read package.json: %v", err)
+	}
 	var pkgJSON PackageJSON
 	if err := json.Unmarshal(data, &pkgJSON); err != nil {
 		t.Fatalf("Failed to unmarshal package.json: %v", err)
