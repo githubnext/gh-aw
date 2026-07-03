@@ -81,6 +81,9 @@ description: Safe-output reference for runtime defaults, custom jobs, scripts, a
   ```
 
   Useful when you need additional permissions or want to perform actions across repositories.
+- `urls:` - URL sanitization policy for safe output content (string)
+  - `allowed-only` (default) - sanitize all non-allowed URLs everywhere
+  - `allowed-or-code-region` - preserve URLs inside fenced and inline code regions while sanitizing prose
 - `allowed-domains:` - Allowed domains for URLs in safe output content (array)
   - URLs from unlisted domains are replaced with `(redacted)`
   - GitHub domains are always included by default
