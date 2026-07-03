@@ -296,27 +296,6 @@ The value must be a bare filename — no directory separators, no `..`, and no s
 > [!NOTE]
 > `engine.harness` is currently only applied during Copilot engine execution. Setting it on other engines has no effect.
 
-### Harness Retry Count
-
-The built-in Copilot and Claude harness scripts keep their existing defaults of **3 retries** after the initial run (4 total attempts), but you can now override the retry policy with environment variables:
-
-- `GH_AW_HARNESS_MAX_RETRIES`
-- `GH_AW_HARNESS_INITIAL_DELAY_MS`
-- `GH_AW_HARNESS_BACKOFF_MULTIPLIER`
-- `GH_AW_HARNESS_MAX_DELAY_MS`
-
-The smallest workflow-level override is to set them through `engine.env`:
-
-```yaml wrap
-engine:
-  id: copilot
-  env:
-    GH_AW_HARNESS_MAX_RETRIES: "6"
-    GH_AW_HARNESS_INITIAL_DELAY_MS: "10000"
-    GH_AW_HARNESS_BACKOFF_MULTIPLIER: "2"
-    GH_AW_HARNESS_MAX_DELAY_MS: "180000"
-```
-
 **Validation rules:**
 
 | Rule | Valid example | Invalid example |
@@ -325,6 +304,30 @@ engine:
 | No path traversal | `harness.mjs` | `../harness.cjs` |
 | Must start with `[A-Za-z0-9_]` | `harness.js` | `-harness.cjs` |
 | Must end with `.js`, `.cjs`, or `.mjs` | `wrapper.cjs` | `harness.sh` |
+
+### Harness Retry Policy
+
+The built-in Copilot, Claude, and Codex harnesses default to **3 retries** after the initial run (4 total attempts), with exponential backoff starting at 5 s (capped at 60 s). Use dedicated engine frontmatter fields to widen the retry window without replacing the harness:
+
+```yaml wrap
+engine:
+  id: copilot
+  harness-max-retries: 6
+  harness-initial-delay-ms: 10000
+  harness-backoff-multiplier: 2
+  harness-max-delay-ms: 180000
+```
+
+All four fields accept a literal integer or a GitHub Actions expression (e.g. `${{ vars.MY_RETRIES }}`):
+
+| Field | Default | Description |
+|---|---|---|
+| `harness-max-retries` | `3` | Maximum retry attempts after the initial run (0 = no retries) |
+| `harness-initial-delay-ms` | `5000` | Delay in ms before the first retry |
+| `harness-backoff-multiplier` | `2` | Multiplier applied to the delay after each retry |
+| `harness-max-delay-ms` | `60000` | Maximum delay cap in ms |
+
+You can also set the underlying `GH_AW_HARNESS_*` env vars directly via `engine.env` when you need expression-level control. Explicit `engine.env` values take precedence over the dedicated fields.
 
 ### Copilot SDK Support
 

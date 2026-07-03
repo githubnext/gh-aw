@@ -99,6 +99,15 @@ type EngineConfig struct {
 	// non-harness engines use it as the target of the shell-level cd prefix.
 	// Defaults to the repository workspace (GITHUB_WORKSPACE) when empty.
 	Cwd string
+
+	// Harness retry policy fields — templatable integers (literal value or ${{ expr }}).
+	// When set, the value is injected as the corresponding GH_AW_HARNESS_* env var so
+	// that all harness scripts (copilot, claude, codex) can read it from the environment.
+	// The harness falls back to its built-in default when the env var is absent.
+	HarnessMaxRetries        string // engine.harness-max-retries   → GH_AW_HARNESS_MAX_RETRIES
+	HarnessInitialDelayMs    string // engine.harness-initial-delay-ms → GH_AW_HARNESS_INITIAL_DELAY_MS
+	HarnessBackoffMultiplier string // engine.harness-backoff-multiplier → GH_AW_HARNESS_BACKOFF_MULTIPLIER
+	HarnessMaxDelayMs        string // engine.harness-max-delay-ms  → GH_AW_HARNESS_MAX_DELAY_MS
 }
 
 // EngineAuthConfig represents engine.auth frontmatter settings that map to
@@ -556,6 +565,21 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.Cwd = cwdStr
 					engineLog.Printf("Extracted engine.cwd: %s", config.Cwd)
 				}
+			}
+
+			// Extract optional harness retry policy fields (templatable integers).
+			// Each field accepts a literal positive integer or a GitHub Actions expression.
+			if v, ok := engineObj["harness-max-retries"]; ok {
+				config.HarnessMaxRetries = parseNonNegativeIntOrExpressionValue(v)
+			}
+			if v, ok := engineObj["harness-initial-delay-ms"]; ok {
+				config.HarnessInitialDelayMs = parseMaxTurnsValue(v)
+			}
+			if v, ok := engineObj["harness-backoff-multiplier"]; ok {
+				config.HarnessBackoffMultiplier = parseMaxTurnsValue(v)
+			}
+			if v, ok := engineObj["harness-max-delay-ms"]; ok {
+				config.HarnessMaxDelayMs = parseMaxTurnsValue(v)
 			}
 
 			engineLog.Printf("Extracted engine configuration: ID=%s", config.ID)

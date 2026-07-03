@@ -535,6 +535,7 @@ func (e *CopilotEngine) addCopilotWorkflowStepEnv(env map[string]string, workflo
 	applyTraceContextEnvToMap(env)
 	applyOptionalEngineToolTimeouts(env, workflowData)
 	applyEngineMaxTurnsEnv(env, workflowData)
+	applyEngineHarnessRetryEnv(env, workflowData)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
 		env[constants.EnvVarMaxToolDenials] = strconv.Itoa(constants.DefaultMaxToolDenials)
 		if workflowData.EngineConfig.MaxToolDenials != "" {

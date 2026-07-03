@@ -425,6 +425,57 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedEngineSetting: "codex",
 			expectedConfig:        &EngineConfig{ID: "codex", Version: "beta", Model: "gpt-4o", MaxTurns: "3", UserAgent: "complete-custom-agent", Env: map[string]string{"CUSTOM_VAR": "value1"}},
 		},
+		{
+			name: "object format - harness retry policy fields (integer literals)",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":                         "copilot",
+					"harness-max-retries":        6,
+					"harness-initial-delay-ms":   10000,
+					"harness-backoff-multiplier": 2,
+					"harness-max-delay-ms":       180000,
+				},
+			},
+			expectedEngineSetting: "copilot",
+			expectedConfig: &EngineConfig{
+				ID:                       "copilot",
+				HarnessMaxRetries:        "6",
+				HarnessInitialDelayMs:    "10000",
+				HarnessBackoffMultiplier: "2",
+				HarnessMaxDelayMs:        "180000",
+			},
+		},
+		{
+			name: "object format - harness retry policy fields (GitHub Actions expressions)",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":                         "claude",
+					"harness-max-retries":        "${{ vars.RETRY_COUNT }}",
+					"harness-initial-delay-ms":   "${{ vars.RETRY_DELAY }}",
+					"harness-backoff-multiplier": "${{ vars.BACKOFF }}",
+					"harness-max-delay-ms":       "${{ vars.MAX_DELAY }}",
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig: &EngineConfig{
+				ID:                       "claude",
+				HarnessMaxRetries:        "${{ vars.RETRY_COUNT }}",
+				HarnessInitialDelayMs:    "${{ vars.RETRY_DELAY }}",
+				HarnessBackoffMultiplier: "${{ vars.BACKOFF }}",
+				HarnessMaxDelayMs:        "${{ vars.MAX_DELAY }}",
+			},
+		},
+		{
+			name: "object format - harness-max-retries allows zero",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":                  "codex",
+					"harness-max-retries": 0,
+				},
+			},
+			expectedEngineSetting: "codex",
+			expectedConfig:        &EngineConfig{ID: "codex", HarnessMaxRetries: "0"},
+		},
 	}
 
 	for _, test := range tests {
@@ -486,6 +537,19 @@ func TestExtractEngineConfig(t *testing.T) {
 
 				if config.Cwd != test.expectedConfig.Cwd {
 					t.Errorf("Expected config.Cwd '%s', got '%s'", test.expectedConfig.Cwd, config.Cwd)
+				}
+
+				if config.HarnessMaxRetries != test.expectedConfig.HarnessMaxRetries {
+					t.Errorf("Expected config.HarnessMaxRetries '%s', got '%s'", test.expectedConfig.HarnessMaxRetries, config.HarnessMaxRetries)
+				}
+				if config.HarnessInitialDelayMs != test.expectedConfig.HarnessInitialDelayMs {
+					t.Errorf("Expected config.HarnessInitialDelayMs '%s', got '%s'", test.expectedConfig.HarnessInitialDelayMs, config.HarnessInitialDelayMs)
+				}
+				if config.HarnessBackoffMultiplier != test.expectedConfig.HarnessBackoffMultiplier {
+					t.Errorf("Expected config.HarnessBackoffMultiplier '%s', got '%s'", test.expectedConfig.HarnessBackoffMultiplier, config.HarnessBackoffMultiplier)
+				}
+				if config.HarnessMaxDelayMs != test.expectedConfig.HarnessMaxDelayMs {
+					t.Errorf("Expected config.HarnessMaxDelayMs '%s', got '%s'", test.expectedConfig.HarnessMaxDelayMs, config.HarnessMaxDelayMs)
 				}
 
 				if len(config.Env) != len(test.expectedConfig.Env) {
