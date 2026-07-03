@@ -269,11 +269,11 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 	}
 
 	if totalGuidedErrors > 0 {
-		noun := "file needs"
+		pluralSuffix := "file needs"
 		if totalGuidedErrors > 1 {
-			noun = "files need"
+			pluralSuffix = "files need"
 		}
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatErrorMessage(fmt.Sprintf("%d %s a manual fix", totalGuidedErrors, noun)))
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatErrorMessage(fmt.Sprintf("%d %s a manual fix", totalGuidedErrors, pluralSuffix)))
 		return &ExitCodeError{Code: 2}
 	}
 

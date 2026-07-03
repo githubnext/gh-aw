@@ -1237,7 +1237,7 @@ env:
 	outputStr := string(output)
 
 	assert.NotContains(t, outputStr, "No fixes needed", "should not print 'No fixes needed' when a guided error is present")
-	assert.Contains(t, outputStr, "manual fix", "should mention manual fix in output")
+	assert.Contains(t, outputStr, "1 file needs a manual fix", "should print singular form for a single guided error")
 }
 
 func TestRunFix_GuidedErrorWithMultipleFiles(t *testing.T) {
