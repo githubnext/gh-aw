@@ -286,7 +286,7 @@ func TestFetchIncludeFromSource_WorkflowSpecParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, section, err := FetchIncludeFromSource(tt.includePath, tt.baseSpec, false)
+			_, section, err := FetchIncludeFromSource(t.Context(), tt.includePath, tt.baseSpec, false)
 
 			if tt.expectError {
 				require.Error(t, err, "expected error")
@@ -340,7 +340,7 @@ func TestFetchIncludeFromSource_SectionExtraction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// We expect resolution errors in these unit tests, but section should still be extracted
-			_, section, _ := FetchIncludeFromSource(tt.includePath, nil, false)
+			_, section, _ := FetchIncludeFromSource(t.Context(), tt.includePath, nil, false)
 			assert.Equal(t, tt.expectSection, section, "section should be correctly extracted")
 		})
 	}
@@ -1284,7 +1284,7 @@ func TestFetchAndSaveDispatchWorkflowsFromParsedFile_EmptyRepoSlug(t *testing.T)
 		WorkflowPath: ".github/workflows/my-workflow.md",
 	}
 
-	fetchAndSaveDispatchWorkflowsFromParsedFile(filepath.Join(tmpDir, "nonexistent.md"), spec, tmpDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), filepath.Join(tmpDir, "nonexistent.md"), spec, tmpDir, false, false, nil)
 
 	entries, err := os.ReadDir(tmpDir)
 	require.NoError(t, err)
@@ -1300,7 +1300,7 @@ func TestFetchAndSaveDispatchWorkflowsFromParsedFile_InvalidRepoSlug(t *testing.
 		WorkflowPath: ".github/workflows/my-workflow.md",
 	}
 
-	fetchAndSaveDispatchWorkflowsFromParsedFile(filepath.Join(tmpDir, "nonexistent.md"), spec, tmpDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), filepath.Join(tmpDir, "nonexistent.md"), spec, tmpDir, false, false, nil)
 
 	entries, err := os.ReadDir(tmpDir)
 	require.NoError(t, err)
@@ -1317,7 +1317,7 @@ func TestFetchAndSaveDispatchWorkflowsFromParsedFile_ParseFailure(t *testing.T) 
 	}
 
 	// Point to a file that does not exist — ParseWorkflowFile will fail.
-	fetchAndSaveDispatchWorkflowsFromParsedFile(filepath.Join(tmpDir, "does-not-exist.md"), spec, tmpDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), filepath.Join(tmpDir, "does-not-exist.md"), spec, tmpDir, false, false, nil)
 
 	entries, err := os.ReadDir(tmpDir)
 	require.NoError(t, err)
@@ -1349,7 +1349,7 @@ permissions:
 		WorkflowPath: ".github/workflows/my-workflow.md",
 	}
 
-	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), mainPath, spec, workflowsDir, false, false, nil)
 
 	// Only the main workflow itself should be in the directory.
 	entries, err := os.ReadDir(workflowsDir)
@@ -1419,7 +1419,7 @@ Process incoming issues.
 		WorkflowPath: ".github/workflows/main.md",
 	}
 
-	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), mainPath, spec, workflowsDir, false, false, nil)
 
 	// The pre-existing dispatch workflow must not be modified.
 	got, err := os.ReadFile(triagePath)
@@ -1479,7 +1479,7 @@ imports:
 		WorkflowPath: ".github/workflows/main.md",
 	}
 
-	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, tracker)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), mainPath, spec, workflowsDir, false, false, tracker)
 
 	assert.Empty(t, tracker.CreatedFiles, "pre-existing dispatch workflow must not appear in CreatedFiles")
 	assert.Empty(t, tracker.ModifiedFiles, "pre-existing dispatch workflow must not appear in ModifiedFiles")
@@ -1533,7 +1533,7 @@ imports:
 		WorkflowPath: ".github/workflows/main.md",
 	}
 
-	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), mainPath, spec, workflowsDir, false, false, nil)
 
 	// No file named after the macro entry should have been created.
 	macroFile := filepath.Join(workflowsDir, "${{ vars.DYNAMIC_WORKFLOW }}.md")
@@ -1858,7 +1858,7 @@ source: otherorg/other-repo/.github/workflows/triage-issue.md@v1
 	}
 
 	// Must not panic or error — post-write is best-effort.
-	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), mainPath, spec, workflowsDir, false, false, nil)
 
 	// The conflicting file must NOT have been overwritten.
 	got, readErr := os.ReadFile(conflictPath)

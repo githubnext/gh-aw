@@ -21,7 +21,7 @@ func TestDownloadFileFromGitHubRESTClient(t *testing.T) {
 	path := "Go.gitignore"
 	ref := "main"
 
-	content, err := downloadFileFromGitHub(owner, repo, path, ref)
+	content, err := downloadFileFromGitHub(t.Context(), owner, repo, path, ref)
 	if err != nil {
 		// If we get an auth error, we can skip this test in CI environments
 		// where GitHub tokens might not be available
@@ -54,7 +54,7 @@ func TestDownloadFileFromGitHubInvalidRepo(t *testing.T) {
 	path := "README.md"
 	ref := "main"
 
-	_, err := downloadFileFromGitHub(owner, repo, path, ref)
+	_, err := downloadFileFromGitHub(t.Context(), owner, repo, path, ref)
 	if err == nil {
 		t.Fatal("Expected error for nonexistent repository, got nil")
 	}
@@ -79,7 +79,7 @@ func TestDownloadFileFromGitHubInvalidPath(t *testing.T) {
 	path := "nonexistent-file-xyz123.txt"
 	ref := "main"
 
-	_, err := downloadFileFromGitHub(owner, repo, path, ref)
+	_, err := downloadFileFromGitHub(t.Context(), owner, repo, path, ref)
 	if err == nil {
 		t.Fatal("Expected error for nonexistent file, got nil")
 	}
@@ -108,7 +108,7 @@ func TestDownloadFileFromGitHubWithSHA(t *testing.T) {
 	// Note: This might fail if the SHA doesn't exist, but demonstrates SHA support
 	ref := "main" // Using main instead of specific SHA to avoid brittleness
 
-	content, err := downloadFileFromGitHub(owner, repo, path, ref)
+	content, err := downloadFileFromGitHub(t.Context(), owner, repo, path, ref)
 	if err != nil {
 		if strings.Contains(err.Error(), "auth") || strings.Contains(err.Error(), "forbidden") {
 			t.Skip("Skipping test due to authentication requirements")
@@ -236,7 +236,7 @@ func TestResolveRemoteSymlinksNoSymlinks(t *testing.T) {
 func TestDownloadFileFromGitHubSymlinkRoute(t *testing.T) {
 	// Use a path through a real directory but with a nonexistent file.
 	// This triggers: 404 -> symlink resolution -> "no symlinks found" -> original error.
-	_, err := downloadFileFromGitHub("github", "gitignore", "Global/nonexistent-file-xyz123.gitignore", "main")
+	_, err := downloadFileFromGitHub(t.Context(), "github", "gitignore", "Global/nonexistent-file-xyz123.gitignore", "main")
 	require.Error(t, err, "Expected error for nonexistent file")
 	skipOnAuthError(t, err)
 
@@ -294,7 +294,7 @@ func TestDownloadFileFromGitHubUnauthenticated(t *testing.T) {
 	path := "Go.gitignore"
 	ref := "main"
 
-	content, err := downloadFileFromGitHub(owner, repo, path, ref)
+	content, err := downloadFileFromGitHub(t.Context(), owner, repo, path, ref)
 	// If the REST client unexpectedly succeeds (e.g., gh config file has a token),
 	// that is also fine – the point is that the file is returned without error.
 	if err != nil {
