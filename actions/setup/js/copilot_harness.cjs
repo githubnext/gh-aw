@@ -46,6 +46,7 @@ const crypto = require("crypto");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
+const { resolveRetryConfig } = require("./harness_retry_config.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -65,18 +66,6 @@ const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
 const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
 const { loadModelsJson } = require("./model_costs.cjs");
 
-// Maximum number of retry attempts after the initial run
-const DEFAULT_MAX_RETRIES = 3;
-// Initial delay in milliseconds before the first retry
-const DEFAULT_INITIAL_DELAY_MS = 5000;
-// Multiplier applied to delay after each retry
-const DEFAULT_BACKOFF_MULTIPLIER = 2;
-// Maximum delay cap in milliseconds
-const DEFAULT_MAX_DELAY_MS = 60000;
-const HARNESS_MAX_RETRIES_ENV = "GH_AW_HARNESS_MAX_RETRIES";
-const HARNESS_INITIAL_DELAY_MS_ENV = "GH_AW_HARNESS_INITIAL_DELAY_MS";
-const HARNESS_BACKOFF_MULTIPLIER_ENV = "GH_AW_HARNESS_BACKOFF_MULTIPLIER";
-const HARNESS_MAX_DELAY_MS_ENV = "GH_AW_HARNESS_MAX_DELAY_MS";
 // Additional startup retry budget for scheduled runs when Copilot exits with code 2
 // before producing any output (typically transient API interruption at startup).
 const MAX_SCHEDULED_EXIT2_RETRIES = 1;
@@ -96,66 +85,6 @@ const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 // The second alternative is anchored to a leading "400" to avoid false positives from unrelated
 // diagnostic or informational messages that might contain the phrase.
 const HTTP_400_RESPONSE_ERROR_PATTERN = /(?:Response status code does not indicate success:\s*400(?:\s*\(Bad Request\))?|400[^\n]*no model endpoints available given user constraints)/i;
-
-/**
- * @param {string | undefined} rawValue
- * @param {{envVar: string, defaultValue: number, minimum: number, allowFloat?: boolean, logger?: (message: string) => void}} options
- * @returns {number}
- */
-function parseRetryConfigNumber(rawValue, { envVar, defaultValue, minimum, allowFloat = false, logger }) {
-  if (rawValue == null || rawValue === "") {
-    return defaultValue;
-  }
-  const parsed = Number(rawValue);
-  // Accept only finite numbers that meet the minimum bound, and require whole
-  // numbers unless the caller explicitly opts into float support.
-  const isValidNumber = Number.isFinite(parsed) && parsed >= minimum && (allowFloat || Number.isInteger(parsed));
-  if (isValidNumber) {
-    return parsed;
-  }
-  if (logger) {
-    logger(`warning: ignoring invalid ${envVar}=${JSON.stringify(rawValue)}; using default ${defaultValue}`);
-  }
-  return defaultValue;
-}
-
-/**
- * @param {NodeJS.ProcessEnv} [env]
- * @param {(message: string) => void} [logger]
- * @returns {{maxRetries: number, initialDelayMs: number, backoffMultiplier: number, maxDelayMs: number}}
- */
-function resolveRetryConfig(env = process.env, logger = log) {
-  const maxRetries = parseRetryConfigNumber(env[HARNESS_MAX_RETRIES_ENV], {
-    envVar: HARNESS_MAX_RETRIES_ENV,
-    defaultValue: DEFAULT_MAX_RETRIES,
-    minimum: 0,
-    logger,
-  });
-  const initialDelayMs = parseRetryConfigNumber(env[HARNESS_INITIAL_DELAY_MS_ENV], {
-    envVar: HARNESS_INITIAL_DELAY_MS_ENV,
-    defaultValue: DEFAULT_INITIAL_DELAY_MS,
-    minimum: 1,
-    logger,
-  });
-  const backoffMultiplier = parseRetryConfigNumber(env[HARNESS_BACKOFF_MULTIPLIER_ENV], {
-    envVar: HARNESS_BACKOFF_MULTIPLIER_ENV,
-    defaultValue: DEFAULT_BACKOFF_MULTIPLIER,
-    minimum: 1,
-    allowFloat: true,
-    logger,
-  });
-  let maxDelayMs = parseRetryConfigNumber(env[HARNESS_MAX_DELAY_MS_ENV], {
-    envVar: HARNESS_MAX_DELAY_MS_ENV,
-    defaultValue: DEFAULT_MAX_DELAY_MS,
-    minimum: 1,
-    logger,
-  });
-  if (maxDelayMs < initialDelayMs) {
-    logger(`warning: ${HARNESS_MAX_DELAY_MS_ENV}=${maxDelayMs} is lower than ${HARNESS_INITIAL_DELAY_MS_ENV}=${initialDelayMs}; clamping max delay to initial delay`);
-    maxDelayMs = initialDelayMs;
-  }
-  return { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs };
-}
 
 // Pattern to detect MCP servers blocked by enterprise/organization policy.
 // This is a persistent policy configuration error — retrying will not help.

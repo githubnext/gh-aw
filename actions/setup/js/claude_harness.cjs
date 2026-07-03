@@ -34,6 +34,7 @@
 
 const fs = require("fs");
 const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
+const { resolveRetryConfig } = require("./harness_retry_config.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -49,19 +50,6 @@ const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOut
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
-
-// Maximum number of retry attempts after the initial run
-const DEFAULT_MAX_RETRIES = 3;
-// Initial delay in milliseconds before the first retry
-const DEFAULT_INITIAL_DELAY_MS = 5000;
-// Multiplier applied to delay after each retry
-const DEFAULT_BACKOFF_MULTIPLIER = 2;
-// Maximum delay cap in milliseconds
-const DEFAULT_MAX_DELAY_MS = 60000;
-const HARNESS_MAX_RETRIES_ENV = "GH_AW_HARNESS_MAX_RETRIES";
-const HARNESS_INITIAL_DELAY_MS_ENV = "GH_AW_HARNESS_INITIAL_DELAY_MS";
-const HARNESS_BACKOFF_MULTIPLIER_ENV = "GH_AW_HARNESS_BACKOFF_MULTIPLIER";
-const HARNESS_MAX_DELAY_MS_ENV = "GH_AW_HARNESS_MAX_DELAY_MS";
 
 // Pattern to detect Anthropic API overload errors (HTTP 529).
 // Matches "overloaded_error" from the Anthropic error type field, and the
@@ -89,66 +77,6 @@ const MAX_TURNS_EXIT_PATTERN = /"subtype"\s*:\s*"error_max_turns"/;
 // this path must not be retried via --continue (fall back to a fresh run if budget remains).
 const NO_DEFERRED_MARKER_PATTERN = /No deferred tool marker found/i;
 const SIGNAL_TERMINATION_EXIT_CODES = new Set([137, 143]);
-
-/**
- * @param {string | undefined} rawValue
- * @param {{envVar: string, defaultValue: number, minimum: number, allowFloat?: boolean, logger?: (message: string) => void}} options
- * @returns {number}
- */
-function parseRetryConfigNumber(rawValue, { envVar, defaultValue, minimum, allowFloat = false, logger }) {
-  if (rawValue == null || rawValue === "") {
-    return defaultValue;
-  }
-  const parsed = Number(rawValue);
-  // Accept only finite numbers that meet the minimum bound, and require whole
-  // numbers unless the caller explicitly opts into float support.
-  const isValidNumber = Number.isFinite(parsed) && parsed >= minimum && (allowFloat || Number.isInteger(parsed));
-  if (isValidNumber) {
-    return parsed;
-  }
-  if (logger) {
-    logger(`warning: ignoring invalid ${envVar}=${JSON.stringify(rawValue)}; using default ${defaultValue}`);
-  }
-  return defaultValue;
-}
-
-/**
- * @param {NodeJS.ProcessEnv} [env]
- * @param {(message: string) => void} [logger]
- * @returns {{maxRetries: number, initialDelayMs: number, backoffMultiplier: number, maxDelayMs: number}}
- */
-function resolveRetryConfig(env = process.env, logger = log) {
-  const maxRetries = parseRetryConfigNumber(env[HARNESS_MAX_RETRIES_ENV], {
-    envVar: HARNESS_MAX_RETRIES_ENV,
-    defaultValue: DEFAULT_MAX_RETRIES,
-    minimum: 0,
-    logger,
-  });
-  const initialDelayMs = parseRetryConfigNumber(env[HARNESS_INITIAL_DELAY_MS_ENV], {
-    envVar: HARNESS_INITIAL_DELAY_MS_ENV,
-    defaultValue: DEFAULT_INITIAL_DELAY_MS,
-    minimum: 1,
-    logger,
-  });
-  const backoffMultiplier = parseRetryConfigNumber(env[HARNESS_BACKOFF_MULTIPLIER_ENV], {
-    envVar: HARNESS_BACKOFF_MULTIPLIER_ENV,
-    defaultValue: DEFAULT_BACKOFF_MULTIPLIER,
-    minimum: 1,
-    allowFloat: true,
-    logger,
-  });
-  let maxDelayMs = parseRetryConfigNumber(env[HARNESS_MAX_DELAY_MS_ENV], {
-    envVar: HARNESS_MAX_DELAY_MS_ENV,
-    defaultValue: DEFAULT_MAX_DELAY_MS,
-    minimum: 1,
-    logger,
-  });
-  if (maxDelayMs < initialDelayMs) {
-    logger(`warning: ${HARNESS_MAX_DELAY_MS_ENV}=${maxDelayMs} is lower than ${HARNESS_INITIAL_DELAY_MS_ENV}=${initialDelayMs}; clamping max delay to initial delay`);
-    maxDelayMs = initialDelayMs;
-  }
-  return { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs };
-}
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
