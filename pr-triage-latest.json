@@ -1,26 +1,17 @@
 {
-  "run_date": "2026-07-03T01:01:31Z",
-  "run_id": "28631342177",
+  "run_date": "2026-07-03T07:18:58Z",
+  "run_id": "28644965236",
   "summary": {
-    "total": 12,
-    "new": 11,
-    "reconfirmed": 1,
-    "fast_track": 9,
-    "batch_review": 1,
-    "defer": 2,
+    "total": 10,
+    "new": 7,
+    "reconfirmed": 3,
+    "fast_track": 8,
+    "batch_review": 2,
+    "defer": 1,
     "auto_merge": 0,
     "close": 0
   },
   "prs": [
-    {
-      "number": 43057,
-      "title": "Fail fast on empty safeoutputs schema and add Copilot soft-time convergence guard",
-      "category": "bug",
-      "risk": "high",
-      "score": 90,
-      "action": "fast_track",
-      "draft": false
-    },
     {
       "number": 43005,
       "title": "Isolate safe_outputs checkout auth from safe-outputs app/token credentials",
@@ -29,36 +20,28 @@
       "score": 79,
       "action": "fast_track",
       "draft": false,
-      "note": "65 files changed, state: blocked"
+      "note": "65 files changed, reconfirmed, 21 comments"
     },
     {
-      "number": 43056,
-      "title": "fix(safe-outputs): bundle safe-outputs-items manifest to restore SafeItemsCount",
+      "number": 43128,
+      "title": "Thread context.Context through 8 public remote_fetch.go APIs to fix Ctrl-C cancellation",
       "category": "bug",
       "risk": "high",
-      "score": 75,
-      "action": "batch_review",
+      "score": 78,
+      "action": "fast_track",
+      "draft": false,
+      "note": "15 files, 4 review comments, broad API signature change"
+    },
+    {
+      "number": 43125,
+      "title": "Add `dismiss-review` safe output with actor-bound PR review dismissal guards",
+      "category": "feature",
+      "risk": "high",
+      "score": 72,
+      "action": "fast_track",
       "draft": false,
       "review": "changes_requested",
-      "note": "265 files changed, broken since 2026-05-31"
-    },
-    {
-      "number": 43048,
-      "title": "fix: stop double-charging cache-read tokens for github-copilot provider",
-      "category": "bug",
-      "risk": "low",
-      "score": 64,
-      "action": "fast_track",
-      "draft": false
-    },
-    {
-      "number": 43054,
-      "title": "Harden temp writes in safe-output evaluation script",
-      "category": "bug",
-      "risk": "medium",
-      "score": 62,
-      "action": "fast_track",
-      "draft": true
+      "note": "24 files, CHANGES_REQUESTED: 3 security/correctness issues"
     },
     {
       "number": 43051,
@@ -67,53 +50,61 @@
       "risk": "medium",
       "score": 57,
       "action": "fast_track",
-      "draft": true
+      "draft": false,
+      "review": "changes_requested",
+      "note": "reconfirmed, CHANGES_REQUESTED"
     },
     {
-      "number": 43064,
-      "title": "Render AWF steering signals from Copilot events in step summary and logs",
-      "category": "feature",
+      "number": 43127,
+      "title": "fix: detect stream_options HTTP 400 as non-retryable Anthropic BYOK error",
+      "category": "bug",
       "risk": "low",
-      "score": 50,
+      "score": 60,
       "action": "fast_track",
-      "draft": true
+      "draft": false,
+      "note": "3 files, 5 review comments"
     },
     {
-      "number": 43052,
-      "title": "Add regression coverage for create-issue deduplicate-by-title handler config emission",
-      "category": "test",
+      "number": 43139,
+      "title": "Fix audit comparison output for unsuccessful workflow runs",
+      "category": "bug",
       "risk": "low",
-      "score": 43,
+      "score": 58,
       "action": "fast_track",
-      "draft": true
+      "draft": false,
+      "note": "3 files, clean bug fix"
     },
     {
-      "number": 43055,
-      "title": "Trim search_repositories token cost with explicit small-page pagination in workflow prompts",
-      "category": "chore",
-      "risk": "low",
-      "score": 42,
+      "number": 43135,
+      "title": "Refactor runtime setup extra-field merging into shared helpers",
+      "category": "refactor",
+      "risk": "medium",
+      "score": 55,
       "action": "fast_track",
-      "draft": false
+      "draft": false,
+      "batch": "pr-batch:runtime-refactor",
+      "note": "5 files, batch with #43134"
     },
     {
-      "number": 43053,
-      "title": "Reduce ambient prompt bloat in core analysis workflows",
-      "category": "chore",
-      "risk": "low",
-      "score": 31,
+      "number": 43134,
+      "title": "Deduplicate runtime override cloning in applyRuntimeOverrides",
+      "category": "refactor",
+      "risk": "medium",
+      "score": 55,
       "action": "fast_track",
-      "draft": true
+      "draft": false,
+      "batch": "pr-batch:runtime-refactor",
+      "note": "2 files, 6 review comments, batch with #43135"
     },
     {
-      "number": 43063,
-      "title": "[WIP] Update model inventory and resolve alias gaps",
-      "category": "chore",
+      "number": 43126,
+      "title": "lint: fix 8 targeted golint categories from lint-monster scan",
+      "category": "formatting",
       "risk": "low",
-      "score": 30,
-      "action": "defer",
-      "draft": true,
-      "note": "zero files changed"
+      "score": 35,
+      "action": "batch_review",
+      "draft": false,
+      "note": "52 files, mechanical lint changes"
     },
     {
       "number": 42314,
@@ -123,38 +114,31 @@
       "score": 18,
       "action": "defer",
       "draft": true,
-      "note": "stale 3+ days, reconfirmed from prior run"
+      "note": "stale 4+ days, reconfirmed from prior runs"
     }
   ],
   "batches": [
     {
-      "id": "pr-batch:prompt-optimization",
-      "prs": [
-        43055,
-        43053
-      ],
-      "note": "Prompt text reduction in workflow specs"
+      "id": "pr-batch:runtime-refactor",
+      "prs": [43134, 43135],
+      "note": "Runtime override/setup deduplication — review together"
     },
     {
-      "id": "pr-batch:security-hardening",
-      "prs": [
-        43057,
-        43054
-      ],
-      "note": "Runtime hardening + CodeQL security fix"
+      "id": "pr-batch:bug-fixes",
+      "prs": [43127],
+      "note": "Harness error detection fixes"
     },
     {
       "id": "pr-batch:experimental",
-      "prs": [
-        42314
-      ],
+      "prs": [42314],
       "note": "Experimental engine drafts - monitor"
     }
   ],
   "flags": [
-    "PR 43056 has CHANGES_REQUESTED and 265 files changed \u2014 needs author response",
-    "PR 43005 state:blocked with 65 files \u2014 needs unblocking",
-    "7 of 12 PRs are in draft state",
-    "PR 43063 has zero files changed \u2014 WIP"
+    "PR 43125 CHANGES_REQUESTED: 3 correctness/security issues in dismiss_pull_request_review.cjs",
+    "PR 43051 CHANGES_REQUESTED: needs author response (reconfirmed)",
+    "PR 43005 still open with 65 files, 21 comments, needs unblocking (reconfirmed)",
+    "PR 43128 broad API signature change (8 APIs, 15 files) needs careful call-site validation",
+    "7 new PRs created in <1 hour by agent — active session burst"
   ]
 }
