@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"os"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -76,6 +77,24 @@ func TestIsFeatureEnabled(t *testing.T) {
 					tt.flag, tt.envValue, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestIsFeatureEnabledUsesConfiguredLookup(t *testing.T) {
+	originalLookup := os.LookupEnv
+	SetProcessEnvLookup(func(key string) (string, bool) {
+		if key == "GH_AW_FEATURES" {
+			return "firewall", true
+		}
+		return "", false
+	})
+	t.Cleanup(func() {
+		SetProcessEnvLookup(originalLookup)
+	})
+
+	result := isFeatureEnabled(constants.FeatureFlag("firewall"), nil)
+	if !result {
+		t.Errorf("isFeatureEnabled(\"firewall\", nil) should use configured environment lookup")
 	}
 }
 

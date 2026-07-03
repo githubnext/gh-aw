@@ -950,6 +950,9 @@ func main() {
 	// Set release flag in the workflow package
 	workflow.SetIsRelease(isRelease == "true")
 
+	// Wire process environment lookup from the top-level command layer.
+	workflow.SetProcessEnvLookup(os.LookupEnv)
+
 	// Set up a context that is cancelled when Ctrl-C (SIGINT) or SIGTERM is received.
 	// This ensures all commands and subprocesses are properly interrupted on Ctrl-C.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

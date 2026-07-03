@@ -111,6 +111,35 @@ func TestExecGH(t *testing.T) {
 	}
 }
 
+func TestExecGHUsesConfiguredLookup(t *testing.T) {
+	SetProcessEnvLookup(func(key string) (string, bool) {
+		switch key {
+		case "GH_TOKEN":
+			return "", false
+		case "GITHUB_TOKEN":
+			return "lookup-token", true
+		case "GH_HOST":
+			return "", false
+		default:
+			return "", false
+		}
+	})
+	t.Cleanup(func() {
+		SetProcessEnvLookup(os.LookupEnv)
+	})
+
+	originalDefaultHost := getDefaultGHHost()
+	SetDefaultGHHost("configured.ghe.com")
+	t.Cleanup(func() {
+		SetDefaultGHHost(originalDefaultHost)
+	})
+
+	cmd := ExecGH("auth", "status")
+	require.NotNil(t, cmd.Env)
+	assert.Contains(t, cmd.Env, "GH_TOKEN=lookup-token")
+	assert.Contains(t, cmd.Env, "GH_HOST=configured.ghe.com")
+}
+
 func TestExecGHWithMultipleArgs(t *testing.T) {
 	// Save original environment
 	originalGHToken := os.Getenv("GH_TOKEN")
