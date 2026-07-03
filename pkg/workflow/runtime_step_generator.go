@@ -74,7 +74,7 @@ func mergeRuntimeWithFields(req *RuntimeRequirement) map[string]string {
 func appendSortedWithFieldEntries(step GitHubActionStep, withFields map[string]string) GitHubActionStep {
 	for _, key := range sliceutil.SortedKeys(withFields) {
 		step = append(step, fmt.Sprintf("          %s: %s", key, withFields[key]))
-		workflowLog.Printf("  Added extra with field: %s = %s", key, withFields[key])
+		workflowLog.Printf("  Added extra with-field: %s = %s", key, withFields[key])
 	}
 
 	return step

@@ -547,6 +547,23 @@ func TestGenerateRuntimeSetupSteps_GoVersionFileMergesAndSortsRuntimeExtraFields
 	assert.Less(t, strings.Index(content, "cache: true"), strings.Index(content, "check-latest: false"))
 }
 
+func TestGenerateRuntimeSetupSteps_GoVersionFileFromExtraFieldsWhenGoModFileNotSet(t *testing.T) {
+	goRuntime := findRuntimeByID("go")
+	require.NotNil(t, goRuntime)
+
+	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
+		Runtime: goRuntime,
+		ExtraFields: map[string]any{
+			"go-version-file": "go.work.mod",
+		},
+	}}, nil)
+	require.NotEmpty(t, steps)
+
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "go-version-file: 'go.work.mod'")
+	assert.Equal(t, 1, strings.Count(content, "go-version-file:"))
+}
+
 func TestGenerateRuntimeSetupSteps_UVWithoutVersionRendersRuntimeExtraWithFields(t *testing.T) {
 	uvRuntime := *findRuntimeByID("uv")
 	uvRuntime.ExtraWithFields = map[string]string{
