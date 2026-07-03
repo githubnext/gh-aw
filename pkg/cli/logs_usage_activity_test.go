@@ -205,3 +205,74 @@ func TestApplyUsageActivitySummaryDoesNotOverwriteExistingData(t *testing.T) {
 	assert.Same(t, existingFirewall, result.FirewallAnalysis, "existing firewall analysis must not be replaced")
 	assert.Same(t, existingMCP, result.MCPToolUsage, "existing MCP tool usage must not be replaced")
 }
+
+func TestApplyUsageActivitySummaryBackfillsSafeItemsCount(t *testing.T) {
+	t.Parallel()
+
+	result := DownloadResult{}
+	summary := &usageActivitySummary{
+		SafeOutputs: &usageActivitySafeOutputs{
+			TotalItems: 3,
+			ItemsByType: map[string]int{
+				"create_issue": 2,
+				"add_comment":  1,
+			},
+		},
+	}
+
+	applyUsageActivitySummaryToResult(summary, &result, true)
+
+	assert.Equal(t, 3, result.Run.SafeItemsCount, "SafeItemsCount should be backfilled from usage summary safe_outputs.total_items")
+}
+
+func TestApplyUsageActivitySummaryDoesNotOverwriteExistingSafeItemsCount(t *testing.T) {
+	t.Parallel()
+
+	result := DownloadResult{Run: WorkflowRun{SafeItemsCount: 5}}
+	summary := &usageActivitySummary{
+		SafeOutputs: &usageActivitySafeOutputs{
+			TotalItems: 3,
+		},
+	}
+
+	applyUsageActivitySummaryToResult(summary, &result, true)
+
+	assert.Equal(t, 5, result.Run.SafeItemsCount, "existing SafeItemsCount must not be overwritten by usage summary")
+}
+
+func TestApplyUsageActivitySummarySafeItemsCountZeroNotBackfilled(t *testing.T) {
+	t.Parallel()
+
+	result := DownloadResult{}
+	summary := &usageActivitySummary{
+		SafeOutputs: &usageActivitySafeOutputs{
+			TotalItems: 0,
+		},
+	}
+
+	applyUsageActivitySummaryToResult(summary, &result, true)
+
+	assert.Equal(t, 0, result.Run.SafeItemsCount, "zero safe items in summary should not alter SafeItemsCount")
+}
+
+func TestLoadUsageActivitySummaryWithSafeOutputs(t *testing.T) {
+	t.Parallel()
+
+	runDir := t.TempDir()
+	summaryPath := filepath.Join(runDir, "usage", "activity", "summary.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(summaryPath), 0o755))
+	require.NoError(t, os.WriteFile(summaryPath, []byte(`{
+		"schema":"`+usageActivitySummarySchema+`",
+		"safe_outputs":{
+			"total_items":4,
+			"items_by_type":{"create_issue":3,"add_comment":1}
+		}
+	}`), 0o644))
+
+	summary, err := loadUsageActivitySummary(runDir)
+	require.NoError(t, err)
+	require.NotNil(t, summary)
+	require.NotNil(t, summary.SafeOutputs, "safe_outputs section should be parsed from JSON")
+	assert.Equal(t, 4, summary.SafeOutputs.TotalItems, "total_items should be parsed from JSON")
+	assert.Equal(t, map[string]int{"create_issue": 3, "add_comment": 1}, summary.SafeOutputs.ItemsByType, "items_by_type should be parsed from JSON")
+}
