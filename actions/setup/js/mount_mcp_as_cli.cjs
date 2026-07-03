@@ -85,6 +85,18 @@ function recoverSafeOutputsToolsIfNeeded(tools, core) {
 }
 
 /**
+ * Per-server post-fetch validator registry.
+ * Each entry receives the fetched tool list and the @actions/core instance, and returns
+ * a (possibly replaced) tool list. Throwing here aborts the mount step for that server.
+ * Add an entry here when a server needs special validation after tools/list.
+ *
+ * @type {Record<string, (tools: Array<{name: string, description?: string, inputSchema?: unknown}>, core: typeof import("@actions/core")) => Array<{name: string, description?: string, inputSchema?: unknown}>>}
+ */
+const SERVER_VALIDATORS = {
+  [SAFEOUTPUTS_SERVER_NAME]: (tools, core) => recoverSafeOutputsToolsIfNeeded(tools, core),
+};
+
+/**
  * Validate that a server name is safe to use as a filename and in shell scripts.
  * Prevents path traversal, shell metacharacter injection, and other abuse.
  *
@@ -447,8 +459,9 @@ async function main() {
 
     // Query tools from the server using the host-accessible URL (mount step runs on host)
     let tools = await fetchMCPTools(url, apiKey, core);
-    if (name === SAFEOUTPUTS_SERVER_NAME) {
-      tools = recoverSafeOutputsToolsIfNeeded(tools, core);
+    const validate = SERVER_VALIDATORS[name];
+    if (validate) {
+      tools = validate(tools, core);
     }
     core.info(`  Found ${tools.length} tool(s)`);
 
@@ -509,4 +522,5 @@ module.exports = {
   toContainerUrl,
   loadToolsFromJSONFile,
   recoverSafeOutputsToolsIfNeeded,
+  SERVER_VALIDATORS,
 };

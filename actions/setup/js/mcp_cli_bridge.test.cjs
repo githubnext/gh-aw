@@ -167,6 +167,7 @@ describe("mcp_cli_bridge.cjs", () => {
       const recovered = ensureSafeOutputsTools([], "safeoutputs", path.join(tempDir, "empty.json"));
       expect(recovered).toHaveLength(1);
       expect(recovered[0].name).toBe("report_incomplete");
+      expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("recovered"));
     } finally {
       if (originalPath === undefined) {
         delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;

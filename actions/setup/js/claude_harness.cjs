@@ -344,6 +344,10 @@ async function main() {
   let useContinueOnRetry = false;
   let continueDisabledPermanently = false;
   const driverStartTime = Date.now();
+  // Soft-timeout guard: polled at the top of the retry loop and after each backoff sleep.
+  // It does not preempt a running attempt — if a single invocation runs past the soft
+  // deadline the guard fires on the next iteration. Individual attempts are expected to
+  // complete within the SOFT_TIMEOUT_BUFFER_MS window.
   const softTimeoutGuard = buildSoftTimeoutGuard(driverStartTime);
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
