@@ -332,7 +332,7 @@ A field on `submit-pull-request-review:` safe outputs that dismisses older `REQU
 
 ### Deduplicate by Title (`deduplicate-by-title:`)
 
-A `create-issue` safe-output field that drops duplicate issues before creation by comparing titles. Accepts `true` for exact matching (after normalization) or an integer `0`–`100` for fuzzy matching within the given Levenshtein edit distance (e.g., `1` allows one-character differences). Deduplication runs at MCP tool-call time (within-run) and at apply time (against open and recently-closed repository issues). Dropped items are recorded in the safe-output summary with the matched title, edit distance, and source. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#issue-creation-create-issue).
+A `create-issue` safe-output field that drops duplicate issues before creation by comparing titles. Accepts `true` for exact matching (after normalization) or a GitHub Actions expression that resolves to a boolean at runtime. Deduplication runs at MCP tool-call time (within-run) and at apply time (against open and recently-closed repository issues). Dropped items are recorded in the safe-output summary with the matched title, edit distance, and source. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#issue-creation-create-issue).
 
 ### Allowed Fields (`create-issue:`)
 

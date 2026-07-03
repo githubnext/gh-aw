@@ -5146,17 +5146,8 @@
                   ]
                 },
                 "deduplicate-by-title": {
-                  "description": "Title-based deduplication for create-issue. Set to true for exact title matching, or provide a non-negative integer to deduplicate by Levenshtein edit distance (e.g., 1 allows one-character differences). Applies within-run and against open/recently-closed repository issues.",
-                  "oneOf": [
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 100
-                    }
-                  ]
+                  "description": "Title-based deduplication for create-issue. Set to true for exact title matching after normalization, or use a GitHub Actions expression that resolves to a boolean at runtime. Applies within-run and against open/recently-closed repository issues.",
+                  "$ref": "#/$defs/templatable_boolean"
                 },
                 "target-repo": {
                   "type": "string",

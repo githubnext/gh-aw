@@ -1,28 +1,32 @@
 // @ts-check
 
+const { parseBoolTemplatable } = require("./templatable.cjs");
 const { levenshteinDistance } = require("./levenshtein_distance.cjs");
-const MAX_DEDUPLICATE_BY_TITLE_DISTANCE = 100;
 
 /**
  * Parse create-issue deduplication config.
- * - true  => enabled with exact-match distance 0
- * - false => disabled
- * - N     => enabled with Levenshtein max distance N
+ * - true / "true"   => enabled with exact-match distance 0
+ * - false / "false" => disabled
  *
  * @param {unknown} value
  * @returns {{ enabled: boolean, maxDistance: number }}
  */
 function parseDeduplicateByTitle(value) {
-  if (value === undefined || value === null || value === false) {
+  if (value === undefined || value === null) {
     return { enabled: false, maxDistance: 0 };
   }
-  if (value === true) {
-    return { enabled: true, maxDistance: 0 };
+  if (typeof value === "boolean") {
+    return { enabled: value, maxDistance: 0 };
   }
-  if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0 && value <= MAX_DEDUPLICATE_BY_TITLE_DISTANCE) {
-    return { enabled: true, maxDistance: value };
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true" || normalized === "false") {
+      return { enabled: parseBoolTemplatable(normalized, false), maxDistance: 0 };
+    }
+    // Expressions must be resolved by the runner before the handler config JSON is parsed.
+    // Any other string here is neither a literal boolean nor a resolved boolean value.
   }
-  throw new Error(`deduplicate-by-title must be a boolean or a non-negative integer (0-${MAX_DEDUPLICATE_BY_TITLE_DISTANCE})`);
+  throw new Error('deduplicate-by-title must be a boolean or a string containing "true" or "false" (GitHub Actions expressions must resolve before runtime)');
 }
 
 /**

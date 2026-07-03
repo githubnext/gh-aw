@@ -2335,15 +2335,15 @@ describe("safe_outputs_handlers", () => {
       expect(droppedEntry._duplicate_distance).toBe(0);
     });
 
-    it("should support Levenshtein distance threshold in MCP pre-check", () => {
+    it("should support resolved templatable strings in MCP pre-check", () => {
       const h = createHandlers(mockServer, mockAppendSafeOutput, {
         create_issue: {
-          deduplicate_by_title: 1,
+          deduplicate_by_title: "true",
         },
       });
 
-      h.createIssueHandler({ title: "Fix login bug", body: "A" });
-      const second = h.createIssueHandler({ title: "Fix login bag", body: "B" });
+      h.createIssueHandler({ title: "Duplicate Issue", body: "A" });
+      const second = h.createIssueHandler({ title: "Duplicate Issue", body: "B" });
       const secondResponse = JSON.parse(second.content[0].text);
 
       expect(secondResponse.result).toBe("duplicate_dropped");
@@ -2369,7 +2369,7 @@ describe("safe_outputs_handlers", () => {
       expect(() =>
         createHandlers(mockServer, mockAppendSafeOutput, {
           create_issue: {
-            deduplicate_by_title: "invalid",
+            deduplicate_by_title: 1,
           },
         })
       ).toThrow("deduplicate-by-title");

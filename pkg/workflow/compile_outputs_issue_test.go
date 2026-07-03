@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
-	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 // assertTokenInProcessSafeOutputsEnv verifies that a given environment variable name
@@ -151,7 +150,7 @@ engine: claude
 strict: false
 safe-outputs:
   create-issue:
-    deduplicate-by-title: 1
+    deduplicate-by-title: true
     title-prefix: "[genai] "
     labels: [copilot, automation]
 ---
@@ -201,9 +200,8 @@ This workflow tests the output configuration parsing.
 		}
 	}
 
-	deduplicateByTitle, ok := typeutil.ParseIntValue(workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle)
-	if !ok || deduplicateByTitle != 1 {
-		t.Errorf("Expected deduplicate-by-title to parse as 1, got %#v", workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle)
+	if workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle == nil || *workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle != "true" {
+		t.Errorf("Expected deduplicate-by-title to parse as \"true\", got %#v", workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle)
 	}
 }
 
@@ -352,7 +350,7 @@ engine: claude
 strict: false
 safe-outputs:
   create-issue:
-    deduplicate-by-title: 1
+    deduplicate-by-title: true
     title-prefix: "[genai] "
     labels: [copilot]
 ---
@@ -419,7 +417,7 @@ This workflow tests the create-issue job generation.
 		t.Error("Expected copilot label in handler config")
 	}
 
-	if !strings.Contains(lockContent, `\"deduplicate_by_title\":1`) {
+	if !strings.Contains(lockContent, `\"deduplicate_by_title\":true`) {
 		t.Error("Expected deduplicate_by_title in handler config")
 	}
 
@@ -438,8 +436,8 @@ func TestOutputIssueJobGenerationEmitsDeduplicateByTitleVariants(t *testing.T) {
 		expectedConfig string
 	}{
 		{name: "true", yamlValue: "true", expectedConfig: `\"deduplicate_by_title\":true`},
-		{name: "zero", yamlValue: "0", expectedConfig: `\"deduplicate_by_title\":0`},
-		{name: "one", yamlValue: "1", expectedConfig: `\"deduplicate_by_title\":1`},
+		{name: "false", yamlValue: "false", expectedConfig: `\"deduplicate_by_title\":false`},
+		{name: "expression", yamlValue: "${{ inputs.enable_dedup }}", expectedConfig: `\"deduplicate_by_title\":\"${{ inputs.enable_dedup }}\"`},
 	}
 
 	for _, tc := range testCases {
