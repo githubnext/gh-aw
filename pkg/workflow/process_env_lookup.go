@@ -5,11 +5,11 @@ import (
 	"sync"
 )
 
-type processEnvLookupFunc func(string) (string, bool)
+type envLookupFunc func(string) (string, bool)
 
 var (
 	processEnvLookupMu sync.RWMutex
-	processEnvLookup   processEnvLookupFunc = os.LookupEnv
+	processEnvLookup   envLookupFunc = os.LookupEnv
 )
 
 // SetProcessEnvLookup configures how workflow helpers resolve environment values.
@@ -27,10 +27,8 @@ func SetProcessEnvLookup(lookup func(string) (string, bool)) {
 func lookupProcessEnv(key string) string {
 	processEnvLookupMu.RLock()
 	defer processEnvLookupMu.RUnlock()
-	lookup := processEnvLookup
-	if lookup == nil {
-		return ""
-	}
-	value, _ := lookup(key)
+	// Intentionally ignore the existence flag to preserve os.Getenv semantics:
+	// missing variables and explicitly empty variables are both treated as "".
+	value, _ := processEnvLookup(key)
 	return value
 }
