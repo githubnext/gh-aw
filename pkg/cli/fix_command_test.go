@@ -1177,3 +1177,138 @@ tools:
 		t.Errorf("Expected scaffolded Serena workflow to pass languages through to upstream import, got:\n%s", scaffolded)
 	}
 }
+
+func TestRunFix_GuidedErrorReturnsExitCode2(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "byok-workflow.md")
+
+	// Workflow with a secret in top-level env (triggers the guided-error codemod)
+	content := `---
+on: workflow_dispatch
+env:
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+---
+
+# BYOK Workflow
+`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644))
+
+	err := RunFix(FixConfig{
+		Write:       false,
+		WorkflowDir: tmpDir,
+	})
+
+	require.Error(t, err, "RunFix should return an error when a guided error is triggered")
+	var exitErr *ExitCodeError
+	require.ErrorAs(t, err, &exitErr, "error should be an ExitCodeError")
+	assert.Equal(t, 2, exitErr.Code, "exit code should be 2 for guided errors")
+}
+
+func TestRunFix_GuidedErrorDoesNotPrintNoFixesNeeded(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "byok-workflow.md")
+
+	// Workflow with a secret in top-level env (triggers the guided-error codemod)
+	content := `---
+on: workflow_dispatch
+env:
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+---
+
+# BYOK Workflow
+`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644))
+
+	// Capture stderr
+	origStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = origStderr })
+
+	_ = RunFix(FixConfig{
+		Write:       false,
+		WorkflowDir: tmpDir,
+	})
+
+	require.NoError(t, w.Close())
+	output, err := io.ReadAll(r)
+	require.NoError(t, err)
+	outputStr := string(output)
+
+	assert.NotContains(t, outputStr, "No fixes needed", "should not print 'No fixes needed' when a guided error is present")
+	assert.Contains(t, outputStr, "manual fix", "should mention manual fix in output")
+}
+
+func TestRunFix_GuidedErrorWithMultipleFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// File 1: has guided error
+	content1 := `---
+on: workflow_dispatch
+env:
+  TOKEN: ${{ secrets.MY_TOKEN }}
+---
+
+# Workflow 1
+`
+	// File 2: has guided error
+	content2 := `---
+on: workflow_dispatch
+env:
+  API_KEY: ${{ secrets.API_KEY }}
+---
+
+# Workflow 2
+`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "workflow-one.md"), []byte(content1), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "workflow-two.md"), []byte(content2), 0644))
+
+	// Capture stderr
+	origStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = origStderr })
+
+	runErr := RunFix(FixConfig{
+		Write:       false,
+		WorkflowDir: tmpDir,
+	})
+
+	require.NoError(t, w.Close())
+	output, err := io.ReadAll(r)
+	require.NoError(t, err)
+	outputStr := string(output)
+
+	require.Error(t, runErr)
+	var exitErr *ExitCodeError
+	require.ErrorAs(t, runErr, &exitErr)
+	assert.Equal(t, 2, exitErr.Code)
+
+	assert.Contains(t, outputStr, "2 files need a manual fix", "should report plural count")
+}
+
+func TestProcessWorkflowFileWithInfo_GuidedErrorWrapped(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test.md")
+
+	content := `---
+on: workflow_dispatch
+env:
+  TOKEN: ${{ secrets.MY_TOKEN }}
+---
+
+# Test
+`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644))
+
+	guidedCodemod := getCodemodByID("top-level-env-secrets-guided-error")
+	require.NotNil(t, guidedCodemod)
+
+	_, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*guidedCodemod}, false, false)
+
+	require.Error(t, err)
+	var guidedErr *GuidedError
+	assert.ErrorAs(t, err, &guidedErr, "error should be wrapped as GuidedError")
+}

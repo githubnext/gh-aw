@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -160,6 +161,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 	// Process each file
 	var totalFixed int
 	var totalFiles int
+	var totalGuidedErrors int
 	var workflowsNeedingFixes []workflowFixInfo
 
 	for _, file := range files {
@@ -168,6 +170,10 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 		fixed, appliedFixes, err := processWorkflowFileWithInfo(file, codemods, write, verbose)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatErrorMessage(fmt.Sprintf("Error processing %s: %v", filepath.Base(file), err)))
+			var guidedErr *GuidedError
+			if errors.As(err, &guidedErr) {
+				totalGuidedErrors++
+			}
 			continue
 		}
 
@@ -239,7 +245,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 	if write {
 		if totalFixed > 0 {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage(fmt.Sprintf("✓ Fixed %d of %d workflow files", totalFixed, totalFiles)))
-		} else {
+		} else if totalGuidedErrors == 0 {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("✓ No fixes needed"))
 		}
 	} else {
@@ -257,9 +263,18 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 			for _, wf := range workflowsNeedingFixes {
 				fmt.Fprintf(os.Stderr, "  gh aw fix %s --write\n", strings.TrimSuffix(wf.File, ".md"))
 			}
-		} else {
+		} else if totalGuidedErrors == 0 {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("✓ No fixes needed"))
 		}
+	}
+
+	if totalGuidedErrors > 0 {
+		noun := "file needs"
+		if totalGuidedErrors > 1 {
+			noun = "files need"
+		}
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatErrorMessage(fmt.Sprintf("%d %s a manual fix", totalGuidedErrors, noun)))
+		return &ExitCodeError{Code: 2}
 	}
 
 	return nil
@@ -302,7 +317,11 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 		newContent, applied, err := codemod.Apply(currentContent, currentResult.Frontmatter)
 		if err != nil {
 			fixLog.Printf("Codemod %s failed: %v", codemod.ID, err)
-			return false, nil, fmt.Errorf("codemod %s failed: %w", codemod.ID, err)
+			wrappedErr := fmt.Errorf("codemod %s failed: %w", codemod.ID, err)
+			if codemod.Guided {
+				return false, nil, &GuidedError{Cause: wrappedErr}
+			}
+			return false, nil, wrappedErr
 		}
 
 		if applied {
