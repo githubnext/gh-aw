@@ -1,6 +1,18 @@
 {
-  "last_updated": "2026-07-01",
+  "last_updated": "2026-07-03",
   "pending_tasks": [
+    {
+      "file": "docs/src/content/docs/reference/github-tools.md",
+      "created": "2026-07-03",
+      "priority": "high",
+      "title": "Remove duplicate paragraph in GitHub Cross-Repository Reading section (lines 75-77)"
+    },
+    {
+      "file": "docs/src/content/docs/reference/serena.md",
+      "created": "2026-07-03",
+      "priority": "high",
+      "title": "Convert Best Practices wall-of-text to bullet list and remove duplicate 'Using MCPs' link in Related Documentation"
+    },
     {
       "file": "docs/src/content/docs/blog/2026-01-13-meet-the-workflows-documentation.md",
       "created": "2026-07-01",

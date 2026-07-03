@@ -1,0 +1,40 @@
+{
+  "date": "2026-07-03",
+  "files_analyzed": {
+    "documentation": [
+      "docs/src/content/docs/reference/serena.md",
+      "docs/src/content/docs/reference/github-tools.md"
+    ],
+    "cli": ["(binary unavailable; skipped)"],
+    "messages": [
+      ".github/workflows/ruflo-backed-task.md",
+      ".github/workflows/shared/ollama-threat-scan.md"
+    ],
+    "validation": [
+      "pkg/workflow/permissions_scope_validation_test.go"
+    ]
+  },
+  "overall_quality": "needs-work",
+  "quality_highlights": [
+    {
+      "file": "docs/src/content/docs/reference/github-tools.md",
+      "aspect": "PAT setup instructions are precise and actionable: step-by-step with CLI command, permission table, and pre-filled GitHub URL. Excellent model for setup documentation."
+    },
+    {
+      "file": "pkg/workflow/permissions_scope_validation_test.go",
+      "aspect": "Error messages in permissions_validation.go are high-quality: quote the bad value, offer 'Did you mean' suggestion, list valid options, include docs URL. Professional pattern."
+    }
+  ],
+  "single_file_improvements": [
+    {
+      "file": "docs/src/content/docs/reference/github-tools.md",
+      "priority": "high",
+      "issue": "Lines 75-77: Duplicate paragraph. 'By default, the GitHub Tools can read from the current repository and all public repositories...' appears twice in a row. First instance (line 75) has extra detail about tools.github.allowed-repos; second instance (line 77) is a shorter duplicate. Looks like a copy-paste error."
+    },
+    {
+      "file": "docs/src/content/docs/reference/serena.md",
+      "priority": "high",
+      "issue": "Best Practices section (line 131) is a single wall-of-text paragraph containing five separate practices. No list formatting, no visual breaks. Additionally, Related Documentation section has a duplicate 'Using MCPs' link (lines 143 and 146, same URL /gh-aw/guides/mcps/)."
+    }
+  ]
+}
