@@ -719,6 +719,17 @@ function buildSoftTimeoutGuard(driverStartTime, env = process.env) {
 }
 
 /**
+ * Emit infrastructure incomplete signal and log when the soft timeout guard fires.
+ * Extracted to avoid duplicating the identical message/log pair at every call site.
+ * @param {{ timeoutMinutes: number, softDeadlineMs: number }} guard
+ * @param {string} context - Short label for where the check fired (e.g. "before attempt 2")
+ */
+function emitSoftTimeoutSignal(guard, context) {
+  emitInfrastructureIncomplete(`Copilot harness reached soft retry budget before the ${guard.timeoutMinutes}-minute step timeout. ` + "Stopping retries early to preserve structured failure output.");
+  log(`soft-timeout guard reached ${context}: timeoutMinutes=${guard.timeoutMinutes} bufferMs=${SOFT_TIMEOUT_BUFFER_MS}`);
+}
+
+/**
  * Main entry point: run copilot with retry logic for partially-executed sessions.
  */
 async function main() {
@@ -895,8 +906,7 @@ async function main() {
       // --continue is a CLI concept; in SDK mode retries always restart the session fresh.
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
-          emitInfrastructureIncomplete(`Copilot harness reached soft retry budget before the ${softTimeoutGuard.timeoutMinutes}-minute step timeout. ` + "Stopping retries early to preserve structured failure output.");
-          log(`soft-timeout guard reached before attempt ${attempt + 1}: ` + `timeoutMinutes=${softTimeoutGuard.timeoutMinutes} bufferMs=${SOFT_TIMEOUT_BUFFER_MS}`);
+          emitSoftTimeoutSignal(softTimeoutGuard, `before attempt ${attempt + 1}`);
           lastExitCode = 1;
           break;
         }
@@ -910,8 +920,7 @@ async function main() {
           delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
           log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
           if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
-            emitInfrastructureIncomplete(`Copilot harness reached soft retry budget before the ${softTimeoutGuard.timeoutMinutes}-minute step timeout. ` + "Stopping retries early to preserve structured failure output.");
-            log(`soft-timeout guard reached after backoff sleep: ` + `timeoutMinutes=${softTimeoutGuard.timeoutMinutes} bufferMs=${SOFT_TIMEOUT_BUFFER_MS}`);
+            emitSoftTimeoutSignal(softTimeoutGuard, "after backoff sleep");
             lastExitCode = 1;
             break;
           }

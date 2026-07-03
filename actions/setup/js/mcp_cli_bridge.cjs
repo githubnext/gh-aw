@@ -845,13 +845,12 @@ function ensureSafeOutputsTools(tools, serverName, toolsFile) {
   if (serverName !== SAFEOUTPUTS_SERVER_NAME || tools.length > 0) {
     return tools;
   }
-  const core = global.core;
   const runnerTemp = process.env.RUNNER_TEMP || path.resolve(path.dirname(toolsFile), "../../..");
   const fallbackPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || path.join(runnerTemp, "gh-aw", "safeoutputs", "tools.json");
   if (fallbackPath !== toolsFile) {
     const fallbackTools = loadTools(fallbackPath);
     if (fallbackTools.length > 0) {
-      core.warning(`[${serverName}] tools cache ${toolsFile} is empty; recovered ${fallbackTools.length} tool(s) from ${fallbackPath}`);
+      global.core?.warning(`[${serverName}] tools cache ${toolsFile} is empty; recovered ${fallbackTools.length} tool(s) from ${fallbackPath}`);
       return fallbackTools;
     }
   }
