@@ -46,7 +46,7 @@ const crypto = require("crypto");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
-const { resolveRetryConfig } = require("./harness_retry_config.cjs");
+const { resolveRetryConfig: resolveSharedRetryConfig } = require("./harness_retry_config.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -140,6 +140,15 @@ const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
  */
 function log(message) {
   process.stderr.write(`[copilot-harness] ${message}\n`);
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {(message: string) => void} [logger]
+ * @returns {{maxRetries: number, initialDelayMs: number, backoffMultiplier: number, maxDelayMs: number}}
+ */
+function resolveRetryConfig(env = process.env, logger = log) {
+  return resolveSharedRetryConfig(env, logger);
 }
 
 /**

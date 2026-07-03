@@ -34,7 +34,7 @@
 
 const fs = require("fs");
 const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
-const { resolveRetryConfig } = require("./harness_retry_config.cjs");
+const { resolveRetryConfig: resolveSharedRetryConfig } = require("./harness_retry_config.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -87,6 +87,15 @@ const SIGNAL_TERMINATION_EXIT_CODES = new Set([137, 143]);
 function log(message) {
   const ts = new Date().toISOString();
   process.stderr.write(`[claude-harness] ${ts} ${message}\n`);
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {(message: string) => void} [logger]
+ * @returns {{maxRetries: number, initialDelayMs: number, backoffMultiplier: number, maxDelayMs: number}}
+ */
+function resolveRetryConfig(env = process.env, logger = log) {
+  return resolveSharedRetryConfig(env, logger);
 }
 
 /**
