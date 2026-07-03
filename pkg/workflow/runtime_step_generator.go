@@ -74,7 +74,7 @@ func mergeRuntimeWithFields(req *RuntimeRequirement) map[string]string {
 func appendSortedWithFieldEntries(step GitHubActionStep, withFields map[string]string) GitHubActionStep {
 	for _, key := range sliceutil.SortedKeys(withFields) {
 		step = append(step, fmt.Sprintf("          %s: %s", key, withFields[key]))
-		workflowLog.Printf("  Added extra field to runtime setup: %s = %s", key, withFields[key])
+		workflowLog.Printf("  Added extra with field: %s = %s", key, withFields[key])
 	}
 
 	return step
@@ -109,11 +109,7 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 
 	// Use default version if none specified.
 	if version == "" {
-		if runtime.ID == "gh-aw" {
-			version = getDefaultGhAWRuntimeVersion()
-		} else {
-			version = runtime.DefaultVersion
-		}
+		version = runtime.DefaultVersion
 	}
 
 	// Use SHA-pinned action reference for security if available
@@ -141,10 +137,14 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 
 	// Special handling for Go when go-mod-file is explicitly specified
 	if runtime.ID == "go" && req.GoModFile != "" {
+		withFields := mergeRuntimeWithFields(req)
+		delete(withFields, "go-version-file")
 		step = append(step, "        with:")
 		step = append(step, "          go-version-file: "+req.GoModFile)
-		return appendSortedWithFieldEntries(step, mergeRuntimeWithFields(req))
+		return appendSortedWithFieldEntries(step, withFields)
 	}
+
+	withFields := mergeRuntimeWithFields(req)
 
 	// Add version field if we have a version
 	if version != "" {
@@ -152,13 +152,13 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 		step = append(step, fmt.Sprintf("          %s: '%s'", runtime.VersionField, version))
 	} else if runtime.ID == "uv" {
 		// For uv without version, no with block needed (unless there are extra fields)
-		if len(req.ExtraFields) == 0 {
+		if len(withFields) == 0 {
 			return step
 		}
 		step = append(step, "        with:")
 	}
 
-	return appendSortedWithFieldEntries(step, mergeRuntimeWithFields(req))
+	return appendSortedWithFieldEntries(step, withFields)
 }
 
 func actionModeForRuntimeSetup(isRelease bool) ActionMode {

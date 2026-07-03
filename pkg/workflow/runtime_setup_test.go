@@ -515,6 +515,7 @@ func TestGenerateRuntimeSetupSteps_MergesAndSortsRuntimeExtraFields(t *testing.T
 	content := strings.Join(steps[0], "\n")
 	assert.Contains(t, content, "cache-dependency-path: 'frontend/package-lock.json'")
 	assert.Contains(t, content, "package-manager-cache: true")
+	assert.NotContains(t, content, "package-manager-cache: false")
 	assert.Less(t, strings.Index(content, "node-version: '24'"), strings.Index(content, "cache-dependency-path: 'frontend/package-lock.json'"))
 	assert.Less(t, strings.Index(content, "node-version: '24'"), strings.Index(content, "package-manager-cache: true"))
 	assert.Less(t, strings.Index(content, "cache-dependency-path: 'frontend/package-lock.json'"), strings.Index(content, "package-manager-cache: true"))
@@ -528,18 +529,39 @@ func TestGenerateRuntimeSetupSteps_GoVersionFileMergesAndSortsRuntimeExtraFields
 		Runtime:   goRuntime,
 		GoModFile: "custom/go.mod",
 		ExtraFields: map[string]any{
-			"cache":        true,
-			"check-latest": false,
+			"cache":           true,
+			"check-latest":    false,
+			"go-version-file": "ignored/go.mod",
 		},
 	}}, nil)
 	require.NotEmpty(t, steps)
 
 	content := strings.Join(steps[0], "\n")
 	assert.Contains(t, content, "go-version-file: custom/go.mod")
+	assert.NotContains(t, content, "go-version-file: ignored/go.mod")
+	assert.Equal(t, 1, strings.Count(content, "go-version-file:"))
 	assert.Contains(t, content, "cache: true")
+	assert.NotContains(t, content, "cache: false")
 	assert.Contains(t, content, "check-latest: false")
 	assert.Less(t, strings.Index(content, "go-version-file: custom/go.mod"), strings.Index(content, "cache: true"))
 	assert.Less(t, strings.Index(content, "cache: true"), strings.Index(content, "check-latest: false"))
+}
+
+func TestGenerateRuntimeSetupSteps_UVWithoutVersionRendersRuntimeExtraWithFields(t *testing.T) {
+	uvRuntime := *findRuntimeByID("uv")
+	uvRuntime.ExtraWithFields = map[string]string{
+		"python-version": "'3.12'",
+	}
+
+	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
+		Runtime: &uvRuntime,
+		Version: "",
+	}}, nil)
+	require.NotEmpty(t, steps)
+
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "with:")
+	assert.Contains(t, content, "python-version: '3.12'")
 }
 
 // Helper functions

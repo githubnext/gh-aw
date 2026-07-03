@@ -171,6 +171,7 @@ func TestGenerateRuntimeSetupSteps_GhAw_ReleaseMergesAndSortsExtraFields(t *test
 
 	content := strings.Join(steps[0], "\n")
 	assert.Contains(t, content, "alpha: 'user'")
+	assert.NotContains(t, content, "alpha: 'runtime'")
 	assert.Contains(t, content, "beta: true")
 	assert.Contains(t, content, "zeta: false")
 	assert.Less(t, strings.Index(content, "alpha: 'user'"), strings.Index(content, "beta: true"))
