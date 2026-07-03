@@ -846,8 +846,9 @@ function ensureSafeOutputsTools(tools, serverName, toolsFile) {
     return tools;
   }
   const core = global.core;
-  const fallbackPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/tools.json`;
-  if (fallbackPath && fallbackPath !== toolsFile) {
+  const runnerTemp = process.env.RUNNER_TEMP || path.resolve(path.dirname(toolsFile), "../../..");
+  const fallbackPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || path.join(runnerTemp, "gh-aw", "safeoutputs", "tools.json");
+  if (fallbackPath !== toolsFile) {
     const fallbackTools = loadTools(fallbackPath);
     if (fallbackTools.length > 0) {
       core.warning(`[${serverName}] tools cache ${toolsFile} is empty; recovered ${fallbackTools.length} tool(s) from ${fallbackPath}`);
