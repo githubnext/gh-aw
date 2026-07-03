@@ -162,6 +162,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 	var totalFixed int
 	var totalFiles int
 	var totalGuidedErrors int
+	var totalProcessingErrors int
 	var workflowsNeedingFixes []workflowFixInfo
 
 	for _, file := range files {
@@ -173,6 +174,9 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 			var guidedErr *GuidedError
 			if errors.As(err, &guidedErr) {
 				totalGuidedErrors++
+				totalFiles++
+			} else {
+				totalProcessingErrors++
 			}
 			continue
 		}
@@ -245,7 +249,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 	if write {
 		if totalFixed > 0 {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage(fmt.Sprintf("✓ Fixed %d of %d workflow files", totalFixed, totalFiles)))
-		} else if totalGuidedErrors == 0 {
+		} else if totalGuidedErrors == 0 && totalProcessingErrors == 0 {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("✓ No fixes needed"))
 		}
 	} else {
@@ -263,7 +267,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 			for _, wf := range workflowsNeedingFixes {
 				fmt.Fprintf(os.Stderr, "  gh aw fix %s --write\n", strings.TrimSuffix(wf.File, ".md"))
 			}
-		} else if totalGuidedErrors == 0 {
+		} else if totalGuidedErrors == 0 && totalProcessingErrors == 0 {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("✓ No fixes needed"))
 		}
 	}
@@ -275,6 +279,10 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 		}
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatErrorMessage(fmt.Sprintf("%d %s a manual fix", totalGuidedErrors, pluralSuffix)))
 		return &ExitCodeError{Code: 2}
+	}
+
+	if totalProcessingErrors > 0 {
+		return &ExitCodeError{Code: 1}
 	}
 
 	return nil
