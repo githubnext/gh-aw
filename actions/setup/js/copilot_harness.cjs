@@ -73,6 +73,9 @@ const INITIAL_DELAY_MS = 5000;
 const BACKOFF_MULTIPLIER = 2;
 // Maximum delay cap in milliseconds
 const MAX_DELAY_MS = 60000;
+// Stop retrying this long before the step hard timeout so the harness can emit
+// structured safe-output diagnostics instead of being terminated by Actions.
+const SOFT_TIMEOUT_BUFFER_MS = 90 * 1000;
 // Additional startup retry budget for scheduled runs when Copilot exits with code 2
 // before producing any output (typically transient API interruption at startup).
 const MAX_SCHEDULED_EXIT2_RETRIES = 1;
@@ -699,6 +702,23 @@ function resolvePromptFileArgs(args) {
 }
 
 /**
+ * Compute a soft timeout deadline for the harness based on GH_AW_TIMEOUT_MINUTES.
+ * Returns null when timeout is unset/invalid.
+ * @param {number} driverStartTime
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {{ timeoutMinutes: number, softDeadlineMs: number } | null}
+ */
+function buildSoftTimeoutGuard(driverStartTime, env = process.env) {
+  const timeoutMinutes = Number(env.GH_AW_TIMEOUT_MINUTES);
+  if (!Number.isFinite(timeoutMinutes) || timeoutMinutes <= 0) {
+    return null;
+  }
+  const hardTimeoutMs = Math.floor(timeoutMinutes * 60 * 1000);
+  const softDeadlineMs = driverStartTime + Math.max(hardTimeoutMs - SOFT_TIMEOUT_BUFFER_MS, 1000);
+  return { timeoutMinutes, softDeadlineMs };
+}
+
+/**
  * Main entry point: run copilot with retry logic for partially-executed sessions.
  */
 async function main() {
@@ -832,6 +852,7 @@ async function main() {
   // This prevents a broken --continue recovery from resurrecting --continue on the next attempt.
   let continueDisabledPermanently = false;
   const driverStartTime = Date.now();
+  const softTimeoutGuard = buildSoftTimeoutGuard(driverStartTime);
   const detectedCopilotErrors = {
     inferenceAccessError: false,
     mcpPolicyError: false,
@@ -873,6 +894,12 @@ async function main() {
       // Unified retry loop for CLI and driver modes.
       // --continue is a CLI concept; in SDK mode retries always restart the session fresh.
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
+          emitInfrastructureIncomplete(`Copilot harness reached soft retry budget before the ${softTimeoutGuard.timeoutMinutes}-minute step timeout. ` + "Stopping retries early to preserve structured failure output.");
+          log(`soft-timeout guard reached before attempt ${attempt + 1}: ` + `timeoutMinutes=${softTimeoutGuard.timeoutMinutes} bufferMs=${SOFT_TIMEOUT_BUFFER_MS}`);
+          lastExitCode = 1;
+          break;
+        }
         // Add --continue flag on CLI retries so the copilot session continues from where it left off
         const currentArgs = !copilotSDKMode && attempt > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
 
@@ -882,6 +909,12 @@ async function main() {
           await sleep(delay);
           delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
           log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
+          if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
+            emitInfrastructureIncomplete(`Copilot harness reached soft retry budget before the ${softTimeoutGuard.timeoutMinutes}-minute step timeout. ` + "Stopping retries early to preserve structured failure output.");
+            log(`soft-timeout guard reached after backoff sleep: ` + `timeoutMinutes=${softTimeoutGuard.timeoutMinutes} bufferMs=${SOFT_TIMEOUT_BUFFER_MS}`);
+            lastExitCode = 1;
+            break;
+          }
         }
 
         // Redact --prompt / -p value from logs to avoid leaking prompt content
@@ -1195,6 +1228,7 @@ if (typeof module !== "undefined" && module.exports) {
     resolvePromptFileArgs,
     parseCopilotSDKServerArgsFromEnv,
     isCAPIQuotaExceededError,
+    buildSoftTimeoutGuard,
   };
 }
 

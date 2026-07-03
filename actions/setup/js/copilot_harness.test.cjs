@@ -51,6 +51,7 @@ const {
   resolvePromptFileArgs,
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
+  buildSoftTimeoutGuard,
 } = require("./copilot_harness.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
@@ -1573,6 +1574,20 @@ describe("copilot_harness.cjs", () => {
       expect(INITIAL_DELAY_MS).toBeGreaterThan(0);
       expect(BACKOFF_MULTIPLIER).toBeGreaterThan(1);
       expect(MAX_DELAY_MS).toBeGreaterThanOrEqual(INITIAL_DELAY_MS);
+    });
+
+    describe("soft timeout guard", () => {
+      it("returns null when GH_AW_TIMEOUT_MINUTES is missing", () => {
+        expect(buildSoftTimeoutGuard(1_000, {})).toBeNull();
+      });
+
+      it("computes a deadline before hard timeout", () => {
+        const guard = buildSoftTimeoutGuard(10_000, { GH_AW_TIMEOUT_MINUTES: "15" });
+        expect(guard).toEqual({
+          timeoutMinutes: 15,
+          softDeadlineMs: 820000,
+        });
+      });
     });
 
     it("exponential backoff does not exceed max delay", () => {
