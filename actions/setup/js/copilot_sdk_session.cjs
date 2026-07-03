@@ -92,7 +92,8 @@ function extractPromptFromArgs(args) {
  *   attempt?: number,
  *   model?: string,
  *   connectionToken?: string,
- *   provider?: import("@github/copilot-sdk").ProviderConfig,
+ *   providers?: import("@github/copilot-sdk").NamedProviderConfig[],
+ *   models?: import("@github/copilot-sdk").ProviderModelConfig[],
  *   maxToolDenials?: number | string,
  *   permissionConfig?: {
  *     allowAllTools?: boolean,
@@ -108,7 +109,7 @@ function extractPromptFromArgs(args) {
  * }} options
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, maxToolDenials, permissionConfig, coreLogger, sdkModule, sessionStateBaseDir }) {
+async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, providers, models: providerModels, maxToolDenials, permissionConfig, coreLogger, sdkModule, sessionStateBaseDir }) {
   // Lazy-require to avoid loading the SDK when it is not needed.
   // The SDK is large and has side-effects on import (worker threads, etc.).
   const { CopilotClient, RuntimeConnection, approveAll } = sdkModule ?? require("@github/copilot-sdk");
@@ -242,12 +243,15 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
       workspaceRoot: process.env.GITHUB_WORKSPACE,
     });
 
+    // Build session config using the multi-provider surface.
     /** @type {import("@github/copilot-sdk").SessionConfig} */
     const sessionConfig = {
       model: model || process.env.COPILOT_MODEL || undefined,
-      provider,
+      providers,
+      models: providerModels,
       onPermissionRequest,
     };
+    log(`creating session with model="${sessionConfig.model || "(none)"}" providers=${providers?.length ?? 0} models=${providerModels?.length ?? 0}`);
     session = await client.createSession(sessionConfig);
     log(`session created: sessionId=${session.sessionId}`);
 

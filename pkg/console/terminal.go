@@ -2,7 +2,6 @@ package console
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
@@ -24,7 +23,7 @@ const (
 // Uses ANSI escape codes for cross-platform compatibility
 func ClearScreen() {
 	if tty.IsStderrTerminal() {
-		fmt.Fprint(os.Stderr, ansiClearScreen)
+		fmt.Fprint(stderrWriter(), ansiClearScreen)
 	}
 }
 
@@ -32,7 +31,7 @@ func ClearScreen() {
 // Uses ANSI escape codes: \r moves cursor to start, \033[K clears to end of line
 func ClearLine() {
 	if tty.IsStderrTerminal() {
-		fmt.Fprintf(os.Stderr, "%s%s", ansiCarriageReturn, ansiClearLine)
+		fmt.Fprintf(stderrWriter(), "%s%s", ansiCarriageReturn, ansiClearLine)
 	}
 }
 
@@ -44,9 +43,10 @@ func ShowWelcomeBanner(description string) {
 	if tty.IsStderrTerminal() {
 		header = styles.Header.Render(header)
 	}
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, header)
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, description)
-	fmt.Fprintln(os.Stderr, "")
+	out := stderrWriter()
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, header)
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, description)
+	fmt.Fprintln(out, "")
 }

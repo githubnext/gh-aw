@@ -48,8 +48,12 @@ By default, shellcheck and pyflakes integrations are disabled for generated run 
 			includeShellcheck, _ := cmd.Flags().GetBool("shellcheck")
 			includePyflakes, _ := cmd.Flags().GetBool("pyflakes")
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			effectiveWorkflowDir := workflowDir
+			if effectiveWorkflowDir == "" && len(args) == 0 {
+				effectiveWorkflowDir = constants.GetWorkflowDir()
+			}
 
-			lintCommandLog.Printf("Executing lint: dir=%s, shellcheck=%v, pyflakes=%v, args=%d", workflowDir, includeShellcheck, includePyflakes, len(args))
+			lintCommandLog.Printf("Executing lint: dir=%s, shellcheck=%v, pyflakes=%v, args=%d", effectiveWorkflowDir, includeShellcheck, includePyflakes, len(args))
 
 			lockFiles, err := resolveLockFilesForLint(args, workflowDir)
 			if err != nil {
@@ -72,7 +76,7 @@ By default, shellcheck and pyflakes integrations are disabled for generated run 
 		},
 	}
 
-	cmd.Flags().StringP("dir", "d", constants.GetWorkflowDir(), "Directory to scan for *.lock.yml files when no arguments are provided")
+	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
 	cmd.Flags().Bool("shellcheck", false, "Enable shellcheck integration in actionlint")
 	cmd.Flags().Bool("pyflakes", false, "Enable pyflakes integration in actionlint")
 
@@ -82,6 +86,9 @@ By default, shellcheck and pyflakes integrations are disabled for generated run 
 }
 
 func resolveLockFilesForLint(inputs []string, workflowDir string) ([]string, error) {
+	if workflowDir == "" {
+		workflowDir = constants.GetWorkflowDir()
+	}
 	candidates := inputs
 	if len(candidates) == 0 {
 		candidates = []string{workflowDir}

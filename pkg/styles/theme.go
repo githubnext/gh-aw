@@ -66,6 +66,9 @@ var hasDarkBackground = true
 
 // adaptiveColor selects between a light and a dark color variant based on the
 // terminal background detected at startup.
+// Use this for shared package-level colors that should follow gh-aw's startup
+// probe; for per-render selection in one-off UI code, prefer lipgloss.LightDark
+// (see huh_theme.go).
 type adaptiveColor struct {
 	Light color.Color
 	Dark  color.Color

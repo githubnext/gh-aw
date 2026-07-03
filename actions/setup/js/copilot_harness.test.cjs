@@ -37,7 +37,6 @@ const {
   isMCPGatewayShutdownError,
   isModelAvailableInReflectData,
   isModelAvailableInReflectFile,
-  resolveCopilotSDKCustomProviderFromReflect,
   inferProviderTypeForModel,
   enrichReflectModels,
   extractModelIds,
@@ -185,7 +184,8 @@ describe("copilot_harness.cjs", () => {
   });
 
   describe("buildCopilotSDKChildEnv", () => {
-    it("includes native and gh-aw provider vars when wireApi is configured", () => {
+    it("includes native sidecar provider vars and multiProviderJson when wireApi is configured", () => {
+      const multiProviderJson = JSON.stringify({ model: "gpt-5.4", providers: [{ name: "copilot", type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "completions" }], models: [{ id: "gpt-5.4", provider: "copilot" }] });
       const env = buildCopilotSDKChildEnv({
         sdkEnv: { COPILOT_SDK_URI: "http://127.0.0.1:4000" },
         copilotSDKMode: true,
@@ -194,19 +194,21 @@ describe("copilot_harness.cjs", () => {
         providerType: "openai",
         providerWireApi: "completions",
         resolvedModel: "gpt-5.4",
+        multiProviderJson,
       });
 
       expect(env).toMatchObject({
         COPILOT_SDK_URI: "http://127.0.0.1:4000",
         COPILOT_CONNECTION_TOKEN: "token-123",
-        GH_AW_COPILOT_SDK_PROVIDER_BASE_URL: "http://api-proxy:10002",
-        GH_AW_COPILOT_SDK_PROVIDER_TYPE: "openai",
-        GH_AW_COPILOT_SDK_PROVIDER_WIRE_API: "completions",
+        GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON: multiProviderJson,
         COPILOT_MODEL: "gpt-5.4",
         COPILOT_PROVIDER_BASE_URL: "http://api-proxy:10002",
         COPILOT_PROVIDER_TYPE: "openai",
         COPILOT_PROVIDER_WIRE_API: "completions",
       });
+      expect(env).not.toHaveProperty("GH_AW_COPILOT_SDK_PROVIDER_BASE_URL");
+      expect(env).not.toHaveProperty("GH_AW_COPILOT_SDK_PROVIDER_TYPE");
+      expect(env).not.toHaveProperty("GH_AW_COPILOT_SDK_PROVIDER_WIRE_API");
     });
 
     it("omits wireApi vars when wireApi is empty", () => {
@@ -220,7 +222,6 @@ describe("copilot_harness.cjs", () => {
         resolvedModel: "gpt-5.4",
       });
 
-      expect(env.GH_AW_COPILOT_SDK_PROVIDER_WIRE_API).toBeUndefined();
       expect(env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
     });
   });
@@ -1758,16 +1759,6 @@ describe("copilot_harness.cjs", () => {
       } finally {
         fs.unlinkSync(reflectFile);
       }
-    });
-
-    it("derives SDK custom provider and model from reflect data", () => {
-      const reflectData = {
-        endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.4", "claude-sonnet-4.6"] }],
-      };
-      expect(resolveCopilotSDKCustomProviderFromReflect({ reflectData })).toEqual({
-        model: "gpt-5.4",
-        provider: { type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "completions" },
-      });
     });
   });
 

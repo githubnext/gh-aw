@@ -365,12 +365,17 @@ func (e *CopilotEngine) buildCopilotBaseCommand(workflowData *WorkflowData, copi
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
 		return e.buildCopilotSDKCommand(execPrefix, copilotArgs)
 	}
+	// On ARC/DinD, /tmp/gh-aw is not daemon-visible; prompts are copied to ${RUNNER_TEMP}/gh-aw/
+	promptFilePath := "/tmp/gh-aw/aw-prompts/prompt.txt"
+	if isArcDindTopology(workflowData) {
+		promptFilePath = "${RUNNER_TEMP}/gh-aw/aw-prompts/prompt.txt"
+	}
 	if isFirewallEnabled(workflowData) {
 		// Sandbox mode: add workspace dir and pass prompt file path directly
-		return fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs)), ""
+		return fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt-file %s`, execPrefix, shellJoinArgs(copilotArgs), promptFilePath), ""
 	}
 	// Non-sandbox mode: pass prompt file path directly
-	return fmt.Sprintf(`%s %s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs)), ""
+	return fmt.Sprintf(`%s %s --prompt-file %s`, execPrefix, shellJoinArgs(copilotArgs), promptFilePath), ""
 }
 
 func (e *CopilotEngine) buildCopilotSDKCommand(execPrefix string, copilotArgs []string) (string, string) {

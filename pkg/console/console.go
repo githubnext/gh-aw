@@ -5,7 +5,6 @@ package console
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -449,16 +448,17 @@ func RenderInfoSection(content string) []string {
 
 // RenderComposedSections composes and outputs a slice of sections to stderr
 func RenderComposedSections(sections []string) {
+	out := stderrWriter()
 	if tty.IsStderrTerminal() {
 		plan := lipgloss.JoinVertical(lipgloss.Left, sections...)
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, plan)
-		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(out, "")
+		fmt.Fprintln(out, plan)
+		fmt.Fprintln(out, "")
 	} else {
-		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(out, "")
 		for _, section := range sections {
-			fmt.Fprintln(os.Stderr, section)
+			fmt.Fprintln(out, section)
 		}
-		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(out, "")
 	}
 }

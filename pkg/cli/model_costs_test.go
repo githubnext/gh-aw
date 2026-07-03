@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -60,4 +61,12 @@ func TestComputeModelInferenceAICCopilotAlias(t *testing.T) {
 	aicViaGitHubCopilot := computeModelInferenceAIC("github-copilot", "claude-sonnet-4.6", 1000, 200, 0, 0, 0)
 	assert.Greater(t, aicViaCopilot, 0.0, "copilot provider alias should produce non-zero AIC")
 	assert.InDelta(t, aicViaGitHubCopilot, aicViaCopilot, 1e-9, "copilot and github-copilot should yield identical AIC")
+}
+
+func TestFindOrFetchModelPricing_EmbeddedModelReturnsNil(t *testing.T) {
+	// claude-sonnet-4.6 is in the embedded catalog; FindOrFetchModelPricing should return
+	// (nil, false) so the lock.yml overlay does not duplicate what models.json already has.
+	pricing, ok := FindOrFetchModelPricing(context.Background(), "anthropic", "claude-sonnet-4.6")
+	assert.False(t, ok)
+	assert.Nil(t, pricing)
 }

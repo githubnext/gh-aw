@@ -5,7 +5,6 @@ package console
 import (
 	_ "embed"
 	"fmt"
-	"os"
 	"strings"
 
 	lipgloss "charm.land/lipgloss/v2"
@@ -31,6 +30,7 @@ func FormatBanner() string {
 // PrintBanner prints the ASCII logo to stderr with purple GitHub color theme.
 // This is used by the --banner flag to display the logo at the start of command execution.
 func PrintBanner() {
-	fmt.Fprintln(os.Stderr, FormatBanner())
-	fmt.Fprintln(os.Stderr)
+	out := stderrWriter()
+	fmt.Fprintln(out, FormatBanner())
+	fmt.Fprintln(out)
 }

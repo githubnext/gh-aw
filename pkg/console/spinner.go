@@ -40,7 +40,7 @@ package console
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"sync"
 
 	"charm.land/bubbles/v2/spinner"
@@ -60,7 +60,7 @@ type updateMessageMsg string
 type spinnerModel struct {
 	spinner spinner.Model
 	message string
-	output  *os.File
+	output  io.Writer
 }
 
 func (m spinnerModel) Init() tea.Cmd  { return m.spinner.Tick }
@@ -91,6 +91,7 @@ func (m spinnerModel) render() {
 // SpinnerWrapper wraps the spinner functionality with TTY detection and Bubble Tea program
 type SpinnerWrapper struct {
 	program *tea.Program
+	out     io.Writer
 	enabled bool
 	running bool
 	mu      sync.Mutex
@@ -104,19 +105,20 @@ func NewSpinner(message string) *SpinnerWrapper {
 	isAccessible := IsAccessibleMode()
 	enabled := isTTY && !isAccessible
 	spinnerLog.Printf("Creating spinner: message=%q, tty=%t, accessible=%t, enabled=%t", message, isTTY, isAccessible, enabled)
-	s := &SpinnerWrapper{enabled: enabled}
+	out := stderrWriter()
+	s := &SpinnerWrapper{enabled: enabled, out: out}
 
 	if enabled {
 		model := spinnerModel{
 			spinner: spinner.New(spinner.WithSpinner(spinner.MiniDot), spinner.WithStyle(styles.Info)),
 			message: message,
-			output:  os.Stderr,
+			output:  out,
 		}
 		// tea.WithInput(nil) disables stdin reading so the spinner does not consume key
 		// events that should be handled by subsequent interactive forms (e.g. huh.Select).
 		// Ctrl+C is still handled via OS signal delivery (SIGINT), which bubbletea
 		// processes independently of the input reader.
-		s.program = tea.NewProgram(model, tea.WithOutput(os.Stderr), tea.WithoutRenderer(), tea.WithInput(nil))
+		s.program = tea.NewProgram(model, tea.WithOutput(out), tea.WithoutRenderer(), tea.WithInput(nil))
 	}
 	return s
 }
@@ -170,7 +172,7 @@ func (s *SpinnerWrapper) Stop() {
 			spinnerLog.Print("Stopping spinner")
 			s.program.Quit()
 			s.wg.Wait() // Wait for the goroutine to complete
-			fmt.Fprintf(os.Stderr, "%s%s", ansiCarriageReturn, ansiClearLine)
+			fmt.Fprintf(s.out, "%s%s", ansiCarriageReturn, ansiClearLine)
 		}
 	}
 }
@@ -189,14 +191,14 @@ func (s *SpinnerWrapper) StopWithMessage(msg string) {
 		if wasRunning {
 			s.program.Quit()
 			s.wg.Wait() // Wait for the goroutine to complete
-			fmt.Fprintf(os.Stderr, "%s%s%s\n", ansiCarriageReturn, ansiClearLine, msg)
+			fmt.Fprintf(s.out, "%s%s%s\n", ansiCarriageReturn, ansiClearLine, msg)
 		} else {
 			// Still print the message even if spinner wasn't running
-			fmt.Fprintf(os.Stderr, "%s\n", msg)
+			fmt.Fprintf(s.out, "%s\n", msg)
 		}
 	} else if msg != "" {
 		// If spinner is disabled, still print the message for user feedback
-		fmt.Fprintf(os.Stderr, "%s\n", msg)
+		fmt.Fprintf(s.out, "%s\n", msg)
 	}
 }
 

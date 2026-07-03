@@ -116,6 +116,14 @@ func createAndConfigureCompiler(config CompileConfig) *workflow.Compiler {
 	// Set up repository context
 	setupRepositoryContext(compiler, config)
 
+	if config.DisableModelsDevLookup {
+		compileCompilerSetupLog.Print("models.dev pricing lookup disabled via --no-models-dev-lookup")
+	} else {
+		// Register the models.dev pricing resolver so the compiler can inject pricing for
+		// models absent from the embedded catalog into GH_AW_INFO_MODEL_COSTS in the lock.yml.
+		compiler.SetModelPricingResolver(FindOrFetchModelPricing)
+	}
+
 	return compiler
 }
 
