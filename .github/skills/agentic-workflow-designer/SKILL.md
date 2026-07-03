@@ -157,6 +157,8 @@ Present a structured summary and ask for approval before generation.
 | "signal task could not be completed due to infrastructure failure" | `report-incomplete` (system type, auto-enabled) |
 | "nothing visible", "just analyze" | no safe outputs required |
 
+> **System types** (`missing-data`, `missing-tool`, `report-incomplete`) are error-signaling outputs that are automatically available in every workflow without being declared in `safe-outputs:`. They emit structured infrastructure signals (not task results) and can be disabled explicitly (e.g. `missing-tool: false`) but should rarely be suppressed.
+
 ### Network Mapping
 
 | User says... | Maps to |
