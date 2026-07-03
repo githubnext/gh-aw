@@ -469,7 +469,7 @@ Implementations MUST ensure `AllowedRepos` and `Repos` are not both set simultan
 
 ### Deprecation: `repos` Field
 
-The YAML key `repos` under `tools.github` is **deprecated** as of guard-policy specification version 0.2.0. It was renamed to `allowed-repos` in [PR #22331] to avoid collision with the `repos` toolset name.
+The YAML key `repos` under `tools.github` is **deprecated** as of guard-policy specification version 0.2.0. It was renamed to `allowed-repos` to avoid collision with the `repos` toolset name.
 
 **Migration path**: Use `gh aw fix` to automatically migrate `repos:` to `allowed-repos:` in workflow frontmatter.
 

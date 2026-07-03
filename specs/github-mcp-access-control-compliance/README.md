@@ -31,7 +31,7 @@ input:
   request: object           # Simulated access request (repository, user, content)
 expected:
   decision: allow | deny    # Required access-control outcome
-  error_code: integer | null  # Expected MCP JSON-RPC error code on deny (e.g., -32005)
+  error_code: integer | null  # Expected MCP JSON-RPC error code on deny (e.g., -32001)
   reason: string            # Expected denial reason substring (informative)
 ```
 
