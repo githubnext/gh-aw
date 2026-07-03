@@ -10,6 +10,8 @@ import (
 )
 
 func hasModelPricingResolver(compiler *workflow.Compiler) bool {
+	// Keep this field name in sync with workflow.Compiler; this helper intentionally
+	// inspects private state to preserve behavioral coverage without re-exporting API.
 	return !reflect.ValueOf(compiler).Elem().FieldByName("modelPricingResolver").IsNil()
 }
 
