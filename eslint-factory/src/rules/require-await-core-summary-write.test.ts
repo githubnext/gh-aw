@@ -28,7 +28,13 @@ describe("require-await-core-summary-write", () => {
 
   it("valid: returned and assigned calls are not flagged", () => {
     cjsRuleTester.run("require-await-core-summary-write", requireAwaitCoreSummaryWriteRule, {
-      valid: [`async function f() { return core.summary.write(); }`, `async function f() { const p = core.summary.write(); }`, `async function f() { return core.summary.addRaw(x).write(); }`],
+      valid: [
+        `async function f() { return core.summary.write(); }`,
+        `async function f() { const p = core.summary.write(); }`,
+        `async function f() { return core.summary.addRaw(x).write(); }`,
+        // assignment expression (without declaration) also propagates the Promise
+        `async function f() { p = core.summary.write(); }`,
+      ],
       invalid: [],
     });
   });
@@ -81,6 +87,24 @@ describe("require-await-core-summary-write", () => {
     cjsRuleTester.run("require-await-core-summary-write", requireAwaitCoreSummaryWriteRule, {
       valid: [`fs.write(fd, buffer);`, `stream.write(data);`, `core.info("hello");`, `foo.bar.write();`],
       invalid: [],
+    });
+  });
+
+  it("invalid: flagged outside async function — no suggestion offered", () => {
+    cjsRuleTester.run("require-await-core-summary-write", requireAwaitCoreSummaryWriteRule, {
+      valid: [],
+      invalid: [
+        {
+          // Top-level call: flagged, but no suggestion (await is not valid here)
+          code: `core.summary.write();`,
+          errors: [{ messageId: "requireAwait", suggestions: [] }],
+        },
+        {
+          // Inside a non-async function: flagged, but no suggestion
+          code: `function f() { core.summary.write(); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [] }],
+        },
+      ],
     });
   });
 

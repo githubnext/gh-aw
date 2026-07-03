@@ -2,6 +2,8 @@ import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
+const ASYNC_FUNCTION_TYPES = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
+
 /**
  * Checks whether a MemberExpression property is "write" (direct or computed string-literal access).
  */
@@ -30,6 +32,22 @@ function rootsSummary(node: TSESTree.Node): boolean {
   }
   if (node.type === "CallExpression" && node.callee.type === "MemberExpression") {
     return rootsSummary(node.callee.object);
+  }
+  return false;
+}
+
+/**
+ * Returns true when the statement is directly inside an async function body.
+ * Walking up the ancestors, the first function boundary found determines
+ * whether `await` is currently valid — the suggestion is only safe to apply
+ * in an async context.
+ */
+function isInsideAsyncFunction(node: TSESTree.Node, ancestors: TSESTree.Node[]): boolean {
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    const ancestor = ancestors[i];
+    if (ASYNC_FUNCTION_TYPES.has(ancestor.type)) {
+      return (ancestor as TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression).async;
+    }
   }
   return false;
 }
@@ -69,17 +87,24 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
         // Object must trace back through a `.summary` member access
         if (!rootsSummary(callee.object)) return;
 
+        // Only offer the `await` suggestion when already inside an async function —
+        // applying `await` outside an async context would produce a syntax error.
+        const ancestors = context.sourceCode.getAncestors(node);
+        const suggest = isInsideAsyncFunction(node, ancestors)
+          ? [
+              {
+                messageId: "addAwait" as const,
+                fix(fixer: TSESLint.RuleFixer) {
+                  return fixer.insertTextBefore(expr, "await ");
+                },
+              },
+            ]
+          : [];
+
         context.report({
           node: expr,
           messageId: "requireAwait",
-          suggest: [
-            {
-              messageId: "addAwait",
-              fix(fixer: TSESLint.RuleFixer) {
-                return fixer.insertTextBefore(expr, "await ");
-              },
-            },
-          ],
+          suggest,
         });
       },
     };
