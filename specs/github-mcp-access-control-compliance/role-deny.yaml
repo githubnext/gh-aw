@@ -1,0 +1,76 @@
+# Role Deny — Compliance Fixture
+# Tests: T-GH-019, T-GH-020, T-GH-023
+# Spec: §6 Role-Based Filtering
+
+fixture_id: "role-deny"
+description: >
+  Role-based filtering MUST allow access when the authenticated user's effective role
+  in the repository matches one of the configured roles (T-GH-019), and MUST deny access
+  when the user's role does not match any of the configured roles (T-GH-020). Multiple
+  roles are evaluated with OR logic — any matching role grants access (T-GH-023).
+
+spec_refs:
+  - "§6.1 — Role-based access control allows users with matching role"
+  - "§6.2 — Role-based access control denies users with non-matching role"
+  - "§6.3 — Multiple role values evaluated with OR logic"
+  - "§6.4 — Role is obtained from GitHub API repository permission level"
+
+scenarios:
+  # --- Scenario A: user role matches → allowed ---
+  - scenario_id: "role-deny-A"
+    description: "User with 'write' role is allowed when roles: [write, admin]"
+    input:
+      tool_config:
+        repos:
+          - "*/*"
+        roles:
+          - "write"
+          - "admin"
+        min-integrity: "none"
+      request:
+        repository: "example/repo"
+        user_role: "write"
+        content_integrity: "none"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario B: user role does not match → denied ---
+  - scenario_id: "role-deny-B"
+    description: "User with 'read' role is denied when roles: [write, admin]"
+    input:
+      tool_config:
+        repos:
+          - "*/*"
+        roles:
+          - "write"
+          - "admin"
+        min-integrity: "none"
+      request:
+        repository: "example/repo"
+        user_role: "read"
+        content_integrity: "none"
+    expected:
+      decision: deny
+      error_code: -32002
+      reason: "insufficient role"
+
+  # --- Scenario C: user has no role in the repository → denied ---
+  - scenario_id: "role-deny-C"
+    description: "User with no role (outside collaborator) is denied when any roles restriction is set"
+    input:
+      tool_config:
+        repos:
+          - "*/*"
+        roles:
+          - "triage"
+        min-integrity: "none"
+      request:
+        repository: "example/private-repo"
+        user_role: ""
+        content_integrity: "none"
+    expected:
+      decision: deny
+      error_code: -32002
+      reason: "insufficient role"

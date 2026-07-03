@@ -92,6 +92,8 @@ Each entry MUST be resolved relative to the package root and MUST match one of t
 
 Duplicate entries SHOULD be ignored after normalization.
 
+**Path-traversal safety**: Each entry in `files` MUST NOT contain a path-traversal sequence. Specifically, any entry that contains `../` (or `..\` on Windows-style paths), begins with `../`, or resolves to a path outside the package root after normalization MUST be rejected with a validation error. Implementations MUST NOT follow symlinks that would escape the package root during file resolution. This rule applies regardless of the number of traversal components in the path (e.g., `../../etc/passwd` and `workflows/../../hidden` are both prohibited).
+
 ## 5. Installable file resolution
 
 Supported installable paths are:
@@ -125,7 +127,7 @@ The install lifecycle (invoked by `gh aw add`) MUST proceed in the following ord
 4. **Compile** each agentic workflow markdown file into the target repository's workflow directory. Raw `.yml` files are copied verbatim without compilation.
 5. **Write** all output files atomically before reporting success.
 
-If any step fails, the implementation MUST abort and MUST NOT leave partial output files in the target directory. The implementation SHOULD emit an actionable error identifying the failing step.
+If any step fails, the implementation MUST abort and MUST NOT leave partial output files in the target directory. The implementation SHOULD emit an actionable error identifying the failing step. See §10 (Safeguards) for the normative rollback and permission-error requirements that apply to this lifecycle (R-PKG-003, R-PKG-004, R-PKG-006, R-PKG-007).
 
 ### 5.2 Update
 
@@ -147,7 +149,7 @@ The remove lifecycle uninstalls a previously installed package by deleting its i
 
 **R-PKG-R002**: If a file to be removed has been modified since installation (detected by checksum or modification timestamp comparison), the implementation SHOULD warn the user and MUST NOT delete the file without explicit confirmation.
 
-**R-PKG-R003**: If deletion of any installed file fails (for example, due to a filesystem permission error), the implementation MUST emit an error identifying the file and reason, and MUST continue attempting to remove the remaining files rather than aborting immediately. The implementation MUST report a final summary listing all files that could not be removed.
+**R-PKG-R003**: If deletion of any installed file fails (for example, due to a filesystem permission error), the implementation MUST emit an error identifying the file and reason, and MUST continue attempting to remove the remaining files rather than aborting immediately. The implementation MUST report a final summary listing all files that could not be removed. See §10.4 (Safeguards — Filesystem Permission Errors) for the normative requirement on permission-error reporting (R-PKG-007).
 
 **R-PKG-R004**: After removal, if the target workflow directory is empty, the implementation MAY remove the empty directory. The implementation MUST NOT remove non-empty directories.
 
@@ -280,6 +282,7 @@ This section provides a normative reference table for all MUST/SHALL requirement
 | — | §4.3 | `min-version` MUST use `vMAJOR.minor.patch` form; MUST fail if compiler version is lower |
 | — | §4.4 | `name` MUST be present and non-empty after trimming whitespace |
 | — | §4.7 | Each `files` entry MUST be resolved relative to the package root and MUST match a supported installable path |
+| — | §4.8 | Each `files` entry MUST NOT contain a path-traversal sequence (`../`); entries that escape the package root MUST be rejected |
 | — | §4 (preamble) | Unknown top-level fields MUST be rejected |
 
 ### 11.2 File Resolution Norms (§5)

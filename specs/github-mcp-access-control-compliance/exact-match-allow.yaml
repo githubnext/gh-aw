@@ -1,0 +1,58 @@
+# Exact-Match Allow — Compliance Fixture
+# Tests: T-GH-011, T-GH-012
+# Spec: §5 Repository Scoping, §5.1 Exact Pattern Matching
+
+fixture_id: "exact-match-allow"
+description: >
+  An exact repository pattern (e.g., "github/gh-aw") MUST allow access when the requested
+  repository exactly matches the pattern, and MUST deny access when the requested repository
+  does not match (T-GH-012).
+
+spec_refs:
+  - "§5.1 — Exact repository pattern allows matching repository"
+  - "§5.1 — Exact repository pattern rejects non-matching repository"
+  - "§9.1 — Access decision logged at INFO level on allow"
+  - "§9.2 — Access decision logged at WARN level on deny"
+
+# --- Scenario A: exact match is allowed ---
+scenarios:
+  - scenario_id: "exact-match-allow-A"
+    description: "Exact pattern 'github/gh-aw' allows request for repository 'github/gh-aw'"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        private-repos: true
+        min-integrity: "unapproved"
+      request:
+        repository: "github/gh-aw"
+        user_role: "write"
+        is_private: true
+        content_integrity: "unapproved"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario B: non-matching repository is denied ---
+  - scenario_id: "exact-match-allow-B"
+    description: "Exact pattern 'github/gh-aw' denies request for repository 'github/other-repo'"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        private-repos: true
+        min-integrity: "unapproved"
+      request:
+        repository: "github/other-repo"
+        user_role: "write"
+        is_private: true
+        content_integrity: "unapproved"
+    expected:
+      decision: deny
+      error_code: -32001
+      reason: "repository not in allowed list"
