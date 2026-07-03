@@ -280,7 +280,7 @@ async function runLogParser(options) {
           parserName,
         });
 
-        // Wrap the agent log in a details/summary section (closed for progressive disclosure)
+        // Wrap rendered summary in a closed details/summary section to reduce initial visual clutter.
         const wrappedAgentLog = wrapAgentLogInSection(copilotCliStyleMarkdown, {
           parserName,
           open: false,
@@ -313,7 +313,7 @@ async function runLogParser(options) {
           }
         }
 
-        // Wrap the original markdown in a details/summary section (closed for progressive disclosure)
+        // Wrap fallback markdown in a closed details/summary section to reduce initial visual clutter.
         const wrappedAgentLog = wrapAgentLogInSection(markdown, {
           parserName,
           open: false,
