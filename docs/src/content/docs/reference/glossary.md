@@ -310,7 +310,7 @@ safe-outputs:
   create-issue:
 ```
 
-See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#text-sanitization).
+See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#text-sanitization-allowed-domains-allowed-github-references).
 
 ### Temporary ID
 

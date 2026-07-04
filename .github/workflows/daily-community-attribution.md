@@ -266,22 +266,16 @@ steps:
       # The agent reads this file directly, appends Tier 3 results, and inserts
       # the result into README.md — no bash data-processing required.
       {
+        REPO_URL="https://github.com/${GITHUB_REPOSITORY:-github/gh-aw}"
+        SEARCH_BASE="${REPO_URL}/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3A"
         echo "## 🌍 Community Contributions"
         echo ""
-        echo "<details>"
-        echo "<summary>Thank you to the community members whose issue reports were resolved in this project! This list is updated automatically and reflects all attributed contributions.</summary>"
+        echo "<sup>Community members whose issues were resolved — updated automatically.</sup>"
         echo ""
-        jq -r '
+        jq -r --arg base "$SEARCH_BASE" '
           .[] |
-          (.author) as $author |
-          (.issues | map(
-            "#\(.number)" +
-            if .tier == 0 then " _(direct issue)_" else "" end
-          ) | join(", ")) as $issues |
-          "- @\($author): \($issues)"
+          "[@\(.author) (\(.count))](\($base + .author))"
         ' "$DATA_DIR/attribution_by_author.json"
-        echo ""
-        echo "</details>"
         echo ""
       } > "$DATA_DIR/readme_community_section_tier012.md"
 
@@ -413,40 +407,37 @@ Write the updated content back to
 
 Start from `readme_community_section_tier012.md` (pre-formatted Tier 0-2 content).
 Insert Tier 3 entries (sorted, alphabetical author order). Ignore Tier 4 items
-in `README.md` output. Leave a blank line after `</details>`.
+in `README.md` output. Leave a blank line after the last entry.
 {{#else}}
 ### 3. Build the Community Contributions Section
 
 The pre-step has already produced a formatted starting point in
 `readme_community_section_tier012.md` — read it with `cat`. This file contains
 the complete Tier 0–2 `## 🌍 Community Contributions` section in the correct
-format. If there are Tier 3 attributions, insert them into the bullet list
-(maintaining alphabetical author order and descending issue order within each
-author). Do not re-format the Tier 0–2 entries; only add new lines.
+format. If there are Tier 3 attributions, insert them into the paragraph
+(maintaining alphabetical author order). Do not re-format the Tier 0–2 entries;
+only add new lines.
 
 The expected format (for reference):
 
 ```markdown
 ## 🌍 Community Contributions
 
-<details>
-<summary>Thank you to the community members whose issue reports were resolved in this project! This list is updated automatically and reflects all attributed contributions.</summary>
+<sup>Community members whose issues were resolved — updated automatically.</sup>
 
-- @author: #N _(direct issue)_, #N, #N _(via follow-up #M)_
-- @author2: #N, #N
-
-</details>
+[@author (N)](https://github.com/OWNER/REPO/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aauthor)
+[@author2 (M)](https://github.com/OWNER/REPO/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aauthor2)
 
 ```
 
-**Important**: always leave a blank line after `</details>` (as shown
+**Important**: always leave a blank line after the last entry (as shown
 above) so that the next markdown header renders correctly.
 
-- One bullet per author, sorted alphabetically by username
-- Within each author's entry, list issues in descending order (newest first), comma-separated
-- **`_(direct issue)_`** (Tier 0): issue closed as `COMPLETED`, no PR linkage
-- _(no suffix)_ (Tier 1/2): PR closes the issue via native close reference or keyword
-- **`_(via follow-up #M)_`** (Tier 3): indirect chain through a follow-up issue
+- One link per author, each on its own source line (renders as a single paragraph)
+- Sorted alphabetically by username
+- Link text: `@alias (count)` where count is the total number of attributed issues
+- Link target: closed-issues search URL with `community` label for that author
+- When inserting Tier 3 entries, maintain alphabetical author order
 - Omit issues that cannot be attributed (Tier 4); do not render an attribution
   candidates section in `README.md`
 {{#endif}}

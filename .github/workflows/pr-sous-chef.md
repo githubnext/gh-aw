@@ -99,7 +99,10 @@ steps:
             end
           ' <<<"$recent_comments_json"
         )"
-        if [ "$last_comment_is_sous_chef" = "true" ]; then
+        # Exception: if the PR is in a CONFLICTING merge state, don't skip even when the last
+        # comment is from sous-chef — it should still ask Copilot to resolve the conflict.
+        merge_state_status="$(jq -r '.mergeStateStatus // ""' <<<"$pr")"
+        if [ "$last_comment_is_sous_chef" = "true" ] && [ "$merge_state_status" != "CONFLICTING" ]; then
           filtered_last_comment_from_sous_chef=$((filtered_last_comment_from_sous_chef + 1))
           continue
         fi
@@ -281,11 +284,12 @@ Before any nudge for a PR:
    - Detect pending/running checks via GitHub PR check runs / statuses for the head SHA.
    - If any check is `queued`, `in_progress`, or `pending`, skip this PR.
 
-2. **Skip when the latest PR comment is from pr-sous-chef itself**
-   - Candidate prefilter already removes PRs when the latest issue comment body includes the hidden marker `<!-- gh-aw-pr-sous-chef-nudge -->`.
+2. **Skip when the latest PR comment is from pr-sous-chef itself (unless the PR is in a merge-conflict state)**
+   - Candidate prefilter already removes PRs when the latest issue comment body includes the hidden marker `<!-- gh-aw-pr-sous-chef-nudge -->`, **except** when `mergeStateStatus` is `CONFLICTING`.
    - Inspect PR comments ordered by recency.
    - Treat a comment as from pr-sous-chef only when the latest comment body contains `<!-- gh-aw-pr-sous-chef-nudge -->`.
-   - If true, skip to avoid back-to-back nudges.
+   - If true **and** `mergeStateStatus` is **not** `CONFLICTING`, skip to avoid back-to-back nudges.
+   - If true **and** `mergeStateStatus` is `CONFLICTING`, do **not** skip — sous-chef must ask Copilot to resolve the merge conflicts even if the previous comment was its own.
 
 3. **Skip during the 30-minute cooldown after a pr-sous-chef comment**
    - Candidate prefilter already removes PRs where the most recent sous-chef comment was posted within the last 30 minutes.
@@ -388,7 +392,7 @@ Given one PR number and compact metadata:
 
 1. Check skip conditions in this order:
    - checks/actions running
-   - latest comment contains `<!-- gh-aw-pr-sous-chef-nudge -->`
+   - latest comment contains `<!-- gh-aw-pr-sous-chef-nudge -->` **and** `mergeStateStatus` is **not** `CONFLICTING` (when the branch has merge conflicts, do NOT skip even if the last comment is from sous-chef — it must nudge Copilot to resolve them)
    - any recent comment contains `<!-- gh-aw-pr-sous-chef-nudge -->` and was posted within the last 30 minutes
 2. If skipped, return `skip_reason` only.
 3. If not skipped, return:
