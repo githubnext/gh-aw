@@ -62,10 +62,11 @@ steps:
       pr_list_max_attempts=4
       pr_list_attempt=0
       pr_list_success=false
+      pr_list_stderr_file=/tmp/gh-aw/agent/pr-sous-chef-pr-list-stderr.log
       until [ "$pr_list_success" = "true" ] || [ "$pr_list_attempt" -ge "$pr_list_max_attempts" ]; do
         pr_list_attempt=$((pr_list_attempt + 1))
         set +e
-        pr_list_stderr_file="$(mktemp)"
+        : > "$pr_list_stderr_file"
         gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
           --state open \
           --search "is:pr is:open -is:draft sort:updated-desc" \
@@ -74,11 +75,10 @@ steps:
           >"$candidate_file" 2>"$pr_list_stderr_file"
         pr_list_status=$?
         pr_list_output="$(cat "$pr_list_stderr_file")"
-        rm -f "$pr_list_stderr_file"
         set -e
         if [ "$pr_list_status" -eq 0 ]; then
           pr_list_success=true
-        elif [ -z "$pr_list_output" ] || echo "$pr_list_output" | grep -qE "HTTP (5[0-9]{2}|429)|context deadline exceeded|connection reset|unexpected EOF|read: EOF"; then
+        elif [ "$pr_list_status" -eq 124 ] || [ "$pr_list_status" -eq 137 ] || [ "$pr_list_status" -eq 143 ] || echo "$pr_list_output" | grep -qE "HTTP (5[0-9]{2}|429)|context deadline exceeded|connection reset|unexpected EOF|read: EOF"; then
           echo "Transient error on attempt $pr_list_attempt/$pr_list_max_attempts (exit $pr_list_status)" >&2
           if [ -n "$pr_list_output" ]; then
             echo "$pr_list_output" >&2
@@ -101,6 +101,7 @@ steps:
         echo "$pr_list_output" >&2
         exit 1
       fi
+      rm -f "$pr_list_stderr_file"
 
       jq -n '[]' > "$eligible_file"
 
