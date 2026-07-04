@@ -2,7 +2,10 @@
 
 package cli
 
-import "testing"
+import (
+	"os/exec"
+	"testing"
+)
 
 func TestTrialRepositoryURLHelpers(t *testing.T) {
 	tests := []struct {
@@ -60,4 +63,55 @@ func TestTrialRepositoryURLHelpers(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetLocalBranch(t *testing.T) {
+	// initRepo creates a minimal git repo in dir with the given branch name.
+	initRepo := func(t *testing.T, dir, branch string) {
+		t.Helper()
+		run := func(args ...string) {
+			t.Helper()
+			cmd := exec.Command(args[0], args[1:]...)
+			cmd.Dir = dir
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("command %v failed: %v (output: %s)", args, err, out)
+			}
+		}
+		run("git", "init")
+		run("git", "config", "user.email", "test@example.com")
+		run("git", "config", "user.name", "Test")
+		run("git", "symbolic-ref", "HEAD", "refs/heads/"+branch)
+		run("git", "commit", "--allow-empty", "-m", "init")
+	}
+
+	t.Run("returns main for a repo using main", func(t *testing.T) {
+		dir := t.TempDir()
+		initRepo(t, dir, "main")
+		if got := getLocalBranch(dir); got != "main" {
+			t.Fatalf("getLocalBranch() = %q, want %q", got, "main")
+		}
+	})
+
+	t.Run("returns master for a repo using master", func(t *testing.T) {
+		dir := t.TempDir()
+		initRepo(t, dir, "master")
+		if got := getLocalBranch(dir); got != "master" {
+			t.Fatalf("getLocalBranch() = %q, want %q", got, "master")
+		}
+	})
+
+	t.Run("returns custom branch name", func(t *testing.T) {
+		dir := t.TempDir()
+		initRepo(t, dir, "trunk")
+		if got := getLocalBranch(dir); got != "trunk" {
+			t.Fatalf("getLocalBranch() = %q, want %q", got, "trunk")
+		}
+	})
+
+	t.Run("falls back to main for non-git directory", func(t *testing.T) {
+		dir := t.TempDir()
+		if got := getLocalBranch(dir); got != "main" {
+			t.Fatalf("getLocalBranch() = %q, want %q", got, "main")
+		}
+	})
 }

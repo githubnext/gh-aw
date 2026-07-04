@@ -364,17 +364,18 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 		return fmt.Errorf("failed to commit trial results: %w (output: %s)", err, string(output))
 	}
 
-	// Pull latest changes from main before pushing to avoid conflicts
+	branch := getLocalBranch(tempDir)
+	// Pull latest changes before pushing to avoid conflicts
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from main branch"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from "+branch+" branch"))
 	}
-	cmd = exec.Command("git", "pull", "origin", "main")
+	cmd = exec.Command("git", "pull", "origin", branch)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to pull latest changes: %w (output: %s)", err, string(output))
 	}
 
-	// Push to main
-	cmd = exec.Command("git", "push", "origin", "main")
+	// Push to current branch
+	cmd = exec.Command("git", "push", "origin", branch)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to push trial results: %w (output: %s)", err, string(output))
 	}

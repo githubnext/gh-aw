@@ -486,6 +486,23 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, v
 	return nil
 }
 
+// getLocalBranch returns the current branch name of the git repository in dir.
+// Falls back to "main" when the directory is not a git repository, the branch
+// cannot be determined, or the repo is in detached HEAD state.
+func getLocalBranch(dir string) string {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return "main"
+	}
+	branch := strings.TrimSpace(string(out))
+	if branch == "" || branch == "HEAD" {
+		return "main"
+	}
+	return branch
+}
+
 // commitAndPushWorkflow commits and pushes the workflow changes
 func commitAndPushWorkflow(tempDir, workflowName string, verbose bool) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Committing workflow and lock files to host repository"))
@@ -522,16 +539,18 @@ func commitAndPushWorkflow(tempDir, workflowName string, verbose bool) error {
 		return fmt.Errorf("failed to commit changes: %w (output: %s)", err, string(output))
 	}
 
+	branch := getLocalBranch(tempDir)
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from main branch"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from "+branch+" branch"))
 	}
-	cmd = exec.Command("git", "pull", "origin", "main")
+	cmd = exec.Command("git", "pull", "origin", branch)
+	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to pull latest changes: %w (output: %s)", err, string(output))
 	}
 
-	// Push to main
-	cmd = exec.Command("git", "push", "origin", "main")
+	// Push to current branch
+	cmd = exec.Command("git", "push", "origin", branch)
 	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to push changes: %w (output: %s)", err, string(output))
