@@ -4,14 +4,8 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 
 type AsyncFuncNode = TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression;
 type SourceCodeScope = TSESLint.Scope.Scope;
-type FunctionDeclarationDefinition = TSESLint.Scope.Definition & {
-  type: "FunctionName";
-  node: TSESTree.FunctionDeclaration;
-};
-type VariableDefinition = TSESLint.Scope.Definition & {
-  type: "Variable";
-  node: TSESTree.VariableDeclarator;
-};
+type FunctionDeclarationDefinition = TSESLint.Scope.Definitions.FunctionNameDefinition & { node: TSESTree.FunctionDeclaration };
+type VariableDefinition = TSESLint.Scope.Definitions.VariableDefinition;
 
 function isAsyncFuncNode(node: TSESTree.Node): node is AsyncFuncNode {
   return node.type === AST_NODE_TYPES.FunctionDeclaration || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.ArrowFunctionExpression;
@@ -49,11 +43,11 @@ function getRootCallIdentifier(node: TSESTree.CallExpression): TSESTree.Identifi
 }
 
 function isFunctionDeclarationDefinition(definition: TSESLint.Scope.Definition): definition is FunctionDeclarationDefinition {
-  return definition.type === "FunctionName" && definition.node.type === AST_NODE_TYPES.FunctionDeclaration;
+  return definition.type === TSESLint.Scope.DefinitionType.FunctionName && definition.node.type === AST_NODE_TYPES.FunctionDeclaration;
 }
 
 function isVariableDefinition(definition: TSESLint.Scope.Definition): definition is VariableDefinition {
-  return definition.type === "Variable" && definition.node.type === AST_NODE_TYPES.VariableDeclarator;
+  return definition.type === TSESLint.Scope.DefinitionType.Variable && definition.node.type === AST_NODE_TYPES.VariableDeclarator;
 }
 
 function isModuleScopeVariableDeclaration(node: TSESTree.VariableDeclaration): boolean {
@@ -61,8 +55,8 @@ function isModuleScopeVariableDeclaration(node: TSESTree.VariableDeclaration): b
 }
 
 function isAsyncVariableEntrypoint(definition: VariableDefinition): boolean {
-  const declaration = definition.node.parent;
-  if (!declaration || declaration.type !== AST_NODE_TYPES.VariableDeclaration || !isModuleScopeVariableDeclaration(declaration)) return false;
+  const declaration = definition.parent;
+  if (!declaration || !isModuleScopeVariableDeclaration(declaration)) return false;
   const init = definition.node.init;
   return (init?.type === AST_NODE_TYPES.FunctionExpression || init?.type === AST_NODE_TYPES.ArrowFunctionExpression) && init.async;
 }
