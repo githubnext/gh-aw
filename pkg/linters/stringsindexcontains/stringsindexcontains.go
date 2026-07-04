@@ -1,6 +1,7 @@
 // Package stringsindexcontains implements a Go analysis linter that flags
-// strings.Index(s, substr) comparisons with -1 or >= 0 / != -1 that should
-// use the more readable strings.Contains(s, substr) instead.
+// strings.Index(s, substr) comparisons with -1 or 0 (e.g. != -1, >= 0, > -1,
+// == -1, < 0, <= -1) and their yoda-order variants that should use the more
+// readable strings.Contains(s, substr) or !strings.Contains(s, substr) instead.
 package stringsindexcontains
 
 import (
@@ -19,7 +20,7 @@ import (
 // Analyzer is the strings-index-contains analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "stringsindexcontains",
-	Doc:      "reports strings.Index(s, substr) comparisons with -1 that should use strings.Contains(s, substr)",
+	Doc:      "reports strings.Index(s, substr) comparisons with -1 or 0 (e.g. != -1, >= 0, > -1, == -1, < 0, <= -1) and their yoda-order variants that should use strings.Contains(s, substr) or !strings.Contains(s, substr)",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/stringsindexcontains",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
