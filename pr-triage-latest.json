@@ -1,83 +1,70 @@
 {
-  "run_date": "2026-07-04T07:13:00Z",
-  "run_id": "28698731719",
-  "prior_run_prs_closed": 21,
+  "run_date": "2026-07-04T12:36:54Z",
+  "run_id": "28706384347",
+  "prior_run_prs_closed": 8,
   "summary": {
-    "total": 8,
-    "fast_track": 5,
-    "batch_review": 1,
+    "total": 7,
+    "fast_track": 2,
+    "batch_review": 3,
     "defer": 1,
     "close": 1,
-    "changes_requested_blocked": 3
+    "changes_requested_blocked": 1
   },
   "prs": [
     {
-      "number": 43297,
-      "title": "Prevent invalid `id-token: read` emission when merging `permissions: all: read` with explicit overrides",
-      "category": "bug",
-      "risk": "low",
+      "number": 43366,
+      "title": "Clarify pr-sous-chef criteria for dismissing github-actions[bot] reviews",
+      "category": "refactor",
+      "risk": "medium",
       "score": 72,
       "action": "fast_track",
       "draft": false,
-      "ci": "approved",
-      "batch": "pr-batch:compiler-fixes",
-      "note": "+13 lines, GHA runtime correctness, approved"
+      "ci": "approved_by_pelikhan",
+      "note": "+59/-164, 3 files. Approved by pelikhan. Dirty state may be stale rebase."
     },
     {
-      "number": 43298,
-      "title": "Stop compiler from emitting deprecated artifact v3 pins in GHES mode",
+      "number": 43356,
+      "title": "fix(eslint-factory): require-async-entrypoint-catch — track async arrow/fn-expr entrypoints",
       "category": "bug",
       "risk": "low",
-      "score": 70,
+      "score": 69,
       "action": "fast_track",
       "draft": false,
-      "ci": "approved",
-      "batch": "pr-batch:compiler-fixes",
-      "note": "-68/+38, GHES runtime fix, approved"
+      "ci": "copilot_check_passed",
+      "note": "+247/-4, 2 files. Copilot check passed. Dirty state — rebase needed."
     },
     {
-      "number": 43300,
-      "title": "Add `maintenance.disabled_jobs` to selectively omit agentics-maintenance jobs and permissions",
-      "category": "feature",
-      "risk": "medium",
-      "score": 68,
-      "action": "fast_track",
-      "draft": false,
-      "ci": "changes_requested_dismissed",
-      "note": "+461/-74, design review recommended before merge"
-    },
-    {
-      "number": 43302,
-      "title": "fix: correct engine.env secrets warning — excluded from sandbox, not leaked",
-      "category": "bug",
+      "number": 43364,
+      "title": "Tighten anomaly detector test coverage and subtest structure",
+      "category": "test",
       "risk": "low",
-      "score": 58,
-      "action": "fast_track",
+      "score": 52,
+      "action": "batch_review",
       "draft": false,
       "review": "changes_requested",
-      "note": "CHANGES_REQUESTED: 2 message-correctness issues + test gap"
+      "note": "CHANGES_REQUESTED: nil-guard production hazard must be fixed before merge"
     },
     {
-      "number": 43172,
-      "title": "Fix host.docker.internal DNS resolution for mcp-scripts in bridge-mode gateway",
-      "category": "bug",
-      "risk": "medium",
-      "score": 55,
-      "action": "fast_track",
-      "draft": false,
-      "review": "changes_requested",
-      "note": "CHANGES_REQUESTED carry-over from prior run"
-    },
-    {
-      "number": 43329,
-      "title": "refactor: extract shared multi-provider JSON helpers to eliminate duplicate code",
-      "category": "refactor",
+      "number": 43376,
+      "title": "test: add golden files and RunWithSuggestedFixes for 3 autofix linters",
+      "category": "test",
       "risk": "low",
-      "score": 35,
+      "score": 48,
       "action": "batch_review",
       "draft": true,
-      "batch": "pr-batch:js-refactor",
-      "note": "Draft, no reviews yet"
+      "batch": "pr-batch:draft-backlog",
+      "note": "+147/-3, 6 files. Draft, no CI yet."
+    },
+    {
+      "number": 43375,
+      "title": "deps: bump bubbletea v2.0.8, lipgloss v2.0.5",
+      "category": "chore",
+      "risk": "low",
+      "score": 38,
+      "action": "batch_review",
+      "draft": true,
+      "batch": "pr-batch:draft-backlog",
+      "note": "+3/-3, 2 files. Emoji rendering fix. Draft."
     },
     {
       "number": 43145,
@@ -87,7 +74,7 @@
       "score": 28,
       "action": "defer",
       "draft": true,
-      "note": "Low urgency docs update"
+      "note": "Low urgency docs update. Carry-over."
     },
     {
       "number": 42314,
@@ -97,26 +84,21 @@
       "score": 18,
       "action": "close",
       "draft": true,
-      "note": "Stale 5+ days, +3213 lines, no active review"
+      "note": "Stale 6+ days, +3213/-558/288 files, no active review. Recommend close."
     }
   ],
   "batches": [
     {
-      "id": "pr-batch:compiler-fixes",
-      "prs": [43297, 43298],
-      "note": "Compiler correctness fixes, both approved — merge together"
-    },
-    {
-      "id": "pr-batch:js-refactor",
-      "prs": [43329],
-      "note": "JS module dedup, draft"
+      "id": "pr-batch:draft-backlog",
+      "prs": [43376, 43375],
+      "note": "Low-risk draft PRs — test golden files + dep bump. Batch when undrafted."
     }
   ],
   "flags": [
-    "PR 43302 CHANGES_REQUESTED: message-correctness + test gap",
-    "PR 43300 CHANGES_REQUESTED was raised then dismissed — verify completeness",
-    "PR 43172 CHANGES_REQUESTED carry-over — author needs to respond",
-    "PR 42314 stale draft (5+ days, +3213 lines) — recommend close"
+    "PR 43364 CHANGES_REQUESTED: nil-guard production hazard in anomaly.go — author must fix before merge",
+    "PR 43366 dirty state: may need rebase before merge",
+    "PR 43356 dirty state: may need rebase before merge",
+    "PR 42314 stale draft 6+ days, 288 files — recommend close and reopen smaller"
   ],
-  "not_triaged_non_copilot": [43312, 43228]
+  "not_triaged_non_copilot": [43228]
 }
