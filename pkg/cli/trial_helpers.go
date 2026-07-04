@@ -370,12 +370,14 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from "+branch+" branch"))
 	}
 	cmd = exec.Command("git", "pull", "origin", branch)
+	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to pull latest changes: %w (output: %s)", err, string(output))
 	}
 
 	// Push to current branch
 	cmd = exec.Command("git", "push", "origin", branch)
+	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to push trial results: %w (output: %s)", err, string(output))
 	}

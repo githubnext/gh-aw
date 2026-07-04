@@ -494,12 +494,15 @@ func getLocalBranch(dir string) string {
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
+		trialRepoLog.Printf("Failed to detect local branch in %s: %v, falling back to main", dir, err)
 		return "main"
 	}
 	branch := strings.TrimSpace(string(out))
 	if branch == "" || branch == "HEAD" {
+		trialRepoLog.Printf("Could not determine local branch in %s (got %q), falling back to main", dir, branch)
 		return "main"
 	}
+	trialRepoLog.Printf("Detected local branch in %s: %s", dir, branch)
 	return branch
 }
 
