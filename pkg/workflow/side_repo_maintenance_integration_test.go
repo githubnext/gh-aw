@@ -359,3 +359,167 @@ safe-outputs:
 		})
 	}
 }
+
+// TestSideRepoMaintenanceWorkflowWithGitHubApp_EndToEnd verifies that when a source
+// workflow authenticates its cross-repo checkout with a GitHub App, the generated
+// side-repo maintenance workflow emits a create-github-app-token mint step in each
+// cross-repo job and uses the minted token expression instead of GH_AW_GITHUB_TOKEN.
+func TestSideRepoMaintenanceWorkflowWithGitHubApp_EndToEnd(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+checkout:
+  - repository: microsoft/aspire.dev
+    github-app:
+      app-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+      private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+      owner: "microsoft"
+      repositories:
+        - aspire.dev
+        - aspire
+    current: true
+safe-outputs:
+  github-app:
+    app-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+    private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+    owner: "microsoft"
+    repositories:
+      - aspire.dev
+      - aspire
+  create-pull-request:
+    target-repo: "microsoft/aspire.dev"
+---
+
+# GitHub App Auth Test Workflow
+
+This workflow uses a GitHub App for cross-repo authentication.
+`
+
+	workflowDataList, tmpDir := compileSideRepoWorkflow(t, workflowContent)
+
+	err := GenerateMaintenanceWorkflow(context.Background(), GenerateMaintenanceWorkflowOptions{
+		WorkflowDataList: workflowDataList,
+		WorkflowDir:      tmpDir,
+		Version:          "v1.0.0",
+		ActionMode:       ActionModeRelease,
+		ActionTag:        "",
+		RepoConfig:       nil,
+		RepoSlug:         "",
+	})
+	require.NoError(t, err, "generate maintenance workflow")
+
+	sideRepoFile := filepath.Join(tmpDir, "agentics-maintenance-microsoft-aspire.dev.yml")
+	content, err := os.ReadFile(sideRepoFile)
+	require.NoError(t, err, "side-repo maintenance file should have been created")
+	contentStr := string(content)
+
+	// The minted token reference must be used (not the fallback secret).
+	assert.Contains(t, contentStr, "steps.side-repo-app-token.outputs.token",
+		"minted app token should be referenced via steps output")
+	assert.NotContains(t, contentStr, "secrets.GH_AW_GITHUB_TOKEN",
+		"fallback GH_AW_GITHUB_TOKEN should not appear when github-app auth is configured")
+
+	// Each cross-repo job must contain the create-github-app-token mint step.
+	assert.Contains(t, contentStr, "create-github-app-token",
+		"create-github-app-token action should be present in the workflow")
+	assert.Contains(t, contentStr, "id: side-repo-app-token",
+		"mint step should have the expected step ID")
+	assert.Contains(t, contentStr, "Generate GitHub App token",
+		"mint step should have the expected step name")
+
+	// GitHub App credentials must be forwarded.
+	assert.Contains(t, contentStr, "secrets.ASPIRE_BOT_APP_ID",
+		"app-id secret reference should appear in the generated workflow")
+	assert.Contains(t, contentStr, "secrets.ASPIRE_BOT_PRIVATE_KEY",
+		"private-key secret reference should appear in the generated workflow")
+
+	// The owner and repositories from the checkout config should appear.
+	assert.Contains(t, contentStr, "owner: microsoft",
+		"app token owner should be set from the checkout config")
+	assert.Contains(t, contentStr, "aspire.dev",
+		"repository list should include aspire.dev")
+
+	// Standard job structure must still be present.
+	assert.Contains(t, contentStr, "apply_safe_outputs:",
+		"apply_safe_outputs job should still be generated")
+	assert.Contains(t, contentStr, "create_labels:",
+		"create_labels job should still be generated")
+	assert.Contains(t, contentStr, "activity_report:",
+		"activity_report job should still be generated")
+
+	// Validate that the mint step appears before the first token-using step in at
+	// least one job by checking ordering within apply_safe_outputs.
+	applyIdx := strings.Index(contentStr, "apply_safe_outputs:")
+	require.Greater(t, applyIdx, 0, "apply_safe_outputs job must be present")
+	applyJobContent := contentStr[applyIdx:]
+	mintIdx := strings.Index(applyJobContent, "id: side-repo-app-token")
+	tokenUseIdx := strings.Index(applyJobContent, "steps.side-repo-app-token.outputs.token")
+	assert.Greater(t, mintIdx, 0, "mint step must be present in apply_safe_outputs job")
+	assert.Greater(t, tokenUseIdx, mintIdx,
+		"minted token reference must appear after the mint step definition in apply_safe_outputs")
+}
+
+// TestSideRepoMaintenanceWorkflowWithGitHubApp_WithExpires_EndToEnd verifies that
+// when a workflow uses both GitHub App auth and expires-based scheduling, the
+// close-expired-entities job also receives the mint step.
+func TestSideRepoMaintenanceWorkflowWithGitHubApp_WithExpires_EndToEnd(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+checkout:
+  repository: my-org/target-repo
+  github-app:
+    app-id: ${{ secrets.MY_APP_ID }}
+    private-key: ${{ secrets.MY_APP_KEY }}
+    owner: "my-org"
+    repositories:
+      - target-repo
+  current: true
+safe-outputs:
+  create-issue:
+    expires: 7
+---
+
+# Expires + App Auth Test
+`
+
+	workflowDataList, tmpDir := compileSideRepoWorkflow(t, workflowContent)
+
+	err := GenerateMaintenanceWorkflow(context.Background(), GenerateMaintenanceWorkflowOptions{
+		WorkflowDataList: workflowDataList,
+		WorkflowDir:      tmpDir,
+		Version:          "v1.0.0",
+		ActionMode:       ActionModeRelease,
+		ActionTag:        "",
+		RepoConfig:       nil,
+		RepoSlug:         "",
+	})
+	require.NoError(t, err, "generate maintenance workflow")
+
+	sideRepoFile := filepath.Join(tmpDir, "agentics-maintenance-my-org-target-repo.yml")
+	content, err := os.ReadFile(sideRepoFile)
+	require.NoError(t, err, "side-repo maintenance file should have been created")
+	contentStr := string(content)
+
+	// Schedule trigger should be present (from expires: 7).
+	assert.Contains(t, contentStr, "schedule:", "should include schedule trigger")
+	assert.Contains(t, contentStr, "close-expired-entities:", "should include close-expired-entities job")
+
+	// The close-expired-entities job must also get the mint step.
+	closeExpiredIdx := strings.Index(contentStr, "close-expired-entities:")
+	require.Greater(t, closeExpiredIdx, 0)
+	closeExpiredContent := contentStr[closeExpiredIdx:]
+	assert.Contains(t, closeExpiredContent, "id: side-repo-app-token",
+		"close-expired-entities job must also contain the app token mint step")
+	assert.Contains(t, closeExpiredContent, "steps.side-repo-app-token.outputs.token",
+		"close-expired-entities job must use the minted token")
+}
