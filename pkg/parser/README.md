@@ -130,7 +130,7 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `GetMainWorkflowDeprecatedFieldsDeep` | `func() ([]DeprecatedField, error)` | Returns deprecated fields at any schema nesting level (e.g. `tools.grep`) with dot-separated paths |
 | `FindDeprecatedFieldsInFrontmatterDeep` | `func(map[string]any, []DeprecatedField) []DeprecatedField` | Finds deprecated fields at any nesting depth in frontmatter using dot-separated paths |
 | `FindClosestMatches` | `func(target string, candidates []string, maxResults int) []string` | Finds the closest string matches (for typo suggestions) |
-| `LevenshteinDistance` | `func(a, b string) int` | Computes edit distance between two strings |
+| `CompileSchema` | `func(schemaJSON, schemaURL string) (*jsonschema.Schema, error)` | Compiles a JSON schema from a JSON string |
 
 #### Frontmatter Hashing
 
@@ -160,6 +160,7 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `ExtractJSONPathFromValidationError` | `func(err error) []JSONPathInfo` | Extracts JSON path info from a schema validation error |
 | `LocateJSONPathInYAML` | `func(yamlContent, jsonPath string) JSONPathLocation` | Maps a JSON path to a line number in YAML text |
 | `LocateJSONPathInYAMLWithAdditionalProperties` | `func(yamlContent, jsonPath, errorMessage string) JSONPathLocation` | Maps path with additional-property context |
+| `LocateJSONPathForPathInfo` | `func(yamlContent string, info JSONPathInfo) JSONPathLocation` | Maps a `JSONPathInfo` to a line/column in YAML text, handling additional-property errors |
 
 #### Trigger Helpers
 

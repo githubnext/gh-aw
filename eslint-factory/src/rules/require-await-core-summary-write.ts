@@ -21,8 +21,18 @@ function getRootIdentifier(node: TSESTree.Node): string | null {
   return null;
 }
 
+// Tightened from the prior `/^core/i` heuristic to an exact allow-list.
+// Only identifiers that are verified @actions/core bindings in the corpus are
+// matched; broad prefix matching would silently flag unrelated objects such as
+// `coreCache`, `coreData`, or `coreference` that happen to start with "core".
+//
+// Known aliases (extend here when a new verified binding is introduced):
+//   "core"    — conventional require("@actions/core") name in github-script steps
+//   "coreObj" — alias used in parse_mcp_gateway_log.cjs
+const CORE_ALIASES = new Set(["core", "coreObj"]);
+
 function isCoreLikeIdentifier(name: string): boolean {
-  return /^core/i.test(name);
+  return CORE_ALIASES.has(name);
 }
 
 /**
@@ -33,7 +43,7 @@ function isCoreLikeIdentifier(name: string): boolean {
  *   - `core.summary`
  *   - `core.summary.addRaw(x)`
  *   - `core.summary.addHeading(...).addRaw(x)`
- *   - `coreObj.summary` (any identifier alias)
+ *   - `coreObj.summary` (known @actions/core alias — see CORE_ALIASES)
  */
 function rootsSummary(node: TSESTree.Node): boolean {
   const rootIdentifier = getRootIdentifier(node);
