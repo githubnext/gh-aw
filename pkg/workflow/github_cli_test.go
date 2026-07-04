@@ -142,15 +142,8 @@ func TestExecGHUsesConfiguredProcessEnvLookup(t *testing.T) {
 	})
 
 	t.Run("does not inject gh token when both tokens are absent", func(t *testing.T) {
-		originalGHToken, ghTokenWasSet := os.LookupEnv("GH_TOKEN")
-		if ghTokenWasSet {
-			require.NoError(t, os.Unsetenv("GH_TOKEN"))
-		}
-		t.Cleanup(func() {
-			if ghTokenWasSet {
-				require.NoError(t, os.Setenv("GH_TOKEN", originalGHToken))
-			}
-		})
+		t.Setenv("GH_TOKEN", "ambient-gh-token")
+		t.Setenv("GITHUB_TOKEN", "ambient-github-token")
 
 		SetProcessEnvLookup(func(key string) (string, bool) {
 			return "", false
@@ -163,6 +156,9 @@ func TestExecGHUsesConfiguredProcessEnvLookup(t *testing.T) {
 		require.NotNil(t, cmd.Env)
 		assert.False(t, slices.ContainsFunc(cmd.Env, func(e string) bool {
 			return strings.HasPrefix(e, "GH_TOKEN=")
+		}))
+		assert.False(t, slices.ContainsFunc(cmd.Env, func(e string) bool {
+			return strings.HasPrefix(e, "GITHUB_TOKEN=")
 		}))
 		assert.Contains(t, cmd.Env, "GH_HOST=configured.ghe.com")
 	})

@@ -20,7 +20,7 @@
       }
     },
     "ghes": {
-      "description": "Enable GitHub Enterprise Server (GHES) compatibility mode. When true, the compiler emits GHES-compatible artifact action versions (upload-artifact@v3, download-artifact@v3) instead of the latest v7/v8 which are not supported on GHES.",
+      "description": "Enable GitHub Enterprise Server (GHES) compatibility mode. Artifact actions continue to use latest non-v3 pins because upload-artifact/download-artifact v3 are deprecated.",
       "type": "boolean"
     },
     "help_command": {
@@ -86,6 +86,16 @@
             "label_triggers": {
               "description": "Set to false to disable all label-triggered jobs (disable_agentic_workflow, label_apply_safe_outputs, etc.). When absent or true (default), all label-triggered jobs are included in the maintenance workflow.",
               "type": "boolean"
+            },
+            "disabled_jobs": {
+              "description": "Maintenance workflow job IDs to skip when generating agentics-maintenance.yml. Supported IDs are close-expired-entities, apply_safe_outputs, label_disable_agentic_workflow, and label_apply_safe_outputs. Values are case-insensitive; underscores and hyphens are treated equivalently.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "examples": ["close-expired-entities", "apply_safe_outputs", "label_disable_agentic_workflow", "label_apply_safe_outputs"]
+              },
+              "uniqueItems": true
             },
             "compile": {
               "description": "Configuration for the compile-workflows maintenance job.",

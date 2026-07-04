@@ -28,7 +28,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
-			AddBoolOrInt("deduplicate_by_title", c.DeduplicateByTitle)
+			AddTemplatableBoolOrInt("deduplicate_by_title", c.DeduplicateByTitle)
 		return builder.Build()
 	},
 	"add_comment": func(cfg *SafeOutputsConfig) map[string]any {

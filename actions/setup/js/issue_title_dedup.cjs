@@ -19,10 +19,19 @@ function parseDeduplicateByTitle(value) {
   if (value === true) {
     return { enabled: true, maxDistance: 0 };
   }
+  if (value === "false") {
+    return { enabled: false, maxDistance: 0 };
+  }
+  if (value === "true") {
+    return { enabled: true, maxDistance: 0 };
+  }
+  if (typeof value === "string" && /^\d+$/.test(value)) {
+    value = Number.parseInt(value, 10);
+  }
   if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0 && value <= MAX_DEDUPLICATE_BY_TITLE_DISTANCE) {
     return { enabled: true, maxDistance: value };
   }
-  throw new Error(`deduplicate-by-title must be a boolean or a non-negative integer (0-${MAX_DEDUPLICATE_BY_TITLE_DISTANCE})`);
+  throw new Error(`deduplicate-by-title must be a boolean, a boolean-like string, or a non-negative integer (0-${MAX_DEDUPLICATE_BY_TITLE_DISTANCE})`);
 }
 
 /**

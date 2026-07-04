@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -101,6 +102,31 @@ func TestApplyContainerPins(t *testing.T) {
 				assert.Equal(t, tt.expectedRefs[i], img, "ref at index %d", i)
 				assert.Equal(t, tt.expectedDigests[i], pinEntries[i].Digest, "digest at index %d", i)
 			}
+		})
+	}
+}
+
+// TestApplyContainerPins_DefaultFirewallVersion is a regression test for gh-aw#43307:
+// all four gh-aw-firewall images at constants.DefaultFirewallVersion (including cli-proxy,
+// which was new in v0.82) must have entries in the embedded pin table so that consumer
+// compiles without a local cache still emit digest-pinned references.
+// Using constants means the test automatically tracks version bumps.
+func TestApplyContainerPins_DefaultFirewallVersion(t *testing.T) {
+	imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+	sidecars := []string{"agent", "api-proxy", "cli-proxy", "squid"}
+
+	for _, sidecar := range sidecars {
+		image := constants.DefaultFirewallRegistry + "/" + sidecar + ":" + imageTag
+		t.Run(sidecar, func(t *testing.T) {
+			pin, ok := getEmbeddedContainerPin(image)
+			require.True(t, ok, "embedded pin must exist for %s", image)
+			require.NotEmpty(t, pin.Digest, "Digest must be non-empty for %s", image)
+			require.NotEmpty(t, pin.PinnedImage, "PinnedImage must be non-empty for %s", image)
+
+			refs, pinEntries := applyContainerPins([]string{image}, nil)
+			require.Len(t, refs, 1)
+			assert.Equal(t, pin.PinnedImage, refs[0], "resolved ref for %s", image)
+			assert.Equal(t, pin.Digest, pinEntries[0].Digest, "digest in manifest entry for %s", image)
 		})
 	}
 }

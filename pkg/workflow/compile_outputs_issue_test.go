@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
-	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 // assertTokenInProcessSafeOutputsEnv verifies that a given environment variable name
@@ -200,9 +199,9 @@ This workflow tests the output configuration parsing.
 		}
 	}
 
-	deduplicateByTitle, ok := typeutil.ParseIntValue(workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle)
-	if !ok || deduplicateByTitle != 1 {
-		t.Errorf("Expected deduplicate-by-title to parse as 1, got %#v", workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle)
+	deduplicateByTitle := workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle
+	if deduplicateByTitle == nil || string(*deduplicateByTitle) != "1" {
+		t.Errorf("Expected deduplicate-by-title to parse as '1', got %#v", deduplicateByTitle)
 	}
 }
 
@@ -493,5 +492,165 @@ This workflow tests that copilot assignment is wired in consolidated safe output
 	if strings.Contains(lockContent, "steps.assign_copilot_to_created_issues.outputs.assign_copilot_failure_count") ||
 		strings.Contains(lockContent, "steps.assign_copilot_to_created_issues.outputs.assign_copilot_errors") {
 		t.Error("Did not expect legacy assign_copilot_to_created_issues output wiring in safe_outputs job")
+	}
+}
+
+// TestDeduplicateByTitleBoolean verifies that deduplicate-by-title: true is emitted correctly.
+func TestDeduplicateByTitleBoolean(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "dedup-bool-test")
+
+	testContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+strict: false
+safe-outputs:
+  create-issue:
+    max: 1
+    deduplicate-by-title: true
+---
+
+Create test issues.
+`
+	testFile := filepath.Join(tmpDir, "test-dedup-bool.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile: %v", err)
+	}
+
+	lockContent, err := os.ReadFile(filepath.Join(tmpDir, "test-dedup-bool.lock.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(lockContent), `\"deduplicate_by_title\":true`) {
+		t.Errorf("Expected deduplicate_by_title:true in handler config, got:\n%s", lockContent)
+	}
+}
+
+// TestDeduplicateByTitleFalse verifies that deduplicate-by-title: false is emitted correctly.
+func TestDeduplicateByTitleFalse(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "dedup-false-test")
+
+	testContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+strict: false
+safe-outputs:
+  create-issue:
+    max: 1
+    deduplicate-by-title: false
+---
+
+Create test issues.
+`
+	testFile := filepath.Join(tmpDir, "test-dedup-false.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile: %v", err)
+	}
+
+	lockContent, err := os.ReadFile(filepath.Join(tmpDir, "test-dedup-false.lock.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(lockContent), `\"deduplicate_by_title\":false`) {
+		t.Errorf("Expected deduplicate_by_title:false in handler config, got:\n%s", lockContent)
+	}
+}
+
+// TestDeduplicateByTitleInteger verifies that deduplicate-by-title: <int> is emitted correctly.
+func TestDeduplicateByTitleInteger(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "dedup-int-test")
+
+	testContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+strict: false
+safe-outputs:
+  create-issue:
+    max: 1
+    deduplicate-by-title: 2
+---
+
+Create test issues.
+`
+	testFile := filepath.Join(tmpDir, "test-dedup-int.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile: %v", err)
+	}
+
+	lockContent, err := os.ReadFile(filepath.Join(tmpDir, "test-dedup-int.lock.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(lockContent), `\"deduplicate_by_title\":2`) {
+		t.Errorf("Expected deduplicate_by_title:2 in handler config, got:\n%s", lockContent)
+	}
+}
+
+// TestDeduplicateByTitleExpression verifies that deduplicate-by-title accepts
+// GitHub Actions expressions and emits them as a JSON string so the runtime
+// can evaluate them.
+func TestDeduplicateByTitleExpression(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "dedup-expr-test")
+
+	testContent := `---
+on:
+  workflow_dispatch:
+    inputs:
+      dedup:
+        type: boolean
+        default: true
+permissions:
+  contents: read
+engine: copilot
+strict: false
+safe-outputs:
+  create-issue:
+    max: 1
+    deduplicate-by-title: ${{ inputs.dedup }}
+---
+
+Create test issues.
+`
+	testFile := filepath.Join(tmpDir, "test-dedup-expr.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile: %v", err)
+	}
+
+	lockContent, err := os.ReadFile(filepath.Join(tmpDir, "test-dedup-expr.lock.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// GH Actions expressions are emitted as JSON strings so they can be evaluated at runtime.
+	if !strings.Contains(string(lockContent), `\"deduplicate_by_title\":\"${{ inputs.dedup }}\"`) {
+		t.Errorf("Expected deduplicate_by_title expression in handler config, got:\n%s", lockContent)
 	}
 }

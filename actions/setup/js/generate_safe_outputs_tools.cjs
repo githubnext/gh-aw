@@ -135,7 +135,7 @@ async function main() {
         enhancedTool.description = (enhancedTool.description || "") + descSuffix;
       }
       if (hasRuntimeFeature(runtimeFeatures, "issue_intents") && ["set_issue_type", "set_issue_field", "add_labels"].includes(tool.name)) {
-        enhancedTool.description = `${enhancedTool.description || ""} INTENT: Include rationale (max 280 chars) and confidence (LOW/MEDIUM/HIGH) with each call.`.trim();
+        enhancedTool.description = `${enhancedTool.description || ""} INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.`.trim();
       }
 
       if (tool.name === "add_comment") {

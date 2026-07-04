@@ -50,7 +50,7 @@ describe("generateCompactSchema", () => {
     expect(generateCompactSchema("123")).toBe("number");
     expect(generateCompactSchema('"hello"')).toBe("string");
     expect(generateCompactSchema("true")).toBe("boolean");
-    expect(generateCompactSchema("null")).toBe("object"); // JSON.parse(null) is object
+    expect(generateCompactSchema("null")).toBe("null");
   });
 
   it("should handle invalid JSON", async () => {

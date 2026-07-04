@@ -43,6 +43,7 @@ func setupGHCommand(ctx context.Context, args ...string) *exec.Cmd {
 	// Check if GH_TOKEN or GITHUB_TOKEN is available
 	ghToken := lookupProcessEnv("GH_TOKEN")
 	githubToken := lookupProcessEnv("GITHUB_TOKEN")
+	ghHost := lookupProcessEnv("GH_HOST")
 
 	if ctx == nil {
 		ctx = context.TODO()
@@ -59,23 +60,37 @@ func setupGHCommand(ctx context.Context, args ...string) *exec.Cmd {
 	// Only add GH_TOKEN if it's not set but GITHUB_TOKEN is available
 	if ghToken == "" && githubToken != "" {
 		githubCLILog.Printf("GH_TOKEN not set, using GITHUB_TOKEN for gh CLI")
-		cmd.Env = append(os.Environ(), "GH_TOKEN="+githubToken)
+		cmd.Env = append(filteredGHCLIEnv(ghToken, githubToken, ghHost), "GH_TOKEN="+githubToken)
 	}
-	if lookupProcessEnv("GH_HOST") == "" {
-		host := getDefaultGHHost()
-		if host != "" && host != "github.com" {
-			if cmd.Env == nil {
-				// Build the base env from os.Environ(), filtering out GH_TOKEN when
-				// the processEnvLookup says it is absent. This prevents the real
-				// runner GH_TOKEN from leaking into commands that should not have it
-				// (e.g., under test mocks or when only GH_HOST must be injected).
-				cmd.Env = filterTokenFromEnv(os.Environ(), ghToken)
-			}
-			cmd.Env = append(cmd.Env, "GH_HOST="+host)
+	if ghHost == "" {
+		defaultHost := getDefaultGHHost()
+		if defaultHost != "" && defaultHost != "github.com" && cmd.Env == nil {
+			cmd.Env = filteredGHCLIEnv(ghToken, githubToken, ghHost)
 		}
+		SetGHHostEnv(cmd, defaultHost)
 	}
 
 	return cmd
+}
+
+func filteredGHCLIEnv(ghToken, githubToken, ghHost string) []string {
+	env := make([]string, 0, len(os.Environ())+3)
+	for _, entry := range os.Environ() {
+		if strings.HasPrefix(entry, "GH_TOKEN=") || strings.HasPrefix(entry, "GITHUB_TOKEN=") || strings.HasPrefix(entry, "GH_HOST=") {
+			continue
+		}
+		env = append(env, entry)
+	}
+	if ghToken != "" {
+		env = append(env, "GH_TOKEN="+ghToken)
+	}
+	if githubToken != "" {
+		env = append(env, "GITHUB_TOKEN="+githubToken)
+	}
+	if ghHost != "" {
+		env = append(env, "GH_HOST="+ghHost)
+	}
+	return env
 }
 
 // ExecGH wraps gh CLI calls and ensures proper token configuration.
@@ -236,24 +251,6 @@ func RunGHContextWithHost(ctx context.Context, spinnerMessage string, host strin
 
 	output, err := cmd.Output()
 	return output, enrichGHError(err)
-}
-
-// filterTokenFromEnv returns env unchanged when knownToken is non-empty (the token is
-// legitimately present), or returns a copy of env with all "GH_TOKEN=…" entries removed
-// when knownToken is empty. This prevents the real runner GH_TOKEN from leaking into a
-// command's environment when the processEnvLookup indicates no token should be present
-// (e.g., under test mocks that override the env lookup).
-func filterTokenFromEnv(env []string, knownToken string) []string {
-	if knownToken != "" {
-		return env
-	}
-	filtered := make([]string, 0, len(env))
-	for _, e := range env {
-		if !strings.HasPrefix(e, "GH_TOKEN=") {
-			filtered = append(filtered, e)
-		}
-	}
-	return filtered
 }
 
 // SetGHHostEnv sets the GH_HOST environment variable on the command for non-github.com hosts.
