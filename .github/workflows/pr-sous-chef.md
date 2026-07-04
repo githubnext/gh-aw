@@ -338,10 +338,11 @@ For each PR that is not skipped:
      safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot please run the `pr-finisher` skill, address unresolved review comments, and rerun checks once the branch is up to date.'
      ```
 
-3. **Dismiss stale `github-actions[bot]` blocking reviews when all related comments are addressed**
+3. **Dismiss stale `github-actions[bot]` blocking reviews only when all related feedback is addressed**
    - Inspect PR reviews and collect open `CHANGES_REQUESTED` reviews authored by `github-actions[bot]`.
    - For each such review, inspect its related review threads/comments and determine whether all actionable feedback has been addressed (for example, no unresolved related threads remain and no open follow-up from that review is left).
-   - When all feedback for one or more such reviews is addressed, dismiss them with the safe-output script tool:
+   - Build a dismissal list containing only review IDs whose related feedback is fully addressed, and leave unresolved `github-actions[bot]` reviews untouched.
+   - If the dismissal list is non-empty, dismiss those reviews with the safe-output script tool:
     ```bash
     safeoutputs dismiss_github_actions_reviews --pull_request_number 12345 --review_ids "4605056464,4605057733"
     ```
