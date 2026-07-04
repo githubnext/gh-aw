@@ -1038,6 +1038,19 @@ describe("copilot_harness.cjs", () => {
       const output = 'some prior output\n[copilot-sdk-driver] [sdk-driver] error: 400 400 400 no model endpoints available given user constraints\n{"type":"subagent.failed"}';
       expect(isHTTP400ResponseError(output)).toBe(true);
     });
+
+    it("matches the 'stream_options: Extra inputs are not permitted' Anthropic BYOK error", () => {
+      expect(isHTTP400ResponseError("[copilot-sdk-driver] [sdk-driver] error: 400 400 400 stream_options: Extra inputs are not permitted")).toBe(true);
+    });
+
+    it("matches the stream_options error embedded in larger output", () => {
+      const output = 'some prior output\n[copilot-sdk-driver] [sdk-driver] error: 400 400 400 stream_options: Extra inputs are not permitted\n{"type":"subagent.failed"}';
+      expect(isHTTP400ResponseError(output)).toBe(true);
+    });
+
+    it("does not false-positive on unrelated messages mentioning stream_options", () => {
+      expect(isHTTP400ResponseError("Configuring stream_options for the request")).toBe(false);
+    });
   });
 
   describe("no-auth-info detection pattern", () => {
