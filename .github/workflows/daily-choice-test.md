@@ -70,15 +70,11 @@ features:
   gh-aw-detection: true
 ---
 
-### Daily Choice Type Test
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
+# Daily Choice Type Test
 
 This workflow tests the choice type functionality in safe-output jobs with Claude.
 
-#### Task
+## Task
 
 Use the `test_environment` tool to configure a test deployment. Choose:
 1. An environment: staging or production

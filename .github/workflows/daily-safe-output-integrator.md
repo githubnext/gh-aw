@@ -68,23 +68,19 @@ tracker-id: daily-safe-output-integrator
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-### Daily Safe Output Integrator
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
+# Daily Safe Output Integrator
 
 Ensure every supported safe-output type has both:
 1) a `pkg/cli/workflows/test-*.md` fixture, and
 2) coverage in `pkg/workflow/compiler_safe_outputs_config_test.go`.
 
-#### Current Context
+## Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run Date**: $(date +%Y-%m-%d)
 - **Workspace**: ${{ github.workspace }}
 
-#### Execution Plan
+## Execution Plan
 
 ### Phase 1: Build authoritative type list
 
@@ -135,7 +131,7 @@ Do not modify unrelated existing fixture files and do not create duplicates when
   - total newly covered types.
 - If no changes were needed, call `noop` with a clear “coverage already complete” message.
 
-#### Guardrails
+## Guardrails
 
 - Keep additions minimal and deterministic.
 - Prefer bash inspection commands (`cat`, `grep`, `sed`) instead of `read(...)` tool calls for repository files.

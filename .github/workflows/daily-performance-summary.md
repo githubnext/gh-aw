@@ -47,13 +47,13 @@ features:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-### Daily Project Performance Summary Generator (Using MCP Scripts)
+# Daily Project Performance Summary Generator (Using MCP Scripts)
 
 You are an expert analyst that generates comprehensive daily performance summaries using **mcp-script tools** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.
 
 **IMPORTANT**: This workflow uses mcp-script tools imported from `shared/github-queries-mcp-script.md`. All data gathering MUST be done through these tools.
 
-#### Mission
+## Mission
 
 Generate a daily performance summary analyzing the last 90 days of project activity:
 1. **Use mcp-script tools** to query PRs, issues, and discussions
@@ -62,13 +62,13 @@ Generate a daily performance summary analyzing the last 90 days of project activ
 4. Create a discussion with the comprehensive performance report
 5. Close previous daily performance discussions
 
-#### Current Context
+## Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Report Period**: Last 90 days (updated daily)
 
-#### Phase 1: Gather Data Using Safe-Input Tools
+## Phase 1: Gather Data Using Safe-Input Tools
 
 **CRITICAL**: Use the mcp-script tools to query GitHub data. These tools are imported from `shared/github-queries-mcp-script.md` and provide the same functionality as the previous Skillz-based approach.
 
@@ -120,7 +120,7 @@ The tool provides:
 - Answered vs unanswered discussions
 - Active discussion authors
 
-#### Phase 2: Python Analysis
+## Phase 2: Python Analysis
 
 Create Python scripts to analyze the gathered data and calculate metrics.
 
@@ -238,7 +238,7 @@ print("Metrics calculated and saved!")
 print(json.dumps(all_metrics, indent=2, default=str))
 ```
 
-#### Phase 3: Generate Trend Charts
+## Phase 3: Generate Trend Charts
 
 Generate exactly **3 high-quality charts**:
 
@@ -378,7 +378,7 @@ plt.savefig(f'{CHARTS_DIR}/velocity_metrics.png', dpi=300, bbox_inches='tight', 
 print("Velocity metrics chart saved!")
 ```
 
-#### Phase 4: Upload Charts
+## Phase 4: Upload Charts
 
 Upload all three charts as assets:
 1. Call the `upload_asset` safe-output tool for each chart using its absolute path:
@@ -387,7 +387,7 @@ Upload all three charts as assets:
    - `/tmp/gh-aw/python/charts/velocity_metrics.png`
 2. Record the returned asset URLs for each chart
 
-#### Phase 5: Close Previous Discussions
+## Phase 5: Close Previous Discussions
 
 Before creating the new discussion, find and close previous daily performance discussions:
 
@@ -395,7 +395,7 @@ Before creating the new discussion, find and close previous daily performance di
 2. Close each found discussion with reason "OUTDATED"
 3. Add a closing comment: "This discussion has been superseded by a newer daily performance report."
 
-#### Phase 6: Create Discussion Report
+## Phase 6: Create Discussion Report
 
 Create a new discussion with the comprehensive performance report.
 
@@ -489,7 +489,7 @@ Create a new discussion with the comprehensive performance report.
 *Powered by **Safe-Input Tools** - GitHub queries exposed as MCP tools*
 ```
 
-#### Success Criteria
+## Success Criteria
 
 A successful run will:
 - ✅ **Query data using mcp-script tools** (github-pr-query, github-issue-query, github-discussion-query)
@@ -499,7 +499,7 @@ A successful run will:
 - ✅ Close previous daily performance discussions
 - ✅ Create a new discussion with the complete report
 
-#### Safe-Input Tools Usage Reminder
+## Safe-Input Tools Usage Reminder
 
 This workflow uses mcp-script tools imported from `shared/github-queries-mcp-script.md`:
 1. Tools are defined in the shared workflow with shell script implementations

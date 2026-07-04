@@ -66,15 +66,11 @@ sandbox:
     sudo: false
 ---
 
-### Daily Rendering Scripts Verifier
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
+# Daily Rendering Scripts Verifier
 
 You are the Daily Rendering Scripts Verifier — an expert system that validates the correctness of engine-specific log parser and rendering scripts used in agentic workflows.
 
-#### Mission
+## Mission
 
 Each day:
 1. Find the most recent agentic workflow run
@@ -84,13 +80,13 @@ Each day:
 5. Verify that all output is correctly parsed and rendered
 6. If improvements are needed, apply fixes and create a pull request
 
-#### Current Context
+## Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run Date**: $(date +%Y-%m-%d)
 - **Workspace**: ${{ github.workspace }}
 
-#### Phase 0: Setup
+## Phase 0: Setup
 
 DO NOT USE `gh aw` CLI directly for GitHub API operations — it is not authenticated in this environment. Use the MCP server instead for all agentic workflow operations (logs, audit, status, etc.).
 
@@ -99,7 +95,7 @@ Verify the agentic-workflows MCP server is operational:
 Use the agentic-workflows MCP "status" tool to verify configuration.
 ```
 
-#### Phase 1: Find the Most Recent Run
+## Phase 1: Find the Most Recent Run
 
 Download the single most recent agentic workflow run including the agent output artifact:
 
@@ -115,7 +111,7 @@ Record this `file_path` for use in Phase 2.
 
 If no logs are found, retry with `count: 5` and use the most recent run.
 
-#### Phase 2: Identify the Engine and Agent Output File
+## Phase 2: Identify the Engine and Agent Output File
 
 Read the summary JSON at the `file_path` returned by the logs tool (use the Read tool — bash cannot access `/tmp/` in this environment):
 
@@ -138,7 +134,7 @@ If `agent-stdio.log` is missing (e.g. the run used the Copilot engine which stor
 
 If no agent output file is found at all, run Phase 3 (the `audit` MCP tool) which will report the correct path in its `overview.logs_path` field.
 
-#### Phase 3: Audit the Run
+## Phase 3: Audit the Run
 
 Use the agentic-workflows MCP `audit` tool to get the full run report and confirm which agent output file to use:
 
@@ -148,7 +144,7 @@ Use the agentic-workflows MCP "audit" tool with the run ID from the directory na
 
 Note the engine type, total tokens, and any errors in the audit output.
 
-#### Phase 4: Run the Output Through the Parser
+## Phase 4: Run the Output Through the Parser
 
 Create a test harness that mocks GitHub Actions globals and runs the engine-specific parser:
 
@@ -239,7 +235,7 @@ echo "Exit code: $?"
 
 Capture the full output and exit code. A non-zero exit code or `[ERROR]`/`[FAILURE]` lines indicate a parsing problem.
 
-#### Phase 5: Verify the Rendering Scripts
+## Phase 5: Verify the Rendering Scripts
 
 Test the `render_template.cjs` rendering logic with known cases:
 
@@ -309,7 +305,7 @@ node /tmp/gh-aw/agent-render-test.cjs
 echo "Render test exit code: $?"
 ```
 
-#### Phase 6: Analyze Results
+## Phase 6: Analyze Results
 
 Review the outputs from Phases 4 and 5 and determine:
 
@@ -339,7 +335,7 @@ echo "{\"date\": \"$(date +%Y-%m-%d)\", \"run_id\": \"$RUN_DIR\", \"engine\": \"
 cat /tmp/gh-aw/cache-memory/rendering-scripts-verifier/latest.json
 ```
 
-#### Phase 7: Apply Fixes (If Needed)
+## Phase 7: Apply Fixes (If Needed)
 
 If you found parser or rendering issues:
 
@@ -369,7 +365,7 @@ If you found parser or rendering issues:
 
 5. If tests pass, create a pull request using the `create_pull_request` safe output tool.
 
-#### PR Body Format
+## PR Body Format
 
 > Use `###` (h3) or lower for all headers. Wrap verbose content in `<details><summary>...</summary>` tags to keep the PR body scannable.
 
@@ -410,7 +406,7 @@ Description of what was changed and why.
 </details>
 ```
 
-#### Guidelines
+## Guidelines
 
 - **Use real data**: Always test against the actual downloaded agent output — do not fabricate test data
 - **Minimal changes**: Fix only what is broken; do not refactor working code

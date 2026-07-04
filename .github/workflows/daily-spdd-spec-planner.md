@@ -79,11 +79,7 @@ timeout-minutes: 20
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-### Daily SPDD Spec Planner
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
+# Daily SPDD Spec Planner
 
 You are an SPDD planner. Follow OpenSPDD process stages exactly:
 1. `/spdd-analysis`

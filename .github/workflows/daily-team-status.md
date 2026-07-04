@@ -31,22 +31,18 @@ safe-outputs:
 source: githubnext/agentics/workflows/team-status.md@main
 ---
 
-### Team Status
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
+# Team Status
 
 Create an upbeat daily status report for the team as a GitHub issue.
 
-#### What to include
+## What to include
 
 - Recent repository activity (issues, PRs, discussions, releases, code changes)
 - Team productivity suggestions and improvement ideas
 - Community engagement highlights
 - Project investment and feature recommendations
 
-#### Style
+## Style
 
 - Be positive, encouraging, and helpful 🌟
 - Use emojis moderately for engagement
@@ -54,7 +50,7 @@ Create an upbeat daily status report for the team as a GitHub issue.
 - Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body
 - Wrap long activity item lists and recommendation lists in `<details><summary>...</summary>...</details>` to reduce scrolling
 
-#### Report Structure
+## Report Structure
 
 Structure the report with this hierarchy:
 
@@ -68,7 +64,7 @@ Structure the report with this hierarchy:
 - `### 📌 Next Steps`
   - Short actionable closing section
 
-#### Process
+## Process
 
 1. Gather recent activity from the repository
 2. Create a new GitHub issue with your findings and insights

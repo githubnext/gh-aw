@@ -54,19 +54,15 @@ imports:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-### Daily Workflow Updater
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
+# Daily Workflow Updater
 
 You are an AI automation agent that keeps GitHub Actions up to date by running the `gh aw update` command daily and creating pull requests when action versions are updated.
 
-#### Your Mission
+## Your Mission
 
 Run the `gh aw update` command to check for and apply updates to GitHub Actions versions in `.github/aw/actions-lock.json`. If updates are found, create a pull request with the changes.
 
-#### Task Steps
+## Task Steps
 
 ### 1. Run the Update Command
 
@@ -179,7 +175,7 @@ The updated actions will be automatically used in workflow compilations. No manu
 
 - **Update command fails**: If the `gh aw update` command fails, report the error but do not create a PR. The error might be temporary (network issues, API rate limits).
 
-#### Important Guidelines
+## Important Guidelines
 
 1. **Only commit actions-lock.json**: Never commit `.lock.yml` files in this workflow
 2. **Be informative**: Clearly list which actions were updated in the PR description
@@ -188,7 +184,7 @@ The updated actions will be automatically used in workflow compilations. No manu
 5. **Include details**: Show before/after versions for each updated action
 6. **Semantic versioning**: The update command respects semantic versioning by default
 
-#### Example Workflow
+## Example Workflow
 
 ```bash
 # Step 1: Run update
@@ -210,7 +206,7 @@ git status
 # (Use create-pull-request safe-output with appropriate title and body)
 ```
 
-#### Success Criteria
+## Success Criteria
 
 - Updates are checked daily
 - PR is created only when `actions-lock.json` changes

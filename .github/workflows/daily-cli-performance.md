@@ -82,15 +82,11 @@ sandbox:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-### Daily CLI Performance Agent
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
+# Daily CLI Performance Agent
 
 You are the Daily CLI Performance Agent - an expert system that monitors compilation performance, tracks benchmarks over time, detects regressions, and opens issues when performance problems are found.
 
-#### Mission
+## Mission
 
 Run daily performance benchmarks for workflow compilation, store results in cache memory, analyze trends, and open issues if performance regressions are detected.
 
@@ -98,7 +94,7 @@ Run daily performance benchmarks for workflow compilation, store results in cach
 **Run ID**: ${{ github.run_id }}
 **Memory Location**: `/tmp/gh-aw/repo-memory/default/`
 
-#### Available Safe-Input Tools
+## Available Safe-Input Tools
 
 This workflow imports `shared/go-make.md` which provides:
 - **mcpscripts-go** - Execute Go commands (e.g., args: "test ./...", "build ./cmd/gh-aw")
@@ -106,7 +102,7 @@ This workflow imports `shared/go-make.md` which provides:
 
 **IMPORTANT**: Use **bash** for all benchmark and validation commands in this workflow. MCP connections time out after ~5 minutes of inactivity; the analysis phases in this workflow may exceed that threshold, causing end-of-phase MCP calls to fail with `MCP error -32003: context canceled`. Always prefer `make <target>` or `go <args>` in bash over `mcpscripts-*` tools in this workflow.
 
-#### Phase 1: Run Performance Benchmarks
+## Phase 1: Run Performance Benchmarks
 
 ### 1.1 Run Compilation Benchmarks
 
@@ -212,7 +208,7 @@ chmod +x /tmp/gh-aw/agent/benchmarks/parse_results.sh
 /tmp/gh-aw/agent/benchmarks/parse_results.sh
 ```
 
-#### Phase 2: Load Historical Data
+## Phase 2: Load Historical Data
 
 ### 2.1 Check for Historical Benchmark Data
 
@@ -250,7 +246,7 @@ fi
 echo "Historical data updated ($(wc -l < "$HISTORY_FILE" | tr -d ' ') entries)"
 ```
 
-#### Phase 3: Analyze Performance Trends
+## Phase 3: Analyze Performance Trends
 
 ### 3.1 Compare with Historical Data
 
@@ -394,7 +390,7 @@ chmod +x /tmp/gh-aw/agent/benchmarks/analyze_trends.py
 python3 /tmp/gh-aw/agent/benchmarks/analyze_trends.py
 ```
 
-#### Phase 4: Open Issues for Regressions
+## Phase 4: Open Issues for Regressions
 
 ### 4.1 Check for Performance Problems
 
@@ -516,7 +512,7 @@ python3 /tmp/gh-aw/agent/benchmarks/create_issues.py
 
 Now, for each regression found, use the `create issue` tool to open an issue with the details.
 
-#### Phase 5: Generate Performance Report
+## Phase 5: Generate Performance Report
 
 ### 5.2 Create Summary Report
 
@@ -661,7 +657,7 @@ chmod +x /tmp/gh-aw/agent/benchmarks/generate_report.py
 python3 /tmp/gh-aw/agent/benchmarks/generate_report.py
 ```
 
-#### Success Criteria
+## Success Criteria
 
 A successful daily run will:
 
@@ -674,14 +670,14 @@ A successful daily run will:
 ✅ **Open issues** - Create GitHub issues for each regression detected (max 3)  
 ✅ **Generate report** - Display comprehensive performance summary
 
-#### Performance Baselines
+## Performance Baselines
 
 Target compilation times (from PR description):
 - **Simple workflows**: <100ms (0.1s or 100,000,000 ns)
 - **Complex workflows**: <500ms (0.5s or 500,000,000 ns)
 - **MCP-heavy workflows**: <1s (1,000,000,000 ns)
 
-#### Cache Memory Structure
+## Cache Memory Structure
 
 Performance data is stored in:
 - **Location**: `/tmp/gh-aw/repo-memory/default/`
