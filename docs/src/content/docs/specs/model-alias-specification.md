@@ -734,7 +734,14 @@ This section defines normative safeguards that conforming implementations MUST a
 
 ### 13.1 Alias Chain Depth Limit
 
-**R-MAF-S001**: Implementations MUST enforce a maximum alias chain resolution depth. The default maximum chain depth is **10** hops. If recursive resolution exceeds this depth, the implementation MUST abort resolution with a descriptive error that names the alias key that triggered the depth limit and MUST NOT silently return an empty candidate list.
+**R-MAF-S001**: Implementations MUST enforce a maximum alias chain resolution depth. The default maximum chain depth is **10** hops. If recursive resolution exceeds this depth, the implementation MUST abort resolution with error code **V-MAF-008** and a descriptive error message that names the alias key that triggered the depth limit and the configured depth ceiling. Implementations MUST NOT silently return an empty candidate list.
+
+Error message format (informative):
+```
+model alias chain exceeded maximum depth (10): resolution path reached '{{alias-key}}' after 10 hops
+```
+
+Test coverage for this requirement is provided by test case **T-MAF-055** in `pkg/workflow/model_alias_validation_test.go`, which constructs a synthetic alias map of depth 11 and asserts that resolution fails with a V-MAF-008 error that identifies the terminal alias key.
 
 This limit prevents runaway resolution in pathological alias maps and bounds the worst-case cost of compile-time alias expansion.
 
@@ -803,6 +810,8 @@ The compile-time loop-detection safeguard (§8.6.1 / V-MAF-010) is tested in:
 
 ## 15. Norms
 
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and **OPTIONAL** in the requirement column of this section are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
+
 This section provides a normative reference table for all MUST/SHALL requirements defined in §§4–13 of this specification. The table covers both validation rule identifiers (`V-MAF-*`, defined in §11) and safeguard identifiers (`R-MAF-S*`, defined in §13). Use this section as a quick-reference index for verifying implementation compliance or mapping a requirement to its definitive section.
 
 ### 15.1 Validation Rule Norms (§11)
@@ -825,7 +834,7 @@ This section provides a normative reference table for all MUST/SHALL requirement
 
 | ID | Section | Normative Requirement |
 |---|---|---|
-| R-MAF-S001 | §13.1 | MUST enforce a maximum alias chain resolution depth of 10 hops; MUST abort with a descriptive error on overflow |
+| R-MAF-S001 | §13.1 | MUST enforce a maximum alias chain resolution depth of 10 hops; MUST abort with error code V-MAF-008 and a descriptive error naming the terminal alias key and depth ceiling on overflow |
 | R-MAF-S002 | §13.2 | MUST reject model identifier strings containing ill-formed UTF-8 bytes |
 | R-MAF-S003 | §13.2 | MUST reject valid-UTF-8 characters outside the §4.1 allowed code-point set as a V-MAF-006 violation |
 | R-MAF-S004 | §13.3 | MUST reject `effort` values not in `{low, medium, high}` at compile time with a message identifying the offending value |

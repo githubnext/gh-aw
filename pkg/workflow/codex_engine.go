@@ -446,6 +446,7 @@ mkdir -p "$CODEX_HOME/logs"
 
 	applyOptionalEngineToolTimeouts(env, workflowData)
 	applyEngineMaxTurnsEnv(env, workflowData)
+	applyEngineHarnessRetryEnv(env, workflowData)
 
 	// Set the model environment variable.
 	// Codex has no native model env var, so model selection always goes through

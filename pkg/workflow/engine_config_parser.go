@@ -78,6 +78,30 @@ func parseMaxTurnsValue(raw any) string {
 	return ""
 }
 
+// parseNonNegativeIntOrExpressionValue parses a raw frontmatter value that must be a
+// non-negative integer (≥ 0) or a GitHub Actions expression template (${{ ... }}).
+// It is intentionally distinct from parseMaxTurnsValue which rejects zero.
+// Returns the canonical string representation, or "" when the value is absent/invalid.
+func parseNonNegativeIntOrExpressionValue(raw any) string {
+	if val, ok := typeutil.ParseIntValue(raw); ok && val >= 0 {
+		return strconv.Itoa(val)
+	}
+	if rawStr, ok := raw.(string); ok {
+		trimmed := strings.TrimSpace(rawStr)
+		if trimmed == "" {
+			return ""
+		}
+		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed >= 0 {
+			return strconv.Itoa(parsed)
+		}
+		if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
+			return trimmed
+		}
+		engineLog.Printf("Ignoring invalid harness.max-retries value: %q", rawStr)
+	}
+	return ""
+}
+
 func parseMaxToolDenialsValue(raw any) string {
 	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
 		return strconv.Itoa(val)

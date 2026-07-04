@@ -2538,6 +2538,10 @@ This section provides complete definitions for all remaining safe output types. 
       "issue_number": {
         "type": ["number", "string"],
         "description": "Issue number to close. If omitted, closes the issue that triggered this workflow."
+      },
+      "duplicate_of": {
+        "type": ["number", "string"],
+        "description": "Issue number or URL of the canonical original issue when closing as a duplicate. Accepts: bare number (123), #-prefixed number (#123), owner/repo#number reference, or full GitHub issue URL. When provided together with state_reason: duplicate, creates a native GitHub duplicate relationship."
       }
     },
     "additionalProperties": false
@@ -2555,6 +2559,7 @@ This section provides complete definitions for all remaining safe output types. 
 4. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
 5. **Footer Injection**: Appends attribution footer to the closing comment when configured.
 6. **Body Suppression**: When `allow-body` is `false`, the handler MUST NOT post a closing comment. Any `body` value provided by the agent SHALL be discarded before the close operation is executed. The implementation MUST log a warning if a non-empty `body` value was discarded.
+7. **Native Duplicate Marking**: When `duplicate_of` is provided and `state_reason` is `duplicate`, the handler SHALL call the GitHub `markAsDuplicate` GraphQL mutation to create a native "marked this as a duplicate of #X" timeline event. If the mutation fails (e.g., missing permissions or invalid reference), a warning is logged and the close operation continues. The `duplicate_of` value MUST be parsed and resolved to a valid issue node ID before calling the mutation.
 
 **Configuration Parameters**:
 
@@ -2571,6 +2576,7 @@ This section provides complete definitions for all remaining safe output types. 
 - Issue number MUST be validated as a positive integer belonging to the target repository
 - Cross-repository targets MUST be validated against the `allowed-repos` allowlist
 - The handler MUST verify the caller has `issues: write` permission before executing
+- The `duplicate_of` canonical issue reference MUST be resolved and validated before the GraphQL mutation is called; an unparseable value MUST be logged and skipped rather than causing an error
 
 **Required Permissions**:
 

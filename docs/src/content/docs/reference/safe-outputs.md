@@ -268,6 +268,8 @@ safe-outputs:
 
 **State Reasons**: `completed`, `not_planned`, `duplicate` (default: `completed`). Can also be set per-item in agent output.
 
+**`duplicate_of`**: When closing as a duplicate (agent sets `state_reason: duplicate`), the agent may also supply a `duplicate_of` field pointing to the canonical issue. Accepts a bare number (`123`), a `#`-prefixed number (`#123`), an `owner/repo#number` reference, or a full GitHub issue URL. When provided, creates a native GitHub **"marked this as a duplicate of #X"** relationship in the timeline — no separate comment needed for the linkage. Falls back gracefully (logs a warning) if the duplicate marking fails.
+
 **`allow-body: false`**: When set, any `body` field the agent provides is dropped (a warning is logged) and the issue is closed without posting a comment. Use this when you want to guarantee a clean close with no duplicate comment — for example, when a prior `add-comment` step already posted the summary.
 
 ### Comment Creation (`add-comment:`)

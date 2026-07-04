@@ -456,6 +456,16 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
+	"dismiss_pull_request_review": {
+		DefaultMax: 10,
+		Fields: map[string]FieldValidation{
+			"review_id":           {Required: true, PositiveInteger: true},
+			"justification":       {Required: true, Type: "string", Sanitize: true, MinLength: 20, MaxLength: MaxBodyLength},
+			"author":              {Type: "string", Sanitize: true, MaxLength: 128},
+			"pull_request_number": {IssueOrPRNumber: true},
+			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+		},
+	},
 }
 
 // validationConfigJSONCache caches GetValidationConfigJSON results keyed by the sorted,

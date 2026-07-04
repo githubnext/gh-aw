@@ -448,6 +448,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	applyOptionalEngineToolTimeouts(env, workflowData)
 	applyEngineMaxTurnsEnv(env, workflowData)
+	applyEngineHarnessRetryEnv(env, workflowData)
 
 	// Set the model environment variable.
 	// When model is configured, use the native ANTHROPIC_MODEL env var - the Claude CLI reads it

@@ -99,6 +99,16 @@ type EngineConfig struct {
 	// non-harness engines use it as the target of the shell-level cd prefix.
 	// Defaults to the repository workspace (GITHUB_WORKSPACE) when empty.
 	Cwd string
+
+	// Harness retry policy fields — templatable integers (literal value or ${{ expr }}).
+	// When set, the value is injected as the corresponding GH_AW_HARNESS_* env var so
+	// that all harness scripts (copilot, claude, codex) can read it from the environment.
+	// The harness falls back to its built-in default when the env var is absent.
+	// These are populated from the engine.harness sub-object keys.
+	HarnessMaxRetries        string // engine.harness.max-retries        → GH_AW_HARNESS_MAX_RETRIES
+	HarnessInitialDelayMs    string // engine.harness.initial-delay-ms   → GH_AW_HARNESS_INITIAL_DELAY_MS
+	HarnessBackoffMultiplier string // engine.harness.backoff-multiplier → GH_AW_HARNESS_BACKOFF_MULTIPLIER
+	HarnessMaxDelayMs        string // engine.harness.max-delay-ms       → GH_AW_HARNESS_MAX_DELAY_MS
 }
 
 // EngineAuthConfig represents engine.auth frontmatter settings that map to
@@ -398,10 +408,29 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
-			// Extract optional 'harness' field (string - validated separately)
+			// Extract optional 'harness' field:
+			//   - string form (legacy): engine.harness: "custom.cjs" → sets HarnessScript
+			//   - object form: engine.harness: { use: "custom.cjs", max-retries: N, ... }
 			if harness, hasHarness := engineObj["harness"]; hasHarness {
-				if harnessStr, ok := harness.(string); ok {
-					config.HarnessScript = harnessStr
+				switch h := harness.(type) {
+				case string:
+					config.HarnessScript = h
+				case map[string]any:
+					if use, ok := h["use"].(string); ok {
+						config.HarnessScript = use
+					}
+					if v, ok := h["max-retries"]; ok {
+						config.HarnessMaxRetries = parseNonNegativeIntOrExpressionValue(v)
+					}
+					if v, ok := h["initial-delay-ms"]; ok {
+						config.HarnessInitialDelayMs = parseMaxTurnsValue(v)
+					}
+					if v, ok := h["backoff-multiplier"]; ok {
+						config.HarnessBackoffMultiplier = parseMaxTurnsValue(v)
+					}
+					if v, ok := h["max-delay-ms"]; ok {
+						config.HarnessMaxDelayMs = parseMaxTurnsValue(v)
+					}
 				}
 			}
 
