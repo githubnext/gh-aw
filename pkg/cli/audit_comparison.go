@@ -328,7 +328,7 @@ func buildAuditComparisonForProcessedRuns(currentRun ProcessedRun, processedRuns
 		return &AuditComparisonData{BaselineFound: false}
 	}
 
-	comparison := buildAuditComparison(currentSnapshot, &selected.Run, &selected.Snapshot)
+	comparison := buildAuditComparison(currentRun.Run.Conclusion, currentSnapshot, &selected.Run, &selected.Snapshot)
 	if comparison != nil && comparison.Baseline != nil {
 		comparison.Baseline.Selection = selected.Selection
 		comparison.Baseline.MatchedOn = selected.MatchedOn
@@ -336,12 +336,14 @@ func buildAuditComparisonForProcessedRuns(currentRun ProcessedRun, processedRuns
 	return comparison
 }
 
-func buildAuditComparison(current auditComparisonSnapshot, baselineRun *WorkflowRun, baseline *auditComparisonSnapshot) *AuditComparisonData {
+func buildAuditComparison(currentConclusion string, current auditComparisonSnapshot, baselineRun *WorkflowRun, baseline *auditComparisonSnapshot) *AuditComparisonData {
 	if baselineRun == nil || baseline == nil {
 		return &AuditComparisonData{BaselineFound: false}
 	}
 
 	reasonCodes := make([]string, 0, 4)
+	currentConclusion = strings.TrimSpace(strings.ToLower(currentConclusion))
+	currentRunUnsuccessful := currentConclusion != "" && currentConclusion != "success"
 	delta := &AuditComparisonDelta{
 		Turns: AuditComparisonIntDelta{
 			Before:  baseline.Turns,
@@ -373,6 +375,9 @@ func buildAuditComparison(current auditComparisonSnapshot, baselineRun *Workflow
 	} else if current.BlockedRequests < baseline.BlockedRequests {
 		reasonCodes = append(reasonCodes, "blocked_requests_decrease")
 	}
+	if currentRunUnsuccessful {
+		reasonCodes = append(reasonCodes, "run_unsuccessful")
+	}
 
 	newMCPFailure := len(baseline.MCPFailures) == 0 && len(current.MCPFailures) > 0
 	mcpFailuresResolved := len(baseline.MCPFailures) > 0 && len(current.MCPFailures) == 0
@@ -391,6 +396,8 @@ func buildAuditComparison(current auditComparisonSnapshot, baselineRun *Workflow
 
 	label := "stable"
 	switch {
+	case currentRunUnsuccessful:
+		label = "risky"
 	case delta.Posture.Before == "read_only" && delta.Posture.After == "write_capable":
 		label = "risky"
 	case newMCPFailure:
@@ -422,12 +429,18 @@ func buildAuditComparison(current auditComparisonSnapshot, baselineRun *Workflow
 			ReasonCodes: reasonCodes,
 		},
 		Recommendation: &AuditComparisonRecommendation{
-			Action: recommendAuditComparisonAction(label, delta),
+			Action: recommendAuditComparisonAction(label, currentConclusion, delta),
 		},
 	}
 }
 
-func recommendAuditComparisonAction(label string, delta *AuditComparisonDelta) string {
+func recommendAuditComparisonAction(label, currentConclusion string, delta *AuditComparisonDelta) string {
+	if currentConclusion != "" && currentConclusion != "success" {
+		if currentConclusion == "failure" {
+			return "Investigate failure; run concluded with errors before treating it as matching the selected successful baseline."
+		}
+		return fmt.Sprintf("Investigate the %s conclusion before treating this run as matching the selected successful baseline.", strings.ReplaceAll(currentConclusion, "_", " "))
+	}
 	if delta == nil || label == "stable" {
 		return "No action needed; this run matches the selected successful baseline closely."
 	}
@@ -555,7 +568,7 @@ func buildAuditComparisonForRun(ctx context.Context, currentRun ProcessedRun, cu
 		return &AuditComparisonData{BaselineFound: false}
 	}
 
-	comparison := buildAuditComparison(currentSnapshot, &selected.Run, &selected.Snapshot)
+	comparison := buildAuditComparison(currentRun.Run.Conclusion, currentSnapshot, &selected.Run, &selected.Snapshot)
 	if comparison != nil && comparison.Baseline != nil {
 		comparison.Baseline.Selection = selected.Selection
 		comparison.Baseline.MatchedOn = selected.MatchedOn

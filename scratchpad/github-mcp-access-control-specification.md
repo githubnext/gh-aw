@@ -2136,6 +2136,20 @@ make test-github-mcp-blocked-users
 make test-github-mcp-approval-labels
 ```
 
+### 11.4 Compliance Fixture Stubs
+
+The following fixture files in [`specs/github-mcp-access-control-compliance/`](../../specs/github-mcp-access-control-compliance/) define normative test scenarios for the five core access-control categories. Each fixture is a YAML document specifying an input tool configuration, a simulated access request, and the required access-control decision. Implementations MUST produce the `expected.decision` outcome for every scenario in each fixture.
+
+| Fixture File | Scenario | Test IDs |
+|---|---|---|
+| [`exact-match-allow.yaml`](../../specs/github-mcp-access-control-compliance/exact-match-allow.yaml) | Exact repository pattern allows matching repo; denies non-matching | T-GH-011, T-GH-012 |
+| [`wildcard-deny.yaml`](../../specs/github-mcp-access-control-compliance/wildcard-deny.yaml) | Owner-wildcard allows same-owner repos; denies different-owner repos | T-GH-013, T-GH-014 |
+| [`role-deny.yaml`](../../specs/github-mcp-access-control-compliance/role-deny.yaml) | Role filter allows matching role; denies insufficient role | T-GH-019, T-GH-020, T-GH-023 |
+| [`private-repo-block.yaml`](../../specs/github-mcp-access-control-compliance/private-repo-block.yaml) | `private-repos: false` blocks private repo; allows public repo | T-GH-024, T-GH-025, T-GH-026 |
+| [`integrity-level-block.yaml`](../../specs/github-mcp-access-control-compliance/integrity-level-block.yaml) | `min-integrity` allows content at/above threshold; blocks content below | T-GH-051, T-GH-052, T-GH-054 |
+
+See [`specs/github-mcp-access-control-compliance/README.md`](../../specs/github-mcp-access-control-compliance/README.md) for fixture schema documentation and instructions for adding new scenarios.
+
 ---
 
 ## Appendices

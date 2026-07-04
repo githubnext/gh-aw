@@ -11,7 +11,7 @@ import (
 )
 
 func TestBuildAuditComparison_NoBaseline(t *testing.T) {
-	comparison := buildAuditComparison(auditComparisonSnapshot{Turns: 4, Posture: "read_only"}, nil, nil)
+	comparison := buildAuditComparison("success", auditComparisonSnapshot{Turns: 4, Posture: "read_only"}, nil, nil)
 	require.NotNil(t, comparison, "comparison should still be returned when no baseline exists")
 	assert.False(t, comparison.BaselineFound, "baseline should be marked unavailable")
 	assert.Nil(t, comparison.Baseline, "baseline details should be omitted")
@@ -28,6 +28,7 @@ func TestBuildAuditComparison_RiskyChange(t *testing.T) {
 	}
 
 	comparison := buildAuditComparison(
+		"success",
 		auditComparisonSnapshot{Turns: 11, Posture: "write_capable", BlockedRequests: 7, MCPFailures: []string{"github"}},
 		baselineRun,
 		&auditComparisonSnapshot{Turns: 4, Posture: "read_only", BlockedRequests: 0},
@@ -55,6 +56,7 @@ func TestBuildAuditComparison_RiskyChange(t *testing.T) {
 func TestBuildAuditComparison_StableRun(t *testing.T) {
 	baselineRun := &WorkflowRun{DatabaseID: 99, WorkflowName: "triage", Conclusion: "success", CreatedAt: time.Now().Add(-time.Hour)}
 	comparison := buildAuditComparison(
+		"success",
 		auditComparisonSnapshot{Turns: 4, Posture: "read_only", BlockedRequests: 0},
 		baselineRun,
 		&auditComparisonSnapshot{Turns: 4, Posture: "read_only", BlockedRequests: 0},
@@ -64,6 +66,23 @@ func TestBuildAuditComparison_StableRun(t *testing.T) {
 	assert.Equal(t, "stable", comparison.Classification.Label, "unchanged runs should be stable")
 	assert.Empty(t, comparison.Classification.ReasonCodes, "stable runs should have no reason codes")
 	assert.Contains(t, comparison.Recommendation.Action, "No action needed", "stable runs should produce a no-op recommendation")
+}
+
+func TestBuildAuditComparison_FailedRunIsRisky(t *testing.T) {
+	baselineRun := &WorkflowRun{DatabaseID: 101, WorkflowName: "triage", Conclusion: "success", CreatedAt: time.Now().Add(-time.Hour)}
+	comparison := buildAuditComparison(
+		"failure",
+		auditComparisonSnapshot{Turns: 4, Posture: "read_only", BlockedRequests: 0},
+		baselineRun,
+		&auditComparisonSnapshot{Turns: 4, Posture: "read_only", BlockedRequests: 0},
+	)
+
+	require.NotNil(t, comparison.Classification, "classification should be present")
+	require.NotNil(t, comparison.Recommendation, "recommendation should be present")
+	assert.Equal(t, "risky", comparison.Classification.Label, "failed runs should not be classified as stable")
+	assert.Contains(t, comparison.Classification.ReasonCodes, "run_unsuccessful", "failed runs should record their non-success conclusion")
+	assert.Contains(t, comparison.Recommendation.Action, "Investigate failure", "recommendation should direct the reader to investigate the failure")
+	assert.NotContains(t, comparison.Recommendation.Action, "No action needed", "failed runs should not get a no-op recommendation")
 }
 
 func TestSelectAuditComparisonBaselinePrefersCohortMatchOverRecency(t *testing.T) {
