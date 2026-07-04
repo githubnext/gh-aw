@@ -365,7 +365,7 @@ func (t *TemplatableBoolOrInt) UnmarshalYAML(node *yaml.Node) error {
 	case "!!int":
 		n, err := strconv.Atoi(node.Value)
 		if err != nil || n < 0 || n > 100 {
-			return fmt.Errorf("deduplicate-by-title integer must be between 0 and 100, got %q", node.Value)
+			return fmt.Errorf("integer must be between 0 and 100, got %q", node.Value)
 		}
 		*t = TemplatableBoolOrInt(node.Value)
 		return nil
@@ -394,7 +394,7 @@ func (t *TemplatableBoolOrInt) UnmarshalJSON(data []byte) error {
 	var n int
 	if err := json.Unmarshal(data, &n); err == nil {
 		if n < 0 || n > 100 {
-			return fmt.Errorf("deduplicate-by-title integer must be between 0 and 100, got %d", n)
+			return fmt.Errorf("integer must be between 0 and 100, got %d", n)
 		}
 		*t = TemplatableBoolOrInt(strconv.Itoa(n))
 		return nil
