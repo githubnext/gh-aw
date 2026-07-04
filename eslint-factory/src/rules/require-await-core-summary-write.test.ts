@@ -98,6 +98,15 @@ describe("require-await-core-summary-write", () => {
     });
   });
 
+  it("valid: identifiers outside CORE_ALIASES are not flagged even with .summary.write() chain", () => {
+    // Codifies the tightened heuristic: only exact known aliases ("core", "coreObj") are matched.
+    // Objects that merely start with "core" (e.g. coreCache, coreData) must not be flagged.
+    cjsRuleTester.run("require-await-core-summary-write", requireAwaitCoreSummaryWriteRule, {
+      valid: [`async function f() { coreCache.summary.write(); }`, `async function f() { coreData.summary.write(); }`, `async function f() { coreference.summary.write(); }`],
+      invalid: [],
+    });
+  });
+
   it("invalid: flagged outside async function — no suggestion offered", () => {
     cjsRuleTester.run("require-await-core-summary-write", requireAwaitCoreSummaryWriteRule, {
       valid: [],
