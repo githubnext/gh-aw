@@ -15,10 +15,19 @@ for (const viewport of VIEWPORTS) {
 
     const openDialog = page.locator('dialog[open]');
     await expect(openDialog).toBeVisible();
-    await expect(openDialog.locator('input, textarea, [role="combobox"]')).toBeVisible();
+    await expect(openDialog.getByRole('search').getByRole('textbox', { name: 'Search' })).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(openDialog).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Search' }).click();
+    const reopenedDialog = page.locator('dialog[open]');
+    await expect(reopenedDialog).toBeVisible();
+    await expect(
+      reopenedDialog.getByRole('search').getByRole('textbox', { name: 'Search' })
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(reopenedDialog).toHaveCount(0);
 
     await page.getByRole('link', { name: 'Quick Start with CLI' }).click();
     await expect(page).toHaveURL(/\/gh-aw\/setup\/quick-start\//);
