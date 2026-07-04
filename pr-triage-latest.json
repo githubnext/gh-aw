@@ -1,70 +1,150 @@
 {
-  "run_date": "2026-07-04T12:36:54Z",
-  "run_id": "28706384347",
-  "prior_run_prs_closed": 8,
+  "run_date": "2026-07-04T18:31:47Z",
+  "run_id": "28715668077",
+  "prior_run_prs_closed": 4,
   "summary": {
-    "total": 7,
-    "fast_track": 2,
-    "batch_review": 3,
-    "defer": 1,
-    "close": 1,
-    "changes_requested_blocked": 1
+    "total": 17,
+    "new": 14,
+    "carry_over": 3,
+    "fast_track": 3,
+    "batch_review": 8,
+    "defer": 4,
+    "close": 2
   },
   "prs": [
     {
-      "number": 43366,
-      "title": "Clarify pr-sous-chef criteria for dismissing github-actions[bot] reviews",
-      "category": "refactor",
-      "risk": "medium",
-      "score": 72,
-      "action": "fast_track",
-      "draft": false,
-      "ci": "approved_by_pelikhan",
-      "note": "+59/-164, 3 files. Approved by pelikhan. Dirty state may be stale rebase."
-    },
-    {
-      "number": 43356,
-      "title": "fix(eslint-factory): require-async-entrypoint-catch — track async arrow/fn-expr entrypoints",
+      "number": 43410,
+      "title": "fix(logs): total_turns and total_safe_items always 0 in summary",
       "category": "bug",
       "risk": "low",
-      "score": 69,
+      "score": 72,
+      "action": "fast_track",
+      "draft": true,
+      "ci": "no_ci",
+      "note": "Small targeted fix, 3 files, +137 test lines. Undraft to fast-track."
+    },
+    {
+      "number": 43411,
+      "title": "Scope dependabot-repair workflow token permissions to least privilege",
+      "category": "chore",
+      "risk": "low",
+      "score": 70,
+      "action": "fast_track",
+      "batch": "pr-batch:new-workflows",
+      "draft": true,
+      "ci": "no_ci",
+      "note": "Security hardening, 2 YAML files. Undraft to fast-track."
+    },
+    {
+      "number": 43383,
+      "title": "fix: add retry/backoff to Fetch open non-draft PR queue in pr-sous-chef",
+      "category": "bug",
+      "risk": "medium",
+      "score": 68,
       "action": "fast_track",
       "draft": false,
       "ci": "copilot_check_passed",
-      "note": "+247/-4, 2 files. Copilot check passed. Dirty state — rebase needed."
+      "review": "changes_requested",
+      "note": "CHANGES_REQUESTED: correctness regression in transient-error classifier. Author must fix before merge."
     },
     {
-      "number": 43364,
-      "title": "Tighten anomaly detector test coverage and subtest structure",
-      "category": "test",
-      "risk": "low",
-      "score": 52,
+      "number": 43406,
+      "title": "fix: github-app auth support in SideRepoOps maintenance workflow generator",
+      "category": "bug",
+      "risk": "medium",
+      "score": 60,
       "action": "batch_review",
-      "draft": false,
-      "review": "changes_requested",
-      "note": "CHANGES_REQUESTED: nil-guard production hazard must be fixed before merge"
+      "batch": "pr-batch:go-bugfix",
+      "draft": true
+    },
+    {
+      "number": 43409,
+      "title": "Improve frontmatter diagnostics for invalid tools config shape",
+      "category": "bug",
+      "risk": "medium",
+      "score": 58,
+      "action": "batch_review",
+      "batch": "pr-batch:go-bugfix",
+      "draft": true
+    },
+    {
+      "number": 43413,
+      "title": "Classify Copilot SDK session.idle timeouts as agentic_engine_timeout",
+      "category": "bug",
+      "risk": "low",
+      "score": 58,
+      "action": "batch_review",
+      "batch": "pr-batch:go-bugfix",
+      "draft": true
+    },
+    {
+      "number": 43405,
+      "title": "Fix hardcoded main branch in gh aw trial --host-repo",
+      "category": "bug",
+      "risk": "low",
+      "score": 56,
+      "action": "batch_review",
+      "batch": "pr-batch:go-bugfix",
+      "draft": true
+    },
+    {
+      "number": 43404,
+      "title": "fix(eslint): detect dropped await on local core.summary aliases",
+      "category": "bug",
+      "risk": "low",
+      "score": 54,
+      "action": "batch_review",
+      "batch": "pr-batch:eslint-bugfix",
+      "draft": true
     },
     {
       "number": 43376,
       "title": "test: add golden files and RunWithSuggestedFixes for 3 autofix linters",
       "category": "test",
       "risk": "low",
-      "score": 48,
+      "score": 52,
       "action": "batch_review",
-      "draft": true,
       "batch": "pr-batch:draft-backlog",
-      "note": "+147/-3, 6 files. Draft, no CI yet."
+      "draft": false,
+      "note": "Previously draft, now open. Design Decision Gate pending."
     },
     {
-      "number": 43375,
-      "title": "deps: bump bubbletea v2.0.8, lipgloss v2.0.5",
-      "category": "chore",
+      "number": 43403,
+      "title": "Add smoke-token-telemetry workflow to catch token telemetry emitter regressions",
+      "category": "test",
       "risk": "low",
-      "score": 38,
+      "score": 48,
       "action": "batch_review",
-      "draft": true,
-      "batch": "pr-batch:draft-backlog",
-      "note": "+3/-3, 2 files. Emoji rendering fix. Draft."
+      "batch": "pr-batch:new-workflows",
+      "draft": true
+    },
+    {
+      "number": 43412,
+      "title": "Strengthen persona-driven workflow guidance for recurring reports and compliance audits",
+      "category": "docs",
+      "risk": "low",
+      "score": 32,
+      "action": "defer",
+      "draft": true
+    },
+    {
+      "number": 43419,
+      "title": "docs: add robots.txt with AI crawler Allow rules",
+      "category": "docs",
+      "risk": "low",
+      "score": 30,
+      "action": "defer",
+      "draft": true
+    },
+    {
+      "number": 43421,
+      "title": "Add daily HTML-change Playwright test generator workflow",
+      "category": "feature",
+      "risk": "medium",
+      "score": 28,
+      "action": "defer",
+      "batch": "pr-batch:new-workflows",
+      "draft": true
     },
     {
       "number": 43145,
@@ -74,7 +154,17 @@
       "score": 28,
       "action": "defer",
       "draft": true,
-      "note": "Low urgency docs update. Carry-over."
+      "note": "Carry-over 3rd run. Still draft."
+    },
+    {
+      "number": 43408,
+      "title": "fix: reduce AIC guardrail listArtifacts fan-out and add in-loop rate-limit backoff",
+      "category": "bug",
+      "risk": "medium",
+      "score": 20,
+      "action": "close",
+      "draft": true,
+      "note": "0 files changed — empty diff."
     },
     {
       "number": 42314,
@@ -84,21 +174,48 @@
       "score": 18,
       "action": "close",
       "draft": true,
-      "note": "Stale 6+ days, +3213/-558/288 files, no active review. Recommend close."
+      "note": "Stale 5+ days, 288 files, no active review. Recommend close."
+    },
+    {
+      "number": 43414,
+      "title": "Targeted custom-lint cleanup: defer-in-loop resource handling and continuation options struct",
+      "category": "bug",
+      "risk": "low",
+      "score": 55,
+      "action": "batch_review",
+      "batch": "pr-batch:go-bugfix",
+      "draft": true,
+      "note": "5 files, includes action_pins churn. Go lint cleanup."
     }
   ],
   "batches": [
     {
+      "id": "pr-batch:go-bugfix",
+      "prs": [43406, 43409, 43413, 43405, 43414],
+      "note": "Go/JS bugfixes, 2-5 files each, low-medium risk."
+    },
+    {
+      "id": "pr-batch:new-workflows",
+      "prs": [43411, 43403, 43421],
+      "note": "New/updated workflow YAML/md files."
+    },
+    {
+      "id": "pr-batch:eslint-bugfix",
+      "prs": [43404],
+      "note": "ESLint rule fixes."
+    },
+    {
       "id": "pr-batch:draft-backlog",
-      "prs": [43376, 43375],
-      "note": "Low-risk draft PRs — test golden files + dep bump. Batch when undrafted."
+      "prs": [43376],
+      "note": "Previously deferred drafts, now undrafted."
     }
   ],
   "flags": [
-    "PR 43364 CHANGES_REQUESTED: nil-guard production hazard in anomaly.go — author must fix before merge",
-    "PR 43366 dirty state: may need rebase before merge",
-    "PR 43356 dirty state: may need rebase before merge",
-    "PR 42314 stale draft 6+ days, 288 files — recommend close and reopen smaller"
+    "PR 43383 CHANGES_REQUESTED: correctness regression in error classifier — author must fix",
+    "PR 43408 empty diff (0 files changed) — close immediately",
+    "PR 42314 stale 5+ days 288 files — recommend close",
+    "Action pins churn (+756/-756) present in 9 PRs — auto-generated noise, skip in review",
+    "Burst of 11 draft PRs opened in 4-hour window on 2026-07-04"
   ],
-  "not_triaged_non_copilot": [43228]
+  "newly_closed_since_prior": [43375, 43366, 43356, 43364]
 }
