@@ -22,6 +22,7 @@ describe("prefer-number-isnan", () => {
   });
 
   it("valid: Number.isNaN and non-global forms are accepted", () => {
+    // CJS-only: actions/setup/js targets CommonJS; ESM counterparts tested in the shadowed-bindings block below
     cjsRuleTester.run("prefer-number-isnan", preferNumberIsNanRule, {
       valid: [`Number.isNaN(value);`, `Number["isNaN"](value);`, `foo.isNaN(value);`],
       invalid: [],
@@ -36,7 +37,16 @@ describe("prefer-number-isnan", () => {
         `const globalThis = { isNaN(value) { return value; } }; globalThis.isNaN(value);`,
         `const window = { isNaN(value) { return value; } }; window["isNaN"](value);`,
         `const global = { isNaN(value) { return value; } }; global.isNaN(value);`,
+        // Dynamic computed access — identifier property reference, not string literal "isNaN"
+        `globalThis[isNaN](value);`,
       ],
+      invalid: [],
+    });
+  });
+
+  it("valid: isNaN used as a callback reference is not a CallExpression and is not flagged", () => {
+    cjsRuleTester.run("prefer-number-isnan", preferNumberIsNanRule, {
+      valid: [`values.some(isNaN);`],
       invalid: [],
     });
   });
@@ -48,6 +58,11 @@ describe("prefer-number-isnan", () => {
         {
           code: `isNaN(value);`,
           errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(value);` }] }],
+        },
+        {
+          // Raw string argument (e.g. env var) — suggestion preserves argument so callers must review whether to wrap with Number(...)
+          code: `isNaN(process.env.PORT);`,
+          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(process.env.PORT);` }] }],
         },
       ],
     });

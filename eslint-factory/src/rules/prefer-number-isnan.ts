@@ -34,7 +34,7 @@ export const preferNumberIsNanRule = createRule({
       while (scope) {
         const variable = scope.set.get(name);
 
-        if (variable?.defs.length) {
+        if (variable?.defs.some(d => d.type !== "ImportBinding")) {
           return true;
         }
 
@@ -51,7 +51,7 @@ export const preferNumberIsNanRule = createRule({
      */
     function isIsNaNProperty(node: TSESTree.MemberExpression): boolean {
       const property = node.property;
-      const isDirectAccess = property.type === "Identifier" && property.name === "isNaN";
+      const isDirectAccess = !node.computed && property.type === "Identifier" && property.name === "isNaN";
       const isComputedAccess = property.type === "Literal" && property.value === "isNaN";
 
       return isDirectAccess || isComputedAccess;
