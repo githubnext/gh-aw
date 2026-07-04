@@ -65,22 +65,29 @@ steps:
       until [ "$pr_list_success" = "true" ] || [ "$pr_list_attempt" -ge "$pr_list_max_attempts" ]; do
         pr_list_attempt=$((pr_list_attempt + 1))
         set +e
-        pr_list_output=$(gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
+        pr_list_stderr_file="$(mktemp)"
+        gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
           --state open \
           --search "is:pr is:open -is:draft sort:updated-desc" \
           --limit 30 \
           --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus \
-          2>&1)
+          >"$candidate_file" 2>"$pr_list_stderr_file"
         pr_list_status=$?
+        pr_list_output="$(cat "$pr_list_stderr_file")"
+        rm -f "$pr_list_stderr_file"
         set -e
         if [ "$pr_list_status" -eq 0 ]; then
-          echo "$pr_list_output" > "$candidate_file"
           pr_list_success=true
-        elif echo "$pr_list_output" | grep -qE "HTTP (5[0-9]{2}|429)|context deadline exceeded|connection reset|EOF"; then
-          if [ "$pr_list_attempt" -lt "$pr_list_max_attempts" ]; then
-            backoff=$((2 ** pr_list_attempt))
-            echo "Transient error on attempt $pr_list_attempt/$pr_list_max_attempts (exit $pr_list_status); retrying in ${backoff}s..." >&2
+        elif [ -z "$pr_list_output" ] || echo "$pr_list_output" | grep -qE "HTTP (5[0-9]{2}|429)|context deadline exceeded|connection reset|unexpected EOF|read: EOF"; then
+          echo "Transient error on attempt $pr_list_attempt/$pr_list_max_attempts (exit $pr_list_status)" >&2
+          if [ -n "$pr_list_output" ]; then
             echo "$pr_list_output" >&2
+          else
+            echo "(no stderr output)" >&2
+          fi
+          if [ "$pr_list_attempt" -lt "$pr_list_max_attempts" ]; then
+            backoff=$((1 << pr_list_attempt))
+            echo "Retrying in ${backoff}s..." >&2
             sleep "$backoff"
           fi
         else
