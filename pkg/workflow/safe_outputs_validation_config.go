@@ -31,7 +31,7 @@ type FieldValidation struct {
 	Pattern                  string   `json:"pattern,omitempty"`
 	PatternError             string   `json:"patternError,omitempty"`
 	TemporaryID              bool     `json:"temporaryId,omitempty"`
-	Synonyms                 []string `json:"x-synonyms,omitempty"`
+	XSynonyms                []string `json:"x-synonyms,omitempty"`
 }
 
 // TypeValidationConfig defines validation configuration for a safe output type
@@ -134,8 +134,8 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"set_issue_type": {
 		DefaultMax: 5,
 		Fields: map[string]FieldValidation{
-			"issue_number": {IssueOrPRNumber: true, Synonyms: []string{"issueNumber"}},
-			"issue_type":   {Required: true, Type: "string", Sanitize: true, MaxLength: 128, Synonyms: []string{"issueType"}}, // Empty string clears the type
+			"issue_number": {IssueOrPRNumber: true, XSynonyms: []string{"issueNumber"}},
+			"issue_type":   {Required: true, Type: "string", Sanitize: true, MaxLength: 128, XSynonyms: []string{"issueType"}}, // Empty string clears the type
 			"rationale":    {Type: "string", Sanitize: true, MaxLength: 280},
 			"confidence":   {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}},
 			"suggest":      {Type: "boolean"},
@@ -146,9 +146,9 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		DefaultMax:       5,
 		CustomValidation: "requiresOneOf:field_name,field_node_id",
 		Fields: map[string]FieldValidation{
-			"issue_number":  {IssueOrPRNumber: true, Synonyms: []string{"issueNumber"}},
-			"field_name":    {Type: "string", Sanitize: true, MaxLength: 128, Synonyms: []string{"fieldName"}},
-			"field_node_id": {Type: "string", MaxLength: 256, Synonyms: []string{"fieldNodeId"}},
+			"issue_number":  {IssueOrPRNumber: true, XSynonyms: []string{"issueNumber"}},
+			"field_name":    {Type: "string", Sanitize: true, MaxLength: 128, XSynonyms: []string{"fieldName"}},
+			"field_node_id": {Type: "string", MaxLength: 256, XSynonyms: []string{"fieldNodeId"}},
 			"value":         {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
 			"rationale":     {Type: "string", Sanitize: true, MaxLength: 280},
 			"confidence":    {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}},

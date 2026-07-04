@@ -654,6 +654,38 @@ function normalizeFieldKey(key) {
     .replace(/[\s-]+/g, "_");
 }
 
+const FIELD_SYNONYMS_KEY = "x-synonyms";
+
+/**
+ * Return configured alternate field names for a validation field.
+ * x-synonyms is the single extension key for field-name aliases.
+ *
+ * @param {FieldValidation|undefined} validation
+ * @returns {string[]}
+ */
+function getFieldSynonyms(validation) {
+  const rawSynonyms = validation?.[FIELD_SYNONYMS_KEY];
+  if (!Array.isArray(rawSynonyms)) {
+    return [];
+  }
+
+  const seen = new Set();
+  const synonyms = [];
+  for (const synonym of rawSynonyms) {
+    if (typeof synonym !== "string") {
+      continue;
+    }
+    const trimmed = synonym.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    synonyms.push(trimmed);
+  }
+
+  return synonyms;
+}
+
 /**
  * Canonicalize item field names using configured x-synonyms.
  * Preserves canonical fields when both canonical and synonym forms are present.
@@ -665,11 +697,8 @@ function normalizeItemFieldNames(item, fieldsConfig) {
   const canonicalByNormalized = new Map();
   for (const [fieldName, validation] of Object.entries(fieldsConfig)) {
     canonicalByNormalized.set(normalizeFieldKey(fieldName), fieldName);
-    const synonyms = Array.isArray(validation?.["x-synonyms"]) ? validation["x-synonyms"] : [];
+    const synonyms = getFieldSynonyms(validation);
     for (const synonym of synonyms) {
-      if (typeof synonym !== "string" || !synonym.trim()) {
-        continue;
-      }
       const normalizedSynonym = normalizeFieldKey(synonym);
       if (!canonicalByNormalized.has(normalizedSynonym)) {
         canonicalByNormalized.set(normalizedSynonym, fieldName);
