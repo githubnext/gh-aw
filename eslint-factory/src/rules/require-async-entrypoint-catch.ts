@@ -8,12 +8,18 @@ function isAsyncFuncNode(node: TSESTree.Node): node is AsyncFuncNode {
   return node.type === AST_NODE_TYPES.FunctionDeclaration || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.ArrowFunctionExpression;
 }
 
-/** Returns true if the outermost call in the chain ends with `.catch(...)`. */
-function chainEndsWithCatch(node: TSESTree.CallExpression): boolean {
+/** Returns true if any call in the chain is `.catch(...)`. */
+function chainHasCatch(node: TSESTree.CallExpression): boolean {
   const callee = node.callee;
   if (callee.type === AST_NODE_TYPES.MemberExpression) {
     const prop = callee.property;
-    return prop.type === AST_NODE_TYPES.Identifier && prop.name === "catch";
+    if (prop.type === AST_NODE_TYPES.Identifier && prop.name === "catch") {
+      return true;
+    }
+    const obj = callee.object;
+    if (obj.type === AST_NODE_TYPES.CallExpression) {
+      return chainHasCatch(obj);
+    }
   }
   return false;
 }
@@ -81,7 +87,8 @@ export const requireAsyncEntrypointCatchRule = createRule({
       // Collect module-scope async function expressions and arrow functions:
       // const/let/var X = async function() {} or X = async () => {}
       VariableDeclaration(node) {
-        if (node.parent.type !== AST_NODE_TYPES.Program) return;
+        const isModuleScope = node.parent.type === AST_NODE_TYPES.Program || (node.parent.type === AST_NODE_TYPES.ExportNamedDeclaration && node.parent.parent.type === AST_NODE_TYPES.Program);
+        if (!isModuleScope) return;
         for (const declarator of node.declarations) {
           if (
             declarator.id.type === AST_NODE_TYPES.Identifier &&
@@ -108,8 +115,8 @@ export const requireAsyncEntrypointCatchRule = createRule({
           name = callee.name;
         } else if (callee.type === AST_NODE_TYPES.MemberExpression) {
           // Chained call: main().then(...) etc.
-          // If the chain ends with .catch(...), it's handled — skip.
-          if (chainEndsWithCatch(node)) return;
+          // If the chain contains .catch(...), it's handled — skip.
+          if (chainHasCatch(node)) return;
           // Otherwise find the root call name.
           name = getRootCallName(node);
         }

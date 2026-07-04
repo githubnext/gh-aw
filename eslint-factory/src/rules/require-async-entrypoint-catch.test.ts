@@ -9,6 +9,13 @@ const cjsRuleTester = new RuleTester({
   },
 });
 
+const esmRuleTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: "module",
+  },
+});
+
 describe("require-async-entrypoint-catch", () => {
   it("uses the correct docs URL", () => {
     expect(requireAsyncEntrypointCatchRule.meta.docs.url).toBe("https://github.com/github/gh-aw/tree/main/eslint-factory#require-async-entrypoint-catch");
@@ -45,6 +52,14 @@ run().catch(err => { process.exit(1); });`,
         // .then().catch() chain is valid
         `const main = async () => {};
 main().then(() => process.exit(0)).catch(err => { console.error(err); process.exitCode = 1; });`,
+
+        // .catch().finally() chain is valid
+        `const main = async () => {};
+main().catch(err => { console.error(err); process.exitCode = 1; }).finally(() => process.exit(0));`,
+
+        // .then().catch().finally() chain is valid
+        `const main = async () => {};
+main().then(() => process.exit(0)).catch(err => { console.error(err); process.exitCode = 1; }).finally(() => process.exit(0));`,
       ],
       invalid: [],
     });
@@ -284,6 +299,31 @@ run();`,
                   messageId: "addCatch",
                   output: `const run = async function() { return 42; }
 run().catch(err => { console.error(err); process.exitCode = 1; });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: bare call to exported async arrow function is flagged", () => {
+    esmRuleTester.run("require-async-entrypoint-catch", requireAsyncEntrypointCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `export const main = async () => { return 42; }
+main();`,
+          errors: [
+            {
+              messageId: "requireCatch",
+              data: { name: "main" },
+              suggestions: [
+                {
+                  messageId: "addCatch",
+                  output: `export const main = async () => { return 42; }
+main().catch(err => { console.error(err); process.exitCode = 1; });`,
                 },
               ],
             },
