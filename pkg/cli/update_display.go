@@ -5,10 +5,14 @@ import (
 	"os"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var updateDisplayLog = logger.New("cli:update_display")
 
 // showUpdateSummary displays a summary of workflow updates using console helpers
 func showUpdateSummary(successfulUpdates []string, failedUpdates []updateFailure) {
+	updateDisplayLog.Printf("Rendering update summary: %d succeeded, %d failed", len(successfulUpdates), len(failedUpdates))
 	fmt.Fprintln(os.Stderr, "")
 
 	// Show successful updates

@@ -197,7 +197,7 @@ async function main() {
           core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
         }
       }
-      core.summary.write();
+      await core.summary.write();
     } else {
       core.info("No new assets to upload");
     }

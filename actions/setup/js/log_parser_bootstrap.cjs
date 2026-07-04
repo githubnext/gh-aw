@@ -295,7 +295,7 @@ async function runLogParser(options) {
           }
         }
 
-        core.summary.addRaw(fullMarkdown).write();
+        await core.summary.addRaw(fullMarkdown).write();
       } else {
         // Fallback path: markdown exists but no structured log entries were parsed.
         // Suppress the "parsed successfully" message for Claude since it always produces
@@ -327,7 +327,7 @@ async function runLogParser(options) {
             fullMarkdown += "\n" + safeOutputsMarkdown;
           }
         }
-        core.summary.addRaw(fullMarkdown).write();
+        await core.summary.addRaw(fullMarkdown).write();
       }
     } else {
       core.error(`Failed to parse ${parserName} log`);
