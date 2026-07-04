@@ -1144,8 +1144,8 @@ func TestGenerateMaintenanceWorkflow_DisabledJobs(t *testing.T) {
 	if strings.Contains(yaml, "  issues:\n    types: [labeled]") {
 		t.Error("issues:labeled trigger should be omitted when all label-triggered jobs are disabled")
 	}
-	if !strings.Contains(yaml, "value: ${{ inputs.run_url }}") {
-		t.Error("workflow_call applied_run_url should fall back to inputs.run_url when apply_safe_outputs is disabled")
+	if !strings.Contains(yaml, "applied_run_url:\n        description: 'The run URL that safe outputs were applied from'\n        value: ${{ inputs.run_url }}") {
+		t.Error("workflow_call applied_run_url output should fall back to inputs.run_url when apply_safe_outputs is disabled")
 	}
 }
 

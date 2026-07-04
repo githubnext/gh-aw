@@ -107,10 +107,6 @@ on:
 `)
 	}
 
-	operationCompletedValue := "${{ jobs.run_operation.outputs.operation || inputs.operation }}"
-	if isMaintenanceJobDisabled(disabledJobs, "run_operation") {
-		operationCompletedValue = "${{ inputs.operation }}"
-	}
 	appliedRunURLValue := "${{ jobs.apply_safe_outputs.outputs.run_url }}"
 	if isMaintenanceJobDisabled(disabledJobs, "apply_safe_outputs") {
 		appliedRunURLValue = "${{ inputs.run_url }}"
@@ -157,7 +153,7 @@ on:
     outputs:
       operation_completed:
         description: 'The maintenance operation that was completed (empty when none ran or a scheduled job ran)'
-        value: ` + operationCompletedValue + `
+        value: ${{ jobs.run_operation.outputs.operation || inputs.operation }}
       applied_run_url:
         description: 'The run URL that safe outputs were applied from'
         value: ` + appliedRunURLValue + `
