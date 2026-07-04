@@ -147,7 +147,7 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
     const normalizedLabel = { name };
     if (label.rationale !== undefined) {
       if (typeof label.rationale !== "string") {
-        // Strip invalid rationale instead of rejecting the whole item (optional enrichment field)
+        // Strip non-string rationale instead of rejecting (optional enrichment field)
       } else {
         const rationale = normalizeIssueIntentRationale(label.rationale, options);
         if (rationale) {
@@ -171,7 +171,7 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
             confidence = "HIGH";
             break;
           default:
-            // Strip invalid confidence instead of rejecting the whole item (optional enrichment field)
+            // Strip confidence that doesn't match enum values instead of rejecting (optional enrichment field)
             confidence = undefined;
             break;
         }
@@ -214,7 +214,8 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
  * @property {number} [itemMaxLength] - For arrays, max length per item
  * @property {string} [pattern] - Regex pattern the value must match
  * @property {string} [patternError] - Error message for pattern mismatch
- * @property {boolean} [x-strip-on-error] - When true, strip the field on validation failure instead of rejecting the whole item (for optional enrichment fields like confidence/rationale)
+ * @property {boolean} [x-strip-on-error] - When true, strip the field on validation failure instead of
+ *   rejecting the whole item. Used for optional enrichment fields like confidence and rationale.
  */
 
 /**
