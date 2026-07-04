@@ -83,6 +83,11 @@ describe("detect_agent_errors.cjs", () => {
       expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test(log)).toBe(true);
     });
 
+    it("matches SDK session.idle timeout signature", () => {
+      const log = "[copilot-sdk-driver] [sdk-driver] error: Timeout after 870000ms waiting for session.idle";
+      expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test(log)).toBe(true);
+    });
+
     it("does not match regular exit without signal", () => {
       const log = "[copilot-harness] 2026-04-12T04:56:28.000Z attempt 1: process closed exitCode=1 duration=5m 3s stdout=1234B stderr=567B hasOutput=true";
       expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test(log)).toBe(false);
@@ -314,6 +319,16 @@ describe("detect_agent_errors.cjs", () => {
       const log = "Access denied by policy settings\n[copilot-harness] 2026-04-12T04:56:28.000Z attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 0s";
       const result = detectErrors(log);
       expect(result.inferenceAccessError).toBe(true);
+      expect(result.mcpPolicyError).toBe(false);
+      expect(result.agenticEngineTimeout).toBe(true);
+      expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(false);
+    });
+
+    it("detects SDK session.idle timeout", () => {
+      const result = detectErrors("[copilot-sdk-driver] [sdk-driver] error: Timeout after 870000ms waiting for session.idle");
+      expect(result.inferenceAccessError).toBe(false);
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(true);
       expect(result.modelNotSupportedError).toBe(false);
