@@ -26,7 +26,7 @@ var includeDirectivePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 // The includePath should be in the format: owner/repo/path/to/file.md[@ref]
 // If the includePath is a relative path, it's resolved relative to the baseSpec.
 // Returns: (content, section, error) where section is the #fragment from the path (e.g., "#section-name").
-func FetchIncludeFromSource(includePath string, baseSpec *WorkflowSpec, verbose bool) ([]byte, string, error) {
+func FetchIncludeFromSource(ctx context.Context, includePath string, baseSpec *WorkflowSpec, verbose bool) ([]byte, string, error) {
 	baseSpecStr := "<nil>"
 	if baseSpec != nil {
 		baseSpecStr = baseSpec.String()
@@ -65,7 +65,7 @@ func FetchIncludeFromSource(includePath string, baseSpec *WorkflowSpec, verbose 
 		filePath := strings.Join(slashParts[2:], "/")
 
 		// Download the file
-		content, err := parser.DownloadFileFromGitHub(owner, repo, filePath, ref)
+		content, err := parser.DownloadFileFromGitHub(ctx, owner, repo, filePath, ref)
 		if err != nil {
 			return nil, section, fmt.Errorf("failed to fetch include from %s: %w", includePath, err)
 		}
@@ -104,7 +104,7 @@ func FetchIncludeFromSource(includePath string, baseSpec *WorkflowSpec, verbose 
 				}
 			}
 
-			content, err := parser.DownloadFileFromGitHub(owner, repo, fullPath, ref)
+			content, err := parser.DownloadFileFromGitHub(ctx, owner, repo, fullPath, ref)
 			if err != nil {
 				return nil, section, fmt.Errorf("failed to fetch include %s from %s/%s: %w", filePath, owner, repo, err)
 			}
@@ -122,7 +122,7 @@ func FetchIncludeFromSource(includePath string, baseSpec *WorkflowSpec, verbose 
 // This is analogous to fetchAndSaveRemoteIncludes, which handles @include directives in the
 // markdown body; this function handles the YAML frontmatter 'imports:' field.
 // Import failures are non-fatal (best-effort); the compiler will report any still-missing files.
-func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+func fetchAndSaveRemoteFrontmatterImports(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
 	if spec.RepoSlug == "" {
 		return nil
 	}
@@ -137,7 +137,7 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 	ref := spec.Version
 	if ref == "" {
 		// Resolve the actual default branch of the source repo rather than assuming "main"
-		defaultBranch, err := getRepoDefaultBranch(context.Background(), spec.RepoSlug)
+		defaultBranch, err := getRepoDefaultBranch(ctx, spec.RepoSlug)
 		if err != nil {
 			remoteWorkflowLog.Printf("Failed to resolve default branch for %s, falling back to 'main': %v", spec.RepoSlug, err)
 			ref = "main"
@@ -158,7 +158,7 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 	// cycles (A imports B, B imports A) are broken without infinite recursion.
 	seen := make(map[string]struct {
 	})
-	fetchFrontmatterImportsRecursive(content, workflowBaseDir, frontmatterImportsOpts{
+	fetchFrontmatterImportsRecursive(ctx, content, workflowBaseDir, frontmatterImportsOpts{
 		owner:           owner,
 		repo:            repo,
 		ref:             ref,
@@ -197,7 +197,7 @@ type frontmatterImportsOpts struct {
 //   - originalBaseDir: directory of the top-level workflow (used to map remote paths → local paths)
 //   - targetDir: the `.github/workflows` directory in the user's repo
 //   - seen: shared visited set (keyed by fully-resolved remote path) — prevents cycles & duplicates
-func fetchFrontmatterImportsRecursive(content, currentBaseDir string, opts frontmatterImportsOpts) {
+func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseDir string, opts frontmatterImportsOpts) {
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil || result.Frontmatter == nil {
 		return
@@ -362,7 +362,7 @@ func fetchFrontmatterImportsRecursive(content, currentBaseDir string, opts front
 		}
 
 		// Download from the source repository
-		importContent, err := parser.DownloadFileFromGitHub(opts.owner, opts.repo, remoteFilePath, opts.ref)
+		importContent, err := parser.DownloadFileFromGitHub(ctx, opts.owner, opts.repo, remoteFilePath, opts.ref)
 		if err != nil {
 			remoteWorkflowLog.Printf("Failed to download import %s from %s/%s@%s: %v", remoteFilePath, opts.owner, opts.repo, opts.ref, err)
 			if opts.verbose {
@@ -403,12 +403,12 @@ func fetchFrontmatterImportsRecursive(content, currentBaseDir string, opts front
 		// Recurse into the imported file's imports. Use the imported file's directory as
 		// currentBaseDir so that relative paths inside it resolve correctly.
 		importedBaseDir := path.Dir(remoteFilePath)
-		fetchFrontmatterImportsRecursive(string(importContent), importedBaseDir, opts)
+		fetchFrontmatterImportsRecursive(ctx, string(importContent), importedBaseDir, opts)
 	}
 }
 
 // fetchAndSaveRemoteIncludes parses the workflow content for @include directives and fetches them from the remote source
-func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
 	remoteWorkflowLog.Printf("Fetching remote includes for workflow: %s", spec.String())
 
 	// Parse the workflow content to find @include directives
@@ -440,7 +440,7 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 		}{}
 
 		// Fetch the include file
-		includeContent, _, err := FetchIncludeFromSource(includePath, spec, verbose)
+		includeContent, _, err := FetchIncludeFromSource(ctx, includePath, spec, verbose)
 		if err != nil {
 			if isOptional {
 				if verbose {
@@ -502,7 +502,7 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 		}
 
 		// Recursively fetch includes from the fetched file
-		if err := fetchAndSaveRemoteIncludes(string(includeContent), spec, targetDir, verbose, force, tracker); err != nil {
+		if err := fetchAndSaveRemoteIncludes(ctx, string(includeContent), spec, targetDir, verbose, force, tracker); err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch nested includes from %s: %v", filePath, err)))
 			}
@@ -523,7 +523,7 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 func fetchAllRemoteDependencies(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
 	remoteWorkflowLog.Printf("Fetching all remote dependencies: spec=%s, targetDir=%s, force=%v", spec.String(), targetDir, force)
 	// Fetch and save @include directive dependencies (best-effort: errors are not fatal).
-	if err := fetchAndSaveRemoteIncludes(content, spec, targetDir, verbose, force, tracker); err != nil {
+	if err := fetchAndSaveRemoteIncludes(ctx, content, spec, targetDir, verbose, force, tracker); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch include dependencies: %v", err)))
 		}
@@ -532,7 +532,7 @@ func fetchAllRemoteDependencies(ctx context.Context, content string, spec *Workf
 	// locally during compilation. Keeping these as relative paths (not workflowspecs)
 	// ensures the compiler resolves them from disk rather than downloading from GitHub.
 	// Best-effort: errors are not fatal.
-	if err := fetchAndSaveRemoteFrontmatterImports(content, spec, targetDir, verbose, force, tracker); err != nil {
+	if err := fetchAndSaveRemoteFrontmatterImports(ctx, content, spec, targetDir, verbose, force, tracker); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch frontmatter import dependencies: %v", err)))
 		}
@@ -547,7 +547,7 @@ func fetchAllRemoteDependencies(ctx context.Context, content string, spec *Workf
 	}
 	// Fetch files listed in the 'resources:' frontmatter field (additional workflow or
 	// action files that should be present alongside this workflow).
-	if err := fetchAndSaveRemoteResources(content, spec, targetDir, verbose, force, tracker); err != nil {
+	if err := fetchAndSaveRemoteResources(ctx, content, spec, targetDir, verbose, force, tracker); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch resource dependencies: %v", err)))
 		}

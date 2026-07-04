@@ -42,15 +42,15 @@ func TestResolveRepositoryPackage(t *testing.T) {
 	getRepositoryPackageLatestRelease = func(repoSlug, host string) (string, error) {
 		return "", errors.New("no releases found")
 	}
-	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
-	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
 
 	t.Run("uses aw manifest files and README docs", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
 				return []byte(`name: Repo Assist
@@ -68,12 +68,12 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, "aw.yml", pkg.ManifestPath)
 		assert.Equal(t, "Repo Assist", pkg.Name)
@@ -102,7 +102,7 @@ files:
 			assert.Equal(t, "github.com", host)
 			return "master", nil
 		}
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			assert.Equal(t, "master", ref)
 			switch path {
 			case "aw.yml":
@@ -113,7 +113,7 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			assert.Equal(t, "master", ref)
 			switch workflowPath {
 			case "workflows":
@@ -125,7 +125,7 @@ files:
 			}
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "github.com")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "github.com")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 	})
@@ -146,7 +146,7 @@ files:
 			t.Fatalf("default branch lookup should not be called when latest release is available")
 			return "", nil
 		}
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			assert.Equal(t, "v1.2.3", ref)
 			switch path {
 			case "aw.yml":
@@ -157,7 +157,7 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			assert.Equal(t, "v1.2.3", ref)
 			switch workflowPath {
 			case "workflows":
@@ -169,7 +169,7 @@ files:
 			}
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "github/gh-aw"}, "github.com")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "github/gh-aw"}, "github.com")
 		require.NoError(t, err)
 		assert.Equal(t, "v1.2.3", pkg.ResolvedRef)
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
@@ -192,7 +192,7 @@ files:
 			assert.Equal(t, "github.com", host)
 			return "main", nil
 		}
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			assert.Equal(t, "main", ref)
 			switch path {
 			case "aw.yml":
@@ -203,7 +203,7 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			assert.Equal(t, "main", ref)
 			switch workflowPath {
 			case "workflows":
@@ -215,7 +215,7 @@ files:
 			}
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "github/gh-aw"}, "github.com")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "github/gh-aw"}, "github.com")
 		require.NoError(t, err)
 		assert.Equal(t, "main", pkg.ResolvedRef)
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
@@ -230,7 +230,7 @@ files:
 			t.Fatalf("default branch lookup should not be called when version is provided")
 			return "", nil
 		}
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			assert.Equal(t, "feature/github-agentic-workflow", ref)
 			switch path {
 			case "agentic-workflows/aw.yml":
@@ -241,12 +241,12 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{
 			RepoSlug:    "owner/repo",
 			PackagePath: "agentic-workflows",
 			Version:     "feature/github-agentic-workflow",
@@ -256,7 +256,7 @@ files:
 	})
 
 	t.Run("falls back to scanning supported workflow directories", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
 				return []byte("name: Repo Assist\n"), nil
@@ -266,7 +266,7 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			assert.Empty(t, host)
 			switch workflowPath {
 			case "workflows":
@@ -278,14 +278,14 @@ files:
 			}
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, "README.md", pkg.DocsPath)
 		assert.Equal(t, []string{"workflows/review.md", ".github/workflows/nightly-review.md"}, pkg.InstallationSource)
 	})
 
 	t.Run("passes explicit host to scanning fallback", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
 				assert.Equal(t, "github.com", host)
@@ -297,7 +297,7 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			assert.Equal(t, "github.com", host)
 			switch workflowPath {
 			case "workflows":
@@ -309,50 +309,50 @@ files:
 			}
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "github.com")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "github.com")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 	})
 
 	t.Run("rejects manifest without name field", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
 				return []byte("description: missing name\n"), nil
 			}
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `name must be a non-empty string`)
 	})
 
 	t.Run("requires aw manifest when only legacy alias exists", func(t *testing.T) {
 		var requestedPaths []string
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			requestedPaths = append(requestedPaths, path)
 			if path == "agents.yml" {
 				return []byte("name: Legacy Alias\n"), nil
 			}
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Equal(t, []string{"aw.yml"}, requestedPaths)
 		assert.Contains(t, err.Error(), `no aw.yml manifest found`)
 	})
 
 	t.Run("accepts manifest-version and compatible min-version", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
 				return []byte(`manifest-version: "1"
@@ -367,18 +367,18 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 	})
 
 	t.Run("accepts manifest without manifest-version", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
 				return []byte(`name: Repo Assist
@@ -391,18 +391,18 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 	})
 
 	t.Run("rejects unsupported manifest-version", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
 				return []byte(`manifest-version: "2"
 name: Repo Assist
@@ -411,13 +411,13 @@ name: Repo Assist
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
 
-		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `manifest-version`)
 	})
 
 	t.Run("accepts branding field", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
 				return []byte(`name: Repo Assist
@@ -433,18 +433,18 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, "Repo Assist", pkg.Name)
 	})
 
 	t.Run("rejects unsupported branding icon", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
 				return []byte(`name: Repo Assist
 branding:
@@ -455,13 +455,13 @@ branding:
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
 
-		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `icon`)
 	})
 
 	t.Run("rejects docs field", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
 				return []byte(`name: Repo Assist
 docs: docs/overview.md
@@ -470,13 +470,13 @@ docs: docs/overview.md
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
 
-		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `docs`)
 	})
 
 	t.Run("rejects non-string emoji field", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
 				return []byte(`name: Repo Assist
 emoji:
@@ -486,13 +486,13 @@ emoji:
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
 
-		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `emoji`)
 	})
 
 	t.Run("rejects non-string license field", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
 				return []byte(`name: Repo Assist
 license:
@@ -502,13 +502,13 @@ license:
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
 
-		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `license`)
 	})
 
 	t.Run("rejects incompatible min-version", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
 				return []byte(`min-version: v9.9.9
 name: Repo Assist
@@ -517,13 +517,13 @@ name: Repo Assist
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
 
-		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `requires gh-aw`)
 	})
 
 	t.Run("requires package README", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
 				return []byte(`name: Repo Assist
 files:
@@ -532,18 +532,18 @@ files:
 			}
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `missing required README.md`)
 	})
 
 	t.Run("reports nested package path when README is missing", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "packages/repo-assist/aw.yml" {
 				return []byte(`name: Repo Assist
 files:
@@ -552,19 +552,19 @@ files:
 			}
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `owner/repo/packages/repo-assist`)
 		assert.Contains(t, err.Error(), `packages/repo-assist/README.md`)
 	})
 
 	t.Run("rejects unknown manifest fields", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
 				return []byte(`name: Repo Assist
 unknown-field: true
@@ -573,13 +573,13 @@ unknown-field: true
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
 
-		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `unknown-field`)
 	})
 
 	t.Run("resolves nested package manifests", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "packages/repo-assist/aw.yml":
 				return []byte(`name: Repo Assist
@@ -592,12 +592,12 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, "packages/repo-assist/aw.yml", pkg.ManifestPath)
 		assert.Equal(t, "packages/repo-assist/README.md", pkg.DocsPath)
@@ -608,7 +608,7 @@ files:
 		// When a nested bundle manifest (at "dependabot/aw.yml") lists a
 		// ".github/workflows/" path, it must resolve to the repo-root path
 		// ".github/workflows/foo.md" — NOT to "dependabot/.github/workflows/foo.md".
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "dependabot/aw.yml":
 				return []byte(`name: Dependabot
@@ -622,12 +622,12 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo", PackagePath: "dependabot"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo", PackagePath: "dependabot"}, "")
 		require.NoError(t, err)
 		// workflows/ path is package-relative; .github/workflows/ is repo-root-relative.
 		assert.Equal(t, []string{
@@ -655,14 +655,14 @@ func TestResolveWorkflows_RepositoryPackage(t *testing.T) {
 	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
 		return "main", nil
 	}
-	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
-	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
 
-	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 		switch path {
 		case "aw.yml":
 			return []byte(`name: Repo Assist
@@ -675,7 +675,7 @@ files:
 		}
 		return nil, createRepositoryPackageNotFoundError(path)
 	}
-	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+	listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 		t.Fatalf("unexpected scan of %s", workflowPath)
 		return nil, nil
 	}
@@ -713,13 +713,13 @@ func TestResolveWorkflows_RepositoryPackageRejectsPrivateTrue(t *testing.T) {
 	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
 		return "main", nil
 	}
-	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
-	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
-	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 		switch path {
 		case "aw.yml":
 			return []byte("name: Repo Assist\nfiles:\n  - workflows/review.md\n"), nil
@@ -731,7 +731,7 @@ func TestResolveWorkflows_RepositoryPackageRejectsPrivateTrue(t *testing.T) {
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
 	}
-	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+	listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 		t.Fatalf("unexpected scan of %s", workflowPath)
 		return nil, nil
 	}
@@ -767,14 +767,14 @@ func TestResolveWorkflows_NestedRepositoryPackage(t *testing.T) {
 	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
 		return "main", nil
 	}
-	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
-	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
 
-	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 		switch path {
 		case "folder/aw.yml":
 			return []byte(`name: Repo Assist
@@ -786,7 +786,7 @@ files:
 		}
 		return nil, createRepositoryPackageNotFoundError(path)
 	}
-	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+	listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 		t.Fatalf("unexpected scan of %s", workflowPath)
 		return nil, nil
 	}
@@ -827,14 +827,14 @@ func TestResolveWorkflows_NestedRepositoryPackage_GithubWorkflowsPathIsRepoRoot(
 	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
 		return "main", nil
 	}
-	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
-	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
 
-	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 		switch path {
 		case "dependabot/aw.yml":
 			return []byte(`name: Dependabot Workflows
@@ -846,7 +846,7 @@ files:
 		}
 		return nil, createRepositoryPackageNotFoundError(path)
 	}
-	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+	listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 		t.Fatalf("unexpected scan of %s", workflowPath)
 		return nil, nil
 	}
@@ -886,14 +886,14 @@ func TestResolveWorkflows_NestedRepositoryPackage_AutoScan(t *testing.T) {
 	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
 		return "main", nil
 	}
-	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
-	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
 
-	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 		switch path {
 		case "mypkg/aw.yml":
 			return []byte("name: My Package\n"), nil
@@ -903,7 +903,7 @@ func TestResolveWorkflows_NestedRepositoryPackage_AutoScan(t *testing.T) {
 		return nil, createRepositoryPackageNotFoundError(path)
 	}
 	// Auto-scan returns full repo-root-relative paths, as the GitHub API does.
-	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+	listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 		switch workflowPath {
 		case "mypkg/workflows":
 			return []string{"mypkg/workflows/pr-review.md"}, nil
@@ -940,7 +940,7 @@ func TestResolveWorkflows_FallsBackToWorkflowWhenNestedManifestMissing(t *testin
 		return "main", nil
 	}
 
-	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 		return nil, createRepositoryPackageNotFoundError(path)
 	}
 	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
@@ -1150,15 +1150,15 @@ func TestResolveRepositoryPackage_ActionWorkflowYML(t *testing.T) {
 	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
 		return "main", nil
 	}
-	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
-	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
 
 	t.Run("includes yml action workflow from files list", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
 				return []byte(`name: CI Pack
@@ -1172,19 +1172,19 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"workflows/triage.md", ".github/workflows/ci.yml"}, pkg.InstallationSource)
 		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "Field 'files'")
 	})
 
 	t.Run("rejects yml files outside .github/workflows with warning", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
 				return []byte(`name: CI Pack
@@ -1198,12 +1198,12 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		// Only the .md file should be accepted; the yml under workflows/ is rejected
 		assert.Equal(t, []string{"workflows/triage.md"}, pkg.InstallationSource)
@@ -1212,7 +1212,7 @@ files:
 	})
 
 	t.Run("rejects duplicate markdown filenames across different folders", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
 				return []byte(`name: Duplicate Filenames
@@ -1226,12 +1226,12 @@ files:
 				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
 
-		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "duplicate workflow filename")
 	})
@@ -1255,16 +1255,16 @@ func TestResolveWorkflows_ActionWorkflowYML(t *testing.T) {
 	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
 		return "main", nil
 	}
-	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
-	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
 
 	rawYML := []byte("name: CI\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps: []\n")
 
-	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 		switch path {
 		case "aw.yml":
 			return []byte(`name: CI Pack
@@ -1277,7 +1277,7 @@ files:
 		}
 		return nil, createRepositoryPackageNotFoundError(path)
 	}
-	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+	listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 		t.Fatalf("unexpected scan of %s", workflowPath)
 		return nil, nil
 	}
@@ -1458,7 +1458,7 @@ func TestResolveRepositoryPackage_SkillsAndAgents(t *testing.T) {
 	}
 
 	t.Run("explicit skills and agents from manifest", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1477,22 +1477,22 @@ files:
 				return nil, createRepositoryPackageNotFoundError(filePath)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
-		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesRecursivelyForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			if dirPath == "skills/code-review" {
 				return []string{"skills/code-review/SKILL.md", "skills/code-review/prompt.sh"}, nil
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 		// Auto-scan runs after manifest skills; return empty so no extras are added.
-		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 		require.Len(t, pkg.SkillFiles, 2)
@@ -1505,7 +1505,7 @@ files:
 	})
 
 	t.Run("includes field infers workflow skill and agent types", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1522,22 +1522,22 @@ includes:
 				return nil, createRepositoryPackageNotFoundError(filePath)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
-		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesRecursivelyForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			if dirPath == "skills/code-review" {
 				return []string{"skills/code-review/SKILL.md", "skills/code-review/prompt.md"}, nil
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 		// Auto-scan runs after manifest skills; return empty so no extras are added.
-		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 		require.Len(t, pkg.SkillFiles, 2)
@@ -1545,7 +1545,7 @@ includes:
 	})
 
 	t.Run("auto-scans skills and agents when absent from manifest", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1561,32 +1561,32 @@ files:
 				return nil, createRepositoryPackageNotFoundError(filePath)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
 		// Agent files are listed with the non-recursive helper.
-		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			if dirPath == "agents" {
 				return []string{"agents/my-agent.md", "agents/helper.sh"}, nil
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 		// Skill files are listed with the recursive helper.
-		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesRecursivelyForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			if dirPath == "skills/auto-skill" {
 				return []string{"skills/auto-skill/SKILL.md"}, nil
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
-		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			if dirPath == "skills" {
 				return []string{"skills/auto-skill"}, nil
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		require.Len(t, pkg.SkillFiles, 1)
 		assert.Equal(t, "skills/auto-skill/SKILL.md", pkg.SkillFiles[0].SourcePath)
@@ -1596,7 +1596,7 @@ files:
 	})
 
 	t.Run("missing skill directory produces warning not error", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1611,22 +1611,22 @@ files:
 				return nil, createRepositoryPackageNotFoundError(filePath)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
-		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
-		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesRecursivelyForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 		// Auto-scan runs after manifest skills; return empty so no extras are added.
-		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Empty(t, pkg.SkillFiles)
 		require.NotEmpty(t, pkg.Warnings)
@@ -1634,7 +1634,7 @@ files:
 	})
 
 	t.Run("explicit skill without marker produces warning", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1649,31 +1649,31 @@ files:
 				return nil, createRepositoryPackageNotFoundError(filePath)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
-		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
-		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesRecursivelyForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			if dirPath == "skills/no-marker" {
 				return []string{"skills/no-marker/prompt.md"}, nil
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
-		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Empty(t, pkg.SkillFiles)
 		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "missing required SKILL.md")
 	})
 
 	t.Run("no skills or agents when directories absent", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1686,21 +1686,21 @@ files:
 				return nil, createRepositoryPackageNotFoundError(filePath)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			// Auto-scan of agents/ returns not-found
 			return nil, createRepositoryPackageNotFoundError(workflowPath)
 		}
-		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
-		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesRecursivelyForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
-		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Empty(t, pkg.SkillFiles)
 		assert.Empty(t, pkg.AgentFiles)
@@ -1708,7 +1708,7 @@ files:
 	})
 
 	t.Run("manifest skills copied first then auto-scanned additional skills appended", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1728,14 +1728,14 @@ files:
 				return nil, createRepositoryPackageNotFoundError(filePath)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
-		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
-		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesRecursivelyForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			switch dirPath {
 			case "skills/review":
 				return []string{"skills/review/SKILL.md"}, nil
@@ -1745,14 +1745,14 @@ files:
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 		// Auto-scan finds "triage" in addition to the manifest-specified "review".
-		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			if dirPath == "skills" {
 				return []string{"skills/review", "skills/triage"}, nil
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		// Manifest skill "review" appears first; auto-scanned "triage" appended after.
 		require.Len(t, pkg.SkillFiles, 3)
@@ -1764,7 +1764,7 @@ files:
 	})
 
 	t.Run("auto-scan errors are warnings when manifest skills are explicit", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1781,24 +1781,24 @@ files:
 				return nil, createRepositoryPackageNotFoundError(filePath)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
-		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
-		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesRecursivelyForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			if dirPath == "skills/review" {
 				return []string{"skills/review/SKILL.md", "skills/review/prompts/default.md"}, nil
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
-		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, errors.New("rate limit")
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		require.Len(t, pkg.SkillFiles, 2)
 		assert.Equal(t, "skills/review/SKILL.md", pkg.SkillFiles[0].SourcePath)
@@ -1806,7 +1806,7 @@ files:
 	})
 
 	t.Run("skill folder nested files are included recursively", func(t *testing.T) {
-		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {
 			case "aw.yml":
 				return []byte(`name: My Package
@@ -1823,14 +1823,14 @@ includes:
 				return nil, createRepositoryPackageNotFoundError(filePath)
 			}
 		}
-		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
-		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
-		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesRecursivelyForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			if dirPath == "skills/my-skill" {
 				// Simulate a skill with nested files in subdirectories.
 				return []string{
@@ -1842,11 +1842,11 @@ includes:
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
-		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 
-		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		require.Len(t, pkg.SkillFiles, 4)
 		assert.Equal(t, "skills/my-skill/SKILL.md", pkg.SkillFiles[0].SourcePath)
@@ -1884,7 +1884,7 @@ func TestResolveWorkflows_SkillsAndAgents(t *testing.T) {
 	agentMD := []byte("# My Agent\nThis is an agent.\n")
 	workflowMD := []byte("---\nname: Review\non: issues\n---\n")
 
-	downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
 		switch filePath {
 		case "aw.yml":
 			return []byte(`name: Full Package
@@ -1903,18 +1903,18 @@ files:
 			return nil, createRepositoryPackageNotFoundError(filePath)
 		}
 	}
-	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+	listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 		t.Fatalf("unexpected workflow scan of %s", workflowPath)
 		return nil, nil
 	}
-	listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirFilesRecursivelyForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		if dirPath == "skills/my-skill" {
 			return []string{"skills/my-skill/SKILL.md"}, nil
 		}
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
 	// Auto-scan runs after manifest skills; return empty so no extras are added.
-	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
 	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {

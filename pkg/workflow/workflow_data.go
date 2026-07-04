@@ -5,8 +5,11 @@ import (
 	"os"
 
 	actionpins "github.com/github/gh-aw/pkg/actionpins"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
+
+var workflowDataLog = logger.New("workflow:workflow_data")
 
 // SkipIfMatchConfig holds the configuration for skip-if-match conditions
 type SkipIfMatchConfig struct {
@@ -227,10 +230,13 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 	// only consulted when GH_HOST is absent.
 	if ghHost := os.Getenv("GH_HOST"); ghHost != "" {
 		if ghHost != "github.com" {
+			workflowDataLog.Print("Non-github.com GH_HOST detected; disabling hardcoded action pin fallback")
 			pinCtx.SkipHardcodedFallback = true
 		}
 	} else if defaultHost := getDefaultGHHost(); defaultHost != "" && defaultHost != "github.com" {
+		workflowDataLog.Print("Non-github.com default host detected; disabling hardcoded action pin fallback")
 		pinCtx.SkipHardcodedFallback = true
 	}
+	workflowDataLog.Printf("Built pin context: strictMode=%t, skipHardcodedFallback=%t", pinCtx.StrictMode, pinCtx.SkipHardcodedFallback)
 	return pinCtx
 }
