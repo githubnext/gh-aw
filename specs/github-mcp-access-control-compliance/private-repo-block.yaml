@@ -1,0 +1,73 @@
+# Private Repository Block — Compliance Fixture
+# Tests: T-GH-024, T-GH-025, T-GH-026, T-GH-027
+# Spec: §7 Private Repository Controls
+
+fixture_id: "private-repo-block"
+description: >
+  The `private-repos` field controls whether private repositories are accessible through
+  the GitHub MCP tool. When `private-repos: false`, any request targeting a private repository
+  MUST be denied (T-GH-025). When `private-repos: true`, private repositories are permitted
+  subject to other active restrictions (T-GH-024). Public repositories MUST always be
+  accessible when `private-repos: false` (T-GH-026). Repository visibility is obtained
+  from the GitHub API (T-GH-027).
+
+spec_refs:
+  - "§7.1 — private-repos: true allows access to private repositories"
+  - "§7.2 — private-repos: false denies access to private repositories"
+  - "§7.3 — private-repos: false does not affect public repository access"
+  - "§7.4 — Repository visibility is queried from GitHub API"
+
+scenarios:
+  # --- Scenario A: private-repos: true → private repo allowed ---
+  - scenario_id: "private-repo-block-A"
+    description: "private-repos: true allows request for a private repository"
+    input:
+      tool_config:
+        repos:
+          - "myorg/*"
+        private-repos: true
+        min-integrity: "none"
+      request:
+        repository: "myorg/internal-tool"
+        is_private: true
+        content_integrity: "none"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario B: private-repos: false → private repo denied ---
+  - scenario_id: "private-repo-block-B"
+    description: "private-repos: false denies request for a private repository"
+    input:
+      tool_config:
+        repos:
+          - "myorg/*"
+        private-repos: false
+        min-integrity: "none"
+      request:
+        repository: "myorg/internal-tool"
+        is_private: true
+        content_integrity: "none"
+    expected:
+      decision: deny
+      error_code: -32003
+      reason: "private repository access denied"
+
+  # --- Scenario C: private-repos: false → public repo still allowed ---
+  - scenario_id: "private-repo-block-C"
+    description: "private-repos: false does not block access to a public repository"
+    input:
+      tool_config:
+        repos:
+          - "myorg/*"
+        private-repos: false
+        min-integrity: "none"
+      request:
+        repository: "myorg/public-docs"
+        is_private: false
+        content_integrity: "none"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""

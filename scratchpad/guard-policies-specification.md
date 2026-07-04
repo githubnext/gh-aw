@@ -422,6 +422,61 @@ The implementation follows established patterns in the codebase and integrates w
 
 ---
 
+## Entities
+
+This section defines the normative data entities of the guard policies framework. Implementations MUST represent each entity with the fields, types, and constraints described below.
+
+### Entity: `GitHubReposScope`
+
+`GitHubReposScope` defines the repository access scope for a GitHub guard policy. It MUST be one of:
+
+| Value | Type | Meaning |
+|---|---|---|
+| `"all"` | String scalar | All repositories accessible by the token; no restriction |
+| `"public"` | String scalar | Public repositories only; private repositories are denied |
+| Array of patterns | `[]string` | Explicit allowlist of repository patterns (see §GP-03 for pattern syntax) |
+
+Implementations MUST reject any other type (e.g., integers, booleans, nested maps) with a descriptive compilation error.
+
+**Deprecated alias**: The YAML field `repos` is a deprecated alias for `allowed-repos` with identical semantics. Implementations MUST accept `repos` for backwards compatibility and SHOULD emit a deprecation warning when `repos` is used. New authoring MUST use `allowed-repos`. See [Deprecation: `repos` Field](#deprecation-repos-field).
+
+### Entity: `GitHubIntegrityLevel`
+
+`GitHubIntegrityLevel` represents the minimum content integrity level required before an AI agent is permitted to act on a GitHub object. It MUST be one of:
+
+| Value | Meaning |
+|---|---|
+| `"none"` | No integrity requirement; all objects are permitted (lowest trust) |
+| `"unapproved"` | Objects from open, non-approved pull requests are permitted |
+| `"approved"` | Objects from pull requests that have been reviewed and approved |
+| `"merged"` | Objects reachable from the main branch (highest trust) |
+
+The trust ordering MUST be: `merged` > `approved` > `unapproved` > `none`.
+
+Any value outside the four literals above MUST be rejected with a compilation error.
+
+### Entity: `GitHubToolConfig` (guard-policy fields)
+
+`GitHubToolConfig` is the workflow-level struct that carries GitHub-specific configuration under the `tools.github` frontmatter key. The guard-policy subset of fields is:
+
+| Field | YAML Key | Type | Required | Description |
+|---|---|---|---|---|
+| `AllowedRepos` | `allowed-repos` | `GitHubReposScope` | No | Repository access scope. Defaults to `"all"` when `min-integrity` is present. |
+| `Repos` | `repos` | `GitHubReposScope` | No | **Deprecated** alias for `allowed-repos`. |
+| `MinIntegrity` | `min-integrity` | `GitHubIntegrityLevel` | Conditionally | Required when `allowed-repos` is set to a non-`"all"` scope or to any explicit pattern array. |
+
+Implementations MUST ensure `AllowedRepos` and `Repos` are not both set simultaneously; if both are present, implementations SHOULD error or use `AllowedRepos` and warn.
+
+### Deprecation: `repos` Field
+
+The YAML key `repos` under `tools.github` is **deprecated** as of guard-policy specification version 0.2.0. It was renamed to `allowed-repos` to avoid collision with the `repos` toolset name.
+
+**Migration path**: Use `gh aw fix` to automatically migrate `repos:` to `allowed-repos:` in workflow frontmatter.
+
+**Removal target**: The `repos` alias SHOULD be removed in a future major version of the spec (tentatively v2.0.0). When the alias is removed, implementations MUST reject `repos` as an unknown field with an error message that suggests `allowed-repos`.
+
+---
+
 ## Conformance
 
 The key words in this section are to be interpreted as described in RFC 2119 (see [Requirements Notation](#requirements-notation) above).
@@ -449,3 +504,73 @@ A conforming implementation of the guard policies framework **MUST** satisfy all
 **GP-10**: When `lockdown: true` is set in the same workflow, implementations MUST treat `lockdown` as taking absolute precedence. Guard policy fields (`allowed-repos`, `min-integrity`) MUST NOT widen access beyond the single triggering repository when lockdown is active. The compiler SHOULD emit a warning when both `lockdown: true` and guard policy fields are present.
 
 **GP-11**: When `allowed-repos` is configured explicitly, implementations MUST require `min-integrity` to be present. In particular, any non-`"all"` `allowed-repos` scope MUST NOT be accepted without `min-integrity`, and implementations MAY enforce the same requirement for explicit `allowed-repos: "all"` for consistency with the general guard-policy validation rule.
+
+---
+
+## Safeguards
+
+This section defines normative safeguards that conforming implementations MUST apply to prevent misconfiguration, privilege escalation, and silent policy-bypass in the guard policies framework.
+
+### GP-S001: Empty Allowlist Prevention
+
+Implementations MUST reject an empty `allowed-repos` array (`allowed-repos: []`) with a compilation error. An empty allowlist provides no access and is almost always a misconfiguration. The error message MUST identify the field and indicate that an empty array is not a valid scope value. A `MUST` sentinel such as `"all"` or `"public"` MUST be used instead.
+
+### GP-S002: Lockdown Supremacy
+
+When `lockdown: true` is present on the same workflow, guard policy fields (`allowed-repos`, `min-integrity`, `blocked-users`, `approval-labels`) MUST NOT be evaluated for access-widening purposes. Implementations MUST treat lockdown as taking absolute precedence and MUST NOT combine lockdown with guard policies in any way that permits access beyond the single triggering repository.
+
+Implementations MUST emit a compilation warning when both `lockdown: true` and any guard-policy field are present simultaneously, because the combination is almost certainly a misconfiguration (the guard-policy fields become inert).
+
+### GP-S003: Cross-Field Consistency
+
+When `allowed-repos` is set to an explicit pattern array or `"public"`, implementations MUST require `min-integrity` to also be present. Permitting a restricted repository scope without a minimum integrity level could allow low-integrity content to reach restricted repositories undetected.
+
+Implementations MUST reject the combination `{ allowed-repos: <non-"all" scope>, min-integrity: (absent) }` with a compilation error that names both the missing field and the reason it is required.
+
+### GP-S004: Legacy Field Isolation
+
+When the deprecated `repos` field is used alongside `allowed-repos` in the same `tools.github` block, implementations MUST NOT silently merge the two values. Implementations MUST either: (a) reject the combination with an error explaining that `repos` and `allowed-repos` cannot both be set, or (b) use `allowed-repos` and emit a warning that `repos` is ignored when `allowed-repos` is present.
+
+In no case MUST the deprecated `repos` field silently override or supplement the normative `allowed-repos` field.
+
+### GP-S005: Absent Policy is Not Permissive
+
+When no guard-policy fields are present on `tools.github`, the derived safe-outputs `write-sink` policy MUST be `nil`. The absence of a guard policy is not equivalent to `accept: ["*"]`. Implementations MUST NOT add a default `accept: ["*"]` when the user has not configured any guard-policy.
+
+---
+
+## Sync Notes
+
+This section maps normative sections of this specification to the implementation files that realise each requirement. Use this mapping to identify which files must be reviewed or updated when specification sections change.
+
+**Last verified**: 2026-07-03
+
+### Guard Policy Validation
+
+| Spec Requirement | Description | Implementation File(s) |
+|---|---|---|
+| GP-01 `allowed-repos` parsing | Flat `allowed-repos` field extraction and type validation | `pkg/workflow/tools_parser.go` (`parseGitHubTool`) |
+| GP-01, GP-03 pattern validation | Repository pattern format validation (exact, wildcard, prefix) | `pkg/workflow/tools_validation_github.go` (`validateReposScope`, `validateRepoPattern`, `isValidOwnerOrRepo`) |
+| GP-02 `min-integrity` validation | Enum value check for `none`/`unapproved`/`approved`/`merged` | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy`) |
+| GP-04 empty array rejection | Empty `allowed-repos` array detection and error | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy`) |
+| GP-10 lockdown precedence | Lockdown + guard-policy conflict detection and warning | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy`, `emitGitHubLockdownGuardPolicyWarning`) |
+
+### Safe-Outputs Guard Policy Derivation
+
+| Spec Requirement | Description | Implementation File(s) |
+|---|---|---|
+| GP-05 through GP-08 | Deriving the safe-outputs `write-sink` policy from GitHub guard policy | `pkg/workflow/mcp_github_config.go` (`deriveSafeOutputsGuardPolicyFromGitHub`) |
+| GP-06 scalar mapping | `"all"` / `"public"` → `accept: ["*"]` mapping | `pkg/workflow/mcp_github_config.go` (`deriveSafeOutputsGuardPolicyFromGitHub`) |
+| GP-07 pattern transformation | Array patterns → `private:`-prefixed accept entries | `pkg/workflow/mcp_github_config.go` (`normalizeGitHubRepositoryInReposScope`) |
+| GP-05 through GP-08 tests | Derivation tests including nil-return, scalar, and array cases | `pkg/workflow/safeoutputs_guard_policy_test.go` (`TestDeriveSafeOutputsGuardPolicyFromGitHub`) |
+
+### Legacy `repos` Field Migration
+
+The deprecated `repos` field (YAML key: `repos`) is handled alongside `allowed-repos` in:
+
+- **`pkg/workflow/mcp_github_config.go`** — The `deriveSafeOutputsGuardPolicyFromGitHub()` function reads `"allowed-repos"` first and falls back to `"repos"` when `"allowed-repos"` is absent (lines: `repos, hasRepos := githubTool["allowed-repos"]` then `repos, hasRepos = githubTool["repos"]`).
+- **`pkg/workflow/tools_types.go`** — `GitHubToolConfig` declares both `AllowedRepos` (`yaml:"allowed-repos,omitempty"`) and the deprecated `Repos` (`yaml:"repos,omitempty"`) fields.
+
+**Migration command**: `gh aw fix` applies a codemod that replaces `repos:` with `allowed-repos:` in workflow frontmatter. The codemod is idempotent and safe to run multiple times.
+
+**Removal tracking**: The `repos` alias is tracked for removal. When it is removed, update `pkg/workflow/tools_types.go` (delete the `Repos` field), `pkg/workflow/mcp_github_config.go` (remove the fallback lookup), and `pkg/workflow/tools_validation_github.go` (adjust any `repos`-specific validation paths). Update doc-comments in `pkg/workflow/tools_types.go` to reference this spec version after the removal.

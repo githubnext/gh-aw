@@ -141,6 +141,9 @@ func validateSafeOutputsTarget(config *SafeOutputsConfig) error {
 	if config.MarkPullRequestAsReadyForReview != nil {
 		configs = append(configs, targetConfig{"mark-pull-request-as-ready-for-review", config.MarkPullRequestAsReadyForReview.Target})
 	}
+	if config.DismissPullRequestReview != nil {
+		configs = append(configs, targetConfig{"dismiss-pull-request-review", config.DismissPullRequestReview.Target})
+	}
 	if config.AddComments != nil {
 		configs = append(configs, targetConfig{"add-comment", config.AddComments.Target})
 	}
