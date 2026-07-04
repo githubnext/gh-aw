@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/setutil"
 )
 
@@ -132,11 +133,25 @@ func (c *Compiler) validateEnvSecretsSection(config map[string]any, sectionName 
 
 	// In strict mode, this is an error
 	if c.strictMode {
+		if sectionName == "engine.env" {
+			// engine.env secrets are excluded from the agent sandbox via awf --exclude-env
+			// (requires AWF v0.25.3+), so they are not leaked, but strict mode still requires
+			// engine-specific configuration.
+			return fmt.Errorf("strict mode: secrets detected in 'engine.env' section are excluded from the agent sandbox via awf --exclude-env (requires AWF %s+) and are not accessible to the agent when that version is in use. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", constants.AWFExcludeEnvMinVersion, strings.Join(secretRefs, ", "))
+		}
 		return fmt.Errorf("strict mode: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", sectionName, strings.Join(secretRefs, ", "))
 	}
 
 	// In non-strict mode, emit a warning
-	warningMsg := fmt.Sprintf("Warning: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Consider using engine-specific secret configuration instead.", sectionName, strings.Join(secretRefs, ", "))
+	var warningMsg string
+	if sectionName == "engine.env" {
+		// engine.env secrets are excluded from the agent sandbox via awf --exclude-env
+		// (requires AWF v0.25.3+). On older AWF versions this protection is not applied and
+		// the values will reach the agent container.
+		warningMsg = fmt.Sprintf("Warning: secrets detected in 'engine.env' section will be excluded from the agent sandbox via awf --exclude-env (requires AWF %s+); on older AWF versions the agent process will see these values. Found: %s. Consider using engine-specific secret configuration instead.", constants.AWFExcludeEnvMinVersion, strings.Join(secretRefs, ", "))
+	} else {
+		warningMsg = fmt.Sprintf("Warning: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Consider using engine-specific secret configuration instead.", sectionName, strings.Join(secretRefs, ", "))
+	}
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	c.IncrementWarningCount()
 

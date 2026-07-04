@@ -81,9 +81,9 @@ func initModelPrices() {
 func findModelPricing(provider, model string) (map[string]float64, bool) {
 	initModelPrices()
 
-	normalizedProvider := normalizeCatalogProvider(provider)
+	normalizedProvider := modelsdev.NormalizeProvider(provider)
 	normalizedModel := strings.ToLower(strings.TrimSpace(model))
-	comparableModel := normalizeComparableModelID(normalizedModel)
+	comparableModel := modelsdev.NormalizeComparableModelID(normalizedModel)
 	if normalizedModel == "" { //nolint:tolowerequalfold
 		return nil, false
 	}
@@ -92,10 +92,10 @@ func findModelPricing(provider, model string) (map[string]float64, bool) {
 	if !strings.Contains(fullID, "/") && normalizedProvider != "" {
 		fullID = normalizedProvider + "/" + normalizedModel
 	}
-	comparableFullID := normalizeComparableModelID(fullID)
+	comparableFullID := modelsdev.NormalizeComparableModelID(fullID)
 
 	for _, record := range modelPriceRecords {
-		if (fullID != "" && record.id == fullID) || (comparableFullID != "" && normalizeComparableModelID(record.id) == comparableFullID) {
+		if (fullID != "" && record.id == fullID) || (comparableFullID != "" && modelsdev.NormalizeComparableModelID(record.id) == comparableFullID) {
 			modelCostsLog.Printf("Exact pricing match: provider=%s, model=%s -> %s", provider, model, record.id)
 			return record.pricing, true
 		}
@@ -107,7 +107,7 @@ func findModelPricing(provider, model string) (map[string]float64, bool) {
 	bestGenericLen := -1
 
 	for _, record := range modelPriceRecords {
-		comparableRecordModel := normalizeComparableModelID(record.model)
+		comparableRecordModel := modelsdev.NormalizeComparableModelID(record.model)
 		if record.model == normalizedModel || comparableRecordModel == comparableModel {
 			if normalizedProvider != "" && record.provider == normalizedProvider {
 				return record.pricing, true
@@ -142,19 +142,6 @@ func findModelPricing(provider, model string) (map[string]float64, bool) {
 	return nil, false
 }
 
-func normalizeCatalogProvider(provider string) string {
-	switch strings.ToLower(strings.TrimSpace(provider)) {
-	case "github", "copilot", "github_models":
-		return "github-copilot"
-	default:
-		return strings.ToLower(strings.TrimSpace(provider))
-	}
-}
-
-func normalizeComparableModelID(value string) string {
-	return strings.NewReplacer(".", "-", "_", "-").Replace(strings.ToLower(strings.TrimSpace(value)))
-}
-
 func usdToAIC(usd float64) float64 {
 	return usd / 0.01
 }
@@ -167,7 +154,7 @@ func computeModelInferenceCostUSD(provider, model string, inputTokens, outputTok
 
 	input := inputTokens
 	cacheRead := cacheReadTokens
-	if cacheRead > 0 && providerIncludesCacheReadsInInput(normalizeCatalogProvider(provider)) {
+	if cacheRead > 0 && providerIncludesCacheReadsInInput(modelsdev.NormalizeProvider(provider)) {
 		input = max(inputTokens-cacheReadTokens, 0)
 	}
 

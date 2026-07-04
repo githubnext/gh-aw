@@ -1118,6 +1118,104 @@ func TestAWFSupportsExcludeEnv(t *testing.T) {
 	}
 }
 
+// TestComputeAWFExcludeEnvVarNames verifies that engine.env vars whose values contain
+// ${{ secrets.* }} are automatically included in the --exclude-env list, and that
+// non-secret engine.env vars and plain-value core secrets are handled correctly.
+func TestComputeAWFExcludeEnvVarNames(t *testing.T) {
+	tests := []struct {
+		name               string
+		workflowData       *WorkflowData
+		coreSecretVarNames []string
+		want               []string
+		notWant            []string
+	}{
+		{
+			name: "engine.env secret var is auto-excluded",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"GOOGLE_API_KEY": "${{ secrets.SOME_KEY }}",
+					},
+				},
+			},
+			coreSecretVarNames: []string{},
+			want:               []string{"GOOGLE_API_KEY"},
+		},
+		{
+			name: "engine.env non-secret var is not excluded",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"DEBUG":     "true",
+						"LOG_LEVEL": "info",
+					},
+				},
+			},
+			coreSecretVarNames: []string{},
+			want:               []string{},
+			notWant:            []string{"DEBUG", "LOG_LEVEL"},
+		},
+		{
+			name: "engine.env mixes secret and non-secret vars: only secrets excluded",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"GOOGLE_API_KEY": "${{ secrets.SOME_KEY }}",
+						"LOG_LEVEL":      "debug",
+					},
+				},
+			},
+			coreSecretVarNames: []string{},
+			want:               []string{"GOOGLE_API_KEY"},
+			notWant:            []string{"LOG_LEVEL"},
+		},
+		{
+			name: "engine.env secret combined with core secret vars",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"CUSTOM_API_KEY": "${{ secrets.CUSTOM_KEY }}",
+					},
+				},
+			},
+			coreSecretVarNames: []string{"GEMINI_API_KEY"},
+			want:               []string{"GEMINI_API_KEY", "CUSTOM_API_KEY"},
+		},
+		{
+			name: "engine.env secret embedded in a larger string is excluded",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						"AUTH_HEADER": "Bearer ${{ secrets.TOKEN }}",
+					},
+				},
+			},
+			coreSecretVarNames: []string{},
+			want:               []string{"AUTH_HEADER"},
+		},
+		{
+			name: "nil engine config produces no exclusions beyond core secrets",
+			workflowData: &WorkflowData{
+				EngineConfig: nil,
+			},
+			coreSecretVarNames: []string{"COPILOT_GITHUB_TOKEN"},
+			want:               []string{"COPILOT_GITHUB_TOKEN"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ComputeAWFExcludeEnvVarNames(tt.workflowData, tt.coreSecretVarNames)
+			for _, name := range tt.want {
+				assert.Contains(t, got, name, "expected %q in exclude list", name)
+			}
+			for _, name := range tt.notWant {
+				assert.NotContains(t, got, name, "expected %q to be absent from exclude list", name)
+			}
+		})
+	}
+}
+
 // TestBuildAWFArgsCliProxy tests that BuildAWFArgs correctly injects --difc-proxy-host
 // and --difc-proxy-ca-cert based on the cli-proxy feature flag.
 func TestBuildAWFArgsCliProxy(t *testing.T) {
