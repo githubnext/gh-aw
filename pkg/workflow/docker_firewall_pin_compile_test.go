@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
 )
@@ -49,32 +50,45 @@ Test workflow.`
 
 	yamlStr := string(yaml)
 
-	expectedPins := map[string]string{
-		"ghcr.io/github/gh-aw-firewall/agent:0.27.0":     "sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248",
-		"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.0": "sha256:f28d2bd3197fb6ef9ec40ef345bbf2bb33e50151a8e72e89abb618fc3d0066eb",
-		"ghcr.io/github/gh-aw-firewall/squid:0.27.0":     "sha256:d6a01d4cf3d928e6a7fc42e34afef228e753dce87646edc91d8a5cd0b612d9a6",
+	expectedPins := []struct {
+		name  string
+		image string
+	}{
+		{name: "agent", image: constants.DefaultFirewallRegistry + "/agent:0.27.0"},
+		{name: "api-proxy", image: constants.DefaultFirewallRegistry + "/api-proxy:0.27.0"},
+		{name: "squid", image: constants.DefaultFirewallRegistry + "/squid:0.27.0"},
 	}
 
-	for image, digest := range expectedPins {
-		pinnedImage := image + "@" + digest
-		if !strings.Contains(yamlStr, `"image":"`+image+`","digest":"`+digest+`","pinned_image":"`+pinnedImage+`"`) {
-			t.Errorf("Expected manifest header to include pinned metadata for %s", image)
+	for _, expectedPin := range expectedPins {
+		pin, ok := getEmbeddedContainerPin(expectedPin.image)
+		if !ok {
+			t.Fatalf("Expected embedded pin for %s", expectedPin.image)
 		}
-		if !strings.Contains(yamlStr, "#   - "+pinnedImage) {
-			t.Errorf("Expected pinned container comment for %s", image)
+
+		if !strings.Contains(yamlStr, `"image":"`+pin.Image+`","digest":"`+pin.Digest+`","pinned_image":"`+pin.PinnedImage+`"`) {
+			t.Errorf("Expected manifest header to include pinned metadata for %s", expectedPin.image)
 		}
-		if !strings.Contains(yamlStr, pinnedImage) {
-			t.Errorf("Expected pinned download reference for %s", image)
+		if !strings.Contains(yamlStr, "#   - "+pin.PinnedImage) {
+			t.Errorf("Expected pinned container comment for %s", expectedPin.image)
+		}
+		if !strings.Contains(yamlStr, pin.PinnedImage) {
+			t.Errorf("Expected pinned download reference for %s", expectedPin.image)
 		}
 	}
 
-	for _, imageTagPart := range []string{
+	imageTagParts := []string{
 		`imageTag`,
 		`0.27.0,`,
-		`agent=sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248`,
-		`api-proxy=sha256:f28d2bd3197fb6ef9ec40ef345bbf2bb33e50151a8e72e89abb618fc3d0066eb`,
-		`squid=sha256:d6a01d4cf3d928e6a7fc42e34afef228e753dce87646edc91d8a5cd0b612d9a6`,
-	} {
+	}
+	for _, expectedPin := range expectedPins {
+		pin, ok := getEmbeddedContainerPin(expectedPin.image)
+		if !ok {
+			t.Fatalf("Expected embedded pin for %s", expectedPin.image)
+		}
+		imageTagParts = append(imageTagParts, expectedPin.name+"="+pin.Digest)
+	}
+
+	for _, imageTagPart := range imageTagParts {
 		if !strings.Contains(yamlStr, imageTagPart) {
 			t.Errorf("Expected AWF config JSON to include %s", imageTagPart)
 		}

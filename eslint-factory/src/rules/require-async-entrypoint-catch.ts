@@ -3,6 +3,7 @@ import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-esl
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
 type AsyncFuncNode = TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression;
+type SourceCodeScope = TSESLint.Scope.Scope;
 
 function isAsyncFuncNode(node: TSESTree.Node): node is AsyncFuncNode {
   return node.type === AST_NODE_TYPES.FunctionDeclaration || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.ArrowFunctionExpression;
@@ -25,7 +26,6 @@ export const requireAsyncEntrypointCatchRule = createRule({
   defaultOptions: [],
   create(context) {
     const sourceCode = context.sourceCode;
-    type SourceCodeScope = ReturnType<typeof sourceCode.getScope>;
 
     /** Returns true if the node is inside an async function body (making `await` available). */
     function isInsideAsyncFunction(node: TSESTree.Node): boolean {
@@ -45,12 +45,12 @@ export const requireAsyncEntrypointCatchRule = createRule({
 
       while (scope) {
         const variable = scope.set.get(identifier.name);
-        const definition = variable?.defs[0];
+        const definition = variable?.defs.find(def => def.type === "FunctionName" && def.node.type === AST_NODE_TYPES.FunctionDeclaration);
 
-        if (definition?.type === "FunctionName" && definition.node.type === AST_NODE_TYPES.FunctionDeclaration) {
+        if (definition?.node.type === AST_NODE_TYPES.FunctionDeclaration) {
           return definition.node;
         }
-        if (variable?.defs.length) {
+        if (variable && variable.defs.length > 0) {
           return null;
         }
 

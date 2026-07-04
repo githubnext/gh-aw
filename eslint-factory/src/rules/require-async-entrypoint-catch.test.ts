@@ -156,6 +156,29 @@ main(123).catch(err => { console.error(err); process.exitCode = 1; });`,
             },
           ],
         },
+        {
+          code: `async function report() { return 42; }
+function buildThing() {
+  const report = () => { return 1; };
+}
+report();`,
+          errors: [
+            {
+              messageId: "requireCatch",
+              data: { name: "report" },
+              suggestions: [
+                {
+                  messageId: "addCatch",
+                  output: `async function report() { return 42; }
+function buildThing() {
+  const report = () => { return 1; };
+}
+report().catch(err => { console.error(err); process.exitCode = 1; });`,
+                },
+              ],
+            },
+          ],
+        },
       ],
     });
   });
