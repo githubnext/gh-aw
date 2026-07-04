@@ -94,13 +94,11 @@ on:
 permissions: {}
 
 jobs:
-  close-expired-entities:
+  close-expired-discussions:
     if: ${{ (!(github.event.repository.fork)) && github.event_name != 'push' && (github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == '') }}
     runs-on: ubuntu-slim
     permissions:
       discussions: write
-      issues: write
-      pull-requests: write
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -123,6 +121,24 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/close_expired_discussions.cjs');
             await main();
+  close-expired-issues:
+    if: ${{ (!(github.event.repository.fork)) && github.event_name != 'push' && (github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == '') }}
+    runs-on: ubuntu-slim
+    permissions:
+      issues: write
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          sparse-checkout: |
+            actions
+          clean: false
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Close expired issues
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -132,6 +148,24 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/close_expired_issues.cjs');
             await main();
+  close-expired-pull-requests:
+    if: ${{ (!(github.event.repository.fork)) && github.event_name != 'push' && (github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == '') }}
+    runs-on: ubuntu-slim
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          sparse-checkout: |
+            actions
+          clean: false
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Close expired pull requests
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
