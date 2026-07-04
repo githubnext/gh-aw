@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-Condensed 06-30 to fit the 10 KB repo-memory budget. **56/3600 tested, all PASS.**
+Condensed 06-30 to fit the 10 KB repo-memory budget. **64/3600 tested, all PASS.**
 
 ## Coverage map
 
@@ -16,6 +16,14 @@ Condensed 06-30 to fit the 10 KB repo-memory budget. **56/3600 tested, all PASS.
 - **tiny-none-few-small-clean (idx 54-55): all PASS.** single(54) 52.29 KB (bundle
   38.69, -26%); multi(55) 3-commit SUM 52.7 KB ≈ 1.05× payload (net range 51.4 KB)
   — reconfirms COMMIT=multi is ~1× not N× for text. ~0.46 KB framing/file at 50 KB.
+- **tiny-none-few-small-diverged (idx 60-62): all PASS.** single(60) 53.80 KB /2
+  files /2 commits; multi(61) 4 files /4 commits 56.40 KB ≈1.13× (SHORT-append
+  commit split → mild, consistent w/ 1× short-line law); merge_msg(62) 53.76 KB /2
+  files, --merges empty + parent=1, filename leak 0001-Merge-branch-topic-...patch
+  RECONFIRMED. All carry append-only push follow-up (commit_count≥2), main's
+  diverged history.md commit correctly excluded via merge-base.
+- **tiny-none-few-medium-clean-single (idx 63): PASS.** 204.20 KB /1 file /1 commit
+  (5 files×40960 B = 200.00 KB payload; +2.1% format-patch framing). 5.0% of cap.
 
 ## The cap (grounded in source)
 
@@ -70,16 +78,16 @@ it's a real bug (over-count, or runtime measuring excluded commits).
 - **`config-simulator` subagent is TRUNCATED/unregistered** → use `general-purpose`
   with self-contained prompts (works fine).
 - **Repo-memory budget is tight (10 KB +20% = 12 KB hard).** 07-03: state.json
-  now MINIFIED (no indent) → ~62 B/cell; sat at 12 KB after idx59. When it next
-  breaches, switch `tested` to FAILURES-ONLY: drop the contiguous passing prefix
-  (enumeration already starts at next_index, so [0,next_index) with no entry = pass)
-  and keep only fail/error/rejected cells for re-validation. Call push_repo_memory.
+  now MINIFIED (no indent) → ~62 B/cell; sat at 12 KB after idx59. **07-04: DONE —
+  switched `tested` to FAILURES-ONLY.** All 0-63 pass & contiguous, so `tested={}`
+  (249 B); enumeration starts at next_index=64 and [0,64) w/ no entry = pass. Only
+  add fail/error/rejected cells going forward. Call push_repo_memory after writing.
 
 ## Next
 
-Next index: **60** → `tiny-none-few-small-diverged-single` (few-small spans idx
-54-62; idx56-59 clean-merge_msg + ahead-{single,multi,merge_msg} all PASS 07-03,
-patches 51-113 KB). few-xlarge (~idx 84-89) predicted ~4054 KB → PASS. HISTORY=deep (500) and
+Next index: **64** → `tiny-none-few-medium-clean-multi` (idx 64-65 finish
+few-medium-clean; 66-71 few-medium ahead/diverged ~200-410 KB → PASS predicted).
+few-large (~idx 72-80) ~1 MB, few-xlarge (~idx 81-89) predicted ~4054 KB → PASS. HISTORY=deep (500) and
 FILES=many/batch far ahead — prime untested regions for a first rejection. SIZE
 stays tiny (payload small) until idx 720, so no real `rejected` expected before
 then unless a PATCH tier is tuned over 4096 KB or a downstream over-count bug fires.
