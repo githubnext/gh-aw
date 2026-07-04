@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
 )
@@ -74,6 +75,88 @@ Test workflow.`
 		`agent=sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248`,
 		`api-proxy=sha256:f28d2bd3197fb6ef9ec40ef345bbf2bb33e50151a8e72e89abb618fc3d0066eb`,
 		`squid=sha256:d6a01d4cf3d928e6a7fc42e34afef228e753dce87646edc91d8a5cd0b612d9a6`,
+	} {
+		if !strings.Contains(yamlStr, imageTagPart) {
+			t.Errorf("Expected AWF config JSON to include %s", imageTagPart)
+		}
+	}
+}
+
+// TestCompileWorkflow_FirewallImagesPinnedForDefaultVersion verifies that the four
+// gh-aw-firewall images emitted by the default AWF version (constants.DefaultFirewallVersion)
+// — agent, api-proxy, cli-proxy, and squid — are all digest-pinned in the compiled lock
+// file via the embedded container pins table.  This is a regression guard for the issue
+// where v0.82.2 emitted tag-only references for those images.
+func TestCompileWorkflow_FirewallImagesPinnedForDefaultVersion(t *testing.T) {
+	defaultTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+
+	// Enable cli-proxy so all four firewall sidecar images are collected.
+	frontmatter := `---
+on: workflow_dispatch
+engine: claude
+sandbox:
+  agent:
+    id: awf
+network:
+  allowed:
+    - defaults
+tools:
+  web-fetch:
+features:
+  cli-proxy: true
+---
+
+# Test
+Test workflow with default AWF version and cli-proxy enabled.`
+
+	tmpDir := testutil.TempDir(t, "docker-firewall-default-pins-test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	yaml, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(yaml)
+
+	registry := string(constants.DefaultFirewallRegistry)
+	expectedPins := map[string]string{
+		registry + "/agent:" + defaultTag:     "sha256:55f06588411008b7148eb64b8dfe28602a0cce3675b36c6b190b54aca138468e",
+		registry + "/api-proxy:" + defaultTag: "sha256:afb9ff9140b17d38871dfb9dbac5ff8689ea634c2f91c435da2825192d4881c1",
+		registry + "/cli-proxy:" + defaultTag: "sha256:e23e1604241f579b418e6522d938285b57ada31bc27742a65c90ee2250b1755c",
+		registry + "/squid:" + defaultTag:     "sha256:3cdcc1e2b4b4fe602ba69fd3e21aac7ac512d5c1fce24df4ce69dc4f98164b59",
+	}
+
+	for image, digest := range expectedPins {
+		pinnedImage := image + "@" + digest
+		if !strings.Contains(yamlStr, `"image":"`+image+`","digest":"`+digest+`","pinned_image":"`+pinnedImage+`"`) {
+			t.Errorf("Expected manifest header to include pinned metadata for %s", image)
+		}
+		if !strings.Contains(yamlStr, "#   - "+pinnedImage) {
+			t.Errorf("Expected pinned container comment for %s", image)
+		}
+		if !strings.Contains(yamlStr, pinnedImage) {
+			t.Errorf("Expected pinned download reference for %s", image)
+		}
+	}
+
+	// Verify the AWF config imageTag field includes digests for all four sidecar images.
+	for _, imageTagPart := range []string{
+		`imageTag`,
+		defaultTag + `,`,
+		`agent=sha256:55f06588411008b7148eb64b8dfe28602a0cce3675b36c6b190b54aca138468e`,
+		`api-proxy=sha256:afb9ff9140b17d38871dfb9dbac5ff8689ea634c2f91c435da2825192d4881c1`,
+		`cli-proxy=sha256:e23e1604241f579b418e6522d938285b57ada31bc27742a65c90ee2250b1755c`,
+		`squid=sha256:3cdcc1e2b4b4fe602ba69fd3e21aac7ac512d5c1fce24df4ce69dc4f98164b59`,
 	} {
 		if !strings.Contains(yamlStr, imageTagPart) {
 			t.Errorf("Expected AWF config JSON to include %s", imageTagPart)

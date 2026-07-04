@@ -42,6 +42,28 @@ func TestApplyContainerPins(t *testing.T) {
 			expectedDigests: []string{"sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248"},
 		},
 		{
+			name: "all four default firewall images (v0.27.22) pinned from embedded table",
+			images: []string{
+				"ghcr.io/github/gh-aw-firewall/agent:0.27.22",
+				"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.22",
+				"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.22",
+				"ghcr.io/github/gh-aw-firewall/squid:0.27.22",
+			},
+			pins: nil,
+			expectedRefs: []string{
+				"ghcr.io/github/gh-aw-firewall/agent:0.27.22@sha256:55f06588411008b7148eb64b8dfe28602a0cce3675b36c6b190b54aca138468e",
+				"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.22@sha256:afb9ff9140b17d38871dfb9dbac5ff8689ea634c2f91c435da2825192d4881c1",
+				"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.22@sha256:e23e1604241f579b418e6522d938285b57ada31bc27742a65c90ee2250b1755c",
+				"ghcr.io/github/gh-aw-firewall/squid:0.27.22@sha256:3cdcc1e2b4b4fe602ba69fd3e21aac7ac512d5c1fce24df4ce69dc4f98164b59",
+			},
+			expectedDigests: []string{
+				"sha256:55f06588411008b7148eb64b8dfe28602a0cce3675b36c6b190b54aca138468e",
+				"sha256:afb9ff9140b17d38871dfb9dbac5ff8689ea634c2f91c435da2825192d4881c1",
+				"sha256:e23e1604241f579b418e6522d938285b57ada31bc27742a65c90ee2250b1755c",
+				"sha256:3cdcc1e2b4b4fe602ba69fd3e21aac7ac512d5c1fce24df4ce69dc4f98164b59",
+			},
+		},
+		{
 			name:            "embedded gh-aw-node pin used when cache is absent",
 			images:          []string{constants.DefaultGhAwNodeImage},
 			pins:            nil,
