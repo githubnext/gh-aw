@@ -201,7 +201,7 @@ Agentic workflows can run on GHES with some additional configuration.
 
 GHES does not support the `@actions/artifact` v2.0.0+ backend used by `upload-artifact@v4+` and `download-artifact@v4+`. Compiled workflows use the latest artifact action versions by default, which fail on GHES with `GHESNotSupportedError`.
 
-Enable GHES compatibility mode in `.github/workflows/aw.json` for GHES-specific compile behavior:
+Enable GHES compatibility mode in `.github/workflows/aw.json` to compile with GHES mode explicitly enabled:
 
 ```json
 {

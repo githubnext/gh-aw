@@ -15,7 +15,7 @@ This page covers configuration options specific to GitHub Enterprise Server (GHE
 
 GHES instances running versions that predate `@actions/artifact` v2.0.0 support cannot use `actions/upload-artifact@v4+` or `actions/download-artifact@v4+`. Attempting to run compiled workflows on these instances produces a `GHESNotSupportedError`.
 
-gh-aw includes a GHES compatibility mode for GHES-specific compile behavior. Artifact actions continue using the latest non-v3 pins because v3 artifact actions are deprecated.
+gh-aw includes a GHES compatibility mode toggle (`aw.json` `ghes` or `gh aw compile --ghes`) so GHES-targeted repositories can compile with explicit GHES mode enabled. Artifact actions continue using the latest non-v3 pins because v3 artifact actions are deprecated.
 
 #### Enable via `aw.json` (recommended)
 
