@@ -498,6 +498,89 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 	}
 }
 
+func TestGenerateRuntimeSetupSteps_MergesAndSortsRuntimeExtraFields(t *testing.T) {
+	nodeRuntime := findRuntimeByID("node")
+	require.NotNil(t, nodeRuntime)
+
+	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
+		Runtime: nodeRuntime,
+		Version: "24",
+		ExtraFields: map[string]any{
+			"cache-dependency-path": "frontend/package-lock.json",
+			"package-manager-cache": true,
+		},
+	}}, nil)
+	require.NotEmpty(t, steps)
+
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "cache-dependency-path: 'frontend/package-lock.json'")
+	assert.Contains(t, content, "package-manager-cache: true")
+	assert.NotContains(t, content, "package-manager-cache: false")
+	assert.Less(t, strings.Index(content, "node-version: '24'"), strings.Index(content, "cache-dependency-path: 'frontend/package-lock.json'"))
+	assert.Less(t, strings.Index(content, "node-version: '24'"), strings.Index(content, "package-manager-cache: true"))
+	assert.Less(t, strings.Index(content, "cache-dependency-path: 'frontend/package-lock.json'"), strings.Index(content, "package-manager-cache: true"))
+}
+
+func TestGenerateRuntimeSetupSteps_GoVersionFileMergesAndSortsRuntimeExtraFields(t *testing.T) {
+	goRuntime := findRuntimeByID("go")
+	require.NotNil(t, goRuntime)
+
+	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
+		Runtime:   goRuntime,
+		GoModFile: "custom/go.mod",
+		ExtraFields: map[string]any{
+			"cache":           true,
+			"check-latest":    false,
+			"go-version-file": "ignored/go.mod",
+		},
+	}}, nil)
+	require.NotEmpty(t, steps)
+
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "go-version-file: custom/go.mod")
+	assert.NotContains(t, content, "go-version-file: ignored/go.mod")
+	assert.Equal(t, 1, strings.Count(content, "go-version-file:"))
+	assert.Contains(t, content, "cache: true")
+	assert.NotContains(t, content, "cache: false")
+	assert.Contains(t, content, "check-latest: false")
+	assert.Less(t, strings.Index(content, "go-version-file: custom/go.mod"), strings.Index(content, "cache: true"))
+	assert.Less(t, strings.Index(content, "cache: true"), strings.Index(content, "check-latest: false"))
+}
+
+func TestGenerateRuntimeSetupSteps_GoVersionFileFromExtraFieldsWhenGoModFileNotSet(t *testing.T) {
+	goRuntime := findRuntimeByID("go")
+	require.NotNil(t, goRuntime)
+
+	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
+		Runtime: goRuntime,
+		ExtraFields: map[string]any{
+			"go-version-file": "go.work.mod",
+		},
+	}}, nil)
+	require.NotEmpty(t, steps)
+
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "go-version-file: 'go.work.mod'")
+	assert.Equal(t, 1, strings.Count(content, "go-version-file:"))
+}
+
+func TestGenerateRuntimeSetupSteps_UVWithoutVersionRendersRuntimeExtraWithFields(t *testing.T) {
+	uvRuntime := *findRuntimeByID("uv")
+	uvRuntime.ExtraWithFields = map[string]string{
+		"python-version": "'3.12'",
+	}
+
+	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
+		Runtime: &uvRuntime,
+		Version: "",
+	}}, nil)
+	require.NotEmpty(t, steps)
+
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "with:")
+	assert.Contains(t, content, "python-version: '3.12'")
+}
+
 // Helper functions
 
 func getRequirementIDs(requirements map[string]*RuntimeRequirement) []string {

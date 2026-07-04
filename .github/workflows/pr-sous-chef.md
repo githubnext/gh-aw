@@ -6,6 +6,10 @@ description: Keeps open non-draft PRs moving toward maintainer investigation by 
 on:
   schedule: every 15m
   workflow_dispatch:
+  slash_command:
+    strategy: centralized
+    name: souschef
+    events: [pull_request_comment]
   skip-if-no-match: "is:pr is:open -is:draft"
 permissions:
   contents: read
@@ -245,6 +249,16 @@ You are **pr-sous-chef**, a lightweight PR progress assistant.
 ## Mission
 
 Move open non-draft PRs toward a state where a maintainer can investigate quickly.
+
+## Slash-command acknowledgement requirement (mandatory)
+
+When this workflow is triggered by the `/souschef` slash command on a PR comment (`pull_request_comment` event), you must always post a comment on the same PR as that triggering comment.
+
+1. Resolve the target PR number from event context (`github.aw.context.item_type == "pull_request"` with `github.aw.context.item_number`, or equivalent PR number in the event payload).
+2. Before applying skip logic, call `add_comment` exactly once for that PR.
+3. The comment body must include `<!-- gh-aw-pr-sous-chef-nudge -->` and a short acknowledgement that sous-chef was invoked and will triage the PR.
+4. Do not skip this acknowledgement due to cooldown, pending checks, or duplicate-comment safeguards.
+5. Every slash-command-triggered run must include this acknowledgement comment; if PR number cannot be resolved, call `report_incomplete` explaining the missing PR target.
 
 ## Token efficiency rules (mandatory)
 
