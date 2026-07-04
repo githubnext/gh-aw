@@ -4,27 +4,46 @@ description: Analyzes code changes from the last 24 hours and generates Playwrig
 on:
   schedule: daily on weekdays
   workflow_dispatch:
+max-ai-credits: 500
 permissions:
   contents: read
   pull-requests: read
-  actions: read
 tools:
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
-    - "date *"
-    - "echo *"
-    - "git log *"
-    - "git diff *"
-    - "git show *"
-    - "find * -name *.html"
     - "cat *"
-    - "jq *"
-    - "mktemp *"
-    - "mkdir *"
-    - "ls *"
+    - "date *"
+steps:
+  - name: Discover HTML changes and coverage gaps
+    run: |
+      mkdir -p /tmp/gh-aw/data
+      TODAY=$(date -u +%Y-%m-%d)
+
+      # Find HTML files modified in the last 24 hours
+      MODIFIED=$(git log --since="24 hours ago" --name-only --pretty=format: -- "*.html" \
+        | sort -u | grep -v '^$')
+
+      if [ -z "$MODIFIED" ]; then
+        echo '{"run_date":"'"$TODAY"'","files":[]}' > /tmp/gh-aw/data/html-changes.json
+        exit 0
+      fi
+
+      # Build JSON array: one entry per HTML file with slug, test_path, has_test
+      jq -n \
+        --arg today "$TODAY" \
+        --argjson files "$(
+          echo "$MODIFIED" | while IFS= read -r f; do
+            stem=$(basename "$f" .html)
+            dir=$(dirname "$f" | sed 's|^docs/public/||')
+            slug=$([ "$dir" = "." ] && echo "$stem" || echo "${dir//\//-}-$stem")
+            test_path="docs/tests/${slug}.spec.ts"
+            has_test=$([ -f "$test_path" ] && echo "true" || echo "false")
+            printf '{"html_path":"%s","slug":"%s","test_path":"%s","has_test":%s}\n' \
+              "$f" "$slug" "$test_path" "$has_test"
+          done | jq -s '.'
+        )" \
+        '{run_date: $today, files: $files}' \
+        > /tmp/gh-aw/data/html-changes.json
 safe-outputs:
   create-pull-request:
     title-prefix: "[web-tests] "
@@ -37,91 +56,57 @@ safe-outputs:
 network:
   allowed:
     - defaults
-    - github
 timeout-minutes: 20
 ---
 
 # HTML Web Test Generator
 
-You are an automated web test generation agent. Your mission is to analyze code changes from the last 24 hours, detect modified HTML pages, and generate Playwright test files for each modified HTML file that does not already have adequate test coverage.
+Generate Playwright spec files for HTML pages that were modified in the last 24 hours and lack test coverage.
 
-## Current Context
+## Input
 
-- **Repository**: ${{ github.repository }}
-- **Analysis Window**: Last 24 hours
-- **Run Date**: Run `date -u +%Y-%m-%d` to get today's date
-- **Test Output Directory**: `docs/tests/`
+Read `/tmp/gh-aw/data/html-changes.json`. It has this shape:
 
-## Phase 1: Discover HTML Changes
-
-Use `git log` to find commits pushed in the last 24 hours that touch `.html` files:
-
-```bash
-git log --since="24 hours ago" --name-only --pretty=format: -- "*.html" | sort -u | grep -v '^$'
+```json
+{
+  "run_date": "YYYY-MM-DD",
+  "files": [
+    { "html_path": "docs/public/editor/index.html", "slug": "editor-index",
+      "test_path": "docs/tests/editor-index.spec.ts", "has_test": false }
+  ]
+}
 ```
 
-Collect the list of modified HTML file paths. If no `.html` files appear in the output, call `noop` with the message: "No HTML files were modified in the last 24 hours — skipping test generation."
+- If `files` is empty → `noop`: "No HTML files were modified in the last 24 hours."
+- If all entries have `has_test: true` → `noop`: "All modified HTML files already have Playwright test coverage."
 
-## Phase 2: Identify Coverage Gaps
+## Generate Tests
 
-For each modified HTML file:
+For each entry where `has_test` is `false`:
 
-1. Derive the expected test file name by converting the HTML file's path to a slug:
-   - Strip the leading directory path down to the filename stem (for example `docs/public/editor/index.html` → `editor-index`)
-   - The expected test file path is `docs/tests/<slug>.spec.ts`
-2. Check whether `docs/tests/<slug>.spec.ts` already exists using `ls docs/tests/`.
-3. Read the HTML file content with `cat <path>` to understand its structure — headings, interactive elements, navigation, forms, links.
+1. `cat <html_path>` to read the page structure.
+2. Write `<test_path>` using the `edit` tool following the conventions of existing files in `docs/tests/`:
+   - `import { test, expect } from '@playwright/test';`
+   - `test.describe('<Page Name>')` block
+   - `beforeEach`: navigate to the page URL (derived from `html_path` relative to `docs/public/`) + `waitForLoadState('networkidle')`
+   - At least three tests: page renders (key heading/landmark visible), interactive elements (buttons/links present), accessibility basics (non-empty title, alt text on images)
+   - `const` over `let`; use `page.locator()`; one-line comment per test
 
-Only generate tests for HTML files that do **not** already have a corresponding `.spec.ts`.
+## Create Pull Request
 
-If all modified HTML files already have corresponding test files, call `noop` with the message: "All modified HTML files already have Playwright test coverage — no new tests needed."
+After writing all test files, open a PR titled:
+`Add Playwright tests for HTML pages modified on <run_date>`
 
-## Phase 3: Generate Playwright Tests
+PR body (GitHub-flavored markdown):
 
-For each HTML file that needs a new test file, write a `docs/tests/<slug>.spec.ts` file following the conventions in the existing test files under `docs/tests/`. Adhere to these rules:
+```
+## Web Test Generation Report — <run_date>
 
-- Import from `@playwright/test`: `import { test, expect } from '@playwright/test';`
-- Use a `test.describe` block named after the page (for example `'Editor Page'`)
-- Add a `test.beforeEach` that navigates to the page URL (derive from the HTML file path relative to `docs/public/`) and waits for `networkidle`
-- Write at least three focused tests per page covering:
-  1. **Page renders**: assert that a key heading or landmark element is visible
-  2. **Interactive elements**: assert that buttons, links, or form controls are present and visible
-  3. **Accessibility basics**: assert that the page title is not empty and key images have alt text or aria-labels
-- Follow the TypeScript style of the existing spec files (no `let` in `beforeEach`, prefer `const`, use `page.locator()`)
-- Add a brief comment above each test describing its intent
+### Tests Generated
+<bullet list: test_path — one-line coverage description>
 
-Use the `edit` tool to write each generated test file.
+### Already Covered
+<bullet list of html_path entries where has_test was true, or "None">
+```
 
-## Phase 4: Create Pull Request
-
-After writing all new test files, create a pull request with:
-
-- **Title**: `Add Playwright tests for HTML pages modified on <TODAY>` — substitute `<TODAY>` with the output of `date -u +%Y-%m-%d`
-- **Body** (GitHub-flavored markdown):
-
-  ```
-  ## Web Test Generation Report — <TODAY>
-
-  ### HTML Pages Analyzed
-  <bullet list of all HTML files modified in the last 24 hours>
-
-  ### Tests Generated
-  <bullet list of new `.spec.ts` files created with a one-line description of coverage>
-
-  ### Coverage Already Present
-  <bullet list of HTML files skipped because tests already existed, or "None">
-
-  ---
-  *Generated automatically by the HTML Web Test Generator workflow.*
-  ```
-
-  Replace `<TODAY>` with the actual date obtained by running `date -u +%Y-%m-%d`.
-
-Use the `create-pull-request` safe output to open the PR.
-
-## Noop Guidance
-
-Call `noop` with a clear explanation in these situations:
-- No `.html` files were modified in the last 24 hours
-- All modified HTML files already have corresponding `.spec.ts` test files
-- The HTML changes are confined to non-functional content (for example comments, whitespace, metadata only) where no behavioral tests are warranted — explain the reasoning
+Call `noop` when no test files were written.
