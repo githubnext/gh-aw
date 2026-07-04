@@ -58,12 +58,42 @@ steps:
       filtered_last_comment_from_sous_chef=0
       filtered_cooldown=0
 
-      gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
-        --state open \
-        --search "is:pr is:open -is:draft sort:updated-desc" \
-        --limit 30 \
-        --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus \
-        > "$candidate_file"
+      # Fetch PR queue with retry + exponential backoff to survive transient GraphQL 5xx errors.
+      pr_list_max_attempts=4
+      pr_list_attempt=0
+      pr_list_success=false
+      until [ "$pr_list_success" = "true" ] || [ "$pr_list_attempt" -ge "$pr_list_max_attempts" ]; do
+        pr_list_attempt=$((pr_list_attempt + 1))
+        set +e
+        pr_list_output=$(gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
+          --state open \
+          --search "is:pr is:open -is:draft sort:updated-desc" \
+          --limit 30 \
+          --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus \
+          2>&1)
+        pr_list_status=$?
+        set -e
+        if [ "$pr_list_status" -eq 0 ]; then
+          echo "$pr_list_output" > "$candidate_file"
+          pr_list_success=true
+        elif echo "$pr_list_output" | grep -qE "HTTP (5[0-9]{2}|429)|context deadline exceeded|connection reset|EOF"; then
+          if [ "$pr_list_attempt" -lt "$pr_list_max_attempts" ]; then
+            backoff=$((2 ** pr_list_attempt))
+            echo "Transient error on attempt $pr_list_attempt/$pr_list_max_attempts (exit $pr_list_status); retrying in ${backoff}s..." >&2
+            echo "$pr_list_output" >&2
+            sleep "$backoff"
+          fi
+        else
+          echo "gh pr list failed (exit $pr_list_status):" >&2
+          echo "$pr_list_output" >&2
+          exit 1
+        fi
+      done
+      if [ "$pr_list_success" != "true" ]; then
+        echo "gh pr list failed after $pr_list_max_attempts attempts:" >&2
+        echo "$pr_list_output" >&2
+        exit 1
+      fi
 
       jq -n '[]' > "$eligible_file"
 
