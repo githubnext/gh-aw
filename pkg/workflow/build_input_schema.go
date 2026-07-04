@@ -46,7 +46,8 @@ func buildInputSchemaProperty(inputName string, inputDef any, descriptionFn func
 	}
 
 	inputType = "string"
-	inputDescription, inputRequired := getInputSchemaMetadata(inputName, inputDefMap, descriptionFn)
+	var inputDescription string
+	inputDescription, inputRequired = getInputSchemaMetadata(inputName, inputDefMap, descriptionFn)
 	if typeStr, ok := inputDefMap["type"].(string); ok {
 		switch typeStr {
 		case "number":

@@ -76,18 +76,18 @@ func TestActionResolverEmbeddedPinDoesNotWriteCache(t *testing.T) {
 	cache := NewActionCache(tmpDir)
 	resolver := NewActionResolver(cache)
 
-	pins := actionpins.GetActionPinsByRepo("actions/checkout")
-	if len(pins) == 0 {
+	pin, ok := actionpins.GetLatestActionPinByRepo("actions/checkout")
+	if !ok {
 		t.Fatal("expected embedded pins for actions/checkout")
 	}
 
-	version := pins[0].Version
+	version := pin.Version
 	sha, err := resolver.ResolveSHA(context.Background(), "actions/checkout", version)
 	if err != nil {
 		t.Fatalf("expected embedded pin resolution to succeed, got: %v", err)
 	}
-	if sha != pins[0].SHA {
-		t.Fatalf("expected embedded SHA %q, got %q", pins[0].SHA, sha)
+	if sha != pin.SHA {
+		t.Fatalf("expected embedded SHA %q, got %q", pin.SHA, sha)
 	}
 	if _, found := cache.Get("actions/checkout", version); found {
 		t.Fatalf("expected embedded pin resolution not to write %q to cache", version)
