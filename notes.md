@@ -1,5 +1,12 @@
 # Copilot Session Insights — repo memory
 
+## 2026-07-04 snapshot
+- 50 sessions; **54% completion** (27 success, 22 action_required, 1 failure) — **REGIME BREAK**: up sharply from 4%→8%→4% floor; highest in trailing window (prev max 40% on 06-10/06-27).
+- **provenance_inversion FLIPPED**: 20/27 successes are core CI gates (Doc Build/Smoke CI/CWI/CGO) executing to success, not gate-blocked; action_required now dominated by agentic maintenance (PR Description Updater 5 + Label Closed PRs 5) + 12 partial CI. Strongest inversion break yet — echoes the smaller 06-23 gate-green episode (then 20%, 8/10 succ = green CI gates).
+- 28/50 executed (non-zero); exec mean 6.72m / median 5.40m / max 15.83m (Addressing PR#43298). Overall mean 3.76m, median 1.7m. 47-min window (06:43–07:30Z).
+- 1 failure: CGO on issue-update-maintenance-workflow (worst branch 3/12). fix-id-token-read-scope & aw-fix-missing-hippo-tool 5/5; add-dismiss-review-safe-output 7/9.
+- Orphans 0/11 (2 unassigned but not gate-saturated: #43312, #43228; max gates/branch=2 on main) → 0% NORMAL, ~40th healthy day. Conv logs empty (37th day). Standard run (roll=70).
+
 ## 2026-07-03 snapshot
 - 50 sessions; **4% completion** (2 success, 46 action_required, 2 in_progress) — floor regime continues (20%→8%→4% over 07-01..07-03); below 30d-mean ~13% & 15d-mean ~10%.
 - provenance_inversion holds (5th+ obs): 2 successes = agentic (PR Sous Chef 8.62m + Skillet 0.48m, both on lint-monster-targeted-cleanup, 0/4 core CI gates); 46 action_required = CI gate sweeps (median 0m, avg 0.19m).
@@ -12,18 +19,10 @@
 - provenance_inversion holds (4th+ obs): 4 successes = agent-exec (2 cloud-agent + 2 PR-comment), only non-zero-dur runs (max 11.98m, median 0); 46 action_required = CI/infra gates.
 - Orphans 0 (max gates/branch=3); 18 open PRs (11 Copilot-assigned, 7 unassigned, none with active gate sweep) → 0% NORMAL. Conv logs OAuth stub. Standard run (roll=85).
 
-## 2026-06-28 snapshot
-- 50 sessions; **10% completion** (5 success, 45 action_required) — **saw-tooth pullback −30pt** from 06-27 (40%); 30d-avg 13.2%.
-- Bimodal: 45/50 zero-dur gate sweeps; median 0 vs mean 1.42m; nonzero=5 (max 21.65m); 128-min window.
-- provenance_inversion holds cleanly: all 5 successes = agentic (4 cloud-agent + 1 PR-comment), **exactly 1 per branch**; every gate firing = action_required.
-- Concentration: 5 `copilot/*` branches; top-3 @12 each = 72%. Full gate bundle per PR-open (AI Moderator+Agentic Commands+Q+Smoke CI+CGO+CWI+Content Mod+Doc-Deploy).
-- Orphans 0; 14 open PRs (11 Copilot-assigned, 3 idle 0-gate), 1 in-progress run (main) → 0% NORMAL, ~38th healthy day. 0 escalations.
-- Conv logs empty 35+ days; standard run (roll=67).
-
-_(Prior peak 06-27: 40% (20 succ). Per-day detail in session-trends.jsonl / session-insights-history.jsonl.)_
+_(Prior peak 06-27: 40% (20 succ); superseded by 54% on 07-04. Per-day detail in session-trends.jsonl / session-insights-history.jsonl; older snapshots trimmed for size.)_
 
 ## Active patterns
-- provenance_inversion (06-07): successes come from agentic runs (PR-comment / cloud-agent), never gate sweeps. Holds 06-28 (all 5).
+- provenance_inversion (06-07): successes came from agentic runs, never gate sweeps. **BROKE 07-04**: 20/27 successes were core CI gates executing to success; watch whether this holds or reverts to the floor+inversion regime.
 - inverse_gate_count_to_conclusiveness: Copilot-assigned ⇒ never orphaned (~38th healthy day).
 - gate_sweep_zero_duration: snapshots routinely catch 45-50 action_required 0-duration runs.
 - recovery_regression_oscillation: saw-tooth persists; spikes (38-40%) between troughs (0-10%).
