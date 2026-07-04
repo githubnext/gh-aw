@@ -8,6 +8,35 @@ function isAsyncFuncNode(node: TSESTree.Node): node is AsyncFuncNode {
   return node.type === AST_NODE_TYPES.FunctionDeclaration || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.ArrowFunctionExpression;
 }
 
+/** Returns true if the outermost call in the chain ends with `.catch(...)`. */
+function chainEndsWithCatch(node: TSESTree.CallExpression): boolean {
+  const callee = node.callee;
+  if (callee.type === AST_NODE_TYPES.MemberExpression) {
+    const prop = callee.property;
+    return prop.type === AST_NODE_TYPES.Identifier && prop.name === "catch";
+  }
+  return false;
+}
+
+/**
+ * Walks a chained call expression to find the root identifier name.
+ * e.g. for `main().then(cb)`, returns "main".
+ * Returns null if the root call is not a simple Identifier call.
+ */
+function getRootCallName(node: TSESTree.CallExpression): string | null {
+  const callee = node.callee;
+  if (callee.type === AST_NODE_TYPES.Identifier) {
+    return callee.name;
+  }
+  if (callee.type === AST_NODE_TYPES.MemberExpression) {
+    const obj = callee.object;
+    if (obj.type === AST_NODE_TYPES.CallExpression) {
+      return getRootCallName(obj);
+    }
+  }
+  return null;
+}
+
 export const requireAsyncEntrypointCatchRule = createRule({
   name: "require-async-entrypoint-catch",
   meta: {
@@ -49,16 +78,43 @@ export const requireAsyncEntrypointCatchRule = createRule({
         }
       },
 
+      // Collect module-scope async function expressions and arrow functions:
+      // const/let/var X = async function() {} or X = async () => {}
+      VariableDeclaration(node) {
+        if (node.parent.type !== AST_NODE_TYPES.Program) return;
+        for (const declarator of node.declarations) {
+          if (
+            declarator.id.type === AST_NODE_TYPES.Identifier &&
+            declarator.init !== null &&
+            declarator.init !== undefined &&
+            (declarator.init.type === AST_NODE_TYPES.FunctionExpression || declarator.init.type === AST_NODE_TYPES.ArrowFunctionExpression) &&
+            declarator.init.async
+          ) {
+            asyncFunctionNames.add(declarator.id.name);
+          }
+        }
+      },
+
       // Flag bare calls: ExpressionStatement whose expression is a direct CallExpression
       // to a tracked async function, and that are not inside an async function body
       // (where `await` would be the right fix instead).
       "ExpressionStatement > CallExpression"(node: TSESTree.CallExpression) {
         const callee = node.callee;
 
-        // Only flag simple identifier calls: main(), run(), etc.
-        if (callee.type !== AST_NODE_TYPES.Identifier) return;
-        const name = callee.name;
-        if (!asyncFunctionNames.has(name)) return;
+        let name: string | null = null;
+
+        if (callee.type === AST_NODE_TYPES.Identifier) {
+          // Bare call: main()
+          name = callee.name;
+        } else if (callee.type === AST_NODE_TYPES.MemberExpression) {
+          // Chained call: main().then(...) etc.
+          // If the chain ends with .catch(...), it's handled — skip.
+          if (chainEndsWithCatch(node)) return;
+          // Otherwise find the root call name.
+          name = getRootCallName(node);
+        }
+
+        if (!name || !asyncFunctionNames.has(name)) return;
 
         // Inside an async context the caller can (and should) use `await fn()` instead.
         if (isInsideAsyncFunction(node)) return;
