@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -40,32 +41,6 @@ func TestApplyContainerPins(t *testing.T) {
 			pins:            nil,
 			expectedRefs:    []string{"ghcr.io/github/gh-aw-firewall/agent:0.27.0@sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248"},
 			expectedDigests: []string{"sha256:3816d1692e6d96887b27f1e4f1d64b8d7edb43ed9d7506b8f203913cbb81c248"},
-		},
-		{
-			// Regression test for gh-aw#43307: all four 0.27.22 firewall images (including the
-			// new cli-proxy introduced in v0.82) must be present and correctly digest-pinned in
-			// the embedded table so that consumer compiles without a local cache still emit
-			// pinned references.
-			name: "embedded firewall pins for default version (0.27.22) — all four images",
-			images: []string{
-				"ghcr.io/github/gh-aw-firewall/agent:0.27.22",
-				"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.22",
-				"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.22",
-				"ghcr.io/github/gh-aw-firewall/squid:0.27.22",
-			},
-			pins: nil,
-			expectedRefs: []string{
-				"ghcr.io/github/gh-aw-firewall/agent:0.27.22@sha256:55f06588411008b7148eb64b8dfe28602a0cce3675b36c6b190b54aca138468e",
-				"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.22@sha256:afb9ff9140b17d38871dfb9dbac5ff8689ea634c2f91c435da2825192d4881c1",
-				"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.22@sha256:e23e1604241f579b418e6522d938285b57ada31bc27742a65c90ee2250b1755c",
-				"ghcr.io/github/gh-aw-firewall/squid:0.27.22@sha256:3cdcc1e2b4b4fe602ba69fd3e21aac7ac512d5c1fce24df4ce69dc4f98164b59",
-			},
-			expectedDigests: []string{
-				"sha256:55f06588411008b7148eb64b8dfe28602a0cce3675b36c6b190b54aca138468e",
-				"sha256:afb9ff9140b17d38871dfb9dbac5ff8689ea634c2f91c435da2825192d4881c1",
-				"sha256:e23e1604241f579b418e6522d938285b57ada31bc27742a65c90ee2250b1755c",
-				"sha256:3cdcc1e2b4b4fe602ba69fd3e21aac7ac512d5c1fce24df4ce69dc4f98164b59",
-			},
 		},
 		{
 			name:            "embedded gh-aw-node pin used when cache is absent",
@@ -127,6 +102,31 @@ func TestApplyContainerPins(t *testing.T) {
 				assert.Equal(t, tt.expectedRefs[i], img, "ref at index %d", i)
 				assert.Equal(t, tt.expectedDigests[i], pinEntries[i].Digest, "digest at index %d", i)
 			}
+		})
+	}
+}
+
+// TestApplyContainerPins_DefaultFirewallVersion is a regression test for gh-aw#43307:
+// all four gh-aw-firewall images at constants.DefaultFirewallVersion (including cli-proxy,
+// which was new in v0.82) must have entries in the embedded pin table so that consumer
+// compiles without a local cache still emit digest-pinned references.
+// Using constants means the test automatically tracks version bumps.
+func TestApplyContainerPins_DefaultFirewallVersion(t *testing.T) {
+	imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+	sidecars := []string{"agent", "api-proxy", "cli-proxy", "squid"}
+
+	for _, sidecar := range sidecars {
+		image := constants.DefaultFirewallRegistry + "/" + sidecar + ":" + imageTag
+		t.Run(sidecar, func(t *testing.T) {
+			pin, ok := getEmbeddedContainerPin(image)
+			require.True(t, ok, "embedded pin must exist for %s", image)
+			require.NotEmpty(t, pin.Digest, "Digest must be non-empty for %s", image)
+			require.NotEmpty(t, pin.PinnedImage, "PinnedImage must be non-empty for %s", image)
+
+			refs, pinEntries := applyContainerPins([]string{image}, nil)
+			require.Len(t, refs, 1)
+			assert.Equal(t, pin.PinnedImage, refs[0], "resolved ref for %s", image)
+			assert.Equal(t, pin.Digest, pinEntries[0].Digest, "digest in manifest entry for %s", image)
 		})
 	}
 }
