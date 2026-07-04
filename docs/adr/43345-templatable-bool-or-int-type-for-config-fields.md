@@ -18,7 +18,7 @@ We decided to introduce a new string-backed type `TemplatableBoolOrInt` in `pkg/
 
 #### Alternative 1: Keep `any` type and add post-parse type-switch conversion
 
-The `AddBoolOrInt` builder method already performs a type-switch on `any` values to emit booleans or integers. The emission bug could have been fixed by simply wiring `DeduplicateByTitle` into `AddBoolOrInt` without changing the field type. However, `any` carries no type constraints at parse time, so schema validation alone blocks expression strings from entering the field. Expression strings would have required additional ad-hoc handling that bypasses the type system and is invisible in struct definitions.
+At the time, the `AddBoolOrInt` builder method performed a type-switch on `any` values to emit booleans or integers. The emission bug could have been fixed by simply wiring `DeduplicateByTitle` into `AddBoolOrInt` without changing the field type. However, `any` carries no type constraints at parse time, so schema validation alone blocks expression strings from entering the field. Expression strings would have required additional ad-hoc handling that bypasses the type system and is invisible in struct definitions.
 
 #### Alternative 2: Explicit union struct (`struct { Bool *bool; Int *int; Expr *string }`)
 
