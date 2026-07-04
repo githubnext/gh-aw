@@ -263,6 +263,7 @@ func getTopLevelEnvSecretsGuidedErrorCodemod() Codemod {
 		Name:         "Detect secrets in top-level env section (manual fix required)",
 		Description:  "Detects secrets in the top-level env: block that will be leaked to the agent container in strict mode, and emits a guided error pointing users to engine-specific secret configuration.",
 		IntroducedIn: "1.5.0",
+		Guided:       true,
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			envValue, hasEnv := frontmatter["env"]
 			if !hasEnv {

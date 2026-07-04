@@ -12,7 +12,10 @@ permissions:
   pull-requests: read
   discussions: read
 tracker-id: api-consumption-report-daily
-engine: claude
+engine:
+  id: claude
+  mcp:
+    tool-timeout: 10m
 sandbox:
   agent:
     sudo: false
