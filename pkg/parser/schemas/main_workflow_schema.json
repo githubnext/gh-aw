@@ -11217,6 +11217,35 @@
       "description": "Control whether the compile-agentic version update check runs in the activation job. When true (default), the activation job downloads config.json from the gh-aw repository and verifies the compiled version is not blocked and meets the minimum supported version. Set to false to disable the check (not allowed in strict mode). See: https://github.github.com/gh-aw/reference/frontmatter/#check-for-updates",
       "examples": [true, false]
     },
+    "threat-detection-suppress": {
+      "type": "array",
+      "description": "List of compiler threat-detection rule suppressions. Each entry suppresses a specific CTR-* rule for the duration specified by 'expires'. Every suppression MUST include a human-readable 'reason'. Suppressions without a 'reason' are rejected at compile time. Active suppressions are recorded in the lock file manifest. Suppressions older than 10 business days for reject-level rules appear as SLA_BREACH entries. See: https://github.github.com/gh-aw/reference/frontmatter/#threat-detection-suppress",
+      "items": {
+        "type": "object",
+        "required": ["rule", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "rule": {
+            "type": "string",
+            "description": "Compiler threat-detection rule identifier to suppress (must match CTR-* pattern, e.g. 'CTR-001').",
+            "pattern": "^CTR-[A-Z0-9]+(-[A-Z0-9]+)*$",
+            "examples": ["CTR-001", "CTR-042", "CTR-INJ-001"]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable explanation of why this rule is suppressed. Required — suppressions without a reason are rejected at compile time."
+          },
+          "expires": {
+            "type": "string",
+            "description": "Optional ISO 8601 date (YYYY-MM-DD) after which this suppression is no longer active. When omitted the suppression is treated as permanent (subject to SLA tracking for reject-level rules).",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "examples": ["2026-12-31", "2027-03-15"]
+          }
+        }
+      },
+      "examples": [[{ "rule": "CTR-001", "reason": "False positive: this workflow does not accept user-controlled input via issue body", "expires": "2026-12-31" }]]
+    },
     "mcp-scripts": {
       "type": "object",
       "description": "MCP Scripts configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server and have access to secrets specified by the user. Only one of 'script' (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.",

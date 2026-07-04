@@ -6,13 +6,7 @@ import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const {
-  parseArgs,
-  loadConfig,
-  loadPrompt,
-  buildProviderConfigs,
-  appendStepSummary,
-} = require("./aw_harness.cjs");
+const { parseArgs, loadConfig, loadPrompt, buildProviderConfigs, appendStepSummary } = require("./aw_harness.cjs");
 
 const harnessPath = path.resolve(path.dirname(require.resolve("./aw_harness.cjs")), "aw_harness.cjs");
 

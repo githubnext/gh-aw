@@ -95,6 +95,14 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		config.SkillReferences = parseRawSkillReferences(rawSkills)
 	}
 
+	// Validate threat-detection-suppress entries. JSON unmarshal already populated the
+	// slice; run the structural checks here to produce clear compile-time errors.
+	if rawSuppress, ok := frontmatter["threat-detection-suppress"]; ok && rawSuppress != nil {
+		if _, err := parseThreatDetectionSuppress(rawSuppress); err != nil {
+			return nil, err
+		}
+	}
+
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%v", config.Name, config.Engine)
 	return &config, nil
 }

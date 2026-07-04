@@ -406,6 +406,11 @@ type FrontmatterConfig struct {
 	// This flag is not allowed in strict mode.
 	UpdateCheck *bool `json:"check-for-updates,omitempty"`
 
+	// ThreatDetectionSuppress lists compiler threat-detection rule suppressions.
+	// Each entry suppresses a specific CTR-* rule and must include a human-readable reason.
+	// Suppressions without a reason are rejected at compile time.
+	ThreatDetectionSuppress []ThreatDetectionSuppression `json:"threat-detection-suppress,omitempty"`
+
 	// Checkout configuration for the agent job.
 	// Controls how actions/checkout is invoked.
 	// Can be a single CheckoutConfig object or an array of CheckoutConfig objects.
