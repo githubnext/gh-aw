@@ -3,9 +3,18 @@ import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-esl
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
 type AsyncFuncNode = TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression;
+type SourceCodeScope = TSESLint.Scope.Scope;
+type FunctionDeclarationDefinition = TSESLint.Scope.Definition & {
+  type: "FunctionName";
+  node: TSESTree.FunctionDeclaration;
+};
 
 function isAsyncFuncNode(node: TSESTree.Node): node is AsyncFuncNode {
   return node.type === AST_NODE_TYPES.FunctionDeclaration || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.ArrowFunctionExpression;
+}
+
+function isFunctionDeclarationDefinition(definition: TSESLint.Scope.Definition): definition is FunctionDeclarationDefinition {
+  return definition.type === "FunctionName" && definition.node.type === AST_NODE_TYPES.FunctionDeclaration;
 }
 
 export const requireAsyncEntrypointCatchRule = createRule({
@@ -26,9 +35,6 @@ export const requireAsyncEntrypointCatchRule = createRule({
   create(context) {
     const sourceCode = context.sourceCode;
 
-    // Names of async functions declared in this module.
-    const asyncFunctionNames = new Set<string>();
-
     /** Returns true if the node is inside an async function body (making `await` available). */
     function isInsideAsyncFunction(node: TSESTree.Node): boolean {
       const ancestors = sourceCode.getAncestors(node);
@@ -41,24 +47,39 @@ export const requireAsyncEntrypointCatchRule = createRule({
       return false;
     }
 
-    return {
-      // Collect module-scope async function declarations.
-      FunctionDeclaration(node) {
-        if (node.async && node.id?.name && node.parent.type === AST_NODE_TYPES.Program) {
-          asyncFunctionNames.add(node.id.name);
-        }
-      },
+    /** Resolves an identifier callee to its bound FunctionDeclaration, if any. */
+    function getResolvedFunctionDeclaration(identifier: TSESTree.Identifier): TSESTree.FunctionDeclaration | null {
+      let scope: SourceCodeScope | null = sourceCode.getScope(identifier);
 
+      while (scope) {
+        const variable = scope.set.get(identifier.name);
+        const definition = variable?.defs.find(isFunctionDeclarationDefinition);
+
+        if (definition) {
+          return definition.node;
+        }
+        if (variable && variable.defs.length > 0) {
+          return null;
+        }
+
+        scope = scope.upper;
+      }
+
+      return null;
+    }
+
+    return {
       // Flag bare calls: ExpressionStatement whose expression is a direct CallExpression
-      // to a tracked async function, and that are not inside an async function body
+      // to a tracked module-scope async function, and that are not inside an async function body
       // (where `await` would be the right fix instead).
       "ExpressionStatement > CallExpression"(node: TSESTree.CallExpression) {
         const callee = node.callee;
 
         // Only flag simple identifier calls: main(), run(), etc.
         if (callee.type !== AST_NODE_TYPES.Identifier) return;
+        const resolvedDeclaration = getResolvedFunctionDeclaration(callee);
         const name = callee.name;
-        if (!asyncFunctionNames.has(name)) return;
+        if (!resolvedDeclaration?.async || resolvedDeclaration.parent.type !== AST_NODE_TYPES.Program) return;
 
         // Inside an async context the caller can (and should) use `await fn()` instead.
         if (isInsideAsyncFunction(node)) return;

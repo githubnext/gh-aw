@@ -323,7 +323,7 @@ describe("generate_safe_outputs_tools", () => {
     runScript({ GH_AW_RUNTIME_FEATURES: "other\nissue_intents\nanother=true" });
 
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
-    const intentSuffix = "INTENT: Include rationale (max 280 chars) and confidence (LOW/MEDIUM/HIGH) with each call.";
+    const intentSuffix = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentSuffix);
@@ -345,7 +345,7 @@ describe("generate_safe_outputs_tools", () => {
     runScript({ GH_AW_RUNTIME_FEATURES: "other\nanother=true" });
 
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
-    const intentSuffix = "INTENT: Include rationale (max 280 chars) and confidence (LOW/MEDIUM/HIGH) with each call.";
+    const intentSuffix = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).not.toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).not.toContain(intentSuffix);
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).not.toContain(intentSuffix);

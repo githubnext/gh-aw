@@ -949,9 +949,35 @@
           "leaf": true
         },
         "harness": {
-          "type": "string",
-          "desc": "Custom Node.js harness script filename for an agentic engine.",
-          "leaf": true
+          "type": "object",
+          "desc": "Harness configuration. Accepts a bare filename string (legacy) or an object with sub-keys for script override and retry policy.",
+          "children": {
+            "use": {
+              "type": "string",
+              "desc": "Custom Node.js harness script filename. Replaces the engine's built-in harness wrapper and must end with .js, .cjs, or .mjs.",
+              "leaf": true
+            },
+            "max-retries": {
+              "type": "integer",
+              "desc": "Maximum retry attempts after the initial run (0 = no retries). Accepts a literal integer or a GitHub Actions expression.",
+              "leaf": true
+            },
+            "initial-delay-ms": {
+              "type": "integer",
+              "desc": "Delay in ms before the first retry. Accepts a literal integer or a GitHub Actions expression.",
+              "leaf": true
+            },
+            "backoff-multiplier": {
+              "type": "integer",
+              "desc": "Multiplier applied to the delay after each retry. Accepts a literal integer or a GitHub Actions expression.",
+              "leaf": true
+            },
+            "max-delay-ms": {
+              "type": "integer",
+              "desc": "Maximum delay cap in ms. Accepts a literal integer or a GitHub Actions expression.",
+              "leaf": true
+            }
+          }
         },
         "env": {
           "type": "object",

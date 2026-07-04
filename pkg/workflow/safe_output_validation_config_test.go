@@ -310,6 +310,14 @@ func TestIssueIntentValidationFields(t *testing.T) {
 		if len(confidence.Enum) != 3 || confidence.Enum[0] != "LOW" || confidence.Enum[1] != "MEDIUM" || confidence.Enum[2] != "HIGH" {
 			t.Fatalf("%s confidence enum = %v, want [LOW MEDIUM HIGH]", typeName, confidence.Enum)
 		}
+		if !confidence.StripOnError {
+			t.Fatalf("%s confidence StripOnError = false, want true", typeName)
+		}
+
+		rationale := config.Fields["rationale"]
+		if !rationale.StripOnError {
+			t.Fatalf("%s rationale StripOnError = false, want true", typeName)
+		}
 	}
 }
 
@@ -326,6 +334,16 @@ func TestIssueIntentLabelValidationFields(t *testing.T) {
 		}
 		if labels.Type != "array" {
 			t.Fatalf("%s labels type = %q, want %q", typeName, labels.Type, "array")
+		}
+	}
+}
+
+func TestStripOnErrorOnlyOnOptionalFields(t *testing.T) {
+	for typeName, config := range ValidationConfig {
+		for fieldName, field := range config.Fields {
+			if field.StripOnError && field.Required {
+				t.Fatalf("%s.%s cannot set both StripOnError and Required", typeName, fieldName)
+			}
 		}
 	}
 }

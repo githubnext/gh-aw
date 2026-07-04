@@ -95,6 +95,8 @@ function normalizeIssueIntentRationale(rationale, options) {
  */
 function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options) {
   const normalized = [];
+  // Structured label validation is intentionally handled here (instead of generic field validation),
+  // so optional confidence/rationale stripping is implemented inline in this code path.
   for (let i = 0; i < value.length; i++) {
     const label = value[i];
     if (typeof label === "string") {
@@ -145,40 +147,19 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
 
     /** @type {{ name: string, rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} */
     const normalizedLabel = { name };
-    if (label.rationale !== undefined) {
-      if (typeof label.rationale !== "string") {
-        return {
-          isValid: false,
-          error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].rationale must be a string`,
-        };
-      }
+    // Non-string rationale is silently stripped (optional enrichment field).
+    if (typeof label.rationale === "string") {
       const rationale = normalizeIssueIntentRationale(label.rationale, options);
       if (rationale) {
         normalizedLabel.rationale = rationale;
       }
     }
-    if (label.confidence !== undefined) {
-      if (label.confidence !== null && label.confidence !== "") {
-        const confidenceRaw = String(label.confidence).trim().toUpperCase();
-        /** @type {"LOW"|"MEDIUM"|"HIGH"} */
-        let confidence;
-        switch (confidenceRaw) {
-          case "LOW":
-            confidence = "LOW";
-            break;
-          case "MEDIUM":
-            confidence = "MEDIUM";
-            break;
-          case "HIGH":
-            confidence = "HIGH";
-            break;
-          default:
-            return {
-              isValid: false,
-              error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].confidence must be one of: LOW, MEDIUM, HIGH`,
-            };
-        }
-        normalizedLabel.confidence = confidence;
+    if (label.confidence !== undefined && label.confidence !== null && label.confidence !== "") {
+      const confidenceRaw = String(label.confidence).trim().toUpperCase();
+      if (confidenceRaw === "LOW" || confidenceRaw === "MEDIUM" || confidenceRaw === "HIGH") {
+        normalizedLabel.confidence = confidenceRaw;
+      } else {
+        // Strip confidence that doesn't match enum values instead of rejecting (optional enrichment field)
       }
     }
     if (label.suggest !== undefined) {
@@ -215,6 +196,9 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
  * @property {number} [itemMaxLength] - For arrays, max length per item
  * @property {string} [pattern] - Regex pattern the value must match
  * @property {string} [patternError] - Error message for pattern mismatch
+ * @property {boolean} [x-strip-on-error] - When true, strip the field on validation failure
+ *   instead of rejecting the whole item. Bracket access only (validation["x-strip-on-error"])
+ *   because the key contains hyphens. Used for optional enrichment fields like confidence and rationale.
  */
 
 /**
@@ -710,7 +694,13 @@ function validateItem(item, itemType, lineNum, options) {
     const result = validateField(fieldValue, fieldName, validation, itemType, lineNum, options);
 
     if (!result.isValid) {
-      errors.push(result.error);
+      // When x-strip-on-error is set, strip the invalid optional field instead of rejecting the item.
+      // This is used for enrichment-only fields like confidence and rationale.
+      if (validation["x-strip-on-error"] && !validation.required) {
+        delete normalizedItem[fieldName];
+      } else {
+        errors.push(result.error);
+      }
     } else if (result.normalizedValue !== undefined) {
       normalizedItem[fieldName] = result.normalizedValue;
     }

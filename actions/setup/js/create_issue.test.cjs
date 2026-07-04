@@ -491,6 +491,32 @@ describe("create_issue", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
     });
 
+    it("should accept stringified boolean and integer deduplication values from workflow expressions", async () => {
+      const exactMatchHandler = await main({
+        deduplicate_by_title: "true",
+      });
+
+      const firstExact = await exactMatchHandler({ title: "Duplicate title" });
+      const secondExact = await exactMatchHandler({ title: "Duplicate title" });
+
+      expect(firstExact.success).toBe(true);
+      expect(secondExact.success).toBe(true);
+      expect(secondExact.dropped_duplicate).toBe(true);
+      expect(secondExact.dedup_source).toBe("within-run");
+
+      const fuzzyHandler = await main({
+        deduplicate_by_title: "1",
+      });
+
+      const firstFuzzy = await fuzzyHandler({ title: "Fix login bug" });
+      const secondFuzzy = await fuzzyHandler({ title: "Fix login bag" });
+
+      expect(firstFuzzy.success).toBe(true);
+      expect(secondFuzzy.success).toBe(true);
+      expect(secondFuzzy.dropped_duplicate).toBe(true);
+      expect(secondFuzzy.duplicate_distance).toBe(1);
+    });
+
     it("should drop duplicates that already exist in the repository", async () => {
       mockGithub.rest.search.issuesAndPullRequests
         .mockResolvedValueOnce({

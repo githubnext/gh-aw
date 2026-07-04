@@ -34,12 +34,14 @@ tools:
   cli-proxy: true
   github:
     mode: gh-proxy
-  timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
+  timeout: 120  # Multi-device runs include docs build + preview startup
   playwright:
     mode: cli
   bash:
     - "npm install*"
+    - "npm run build*"
     - "npm run dev*"
+    - "npm run preview*"
     - "npx astro*"
     - "npx playwright*"
     - "playwright-cli*"  # CLI-mode playwright commands
@@ -99,7 +101,8 @@ pre-agent-steps:
       LOG_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.log"
       PID_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.pid"
       cd "$EXPR_GITHUB_WORKSPACE/docs"
-      nohup npm run dev -- --host 0.0.0.0 --port 4321 > "$LOG_FILE" 2>&1 &
+      npm run build
+      nohup npm run preview -- --host 0.0.0.0 --port 4321 > "$LOG_FILE" 2>&1 &
       PID=$!
       echo $PID > "$PID_FILE"
       echo "Server PID: $PID"
@@ -158,11 +161,11 @@ This workflow has `strict: true` — it will fail if no safe output is produced.
 
 ## Your Mission
 
-Start the documentation development server and perform comprehensive multi-device testing. Test layout responsiveness, accessibility, interactive elements, and visual rendering across all device types. Use a single Playwright browser instance for efficiency.
+Start the documentation preview server and perform comprehensive multi-device testing. Test layout responsiveness, accessibility, interactive elements, and visual rendering across all device types. Use a single Playwright browser instance for efficiency.
 
 ## Step 1: Verify Server Availability
 
-The workflow pre-agent steps already installed docs dependencies and started the Astro dev server.
+The workflow pre-agent steps already installed docs dependencies, built the docs site, and started the Astro preview server.
 Quickly verify it is reachable before testing:
 
 ```bash
@@ -190,7 +193,7 @@ Playwright is pre-installed as `@playwright/cli`. Use `playwright-cli <command>`
 
 **⚠️ CRITICAL: Navigation Timeout Prevention**
 
-The Astro development server uses Vite, which loads many JavaScript modules per page. Using the default `waitUntil: 'load'` will cause 60s timeouts because the browser waits for all modules to finish. **Use `waitUntil: 'domcontentloaded'`** for navigation:
+Use `waitUntil: 'domcontentloaded'` for navigation to keep checks fast and consistent:
 
 ```bash
 playwright-cli browser_run_code --code "async (page) => {

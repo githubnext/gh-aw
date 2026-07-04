@@ -5,11 +5,106 @@
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
  */
 
-const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo, validateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { createCloseEntityHandler, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
 const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
+
+/**
+ * Parse a `duplicate_of` value into { owner, repo, issueNumber }.
+ * Accepts:
+ *   - plain number or numeric string (same-repo)
+ *   - "#NUMBER" (same-repo)
+ *   - "owner/repo#NUMBER"
+ *   - "https://github.com/owner/repo/issues/NUMBER"
+ *
+ * @param {string|number} value - The duplicate_of field value
+ * @param {string} defaultOwner - Owner to use when not specified in value
+ * @param {string} defaultRepo - Repo to use when not specified in value
+ * @returns {{ owner: string, repo: string, issueNumber: number }|null} Parsed reference or null if invalid
+ */
+function parseDuplicateOf(value, defaultOwner, defaultRepo) {
+  if (value === undefined || value === null || value === "") return null;
+
+  const str = String(value).trim();
+
+  // Bare number or "#NUMBER" — positive integers only (no #0 or 0)
+  const bareMatch = str.match(/^#?([1-9]\d*)$/);
+  if (bareMatch) {
+    if (bareMatch[1].length > 15) return null;
+    const issueNumber = parseInt(bareMatch[1], 10);
+    if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) return null;
+    return { owner: defaultOwner, repo: defaultRepo, issueNumber };
+  }
+
+  // "owner/repo#NUMBER" — owner and repo must not contain '/' or '#'
+  const refMatch = str.match(/^([\w.-]+)\/([\w.-]+)#([1-9]\d*)$/);
+  if (refMatch) {
+    if (refMatch[3].length > 15) return null;
+    const issueNumber = parseInt(refMatch[3], 10);
+    if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) return null;
+    return { owner: refMatch[1], repo: refMatch[2], issueNumber };
+  }
+
+  // GitHub issue URL: https://github.com/owner/repo/issues/NUMBER — stop at path/query/fragment
+  const urlMatch = str.match(/^https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/([1-9]\d*)(?:[?#/].*)?$/);
+  if (urlMatch) {
+    if (urlMatch[3].length > 15) return null;
+    const issueNumber = parseInt(urlMatch[3], 10);
+    if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) return null;
+    return { owner: urlMatch[1], repo: urlMatch[2], issueNumber };
+  }
+
+  return null;
+}
+
+/**
+ * Mark an issue as a duplicate of another issue using the GitHub GraphQL markAsDuplicate mutation.
+ * This creates a native "marked this as a duplicate of #X" timeline event.
+ *
+ * @param {any} github - Authenticated GitHub client (must support graphql)
+ * @param {string} duplicateNodeId - GraphQL node ID of the issue being marked as a duplicate
+ * @param {string} canonicalOwner - Owner of the canonical issue's repo
+ * @param {string} canonicalRepo - Repo of the canonical issue
+ * @param {number} canonicalNumber - Issue number that is the canonical original
+ * @returns {Promise<void>}
+ */
+async function markIssueAsDuplicate(github, duplicateNodeId, canonicalOwner, canonicalRepo, canonicalNumber) {
+  if (!duplicateNodeId) {
+    throw new Error(`node_id missing for duplicate issue`);
+  }
+
+  const { data: canonicalData } = await github.rest.issues.get({
+    owner: canonicalOwner,
+    repo: canonicalRepo,
+    issue_number: canonicalNumber,
+  });
+
+  const canonicalNodeId = canonicalData.node_id;
+  if (!canonicalNodeId) {
+    throw new Error(`node_id missing for canonical issue ${canonicalOwner}/${canonicalRepo}#${canonicalNumber}`);
+  }
+
+  if (duplicateNodeId === canonicalNodeId) {
+    throw new Error(`Cannot mark issue as a duplicate of itself`);
+  }
+
+  await github.graphql(
+    `mutation($duplicateId: ID!, $canonicalId: ID!) {
+      markAsDuplicate(input: { duplicateId: $duplicateId, canonicalId: $canonicalId }) {
+        duplicate {
+          ... on Issue {
+            id
+            number
+          }
+        }
+      }
+    }`,
+    { duplicateId: duplicateNodeId, canonicalId: canonicalNodeId }
+  );
+}
 
 /**
  * Get issue details using REST API
@@ -60,7 +155,7 @@ async function addIssueComment(github, owner, repo, issueNumber, message) {
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
  * @param {string} [stateReason] - The reason for closing: "COMPLETED", "NOT_PLANNED", or "DUPLICATE"
- * @returns {Promise<{number: number, html_url: string, title: string}>} Issue details
+ * @returns {Promise<{number: number, html_url: string, title: string, node_id: string}>} Issue details
  */
 async function closeIssue(github, owner, repo, issueNumber, stateReason) {
   const { data: issue } = await github.rest.issues.update({
@@ -171,7 +266,47 @@ async function main(config = {}) {
         // Support item-level state_reason override, falling back to config-level default
         const stateReason = item.state_reason || configStateReason;
         core.info(`Closing issue #${entityNumber} with state_reason=${stateReason}`);
-        return closeIssue(github, owner, repo, entityNumber, stateReason);
+
+        const closePromise = closeIssue(github, owner, repo, entityNumber, stateReason);
+
+        // When duplicate_of is provided and state_reason is DUPLICATE, create the native duplicate relationship
+        const stateReasonUpper = stateReason.toUpperCase();
+        if (item.duplicate_of !== undefined && item.duplicate_of !== null && stateReasonUpper !== "DUPLICATE") {
+          core.warning(`duplicate_of is set but state_reason is ${stateReason} (not DUPLICATE); native duplicate marking will be skipped`);
+        }
+        if (item.duplicate_of !== undefined && item.duplicate_of !== null && stateReasonUpper === "DUPLICATE") {
+          const parsed = parseDuplicateOf(item.duplicate_of, owner, repo);
+          if (parsed) {
+            // Validate canonical repo against the same allowedRepos policy
+            const canonicalRepoSlug = `${parsed.owner}/${parsed.repo}`;
+            const repoValidation = validateRepo(canonicalRepoSlug, defaultTargetRepo, allowedRepos);
+            if (!repoValidation.valid) {
+              core.warning(`Skipping native duplicate marking: canonical repo "${canonicalRepoSlug}" is not in the allowed-repos list`);
+              return closePromise;
+            }
+
+            // Guard against marking an issue as a duplicate of itself
+            if (parsed.owner === owner && parsed.repo === repo && parsed.issueNumber === entityNumber) {
+              core.warning(`Skipping native duplicate marking: issue #${entityNumber} cannot be a duplicate of itself`);
+              return closePromise;
+            }
+
+            core.info(`Marking issue #${entityNumber} as duplicate of ${parsed.owner}/${parsed.repo}#${parsed.issueNumber}`);
+            return closePromise.then(async closedEntity => {
+              try {
+                await markIssueAsDuplicate(github, closedEntity.node_id, parsed.owner, parsed.repo, parsed.issueNumber);
+                core.info(`✓ Marked issue #${entityNumber} as duplicate of ${parsed.owner}/${parsed.repo}#${parsed.issueNumber}`);
+              } catch (dupError) {
+                core.warning(`Failed to mark native duplicate relationship for #${entityNumber}: ${getErrorMessage(dupError)}`);
+              }
+              return closedEntity;
+            });
+          } else {
+            core.warning(`duplicate_of value "${item.duplicate_of}" could not be parsed; skipping native duplicate marking`);
+          }
+        }
+
+        return closePromise;
       },
 
       continueOnCommentError: false,
@@ -190,4 +325,4 @@ async function main(config = {}) {
   );
 }
 
-module.exports = { main };
+module.exports = { main, parseDuplicateOf };

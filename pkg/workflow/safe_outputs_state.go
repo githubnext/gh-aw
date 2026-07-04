@@ -49,6 +49,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.CloseIssues != nil ||
 		safeOutputs.ClosePullRequests != nil ||
 		safeOutputs.MarkPullRequestAsReadyForReview != nil ||
+		safeOutputs.DismissPullRequestReview != nil ||
 		safeOutputs.AddComments != nil ||
 		safeOutputs.CommentMemory != nil ||
 		safeOutputs.CreatePullRequests != nil ||
@@ -115,6 +116,7 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.CloseIssues != nil ||
 		safeOutputs.ClosePullRequests != nil ||
 		safeOutputs.MarkPullRequestAsReadyForReview != nil ||
+		safeOutputs.DismissPullRequestReview != nil ||
 		safeOutputs.AddComments != nil ||
 		safeOutputs.CommentMemory != nil ||
 		safeOutputs.CreatePullRequests != nil ||

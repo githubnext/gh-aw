@@ -171,4 +171,61 @@ describe("writeLargeContentToFile", () => {
 
     expect(result.description).toBe("number");
   });
+
+  it("should handle JSON boolean primitive", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    const content = JSON.stringify(true);
+    const result = writeLargeContentToFile(content);
+
+    expect(result.description).toBe("boolean");
+  });
+
+  it("should handle JSON string primitive", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    const content = JSON.stringify("hello world");
+    const result = writeLargeContentToFile(content);
+
+    expect(result.description).toBe("string");
+  });
+
+  it("should handle JSON null primitive", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    const content = JSON.stringify(null);
+    const result = writeLargeContentToFile(content);
+
+    expect(result.description).toBe("null");
+  });
+
+  it("should handle array of primitives", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    const content = JSON.stringify(["a", "b", "c"]);
+    const result = writeLargeContentToFile(content);
+
+    expect(result.description).toBe("[string] (3 items)");
+  });
+
+  it("should truncate description for objects with more than 10 keys", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    const obj = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`key${i}`, i]));
+    const content = JSON.stringify(obj);
+    const result = writeLargeContentToFile(content);
+
+    expect(result.description).toBe("{key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, ...} (12 keys)");
+  });
+
+  it("should return both filename and description fields", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    const content = JSON.stringify({ a: 1 });
+    const result = writeLargeContentToFile(content);
+
+    expect(result).toHaveProperty("filename");
+    expect(result).toHaveProperty("description");
+    expect(Object.keys(result)).toHaveLength(2);
+  });
 });

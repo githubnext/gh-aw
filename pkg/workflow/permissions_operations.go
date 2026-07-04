@@ -177,6 +177,10 @@ func (p *Permissions) Set(scope PermissionScope, level PermissionLevel) {
 		// Expand all permissions to explicit permissions first
 		for _, s := range GetAllPermissionScopes() {
 			if _, exists := p.permissions[s]; !exists {
+				// id-token does not support the read level
+				if s == PermissionIdToken && p.allLevel == PermissionRead {
+					continue
+				}
 				p.permissions[s] = p.allLevel
 			}
 		}

@@ -75,7 +75,7 @@ func (e packageRemoteNotFoundError) Unwrap() []error {
 	return []error{errRepositoryPackageFileNotFound, e.cause}
 }
 
-func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedRepositoryPackage, error) {
+func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host string) (*resolvedRepositoryPackage, error) {
 	parts := strings.SplitN(repoSpec.RepoSlug, "/", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid repository slug: %s", repoSpec.RepoSlug)
@@ -104,7 +104,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	}
 	packagePath := strings.Trim(repoSpec.PackagePath, "/")
 
-	manifestPath, manifestContent, err := loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host)
+	manifestPath, manifestContent, err := loadRepositoryPackageManifestFile(ctx, owner, repo, packagePath, ref, host)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 
 	installationSources := normalizePackageInstallablePaths(includeInstallablePaths, packagePath)
 	if len(installationSources) == 0 {
-		installationSources, err = scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host)
+		installationSources, err = scanRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host)
 		if err != nil {
 			return nil, err
 		}
@@ -128,7 +128,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 		return nil, err
 	}
 
-	docsPath, err := resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host)
+	docsPath, err := resolveRepositoryPackageDocsPath(ctx, owner, repo, packagePath, ref, host)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	// Resolve skill files: explicit from manifest or auto-scanned.
 	explicitSkillDirs := append([]string{}, manifest.Skills...)
 	explicitSkillDirs = append(explicitSkillDirs, includeSkillDirs...)
-	skillFiles, skillWarnings, err := resolvePackageSkillFiles(owner, repo, packagePath, ref, host, explicitSkillDirs)
+	skillFiles, skillWarnings, err := resolvePackageSkillFiles(ctx, owner, repo, packagePath, ref, host, explicitSkillDirs)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	// Resolve agent files: explicit from manifest or auto-scanned.
 	explicitAgentFiles := append([]string{}, manifest.Agents...)
 	explicitAgentFiles = append(explicitAgentFiles, includeAgentFiles...)
-	agentFiles, agentWarnings, err := resolvePackageAgentFiles(owner, repo, packagePath, ref, host, explicitAgentFiles)
+	agentFiles, agentWarnings, err := resolvePackageAgentFiles(ctx, owner, repo, packagePath, ref, host, explicitAgentFiles)
 	if err != nil {
 		return nil, err
 	}
@@ -170,11 +170,11 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	}, nil
 }
 
-func loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host string) (string, []byte, error) {
+func loadRepositoryPackageManifestFile(ctx context.Context, owner, repo, packagePath, ref, host string) (string, []byte, error) {
 	manifestPath := joinRepositoryPackagePath(packagePath, repositoryPackageManifestFileName)
 	repoSlug := owner + "/" + repo
 	packageID := repositoryPackageIdentifier(repoSlug, packagePath)
-	content, err := downloadPackageFileFromGitHubForHost(owner, repo, manifestPath, ref, host)
+	content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, manifestPath, ref, host)
 	if err != nil {
 		if !isRepositoryFileNotFound(err) {
 			return "", nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s: %w", manifestPath, owner, repo, ref, err)
@@ -528,7 +528,7 @@ func agentDirectoryRoot(cleaned string) string {
 // skills/ directory is always auto-scanned for any additional skill subdirectories that
 // contain a SKILL.md file but are not already covered by the manifest. Each skill folder
 // is traversed recursively so that all nested files are included.
-func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explicitSkillDirs []string) ([]resolvedPackageSkillFile, []string, error) {
+func resolvePackageSkillFiles(ctx context.Context, owner, repo, packagePath, ref, host string, explicitSkillDirs []string) ([]resolvedPackageSkillFile, []string, error) {
 	// seenSkillDirs tracks full skill directories already added so that auto-scanned
 	// duplicates of manifest-specified skills are not added a second time.
 	seenSkillDirs := make(map[string]struct{})
@@ -541,7 +541,7 @@ func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explic
 	}
 
 	// Step 2: always auto-scan and append any skills not already in the manifest.
-	autoScanned, err := scanPackageSkillDirs(owner, repo, packagePath, ref, host)
+	autoScanned, err := scanPackageSkillDirs(ctx, owner, repo, packagePath, ref, host)
 	if err != nil {
 		// Auto-scan is supplementary for manifest-declared skills; preserve manifest
 		// resolution even when scan fails transiently.
@@ -579,7 +579,7 @@ func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explic
 		// exists so that typos in the manifest surface as clear warnings.
 		if _, fromManifest := manifestSkillDirSet[skillDir]; fromManifest {
 			markerPath := joinRepositoryPackagePath(skillDir, packageSkillMarkerFile)
-			if _, err := downloadPackageFileFromGitHubForHost(owner, repo, markerPath, ref, host); err != nil {
+			if _, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, markerPath, ref, host); err != nil {
 				if isRepositoryFileNotFound(err) {
 					warnings = append(warnings, fmt.Sprintf("Skill directory %q is missing required %s marker file", skillDir, packageSkillMarkerFile))
 					continue
@@ -590,7 +590,7 @@ func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explic
 		skillName := filepath.Base(skillDir)
 		// Use recursive listing so that the entire skill folder (including any
 		// subdirectories) is copied, not just the top-level files.
-		files, err := listPackageDirFilesRecursivelyForHost(owner, repo, ref, skillDir, host)
+		files, err := listPackageDirFilesRecursivelyForHost(ctx, owner, repo, ref, skillDir, host)
 		if err != nil {
 			if isRepositoryFileNotFound(err) {
 				warnings = append(warnings, fmt.Sprintf("Skill directory %q not found in package, skipping", skillDir))
@@ -611,7 +611,7 @@ func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explic
 // resolvePackageAgentFiles returns the list of agent file source paths for a package.
 // If explicitAgentFiles is non-empty it is used; otherwise the agents/ directory is
 // auto-scanned for .md files.
-func resolvePackageAgentFiles(owner, repo, packagePath, ref, host string, explicitAgentFiles []string) ([]string, []string, error) {
+func resolvePackageAgentFiles(ctx context.Context, owner, repo, packagePath, ref, host string, explicitAgentFiles []string) ([]string, []string, error) {
 	if len(explicitAgentFiles) > 0 {
 		var agentFiles []string
 		for _, f := range explicitAgentFiles {
@@ -623,7 +623,7 @@ func resolvePackageAgentFiles(owner, repo, packagePath, ref, host string, explic
 	var agentFiles []string
 	for _, root := range []string{packageAgentsDirectory, constants.GithubDir + packageAgentsDirectory} {
 		agentsDir := joinRepositoryPackagePath(packagePath, root)
-		files, err := listPackageDirFilesForHost(owner, repo, ref, agentsDir, host)
+		files, err := listPackageDirFilesForHost(ctx, owner, repo, ref, agentsDir, host)
 		if err != nil {
 			if isRepositoryFileNotFound(err) {
 				continue
@@ -641,11 +641,11 @@ func resolvePackageAgentFiles(owner, repo, packagePath, ref, host string, explic
 
 // scanPackageSkillDirs auto-scans the skills/ directory of a package and returns the paths
 // of skill subdirectories (those that contain a SKILL.md file).
-func scanPackageSkillDirs(owner, repo, packagePath, ref, host string) ([]string, error) {
+func scanPackageSkillDirs(ctx context.Context, owner, repo, packagePath, ref, host string) ([]string, error) {
 	var skillDirs []string
 	for _, root := range []string{packageSkillsDirectory, constants.GithubDir + packageSkillsDirectory} {
 		skillsDir := joinRepositoryPackagePath(packagePath, root)
-		subdirs, err := listPackageDirSubdirsForHost(owner, repo, ref, skillsDir, host)
+		subdirs, err := listPackageDirSubdirsForHost(ctx, owner, repo, ref, skillsDir, host)
 		if err != nil {
 			if isRepositoryFileNotFound(err) {
 				continue
@@ -654,7 +654,7 @@ func scanPackageSkillDirs(owner, repo, packagePath, ref, host string) ([]string,
 		}
 		for _, subdir := range subdirs {
 			markerPath := joinRepositoryPackagePath(subdir, packageSkillMarkerFile)
-			if _, err := downloadPackageFileFromGitHubForHost(owner, repo, markerPath, ref, host); err == nil {
+			if _, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, markerPath, ref, host); err == nil {
 				skillDirs = append(skillDirs, subdir)
 			}
 		}
@@ -662,13 +662,13 @@ func scanPackageSkillDirs(owner, repo, packagePath, ref, host string) ([]string,
 	return skillDirs, nil
 }
 
-func scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host string) ([]string, error) {
+func scanRepositoryPackageInstallablePaths(ctx context.Context, owner, repo, packagePath, ref, host string) ([]string, error) {
 	var collected []string
 	seen := make(map[string]struct{})
 
 	for _, sourceDir := range packageSourceDirectories {
 		sourcePath := joinRepositoryPackagePath(packagePath, sourceDir)
-		files, err := listPackageWorkflowFilesForHost(owner, repo, ref, sourcePath, host)
+		files, err := listPackageWorkflowFilesForHost(ctx, owner, repo, ref, sourcePath, host)
 		if err != nil {
 			if isRepositoryFileNotFound(err) {
 				continue
@@ -699,11 +699,11 @@ func scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host s
 	return collected, nil
 }
 
-func resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host string) (string, error) {
+func resolveRepositoryPackageDocsPath(ctx context.Context, owner, repo, packagePath, ref, host string) (string, error) {
 	readmePath := joinRepositoryPackagePath(packagePath, "README.md")
 	repoSlug := owner + "/" + repo
 	packageID := repositoryPackageIdentifier(repoSlug, packagePath)
-	if _, err := downloadPackageFileFromGitHubForHost(owner, repo, readmePath, ref, host); err == nil {
+	if _, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, readmePath, ref, host); err == nil {
 		return readmePath, nil
 	} else if isRepositoryFileNotFound(err) {
 		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q", packageID, readmePath)
@@ -877,28 +877,28 @@ func validateUniqueManifestWorkflowFilenames(paths []string, manifestPath string
 	return nil
 }
 
-func downloadRepositoryPackageFileFromGitHubForHost(owner, repo, path, ref, host string) ([]byte, error) {
-	content, err := parser.DownloadFileFromGitHubForHost(owner, repo, path, ref, host)
+func downloadRepositoryPackageFileFromGitHubForHost(ctx context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+	content, err := parser.DownloadFileFromGitHubForHost(ctx, owner, repo, path, ref, host)
 	return content, normalizeRepositoryPackageRemoteError(err)
 }
 
-func listRepositoryPackageWorkflowFilesForHost(owner, repo, ref, workflowPath, host string) ([]string, error) {
-	files, err := parser.ListWorkflowFilesForHost(owner, repo, ref, workflowPath, host)
+func listRepositoryPackageWorkflowFilesForHost(ctx context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
+	files, err := parser.ListWorkflowFilesForHost(ctx, owner, repo, ref, workflowPath, host)
 	return files, normalizeRepositoryPackageRemoteError(err)
 }
 
-func listRepositoryPackageDirFilesForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
-	files, err := parser.ListDirAllFilesForHost(owner, repo, ref, dirPath, host)
+func listRepositoryPackageDirFilesForHost(ctx context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
+	files, err := parser.ListDirAllFilesForHost(ctx, owner, repo, ref, dirPath, host)
 	return files, normalizeRepositoryPackageRemoteError(err)
 }
 
-func listRepositoryPackageDirFilesRecursivelyForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
-	files, err := parser.ListDirAllFilesRecursivelyForHost(owner, repo, ref, dirPath, host)
+func listRepositoryPackageDirFilesRecursivelyForHost(ctx context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
+	files, err := parser.ListDirAllFilesRecursivelyForHost(ctx, owner, repo, ref, dirPath, host)
 	return files, normalizeRepositoryPackageRemoteError(err)
 }
 
-func listRepositoryPackageDirSubdirsForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
-	dirs, err := parser.ListDirSubdirsForHost(owner, repo, ref, dirPath, host)
+func listRepositoryPackageDirSubdirsForHost(ctx context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
+	dirs, err := parser.ListDirSubdirsForHost(ctx, owner, repo, ref, dirPath, host)
 	return dirs, normalizeRepositoryPackageRemoteError(err)
 }
 

@@ -202,8 +202,8 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `DisplayDependencyReport` | `func(*DependencyReport)` | Renders a full dependency report to stdout |
 | `DisplayDependencyReportJSON` | `func(*DependencyReport) error` | Renders a dependency report as JSON to stdout |
 | `DisplaySecurityAdvisories` | `func([]SecurityAdvisory)` | Renders a security-advisory table to stdout |
-| `IsDockerAvailable` | `func() bool` | Returns true if the Docker daemon is reachable |
-| `IsDockerImageAvailable` | `func(string) bool` | Returns true if a Docker image is present locally |
+| `IsDockerAvailable` | `func(ctx context.Context) bool` | Returns true if the Docker daemon is reachable |
+| `IsDockerImageAvailable` | `func(ctx context.Context, image string) bool` | Returns true if a Docker image is present locally |
 | `IsDockerImageDownloading` | `func(string) bool` | Returns true if an image pull is in progress |
 | `StartDockerImageDownload` | `func(ctx, image string) bool` | Begins a background image pull; returns false if already pulling |
 | `CheckAndPrepareDockerImages` | `func(ctx, useZizmor, usePoutine, useActionlint, useRunnerGuard bool) error` | Pre-pulls security-scanner Docker images |

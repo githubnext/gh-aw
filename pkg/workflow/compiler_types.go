@@ -105,7 +105,7 @@ type Compiler struct {
 	priorManifests          map[string]*GHAWManifest // Pre-cached manifests keyed by lock file path; takes precedence over git HEAD / filesystem reads
 	requireDocker           bool                     // If true, fail validation when Docker is not available instead of silently skipping
 	ghesCompatFromCLI       bool                     // If true, GHES compat was requested via --ghes CLI flag (takes precedence over aw.json)
-	ghesArtifactCompat      bool                     // If true, emit GHES-compatible v3.x pins for artifact actions instead of the latest v7/v8
+	ghesArtifactCompat      bool                     // If true, GHES compatibility mode is enabled; artifact actions still use latest non-v3 pins
 	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login; not goroutine-safe (Compiler is used sequentially)
 	copilotRequestsTipShown map[string]bool          // Tracks markdown paths that already emitted the copilot-requests enable tip in this compiler instance
 	// modelPricingResolver is an optional callback for resolving per-token pricing of models that
@@ -241,10 +241,9 @@ func (c *Compiler) SetAllowActionRefs(allow bool) {
 	c.allowActionRefs = allow
 }
 
-// SetGHESCompat enables GHES artifact compatibility mode via the --ghes CLI flag.
-// When true, the compiler emits GHES-compatible v3.x artifact action pins
-// (upload-artifact@v3, download-artifact@v3) instead of the latest v7/v8.
-// This flag takes precedence over the aw.json ghes field.
+// SetGHESCompat enables GHES compatibility mode via the --ghes CLI flag.
+// It overrides the aw.json ghes field for the current compilation run.
+// Artifact actions still use the latest non-v3 pins.
 func (c *Compiler) SetGHESCompat(enabled bool) {
 	c.ghesCompatFromCLI = enabled
 }

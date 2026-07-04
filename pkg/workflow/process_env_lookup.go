@@ -3,7 +3,11 @@ package workflow
 import (
 	"os"
 	"sync"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var processEnvLookupLog = logger.New("workflow:process_env_lookup")
 
 type envLookupFunc func(string) (string, bool)
 
@@ -18,9 +22,11 @@ func SetProcessEnvLookup(lookup func(string) (string, bool)) {
 	processEnvLookupMu.Lock()
 	defer processEnvLookupMu.Unlock()
 	if lookup == nil {
+		processEnvLookupLog.Print("Restoring default process environment lookup (os.LookupEnv)")
 		processEnvLookup = os.LookupEnv
 		return
 	}
+	processEnvLookupLog.Print("Installing custom process environment lookup override")
 	processEnvLookup = lookup
 }
 

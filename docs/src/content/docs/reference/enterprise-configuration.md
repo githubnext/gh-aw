@@ -1,6 +1,6 @@
 ---
 title: Enterprise Configuration
-description: Configure GitHub Agentic Workflows for GitHub Enterprise Server (GHES) and GitHub Enterprise Cloud (GHEC), including artifact compatibility and CLI setup.
+description: Configure GitHub Agentic Workflows for GitHub Enterprise Server (GHES) and GitHub Enterprise Cloud (GHEC), including GHES compatibility mode and CLI setup.
 sidebar:
   order: 51
 ---
@@ -11,11 +11,11 @@ This page covers configuration options specific to GitHub Enterprise Server (GHE
 
 ## GitHub Enterprise Server (GHES) Compatibility
 
-### Artifact Compatibility Mode
+### GHES Compatibility Mode
 
 GHES instances running versions that predate `@actions/artifact` v2.0.0 support cannot use `actions/upload-artifact@v4+` or `actions/download-artifact@v4+`. Attempting to run compiled workflows on these instances produces a `GHESNotSupportedError`.
 
-gh-aw includes a GHES compatibility mode that instructs the compiler to emit `upload-artifact@v3.2.2` and `download-artifact@v3.1.0` instead of the latest v4+ versions.
+gh-aw includes a GHES compatibility mode toggle (`aw.json` `ghes` or `gh aw compile --ghes`) so GHES-targeted repositories can compile with explicit GHES mode enabled. Artifact actions continue using the latest non-v3 pins because v3 artifact actions are deprecated.
 
 #### Enable via `aw.json` (recommended)
 

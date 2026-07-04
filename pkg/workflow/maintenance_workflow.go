@@ -180,13 +180,15 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	const defaultRunsOn = "ubuntu-slim"
 	var configuredRunsOn RunsOnValue
 	disableLabelTrigger := true // default: disable label-triggered jobs (opt-in)
+	var maintenanceConfig *MaintenanceConfig
 	var compileGitHubTokenSecret string
 	enableCompileCreatePullRequest := false
 	if repoConfig != nil && repoConfig.Maintenance != nil {
-		configuredRunsOn = repoConfig.Maintenance.RunsOn
-		disableLabelTrigger = !repoConfig.Maintenance.IsLabelTriggerEnabled()
-		if repoConfig.Maintenance.Compile != nil {
-			compileGitHubTokenSecret = repoConfig.Maintenance.Compile.CreatePullRequestGitHubToken
+		maintenanceConfig = repoConfig.Maintenance
+		configuredRunsOn = maintenanceConfig.RunsOn
+		disableLabelTrigger = !maintenanceConfig.IsLabelTriggerEnabled()
+		if maintenanceConfig.Compile != nil {
+			compileGitHubTokenSecret = maintenanceConfig.Compile.CreatePullRequestGitHubToken
 			enableCompileCreatePullRequest = strings.TrimSpace(compileGitHubTokenSecret) != ""
 		}
 	}
@@ -274,6 +276,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		configuredRunsOn:    configuredRunsOn,
 		defaultBranch:       defaultBranch,
 		disableLabelTrigger: disableLabelTrigger,
+		maintenanceConfig:   maintenanceConfig,
 		compileGitHubToken:  getEffectiveMaintenanceGitHubToken(compileGitHubTokenSecret),
 		createCompilePR:     enableCompileCreatePullRequest,
 		copilotOrgBilling:   copilotOrgBilling,

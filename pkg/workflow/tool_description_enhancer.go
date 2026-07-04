@@ -291,6 +291,20 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 		}
 
+	case "dismiss_pull_request_review":
+		if config := safeOutputs.DismissPullRequestReview; config != nil {
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d review dismissal(s) can be performed.", templatableIntValue(config.Max)))
+			}
+			if config.Target != "" {
+				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
+			}
+			if config.TargetRepoSlug != "" {
+				constraints = append(constraints, fmt.Sprintf("Review dismissals will be performed in repository %q.", config.TargetRepoSlug))
+			}
+			constraints = append(constraints, "justification must contain at least 20 characters.")
+		}
+
 	case "resolve_pull_request_review_thread":
 		if config := safeOutputs.ResolvePullRequestReviewThread; config != nil {
 			if templatableIntValue(config.Max) > 0 {

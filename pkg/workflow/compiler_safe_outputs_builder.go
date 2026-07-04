@@ -85,6 +85,22 @@ func (b *handlerConfigBuilder) AddBoolPtr(key string, value *bool) *handlerConfi
 	return b
 }
 
+// AddTemplatableBoolOrInt adds a TemplatableBoolOrInt field to the handler config.
+//
+// The stored JSON value depends on the content of *value:
+//   - "true"  → JSON boolean true
+//   - "false" → JSON boolean false
+//   - a numeric string (e.g. "1") → JSON number
+//   - any other string (GitHub Actions expression) → JSON string evaluated at runtime
+//   - nil → field is omitted
+func (b *handlerConfigBuilder) AddTemplatableBoolOrInt(key string, value *TemplatableBoolOrInt) *handlerConfigBuilder {
+	if value == nil {
+		return b
+	}
+	b.config[key] = value.ToValue()
+	return b
+}
+
 // AddBoolOrInt adds a boolean-or-integer field when the value is set.
 // This preserves explicit false/0 values, which differ from an omitted field.
 func (b *handlerConfigBuilder) AddBoolOrInt(key string, value any) *handlerConfigBuilder {
