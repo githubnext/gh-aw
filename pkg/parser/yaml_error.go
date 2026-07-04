@@ -42,6 +42,10 @@ var yamlErrorTranslations = []struct {
 		"unexpected ':' — check indentation or if this key belongs in a mapping block",
 	},
 	{
+		"value is not allowed in this context. map key-value is pre-defined",
+		"value cannot have child keys here — this key must be an object/mapping, not a scalar value",
+	},
+	{
 		"string was used where mapping is expected",
 		"expected a YAML mapping (key: value pairs) but got a plain string",
 	},

@@ -149,3 +149,19 @@ func TestBuildPrioritizedErrorReportFromMessages_UnknownPermissionScopeHintPrese
 	require.Len(t, report.DisplayedErrors, 1)
 	assert.Equal(t, "Remove or replace the unknown permission scope `Contents` in `permissions:` and re-run `gh aw compile`.", report.DisplayedErrors[0].Suggestion)
 }
+
+func TestBuildPrioritizedErrorReportFromMessages_YAMLSyntaxGetsSyntaxHint(t *testing.T) {
+	message := `/tmp/workflow.md:3:1: error: missing ':' after key
+2 | on: push
+3 | permissions
+    ^`
+
+	report := BuildPrioritizedErrorReportFromMessages([]string{message}, true)
+
+	require.Len(t, report.DisplayedErrors, 1)
+	prioritized := report.DisplayedErrors[0]
+	assert.Equal(t, SeverityCritical, prioritized.Severity)
+	assert.Equal(t, "syntax", prioritized.Category)
+	assert.Equal(t, "Fix the YAML/frontmatter syntax first, then re-run `gh aw compile`.", prioritized.Suggestion)
+	assert.NotContains(t, prioritized.Suggestion, "event or filter")
+}
