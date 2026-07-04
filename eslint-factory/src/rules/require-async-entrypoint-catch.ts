@@ -25,9 +25,7 @@ export const requireAsyncEntrypointCatchRule = createRule({
   defaultOptions: [],
   create(context) {
     const sourceCode = context.sourceCode;
-
-    // Names of async functions declared in this module.
-    const asyncFunctionNames = new Set<string>();
+    type SourceCodeScope = ReturnType<typeof sourceCode.getScope>;
 
     /** Returns true if the node is inside an async function body (making `await` available). */
     function isInsideAsyncFunction(node: TSESTree.Node): boolean {
@@ -41,24 +39,36 @@ export const requireAsyncEntrypointCatchRule = createRule({
       return false;
     }
 
-    return {
-      // Collect module-scope async function declarations.
-      FunctionDeclaration(node) {
-        if (node.async && node.id?.name && node.parent.type === AST_NODE_TYPES.Program) {
-          asyncFunctionNames.add(node.id.name);
-        }
-      },
+    /** Resolves an identifier callee to its bound FunctionDeclaration, if any. */
+    function getResolvedFunctionDeclaration(identifier: TSESTree.Identifier): TSESTree.FunctionDeclaration | null {
+      let scope: SourceCodeScope | null = sourceCode.getScope(identifier);
 
+      while (scope) {
+        const reference = scope.references.find(ref => ref.identifier === identifier);
+        const definition = reference?.resolved?.defs[0];
+
+        if (definition?.type === "FunctionName" && definition.node.type === AST_NODE_TYPES.FunctionDeclaration) {
+          return definition.node;
+        }
+
+        scope = scope.upper;
+      }
+
+      return null;
+    }
+
+    return {
       // Flag bare calls: ExpressionStatement whose expression is a direct CallExpression
-      // to a tracked async function, and that are not inside an async function body
+      // to a tracked module-scope async function, and that are not inside an async function body
       // (where `await` would be the right fix instead).
       "ExpressionStatement > CallExpression"(node: TSESTree.CallExpression) {
         const callee = node.callee;
 
         // Only flag simple identifier calls: main(), run(), etc.
         if (callee.type !== AST_NODE_TYPES.Identifier) return;
+        const resolvedDeclaration = getResolvedFunctionDeclaration(callee);
         const name = callee.name;
-        if (!asyncFunctionNames.has(name)) return;
+        if (!resolvedDeclaration?.async || resolvedDeclaration.parent.type !== AST_NODE_TYPES.Program) return;
 
         // Inside an async context the caller can (and should) use `await fn()` instead.
         if (isInsideAsyncFunction(node)) return;
