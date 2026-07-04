@@ -59,13 +59,13 @@ func FindPricing(ctx context.Context, provider, model string) (map[string]float6
 		return nil, false
 	}
 
-	normalizedProvider := normalizeProvider(provider)
+	normalizedProvider := NormalizeProvider(provider)
 	trimmedModel := strings.TrimSpace(model)
 	if trimmedModel == "" {
 		return nil, false
 	}
 	normalizedModel := strings.ToLower(trimmedModel)
-	comparableModel := normalizeComparableModelID(normalizedModel)
+	comparableModel := NormalizeComparableModelID(normalizedModel)
 
 	log.Printf("FindPricing: looking up provider=%q model=%q", normalizedProvider, normalizedModel)
 
@@ -78,7 +78,7 @@ func FindPricing(ctx context.Context, provider, model string) (map[string]float6
 			}
 			// Comparable (dot/underscore-normalized) model ID match.
 			for mn, pricing := range providerModels {
-				if normalizeComparableModelID(mn) == comparableModel {
+				if NormalizeComparableModelID(mn) == comparableModel {
 					log.Printf("FindPricing: provider-scoped comparable match %q for %q", mn, normalizedModel)
 					return pricing, true
 				}
@@ -93,7 +93,7 @@ func FindPricing(ctx context.Context, provider, model string) (map[string]float6
 			return pricing, true
 		}
 		for mn, pricing := range providerModels {
-			if normalizeComparableModelID(mn) == comparableModel {
+			if NormalizeComparableModelID(mn) == comparableModel {
 				log.Printf("FindPricing: cross-provider comparable match %q for %q", mn, normalizedModel)
 				return pricing, true
 			}
@@ -163,7 +163,7 @@ func parseCatalog(data []byte) (pricingCache, error) {
 
 	parsed := make(pricingCache)
 	for providerName, provider := range raw.Providers {
-		normalizedProvider := normalizeProvider(providerName)
+		normalizedProvider := NormalizeProvider(providerName)
 		if normalizedProvider == "" {
 			continue
 		}
@@ -213,7 +213,9 @@ func parseCostMap(raw map[string]json.RawMessage) map[string]float64 {
 	return result
 }
 
-func normalizeProvider(provider string) string {
+// NormalizeProvider maps provider aliases (e.g. "github", "copilot", "github_models")
+// to their canonical form ("github-copilot") and lower-cases all other values.
+func NormalizeProvider(provider string) string {
 	switch strings.ToLower(strings.TrimSpace(provider)) {
 	case "github", "copilot", "github_models":
 		return "github-copilot"
@@ -222,6 +224,8 @@ func normalizeProvider(provider string) string {
 	}
 }
 
-func normalizeComparableModelID(value string) string {
+// NormalizeComparableModelID lower-cases the value and replaces "." and "_" with "-"
+// so that model IDs differing only in those separators compare equal.
+func NormalizeComparableModelID(value string) string {
 	return strings.NewReplacer(".", "-", "_", "-").Replace(strings.ToLower(strings.TrimSpace(value)))
 }

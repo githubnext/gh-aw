@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/github/gh-aw/pkg/modelsdev"
 )
 
 func TestFindModelPricing(t *testing.T) {
@@ -40,7 +42,7 @@ func TestNormalizeCatalogProvider(t *testing.T) {
 			name = "<empty>"
 		}
 		t.Run(name, func(t *testing.T) {
-			got := normalizeCatalogProvider(tt.input)
+			got := modelsdev.NormalizeProvider(tt.input)
 			assert.Equal(t, tt.want, got)
 		})
 	}
