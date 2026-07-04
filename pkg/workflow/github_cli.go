@@ -43,6 +43,7 @@ func setupGHCommand(ctx context.Context, args ...string) *exec.Cmd {
 	// Check if GH_TOKEN or GITHUB_TOKEN is available
 	ghToken := lookupProcessEnv("GH_TOKEN")
 	githubToken := lookupProcessEnv("GITHUB_TOKEN")
+	ghHost := lookupProcessEnv("GH_HOST")
 
 	if ctx == nil {
 		ctx = context.TODO()
@@ -59,13 +60,37 @@ func setupGHCommand(ctx context.Context, args ...string) *exec.Cmd {
 	// Only add GH_TOKEN if it's not set but GITHUB_TOKEN is available
 	if ghToken == "" && githubToken != "" {
 		githubCLILog.Printf("GH_TOKEN not set, using GITHUB_TOKEN for gh CLI")
-		cmd.Env = append(os.Environ(), "GH_TOKEN="+githubToken)
+		cmd.Env = append(filteredGHCLIEnv(ghToken, githubToken, ghHost), "GH_TOKEN="+githubToken)
 	}
-	if lookupProcessEnv("GH_HOST") == "" {
-		SetGHHostEnv(cmd, getDefaultGHHost())
+	if ghHost == "" {
+		defaultHost := getDefaultGHHost()
+		if defaultHost != "" && defaultHost != "github.com" && cmd.Env == nil {
+			cmd.Env = filteredGHCLIEnv(ghToken, githubToken, ghHost)
+		}
+		SetGHHostEnv(cmd, defaultHost)
 	}
 
 	return cmd
+}
+
+func filteredGHCLIEnv(ghToken, githubToken, ghHost string) []string {
+	env := make([]string, 0, len(os.Environ())+3)
+	for _, entry := range os.Environ() {
+		if strings.HasPrefix(entry, "GH_TOKEN=") || strings.HasPrefix(entry, "GITHUB_TOKEN=") || strings.HasPrefix(entry, "GH_HOST=") {
+			continue
+		}
+		env = append(env, entry)
+	}
+	if ghToken != "" {
+		env = append(env, "GH_TOKEN="+ghToken)
+	}
+	if githubToken != "" {
+		env = append(env, "GITHUB_TOKEN="+githubToken)
+	}
+	if ghHost != "" {
+		env = append(env, "GH_HOST="+ghHost)
+	}
+	return env
 }
 
 // ExecGH wraps gh CLI calls and ensures proper token configuration.

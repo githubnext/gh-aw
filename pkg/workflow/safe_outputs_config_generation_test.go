@@ -1048,3 +1048,134 @@ func TestGenerateSafeOutputsConfigClosePullRequestStaged(t *testing.T) {
 	assert.True(t, closePRConfig["staged"].(bool), "staged should be true")
 	assert.Nil(t, closePRConfig["github-token"], "github-token should not be set when empty")
 }
+
+// TestGenerateSafeOutputsConfigDeduplicateByTitleBool tests that deduplicate_by_title
+// with a boolean value is correctly serialized into config.json for create_issue.
+func TestGenerateSafeOutputsConfigDeduplicateByTitleBool(t *testing.T) {
+	trueVal := TemplatableBoolOrInt("true")
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				DeduplicateByTitle:   &trueVal,
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	ciConfig, ok := parsed["create_issue"].(map[string]any)
+	require.True(t, ok, "Expected create_issue key in config")
+
+	assert.Equal(t, true, ciConfig["deduplicate_by_title"], "deduplicate_by_title should be true (JSON boolean)")
+}
+
+// TestGenerateSafeOutputsConfigDeduplicateByTitleFalse tests that deduplicate_by_title
+// with an explicit false value is correctly serialized into config.json for create_issue.
+func TestGenerateSafeOutputsConfigDeduplicateByTitleFalse(t *testing.T) {
+	falseVal := TemplatableBoolOrInt("false")
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				DeduplicateByTitle:   &falseVal,
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	ciConfig, ok := parsed["create_issue"].(map[string]any)
+	require.True(t, ok, "Expected create_issue key in config")
+
+	assert.Equal(t, false, ciConfig["deduplicate_by_title"], "deduplicate_by_title should be false (JSON boolean)")
+}
+
+// TestGenerateSafeOutputsConfigDeduplicateByTitleInt tests that deduplicate_by_title
+// with an integer value is correctly serialized into config.json for create_issue.
+func TestGenerateSafeOutputsConfigDeduplicateByTitleInt(t *testing.T) {
+	intVal := TemplatableBoolOrInt("2")
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				DeduplicateByTitle:   &intVal,
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	ciConfig, ok := parsed["create_issue"].(map[string]any)
+	require.True(t, ok, "Expected create_issue key in config")
+
+	// JSON numbers unmarshal as float64 in map[string]any
+	assert.InDelta(t, float64(2), ciConfig["deduplicate_by_title"], 0.0001, "deduplicate_by_title should be 2 (JSON number)")
+}
+
+// TestGenerateSafeOutputsConfigDeduplicateByTitleExpression tests that deduplicate_by_title
+// with a GitHub Actions expression is correctly serialized as a JSON string into config.json.
+func TestGenerateSafeOutputsConfigDeduplicateByTitleExpression(t *testing.T) {
+	expr := TemplatableBoolOrInt("${{ inputs.dedup }}")
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				DeduplicateByTitle:   &expr,
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	ciConfig, ok := parsed["create_issue"].(map[string]any)
+	require.True(t, ok, "Expected create_issue key in config")
+
+	assert.Equal(t, "${{ inputs.dedup }}", ciConfig["deduplicate_by_title"], "deduplicate_by_title should be the expression string")
+}
+
+// TestGenerateSafeOutputsConfigDeduplicateByTitleNil tests that deduplicate_by_title
+// is omitted from config.json when not set.
+func TestGenerateSafeOutputsConfigDeduplicateByTitleNil(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				DeduplicateByTitle:   nil,
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	ciConfig, ok := parsed["create_issue"].(map[string]any)
+	require.True(t, ok, "Expected create_issue key in config")
+
+	_, hasDedup := ciConfig["deduplicate_by_title"]
+	assert.False(t, hasDedup, "deduplicate_by_title should not be present when nil")
+}

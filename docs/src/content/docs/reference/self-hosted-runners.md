@@ -197,11 +197,11 @@ Self-hosted runners need outbound HTTPS access to:
 
 Agentic workflows can run on GHES with some additional configuration.
 
-### Artifact compatibility
+### GHES compatibility mode
 
 GHES does not support the `@actions/artifact` v2.0.0+ backend used by `upload-artifact@v4+` and `download-artifact@v4+`. Compiled workflows use the latest artifact action versions by default, which fail on GHES with `GHESNotSupportedError`.
 
-Enable GHES compatibility mode in `.github/workflows/aw.json` to use compatible v3.x artifact actions:
+Enable GHES compatibility mode in `.github/workflows/aw.json` to compile with GHES mode explicitly enabled:
 
 ```json
 {
@@ -215,7 +215,7 @@ Or compile with `--ghes` for one-off workflow generation:
 gh aw compile --ghes my-workflow.md
 ```
 
-This makes the compiler emit `upload-artifact@v3.2.2` and `download-artifact@v3.1.0` instead of the latest versions, which are compatible with all GHES versions.
+Artifact actions continue using the latest non-v3 pins because v3 artifact actions are deprecated.
 
 ### API endpoint
 

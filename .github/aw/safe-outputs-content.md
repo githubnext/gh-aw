@@ -240,6 +240,19 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
 
   **Footer Control**: The `footer` field controls when AI-generated footers appear in the PR review body. Values: `"always"` (default), `"none"`, `"if-body"` (only when body is non-empty). Boolean values supported: `true` → `"always"`, `false` → `"none"`. Useful for clean approval reviews — with `"if-body"`, approvals without explanatory text appear without a footer.
 
+- `dismiss-pull-request-review:` - Dismiss a PR review previously submitted by this workflow actor (alias: `dismiss-review`)
+
+  ```yaml
+  safe-outputs:
+    dismiss-pull-request-review:
+      max: 10                         # Optional: maximum number of dismissals (default: 10)
+      target: "triggering"            # Optional: "triggering" (default), "*", or number
+      target-repo: "owner/repo"       # Optional: cross-repository
+      allowed-repos: [owner/other]    # Optional: extra repos where dismissal is allowed
+  ```
+
+  Actor-bound: only reviews authored by the current workflow actor can be dismissed. Supports `required-labels` and `required-title-prefix` filters like other PR-targeted outputs.
+
 - `reply-to-pull-request-review-comment:` - Reply to existing review comments on PRs
 
   ```yaml

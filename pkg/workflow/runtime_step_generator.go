@@ -54,6 +54,32 @@ func generateEnvCaptureStep(envVar string, captureCmd string) GitHubActionStep {
 	}
 }
 
+// mergeRuntimeWithFields combines pre-formatted runtime defaults with user
+// overrides, formatting req.ExtraFields for YAML as they are merged.
+// User-provided fields take precedence over runtime defaults.
+func mergeRuntimeWithFields(req *RuntimeRequirement) map[string]string {
+	allExtraFields := make(map[string]string)
+
+	maps.Copy(allExtraFields, req.Runtime.ExtraWithFields)
+
+	for k, v := range req.ExtraFields {
+		allExtraFields[k] = formatYAMLValue(v)
+	}
+
+	return allExtraFields
+}
+
+// appendSortedWithFieldEntries appends pre-formatted with: entries in stable
+// sorted key order so generated workflow output is deterministic.
+func appendSortedWithFieldEntries(step GitHubActionStep, withFields map[string]string) GitHubActionStep {
+	for _, key := range sliceutil.SortedKeys(withFields) {
+		step = append(step, fmt.Sprintf("          %s: %s", key, withFields[key]))
+		workflowLog.Printf("  Added extra with-field: %s = %s", key, withFields[key])
+	}
+
+	return step
+}
+
 // generateSetupStep creates a setup step for a given runtime requirement
 func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubActionStep {
 	runtime := req.Runtime
@@ -66,14 +92,6 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 			version = getDefaultGhAWRuntimeVersion()
 		}
 
-		allExtraFields := make(map[string]string)
-		// runtime.ExtraWithFields are already YAML-formatted by runtime definitions.
-		maps.Copy(allExtraFields, runtime.ExtraWithFields)
-		// req.ExtraFields come from user input and need YAML formatting.
-		for k, v := range req.ExtraFields {
-			allExtraFields[k] = formatYAMLValue(v)
-		}
-
 		step, err := generateGhAwSetupStep(ghAwSetupStepConfig{
 			actionMode:           actionModeForRuntimeSetup(IsRelease()),
 			ifCondition:          req.IfCondition,
@@ -81,7 +99,7 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 			actionRepo:           runtime.ActionRepo,
 			fallbackActionRefTag: version,
 			workflowData:         data,
-			withFields:           allExtraFields,
+			withFields:           mergeRuntimeWithFields(req),
 		})
 		if err != nil {
 			runtimeStepGeneratorLog.Printf("Failed to resolve pinned setup-cli action reference for %s@%s: %v", runtime.ActionRepo, version, err)
@@ -91,11 +109,7 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 
 	// Use default version if none specified.
 	if version == "" {
-		if runtime.ID == "gh-aw" {
-			version = getDefaultGhAWRuntimeVersion()
-		} else {
-			version = runtime.DefaultVersion
-		}
+		version = runtime.DefaultVersion
 	}
 
 	// Use SHA-pinned action reference for security if available
@@ -123,20 +137,14 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 
 	// Special handling for Go when go-mod-file is explicitly specified
 	if runtime.ID == "go" && req.GoModFile != "" {
+		withFields := mergeRuntimeWithFields(req)
+		delete(withFields, "go-version-file")
 		step = append(step, "        with:")
 		step = append(step, "          go-version-file: "+req.GoModFile)
-		// Merge extra fields from runtime configuration and user's setup step
-		allGoModExtraFields := make(map[string]string)
-		maps.Copy(allGoModExtraFields, runtime.ExtraWithFields)
-		for k, v := range req.ExtraFields {
-			allGoModExtraFields[k] = formatYAMLValue(v)
-		}
-		extraKeys := sliceutil.SortedKeys(allGoModExtraFields)
-		for _, key := range extraKeys {
-			step = append(step, fmt.Sprintf("          %s: %s", key, allGoModExtraFields[key]))
-		}
-		return step
+		return appendSortedWithFieldEntries(step, withFields)
 	}
+
+	withFields := mergeRuntimeWithFields(req)
 
 	// Add version field if we have a version
 	if version != "" {
@@ -144,33 +152,13 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 		step = append(step, fmt.Sprintf("          %s: '%s'", runtime.VersionField, version))
 	} else if runtime.ID == "uv" {
 		// For uv without version, no with block needed (unless there are extra fields)
-		if len(req.ExtraFields) == 0 {
+		if len(withFields) == 0 {
 			return step
 		}
 		step = append(step, "        with:")
 	}
 
-	// Merge extra fields from runtime configuration and user's setup step
-	// User fields take precedence over runtime fields
-	// Note: runtime.ExtraWithFields are pre-formatted strings, req.ExtraFields need formatting
-	allExtraFields := make(map[string]string)
-
-	// Add runtime extra fields (already formatted)
-	maps.Copy(allExtraFields, runtime.ExtraWithFields)
-
-	// Add user extra fields (need formatting), these override runtime fields
-	for k, v := range req.ExtraFields {
-		allExtraFields[k] = formatYAMLValue(v)
-	}
-
-	// Output merged extra fields in sorted key order for stable output
-	allKeys := sliceutil.SortedKeys(allExtraFields)
-	for _, key := range allKeys {
-		step = append(step, fmt.Sprintf("          %s: %s", key, allExtraFields[key]))
-		workflowLog.Printf("  Added extra field to runtime setup: %s = %s", key, allExtraFields[key])
-	}
-
-	return step
+	return appendSortedWithFieldEntries(step, withFields)
 }
 
 func actionModeForRuntimeSetup(isRelease bool) ActionMode {

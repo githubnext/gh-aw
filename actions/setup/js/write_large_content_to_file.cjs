@@ -10,7 +10,7 @@ const { generateCompactSchema } = require("./generate_compact_schema.cjs");
 /**
  * Writes large content to a file and returns metadata
  * @param {string} content - The content to write
- * @returns {Object} Object with filename and description
+ * @returns {{ filename: string, description: string }} Object with filename and description
  */
 function writeLargeContentToFile(content) {
   const logsDir = "/tmp/gh-aw/safeoutputs";

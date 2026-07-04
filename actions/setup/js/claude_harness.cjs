@@ -18,8 +18,8 @@
  *     driver does not retry because there is nothing to resume.
  *   - On a `--continue` retry the initial prompt is omitted: Claude Code resumes the session
  *     from its on-disk state rather than re-processing the original instructions.
- *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s).
- *   - Maximum 3 retry attempts after the initial run.
+ *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s) by default.
+ *   - Maximum 3 retry attempts after the initial run by default.
  *
  * Prompt handling:
  *   - The harness expects a `--prompt-file <path>` argument in the args list.
@@ -34,6 +34,7 @@
 
 const fs = require("fs");
 const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
+const { resolveRetryConfig: resolveSharedRetryConfig } = require("./harness_retry_config.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -49,15 +50,6 @@ const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOut
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
-
-// Maximum number of retry attempts after the initial run
-const MAX_RETRIES = 3;
-// Initial delay in milliseconds before the first retry
-const INITIAL_DELAY_MS = 5000;
-// Multiplier applied to delay after each retry
-const BACKOFF_MULTIPLIER = 2;
-// Maximum delay cap in milliseconds
-const MAX_DELAY_MS = 60000;
 
 // Pattern to detect Anthropic API overload errors (HTTP 529).
 // Matches "overloaded_error" from the Anthropic error type field, and the
@@ -95,6 +87,15 @@ const SIGNAL_TERMINATION_EXIT_CODES = new Set([137, 143]);
 function log(message) {
   const ts = new Date().toISOString();
   process.stderr.write(`[claude-harness] ${ts} ${message}\n`);
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {(message: string) => void} [logger]
+ * @returns {{maxRetries: number, initialDelayMs: number, backoffMultiplier: number, maxDelayMs: number}}
+ */
+function resolveRetryConfig(env = process.env, logger = log) {
+  return resolveSharedRetryConfig(env, logger);
 }
 
 /**
@@ -293,13 +294,15 @@ function stripContinueArgs(args) {
  */
 async function main() {
   const [, , command, ...args] = process.argv;
+  const retryConfig = resolveRetryConfig(process.env, log);
+  const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = retryConfig;
 
   if (!command) {
     process.stderr.write("claude-harness: Usage: node claude_harness.cjs <command> [args...]\n");
     process.exit(1);
   }
 
-  log(`starting: command=${command} maxRetries=${MAX_RETRIES} initialDelayMs=${INITIAL_DELAY_MS}` + ` backoffMultiplier=${BACKOFF_MULTIPLIER} maxDelayMs=${MAX_DELAY_MS}` + ` nodeVersion=${process.version} platform=${process.platform}`);
+  log(`starting: command=${command} maxRetries=${maxRetries} initialDelayMs=${initialDelayMs}` + ` backoffMultiplier=${backoffMultiplier} maxDelayMs=${maxDelayMs}` + ` nodeVersion=${process.version} platform=${process.platform}`);
 
   // Resolve the prompt for the initial run (reads --prompt-file content).
   // A missing or unreadable prompt file is treated as a fatal startup error.
@@ -339,7 +342,7 @@ async function main() {
     process.exit(0);
   }
 
-  let delay = INITIAL_DELAY_MS;
+  let delay = initialDelayMs;
   let lastExitCode = 1;
   let useContinueOnRetry = false;
   let continueDisabledPermanently = false;
@@ -350,7 +353,7 @@ async function main() {
   // complete within the SOFT_TIMEOUT_BUFFER_MS window.
   const softTimeoutGuard = buildSoftTimeoutGuard(driverStartTime);
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
       emitSoftTimeoutSignal(softTimeoutGuard, `before attempt ${attempt + 1}`, "Claude harness", log);
       lastExitCode = 1;
@@ -372,10 +375,10 @@ async function main() {
 
     if (attempt > 0) {
       const retryMode = useContinueOnRetry ? "--continue" : "fresh run";
-      log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt (${retryMode})`);
+      log(`retry ${attempt}/${maxRetries}: sleeping ${delay}ms before next attempt (${retryMode})`);
       await sleep(delay);
-      delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
-      log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
+      delay = Math.min(delay * backoffMultiplier, maxDelayMs);
+      log(`retry ${attempt}/${maxRetries}: woke up, next delay cap will be ${Math.min(delay * backoffMultiplier, maxDelayMs)}ms`);
       if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
         emitSoftTimeoutSignal(softTimeoutGuard, "after backoff sleep", "Claude harness", log);
         lastExitCode = 1;
@@ -413,7 +416,7 @@ async function main() {
         ` permissionDeniedCount=${permissionDeniedCount}` +
         ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
         ` hasOutput=${result.hasOutput}` +
-        ` retriesRemaining=${MAX_RETRIES - attempt}`
+        ` retriesRemaining=${maxRetries - attempt}`
     );
 
     // If a noop was written to safe-outputs during the failed run, the agent determined
@@ -474,10 +477,10 @@ async function main() {
     // tail-scan window. If this happens on a --continue attempt, restart fresh and disable
     // --continue permanently so we do not re-enter the same invalid retry path.
     if (isNoDeferredMarker) {
-      if (attempt < MAX_RETRIES && result.hasOutput) {
+      if (attempt < maxRetries && result.hasOutput) {
         useContinueOnRetry = false;
         continueDisabledPermanently = true;
-        log(`attempt ${attempt + 1}: no deferred tool marker on --continue — retrying as fresh run (failure_reason=harness_retry_path_invalid, --continue disabled permanently, attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+        log(`attempt ${attempt + 1}: no deferred tool marker on --continue — retrying as fresh run (failure_reason=harness_retry_path_invalid, --continue disabled permanently, attempt ${attempt + 2}/${maxRetries + 1})`);
         continue;
       }
       log(`attempt ${attempt + 1}: no deferred tool marker — not retriable via --continue (failure_reason=harness_retry_path_invalid)`);
@@ -486,11 +489,11 @@ async function main() {
 
     // Retry when the session was partially executed (has output).
     // Use --continue so Claude Code can resume from its saved session state.
-    if (attempt < MAX_RETRIES && result.hasOutput) {
+    if (attempt < maxRetries && result.hasOutput) {
       const isSignalTermination = isSignalTerminationExitCode(result.exitCode);
       const retryWithContinue = shouldRetryWithContinue({
         attempt,
-        maxRetries: MAX_RETRIES,
+        maxRetries,
         exitCode: result.exitCode,
         hasOutput: result.hasOutput,
         isNoDeferredMarker,
@@ -508,12 +511,12 @@ async function main() {
             : "partial execution";
       useContinueOnRetry = retryWithContinue;
       const retryMode = retryWithContinue ? "--continue" : "fresh run (--continue disabled permanently)";
-      log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+      log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${maxRetries + 1})`);
       continue;
     }
 
-    if (attempt >= MAX_RETRIES) {
-      log(`all ${MAX_RETRIES} retries exhausted — giving up (exitCode=${lastExitCode})`);
+    if (attempt >= maxRetries) {
+      log(`all ${maxRetries} retries exhausted — giving up (exitCode=${lastExitCode})`);
     } else {
       log(`attempt ${attempt + 1}: no output produced — not retrying` + ` (possible causes: binary not found, permission denied, auth failure, or silent startup crash)`);
     }
@@ -546,6 +549,7 @@ if (typeof module !== "undefined" && module.exports) {
     emitMissingToolPermissionIssue,
     hasNoopInSafeOutputs,
     hasExpectedSafeOutputs,
+    resolveRetryConfig,
   };
 }
 

@@ -100,7 +100,7 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 		sourceFieldRef = currentRef
 	}
 
-	currentPkg, err := resolveRepositoryPackage(&RepoSpec{
+	currentPkg, err := resolveRepositoryPackage(ctx, &RepoSpec{
 		RepoSlug:    repoSpec.RepoSlug,
 		PackagePath: repoSpec.PackagePath,
 		Version:     currentRef,
@@ -111,7 +111,7 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 		}
 		return successes, failures
 	}
-	latestPkg, err := resolveRepositoryPackage(&RepoSpec{
+	latestPkg, err := resolveRepositoryPackage(ctx, &RepoSpec{
 		RepoSlug:    repoSpec.RepoSlug,
 		PackagePath: repoSpec.PackagePath,
 		Version:     latestRef,

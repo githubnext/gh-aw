@@ -54,6 +54,7 @@
         { "$ref": "#/$defs/DispatchWorkflowOutput" },
         { "$ref": "#/$defs/AutofixCodeScanningAlertOutput" },
         { "$ref": "#/$defs/SubmitPullRequestReviewOutput" },
+        { "$ref": "#/$defs/DismissPullRequestReviewOutput" },
         { "$ref": "#/$defs/ReplyToPullRequestReviewCommentOutput" },
         { "$ref": "#/$defs/ResolvePullRequestReviewThreadOutput" }
       ]
@@ -400,6 +401,39 @@
         }
       },
       "required": ["type", "comment_id", "body"],
+      "additionalProperties": false
+    },
+    "DismissPullRequestReviewOutput": {
+      "title": "Dismiss Pull Request Review Output",
+      "description": "Output for dismissing an existing pull request review authored by the current workflow actor.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "dismiss_pull_request_review"
+        },
+        "review_id": {
+          "type": ["number", "string"],
+          "description": "The numeric review ID to dismiss."
+        },
+        "justification": {
+          "type": "string",
+          "description": "Dismissal justification message (minimum 20 characters).",
+          "minLength": 20
+        },
+        "author": {
+          "type": "string",
+          "description": "Optional review author login. If provided, it must match the current workflow actor."
+        },
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number (optional - uses triggering PR if not provided)"
+        },
+        "repo": {
+          "type": "string",
+          "description": "Optional target repository in owner/repo format."
+        }
+      },
+      "required": ["type", "review_id", "justification"],
       "additionalProperties": false
     },
     "ResolvePullRequestReviewThreadOutput": {

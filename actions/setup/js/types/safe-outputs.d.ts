@@ -97,6 +97,14 @@ interface CloseIssueItem extends BaseSafeOutputItem {
   body: string;
   /** Optional issue number (uses triggering issue if not provided) */
   issue_number?: number | string;
+  /**
+   * Optional canonical issue reference when closing as a duplicate.
+   * Accepts: bare number (123), #-prefixed number (#123),
+   * owner/repo#number (github/gh-aw#123), or a full GitHub issue URL.
+   * When provided together with state_reason: "duplicate", creates a native
+   * GitHub duplicate relationship (marked_as_duplicate timeline event).
+   */
+  duplicate_of?: number | string;
 }
 
 /**
@@ -426,6 +434,21 @@ interface ReplyToPullRequestReviewCommentItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for dismissing a pull request review
+ */
+interface DismissPullRequestReviewItem extends BaseSafeOutputItem {
+  type: "dismiss_pull_request_review";
+  /** Numeric review ID to dismiss */
+  review_id: number | string;
+  /** Dismissal justification (minimum 20 characters) */
+  justification: string;
+  /** Optional review author login, must match workflow actor */
+  author?: string;
+  /** Optional PR number (required when target is "*") */
+  pull_request_number?: number | string;
+}
+
+/**
  * JSONL item for creating a GitHub Project V2
  */
 interface CreateProjectItem extends BaseSafeOutputItem {
@@ -495,6 +518,7 @@ type SafeOutputItem =
   | LinkSubIssueItem
   | HideCommentItem
   | ReplyToPullRequestReviewCommentItem
+  | DismissPullRequestReviewItem
   | CreateProjectItem
   | AutofixCodeScanningAlertItem
   | ResolvePullRequestReviewThreadItem;
@@ -539,6 +563,7 @@ export {
   LinkSubIssueItem,
   HideCommentItem,
   ReplyToPullRequestReviewCommentItem,
+  DismissPullRequestReviewItem,
   AutofixCodeScanningAlertItem,
   ResolvePullRequestReviewThreadItem,
   SafeOutputItem,

@@ -11,6 +11,10 @@ function generateCompactSchema(content) {
     const parsed = JSON.parse(content);
 
     // Generate a compact schema based on the structure
+    if (parsed === null) {
+      return "null";
+    }
+
     if (Array.isArray(parsed)) {
       if (parsed.length === 0) {
         return "[]";

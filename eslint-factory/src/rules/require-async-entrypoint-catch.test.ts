@@ -81,6 +81,20 @@ main().then(() => {}).catch(err => { throw err; });`,
   async function main() { return 42; }
   main();
 }`,
+
+        // A shadowed local sync binding should not be matched by bare name.
+        `async function report() { return 42; }
+function buildThing() {
+  const report = () => { return 1; };
+  report();
+}`,
+
+        // A shadowed local async binding is also not a module-scope entrypoint.
+        `async function report() { return 42; }
+function buildThing() {
+  async function report() { return 1; }
+  report();
+}`,
       ],
       invalid: [],
     });
@@ -137,6 +151,29 @@ main(123);`,
                   messageId: "addCatch",
                   output: `async function main(input) { return input; }
 main(123).catch(err => { console.error(err); process.exitCode = 1; });`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `async function report() { return 42; }
+function buildThing() {
+  const report = () => { return 1; };
+}
+report();`,
+          errors: [
+            {
+              messageId: "requireCatch",
+              data: { name: "report" },
+              suggestions: [
+                {
+                  messageId: "addCatch",
+                  output: `async function report() { return 42; }
+function buildThing() {
+  const report = () => { return 1; };
+}
+report().catch(err => { console.error(err); process.exitCode = 1; });`,
                 },
               ],
             },

@@ -7,7 +7,7 @@
 // Configuration reference:
 //
 //	{
-//	  "ghes": true,               // enables GHES compatibility mode (v3 artifact pins)
+//	  "ghes": true,               // enables GHES compatibility mode (artifact pins remain latest non-v3)
 //	  "help_command": false,      // disables builtin centralized /help comment handler
 //	  "utc": "-08:00", // project home UTC offset for rendered local times
 //	  "auto_upgrade": true, // set to true to generate agentic-auto-upgrade.yml with weekly schedule
@@ -15,6 +15,7 @@
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
 //	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
 //	    "label_triggers": true, // set to true to enable all label-triggered jobs (opt-in)
+//	    "disabled_jobs": ["close-expired-entities"], // optional maintenance jobs to omit
 //	    "compile": {
 //	      "create_pull_request_github_token": "MY_REPO_TOKEN" // create/update a deduplicated PR instead of an issue
 //	    }
@@ -99,8 +100,19 @@ type MaintenanceConfig struct {
 	// To opt in, set label_triggers: true in aw.json.
 	LabelTriggers *bool `json:"label_triggers,omitempty"`
 
+	// DisabledJobs lists maintenance job IDs that should be omitted from generated
+	// agentics-maintenance workflows.
+	DisabledJobs []string `json:"disabled_jobs,omitempty"`
+
 	// Compile controls compile-workflows maintenance job behavior.
 	Compile *MaintenanceCompileConfig `json:"compile,omitempty"`
+}
+
+var validDisabledMaintenanceJobs = map[string]string{
+	normalizeMaintenanceJobName("close-expired-entities"):         "close-expired-entities",
+	normalizeMaintenanceJobName("apply_safe_outputs"):             "apply_safe_outputs",
+	normalizeMaintenanceJobName("label_disable_agentic_workflow"): "label_disable_agentic_workflow",
+	normalizeMaintenanceJobName("label_apply_safe_outputs"):       "label_apply_safe_outputs",
 }
 
 // IsLabelTriggerEnabled returns true only when label_triggers is explicitly set to true.
@@ -112,12 +124,31 @@ func (m *MaintenanceConfig) IsLabelTriggerEnabled() bool {
 	return *m.LabelTriggers
 }
 
+func normalizeMaintenanceJobName(name string) string {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	return strings.ReplaceAll(normalized, "_", "-")
+}
+
+// IsJobDisabled reports whether the provided maintenance job ID is explicitly
+// disabled in aw.json.
+func (m *MaintenanceConfig) IsJobDisabled(jobName string) bool {
+	if m == nil || len(m.DisabledJobs) == 0 {
+		return false
+	}
+	normalizedJobName := normalizeMaintenanceJobName(jobName)
+	for _, disabledJob := range m.DisabledJobs {
+		if normalizeMaintenanceJobName(disabledJob) == normalizedJobName {
+			return true
+		}
+	}
+	return false
+}
+
 // RepoConfig is the parsed representation of aw.json.
 type RepoConfig struct {
 	// GHES enables GitHub Enterprise Server compatibility mode.
-	// When true, the compiler emits GHES-compatible artifact action versions
-	// (upload-artifact@v3, download-artifact@v3) instead of the latest v7/v8
-	// which are not supported on GHES.
+	// When true, the compiler enables GHES compatibility behavior. Artifact actions
+	// continue to use latest non-v3 pins because v3 artifact actions are deprecated.
 	GHES bool
 
 	// UTC is the project's home UTC offset used for rendering local times in CLI output.
@@ -281,6 +312,22 @@ func validateRepoConfigValues(cfg *RepoConfig) error {
 			return fmt.Errorf("invalid %s: utc %w", RepoConfigFileName, err)
 		}
 		cfg.UTC = normalized
+	}
+	if cfg.Maintenance != nil {
+		seenDisabledJobs := map[string]string{}
+		for _, jobName := range cfg.Maintenance.DisabledJobs {
+			normalizedJobName := normalizeMaintenanceJobName(jobName)
+			if normalizedJobName == "" {
+				return fmt.Errorf("invalid %s: maintenance.disabled_jobs entries must not be blank", RepoConfigFileName)
+			}
+			if _, ok := validDisabledMaintenanceJobs[normalizedJobName]; !ok {
+				return fmt.Errorf("invalid %s: maintenance.disabled_jobs contains unrecognized job %q (valid values: close-expired-entities, apply_safe_outputs, label_disable_agentic_workflow, label_apply_safe_outputs)", RepoConfigFileName, jobName)
+			}
+			if previous, exists := seenDisabledJobs[normalizedJobName]; exists {
+				return fmt.Errorf("invalid %s: maintenance.disabled_jobs contains duplicate entries %q and %q after normalization", RepoConfigFileName, previous, jobName)
+			}
+			seenDisabledJobs[normalizedJobName] = jobName
+		}
 	}
 
 	if cfg.Maintenance == nil || cfg.Maintenance.Compile == nil {

@@ -28,7 +28,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
-			AddBoolOrInt("deduplicate_by_title", c.DeduplicateByTitle)
+			AddTemplatableBoolOrInt("deduplicate_by_title", c.DeduplicateByTitle)
 		return builder.Build()
 	},
 	"add_comment": func(cfg *SafeOutputsConfig) map[string]any {
@@ -237,6 +237,22 @@ var handlerRegistry = map[string]handlerBuilder{
 			return nil
 		}
 		c := cfg.MarkPullRequestAsReadyForReview
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("target", c.Target).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
+			Build()
+	},
+	"dismiss_pull_request_review": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.DismissPullRequestReview == nil {
+			return nil
+		}
+		c := cfg.DismissPullRequestReview
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("target", c.Target).

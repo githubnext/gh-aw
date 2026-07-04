@@ -169,6 +169,54 @@ func TestLoadRepoConfig_LabelTriggers_ExplicitTrue(t *testing.T) {
 	assert.True(t, cfg.Maintenance.IsLabelTriggerEnabled(), "label_triggers: true keeps label-triggered jobs enabled")
 }
 
+func TestLoadRepoConfig_DisabledJobs(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"maintenance": {"disabled_jobs": ["close-expired-entities", "label-apply-safe-outputs"]}}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
+	require.Len(t, cfg.Maintenance.DisabledJobs, 2, "disabled_jobs should be parsed")
+	assert.True(t, cfg.Maintenance.IsJobDisabled("close-expired-entities"), "hyphenated job name should match")
+	assert.True(t, cfg.Maintenance.IsJobDisabled("label_apply_safe_outputs"), "underscored lookup should match hyphen/underscore equivalently")
+	assert.False(t, cfg.Maintenance.IsJobDisabled("create_labels"), "unlisted jobs should remain enabled")
+}
+
+func TestLoadRepoConfig_DisabledJobsRejectsInvalidOrDuplicateValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		awJSON   string
+		contains string
+	}{
+		{
+			name:     "literal duplicate rejected by schema",
+			awJSON:   `{"maintenance": {"disabled_jobs": ["apply_safe_outputs", "apply_safe_outputs"]}}`,
+			contains: "disabled_jobs",
+		},
+		{
+			name:     "normalization-equivalent duplicate rejected",
+			awJSON:   `{"maintenance": {"disabled_jobs": ["close-expired-entities", "close_expired_entities"]}}`,
+			contains: "duplicate entries",
+		},
+		{
+			name:     "unknown job rejected",
+			awJSON:   `{"maintenance": {"disabled_jobs": ["apply_safe_outputz"]}}`,
+			contains: "unrecognized job",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeAWJSON(t, dir, tt.awJSON)
+
+			_, err := LoadRepoConfig(dir)
+			require.Error(t, err)
+			assert.ErrorContains(t, err, tt.contains)
+		})
+	}
+}
+
 // TestLoadRepoConfig_UnknownProperty tests that unknown properties are rejected.
 func TestLoadRepoConfig_UnknownProperty(t *testing.T) {
 	dir := t.TempDir()

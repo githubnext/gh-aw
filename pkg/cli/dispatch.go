@@ -61,7 +61,7 @@ func extractDispatchWorkflowNames(content string) []string {
 // fileDownloadFn is the type for a function that downloads a file from a GitHub repository.
 // It is used for dependency injection in fetchAndSaveRemoteDispatchWorkflows to allow tests
 // to provide a fast-failing mock instead of making real network calls.
-type fileDownloadFn func(owner, repo, path, ref string) ([]byte, error)
+type fileDownloadFn func(ctx context.Context, owner, repo, path, ref string) ([]byte, error)
 
 // fetchAndSaveRemoteDispatchWorkflows fetches and saves the workflow files referenced in the
 // safe-outputs.dispatch-workflow configuration of a remote workflow. Each listed workflow name
@@ -172,14 +172,14 @@ func fetchAndSaveRemoteDispatchWorkflows(ctx context.Context, content string, sp
 
 		// Download from the source repository — try .md first, then .yml as fallback
 		// (the dispatch-workflow validator accepts either .md or .yml files locally).
-		workflowContent, err := downloader(owner, repo, remoteFilePath, ref)
+		workflowContent, err := downloader(ctx, owner, repo, remoteFilePath, ref)
 		if err != nil {
 			remoteWorkflowLog.Printf(".md fetch failed for dispatch workflow %s, trying .yml fallback", workflowName)
 			// .md not found — try .yml fallback (e.g. plain GitHub Actions workflow)
 			ymlRemotePath := path.Clean(strings.TrimSuffix(remoteFilePath, ".md") + ".yml")
 			ymlLocalPath := filepath.Join(targetDir, filepath.Clean(workflowName+".yml"))
 
-			ymlContent, ymlErr := downloader(owner, repo, ymlRemotePath, ref)
+			ymlContent, ymlErr := downloader(ctx, owner, repo, ymlRemotePath, ref)
 			if ymlErr != nil {
 				// Neither .md nor .yml found — best-effort, continue
 				if verbose {
@@ -268,7 +268,7 @@ func fetchAndSaveRemoteDispatchWorkflows(ctx context.Context, content string, sp
 // intentional no-ops: this function is best-effort and must never block the add workflow flow.
 // Parse failures are logged at debug level so they can be investigated when needed.
 // Source conflicts are reported as warnings (not errors) because the main file is already written.
-func fetchAndSaveDispatchWorkflowsFromParsedFile(destFile string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) {
+func fetchAndSaveDispatchWorkflowsFromParsedFile(ctx context.Context, destFile string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) {
 	remoteWorkflowLog.Printf("Fetching import-derived dispatch workflows from parsed file: %s, repo=%s", destFile, spec.RepoSlug)
 	if spec.RepoSlug == "" {
 		return
@@ -375,13 +375,13 @@ func fetchAndSaveDispatchWorkflowsFromParsedFile(destFile string, spec *Workflow
 		}
 
 		// Download from source repository — try .md first, then .yml as fallback
-		workflowContent, err := parser.DownloadFileFromGitHub(owner, repo, remoteFilePath, ref)
+		workflowContent, err := parser.DownloadFileFromGitHub(ctx, owner, repo, remoteFilePath, ref)
 		if err != nil {
 			// .md not found — try .yml fallback
 			ymlRemotePath := path.Clean(strings.TrimSuffix(remoteFilePath, ".md") + ".yml")
 			ymlLocalPath := filepath.Join(targetDir, filepath.Clean(workflowName+".yml"))
 
-			ymlContent, ymlErr := parser.DownloadFileFromGitHub(owner, repo, ymlRemotePath, ref)
+			ymlContent, ymlErr := parser.DownloadFileFromGitHub(ctx, owner, repo, ymlRemotePath, ref)
 			if ymlErr != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow %s: %v", remoteFilePath, err)))

@@ -87,6 +87,7 @@ describe("safe_outputs_handlers", () => {
     delete process.env.GH_AW_ASSETS_BRANCH;
     delete process.env.GH_AW_ASSETS_MAX_SIZE_KB;
     delete process.env.GH_AW_ASSETS_ALLOWED_EXTS;
+    delete process.env.GITHUB_ACTOR;
   });
 
   describe("probe intent helpers", () => {
@@ -2704,6 +2705,55 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.result).toBe("error");
       expect(responseData.error).toContain("requires pull_request_number");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("dismissPullRequestReviewHandler", () => {
+    it("should write entry and return success with valid justification", () => {
+      const result = handlers.dismissPullRequestReviewHandler({
+        review_id: 123,
+        justification: "This stale review no longer matches the latest patch.",
+      });
+
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "dismiss_pull_request_review",
+          review_id: 123,
+        })
+      );
+    });
+
+    it("should throw MCP error when justification is shorter than 20 characters", () => {
+      expect(() =>
+        handlers.dismissPullRequestReviewHandler({
+          review_id: 123,
+          justification: "too short",
+        })
+      ).toThrow(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining("at least 20 characters"),
+        })
+      );
+    });
+
+    it("should throw MCP error when author does not match current workflow actor", () => {
+      process.env.GITHUB_ACTOR = "github-actions[bot]";
+
+      expect(() =>
+        handlers.dismissPullRequestReviewHandler({
+          review_id: 123,
+          justification: "This stale review no longer matches the latest patch.",
+          author: "octocat",
+        })
+      ).toThrow(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining("must match current workflow actor"),
+        })
+      );
     });
   });
 

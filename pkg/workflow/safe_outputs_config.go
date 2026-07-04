@@ -37,6 +37,7 @@ type SafeOutputsConfig struct {
 	CloseIssues                            *CloseIssuesConfig                     `yaml:"close-issue,omitempty"`
 	ClosePullRequests                      *ClosePullRequestsConfig               `yaml:"close-pull-request,omitempty"`
 	MarkPullRequestAsReadyForReview        *MarkPullRequestAsReadyForReviewConfig `yaml:"mark-pull-request-as-ready-for-review,omitempty"`
+	DismissPullRequestReview               *DismissPullRequestReviewConfig        `yaml:"dismiss-pull-request-review,omitempty"` // Dismiss a pull request review authored by the workflow actor
 	AddComments                            *AddCommentsConfig                     `yaml:"add-comment,omitempty"`
 	CommentMemory                          *CommentMemoryConfig                   `yaml:"comment-memory,omitempty"` // Persist and update managed memory comments on issues/PRs
 	CreatePullRequests                     *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
@@ -276,6 +277,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			markPRReadyConfig := c.parseMarkPullRequestAsReadyForReviewConfig(outputMap)
 			if markPRReadyConfig != nil {
 				config.MarkPullRequestAsReadyForReview = markPRReadyConfig
+			}
+
+			// Handle dismiss-pull-request-review (and dismiss-review alias)
+			dismissPRReviewConfig := c.parseDismissPullRequestReviewConfig(outputMap)
+			if dismissPRReviewConfig != nil {
+				config.DismissPullRequestReview = dismissPRReviewConfig
 			}
 
 			// Handle add-comment

@@ -40,7 +40,7 @@ The package uses typed aliases to prevent mixing unrelated string or integer val
 | `URL` | URL string | `DefaultMCPRegistryURL`, `PublicGitHubHost` |
 | `DocURL` | Documentation URL | `DocsEnginesURL`, `DocsToolsURL` |
 
-All semantic types implement `String() string` and `IsValid() bool` methods.
+The following types implement `String() string` and `IsValid() bool` methods: `CommandPrefix`, `JobName`, `StepID`, `Version`, `DocURL`. `MCPServerID` implements `String()` only. `EngineName`, `FeatureFlag`, `URL`, `LineLength`, `WorkflowID`, and `ModelName` do not implement these methods — use direct `string()` or `int()` conversion.
 
 ## Engine Constants
 
@@ -161,15 +161,17 @@ constants.CopilotBotNames // []string{
 ## Feature Flags
 
 ```go
-constants.MCPScriptsFeatureFlag             // "mcp-scripts"
-constants.MCPGatewayFeatureFlag             // "mcp-gateway"
-constants.DisableXPIAPromptFeatureFlag      // "disable-xpia-prompt"
-constants.DIFCProxyFeatureFlag              // "difc-proxy" (deprecated — use tools.github.integrity-proxy)
-constants.CliProxyFeatureFlag               // "cli-proxy"
-constants.AwfDiagnosticLogsFeatureFlag      // "awf-diagnostic-logs"
-constants.ByokCopilotFeatureFlag            // "byok-copilot" (deprecated - Copilot BYOK is now default)
-constants.IntegrityReactionsFeatureFlag     // "integrity-reactions"
-constants.MCPCLIFeatureFlag                 // "mcp-cli"
+constants.MCPScriptsFeatureFlag                   // "mcp-scripts"
+constants.MCPGatewayFeatureFlag                   // "mcp-gateway"
+constants.DisableXPIAPromptFeatureFlag            // "disable-xpia-prompt"
+constants.DIFCProxyFeatureFlag                    // "difc-proxy" (deprecated — use tools.github.integrity-proxy)
+constants.CliProxyFeatureFlag                     // "cli-proxy"
+constants.AwfDiagnosticLogsFeatureFlag            // "awf-diagnostic-logs"
+constants.ByokCopilotFeatureFlag                  // "byok-copilot" (deprecated — Copilot BYOK is now default)
+constants.IntegrityReactionsFeatureFlag           // "integrity-reactions"
+constants.GroupConcurrencyQueueFeatureFlag        // "group-concurrency-queue"
+constants.DangerouslyDisableSandboxAgentFeatureFlag // "dangerously-disable-sandbox-agent"
+constants.GHAWDetectionFeatureFlag                // "gh-aw-detection"
 ```
 
 ## Job and Step Constants
@@ -538,7 +540,7 @@ dir := constants.GetWorkflowDir() // ".github/workflows"
 
 ## Design Notes
 
-- All semantic types implement `String()` and `IsValid()` to allow consistent validation across the codebase.
+- Selected semantic types implement `String()` and `IsValid()` for consistent validation: `CommandPrefix`, `JobName`, `StepID`, `Version`, `DocURL` (both methods); `MCPServerID` (String only). `EngineName`, `FeatureFlag`, and `URL` are plain typed strings without these methods.
 - Version constants are intentionally plain string literals (not derived from build tags or embedded files) so that individual upgrades can be made as targeted one-line changes.
 - `GetWorkflowDir()` reads `GH_AW_WORKFLOWS_DIR` from the environment at call time, allowing the directory to be overridden in tests and CI.
 - `AgenticEngines` is deprecated in favour of `workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs()` but is kept for backward compatibility.

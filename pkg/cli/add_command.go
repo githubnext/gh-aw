@@ -405,7 +405,7 @@ func compileAddedWorkflow(ctx context.Context, destFile string, workflowSpec *Wo
 	// parse the fully merged safe-outputs configuration to discover any dispatch workflows
 	// that originate from imported shared workflows (not visible in the raw frontmatter).
 	if !isLocalWorkflowPath(workflowSpec.WorkflowPath) {
-		fetchAndSaveDispatchWorkflowsFromParsedFile(destFile, workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker)
+		fetchAndSaveDispatchWorkflowsFromParsedFile(ctx, destFile, workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker)
 	}
 	// Compile any dispatch-workflow .md dependencies that were just fetched and lack a
 	// .lock.yml. The dispatch-workflow validator requires every .md dispatch target to be
