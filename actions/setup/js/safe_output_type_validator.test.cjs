@@ -116,8 +116,8 @@ const SAMPLE_VALIDATION_CONFIG = {
     fields: {
       issue_number: { issueOrPRNumber: true },
       issue_type: { required: true, type: "string", sanitize: true, maxLength: 128 },
-      rationale: { type: "string", sanitize: true, maxLength: 280 },
-      confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
+      rationale: { type: "string", sanitize: true, maxLength: 280, "x-strip-on-error": true },
+      confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"], "x-strip-on-error": true },
       suggest: { type: "boolean" },
     },
   },
@@ -129,8 +129,8 @@ const SAMPLE_VALIDATION_CONFIG = {
       field_name: { type: "string", sanitize: true, maxLength: 128 },
       field_node_id: { type: "string", maxLength: 256 },
       value: { required: true, type: "string", sanitize: true, maxLength: 256 },
-      rationale: { type: "string", sanitize: true, maxLength: 280 },
-      confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
+      rationale: { type: "string", sanitize: true, maxLength: 280, "x-strip-on-error": true },
+      confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"], "x-strip-on-error": true },
       suggest: { type: "boolean" },
     },
   },
@@ -359,6 +359,45 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("name");
+    });
+
+    it("should strip invalid label confidence instead of rejecting the item", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      // Numeric string confidence in a label entry
+      const result = validateItem(
+        {
+          type: "add_labels",
+          item_number: 123,
+          labels: [{ name: "bug", confidence: "0.95", rationale: "Known failure mode" }],
+        },
+        "add_labels",
+        1
+      );
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.labels[0].name).toBe("bug");
+      expect(result.normalizedItem.labels[0].rationale).toBe("Known failure mode");
+      expect(result.normalizedItem.labels[0].confidence).toBeUndefined();
+    });
+
+    it("should strip non-string label rationale instead of rejecting the item", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      // Numeric rationale in a label entry
+      const result = validateItem(
+        {
+          type: "add_labels",
+          item_number: 123,
+          labels: [{ name: "bug", rationale: 99 }],
+        },
+        "add_labels",
+        1
+      );
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.labels[0].name).toBe("bug");
+      expect(result.normalizedItem.labels[0].rationale).toBeUndefined();
     });
 
     it("should sanitize string fields", async () => {
@@ -948,6 +987,57 @@ describe("safe_output_type_validator", () => {
       const fieldResult = validateItem({ type: "set_issue_field", field_name: "Priority", value: "P1", confidence: "medium", rationale: "Customer escalation" }, "set_issue_field", 1);
       expect(fieldResult.isValid).toBe(true);
       expect(fieldResult.normalizedItem.confidence).toBe("MEDIUM");
+    });
+
+    it("should strip invalid confidence instead of rejecting the item (x-strip-on-error)", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      // Numeric string like "0.95" sent instead of enum value
+      const typeResult = validateItem({ type: "set_issue_type", issue_type: "Bug", confidence: "0.95" }, "set_issue_type", 1);
+      expect(typeResult.isValid).toBe(true);
+      expect(typeResult.normalizedItem.issue_type).toBe("Bug");
+      expect(typeResult.normalizedItem.confidence).toBeUndefined();
+
+      // Raw number
+      const fieldResult = validateItem({ type: "set_issue_field", field_name: "Priority", value: "P1", confidence: 0.9 }, "set_issue_field", 1);
+      expect(fieldResult.isValid).toBe(true);
+      expect(fieldResult.normalizedItem.value).toBe("P1");
+      expect(fieldResult.normalizedItem.confidence).toBeUndefined();
+    });
+
+    it("should strip non-string rationale instead of rejecting the item (x-strip-on-error)", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      // Numeric rationale
+      const typeResult = validateItem({ type: "set_issue_type", issue_type: "Bug", rationale: 42 }, "set_issue_type", 1);
+      expect(typeResult.isValid).toBe(true);
+      expect(typeResult.normalizedItem.issue_type).toBe("Bug");
+      expect(typeResult.normalizedItem.rationale).toBeUndefined();
+
+      // Object rationale
+      const fieldResult = validateItem({ type: "set_issue_field", field_name: "Priority", value: "P1", rationale: { text: "bad" } }, "set_issue_field", 1);
+      expect(fieldResult.isValid).toBe(true);
+      expect(fieldResult.normalizedItem.value).toBe("P1");
+      expect(fieldResult.normalizedItem.rationale).toBeUndefined();
+    });
+
+    it("should not strip required fields even when x-strip-on-error is set", async () => {
+      const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
+      process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify({
+        ...SAMPLE_VALIDATION_CONFIG,
+        misconfigured_type: {
+          defaultMax: 1,
+          fields: {
+            name: { required: true, type: "string", "x-strip-on-error": true },
+          },
+        },
+      });
+      resetValidationConfigCache();
+
+      const result = validateItem({ type: "misconfigured_type" }, "misconfigured_type", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("requires a 'name' field");
     });
   });
 

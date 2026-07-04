@@ -3,9 +3,11 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -537,7 +539,7 @@ func TestValidateEngineEnvSecrets(t *testing.T) {
 			},
 			strictMode:  true,
 			expectError: true,
-			errorMsg:    "strict mode: secrets detected in 'engine.env' section will be leaked to the agent container. Found: ${{ secrets.API_KEY }}",
+			errorMsg:    fmt.Sprintf("are excluded from the agent sandbox via awf --exclude-env (requires AWF %s+) and are not accessible to the agent when that version is in use. Found: ${{ secrets.API_KEY }}", constants.AWFExcludeEnvMinVersion),
 		},
 		{
 			name: "engine.env with multiple secrets in strict mode fails",
@@ -553,7 +555,7 @@ func TestValidateEngineEnvSecrets(t *testing.T) {
 			},
 			strictMode:  true,
 			expectError: true,
-			errorMsg:    "strict mode: secrets detected in 'engine.env' section will be leaked to the agent container",
+			errorMsg:    fmt.Sprintf("are excluded from the agent sandbox via awf --exclude-env (requires AWF %s+)", constants.AWFExcludeEnvMinVersion),
 		},
 		{
 			name: "engine.env with secret embedded in string in strict mode fails",
@@ -568,7 +570,7 @@ func TestValidateEngineEnvSecrets(t *testing.T) {
 			},
 			strictMode:  true,
 			expectError: true,
-			errorMsg:    "strict mode: secrets detected in 'engine.env' section will be leaked to the agent container. Found: ${{ secrets.TOKEN }}",
+			errorMsg:    fmt.Sprintf("are excluded from the agent sandbox via awf --exclude-env (requires AWF %s+) and are not accessible to the agent when that version is in use. Found: ${{ secrets.TOKEN }}", constants.AWFExcludeEnvMinVersion),
 		},
 		{
 			name: "engine.env with secret in non-strict mode emits warning (no error)",

@@ -2,6 +2,7 @@
 "use strict";
 
 const fs = require("node:fs");
+const { isValidProviderConfig, isValidModelConfig, parseMultiProviderJson } = require("../../actions/setup/js/copilot_sdk_multi_provider.cjs");
 
 // Default timeout for a single sendAndWait call: 10 minutes.
 // Override via the COPILOT_SDK_SEND_TIMEOUT_MS environment variable.
@@ -41,31 +42,6 @@ function extractAssistantContent(message) {
     return message.content;
   }
   return "";
-}
-
-function isValidProviderConfig(p) {
-  return p && typeof p.name === "string" && typeof p.type === "string" && typeof p.baseUrl === "string";
-}
-
-function isValidModelConfig(m) {
-  return m && typeof m.id === "string" && typeof m.provider === "string";
-}
-
-function parseMultiProviderJson(raw) {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
-    if (!Array.isArray(parsed.providers) || parsed.providers.length < 1) return null;
-    if (!Array.isArray(parsed.models) || parsed.models.length < 1) return null;
-    // Validate minimal shape: providers must have name/type/baseUrl, models must have id/provider
-    if (!parsed.providers.every(isValidProviderConfig)) return null;
-    if (!parsed.models.every(isValidModelConfig)) return null;
-    const model = typeof parsed.model === "string" ? parsed.model.trim() : "";
-    return { model, providers: parsed.providers, models: parsed.models };
-  } catch {
-    return null;
-  }
 }
 
 function buildSessionConfig(model, onPermissionRequest) {

@@ -5146,17 +5146,12 @@
                   ]
                 },
                 "deduplicate-by-title": {
-                  "description": "Title-based deduplication for create-issue. Set to true for exact title matching, or provide a non-negative integer to deduplicate by Levenshtein edit distance (e.g., 1 allows one-character differences). Applies within-run and against open/recently-closed repository issues.",
-                  "oneOf": [
+                  "allOf": [
                     {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 100
+                      "$ref": "#/$defs/templatable_bool_or_int"
                     }
-                  ]
+                  ],
+                  "description": "Title-based deduplication for create-issue. Set to true for exact title matching, or provide a non-negative integer (0–100) to deduplicate by Levenshtein edit distance (e.g., 1 allows one-character differences). Accepts a GitHub Actions expression that resolves to a boolean or integer at runtime. Applies within-run and against open/recently-closed repository issues."
                 },
                 "target-repo": {
                   "type": "string",
@@ -11798,6 +11793,24 @@
           "type": "string",
           "pattern": "^\\$\\{\\{.*\\}\\}$",
           "description": "GitHub Actions expression that resolves to an integer at runtime"
+        }
+      ]
+    },
+    "templatable_bool_or_int": {
+      "description": "A boolean or non-negative integer (0–100) value that may also be specified as a GitHub Actions expression string that resolves to a boolean or integer at runtime (e.g. '${{ inputs.dedup }}').",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        {
+          "type": "string",
+          "pattern": "^\\$\\{\\{.*\\}\\}$",
+          "description": "GitHub Actions expression that resolves to a boolean or integer at runtime"
         }
       ]
     },

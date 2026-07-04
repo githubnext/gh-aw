@@ -329,6 +329,121 @@ func defaultIntStr(n int) *string {
 	return &s
 }
 
+const templatableBoolOrIntErrorExample = "value must be a boolean, a non-negative integer (0–100), or a GitHub Actions expression (e.g. '${{ inputs.dedup }}')"
+
+// TemplatableBoolOrInt represents a field that accepts a boolean, a non-negative integer
+// (0–100), or a GitHub Actions expression string (e.g. "${{ inputs.dedup }}").
+// The underlying value is stored as a string:
+//   - booleans as "true" or "false"
+//   - integers as their decimal representation (e.g. "0", "1")
+//   - expressions verbatim (e.g. "${{ inputs.dedup }}")
+//
+// Use *TemplatableBoolOrInt in struct fields with yaml:"field,omitempty" so that
+// unset fields are omitted during YAML marshaling.
+//
+// Example struct usage:
+//
+//	DeduplicateByTitle *TemplatableBoolOrInt `yaml:"deduplicate-by-title,omitempty"`
+//
+// Example frontmatter values all accepted:
+//
+//	deduplicate-by-title: true
+//	deduplicate-by-title: 1
+//	deduplicate-by-title: ${{ inputs.dedup }}
+type TemplatableBoolOrInt string
+
+// UnmarshalYAML allows TemplatableBoolOrInt to accept YAML booleans, YAML integers,
+// and GitHub Actions expression strings.
+func (t *TemplatableBoolOrInt) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.ScalarNode {
+		return fmt.Errorf("%s", templatableBoolOrIntErrorExample)
+	}
+	switch node.Tag {
+	case "!!bool":
+		*t = TemplatableBoolOrInt(node.Value) // "true" or "false"
+		return nil
+	case "!!int":
+		n, err := strconv.Atoi(node.Value)
+		if err != nil || n < 0 || n > 100 {
+			return fmt.Errorf("integer must be between 0 and 100, got %q", node.Value)
+		}
+		*t = TemplatableBoolOrInt(node.Value)
+		return nil
+	case "!!str":
+		if !isExpression(node.Value) {
+			return fmt.Errorf("%s, got string %q", templatableBoolOrIntErrorExample, node.Value)
+		}
+		*t = TemplatableBoolOrInt(node.Value)
+		return nil
+	}
+	return fmt.Errorf("%s", templatableBoolOrIntErrorExample)
+}
+
+// UnmarshalJSON allows TemplatableBoolOrInt to accept JSON booleans, JSON numbers,
+// and JSON strings that are GitHub Actions expressions.
+func (t *TemplatableBoolOrInt) UnmarshalJSON(data []byte) error {
+	var b bool
+	if err := json.Unmarshal(data, &b); err == nil {
+		if b {
+			*t = TemplatableBoolOrInt("true")
+		} else {
+			*t = TemplatableBoolOrInt("false")
+		}
+		return nil
+	}
+	var n int
+	if err := json.Unmarshal(data, &n); err == nil {
+		if n < 0 || n > 100 {
+			return fmt.Errorf("integer must be between 0 and 100, got %d", n)
+		}
+		*t = TemplatableBoolOrInt(strconv.Itoa(n))
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return fmt.Errorf("%s, got %s", templatableBoolOrIntErrorExample, data)
+	}
+	if !isExpression(s) {
+		return fmt.Errorf("%s, got string %q", templatableBoolOrIntErrorExample, s)
+	}
+	*t = TemplatableBoolOrInt(s)
+	return nil
+}
+
+// MarshalJSON emits a JSON boolean for "true"/"false", a JSON integer for numeric
+// strings, and a JSON string for GitHub Actions expressions.
+func (t *TemplatableBoolOrInt) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.ToValue())
+}
+
+// String returns the underlying string representation of the value.
+func (t *TemplatableBoolOrInt) String() string {
+	return string(*t)
+}
+
+// IsExpression returns true if the value is a GitHub Actions expression.
+func (t *TemplatableBoolOrInt) IsExpression() bool {
+	return isExpression(string(*t))
+}
+
+// ToValue returns the native Go value for use in map literals and JSON output:
+//   - true/false for boolean literals
+//   - an int for numeric literals
+//   - a string for GitHub Actions expressions
+func (t *TemplatableBoolOrInt) ToValue() any {
+	s := string(*t)
+	switch s {
+	case "true":
+		return true
+	case "false":
+		return false
+	}
+	if n, err := strconv.Atoi(s); err == nil {
+		return n
+	}
+	return s // expression string – evaluated at runtime
+}
+
 // templatableIntValue parses a *string templatable integer value to int.
 // Returns 0 if value is nil or is a GitHub Actions expression (not evaluable at compile time).
 // Returns the parsed integer for literal numeric strings.

@@ -3,6 +3,15 @@ import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-esl
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
 type AsyncFuncNode = TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression;
+type SourceCodeScope = TSESLint.Scope.Scope;
+type FunctionDeclarationDefinition = TSESLint.Scope.Definition & {
+  type: "FunctionName";
+  node: TSESTree.FunctionDeclaration;
+};
+type VariableDefinition = TSESLint.Scope.Definition & {
+  type: "Variable";
+  node: TSESTree.VariableDeclarator;
+};
 
 function isAsyncFuncNode(node: TSESTree.Node): node is AsyncFuncNode {
   return node.type === AST_NODE_TYPES.FunctionDeclaration || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.ArrowFunctionExpression;
@@ -24,23 +33,38 @@ function chainHasCatch(node: TSESTree.CallExpression): boolean {
   return false;
 }
 
-/**
- * Walks a chained call expression to find the root identifier name.
- * e.g. for `main().then(cb)`, returns "main".
- * Returns null if the root call is not a simple Identifier call.
- */
-function getRootCallName(node: TSESTree.CallExpression): string | null {
+/** Walks a chained call expression to find the root identifier node. */
+function getRootCallIdentifier(node: TSESTree.CallExpression): TSESTree.Identifier | null {
   const callee = node.callee;
   if (callee.type === AST_NODE_TYPES.Identifier) {
-    return callee.name;
+    return callee;
   }
   if (callee.type === AST_NODE_TYPES.MemberExpression) {
     const obj = callee.object;
     if (obj.type === AST_NODE_TYPES.CallExpression) {
-      return getRootCallName(obj);
+      return getRootCallIdentifier(obj);
     }
   }
   return null;
+}
+
+function isFunctionDeclarationDefinition(definition: TSESLint.Scope.Definition): definition is FunctionDeclarationDefinition {
+  return definition.type === "FunctionName" && definition.node.type === AST_NODE_TYPES.FunctionDeclaration;
+}
+
+function isVariableDefinition(definition: TSESLint.Scope.Definition): definition is VariableDefinition {
+  return definition.type === "Variable" && definition.node.type === AST_NODE_TYPES.VariableDeclarator;
+}
+
+function isModuleScopeVariableDeclaration(node: TSESTree.VariableDeclaration): boolean {
+  return node.parent.type === AST_NODE_TYPES.Program || (node.parent.type === AST_NODE_TYPES.ExportNamedDeclaration && node.parent.parent.type === AST_NODE_TYPES.Program);
+}
+
+function isAsyncVariableEntrypoint(definition: VariableDefinition): boolean {
+  const declaration = definition.node.parent;
+  if (!declaration || declaration.type !== AST_NODE_TYPES.VariableDeclaration || !isModuleScopeVariableDeclaration(declaration)) return false;
+  const init = definition.node.init;
+  return (init?.type === AST_NODE_TYPES.FunctionExpression || init?.type === AST_NODE_TYPES.ArrowFunctionExpression) && init.async;
 }
 
 export const requireAsyncEntrypointCatchRule = createRule({
@@ -61,9 +85,6 @@ export const requireAsyncEntrypointCatchRule = createRule({
   create(context) {
     const sourceCode = context.sourceCode;
 
-    // Names of async functions declared in this module.
-    const asyncFunctionNames = new Set<string>();
-
     /** Returns true if the node is inside an async function body (making `await` available). */
     function isInsideAsyncFunction(node: TSESTree.Node): boolean {
       const ancestors = sourceCode.getAncestors(node);
@@ -76,52 +97,51 @@ export const requireAsyncEntrypointCatchRule = createRule({
       return false;
     }
 
+    /** Returns true when the identifier resolves to a module-scope async entrypoint. */
+    function isAsyncModuleScopeEntrypoint(identifier: TSESTree.Identifier): boolean {
+      let scope: SourceCodeScope | null = sourceCode.getScope(identifier);
+
+      while (scope) {
+        const variable = scope.set.get(identifier.name);
+        const functionDeclarationDefinition = variable?.defs.find(isFunctionDeclarationDefinition);
+        if (functionDeclarationDefinition) {
+          return functionDeclarationDefinition.node.async && functionDeclarationDefinition.node.parent.type === AST_NODE_TYPES.Program;
+        }
+
+        const variableDefinition = variable?.defs.find(isVariableDefinition);
+        if (variableDefinition) {
+          return isAsyncVariableEntrypoint(variableDefinition);
+        }
+        if (variable && variable.defs.length > 0) {
+          return false;
+        }
+
+        scope = scope.upper;
+      }
+
+      return false;
+    }
+
     return {
-      // Collect module-scope async function declarations.
-      FunctionDeclaration(node) {
-        if (node.async && node.id?.name && node.parent.type === AST_NODE_TYPES.Program) {
-          asyncFunctionNames.add(node.id.name);
-        }
-      },
-
-      // Collect module-scope async function expressions and arrow functions:
-      // const/let/var X = async function() {} or X = async () => {}
-      VariableDeclaration(node) {
-        const isModuleScope = node.parent.type === AST_NODE_TYPES.Program || (node.parent.type === AST_NODE_TYPES.ExportNamedDeclaration && node.parent.parent.type === AST_NODE_TYPES.Program);
-        if (!isModuleScope) return;
-        for (const declarator of node.declarations) {
-          if (
-            declarator.id.type === AST_NODE_TYPES.Identifier &&
-            declarator.init !== null &&
-            declarator.init !== undefined &&
-            (declarator.init.type === AST_NODE_TYPES.FunctionExpression || declarator.init.type === AST_NODE_TYPES.ArrowFunctionExpression) &&
-            declarator.init.async
-          ) {
-            asyncFunctionNames.add(declarator.id.name);
-          }
-        }
-      },
-
       // Flag bare calls: ExpressionStatement whose expression is a direct CallExpression
-      // to a tracked async function, and that are not inside an async function body
+      // to a tracked module-scope async function/variable entrypoint, and that are not inside an async function body
       // (where `await` would be the right fix instead).
       "ExpressionStatement > CallExpression"(node: TSESTree.CallExpression) {
         const callee = node.callee;
-
-        let name: string | null = null;
+        let rootIdentifier: TSESTree.Identifier | null = null;
 
         if (callee.type === AST_NODE_TYPES.Identifier) {
-          // Bare call: main()
-          name = callee.name;
+          rootIdentifier = callee;
         } else if (callee.type === AST_NODE_TYPES.MemberExpression) {
           // Chained call: main().then(...) etc.
           // If the chain contains .catch(...), it's handled — skip.
           if (chainHasCatch(node)) return;
-          // Otherwise find the root call name.
-          name = getRootCallName(node);
+          rootIdentifier = getRootCallIdentifier(node);
         }
 
-        if (!name || !asyncFunctionNames.has(name)) return;
+        if (!rootIdentifier) return;
+        const name = rootIdentifier.name;
+        if (!isAsyncModuleScopeEntrypoint(rootIdentifier)) return;
 
         // Inside an async context the caller can (and should) use `await fn()` instead.
         if (isInsideAsyncFunction(node)) return;
