@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -63,7 +64,7 @@ It accepts workflow IDs (basename without .md) or full filenames.`,
 			if dir != "" && repo == "" {
 				path = dir
 			}
-			return RunListWorkflows(repo, path, pattern, verbose, jsonFlag, labelFilter)
+			return RunListWorkflows(cmd.Context(), repo, path, pattern, verbose, jsonFlag, labelFilter)
 		},
 	}
 
@@ -81,7 +82,7 @@ It accepts workflow IDs (basename without .md) or full filenames.`,
 }
 
 // RunListWorkflows lists workflows without checking GitHub status
-func RunListWorkflows(repo, path, pattern string, verbose bool, jsonOutput bool, labelFilter string) error {
+func RunListWorkflows(ctx context.Context, repo, path, pattern string, verbose bool, jsonOutput bool, labelFilter string) error {
 	listWorkflowsLog.Printf("Listing workflows: repo=%s, path=%s, pattern=%s, jsonOutput=%v, labelFilter=%s", repo, path, pattern, jsonOutput, labelFilter)
 
 	var mdFiles []string
@@ -94,7 +95,7 @@ func RunListWorkflows(repo, path, pattern string, verbose bool, jsonOutput bool,
 		if verbose && !jsonOutput {
 			fmt.Fprintf(os.Stderr, "Listing workflow files from %s\n", repo)
 		}
-		mdFiles, err = getRemoteWorkflowFiles(repo, path, verbose, jsonOutput)
+		mdFiles, err = getRemoteWorkflowFiles(ctx, repo, path, verbose, jsonOutput)
 	} else {
 		// List workflows from local repository
 		if verbose && !jsonOutput {
@@ -237,7 +238,7 @@ func RunListWorkflows(repo, path, pattern string, verbose bool, jsonOutput bool,
 }
 
 // getRemoteWorkflowFiles fetches the list of workflow files from a remote repository
-func getRemoteWorkflowFiles(repoSpec, workflowPath string, verbose bool, jsonOutput bool) ([]string, error) {
+func getRemoteWorkflowFiles(ctx context.Context, repoSpec, workflowPath string, verbose bool, jsonOutput bool) ([]string, error) {
 	listWorkflowsLog.Printf("Fetching remote workflow files: repoSpec=%s, path=%s", repoSpec, workflowPath)
 	// Parse repo spec: owner/repo[@ref]
 	var owner, repo, ref string
@@ -263,7 +264,7 @@ func getRemoteWorkflowFiles(repoSpec, workflowPath string, verbose bool, jsonOut
 
 	// Use the parser package to list workflow files
 	listWorkflowsLog.Printf("Listing remote workflow files: owner=%s, repo=%s, ref=%s, path=%s", owner, repo, ref, workflowPath)
-	files, err := parser.ListWorkflowFiles(owner, repo, ref, workflowPath)
+	files, err := parser.ListWorkflowFiles(ctx, owner, repo, ref, workflowPath)
 	if err != nil {
 		listWorkflowsLog.Printf("Failed to list remote workflow files: %v", err)
 		return nil, fmt.Errorf("failed to list workflow files from %s/%s: %w", owner, repo, err)
