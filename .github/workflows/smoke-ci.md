@@ -67,11 +67,11 @@ safe-outputs:
     body: true
     max: 1
     target: "*"
-  threat-detection: false
+  threat-detection: true
 timeout-minutes: 5
 strict: true
 features:
-  gh-aw-detection: false
+  gh-aw-detection: true
 ---
 
 For all events, call the tools in this exact order:

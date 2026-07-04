@@ -19,6 +19,8 @@ emoji: ✍️
 engine: claude
 name: "Typist - Go Type Analysis"
 strict: true
+features:
+  gh-aw-detection: true
 experiments:
   tone_style:
     variants: [formal, conversational]

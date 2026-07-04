@@ -16,6 +16,8 @@ permissions:
   security-events: read
 engine: claude
 strict: true
+features:
+  gh-aw-detection: true
 tools:
   cli-proxy: true
   github:
