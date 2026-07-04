@@ -289,6 +289,7 @@ For each PR that is not skipped:
      ```
 
 3. **Dismiss stale `github-actions[bot]` blocking reviews only when all related feedback is addressed**
+   - **Actor guard**: `dismiss_pull_request_review` is actor-bound and can only dismiss reviews authored by the current workflow actor. Only perform this dismissal step when the workflow is running as `github-actions[bot]` (scheduled or automatic trigger). If triggered by a human actor (`workflow_dispatch` or slash-command `/souschef`), skip this dismissal step entirely and leave all `github-actions[bot]` reviews untouched — human-triggered runs cannot dismiss bot-authored reviews.
    - Inspect PR reviews and collect open `CHANGES_REQUESTED` reviews authored by `github-actions[bot]`.
    - For each such review, inspect its related review threads/comments and determine whether all actionable feedback has been addressed (for example, no unresolved related threads remain and no open follow-up from that review is left).
    - Build a dismissal list containing only review IDs whose related feedback is fully addressed, and leave unresolved `github-actions[bot]` reviews untouched.

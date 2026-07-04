@@ -35,6 +35,8 @@ func TestPRSousChefWorkflowAddCommentTargetContract(t *testing.T) {
 	assert.Contains(t, text, ".prs | length", "eligible_count should reflect the number of eligible PRs")
 	assert.Contains(t, text, "dismiss-pull-request-review", "Workflow should configure the native safe-output path for dismissing stale github-actions reviews")
 	assert.Contains(t, text, "safeoutputs dismiss_pull_request_review", "Workflow should call the native dismiss_pull_request_review safe-output tool")
+	assert.Contains(t, text, "dismiss_pull_request_review` is actor-bound", "Workflow must document that dismiss_pull_request_review is actor-bound")
+	assert.Contains(t, text, "human-triggered runs cannot dismiss bot-authored reviews", "Workflow must require human-triggered runs to skip dismissal")
 	assert.Contains(t, text, "Slash-command acknowledgement requirement (mandatory)", "Workflow must define slash-command acknowledgement handling")
 	assert.Contains(t, text, "you must always post a comment on the same PR as that triggering comment", "Workflow must require comment acknowledgement on slash-command PR comments")
 	assert.Contains(t, text, "Do not skip this acknowledgement due to cooldown, pending checks, or duplicate-comment safeguards", "Workflow must make slash-command acknowledgement unconditional")
