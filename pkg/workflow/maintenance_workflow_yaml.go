@@ -52,11 +52,8 @@ func buildMaintenanceWorkflowYAML(
 	createCompilePR := opts.createCompilePR
 	copilotOrgBilling := opts.copilotOrgBilling
 	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v createCompilePR=%v copilotOrgBilling=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger, createCompilePR, copilotOrgBilling)
-	isJobDisabled := func(jobName string) bool {
-		return maintenanceConfig.IsJobDisabled(jobName)
-	}
-	labelDisableJobEnabled := !disableLabelTrigger && !isJobDisabled("label_disable_agentic_workflow")
-	labelApplySafeOutputsJobEnabled := !disableLabelTrigger && !isJobDisabled("label_apply_safe_outputs")
+	labelDisableJobEnabled := !disableLabelTrigger && !maintenanceConfig.IsJobDisabled("label_disable_agentic_workflow")
+	labelApplySafeOutputsJobEnabled := !disableLabelTrigger && !maintenanceConfig.IsJobDisabled("label_apply_safe_outputs")
 
 	var yaml strings.Builder
 
@@ -104,7 +101,7 @@ on:
 
 	appliedRunURLValue := "${{ jobs.apply_safe_outputs.outputs.run_url }}"
 	appliedRunURLDescription := "The run URL that safe outputs were applied from"
-	if isJobDisabled("apply_safe_outputs") {
+	if maintenanceConfig.IsJobDisabled("apply_safe_outputs") {
 		appliedRunURLValue = "${{ inputs.run_url }}"
 		appliedRunURLDescription = "The run URL that safe outputs were applied from (workflow_call falls back to inputs.run_url when apply_safe_outputs is disabled; other triggers leave this empty)"
 	}
@@ -196,7 +193,7 @@ jobs:
 `)
 	}
 
-	if !isJobDisabled("close-expired-entities") {
+	if !maintenanceConfig.IsJobDisabled("close-expired-entities") {
 		writeCloseExpiredJob("close-expired-discussions", "discussions: write", "Close expired discussions", "close_expired_discussions")
 		writeCloseExpiredJob("close-expired-issues", "issues: write", "Close expired issues", "close_expired_issues")
 		writeCloseExpiredJob("close-expired-pull-requests", "pull-requests: write", "Close expired pull requests", "close_expired_pull_requests")
@@ -350,7 +347,7 @@ jobs:
 `)
 
 	// Add apply_safe_outputs job for workflow_dispatch with operation == 'safe_outputs'
-	if !isJobDisabled("apply_safe_outputs") {
+	if !maintenanceConfig.IsJobDisabled("apply_safe_outputs") {
 		yaml.WriteString(`
   apply_safe_outputs:
     if: ${{ ` + RenderCondition(buildDispatchOperationCondition("safe_outputs")) + ` }}

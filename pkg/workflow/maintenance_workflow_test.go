@@ -1211,7 +1211,12 @@ func TestGenerateMaintenanceWorkflow_DisabledJobs(t *testing.T) {
 
 	var workflowDoc maintenanceWorkflowDocument
 	require.NoError(t, yamlv3.Unmarshal(content, &workflowDoc), "generated maintenance workflow should be valid YAML")
-	require.Equal(t, "${{ inputs.run_url }}", workflowDoc.On.WorkflowCall.Outputs.AppliedRunURL.Value, "workflow_call applied_run_url output should fall back to inputs.run_url when apply_safe_outputs is disabled")
+	require.Equal(
+		t,
+		"${{ inputs.run_url }}",
+		workflowDoc.On.WorkflowCall.Outputs.AppliedRunURL.Value,
+		"workflow_call applied_run_url should fall back to inputs.run_url",
+	)
 	require.Contains(t, yaml, "workflow_call falls back to inputs.run_url when apply_safe_outputs is disabled; other triggers leave this empty", "generated output description should document the fallback scope")
 }
 
