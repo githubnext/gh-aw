@@ -72,10 +72,11 @@ function parseMaxToolDenialsLimit(value) {
  *
  * @param {string} key
  * @param {number} fallback
+ * @param {NodeJS.ProcessEnv} [env]
  * @returns {number}
  */
-function getEnvPositiveIntOrDefault(key, fallback) {
-  return parseStrictPositiveInteger(process.env[key]) ?? fallback;
+function getEnvPositiveIntOrDefault(key, fallback, env = process.env) {
+  return parseStrictPositiveInteger(env[key]) ?? fallback;
 }
 
 /**

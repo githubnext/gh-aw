@@ -142,6 +142,16 @@ func TestExecGHUsesConfiguredProcessEnvLookup(t *testing.T) {
 	})
 
 	t.Run("does not inject gh token when both tokens are absent", func(t *testing.T) {
+		originalGHToken, ghTokenWasSet := os.LookupEnv("GH_TOKEN")
+		if ghTokenWasSet {
+			require.NoError(t, os.Unsetenv("GH_TOKEN"))
+		}
+		t.Cleanup(func() {
+			if ghTokenWasSet {
+				require.NoError(t, os.Setenv("GH_TOKEN", originalGHToken))
+			}
+		})
+
 		SetProcessEnvLookup(func(key string) (string, bool) {
 			return "", false
 		})

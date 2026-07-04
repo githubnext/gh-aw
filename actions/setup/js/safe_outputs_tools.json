@@ -211,6 +211,11 @@
           "description": "Issue number to close. This is the numeric ID from the GitHub URL (e.g., 901 in github.com/owner/repo/issues/901). If omitted, closes the issue that triggered this workflow (requires an issue event trigger).",
           "x-synonyms": ["issueNumber"]
         },
+        "duplicate_of": {
+          "type": ["number", "string"],
+          "description": "Issue number or URL of the canonical original issue when closing as a duplicate. Accepts: a bare number (e.g. 123), a #-prefixed number (e.g. #123), an owner/repo#number reference (e.g. github/gh-aw#123), or a full GitHub issue URL. When provided together with state_reason: duplicate, creates a native GitHub duplicate relationship (marked_as_duplicate timeline event). Omit if not closing as a duplicate.",
+          "x-synonyms": ["duplicateOf"]
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -508,6 +513,54 @@
         }
       },
       "additionalProperties": false
+    }
+  },
+  {
+    "name": "dismiss_pull_request_review",
+    "description": "Use this tool to dismiss a pull request review when the review is stale after automated updates. The review must be authored by the same workflow actor who is dismissing it. By default, the actor is inferred from the current GitHub Actions context (github.actor / GITHUB_ACTOR). You must provide a justification of at least 20 characters.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["review_id", "justification"],
+      "properties": {
+        "review_id": {
+          "type": ["number", "string"],
+          "description": "Numeric pull request review ID to dismiss (for example, 123456789).",
+          "x-synonyms": ["reviewId"]
+        },
+        "justification": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Reason for dismissing the review. Must be at least 20 characters."
+        },
+        "author": {
+          "type": "string",
+          "description": "Optional expected review author login. If provided, it must match the current workflow actor."
+        },
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number containing the review. If omitted, uses the triggering PR context.",
+          "x-synonyms": ["pullRequestNumber"]
+        },
+        "repo": {
+          "type": "string",
+          "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
+        },
+        "secrecy": {
+          "type": "string",
+          "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+        },
+        "integrity": {
+          "type": "string",
+          "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        }
+      },
+      "additionalProperties": false
+    },
+    "x-safe-outputs-target-requirements": {
+      "*": {
+        "primary": "pull_request_number",
+        "anyOf": ["pull_request_number"]
+      }
     }
   },
   {
@@ -1088,7 +1141,7 @@
         },
         "branch": {
           "type": "string",
-          "description": "The local branch name that contains the committed changes to push (e.g., \"feature/my-fix\"). Providing this explicitly prevents race conditions in batch workflows where the working tree may have been checked out to a different PR's branch between commit and tool-call time. When omitted, the branch is inferred from the current git HEAD — only safe for single-PR workflows."
+          "description": "The local branch name that contains the committed changes to push (e.g., \"feature/my-fix\"). Providing this explicitly prevents race conditions in batch workflows where the working tree may have been checked out to a different PR's branch between commit and tool-call time. When omitted, the branch is inferred from the current git HEAD \u2014 only safe for single-PR workflows."
         },
         "pull_request_number": {
           "type": ["number", "string"],

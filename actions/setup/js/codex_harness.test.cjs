@@ -26,6 +26,7 @@ const {
   getConfiguredOpenAIPortFromReflect,
   validateCodexOpenAIBaseURLFromReflect,
   hasNoopInSafeOutputs,
+  resolveRetryConfig,
 } = require("./codex_harness.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
 
@@ -646,6 +647,65 @@ process.exit(1);`,
       // Harness exits 0 because noop means the work is done
       expect(result.status).toBe(0);
       expect(result.stderr).toContain("noop message found in safe-outputs — not retrying");
+    });
+  });
+
+  describe("retry configuration", () => {
+    it("uses the default retry settings when env vars are unset", () => {
+      expect(resolveRetryConfig({})).toEqual({
+        maxRetries: 3,
+        initialDelayMs: 5000,
+        backoffMultiplier: 2,
+        maxDelayMs: 60000,
+      });
+    });
+
+    it("accepts env overrides for retry settings", () => {
+      expect(
+        resolveRetryConfig({
+          GH_AW_HARNESS_MAX_RETRIES: "6",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "10000",
+          GH_AW_HARNESS_BACKOFF_MULTIPLIER: "3",
+          GH_AW_HARNESS_MAX_DELAY_MS: "180000",
+        })
+      ).toEqual({
+        maxRetries: 6,
+        initialDelayMs: 10000,
+        backoffMultiplier: 3,
+        maxDelayMs: 180000,
+      });
+    });
+
+    it("falls back to defaults for invalid env values and logs a warning", () => {
+      const logs = /** @type {string[]} */ [];
+      const retryConfig = resolveRetryConfig(
+        {
+          GH_AW_HARNESS_MAX_RETRIES: "-1",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "not-a-number",
+        },
+        msg => logs.push(msg)
+      );
+      expect(retryConfig).toEqual({
+        maxRetries: 3,
+        initialDelayMs: 5000,
+        backoffMultiplier: 2,
+        maxDelayMs: 60000,
+      });
+      expect(logs.some(msg => msg.includes("GH_AW_HARNESS_MAX_RETRIES"))).toBe(true);
+      expect(logs.some(msg => msg.includes("GH_AW_HARNESS_INITIAL_DELAY_MS"))).toBe(true);
+    });
+
+    it("clamps max delay to at least initial delay", () => {
+      const logs = /** @type {string[]} */ [];
+      const retryConfig = resolveRetryConfig(
+        {
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "30000",
+          GH_AW_HARNESS_MAX_DELAY_MS: "1000",
+        },
+        msg => logs.push(msg)
+      );
+      expect(retryConfig.maxDelayMs).toBe(30000);
+      expect(logs.some(msg => msg.includes("clamping max delay"))).toBe(true);
     });
   });
 });

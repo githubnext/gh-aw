@@ -248,6 +248,22 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
+	"dismiss_pull_request_review": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.DismissPullRequestReview == nil {
+			return nil
+		}
+		c := cfg.DismissPullRequestReview
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("target", c.Target).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
+			Build()
+	},
 	"create_code_scanning_alert": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.CreateCodeScanningAlerts == nil {
 			return nil

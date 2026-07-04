@@ -288,21 +288,16 @@ The `harness` field lets you replace the built-in Node.js harness wrapper that t
 ```yaml wrap
 engine:
   id: copilot
-  harness: custom_copilot_harness.cjs
+  harness:
+    use: custom_copilot_harness.cjs
 ```
 
-The value must be a bare filename — no directory separators, no `..`, and no shell metacharacters. It must end with `.js`, `.cjs`, or `.mjs`. When `harness` is set, AWF automatically ensures Node 24 is available in the runner environment.
+The `use` value must be a bare filename — no directory separators, no `..`, and no shell metacharacters. It must end with `.js`, `.cjs`, or `.mjs`. When `harness.use` is set, AWF automatically ensures Node 24 is available in the runner environment.
 
 > [!NOTE]
 > `engine.harness` is currently only applied during Copilot engine execution. Setting it on other engines has no effect.
 
-### Harness Retry Count
-
-Built-in harness scripts (`copilot_harness.cjs`, `claude_harness.cjs`, `codex_harness.cjs`) currently use a fixed retry budget of **3 retries** after the initial run (4 total attempts).
-
-To specify a different retry count, provide a custom harness script and implement your own retry policy there. At present, `engine.harness` customization is only applied for the Copilot engine.
-
-**Validation rules:**
+**Validation rules for `harness.use`:**
 
 | Rule | Valid example | Invalid example |
 |------|--------------|-----------------|
@@ -310,6 +305,31 @@ To specify a different retry count, provide a custom harness script and implemen
 | No path traversal | `harness.mjs` | `../harness.cjs` |
 | Must start with `[A-Za-z0-9_]` | `harness.js` | `-harness.cjs` |
 | Must end with `.js`, `.cjs`, or `.mjs` | `wrapper.cjs` | `harness.sh` |
+
+### Harness Retry Policy
+
+The built-in Copilot, Claude, and Codex harnesses default to **3 retries** after the initial run (4 total attempts), with exponential backoff starting at 5 s (capped at 60 s). Use sub-keys under `engine.harness` to widen the retry window without replacing the harness:
+
+```yaml wrap
+engine:
+  id: copilot
+  harness:
+    max-retries: 6
+    initial-delay-ms: 10000
+    backoff-multiplier: 2
+    max-delay-ms: 180000
+```
+
+All four fields accept a literal integer or a GitHub Actions expression (e.g. `${{ vars.MY_RETRIES }}`):
+
+| Sub-key | Default | Description |
+|---|---|---|
+| `max-retries` | `3` | Maximum retry attempts after the initial run (0 = no retries) |
+| `initial-delay-ms` | `5000` | Delay in ms before the first retry |
+| `backoff-multiplier` | `2` | Multiplier applied to the delay after each retry |
+| `max-delay-ms` | `60000` | Maximum delay cap in ms |
+
+You can also set the underlying `GH_AW_HARNESS_*` env vars directly via `engine.env` when you need expression-level control. Explicit `engine.env` values take precedence over `engine.harness` sub-key values.
 
 ### Copilot SDK Support
 

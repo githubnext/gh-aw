@@ -63,14 +63,14 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.unlinkSync(logFile),
             fs.rmdirSync(tmpDir));
         }),
-        it("should fail Claude runs when no structured log entries are parsed", () => {
+        it("should fail Claude runs when no structured log entries are parsed", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
           try {
             fs.writeFileSync(logFile, "unstructured log output");
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
-            runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
             expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
           } finally {
             fs.unlinkSync(logFile);
@@ -105,14 +105,17 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.unlinkSync(logFile),
             fs.rmdirSync(tmpDir));
         }),
-        it("should handle MCP failures", () => {
+        it("should handle MCP failures", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
             logFile = path.join(tmpDir, "test.log");
           (fs.writeFileSync(logFile, "content"), (process.env.GH_AW_AGENT_OUTPUT = logFile));
           const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: ["server1", "server2"], maxTurnsHit: !1 });
-          (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: MCP server(s) failed to launch: server1, server2`), fs.unlinkSync(logFile), fs.rmdirSync(tmpDir));
+          (await runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
+            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: MCP server(s) failed to launch: server1, server2`),
+            fs.unlinkSync(logFile),
+            fs.rmdirSync(tmpDir));
         }),
-        it("should warn instead of failing MCP failures when safe outputs exist", () => {
+        it("should warn instead of failing MCP failures when safe outputs exist", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
           const safeOutputsFile = path.join(tmpDir, "safe-outputs.jsonl");
@@ -124,14 +127,14 @@ describe("log_parser_bootstrap.cjs", () => {
 
           const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: ["server1"], maxTurnsHit: !1 });
 
-          (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
+          (await runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
             expect(mockCore.warning).toHaveBeenCalledWith("MCP server(s) failed to launch (server1), but agent completed with 1 safe output entry"),
             expect(mockCore.setFailed).not.toHaveBeenCalled(),
             fs.unlinkSync(logFile),
             fs.unlinkSync(safeOutputsFile),
             fs.rmdirSync(tmpDir));
         }),
-        it("should warn (non-fatal) when MCP fails but agent ran turns (legacy result entry)", () => {
+        it("should warn (non-fatal) when MCP fails but agent ran turns (legacy result entry)", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
           try {
@@ -149,7 +152,7 @@ describe("log_parser_bootstrap.cjs", () => {
                 { type: "result", num_turns: 34, duration_ms: 60000 },
               ],
             });
-            runLogParser({ parseLog: mockParseLog, parserName: "TestParser" });
+            await runLogParser({ parseLog: mockParseLog, parserName: "TestParser" });
             expect(mockCore.warning).toHaveBeenCalledWith("MCP server(s) failed to launch (github), but agent completed turns — treating as non-fatal post-completion relaunch");
             expect(mockCore.setFailed).not.toHaveBeenCalled();
           } finally {
@@ -157,7 +160,7 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.rmdirSync(tmpDir);
           }
         }),
-        it("should warn (non-fatal) when MCP fails but agent ran turns (Copilot event session.result)", () => {
+        it("should warn (non-fatal) when MCP fails but agent ran turns (Copilot event session.result)", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
           try {
@@ -175,7 +178,7 @@ describe("log_parser_bootstrap.cjs", () => {
                 { type: "session.result", data: { numTurns: 34, durationMs: 60000 } },
               ],
             });
-            runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
             expect(mockCore.warning).toHaveBeenCalledWith("MCP server(s) failed to launch (github), but agent completed turns — treating as non-fatal post-completion relaunch");
             expect(mockCore.setFailed).not.toHaveBeenCalled();
           } finally {
@@ -183,7 +186,7 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.rmdirSync(tmpDir);
           }
         }),
-        it("should still fail when MCP fails and agent ran no turns", () => {
+        it("should still fail when MCP fails and agent ran no turns", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
           try {
@@ -196,14 +199,14 @@ describe("log_parser_bootstrap.cjs", () => {
               maxTurnsHit: false,
               logEntries: [{ type: "system", subtype: "init" }],
             });
-            runLogParser({ parseLog: mockParseLog, parserName: "TestParser" });
+            await runLogParser({ parseLog: mockParseLog, parserName: "TestParser" });
             expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: MCP server(s) failed to launch: github`);
           } finally {
             fs.unlinkSync(logFile);
             fs.rmdirSync(tmpDir);
           }
         }),
-        it("should warn (non-fatal) when Claude has empty logEntries but safe outputs exist", () => {
+        it("should warn (non-fatal) when Claude has empty logEntries but safe outputs exist", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
           const safeOutputsFile = path.join(tmpDir, "safe-outputs.jsonl");
@@ -215,7 +218,7 @@ describe("log_parser_bootstrap.cjs", () => {
             // Parser returns markdown but no structured logEntries — simulates sandbox teardown
             // race leaving agent-stdio.log unreadable after the agent completed successfully.
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
-            runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
             expect(mockCore.setFailed).not.toHaveBeenCalled();
             expect(mockCore.warning).toHaveBeenCalledWith("Claude produced no structured log entries, but agent completed with 1 safe output entry — treating as non-fatal post-completion infrastructure failure");
           } finally {
@@ -225,7 +228,7 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.rmdirSync(tmpDir);
           }
         }),
-        it("should fail when Claude has empty logEntries and no safe outputs (startup failure)", () => {
+        it("should fail when Claude has empty logEntries and no safe outputs (startup failure)", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
           try {
@@ -233,14 +236,14 @@ describe("log_parser_bootstrap.cjs", () => {
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             delete process.env.GH_AW_SAFE_OUTPUTS;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
-            runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
             expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
           } finally {
             fs.unlinkSync(logFile);
             fs.rmdirSync(tmpDir);
           }
         }),
-        it("should not print 'parsed successfully' for Claude when logEntries is empty", () => {
+        it("should not print 'parsed successfully' for Claude when logEntries is empty", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
           const safeOutputsFile = path.join(tmpDir, "safe-outputs.jsonl");
@@ -250,7 +253,7 @@ describe("log_parser_bootstrap.cjs", () => {
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             process.env.GH_AW_SAFE_OUTPUTS = safeOutputsFile;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
-            runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
             const infoCalls = mockCore.info.mock.calls.map(c => c[0]);
             expect(infoCalls.some(msg => msg.includes("Claude log parsed successfully"))).toBe(false);
             expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -262,7 +265,7 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.rmdirSync(tmpDir);
           }
         }),
-        it("should treat logEntries: null as missing entries for Claude guardrail (no safe outputs → setFailed)", () => {
+        it("should treat logEntries: null as missing entries for Claude guardrail (no safe outputs → setFailed)", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
           try {
@@ -270,7 +273,7 @@ describe("log_parser_bootstrap.cjs", () => {
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             delete process.env.GH_AW_SAFE_OUTPUTS;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: null });
-            runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
             expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
           } finally {
             fs.unlinkSync(logFile);
@@ -278,7 +281,7 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.rmdirSync(tmpDir);
           }
         }),
-        it("should treat logEntries: null as missing entries for Claude guardrail (safe outputs → warning)", () => {
+        it("should treat logEntries: null as missing entries for Claude guardrail (safe outputs → warning)", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const logFile = path.join(tmpDir, "test.log");
           const safeOutputsFile = path.join(tmpDir, "safe-outputs.jsonl");
@@ -288,7 +291,7 @@ describe("log_parser_bootstrap.cjs", () => {
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             process.env.GH_AW_SAFE_OUTPUTS = safeOutputsFile;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: null });
-            runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
             expect(mockCore.setFailed).not.toHaveBeenCalled();
             expect(mockCore.warning).toHaveBeenCalledWith("Claude produced no structured log entries, but agent completed with 1 safe output entry — treating as non-fatal post-completion infrastructure failure");
           } finally {
@@ -299,12 +302,12 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.rmdirSync(tmpDir);
           }
         }),
-        it("should handle max-turns limit reached", () => {
+        it("should handle max-turns limit reached", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
             logFile = path.join(tmpDir, "test.log");
           (fs.writeFileSync(logFile, "content"), (process.env.GH_AW_AGENT_OUTPUT = logFile));
           const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: !0 });
-          (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
+          (await runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
             expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_VALIDATION}: Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`),
             fs.unlinkSync(logFile),
             fs.rmdirSync(tmpDir));
