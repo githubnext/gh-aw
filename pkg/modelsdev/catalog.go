@@ -22,7 +22,7 @@ const (
 // catalogURL is a variable so tests can override it with a local HTTP server.
 var catalogURL = "https://models.dev/catalog.json"
 
-// modelIDReplacer normalises separator characters in model IDs so that IDs
+// modelIDReplacer normalizes separator characters in model IDs so that IDs
 // differing only in ".", "_", or "-" compare equal.
 var modelIDReplacer = strings.NewReplacer(".", "-", "_", "-")
 
