@@ -1,4 +1,4 @@
-This issue tracks all no-op runs from agentic workflows in this repository. Each workflow run that completes with a no-op message (indicating no action was needed) posts a comment here.
+This issue tracks no-op runs from agentic workflows in this repository. A maintained rollup below summarizes workflow/root-cause buckets with current counts, and new runs update that rollup in place instead of adding an unbounded stream of comments.
 
 <details>
 <summary>What is a No-Op?</summary>

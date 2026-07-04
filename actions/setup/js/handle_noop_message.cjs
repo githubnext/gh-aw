@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const fs = require("fs");
+const zlib = require("zlib");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -11,6 +12,19 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { formatAIC } = require("./model_costs.cjs");
+
+const NOOP_ROLLUP_ANCHOR = "<!-- gh-aw-noop-runs -->";
+const NOOP_ROLLUP_SECTION_START = "<!-- gh-aw-noop-rollup:start -->";
+const NOOP_ROLLUP_SECTION_END = "<!-- gh-aw-noop-rollup:end -->";
+const NOOP_ROLLUP_STATE_PREFIX = "<!-- gh-aw-noop-rollup-state:";
+const NOOP_ROLLUP_SCHEMA_VERSION = 1;
+const NOOP_ROLLUP_WORKFLOW_LIMIT = 20;
+const NOOP_ROLLUP_BUCKET_LIMIT = 50;
+const NOOP_LEGACY_COMMENT_MAX_PAGES = 20;
+// Allow extra room for escaping and entity expansion during sanitization before truncating for table cells.
+const NOOP_TABLE_SANITIZE_MULTIPLIER = 4;
+const NOOP_TRUNCATION_ELLIPSIS_LENGTH = 1;
+
 /**
  * Search for or create the parent issue for all agentic workflow no-op runs
  * @returns {Promise<{number: number, node_id: string}>} Parent issue number and node ID
@@ -127,6 +141,396 @@ function buildHistoryLink() {
 }
 
 /**
+ * @returns {{schemaVersion: number, totalRuns: number, updatedAt: string, latestRunUrl: string, buckets: Array<{workflowName: string, message: string, count: number, lastSeenAt: string, lastRunUrl: string}>}}
+ */
+function createEmptyNoopRollupState() {
+  return {
+    schemaVersion: NOOP_ROLLUP_SCHEMA_VERSION,
+    totalRuns: 0,
+    updatedAt: "",
+    latestRunUrl: "",
+    buckets: [],
+  };
+}
+
+/**
+ * @param {string} value
+ * @returns {string}
+ */
+function normalizeNoopText(value) {
+  return String(value || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * @param {string} left
+ * @param {string} right
+ * @returns {number}
+ */
+function compareNoopTimestamps(left, right) {
+  const leftTime = Date.parse(left || "");
+  const rightTime = Date.parse(right || "");
+  const leftValid = Number.isFinite(leftTime);
+  const rightValid = Number.isFinite(rightTime);
+  if (leftValid && rightValid) {
+    return leftTime - rightTime;
+  }
+  if (leftValid) {
+    return 1;
+  }
+  if (rightValid) {
+    return -1;
+  }
+  return String(left || "").localeCompare(String(right || ""));
+}
+
+/**
+ * @param {string} body
+ * @returns {{schemaVersion: number, totalRuns: number, updatedAt: string, latestRunUrl: string, buckets: Array<{workflowName: string, message: string, count: number, lastSeenAt: string, lastRunUrl: string}>} | null}
+ */
+function parseNoopRollupState(body) {
+  if (typeof body !== "string") {
+    return null;
+  }
+
+  const match = body.match(/<!-- gh-aw-noop-rollup-state:([A-Za-z0-9+/=]+) -->/);
+  if (!match) {
+    return null;
+  }
+
+  try {
+    const decoded = zlib.gunzipSync(Buffer.from(match[1], "base64")).toString("utf8");
+    const parsed = JSON.parse(decoded);
+    const buckets = Array.isArray(parsed?.buckets)
+      ? parsed.buckets
+          .map(bucket => ({
+            workflowName: normalizeNoopText(bucket?.workflowName),
+            message: normalizeNoopText(bucket?.message),
+            count: Number.isFinite(bucket?.count) ? Math.max(0, Math.trunc(bucket.count)) : 0,
+            lastSeenAt: typeof bucket?.lastSeenAt === "string" ? bucket.lastSeenAt : "",
+            lastRunUrl: typeof bucket?.lastRunUrl === "string" ? bucket.lastRunUrl : "",
+          }))
+          .filter(bucket => bucket.workflowName && bucket.message && bucket.count > 0)
+      : [];
+
+    const derivedTotalRuns = buckets.reduce((sum, bucket) => sum + bucket.count, 0);
+
+    return {
+      schemaVersion: NOOP_ROLLUP_SCHEMA_VERSION,
+      totalRuns: Number.isFinite(parsed?.totalRuns) ? Math.max(0, Math.trunc(parsed.totalRuns)) : derivedTotalRuns,
+      updatedAt: typeof parsed?.updatedAt === "string" ? parsed.updatedAt : "",
+      latestRunUrl: typeof parsed?.latestRunUrl === "string" ? parsed.latestRunUrl : "",
+      buckets,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {{schemaVersion: number, totalRuns: number, updatedAt: string, latestRunUrl: string, buckets: Array<{workflowName: string, message: string, count: number, lastSeenAt: string, lastRunUrl: string}>}} state
+ * @returns {string}
+ */
+function encodeNoopRollupState(state) {
+  return zlib.gzipSync(Buffer.from(JSON.stringify(state), "utf8")).toString("base64");
+}
+
+/**
+ * @param {string} body
+ * @returns {{workflowName: string, message: string, runUrl: string} | null}
+ */
+function parseLegacyNoopComment(body) {
+  if (typeof body !== "string" || body.includes(NOOP_ROLLUP_SECTION_START)) {
+    return null;
+  }
+
+  const lines = body.trim().split(/\r?\n/);
+  if (!lines[0]?.startsWith("### ")) {
+    return null;
+  }
+
+  const workflowName = normalizeNoopText(lines[0].slice(4));
+  const footerStart = lines.findIndex(line => line.startsWith("> Generated from ["));
+  if (!workflowName || footerStart === -1) {
+    return null;
+  }
+
+  const messageLines = lines.slice(1, footerStart);
+  while (messageLines[0] === "") {
+    messageLines.shift();
+  }
+  while (messageLines[messageLines.length - 1] === "") {
+    messageLines.pop();
+  }
+
+  const message = normalizeNoopText(messageLines.join("\n"));
+  if (!message) {
+    return null;
+  }
+
+  const runUrlMatch = body.match(/\> Generated from \[[^\]]+\]\(([^)]+)\)/);
+  return {
+    workflowName,
+    message,
+    runUrl: runUrlMatch?.[1] || "",
+  };
+}
+
+/**
+ * @param {{schemaVersion: number, totalRuns: number, updatedAt: string, latestRunUrl: string, buckets: Array<{workflowName: string, message: string, count: number, lastSeenAt: string, lastRunUrl: string}>}} state
+ * @param {{workflowName: string, message: string, runUrl: string, seenAt: string}} entry
+ * @returns {void}
+ */
+function addNoopRollupEntry(state, entry) {
+  const workflowName = normalizeNoopText(entry.workflowName);
+  const message = normalizeNoopText(entry.message);
+  if (!workflowName || !message) {
+    return;
+  }
+
+  const existing = state.buckets.find(bucket => bucket.workflowName === workflowName && bucket.message === message);
+  const seenAt = entry.seenAt || "";
+  const runUrl = entry.runUrl || "";
+
+  if (existing) {
+    existing.count += 1;
+    if (!existing.lastSeenAt || (seenAt && compareNoopTimestamps(seenAt, existing.lastSeenAt) >= 0)) {
+      existing.lastSeenAt = seenAt;
+      existing.lastRunUrl = runUrl;
+    }
+  } else {
+    state.buckets.push({
+      workflowName,
+      message,
+      count: 1,
+      lastSeenAt: seenAt,
+      lastRunUrl: runUrl,
+    });
+  }
+
+  state.totalRuns += 1;
+  if (!state.updatedAt || (seenAt && compareNoopTimestamps(seenAt, state.updatedAt) >= 0)) {
+    state.updatedAt = seenAt;
+    state.latestRunUrl = runUrl;
+  }
+}
+
+/**
+ * @param {string} value
+ * @param {number} maxLength
+ * @returns {string}
+ */
+function formatNoopTableCell(value, maxLength) {
+  const sanitized = sanitizeContent(String(value || ""), { maxLength: maxLength * NOOP_TABLE_SANITIZE_MULTIPLIER })
+    .replace(/\r?\n+/g, " ")
+    .replace(/\|/g, "\\|")
+    .trim();
+  if (!sanitized) {
+    return "—";
+  }
+  if (sanitized.length <= maxLength) {
+    return sanitized;
+  }
+  return `${sanitized.slice(0, Math.max(0, maxLength - NOOP_TRUNCATION_ELLIPSIS_LENGTH)).trimEnd()}…`;
+}
+
+/**
+ * @param {string} value
+ * @returns {string}
+ */
+function formatNoopTimestamp(value) {
+  if (!value) {
+    return "—";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+  return date.toISOString().replace(".000Z", "Z").replace("T", " ");
+}
+
+/**
+ * @param {string} runUrl
+ * @param {string} timestamp
+ * @returns {string}
+ */
+function formatRunReference(runUrl, timestamp) {
+  const label = formatNoopTimestamp(timestamp);
+  return runUrl ? `[${label}](${runUrl})` : label;
+}
+
+/**
+ * @param {{schemaVersion: number, totalRuns: number, updatedAt: string, latestRunUrl: string, buckets: Array<{workflowName: string, message: string, count: number, lastSeenAt: string, lastRunUrl: string}>}} state
+ * @param {string} [latestFooterLine]
+ * @returns {string}
+ */
+function buildNoopRollupSection(state, latestFooterLine = "") {
+  const buckets = [...state.buckets].sort((a, b) => {
+    if (b.count !== a.count) {
+      return b.count - a.count;
+    }
+    if (b.lastSeenAt !== a.lastSeenAt) {
+      return b.lastSeenAt.localeCompare(a.lastSeenAt);
+    }
+    if (a.workflowName !== b.workflowName) {
+      return a.workflowName.localeCompare(b.workflowName);
+    }
+    return a.message.localeCompare(b.message);
+  });
+
+  const workflows = [
+    ...buckets
+      .reduce((acc, bucket) => {
+        const existing = acc.get(bucket.workflowName) || {
+          workflowName: bucket.workflowName,
+          count: 0,
+          lastSeenAt: "",
+          lastRunUrl: "",
+        };
+        existing.count += bucket.count;
+        if (!existing.lastSeenAt || compareNoopTimestamps(bucket.lastSeenAt, existing.lastSeenAt) >= 0) {
+          existing.lastSeenAt = bucket.lastSeenAt;
+          existing.lastRunUrl = bucket.lastRunUrl;
+        }
+        acc.set(bucket.workflowName, existing);
+        return acc;
+      }, new Map())
+      .values(),
+  ].sort((a, b) => {
+    if (b.count !== a.count) {
+      return b.count - a.count;
+    }
+    if (b.lastSeenAt !== a.lastSeenAt) {
+      return b.lastSeenAt.localeCompare(a.lastSeenAt);
+    }
+    return a.workflowName.localeCompare(b.workflowName);
+  });
+
+  const lines = [
+    "## No-Op Rollup",
+    "",
+    "This summary is updated in place so recurring no-op runs do not add a new comment each time.",
+    "",
+    `Last updated: ${formatRunReference(state.latestRunUrl, state.updatedAt)}`,
+    ...(latestFooterLine ? ["", latestFooterLine] : []),
+    "",
+    `Tracked no-op runs: **${state.totalRuns}** across **${workflows.length}** workflows and **${buckets.length}** workflow/root-cause buckets.`,
+    "",
+    "### By workflow",
+    "",
+    "| Workflow | Count | Latest |",
+    "| --- | ---: | --- |",
+    ...workflows.slice(0, NOOP_ROLLUP_WORKFLOW_LIMIT).map(workflow => {
+      return `| ${formatNoopTableCell(workflow.workflowName, 60)} | ${workflow.count} | ${formatRunReference(workflow.lastRunUrl, workflow.lastSeenAt)} |`;
+    }),
+  ];
+
+  if (workflows.length > NOOP_ROLLUP_WORKFLOW_LIMIT) {
+    lines.push("", `Showing the top ${NOOP_ROLLUP_WORKFLOW_LIMIT} workflows by count.`);
+  }
+
+  lines.push(
+    "",
+    "<details>",
+    `<summary>By workflow and root cause (${buckets.length} buckets)</summary>`,
+    "",
+    "| Workflow | Root cause | Count | Latest |",
+    "| --- | --- | ---: | --- |",
+    ...buckets.slice(0, NOOP_ROLLUP_BUCKET_LIMIT).map(bucket => {
+      return `| ${formatNoopTableCell(bucket.workflowName, 50)} | ${formatNoopTableCell(bucket.message, 120)} | ${bucket.count} | ${formatRunReference(bucket.lastRunUrl, bucket.lastSeenAt)} |`;
+    })
+  );
+
+  if (buckets.length > NOOP_ROLLUP_BUCKET_LIMIT) {
+    lines.push("", `Showing the top ${NOOP_ROLLUP_BUCKET_LIMIT} workflow/root-cause buckets by count.`);
+  }
+
+  lines.push("");
+  lines.push("</details>");
+  lines.push("");
+  lines.push("> Historical per-run comments remain for older runs. New runs update this rollup instead.");
+  lines.push("");
+  lines.push(`${NOOP_ROLLUP_STATE_PREFIX}${encodeNoopRollupState(state)} -->`);
+
+  return lines.join("\n");
+}
+
+/**
+ * @param {string} issueBody
+ * @param {string} rollupSection
+ * @returns {string}
+ */
+function upsertNoopRollupIntoIssueBody(issueBody, rollupSection) {
+  const currentBody = typeof issueBody === "string" ? issueBody : "";
+  const wrappedSection = `${NOOP_ROLLUP_SECTION_START}\n${rollupSection}\n${NOOP_ROLLUP_SECTION_END}`;
+  const sectionRegex = /<!-- gh-aw-noop-rollup:start -->[\s\S]*?<!-- gh-aw-noop-rollup:end -->/;
+
+  if (sectionRegex.test(currentBody)) {
+    return currentBody.replace(sectionRegex, wrappedSection);
+  }
+
+  if (currentBody.includes(NOOP_ROLLUP_ANCHOR)) {
+    return currentBody.replace(NOOP_ROLLUP_ANCHOR, `${NOOP_ROLLUP_ANCHOR}\n\n${wrappedSection}`);
+  }
+
+  return `${currentBody.trimEnd()}\n\n${wrappedSection}\n`;
+}
+
+/**
+ * @param {any} githubClient
+ * @param {string} owner
+ * @param {string} repo
+ * @param {number} issueNumber
+ * @returns {Promise<Array<{workflowName: string, message: string, runUrl: string, seenAt: string}>>}
+ */
+async function loadLegacyNoopEntries(githubClient, owner, repo, issueNumber) {
+  const entries = [];
+  let page = 1;
+  const perPage = 100;
+
+  while (page <= NOOP_LEGACY_COMMENT_MAX_PAGES) {
+    const { data } = await githubClient.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      per_page: perPage,
+      page,
+    });
+
+    if (!Array.isArray(data) || data.length === 0) {
+      break;
+    }
+
+    for (const comment of data) {
+      const parsed = parseLegacyNoopComment(comment.body);
+      if (!parsed) {
+        continue;
+      }
+
+      entries.push({
+        workflowName: parsed.workflowName,
+        message: parsed.message,
+        runUrl: parsed.runUrl,
+        seenAt: comment.updated_at || comment.created_at || "",
+      });
+    }
+
+    if (data.length < perPage) {
+      break;
+    }
+    page += 1;
+  }
+
+  if (page > NOOP_LEGACY_COMMENT_MAX_PAGES) {
+    core.warning(`Stopped legacy no-op comment scan after ${NOOP_LEGACY_COMMENT_MAX_PAGES} pages`);
+  }
+
+  return entries;
+}
+
+/**
  * Process no-op safe outputs and optionally post to the no-op runs issue.
  * This merged step replaces the separate "Process no-op messages" + "Handle No-Op Message"
  * steps, eliminating the cross-step output dependency on GH_AW_NOOP_MESSAGE.
@@ -238,31 +642,56 @@ async function main() {
       return;
     }
 
-    // Load and render comment template from file
-    const commentTemplatePath = getPromptPath("noop_comment.md");
-    const commentBody = renderTemplateFromFile(commentTemplatePath, {
-      workflow_name: workflowName,
-      message: noopMessage,
-      run_url: runUrl,
-      aic_suffix: buildAICSuffix(),
-      ambient_context_suffix: buildAmbientContextSuffix(),
-      history_link: buildHistoryLink(),
-    });
-
-    // Sanitize the full comment body
-    const fullCommentBody = sanitizeContent(commentBody, { maxLength: 65000 });
-
     try {
-      await github.rest.issues.createComment({
+      const { data: issue } = await github.rest.issues.get({
         owner,
         repo,
         issue_number: noopRunsIssue.number,
-        body: fullCommentBody,
       });
 
-      core.info(`✓ Posted no-op message to no-op runs issue #${noopRunsIssue.number}`);
+      let state = parseNoopRollupState(issue.body) || createEmptyNoopRollupState();
+      if (state.totalRuns === 0 && state.buckets.length === 0) {
+        core.info(`No existing no-op rollup state found on issue #${noopRunsIssue.number}; seeding from historical comments`);
+        const legacyEntries = await loadLegacyNoopEntries(github, owner, repo, noopRunsIssue.number);
+        for (const entry of legacyEntries) {
+          addNoopRollupEntry(state, entry);
+        }
+      }
+
+      addNoopRollupEntry(state, {
+        workflowName,
+        message: noopMessage,
+        runUrl,
+        seenAt: new Date().toISOString(),
+      });
+
+      const footerTemplatePath = getPromptPath("noop_comment.md");
+      const footerPreview = renderTemplateFromFile(footerTemplatePath, {
+        workflow_name: workflowName,
+        message: noopMessage,
+        run_url: runUrl,
+        aic_suffix: buildAICSuffix(),
+        ambient_context_suffix: buildAmbientContextSuffix(),
+        history_link: buildHistoryLink(),
+      });
+      const latestFooterLine = footerPreview
+        .split("\n")
+        .map(line => line.trim())
+        .find(line => line.startsWith("> Generated from"));
+      core.info(`Updating no-op rollup with latest entry: ${footerPreview.split("\n")[0]}`);
+
+      const updatedBody = upsertNoopRollupIntoIssueBody(issue.body || "", buildNoopRollupSection(state, sanitizeContent(latestFooterLine || "", { maxLength: 1000 })));
+
+      await github.rest.issues.update({
+        owner,
+        repo,
+        issue_number: noopRunsIssue.number,
+        body: updatedBody,
+      });
+
+      core.info(`✓ Updated no-op rollup on issue #${noopRunsIssue.number}`);
     } catch (error) {
-      core.warning(`Failed to post comment to no-op runs issue: ${getErrorMessage(error)}`);
+      core.warning(`Failed to update no-op rollup issue: ${getErrorMessage(error)}`);
       // Don't fail the workflow
     }
   } catch (error) {
@@ -271,4 +700,4 @@ async function main() {
   }
 }
 
-module.exports = { main, ensureAgentRunsIssue };
+module.exports = { main, ensureAgentRunsIssue, buildNoopRollupSection, parseNoopRollupState, upsertNoopRollupIntoIssueBody };

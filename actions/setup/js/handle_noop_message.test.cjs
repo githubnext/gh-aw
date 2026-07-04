@@ -5,32 +5,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-describe("handle_noop_message", () => {
-  let mockCore;
-  let mockGithub;
-  let mockContext;
-  let originalEnv;
-  let tempDir;
-  let originalReadFileSync;
-
-  beforeEach(async () => {
-    // Save original environment
-    originalEnv = { ...process.env };
-
-    // Create temp directory for test files
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "handle-noop-test-"));
-
-    // getPromptPath() throws unless GH_AW_PROMPTS_DIR or RUNNER_TEMP is set.
-    // On CI RUNNER_TEMP is ambient, but it is not set in local dev, so set the
-    // prompts dir explicitly to make the suite environment-independent. The
-    // actual path is irrelevant because fs.readFileSync is mocked below.
-    process.env.GH_AW_PROMPTS_DIR = tempDir;
-
-    // Mock fs.readFileSync to return template content
-    originalReadFileSync = fs.readFileSync;
-    fs.readFileSync = vi.fn((filePath, encoding) => {
-      if (filePath.includes("noop_runs_issue.md")) {
-        return `This issue tracks all no-op runs from agentic workflows in this repository. Each workflow run that completes with a no-op message (indicating no action was needed) posts a comment here.
+const noopIssueTemplateBody = `This issue tracks no-op runs from agentic workflows in this repository. A maintained rollup below summarizes workflow/root-cause buckets with current counts, and new runs update that rollup in place instead of adding an unbounded stream of comments.
 
 <details>
 <summary>📘 What is a No-Op?</summary>
@@ -76,6 +51,33 @@ This issue helps you:
 > **No action to take** - Do not assign to an agent.
 
 <!-- gh-aw-noop-runs -->`;
+
+describe("handle_noop_message", () => {
+  let mockCore;
+  let mockGithub;
+  let mockContext;
+  let originalEnv;
+  let tempDir;
+  let originalReadFileSync;
+
+  beforeEach(async () => {
+    // Save original environment
+    originalEnv = { ...process.env };
+
+    // Create temp directory for test files
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "handle-noop-test-"));
+
+    // getPromptPath() throws unless GH_AW_PROMPTS_DIR or RUNNER_TEMP is set.
+    // On CI RUNNER_TEMP is ambient, but it is not set in local dev, so set the
+    // prompts dir explicitly to make the suite environment-independent. The
+    // actual path is irrelevant because fs.readFileSync is mocked below.
+    process.env.GH_AW_PROMPTS_DIR = tempDir;
+
+    // Mock fs.readFileSync to return template content
+    originalReadFileSync = fs.readFileSync;
+    fs.readFileSync = vi.fn((filePath, encoding) => {
+      if (filePath.includes("noop_runs_issue.md")) {
+        return noopIssueTemplateBody;
       }
       if (filePath.includes("noop_comment.md")) {
         return `### {workflow_name}
@@ -109,6 +111,13 @@ This issue helps you:
         },
         issues: {
           create: vi.fn(),
+          get: vi.fn().mockResolvedValue({
+            data: {
+              body: noopIssueTemplateBody,
+            },
+          }),
+          update: vi.fn().mockResolvedValue({ data: {} }),
+          listComments: vi.fn().mockResolvedValue({ data: [] }),
           createComment: vi.fn(),
         },
       },
@@ -227,20 +236,13 @@ This issue helps you:
       },
     });
 
-    // Mock comment creation
-    mockGithub.rest.issues.createComment.mockResolvedValue({
-      data: {
-        id: 1,
-        html_url: "https://github.com/test-owner/test-repo/issues/42#issuecomment-1",
-      },
-    });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Report as issue: true"));
     expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalled();
-    expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
+    expect(mockGithub.rest.issues.get).toHaveBeenCalled();
+    expect(mockGithub.rest.issues.update).toHaveBeenCalled();
   });
 
   it("should default to true if report-as-issue is not set", async () => {
@@ -274,20 +276,12 @@ This issue helps you:
       },
     });
 
-    // Mock comment creation
-    mockGithub.rest.issues.createComment.mockResolvedValue({
-      data: {
-        id: 1,
-        html_url: "https://github.com/test-owner/test-repo/issues/42#issuecomment-1",
-      },
-    });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Report as issue: true"));
     expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalled();
-    expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
+    expect(mockGithub.rest.issues.update).toHaveBeenCalled();
   });
 
   it("should skip if agent conclusion is cancelled (not success or failure)", async () => {
@@ -345,13 +339,11 @@ This issue helps you:
       data: { total_count: 1, items: [{ number: 1, node_id: "ID", html_url: "url" }] },
     });
 
-    mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent failed but produced only noop outputs (transient AI model error"));
-    expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
+    expect(mockGithub.rest.issues.update).toHaveBeenCalled();
   });
 
   it("should skip if agent failed with non-noop outputs", async () => {
@@ -439,14 +431,6 @@ This issue helps you:
       },
     });
 
-    // Mock comment creation
-    mockGithub.rest.issues.createComment.mockResolvedValue({
-      data: {
-        id: 1,
-        html_url: "https://github.com/test-owner/test-repo/issues/42#issuecomment-1",
-      },
-    });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
@@ -460,15 +444,14 @@ This issue helps you:
     const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
     expect(createCall.title).toBe("[aw] No-Op Runs");
     expect(createCall.labels).toContain("agentic-workflows");
-    expect(createCall.body).toContain("tracks all no-op runs");
+    expect(createCall.body).toContain("maintained rollup");
 
-    // Verify comment was posted
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.issue_number).toBe(42);
-    expect(commentCall.body).toContain("Test Workflow");
-    expect(commentCall.body).toContain("No updates needed");
-    // The new format doesn't have a separate Run ID line, but the URL is still in the footer
-    expect(commentCall.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123456");
+    const updateCall = mockGithub.rest.issues.update.mock.calls[0][0];
+    expect(updateCall.issue_number).toBe(42);
+    expect(updateCall.body).toContain("## No-Op Rollup");
+    expect(updateCall.body).toContain("Test Workflow");
+    expect(updateCall.body).toContain("No updates needed");
+    expect(updateCall.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123456");
   });
 
   it("should use existing no-op runs issue if it exists", async () => {
@@ -501,28 +484,110 @@ This issue helps you:
       },
     });
 
-    // Mock comment creation
-    mockGithub.rest.issues.createComment.mockResolvedValue({
-      data: {
-        id: 2,
-        html_url: "https://github.com/test-owner/test-repo/issues/99#issuecomment-2",
-      },
-    });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
     // Verify issue was not created
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
 
-    // Verify comment was posted to existing issue
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.issue_number).toBe(99);
-    expect(commentCall.body).toContain("Another Workflow");
-    expect(commentCall.body).toContain("Everything is up to date");
+    const updateCall = mockGithub.rest.issues.update.mock.calls[0][0];
+    expect(updateCall.issue_number).toBe(99);
+    expect(updateCall.body).toContain("Another Workflow");
+    expect(updateCall.body).toContain("Everything is up to date");
   });
 
-  it("should handle comment creation failure gracefully", async () => {
+  it("should seed the rollup from legacy per-run comments when no rollup exists yet", async () => {
+    process.env.GH_AW_WORKFLOW_NAME = "Smoke CI";
+    process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/999";
+    process.env.GH_AW_AGENT_CONCLUSION = "success";
+
+    const outputFile = path.join(tempDir, "agent_output.json");
+    fs.writeFileSync(outputFile, JSON.stringify({ items: [{ type: "noop", message: "push event - no PR context" }] }));
+    process.env.GH_AW_AGENT_OUTPUT = outputFile;
+
+    mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: { total_count: 1, items: [{ number: 77, node_id: "ID", html_url: "url" }] },
+    });
+    mockGithub.rest.issues.listComments.mockResolvedValue({
+      data: [
+        {
+          body: "### Smoke CI\n\npush event - no PR context\n\n> Generated from [Smoke CI](https://github.com/test-owner/test-repo/actions/runs/100)",
+          created_at: "2026-07-01T00:00:00Z",
+          updated_at: "2026-07-01T00:00:00Z",
+        },
+        {
+          body: "### Smoke CI\n\npush event - no PR context\n\n> Generated from [Smoke CI](https://github.com/test-owner/test-repo/actions/runs/101)",
+          created_at: "2026-07-02T00:00:00Z",
+          updated_at: "2026-07-02T00:00:00Z",
+        },
+        {
+          body: "### Auto-Triage Issues\n\nalready labeled\n\n> Generated from [Auto-Triage Issues](https://github.com/test-owner/test-repo/actions/runs/102)",
+          created_at: "2026-07-03T00:00:00Z",
+          updated_at: "2026-07-03T00:00:00Z",
+        },
+      ],
+    });
+
+    const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
+    await main();
+
+    const updateCall = mockGithub.rest.issues.update.mock.calls[0][0];
+    expect(mockGithub.rest.issues.listComments).toHaveBeenCalledTimes(1);
+    expect(updateCall.issue_number).toBe(77);
+    expect(updateCall.body).toContain("Tracked no-op runs: **4**");
+    expect(updateCall.body).toContain("| Smoke CI | 3 |");
+    expect(updateCall.body).toContain("| Auto-Triage Issues | 1 |");
+    expect(updateCall.body).toContain("| Smoke CI | push event - no PR context | 3 |");
+  });
+
+  it("should skip legacy comment seeding when rollup state already exists", async () => {
+    process.env.GH_AW_WORKFLOW_NAME = "Smoke CI";
+    process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/1000";
+    process.env.GH_AW_AGENT_CONCLUSION = "success";
+
+    const outputFile = path.join(tempDir, "agent_output.json");
+    fs.writeFileSync(outputFile, JSON.stringify({ items: [{ type: "noop", message: "push event - no PR context" }] }));
+    process.env.GH_AW_AGENT_OUTPUT = outputFile;
+
+    const { buildNoopRollupSection, upsertNoopRollupIntoIssueBody } = await import("./handle_noop_message.cjs?t=" + Date.now());
+    const existingRollupBody = upsertNoopRollupIntoIssueBody(
+      noopIssueTemplateBody,
+      buildNoopRollupSection({
+        schemaVersion: 1,
+        totalRuns: 2,
+        updatedAt: "2026-07-03T00:00:00Z",
+        latestRunUrl: "https://github.com/test-owner/test-repo/actions/runs/998",
+        buckets: [
+          {
+            workflowName: "Smoke CI",
+            message: "push event - no PR context",
+            count: 2,
+            lastSeenAt: "2026-07-03T00:00:00Z",
+            lastRunUrl: "https://github.com/test-owner/test-repo/actions/runs/998",
+          },
+        ],
+      })
+    );
+
+    mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: { total_count: 1, items: [{ number: 78, node_id: "ID", html_url: "url" }] },
+    });
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        body: existingRollupBody,
+      },
+    });
+
+    const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
+    await main();
+
+    expect(mockGithub.rest.issues.listComments).not.toHaveBeenCalled();
+    const updateCall = mockGithub.rest.issues.update.mock.calls[0][0];
+    expect(updateCall.issue_number).toBe(78);
+    expect(updateCall.body).toContain("Tracked no-op runs: **3**");
+  });
+
+  it("should handle rollup update failure gracefully", async () => {
     process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
     process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/456";
     process.env.GH_AW_NOOP_MESSAGE = "No action required";
@@ -546,14 +611,13 @@ This issue helps you:
       },
     });
 
-    // Mock comment creation failure
-    mockGithub.rest.issues.createComment.mockRejectedValue(new Error("API rate limit exceeded"));
+    mockGithub.rest.issues.update.mockRejectedValue(new Error("API rate limit exceeded"));
 
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
     // Verify warning was logged but workflow didn't fail
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to post comment"));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to update no-op rollup issue"));
   });
 
   it("should handle issue creation failure gracefully", async () => {
@@ -613,8 +677,7 @@ This issue helps you:
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not create no-op runs issue"));
     // Issue must NOT be created to prevent duplicates
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
-    // Comment must NOT be posted
-    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+    expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
   });
 
   it("should extract run ID from URL correctly", async () => {
@@ -637,13 +700,11 @@ This issue helps you:
       data: { total_count: 1, items: [{ number: 1, node_id: "ID", html_url: "url" }] },
     });
 
-    mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.body).toContain("987654321");
+    const updateCall = mockGithub.rest.issues.update.mock.calls[0][0];
+    expect(updateCall.body).toContain("987654321");
   });
 
   it("should sanitize workflow name in comment", async () => {
@@ -666,12 +727,10 @@ This issue helps you:
       data: { total_count: 1, items: [{ number: 1, node_id: "ID", html_url: "url" }] },
     });
 
-    mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
+    const commentCall = mockGithub.rest.issues.update.mock.calls[0][0];
     // Verify XSS attempt was sanitized (specific behavior depends on sanitizeContent implementation)
     expect(commentCall.body).not.toContain("<script>");
   });
@@ -696,12 +755,10 @@ This issue helps you:
       data: { total_count: 1, items: [{ number: 1, node_id: "ID", html_url: "url" }] },
     });
 
-    mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
+    const commentCall = mockGithub.rest.issues.update.mock.calls[0][0];
     expect(commentCall.body).not.toContain("12.5K");
   });
 
@@ -725,12 +782,10 @@ This issue helps you:
       data: { total_count: 1, items: [{ number: 1, node_id: "ID", html_url: "url" }] },
     });
 
-    mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
+    const commentCall = mockGithub.rest.issues.update.mock.calls[0][0];
     expect(commentCall.body).not.toContain("●");
     expect(commentCall.body).toContain("> Generated from [No Token Workflow](https://github.com/test/test/actions/runs/456)");
   });
@@ -748,12 +803,10 @@ This issue helps you:
     mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
       data: { total_count: 1, items: [{ number: 1, node_id: "ID", html_url: "url" }] },
     });
-    mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
+    const commentCall = mockGithub.rest.issues.update.mock.calls[0][0];
     expect(commentCall.body).toContain("AIC");
   });
 
@@ -771,12 +824,10 @@ This issue helps you:
     mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
       data: { total_count: 1, items: [{ number: 1, node_id: "ID", html_url: "url" }] },
     });
-    mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
+    const commentCall = mockGithub.rest.issues.update.mock.calls[0][0];
     expect(commentCall.body).toContain("0.125 AIC");
   });
 
@@ -794,12 +845,10 @@ This issue helps you:
     mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
       data: { total_count: 1, items: [{ number: 1, node_id: "ID", html_url: "url" }] },
     });
-    mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
+    const commentCall = mockGithub.rest.issues.update.mock.calls[0][0];
     expect(commentCall.body).not.toContain(" AIC");
   });
 
@@ -816,12 +865,10 @@ This issue helps you:
     mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
       data: { total_count: 1, items: [{ number: 1, node_id: "ID", html_url: "url" }] },
     });
-    mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
+    const commentCall = mockGithub.rest.issues.update.mock.calls[0][0];
     expect(commentCall.body).toContain("⊞");
     expect(commentCall.body).toContain("1.2K");
   });
@@ -839,12 +886,10 @@ This issue helps you:
     mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
       data: { total_count: 1, items: [{ number: 1, node_id: "ID", html_url: "url" }] },
     });
-    mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
+    const commentCall = mockGithub.rest.issues.update.mock.calls[0][0];
     expect(commentCall.body).toContain("◷");
     expect(commentCall.body).toContain("history-link-workflow");
   });
@@ -862,12 +907,10 @@ This issue helps you:
     mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
       data: { total_count: 1, items: [{ number: 1, node_id: "ID", html_url: "url" }] },
     });
-    mockGithub.rest.issues.createComment.mockResolvedValue({ data: {} });
-
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
+    const commentCall = mockGithub.rest.issues.update.mock.calls[0][0];
     expect(commentCall.body).not.toContain("◷");
   });
 });
