@@ -227,10 +227,24 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			assert.Equal(t, tt.wantIsNewTemplate, report.IsNewTemplate, "IsNewTemplate mismatch")
 			assert.Equal(t, tt.wantLowSimilarity, report.LowSimilarity, "LowSimilarity mismatch")
 			assert.Equal(t, tt.wantRareCluster, report.RareCluster, "RareCluster mismatch")
-			assert.InDelta(t, tt.wantScore, report.AnomalyScore, 1e-9, "AnomalyScore mismatch")
+			if tt.wantScore == 0 {
+				assert.Zero(t, report.AnomalyScore, "AnomalyScore mismatch")
+			} else {
+				assert.InDelta(t, tt.wantScore, report.AnomalyScore, 1e-9, "AnomalyScore mismatch")
+			}
 			assert.Equal(t, tt.wantReason, report.Reason, "Reason mismatch")
 		})
 	}
+}
+
+func TestAnomalyDetector_Analyze_NilResultPanics(t *testing.T) {
+	detector, err := NewAnomalyDetector(0.4, 2)
+	require.NoError(t, err, "NewAnomalyDetector should succeed")
+	require.NotNil(t, detector, "NewAnomalyDetector should return a non-nil detector")
+
+	assert.Panics(t, func() {
+		detector.Analyze(nil, false, &Cluster{ID: 1, Template: []string{"a"}, Size: 1})
+	}, "Analyze should panic when result is nil for an existing template")
 }
 
 func TestNewAnomalyDetector_ThresholdBoundaries(t *testing.T) {
@@ -275,7 +289,7 @@ func TestNewAnomalyDetector_ThresholdBoundaries(t *testing.T) {
 			detector, err := NewAnomalyDetector(tt.simThreshold, tt.rareThreshold)
 			if tt.wantErr != "" {
 				require.Error(t, err, "NewAnomalyDetector should reject invalid thresholds")
-				assert.Contains(t, err.Error(), tt.wantErr, "error should describe invalid threshold")
+				require.ErrorContains(t, err, tt.wantErr, "error should describe invalid threshold")
 				assert.Nil(t, detector, "NewAnomalyDetector should return nil detector on validation error")
 				return
 			}
@@ -384,32 +398,66 @@ func TestAnalyzeEvent(t *testing.T) {
 		Fields: map[string]string{"status": "ok"},
 	}
 
-	// Step 1: first occurrence trains the template and is flagged as new.
-	resultFirst, reportFirst, errFirst := m.AnalyzeEvent(evtPlan)
-	require.NoError(t, errFirst, "AnalyzeEvent should not fail for first event")
-	require.NotNil(t, resultFirst, "AnalyzeEvent should return a non-nil result")
-	require.NotNil(t, reportFirst, "AnalyzeEvent should return a non-nil report")
-	assert.True(t, reportFirst.IsNewTemplate, "IsNewTemplate mismatch for first event")
-	assert.InDelta(t, 0.65, reportFirst.AnomalyScore, 1e-9, "AnomalyScore mismatch for first event")
-	assert.Equal(t, "new log template discovered; rare cluster (few observations)", reportFirst.Reason, "Reason mismatch for first event")
+	tests := []struct {
+		name       string
+		event      AgentEvent
+		wantIsNew  bool
+		wantScore  float64
+		wantReason string
+	}{
+		{
+			name:       "first occurrence trains a new template",
+			event:      evtPlan,
+			wantIsNew:  true,
+			wantScore:  0.65,
+			wantReason: "new log template discovered; rare cluster (few observations)",
+		},
+		{
+			name:       "second identical occurrence reuses the template",
+			event:      evtPlan,
+			wantIsNew:  false,
+			wantScore:  0.15,
+			wantReason: "rare cluster (few observations)",
+		},
+		{
+			name:       "distinct event creates a separate template",
+			event:      evtFinish,
+			wantIsNew:  true,
+			wantScore:  0.65,
+			wantReason: "new log template discovered; rare cluster (few observations)",
+		},
+	}
 
-	// Step 2: second identical occurrence reuses the trained template.
-	resultSecond, reportSecond, errSecond := m.AnalyzeEvent(evtPlan)
-	require.NoError(t, errSecond, "AnalyzeEvent should not fail for second identical event")
-	require.NotNil(t, resultSecond, "AnalyzeEvent should return a non-nil result")
-	require.NotNil(t, reportSecond, "AnalyzeEvent should return a non-nil report")
-	assert.False(t, reportSecond.IsNewTemplate, "IsNewTemplate mismatch for second identical event")
-	assert.InDelta(t, 0.15, reportSecond.AnomalyScore, 1e-9, "AnomalyScore mismatch for second identical event")
-	assert.Equal(t, "rare cluster (few observations)", reportSecond.Reason, "Reason mismatch for second identical event")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, report, err := m.AnalyzeEvent(tt.event)
+			require.NoError(t, err, "AnalyzeEvent should not fail")
+			require.NotNil(t, result, "AnalyzeEvent should return a non-nil result")
+			require.NotNil(t, report, "AnalyzeEvent should return a non-nil report")
+			assert.Equal(t, tt.wantIsNew, report.IsNewTemplate, "IsNewTemplate mismatch")
+			assert.InDelta(t, tt.wantScore, report.AnomalyScore, 1e-9, "AnomalyScore mismatch")
+			assert.Equal(t, tt.wantReason, report.Reason, "Reason mismatch")
+		})
+	}
+}
 
-	// Step 3: a distinct event creates a separate new template.
-	resultDistinct, reportDistinct, errDistinct := m.AnalyzeEvent(evtFinish)
-	require.NoError(t, errDistinct, "AnalyzeEvent should not fail for distinct event")
-	require.NotNil(t, resultDistinct, "AnalyzeEvent should return a non-nil result")
-	require.NotNil(t, reportDistinct, "AnalyzeEvent should return a non-nil report")
-	assert.True(t, reportDistinct.IsNewTemplate, "IsNewTemplate mismatch for distinct event")
-	assert.InDelta(t, 0.65, reportDistinct.AnomalyScore, 1e-9, "AnomalyScore mismatch for distinct event")
-	assert.Equal(t, "new log template discovered; rare cluster (few observations)", reportDistinct.Reason, "Reason mismatch for distinct event")
+func TestAnalyzeEvent_EmptyAfterMasking(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.MaskRules = []MaskRule{{
+		Name:        "erase_all_tokens",
+		Pattern:     ".+",
+		Replacement: "",
+	}}
+
+	m, err := NewMiner(cfg)
+	require.NoError(t, err, "NewMiner should succeed")
+	require.NotNil(t, m, "NewMiner should return a non-nil miner")
+
+	result, report, err := m.AnalyzeEvent(AgentEvent{Stage: "plan"})
+	require.Error(t, err, "AnalyzeEvent should reject events that become empty after masking")
+	require.ErrorContains(t, err, "empty event after masking", "AnalyzeEvent should report the masking failure")
+	assert.Nil(t, result, "AnalyzeEvent should not return a result on masking failure")
+	assert.Nil(t, report, "AnalyzeEvent should not return a report on masking failure")
 }
 
 func TestAnalyze_FlagMutualExclusivity(t *testing.T) {
