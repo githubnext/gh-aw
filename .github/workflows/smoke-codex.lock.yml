@@ -965,14 +965,23 @@ jobs:
                   "field_name": {
                     "type": "string",
                     "sanitize": true,
-                    "maxLength": 128
+                    "maxLength": 128,
+                    "x-synonyms": [
+                      "fieldName"
+                    ]
                   },
                   "field_node_id": {
                     "type": "string",
-                    "maxLength": 256
+                    "maxLength": 256,
+                    "x-synonyms": [
+                      "fieldNodeId"
+                    ]
                   },
                   "issue_number": {
-                    "issueOrPRNumber": true
+                    "issueOrPRNumber": true,
+                    "x-synonyms": [
+                      "issueNumber"
+                    ]
                   },
                   "rationale": {
                     "type": "string",

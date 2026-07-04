@@ -1158,13 +1158,19 @@ jobs:
                     ]
                   },
                   "issue_number": {
-                    "issueOrPRNumber": true
+                    "issueOrPRNumber": true,
+                    "x-synonyms": [
+                      "issueNumber"
+                    ]
                   },
                   "issue_type": {
                     "required": true,
                     "type": "string",
                     "sanitize": true,
-                    "maxLength": 128
+                    "maxLength": 128,
+                    "x-synonyms": [
+                      "issueType"
+                    ]
                   },
                   "rationale": {
                     "type": "string",
