@@ -1533,7 +1533,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const maxFileSize = memoryConf.max_file_size || 10240;
     const maxPatchSize = memoryConf.max_patch_size || 10240;
     const maxFileCount = memoryConf.max_file_count || 100;
-    // Allow 20% overhead for git diff format (headers, context lines, etc.)
+    // The effective limit is max_patch_size × 1.2, matching the push gate in push_repo_memory.cjs.
+    // This catches cases where total memory content is close to or exceeds the push diff limit.
     const effectiveMaxPatchSize = Math.floor(maxPatchSize * 1.2);
 
     if (!fs.existsSync(memoryDir)) {
@@ -1628,10 +1629,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    // Check total size. The effective limit allows 20% overhead to account for
-    // git diff format overhead (headers, context lines, metadata). This mirrors
-    // the same calculation in push_repo_memory.cjs. The totalSize is the raw
-    // sum of file sizes; it is compared against the overhead-adjusted limit.
+    // Check total content size. totalSize is the raw sum of all file sizes in the memory
+    // directory (excluding .git). It is compared against max_patch_size × 1.2 so that
+    // a full rewrite of all memory content would remain within the push gate limit in
+    // push_repo_memory.cjs, which applies the same 1.2× factor to diff additions.
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
     const totalSizeKb = Math.ceil(totalSize / 1024);
     const effectiveMaxKb = Math.floor(effectiveMaxPatchSize / 1024);
@@ -1647,7 +1648,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
               result: "error",
               error:
                 `Total memory size (${totalSizeKb} KB) exceeds the allowed limit of ${effectiveMaxKb} KB ` +
-                `(configured limit: ${Math.floor(maxPatchSize / 1024)} KB with 20% overhead for git diff format).\n\n` +
+                `(configured max-patch-size: ${Math.floor(maxPatchSize / 1024)} KB).\n\n` +
                 `Please reduce the total size of files in '${memoryDir}' before the workflow completes. ` +
                 `Consider: summarizing notes instead of keeping full history, removing outdated entries, or compressing data. ` +
                 `Then call push_repo_memory again to verify the size is within limits.`,
@@ -1664,7 +1665,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
           type: "text",
           text: JSON.stringify({
             result: "success",
-            message: `Memory validation passed: ${files.length} file(s), ${totalSizeKb} KB total (limit: ${effectiveMaxKb} KB with 20% overhead).`,
+            message: `Memory validation passed: ${files.length} file(s), ${totalSizeKb} KB total (limit: ${effectiveMaxKb} KB).`,
           }),
         },
       ],
