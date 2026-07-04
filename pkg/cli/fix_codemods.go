@@ -16,7 +16,24 @@ type Codemod struct {
 	Name         string // Human-readable name
 	Description  string // Description of what the codemod does
 	IntroducedIn string // Version where this codemod was introduced
+	Guided       bool   // If true, errors from Apply are guided/manual-fix errors (not auto-correctable)
 	Apply        func(content string, frontmatter map[string]any) (string, bool, error)
+}
+
+// GuidedError is returned when a codemod with Guided: true emits an error.
+// Unlike regular processing errors, a guided error signals that the file was
+// read successfully but requires a human to manually address an issue that
+// cannot be auto-corrected by any codemod.
+type GuidedError struct {
+	Cause error
+}
+
+func (e *GuidedError) Error() string {
+	return e.Cause.Error()
+}
+
+func (e *GuidedError) Unwrap() error {
+	return e.Cause
 }
 
 // CodemodResult represents the result of applying a codemod

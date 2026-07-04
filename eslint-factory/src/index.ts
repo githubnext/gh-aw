@@ -3,6 +3,7 @@ import { noUnsafeCatchErrorPropertyRule } from "./rules/no-unsafe-catch-error-pr
 import { noUnsafePromiseCatchErrorPropertyRule } from "./rules/no-unsafe-promise-catch-error-property";
 import { preferGetErrorMessageRule } from "./rules/prefer-get-error-message";
 import { requireAsyncEntrypointCatchRule } from "./rules/require-async-entrypoint-catch";
+import { requireAwaitCoreSummaryWriteRule } from "./rules/require-await-core-summary-write";
 import { requireJsonParseTryCatchRule } from "./rules/require-json-parse-try-catch";
 import { requireParseIntRadixRule } from "./rules/require-parseInt-radix";
 
@@ -17,6 +18,7 @@ const plugin = {
     "no-unsafe-promise-catch-error-property": noUnsafePromiseCatchErrorPropertyRule,
     "prefer-get-error-message": preferGetErrorMessageRule,
     "require-async-entrypoint-catch": requireAsyncEntrypointCatchRule,
+    "require-await-core-summary-write": requireAwaitCoreSummaryWriteRule,
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,
     "require-parseInt-radix": requireParseIntRadixRule,
   },

@@ -294,6 +294,24 @@ A `safe-outputs` option that extends the consolidated `safe_outputs` job depende
 
 A safe output capability for removing user assignments from issues or pull requests. Supports an `allowed` list to restrict which users can be unassigned, and a `blocked` list using glob patterns to prevent unassignment of specific users regardless of the allow list. Configured via `unassign-from-user:` in `safe-outputs`.
 
+### URL Sanitization Policy (`safe-outputs.urls`)
+
+A `safe-outputs` field that controls how URLs are sanitized in AI-generated content before GitHub writes are applied. Two values are supported:
+
+- `allowed-only` (default) — sanitizes all URLs that are not in the `allowed-domains` list, everywhere in the content.
+- `allowed-or-code-region` — preserves URLs inside fenced and inline code regions while still sanitizing URLs in prose.
+
+Use `allowed-or-code-region` when workflow output includes code examples that legitimately reference external domains — for example, Docker image references or configuration snippets with third-party API endpoints.
+
+```aw wrap
+safe-outputs:
+  urls: allowed-or-code-region
+  allowed-domains: [registry.example.com]
+  create-issue:
+```
+
+See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#text-sanitization).
+
 ### Temporary ID
 
 A workflow-scoped identifier (format: `aw_` followed by 3–8 alphanumeric characters, e.g. `aw_abc1`) that lets an AI agent reference a resource before it is created. Safe output tools that support temporary IDs — including `create_issue`, `create_discussion`, and `add_comment` — accept a `temporary_id` field. References like `#aw_abc1` in subsequent operations are automatically resolved to actual resource numbers during execution. Useful for creating interlinked resources in a single workflow run. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
@@ -621,7 +639,25 @@ An optional frontmatter field that attaches an emoji to represent the workflow v
 
 ### Label Trigger Shorthand
 
-A compact syntax for label-based triggers: `on: issue labeled bug` or `on: pull_request labeled needs-review`. The compiler expands the shorthand to standard GitHub Actions trigger syntax and automatically includes a `workflow_dispatch` trigger with an `inputs.item_number` parameter, enabling manual dispatch for a specific issue or pull request. Supported for `issue`, `pull_request`, and `discussion` events. See [LabelOps patterns](/gh-aw/patterns/label-ops/).
+A compact syntax for label-based triggers: `on: issue labeled bug` or `on: pull_request labeled needs-review`.
+
+### LSP (`lsp:`)
+
+An experimental frontmatter field that declares Language Server Protocol (LSP) servers for Copilot-engine workflows. At compile time, the compiler generates `~/.copilot/settings.json` with an `lspServers` block and injects install steps for known server ecosystems. When configured, Copilot gets semantic code-intelligence tools: symbol lookup, go-to-definition, find references, hover/type info, diagnostics, and rename/refactor — enabling symbol-aware navigation of large codebases.
+
+Only supported with `engine: copilot`; any other engine causes a compile-time error. Emits an experimental feature warning at compile time.
+
+```aw wrap
+engine:
+  id: copilot
+lsp:
+  go:
+    command: gopls
+    fileExtensions:
+      ".go": go
+```
+
+See [AI Engines Reference](/gh-aw/reference/engines/). The compiler expands the shorthand to standard GitHub Actions trigger syntax and automatically includes a `workflow_dispatch` trigger with an `inputs.item_number` parameter, enabling manual dispatch for a specific issue or pull request. Supported for `issue`, `pull_request`, and `discussion` events. See [LabelOps patterns](/gh-aw/patterns/label-ops/).
 
 ### Labels
 
