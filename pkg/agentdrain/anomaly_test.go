@@ -9,15 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func assertAnomalyScore(t *testing.T, want, got float64) {
+// assertAnomalyScore checks that actual equals expected.
+// Pass expected first, actual second — matching testify convention.
+func assertAnomalyScore(t *testing.T, expected, actual float64) {
 	t.Helper()
 
-	if want == 0 {
-		assert.Zero(t, got, "AnomalyScore mismatch")
+	if expected == 0 {
+		assert.Zero(t, actual, "AnomalyScore mismatch")
 		return
 	}
 
-	assert.InDelta(t, want, got, 1e-9, "AnomalyScore mismatch")
+	assert.InDelta(t, expected, actual, 1e-9, "AnomalyScore mismatch")
 }
 
 func TestAnomalyDetector_Analyze(t *testing.T) {
@@ -406,48 +408,59 @@ func TestAnalyzeEvent(t *testing.T) {
 		Fields: map[string]string{"status": "ok"},
 	}
 
+	// setupEvents seeds the miner before the test event so it sees a pre-warmed state.
+	// Every subtest gets a fresh miner; setup events are re-applied per case to keep subtests independent.
 	tests := []struct {
-		name        string
-		setupEvents []AgentEvent
-		event       AgentEvent
-		wantIsNew   bool
-		wantScore   float64
-		wantReason  string
+		name              string
+		setupEvents       []AgentEvent
+		event             AgentEvent
+		wantIsNew         bool
+		wantLowSimilarity bool
+		wantRareCluster   bool
+		wantScore         float64
+		wantReason        string
 	}{
 		{
-			name:       "first occurrence trains a new template",
-			event:      evtPlan,
-			wantIsNew:  true,
-			wantScore:  0.65,
-			wantReason: "new log template discovered; rare cluster (few observations)",
+			name:              "first occurrence trains a new template",
+			event:             evtPlan,
+			wantIsNew:         true,
+			wantLowSimilarity: false,
+			wantRareCluster:   true,
+			wantScore:         0.65,
+			wantReason:        "new log template discovered; rare cluster (few observations)",
 		},
 		{
-			name:        "second identical occurrence reuses the template",
-			setupEvents: []AgentEvent{evtPlan},
-			event:       evtPlan,
-			wantIsNew:   false,
-			wantScore:   0.15,
-			wantReason:  "rare cluster (few observations)",
+			name:              "second identical occurrence reuses the template",
+			setupEvents:       []AgentEvent{evtPlan},
+			event:             evtPlan,
+			wantIsNew:         false,
+			wantLowSimilarity: false,
+			wantRareCluster:   true,
+			wantScore:         0.15,
+			wantReason:        "rare cluster (few observations)",
 		},
 		{
-			name:        "distinct event creates a separate template",
-			setupEvents: []AgentEvent{evtPlan},
-			event:       evtFinish,
-			wantIsNew:   true,
-			wantScore:   0.65,
-			wantReason:  "new log template discovered; rare cluster (few observations)",
+			name:              "distinct event creates a separate template",
+			setupEvents:       []AgentEvent{evtPlan},
+			event:             evtFinish,
+			wantIsNew:         true,
+			wantLowSimilarity: false,
+			wantRareCluster:   true,
+			wantScore:         0.65,
+			wantReason:        "new log template discovered; rare cluster (few observations)",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			m, err := NewMiner(cfg)
 			require.NoError(t, err, "NewMiner should succeed")
 			require.NotNil(t, m, "NewMiner should return a non-nil miner")
 
-			for _, setupEvent := range tt.setupEvents {
+			for i, setupEvent := range tt.setupEvents {
 				_, _, err := m.AnalyzeEvent(setupEvent)
-				require.NoError(t, err, "AnalyzeEvent setup should not fail")
+				require.NoError(t, err, "AnalyzeEvent setup[%d] should not fail", i)
 			}
 
 			result, report, err := m.AnalyzeEvent(tt.event)
@@ -455,6 +468,8 @@ func TestAnalyzeEvent(t *testing.T) {
 			require.NotNil(t, result, "AnalyzeEvent should return a non-nil result")
 			require.NotNil(t, report, "AnalyzeEvent should return a non-nil report")
 			assert.Equal(t, tt.wantIsNew, report.IsNewTemplate, "IsNewTemplate mismatch")
+			assert.Equal(t, tt.wantLowSimilarity, report.LowSimilarity, "LowSimilarity mismatch")
+			assert.Equal(t, tt.wantRareCluster, report.RareCluster, "RareCluster mismatch")
 			assertAnomalyScore(t, tt.wantScore, report.AnomalyScore)
 			assert.Equal(t, tt.wantReason, report.Reason, "Reason mismatch")
 		})
@@ -463,9 +478,13 @@ func TestAnalyzeEvent(t *testing.T) {
 
 func TestAnalyzeEvent_EmptyAfterMasking(t *testing.T) {
 	cfg := DefaultConfig()
+	// Replace every non-whitespace character with nothing. Tokenize strips whitespace,
+	// so the flattened event ("stage=plan ...") becomes all-whitespace after masking and
+	// yields zero tokens — reliably triggering the empty-after-masking error regardless
+	// of which fields are present.
 	cfg.MaskRules = []MaskRule{{
-		Name:        "eraseAllTokens",
-		Pattern:     ".+",
+		Name:        "eraseAllNonWhitespace",
+		Pattern:     `\S+`,
 		Replacement: "",
 	}}
 
@@ -473,6 +492,7 @@ func TestAnalyzeEvent_EmptyAfterMasking(t *testing.T) {
 	require.NoError(t, err, "NewMiner should succeed")
 	require.NotNil(t, m, "NewMiner should return a non-nil miner")
 
+	// No Fields needed: the mask rule erases the stage token too, leaving only whitespace.
 	result, report, err := m.AnalyzeEvent(AgentEvent{Stage: "plan"})
 	require.Error(t, err, "AnalyzeEvent should reject events that become empty after masking")
 	require.ErrorContains(t, err, "empty event after masking", "AnalyzeEvent should report the masking failure")
