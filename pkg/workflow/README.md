@@ -413,6 +413,12 @@ The MCP Scripts subsystem provides inline custom tool definitions (JavaScript, s
 | `NewActionResolver` | `func(cache *ActionCache) *ActionResolver` | Creates a new `ActionResolver` backed by the given cache |
 | `ResolveSHA` | `func(ctx context.Context, repo, version string) (string, error)` | Resolves a GitHub Action repo+version to its full commit SHA; serves cache hits first |
 
+#### `ActionCache` Constructors
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `NewActionCache` | `func(repoRoot string) *ActionCache` | Creates a new action cache instance backed by the on-disk cache file in `repoRoot` |
+
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `GetActionPin` | `func(actionRepo string) string` | Returns the pinned SHA for an action |
