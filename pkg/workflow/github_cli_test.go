@@ -149,6 +149,15 @@ func TestExecGHUsesConfiguredProcessEnvLookup(t *testing.T) {
 			SetProcessEnvLookup(nil)
 		})
 
+		// Unset real token env vars so os.Environ() (used by SetGHHostEnv to seed
+		// cmd.Env) does not carry a token from the CI runner into the assertion.
+		for _, key := range []string{"GH_TOKEN", "GITHUB_TOKEN"} {
+			if prev, ok := os.LookupEnv(key); ok {
+				os.Unsetenv(key)
+				t.Cleanup(func() { os.Setenv(key, prev) })
+			}
+		}
+
 		cmd := ExecGH("auth", "status")
 		require.NotNil(t, cmd.Env)
 		assert.False(t, slices.ContainsFunc(cmd.Env, func(e string) bool {
