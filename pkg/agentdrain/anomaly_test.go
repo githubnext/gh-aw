@@ -9,6 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func assertAnomalyScore(t *testing.T, want, got float64) {
+	t.Helper()
+
+	if want == 0 {
+		assert.Zero(t, got, "AnomalyScore mismatch")
+		return
+	}
+
+	assert.InDelta(t, want, got, 1e-9, "AnomalyScore mismatch")
+}
+
 func TestAnomalyDetector_Analyze(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -227,11 +238,7 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			assert.Equal(t, tt.wantIsNewTemplate, report.IsNewTemplate, "IsNewTemplate mismatch")
 			assert.Equal(t, tt.wantLowSimilarity, report.LowSimilarity, "LowSimilarity mismatch")
 			assert.Equal(t, tt.wantRareCluster, report.RareCluster, "RareCluster mismatch")
-			if tt.wantScore == 0 {
-				assert.Zero(t, report.AnomalyScore, "AnomalyScore mismatch")
-			} else {
-				assert.InDelta(t, tt.wantScore, report.AnomalyScore, 1e-9, "AnomalyScore mismatch")
-			}
+			assertAnomalyScore(t, tt.wantScore, report.AnomalyScore)
 			assert.Equal(t, tt.wantReason, report.Reason, "Reason mismatch")
 		})
 	}
@@ -385,9 +392,6 @@ func TestBuildReason(t *testing.T) {
 
 func TestAnalyzeEvent(t *testing.T) {
 	cfg := DefaultConfig()
-	m, err := NewMiner(cfg)
-	require.NoError(t, err, "NewMiner should succeed")
-	require.NotNil(t, m, "NewMiner should return a non-nil miner")
 
 	evtPlan := AgentEvent{
 		Stage:  "plan",
@@ -399,11 +403,12 @@ func TestAnalyzeEvent(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		event      AgentEvent
-		wantIsNew  bool
-		wantScore  float64
-		wantReason string
+		name        string
+		setupEvents []AgentEvent
+		event       AgentEvent
+		wantIsNew   bool
+		wantScore   float64
+		wantReason  string
 	}{
 		{
 			name:       "first occurrence trains a new template",
@@ -413,29 +418,40 @@ func TestAnalyzeEvent(t *testing.T) {
 			wantReason: "new log template discovered; rare cluster (few observations)",
 		},
 		{
-			name:       "second identical occurrence reuses the template",
-			event:      evtPlan,
-			wantIsNew:  false,
-			wantScore:  0.15,
-			wantReason: "rare cluster (few observations)",
+			name:        "second identical occurrence reuses the template",
+			setupEvents: []AgentEvent{evtPlan},
+			event:       evtPlan,
+			wantIsNew:   false,
+			wantScore:   0.15,
+			wantReason:  "rare cluster (few observations)",
 		},
 		{
-			name:       "distinct event creates a separate template",
-			event:      evtFinish,
-			wantIsNew:  true,
-			wantScore:  0.65,
-			wantReason: "new log template discovered; rare cluster (few observations)",
+			name:        "distinct event creates a separate template",
+			setupEvents: []AgentEvent{evtPlan},
+			event:       evtFinish,
+			wantIsNew:   true,
+			wantScore:   0.65,
+			wantReason:  "new log template discovered; rare cluster (few observations)",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			m, err := NewMiner(cfg)
+			require.NoError(t, err, "NewMiner should succeed")
+			require.NotNil(t, m, "NewMiner should return a non-nil miner")
+
+			for _, setupEvent := range tt.setupEvents {
+				_, _, err := m.AnalyzeEvent(setupEvent)
+				require.NoError(t, err, "AnalyzeEvent setup should not fail")
+			}
+
 			result, report, err := m.AnalyzeEvent(tt.event)
 			require.NoError(t, err, "AnalyzeEvent should not fail")
 			require.NotNil(t, result, "AnalyzeEvent should return a non-nil result")
 			require.NotNil(t, report, "AnalyzeEvent should return a non-nil report")
 			assert.Equal(t, tt.wantIsNew, report.IsNewTemplate, "IsNewTemplate mismatch")
-			assert.InDelta(t, tt.wantScore, report.AnomalyScore, 1e-9, "AnomalyScore mismatch")
+			assertAnomalyScore(t, tt.wantScore, report.AnomalyScore)
 			assert.Equal(t, tt.wantReason, report.Reason, "Reason mismatch")
 		})
 	}
