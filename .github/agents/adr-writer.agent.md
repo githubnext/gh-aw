@@ -82,20 +82,11 @@ Example: `docs/adr/0001-use-postgresql-for-primary-storage.md`
 
 ## Writing Quality Standards
 
-#### Context (3–5 sentences)
-- Problem and constraints (technical, organizational, timeline)
-- Codebase state at decision time; problem space, not implementation
+Beyond the per-section length hints in the template:
 
-#### Decision (2–4 sentences)
-- Active voice: "We will use X because Y"
-- Name primary driver (performance, simplicity, cost) and pattern/principle if applicable
-
-#### Alternatives Considered (2–4 sentences each)
-- **≥2 genuine alternatives** (no strawmen); for each: what, why considered, why rejected
-
-#### Consequences
-- **Positive**, **Negative**, **Neutral**: real benefits, costs, and side effects
-- ≥2 per category for non-trivial decisions
+- **Decision** — active voice ("We will use X because Y"); name the primary driver (performance, simplicity, cost).
+- **Alternatives** — ≥2 genuine options, no strawmen; each: what, why considered, why rejected.
+- **Consequences** — ≥2 per Positive/Negative/Neutral category for non-trivial decisions.
 
 ## Procedure: Writing a New ADR
 

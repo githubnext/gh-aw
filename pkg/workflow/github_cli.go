@@ -41,8 +41,8 @@ func getDefaultGHHost() string {
 // When ctx is nil, it falls back to context.TODO().
 func setupGHCommand(ctx context.Context, args ...string) *exec.Cmd {
 	// Check if GH_TOKEN or GITHUB_TOKEN is available
-	ghToken := os.Getenv("GH_TOKEN")
-	githubToken := os.Getenv("GITHUB_TOKEN")
+	ghToken := lookupProcessEnv("GH_TOKEN")
+	githubToken := lookupProcessEnv("GITHUB_TOKEN")
 
 	if ctx == nil {
 		ctx = context.TODO()
@@ -61,7 +61,7 @@ func setupGHCommand(ctx context.Context, args ...string) *exec.Cmd {
 		githubCLILog.Printf("GH_TOKEN not set, using GITHUB_TOKEN for gh CLI")
 		cmd.Env = append(os.Environ(), "GH_TOKEN="+githubToken)
 	}
-	if os.Getenv("GH_HOST") == "" {
+	if lookupProcessEnv("GH_HOST") == "" {
 		SetGHHostEnv(cmd, getDefaultGHHost())
 	}
 
