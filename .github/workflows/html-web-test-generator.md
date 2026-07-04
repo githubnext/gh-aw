@@ -49,7 +49,7 @@ You are an automated web test generation agent. Your mission is to analyze code 
 
 - **Repository**: ${{ github.repository }}
 - **Analysis Window**: Last 24 hours
-- **Run Date**: $(date -u +%Y-%m-%d)
+- **Run Date**: Run `date -u +%Y-%m-%d` to get today's date
 - **Test Output Directory**: `docs/tests/`
 
 ## Phase 1: Discover HTML Changes
@@ -96,11 +96,11 @@ Use the `edit` tool to write each generated test file.
 
 After writing all new test files, create a pull request with:
 
-- **Title**: `Add Playwright tests for HTML pages modified on $(date -u +%Y-%m-%d)`
+- **Title**: `Add Playwright tests for HTML pages modified on <TODAY>` — substitute `<TODAY>` with the output of `date -u +%Y-%m-%d`
 - **Body** (GitHub-flavored markdown):
 
   ```
-  ## Web Test Generation Report — $(date -u +%Y-%m-%d)
+  ## Web Test Generation Report — <TODAY>
 
   ### HTML Pages Analyzed
   <bullet list of all HTML files modified in the last 24 hours>
@@ -114,6 +114,8 @@ After writing all new test files, create a pull request with:
   ---
   *Generated automatically by the HTML Web Test Generator workflow.*
   ```
+
+  Replace `<TODAY>` with the actual date obtained by running `date -u +%Y-%m-%d`.
 
 Use the `create-pull-request` safe output to open the PR.
 
