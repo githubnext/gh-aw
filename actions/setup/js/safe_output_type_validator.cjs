@@ -147,13 +147,12 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
 
     /** @type {{ name: string, rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean }} */
     const normalizedLabel = { name };
+    // Non-string rationale is silently stripped (optional enrichment field).
     if (typeof label.rationale === "string") {
       const rationale = normalizeIssueIntentRationale(label.rationale, options);
       if (rationale) {
         normalizedLabel.rationale = rationale;
       }
-    } else if (label.rationale !== undefined) {
-      // Strip non-string rationale instead of rejecting (optional enrichment field)
     }
     if (label.confidence !== undefined && label.confidence !== null && label.confidence !== "") {
       const confidenceRaw = String(label.confidence).trim().toUpperCase();
