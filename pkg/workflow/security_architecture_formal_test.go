@@ -19,10 +19,16 @@
 //	P9  CompileValidates              → TestFormal_P9_CompilationValidatesBeforeEmit
 //	P10 TokenIsolation                → TestFormal_P10_WriteTokenIsolatedToSafeOutput
 //
-// Tests exercise production Go code directly; no stubs are used.
+// Most predicates exercise production Go code directly via the public compiler
+// API (ParseWorkflowString, ParseWorkflowFile, CompileToYAML) or internal
+// validators.  P7 and P8 encode spec invariants that have no single production
+// call site; they use file-local formal helpers instead.
 package workflow
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -72,18 +78,58 @@ func formalJobOrderValid(order []string) bool {
 	return true
 }
 
-// formalTokenAbsentFromEnv reports whether tokenKey is absent from the env map,
-// implementing the isolation invariant: write tokens must not appear in the agent
-// job's environment.
-func formalTokenAbsentFromEnv(env map[string]string, tokenKey string) bool {
-	_, present := env[tokenKey]
-	return !present
-}
+// formalJobSections parses a compiled GitHub Actions YAML string and returns
+// the content of the named jobs as separate strings.  Jobs are YAML keys at
+// the 2-space indent level inside the top-level `jobs:` block.
+func formalJobSections(yamlContent string) map[string]string {
+	// jobKeyIndent is the number of leading spaces that identifies a top-level
+	// job key inside the `jobs:` block (e.g. "  agent:").
+	const jobKeyIndent = 2
 
-// formalValidationBlocksEmit encodes the fail-secure predicate: a non-nil
-// validation error must prevent lock-file emission.
-func formalValidationBlocksEmit(validateErr error) bool {
-	return validateErr != nil
+	lines := strings.Split(yamlContent, "\n")
+	type boundary struct{ start, end int }
+
+	var order []string
+	bounds := map[string]boundary{}
+	inJobs := false
+
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "jobs:" {
+			inJobs = true
+			continue
+		}
+		if !inJobs {
+			continue
+		}
+		// A job key is indented by exactly jobKeyIndent spaces and contains no
+		// interior spaces before the trailing colon
+		// (e.g. "  agent:" not "    steps:").
+		if len(line) > jobKeyIndent && line[0] == ' ' && line[1] == ' ' && line[jobKeyIndent] != ' ' {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasSuffix(trimmed, ":") && !strings.Contains(strings.TrimSuffix(trimmed, ":"), " ") {
+				name := strings.TrimSuffix(trimmed, ":")
+				order = append(order, name)
+				bounds[name] = boundary{start: i}
+			}
+		}
+	}
+
+	// Close each section at the line before the next job key (or EOF).
+	for i, name := range order {
+		b := bounds[name]
+		if i+1 < len(order) {
+			b.end = bounds[order[i+1]].start - 1
+		} else {
+			b.end = len(lines) - 1
+		}
+		bounds[name] = b
+	}
+
+	result := make(map[string]string, len(order))
+	for name, b := range bounds {
+		result[name] = strings.Join(lines[b.start:b.end+1], "\n")
+	}
+	return result
 }
 
 // TestFormal_P1_InputSanitizationRequired (P1 InputNotDirectlyInterpolated)
@@ -100,10 +146,13 @@ func TestFormal_P1_InputSanitizationRequired(t *testing.T) {
 	assert.True(t, changed, "expression in run: must be extracted to env: to prevent template injection")
 	assert.NotEmpty(t, descriptions, "at least one substitution description must be emitted")
 
-	// The sanitized step must no longer contain the raw expression in its run: field.
-	if runVal, ok := sanitized["run"].(string); ok {
-		assert.NotContains(t, runVal, "${{", "sanitized run: field must not contain raw ${{ }} expression")
-	}
+	// The sanitized step must still have a string run: field (sanitization must not break
+	// the step shape) and must have extracted the expression into an env: block.
+	runVal, ok := sanitized["run"].(string)
+	require.True(t, ok, "sanitized run: field must remain a string after sanitization")
+	assert.NotContains(t, runVal, "${{", "sanitized run: field must not contain raw ${{ }} expression")
+	_, hasEnv := sanitized["env"]
+	assert.True(t, hasEnv, "sanitized step must carry an env: block containing the extracted expression")
 
 	// A run: step without any expression must not be modified.
 	cleanStep := map[string]any{
@@ -216,22 +265,33 @@ func TestFormal_P5_AgentMustRunInSandbox(t *testing.T) {
 // TestFormal_P6_SecurityFailureHaltsExecution (P6 FailSecure)
 //
 // SG-07: Security violations must prevent workflow execution rather than
-// allowing degraded operation.  A validation error from a write-permission
-// check must block lock-file emission.
+// allowing degraded operation.  A write-permission violation detected during
+// compilation must block lock-file emission — CompileToYAML returns ("", err).
+//
+// strict:false in the frontmatter bypasses strict-mode-only checks so that
+// validateDangerousPermissions (the spec-mandated P6 guard) is the sole blocker.
 func TestFormal_P6_SecurityFailureHaltsExecution(t *testing.T) {
-	perms := NewPermissions()
-	perms.Set(PermissionContents, PermissionWrite)
+	md := `---
+name: fail-secure-test
+on: push
+engine: copilot
+strict: false
+permissions:
+  contents: write
+---
 
-	err := validateDangerousPermissions(&WorkflowData{Permissions: "permissions: {}"}, perms)
-	require.Error(t, err, "security violation must return a non-nil error")
+# Mission
 
-	// formalValidationBlocksEmit is the formal emit-gate predicate:
-	// true  → validation failed → lock-file must NOT be emitted
-	// false → validation passed → lock-file may be emitted
-	assert.True(t, formalValidationBlocksEmit(err),
-		"a non-nil validation error must block lock-file emission")
-	assert.False(t, formalValidationBlocksEmit(nil),
-		"a nil validation error must allow lock-file emission")
+Simulate a write-permission violation to verify that emit is blocked.
+`
+	compiler := NewCompiler(WithNoEmit(true))
+	wd, err := compiler.ParseWorkflowString(md, "workflow.md")
+	require.NoError(t, err, "ParseWorkflowString must succeed before the compilation-time security check runs")
+
+	yamlOut, err := compiler.CompileToYAML(wd, "workflow.md")
+	require.Error(t, err, "CompileToYAML must return an error when a write-permission violation is present (P6 FailSecure)")
+	assert.Empty(t, yamlOut, "CompileToYAML must return empty YAML — the lock-file must not be emitted — when a security violation is detected")
+	assert.Contains(t, err.Error(), "write permissions", "error must identify the permission violation")
 }
 
 // TestFormal_P7_ConformanceLevelMonotonicity (P7 Monotonicity)
@@ -300,48 +360,113 @@ func TestFormal_P8_JobDependencyChainOrder(t *testing.T) {
 //
 // Spec Section 10: compilation-time security checks must block lock-file
 // emission when the input is invalid.
+//
+// Two distinct code paths are exercised:
+//
+//	a. Dangerous permissions → CompileToYAML returns ("", err) via
+//	   validateDangerousPermissions.  strict:false ensures the check comes from
+//	   the non-strict validator rather than the strict-mode guard.
+//
+//	b. Wildcard-only network allowlist in strict mode → ParseWorkflowString
+//	   itself returns an error via runStrictFrontmatterValidations, so no
+//	   WorkflowData is produced and no YAML can be emitted.
 func TestFormal_P9_CompilationValidatesBeforeEmit(t *testing.T) {
-	// Dangerous permissions detected at compile time must block emit.
-	perms := NewPermissions()
-	perms.Set(PermissionIssues, PermissionWrite)
-	err := validateDangerousPermissions(&WorkflowData{Permissions: "permissions: {}"}, perms)
-	require.Error(t, err, "dangerous permissions must be rejected at compile time")
-	assert.True(t, formalValidationBlocksEmit(err),
-		"dangerous-permissions error must block lock-file emission")
+	// a. Dangerous permissions detected by CompileToYAML must block emit.
+	mdPerms := `---
+name: compile-validates-perms
+on: push
+engine: copilot
+strict: false
+permissions:
+  issues: write
+---
 
-	// A wildcard-only network allowlist must be rejected in strict mode at compile time.
-	compiler := NewCompiler()
-	compiler.SetStrictMode(true)
-	strictErr := compiler.validateStrictNetwork(&NetworkPermissions{Allowed: []string{"*"}})
-	require.Error(t, strictErr, "wildcard-only network allowlist must be rejected at compile time")
-	assert.True(t, formalValidationBlocksEmit(strictErr),
-		"strict-network error must block lock-file emission")
+# Mission
+
+Simulate dangerous permissions at compile time.
+`
+	compiler := NewCompiler(WithNoEmit(true))
+	wd, err := compiler.ParseWorkflowString(mdPerms, "workflow.md")
+	require.NoError(t, err, "ParseWorkflowString must succeed before the compilation-time check runs")
+
+	yamlOut, err := compiler.CompileToYAML(wd, "workflow.md")
+	require.Error(t, err, "dangerous permissions must be rejected at compile time (P9)")
+	assert.Empty(t, yamlOut, "CompileToYAML must return empty YAML when dangerous permissions are detected — no lock-file may be emitted")
+
+	// b. Wildcard-only network allowlist with default strict mode is rejected by
+	// ParseWorkflowString (runStrictFrontmatterValidations → validateStrictNetwork),
+	// so no WorkflowData is produced and CompileToYAML cannot be reached.
+	mdNet := `---
+name: compile-validates-network
+on: push
+engine: copilot
+network:
+  allowed: ["*"]
+---
+
+# Mission
+
+Simulate a wildcard network violation.
+`
+	compiler2 := NewCompiler(WithNoEmit(true))
+	_, strictErr := compiler2.ParseWorkflowString(mdNet, "workflow.md")
+	require.Error(t, strictErr, "wildcard-only network allowlist must be rejected before any YAML is generated (P9)")
+	assert.Contains(t, strictErr.Error(), "wildcard", "error must identify the wildcard violation")
 }
 
 // TestFormal_P10_WriteTokenIsolatedToSafeOutput (P10 TokenIsolation)
 //
 // Spec Section 5: write tokens must be absent from the agent job's environment
 // and present only in the safe_outputs job.
+//
+// Compiles a real workflow with a safe-outputs github-app configuration and
+// inspects the produced YAML to verify that the private key appears only in
+// the safe_outputs mint step inputs (under with:) and not in the agent job.
 func TestFormal_P10_WriteTokenIsolatedToSafeOutput(t *testing.T) {
-	// The agent job must not receive private key material or a dedicated write token.
-	agentJobEnv := map[string]string{
-		"GH_TOKEN":           "${{ github.token }}",
-		"GH_AW_GITHUB_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || github.token }}",
-	}
-	assert.True(t, formalTokenAbsentFromEnv(agentJobEnv, "GH_AW_APP_PRIVATE_KEY"),
-		"agent job env must not contain private key material")
-	assert.True(t, formalTokenAbsentFromEnv(agentJobEnv, "GH_AW_WRITE_TOKEN"),
-		"agent job env must not contain a dedicated write token")
+	md := `---
+name: token-isolation-test
+on: push
+engine: copilot
+permissions:
+  contents: read
+safe-outputs:
+  create-issue:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
 
-	// The safe_outputs job must hold the write-capable token (private key).
-	safeOutputsJobEnv := map[string]string{
-		"GH_AW_APP_PRIVATE_KEY": "${{ secrets.GH_AW_APP_PRIVATE_KEY }}",
-	}
-	assert.False(t, formalTokenAbsentFromEnv(safeOutputsJobEnv, "GH_AW_APP_PRIVATE_KEY"),
-		"safe_outputs job must hold the write token (private key)")
+# Mission
 
-	// formalTokenAbsentFromEnv must correctly identify presence and absence.
-	emptyEnv := map[string]string{}
-	assert.True(t, formalTokenAbsentFromEnv(emptyEnv, "ANY_TOKEN"),
-		"empty env must report all tokens as absent")
+Token isolation test: verify the private key is restricted to the safe_outputs job.
+`
+	tmpDir := t.TempDir()
+	mdPath := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte(md), 0600)) //nolint:gosec // 0600 avoids world-readable files with embedded secret reference patterns
+
+	compiler := NewCompiler(WithNoEmit(true))
+	wd, err := compiler.ParseWorkflowFile(mdPath)
+	require.NoError(t, err, "workflow with safe-outputs github-app must parse without error")
+
+	yamlOut, err := compiler.CompileToYAML(wd, mdPath)
+	require.NoError(t, err, "workflow must compile successfully")
+	require.NotEmpty(t, yamlOut, "compiled YAML must not be empty")
+
+	// Partition the compiled YAML into per-job sections so we can verify
+	// isolation at the job boundary.
+	sections := formalJobSections(yamlOut)
+
+	agentSection, hasAgent := sections["agent"]
+	require.True(t, hasAgent, "compiled YAML must contain an agent job")
+
+	safeOutputsSection, hasSafeOutputs := sections["safe_outputs"]
+	require.True(t, hasSafeOutputs, "compiled YAML must contain a safe_outputs job")
+
+	// The agent job must not carry the private key material in any form.
+	assert.NotContains(t, agentSection, "APP_PRIVATE_KEY",
+		"agent job must not carry the private key material — token isolation requires it stays in safe_outputs")
+
+	// The safe_outputs job must hold the private key in its mint step inputs (with: block).
+	assert.Contains(t, safeOutputsSection, "private-key: ${{ secrets.APP_PRIVATE_KEY }}",
+		"safe_outputs job must hold the private key in the mint step with: block")
 }
