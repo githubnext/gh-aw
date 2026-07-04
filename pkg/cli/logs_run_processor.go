@@ -134,6 +134,15 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					LogsPath:                runOutputDir,
 					Cached:                  true, // Mark as cached
 				}
+				// Re-apply the usage activity backfill to heal stale cache entries that
+				// were saved before safe-outputs or turn backfill was introduced.
+				// applyUsageActivitySummaryToResult is a no-op when values are already
+				// non-zero, so this is always safe to call.
+				if result.Run.Turns == 0 || result.Run.SafeItemsCount == 0 {
+					if usageActivitySummary, _ := loadUsageActivitySummary(runOutputDir); usageActivitySummary != nil {
+						applyUsageActivitySummaryToResult(usageActivitySummary, &result, true)
+					}
+				}
 				// Update progress counter
 				completed := completedCount.Add(1)
 				if progressBar != nil {

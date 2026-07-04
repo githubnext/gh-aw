@@ -578,7 +578,13 @@ outerLoop:
 				// Update run with metrics and path
 				run := result.Run
 				run.TokenUsage = result.Metrics.TokenUsage
-				run.Turns = result.Metrics.Turns
+				// Preserve backfilled turn counts from the usage activity summary.
+				// result.Metrics.Turns is 0 when only the usage artifact was downloaded
+				// (no events.jsonl / .log files), so only overwrite when the log-based
+				// count is actually available to avoid discarding the backfilled value.
+				if result.Metrics.Turns > 0 {
+					run.Turns = result.Metrics.Turns
+				}
 				run.AvgTimeBetweenTurns = result.Metrics.AvgTimeBetweenTurns
 				run.ErrorCount = 0
 				run.WarningCount = 0
