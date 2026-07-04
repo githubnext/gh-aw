@@ -23,7 +23,7 @@ func TestComputeModelInferenceAIC(t *testing.T) {
 	assert.InDelta(t, 0.54825, aic, 1e-9)
 }
 
-func TestNormalizeCatalogProvider(t *testing.T) {
+func TestNormalizeProvider(t *testing.T) {
 	tests := []struct {
 		input string
 		want  string

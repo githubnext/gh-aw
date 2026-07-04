@@ -22,6 +22,10 @@ const (
 // catalogURL is a variable so tests can override it with a local HTTP server.
 var catalogURL = "https://models.dev/catalog.json"
 
+// modelIDReplacer normalises separator characters in model IDs so that IDs
+// differing only in ".", "_", or "-" compare equal.
+var modelIDReplacer = strings.NewReplacer(".", "-", "_", "-")
+
 var log = logger.New("modelsdev:catalog")
 
 // rawCatalog mirrors the top-level models.dev catalog JSON structure.
@@ -227,5 +231,5 @@ func NormalizeProvider(provider string) string {
 // NormalizeComparableModelID lower-cases the value and replaces "." and "_" with "-"
 // so that model IDs differing only in those separators compare equal.
 func NormalizeComparableModelID(value string) string {
-	return strings.NewReplacer(".", "-", "_", "-").Replace(strings.ToLower(strings.TrimSpace(value)))
+	return modelIDReplacer.Replace(strings.ToLower(strings.TrimSpace(value)))
 }
