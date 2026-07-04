@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var arcDindLog = logger.New("workflow:arc_dind_artifacts")
 
 // rewriteTmpGhAwPathsForArcDind rewrites artifact paths that use /tmp/gh-aw/ to
 // use ${{ runner.temp }}/gh-aw/ instead, so all paths share a single root for the
@@ -13,17 +16,22 @@ import (
 // ancestor (which happens when paths span both /tmp/gh-aw/ and the runner.temp tree),
 // causing a nested directory layout that breaks downstream artifact downloads.
 func rewriteTmpGhAwPathsForArcDind(paths []string) []string {
+	arcDindLog.Printf("Rewriting %d artifact paths for ARC/DinD single-root layout", len(paths))
 	result := make([]string, len(paths))
+	rewritten := 0
 	for i, p := range paths {
 		if strings.HasPrefix(p, constants.TmpGhAwDirSlash) {
 			// /tmp/gh-aw/foo → ${{ runner.temp }}/gh-aw/foo
 			result[i] = constants.GhAwRootDir + "/" + strings.TrimPrefix(p, constants.TmpGhAwDirSlash)
+			rewritten++
 		} else if p == constants.TmpGhAwDir {
 			result[i] = constants.GhAwRootDir
+			rewritten++
 		} else {
 			result[i] = p
 		}
 	}
+	arcDindLog.Printf("Rewrote %d of %d artifact paths from /tmp/gh-aw to runner.temp", rewritten, len(paths))
 	return result
 }
 
@@ -33,6 +41,7 @@ func rewriteTmpGhAwPathsForArcDind(paths []string) []string {
 // aw-prompts/, patches, MCP logs) are written to /tmp/gh-aw/ during execution, but
 // firewall logs are under ${{ runner.temp }}/gh-aw/. This step consolidates them.
 func (c *Compiler) generateArcDindArtifactConsolidationStep(yaml *strings.Builder) {
+	arcDindLog.Print("Generating ARC/DinD artifact consolidation step")
 	yaml.WriteString("      - name: Consolidate artifacts for ARC/DinD\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        shell: bash\n")
