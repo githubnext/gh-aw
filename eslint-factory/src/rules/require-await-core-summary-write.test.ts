@@ -129,6 +129,46 @@ describe("require-await-core-summary-write", () => {
     });
   });
 
+  it("invalid: local alias `const summary = core.summary` is flagged", () => {
+    cjsRuleTester.run("require-await-core-summary-write", requireAwaitCoreSummaryWriteRule, {
+      valid: [
+        // Awaited alias calls are safe
+        `async function f() { const summary = core.summary; await summary.write(); }`,
+        // Re-assigned let — alias source is unknown after reassignment; not flagged
+        `async function f() { let summary = core.summary; summary = other; summary.write(); }`,
+        // Non-core initializer — not a core.summary alias
+        `async function f() { const summary = fs.summary; summary.write(); }`,
+      ],
+      invalid: [
+        // Corpus pattern 1: const summary = core.summary; summary.write();
+        {
+          code: `async function f() { const summary = core.summary; summary.write(); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { const summary = core.summary; await summary.write(); }` }] }],
+        },
+        // let variant (e.g. check_workflow_timestamp_api.cjs)
+        {
+          code: `async function f() { let summary = core.summary; summary.write(); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { let summary = core.summary; await summary.write(); }` }] }],
+        },
+        // Corpus pattern 2: const { summary } = core; summary.addRaw(x).write();
+        {
+          code: `async function f() { const { summary } = core; summary.addRaw(x).write(); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { const { summary } = core; await summary.addRaw(x).write(); }` }] }],
+        },
+        // Destructure with rename: const { summary: s } = core; s.write();
+        {
+          code: `async function f() { const { summary: s } = core; s.write(); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { const { summary: s } = core; await s.write(); }` }] }],
+        },
+        // Outside async: flagged, no suggestion
+        {
+          code: `function f() { const summary = core.summary; summary.write(); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [] }],
+        },
+      ],
+    });
+  });
+
   it("suggestion: inserts 'await ' before the expression", () => {
     cjsRuleTester.run("require-await-core-summary-write", requireAwaitCoreSummaryWriteRule, {
       valid: [],
