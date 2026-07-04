@@ -435,7 +435,13 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	const runOpSectionSearchRange = 500
 
 	// Jobs that should be disabled when any non-dedicated operation is set (cleanup-cache-memory has its own dedicated operation)
-	disabledJobs := []string{"close-expired-entities:", "compile-workflows:", "secret-validation:"}
+	disabledJobs := []string{
+		"close-expired-discussions:",
+		"close-expired-issues:",
+		"close-expired-pull-requests:",
+		"compile-workflows:",
+		"secret-validation:",
+	}
 	for _, job := range disabledJobs {
 		// Find the if: condition for each job
 		jobIdx := strings.Index(yaml, "\n  "+job)
@@ -447,6 +453,40 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		jobSection := yaml[jobIdx : jobIdx+jobSectionSearchRange]
 		if !strings.Contains(jobSection, operationSkipCondition) {
 			t.Errorf("Job %q is missing the operation skip condition %q in:\n%s", job, operationSkipCondition, jobSection)
+		}
+	}
+
+	closeExpiredPermissions := map[string]struct {
+		requiredWrite string
+		forbidden     []string
+	}{
+		"close-expired-discussions:": {
+			requiredWrite: "discussions: write",
+			forbidden:     []string{"issues: write", "pull-requests: write"},
+		},
+		"close-expired-issues:": {
+			requiredWrite: "issues: write",
+			forbidden:     []string{"discussions: write", "pull-requests: write"},
+		},
+		"close-expired-pull-requests:": {
+			requiredWrite: "pull-requests: write",
+			forbidden:     []string{"discussions: write", "issues: write"},
+		},
+	}
+	for job, perms := range closeExpiredPermissions {
+		jobIdx := strings.Index(yaml, "\n  "+job)
+		if jobIdx == -1 {
+			t.Errorf("Job %q not found in generated workflow", job)
+			continue
+		}
+		jobSection := yaml[jobIdx : jobIdx+runOpSectionSearchRange]
+		if !strings.Contains(jobSection, perms.requiredWrite) {
+			t.Errorf("Job %q should include %q permission in:\n%s", job, perms.requiredWrite, jobSection)
+		}
+		for _, forbiddenPermission := range perms.forbidden {
+			if strings.Contains(jobSection, forbiddenPermission) {
+				t.Errorf("Job %q should not include %q permission in:\n%s", job, forbiddenPermission, jobSection)
+			}
 		}
 	}
 
@@ -1129,8 +1169,14 @@ func TestGenerateMaintenanceWorkflow_DisabledJobs(t *testing.T) {
 	}
 	yaml := string(content)
 
-	if strings.Contains(yaml, "close-expired-entities:") {
-		t.Error("close-expired-entities job should be omitted when disabled in aw.json")
+	if strings.Contains(yaml, "close-expired-discussions:") {
+		t.Error("close-expired-discussions job should be omitted when close-expired-entities is disabled in aw.json")
+	}
+	if strings.Contains(yaml, "close-expired-issues:") {
+		t.Error("close-expired-issues job should be omitted when close-expired-entities is disabled in aw.json")
+	}
+	if strings.Contains(yaml, "close-expired-pull-requests:") {
+		t.Error("close-expired-pull-requests job should be omitted when close-expired-entities is disabled in aw.json")
 	}
 	if strings.Contains(yaml, "apply_safe_outputs:") {
 		t.Error("apply_safe_outputs job should be omitted when disabled in aw.json")
@@ -1239,7 +1285,7 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 		}
 	})
 
-	t.Run("close-expired-entities and secret-validation exclude push events", func(t *testing.T) {
+	t.Run("close-expired jobs and secret-validation exclude push events", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		err := GenerateMaintenanceWorkflow(context.Background(), GenerateMaintenanceWorkflowOptions{
 			WorkflowDataList: workflowDataList,
@@ -1260,7 +1306,12 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 		yaml := string(content)
 		pushExclusionCondition := "github.event_name != 'push'"
 
-		scheduleOnlyJobs := []string{"close-expired-entities:", "secret-validation:"}
+		scheduleOnlyJobs := []string{
+			"close-expired-discussions:",
+			"close-expired-issues:",
+			"close-expired-pull-requests:",
+			"secret-validation:",
+		}
 		for _, job := range scheduleOnlyJobs {
 			jobIdx := strings.Index(yaml, "\n  "+job)
 			if jobIdx == -1 {
@@ -2272,9 +2323,9 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 		if !strings.Contains(contentStr, "GH_AW_GITHUB_TOKEN") {
 			t.Errorf("Side-repo maintenance should use fallback token GH_AW_GITHUB_TOKEN, got content length %d", len(contentStr))
 		}
-		// Should NOT include close-expired-entities (no expires).
-		if strings.Contains(contentStr, "close-expired-entities") {
-			t.Errorf("Side-repo maintenance should NOT include close-expired-entities when no expires, got content length %d", len(contentStr))
+		// Should NOT include close-expired jobs (no expires).
+		if strings.Contains(contentStr, "close-expired-discussions") || strings.Contains(contentStr, "close-expired-issues") || strings.Contains(contentStr, "close-expired-pull-requests") {
+			t.Errorf("Side-repo maintenance should NOT include close-expired jobs when no expires, got content length %d", len(contentStr))
 		}
 		if !strings.Contains(contentStr, "activity_report") {
 			t.Errorf("Side-repo maintenance should include activity_report when no expires, got content length %d", len(contentStr))

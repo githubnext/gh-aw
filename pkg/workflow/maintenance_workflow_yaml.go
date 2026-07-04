@@ -163,24 +163,18 @@ permissions: {}
 jobs:
 `)
 
-	if !isMaintenanceJobDisabled(disabledJobs, "close-expired-entities") {
-		yaml.WriteString(`  close-expired-entities:
+	setupActionRef := ResolveSetupActionReference(ctx, actionMode, version, actionTag, resolver)
+
+	writeCloseExpiredJob := func(jobName string, permissionLine string, stepName string, scriptName string) {
+		yaml.WriteString(`  ` + jobName + `:
     if: ${{ ` + RenderCondition(buildNotForkAndScheduleOnly()) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
-      discussions: write
-      issues: write
-      pull-requests: write
+      ` + permissionLine + `
     steps:
 `)
-	}
-
-	setupActionRef := ResolveSetupActionReference(ctx, actionMode, version, actionTag, resolver)
-
-	if !isMaintenanceJobDisabled(disabledJobs, "close-expired-entities") {
-		// Add checkout step only in dev/script mode (for local action paths)
 		if actionMode == ActionModeDev || actionMode == ActionModeScript {
-			maintenanceWorkflowYAMLLog.Printf("Adding checkout step for close-expired-entities (actionMode=%s)", actionMode)
+			maintenanceWorkflowYAMLLog.Printf("Adding checkout step for %s (actionMode=%s)", jobName, actionMode)
 			yaml.WriteString("      - name: Checkout actions folder\n")
 			yaml.WriteString("        uses: " + getActionPin("actions/checkout") + "\n")
 			yaml.WriteString("        with:\n")
@@ -189,49 +183,26 @@ jobs:
 			yaml.WriteString("          clean: false\n")
 			yaml.WriteString("          persist-credentials: false\n\n")
 		}
-
-		// Add setup step with the resolved action reference
 		yaml.WriteString(`      - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
-      - name: Close expired discussions
+      - name: ` + stepName + `
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           script: |
-`)
-
-		// Add the close expired discussions script using require()
-		yaml.WriteString(`            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/close_expired_discussions.cjs');
-            await main();
-
-      - name: Close expired issues
-        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
-        with:
-          script: |
-`)
-
-		// Add the close expired issues script using require()
-		yaml.WriteString(`            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/close_expired_issues.cjs');
-            await main();
-
-      - name: Close expired pull requests
-        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
-        with:
-          script: |
-`)
-
-		// Add the close expired pull requests script using require()
-		yaml.WriteString(`            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/close_expired_pull_requests.cjs');
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/` + scriptName + `.cjs');
             await main();
 `)
+	}
+
+	if !isMaintenanceJobDisabled(disabledJobs, "close-expired-entities") {
+		writeCloseExpiredJob("close-expired-discussions", "discussions: write", "Close expired discussions", "close_expired_discussions")
+		writeCloseExpiredJob("close-expired-issues", "issues: write", "Close expired issues", "close_expired_issues")
+		writeCloseExpiredJob("close-expired-pull-requests", "pull-requests: write", "Close expired pull requests", "close_expired_pull_requests")
 	}
 
 	// Add cleanup-cache-memory job for scheduled runs and clean_cache_memories operation
