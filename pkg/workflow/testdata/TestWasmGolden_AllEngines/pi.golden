@@ -424,7 +424,7 @@ jobs:
           GH_AW_SKILL_DIR: ".pi/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.22 ghcr.io/github/gh-aw-firewall/api-proxy:0.27.22 ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.22 ghcr.io/github/gh-aw-firewall/squid:0.27.22 ghcr.io/github/gh-aw-mcpg:v0.3.32 ghcr.io/github/github-mcp-server:v1.5.0
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.22 ghcr.io/github/gh-aw-firewall/api-proxy:0.27.22 ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.22 ghcr.io/github/gh-aw-firewall/squid:0.27.22 ghcr.io/github/gh-aw-mcpg:v0.3.33 ghcr.io/github/github-mcp-server:v1.5.0
       - name: Clean credentials
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
@@ -444,7 +444,7 @@ jobs:
           GITHUB_COPILOT_BASE_URL: ${{ env.GITHUB_COPILOT_BASE_URL }}
           GH_AW_NETWORK_ISOLATION: 'true'
           CLI_PROXY_POLICY: '{"allow-only":{"repos":"all","min-integrity":"none"}}'
-          CLI_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.3.32'
+          CLI_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.3.33'
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_cli_proxy.sh"
       - name: Execute Pi CLI
