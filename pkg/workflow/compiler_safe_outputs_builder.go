@@ -1,10 +1,7 @@
 package workflow
 
 import (
-	"math"
-
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var safeOutputsBuilderLog = logger.New("workflow:safe_outputs_builder")
@@ -98,33 +95,6 @@ func (b *handlerConfigBuilder) AddTemplatableBoolOrInt(key string, value *Templa
 		return b
 	}
 	b.config[key] = value.ToValue()
-	return b
-}
-
-// AddBoolOrInt adds a boolean-or-integer field when the value is set.
-// This preserves explicit false/0 values, which differ from an omitted field.
-func (b *handlerConfigBuilder) AddBoolOrInt(key string, value any) *handlerConfigBuilder {
-	switch v := value.(type) {
-	case nil:
-		return b
-	case bool:
-		b.config[key] = v
-		return b
-	case float64:
-		if math.Trunc(v) != v {
-			safeOutputsBuilderLog.Printf("Ignoring non-integer float for %s: %v", key, v)
-			return b
-		}
-		if intValue, ok := typeutil.ParseIntValue(v); ok {
-			b.config[key] = intValue
-			return b
-		}
-	}
-	if intValue, ok := typeutil.ParseIntValue(value); ok {
-		b.config[key] = intValue
-		return b
-	}
-	safeOutputsBuilderLog.Printf("Ignoring unsupported bool-or-int value for %s: %T", key, value)
 	return b
 }
 
