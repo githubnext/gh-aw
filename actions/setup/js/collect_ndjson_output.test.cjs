@@ -77,8 +77,8 @@ describe("collect_ndjson_output.cjs", () => {
           set_issue_type: {
             defaultMax: 5,
             fields: {
-              issue_number: { issueOrPRNumber: !0 },
-              issue_type: { required: !0, type: "string", sanitize: !0, maxLength: 128 },
+              issue_number: { issueOrPRNumber: !0, "x-synonyms": ["issueNumber"] },
+              issue_type: { required: !0, type: "string", sanitize: !0, maxLength: 128, "x-synonyms": ["issueType"] },
               rationale: { type: "string", sanitize: !0, maxLength: 280 },
               confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
               suggest: { type: "boolean" },
@@ -88,9 +88,9 @@ describe("collect_ndjson_output.cjs", () => {
             defaultMax: 5,
             customValidation: "requiresOneOf:field_name,field_node_id",
             fields: {
-              issue_number: { issueOrPRNumber: !0 },
-              field_name: { type: "string", sanitize: !0, maxLength: 128 },
-              field_node_id: { type: "string", maxLength: 256 },
+              issue_number: { issueOrPRNumber: !0, "x-synonyms": ["issueNumber"] },
+              field_name: { type: "string", sanitize: !0, maxLength: 128, "x-synonyms": ["fieldName"] },
+              field_node_id: { type: "string", maxLength: 256, "x-synonyms": ["fieldNodeId"] },
               value: { required: !0, type: "string", sanitize: !0, maxLength: 256 },
               rationale: { type: "string", sanitize: !0, maxLength: 280 },
               confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
@@ -234,6 +234,23 @@ describe("collect_ndjson_output.cjs", () => {
       expect(parsedOutput.items).toEqual([
         { type: "set_issue_type", issue_type: "Bug", suggest: !0 },
         { type: "set_issue_field", field_name: "Priority", value: "P1" },
+      ]);
+    }),
+    it("should map issue-intent synonym fields and parse confidence case-insensitively", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
+        ndjsonContent = '{"type":"set_issue_type","issueType":"Bug","confidence":" high "}\n{"type":"set_issue_field","FieldName":"Priority","value":"P1","confidence":" medium "}';
+      (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
+      const __config = '{"set_issue_type": true, "set_issue_field": true}',
+        configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      (fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+      const setOutputCalls = mockCore.setOutput.mock.calls,
+        outputCall = setOutputCalls.find(call => "output" === call[0]);
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.errors).toHaveLength(0);
+      expect(parsedOutput.items).toEqual([
+        { type: "set_issue_type", issue_type: "Bug", confidence: "HIGH" },
+        { type: "set_issue_field", field_name: "Priority", value: "P1", confidence: "MEDIUM" },
       ]);
     }),
     it("should reject items with unexpected output types", async () => {

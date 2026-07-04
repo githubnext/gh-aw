@@ -224,6 +224,7 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
  * @property {number} [itemMaxLength] - For arrays, max length per item
  * @property {string} [pattern] - Regex pattern the value must match
  * @property {string} [patternError] - Error message for pattern mismatch
+ * @property {string[]} [x-synonyms] - Alternate field names accepted for this field
  */
 
 /**
@@ -642,6 +643,56 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
 }
 
 /**
+ * Normalize a field key for case-insensitive and separator-insensitive matching.
+ * @param {string} key
+ * @returns {string}
+ */
+function normalizeFieldKey(key) {
+  return String(key)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+/**
+ * Canonicalize item field names using configured x-synonyms.
+ * Preserves canonical fields when both canonical and synonym forms are present.
+ * @param {Object} item
+ * @param {Object.<string, FieldValidation>} fieldsConfig
+ * @returns {Object}
+ */
+function normalizeItemFieldNames(item, fieldsConfig) {
+  const canonicalByNormalized = new Map();
+  for (const [fieldName, validation] of Object.entries(fieldsConfig)) {
+    canonicalByNormalized.set(normalizeFieldKey(fieldName), fieldName);
+    const synonyms = Array.isArray(validation?.["x-synonyms"]) ? validation["x-synonyms"] : [];
+    for (const synonym of synonyms) {
+      if (typeof synonym !== "string" || !synonym.trim()) {
+        continue;
+      }
+      const normalizedSynonym = normalizeFieldKey(synonym);
+      if (!canonicalByNormalized.has(normalizedSynonym)) {
+        canonicalByNormalized.set(normalizedSynonym, fieldName);
+      }
+    }
+  }
+
+  const normalizedItem = { ...item };
+  for (const [providedName, value] of Object.entries(item)) {
+    const mappedName = canonicalByNormalized.get(normalizeFieldKey(providedName));
+    if (!mappedName || mappedName === providedName) {
+      continue;
+    }
+    if (!Object.prototype.hasOwnProperty.call(normalizedItem, mappedName)) {
+      normalizedItem[mappedName] = value;
+    }
+    delete normalizedItem[providedName];
+  }
+
+  return normalizedItem;
+}
+
+/**
  * Execute custom validation rules
  * @param {Object} item - The item to validate
  * @param {string} customValidation - The custom validation rule identifier
@@ -710,7 +761,8 @@ function validateItem(item, itemType, lineNum, options) {
     return { isValid: true, normalizedItem: item };
   }
 
-  const normalizedItem = { ...item };
+  const validationItem = normalizeItemFieldNames(item, typeConfig.fields);
+  const normalizedItem = { ...validationItem };
   for (const fieldName of Object.keys(typeConfig.fields)) {
     delete normalizedItem[fieldName];
   }
@@ -718,7 +770,7 @@ function validateItem(item, itemType, lineNum, options) {
 
   // Run custom validation first if defined
   if (typeConfig.customValidation) {
-    const customResult = executeCustomValidation(item, typeConfig.customValidation, lineNum, itemType);
+    const customResult = executeCustomValidation(validationItem, typeConfig.customValidation, lineNum, itemType);
     if (customResult && !customResult.isValid) {
       return customResult;
     }
@@ -726,7 +778,7 @@ function validateItem(item, itemType, lineNum, options) {
 
   // Validate each configured field
   for (const [fieldName, validation] of Object.entries(typeConfig.fields)) {
-    const fieldValue = item[fieldName];
+    const fieldValue = validationItem[fieldName];
     const result = validateField(fieldValue, fieldName, validation, itemType, lineNum, options);
 
     if (!result.isValid) {
@@ -735,7 +787,7 @@ function validateItem(item, itemType, lineNum, options) {
       delete normalizedItem[fieldName];
     } else if (result.normalizedValue !== undefined) {
       normalizedItem[fieldName] = result.normalizedValue;
-    } else if (Object.prototype.hasOwnProperty.call(item, fieldName)) {
+    } else if (Object.prototype.hasOwnProperty.call(validationItem, fieldName)) {
       normalizedItem[fieldName] = fieldValue;
     }
   }

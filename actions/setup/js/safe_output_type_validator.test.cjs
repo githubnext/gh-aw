@@ -114,8 +114,8 @@ const SAMPLE_VALIDATION_CONFIG = {
   set_issue_type: {
     defaultMax: 5,
     fields: {
-      issue_number: { issueOrPRNumber: true },
-      issue_type: { required: true, type: "string", sanitize: true, maxLength: 128 },
+      issue_number: { issueOrPRNumber: true, "x-synonyms": ["issueNumber"] },
+      issue_type: { required: true, type: "string", sanitize: true, maxLength: 128, "x-synonyms": ["issueType"] },
       rationale: { type: "string", sanitize: true, maxLength: 280 },
       confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
       suggest: { type: "boolean" },
@@ -125,9 +125,9 @@ const SAMPLE_VALIDATION_CONFIG = {
     defaultMax: 5,
     customValidation: "requiresOneOf:field_name,field_node_id",
     fields: {
-      issue_number: { issueOrPRNumber: true },
-      field_name: { type: "string", sanitize: true, maxLength: 128 },
-      field_node_id: { type: "string", maxLength: 256 },
+      issue_number: { issueOrPRNumber: true, "x-synonyms": ["issueNumber"] },
+      field_name: { type: "string", sanitize: true, maxLength: 128, "x-synonyms": ["fieldName"] },
+      field_node_id: { type: "string", maxLength: 256, "x-synonyms": ["fieldNodeId"] },
       value: { required: true, type: "string", sanitize: true, maxLength: 256 },
       rationale: { type: "string", sanitize: true, maxLength: 280 },
       confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
@@ -986,6 +986,18 @@ describe("safe_output_type_validator", () => {
       const spacedResult = validateItem({ type: "set_issue_type", issue_type: "Bug", confidence: " medium " }, "set_issue_type", 1);
       expect(spacedResult.isValid).toBe(true);
       expect(spacedResult.normalizedItem.confidence).toBe("MEDIUM");
+    });
+
+    it("should normalize issue-intent synonyms and parse values case-insensitively", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const typeResult = validateItem({ type: "set_issue_type", issueType: "Bug", confidence: " high " }, "set_issue_type", 1);
+      expect(typeResult.isValid).toBe(true);
+      expect(typeResult.normalizedItem).toEqual({ type: "set_issue_type", issue_type: "Bug", confidence: "HIGH" });
+
+      const fieldResult = validateItem({ type: "set_issue_field", FieldName: "Priority", value: "P1", confidence: " medium " }, "set_issue_field", 1);
+      expect(fieldResult.isValid).toBe(true);
+      expect(fieldResult.normalizedItem).toEqual({ type: "set_issue_field", field_name: "Priority", value: "P1", confidence: "MEDIUM" });
     });
 
     it("should strip invalid optional issue-intent fields instead of rejecting the item", async () => {
