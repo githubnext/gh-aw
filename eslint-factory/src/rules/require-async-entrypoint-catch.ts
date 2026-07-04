@@ -8,13 +8,63 @@ type FunctionDeclarationDefinition = TSESLint.Scope.Definition & {
   type: "FunctionName";
   node: TSESTree.FunctionDeclaration;
 };
+type VariableDefinition = TSESLint.Scope.Definition & {
+  type: "Variable";
+  node: TSESTree.VariableDeclarator;
+};
 
 function isAsyncFuncNode(node: TSESTree.Node): node is AsyncFuncNode {
   return node.type === AST_NODE_TYPES.FunctionDeclaration || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.ArrowFunctionExpression;
 }
 
+/** Returns true if any call in the chain is `.catch(...)`. */
+function chainHasCatch(node: TSESTree.CallExpression): boolean {
+  const callee = node.callee;
+  if (callee.type === AST_NODE_TYPES.MemberExpression) {
+    const prop = callee.property;
+    if (prop.type === AST_NODE_TYPES.Identifier && prop.name === "catch") {
+      return true;
+    }
+    const obj = callee.object;
+    if (obj.type === AST_NODE_TYPES.CallExpression) {
+      return chainHasCatch(obj);
+    }
+  }
+  return false;
+}
+
+/** Walks a chained call expression to find the root identifier node. */
+function getRootCallIdentifier(node: TSESTree.CallExpression): TSESTree.Identifier | null {
+  const callee = node.callee;
+  if (callee.type === AST_NODE_TYPES.Identifier) {
+    return callee;
+  }
+  if (callee.type === AST_NODE_TYPES.MemberExpression) {
+    const obj = callee.object;
+    if (obj.type === AST_NODE_TYPES.CallExpression) {
+      return getRootCallIdentifier(obj);
+    }
+  }
+  return null;
+}
+
 function isFunctionDeclarationDefinition(definition: TSESLint.Scope.Definition): definition is FunctionDeclarationDefinition {
   return definition.type === "FunctionName" && definition.node.type === AST_NODE_TYPES.FunctionDeclaration;
+}
+
+function isVariableDefinition(definition: TSESLint.Scope.Definition): definition is VariableDefinition {
+  return definition.type === "Variable" && definition.node.type === AST_NODE_TYPES.VariableDeclarator;
+}
+
+function isModuleScopeVariableDeclaration(node: TSESTree.VariableDeclaration): boolean {
+  return node.parent.type === AST_NODE_TYPES.Program || (node.parent.type === AST_NODE_TYPES.ExportNamedDeclaration && node.parent.parent.type === AST_NODE_TYPES.Program);
+}
+
+function isAsyncVariableEntrypoint(definition: VariableDefinition): boolean {
+  const declaration = definition.node.parent;
+  if (!declaration || declaration.type !== AST_NODE_TYPES.VariableDeclaration || !isModuleScopeVariableDeclaration(declaration)) return false;
+  const init = definition.node.init;
+  return (init?.type === AST_NODE_TYPES.FunctionExpression || init?.type === AST_NODE_TYPES.ArrowFunctionExpression) && init.async;
 }
 
 export const requireAsyncEntrypointCatchRule = createRule({
@@ -47,39 +97,51 @@ export const requireAsyncEntrypointCatchRule = createRule({
       return false;
     }
 
-    /** Resolves an identifier callee to its bound FunctionDeclaration, if any. */
-    function getResolvedFunctionDeclaration(identifier: TSESTree.Identifier): TSESTree.FunctionDeclaration | null {
+    /** Returns true when the identifier resolves to a module-scope async entrypoint. */
+    function isAsyncModuleScopeEntrypoint(identifier: TSESTree.Identifier): boolean {
       let scope: SourceCodeScope | null = sourceCode.getScope(identifier);
 
       while (scope) {
         const variable = scope.set.get(identifier.name);
-        const definition = variable?.defs.find(isFunctionDeclarationDefinition);
+        const functionDeclarationDefinition = variable?.defs.find(isFunctionDeclarationDefinition);
+        if (functionDeclarationDefinition) {
+          return functionDeclarationDefinition.node.async && functionDeclarationDefinition.node.parent.type === AST_NODE_TYPES.Program;
+        }
 
-        if (definition) {
-          return definition.node;
+        const variableDefinition = variable?.defs.find(isVariableDefinition);
+        if (variableDefinition) {
+          return isAsyncVariableEntrypoint(variableDefinition);
         }
         if (variable && variable.defs.length > 0) {
-          return null;
+          return false;
         }
 
         scope = scope.upper;
       }
 
-      return null;
+      return false;
     }
 
     return {
       // Flag bare calls: ExpressionStatement whose expression is a direct CallExpression
-      // to a tracked module-scope async function, and that are not inside an async function body
+      // to a tracked module-scope async function/variable entrypoint, and that are not inside an async function body
       // (where `await` would be the right fix instead).
       "ExpressionStatement > CallExpression"(node: TSESTree.CallExpression) {
         const callee = node.callee;
+        let rootIdentifier: TSESTree.Identifier | null = null;
 
-        // Only flag simple identifier calls: main(), run(), etc.
-        if (callee.type !== AST_NODE_TYPES.Identifier) return;
-        const resolvedDeclaration = getResolvedFunctionDeclaration(callee);
-        const name = callee.name;
-        if (!resolvedDeclaration?.async || resolvedDeclaration.parent.type !== AST_NODE_TYPES.Program) return;
+        if (callee.type === AST_NODE_TYPES.Identifier) {
+          rootIdentifier = callee;
+        } else if (callee.type === AST_NODE_TYPES.MemberExpression) {
+          // Chained call: main().then(...) etc.
+          // If the chain contains .catch(...), it's handled — skip.
+          if (chainHasCatch(node)) return;
+          rootIdentifier = getRootCallIdentifier(node);
+        }
+
+        if (!rootIdentifier) return;
+        const name = rootIdentifier.name;
+        if (!isAsyncModuleScopeEntrypoint(rootIdentifier)) return;
 
         // Inside an async context the caller can (and should) use `await fn()` instead.
         if (isInsideAsyncFunction(node)) return;

@@ -9,6 +9,13 @@ const cjsRuleTester = new RuleTester({
   },
 });
 
+const esmRuleTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: "module",
+  },
+});
+
 describe("require-async-entrypoint-catch", () => {
   it("uses the correct docs URL", () => {
     expect(requireAsyncEntrypointCatchRule.meta.docs.url).toBe("https://github.com/github/gh-aw/tree/main/eslint-factory#require-async-entrypoint-catch");
@@ -33,6 +40,26 @@ if (require.main === module) { main().catch(err => { console.error(err); process
 
         `async function main() { return 42; }
 main().catch(err => { process.exit(1); });`,
+
+        // async arrow function with .catch() is valid
+        `const main = async () => { return 42; }
+main().catch(err => { console.error(err); process.exitCode = 1; });`,
+
+        // async function expression with .catch() is valid
+        `const run = async function() { return 42; }
+run().catch(err => { process.exit(1); });`,
+
+        // .then().catch() chain is valid
+        `const main = async () => {};
+main().then(() => process.exit(0)).catch(err => { console.error(err); process.exitCode = 1; });`,
+
+        // .catch().finally() chain is valid
+        `const main = async () => {};
+main().catch(err => { console.error(err); process.exitCode = 1; }).finally(() => process.exit(0));`,
+
+        // .then().catch().finally() chain is valid
+        `const main = async () => {};
+main().then(() => process.exit(0)).catch(err => { console.error(err); process.exitCode = 1; }).finally(() => process.exit(0));`,
       ],
       invalid: [],
     });
@@ -56,6 +83,25 @@ async function wrapper() {
     main().catch(err => { console.error(err); process.exitCode = 1; });
   }
 }`,
+
+        // async arrow awaited inside async context
+        `const main = async () => { return 42; }
+(async () => { await main(); })();`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("valid: sync arrow or non-async fn-expression call is not flagged", () => {
+    cjsRuleTester.run("require-async-entrypoint-catch", requireAsyncEntrypointCatchRule, {
+      valid: [
+        // sync arrow — not async, so no unhandled rejection risk
+        `const main = () => { return 42; }
+main();`,
+
+        // sync function expression
+        `const run = function() { return 42; }
+run();`,
       ],
       invalid: [],
     });
@@ -223,6 +269,140 @@ main();`,
                   messageId: "addCatch",
                   output: `async function main() {}
 main().catch(err => { console.error(err); process.exitCode = 1; });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: bare call to async arrow function is flagged", () => {
+    cjsRuleTester.run("require-async-entrypoint-catch", requireAsyncEntrypointCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const main = async () => { return 42; }
+main();`,
+          errors: [
+            {
+              messageId: "requireCatch",
+              data: { name: "main" },
+              suggestions: [
+                {
+                  messageId: "addCatch",
+                  output: `const main = async () => { return 42; }
+main().catch(err => { console.error(err); process.exitCode = 1; });`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `const main = async () => {};
+if (require.main === module) { main(); }`,
+          errors: [
+            {
+              messageId: "requireCatch",
+              data: { name: "main" },
+              suggestions: [
+                {
+                  messageId: "addCatch",
+                  output: `const main = async () => {};
+if (require.main === module) { main().catch(err => { console.error(err); process.exitCode = 1; }); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: bare call to async function expression is flagged", () => {
+    cjsRuleTester.run("require-async-entrypoint-catch", requireAsyncEntrypointCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const run = async function() { return 42; }
+run();`,
+          errors: [
+            {
+              messageId: "requireCatch",
+              data: { name: "run" },
+              suggestions: [
+                {
+                  messageId: "addCatch",
+                  output: `const run = async function() { return 42; }
+run().catch(err => { console.error(err); process.exitCode = 1; });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: bare call to exported async arrow function is flagged", () => {
+    esmRuleTester.run("require-async-entrypoint-catch", requireAsyncEntrypointCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `export const main = async () => { return 42; }
+main();`,
+          errors: [
+            {
+              messageId: "requireCatch",
+              data: { name: "main" },
+              suggestions: [
+                {
+                  messageId: "addCatch",
+                  output: `export const main = async () => { return 42; }
+main().catch(err => { console.error(err); process.exitCode = 1; });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: .then() chain without .catch() on async function is flagged", () => {
+    cjsRuleTester.run("require-async-entrypoint-catch", requireAsyncEntrypointCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `async function main() {}
+main().then(() => process.exit(0));`,
+          errors: [
+            {
+              messageId: "requireCatch",
+              data: { name: "main" },
+              suggestions: [
+                {
+                  messageId: "addCatch",
+                  output: `async function main() {}
+main().then(() => process.exit(0)).catch(err => { console.error(err); process.exitCode = 1; });`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `const main = async () => {};
+main().then(() => process.exit(0));`,
+          errors: [
+            {
+              messageId: "requireCatch",
+              data: { name: "main" },
+              suggestions: [
+                {
+                  messageId: "addCatch",
+                  output: `const main = async () => {};
+main().then(() => process.exit(0)).catch(err => { console.error(err); process.exitCode = 1; });`,
                 },
               ],
             },

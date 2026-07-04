@@ -168,59 +168,9 @@ safe-outputs:
     max: 20
     target: "*"
     github-token: ${{ secrets.AWI_MAINTENANCE_TOKEN }}
-  scripts:
-    dismiss-github-actions-reviews:
-      description: Dismiss stale github-actions[bot] CHANGES_REQUESTED reviews after all related feedback is addressed
-      inputs:
-        pull_request_number:
-          type: number
-          required: true
-          description: Pull request number
-        review_ids:
-          type: string
-          required: true
-          description: Comma-separated pull request review IDs to dismiss
-      script: |
-        const pullRequestNumber = Number(item.pull_request_number);
-        const reviewIds = String(item.review_ids || "")
-          .split(",")
-          .map(value => Number(value.trim()))
-          .filter(Number.isFinite);
-
-        if (!Number.isFinite(pullRequestNumber) || pullRequestNumber <= 0) {
-          throw new Error("pull_request_number must be a positive number");
-        }
-        if (reviewIds.length === 0) {
-          return { success: true, dismissed_count: 0, skipped: true, message: "No review_ids provided" };
-        }
-
-        const owner = context.repo.owner;
-        const repo = context.repo.repo;
-        let dismissedCount = 0;
-
-        for (const reviewId of reviewIds) {
-          try {
-            await github.rest.pulls.dismissReview({
-              owner,
-              repo,
-              pull_number: pullRequestNumber,
-              review_id: reviewId,
-              message:
-                "Dismissing stale github-actions review because all related review comments appear to be addressed.",
-            });
-            dismissedCount += 1;
-            core.info(`Dismissed github-actions review #${reviewId} on PR #${pullRequestNumber}`);
-          } catch (error) {
-            core.warning(`Failed to dismiss review #${reviewId} on PR #${pullRequestNumber}: ${error.message}`);
-          }
-        }
-
-        return {
-          success: true,
-          pull_request_number: pullRequestNumber,
-          requested_count: reviewIds.length,
-          dismissed_count: dismissedCount,
-        };
+  dismiss-pull-request-review:
+    max: 20
+    target: "*"
   update-pull-request:
     title: false
     body: true
@@ -338,19 +288,16 @@ For each PR that is not skipped:
      safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot please run the `pr-finisher` skill, address unresolved review comments, and rerun checks once the branch is up to date.'
      ```
 
-3. **Dismiss stale `github-actions[bot]` blocking reviews when all related comments are addressed**
+3. **Dismiss stale `github-actions[bot]` blocking reviews only when all related feedback is addressed**
+   - **Actor guard**: `dismiss_pull_request_review` is actor-bound and can only dismiss reviews authored by the current workflow actor. Only perform this dismissal step when the workflow is running as `github-actions[bot]` (scheduled or automatic trigger). If triggered by a human actor (`workflow_dispatch` or slash-command `/souschef`), skip this dismissal step entirely and leave all `github-actions[bot]` reviews untouched — human-triggered runs cannot dismiss bot-authored reviews.
    - Inspect PR reviews and collect open `CHANGES_REQUESTED` reviews authored by `github-actions[bot]`.
    - For each such review, inspect its related review threads/comments and determine whether all actionable feedback has been addressed (for example, no unresolved related threads remain and no open follow-up from that review is left).
-   - When all feedback for one or more such reviews is addressed, dismiss them with the safe-output script tool:
+   - Build a dismissal list containing only review IDs whose related feedback is fully addressed, and leave unresolved `github-actions[bot]` reviews untouched.
+   - For each review ID in that dismissal list, call the native safe-output tool:
     ```bash
-    safeoutputs dismiss_github_actions_reviews --pull_request_number 12345 --review_ids "4605056464,4605057733"
+    safeoutputs dismiss_pull_request_review --pull_request_number 12345 --review_id 4605056464 --justification "Dismissing stale github-actions review because all related review comments appear to be addressed."
     ```
-    (Script tool names are normalized from frontmatter kebab-case to snake_case for `safeoutputs` CLI calls.)
-   - If this workflow run does not expose a safe-output that can dismiss a PR review, call:
-    ```bash
-    safeoutputs missing_tool --tool "dismiss_pull_request_review" --reason "Need a safe-output to dismiss stale github-actions[bot] CHANGES_REQUESTED reviews after all related comments are addressed."
-    ```
-    Then continue processing the PR normally (do not fail the run solely because dismissal was unavailable).
+   - If dismissing one review fails, record the failure and continue with the remaining review IDs; do not fail the entire run solely because one dismissal attempt failed.
 
 ### Run summary
 
