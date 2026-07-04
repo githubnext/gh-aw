@@ -452,6 +452,12 @@ This workflow uses a GitHub App for cross-repo authentication.
 	assert.Contains(t, contentStr, "activity_report:",
 		"activity_report job should still be generated")
 
+	// The minted token must be used as github-token: input and GH_TOKEN: env in the right steps.
+	assert.Contains(t, contentStr, "github-token: ${{ steps.side-repo-app-token.outputs.token }}",
+		"minted token must be used as github-token: input in cross-repo steps")
+	assert.Contains(t, contentStr, "GH_TOKEN: ${{ steps.side-repo-app-token.outputs.token }}",
+		"minted token must be used as GH_TOKEN env var in cross-repo steps")
+
 	// Validate that the mint step appears before the first token-using step in at
 	// least one job by checking ordering within apply_safe_outputs.
 	applyIdx := strings.Index(contentStr, "apply_safe_outputs:")

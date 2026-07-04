@@ -2180,7 +2180,7 @@ func TestCollectSideRepoTargets(t *testing.T) {
 		}
 	})
 
-	t.Run("first-seen auth wins (github-app from first, token from second)", func(t *testing.T) {
+	t.Run("later auth does not override existing auth (first-seen wins)", func(t *testing.T) {
 		app := &GitHubAppConfig{
 			AppID:      "${{ secrets.APP_ID }}",
 			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",

@@ -61,11 +61,13 @@ type sideRepoAuth struct {
 // When the same repository appears multiple times, a non-empty GitHubToken or a
 // non-nil GitHubApp is preferred over an empty auth so that the generated workflow
 // uses the custom token rather than falling back to GH_AW_GITHUB_TOKEN.
+// The first-seen auth for a given repo is preserved; later occurrences only
+// upgrade from "no auth" → "has auth" and never replace an existing auth choice.
 func collectSideRepoTargets(workflowDataList []*WorkflowData) []SideRepoTarget {
 	maintenanceLog.Printf("Scanning %d workflows for side-repo targets", len(workflowDataList))
 	// Use a map to accumulate the best auth seen for each slug.
 	// Order slice preserves first-seen repository discovery order for stable output;
-	// auth may be upgraded to a non-empty value from later occurrences.
+	// auth may be upgraded from empty to a non-empty value from later occurrences.
 	authByRepo := make(map[string]sideRepoAuth)
 	var order []string
 	for _, wd := range workflowDataList {
@@ -89,13 +91,18 @@ func collectSideRepoTargets(workflowDataList []*WorkflowData) []SideRepoTarget {
 					githubApp: checkout.GitHubApp,
 				}
 			} else if existing.token == "" && existing.githubApp == nil {
-				// Upgrade to any auth from a later occurrence.
+				// Upgrade from no-auth to any-auth from a later occurrence.
 				if checkout.GitHubToken != "" || checkout.GitHubApp != nil {
 					authByRepo[repo] = sideRepoAuth{
 						token:     checkout.GitHubToken,
 						githubApp: checkout.GitHubApp,
 					}
 				}
+			} else if checkout.GitHubToken != "" || checkout.GitHubApp != nil {
+				// A later occurrence provides auth, but an earlier one already set auth.
+				// First-seen auth wins; log a notice so users can diagnose unexpected choices.
+				maintenanceLog.Printf("Ignoring later auth for %s: first-seen auth (token=%t, app=%t) already recorded",
+					repo, existing.token != "", existing.githubApp != nil)
 			}
 		}
 	}
