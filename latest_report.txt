@@ -1,12 +1,12 @@
 ### 📊 Performance Summary
 
-**Date**: 2026-07-03  
-**Analysis Status**: ✅ All benchmarks stable (baseline run — first entry in history)
+**Date**: 2026-07-04  
+**Analysis Status**: ✅ All benchmarks stable
 
 ### 🎯 Key Metrics
 
-- **Total Benchmarks**: 9
-- **Stable**: 0
+- **Total Benchmarks**: 8
+- **Stable**: 7
 - **Warnings**: 0
 - **Regressions**: 0
 - **Improvements**: 0
@@ -14,63 +14,88 @@
 <details>
 <summary>📈 Detailed Benchmark Results</summary>
 
-#### ℹ️ CompileComplexWorkflow
+#### ✓ CompileComplexWorkflow
 
-- **Current**: 5.44ms
-- **Memory**: 1,586,266 B/op
-- **Allocations**: 11211 allocs/op
+- **Current**: 5.62ms
+- **Historical Average**: 5.53ms
+- **Change**: +1.6%
+- **Memory**: 1,586,466 B/op
+- **Allocations**: 11205 allocs/op
+- **Status**: ✓ STABLE: 1.6% change from historical average
 
-#### ℹ️ CompileMCPWorkflow
+#### ✓ CompileMCPWorkflow
 
-- **Current**: 323.05µs
-- **Memory**: 127,856 B/op
+- **Current**: 334.14µs
+- **Historical Average**: 328.59µs
+- **Change**: +1.7%
+- **Memory**: 127,952 B/op
 - **Allocations**: 2261 allocs/op
+- **Status**: ✓ STABLE: 1.7% change from historical average
 
-#### ℹ️ CompileMemoryUsage
+#### ✓ CompileMemoryUsage
 
-- **Current**: 4.87ms
-- **Memory**: 1,441,944 B/op
-- **Allocations**: 9406 allocs/op
+- **Current**: 4.92ms
+- **Historical Average**: 4.89ms
+- **Change**: +0.5%
+- **Memory**: 1,414,264 B/op
+- **Allocations**: 9387 allocs/op
+- **Status**: ✓ STABLE: 0.5% change from historical average
 
-#### ℹ️ CompileSimpleWorkflow
+#### ✓ CompileSimpleWorkflow
 
-- **Current**: 3.85ms
-- **Memory**: 991,549 B/op
-- **Allocations**: 6205 allocs/op
+- **Current**: 4.00ms
+- **Historical Average**: 3.93ms
+- **Change**: +1.9%
+- **Memory**: 997,000 B/op
+- **Allocations**: 6215 allocs/op
+- **Status**: ✓ STABLE: 1.9% change from historical average
 
-#### ℹ️ ExtractWorkflowNameFromFile
+#### ✓ ExtractWorkflowNameFromFile
 
-- **Current**: 7.21µs
+- **Current**: 7.29µs
+- **Historical Average**: 7.25µs
+- **Change**: +0.5%
 - **Memory**: 262 B/op
 - **Allocations**: 7 allocs/op
+- **Status**: ✓ STABLE: 0.5% change from historical average
 
-#### ℹ️ FindIncludesInContent
+#### ✓ ParseWorkflow
 
-- **Current**: 161ns
-- **Memory**: 64 B/op
-- **Allocations**: 1 allocs/op
-
-#### ℹ️ ParseWorkflow
-
-- **Current**: 261.31µs
-- **Memory**: 94,376 B/op
+- **Current**: 263.52µs
+- **Historical Average**: 262.42µs
+- **Change**: +0.4%
+- **Memory**: 94,488 B/op
 - **Allocations**: 1695 allocs/op
+- **Status**: ✓ STABLE: 0.4% change from historical average
 
-#### ℹ️ Validation
+#### ✨ Validation
 
-- **Current**: 33.55µs
+- **Current**: 29.11µs
+- **Historical Average**: 31.32µs
+- **Change**: -7.1%
 - **Memory**: 3,290 B/op
 - **Allocations**: 55 allocs/op
+- **Status**: ✅ IMPROVEMENT: -7.1% faster than historical average
 
-#### ℹ️ YAMLGeneration
+#### ✓ YAMLGeneration
 
-- **Current**: 3.77ms
-- **Memory**: 939,669 B/op
-- **Allocations**: 5666 allocs/op
+- **Current**: 3.92ms
+- **Historical Average**: 3.84ms
+- **Change**: +1.9%
+- **Memory**: 952,914 B/op
+- **Allocations**: 5664 allocs/op
+- **Status**: ✓ STABLE: 1.9% change from historical average
+
+</details>
+
+<details>
+<summary>✨ Improvements</summary>
+
+- **Validation**: -7.1% faster (was 31.32µs, now 29.11µs)
 
 </details>
 
 ### 💡 Recommendations
 
-1. Baseline established — history will grow over daily runs
-2. Performance is within expected range — good work!
+1. Document the changes that led to these improvements
+2. Consider applying similar optimizations to other areas
