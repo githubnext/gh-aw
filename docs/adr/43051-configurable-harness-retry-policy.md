@@ -18,7 +18,7 @@ We will extract a shared `harness_retry_config.cjs` module that:
 
 1. Defines the four retry policy constants with their current values as defaults (`DEFAULT_MAX_RETRIES = 3`, `DEFAULT_INITIAL_DELAY_MS = 5000`, `DEFAULT_BACKOFF_MULTIPLIER = 2`, `DEFAULT_MAX_DELAY_MS = 60000`).
 2. Reads optional overrides from `GH_AW_HARNESS_MAX_RETRIES`, `GH_AW_HARNESS_INITIAL_DELAY_MS`, `GH_AW_HARNESS_BACKOFF_MULTIPLIER`, and `GH_AW_HARNESS_MAX_DELAY_MS` environment variables.
-3. Validates each value strictly (decimal-digit strings only; `Number.isSafeInteger` for integers; rejects `1e3` / `0x10` formats; caps `max-retries` at 100; clamps `max-delay` to at least `initial-delay`).
+3. Validates each value strictly (decimal-digit strings only; `Number.isSafeInteger` for integers; rejects formats like `1e3` or `0x10` to avoid ambiguous timer values that differ from what the operator typed; caps `max-retries` at 100; clamps `max-delay` to at least `initial-delay`).
 4. Falls back silently to the default and emits a warning log on invalid input.
 5. Exports a single `resolveRetryConfig(env?, logger?)` function consumed by all three harnesses.
 
@@ -47,7 +47,7 @@ Workflows can already set arbitrary env vars via `engine.env`. Documenting the `
 
 #### Negative
 - Adding a new `require()` dependency in all three harnesses couples them to `harness_retry_config.cjs`; renaming or moving that file requires updating all three.
-- The `MAX_RETRIES_CAP = 100` hard limit is an arbitrary constant; operators may need very large retry windows for long-running jobs and will be silently clamped.
+- The `MAX_RETRIES_CAP = 100` hard limit is an arbitrary constant; operators who set a value above the cap will have it clamped to 100 and will receive a warning log message, but there is no validation error at workflow-compile time.
 
 #### Neutral
 - Existing behavior is fully preserved: all defaults match the prior hardcoded constants, so workflows that do not set any `GH_AW_HARNESS_*` vars or `engine.harness` sub-keys are unaffected.
