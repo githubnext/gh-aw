@@ -960,7 +960,8 @@ jobs:
                       "LOW",
                       "MEDIUM",
                       "HIGH"
-                    ]
+                    ],
+                    "x-strip-on-error": true
                   },
                   "field_name": {
                     "type": "string",
@@ -977,7 +978,8 @@ jobs:
                   "rationale": {
                     "type": "string",
                     "sanitize": true,
-                    "maxLength": 280
+                    "maxLength": 280,
+                    "x-strip-on-error": true
                   },
                   "repo": {
                     "type": "string",

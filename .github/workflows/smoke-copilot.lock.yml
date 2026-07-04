@@ -1171,7 +1171,8 @@ jobs:
                       "LOW",
                       "MEDIUM",
                       "HIGH"
-                    ]
+                    ],
+                    "x-strip-on-error": true
                   },
                   "issue_number": {
                     "issueOrPRNumber": true
@@ -1185,7 +1186,8 @@ jobs:
                   "rationale": {
                     "type": "string",
                     "sanitize": true,
-                    "maxLength": 280
+                    "maxLength": 280,
+                    "x-strip-on-error": true
                   },
                   "repo": {
                     "type": "string",
