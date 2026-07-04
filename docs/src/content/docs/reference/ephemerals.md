@@ -145,6 +145,17 @@ The `action_failure_issue_expires` field controls expiration (in hours) for fail
 
 The `disabled_jobs` field lets you omit specific maintenance jobs from the generated workflow. Job IDs are case-insensitive, and `_` / `-` are treated equivalently.
 
+Supported job IDs:
+
+| Job ID | Effect when disabled |
+| --- | --- |
+| `close-expired-entities` | Omits all three close-expired cleanup jobs (`close-expired-discussions`, `close-expired-issues`, and `close-expired-pull-requests`). |
+| `apply_safe_outputs` | Omits the `safe_outputs` replay job. When this is disabled, `workflow_call.outputs.applied_run_url` falls back to `inputs.run_url`; scheduled and manual runs leave that output empty. |
+| `label_disable_agentic_workflow` | Omits the label-triggered disable workflow job. |
+| `label_apply_safe_outputs` | Omits the label-triggered safe-outputs replay job. |
+
+Unrecognized job IDs are rejected during config validation.
+
 See [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/#configuring-the-maintenance-workflow-runner) for more details.
 
 **Disable maintenance entirely:**

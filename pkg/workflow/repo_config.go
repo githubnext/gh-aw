@@ -108,6 +108,13 @@ type MaintenanceConfig struct {
 	Compile *MaintenanceCompileConfig `json:"compile,omitempty"`
 }
 
+var validDisabledMaintenanceJobs = map[string]string{
+	normalizeMaintenanceJobName("close-expired-entities"):         "close-expired-entities",
+	normalizeMaintenanceJobName("apply_safe_outputs"):             "apply_safe_outputs",
+	normalizeMaintenanceJobName("label_disable_agentic_workflow"): "label_disable_agentic_workflow",
+	normalizeMaintenanceJobName("label_apply_safe_outputs"):       "label_apply_safe_outputs",
+}
+
 // IsLabelTriggerEnabled returns true only when label_triggers is explicitly set to true.
 // The default (nil / omitted) is treated as disabled (false) — opt-in semantics.
 func (m *MaintenanceConfig) IsLabelTriggerEnabled() bool {
@@ -306,6 +313,23 @@ func validateRepoConfigValues(cfg *RepoConfig) error {
 			return fmt.Errorf("invalid %s: utc %w", RepoConfigFileName, err)
 		}
 		cfg.UTC = normalized
+	}
+	if cfg.Maintenance != nil {
+		seenDisabledJobs := map[string]string{}
+		for _, jobName := range cfg.Maintenance.DisabledJobs {
+			normalizedJobName := normalizeMaintenanceJobName(jobName)
+			if normalizedJobName == "" {
+				return fmt.Errorf("invalid %s: maintenance.disabled_jobs entries must not be blank", RepoConfigFileName)
+			}
+			canonicalJobName, ok := validDisabledMaintenanceJobs[normalizedJobName]
+			if !ok {
+				return fmt.Errorf("invalid %s: maintenance.disabled_jobs contains unrecognized job %q (valid values: close-expired-entities, apply_safe_outputs, label_disable_agentic_workflow, label_apply_safe_outputs)", RepoConfigFileName, jobName)
+			}
+			if previous, exists := seenDisabledJobs[normalizedJobName]; exists {
+				return fmt.Errorf("invalid %s: maintenance.disabled_jobs contains duplicate entries %q and %q after normalization", RepoConfigFileName, previous, jobName)
+			}
+			seenDisabledJobs[normalizedJobName] = canonicalJobName
+		}
 	}
 
 	if cfg.Maintenance == nil || cfg.Maintenance.Compile == nil {

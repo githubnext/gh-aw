@@ -23,18 +23,10 @@ type buildMaintenanceWorkflowYAMLOptions struct {
 	configuredRunsOn    RunsOnValue
 	defaultBranch       string
 	disableLabelTrigger bool
-	disabledJobs        map[string]struct{}
+	maintenanceConfig   *MaintenanceConfig
 	compileGitHubToken  string
 	createCompilePR     bool
 	copilotOrgBilling   bool // all Copilot workflows use copilot-requests: write (GITHUB_TOKEN); COPILOT_GITHUB_TOKEN is not required
-}
-
-func isMaintenanceJobDisabled(disabledJobs map[string]struct{}, jobName string) bool {
-	if len(disabledJobs) == 0 {
-		return false
-	}
-	_, exists := disabledJobs[normalizeMaintenanceJobName(jobName)]
-	return exists
 }
 
 // buildMaintenanceWorkflowYAML generates the complete YAML content for the
@@ -55,13 +47,16 @@ func buildMaintenanceWorkflowYAML(
 	configuredRunsOn := opts.configuredRunsOn
 	defaultBranch := opts.defaultBranch
 	disableLabelTrigger := opts.disableLabelTrigger
-	disabledJobs := opts.disabledJobs
+	maintenanceConfig := opts.maintenanceConfig
 	compileGitHubToken := opts.compileGitHubToken
 	createCompilePR := opts.createCompilePR
 	copilotOrgBilling := opts.copilotOrgBilling
 	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v createCompilePR=%v copilotOrgBilling=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger, createCompilePR, copilotOrgBilling)
-	labelDisableJobEnabled := !disableLabelTrigger && !isMaintenanceJobDisabled(disabledJobs, "label_disable_agentic_workflow")
-	labelApplySafeOutputsJobEnabled := !disableLabelTrigger && !isMaintenanceJobDisabled(disabledJobs, "label_apply_safe_outputs")
+	isJobDisabled := func(jobName string) bool {
+		return maintenanceConfig.IsJobDisabled(jobName)
+	}
+	labelDisableJobEnabled := !disableLabelTrigger && !isJobDisabled("label_disable_agentic_workflow")
+	labelApplySafeOutputsJobEnabled := !disableLabelTrigger && !isJobDisabled("label_apply_safe_outputs")
 
 	var yaml strings.Builder
 
@@ -108,8 +103,10 @@ on:
 	}
 
 	appliedRunURLValue := "${{ jobs.apply_safe_outputs.outputs.run_url }}"
-	if isMaintenanceJobDisabled(disabledJobs, "apply_safe_outputs") {
+	appliedRunURLDescription := "The run URL that safe outputs were applied from"
+	if isJobDisabled("apply_safe_outputs") {
 		appliedRunURLValue = "${{ inputs.run_url }}"
+		appliedRunURLDescription = "The run URL that safe outputs were applied from (workflow_call falls back to inputs.run_url when apply_safe_outputs is disabled; other triggers leave this empty)"
 	}
 
 	yaml.WriteString(`  workflow_dispatch:
@@ -155,7 +152,7 @@ on:
         description: 'The maintenance operation that was completed (empty when none ran or a scheduled job ran)'
         value: ${{ jobs.run_operation.outputs.operation || inputs.operation }}
       applied_run_url:
-        description: 'The run URL that safe outputs were applied from'
+        description: '` + appliedRunURLDescription + `'
         value: ` + appliedRunURLValue + `
 
 permissions: {}
@@ -199,7 +196,7 @@ jobs:
 `)
 	}
 
-	if !isMaintenanceJobDisabled(disabledJobs, "close-expired-entities") {
+	if !isJobDisabled("close-expired-entities") {
 		writeCloseExpiredJob("close-expired-discussions", "discussions: write", "Close expired discussions", "close_expired_discussions")
 		writeCloseExpiredJob("close-expired-issues", "issues: write", "Close expired issues", "close_expired_issues")
 		writeCloseExpiredJob("close-expired-pull-requests", "pull-requests: write", "Close expired pull requests", "close_expired_pull_requests")
@@ -353,7 +350,7 @@ jobs:
 `)
 
 	// Add apply_safe_outputs job for workflow_dispatch with operation == 'safe_outputs'
-	if !isMaintenanceJobDisabled(disabledJobs, "apply_safe_outputs") {
+	if !isJobDisabled("apply_safe_outputs") {
 		yaml.WriteString(`
   apply_safe_outputs:
     if: ${{ ` + RenderCondition(buildDispatchOperationCondition("safe_outputs")) + ` }}
