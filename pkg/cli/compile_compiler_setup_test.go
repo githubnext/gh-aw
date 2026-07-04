@@ -3,21 +3,28 @@
 package cli
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+func hasModelPricingResolver(compiler *workflow.Compiler) bool {
+	// Keep this field name in sync with workflow.Compiler; this helper intentionally
+	// inspects private state to preserve behavioral coverage without re-exporting API.
+	return !reflect.ValueOf(compiler).Elem().FieldByName("modelPricingResolver").IsNil()
+}
+
 func TestCreateAndConfigureCompiler_RegistersModelPricingResolverByDefault(t *testing.T) {
 	compiler := createAndConfigureCompiler(CompileConfig{})
-	if !compiler.HasModelPricingResolver() {
+	if !hasModelPricingResolver(compiler) {
 		t.Fatal("expected model pricing resolver to be registered by default")
 	}
 }
 
 func TestCreateAndConfigureCompiler_SkipsModelPricingResolverWhenDisabled(t *testing.T) {
 	compiler := createAndConfigureCompiler(CompileConfig{DisableModelsDevLookup: true})
-	if compiler.HasModelPricingResolver() {
+	if hasModelPricingResolver(compiler) {
 		t.Fatal("expected model pricing resolver to be nil when models.dev lookup is disabled")
 	}
 }
