@@ -169,6 +169,19 @@ func TestLoadRepoConfig_LabelTriggers_ExplicitTrue(t *testing.T) {
 	assert.True(t, cfg.Maintenance.IsLabelTriggerEnabled(), "label_triggers: true keeps label-triggered jobs enabled")
 }
 
+func TestLoadRepoConfig_DisabledJobs(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"maintenance": {"disabled_jobs": ["close-expired-entities", "label_apply_safe_outputs"]}}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
+	require.Len(t, cfg.Maintenance.DisabledJobs, 2, "disabled_jobs should be parsed")
+	assert.True(t, cfg.Maintenance.IsJobDisabled("close-expired-entities"), "hyphenated job name should match")
+	assert.True(t, cfg.Maintenance.IsJobDisabled("label_apply_safe_outputs"), "underscored lookup should match hyphen/underscore equivalently")
+	assert.False(t, cfg.Maintenance.IsJobDisabled("create_labels"), "unlisted jobs should remain enabled")
+}
+
 // TestLoadRepoConfig_UnknownProperty tests that unknown properties are rejected.
 func TestLoadRepoConfig_UnknownProperty(t *testing.T) {
 	dir := t.TempDir()

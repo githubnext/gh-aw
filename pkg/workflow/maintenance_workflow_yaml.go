@@ -23,9 +23,18 @@ type buildMaintenanceWorkflowYAMLOptions struct {
 	configuredRunsOn    RunsOnValue
 	defaultBranch       string
 	disableLabelTrigger bool
+	disabledJobs        map[string]struct{}
 	compileGitHubToken  string
 	createCompilePR     bool
 	copilotOrgBilling   bool // all Copilot workflows use copilot-requests: write (GITHUB_TOKEN); COPILOT_GITHUB_TOKEN is not required
+}
+
+func isMaintenanceJobDisabled(disabledJobs map[string]struct{}, jobName string) bool {
+	if len(disabledJobs) == 0 {
+		return false
+	}
+	_, exists := disabledJobs[normalizeMaintenanceJobName(jobName)]
+	return exists
 }
 
 // buildMaintenanceWorkflowYAML generates the complete YAML content for the
@@ -46,10 +55,13 @@ func buildMaintenanceWorkflowYAML(
 	configuredRunsOn := opts.configuredRunsOn
 	defaultBranch := opts.defaultBranch
 	disableLabelTrigger := opts.disableLabelTrigger
+	disabledJobs := opts.disabledJobs
 	compileGitHubToken := opts.compileGitHubToken
 	createCompilePR := opts.createCompilePR
 	copilotOrgBilling := opts.copilotOrgBilling
 	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v createCompilePR=%v copilotOrgBilling=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger, createCompilePR, copilotOrgBilling)
+	labelDisableJobEnabled := !disableLabelTrigger && !isMaintenanceJobDisabled(disabledJobs, "label_disable_agentic_workflow")
+	labelApplySafeOutputsJobEnabled := !disableLabelTrigger && !isMaintenanceJobDisabled(disabledJobs, "label_apply_safe_outputs")
 
 	var yaml strings.Builder
 
@@ -88,11 +100,20 @@ on:
 	}
 
 	// Add label-event trigger only when the label-triggered jobs are enabled
-	if !disableLabelTrigger {
+	if labelDisableJobEnabled || labelApplySafeOutputsJobEnabled {
 		maintenanceWorkflowYAMLLog.Print("Adding issues:labeled trigger for label-triggered maintenance jobs")
 		yaml.WriteString(`  issues:
     types: [labeled]
 `)
+	}
+
+	operationCompletedValue := "${{ jobs.run_operation.outputs.operation || inputs.operation }}"
+	if isMaintenanceJobDisabled(disabledJobs, "run_operation") {
+		operationCompletedValue = "${{ inputs.operation }}"
+	}
+	appliedRunURLValue := "${{ jobs.apply_safe_outputs.outputs.run_url }}"
+	if isMaintenanceJobDisabled(disabledJobs, "apply_safe_outputs") {
+		appliedRunURLValue = "${{ inputs.run_url }}"
 	}
 
 	yaml.WriteString(`  workflow_dispatch:
@@ -136,15 +157,18 @@ on:
     outputs:
       operation_completed:
         description: 'The maintenance operation that was completed (empty when none ran or a scheduled job ran)'
-        value: ${{ jobs.run_operation.outputs.operation || inputs.operation }}
+        value: ` + operationCompletedValue + `
       applied_run_url:
         description: 'The run URL that safe outputs were applied from'
-        value: ${{ jobs.apply_safe_outputs.outputs.run_url }}
+        value: ` + appliedRunURLValue + `
 
 permissions: {}
 
 jobs:
-  close-expired-entities:
+`)
+
+	if !isMaintenanceJobDisabled(disabledJobs, "close-expired-entities") {
+		yaml.WriteString(`  close-expired-entities:
     if: ${{ ` + RenderCondition(buildNotForkAndScheduleOnly()) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
@@ -153,23 +177,25 @@ jobs:
       pull-requests: write
     steps:
 `)
+	}
 
 	setupActionRef := ResolveSetupActionReference(ctx, actionMode, version, actionTag, resolver)
 
-	// Add checkout step only in dev/script mode (for local action paths)
-	if actionMode == ActionModeDev || actionMode == ActionModeScript {
-		maintenanceWorkflowYAMLLog.Printf("Adding checkout step for close-expired-entities (actionMode=%s)", actionMode)
-		yaml.WriteString("      - name: Checkout actions folder\n")
-		yaml.WriteString("        uses: " + getActionPin("actions/checkout") + "\n")
-		yaml.WriteString("        with:\n")
-		yaml.WriteString("          sparse-checkout: |\n")
-		yaml.WriteString("            actions\n")
-		yaml.WriteString("          clean: false\n")
-		yaml.WriteString("          persist-credentials: false\n\n")
-	}
+	if !isMaintenanceJobDisabled(disabledJobs, "close-expired-entities") {
+		// Add checkout step only in dev/script mode (for local action paths)
+		if actionMode == ActionModeDev || actionMode == ActionModeScript {
+			maintenanceWorkflowYAMLLog.Printf("Adding checkout step for close-expired-entities (actionMode=%s)", actionMode)
+			yaml.WriteString("      - name: Checkout actions folder\n")
+			yaml.WriteString("        uses: " + getActionPin("actions/checkout") + "\n")
+			yaml.WriteString("        with:\n")
+			yaml.WriteString("          sparse-checkout: |\n")
+			yaml.WriteString("            actions\n")
+			yaml.WriteString("          clean: false\n")
+			yaml.WriteString("          persist-credentials: false\n\n")
+		}
 
-	// Add setup step with the resolved action reference
-	yaml.WriteString(`      - name: Setup Scripts
+		// Add setup step with the resolved action reference
+		yaml.WriteString(`      - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
@@ -180,8 +206,8 @@ jobs:
           script: |
 `)
 
-	// Add the close expired discussions script using require()
-	yaml.WriteString(`            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+		// Add the close expired discussions script using require()
+		yaml.WriteString(`            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/close_expired_discussions.cjs');
             await main();
@@ -192,8 +218,8 @@ jobs:
           script: |
 `)
 
-	// Add the close expired issues script using require()
-	yaml.WriteString(`            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+		// Add the close expired issues script using require()
+		yaml.WriteString(`            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/close_expired_issues.cjs');
             await main();
@@ -204,12 +230,13 @@ jobs:
           script: |
 `)
 
-	// Add the close expired pull requests script using require()
-	yaml.WriteString(`            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+		// Add the close expired pull requests script using require()
+		yaml.WriteString(`            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/close_expired_pull_requests.cjs');
             await main();
 `)
+	}
 
 	// Add cleanup-cache-memory job for scheduled runs and clean_cache_memories operation
 	// This job lists all caches starting with "memory-", groups them by key prefix,
@@ -359,7 +386,8 @@ jobs:
 `)
 
 	// Add apply_safe_outputs job for workflow_dispatch with operation == 'safe_outputs'
-	yaml.WriteString(`
+	if !isMaintenanceJobDisabled(disabledJobs, "apply_safe_outputs") {
+		yaml.WriteString(`
   apply_safe_outputs:
     if: ${{ ` + RenderCondition(buildDispatchOperationCondition("safe_outputs")) + ` }}
     runs-on: ` + runsOnValue + `
@@ -414,6 +442,7 @@ jobs:
           GH_AW_RUN_URL: ${{ inputs.run_url }}
         run: echo "run_url=$GH_AW_RUN_URL" >> "$GITHUB_OUTPUT"
 `)
+	}
 
 	// Add create_labels job for workflow_dispatch with operation == 'create_labels'
 	yaml.WriteString(`
@@ -768,10 +797,11 @@ jobs:
 	// markers, disables the corresponding agentic workflow via the GitHub REST API, and posts
 	// a confirmation comment.
 	// Skipped when label_triggers is set to false in aw.json maintenance config.
-	if !disableLabelTrigger {
-		maintenanceWorkflowYAMLLog.Print("Adding label-triggered jobs: label_disable_agentic_workflow and label_apply_safe_outputs")
-		disableLabelCondition := buildLabeledDisableCondition()
-		yaml.WriteString(`
+	if labelDisableJobEnabled || labelApplySafeOutputsJobEnabled {
+		maintenanceWorkflowYAMLLog.Print("Adding label-triggered jobs")
+		if labelDisableJobEnabled {
+			disableLabelCondition := buildLabeledDisableCondition()
+			yaml.WriteString(`
   label_disable_agentic_workflow:
     if: ${{ ` + RenderCondition(disableLabelCondition) + ` }}
     runs-on: ` + runsOnValue + `
@@ -815,11 +845,13 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/disable_agentic_workflow.cjs');
             await main();
 `)
+		}
 
 		// Add label_apply_safe_outputs job triggered by "agentic-workflows:apply-safe-outputs" label on issues.
 		// This job extracts a workflow run URL from the issue body XML comments and re-applies the safe outputs.
-		applySafeOutputsCondition := buildLabeledApplySafeOutputsCondition()
-		yaml.WriteString(`
+		if labelApplySafeOutputsJobEnabled {
+			applySafeOutputsCondition := buildLabeledApplySafeOutputsCondition()
+			yaml.WriteString(`
   label_apply_safe_outputs:
     if: ${{ ` + RenderCondition(applySafeOutputsCondition) + ` }}
     runs-on: ` + runsOnValue + `
@@ -867,6 +899,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/label_apply_safe_outputs.cjs');
             await main();
 `)
+		}
 	}
 
 	// Add compile-workflows and zizmor-scan jobs only in dev mode

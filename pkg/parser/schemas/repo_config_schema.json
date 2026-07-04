@@ -87,6 +87,15 @@
               "description": "Set to false to disable all label-triggered jobs (disable_agentic_workflow, label_apply_safe_outputs, etc.). When absent or true (default), all label-triggered jobs are included in the maintenance workflow.",
               "type": "boolean"
             },
+            "disabled_jobs": {
+              "description": "Maintenance workflow job IDs to skip when generating agentics-maintenance.yml. Values are case-insensitive; underscores and hyphens are treated equivalently.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
             "compile": {
               "description": "Configuration for the compile-workflows maintenance job.",
               "type": "object",

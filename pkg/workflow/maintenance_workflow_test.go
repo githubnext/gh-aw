@@ -1088,6 +1088,67 @@ func TestGenerateMaintenanceWorkflow_LabelTriggers_ExplicitTrue(t *testing.T) {
 	}
 }
 
+func TestGenerateMaintenanceWorkflow_DisabledJobs(t *testing.T) {
+	workflowDataList := []*WorkflowData{
+		{
+			Name: "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{Expires: 48},
+			},
+		},
+	}
+
+	tmpDir := t.TempDir()
+	trueVal := true
+	cfg := &RepoConfig{
+		Maintenance: &MaintenanceConfig{
+			LabelTriggers: &trueVal,
+			DisabledJobs: []string{
+				"close-expired-entities",
+				"apply_safe_outputs",
+				"label_disable_agentic_workflow",
+				"label_apply_safe_outputs",
+			},
+		},
+	}
+	err := GenerateMaintenanceWorkflow(context.Background(), GenerateMaintenanceWorkflowOptions{
+		WorkflowDataList: workflowDataList,
+		WorkflowDir:      tmpDir,
+		Version:          "v1.0.0",
+		ActionMode:       ActionModeDev,
+		ActionTag:        "",
+		RepoConfig:       cfg,
+		RepoSlug:         "",
+	})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+	if err != nil {
+		t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+	}
+	yaml := string(content)
+
+	if strings.Contains(yaml, "close-expired-entities:") {
+		t.Error("close-expired-entities job should be omitted when disabled in aw.json")
+	}
+	if strings.Contains(yaml, "apply_safe_outputs:") {
+		t.Error("apply_safe_outputs job should be omitted when disabled in aw.json")
+	}
+	if strings.Contains(yaml, "label_disable_agentic_workflow:") {
+		t.Error("label_disable_agentic_workflow job should be omitted when disabled in aw.json")
+	}
+	if strings.Contains(yaml, "label_apply_safe_outputs:") {
+		t.Error("label_apply_safe_outputs job should be omitted when disabled in aw.json")
+	}
+	if strings.Contains(yaml, "  issues:\n    types: [labeled]") {
+		t.Error("issues:labeled trigger should be omitted when all label-triggered jobs are disabled")
+	}
+	if !strings.Contains(yaml, "value: ${{ inputs.run_url }}") {
+		t.Error("workflow_call applied_run_url should fall back to inputs.run_url when apply_safe_outputs is disabled")
+	}
+}
+
 func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 	const jobSectionSearchRange = 500
 
