@@ -30,6 +30,9 @@ const (
 	CrushEngine EngineName = "crush"
 	// PiEngine is the Pi engine identifier (experimental)
 	PiEngine EngineName = "pi"
+	// AWEngine is the AW Harness engine identifier (aspirational — see specs/aw-harness.md).
+	// Requires aw_harness.cjs at actions/setup/js/aw_harness.cjs to be functional.
+	AWEngine EngineName = "aw"
 
 	// DefaultEngine is the default agentic engine used when no engine is explicitly specified.
 	// Currently defaults to CopilotEngine.
