@@ -130,10 +130,17 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
           }
 
           // Pattern 2: const { summary } = core; or const { summary: alias } = core;
-          if (declarator.id.type === "ObjectPattern" && declarator.init.type === "Identifier" && isCoreLikeIdentifier(declarator.init.name)) {
-            return declarator.id.properties.some(
-              prop => prop.type === "Property" && !prop.computed && prop.key.type === "Identifier" && prop.key.name === "summary" && prop.value.type === "Identifier" && prop.value.name === identifier.name
-            );
+          if (
+            declarator.id.type === "ObjectPattern" &&
+            declarator.init.type === "Identifier" &&
+            isCoreLikeIdentifier(declarator.init.name)
+          ) {
+            return declarator.id.properties.some(prop => {
+              if (prop.type !== "Property" || prop.computed) return false;
+              const keyIsSummary = prop.key.type === "Identifier" && prop.key.name === "summary";
+              const valueIsAlias = prop.value.type === "Identifier" && prop.value.name === identifier.name;
+              return keyIsSummary && valueIsAlias;
+            });
           }
 
           return false;
