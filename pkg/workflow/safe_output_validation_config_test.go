@@ -338,6 +338,16 @@ func TestIssueIntentLabelValidationFields(t *testing.T) {
 	}
 }
 
+func TestStripOnErrorOnlyOnOptionalFields(t *testing.T) {
+	for typeName, config := range ValidationConfig {
+		for fieldName, field := range config.Fields {
+			if field.StripOnError && field.Required {
+				t.Fatalf("%s.%s cannot set both StripOnError and Required", typeName, fieldName)
+			}
+		}
+	}
+}
+
 func TestValidationConfigConsistency(t *testing.T) {
 	// Verify that all types with customValidation have valid validation rules
 	validCustomValidations := map[string]bool{

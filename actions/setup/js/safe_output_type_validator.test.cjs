@@ -1020,6 +1020,25 @@ describe("safe_output_type_validator", () => {
       expect(fieldResult.normalizedItem.value).toBe("P1");
       expect(fieldResult.normalizedItem.rationale).toBeUndefined();
     });
+
+    it("should not strip required fields even when x-strip-on-error is set", async () => {
+      const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
+      process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify({
+        ...SAMPLE_VALIDATION_CONFIG,
+        misconfigured_type: {
+          defaultMax: 1,
+          fields: {
+            name: { required: true, type: "string", "x-strip-on-error": true },
+          },
+        },
+      });
+      resetValidationConfigCache();
+
+      const result = validateItem({ type: "misconfigured_type" }, "misconfigured_type", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("requires a 'name' field");
+    });
   });
 
   describe("pattern validation", () => {
