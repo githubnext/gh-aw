@@ -83,6 +83,15 @@ Installed gh-aw agents should support scenario evaluation requests that do not c
 - Return a compact design recommendation covering trigger, scope, tools, permissions, safe outputs, `noop` behavior, and any report window / grouping / deduplication requirements.
 - Offer to turn the recommendation into `.github/workflows/<workflow-id>.md` only if the user asks to proceed.
 
+### Non-technical persona example (Program Management)
+
+When the request is framed as a PM or stakeholder workflow (for example "weekly product health digest"):
+
+- prefer `schedule: weekly` (or `daily on weekdays` for operational digests) plus `workflow_dispatch` for preview/backfill runs
+- read with `github` (`gh-proxy`) and default to `create-issue` for the digest destination
+- require an explicit report window, grouping dimensions, and a stable dedup key before creating output
+- use `close-older-issues: true` for recurring issue-style digests and call `noop` when the selected window has no qualifying updates
+
 ## PR Checks with Linked References
 
 When a PR analysis requires verifying or attaching a linked artifact (design doc, policy link, architecture decision record, or approval), follow this compact pattern:
