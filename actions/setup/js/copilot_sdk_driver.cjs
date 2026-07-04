@@ -19,8 +19,9 @@
  * client connection, runs the session, and exits.
  *
  * Reusable helpers live in:
- *   copilot_sdk_permissions.cjs — permission config parsing and handler builder
- *   copilot_sdk_session.cjs     — session runner and JSONL event serialization
+ *   copilot_sdk_permissions.cjs    — permission config parsing and handler builder
+ *   copilot_sdk_session.cjs        — session runner and JSONL event serialization
+ *   copilot_sdk_multi_provider.cjs — multi-provider JSON parsing and validation
  */
 
 "use strict";
@@ -28,6 +29,7 @@
 const fs = require("fs");
 const { runWithCopilotSDK, extractPromptFromArgs } = require("./copilot_sdk_session.cjs");
 const { parsePermissionConfigFromServerArgs } = require("./copilot_sdk_permissions.cjs");
+const { parseMultiProviderJson } = require("./copilot_sdk_multi_provider.cjs");
 
 // Re-export the session and permission helpers so that existing callers that
 // require("./copilot_sdk_driver.cjs") (e.g. copilot_harness.cjs) continue to work.
@@ -43,45 +45,6 @@ module.exports = { extractPromptFromArgs, runWithCopilotSDK, parsePermissionConf
  */
 function log(msg) {
   process.stderr.write(`[copilot-sdk-driver] ${msg}\n`);
-}
-
-function isValidProviderConfig(p) {
-  return p && typeof p.name === "string" && typeof p.type === "string" && typeof p.baseUrl === "string";
-}
-
-function isValidModelConfig(m) {
-  return m && typeof m.id === "string" && typeof m.provider === "string";
-}
-
-/**
- * Parse the GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON env var.
- *
- * Returns `null` when the env var is unset or contains invalid JSON.
- * On success returns `{ model, providers, models }` where the shapes match the
- * Copilot SDK `NamedProviderConfig` / `ProviderModelConfig` types.
- *
- * @param {string | undefined} value
- * @returns {{
- *   model: string,
- *   providers: import("@github/copilot-sdk").NamedProviderConfig[],
- *   models: import("@github/copilot-sdk").ProviderModelConfig[],
- * } | null}
- */
-function parseMultiProviderJson(value) {
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value);
-    if (!parsed || typeof parsed !== "object") return null;
-    if (!Array.isArray(parsed.providers) || parsed.providers.length < 1) return null;
-    if (!Array.isArray(parsed.models) || parsed.models.length < 1) return null;
-    // Validate minimal shape: providers must have name/type/baseUrl, models must have id/provider
-    if (!parsed.providers.every(isValidProviderConfig)) return null;
-    if (!parsed.models.every(isValidModelConfig)) return null;
-    const model = typeof parsed.model === "string" ? parsed.model.trim() : "";
-    return { model, providers: parsed.providers, models: parsed.models };
-  } catch {
-    return null;
-  }
 }
 
 /**
