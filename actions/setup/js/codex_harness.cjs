@@ -16,8 +16,10 @@
  *     any partial-execution failure is retried — not just those specific errors.
  *   - If the process produced no output (failed to start / auth error before any work), the
  *     driver does not retry because there is nothing to resume.
- *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s).
- *   - Maximum 3 retry attempts after the initial run.
+ *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s) by default.
+ *   - Maximum 3 retry attempts after the initial run by default.
+ *   - Override via GH_AW_HARNESS_MAX_RETRIES, GH_AW_HARNESS_INITIAL_DELAY_MS,
+ *     GH_AW_HARNESS_BACKOFF_MULTIPLIER, GH_AW_HARNESS_MAX_DELAY_MS.
  *
  * Prompt handling:
  *   - The harness expects a `--prompt-file <path>` argument in the args list.
@@ -48,15 +50,7 @@ const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOut
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
-
-// Maximum number of retry attempts after the initial run
-const MAX_RETRIES = 3;
-// Initial delay in milliseconds before the first retry
-const INITIAL_DELAY_MS = 5000;
-// Multiplier applied to delay after each retry
-const BACKOFF_MULTIPLIER = 2;
-// Maximum delay cap in milliseconds
-const MAX_DELAY_MS = 60000;
+const { resolveRetryConfig } = require("./harness_retry_config.cjs");
 
 // Pattern to detect OpenAI rate-limit errors.
 // Matches the JSON error type field ("rate_limit_exceeded"), the HTTP status code
@@ -358,6 +352,7 @@ async function main() {
     process.exit(1);
   }
 
+  const { maxRetries: MAX_RETRIES, initialDelayMs: INITIAL_DELAY_MS, backoffMultiplier: BACKOFF_MULTIPLIER, maxDelayMs: MAX_DELAY_MS } = resolveRetryConfig(process.env, log);
   log(`starting: command=${command} maxRetries=${MAX_RETRIES} initialDelayMs=${INITIAL_DELAY_MS}` + ` backoffMultiplier=${BACKOFF_MULTIPLIER} maxDelayMs=${MAX_DELAY_MS}` + ` nodeVersion=${process.version} platform=${process.platform}`);
 
   // Pre-flight: skip the agent entirely when a noop has already been written by a prior step.
@@ -601,6 +596,7 @@ if (typeof module !== "undefined" && module.exports) {
     validateCodexOpenAIBaseURLFromReflect,
     hasNoopInSafeOutputs,
     hasExpectedSafeOutputs,
+    resolveRetryConfig,
   };
 }
 

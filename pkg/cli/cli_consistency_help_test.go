@@ -49,6 +49,22 @@ func TestUpdateDocsIncludeCoolDownOption(t *testing.T) {
 	assert.Contains(t, updateSection, "`--cool-down`", "update docs options should include --cool-down")
 }
 
+func TestCompileDocsIncludeNoModelsDevLookupOption(t *testing.T) {
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "should resolve current test file path")
+
+	docsPath := filepath.Join(filepath.Dir(currentFile), "..", "..", "docs", "src", "content", "docs", "setup", "cli.md")
+	content, err := os.ReadFile(docsPath)
+	require.NoError(t, err, "should read CLI setup docs")
+
+	text := string(content)
+	compileIndex := strings.Index(text, "#### `compile`")
+	require.NotEqual(t, -1, compileIndex, "CLI setup docs should contain the compile section")
+
+	compileSection := text[compileIndex:]
+	assert.Contains(t, compileSection, "`--no-models-dev-lookup`", "compile docs options should include --no-models-dev-lookup")
+}
+
 func TestSubcommandListingsUseHyphenBullets(t *testing.T) {
 	tests := []struct {
 		name    string

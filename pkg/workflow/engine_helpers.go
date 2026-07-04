@@ -135,6 +135,30 @@ func applyEngineMaxTurnsEnv(env map[string]string, workflowData *WorkflowData) {
 	env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
 }
 
+// applyEngineHarnessRetryEnv injects GH_AW_HARNESS_* environment variables from
+// the engine frontmatter retry policy fields (engine.harness.max-retries, etc.).
+// Only fields that are explicitly set are injected; absent fields let the harness
+// fall back to its built-in defaults. Must be called before applyEngineAndAgentEnv
+// so that explicit engine.env overrides take precedence.
+func applyEngineHarnessRetryEnv(env map[string]string, workflowData *WorkflowData) {
+	if workflowData == nil || workflowData.EngineConfig == nil {
+		return
+	}
+	cfg := workflowData.EngineConfig
+	if cfg.HarnessMaxRetries != "" {
+		env["GH_AW_HARNESS_MAX_RETRIES"] = cfg.HarnessMaxRetries
+	}
+	if cfg.HarnessInitialDelayMs != "" {
+		env["GH_AW_HARNESS_INITIAL_DELAY_MS"] = cfg.HarnessInitialDelayMs
+	}
+	if cfg.HarnessBackoffMultiplier != "" {
+		env["GH_AW_HARNESS_BACKOFF_MULTIPLIER"] = cfg.HarnessBackoffMultiplier
+	}
+	if cfg.HarnessMaxDelayMs != "" {
+		env["GH_AW_HARNESS_MAX_DELAY_MS"] = cfg.HarnessMaxDelayMs
+	}
+}
+
 // applyEngineAndAgentEnv merges custom environment variables from engine and agent configs.
 func applyEngineAndAgentEnv(env map[string]string, workflowData *WorkflowData, log *logger.Logger) {
 	if workflowData == nil {

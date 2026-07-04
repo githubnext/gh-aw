@@ -48,6 +48,10 @@ func computeEnabledToolNames(data *WorkflowData) map[string]struct {
 		enabledTools["mark_pull_request_as_ready_for_review"] = struct {
 		}{}
 	}
+	if data.SafeOutputs.DismissPullRequestReview != nil {
+		enabledTools["dismiss_pull_request_review"] = struct {
+		}{}
+	}
 	if data.SafeOutputs.AddComments != nil {
 		enabledTools["add_comment"] = struct {
 		}{}

@@ -1,0 +1,99 @@
+# Integrity Level Block — Compliance Fixture
+# Tests: T-GH-051, T-GH-052, T-GH-054, T-GH-059, T-GH-060
+# Spec: §8 Integrity Level Management
+
+fixture_id: "integrity-level-block"
+description: >
+  The `min-integrity` field enforces a minimum content integrity level. Requests whose
+  effective content integrity meets or exceeds `min-integrity` MUST be allowed (T-GH-051).
+  Requests whose effective content integrity is below `min-integrity` MUST be denied with
+  error code -32006 (T-GH-052, T-GH-054). When no `min-integrity` is configured, all
+  non-blocked items pass the integrity check regardless of their effective level (T-GH-059).
+  The integrity ordering MUST be: none < unapproved < approved < merged (T-GH-060).
+
+spec_refs:
+  - "§8.1 — min-integrity allows content at or above the configured threshold"
+  - "§8.2 — min-integrity denies content below the configured threshold"
+  - "§8.3 — Integrity ordinal order: none < unapproved < approved < merged"
+  - "§11.1.9 — T-GH-051 through T-GH-060"
+
+scenarios:
+  # --- Scenario A: content meets threshold → allowed ---
+  - scenario_id: "integrity-level-block-A"
+    description: "Content with integrity 'approved' is allowed when min-integrity: approved"
+    input:
+      tool_config:
+        repos:
+          - "*/*"
+        min-integrity: "approved"
+      request:
+        repository: "example/repo"
+        content_integrity: "approved"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario B: content exceeds threshold → allowed ---
+  - scenario_id: "integrity-level-block-B"
+    description: "Content with integrity 'merged' is allowed when min-integrity: approved"
+    input:
+      tool_config:
+        repos:
+          - "*/*"
+        min-integrity: "approved"
+      request:
+        repository: "example/repo"
+        content_integrity: "merged"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario C: content below threshold → denied ---
+  - scenario_id: "integrity-level-block-C"
+    description: "Content with integrity 'unapproved' is denied when min-integrity: approved"
+    input:
+      tool_config:
+        repos:
+          - "*/*"
+        min-integrity: "approved"
+      request:
+        repository: "example/repo"
+        content_integrity: "unapproved"
+    expected:
+      decision: deny
+      error_code: -32006
+      reason: "content integrity below minimum required level"
+
+  # --- Scenario D: content at lowest level below threshold → denied ---
+  - scenario_id: "integrity-level-block-D"
+    description: "Content with integrity 'none' is denied when min-integrity: merged"
+    input:
+      tool_config:
+        repos:
+          - "*/*"
+        min-integrity: "merged"
+      request:
+        repository: "example/repo"
+        content_integrity: "none"
+    expected:
+      decision: deny
+      error_code: -32006
+      reason: "content integrity below minimum required level"
+
+  # --- Scenario E: no min-integrity configured → any content level passes ---
+  - scenario_id: "integrity-level-block-E"
+    description: "Without min-integrity, content at any integrity level is permitted"
+    input:
+      tool_config:
+        repos:
+          - "*/*"
+        # no min-integrity field
+      request:
+        repository: "example/repo"
+        content_integrity: "none"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""

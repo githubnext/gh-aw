@@ -20,6 +20,7 @@ const {
   hasNumerousPermissionDeniedIssues,
   extractDeniedCommands,
   buildMissingToolPermissionIssuePayload,
+  resolveRetryConfig,
 } = require("./claude_harness.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
@@ -489,6 +490,74 @@ process.exit(0);
     it("does not retry when first attempt fails authentication", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Authentication failed (Request ID: 123)" };
       expect(shouldRetry(result, 0)).toBe(false);
+    });
+  });
+
+  describe("retry configuration", () => {
+    it("uses the default retry settings when env vars are unset", () => {
+      expect(resolveRetryConfig({})).toEqual({
+        maxRetries: 3,
+        initialDelayMs: 5000,
+        backoffMultiplier: 2,
+        maxDelayMs: 60000,
+      });
+    });
+
+    it("accepts env overrides for retry settings", () => {
+      expect(
+        resolveRetryConfig({
+          GH_AW_HARNESS_MAX_RETRIES: "6",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "250",
+          GH_AW_HARNESS_BACKOFF_MULTIPLIER: "1.25",
+          GH_AW_HARNESS_MAX_DELAY_MS: "10000",
+        })
+      ).toEqual({
+        maxRetries: 6,
+        initialDelayMs: 250,
+        backoffMultiplier: 1.25,
+        maxDelayMs: 10000,
+      });
+    });
+
+    it("falls back to defaults for invalid env values and clamps max delay", () => {
+      const logs = [];
+      const retryConfig = resolveRetryConfig(
+        {
+          GH_AW_HARNESS_MAX_RETRIES: "-1",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "6000",
+          GH_AW_HARNESS_BACKOFF_MULTIPLIER: "0",
+          GH_AW_HARNESS_MAX_DELAY_MS: "1000",
+        },
+        msg => logs.push(msg)
+      );
+      expect(retryConfig).toEqual({
+        maxRetries: 3,
+        initialDelayMs: 6000,
+        backoffMultiplier: 2,
+        maxDelayMs: 6000,
+      });
+      expect(logs.some(msg => msg.includes("GH_AW_HARNESS_MAX_RETRIES"))).toBe(true);
+      expect(logs.some(msg => msg.includes("GH_AW_HARNESS_BACKOFF_MULTIPLIER"))).toBe(true);
+      expect(logs.some(msg => msg.includes("clamping max delay"))).toBe(true);
+    });
+
+    it("accepts max-retries=0 to disable retries entirely", () => {
+      const retryConfig = resolveRetryConfig({ GH_AW_HARNESS_MAX_RETRIES: "0" });
+      expect(retryConfig.maxRetries).toBe(0);
+    });
+
+    it("clamps max-retries to 100 when given an excessively large value", () => {
+      const logs = [];
+      const retryConfig = resolveRetryConfig({ GH_AW_HARNESS_MAX_RETRIES: "9999" }, msg => logs.push(msg));
+      expect(retryConfig.maxRetries).toBe(100);
+      expect(logs.some(msg => msg.includes("GH_AW_HARNESS_MAX_RETRIES"))).toBe(true);
+    });
+
+    it("rejects non-decimal integer formats such as '1e3' and '0x10'", () => {
+      const config1 = resolveRetryConfig({ GH_AW_HARNESS_MAX_RETRIES: "1e3" });
+      expect(config1.maxRetries).toBe(3);
+      const config2 = resolveRetryConfig({ GH_AW_HARNESS_INITIAL_DELAY_MS: "0x10" });
+      expect(config2.initialDelayMs).toBe(5000);
     });
   });
 

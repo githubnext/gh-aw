@@ -30,8 +30,8 @@
  *     history and permanently disables `--continue` for the remainder of the run so the corrupt
  *     state can never be reloaded.  Once `--continue` is disabled this way it is not re-enabled
  *     even if later retries produce output.
- *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s).
- *   - Maximum 3 retry attempts after the initial run.
+ *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s) by default.
+ *   - Maximum 3 retry attempts after the initial run by default.
  *
  * Usage: node copilot_harness.cjs <command> [args...]
  * Example: node copilot_harness.cjs copilot --add-dir /tmp/ --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt
@@ -46,6 +46,7 @@ const crypto = require("crypto");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
+const { resolveRetryConfig: resolveSharedRetryConfig } = require("./harness_retry_config.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -65,14 +66,6 @@ const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSi
 const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
 const { loadModelsJson } = require("./model_costs.cjs");
 
-// Maximum number of retry attempts after the initial run
-const MAX_RETRIES = 3;
-// Initial delay in milliseconds before the first retry
-const INITIAL_DELAY_MS = 5000;
-// Multiplier applied to delay after each retry
-const BACKOFF_MULTIPLIER = 2;
-// Maximum delay cap in milliseconds
-const MAX_DELAY_MS = 60000;
 // Additional startup retry budget for scheduled runs when Copilot exits with code 2
 // before producing any output (typically transient API interruption at startup).
 const MAX_SCHEDULED_EXIT2_RETRIES = 1;
@@ -150,6 +143,15 @@ const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
  */
 function log(message) {
   process.stderr.write(`[copilot-harness] ${message}\n`);
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {(message: string) => void} [logger]
+ * @returns {{maxRetries: number, initialDelayMs: number, backoffMultiplier: number, maxDelayMs: number}}
+ */
+function resolveRetryConfig(env = process.env, logger = log) {
+  return resolveSharedRetryConfig(env, logger);
 }
 
 /**
@@ -706,13 +708,15 @@ function resolvePromptFileArgs(args) {
  */
 async function main() {
   const [, , command, ...args] = process.argv;
+  const retryConfig = resolveRetryConfig(process.env, log);
+  const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = retryConfig;
 
   if (!command) {
     process.stderr.write("copilot-harness: Usage: node copilot_harness.cjs <command> [args...]\n");
     process.exit(1);
   }
 
-  log(`starting: command=${command} maxRetries=${MAX_RETRIES} initialDelayMs=${INITIAL_DELAY_MS}` + ` backoffMultiplier=${BACKOFF_MULTIPLIER} maxDelayMs=${MAX_DELAY_MS}` + ` nodeVersion=${process.version} platform=${process.platform}`);
+  log(`starting: command=${command} maxRetries=${maxRetries} initialDelayMs=${initialDelayMs}` + ` backoffMultiplier=${backoffMultiplier} maxDelayMs=${maxDelayMs}` + ` nodeVersion=${process.version} platform=${process.platform}`);
 
   await checkCommandAccessible(command);
 
@@ -824,7 +828,7 @@ async function main() {
     process.exit(0);
   }
 
-  let delay = INITIAL_DELAY_MS;
+  let delay = initialDelayMs;
   let lastExitCode = 1;
   const isScheduledRun = process.env.GITHUB_EVENT_NAME === "schedule";
   let scheduledExit2Retries = 0;
@@ -880,7 +884,7 @@ async function main() {
     if (!copilotSDKMode || copilotSDKServer) {
       // Unified retry loop for CLI and driver modes.
       // --continue is a CLI concept; in SDK mode retries always restart the session fresh.
-      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
         if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
           emitSoftTimeoutSignal(softTimeoutGuard, `before attempt ${attempt + 1}`, "Copilot harness", log);
           lastExitCode = 1;
@@ -891,10 +895,10 @@ async function main() {
 
         if (attempt > 0) {
           const retryMode = !copilotSDKMode && useContinueOnRetry ? "--continue" : "fresh run";
-          log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt (${retryMode})`);
+          log(`retry ${attempt}/${maxRetries}: sleeping ${delay}ms before next attempt (${retryMode})`);
           await sleep(delay);
-          delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
-          log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
+          delay = Math.min(delay * backoffMultiplier, maxDelayMs);
+          log(`retry ${attempt}/${maxRetries}: woke up, next delay cap will be ${Math.min(delay * backoffMultiplier, maxDelayMs)}ms`);
           if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
             emitSoftTimeoutSignal(softTimeoutGuard, "after backoff sleep", "Copilot harness", log);
             lastExitCode = 1;
@@ -980,7 +984,7 @@ async function main() {
             ` permissionDeniedCount=${permissionDeniedCount}` +
             ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
             ` hasOutput=${result.hasOutput}` +
-            ` retriesRemaining=${MAX_RETRIES - attempt}`
+            ` retriesRemaining=${maxRetries - attempt}`
         );
         if (outputTail) {
           log(`attempt ${attempt + 1}: outputTail=${JSON.stringify(outputTail)}`);
@@ -1044,7 +1048,7 @@ async function main() {
 
         // Model-not-supported errors are persistent — retrying will not help.
         if (isModelNotSupported) {
-          if (!modelNotSupportedReflectRetryAttempted && attempt < MAX_RETRIES && isDetectionPhase(process.env.GH_AW_PHASE) && process.env.AWF_REFLECT_ENABLED === "1") {
+          if (!modelNotSupportedReflectRetryAttempted && attempt < maxRetries && isDetectionPhase(process.env.GH_AW_PHASE) && process.env.AWF_REFLECT_ENABLED === "1") {
             const configuredModel = process.env.COPILOT_MODEL || "";
             modelNotSupportedReflectRetryAttempted = true;
             log(`attempt ${attempt + 1}: model not supported during detection — refreshing awf-reflect to rule out startup registry race`);
@@ -1064,7 +1068,7 @@ async function main() {
         // Generic HTTP 400 response errors are usually persistent request/state failures.
         // Retry once as a fresh run to discard potentially stale conversation state.
         if (hasHTTP400ResponseError) {
-          if (attempt < MAX_RETRIES && result.hasOutput && useContinueOnRetry) {
+          if (attempt < maxRetries && result.hasOutput && useContinueOnRetry) {
             useContinueOnRetry = false;
             continueDisabledPermanently = true;
             log(`attempt ${attempt + 1}: HTTP 400 response error on --continue — retrying once as fresh run (request/state may be stale; --continue disabled permanently)`);
@@ -1080,7 +1084,7 @@ async function main() {
         // once so env-var auth can succeed.  Mid-stream context is lost but the job can recover.
         // On a fresh run: the auth token is genuinely absent or invalid — retrying will not help.
         if (isAuthErr) {
-          if (useContinueOnRetry && attempt < MAX_RETRIES) {
+          if (useContinueOnRetry && attempt < maxRetries) {
             useContinueOnRetry = false;
             continueDisabledPermanently = true;
             log(`attempt ${attempt + 1}: auth error on --continue — retrying as fresh run (session credential may be corrupted; context will be lost)`);
@@ -1095,7 +1099,7 @@ async function main() {
         // produces the same 400 on every subsequent attempt.  Restart fresh to discard the poisoned
         // history, and permanently disable --continue so the corrupt state is never re-loaded.
         if (isNullTypeToolCall) {
-          if (attempt < MAX_RETRIES && result.hasOutput) {
+          if (attempt < maxRetries && result.hasOutput) {
             const priorMode = attempt > 0 && useContinueOnRetry ? "--continue" : "fresh run";
             useContinueOnRetry = false;
             continueDisabledPermanently = true;
@@ -1107,14 +1111,14 @@ async function main() {
         // Scheduled runs: retry once on exit code 2 even when no output was produced.
         // This specifically targets transient Copilot API outages at startup where there is no
         // partial session state to continue from.
-        if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < MAX_RETRIES) {
+        if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < maxRetries) {
           scheduledExit2Retries += 1;
           scheduledExit2RetryAttempted = true;
           useContinueOnRetry = false;
           log(`attempt ${attempt + 1}: scheduled startup interruption (exit code 2, no output)` + ` — retrying once as fresh run (startupRetry=${scheduledExit2Retries}/${MAX_SCHEDULED_EXIT2_RETRIES})`);
           continue;
         }
-        if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt >= MAX_RETRIES) {
+        if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt >= maxRetries) {
           log(`attempt ${attempt + 1}: scheduled startup interruption detected but retry budget exhausted — no attempts remain`);
         }
 
@@ -1124,17 +1128,17 @@ async function main() {
           break;
         }
 
-        if (attempt < MAX_RETRIES && result.hasOutput) {
+        if (attempt < maxRetries && result.hasOutput) {
           const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
           // --continue is only meaningful in CLI mode; SDK mode always restarts fresh.
           useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently;
           const retryMode = useContinueOnRetry ? "--continue" : copilotSDKMode ? "fresh run" : "fresh run (--continue permanently disabled)";
-          log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+          log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${maxRetries + 1})`);
           continue;
         }
 
-        if (attempt >= MAX_RETRIES) {
-          log(`all ${MAX_RETRIES} retries exhausted — giving up (exitCode=${lastExitCode})`);
+        if (attempt >= maxRetries) {
+          log(`all ${maxRetries} retries exhausted — giving up (exitCode=${lastExitCode})`);
         } else {
           log(`attempt ${attempt + 1}: no output produced — not retrying` + ` (possible causes: binary not found, permission denied, auth failure, or silent startup crash)`);
         }
@@ -1211,6 +1215,7 @@ if (typeof module !== "undefined" && module.exports) {
     waitForCopilotSDKServer,
     writeCopilotOutputs,
     resolvePromptFileArgs,
+    resolveRetryConfig,
     parseCopilotSDKServerArgsFromEnv,
     isCAPIQuotaExceededError,
   };
