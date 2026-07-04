@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -196,7 +197,7 @@ func TestCheckRemoteSymlink(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			target, isSymlink, err := checkRemoteSymlink(client, "github", "gitignore", tt.dirPath, "main")
+			target, isSymlink, err := checkRemoteSymlink(context.Background(), client, "github", "gitignore", tt.dirPath, "main")
 			if err != nil {
 				skipOnAuthError(t, err)
 				if !tt.wantErr {
@@ -223,7 +224,7 @@ func TestResolveRemoteSymlinksNoSymlinks(t *testing.T) {
 		skipOnAuthError(t, err)
 		return
 	}
-	_, err = resolveRemoteSymlinks(client, "github", "gitignore", "Global/Perl.gitignore", "main")
+	_, err = resolveRemoteSymlinks(context.Background(), client, "github", "gitignore", "Global/Perl.gitignore", "main")
 	require.Error(t, err, "Expected error when no symlinks found")
 	skipOnAuthError(t, err)
 
