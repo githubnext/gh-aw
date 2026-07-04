@@ -713,10 +713,10 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 		if isArcDindTopology(data) {
 			// On ARC/DinD, logs are under ${{ runner.temp }}/gh-aw (daemon-visible path).
 			// Use ${{ runner.temp }} because `with:` blocks expand Actions expressions, not shell vars.
-			paths = append(paths, "${{ runner.temp }}/gh-aw/awf-config.json")
-			paths = append(paths, "${{ runner.temp }}/gh-aw/sandbox/firewall/logs/")
-			paths = append(paths, "${{ runner.temp }}/gh-aw/sandbox/firewall/audit/")
-			paths = append(paths, "${{ runner.temp }}/gh-aw/sandbox/firewall/awf-reflect.json")
+			paths = append(paths, constants.AWFConfigFilePathExpr)
+			paths = append(paths, constants.AWFProxyLogsDirExpr+"/")
+			paths = append(paths, constants.AWFAuditDirExpr+"/")
+			paths = append(paths, constants.AWFReflectFilePathExpr)
 		} else {
 			paths = append(paths, constants.AWFConfigFilePath)
 			paths = append(paths, constants.AWFProxyLogsDir+"/")
@@ -726,6 +726,13 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 			// chmod -R a+rX step covers its permissions before upload.
 			paths = append(paths, constants.AWFReflectFilePath)
 		}
+	}
+
+	// For ARC/DinD, rewrite all /tmp/gh-aw/ paths to ${{ runner.temp }}/gh-aw/ so
+	// the artifact upload has a single root. A consolidation step (emitted before upload)
+	// copies the files from /tmp/gh-aw/ to the runner.temp location. See gh-aw#34896 Bug B.
+	if isArcDindTopology(data) {
+		paths = rewriteTmpGhAwPathsForArcDind(paths)
 	}
 
 	return paths
@@ -839,6 +846,15 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
+
+	// For ARC/DinD, consolidate all artifact files under ${{ runner.temp }}/gh-aw/
+	// before upload. Without this, upload-artifact receives paths from two roots
+	// (/tmp/gh-aw/ and ${{ runner.temp }}/gh-aw/), computes "/" as the common ancestor,
+	// and creates a nested directory layout that breaks downstream artifact downloads.
+	// See gh-aw#34896 Bug B.
+	if isArcDindTopology(data) {
+		c.generateArcDindArtifactConsolidationStep(yaml)
+	}
 
 	// Generate single unified artifact upload with all collected paths.
 	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.

@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"maps"
+	"reflect"
 	"testing"
 )
 
@@ -227,6 +229,142 @@ func TestApplyRuntimeOverrides(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestApplyRuntimeOverrides_KnownRuntimeActionOverrides(t *testing.T) {
+	var knownNode *Runtime
+	for _, runtime := range knownRuntimes {
+		if runtime.ID == "node" {
+			knownNode = runtime
+			break
+		}
+	}
+	if knownNode == nil {
+		t.Fatal("expected known node runtime to exist")
+	}
+	originalKnownNode := *knownNode
+	originalKnownNode.Commands = append([]string(nil), knownNode.Commands...)
+	originalKnownNode.ManifestFiles = append([]string(nil), knownNode.ManifestFiles...)
+	originalKnownNode.ExtraWithFields = maps.Clone(knownNode.ExtraWithFields)
+
+	requirements := map[string]*RuntimeRequirement{}
+
+	applyRuntimeOverrides(map[string]any{
+		"node": map[string]any{
+			"version":        "22",
+			"action-repo":    "custom/setup-node",
+			"action-version": "v5",
+		},
+	}, requirements)
+
+	nodeReq, ok := requirements["node"]
+	if !ok {
+		t.Fatal("expected node requirement to be added")
+	}
+	if nodeReq.Version != "22" {
+		t.Fatalf("expected version 22, got %s", nodeReq.Version)
+	}
+	if nodeReq.Runtime == knownNode {
+		t.Fatal("expected action overrides to clone the known runtime")
+	}
+	if nodeReq.Runtime.ActionRepo != "custom/setup-node" {
+		t.Fatalf("expected ActionRepo custom/setup-node, got %s", nodeReq.Runtime.ActionRepo)
+	}
+	if nodeReq.Runtime.ActionVersion != "v5" {
+		t.Fatalf("expected ActionVersion v5, got %s", nodeReq.Runtime.ActionVersion)
+	}
+	if knownNode.ActionRepo != "actions/setup-node" {
+		t.Fatalf("expected known runtime ActionRepo to remain actions/setup-node, got %s", knownNode.ActionRepo)
+	}
+	if knownNode.ActionVersion != "v6" {
+		t.Fatalf("expected known runtime ActionVersion to remain v6, got %s", knownNode.ActionVersion)
+	}
+	if !reflect.DeepEqual(*knownNode, originalKnownNode) {
+		t.Fatal("expected all known runtime fields to remain unchanged")
+	}
+}
+
+func TestApplyRuntimeOverrides_KnownRuntimeActionRepoOnly(t *testing.T) {
+	var knownNode *Runtime
+	for _, runtime := range knownRuntimes {
+		if runtime.ID == "node" {
+			knownNode = runtime
+			break
+		}
+	}
+	if knownNode == nil {
+		t.Fatal("expected known node runtime to exist")
+	}
+
+	originalKnownNode := *knownNode
+	originalKnownNode.Commands = append([]string(nil), knownNode.Commands...)
+	originalKnownNode.ManifestFiles = append([]string(nil), knownNode.ManifestFiles...)
+	originalKnownNode.ExtraWithFields = maps.Clone(knownNode.ExtraWithFields)
+
+	requirements := map[string]*RuntimeRequirement{}
+	applyRuntimeOverrides(map[string]any{
+		"node": map[string]any{
+			"action-repo": "custom/setup-node",
+		},
+	}, requirements)
+
+	nodeReq, ok := requirements["node"]
+	if !ok {
+		t.Fatal("expected node requirement to be added")
+	}
+	if nodeReq.Runtime == knownNode {
+		t.Fatal("expected action overrides to clone the known runtime")
+	}
+	if nodeReq.Runtime.ActionRepo != "custom/setup-node" {
+		t.Fatalf("expected ActionRepo custom/setup-node, got %s", nodeReq.Runtime.ActionRepo)
+	}
+	if nodeReq.Runtime.ActionVersion != knownNode.ActionVersion {
+		t.Fatalf("expected ActionVersion %s, got %s", knownNode.ActionVersion, nodeReq.Runtime.ActionVersion)
+	}
+	if !reflect.DeepEqual(*knownNode, originalKnownNode) {
+		t.Fatal("expected all known runtime fields to remain unchanged")
+	}
+}
+
+func TestApplyRuntimeOverrides_ExistingRequirementActionRepoOnlyClonesRuntime(t *testing.T) {
+	existingRuntime := &Runtime{
+		ID:              "node",
+		ActionRepo:      "actions/setup-node",
+		ActionVersion:   "v4",
+		Commands:        []string{"node --version"},
+		ManifestFiles:   []string{"package.json"},
+		ExtraWithFields: map[string]string{"cache": "npm"},
+	}
+	originalExistingRuntime := *existingRuntime
+	originalExistingRuntime.Commands = append([]string(nil), existingRuntime.Commands...)
+	originalExistingRuntime.ManifestFiles = append([]string(nil), existingRuntime.ManifestFiles...)
+	originalExistingRuntime.ExtraWithFields = maps.Clone(existingRuntime.ExtraWithFields)
+
+	requirements := map[string]*RuntimeRequirement{
+		"node": {
+			Runtime: existingRuntime,
+			Version: "20",
+		},
+	}
+	applyRuntimeOverrides(map[string]any{
+		"node": map[string]any{
+			"action-repo": "custom/setup-node",
+		},
+	}, requirements)
+
+	nodeReq := requirements["node"]
+	if nodeReq.Runtime == existingRuntime {
+		t.Fatal("expected existing runtime to be cloned when applying action overrides")
+	}
+	if nodeReq.Runtime.ActionRepo != "custom/setup-node" {
+		t.Fatalf("expected ActionRepo custom/setup-node, got %s", nodeReq.Runtime.ActionRepo)
+	}
+	if nodeReq.Runtime.ActionVersion != "v4" {
+		t.Fatalf("expected ActionVersion v4, got %s", nodeReq.Runtime.ActionVersion)
+	}
+	if !reflect.DeepEqual(*existingRuntime, originalExistingRuntime) {
+		t.Fatal("expected existing runtime fields to remain unchanged")
 	}
 }
 

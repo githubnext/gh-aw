@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var ghAwSetupLog = logger.New("workflow:gh_aw_setup_steps")
@@ -58,12 +57,7 @@ func generateGhAwSetupStep(config ghAwSetupStepConfig) (GitHubActionStep, error)
 	step = append(step, "        with:")
 	step = append(step, fmt.Sprintf("          version: '%s'", config.cliVersion))
 
-	keys := sliceutil.SortedKeys(config.withFields)
-	for _, key := range keys {
-		step = append(step, fmt.Sprintf("          %s: %s", key, config.withFields[key]))
-	}
-
-	return step, pinErr
+	return appendSortedWithFieldEntries(step, config.withFields), pinErr
 }
 
 // resolveGhAwSetupActionRef resolves the setup-cli action reference in priority order:
