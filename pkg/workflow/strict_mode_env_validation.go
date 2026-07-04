@@ -132,11 +132,23 @@ func (c *Compiler) validateEnvSecretsSection(config map[string]any, sectionName 
 
 	// In strict mode, this is an error
 	if c.strictMode {
+		if sectionName == "engine.env" {
+			// engine.env secrets are auto-excluded from the agent sandbox via awf --exclude-env,
+			// so they are not leaked, but strict mode still requires engine-specific configuration.
+			return fmt.Errorf("strict mode: secrets detected in 'engine.env' section are auto-excluded from the agent sandbox via awf --exclude-env and are not accessible to the agent. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", strings.Join(secretRefs, ", "))
+		}
 		return fmt.Errorf("strict mode: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", sectionName, strings.Join(secretRefs, ", "))
 	}
 
 	// In non-strict mode, emit a warning
-	warningMsg := fmt.Sprintf("Warning: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Consider using engine-specific secret configuration instead.", sectionName, strings.Join(secretRefs, ", "))
+	var warningMsg string
+	if sectionName == "engine.env" {
+		// engine.env secrets are auto-excluded from the agent sandbox via awf --exclude-env,
+		// so the warning should reflect that they are excluded, not leaked.
+		warningMsg = fmt.Sprintf("Warning: secrets detected in 'engine.env' section will be excluded from the agent sandbox via awf --exclude-env; the agent process itself will not see these values directly. Found: %s. Consider using engine-specific secret configuration instead.", strings.Join(secretRefs, ", "))
+	} else {
+		warningMsg = fmt.Sprintf("Warning: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Consider using engine-specific secret configuration instead.", sectionName, strings.Join(secretRefs, ", "))
+	}
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	c.IncrementWarningCount()
 

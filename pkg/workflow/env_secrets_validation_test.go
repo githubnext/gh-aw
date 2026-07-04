@@ -537,7 +537,7 @@ func TestValidateEngineEnvSecrets(t *testing.T) {
 			},
 			strictMode:  true,
 			expectError: true,
-			errorMsg:    "strict mode: secrets detected in 'engine.env' section will be leaked to the agent container. Found: ${{ secrets.API_KEY }}",
+			errorMsg:    "strict mode: secrets detected in 'engine.env' section are auto-excluded from the agent sandbox via awf --exclude-env and are not accessible to the agent. Found: ${{ secrets.API_KEY }}",
 		},
 		{
 			name: "engine.env with multiple secrets in strict mode fails",
@@ -553,7 +553,7 @@ func TestValidateEngineEnvSecrets(t *testing.T) {
 			},
 			strictMode:  true,
 			expectError: true,
-			errorMsg:    "strict mode: secrets detected in 'engine.env' section will be leaked to the agent container",
+			errorMsg:    "strict mode: secrets detected in 'engine.env' section are auto-excluded from the agent sandbox",
 		},
 		{
 			name: "engine.env with secret embedded in string in strict mode fails",
@@ -568,7 +568,7 @@ func TestValidateEngineEnvSecrets(t *testing.T) {
 			},
 			strictMode:  true,
 			expectError: true,
-			errorMsg:    "strict mode: secrets detected in 'engine.env' section will be leaked to the agent container. Found: ${{ secrets.TOKEN }}",
+			errorMsg:    "strict mode: secrets detected in 'engine.env' section are auto-excluded from the agent sandbox via awf --exclude-env and are not accessible to the agent. Found: ${{ secrets.TOKEN }}",
 		},
 		{
 			name: "engine.env with secret in non-strict mode emits warning (no error)",
