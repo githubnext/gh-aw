@@ -1,13 +1,44 @@
 {
-  "lastRun": "2026-07-03",
-  "ruleCount": 7,
-  "rules": ["no-core-setoutput-non-string", "no-unsafe-catch-error-property", "no-unsafe-promise-catch-error-property", "prefer-get-error-message", "require-async-entrypoint-catch", "require-json-parse-try-catch", "require-parseInt-radix"],
-  "newRuleThisPeriod": "require-async-entrypoint-catch added since 2026-07-02 run (was 6 rules, now 7)",
-  "focusThisRun": "First analysis of the NEW rule require-async-entrypoint-catch + re-verify prior open issues still valid",
-  "issuesFiledThisRun": ["async-entrypoint FN: only FunctionDeclaration tracked - misses const X=async()=>{} / async fn-expr + misses .then()-without-.catch()", "async-entrypoint FP/soundness: matches call sites by bare name in module-wide Set, ignores scope - shadowed same-named sync fn misflagged (repro: nested const report=()=>{}; report())"],
-  "asyncEntrypointFindings": {"truePositivesRuleCatches": ["parse_mcp_scripts_logs.cjs:415 async function main + bare main()", "parse_token_usage.cjs:238 async function main + bare main()"], "correctlyIgnored_sync": ["convert_gateway_config_copilot:97", "evaluate_outcomes:1934", "generate_usage_activity_summary:472", "detect_agent_errors:1934"], "liveArrowAsyncEntrypoints": "NONE bare - substitute_placeholders.cjs:17 const substitutePlaceholders=async is a helper; runMain/replayMain/runHandlerManager all await-guarded inside async wrappers. So arrow-entrypoint FN is preventive/robustness not live", "dominantIdiom": "if (require.main === module) { main(); } with async function main - rule handles this well"},
-  "priorOpenIssues_reverifiedStillValid_notRefiled": {"42680": "setoutput nonStringKind only matches Literal not UnaryExpression - -1/+5 still missed (confirmed src line 26-30)", "42682": "setoutput only .length not .number/.size (confirmed src line 38)", "42189": "sibling catch whole-block guard branch-order FN", "42915": "promise-catch whole-callback branch-order FN (this is the promise twin filed last run)", "42188": "broaden catch beyond message/stack/code", "42190": "catch add suggestions + computed access", "42015/42016/42017/41962/41963": "parseInt+json rules - open, alias/computed out of scope or fix-suggestion asks"},
-  "note_issueLimit": "create_issue max 3/run. Filed 2 this run (both new-rule). Did NOT refile any prior open issue.",
-  "nextPriorities": ["require-async-entrypoint-catch: watch for a future third refinement (e.g. flag module.exports async main invoked bare elsewhere, or IIFE async without catch)", "Suggest maintainers extract shared reporting between the two no-unsafe-*-catch-error-property rules to stop drift (maintainability, not yet filed)", "Mine a genuinely new recurring defect class beyond error-handling family (candidates: core.setFailed non-string param like setOutput; missing await on promise-returning core.summary.write/exec.exec - but hard low-FP without types)", "Re-verify 42680/42682 land before ever refiling", "Cannot close issues (safe outputs limited to create_issue/create_discussion/missing_tool/missing_data/noop) - close-recs go in discussion only"],
-  "ops": ["repo-memory readable via Read tool ONLY (Bash/Grep/Glob blocked on /tmp - security scopes them to working dir). Write works for /tmp/gh-aw/{repo-memory,agent}", "create issue: Write JSON to /tmp/gh-aw/agent/x.json then `safeoutputs create_issue . < x.json`; labels array ok; {\"result\":\"success\"} == accepted", "gh issue list --json throws malformed version; use `gh api -X GET search/issues -f q=...` instead", "Bash blocks: compound cmds needing approval, simple_expansion in for-loops, ${var} in loops. Use sed -n / explicit file lists not for-loops", "eslint-factory has NO node_modules/dist and npm firewalled - cannot run linter live; ground findings statically via Grep on .cjs + reading rule src", "codebase refines rules AND adds new rules fast between runs (7th rule appeared this period) - ALWAYS re-read current src before refiling", "patch limit ~10KB - keep state.json lean, prune old verbatim finding lists"]
+  "lastRun": "2026-07-04",
+  "ruleCount": 8,
+  "rules": ["no-core-setoutput-non-string", "no-unsafe-catch-error-property", "no-unsafe-promise-catch-error-property", "prefer-get-error-message", "require-async-entrypoint-catch", "require-await-core-summary-write", "require-json-parse-try-catch", "require-parseInt-radix"],
+  "newRuleThisPeriod": "require-await-core-summary-write added since 2026-07-03 run (was 7, now 8). This was a nextPriorities candidate from prior run (missing await on core.summary.write) - maintainers shipped it.",
+  "focusThisRun": "First analysis of NEW rule require-await-core-summary-write. Filed 3 refinement issues.",
+  "issuesFiledThisRun": [
+    "await-summary FN (HIGH): can't see through local `summary` alias of core.summary. getRootIdentifier('summary') fails isCoreLikeIdentifier /^core/i. LIVE idiom: route_slash_command.cjs:20 const summary=core.summary; check_workflow_timestamp_api.cjs:414/435 let summary=core.summary (all currently awaited, so preventive-but-grounded). Ask: resolve const/let/destructure aliases.",
+    "await-summary FP (MED): isCoreLikeIdentifier /^core/i over-matches ANY core* ident (coreData/coreResults/coreference). No live FP (fs./db.summary ignored, coreObj is real @actions/core). Ask: tighten to known-alias/scope-resolved OR document breadth + add test.",
+    "await-summary FN (MED): visitor only ExpressionStatement->direct CallExpression (line 92). Misses Logical(&&)/Conditional(?:)/Sequence(,) wrapped + .then()-chain-no-await. No live sites. Ask: unwrap those, keep void exempt, add tests."
+  ],
+  "awaitSummaryFindings": {
+    "liveSummaryWriteSites_allAwaited": ["parse_mcp_gateway_log.cjs:236 coreObj.summary.write (CAUGHT-able)", "check_daily_aic_workflow_guardrail:399", "install_frontmatter_skills:139", "check_workflow_timestamp_api:422/445 (bare summary alias - NOT caught)", "cleanup_cache_memory:190/204/213/229/299", "parse_token_usage:144", "route_slash_command:38 (bare summary alias - NOT caught)", "check_version_updates:128/140", "upload_assets:200"],
+    "ruleCatchesWell": "core.summary.write() and coreObj.summary...write() bare-statement forms + chained addRaw/addHeading; suggestion gated on innermost-async (correct)",
+    "corpusDiscipline": "ZERO live un-awaited summary.write. All 3 issues are preventive; #1 is grounded in a live alias idiom (2 files)",
+    "aliasBindingSites": ["route_slash_command.cjs:20 const summary=core.summary", "check_workflow_timestamp_api.cjs:414/435 let summary=core.summary"]
+  },
+  "priorOpenIssues_stillValid_notRefiled": {
+    "42680": "setoutput nonStringKind Literal only, misses UnaryExpression -1/+5",
+    "42682": "setoutput only .length not .number/.size",
+    "42189": "sibling catch whole-block branch-order FN",
+    "42915": "promise-catch whole-callback branch-order FN",
+    "42188": "broaden catch beyond message/stack/code",
+    "42190": "catch add suggestions + computed access",
+    "async-entrypoint (2 filed 2026-07-03)": "arrow/fn-expr + .then-no-catch FN; scope-blind bare-name Set FP",
+    "42015/42016/42017/41962/41963": "parseInt+json alias/computed/deferred-callback out of scope or fix asks"
+  },
+  "note_issueLimit": "create_issue max 3/run. Filed 3 this run (all new-rule await-summary). Did NOT refile prior open issues.",
+  "nextPriorities": [
+    "Re-read src before refiling: codebase ships new rules/refines fast (8th rule appeared in 1 day).",
+    "Watch whether await-summary issues #1-3 land; if alias-resolution shipped, re-scan corpus for newly-caught un-awaited sites.",
+    "Suggest maintainers extract shared reporting between no-unsafe-catch-error-property and no-unsafe-promise-catch-error-property (drift risk, still not filed - low priority maintainability).",
+    "Mine a genuinely new defect class beyond error-handling+summary family. Candidates: core.setFailed non-string (twin of setOutput); missing await on exec.exec/io ops (hard low-FP without types); unhandled fs.promises calls.",
+    "Cannot close issues (safe outputs: create_issue/create_discussion/missing_tool/missing_data/noop). Close-recs -> discussion only."
+  ],
+  "ops": [
+    "repo-memory readable via Read tool ONLY (Bash/Grep/Glob/find/ls BLOCKED on /tmp - scoped to working dir). Write works for /tmp/gh-aw/{repo-memory,agent}.",
+    "create issue: Write JSON (title/body/labels) to /tmp/gh-aw/agent/x.json then `safeoutputs create_issue . < x.json`. {\"result\":\"success\"}==accepted. Add 2>/dev/null to suppress verbose bridge log.",
+    "dedupe: `gh api -X GET search/issues -f q='repo:github/gh-aw is:issue is:open KEYWORD in:title'`. gh issue list --json throws malformed-version.",
+    "Bash blocks compound cmds (&&, ;, echo-chains) needing approval - run single commands or use grep -E with pipes to a single filter. printf chokes on [n] subscripts.",
+    "eslint-factory has NO node_modules/dist; npm firewalled - cannot run linter live. Ground findings statically via Grep on .cjs + reading rule src.",
+    "patch limit ~10KB - keep state.json lean, prune old verbatim finding lists. Pruned strategy.json rules_inventory is stale (v3, 2026-06-29) - state.json is source of truth."
+  ]
 }
