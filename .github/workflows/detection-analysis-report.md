@@ -12,7 +12,10 @@ permissions:
   issues: read
   discussions: read
 tracker-id: detection-analysis-report-daily
-engine: claude
+engine:
+  id: claude
+  mcp:
+    tool-timeout: 10m
 tools:
   cli-proxy: true
   agentic-workflows:

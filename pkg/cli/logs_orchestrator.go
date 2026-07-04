@@ -139,6 +139,45 @@ func selectPaginationCursorDate(filteredRuns []WorkflowRun, oldestFetchedCreated
 	return filteredRuns[len(filteredRuns)-1].CreatedAt.Format(time.RFC3339), true
 }
 
+// buildContinuationIfNeeded returns a ContinuationData cursor when more runs may
+// be available after this batch, or nil if the full result set was collected.
+//
+// A continuation is emitted in two cases:
+//   - timeoutReached: the caller's timeout expired mid-download; runs beyond the
+//     deadline were not fetched and may still exist.
+//   - countLimitReached: in fetchAllInRange mode the count cap was hit before the
+//     date window was exhausted; the next page starts just before the oldest run
+//     returned in this batch.
+func buildContinuationIfNeeded(
+	processedRuns []ProcessedRun,
+	timeoutReached, countLimitReached bool,
+	workflowName, startDate, endDate, engine, branch string,
+	afterRunID int64, count, timeoutMinutes int,
+) *ContinuationData {
+	if len(processedRuns) == 0 || (!timeoutReached && !countLimitReached) {
+		return nil
+	}
+	// Use the oldest processed run as the before_run_id cursor for the next page.
+	oldestRunID := processedRuns[len(processedRuns)-1].Run.DatabaseID
+	message := "Timeout reached. Use these parameters to continue fetching more logs."
+	if countLimitReached {
+		// In fetchAllInRange mode the date window may contain more runs than count.
+		message = "Count limit reached. Use these parameters to continue fetching more logs from the same date range."
+	}
+	return &ContinuationData{
+		Message:      message,
+		WorkflowName: workflowName,
+		Count:        count,
+		StartDate:    startDate,
+		EndDate:      endDate,
+		Engine:       engine,
+		Branch:       branch,
+		AfterRunID:   afterRunID,
+		BeforeRunID:  oldestRunID,
+		Timeout:      timeoutMinutes,
+	}
+}
+
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	workflowName := opts.WorkflowName
@@ -246,10 +285,18 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	var beforeDate string
 	iteration := 0
 
-	// Determine if we should fetch all runs (when date filters are specified) or limit by count
-	// When date filters are specified, we fetch all runs within that range and apply count to final output
-	// When no date filters, we fetch up to 'count' runs with artifacts (old behavior for backward compatibility)
+	// Determine if we should fetch all runs in the date window or limit iteratively by count.
+	// In fetchAllInRange mode (when date filters are specified), count acts as a page size:
+	// the loop stops once count runs are collected and a continuation cursor is emitted so
+	// callers can page through the full date window.
+	// Without date filters, we fetch up to count runs with artifacts and stop (old behavior
+	// for backward compatibility).
 	fetchAllInRange := startDate != "" || endDate != ""
+
+	// countLimitReached is set when the loop exits because len(processedRuns) >= count in
+	// fetchAllInRange mode.  It signals that more runs may be available in the date window
+	// and drives continuation-data generation so callers can page through the full range.
+	var countLimitReached bool
 
 	// Iterative algorithm: keep fetching runs until we have enough or exhaust available runs
 outerLoop:
@@ -285,8 +332,13 @@ outerLoop:
 			}
 		}
 
-		// Stop if we've collected enough processed runs
+		// Stop if we've collected enough processed runs.
+		// In fetchAllInRange mode, record that we hit the count limit so the caller
+		// can paginate to retrieve runs that fall outside this batch.
 		if len(processedRuns) >= count {
+			if fetchAllInRange {
+				countLimitReached = true
+			}
 			break
 		}
 
@@ -681,25 +733,10 @@ outerLoop:
 		processedRuns = processedRuns[:count]
 	}
 
-	// Build continuation data if timeout was reached and there are processed runs
-	var continuation *ContinuationData
-	if timeoutReached && len(processedRuns) > 0 {
-		// Get the oldest run ID from processed runs to use as before_run_id for continuation
-		oldestRunID := processedRuns[len(processedRuns)-1].Run.DatabaseID
-
-		continuation = &ContinuationData{
-			Message:      "Timeout reached. Use these parameters to continue fetching more logs.",
-			WorkflowName: workflowName,
-			Count:        count,
-			StartDate:    startDate,
-			EndDate:      endDate,
-			Engine:       engine,
-			Branch:       ref,
-			AfterRunID:   afterRunID,
-			BeforeRunID:  oldestRunID, // Continue from where we left off
-			Timeout:      timeoutMinutes,
-		}
-	}
+	// Build continuation data if timeout was reached and there are processed runs,
+	// OR if a date-range fetch hit the count limit (more runs may exist in the window).
+	continuation := buildContinuationIfNeeded(processedRuns, timeoutReached, countLimitReached,
+		workflowName, startDate, endDate, engine, ref, afterRunID, count, timeoutMinutes)
 
 	return renderLogsOutput(processedRuns, renderLogsOutputOptions{
 		outputDir:      outputDir,

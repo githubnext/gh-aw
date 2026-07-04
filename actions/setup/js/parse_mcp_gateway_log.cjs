@@ -201,7 +201,7 @@ function generateTokenUsageSummary(summary) {
  * so callers don't need to chain addRaw() + write() themselves.
  * @param {typeof import('@actions/core')} coreObj - The GitHub Actions core object
  */
-function writeStepSummaryWithTokenUsage(coreObj) {
+async function writeStepSummaryWithTokenUsage(coreObj) {
   if (!fs.existsSync(TOKEN_USAGE_PATH)) {
     coreObj.debug(`No token-usage.jsonl found at: ${TOKEN_USAGE_PATH}`);
   } else {
@@ -233,7 +233,7 @@ function writeStepSummaryWithTokenUsage(coreObj) {
     coreObj.summary.addRaw(timelineMd);
   }
 
-  coreObj.summary.write();
+  await coreObj.summary.write();
 }
 
 /**
@@ -904,7 +904,7 @@ async function main() {
 
         setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
         setUnknownModelAICreditsOutput(core, unknownModelAICredits);
-        writeStepSummaryWithTokenUsage(core);
+        await writeStepSummaryWithTokenUsage(core);
         return;
       }
     } else {
@@ -935,7 +935,7 @@ async function main() {
       }
       setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
       setUnknownModelAICreditsOutput(core, unknownModelAICredits);
-      writeStepSummaryWithTokenUsage(core);
+      await writeStepSummaryWithTokenUsage(core);
       return;
     }
 
@@ -974,7 +974,7 @@ async function main() {
       core.info("MCP gateway log files are empty or missing");
       setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
       setUnknownModelAICreditsOutput(core, unknownModelAICredits);
-      writeStepSummaryWithTokenUsage(core);
+      await writeStepSummaryWithTokenUsage(core);
       return;
     }
 

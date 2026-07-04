@@ -1177,3 +1177,228 @@ tools:
 		t.Errorf("Expected scaffolded Serena workflow to pass languages through to upstream import, got:\n%s", scaffolded)
 	}
 }
+
+func TestRunFix_GuidedErrorReturnsExitCode2(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "byok-workflow.md")
+
+	// Workflow with a secret in top-level env (triggers the guided-error codemod)
+	content := `---
+on: workflow_dispatch
+env:
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+---
+
+# BYOK Workflow
+`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644))
+
+	err := RunFix(FixConfig{
+		Write:       false,
+		WorkflowDir: tmpDir,
+	})
+
+	require.Error(t, err, "RunFix should return an error when a guided error is triggered")
+	var exitErr *ExitCodeError
+	require.ErrorAs(t, err, &exitErr, "error should be an ExitCodeError")
+	assert.Equal(t, 2, exitErr.Code, "exit code should be 2 for guided errors")
+}
+
+func TestRunFix_GuidedErrorDoesNotPrintNoFixesNeeded(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "byok-workflow.md")
+
+	// Workflow with a secret in top-level env (triggers the guided-error codemod)
+	content := `---
+on: workflow_dispatch
+env:
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+---
+
+# BYOK Workflow
+`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644))
+
+	// Capture stderr
+	origStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = origStderr })
+
+	_ = RunFix(FixConfig{
+		Write:       false,
+		WorkflowDir: tmpDir,
+	})
+
+	require.NoError(t, w.Close())
+	output, err := io.ReadAll(r)
+	require.NoError(t, err)
+	outputStr := string(output)
+
+	assert.NotContains(t, outputStr, "No fixes needed", "should not print 'No fixes needed' when a guided error is present")
+	assert.Contains(t, outputStr, "1 file needs a manual fix", "should print singular form for a single guided error")
+}
+
+func TestRunFix_GuidedErrorWithMultipleFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// File 1: has guided error
+	content1 := `---
+on: workflow_dispatch
+env:
+  TOKEN: ${{ secrets.MY_TOKEN }}
+---
+
+# Workflow 1
+`
+	// File 2: has guided error
+	content2 := `---
+on: workflow_dispatch
+env:
+  API_KEY: ${{ secrets.API_KEY }}
+---
+
+# Workflow 2
+`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "workflow-one.md"), []byte(content1), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "workflow-two.md"), []byte(content2), 0644))
+
+	// Capture stderr
+	origStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = origStderr })
+
+	runErr := RunFix(FixConfig{
+		Write:       false,
+		WorkflowDir: tmpDir,
+	})
+
+	require.NoError(t, w.Close())
+	output, err := io.ReadAll(r)
+	require.NoError(t, err)
+	outputStr := string(output)
+
+	require.Error(t, runErr)
+	var exitErr *ExitCodeError
+	require.ErrorAs(t, runErr, &exitErr)
+	assert.Equal(t, 2, exitErr.Code)
+
+	assert.Contains(t, outputStr, "2 files need a manual fix", "should report plural count")
+}
+
+func TestProcessWorkflowFileWithInfo_GuidedErrorWrapped(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test.md")
+
+	content := `---
+on: workflow_dispatch
+env:
+  TOKEN: ${{ secrets.MY_TOKEN }}
+---
+
+# Test
+`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644))
+
+	guidedCodemod := getCodemodByID("top-level-env-secrets-guided-error")
+	require.NotNil(t, guidedCodemod)
+
+	_, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*guidedCodemod}, false, false)
+
+	require.Error(t, err)
+	var guidedErr *GuidedError
+	assert.ErrorAs(t, err, &guidedErr, "error should be wrapped as GuidedError")
+}
+
+func TestRunFix_HardProcessingErrorReturnsExitCode1(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a directory where a file is expected — reading it will fail
+	subdir := filepath.Join(tmpDir, "not-a-file.md")
+	require.NoError(t, os.Mkdir(subdir, 0755))
+
+	err := RunFix(FixConfig{
+		Write:       false,
+		WorkflowDir: tmpDir,
+	})
+
+	require.Error(t, err, "RunFix should return an error when a hard processing error occurs")
+	var exitErr *ExitCodeError
+	require.ErrorAs(t, err, &exitErr, "error should be an ExitCodeError")
+	assert.Equal(t, 1, exitErr.Code, "exit code should be 1 for hard processing errors")
+}
+
+func TestRunFix_HardProcessingErrorDoesNotPrintNoFixesNeeded(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a directory where a file is expected — reading it will fail
+	subdir := filepath.Join(tmpDir, "not-a-file.md")
+	require.NoError(t, os.Mkdir(subdir, 0755))
+
+	origStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = origStderr })
+
+	_ = RunFix(FixConfig{
+		Write:       false,
+		WorkflowDir: tmpDir,
+	})
+
+	require.NoError(t, w.Close())
+	output, readErr := io.ReadAll(r)
+	require.NoError(t, readErr)
+
+	assert.NotContains(t, string(output), "No fixes needed", "should not print 'No fixes needed' when a hard processing error occurred")
+}
+
+func TestRunFix_GuidedErrorCountsInTotalFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// File 1: clean (no fixes needed)
+	clean := `---
+on: workflow_dispatch
+---
+
+# Clean Workflow
+`
+	// File 2: guided error
+	guided := `---
+on: workflow_dispatch
+env:
+  TOKEN: ${{ secrets.MY_TOKEN }}
+---
+
+# BYOK Workflow
+`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "a-clean.md"), []byte(clean), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "b-guided.md"), []byte(guided), 0644))
+
+	origStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = origStderr })
+
+	runErr := RunFix(FixConfig{
+		Write:       false,
+		WorkflowDir: tmpDir,
+	})
+
+	require.NoError(t, w.Close())
+	output, readErr := io.ReadAll(r)
+	require.NoError(t, readErr)
+
+	// Should still report guided error count and exit 2
+	require.Error(t, runErr)
+	var exitErr *ExitCodeError
+	require.ErrorAs(t, runErr, &exitErr)
+	assert.Equal(t, 2, exitErr.Code)
+
+	// "No fixes needed" must be absent
+	assert.NotContains(t, string(output), "No fixes needed")
+}

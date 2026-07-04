@@ -12,7 +12,10 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: audit-workflows-daily
-engine: claude
+engine:
+  id: claude
+  mcp:
+    tool-timeout: 10m
 tools:
   cli-proxy: true
   agentic-workflows:

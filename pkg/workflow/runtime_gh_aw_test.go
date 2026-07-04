@@ -143,6 +143,41 @@ func TestGenerateRuntimeSetupSteps_GhAw_ReleaseUsesSetupCLI(t *testing.T) {
 	assert.Contains(t, content, "version: 'v0.72.1'")
 }
 
+func TestGenerateRuntimeSetupSteps_GhAw_ReleaseMergesAndSortsExtraFields(t *testing.T) {
+	originalVersion := GetVersion()
+	originalRelease := IsRelease()
+	t.Cleanup(func() {
+		SetVersion(originalVersion)
+		SetIsRelease(originalRelease)
+	})
+
+	SetVersion("v0.72.1")
+	SetIsRelease(true)
+
+	ghAwRuntime := *findRuntimeByID("gh-aw")
+	ghAwRuntime.ExtraWithFields = map[string]string{
+		"alpha": "'runtime'",
+		"zeta":  "false",
+	}
+
+	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
+		Runtime: &ghAwRuntime,
+		ExtraFields: map[string]any{
+			"alpha": "user",
+			"beta":  true,
+		},
+	}}, nil)
+	require.NotEmpty(t, steps)
+
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "alpha: 'user'")
+	assert.NotContains(t, content, "alpha: 'runtime'")
+	assert.Contains(t, content, "beta: true")
+	assert.Contains(t, content, "zeta: false")
+	assert.Less(t, strings.Index(content, "alpha: 'user'"), strings.Index(content, "beta: true"))
+	assert.Less(t, strings.Index(content, "beta: true"), strings.Index(content, "zeta: false"))
+}
+
 func TestGenerateRuntimeSetupSteps_GhAw_ReleaseUsesWorkflowDataPin(t *testing.T) {
 	originalVersion := GetVersion()
 	originalRelease := IsRelease()

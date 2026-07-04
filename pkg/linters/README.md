@@ -20,6 +20,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `fprintlnsprintf` — reports `fmt.Fprintln(..., fmt.Sprintf(...))` patterns and recommends direct formatting calls.
 - `hardcodedfilepath` — reports hard-coded file path string literals that match known path constants or should be extracted into named constants; also annotates paths that appear in log/print calls.
 - `httpnoctx` — reports HTTP client and package-level HTTP calls that do not accept a `context.Context`.
+- `httprespbodyclose` — reports HTTP responses whose `Body.Close()` call is missing or not deferred.
 - `httpstatuscode` — reports raw HTTP status-code integer literals that should use `net/http` named constants.
 - `jsonmarshalignoredeerror` — reports `json.Marshal` and `json.Unmarshal` calls where the error return is discarded.
 - `largefunc` — reports function bodies that exceed a configurable line-count threshold.
@@ -36,6 +37,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `sortslice` — reports `sort.Slice` / `sort.SliceStable` calls that should use `slices.SortFunc` / `slices.SortStableFunc`.
 - `sprintferrdot` — reports redundant `.Error()` calls on error values passed to `fmt` format functions where the fmt package calls `.Error()` automatically.
 - `sprintferrorsnew` — reports `errors.New(fmt.Sprintf(...))` calls that should use `fmt.Errorf` instead.
+- `sprintfint` — reports `fmt.Sprintf("%d", ...)` and related conversions that should use `strconv` helpers.
 - `ssljson` — validates `ssl.json` skill artifacts found in `.github/skills/` against the SSL spec (enum membership, graph integrity, transition targets, entry pointer validity).
 - `strconvparseignorederror` — reports `strconv` parsing calls (`Atoi`, `ParseInt`, etc.) where the error return is discarded with `_`.
 - `stringreplaceminusone` — reports `strings.Replace` calls whose `n` argument is `-1`, which should use the more readable `strings.ReplaceAll`.
@@ -66,6 +68,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `fprintlnsprintf` | Custom `go/analysis` analyzer that flags `fmt.Fprintln(..., fmt.Sprintf(...))` patterns |
 | `hardcodedfilepath` | Custom `go/analysis` analyzer that flags hard-coded file path string literals that match known path constants or should be extracted as named constants; annotates paths in log/print calls |
 | `httpnoctx` | Custom `go/analysis` analyzer that flags HTTP calls that do not accept a `context.Context` |
+| `httprespbodyclose` | Custom `go/analysis` analyzer that flags HTTP response bodies that are not closed (or not deferred) |
 | `httpstatuscode` | Custom `go/analysis` analyzer that flags raw HTTP status-code integer literals that should use `net/http` named constants |
 | `jsonmarshalignoredeerror` | Custom `go/analysis` analyzer that flags `json.Marshal`/`json.Unmarshal` calls where the error return is discarded |
 | `largefunc` | Custom `go/analysis` analyzer that flags large functions with actionable diagnostics |
@@ -82,6 +85,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `sortslice` | Custom `go/analysis` analyzer that flags `sort.Slice` / `sort.SliceStable` calls that should use `slices.SortFunc` / `slices.SortStableFunc` |
 | `sprintferrdot` | Custom `go/analysis` analyzer that flags redundant `.Error()` calls on error values passed to `fmt` format functions |
 | `sprintferrorsnew` | Custom `go/analysis` analyzer that flags `errors.New(fmt.Sprintf(...))` calls that should use `fmt.Errorf` instead |
+| `sprintfint` | Custom `go/analysis` analyzer that flags `fmt.Sprintf` integer conversions that should use `strconv` helpers |
 | `ssljson` | Custom `go/analysis` analyzer that validates SSL JSON skill artifacts in `.github/skills/` |
 | `strconvparseignorederror` | Custom `go/analysis` analyzer that flags `strconv` parsing calls where the error return is discarded with `_` |
 | `stringreplaceminusone` | Custom `go/analysis` analyzer that flags `strings.Replace` calls with `n=-1` that should use `strings.ReplaceAll` |
@@ -102,6 +106,8 @@ This package currently provides custom Go analyzers in the following subpackages
 
 ```go
 import (
+	"github.com/github/gh-aw/pkg/linters/deferinloop"
+	"github.com/github/gh-aw/pkg/linters/errorfwrapv"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
 	"github.com/github/gh-aw/pkg/linters/errormessage"
@@ -109,6 +115,8 @@ import (
 	"github.com/github/gh-aw/pkg/linters/execcommandwithoutcontext"
 	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
+	"github.com/github/gh-aw/pkg/linters/httpnoctx"
+	"github.com/github/gh-aw/pkg/linters/httprespbodyclose"
 	"github.com/github/gh-aw/pkg/linters/httpstatuscode"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
@@ -119,17 +127,23 @@ import (
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/sortslice"
+	"github.com/github/gh-aw/pkg/linters/sprintfint"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
+	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
 )
 
 // Use with multichecker, singlechecker, or custom go/analysis driver.
 _ = ctxbackground.Analyzer
+_ = deferinloop.Analyzer
+_ = errorfwrapv.Analyzer
 _ = excessivefuncparams.Analyzer
 _ = errormessage.Analyzer
 _ = errstringmatch.Analyzer
 _ = execcommandwithoutcontext.Analyzer
 _ = fileclosenotdeferred.Analyzer
 _ = hardcodedfilepath.Analyzer
+_ = httpnoctx.Analyzer
+_ = httprespbodyclose.Analyzer
 _ = httpstatuscode.Analyzer
 _ = largefunc.Analyzer
 _ = lenstringzero.Analyzer
@@ -140,7 +154,9 @@ _ = panicinlibrarycode.Analyzer
 _ = rawloginlib.Analyzer
 _ = regexpcompileinfunction.Analyzer
 _ = sortslice.Analyzer
+_ = sprintfint.Analyzer
 _ = ssljson.Analyzer
+_ = timesleepnocontext.Analyzer
 ```
 
 ## Dependencies
@@ -148,6 +164,8 @@ _ = ssljson.Analyzer
 **Internal**:
 - `github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred` — context-cancel-not-deferred analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/ctxbackground` — context-background analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/deferinloop` — defer-in-loop analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/errorfwrapv` — fmt-errorf-wrap-v analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/errormessage` — error-message analyzer subpackage (also re-exported as `ErrorMessageAnalyzer`)
 - `github.com/github/gh-aw/pkg/linters/errortypeassertion` — error-type-assertion analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/errstringmatch` — err-string-match analyzer subpackage
@@ -157,6 +175,8 @@ _ = ssljson.Analyzer
 - `github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs` — fmt-errorf-no-verbs analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/fprintlnsprintf` — fprintln-sprintf analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/hardcodedfilepath` — hard-coded-file-path analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/httpnoctx` — HTTP-no-context analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/httprespbodyclose` — HTTP-response-body-close analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/httpstatuscode` — http-status-code analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror` — json-marshal-ignored-error analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/largefunc` — large-func analyzer subpackage
@@ -173,10 +193,12 @@ _ = ssljson.Analyzer
 - `github.com/github/gh-aw/pkg/linters/sortslice` — sort-slice analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/sprintferrdot` — sprintf-err-dot analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/sprintferrorsnew` — sprintf-errors-new analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/sprintfint` — sprintf-int analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/ssljson` — ssl-json analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/strconvparseignorederror` — strconv-parse-ignored-error analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/stringreplaceminusone` — string-replace-minus-one analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/timeafterleak` — time-after-leak analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/timesleepnocontext` — time-sleep-no-context analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/tolowerequalfold` — to-lower-equal-fold analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion` — unchecked-type-assertion analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/wgdonenotdeferred` — wg-done-not-deferred analyzer subpackage
