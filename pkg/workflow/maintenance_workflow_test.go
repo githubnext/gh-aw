@@ -456,10 +456,11 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		}
 	}
 
-	closeExpiredPermissions := map[string]struct {
+	type permissionAssertion struct {
 		requiredWrite string
 		forbidden     []string
-	}{
+	}
+	closeExpiredPermissions := map[string]permissionAssertion{
 		"close-expired-discussions:": {
 			requiredWrite: "discussions: write",
 			forbidden:     []string{"issues: write", "pull-requests: write"},
@@ -479,7 +480,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 			t.Errorf("Job %q not found in generated workflow", job)
 			continue
 		}
-		jobSection := yaml[jobIdx : jobIdx+runOpSectionSearchRange]
+		jobSection := yaml[jobIdx : jobIdx+jobSectionSearchRange]
 		if !strings.Contains(jobSection, perms.requiredWrite) {
 			t.Errorf("Job %q should include %q permission in:\n%s", job, perms.requiredWrite, jobSection)
 		}
