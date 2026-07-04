@@ -49,6 +49,14 @@ Test workflow.`
 	}
 
 	yamlStr := string(yaml)
+	requireEmbeddedPin := func(image string) ContainerPin {
+		t.Helper()
+		pin, ok := getEmbeddedContainerPin(image)
+		if !ok {
+			t.Fatalf("Expected embedded pin for %s", image)
+		}
+		return pin
+	}
 
 	expectedPins := []struct {
 		name  string
@@ -60,10 +68,7 @@ Test workflow.`
 	}
 
 	for _, expectedPin := range expectedPins {
-		pin, ok := getEmbeddedContainerPin(expectedPin.image)
-		if !ok {
-			t.Fatalf("Expected embedded pin for %s", expectedPin.image)
-		}
+		pin := requireEmbeddedPin(expectedPin.image)
 
 		if !strings.Contains(yamlStr, `"image":"`+pin.Image+`","digest":"`+pin.Digest+`","pinned_image":"`+pin.PinnedImage+`"`) {
 			t.Errorf("Expected manifest header to include pinned metadata for %s", expectedPin.image)
@@ -81,10 +86,7 @@ Test workflow.`
 		`0.27.0,`,
 	}
 	for _, expectedPin := range expectedPins {
-		pin, ok := getEmbeddedContainerPin(expectedPin.image)
-		if !ok {
-			t.Fatalf("Expected embedded pin for %s", expectedPin.image)
-		}
+		pin := requireEmbeddedPin(expectedPin.image)
 		imageTagParts = append(imageTagParts, expectedPin.name+"="+pin.Digest)
 	}
 

@@ -4,9 +4,17 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 
 type AsyncFuncNode = TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression;
 type SourceCodeScope = TSESLint.Scope.Scope;
+type FunctionDeclarationDefinition = TSESLint.Scope.Definition & {
+  type: "FunctionName";
+  node: TSESTree.FunctionDeclaration;
+};
 
 function isAsyncFuncNode(node: TSESTree.Node): node is AsyncFuncNode {
   return node.type === AST_NODE_TYPES.FunctionDeclaration || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.ArrowFunctionExpression;
+}
+
+function isFunctionDeclarationDefinition(definition: TSESLint.Scope.Definition): definition is FunctionDeclarationDefinition {
+  return definition.type === "FunctionName" && definition.node.type === AST_NODE_TYPES.FunctionDeclaration;
 }
 
 export const requireAsyncEntrypointCatchRule = createRule({
@@ -45,9 +53,9 @@ export const requireAsyncEntrypointCatchRule = createRule({
 
       while (scope) {
         const variable = scope.set.get(identifier.name);
-        const definition = variable?.defs.find(def => def.type === "FunctionName" && def.node.type === AST_NODE_TYPES.FunctionDeclaration);
+        const definition = variable?.defs.find(isFunctionDeclarationDefinition);
 
-        if (definition?.node.type === AST_NODE_TYPES.FunctionDeclaration) {
+        if (definition) {
           return definition.node;
         }
         if (variable && variable.defs.length > 0) {
