@@ -147,14 +147,12 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
     const normalizedLabel = { name };
     if (label.rationale !== undefined) {
       if (typeof label.rationale !== "string") {
-        return {
-          isValid: false,
-          error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].rationale must be a string`,
-        };
-      }
-      const rationale = normalizeIssueIntentRationale(label.rationale, options);
-      if (rationale) {
-        normalizedLabel.rationale = rationale;
+        // Strip invalid rationale instead of rejecting the whole item (optional enrichment field)
+      } else {
+        const rationale = normalizeIssueIntentRationale(label.rationale, options);
+        if (rationale) {
+          normalizedLabel.rationale = rationale;
+        }
       }
     }
     if (label.confidence !== undefined) {
@@ -173,12 +171,13 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
             confidence = "HIGH";
             break;
           default:
-            return {
-              isValid: false,
-              error: `Line ${lineNum}: ${itemType} ${fieldName}[${i}].confidence must be one of: LOW, MEDIUM, HIGH`,
-            };
+            // Strip invalid confidence instead of rejecting the whole item (optional enrichment field)
+            confidence = undefined;
+            break;
         }
-        normalizedLabel.confidence = confidence;
+        if (confidence !== undefined) {
+          normalizedLabel.confidence = confidence;
+        }
       }
     }
     if (label.suggest !== undefined) {
@@ -215,6 +214,7 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
  * @property {number} [itemMaxLength] - For arrays, max length per item
  * @property {string} [pattern] - Regex pattern the value must match
  * @property {string} [patternError] - Error message for pattern mismatch
+ * @property {boolean} [x-strip-on-error] - When true, strip the field on validation failure instead of rejecting the whole item (for optional enrichment fields like confidence/rationale)
  */
 
 /**
@@ -710,7 +710,13 @@ function validateItem(item, itemType, lineNum, options) {
     const result = validateField(fieldValue, fieldName, validation, itemType, lineNum, options);
 
     if (!result.isValid) {
-      errors.push(result.error);
+      // When x-strip-on-error is set, strip the invalid optional field instead of rejecting the item.
+      // This is used for enrichment-only fields like confidence and rationale.
+      if (validation["x-strip-on-error"]) {
+        delete normalizedItem[fieldName];
+      } else {
+        errors.push(result.error);
+      }
     } else if (result.normalizedValue !== undefined) {
       normalizedItem[fieldName] = result.normalizedValue;
     }

@@ -31,6 +31,10 @@ type FieldValidation struct {
 	Pattern                  string   `json:"pattern,omitempty"`
 	PatternError             string   `json:"patternError,omitempty"`
 	TemporaryID              bool     `json:"temporaryId,omitempty"`
+	// StripOnError marks optional enrichment fields (e.g. confidence, rationale) that should be
+	// silently dropped when they fail validation instead of rejecting the entire item.
+	// Serialised as "x-strip-on-error" to follow the x- extension convention used in JSON Schema.
+	StripOnError bool `json:"x-strip-on-error,omitempty"`
 }
 
 // TypeValidationConfig defines validation configuration for a safe output type
@@ -135,8 +139,8 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"issue_number": {IssueOrPRNumber: true},
 			"issue_type":   {Required: true, Type: "string", Sanitize: true, MaxLength: 128}, // Empty string clears the type
-			"rationale":    {Type: "string", Sanitize: true, MaxLength: 280},
-			"confidence":   {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}},
+			"rationale":    {Type: "string", Sanitize: true, MaxLength: 280, StripOnError: true},
+			"confidence":   {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}, StripOnError: true},
 			"suggest":      {Type: "boolean"},
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
@@ -149,8 +153,8 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"field_name":    {Type: "string", Sanitize: true, MaxLength: 128},
 			"field_node_id": {Type: "string", MaxLength: 256},
 			"value":         {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
-			"rationale":     {Type: "string", Sanitize: true, MaxLength: 280},
-			"confidence":    {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}},
+			"rationale":     {Type: "string", Sanitize: true, MaxLength: 280, StripOnError: true},
+			"confidence":    {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}, StripOnError: true},
 			"suggest":       {Type: "boolean"},
 			"repo":          {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
