@@ -88,6 +88,15 @@ func TestPermissionsSet(t *testing.T) {
 	if !exists || level != PermissionWrite {
 		t.Errorf("expected issues: write, got %v (exists: %v)", level, exists)
 	}
+
+	p3 := NewPermissionsAllRead()
+	p3.Set(PermissionCopilotRequests, PermissionWrite)
+	if _, exists := p3.Get(PermissionIdToken); exists {
+		t.Error("expected id-token to be excluded when converting all: read to explicit map")
+	}
+	if yaml := p3.RenderToYAML(); strings.Contains(yaml, "id-token: read") {
+		t.Errorf("RenderToYAML() should not contain id-token: read, got:\n%s", yaml)
+	}
 }
 
 // TestPermissionsSetPreservesShorthandPermissions verifies that calling Set() on a Permissions
