@@ -5146,7 +5146,11 @@
                   ]
                 },
                 "deduplicate-by-title": {
-                  "$ref": "#/$defs/templatable_bool_or_int",
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/templatable_bool_or_int"
+                    }
+                  ],
                   "description": "Title-based deduplication for create-issue. Set to true for exact title matching, or provide a non-negative integer (0–100) to deduplicate by Levenshtein edit distance (e.g., 1 allows one-character differences). Accepts a GitHub Actions expression that resolves to a boolean or integer at runtime. Applies within-run and against open/recently-closed repository issues."
                 },
                 "target-repo": {

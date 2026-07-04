@@ -413,17 +413,7 @@ func (t *TemplatableBoolOrInt) UnmarshalJSON(data []byte) error {
 // MarshalJSON emits a JSON boolean for "true"/"false", a JSON integer for numeric
 // strings, and a JSON string for GitHub Actions expressions.
 func (t *TemplatableBoolOrInt) MarshalJSON() ([]byte, error) {
-	s := string(*t)
-	switch s {
-	case "true":
-		return json.Marshal(true)
-	case "false":
-		return json.Marshal(false)
-	}
-	if n, err := strconv.Atoi(s); err == nil {
-		return json.Marshal(n)
-	}
-	return json.Marshal(s)
+	return json.Marshal(t.ToValue())
 }
 
 // String returns the underlying string representation of the value.

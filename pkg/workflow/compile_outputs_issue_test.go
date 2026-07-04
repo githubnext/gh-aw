@@ -495,7 +495,7 @@ This workflow tests that copilot assignment is wired in consolidated safe output
 	}
 }
 
-// TestDeduplicateByTitleBoolean verifies that deduplicate-by-title: true/false is emitted correctly.
+// TestDeduplicateByTitleBoolean verifies that deduplicate-by-title: true is emitted correctly.
 func TestDeduplicateByTitleBoolean(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "dedup-bool-test")
 
@@ -530,6 +530,44 @@ Create test issues.
 
 	if !strings.Contains(string(lockContent), `\"deduplicate_by_title\":true`) {
 		t.Errorf("Expected deduplicate_by_title:true in handler config, got:\n%s", lockContent)
+	}
+}
+
+// TestDeduplicateByTitleFalse verifies that deduplicate-by-title: false is emitted correctly.
+func TestDeduplicateByTitleFalse(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "dedup-false-test")
+
+	testContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+strict: false
+safe-outputs:
+  create-issue:
+    max: 1
+    deduplicate-by-title: false
+---
+
+Create test issues.
+`
+	testFile := filepath.Join(tmpDir, "test-dedup-false.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile: %v", err)
+	}
+
+	lockContent, err := os.ReadFile(filepath.Join(tmpDir, "test-dedup-false.lock.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(lockContent), `\"deduplicate_by_title\":false`) {
+		t.Errorf("Expected deduplicate_by_title:false in handler config, got:\n%s", lockContent)
 	}
 }
 

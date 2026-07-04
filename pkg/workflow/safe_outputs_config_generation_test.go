@@ -1075,6 +1075,32 @@ func TestGenerateSafeOutputsConfigDeduplicateByTitleBool(t *testing.T) {
 	assert.Equal(t, true, ciConfig["deduplicate_by_title"], "deduplicate_by_title should be true (JSON boolean)")
 }
 
+// TestGenerateSafeOutputsConfigDeduplicateByTitleFalse tests that deduplicate_by_title
+// with an explicit false value is correctly serialized into config.json for create_issue.
+func TestGenerateSafeOutputsConfigDeduplicateByTitleFalse(t *testing.T) {
+	falseVal := TemplatableBoolOrInt("false")
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				DeduplicateByTitle:   &falseVal,
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	ciConfig, ok := parsed["create_issue"].(map[string]any)
+	require.True(t, ok, "Expected create_issue key in config")
+
+	assert.Equal(t, false, ciConfig["deduplicate_by_title"], "deduplicate_by_title should be false (JSON boolean)")
+}
+
 // TestGenerateSafeOutputsConfigDeduplicateByTitleInt tests that deduplicate_by_title
 // with an integer value is correctly serialized into config.json for create_issue.
 func TestGenerateSafeOutputsConfigDeduplicateByTitleInt(t *testing.T) {
@@ -1099,7 +1125,7 @@ func TestGenerateSafeOutputsConfigDeduplicateByTitleInt(t *testing.T) {
 	require.True(t, ok, "Expected create_issue key in config")
 
 	// JSON numbers unmarshal as float64 in map[string]any
-	assert.InDelta(t, float64(2), ciConfig["deduplicate_by_title"], 0, "deduplicate_by_title should be 2 (JSON number)")
+	assert.InDelta(t, float64(2), ciConfig["deduplicate_by_title"], 0.0001, "deduplicate_by_title should be 2 (JSON number)")
 }
 
 // TestGenerateSafeOutputsConfigDeduplicateByTitleExpression tests that deduplicate_by_title
