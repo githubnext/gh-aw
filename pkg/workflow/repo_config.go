@@ -7,7 +7,7 @@
 // Configuration reference:
 //
 //	{
-//	  "ghes": true,               // enables GHES compatibility mode (v3 artifact pins)
+//	  "ghes": true,               // enables GHES compatibility mode (artifact pins remain latest non-v3)
 //	  "help_command": false,      // disables builtin centralized /help comment handler
 //	  "utc": "-08:00", // project home UTC offset for rendered local times
 //	  "auto_upgrade": true, // set to true to generate agentic-auto-upgrade.yml with weekly schedule
@@ -115,9 +115,8 @@ func (m *MaintenanceConfig) IsLabelTriggerEnabled() bool {
 // RepoConfig is the parsed representation of aw.json.
 type RepoConfig struct {
 	// GHES enables GitHub Enterprise Server compatibility mode.
-	// When true, the compiler emits GHES-compatible artifact action versions
-	// (upload-artifact@v3, download-artifact@v3) instead of the latest v7/v8
-	// which are not supported on GHES.
+	// When true, the compiler enables GHES compatibility behavior. Artifact actions
+	// continue to use latest non-v3 pins because v3 artifact actions are deprecated.
 	GHES bool
 
 	// UTC is the project's home UTC offset used for rendering local times in CLI output.

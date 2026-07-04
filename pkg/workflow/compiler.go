@@ -442,7 +442,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		}
 	}
 	if c.ghesArtifactCompat {
-		actionPinsLog.Print("GHES artifact compatibility mode enabled: artifact actions will use v3.x pins")
+		actionPinsLog.Print("GHES artifact compatibility mode enabled: using latest artifact action pins (v3 pins are deprecated)")
 	}
 
 	// Generate lock file name
