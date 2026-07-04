@@ -211,7 +211,7 @@ function makeProviderSetupExtension() {
   return function providerSetupExtension(/** @type {any} */ pi) {
     const providers = buildProviderConfigs();
     if (providers.length === 0) {
-      throw new Error("no LLM provider credentials found in the environment. " + "At least one of the following must be set: ANTHROPIC_API_KEY, OPENAI_API_KEY, " + "CODEX_API_KEY, COPILOT_GITHUB_TOKEN, GITHUB_TOKEN, GEMINI_API_KEY.");
+      throw new Error(`no LLM provider credentials found in the environment. ` + `At least one of the following must be set: ANTHROPIC_API_KEY, OPENAI_API_KEY, ` + `CODEX_API_KEY, COPILOT_GITHUB_TOKEN, GITHUB_TOKEN, GEMINI_API_KEY.`);
     }
     for (const { name, apiKey, api, baseUrl } of providers) {
       /** @type {Record<string, unknown>} */
@@ -354,7 +354,8 @@ async function main() {
   const extensions = [makeProviderSetupExtension(), makeObservabilityExtension(sessionId, config)];
 
   // Load user-declared extensions from harness.extensions (section 6.1.4)
-  const userExtensions = /** @type {unknown[]} */ Array.isArray(/** @type {any} */ config.harness?.extensions ? /** @type {any} */ config.harness.extensions : []);
+  const rawExtensions = /** @type {any} */ config.harness?.extensions;
+  const userExtensions = /** @type {unknown[]} */ Array.isArray(rawExtensions) ? rawExtensions : [];
   const extensionsRequired = Boolean(/** @type {any} */ config.harness?.["extensions-required"]);
 
   for (const extEntry of userExtensions) {
