@@ -178,11 +178,6 @@ func (c *Compiler) SetModelPricingResolver(fn func(ctx context.Context, provider
 	c.modelPricingResolver = fn
 }
 
-// HasModelPricingResolver reports whether a model pricing resolver callback is configured.
-func (c *Compiler) HasModelPricingResolver() bool {
-	return c.modelPricingResolver != nil
-}
-
 // SetRequireDocker configures whether Docker must be available for container image validation.
 // When true, validation fails with an error if Docker is not installed or the daemon is not running.
 // When false (default), validation is silently skipped when Docker is unavailable.

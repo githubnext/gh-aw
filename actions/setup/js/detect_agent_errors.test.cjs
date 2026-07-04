@@ -208,6 +208,14 @@ describe("detect_agent_errors.cjs", () => {
     it("does not match 'no model endpoints available' without a leading 400", () => {
       expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("no model endpoints available given user constraints")).toBe(false);
     });
+
+    it("matches the stream_options: Extra inputs are not permitted Anthropic BYOK error", () => {
+      expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("[copilot-sdk-driver] [sdk-driver] error: 400 400 400 stream_options: Extra inputs are not permitted")).toBe(true);
+    });
+
+    it("does not false-positive on unrelated messages mentioning stream_options", () => {
+      expect(HTTP_400_RESPONSE_ERROR_PATTERN.test("Configuring stream_options for the request")).toBe(false);
+    });
   });
 
   describe("detectErrors", () => {

@@ -63,7 +63,7 @@ async function main() {
 
     // Generate step summary
     const summary = generateMCPScriptsSummary(allLogEntries);
-    core.summary.addRaw(summary).write();
+    await core.summary.addRaw(summary).write();
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
   }

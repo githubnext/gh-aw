@@ -719,6 +719,71 @@ func TestBuildLogsDataWithContinuation(t *testing.T) {
 	}
 }
 
+// TestBuildLogsDataWithCountLimitContinuation tests that count-limit continuation
+// (issued when a date-range fetch fills the requested count) is correctly serialised.
+// This mirrors the scenario fixed in issue #42994 where daily audits only received
+// partial run sets because the count cap was hit mid-range with no pagination signal.
+func TestBuildLogsDataWithCountLimitContinuation(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:   20000,
+				WorkflowName: "api-consumption-report",
+				LogsPath:     filepath.Join(tmpDir, "run-20000"),
+			},
+		},
+		{
+			Run: WorkflowRun{
+				DatabaseID:   19999,
+				WorkflowName: "api-consumption-report",
+				LogsPath:     filepath.Join(tmpDir, "run-19999"),
+			},
+		},
+	}
+
+	// Simulate what DownloadWorkflowLogs emits when fetchAllInRange is true and the
+	// count limit is reached before all runs in the date window are fetched.
+	// DownloadWorkflowLogs receives resolved absolute dates (the CLI resolves relative
+	// shorthands like "-1d" before calling it), so use a concrete date here.
+	continuation := &ContinuationData{
+		Message:     "Count limit reached. Use these parameters to continue fetching more logs from the same date range.",
+		StartDate:   "2026-06-01",
+		Count:       100,
+		BeforeRunID: 19999, // oldest processed run
+		Timeout:     3,
+	}
+
+	logsData := buildLogsData(processedRuns, tmpDir, continuation)
+
+	if logsData.Continuation == nil {
+		t.Fatal("Expected continuation field, got nil")
+	}
+	if logsData.Continuation.BeforeRunID != 19999 {
+		t.Errorf("Expected BeforeRunID 19999, got %d", logsData.Continuation.BeforeRunID)
+	}
+	if logsData.Continuation.StartDate != "2026-06-01" {
+		t.Errorf("Expected StartDate '2026-06-01', got %q", logsData.Continuation.StartDate)
+	}
+
+	// Verify round-trip JSON serialisation preserves continuation.
+	raw, err := json.Marshal(logsData)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	var parsed LogsData
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if parsed.Continuation == nil {
+		t.Fatal("Expected continuation in round-tripped JSON, got nil")
+	}
+	if parsed.Continuation.BeforeRunID != 19999 {
+		t.Errorf("Round-trip BeforeRunID: got %d, want 19999", parsed.Continuation.BeforeRunID)
+	}
+}
+
 // TestBuildLogsDataWithoutContinuation tests that continuation is omitted when nil
 func TestBuildLogsDataWithoutContinuation(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
