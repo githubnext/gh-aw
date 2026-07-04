@@ -68,8 +68,8 @@ func getActionPin(repo string) string {
 
 // getActionPin returns the pinned reference for the given repo.
 //
-// This is the preferred call site for code running inside a Compiler method, since it
-// automatically honours the per-compilation GHES compat flag without any global state.
+// This is the preferred call site for code running inside a Compiler method because it
+// reuses the compiler's shared cache/resolver and marks cached pins as used for pruning.
 //
 // If the compiler has an action cache and resolver, this method will check the cache for
 // any existing entry and mark it as "used" for orphan pruning. This ensures compiler-generated

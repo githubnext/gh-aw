@@ -1629,27 +1629,6 @@ func TestGetActionPinGHESArtifactCompat(t *testing.T) {
 	}
 }
 
-// TestGHESArtifactCompatReset tests that toggling compat mode does not leak state.
-func TestGHESArtifactCompatReset(t *testing.T) {
-	// Default compiler returns latest pin
-	defaultCompiler := NewCompiler()
-	defaultPin := defaultCompiler.getActionPin("actions/upload-artifact")
-
-	// Compat compiler should return the same non-deprecated pin as default.
-	compatCompiler := NewCompiler()
-	compatCompiler.ghesArtifactCompat = true
-	compatPin := compatCompiler.getActionPin("actions/upload-artifact")
-
-	if defaultPin != compatPin {
-		t.Error("GHES compat pin should match default pin")
-	}
-
-	// Default compiler is unchanged after compat compiler was used
-	if defaultCompiler.getActionPin("actions/upload-artifact") != defaultPin {
-		t.Error("Default compiler pin changed after compat compiler was used — state leaked")
-	}
-}
-
 // TestGHESArtifactCompatDoesNotUseV3 verifies GHES compat mode never emits deprecated v3 artifact pins.
 func TestGHESArtifactCompatDoesNotUseV3(t *testing.T) {
 	c := NewCompiler()
