@@ -52,12 +52,14 @@ func isThreatDetectionExplicitlyDisabledInConfigs(configs []string) bool {
 		if tdVal, exists := config["threat-detection"]; exists {
 			// Boolean form: threat-detection: false
 			if tdBool, ok := tdVal.(bool); ok && !tdBool {
+				threatLog.Print("Threat detection explicitly disabled (boolean form) in safe-outputs config")
 				return true
 			}
 			// Object form: threat-detection: { enabled: false }
 			if tdMap, ok := tdVal.(map[string]any); ok {
 				if enabled, exists := tdMap["enabled"]; exists {
 					if enabledBool, ok := enabled.(bool); ok && !enabledBool {
+						threatLog.Print("Threat detection explicitly disabled (object form) in safe-outputs config")
 						return true
 					}
 				}
@@ -88,6 +90,7 @@ func getThreatDetectionAdditionalAllowedDomains(data *WorkflowData) []string {
 		additional = append(additional, entry)
 	}
 
+	threatLog.Printf("Computed %d additional allowed domains for threat detection", len(additional))
 	return additional
 }
 
