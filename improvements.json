@@ -1,6 +1,18 @@
 {
-  "last_updated": "2026-07-03",
+  "last_updated": "2026-07-04",
   "pending_tasks": [
+    {
+      "file": "docs/src/content/docs/guides/agentic-authoring.mdx",
+      "created": "2026-07-04",
+      "priority": "high",
+      "title": "Convert Self-Hosted Runners paragraph (lines 84-87) to a bullet list for five agent behaviors"
+    },
+    {
+      "file": ".github/workflows/spec-librarian.md",
+      "created": "2026-07-04",
+      "priority": "medium",
+      "title": "Align run-started/run-success/run-failure messages with consistent [emoji] [{workflow_name}]({run_url}) [action] pattern"
+    },
     {
       "file": "docs/src/content/docs/reference/github-tools.md",
       "created": "2026-07-03",
@@ -17,19 +29,19 @@
       "file": "docs/src/content/docs/blog/2026-01-13-meet-the-workflows-documentation.md",
       "created": "2026-07-01",
       "priority": "high",
-      "title": "Replace theatrical opening paragraph with professional blog introduction that matches the data-driven tone of the rest of the post"
+      "title": "Replace theatrical opening paragraph with professional blog introduction"
     },
     {
       "file": ".github/workflows/smoke-copilot.md",
       "created": "2026-07-01",
       "priority": "medium",
-      "title": "Fix run-success message: remove 'This is a developing story.' (contradicts success state) and replace 🎤 with ✅ for clear completion signal"
+      "title": "Fix run-success message: remove 'This is a developing story.' and replace 🎤 with ✅"
     },
     {
       "file": "docs/src/content/docs/reference/repository-package-manifest.md",
       "created": "2026-06-30",
       "priority": "high",
-      "title": "Add GitHub-flavored WARNING admonition around 'Missing README.md causes package validation to fail' to surface critical constraint visually"
+      "title": "Add WARNING admonition around 'Missing README.md causes package validation to fail'"
     },
     {
       "file": ".github/workflows/smoke-agent-all-none.md",
