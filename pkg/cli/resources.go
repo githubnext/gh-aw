@@ -67,7 +67,7 @@ func extractResources(content string) ([]string, error) {
 // from the same source are silently skipped.
 // For non-Markdown resource files: if the target already exists and force is false, an error
 // is returned regardless of origin (non-markdown files have no source tracking).
-func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+func fetchAndSaveRemoteResources(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
 	if spec.RepoSlug == "" {
 		return nil
 	}
@@ -79,7 +79,7 @@ func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir s
 	owner, repo := parts[0], parts[1]
 	ref := spec.Version
 	if ref == "" {
-		defaultBranch, err := getRepoDefaultBranch(context.Background(), spec.RepoSlug)
+		defaultBranch, err := getRepoDefaultBranch(ctx, spec.RepoSlug)
 		if err != nil {
 			remoteWorkflowLog.Printf("Failed to resolve default branch for %s, falling back to 'main': %v", spec.RepoSlug, err)
 			ref = "main"
@@ -182,7 +182,7 @@ func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir s
 		}
 
 		// Download from source repository
-		fileContent, err := parser.DownloadFileFromGitHub(owner, repo, remoteFilePath, ref)
+		fileContent, err := parser.DownloadFileFromGitHub(ctx, owner, repo, remoteFilePath, ref)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch resource %s: %v", remoteFilePath, err)))

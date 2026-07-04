@@ -39,7 +39,7 @@ func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
 		return "main", nil
 	}
-	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 		switch path {
 		case "aw.yml":
 			if ref == "v1.0.0" {
@@ -53,14 +53,14 @@ func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 		}
 		return nil, createRepositoryPackageNotFoundError(path)
 	}
-	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+	listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
 		return nil, errors.New("unexpected scan")
 	}
 	// Return not-found so skill/agent auto-scan skips gracefully (no real network needed)
-	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
-	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
 

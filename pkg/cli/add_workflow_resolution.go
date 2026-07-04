@@ -86,7 +86,7 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 				return nil, repoErr
 			}
 
-			pkg, pkgErr := resolveRepositoryPackage(repoSpec, explicitHostForRepo(repoSpec.RepoSlug))
+			pkg, pkgErr := resolveRepositoryPackage(ctx, repoSpec, explicitHostForRepo(repoSpec.RepoSlug))
 			if pkgErr == nil {
 				resolutionWarnings = append(resolutionWarnings, pkg.Warnings...)
 				parsedSpecs = appendRepositoryPackageWorkflowSpecs(parsedSpecs, repoSpec, pkg)
@@ -104,7 +104,7 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 				return nil, fmt.Errorf("invalid specification '%s': not a valid workflow path or repository package: %w", workflow, repoErr)
 			}
 
-			pkg, pkgErr := resolveRepositoryPackage(repoSpec, explicitHostForRepo(repoSpec.RepoSlug))
+			pkg, pkgErr := resolveRepositoryPackage(ctx, repoSpec, explicitHostForRepo(repoSpec.RepoSlug))
 			if pkgErr != nil {
 				return nil, pkgErr
 			}

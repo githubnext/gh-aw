@@ -119,7 +119,7 @@ func TestResolveCommitSHAWithRetries_TransientFailureThenSuccess(t *testing.T) {
 
 	shaResolutionRetryDelays = testSHAResolutionRetryDelays
 	resolveAttempts := 0
-	resolveRefToSHAForHost = func(owner, repo, ref, host string) (string, error) {
+	resolveRefToSHAForHost = func(_ context.Context, owner, repo, ref, host string) (string, error) {
 		resolveAttempts++
 		if resolveAttempts == 1 {
 			return "", errors.New("HTTP 429: rate limit exceeded")
@@ -152,7 +152,7 @@ func TestResolveCommitSHAWithRetries_PermanentFailureDoesNotRetry(t *testing.T) 
 
 	shaResolutionRetryDelays = testSHAResolutionRetryDelays
 	resolveAttempts := 0
-	resolveRefToSHAForHost = func(owner, repo, ref, host string) (string, error) {
+	resolveRefToSHAForHost = func(_ context.Context, owner, repo, ref, host string) (string, error) {
 		resolveAttempts++
 		return "", errors.New("HTTP 404: Not Found")
 	}
@@ -185,7 +185,7 @@ func TestResolveCommitSHAWithRetries_TransientFailureExhaustsRetries(t *testing.
 
 	shaResolutionRetryDelays = testSHAResolutionRetryDelays
 	resolveAttempts := 0
-	resolveRefToSHAForHost = func(owner, repo, ref, host string) (string, error) {
+	resolveRefToSHAForHost = func(_ context.Context, owner, repo, ref, host string) (string, error) {
 		resolveAttempts++
 		return "", errors.New("timeout waiting for GitHub API")
 	}
@@ -215,7 +215,7 @@ func TestResolveCommitSHAWithRetries_ContextCanceledDuringBackoff(t *testing.T) 
 	}()
 
 	shaResolutionRetryDelays = testSHAResolutionRetryDelays
-	resolveRefToSHAForHost = func(owner, repo, ref, host string) (string, error) {
+	resolveRefToSHAForHost = func(_ context.Context, owner, repo, ref, host string) (string, error) {
 		return "", errors.New("HTTP 429: rate limit exceeded")
 	}
 
@@ -286,7 +286,7 @@ func TestFetchIncludeFromSource_WorkflowSpecParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, section, err := FetchIncludeFromSource(tt.includePath, tt.baseSpec, false)
+			_, section, err := FetchIncludeFromSource(t.Context(), tt.includePath, tt.baseSpec, false)
 
 			if tt.expectError {
 				require.Error(t, err, "expected error")
@@ -340,7 +340,7 @@ func TestFetchIncludeFromSource_SectionExtraction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// We expect resolution errors in these unit tests, but section should still be extracted
-			_, section, _ := FetchIncludeFromSource(tt.includePath, nil, false)
+			_, section, _ := FetchIncludeFromSource(t.Context(), tt.includePath, nil, false)
 			assert.Equal(t, tt.expectSection, section, "section should be correctly extracted")
 		})
 	}
@@ -405,7 +405,7 @@ engine: copilot
 	}
 
 	tmpDir := t.TempDir()
-	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteFrontmatterImports(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "should not error when no imports are present")
 
 	// No files should have been created
@@ -433,7 +433,7 @@ imports:
 	}
 
 	tmpDir := t.TempDir()
-	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteFrontmatterImports(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "should not error for local workflow with empty RepoSlug")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -462,7 +462,7 @@ imports:
 
 	tmpDir := t.TempDir()
 	// This should not attempt any network calls; already-pinned imports are skipped.
-	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteFrontmatterImports(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "should not error for workflowspec imports")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -497,7 +497,7 @@ imports:
 	tmpDir := t.TempDir()
 	// The uses: import path is in workflowspec format so it should be skipped,
 	// just like a string-form workflowspec import would be.
-	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteFrontmatterImports(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "should not error for uses: form workflowspec imports")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -527,7 +527,7 @@ engine: copilot
 		WorkflowPath: ".github/workflows/test.md",
 	}
 
-	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tracker.gitRoot, false, false, tracker)
+	err := fetchAndSaveRemoteFrontmatterImports(t.Context(), content, spec, tracker.gitRoot, false, false, tracker)
 	require.NoError(t, err)
 	assert.Empty(t, tracker.CreatedFiles, "no files should be created when there are no imports")
 	assert.Empty(t, tracker.ModifiedFiles, "no files should be modified when there are no imports")
@@ -561,7 +561,7 @@ imports:
 	tmpDir := t.TempDir()
 	// No network in unit tests: the download attempt for the first import will fail silently
 	// (verbose=false).  The second import must be deduplicated without a second download.
-	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteFrontmatterImports(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "section-fragment deduplication should not error")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -603,7 +603,7 @@ imports:
 		WorkflowPath: ".github/workflows/ci-coach.md",
 	}
 
-	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, tracker)
+	err := fetchAndSaveRemoteFrontmatterImports(t.Context(), content, spec, tmpDir, false, false, tracker)
 	require.NoError(t, err)
 
 	// The existing file must be untouched and not added to the tracker.
@@ -649,7 +649,7 @@ imports:
 			}
 
 			tmpDir := t.TempDir()
-			err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, nil)
+			err := fetchAndSaveRemoteFrontmatterImports(t.Context(), content, spec, tmpDir, false, false, nil)
 			require.NoError(t, err, "path traversal should be silently rejected, not return an error")
 
 			// No file must have been written anywhere
@@ -678,7 +678,7 @@ imports:
 	}
 
 	tmpDir := t.TempDir()
-	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteFrontmatterImports(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "invalid RepoSlug should return nil without error")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -1070,7 +1070,7 @@ on: issues
 	}
 
 	tmpDir := t.TempDir()
-	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteResources(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "should not error when no resources field")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -1097,7 +1097,7 @@ resources:
 	}
 
 	tmpDir := t.TempDir()
-	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteResources(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "should not error for local workflow")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -1125,7 +1125,7 @@ resources:
 	}
 
 	tmpDir := t.TempDir()
-	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteResources(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.Error(t, err, "should error when resources contain macro syntax")
 	assert.Contains(t, err.Error(), "${{", "error should mention the disallowed syntax")
 
@@ -1165,7 +1165,7 @@ resources:
 		WorkflowPath: ".github/workflows/my-workflow.md",
 	}
 
-	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteResources(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err)
 
 	gotContent, readErr := os.ReadFile(existingFile)
@@ -1194,7 +1194,7 @@ resources:
 	}
 
 	tmpDir := t.TempDir()
-	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteResources(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "path traversal should be silently rejected")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -1220,7 +1220,7 @@ resources:
 	}
 
 	tmpDir := t.TempDir()
-	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
+	err := fetchAndSaveRemoteResources(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.NoError(t, err, "invalid RepoSlug should return nil without error")
 
 	entries, readErr := os.ReadDir(tmpDir)
@@ -1263,7 +1263,7 @@ resources:
 		WorkflowPath: ".github/workflows/my-workflow.md",
 	}
 
-	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, tracker)
+	err := fetchAndSaveRemoteResources(t.Context(), content, spec, tmpDir, false, false, tracker)
 	require.NoError(t, err)
 	assert.Empty(t, tracker.CreatedFiles, "pre-existing file must not appear in CreatedFiles")
 	assert.Empty(t, tracker.ModifiedFiles, "pre-existing file must not appear in ModifiedFiles")
@@ -1284,7 +1284,7 @@ func TestFetchAndSaveDispatchWorkflowsFromParsedFile_EmptyRepoSlug(t *testing.T)
 		WorkflowPath: ".github/workflows/my-workflow.md",
 	}
 
-	fetchAndSaveDispatchWorkflowsFromParsedFile(filepath.Join(tmpDir, "nonexistent.md"), spec, tmpDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), filepath.Join(tmpDir, "nonexistent.md"), spec, tmpDir, false, false, nil)
 
 	entries, err := os.ReadDir(tmpDir)
 	require.NoError(t, err)
@@ -1300,7 +1300,7 @@ func TestFetchAndSaveDispatchWorkflowsFromParsedFile_InvalidRepoSlug(t *testing.
 		WorkflowPath: ".github/workflows/my-workflow.md",
 	}
 
-	fetchAndSaveDispatchWorkflowsFromParsedFile(filepath.Join(tmpDir, "nonexistent.md"), spec, tmpDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), filepath.Join(tmpDir, "nonexistent.md"), spec, tmpDir, false, false, nil)
 
 	entries, err := os.ReadDir(tmpDir)
 	require.NoError(t, err)
@@ -1317,7 +1317,7 @@ func TestFetchAndSaveDispatchWorkflowsFromParsedFile_ParseFailure(t *testing.T) 
 	}
 
 	// Point to a file that does not exist — ParseWorkflowFile will fail.
-	fetchAndSaveDispatchWorkflowsFromParsedFile(filepath.Join(tmpDir, "does-not-exist.md"), spec, tmpDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), filepath.Join(tmpDir, "does-not-exist.md"), spec, tmpDir, false, false, nil)
 
 	entries, err := os.ReadDir(tmpDir)
 	require.NoError(t, err)
@@ -1349,7 +1349,7 @@ permissions:
 		WorkflowPath: ".github/workflows/my-workflow.md",
 	}
 
-	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), mainPath, spec, workflowsDir, false, false, nil)
 
 	// Only the main workflow itself should be in the directory.
 	entries, err := os.ReadDir(workflowsDir)
@@ -1419,7 +1419,7 @@ Process incoming issues.
 		WorkflowPath: ".github/workflows/main.md",
 	}
 
-	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), mainPath, spec, workflowsDir, false, false, nil)
 
 	// The pre-existing dispatch workflow must not be modified.
 	got, err := os.ReadFile(triagePath)
@@ -1479,7 +1479,7 @@ imports:
 		WorkflowPath: ".github/workflows/main.md",
 	}
 
-	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, tracker)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), mainPath, spec, workflowsDir, false, false, tracker)
 
 	assert.Empty(t, tracker.CreatedFiles, "pre-existing dispatch workflow must not appear in CreatedFiles")
 	assert.Empty(t, tracker.ModifiedFiles, "pre-existing dispatch workflow must not appear in ModifiedFiles")
@@ -1533,7 +1533,7 @@ imports:
 		WorkflowPath: ".github/workflows/main.md",
 	}
 
-	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), mainPath, spec, workflowsDir, false, false, nil)
 
 	// No file named after the macro entry should have been created.
 	macroFile := filepath.Join(workflowsDir, "${{ vars.DYNAMIC_WORKFLOW }}.md")
@@ -1721,7 +1721,7 @@ safe-outputs:
 	// The conflict check is bypassed; the download fails immediately via the injected
 	// mock downloader (avoids real network calls in unit tests).
 	// Download failures are best-effort, so the function returns nil overall.
-	mockDownloader := func(_, _, _, _ string) ([]byte, error) {
+	mockDownloader := func(_ context.Context, _, _, _, _ string) ([]byte, error) {
 		return nil, errors.New("download not available in unit tests")
 	}
 	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, dir, false, true, nil, mockDownloader)
@@ -1757,7 +1757,7 @@ resources:
 		WorkflowPath: ".github/workflows/main.md",
 	}
 
-	err := fetchAndSaveRemoteResources(content, spec, dir, false, false, nil)
+	err := fetchAndSaveRemoteResources(t.Context(), content, spec, dir, false, false, nil)
 	require.Error(t, err, "should error when markdown resource exists from a different source")
 	assert.Contains(t, err.Error(), "helper.md", "error should name the conflicting resource")
 }
@@ -1782,7 +1782,7 @@ resources:
 		WorkflowPath: ".github/workflows/main.md",
 	}
 
-	err := fetchAndSaveRemoteResources(content, spec, dir, false, false, nil)
+	err := fetchAndSaveRemoteResources(t.Context(), content, spec, dir, false, false, nil)
 	require.Error(t, err, "should error when non-markdown resource already exists")
 	assert.Contains(t, err.Error(), "helper.yml", "error should name the conflicting resource")
 }
@@ -1812,7 +1812,7 @@ resources:
 		WorkflowPath: ".github/workflows/main.md",
 	}
 
-	err := fetchAndSaveRemoteResources(content, spec, dir, false, false, nil)
+	err := fetchAndSaveRemoteResources(t.Context(), content, spec, dir, false, false, nil)
 	assert.NoError(t, err, "should not error when markdown resource is from the same source")
 }
 
@@ -1858,7 +1858,7 @@ source: otherorg/other-repo/.github/workflows/triage-issue.md@v1
 	}
 
 	// Must not panic or error — post-write is best-effort.
-	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, nil)
+	fetchAndSaveDispatchWorkflowsFromParsedFile(t.Context(), mainPath, spec, workflowsDir, false, false, nil)
 
 	// The conflicting file must NOT have been overwritten.
 	got, readErr := os.ReadFile(conflictPath)
