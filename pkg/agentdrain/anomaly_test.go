@@ -249,9 +249,13 @@ func TestAnomalyDetector_Analyze_PanicsOnNilResultParameter(t *testing.T) {
 	require.NoError(t, err, "NewAnomalyDetector should succeed")
 	require.NotNil(t, detector, "NewAnomalyDetector should return a non-nil detector")
 
-	assert.Panics(t, func() {
-		detector.Analyze(nil, false, &Cluster{ID: 1, Template: []string{"a"}, Size: 1})
-	}, "Analyze should panic when result is nil for an existing template")
+	assert.PanicsWithValue(t,
+		"agentdrain: Analyze: result must not be nil when isNew is false",
+		func() {
+			detector.Analyze(nil, false, &Cluster{ID: 1, Template: []string{"a"}, Size: 1})
+		},
+		"Analyze should panic with a descriptive message when result is nil for an existing template",
+	)
 }
 
 func TestNewAnomalyDetector_ThresholdBoundaries(t *testing.T) {

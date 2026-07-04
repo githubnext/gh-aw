@@ -35,6 +35,9 @@ func NewAnomalyDetector(simThreshold float64, rareClusterThreshold int) (*Anomal
 //   - isNew indicates the line created a brand-new cluster.
 //   - cluster is the cluster that was matched or created.
 func (d *AnomalyDetector) Analyze(result *MatchResult, isNew bool, cluster *Cluster) *AnomalyReport {
+	if !isNew && result == nil {
+		panic("agentdrain: Analyze: result must not be nil when isNew is false")
+	}
 	report := &AnomalyReport{
 		IsNewTemplate: isNew,
 		// LowSimilarity is mutually exclusive with IsNewTemplate: brand-new templates are
