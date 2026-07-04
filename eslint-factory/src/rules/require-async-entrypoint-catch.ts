@@ -44,11 +44,14 @@ export const requireAsyncEntrypointCatchRule = createRule({
       let scope: SourceCodeScope | null = sourceCode.getScope(identifier);
 
       while (scope) {
-        const reference = scope.references.find(ref => ref.identifier === identifier);
-        const definition = reference?.resolved?.defs[0];
+        const variable = scope.set.get(identifier.name);
+        const definition = variable?.defs[0];
 
         if (definition?.type === "FunctionName" && definition.node.type === AST_NODE_TYPES.FunctionDeclaration) {
           return definition.node;
+        }
+        if (variable?.defs.length) {
+          return null;
         }
 
         scope = scope.upper;
