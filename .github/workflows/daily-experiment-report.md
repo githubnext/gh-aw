@@ -57,14 +57,18 @@ features:
   gh-aw-detection: true
 ---
 
-# Daily Experiment Report
+### Daily Experiment Report
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
 
 You are a **statistical analyst** for agentic workflow A/B experiments. Your job is to aggregate
 experiment run data, compute rigorous per-variant statistics, detect statistical significance, and
 post a clear ASCII comparison table to each experiment's tracking issue (or to the workflow step
 summary if no tracking issue is configured).
 
-## Step 1 — Discover Workflows with Active Experiments
+#### Step 1 — Discover Workflows with Active Experiments
 
 Run the `experiments` CLI command to list all experiments in the repository:
 
@@ -129,7 +133,7 @@ If no workflows declare `experiments:`, append the following to `$GITHUB_STEP_SU
 No active experiments found in ${{ github.repository }} — nothing to report.
 ```
 
-## Step 2 — Collect Run Data and Outcome Metrics
+#### Step 2 — Collect Run Data and Outcome Metrics
 
 For each workflow that has experiments, use the `experiments analyze` output from Step 1:
 
@@ -173,7 +177,7 @@ Build a per-run outcome record for every run whose variant is known:
 }
 ```
 
-## Step 3 — Compute Per-Variant Statistics
+#### Step 3 — Compute Per-Variant Statistics
 
 Use the `analyses` array from `gh aw experiments analyze` (Step 1) for the following fields — no
 recomputation is needed:
@@ -229,7 +233,7 @@ For `empty_output_rate` and other binary metrics: infer from run conclusions whe
 If **any guardrail fails for any variant**, mark the experiment as `GUARDRAIL_FAILED` and use
 `ABANDON` as the recommendation regardless of the primary metric significance.
 
-## Step 4 — Detect Statistical Significance (p < 0.05)
+#### Step 4 — Detect Statistical Significance (p < 0.05)
 
 Compare each variant against the first (control) variant using the appropriate test:
 
@@ -292,7 +296,7 @@ Required report output for each experiment pair:
 
 If `interaction_risk_status = SPARSE_CELL_RISK`, do **not** recommend `PROMOTE`.
 
-## Step 5 — Generate Bar Charts
+#### Step 5 — Generate Bar Charts
 
 For each experiment, generate two bar charts using Python (libraries and directories are already set
 up by the imported `shared/trending-charts-simple.md` environment):
@@ -364,7 +368,7 @@ plt.close()
 After saving each chart, upload it using the `upload_asset` safe-output tool and store the returned
 asset URLs — they will be embedded in the discussion body.
 
-## Step 5.5 — Build `min_samples` Progress Bars
+#### Step 5.5 — Build `min_samples` Progress Bars
 
 Add a helper to render per-variant progress toward `min_samples` using fixed-width Unicode bars:
 
@@ -386,7 +390,7 @@ Use this helper in the per-experiment sample-size table:
 ██░░░░░░░░ 5/20 (25%)
 ```
 
-## Step 6 — Render ASCII Comparison Table
+#### Step 6 — Render ASCII Comparison Table
 
 For each experiment, produce an ASCII table inside a fenced code block:
 
@@ -431,7 +435,7 @@ Rationale     : <one sentence>
 > **Note on statistical power:** Until all variants reach `min_samples`, tests have low power to
 > detect small effects. Use **EXTEND** to gather more data before drawing conclusions.
 
-## Step 7 — Post Discussion
+#### Step 7 — Post Discussion
 
 Create a single GitHub Discussion containing all experiments using the `create-discussion`
 safe output. The `shared/daily-audit-charts.md` import configures the discussion with
@@ -535,7 +539,7 @@ After the discussion is created, also write a one-line summary to `$GITHUB_STEP_
 Daily experiment report: N experiments analysed, M reached significance (p < 0.05). Discussion: <url>
 ```
 
-## Step 8 — Notify Tracking Issues
+#### Step 8 — Notify Tracking Issues
 
 For each experiment that has a `issue:` field set, post a comment to that tracking issue when any
 of the following conditions are met **for the first time today**:
@@ -579,7 +583,7 @@ Use the `add-comment` safe-output tool to post comments. Skip experiments with n
 `issue:` field. Do not post duplicate comments if the same condition was already reported in a
 previous run today.
 
-## Step 9 — Update Experiment Lifecycle Labels
+#### Step 9 — Update Experiment Lifecycle Labels
 
 For each experiment with a tracking `issue:` field, apply the following GitHub labels on the
 tracking issue when the corresponding condition is met. Create the label first if it does not

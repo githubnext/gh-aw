@@ -287,11 +287,15 @@ sandbox:
     sudo: false
 ---
 
-# Daily AstroStyleLite Markdown Spellcheck
+### Daily AstroStyleLite Markdown Spellcheck
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
 
 You maintain spelling quality for AstroStyleLite documentation under `docs/src/content/`.
 
-## Scope
+#### Scope
 
 - Only process files under `docs/src/content/`
 - Only modify markdown content files:
@@ -299,7 +303,7 @@ You maintain spelling quality for AstroStyleLite documentation under `docs/src/c
   - `*.mdx`
 - Use American English conventions
 
-## Inputs from the Spellcheck Job
+#### Inputs from the Spellcheck Job
 
 The spellcheck job runs after activation and before the agent job, and stores machine-readable results at:
 
@@ -325,7 +329,7 @@ Spellcheck summary:
 - Findings: `${{ needs.spellcheck.outputs.findings_count }}`
 - Dictionary file (if any): `${{ needs.spellcheck.outputs.dictionary_path }}`
 
-## Conditional Execution
+#### Conditional Execution
 
 This workflow is intentionally gated so the agent path only runs when `needs.spellcheck.outputs.has_findings == 'true'`.
 When no findings exist, the workflow stops after spellcheck and skips agent execution.
@@ -337,7 +341,7 @@ Inputs: `/tmp/gh-aw/agent/spellcheck/findings.ndjson` and `summary.json`.
 Preserve technical terms, product names, and code symbols.
 Branch: `spellcheck/YYYY-MM-DD`. Call `noop` if no safe fixes exist.
 {{#else}}
-## Task
+#### Task
 
 1. Read `/tmp/gh-aw/agent/spellcheck/summary.json` and `/tmp/gh-aw/agent/spellcheck/findings.ndjson`.
 2. Apply only justified spelling fixes in `docs/src/content/**/*.md` and `docs/src/content/**/*.mdx`.
@@ -345,7 +349,7 @@ Branch: `spellcheck/YYYY-MM-DD`. Call `noop` if no safe fixes exist.
 4. Do not re-run spellcheck in the agent job; use the provided artifact as the source of truth.
 5. If there are no safe fixes to apply, call `noop`.
 
-## Pull Request Requirements
+#### Pull Request Requirements
 
 When creating the pull request:
 
@@ -357,7 +361,7 @@ When creating the pull request:
 - Summarize changed files
 - Mention dictionary path only if one was used
 
-## Safety Constraints
+#### Safety Constraints
 
 - Do not modify files outside `docs/src/content/`
 - Do not modify non-markdown files

@@ -156,11 +156,15 @@ sandbox:
     sudo: false
 ---
 
-# Daily Skill Optimizer Improvements
+### Daily Skill Optimizer Improvements
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
 
 You are a workflow quality analyst for `${{ github.repository }}`.
 
-## Inputs
+#### Inputs
 
 - Downloaded artifact directory: `/tmp/gh-aw/agent/skill-optimizer-results`
 - Required file: `/tmp/gh-aw/agent/skill-optimizer-results/summary.json`
@@ -173,13 +177,13 @@ You are a workflow quality analyst for `${{ github.repository }}`.
 
 The separate `skill_optimizer` job already ran `fastxyz/skill-optimizer` and packaged these results.
 
-## Task
+#### Task
 
 1. Read `summary.json` and relevant logs from the downloaded artifact.
 2. Identify exactly **3** actionable improvements for this repository's workflow/skill guidance quality.
 3. Create exactly **one** GitHub issue using `create_issue`.
 
-## Issue Requirements
+#### Issue Requirements
 
 - Title format: `Daily Skill Optimizer Improvements - YYYY-MM-DD`
 - Include:
@@ -189,7 +193,7 @@ The separate `skill_optimizer` job already ran `fastxyz/skill-optimizer` and pac
   - Expected impact for each improvement
 - Keep recommendations specific to this repository and immediately actionable.
 
-## Issue Format Guidelines
+#### Issue Format Guidelines
 
 Use h3 (`###`) or lower for all headers in your report. Never use h1 (`#`) or h2 (`##`) — these are reserved for the issue title.
 

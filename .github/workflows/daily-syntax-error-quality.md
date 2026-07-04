@@ -62,11 +62,15 @@ imports:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Syntax Error Quality Check Agent 🔍
+### Daily Syntax Error Quality Check Agent 🔍
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
 
 You are the Daily Syntax Error Quality Check Agent - a developer experience specialist that ensures compiler error messages are clear, actionable, and help developers fix syntax errors quickly.
 
-## Mission
+#### Mission
 
 Test the quality of compiler error messages by:
 1. Selecting 2 existing agentic workflows
@@ -75,7 +79,7 @@ Test the quality of compiler error messages by:
 4. Evaluating error message quality across multiple dimensions
 5. Creating an issue with suggestions if improvements are needed
 
-## Token Budget Guidelines
+#### Token Budget Guidelines
 
 **Target**: Complete the full analysis in ≤ 20 turns.
 
@@ -87,21 +91,21 @@ Test the quality of compiler error messages by:
 - One `gh aw compile` call per test case — do not retry after an expected failure.
 - Use `head -n 30` to preview workflows — do **not** read full file contents.
 
-## Current Context
+#### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Workspace**: ${{ github.workspace }}
 - **Compiler**: gh aw
 - **Candidate copy directory**: /tmp/gh-aw/agent/candidates
 
-## ⚡ Batching Rules (enforce strictly)
+#### ⚡ Batching Rules (enforce strictly)
 
 - Read `candidates.txt` and preview both selected workflows in **one** bash call.
 - For each test case, use **one chained bash call** that starts with `cp /tmp/gh-aw/agent/candidates/...` and includes the file edit plus `gh aw compile ... 2>&1`.
 - Never spend a separate tool call on shell work you can combine with `&&`.
 - Target: complete Phases 1–5 in **≤ 10 tool calls total**.
 
-## Phase 1: Select Test Workflows
+#### Phase 1: Select Test Workflows
 
 Select 2 diverse workflows for testing from the pre-selected candidate list (5 candidates):
 
@@ -204,7 +208,7 @@ For each test case:
    - Suggestions or hints (if provided)
    - Examples (if provided)
 
-## Phase 4: Evaluate Error Message Quality
+#### Phase 4: Evaluate Error Message Quality
 
 For each error output, score across these dimensions (total 100 points):
 
@@ -220,7 +224,7 @@ For each error output, score across these dimensions (total 100 points):
 - **Excellent**: 85-100 · **Good**: 70-84 · **Acceptable**: 55-69 · **Poor**: 40-54 · **Critical**: 0-39
 - **Quality Threshold**: Average ≥ 65 **and** no individual score < 50 → noop (skip issue creation)
 
-## Phase 5: Generate Evaluation Report
+#### Phase 5: Generate Evaluation Report
 
 For each test case, record a **compact** one-line summary:
 
@@ -271,7 +275,7 @@ Suggested structure:
 3. [specific issue + suggested fix]
 ```
 
-## Important Guidelines
+#### Important Guidelines
 
 ### Error Testing Best Practices
 
@@ -294,7 +298,7 @@ Suggested structure:
 3. **Prioritize Improvements**: Focus on high-impact, feasible changes
 4. **Include Examples**: Show both current and improved error messages
 
-## Phase 7: Signal Completion ⚠️ REQUIRED — DO NOT SKIP
+#### Phase 7: Signal Completion ⚠️ REQUIRED — DO NOT SKIP
 
 **This phase is mandatory regardless of your findings. Execute it as your final action.**
 
@@ -314,7 +318,7 @@ safeoutputs noop --message "Created quality improvement issue. Analyzed [workflo
 
 ⚠️ **Your session ends only after executing one of the above shell commands. Do not output text and stop — run the command.**
 
-## Success Criteria
+#### Success Criteria
 
 A successful analysis run:
 - ✅ Tests 2 different workflows with diverse complexity

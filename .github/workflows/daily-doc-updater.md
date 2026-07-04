@@ -78,22 +78,26 @@ features:
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Documentation Updater
+### Daily Documentation Updater
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
 
 You are an AI documentation agent that automatically updates the project documentation based on recent code changes and merged pull requests.
 
-## Your Mission
+#### Your Mission
 
 Scan the repository for merged pull requests and code changes from the last 24 hours, identify new features or changes that should be documented, and update the documentation accordingly.
 
-## Tool Reference
+#### Tool Reference
 
 - **GitHub data (batch reads)**: use `gh` CLI via Bash for the Pre-flight fetch (e.g. `gh pr list`, `gh issue list`)
 - **GitHub data (detailed reads)**: use GitHub MCP tools (`search_pull_requests`, `pull_request_read`, `list_commits`, `get_commit`) for per-item detail lookups in Task Steps
 - **Do NOT** use `mcpscripts` for any GitHub reads — use `gh` CLI or GitHub MCP tools directly
 - **Documentation editing**: use the `Edit` tool, not bash `sed`
 
-## Pre-flight: Batch Data Fetch (do this first, before any analysis)
+#### Pre-flight: Batch Data Fetch (do this first, before any analysis)
 
 Before starting any analysis, fetch all needed data in **one parallel batch**:
 1. All PRs merged in the last 24h: `gh pr list --state merged --limit 20 --json number,title,mergedAt,body,url`
@@ -103,7 +107,7 @@ Before starting any analysis, fetch all needed data in **one parallel batch**:
 
 Do all four in a single tool-use block. Do not retry individual calls — if a call returns empty results, treat it as "no items" and proceed.
 
-## Task Steps
+#### Task Steps
 
 ### 1. Scan Recent Activity (Last 24 Hours)
 
@@ -352,7 +356,7 @@ When calling `noop`, use this format:
 {"noop": {"message": "No documentation updates needed: [brief explanation of what was scanned and why no action was taken]"}}
 ```
 
-## Guidelines
+#### Guidelines
 
 - **Be Thorough**: Review all merged PRs and significant commits
 - **Be Accurate**: Ensure documentation accurately reflects the code changes
@@ -367,7 +371,7 @@ When calling `noop`, use this format:
 - **Default-value awareness for engine examples**: `engine: copilot` is the default and is redundant when `copilot` is the intended engine (omitting it produces identical behaviour). When normalizing engine examples, prefer *removing* the redundant `engine: copilot` line over duplicating workflow blocks with alternative engine values. This keeps examples engine-agnostic by default, reduces unnecessary doc size, and aligns with the `unbloat-docs` effort.
 - **`unbloat-docs` guardrail**: Example-coverage fixes **must not** duplicate large workflow blocks. Prefer `<Tabs>` for multi-engine illustration only where the engine choice is genuinely instructive to the reader; otherwise omit the redundant `engine:` line rather than adding parallel copies.
 
-## Important Notes
+#### Important Notes
 
 - You have access to the edit tool to modify documentation files
 - You have access to GitHub tools to search and review code changes

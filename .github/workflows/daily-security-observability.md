@@ -145,7 +145,11 @@ sandbox:
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Security Observability Report
+### Daily Security Observability Report
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
 
 You are a security observability analyst. Your job is to produce a unified daily security intelligence report that combines two signals:
 
@@ -154,7 +158,7 @@ You are a security observability analyst. Your job is to produce a unified daily
 
 Both datasets cover the **last 7 days** and share the cache-memory path `/tmp/gh-aw/cache-memory/security-observability/`.
 
-## Context
+#### Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
@@ -162,7 +166,7 @@ Both datasets cover the **last 7 days** and share the cache-memory path `/tmp/gh
 
 ---
 
-## Phase 1: Collect Firewall-Enabled Workflow Runs
+#### Phase 1: Collect Firewall-Enabled Workflow Runs
 
 ### Step 1.1: Collect Recent Firewall-Enabled Workflow Runs
 
@@ -185,7 +189,7 @@ If Step 1.1 returns zero workflow runs, note this in the final report as "No fir
 
 ---
 
-## Phase 2: Analyze Firewall Logs
+#### Phase 2: Analyze Firewall Logs
 
 ### Step 2.1: Fetch Firewall Audit Data
 
@@ -235,7 +239,7 @@ Upload both charts using `upload_asset` and record the returned URLs.
 
 ---
 
-## Phase 3: Collect DIFC Integrity-Filtered Events
+#### Phase 3: Collect DIFC Integrity-Filtered Events
 
 ### Step 3.1: Warm Start Validation + DIFC Data Check
 
@@ -346,7 +350,7 @@ Run the script: `python3 /tmp/gh-aw/agent/integrity/bucketize.py`
 
 ---
 
-## Phase 4: Generate DIFC Statistical Charts
+#### Phase 4: Generate DIFC Statistical Charts
 
 Create and run chart scripts using matplotlib/seaborn. Save all charts to `/tmp/gh-aw/agent/integrity/charts/`.
 
@@ -512,7 +516,7 @@ Upload each generated DIFC chart using the `upload asset` tool and collect the r
 
 ---
 
-## Phase 5: Generate Combined Security Observability Report
+#### Phase 5: Generate Combined Security Observability Report
 
 Create a single GitHub discussion combining both signals.
 
@@ -655,7 +659,7 @@ Create a single GitHub discussion combining both signals.
 *Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}*
 ```
 
-## Important
+#### Important
 
 **Always** call a safe-output tool at the end of your run. If both datasets are empty, call `noop`:
 

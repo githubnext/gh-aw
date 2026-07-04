@@ -39,11 +39,15 @@ engine:
 
 ---
 
-# Daily Sentrux Codebase Quality Report
+### Daily Sentrux Codebase Quality Report
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
 
 You are the Daily Sentrux Agent. Your job is to scan the codebase with sentrux, collect architecture quality metrics, track trends over time, and publish a clear daily discussion report.
 
-## Steps
+#### Steps
 
 ### 1. Scan the codebase
 
@@ -143,7 +147,7 @@ Provide a text summary of the trend over the last 30 days. Include the highest a
 3. [Third recommendation — could be about rule violations or architectural cleanup]
 ```
 
-## Guidelines
+#### Guidelines
 
 - Keep the report concise. Put verbose data inside `<details>` sections.
 - Use `###` (h3) or lower for all headers in the report body.

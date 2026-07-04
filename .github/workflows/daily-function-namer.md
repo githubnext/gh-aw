@@ -52,11 +52,15 @@ features:
   gh-aw-detection: true
 ---
 
-# Daily Go Function Namer
+### Daily Go Function Namer
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
 
 You are an AI agent that analyzes Go functions daily to improve their names for better discoverability by AI coding agents. Your goal is to make function names more intuitive so that agents can reliably find the right functions when working on tasks.
 
-## Mission
+#### Mission
 
 Each day, analyze **one entire Go package** using round-robin rotation across all package directories in `pkg/`. For each package:
 
@@ -66,14 +70,14 @@ Each day, analyze **one entire Go package** using round-robin rotation across al
 4. Suggest renames that are clearer and more intuitive for agents
 5. Create a GitHub issue with a concrete agentic implementation plan
 
-## Context
+#### Context
 
 - **Repository**: ${{ github.repository }}
 - **Date**: run `date +%Y-%m-%d` in bash to get the current date at runtime
 - **Workspace**: ${{ github.workspace }}
 - **Cache**: `/tmp/gh-aw/cache-memory/`
 
-## Step 1: Compute Package Selection with Code
+#### Step 1: Compute Package Selection with Code
 
 Run this script to load the round-robin state, enumerate all Go package directories, and compute which package to analyze this run:
 
@@ -142,7 +146,7 @@ Use these values directly for the rest of the workflow. Do **not** re-derive or 
 
 **On cold start** (`/tmp/gh-aw/cache-memory/function-namer-state.json` missing): treat this as expected initialization, not a failure. Do **not** call `missing_data` for a missing state file on first run or cold cache; run the Step 1 script as written, accept `LAST_INDEX=-1`, and continue.
 
-## Step 2: Enumerate All Functions in the Package
+#### Step 2: Enumerate All Functions in the Package
 
 Before invoking Serena, run a fast `grep` sweep across all files in the selected package to build a complete function inventory. This minimizes Serena tool calls by giving you the full picture upfront:
 
@@ -153,7 +157,7 @@ grep -n "^func " "${PKG_FILES[@]}" | awk -F: '{printf "%-50s line %-5s %s\n", $1
 
 This produces a list of every function/method definition with its file and line number. Use this inventory to decide which functions need deeper Serena analysis.
 
-## Step 3: Activate Serena
+#### Step 3: Activate Serena
 
 Activate the Serena project to enable Go semantic analysis:
 
@@ -162,7 +166,7 @@ Tool: activate_project
 Args: { "path": "${{ github.workspace }}" }
 ```
 
-## Step 4: Analyze Each File in the Package with Serena
+#### Step 4: Analyze Each File in the Package with Serena
 
 For each of the files in the selected package (output by Step 1), perform a full function name analysis. Use the function inventory from Step 2 to guide which functions need deeper Serena investigation.
 
@@ -231,7 +235,7 @@ Args: { "symbol_name": "<currentName>", "file_path": "pkg/..." }
 
 **Only suggest renames where the improvement is clear and meaningful.** Quality over quantity — two well-justified suggestions are better than ten marginal ones.
 
-## Step 5: Update Cache State
+#### Step 5: Update Cache State
 
 After completing the analysis, save the updated round-robin position. Use the `new_last_package_index` value from Step 1 and a filesystem-safe timestamp (`YYYY-MM-DD`):
 
@@ -255,7 +259,7 @@ Prune `analyzed_packages` to the most recent 30 entries to prevent unbounded gro
 
 If the state file was missing at the start of the run, initialize it from scratch here instead of reporting missing cache data.
 
-## Step 6: Create Issue with Agentic Plan
+#### Step 6: Create Issue with Agentic Plan
 
 If any rename suggestions were found across the analyzed package, create a GitHub issue.
 
@@ -402,7 +406,7 @@ refactor: rename <oldName> to <newName> for clarity
 
 ---
 
-## Analysis Guidelines
+#### Analysis Guidelines
 
 ### Focus on Agent Discoverability
 

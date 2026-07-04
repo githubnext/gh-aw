@@ -38,11 +38,11 @@ sandbox:
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Observability Report for AWF Firewall and MCP Gateway
+### Daily Observability Report for AWF Firewall and MCP Gateway
 
 You are an expert site reliability engineer analyzing observability coverage for GitHub Agentic Workflows. Your job is to audit workflow runs and determine if they have adequate logging and telemetry for debugging purposes.
 
-## Mission
+#### Mission
 
 Generate a daily report analyzing a representative, capped set of workflow runs from the past week to check for proper observability coverage in:
 1. **AWF Firewall (gh-aw-firewall)** - Network egress control with Squid proxy
@@ -50,14 +50,14 @@ Generate a daily report analyzing a representative, capped set of workflow runs 
 
 The goal is to ensure all workflow runs have the necessary logs and telemetry to enable effective debugging when issues occur.
 
-## Current Context
+#### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Date**: Generated daily
 - **Analysis Window**: Last 7 days of workflow runs (see `workflow_runs_analyzed` in scratchpad/metrics-glossary.md)
 
-## Phase 1: Fetch Workflow Runs
+#### Phase 1: Fetch Workflow Runs
 
 Use the `agentic-workflows` MCP server tools to download and analyze logs from recent workflow runs.
 
@@ -126,7 +126,7 @@ The `logs` MCP tool saves all downloaded run logs to `/tmp/gh-aw/aw-mcp/logs/`. 
 - Whether firewall was enabled (`firewall_enabled_workflows`)
 - Whether MCP gateway was used (`mcp_enabled_workflows`)
 
-## Phase 2: Analyze AWF Firewall Logs
+#### Phase 2: Analyze AWF Firewall Logs
 
 The AWF Firewall uses Squid proxy for egress control. The key log file is `access.log`.
 
@@ -159,7 +159,7 @@ For each firewall-enabled workflow run, check:
 | 🔴 **Critical** | access.log missing from firewall-enabled run |
 | ℹ️ **N/A** | Firewall not enabled for this workflow |
 
-## Phase 3: Analyze MCP Gateway Logs
+#### Phase 3: Analyze MCP Gateway Logs
 
 The MCP Gateway logs tool execution. Two log formats may be present depending on engine version:
 
@@ -217,7 +217,7 @@ For each run that uses MCP servers, check in this order:
 
 **Important**: When reporting MCP telemetry coverage, treat a run as having MCP telemetry if **either** `gateway.jsonl` **or** `rpc-messages.jsonl` is present. Only flag as Critical when both files are absent.
 
-## Phase 4: Analyze Additional Telemetry
+#### Phase 4: Analyze Additional Telemetry
 
 Check for other observability artifacts:
 
@@ -238,7 +238,7 @@ Check for other observability artifacts:
 
 - **safe_output.jsonl**: Agent's structured outputs
 
-## Phase 5: Generate Summary Metrics
+#### Phase 5: Generate Summary Metrics
 
 Calculate aggregated metrics across all analyzed runs:
 
@@ -264,7 +264,7 @@ runs_with_missing_logs = (firewall_enabled_workflows - firewall_logs_present) + 
 
 Create a summary table of all runs analyzed with their observability status.
 
-## Phase 6: Create Discussion Report
+#### Phase 6: Create Discussion Report
 
 Create a new discussion with the comprehensive observability report.
 
@@ -378,9 +378,9 @@ Follow the formatting guidelines above. Use the following structure:
 *Analysis window: Last 7 days | Runs analyzed: N*
 ```
 
-## Important Guidelines
+#### Important Guidelines
 
-## Token Budget Guidelines
+#### Token Budget Guidelines
 
 This workflow uses Codex, so prompt discipline is the main budget control.
 
@@ -410,7 +410,7 @@ This workflow uses Codex, so prompt discipline is the main budget control.
 - Provide actionable recommendations
 - Highlight critical issues prominently at the top
 
-## Success Criteria
+#### Success Criteria
 
 A successful run will:
 - ✅ Download and analyze logs from the past 7 days of workflow runs

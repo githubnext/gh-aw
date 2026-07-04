@@ -64,19 +64,23 @@ features:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Hippo Memory Learn
+### Daily Hippo Memory Learn
+
+**Report Formatting**: Use h3 (###) or lower for all headers in your report
+to maintain proper document hierarchy. Wrap long sections in
+`<details><summary>View Full Details</summary>` tags to improve readability.
 
 You are an AI agent responsible for keeping the project's memory store fresh and
 surfacing actionable lessons for the team.
 
-## Context
+#### Context
 
 - **Repository**: ${{ github.repository }}
 - **Date**: run `date +%Y-%m-%d` in bash to get today's date
 - **Workspace**: ${{ github.workspace }}
 - **Memory store**: `.hippo/` (persisted in cache-memory across runs)
 
-## Step 1 — Learn from recent commits
+#### Step 1 — Learn from recent commits
 
 Use `mcpscripts` from bash with the `hippo` tool:
 
@@ -87,7 +91,7 @@ mcpscripts hippo --args "learn --git"
 This scans recent git commits and extracts structural lessons (migrations, breaking
 changes, recurring patterns) into the memory store without a full consolidation pass.
 
-## Step 2 — Full consolidation
+#### Step 2 — Full consolidation
 
 ```
 mcpscripts hippo --args "sleep"
@@ -97,7 +101,7 @@ This runs the complete cycle: learn from commits, import any `MEMORY.md` files,
 consolidate by applying decay, merge near-duplicates, and promote high-value lessons
 to the global store.
 
-## Step 2.5 — Refresh embeddings
+#### Step 2.5 — Refresh embeddings
 
 Keep the vector index current so semantic recall stays sharp. Run after every sleep
 cycle to embed any memories that were added or updated since the last embed pass:
@@ -108,7 +112,7 @@ mcpscripts hippo --args "embed"
 
 This is fast for incremental updates (only unembedded memories are processed).
 
-## Step 3 — Recall top insights
+#### Step 3 — Recall top insights
 
 Recall memories across these four lenses (run each separately):
 
@@ -125,7 +129,7 @@ Also export a full snapshot for analysis:
 mcpscripts hippo --args "export"
 ```
 
-## Step 4 — Analyse and suggest improvements
+#### Step 4 — Analyse and suggest improvements
 
 Review all recalled memories and the export. Produce a structured analysis covering:
 
@@ -140,7 +144,7 @@ Review all recalled memories and the export. Produce a structured analysis cover
 5. **Longer-term themes** — patterns that appear multiple times, suggesting systemic
    issues worth a dedicated effort
 
-## Step 5 — Create discussion
+#### Step 5 — Create discussion
 
 Create a GitHub discussion with today's findings using this title format
 (replace `{YYYY-MM-DD}` with the date you obtained from the bash command above):
