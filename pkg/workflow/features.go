@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"os"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -90,7 +89,7 @@ func parseFeatureValue(value any) (bool, bool) {
 }
 
 func isFeatureInEnvironment(flagLower string, logEnabled bool) bool {
-	features := os.Getenv("GH_AW_FEATURES")
+	features := lookupProcessEnv("GH_AW_FEATURES")
 	if features == "" {
 		if logEnabled {
 			featuresLog.Printf("Feature not found, GH_AW_FEATURES empty: %s=false", flagLower)

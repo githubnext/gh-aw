@@ -1604,6 +1604,16 @@ table img[src*="badge.svg"] {
   font-weight: 400;
 }
 
+.hero .hero-preview-callout {
+  display: block;
+  margin-top: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid #dba82b;
+  border-radius: 0.5rem;
+  background: rgba(219, 168, 43, 0.12);
+  color: #f0f6fc;
+}
+
 /* Responsive improvements to prevent horizontal overflow */
 * {
   box-sizing: border-box;

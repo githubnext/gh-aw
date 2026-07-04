@@ -156,10 +156,22 @@ const AWFDefaultCommand = "sudo -E awf"
 // AWFProxyLogsDir is the default directory for AWF proxy logs
 const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 
+// AWFProxyLogsDirExpr is the host-side AWF proxy logs path resolved by Actions expression.
+const AWFProxyLogsDirExpr = GhAwRootDir + "/sandbox/firewall/logs"
+
+// AWFProxyLogsDirShell is the host-side AWF proxy logs path resolved by shell env expansion.
+const AWFProxyLogsDirShell = GhAwRootDirShell + "/sandbox/firewall/logs"
+
 // AWFAuditDir is the directory for AWF audit files (policy-manifest.json, squid.conf, docker-compose.redacted.yml).
 // These files are written by AWF when --audit-dir is specified and provide structured policy/configuration data
 // needed by the `awf logs audit` command for enriching log entries with policy rule matching.
 const AWFAuditDir = "/tmp/gh-aw/sandbox/firewall/audit"
+
+// AWFAuditDirExpr is the host-side AWF audit dir path resolved by Actions expression.
+const AWFAuditDirExpr = GhAwRootDir + "/sandbox/firewall/audit"
+
+// AWFAuditDirShell is the host-side AWF audit dir path resolved by shell env expansion.
+const AWFAuditDirShell = GhAwRootDirShell + "/sandbox/firewall/audit"
 
 // PreAgentAuditFilePath is the path where the pre-agent workspace audit report is saved.
 // The audit step runs after all pre-agent preparation (skills, agents, MCP servers) is
@@ -175,11 +187,17 @@ const PreAgentAuditFilePath = "/tmp/gh-aw/pre-agent-audit.txt"
 // for post-run analysis without mixing path roots in the artifact.
 const AWFConfigFilePath = "/tmp/gh-aw/awf-config.json"
 
+// AWFConfigFilePathExpr is the host-side AWF config path resolved by Actions expression.
+const AWFConfigFilePathExpr = GhAwRootDir + "/awf-config.json"
+
 // AWFReflectFilePath is the path where the AWF API proxy /reflect response is persisted
 // by the agent harness before exiting. It is co-located with other firewall observability
 // data under /tmp/gh-aw/sandbox/firewall/ so the existing chmod and artifact-upload steps
 // pick it up automatically.
 const AWFReflectFilePath = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json"
+
+// AWFReflectFilePathExpr is the host-side AWF /reflect output path resolved by Actions expression.
+const AWFReflectFilePathExpr = GhAwRootDir + "/sandbox/firewall/awf-reflect.json"
 
 // FirewallAuditArtifactName is the legacy artifact name that was previously used for dedicated
 // firewall audit log uploads. Firewall audit/observability logs are now included in the unified
@@ -423,6 +441,9 @@ const AgentStdioLogPath = TmpGhAwDir + "/agent-stdio.log"
 // AwPromptsFile is the runtime prompt file path populated by the setup action.
 // Engine harnesses read this file to pass the compiled prompt to the AI engine.
 const AwPromptsFile = TmpGhAwDir + "/aw-prompts/prompt.txt"
+
+// AwPromptsFileShell is the runtime prompt file path in shell env-var form for host-side paths.
+const AwPromptsFileShell = GhAwRootDirShell + "/aw-prompts/prompt.txt"
 
 // TmpMcpConfigDir is the mcp-config directory in the /tmp/gh-aw tree.
 // Engines that require a writable MCP config directory (e.g. Codex) use this path.

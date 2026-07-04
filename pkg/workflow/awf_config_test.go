@@ -132,7 +132,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"topologyAttach":["awmg-mcpg"]`, "should attach MCP gateway container to awf-net")
 	})
 
-	t.Run("runner topology arc-dind emits runner section and container.dockerHostPathPrefix", func(t *testing.T) {
+	t.Run("runner topology arc-dind emits runner section without dockerHostPathPrefix", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com",
@@ -149,7 +149,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
 		assert.Contains(t, jsonStr, `"runner":{"topology":"arc-dind"}`, "should emit runner topology")
-		assert.Contains(t, jsonStr, `"dockerHostPathPrefix":"${RUNNER_TEMP}/gh-aw"`, "should emit dockerHostPathPrefix for arc-dind")
+		assert.NotContains(t, jsonStr, `"dockerHostPathPrefix"`, "should NOT emit dockerHostPathPrefix for arc-dind (sysroot handles path visibility)")
 		assert.Contains(t, jsonStr, `"proxyLogsDir":"${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"`, "should emit arc-dind proxyLogsDir")
 		assert.Contains(t, jsonStr, `"auditDir":"${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit"`, "should emit arc-dind auditDir")
 	})

@@ -71,8 +71,8 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 	// For workflow_call workers, github.workflow resolves to the caller workflow
 	// name, so use the compile-time workflow ID to avoid cross-worker collisions.
 	groupValue := fmt.Sprintf("gh-aw-%s-${{ github.workflow }}", engineID)
-	if hasWorkflowCallTrigger(workflowData.On) && workflowData.WorkflowID != "" {
-		groupValue = fmt.Sprintf("gh-aw-%s-%s", engineID, workflowData.WorkflowID)
+	if hasWorkflowCallTrigger(workflowData.On) {
+		groupValue = fmt.Sprintf("gh-aw-%s-%s", engineID, workflowCallBaseKey(workflowData))
 	}
 	// If the user specified a job-discriminator, append it so that concurrent
 	// runs with different inputs (fan-out pattern) do not share the same group.
@@ -226,9 +226,28 @@ func hasBotSelfCancelRisk(workflowData *WorkflowData) bool {
 	return hasIssueCommentTrigger(workflowData)
 }
 
+// workflowCallBaseKey returns the stable workflow identifier to use for
+// workflow_call runs.
+func workflowCallBaseKey(workflowData *WorkflowData) string {
+	if workflowData.WorkflowID != "" {
+		return workflowData.WorkflowID
+	}
+	concurrencyLog.Print("WARNING: workflow_call trigger without WorkflowID; using github.workflow fallback")
+	return "${{ github.workflow }}"
+}
+
 // buildConcurrencyGroupKeys builds an array of keys for the concurrency group
 func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool) []string {
-	keys := []string{"gh-aw", "${{ github.workflow }}"}
+	// For workflow_call workers, github.workflow resolves to the *calling* workflow's
+	// name at runtime, not the callee's.  Both the gateway and the worker would therefore
+	// share the same concurrency group, causing a deadlock. Hard-bake the compile-time
+	// workflow ID (filename without extension) when available and append github.run_id
+	// so parallel caller fan-out runs don't contend for a single static queue slot.
+	workflowKey := "${{ github.workflow }}"
+	if hasWorkflowCallTrigger(workflowData.On) {
+		workflowKey = workflowCallBaseKey(workflowData) + "-${{ github.run_id }}"
+	}
+	keys := []string{"gh-aw", workflowKey}
 
 	// Whether this workflow exposes inputs.item_number via workflow_dispatch (label trigger shorthand).
 	// When true, include it in the concurrency key so that manual dispatches for different items

@@ -162,8 +162,9 @@ func mergeModelPricingIntoModelCosts(modelCosts map[string]any, provider, model 
 	}
 	modelEntry := map[string]any{"cost": cost}
 
-	// Shallow-clone the top-level map.
-	result := make(map[string]any, len(modelCosts)+1)
+	// Shallow-clone the top-level map. Do not add +1 here to avoid potential
+	// integer overflow; Go maps grow automatically as entries are added.
+	result := make(map[string]any, len(modelCosts))
 	maps.Copy(result, modelCosts)
 
 	// Shallow-clone the providers map.

@@ -516,9 +516,37 @@ func TestSpec_AWFConstants_Values(t *testing.T) {
 	assert.Equal(t, "/tmp/gh-aw/sandbox/firewall/logs", constants.AWFProxyLogsDir,
 		"AWFProxyLogsDir should match the documented value")
 
+	// From spec: AWFProxyLogsDirExpr // "${{ runner.temp }}/gh-aw/sandbox/firewall/logs"
+	assert.Equal(t, "${{ runner.temp }}/gh-aw/sandbox/firewall/logs", constants.AWFProxyLogsDirExpr,
+		"AWFProxyLogsDirExpr should match the documented value")
+
+	// From spec: AWFProxyLogsDirShell // "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"
+	assert.Equal(t, "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs", constants.AWFProxyLogsDirShell,
+		"AWFProxyLogsDirShell should match the documented value")
+
 	// From spec: AWFAuditDir // "/tmp/gh-aw/sandbox/firewall/audit"
 	assert.Equal(t, "/tmp/gh-aw/sandbox/firewall/audit", constants.AWFAuditDir,
 		"AWFAuditDir should match the documented value")
+
+	// From spec: AWFAuditDirExpr // "${{ runner.temp }}/gh-aw/sandbox/firewall/audit"
+	assert.Equal(t, "${{ runner.temp }}/gh-aw/sandbox/firewall/audit", constants.AWFAuditDirExpr,
+		"AWFAuditDirExpr should match the documented value")
+
+	// From spec: AWFAuditDirShell // "${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit"
+	assert.Equal(t, "${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit", constants.AWFAuditDirShell,
+		"AWFAuditDirShell should match the documented value")
+
+	// From spec: AWFConfigFilePathExpr // "${{ runner.temp }}/gh-aw/awf-config.json"
+	assert.Equal(t, "${{ runner.temp }}/gh-aw/awf-config.json", constants.AWFConfigFilePathExpr,
+		"AWFConfigFilePathExpr should match the documented value")
+
+	// From spec: AWFReflectFilePathExpr // "${{ runner.temp }}/gh-aw/sandbox/firewall/awf-reflect.json"
+	assert.Equal(t, "${{ runner.temp }}/gh-aw/sandbox/firewall/awf-reflect.json", constants.AWFReflectFilePathExpr,
+		"AWFReflectFilePathExpr should match the documented value")
+
+	// From spec: AwPromptsFileShell // "${RUNNER_TEMP}/gh-aw/aw-prompts/prompt.txt"
+	assert.Equal(t, "${RUNNER_TEMP}/gh-aw/aw-prompts/prompt.txt", constants.AwPromptsFileShell,
+		"AwPromptsFileShell should match the documented value")
 
 	// From spec: AWFDefaultLogLevel // "info"
 	assert.Equal(t, "info", constants.AWFDefaultLogLevel,

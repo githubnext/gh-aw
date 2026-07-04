@@ -366,9 +366,9 @@ func (e *CopilotEngine) buildCopilotBaseCommand(workflowData *WorkflowData, copi
 		return e.buildCopilotSDKCommand(execPrefix, copilotArgs)
 	}
 	// On ARC/DinD, /tmp/gh-aw is not daemon-visible; prompts are copied to ${RUNNER_TEMP}/gh-aw/
-	promptFilePath := "/tmp/gh-aw/aw-prompts/prompt.txt"
+	promptFilePath := constants.AwPromptsFile
 	if isArcDindTopology(workflowData) {
-		promptFilePath = "${RUNNER_TEMP}/gh-aw/aw-prompts/prompt.txt"
+		promptFilePath = constants.AwPromptsFileShell
 	}
 	if isFirewallEnabled(workflowData) {
 		// Sandbox mode: add workspace dir and pass prompt file path directly

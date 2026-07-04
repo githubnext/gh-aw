@@ -56,13 +56,13 @@ gh extension install github/gh-aw
 
 ### Step 2 - Add the sample workflow and trigger a run
 
+`add-wizard` accepts workflow references in `<owner>/<repo>/<workflow-name>` format. In this guide, `githubnext/agentics` is the public [githubnext/agentics](https://github.com/githubnext/agentics) examples repository, and `daily-repo-status` is one of the sample workflows it publishes.
+
 From your repository root run:
 
 ```text wrap
 gh aw add-wizard githubnext/agentics/daily-repo-status
 ```
-
-`add-wizard` accepts workflow references in `<owner>/<repo>/<workflow-name>` format. In this example, `githubnext/agentics/daily-repo-status` references the `daily-repo-status` workflow hosted in the public [githubnext/agentics](https://github.com/githubnext/agentics) examples repository.
 
 This will take you through an interactive process to:
 
@@ -86,6 +86,20 @@ This will take you through an interactive process to:
 > **Setting up `ANTHROPIC_API_KEY`?**
 > 1. Create an API key in [Anthropic Console](https://console.anthropic.com/settings/keys).
 > 2. Add it as a repository secret from your repository root with `gh secret set ANTHROPIC_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#anthropic_api_key) for more detail.
+>
+
+> [!NOTE]
+> **Setting up `OPENAI_API_KEY`?**
+> 1. Create an API key in [OpenAI API keys](https://platform.openai.com/api-keys).
+> 2. Add it as a repository secret from your repository root with `gh secret set OPENAI_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#openai_api_key) for more detail.
+>
+> **Tip:** `CODEX_API_KEY` is also accepted and takes precedence over `OPENAI_API_KEY` — if you have already stored the key under that name, no action is needed. See [Authentication](/gh-aw/reference/auth/#openai_api_key) for details.
+>
+
+> [!NOTE]
+> **Setting up `GEMINI_API_KEY`?**
+> 1. Create an API key in [Google AI Studio](https://aistudio.google.com/api-keys).
+> 2. Add it as a repository secret from your repository root with `gh secret set GEMINI_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#gemini_api_key) for more detail.
 >
 
 > [!TIP]

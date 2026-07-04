@@ -59,6 +59,7 @@ const TOP_HELP_MAX_LINES = 20;
 const TOOL_HELP_MAX_LINES = 30;
 const TOOL_DESC_MAX_LEN = 90;
 const COMPACT_NAME_LINE_TARGET_WIDTH = 110;
+const SAFEOUTPUTS_SERVER_NAME = "safeoutputs";
 
 // ---------------------------------------------------------------------------
 // Audit logging
@@ -823,12 +824,37 @@ function coerceToolArgValue(key, rawValue, schemaProperty, existingValue, allowN
 function loadTools(toolsFile) {
   try {
     if (fs.existsSync(toolsFile)) {
-      return JSON.parse(fs.readFileSync(toolsFile, "utf8"));
+      const parsed = JSON.parse(fs.readFileSync(toolsFile, "utf8"));
+      return Array.isArray(parsed) ? parsed : [];
     }
   } catch {
     // Fall through to empty array
   }
   return [];
+}
+
+/**
+ * Ensure safeoutputs CLI always has a non-empty tool schema available.
+ *
+ * @param {Array<{name: string, description?: string, inputSchema?: {properties?: Record<string, {description?: string, type?: string}>, required?: string[]}}>} tools
+ * @param {string} serverName
+ * @param {string} toolsFile
+ * @returns {Array<{name: string, description?: string, inputSchema?: {properties?: Record<string, {description?: string, type?: string}>, required?: string[]}}>}
+ */
+function ensureSafeOutputsTools(tools, serverName, toolsFile) {
+  if (serverName !== SAFEOUTPUTS_SERVER_NAME || tools.length > 0) {
+    return tools;
+  }
+  const runnerTemp = process.env.RUNNER_TEMP || path.resolve(path.dirname(toolsFile), "../../..");
+  const fallbackPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || path.join(runnerTemp, "gh-aw", "safeoutputs", "tools.json");
+  if (fallbackPath !== toolsFile) {
+    const fallbackTools = loadTools(fallbackPath);
+    if (fallbackTools.length > 0) {
+      global.core?.warning(`[${serverName}] tools cache ${toolsFile} is empty; recovered ${fallbackTools.length} tool(s) from ${fallbackPath}`);
+      return fallbackTools;
+    }
+  }
+  throw new Error(`[${serverName}] tool schema is empty (${toolsFile}). ` + "Failing fast to prevent runs where safe-output tools cannot be discovered.");
 }
 
 /**
@@ -1176,7 +1202,7 @@ async function main() {
   });
 
   // Load cached tools for help display
-  const tools = loadTools(toolsFile);
+  const tools = ensureSafeOutputsTools(loadTools(toolsFile), serverName, toolsFile);
 
   // Route: --help or no args → show top-level help
   if (userArgs.length === 0 || userArgs[0] === "--help" || userArgs[0] === "-h") {
@@ -1276,5 +1302,6 @@ module.exports = {
   showToolHelp,
   hasStdinJsonPayload,
   readStdinSync,
+  ensureSafeOutputsTools,
   main,
 };

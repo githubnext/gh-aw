@@ -37,6 +37,7 @@ safe-outputs:
     allowed-files:
       - "pkg/workflow/**/*.go"
       - "pkg/workflow/assets/**"
+      - "pkg/workflow/testdata/**"
   noop:
 timeout-minutes: 30
 strict: true

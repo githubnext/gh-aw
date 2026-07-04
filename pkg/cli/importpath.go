@@ -6,8 +6,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
+
+var importPathLog = logger.New("cli:importpath")
 
 // importPathResolverOpts configures the canonical import-path resolver.
 //
@@ -76,6 +79,8 @@ var importPathRunPushOpts = importPathResolverOpts{
 // baseDir is the directory against which relative paths are resolved; callers
 // that have a workflow file path should pass filepath.Dir(workflowPath).
 func resolveImportPath(importPath, baseDir string, opts importPathResolverOpts) string {
+	importPathLog.Printf("resolveImportPath: importPath=%q baseDir=%q", importPath, baseDir)
+
 	// 1. Strip section references (e.g. "shared.md#Section" → "shared.md").
 	if opts.StripSectionRef {
 		if i := strings.Index(importPath, "#"); i >= 0 {
@@ -86,9 +91,11 @@ func resolveImportPath(importPath, baseDir string, opts importPathResolverOpts) 
 	// 2. Workflowspec-format handling ("owner/repo/path[@sha]").
 	if isWorkflowSpecFormat(importPath) {
 		if opts.WorkflowSpecPassthrough {
+			importPathLog.Printf("resolveImportPath: workflowspec passthrough for %q", importPath)
 			return importPath
 		}
 		if opts.WorkflowSpecSkip {
+			importPathLog.Printf("resolveImportPath: skipping workflowspec %q", importPath)
 			return ""
 		}
 	}
@@ -121,14 +128,17 @@ func resolveImportPath(importPath, baseDir string, opts importPathResolverOpts) 
 		if !strings.HasPrefix(importPath, "/") {
 			absPath := filepath.Join(baseDir, importPath)
 			if fileutil.FileExists(absPath) {
+				importPathLog.Printf("resolveImportPath: resolved %q via stat to %q", importPath, absPath)
 				return absPath
 			}
 		}
 		importCache := parser.NewImportCache(opts.ParserGitRoot)
 		fullPath, err := parser.ResolveIncludePath(importPath, baseDir, importCache)
 		if err != nil {
+			importPathLog.Printf("resolveImportPath: parser fallback failed for %q: %v", importPath, err)
 			return ""
 		}
+		importPathLog.Printf("resolveImportPath: parser fallback resolved %q to %q", importPath, fullPath)
 		return fullPath
 	}
 
