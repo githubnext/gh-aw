@@ -190,6 +190,15 @@ describe("writeLargeContentToFile", () => {
     expect(result.description).toBe("string");
   });
 
+  it("should handle JSON null primitive", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+
+    const content = JSON.stringify(null);
+    const result = writeLargeContentToFile(content);
+
+    expect(result.description).toBe("null");
+  });
+
   it("should handle array of primitives", async () => {
     const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
 
@@ -206,7 +215,7 @@ describe("writeLargeContentToFile", () => {
     const content = JSON.stringify(obj);
     const result = writeLargeContentToFile(content);
 
-    expect(result.description).toMatch(/^\{key0, key1, key2,.*\.\.\.\} \(12 keys\)$/);
+    expect(result.description).toBe("{key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, ...} (12 keys)");
   });
 
   it("should return both filename and description fields", async () => {
@@ -215,6 +224,8 @@ describe("writeLargeContentToFile", () => {
     const content = JSON.stringify({ a: 1 });
     const result = writeLargeContentToFile(content);
 
-    expect(Object.keys(result)).toEqual(["filename", "description"]);
+    expect(result).toHaveProperty("filename");
+    expect(result).toHaveProperty("description");
+    expect(Object.keys(result)).toHaveLength(2);
   });
 });
