@@ -244,7 +244,7 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 	}
 }
 
-func TestAnomalyDetector_Analyze_NilResultPanics(t *testing.T) {
+func TestAnomalyDetector_Analyze_PanicsOnNilResultParameter(t *testing.T) {
 	detector, err := NewAnomalyDetector(0.4, 2)
 	require.NoError(t, err, "NewAnomalyDetector should succeed")
 	require.NotNil(t, detector, "NewAnomalyDetector should return a non-nil detector")
@@ -460,7 +460,7 @@ func TestAnalyzeEvent(t *testing.T) {
 func TestAnalyzeEvent_EmptyAfterMasking(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.MaskRules = []MaskRule{{
-		Name:        "erase_all_tokens",
+		Name:        "eraseAllTokens",
 		Pattern:     ".+",
 		Replacement: "",
 	}}
