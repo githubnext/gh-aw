@@ -414,7 +414,7 @@ function parseCodexJsonl(logContent) {
 
   // Build markdown so the parser returns a truthy result and core.info has a
   // readable fallback. The step summary itself is rendered from logEntries.
-  let markdown = "### Reasoning\n\n<details>\n<summary>Show reasoning</summary>\n\n";
+  let markdown = "<details>\n<summary>Reasoning</summary>\n\n";
   for (const item of parsedData) {
     if (item.type === "text") {
       markdown += `${item.content}\n\n`;
@@ -422,7 +422,7 @@ function parseCodexJsonl(logContent) {
       markdown += `<sub><em>${item.content}</em></sub>\n\n`;
     }
   }
-  markdown += "</details>\n\n### Commands and Tools\n\n<details>\n<summary>Show commands and tool calls</summary>\n\n";
+  markdown += "</details>\n\n<details>\n<summary>Commands and Tools</summary>\n\n";
   for (const item of parsedData) {
     if (item.type === "tool") {
       const toolNameValue = item.toolName || "unknown-server__unknown-tool";
@@ -432,7 +432,7 @@ function parseCodexJsonl(logContent) {
       markdown += formatCodexBashCall(item.content || "", item.response || "", item.statusIcon || DEFAULT_STATUS_ICON);
     }
   }
-  markdown += "</details>\n\n### Information\n\n<details>\n<summary>Show run metadata</summary>\n\n";
+  markdown += "</details>\n\n<details>\n<summary>Information</summary>\n\n";
   if (usage) {
     const inputTokens = typeof usage.input_tokens === "number" ? usage.input_tokens : 0;
     const outputTokens = typeof usage.output_tokens === "number" ? usage.output_tokens : 0;
@@ -516,7 +516,7 @@ function parseCodexLog(logContent) {
   // Extract error messages (e.g., model access blocked, cyber_policy_violation)
   const errorInfo = extractCodexErrorMessages(lines);
   if (errorInfo.hasErrors) {
-    markdown += "### Errors\n\n<details>\n<summary>Show errors</summary>\n\n";
+    markdown += "<details>\n<summary>Errors</summary>\n\n";
     for (const message of errorInfo.messages) {
       markdown += `> ${message}\n\n`;
     }
@@ -526,7 +526,7 @@ function parseCodexLog(logContent) {
     markdown += "</details>\n\n";
   }
 
-  markdown += "### Reasoning\n\n<details>\n<summary>Show reasoning</summary>\n\n";
+  markdown += "<details>\n<summary>Reasoning</summary>\n\n";
 
   // Second pass: process full conversation flow with interleaved reasoning and tools
   let inThinkingSection = false;
@@ -661,7 +661,7 @@ function parseCodexLog(logContent) {
     });
   }
 
-  markdown += "</details>\n\n### Commands and Tools\n\n<details>\n<summary>Show commands and tool calls</summary>\n\n";
+  markdown += "</details>\n\n<details>\n<summary>Commands and Tools</summary>\n\n";
 
   // First pass: collect tool calls with details
   for (let i = 0; i < lines.length; i++) {
@@ -788,7 +788,7 @@ function parseCodexLog(logContent) {
   }
 
   // Add Information section
-  markdown += "</details>\n\n### Information\n\n<details>\n<summary>Show run metadata</summary>\n\n";
+  markdown += "</details>\n\n<details>\n<summary>Information</summary>\n\n";
 
   // Extract metadata from Codex logs
   let totalTokens = 0;

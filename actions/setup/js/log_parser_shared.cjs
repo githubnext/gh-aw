@@ -263,7 +263,8 @@ function isLikelyCustomAgent(toolName) {
 }
 
 /**
- * Builds a step-summary section with an h3 heading and collapsible details body.
+ * Builds a step-summary section with a collapsible details body whose summary
+ * acts as the section header.
  * @param {string} title
  * @param {string} summary
  * @param {string} body
@@ -275,7 +276,8 @@ function buildStepSummaryDetailsSection(title, summary, body, options = {}) {
   const openAttr = open ? " open" : "";
   const trimmedBody = typeof body === "string" ? body.trim() : "";
   const content = trimmedBody || emptyBodyMessage;
-  return `### ${title}\n\n<details${openAttr}>\n<summary>${summary}</summary>\n\n${content}\n</details>\n\n`;
+  const summaryText = typeof title === "string" && title.trim() ? title : summary;
+  return `<details${openAttr}>\n<summary>${summaryText}</summary>\n\n${content}\n</details>\n\n`;
 }
 
 /**
