@@ -434,6 +434,7 @@ func (c *Compiler) buildDailyAICAppTokenMintStep(app *GitHubAppConfig) []string 
 	for key, val := range app.Permissions {
 		scope := convertStringToPermissionScope(key)
 		if scope == "" {
+			safeOutputsAppLog.Printf("Skipping unknown permission scope %q in max-daily-ai-credits github-app.permissions", key)
 			continue
 		}
 		level := strings.ToLower(strings.TrimSpace(val))
