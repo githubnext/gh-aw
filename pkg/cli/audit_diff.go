@@ -515,7 +515,11 @@ func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
 	if summary1 != nil {
 		run1Tokens = summary1.Run.TokenUsage
 		run1Duration = summary1.Run.Duration
+		// Run.Turns may be zero on cached-summary paths; Metrics.Turns is authoritative.
 		run1Turns = summary1.Run.Turns
+		if run1Turns == 0 && summary1.Metrics.Turns > 0 {
+			run1Turns = summary1.Metrics.Turns
+		}
 		tu1 = summary1.TokenUsage
 		rl1 = summary1.GitHubRateLimitUsage
 		m1 = &summary1.Metrics
@@ -523,7 +527,11 @@ func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
 	if summary2 != nil {
 		run2Tokens = summary2.Run.TokenUsage
 		run2Duration = summary2.Run.Duration
+		// Run.Turns may be zero on cached-summary paths; Metrics.Turns is authoritative.
 		run2Turns = summary2.Run.Turns
+		if run2Turns == 0 && summary2.Metrics.Turns > 0 {
+			run2Turns = summary2.Metrics.Turns
+		}
 		tu2 = summary2.TokenUsage
 		rl2 = summary2.GitHubRateLimitUsage
 		m2 = &summary2.Metrics
