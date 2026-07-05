@@ -78,7 +78,7 @@ safe-outputs:
     skip-archive: false
   create-discussion:
     expires: 7d
-    category: "reports"
+    category: "audits"
     max: 1
     close-older-discussions: true
     title-prefix: "[dataflow-dataset] "
@@ -122,7 +122,7 @@ Normalise both sources into unified JSONL (fields: id, source, text, url, author
 Filter with min_len=50 and alpha_ratio>0.25.
 Deduplicate with MinHash threshold=0.85, or exact-hash fallback.
 If DataFlow is unavailable, use pure Python fallback.
-Compute retention_rate = output/input, upload `dataset_clean.jsonl` as artifact, post a stats table (input count, output count, retention rate, operators used) to a GitHub Discussion in category `reports`, and update the memory branch with run metadata.
+Compute retention_rate = output/input, upload `dataset_clean.jsonl` as artifact, post a stats table (input count, output count, retention rate, operators used) to a GitHub Discussion in category `audits`, and update the memory branch with run metadata.
 {{else}}
 # DataFlow PR & Discussion Dataset Builder
 
@@ -632,7 +632,7 @@ Then emit:
   "type": "create_discussion",
   "title": "🌊 DataFlow Dataset Build Report — [DATE]",
   "body": "[contents of /tmp/gh-aw/agent/discussion_body.md]",
-  "category": "reports"
+  "category": "audits"
 }
 ```
 
@@ -645,7 +645,7 @@ from `/tmp/gh-aw/agent/discussion_body.md`.
 - ✅ DataFlow pipeline applied (with graceful fallback if operator API changes)
 - ✅ Clean JSONL artifact uploaded
 - ✅ Quality breakdown computed (input/output counts, retention rate, source split)
-- ✅ Discussion posted in `reports` category with full pipeline stats
+- ✅ Discussion posted in `audits` category with full pipeline stats
 - ✅ Run metadata appended to repo-memory for trend tracking
 
 ## Edge Cases

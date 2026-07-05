@@ -39,6 +39,16 @@ func isDeadlineExceeded(ctx context.Context) bool {
 	return errors.Is(ctx.Err(), context.DeadlineExceeded)
 }
 
+// applyMetricsTurnsToRun sets run.Turns from metrics when a log-derived count is
+// available. It deliberately does NOT overwrite when metrics.Turns is zero so that
+// a backfilled value from applyUsageActivitySummaryToResult (session.turns) is
+// preserved for usage-only artifact downloads where events.jsonl/.log are absent.
+func applyMetricsTurnsToRun(run *WorkflowRun, metrics LogMetrics) {
+	if metrics.Turns > 0 {
+		run.Turns = metrics.Turns
+	}
+}
+
 // noRunsMessage returns a human-readable explanation for why zero workflow runs
 // were returned.  It inspects the startDate filter and the timeoutReached flag
 // so callers receive actionable guidance instead of a silent empty result.
@@ -588,7 +598,7 @@ outerLoop:
 				// Update run with metrics and path
 				run := result.Run
 				run.TokenUsage = result.Metrics.TokenUsage
-				run.Turns = result.Metrics.Turns
+				applyMetricsTurnsToRun(&run, result.Metrics)
 				run.AvgTimeBetweenTurns = result.Metrics.AvgTimeBetweenTurns
 				run.ErrorCount = 0
 				run.WarningCount = 0
@@ -1184,7 +1194,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 
 		run := result.Run
 		run.TokenUsage = result.Metrics.TokenUsage
-		run.Turns = result.Metrics.Turns
+		applyMetricsTurnsToRun(&run, result.Metrics)
 		run.AvgTimeBetweenTurns = result.Metrics.AvgTimeBetweenTurns
 		run.ErrorCount = 0
 		run.WarningCount = 0
