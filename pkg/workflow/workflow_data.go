@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"context"
-	"os"
 
 	actionpins "github.com/github/gh-aw/pkg/actionpins"
 	"github.com/github/gh-aw/pkg/logger"
@@ -228,7 +227,7 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 	// for example from auto-detected git remotes).  Mirror setupGHCommand's
 	// (github_cli.go) precedence: GH_HOST wins when present; default host is
 	// only consulted when GH_HOST is absent.
-	if ghHost := os.Getenv("GH_HOST"); ghHost != "" {
+	if ghHost := lookupProcessEnv("GH_HOST"); ghHost != "" {
 		if ghHost != "github.com" {
 			workflowDataLog.Print("Non-github.com GH_HOST detected; disabling hardcoded action pin fallback")
 			pinCtx.SkipHardcodedFallback = true
