@@ -16,7 +16,6 @@ activation
 actor
 add-comment
 add-labels
-add-wizard
 agent
 agent-output.json
 agentic
@@ -49,7 +48,6 @@ bypassPermissions
 cache
 cache-memory
 call-workflow
-central-repo-ops
 chat-ops
 checkout
 claude
@@ -65,26 +63,25 @@ compile
 conclusion
 concurrency
 contents
+@copilot
 copilot
 COPILOT_GITHUB_TOKEN
 COPILOT_MODEL
-correction-ops
 create-discussion
 create-issue
 create-pull-request
 create-pull-request-review-comment
 cron
 cross-repository
-crush
 custom-safe-outputs
 daily
+Dependabot
 dependencies
 detection
 deterministic-ops
 discussion
 discussion-number
 discussions
-dispatch-ops
 dispatch-workflow
 download-artifact
 edit
@@ -98,7 +95,6 @@ engine.mcp
 engine.model
 engine.permission-mode
 env
-ephemerals
 experiment
 experiments
 expires
@@ -146,6 +142,7 @@ labels
 link-sub-issue
 lock.yml
 lockdown-mode
+logs
 markdown
 max-ai-credits
 max-continuations
@@ -161,18 +158,18 @@ MCP_GATEWAY_SESSION_TIMEOUT
 memory-ops
 merge
 merge-pull-request
+metadata
 min-integrity
 min-samples
 min-version
-model-alias
 monitor-ops
 multi-phase
 multi-repo-ops
 network
 network.allowed
 noop
-opencode
 OPENAI_API_KEY
+opencode
 opentelemetry
 opus
 orchestration
@@ -206,8 +203,9 @@ refusal-labels
 registry
 remove-labels
 replace
-repo-memory
+replay
 reply-to-pull-request-review-comment
+repo-memory
 report-incomplete
 required-labels
 required-title-prefix
@@ -215,10 +213,12 @@ research-plan-assign-ops
 resolve-pull-request-review-thread
 runs-on
 runs-on-slim
+runtime
 safe-outputs
 safe-rollout
 sandbox
 schedule
+self-hosted
 serena
 sessionTimeout
 skip-if-match
@@ -313,7 +313,6 @@ Common misrecognitions to correct:
 - "AI credits" → "ai-credits" (hyphenated)
 - "open code" → "opencode" (one word when used as engine name)
 - "open AI API key" → "OPENAI_API_KEY" (uppercase with underscores)
-- "crush" → "crush" (CLI engine name, lowercase)
 - "anthropic API key" → "ANTHROPIC_API_KEY" (uppercase with underscores)
 - "gemini API key" → "GEMINI_API_KEY" (uppercase with underscores)
 - "close issue" → "close-issue" (hyphenated in YAML context)
@@ -333,6 +332,11 @@ Common misrecognitions to correct:
 - "inline sub agents" → "inline-sub-agents" (hyphenated)
 - "lockdown mode" → "lockdown-mode" (hyphenated)
 - "agentic ops" → "agentic-ops" (hyphenated)
+- "at copilot" → "@copilot" (GitHub bot mention)
+- "depend a bot" → "Dependabot" (one word, capital D)
+- "dependabot" → "Dependabot" (capital D)
+- "run time" → "runtime" (one word)
+- "self hosted" → "self-hosted" (hyphenated)
 
 ## Clean Up and Improve Text
 
