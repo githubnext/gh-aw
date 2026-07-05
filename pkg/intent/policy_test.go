@@ -248,6 +248,8 @@ func TestPolicyCompilerRulesCanGrantLessRestrictiveThanSafeDefault(t *testing.T)
 
 	record := intent.IntentRecord{
 		Status: intent.AttributionMapped,
+		// Labels carries the domain value used by PolicyCondition.Matches to satisfy
+		// the When.Domain="documentation" condition on the rule above.
 		Labels: []string{"documentation"},
 	}
 	repo := intent.RepositoryContext{Owner: "github", Name: "gh-aw"}
@@ -297,8 +299,6 @@ func TestPolicyCompilerAllowedToolsDenyAllOnEmptyIntersection(t *testing.T) {
 
 	// The intersection is empty (no tool appears in both sets).
 	// Result MUST be deny-all (non-nil empty slice), not unrestricted (nil).
-	assert.NotNil(t, policy.AllowedTools,
-		"non-overlapping AllowedTools sets must produce deny-all (non-nil), not unrestricted (nil)")
-	assert.Empty(t, policy.AllowedTools,
-		"non-overlapping AllowedTools sets must produce an empty deny-all slice")
+	assert.Equal(t, []string{}, policy.AllowedTools,
+		"non-overlapping AllowedTools sets must produce deny-all ([]string{}), not unrestricted (nil)")
 }

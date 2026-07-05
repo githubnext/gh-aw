@@ -131,10 +131,12 @@ func (c *PolicyCompiler) Compile(record IntentRecord, repo RepositoryContext) Ex
 // that rules left unset (at its zero value). This ensures an incomplete rule set never
 // inadvertently grants open access.
 //
-// Bool fields (HumanApprovalRequired, AutoMergeAllowed) are intentionally handled by the
-// OR/AND merge logic rather than here: AutoMergeAllowed=false is both the zero value and
-// the safe default, so no override is needed; HumanApprovalRequired=false (zero) is
-// overridden to true to fail closed when no rule has explicitly enabled human review.
+// String fields (Autonomy, WriteScope) and MaxAttempts use non-zero safe defaults, so
+// an unset zero value is detected and replaced. HumanApprovalRequired is also set here:
+// its safe default (true) differs from its zero value (false), so any compiled policy
+// that has not explicitly set it via the OR merge path is upgraded to true (fail-closed).
+// AutoMergeAllowed requires no override here because false is both its zero value and its
+// safe default — the AND merge logic already prevents it from being accidentally elevated.
 func applyFailClosedDefaults(p ExecutionPolicy) ExecutionPolicy {
 	safe := safestDefaultPolicy()
 	if p.Autonomy == "" {
@@ -143,6 +145,9 @@ func applyFailClosedDefaults(p ExecutionPolicy) ExecutionPolicy {
 	if p.WriteScope == "" {
 		p.WriteScope = safe.WriteScope
 	}
+	// HumanApprovalRequired: override false (zero) to the safe default (true).
+	// Rules that want to allow unapproved execution must set AutoMergeAllowed instead;
+	// this field cannot currently be relaxed below the fail-closed default.
 	if !p.HumanApprovalRequired {
 		p.HumanApprovalRequired = safe.HumanApprovalRequired
 	}
@@ -234,7 +239,8 @@ func mergePolicy(existing, incoming ExecutionPolicy) ExecutionPolicy {
 	case !existingRestricts:
 		result.AllowedTools = slices.Clone(incoming.AllowedTools)
 	case !incomingRestricts:
-		// result already holds existing.AllowedTools; no change needed.
+		// result was initialized from existing at the top of this function (`result := existing`),
+		// so result.AllowedTools already holds the existing restriction. No change needed.
 	case len(existing.AllowedTools) == 0 || len(incoming.AllowedTools) == 0:
 		// At least one side is deny-all; deny-all is always more restrictive.
 		result.AllowedTools = []string{}
