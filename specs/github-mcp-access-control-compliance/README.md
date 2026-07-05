@@ -47,13 +47,11 @@ implementation MUST return. The codes used in these fixtures are:
 | Code | Denial Reason |
 |---|---|
 | `-32001` | Repository not on the allowlist (`repos` filter) |
-| `-32002` | Label not on the allowlist (`allowed-labels` filter) |
-| `-32003` | Label on the blocklist (`blocked-labels` filter) |
+| `-32002` | User role is insufficient (`role` filter) |
+| `-32003` | Repository is private and `private-repos: false` |
 | `-32004` | User is blocked (`blocked-users` filter) |
 | `-32005` | Tool name not permitted (`allowed-tools` filter) |
 | `-32006` | Content integrity level below threshold (`min-integrity` filter) |
-| `-32007` | Repository is private and `private-repos: false` |
-| `-32008` | User role is insufficient (`role` filter) |
 
 A `null` error code in `expected.error_code` means the scenario produces an `allow` decision
 and no error is returned.

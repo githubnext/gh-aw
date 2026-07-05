@@ -220,3 +220,85 @@ func TestPolicyCompilerNoRulesMatchReturnsSafeDefault(t *testing.T) {
 	assert.Empty(t, policy.RuleIDs,
 		"no applied rule IDs should be recorded when no rules match")
 }
+
+// TestPolicyCompilerRulesCanGrantLessRestrictiveThanSafeDefault verifies that
+// matching rules can produce a policy less restrictive than the safe default
+// (e.g. supervised autonomy, auto_merge_allowed=true, max_attempts>1).
+// Previously the compiler always seeded from safestDefaultPolicy(), making this
+// impossible.
+func TestPolicyCompilerRulesCanGrantLessRestrictiveThanSafeDefault(t *testing.T) {
+	compiler := &intent.PolicyCompiler{
+		Rules: []intent.PolicyRule{
+			{
+				ID:    "supervised-docs-rule",
+				Scope: "intent",
+				When: intent.PolicyCondition{
+					Domain: "documentation",
+				},
+				Set: intent.ExecutionPolicy{
+					Autonomy:              "supervised",
+					WriteScope:            "feature_branch",
+					AutoMergeAllowed:      true,
+					HumanApprovalRequired: false,
+					MaxAttempts:           5,
+				},
+			},
+		},
+	}
+
+	record := intent.IntentRecord{
+		Status: intent.AttributionMapped,
+		Labels: []string{"documentation"},
+	}
+	repo := intent.RepositoryContext{Owner: "github", Name: "gh-aw"}
+
+	policy := compiler.Compile(record, repo)
+
+	assert.Equal(t, "supervised", policy.Autonomy,
+		"a matching rule must be able to grant supervised autonomy (not just propose_only)")
+	assert.Equal(t, "feature_branch", policy.WriteScope,
+		"a matching rule must be able to grant feature_branch write scope")
+	assert.True(t, policy.AutoMergeAllowed,
+		"a matching rule must be able to enable auto_merge_allowed")
+	assert.Equal(t, 5, policy.MaxAttempts,
+		"a matching rule must be able to set max_attempts > 1")
+	assert.Contains(t, policy.RuleIDs, "supervised-docs-rule")
+}
+
+// TestPolicyCompilerAllowedToolsDenyAllOnEmptyIntersection verifies that when two
+// rules restrict AllowedTools to non-overlapping sets, the compiled policy denies
+// all tools ([]string{} sentinel) rather than silently reverting to unrestricted (nil).
+func TestPolicyCompilerAllowedToolsDenyAllOnEmptyIntersection(t *testing.T) {
+	compiler := &intent.PolicyCompiler{
+		Rules: []intent.PolicyRule{
+			{
+				ID:    "repo-allows-read-tools",
+				Scope: "repository",
+				When:  intent.PolicyCondition{},
+				Set: intent.ExecutionPolicy{
+					AllowedTools: []string{"issue_read", "list_issues"},
+				},
+			},
+			{
+				ID:    "intent-allows-write-tools",
+				Scope: "intent",
+				When:  intent.PolicyCondition{},
+				Set: intent.ExecutionPolicy{
+					AllowedTools: []string{"create_pr", "push_branch"},
+				},
+			},
+		},
+	}
+
+	record := intent.IntentRecord{Status: intent.AttributionMapped}
+	repo := intent.RepositoryContext{Owner: "github", Name: "gh-aw"}
+
+	policy := compiler.Compile(record, repo)
+
+	// The intersection is empty (no tool appears in both sets).
+	// Result MUST be deny-all (non-nil empty slice), not unrestricted (nil).
+	assert.NotNil(t, policy.AllowedTools,
+		"non-overlapping AllowedTools sets must produce deny-all (non-nil), not unrestricted (nil)")
+	assert.Empty(t, policy.AllowedTools,
+		"non-overlapping AllowedTools sets must produce an empty deny-all slice")
+}

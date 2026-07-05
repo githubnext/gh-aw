@@ -24,6 +24,10 @@ var writeScopeOrder = map[string]int{
 type ExecutionPolicy struct {
 	Autonomy string `json:"autonomy"`
 
+	// AllowedTools controls which tools the agent may call.
+	// nil means unrestricted; []string{} (non-nil empty) means deny-all; non-empty
+	// means restricted to the listed tools. JSON omitempty cannot preserve the
+	// nil-vs-empty distinction; callers must check AllowedTools != nil at runtime.
 	AllowedTools []string `json:"allowed_tools,omitempty"`
 	DeniedTools  []string `json:"denied_tools,omitempty"`
 
@@ -92,19 +96,60 @@ type PolicyCompiler struct {
 }
 
 // Compile returns the most restrictive policy produced by merging all matching rules.
-// The base is always the safe default policy. Rules are processed in order so that
-// earlier (higher-precedence) rules cannot be weakened by later (lower-precedence) rules.
+// If no rules match, the safe fail-closed default is returned. When rules do match, the
+// first matching rule's policy acts as the baseline (so rules can express less-restrictive-
+// than-safe values such as supervised autonomy or auto_merge_allowed=true); subsequent
+// rules are merged using more-restrictive-wins logic. Fields left unset by all rules
+// receive fail-closed defaults so that an incomplete rule set never grants open access.
 func (c *PolicyCompiler) Compile(record IntentRecord, repo RepositoryContext) ExecutionPolicy {
-	policy := safestDefaultPolicy()
-
+	var matched []PolicyRule
 	for _, rule := range c.Rules {
 		if rule.When.Matches(record, repo) {
-			policy = mergePolicy(policy, rule.Set)
-			policy.RuleIDs = append(policy.RuleIDs, rule.ID)
+			matched = append(matched, rule)
 		}
 	}
 
-	return policy
+	if len(matched) == 0 {
+		return safestDefaultPolicy()
+	}
+
+	// Seed from the first matching rule's policy fragment, not from the safest default.
+	// This allows higher-precedence rules to establish a less-restrictive-than-safe
+	// baseline (e.g. supervised autonomy) that lower-precedence rules can only tighten.
+	policy := matched[0].Set
+	policy.RuleIDs = []string{matched[0].ID}
+
+	for _, rule := range matched[1:] {
+		policy = mergePolicy(policy, rule.Set)
+		policy.RuleIDs = append(policy.RuleIDs, rule.ID)
+	}
+
+	return applyFailClosedDefaults(policy)
+}
+
+// applyFailClosedDefaults fills in safe fail-closed values for any ExecutionPolicy field
+// that rules left unset (at its zero value). This ensures an incomplete rule set never
+// inadvertently grants open access.
+//
+// Bool fields (HumanApprovalRequired, AutoMergeAllowed) are intentionally handled by the
+// OR/AND merge logic rather than here: AutoMergeAllowed=false is both the zero value and
+// the safe default, so no override is needed; HumanApprovalRequired=false (zero) is
+// overridden to true to fail closed when no rule has explicitly enabled human review.
+func applyFailClosedDefaults(p ExecutionPolicy) ExecutionPolicy {
+	safe := safestDefaultPolicy()
+	if p.Autonomy == "" {
+		p.Autonomy = safe.Autonomy
+	}
+	if p.WriteScope == "" {
+		p.WriteScope = safe.WriteScope
+	}
+	if !p.HumanApprovalRequired {
+		p.HumanApprovalRequired = safe.HumanApprovalRequired
+	}
+	if p.MaxAttempts == 0 {
+		p.MaxAttempts = safe.MaxAttempts
+	}
+	return p
 }
 
 // safestDefaultPolicy returns the most restrictive ExecutionPolicy baseline.
@@ -169,22 +214,46 @@ func mergePolicy(existing, incoming ExecutionPolicy) ExecutionPolicy {
 		}
 	}
 
-	// AllowedTools: if neither restricts tools, stay unrestricted.
-	// If the existing policy restricts, keep its restriction (higher-precedence wins).
-	// If only the incoming policy restricts, adopt that restriction.
-	// If both restrict, use the intersection (more restrictive).
-	if len(existing.AllowedTools) == 0 && len(incoming.AllowedTools) > 0 {
+	// AllowedTools uses nil vs non-nil to distinguish unrestricted from restricted:
+	//   nil          → unrestricted (no tool filter)
+	//   []string{}   → deny-all (empty set; more restrictive than any non-empty set)
+	//   non-empty    → restricted to the listed tools
+	//
+	// More-restrictive-wins semantics:
+	//   unrestricted + unrestricted → unrestricted (nil)
+	//   unrestricted + restricted   → adopt the restriction
+	//   restricted   + unrestricted → keep the restriction
+	//   restricted_A + restricted_B → intersection(A, B); empty intersection → deny-all ([]string{})
+	//   any combination with deny-all → deny-all
+	existingRestricts := existing.AllowedTools != nil
+	incomingRestricts := incoming.AllowedTools != nil
+
+	switch {
+	case !existingRestricts && !incomingRestricts:
+		result.AllowedTools = nil
+	case !existingRestricts:
 		result.AllowedTools = slices.Clone(incoming.AllowedTools)
-	} else if len(existing.AllowedTools) > 0 && len(incoming.AllowedTools) > 0 {
+	case !incomingRestricts:
+		// result already holds existing.AllowedTools; no change needed.
+	case len(existing.AllowedTools) == 0 || len(incoming.AllowedTools) == 0:
+		// At least one side is deny-all; deny-all is always more restrictive.
+		result.AllowedTools = []string{}
+	default:
+		// Both sides restrict to non-empty sets; use the intersection.
 		var intersection []string
 		for _, tool := range existing.AllowedTools {
 			if slices.Contains(incoming.AllowedTools, tool) {
 				intersection = append(intersection, tool)
 			}
 		}
-		result.AllowedTools = intersection
+		// An empty intersection means no tool satisfies both restrictions: deny all.
+		// Use []string{} (non-nil) to signal deny-all rather than nil (unrestricted).
+		if intersection == nil {
+			result.AllowedTools = []string{}
+		} else {
+			result.AllowedTools = intersection
+		}
 	}
-	// If only existing restricts, result.AllowedTools already has the existing value.
 
 	return result
 }
