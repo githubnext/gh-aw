@@ -20,7 +20,7 @@ const { getMessages } = require("./messages_core.cjs");
 const { getBodyHeader } = require("./messages_header.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { MAX_COMMENT_LENGTH, MAX_MENTIONS, MAX_LINKS, enforceCommentLimits } = require("./comment_limit_helpers.cjs");
-const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
+const { createDiscussionComment, resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { isPayloadUserBot } = require("./resolve_mentions.cjs");
@@ -379,33 +379,7 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   const discussionUrl = repository.discussion.url;
 
   // 2. Add comment (with optional replyToId for threading)
-  const mutation = replyToId
-    ? /* GraphQL */ `
-        mutation ($dId: ID!, $body: String!, $replyToId: ID!) {
-          addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
-            comment {
-              id
-              url
-            }
-          }
-        }
-      `
-    : /* GraphQL */ `
-        mutation ($dId: ID!, $body: String!) {
-          addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-            comment {
-              id
-              url
-            }
-          }
-        }
-      `;
-
-  const variables = { dId: discussionId, body: message, ...(replyToId ? { replyToId } : {}) };
-
-  const result = await github.graphql(mutation, variables);
-
-  const comment = result.addDiscussionComment.comment;
+  const comment = await createDiscussionComment(github, discussionId, message, replyToId);
 
   return {
     id: comment.id,

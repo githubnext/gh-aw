@@ -109,3 +109,90 @@ describe("check_skip_if_helpers.cjs - buildSearchQuery", () => {
     });
   });
 });
+
+describe("check_skip_if_helpers.cjs - runSkipQueryGate", () => {
+  /** @returns {Promise<{runSkipQueryGate: (options: any) => Promise<void>}>} */
+  const loadModule = () => import("./check_skip_if_helpers.cjs");
+
+  /** @type {Record<string, any>} */
+  const baseOptions = {
+    skipQuery: "is:issue is:open",
+    workflowName: "test-workflow",
+    thresholdStr: "1",
+    thresholdEnvVar: "GH_AW_SKIP_MAX_MATCHES",
+    thresholdLabel: "Maximum matches threshold",
+    checkLabel: "skip-if-match",
+    outputName: "skip_check_ok",
+    skipScope: undefined,
+    shouldSkip: (/** @type {number} */ totalCount, /** @type {number} */ threshold) => totalCount >= threshold,
+    warningMessage: () => "skip warning",
+    successMessage: () => "success message",
+    denialSummaryMessage: () => "summary message",
+    denialSummaryNextStep: "summary next step",
+  };
+
+  beforeEach(() => {
+    global.github = {
+      rest: {
+        search: {
+          issuesAndPullRequests: vi.fn(),
+        },
+      },
+    };
+  });
+
+  it("fails with config error when skipQuery is undefined", async () => {
+    const { runSkipQueryGate } = await loadModule();
+    await runSkipQueryGate({ ...baseOptions, skipQuery: undefined });
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_SKIP_QUERY not specified"));
+    expect(global.github.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+  });
+
+  it("fails with config error when workflowName is undefined", async () => {
+    const { runSkipQueryGate } = await loadModule();
+    await runSkipQueryGate({ ...baseOptions, workflowName: undefined });
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_WORKFLOW_NAME not specified"));
+    expect(global.github.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+  });
+
+  it("uses thresholdEnvVar in validation errors", async () => {
+    const { runSkipQueryGate } = await loadModule();
+    await runSkipQueryGate({ ...baseOptions, thresholdStr: "invalid" });
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_SKIP_MAX_MATCHES must be a positive integer"));
+    expect(global.github.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+  });
+
+  it("applies policy decision and output name when skip condition matches", async () => {
+    global.github.rest.search.issuesAndPullRequests.mockResolvedValue({ data: { total_count: 2 } });
+    const { runSkipQueryGate } = await loadModule();
+
+    await runSkipQueryGate({ ...baseOptions });
+
+    expect(mockCore.warning).toHaveBeenCalledWith("skip warning");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "false");
+    expect(mockCore.summary.addRaw).toHaveBeenCalled();
+    expect(mockCore.summary.write).toHaveBeenCalled();
+  });
+
+  it("sets output to true and logs success when skip condition is not met", async () => {
+    global.github.rest.search.issuesAndPullRequests.mockResolvedValue({ data: { total_count: 0 } });
+    const { runSkipQueryGate } = await loadModule();
+    const successMessage = vi.fn(() => "all clear");
+
+    await runSkipQueryGate({ ...baseOptions, successMessage });
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "true");
+    expect(successMessage).toHaveBeenCalledWith(0, 1);
+    expect(mockCore.warning).not.toHaveBeenCalled();
+  });
+
+  it("calls setFailed with ERR_API prefix when search throws", async () => {
+    global.github.rest.search.issuesAndPullRequests.mockRejectedValue(new Error("rate limited"));
+    const { runSkipQueryGate } = await loadModule();
+
+    await runSkipQueryGate({ ...baseOptions });
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_API"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("rate limited"));
+  });
+});

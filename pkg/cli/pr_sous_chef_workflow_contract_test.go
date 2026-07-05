@@ -27,7 +27,7 @@ func TestPRSousChefWorkflowAddCommentTargetContract(t *testing.T) {
 	assert.Contains(t, text, "Never emit `add_comment` without a numeric target field", "Workflow must forbid targetless add_comment items")
 	assert.Contains(t, text, "pr_number 12345", "Workflow should include a concrete add_comment pr_number example")
 	assert.Contains(t, text, "include an explicit unresolved-reviews list", "Workflow should require explicit unresolved review listing in nudge comments")
-	assert.Contains(t, text, "Process at most **5 PRs** per run.", "Workflow should cap per-run PR processing to 5")
+	assert.Contains(t, text, "Process all eligible PRs per run.", "Workflow should require processing all eligible PRs")
 	assert.Contains(t, text, "Make at most 8 tool calls total.", "Sub-agent should have a hard tool-call budget")
 	assert.Contains(t, text, "model: sonnet", "Sub-agent should use a Sonnet model alias")
 	assert.Contains(t, text, "skip_reason: \"sub_agent_error\"", "Workflow should skip failed sub-agent responses without retry")
