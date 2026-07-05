@@ -114,12 +114,21 @@ If no uncleaned files remain, start over with the oldest cleaned file (reset `cl
 
 ### 2. Analyze the File
 
-Before making changes to the file:
+Read the **first 80 lines** of the file to get an overview. Then:
 - Determine the execution context (github-script vs Node.js)
 - **Check if the file has `@ts-nocheck` comment** - if so, your goal is to remove it and fix type errors
-- Identify code smells: unnecessary try/catch, verbose patterns, missing modern syntax
-- Check if the file has a corresponding test file
-- Read the test file to understand expected behavior
+- Identify obvious code smells: unnecessary try/catch, verbose patterns, missing modern syntax
+- Check if the file has a corresponding test file (`ls <filename>.test.cjs`)
+
+**Quick Decision — make this choice NOW before reading further:**
+
+- If the file has `@ts-nocheck`: proceed to Step 3 to remove it and fix types.
+- If the file looks **already well-maintained** (has `@ts-check`, clean style, no glaring code smells visible in the first 80 lines): call `noop` immediately with a brief explanation and STOP. Do not read additional sections.
+- If you see **specific, concrete improvements** to make (1–3 clear changes): proceed to Step 3 to make exactly those changes.
+
+> **Do NOT read the entire file before deciding.** Reading large files without a clear improvement target will exhaust your context. Pick a direction after the first 80 lines — either commit to specific improvements or call `noop`.
+
+If you choose to proceed, read only the sections of the file you need to make the targeted changes.
 
 ### 3. Clean the Code
 
@@ -279,9 +288,10 @@ If the pull request cannot be created (e.g., one already exists, validation fail
 - **Do not retry more than once**
 - Call the `noop` safe-output tool to report what happened, then STOP
 
-**Final Safe-Output Guardrail (required):**
-- This workflow must always emit at least one safe output before exiting.
-- If you are about to stop and have not called any safe-output tool yet, call `noop` with a brief explanation, then STOP.
+**⚠️ Final Safe-Output Guardrail (REQUIRED — failure to comply is the #1 cause of workflow failures):**
+- This workflow **must always** emit at least one safe output before exiting.
+- If you are about to stop and have **not** called any safe-output tool yet (`create_pull_request`, `noop`, or `report_incomplete`), call `noop` **right now** with a brief explanation, then STOP.
+- An empty session with no safe-output call is a workflow failure. When in doubt, call `noop`.
 
 ## Important Constraints
 
