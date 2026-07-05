@@ -48,6 +48,8 @@ const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
 // "Timeout after <N>ms waiting for session.idle" produced by the Copilot SDK.
 // Keep in sync with SDK_SESSION_IDLE_TIMEOUT_PATTERN in copilot_harness.cjs.
 const SDK_IDLE_TIMEOUT_PATTERN = /Timeout after \d+ms waiting for session\.idle/;
+const SAFEOUTPUTS_EMPTY_ARGS_REJECTION_PATTERN = /Error\s*\[-32602\]:[^\n]*Empty arguments are not allowed/i;
+const SAFEOUTPUTS_EMPTY_ARGS_MAX_CONSECUTIVE = 2;
 
 // Default idle period for the post-completion watchdog: 5 minutes.
 // When the agent has produced output and all tracked tool calls have completed,
@@ -72,6 +74,24 @@ function extractPromptFromArgs(args) {
     }
   }
   return null;
+}
+
+/**
+ * Build a text preview from a tool.execution_complete result payload.
+ * @param {unknown} result
+ * @returns {string}
+ */
+function extractResultText(result) {
+  if (!result || typeof result !== "object") return "";
+  const content = "content" in result ? result.content : undefined;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map(entry => (entry && typeof entry === "object" && "text" in entry && typeof entry.text === "string" ? entry.text : ""))
+      .filter(Boolean)
+      .join("\n");
+  }
+  return "";
 }
 
 /**
@@ -164,6 +184,8 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   let toolDenialCount = 0;
   let catastrophicToolDenialsError = null;
   let catastrophicToolDenialsTriggered = false;
+  let catastrophicSafeOutputsEmptyArgsError = null;
+  let catastrophicSafeOutputsEmptyArgsTriggered = false;
   /**
    * Map from toolCallId → {toolName, mcpServerName} for enriching tool.execution_complete
    * events and for tracking in-flight tool calls when the idle-timeout fires.
@@ -171,6 +193,8 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
    * @type {Map<string, {toolName: string, mcpServerName: string}>}
    */
   const pendingToolCalls = new Map();
+  /** @type {Map<string, number>} */
+  const safeOutputsEmptyArgsStreakByTool = new Map();
 
   // Post-completion idle watchdog.
   // When the agent has produced output and all tracked tool calls have completed,
@@ -313,6 +337,34 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           // Include result.content (concise LLM-facing output) so that the log
           // parser can render tool output previews from events.jsonl directly.
           const result = event.data?.result ?? undefined;
+          const resultText = extractResultText(result);
+          const toolKey = `${mcpServerName}:${toolName}`;
+          const isSafeOutputsEmptyArgsRejection = mcpServerName === "safeoutputs" && !success && SAFEOUTPUTS_EMPTY_ARGS_REJECTION_PATTERN.test(resultText);
+          if (isSafeOutputsEmptyArgsRejection) {
+            const streak = (safeOutputsEmptyArgsStreakByTool.get(toolKey) ?? 0) + 1;
+            safeOutputsEmptyArgsStreakByTool.set(toolKey, streak);
+            log(`safeoutputs empty-arguments rejection ${streak}/${SAFEOUTPUTS_EMPTY_ARGS_MAX_CONSECUTIVE}: ${toolName}`);
+            if (!catastrophicSafeOutputsEmptyArgsTriggered && streak >= SAFEOUTPUTS_EMPTY_ARGS_MAX_CONSECUTIVE) {
+              catastrophicSafeOutputsEmptyArgsTriggered = true;
+              catastrophicSafeOutputsEmptyArgsError = new Error(
+                `safeoutputs empty-arguments rejection loop detected for ${toolName} (${streak} consecutive -32602 failures); do not retry with empty arguments, use tools/list once to inspect schema or emit noop`
+              );
+              writeDriverEvent("guard.safeoutputs_empty_args_rejections_exceeded", {
+                toolName,
+                mcpServerName,
+                streak,
+                threshold: SAFEOUTPUTS_EMPTY_ARGS_MAX_CONSECUTIVE,
+              });
+              log(`${catastrophicSafeOutputsEmptyArgsError.message}; stopping SDK session early`);
+              if (session) {
+                void session.disconnect().catch(() => {
+                  // best-effort early stop
+                });
+              }
+            }
+          } else {
+            safeOutputsEmptyArgsStreakByTool.set(toolKey, 0);
+          }
           // max-tool-denials intentionally tracks permission denials only.
           // Tool execution failures are still logged, but do not increment the guardrail counter.
           writeEvent("tool.execution_complete", { toolName, mcpServerName, success, result }, event.timestamp);
@@ -416,8 +468,8 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     const sendTimeoutMs = getEnvPositiveIntOrDefault("COPILOT_SDK_SEND_TIMEOUT_MS", SDK_SEND_TIMEOUT_MS_DEFAULT);
     const result = await session.sendAndWait({ prompt }, sendTimeoutMs);
 
-    if (catastrophicToolDenialsError) {
-      throw catastrophicToolDenialsError;
+    if (catastrophicToolDenialsError || catastrophicSafeOutputsEmptyArgsError) {
+      throw catastrophicToolDenialsError ?? catastrophicSafeOutputsEmptyArgsError;
     }
 
     // sendAndWait returns the last assistant.message event; capture its content
@@ -436,13 +488,13 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     return { exitCode: 0, output, hasOutput, durationMs };
   } catch (err) {
     const durationMs = Date.now() - startTime;
-    const failure = catastrophicToolDenialsError ?? (err instanceof Error ? err : new Error(String(err)));
+    const failure = catastrophicToolDenialsError ?? catastrophicSafeOutputsEmptyArgsError ?? (err instanceof Error ? err : new Error(String(err)));
     log(`error: ${failure.message}`);
 
     // When the post-completion idle watchdog force-disconnected the session, the
     // agent's work is done — the SDK simply failed to resolve sendAndWait after
     // the final tool result was returned.  Treat it as a successful completion.
-    if (postCompletionWatchdogTriggered && !catastrophicToolDenialsError && hasOutput && pendingToolCalls.size === 0) {
+    if (postCompletionWatchdogTriggered && !catastrophicToolDenialsError && !catastrophicSafeOutputsEmptyArgsError && hasOutput && pendingToolCalls.size === 0) {
       log(`warning: post-completion watchdog triggered disconnect — treating as completed`);
       log(`session completed: hasOutput=${hasOutput} durationMs=${durationMs}`);
       return { exitCode: 0, output, hasOutput, durationMs };
@@ -452,7 +504,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     // output and all tracked tool calls have already completed, the session work is
     // done — the SDK simply failed to emit the idle signal.  Treat it as a successful
     // run so the harness does not classify it as a failure or waste retry attempts.
-    const isIdleTimeout = !catastrophicToolDenialsError && SDK_IDLE_TIMEOUT_PATTERN.test(failure.message);
+    const isIdleTimeout = !catastrophicToolDenialsError && !catastrophicSafeOutputsEmptyArgsError && SDK_IDLE_TIMEOUT_PATTERN.test(failure.message);
     if (isIdleTimeout && hasOutput && pendingToolCalls.size === 0) {
       log(`warning: SDK idle-timeout with collected output and no pending tool calls — treating as completed`);
       log(`session completed: hasOutput=${hasOutput} durationMs=${durationMs}`);

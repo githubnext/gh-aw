@@ -1371,6 +1371,183 @@ describe("copilot_sdk_driver.cjs", () => {
         }
       }
     });
+
+    it("fails fast when safeoutputs returns repeated -32602 empty-arguments rejections for the same tool", async () => {
+      const stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+      let onEvent = () => {};
+      let disconnected = false;
+      const disconnect = vi.fn().mockImplementation(async () => {
+        disconnected = true;
+      });
+      const stop = vi.fn().mockResolvedValue(undefined);
+      const session = {
+        sessionId: "session-safeoutputs-empty-args-loop",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "working on it" },
+          });
+          for (let i = 1; i <= 2; i++) {
+            const toolCallId = `safeoutputs-call-${i}`;
+            onEvent({
+              type: "tool.execution_start",
+              ephemeral: false,
+              timestamp: new Date().toISOString(),
+              data: {
+                toolName: "create_pull_request_review_comment",
+                mcpServerName: "safeoutputs",
+                toolCallId,
+              },
+            });
+            onEvent({
+              type: "tool.execution_complete",
+              ephemeral: false,
+              timestamp: new Date().toISOString(),
+              data: {
+                toolCallId,
+                success: false,
+                result: {
+                  content: 'Error [-32602]: calling "tools/call": Empty arguments are not allowed — this tool is write-once, not a discovery probe.',
+                },
+              },
+            });
+          }
+          if (disconnected) {
+            throw new Error("transport disconnected");
+          }
+          return { data: { content: "unexpected completion" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(1);
+        expect(result.output).toContain("working on it");
+        const parsedEvents = stderrWriteSpy.mock.calls
+          .map(([message]) => {
+            if (typeof message !== "string" || !message.endsWith("\n")) return null;
+            try {
+              return JSON.parse(message.trimEnd());
+            } catch {
+              return null;
+            }
+          })
+          .filter(Boolean);
+        const guardEvent = parsedEvents.find(event => event.type === "guard.safeoutputs_empty_args_rejections_exceeded");
+        expect(guardEvent).toMatchObject({
+          type: "guard.safeoutputs_empty_args_rejections_exceeded",
+          data: {
+            toolName: "create_pull_request_review_comment",
+            mcpServerName: "safeoutputs",
+            streak: 2,
+            threshold: 2,
+          },
+        });
+      } finally {
+        stderrWriteSpy.mockRestore();
+      }
+    });
+
+    it("does not trip the safeoutputs empty-arguments guard on a single -32602 rejection", async () => {
+      const stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+      let onEvent = () => {};
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      const session = {
+        sessionId: "session-safeoutputs-empty-args-single",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          onEvent({
+            type: "tool.execution_start",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: {
+              toolName: "create_pull_request_review_comment",
+              mcpServerName: "safeoutputs",
+              toolCallId: "safeoutputs-call-1",
+            },
+          });
+          onEvent({
+            type: "tool.execution_complete",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: {
+              toolCallId: "safeoutputs-call-1",
+              success: false,
+              result: {
+                content: 'Error [-32602]: calling "tools/call": Empty arguments are not allowed — this tool is write-once, not a discovery probe.',
+              },
+            },
+          });
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "final response" },
+          });
+          return { data: { content: "final response" } };
+        }),
+        disconnect,
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = stop;
+      }
+
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("final response");
+        const parsedEvents = stderrWriteSpy.mock.calls
+          .map(([message]) => {
+            if (typeof message !== "string" || !message.endsWith("\n")) return null;
+            try {
+              return JSON.parse(message.trimEnd());
+            } catch {
+              return null;
+            }
+          })
+          .filter(Boolean);
+        const guardEvent = parsedEvents.find(event => event.type === "guard.safeoutputs_empty_args_rejections_exceeded");
+        expect(guardEvent).toBeUndefined();
+      } finally {
+        stderrWriteSpy.mockRestore();
+      }
+    });
   });
 
   describe("parsePermissionConfigFromServerArgs", () => {
