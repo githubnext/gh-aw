@@ -175,7 +175,44 @@ async function resolveTopLevelDiscussionCommentId(github, commentNodeId) {
   }
 }
 
+/**
+ * Create a discussion comment with optional threaded reply target.
+ * @param {Object} github - GitHub API client (must support graphql)
+ * @param {string} discussionId - Discussion GraphQL node ID
+ * @param {string} body - Comment body
+ * @param {string|null|undefined} [replyToId] - Optional top-level discussion comment node ID for threading
+ * @returns {Promise<{id: string, url: string}>}
+ */
+async function createDiscussionComment(github, discussionId, body, replyToId) {
+  const mutation = replyToId
+    ? /* GraphQL */ `
+        mutation ($dId: ID!, $body: String!, $replyToId: ID!) {
+          addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
+            comment {
+              id
+              url
+            }
+          }
+        }
+      `
+    : /* GraphQL */ `
+        mutation ($dId: ID!, $body: String!) {
+          addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+            comment {
+              id
+              url
+            }
+          }
+        }
+      `;
+
+  const variables = { dId: discussionId, body, ...(replyToId ? { replyToId } : {}) };
+  const result = await github.graphql(mutation, variables);
+  return result.addDiscussionComment.comment;
+}
+
 module.exports = {
+  createDiscussionComment,
   fetchAllRepoLabels,
   getFileContent,
   logGraphQLError,
