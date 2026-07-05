@@ -64,6 +64,21 @@ describe("prefer-number-isnan", () => {
           code: `isNaN(process.env.PORT);`,
           errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `Number.isNaN(process.env.PORT);` }] }],
         },
+        {
+          // Shadowed parseInt can return non-number values, so keep suggestion-only behavior.
+          code: `const parseInt = x => x; isNaN(parseInt(value, 10));`,
+          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `const parseInt = x => x; Number.isNaN(parseInt(value, 10));` }] }],
+        },
+        {
+          // Shadowed parseFloat can return non-number values, so keep suggestion-only behavior.
+          code: `const parseFloat = x => x; isNaN(parseFloat(value));`,
+          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `const parseFloat = x => x; Number.isNaN(parseFloat(value));` }] }],
+        },
+        {
+          // Shadowed Number can alter coercion semantics, so keep suggestion-only behavior.
+          code: `const Number = x => x; isNaN(Number(value));`,
+          errors: [{ messageId: "preferNumberIsNaN", suggestions: [{ messageId: "replaceWithNumberIsNaN", output: `const Number = x => x; Number.isNaN(Number(value));` }] }],
+        },
       ],
     });
   });
@@ -129,22 +144,6 @@ describe("prefer-number-isnan", () => {
         {
           code: `isNaN(Number.parseFloat(x));`,
           output: `Number.isNaN(Number.parseFloat(x));`,
-          errors: [{ messageId: "preferNumberIsNaN" }],
-        },
-        // Date method results
-        {
-          code: `isNaN(d.getTime());`,
-          output: `Number.isNaN(d.getTime());`,
-          errors: [{ messageId: "preferNumberIsNaN" }],
-        },
-        {
-          code: `isNaN(d.getTimezoneOffset());`,
-          output: `Number.isNaN(d.getTimezoneOffset());`,
-          errors: [{ messageId: "preferNumberIsNaN" }],
-        },
-        {
-          code: `isNaN(x.valueOf());`,
-          output: `Number.isNaN(x.valueOf());`,
           errors: [{ messageId: "preferNumberIsNaN" }],
         },
         // Numeric literal

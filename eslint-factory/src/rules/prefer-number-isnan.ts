@@ -3,7 +3,6 @@ import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 const GLOBAL_IS_NAN_OBJECTS = new Set(["globalThis", "window", "global"]);
 const NUMERIC_CALL_NAMES = new Set(["parseInt", "parseFloat", "Number"]);
-const NUMERIC_METHOD_NAMES = new Set(["getTime", "getTimezoneOffset", "valueOf"]);
 
 export const preferNumberIsNanRule = createRule({
   name: "prefer-number-isnan",
@@ -65,8 +64,7 @@ export const preferNumberIsNanRule = createRule({
      * isNaN(x) → Number.isNaN(x) a guaranteed semantics-preserving equivalence.
      *
      * Provably-numeric means: a numeric Literal, or a CallExpression to
-     * parseInt / parseFloat / Number / Number.parseInt / Number.parseFloat, or a
-     * CallExpression whose callee property is getTime / getTimezoneOffset / valueOf.
+     * parseInt / parseFloat / Number / Number.parseInt / Number.parseFloat.
      */
     function isProvablyNumeric(arg: TSESTree.Node): boolean {
       if (arg.type === "Literal" && typeof arg.value === "number") {
@@ -75,7 +73,7 @@ export const preferNumberIsNanRule = createRule({
       if (arg.type === "CallExpression") {
         const callee = arg.callee;
         // parseInt(x), parseFloat(x), Number(x)
-        if (callee.type === "Identifier" && NUMERIC_CALL_NAMES.has(callee.name)) {
+        if (callee.type === "Identifier" && NUMERIC_CALL_NAMES.has(callee.name) && !hasLocalBinding(callee, callee.name)) {
           return true;
         }
         // Number.parseInt(x), Number.parseFloat(x)
@@ -84,13 +82,10 @@ export const preferNumberIsNanRule = createRule({
           !callee.computed &&
           callee.object.type === "Identifier" &&
           callee.object.name === "Number" &&
+          !hasLocalBinding(callee.object, "Number") &&
           callee.property.type === "Identifier" &&
           (callee.property.name === "parseInt" || callee.property.name === "parseFloat")
         ) {
-          return true;
-        }
-        // x.getTime(), x.getTimezoneOffset(), x.valueOf()
-        if (callee.type === "MemberExpression" && !callee.computed && callee.property.type === "Identifier" && NUMERIC_METHOD_NAMES.has(callee.property.name)) {
           return true;
         }
       }
