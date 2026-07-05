@@ -301,7 +301,7 @@ function validatePositiveInteger(value, fieldName, lineNum) {
     };
   }
   const parsed = typeof value === "string" ? parseInt(value, 10) : value;
-  if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+  if (Number.isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
     return {
       isValid: false,
       error: `Line ${lineNum}: ${fieldName} must be a valid positive integer (got: ${value})`,
@@ -328,7 +328,7 @@ function validateOptionalPositiveInteger(value, fieldName, lineNum) {
     };
   }
   const parsed = typeof value === "string" ? parseInt(value, 10) : value;
-  if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+  if (Number.isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
     return {
       isValid: false,
       error: `Line ${lineNum}: ${fieldName} must be a valid positive integer (got: ${value})`,
@@ -384,7 +384,7 @@ function validateIssueNumberOrTemporaryId(value, fieldName, lineNum) {
   }
   // Try to parse as positive integer
   const parsed = typeof value === "string" ? parseInt(value, 10) : value;
-  if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+  if (Number.isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
     return {
       isValid: false,
       error: `Line ${lineNum}: ${fieldName} must be a positive integer or temporary ID (got: ${value})`,

@@ -146,7 +146,7 @@ function parseFirewallLogs() {
 
           let allowed = false;
           const code = parseInt(status, 10);
-          if (!isNaN(code) && [200, 206, 304].includes(code)) {
+          if (!Number.isNaN(code) && [200, 206, 304].includes(code)) {
             allowed = true;
           }
 

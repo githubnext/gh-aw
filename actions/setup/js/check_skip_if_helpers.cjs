@@ -63,7 +63,7 @@ async function runSkipQueryGate(options) {
   core.info(`Running ${checkLabel} gate for workflow: ${workflowName}`);
 
   const threshold = parseInt(thresholdStr ?? "", 10);
-  if (isNaN(threshold) || threshold < 1) {
+  if (Number.isNaN(threshold) || threshold < 1) {
     core.setFailed(`${ERR_CONFIG}: Configuration error: ${thresholdEnvVar} must be a positive integer, got "${thresholdStr}".`);
     return;
   }

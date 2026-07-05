@@ -71,7 +71,7 @@ function appendEntry(entry) {
 function parseResetTimestamp(resetHeader) {
   if (!resetHeader) return null;
   const seconds = parseInt(resetHeader, 10);
-  if (isNaN(seconds)) return null;
+  if (Number.isNaN(seconds)) return null;
   return new Date(seconds * 1000).toISOString();
 }
 

@@ -54,7 +54,7 @@ async function main() {
     const repoSlug = parts[0];
     const issueNumber = parseInt(parts[1], 10);
 
-    if (isNaN(issueNumber) || issueNumber <= 0) {
+    if (Number.isNaN(issueNumber) || issueNumber <= 0) {
       core.warning(`Invalid issue number in entry: ${entry}`);
       continue;
     }
