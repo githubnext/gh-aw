@@ -32,8 +32,8 @@ export const noJsonStringifyErrorRule = createRule({
     schema: [],
     messages: {
       jsonStringifyError:
-        "JSON.stringify({{errorVar}}) produces {} for Error objects — Error properties (message, stack, etc.) are non-enumerable. Prefer getErrorMessage({{errorVar}}) from error_helpers.cjs or explicitly serialize a safe, guarded shape.",
-      useGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) — ensure getErrorMessage is imported from error_helpers.cjs before applying.",
+        "JSON.stringify({{errorVar}}) produces {} for Error objects — Error properties (message, stack, etc.) are non-enumerable. Prefer getErrorMessage({{errorVar}}) from error_helpers.cjs or explicitly serialize a guarded value after narrowing it.",
+      useGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) — ensure getErrorMessage is imported from error_helpers.cjs.",
     },
   },
   defaultOptions: [],
