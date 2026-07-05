@@ -31,7 +31,7 @@ history = [json.loads(l) for l in Path('/tmp/gh-aw/repo-memory/default/history.j
 
 ## Styling
 
-Use `sns.set_style("whitegrid")`, `sns.set_context("notebook", font_scale=1.2)`, `figsize=(14, 8)`, `dpi=300`, `bbox_inches='tight'`. Annotate key peaks/troughs with `ax.annotate()` using `arrowprops`.
+Use `sns.set_context("notebook", font_scale=1.2)`, `figsize=(14, 8)` (see `python-dataviz.md` for `set_style`, `dpi`, and `bbox_inches`). Annotate key peaks/troughs with `ax.annotate()` using `arrowprops`.
 
 ## Repo-Specific Chart Types
 
