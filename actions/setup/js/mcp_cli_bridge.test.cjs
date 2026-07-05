@@ -190,37 +190,10 @@ describe("mcp_cli_bridge.cjs", () => {
     }
   });
 
-  it("shows help instead of calling required-argument tools with an empty args object", () => {
-    expect(
-      shouldShowToolHelpForEmptyArgs(
-        {
-          inputSchema: {
-            required: ["title", "body"],
-          },
-        },
-        {}
-      )
-    ).toBe(true);
-    expect(
-      shouldShowToolHelpForEmptyArgs(
-        {
-          inputSchema: {
-            required: ["title", "body"],
-          },
-        },
-        { title: "Bug report" }
-      )
-    ).toBe(false);
-    expect(
-      shouldShowToolHelpForEmptyArgs(
-        {
-          inputSchema: {
-            required: [],
-          },
-        },
-        {}
-      )
-    ).toBe(false);
+  it("shows help instead of calling safeoutputs tools with an empty args object", () => {
+    expect(shouldShowToolHelpForEmptyArgs("safeoutputs", {})).toBe(true);
+    expect(shouldShowToolHelpForEmptyArgs("safeoutputs", { title: "Bug report" })).toBe(false);
+    expect(shouldShowToolHelpForEmptyArgs("other-server", {})).toBe(false);
   });
 
   it("coerces scientific notation when schema properties are unavailable", () => {

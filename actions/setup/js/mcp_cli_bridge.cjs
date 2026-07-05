@@ -928,23 +928,16 @@ function showToolHelp(serverName, toolName, tools) {
  * Determine whether the bridge should show tool help instead of invoking the tool
  * with an empty arguments object.
  *
- * This is especially important for write-once safe-output tools: some agents probe
- * them with no flags purely to discover the schema, which would otherwise trigger a
- * -32602 validation error and encourage wasteful retries.
+ * safeoutputs tools always require arguments, so any call with an empty argument
+ * object is a schema-discovery probe that would otherwise trigger a -32602
+ * validation error and encourage wasteful retries.
  *
- * @param {{inputSchema?: {required?: string[]}}|undefined} tool
+ * @param {string} serverName
  * @param {Record<string, unknown>} toolArgs
  * @returns {boolean}
  */
-function shouldShowToolHelpForEmptyArgs(tool, toolArgs) {
-  if (!tool || typeof tool !== "object") {
-    return false;
-  }
-  const required = tool.inputSchema?.required;
-  if (!Array.isArray(required) || required.length === 0) {
-    return false;
-  }
-  return Object.keys(toolArgs).length === 0;
+function shouldShowToolHelpForEmptyArgs(serverName, toolArgs) {
+  return serverName === SAFEOUTPUTS_SERVER_NAME && Object.keys(toolArgs).length === 0;
 }
 
 /**
@@ -1260,7 +1253,7 @@ async function main() {
   const stdinContent = hasStdinJsonPayload(toolUserArgs) ? readStdinSync() : null;
   const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs, schemaProperties, stdinContent);
 
-  if (shouldShowToolHelpForEmptyArgs(matchedTool, toolArgs)) {
+  if (shouldShowToolHelpForEmptyArgs(serverName, toolArgs)) {
     core.warning(`[${serverName}] No arguments provided for '${toolName}'; showing command help instead of calling the tool`);
     auditLog(serverName, { event: "show_tool_help_empty_args", tool: toolName });
     showToolHelp(serverName, toolName, tools);
