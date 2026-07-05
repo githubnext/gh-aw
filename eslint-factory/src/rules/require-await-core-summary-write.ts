@@ -196,9 +196,11 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
       // void is the idiomatic deliberate-discard marker — not a bug
       if (expr.type === "UnaryExpression" && expr.operator === "void") return [];
 
-      // Logical short-circuit: only the right operand can be the dropped promise
+      // Logical short-circuit: either operand can be a dropped promise.
+      // `write() && cond` always calls write(); `cond && write()` calls it when
+      // cond is truthy.  In both cases the Promise is discarded by the ExpressionStatement.
       if (expr.type === "LogicalExpression") {
-        return collectBareWriteCalls(expr.right);
+        return [...collectBareWriteCalls(expr.left), ...collectBareWriteCalls(expr.right)];
       }
 
       // Conditional: either branch may be dropped
@@ -206,14 +208,15 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
         return [...collectBareWriteCalls(expr.consequent), ...collectBareWriteCalls(expr.alternate)];
       }
 
-      // Sequence: only the last expression is the "result" value.
+      // Sequence: all elements except the last have their values discarded, and the
+      // last element's value is the result of the sequence — also discarded by an
+      // ExpressionStatement.  Inspect every element.
       // SequenceExpression always has ≥2 elements per the ECMAScript spec, but
       // guard defensively since the type signature allows an empty array.
       if (expr.type === "SequenceExpression") {
         const { expressions } = expr;
         if (expressions.length === 0) return [];
-        const last = expressions[expressions.length - 1];
-        return collectBareWriteCalls(last);
+        return expressions.flatMap(collectBareWriteCalls);
       }
 
       if (expr.type !== "CallExpression") return [];
@@ -231,8 +234,7 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
       // Restricted to known Promise instance methods to avoid false positives on
       // unrelated method chains that happen to call a member of a write() result.
       const chainProperty = callee.property;
-      const isPromiseChainMethod =
-        !callee.computed && chainProperty.type === "Identifier" && (chainProperty.name === "then" || chainProperty.name === "catch" || chainProperty.name === "finally");
+      const isPromiseChainMethod = !callee.computed && chainProperty.type === "Identifier" && (chainProperty.name === "then" || chainProperty.name === "catch" || chainProperty.name === "finally");
       if (isPromiseChainMethod && callee.object.type === "CallExpression") {
         const inner = collectBareWriteCalls(callee.object);
         if (inner.length > 0) return [expr];

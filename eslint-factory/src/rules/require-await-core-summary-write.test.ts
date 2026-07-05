@@ -206,6 +206,11 @@ describe("require-await-core-summary-write", () => {
           code: `async function f() { cond && core.summary.write(); }`,
           errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { cond && await core.summary.write(); }` }] }],
         },
+        // LogicalExpression: left operand is the dropped promise
+        {
+          code: `async function f() { core.summary.write() && cond; }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { await core.summary.write() && cond; }` }] }],
+        },
         // ConditionalExpression: the write() branch is dropped
         {
           code: `async function f() { cond ? core.summary.write() : noop(); }`,
@@ -223,6 +228,11 @@ describe("require-await-core-summary-write", () => {
         {
           code: `async function f() { (log(), core.summary.write()); }`,
           errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { (log(), await core.summary.write()); }` }] }],
+        },
+        // SequenceExpression: non-last element is also a dropped promise
+        {
+          code: `async function f() { (core.summary.write(), log()); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { (await core.summary.write(), log()); }` }] }],
         },
         // .then() chain: outer promise is also dropped
         {
