@@ -1,15 +1,16 @@
 {
-  "run_date": "2026-07-05T07:19:01Z",
-  "run_id": "28733101041",
-  "prior_run_id": "28725134784",
+  "run_date": "2026-07-05T12:41:37Z",
+  "run_id": "28741077056",
+  "prior_run_id": "28733101041",
   "summary": {
-    "total": 6,
-    "new": 6,
-    "carry_over": 0,
-    "fast_track": 3,
-    "batch_review": 2,
-    "defer": 0,
-    "close": 1
+    "total": 14,
+    "new": 13,
+    "carry_over": 1,
+    "auto_merge": 1,
+    "fast_track": 6,
+    "batch_review": 3,
+    "defer": 4,
+    "close": 0
   },
   "prior_run_resolution": {
     "total": 17,
@@ -24,89 +25,188 @@
       "title": "Fix GraphQL ID injection in project_command.go (Semgrep #627/#628, CWE-89)",
       "category": "bug",
       "risk": "high",
-      "score": 80,
+      "score": 83,
       "action": "fast_track",
       "batch": "pr-batch:security-fixes",
       "draft": false,
-      "ci": "no_ci",
-      "note": "CWE-89 GraphQL injection fix. 3 files, +69/-26. Security — merge ASAP."
+      "reviews": "DISMISSED",
+      "note": "CWE-89 GraphQL injection. 2nd carry-over. 6 files +236/-27. MERGE ASAP."
     },
     {
-      "number": 43468,
-      "title": "Fix allocation-size overflow risk in model pricing merge",
+      "number": 43525,
+      "title": "fix(ai-moderator): noop safe output + cache miss hardening",
+      "category": "bug",
+      "risk": "low",
+      "score": 78,
+      "action": "fast_track",
+      "batch": null,
+      "draft": false,
+      "reviews": "APPROVED",
+      "note": "Fixes 86% failure rate. 2 files +4/-2. 1x APPROVED."
+    },
+    {
+      "number": 43514,
+      "title": "fix(pr-code-quality-reviewer): increase timeout-minutes from 15 to 20",
+      "category": "chore",
+      "risk": "low",
+      "score": 63,
+      "action": "auto_merge",
+      "batch": null,
+      "draft": false,
+      "reviews": "3xAPPROVED",
+      "note": "One-line timeout bump. 3x APPROVED. Zero risk."
+    },
+    {
+      "number": 43507,
+      "title": "fix(eslint): harden require-await-core-summary-write for compound expression forms",
+      "category": "bug",
+      "risk": "low",
+      "score": 55,
+      "action": "fast_track",
+      "batch": null,
+      "draft": false,
+      "reviews": "2xAPPROVED",
+      "note": "ESLint rule fix capturing compound-expression Promise drops. 2x APPROVED."
+    },
+    {
+      "number": 43501,
+      "title": "Fix audit comparison turns delta for cached summaries",
       "category": "bug",
       "risk": "medium",
-      "score": 70,
+      "score": 52,
       "action": "fast_track",
-      "batch": "pr-batch:security-fixes",
+      "batch": null,
       "draft": false,
-      "ci": "no_ci",
-      "note": "CodeQL overflow fix with regression test. 2 files, +51/-3."
+      "reviews": "2xAPPROVED+CR",
+      "note": "Fixes false turns_decrease misclassification. 2x APPROVED, bot CR."
     },
     {
-      "number": 43455,
-      "title": "Warn on outdated action versions in user-provided steps",
+      "number": 43527,
+      "title": "Add shared prompt quality gate for plateaued agent-review workflows",
       "category": "feature",
       "risk": "medium",
-      "score": 60,
+      "score": 50,
       "action": "fast_track",
+      "batch": null,
       "draft": false,
-      "ci": "no_ci",
-      "note": "New compiler warning for stale uses: refs. 3 files, +384/-0 incl tests."
+      "reviews": "COMMENTED",
+      "note": "Targets stalled 61/62 effectiveness score. 9 workflow files. Needs human prompt review."
     },
     {
-      "number": 43480,
-      "title": "Deduplicate skip-query gate logic for setup action guards",
-      "category": "refactor",
+      "number": 43526,
+      "title": "httprespbodyclose: analyze function literals as first-class scopes",
+      "category": "bug",
       "risk": "low",
-      "score": 44,
-      "action": "batch_review",
-      "batch": "pr-batch:js-refactor",
+      "score": 45,
+      "action": "fast_track",
+      "batch": null,
       "draft": false,
-      "ci": "no_ci",
-      "note": "Extracts runSkipQueryGate helper. 4 files, +165/-95."
+      "reviews": "APPROVED",
+      "note": "Go analyzer FuncLit scope fix. 2 files +67/-6. 1x APPROVED."
     },
     {
-      "number": 43483,
-      "title": "Refactor duplicated reaction setup into shared helper",
-      "category": "refactor",
+      "number": 43500,
+      "title": "prefer-number-isnan: treat ESM import bindings as local shadows",
+      "category": "bug",
+      "risk": "low",
+      "score": 48,
+      "action": "batch_review",
+      "batch": "pr-batch:eslint-isnan",
+      "draft": false,
+      "reviews": "2xAPPROVED",
+      "note": "ESM import shadow fix for isNaN rule. 2x APPROVED. Review with #43515."
+    },
+    {
+      "number": 43508,
+      "title": "feat: support github-app in max-daily-ai-credits for dedicated guardrail token",
+      "category": "feature",
+      "risk": "high",
+      "score": 48,
+      "action": "batch_review",
+      "batch": null,
+      "draft": false,
+      "reviews": "CR",
+      "note": "github-app object syntax for credits guardrail. 7 files +495/-77. Bot CR."
+    },
+    {
+      "number": 43515,
+      "title": "prefer-number-isnan: autofix for provably-numeric args, drop misleading caveat",
+      "category": "bug",
       "risk": "low",
       "score": 40,
       "action": "batch_review",
-      "batch": "pr-batch:js-refactor",
+      "batch": "pr-batch:eslint-isnan",
       "draft": false,
-      "ci": "no_ci",
-      "note": "Extracts resolveReactionSetup helper. 4 files, +97/-22."
+      "reviews": "COMMENTED",
+      "note": "Autofix promotion for isNaN rule. Review with #43500."
     },
     {
-      "number": 43482,
-      "title": "Deduplicate discussion comment mutation flow across comment actions",
-      "category": "refactor",
+      "number": 43516,
+      "title": "[workflow-style] Normalize report formatting for 36 non-compliant workflows",
+      "category": "formatting",
+      "risk": "medium",
+      "score": 31,
+      "action": "defer",
+      "batch": null,
+      "draft": false,
+      "reviews": "CR",
+      "note": "30 files. Bot CHANGES_REQUESTED blocks."
+    },
+    {
+      "number": 43495,
+      "title": "Tighten step summary hierarchy and progressive disclosure",
+      "category": "formatting",
+      "risk": "medium",
+      "score": 28,
+      "action": "defer",
+      "batch": null,
+      "draft": false,
+      "reviews": "CR",
+      "note": "18 files. Bot CHANGES_REQUESTED blocks."
+    },
+    {
+      "number": 43506,
+      "title": "fix(lint): eliminate env-coupling in workflow_data, add_interactive_engine, outcomes_command",
+      "category": "chore",
+      "risk": "medium",
+      "score": 25,
+      "action": "defer",
+      "batch": null,
+      "draft": false,
+      "reviews": "2xCR",
+      "note": "5 files. Bot 2x CHANGES_REQUESTED blocks."
+    },
+    {
+      "number": 43497,
+      "title": "docs: update DICTATION.md with high-frequency project terms",
+      "category": "docs",
       "risk": "low",
       "score": 12,
-      "action": "close",
-      "draft": false,
-      "ci": "no_ci",
-      "note": "Empty diff — 0 files changed. Close and reopen when changes are committed."
+      "action": "defer",
+      "batch": null,
+      "draft": true,
+      "reviews": "none",
+      "note": "Draft. 1 file +801/-10. Low urgency."
     }
   ],
   "batches": [
     {
       "id": "pr-batch:security-fixes",
-      "prs": [43467, 43468],
-      "note": "Security fixes: GraphQL injection (CWE-89) + CodeQL overflow. Review together."
+      "prs": [43467],
+      "note": "Security: CWE-89 GraphQL injection. 2nd carry-over."
     },
     {
-      "id": "pr-batch:js-refactor",
-      "prs": [43480, 43483],
-      "note": "JS helper extraction refactors in actions/setup/js/. Low risk."
+      "id": "pr-batch:eslint-isnan",
+      "prs": [43500, 43515],
+      "note": "isNaN ESLint rule pair: ESM shadow + autofix. Review together."
     }
   ],
   "flags": [
-    "PR 43467: CWE-89 GraphQL injection security fix — merge ASAP",
-    "PR 43468: CodeQL allocation-size overflow — pair with 43467",
-    "PR 43482: empty diff (0 files changed) — close immediately",
-    "Full prior-run clearance: 17 PRs resolved (13 merged, 4 closed)"
+    "PR 43467: CWE-89 security fix — 2nd carry-over, ESCALATE NOW",
+    "PR 43525: 86% AI Moderator failure rate — merge ASAP",
+    "PR 43514: 3x APPROVED one-liner — auto_merge candidate",
+    "4 PRs blocked by bot CHANGES_REQUESTED (43516, 43495, 43506, 43508)",
+    "eslint-isnan cluster: review #43500 + #43515 together"
   ],
-  "report_issue_tid": "aw_triage_run7"
+  "report_issue_tid": "aw_triage_run8"
 }
