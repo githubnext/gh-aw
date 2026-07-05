@@ -190,6 +190,15 @@ Stop and emit a safe output **immediately** when any of the following is true:
 4. Call exactly one final safe output action (`add-comment`, `push-to-pull-request-branch`, or `noop`) and then stop.
 5. If you have enough evidence to decide, stop immediately. Do not gather optional data.
 
+## Gate Quality Bar
+
+A successful gate result:
+
+- clearly states whether ADR enforcement is not required, ADR-backed, divergent from the ADR, or missing enough context to decide
+- cites the exact evidence used for the decision
+- gives the author one clear next action
+- stops immediately after the single final safe-output action
+
 ## Step 1: Determine if This PR Requires an ADR
 
 Read the pre-fetched summary first:

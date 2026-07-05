@@ -663,4 +663,9 @@ Create a single GitHub discussion combining both signals.
 {"noop": {"message": "No firewall-enabled runs and no DIFC integrity-filtered events found in the last 7 days; no report generated."}}
 ```
 
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 {{#runtime-import shared/noop-reminder.md}}

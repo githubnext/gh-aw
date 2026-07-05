@@ -595,3 +595,7 @@ not removed automatically; the person concluding the experiment can remove them 
 Use the `add-labels` safe-output tool to apply labels to the tracking issue.
 If a label does not exist in the repository, create it with `create_label` GitHub MCP tool
 before applying it, using a neutral gray color (e.g. `#808080`) and a short description.
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.

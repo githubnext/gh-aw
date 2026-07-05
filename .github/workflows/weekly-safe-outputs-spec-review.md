@@ -267,4 +267,9 @@ You have successfully completed this task when:
 - A pull request has been created (if updates were made), OR
 - Confirmation that no updates are needed has been logged
 
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 {{#runtime-import shared/noop-reminder.md}}

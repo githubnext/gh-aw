@@ -173,7 +173,7 @@ func RunOutcomes(config OutcomesConfig) error {
 	// The --outcomes-dir flag takes precedence over the GH_AW_OUTCOMES_DIR env var.
 	outcomesDir := config.OutcomesDir
 	if outcomesDir == "" {
-		outcomesDir, _ = os.LookupEnv("GH_AW_OUTCOMES_DIR")
+		outcomesDir = lookupEnv("GH_AW_OUTCOMES_DIR")
 	}
 	if outcomesDir != "" {
 		writeOutcomeJSONL(outcomesDir, config.RunID, reports)

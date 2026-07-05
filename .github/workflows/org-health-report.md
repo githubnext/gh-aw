@@ -510,4 +510,9 @@ A successful health report:
 
 Begin the organization health report analysis now. Follow the phases in order, add appropriate delays, and generate a comprehensive report for maintainers.
 
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible details → next actions.
+
 {{#runtime-import shared/noop-reminder.md}}

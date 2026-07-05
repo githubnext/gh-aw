@@ -339,4 +339,12 @@ A successful audit:
 Begin your audit now. Navigate to the blog using Playwright, capture the accessibility snapshot, extract and validate code snippets, validate all criteria, and report your findings.
 {{/if}}
 
+### Output Format
+
+Use `###` (or lower) headers only.
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
+Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.
+
 {{#runtime-import shared/noop-reminder.md}}

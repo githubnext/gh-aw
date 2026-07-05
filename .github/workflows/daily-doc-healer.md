@@ -294,3 +294,7 @@ Call `noop` with a summary:
 - **Link everything**: Reference issues and PRs in all output.
 - **One PR per run**: Bundle all documentation fixes into a single pull request.
 - **Exit cleanly**: Always call exactly one safe-output tool before finishing (`create_pull_request`, `create_issue`, or `noop`).
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.

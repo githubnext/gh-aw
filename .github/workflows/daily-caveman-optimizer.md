@@ -245,4 +245,11 @@ Processed files X–Y of Z total files in the queue.
 - **Small batches**: Processing 5 files per run keeps each run focused and reviewable.
 - **Respect excluded files**: Never touch the excluded list above.
 
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
+Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.
+
 {{#runtime-import shared/noop-reminder.md}}

@@ -253,7 +253,7 @@ jobs:
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
-          
+
           GH_AW_PROMPT_NORM_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_prompt.md"
           cat << 'GH_AW_PROMPT_NORM_EOF'
@@ -262,49 +262,49 @@ jobs:
           {{#runtime-import shared/reporting.md}}
           {{#runtime-import shared/github-queries-mcp-script.md}}
           ## Serena Code Analysis
-          
+
           The Serena MCP server is configured for **["go"]** analysis in this workspace:
           - **Workspace**: `__GH_AW_GITHUB_WORKSPACE__`
           - **Memory**: `/tmp/gh-aw/cache-memory/serena/`
-          
+
           ### Project Activation
-          
+
           Before analyzing code, activate the Serena project:
           ```
           Tool: activate_project
           Args: { "path": "__GH_AW_GITHUB_WORKSPACE__" }
           ```
-          
+
           ### Available Capabilities
-          
+
           Serena provides IDE-grade Language Server Protocol (LSP) tools including:
           - **Symbol search**: `find_symbol` — locate functions, types, interfaces by name
           - **Navigation**: `find_referencing_symbols` — find all callers/usages of a symbol
           - **Type info**: `get_symbol_documentation` — hover-level type and doc information
           - **Code editing**: `replace_symbol_body`, `insert_after_symbol` — symbol-level edits
           - **Diagnostics**: `get_diagnostics` — compiler errors and linter warnings
-          
+
           ### Analysis Guidelines
-          
+
           1. **Use semantic tools over text search** — prefer Serena's LSP tools over `grep`
           2. **Activate project first** — always call `activate_project` before other tools
           3. **Cross-reference findings** — validate with multiple tools for accuracy
           4. **Focus on the relevant language files** — ignore unrelated file types
           # Smoke Test: Copilot Engine Validation
-          
+
           **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
-          
+
           ## Hard Limit: `add_comment` Budget
-          
+
           `safe-outputs.add-comment.max` is `2`. Never exceed 2 total `add_comment` calls in this run.
-          
+
           - Call #1 is required for the discussion interaction test (comment on latest discussion).
           - Call #2 depends on trigger:
             - `pull_request` event: post the brief PR summary comment, and **skip** the fun discussion follow-up comment.
             - non-`pull_request` event: **skip** the PR summary comment and post the fun discussion follow-up comment.
-          
+
           ## Test Requirements
-          
+
           1. **GitHub MCP Testing**: Review the last 2 merged pull requests in __GH_AW_GITHUB_REPOSITORY__
           2. **MCP Scripts GH CLI Testing**: Use the `mcpscripts-gh` tool to query 2 pull requests from __GH_AW_GITHUB_REPOSITORY__ (use args: "pr list --repo __GH_AW_GITHUB_REPOSITORY__ --limit 2 --json number,title,author")
           3. **Serena MCP Testing**: 
@@ -321,9 +321,9 @@ jobs:
           9. **Discussion Creation Testing**: Use the `create_discussion` safe-output tool to create a discussion in the announcements category titled "copilot was here" with the label "ai-generated"
           10. **Workflow Dispatch Testing**: Use the `dispatch_workflow` safe output tool to trigger the `haiku-printer` workflow with a haiku as the message input. Create an original, creative haiku about software testing or automation.
           11. **PR Review Testing**: Review the diff of the current pull request. Leave 1-2 inline `create_pull_request_review_comment` comments on specific lines, then call `submit_pull_request_review` with a brief body summarizing your review and event `COMMENT`. After submitting the review, use `reply_to_pull_request_review_comment` to reply to one of the inline comments you just created (use the `comment_id` returned by `create_pull_request_review_comment`).
-          
+
           ## Output
-          
+
           1. **Create an issue** with a summary of the smoke test run:
              - Title: "Smoke Test: Copilot - __GH_AW_GITHUB_RUN_ID__"
              - Body should include:
@@ -332,21 +332,21 @@ jobs:
                - Run URL: __GH_AW_GITHUB_SERVER_URL__/__GH_AW_GITHUB_REPOSITORY__/actions/runs/__GH_AW_GITHUB_RUN_ID__
                - Timestamp
                - Pull request author and assignees
-          
+
           2. **Only if this workflow was triggered by a pull_request event**: Add a **very brief** comment (max 5-10 lines) to the current pull request with:
              - PR titles only (no descriptions)
              - ✅ or ❌ for each test result
              - Overall status: PASS or FAIL
              - Mention the pull request author and any assignees
-          
+
           3. **Only if this workflow was NOT triggered by a pull_request event**: Use the `add_comment` tool to add a **fun and creative comment** to the latest discussion (using the `discussion_number` you extracted in step 7) - be playful and entertaining in your comment
-          
+
           4. Use the `send_slack_message` tool to send a brief summary message (e.g., "Smoke test __GH_AW_GITHUB_RUN_ID__: All tests passed! ✅")
-          
+
           If all tests pass:
           - Use the `add_labels` safe-output tool to add the label `smoke-copilot` to the pull request
           - Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request
-          
+
           GH_AW_PROMPT_NORM_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
@@ -382,9 +382,9 @@ jobs:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            
+
             const substitutePlaceholders = require('${{ runner.temp }}/gh-aw/actions/substitute_placeholders.cjs');
-            
+
             // Call the substitution function
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
@@ -631,7 +631,7 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-config"
           mkdir -p /tmp/gh-aw/mcp-logs/playwright
           chmod 777 /tmp/gh-aw/mcp-logs/playwright
-          
+
           # Export gateway environment variables for MCP config and gateway script
           export MCP_GATEWAY_PORT="8080"
           export MCP_GATEWAY_DOMAIN="awmg-mcpg"
@@ -643,7 +643,7 @@ jobs:
           mkdir -p "${MCP_GATEWAY_PAYLOAD_DIR}"
           export MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD="524288"
           export DEBUG="*"
-          
+
           export GH_AW_ENGINE="copilot"
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
@@ -654,7 +654,7 @@ jobs:
           esac
           DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network bridge -p 127.0.0.1:'"${MCP_GATEWAY_PORT}"':'"${MCP_GATEWAY_PORT}"' --name awmg-mcpg --add-host host.docker.internal:host-gateway --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw -v '"${RUNNER_TEMP}"'/gh-aw/safeoutputs:'"${RUNNER_TEMP}"'/gh-aw/safeoutputs:rw ghcr.io/github/gh-aw-mcpg:v0.3.33'
-          
+
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
           cat << GH_AW_MCP_CONFIG_NORM_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
@@ -984,4 +984,3 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
             await main();
-

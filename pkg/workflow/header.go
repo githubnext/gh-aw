@@ -47,7 +47,13 @@ func GenerateWorkflowHeader(sourceFile string, generatedBy string, customInstruc
 	logoLines := strings.Split(strings.TrimRight(headerAsciiLogo, "\n"), "\n")
 	headerLog.Printf("Adding ASCII logo with %d lines", len(logoLines))
 	for _, line := range logoLines {
-		fmt.Fprintf(&header, "# %s\n", line)
+		// Strip trailing whitespace from each logo line so the generated comment
+		// lines do not carry trailing spaces (yamllint trailing-spaces).
+		if trimmed := strings.TrimRight(line, " \t"); trimmed == "" {
+			header.WriteString("#\n")
+		} else {
+			fmt.Fprintf(&header, "# %s\n", trimmed)
+		}
 	}
 	header.WriteString("#\n")
 	header.WriteString("#\n")
