@@ -1,22 +1,47 @@
 import { test, expect } from '@playwright/test';
 
+const EXPECTED_ROBOTS_TXT = [
+  'User-agent: *',
+  'Allow: /',
+  '',
+  'User-agent: GPTBot',
+  'Allow: /',
+  '',
+  'User-agent: OAI-SearchBot',
+  'Allow: /',
+  '',
+  'User-agent: ChatGPT-User',
+  'Allow: /',
+  '',
+  'User-agent: anthropic-ai',
+  'Allow: /',
+  '',
+  'User-agent: ClaudeBot',
+  'Allow: /',
+  '',
+  'User-agent: PerplexityBot',
+  'Allow: /',
+  '',
+  'User-agent: Perplexity-User',
+  'Allow: /',
+  '',
+  'User-agent: Google-Extended',
+  'Allow: /',
+  '',
+  'User-agent: Google-CloudVertexBot',
+  'Allow: /',
+  '',
+  'Sitemap: https://github.github.com/gh-aw/sitemap-index.xml',
+  '',
+].join('\n');
+
 test.describe('robots.txt', () => {
-	test('should expose the docs crawler policy and sitemap index', async ({ request }) => {
-		const response = await request.get('/gh-aw/robots.txt');
-		expect(response.ok()).toBeTruthy();
+  test('should contain only the expected AI crawler directives and sitemap index', async ({ request }) => {
+    const response = await request.get('/gh-aw/robots.txt');
+    expect(response.ok()).toBeTruthy();
 
-		const body = await response.text();
+    const body = (await response.text()).replace(/\r\n/g, '\n');
 
-		expect(body).toContain('User-agent: *\nAllow: /');
-		expect(body).toContain('User-agent: GPTBot\nAllow: /');
-		expect(body).toContain('User-agent: OAI-SearchBot\nAllow: /');
-		expect(body).toContain('User-agent: ChatGPT-User\nAllow: /');
-		expect(body).toContain('User-agent: anthropic-ai\nAllow: /');
-		expect(body).toContain('User-agent: ClaudeBot\nAllow: /');
-		expect(body).toContain('User-agent: PerplexityBot\nAllow: /');
-		expect(body).toContain('User-agent: Perplexity-User\nAllow: /');
-		expect(body).toContain('User-agent: Google-Extended\nAllow: /');
-		expect(body).toContain('User-agent: Google-CloudVertexBot\nAllow: /');
-		expect(body).toContain('Sitemap: https://github.github.com/gh-aw/sitemap-index.xml');
-	});
+    expect(body).toBe(EXPECTED_ROBOTS_TXT);
+  });
 });
