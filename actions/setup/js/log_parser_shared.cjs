@@ -267,14 +267,14 @@ function isLikelyCustomAgent(toolName) {
  * @param {string} title
  * @param {string} summary
  * @param {string} body
- * @param {{open?: boolean}} [options]
+ * @param {{open?: boolean, emptyBodyMessage?: string}} [options]
  * @returns {string}
  */
 function buildStepSummaryDetailsSection(title, summary, body, options = {}) {
-  const { open = false } = options;
+  const { open = false, emptyBodyMessage = "No details available." } = options;
   const openAttr = open ? " open" : "";
   const trimmedBody = typeof body === "string" ? body.trim() : "";
-  const content = trimmedBody || `No ${title.toLowerCase()} available.`;
+  const content = trimmedBody || emptyBodyMessage;
   return `### ${title}\n\n<details${openAttr}>\n<summary>${summary}</summary>\n\n${content}\n</details>\n\n`;
 }
 
@@ -291,7 +291,7 @@ function generateInformationSection(lastEntry, options = {}) {
   let markdown = "";
 
   if (!lastEntry) {
-    return buildStepSummaryDetailsSection("Information", "Show run metadata", "");
+    return buildStepSummaryDetailsSection("Information", "Show run metadata", "", { emptyBodyMessage: "No information available." });
   }
 
   if (lastEntry.num_turns) {
@@ -349,7 +349,7 @@ function generateInformationSection(lastEntry, options = {}) {
     markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
   }
 
-  return buildStepSummaryDetailsSection("Information", "Show run metadata", markdown);
+  return buildStepSummaryDetailsSection("Information", "Show run metadata", markdown, { emptyBodyMessage: "No information available." });
 }
 
 /**

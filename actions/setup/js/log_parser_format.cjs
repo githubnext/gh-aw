@@ -96,7 +96,7 @@ function createLogParserFormatters(deps) {
    */
   function buildStepSummaryDetailsSection(title, summary, body) {
     const trimmedBody = typeof body === "string" ? body.trim() : "";
-    const content = trimmedBody || `No ${title.toLowerCase()} available.`;
+    const content = trimmedBody || "No details available.";
     return `### ${title}\n\n<details>\n<summary>${summary}</summary>\n\n${content}\n</details>\n\n`;
   }
 
@@ -160,7 +160,6 @@ function createLogParserFormatters(deps) {
           let text = content.thinking.trim();
           text = unfenceMarkdown(text);
           if (text) {
-            commandDetailsBody += "";
             reasoningBody += `<sub><em>${text.replace(/\n/g, "<br>")}</em></sub>\n\n`;
           }
         } else if (content.type === "tool_use") {
