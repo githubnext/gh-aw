@@ -10,7 +10,7 @@ const VALID_REACTIONS = Object.freeze(["+1", "-1", "laugh", "confused", "heart",
 /**
  * Resolve and validate reaction input plus invocation context.
  * @param {any} rawContext
- * @returns {{ reaction: string, invocationContext: ReturnType<typeof resolveInvocationContext> } | null}
+ * @returns {{ reaction: string, invocationContext: ReturnType<typeof resolveInvocationContext> } | null }
  */
 function resolveReactionSetup(rawContext) {
   const reaction = process.env.GH_AW_REACTION || "eyes";
