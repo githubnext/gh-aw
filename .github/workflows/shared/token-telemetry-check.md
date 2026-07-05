@@ -1,55 +1,20 @@
 ---
-private: true
-emoji: "📊"
-name: Smoke Token Telemetry
-description: >-
-  Smoke CI assertion: validates that the AWF firewall proxy token-usage emitter
-  populates token_usage.jsonl for copilot agent LLM runs. Fails fast when
-  token telemetry is broken, so regressions are caught in hours not weeks.
-on:
-  push:
-    branches: [main]
-    paths:
-      - 'actions/setup/js/**'
-      - 'cmd/**'
-      - 'pkg/**'
-      - '*.go'
-      - 'go.mod'
-  schedule: daily
-concurrency:
-  group: smoke-token-telemetry-${{ github.ref }}
-  cancel-in-progress: true
-permissions:
-  contents: read
-engine:
-  id: copilot
-strict: true
-timeout-minutes: 5
-network:
-  allowed:
-    - defaults
-imports:
-  - shared/otlp.md
-safe-outputs:
-  allowed-domains: [default-safe-outputs]
-  noop:
-features:
-  gh-aw-detection: false
 jobs:
   check_token_telemetry:
+    runs-on: ubuntu-latest
     needs: [agent]
     if: needs.agent.result == 'success'
-    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - name: Download agent artifact
         id: download-agent
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8.0.1
         with:
           name: agent
           path: /tmp/gh-aw/
+
       - name: Assert token_usage.jsonl is non-empty
         if: steps.download-agent.outcome == 'success'
         run: |
@@ -78,6 +43,7 @@ jobs:
             echo "::error::See tracking issue: https://github.com/github/gh-aw/issues/42791"
             exit 1
           fi
+
       - name: Assert agent_usage.json has non-zero token counts
         if: steps.download-agent.outcome == 'success'
         run: |
@@ -94,5 +60,31 @@ jobs:
           fi
           echo "OK: agent_usage.json reports ${INPUT_TOKENS} input tokens"
 ---
+<!--
+# Token Telemetry Check
 
-Say the single word "ok" and call noop with a message confirming this run completed successfully.
+This shared workflow adds a `check_token_telemetry` job that runs after the `agent` job
+and asserts that AWF firewall proxy token telemetry is functioning correctly.
+
+It guards against silent regressions in the `token_usage.jsonl` emitter, which feeds
+downstream token-cost and API-consumption audits.
+
+## What it checks
+
+1. **`token_usage.jsonl` is non-empty** — scans the three known sandbox proxy log paths
+   and asserts that at least one file has content (i.e., the firewall proxy recorded LLM calls).
+2. **`agent_usage.json` has non-zero `input_tokens`** — asserts that the agent usage summary
+   written to the artifact reports at least one input token.
+
+## When it runs
+
+The job only executes when `needs.agent.result == 'success'`, so it is skipped for noop,
+skipped, or failed agent runs.
+
+## Usage
+
+```yaml
+imports:
+  - shared/token-telemetry-check.md
+```
+-->
