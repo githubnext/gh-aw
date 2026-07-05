@@ -91,6 +91,7 @@ describe("detect_agent_errors.cjs", () => {
     it("does not match timeouts waiting for states other than session.idle", () => {
       expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test("Timeout after 5000ms waiting for session.connected")).toBe(false);
       expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test("Timeout after 5000ms waiting for session_idle")).toBe(false);
+      expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test("Timeout after 5000ms waiting for network response")).toBe(false);
     });
 
     it("does not match regular exit without signal", () => {
@@ -342,7 +343,7 @@ describe("detect_agent_errors.cjs", () => {
     });
 
     it("detects SDK session.idle timeout alongside other errors", () => {
-      const log = "Access denied by policy settings\n[sdk-driver] info: retrying request\n[copilot-sdk-driver] [sdk-driver] error: Timeout after 870000ms waiting for session.idle";
+      const log = "Access denied by policy settings\n[sdk-driver] info: retrying request\n[copilot-sdk-driver] error: Timeout after 870000ms waiting for session.idle";
       const result = detectErrors(log);
       expect(result.inferenceAccessError).toBe(true);
       expect(result.mcpPolicyError).toBe(false);
