@@ -20,12 +20,14 @@ const maxDailyAICreditsConfiguredIfExpr = "${{ env.GH_AW_MAX_DAILY_AI_CREDITS !=
 // extractMaxDailyAICObjectValue normalizes the max-daily-ai-credits frontmatter
 // value for scalar processing. When the value is in the object form
 // (e.g. {value: 123, github-app: {...}}), the inner "value" key is extracted
-// and returned; otherwise the original value is returned unchanged.
+// and returned. When the object form lacks a "value" key, nil is returned so
+// that downstream callers treat the limit as unset and fall back to imported or
+// default values. When the value is not in object form, it is returned unchanged.
 func extractMaxDailyAICObjectValue(raw any) any {
 	if m, ok := raw.(map[string]any); ok {
-		if v, ok := m["value"]; ok {
-			return v
-		}
+		// Object form: extract "value" if present, otherwise return nil so the
+		// limit is treated as unset (the github-app key alone does not set a limit).
+		return m["value"]
 	}
 	return raw
 }
