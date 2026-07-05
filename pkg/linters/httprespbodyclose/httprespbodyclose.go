@@ -56,8 +56,6 @@ func inspectFunc(pass *analysis.Pass, n ast.Node, noLintLinesByFile map[string]m
 			return
 		}
 		body = fn.Body
-	default:
-		return
 	}
 
 	pos := pass.Fset.PositionFor(n.Pos(), false)
