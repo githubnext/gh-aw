@@ -12,18 +12,6 @@ var (
 	processEnvLookup   envLookupFunc = os.LookupEnv
 )
 
-// SetProcessEnvLookup configures how CLI helpers resolve environment values.
-// Passing nil restores the default process environment lookup.
-func SetProcessEnvLookup(lookup func(string) (string, bool)) {
-	processEnvLookupMu.Lock()
-	defer processEnvLookupMu.Unlock()
-	if lookup == nil {
-		processEnvLookup = os.LookupEnv
-		return
-	}
-	processEnvLookup = lookup
-}
-
 func lookupEnv(key string) string {
 	processEnvLookupMu.RLock()
 	defer processEnvLookupMu.RUnlock()
@@ -31,10 +19,4 @@ func lookupEnv(key string) string {
 	// missing variables and explicitly empty variables are both treated as "".
 	value, _ := processEnvLookup(key)
 	return value
-}
-
-func lookupEnvOk(key string) (string, bool) {
-	processEnvLookupMu.RLock()
-	defer processEnvLookupMu.RUnlock()
-	return processEnvLookup(key)
 }

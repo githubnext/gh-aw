@@ -127,6 +127,40 @@ func TestIsPermissionErrorStr(t *testing.T) {
 	}
 }
 
+func TestProcessedRunFromSummaryBackfillsTurnsFromMetrics(t *testing.T) {
+	summary := &RunSummary{
+		Run:     WorkflowRun{DatabaseID: 123, Turns: 0},
+		Metrics: LogMetrics{Turns: 34},
+	}
+
+	processed := processedRunFromSummary(summary, "/tmp/run-output")
+
+	assert.Equal(t, 34, processed.Run.Turns, "run turns should backfill from summary metrics when run turns are missing")
+	assert.Equal(t, "/tmp/run-output", processed.Run.LogsPath, "logs path should be set from the current run output directory")
+}
+
+func TestProcessedRunFromSummaryPreservesExistingTurns(t *testing.T) {
+	summary := &RunSummary{
+		Run:     WorkflowRun{DatabaseID: 456, Turns: 7},
+		Metrics: LogMetrics{Turns: 34},
+	}
+
+	processed := processedRunFromSummary(summary, "/tmp/run-output")
+
+	assert.Equal(t, 7, processed.Run.Turns, "existing run turns should not be overwritten by summary metrics")
+}
+
+func TestProcessedRunFromSummaryBothTurnsZero(t *testing.T) {
+	summary := &RunSummary{
+		Run:     WorkflowRun{DatabaseID: 789, Turns: 0},
+		Metrics: LogMetrics{Turns: 0},
+	}
+
+	processed := processedRunFromSummary(summary, "/tmp/run-output")
+
+	assert.Equal(t, 0, processed.Run.Turns, "run turns should remain zero when neither Run.Turns nor Metrics.Turns is available")
+}
+
 func TestBuildAuditData(t *testing.T) {
 	// Create test data
 	run := WorkflowRun{
