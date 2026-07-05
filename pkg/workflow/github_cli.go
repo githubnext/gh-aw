@@ -140,13 +140,18 @@ func enrichGHError(err error) error {
 
 // runGHWithSpinnerContext executes a gh CLI command with context support, a spinner,
 // and returns the output. This is the core implementation for all RunGH* functions.
-func runGHWithSpinnerContext(ctx context.Context, spinnerMessage string, combined bool, args ...string) ([]byte, error) {
+// If stdin is non-nil it is attached to the command's standard input.
+func runGHWithSpinnerContext(ctx context.Context, spinnerMessage string, combined bool, stdin io.Reader, args ...string) ([]byte, error) {
 	cmd := ExecGHContext(ctx, args...)
+	if stdin != nil {
+		cmd.Stdin = stdin
+	}
 
 	// Show spinner in interactive terminals
 	if tty.IsStderrTerminal() {
 		spinner := console.NewSpinner(spinnerMessage)
 		spinner.Start()
+		defer spinner.Stop()
 		var output []byte
 		var err error
 		if combined {
@@ -155,7 +160,6 @@ func runGHWithSpinnerContext(ctx context.Context, spinnerMessage string, combine
 			output, err = cmd.Output()
 			err = enrichGHError(err)
 		}
-		spinner.Stop()
 		return output, err
 	}
 
@@ -174,20 +178,7 @@ func runGHWithSpinnerContext(ctx context.Context, spinnerMessage string, combine
 //
 //	output, err := RunGHInputContext(ctx, "Creating project...", bytes.NewReader(jsonBody), "api", "graphql", "--input", "-")
 func RunGHInputContext(ctx context.Context, spinnerMessage string, input io.Reader, args ...string) ([]byte, error) {
-	cmd := ExecGHContext(ctx, args...)
-	cmd.Stdin = input
-
-	if tty.IsStderrTerminal() {
-		spinner := console.NewSpinner(spinnerMessage)
-		spinner.Start()
-		output, err := cmd.Output()
-		err = enrichGHError(err)
-		spinner.Stop()
-		return output, err
-	}
-
-	output, err := cmd.Output()
-	return output, enrichGHError(err)
+	return runGHWithSpinnerContext(ctx, spinnerMessage, false, input, args...)
 }
 
 // RunGH executes a gh CLI command with a spinner and returns the stdout output.
@@ -209,7 +200,7 @@ func RunGH(spinnerMessage string, args ...string) ([]byte, error) {
 //
 //	output, err := RunGHContext(ctx, "Fetching user info...", "api", "/user")
 func RunGHContext(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
-	return runGHWithSpinnerContext(ctx, spinnerMessage, false, args...)
+	return runGHWithSpinnerContext(ctx, spinnerMessage, false, nil, args...)
 }
 
 // RunGHCombined executes a gh CLI command with a spinner and returns combined stdout+stderr output.
@@ -231,7 +222,7 @@ func RunGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
 //
 //	output, err := RunGHCombinedContext(ctx, "Fetching releases...", "api", "/repos/owner/repo/releases")
 func RunGHCombinedContext(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
-	return runGHWithSpinnerContext(ctx, spinnerMessage, true, args...)
+	return runGHWithSpinnerContext(ctx, spinnerMessage, true, nil, args...)
 }
 
 // RunGHWithHost executes a gh CLI command with a spinner, targeting a specific GitHub host.

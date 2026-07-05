@@ -365,12 +365,18 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 
 	// Get repository ID
 	repoIdQuery := `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id } }`
-	output, err := workflow.RunGH("Getting repository ID...", "api", "graphql",
-		"-f", "query="+repoIdQuery,
-		"-f", "owner="+repoOwner,
-		"-f", "name="+repoName,
-		"--jq", ".data.repository.id",
-	)
+	repoIdBody := map[string]any{
+		"query": repoIdQuery,
+		"variables": map[string]any{
+			"owner": repoOwner,
+			"name":  repoName,
+		},
+	}
+	repoIdJSON, err := json.Marshal(repoIdBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal GraphQL request: %w", err)
+	}
+	output, err := workflow.RunGHInputContext(ctx, "Getting repository ID...", bytes.NewReader(repoIdJSON), "api", "graphql", "--input", "-", "--jq", ".data.repository.id")
 	if err != nil {
 		return fmt.Errorf("repository '%s' not found: %w", repoSlug, err)
 	}

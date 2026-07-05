@@ -44,6 +44,8 @@ func RunGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
 	return nil, errors.New("gh CLI not available in Wasm")
 }
 
+// RunGHInputContext is a no-op stub for Wasm builds.
+// The input reader is intentionally not used in this build target.
 func RunGHInputContext(ctx context.Context, spinnerMessage string, input io.Reader, args ...string) ([]byte, error) {
 	return nil, errors.New("gh CLI not available in Wasm")
 }
