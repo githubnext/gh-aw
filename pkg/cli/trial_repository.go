@@ -486,26 +486,6 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, v
 	return nil
 }
 
-// getLocalBranch returns the current branch name of the git repository in dir.
-// Falls back to "main" when the directory is not a git repository, the branch
-// cannot be determined, or the repo is in detached HEAD state.
-func getLocalBranch(dir string) string {
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-	cmd.Dir = dir
-	out, err := cmd.Output()
-	if err != nil {
-		trialRepoLog.Printf("Failed to detect local branch in %s: %v, falling back to main", dir, err)
-		return "main"
-	}
-	branch := strings.TrimSpace(string(out))
-	if branch == "" || branch == "HEAD" {
-		trialRepoLog.Printf("Could not determine local branch in %s (got %q), falling back to main", dir, branch)
-		return "main"
-	}
-	trialRepoLog.Printf("Detected local branch in %s: %s", dir, branch)
-	return branch
-}
-
 // commitAndPushWorkflow commits and pushes the workflow changes
 func commitAndPushWorkflow(tempDir, workflowName string, verbose bool) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Committing workflow and lock files to host repository"))
@@ -542,7 +522,11 @@ func commitAndPushWorkflow(tempDir, workflowName string, verbose bool) error {
 		return fmt.Errorf("failed to commit changes: %w (output: %s)", err, string(output))
 	}
 
-	branch := getLocalBranch(tempDir)
+	branch, err := getCurrentBranchIn(tempDir)
+	if err != nil {
+		trialRepoLog.Printf("Failed to detect branch in %s: %v, falling back to main", tempDir, err)
+		branch = "main"
+	}
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from "+branch+" branch"))
 	}

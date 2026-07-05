@@ -364,7 +364,11 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 		return fmt.Errorf("failed to commit trial results: %w (output: %s)", err, string(output))
 	}
 
-	branch := getLocalBranch(tempDir)
+	branch, err := getCurrentBranchIn(tempDir)
+	if err != nil {
+		trialLog.Printf("Failed to detect branch in %s: %v, falling back to main", tempDir, err)
+		branch = "main"
+	}
 	// Pull latest changes before pushing to avoid conflicts
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from "+branch+" branch"))

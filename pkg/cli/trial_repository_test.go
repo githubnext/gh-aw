@@ -65,7 +65,7 @@ func TestTrialRepositoryURLHelpers(t *testing.T) {
 	}
 }
 
-func TestGetLocalBranch(t *testing.T) {
+func TestGetCurrentBranchIn(t *testing.T) {
 	// initRepo creates a minimal git repo in dir with the given branch name.
 	initRepo := func(t *testing.T, dir, branch string) {
 		t.Helper()
@@ -87,31 +87,44 @@ func TestGetLocalBranch(t *testing.T) {
 	t.Run("returns main for a repo using main", func(t *testing.T) {
 		dir := t.TempDir()
 		initRepo(t, dir, "main")
-		if got := getLocalBranch(dir); got != "main" {
-			t.Fatalf("getLocalBranch() = %q, want %q", got, "main")
+		got, err := getCurrentBranchIn(dir)
+		if err != nil {
+			t.Fatalf("getCurrentBranchIn() unexpected error: %v", err)
+		}
+		if got != "main" {
+			t.Fatalf("getCurrentBranchIn() = %q, want %q", got, "main")
 		}
 	})
 
 	t.Run("returns master for a repo using master", func(t *testing.T) {
 		dir := t.TempDir()
 		initRepo(t, dir, "master")
-		if got := getLocalBranch(dir); got != "master" {
-			t.Fatalf("getLocalBranch() = %q, want %q", got, "master")
+		got, err := getCurrentBranchIn(dir)
+		if err != nil {
+			t.Fatalf("getCurrentBranchIn() unexpected error: %v", err)
+		}
+		if got != "master" {
+			t.Fatalf("getCurrentBranchIn() = %q, want %q", got, "master")
 		}
 	})
 
 	t.Run("returns custom branch name", func(t *testing.T) {
 		dir := t.TempDir()
 		initRepo(t, dir, "trunk")
-		if got := getLocalBranch(dir); got != "trunk" {
-			t.Fatalf("getLocalBranch() = %q, want %q", got, "trunk")
+		got, err := getCurrentBranchIn(dir)
+		if err != nil {
+			t.Fatalf("getCurrentBranchIn() unexpected error: %v", err)
+		}
+		if got != "trunk" {
+			t.Fatalf("getCurrentBranchIn() = %q, want %q", got, "trunk")
 		}
 	})
 
-	t.Run("falls back to main for non-git directory", func(t *testing.T) {
+	t.Run("returns error for non-git directory", func(t *testing.T) {
 		dir := t.TempDir()
-		if got := getLocalBranch(dir); got != "main" {
-			t.Fatalf("getLocalBranch() = %q, want %q", got, "main")
+		_, err := getCurrentBranchIn(dir)
+		if err == nil {
+			t.Fatal("getCurrentBranchIn() expected an error for non-git directory, got nil")
 		}
 	})
 }
