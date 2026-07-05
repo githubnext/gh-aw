@@ -39,6 +39,7 @@ strict: true
 timeout-minutes: 20
 tools:
   bash:
+  - "*"
   - find pkg/cli/workflows -name "test-*.md" -type f
   - ls pkg/cli/workflows/
   - grep -rn "safe-outputs:" pkg/cli/workflows/*.md
