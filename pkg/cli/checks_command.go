@@ -39,6 +39,11 @@ type ChecksConfig struct {
 	Repo       string
 	PRNumber   string
 	JSONOutput bool
+	// HeadSHA is an optional pre-resolved head commit SHA. When non-empty,
+	// the command skips the API call that fetches the PR head SHA, saving one
+	// REST API request. Callers that already have the SHA from a prior batch
+	// fetch (e.g. gh pr list --json headRefOid) should pass it here.
+	HeadSHA string
 }
 
 // PRCheckRun represents a single check run from the GitHub API.
@@ -100,11 +105,13 @@ deployment integrations posting commit statuses alongside required CI checks.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, _ := cmd.Flags().GetString("repo")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
+			headSHA, _ := cmd.Flags().GetString("head-sha")
 
 			config := ChecksConfig{
 				Repo:       repo,
 				PRNumber:   args[0],
 				JSONOutput: jsonOutput,
+				HeadSHA:    headSHA,
 			}
 
 			return RunChecks(config)
@@ -113,6 +120,7 @@ deployment integrations posting commit statuses alongside required CI checks.`,
 
 	addRepoFlag(cmd)
 	addJSONFlag(cmd)
+	cmd.Flags().String("head-sha", "", "Pre-resolved head commit SHA; skips the API call that fetches the PR head SHA")
 
 	return cmd
 }
@@ -121,7 +129,7 @@ deployment integrations posting commit statuses alongside required CI checks.`,
 func RunChecks(config ChecksConfig) error {
 	checksLog.Printf("Running checks: pr=%s, repo=%s", config.PRNumber, config.Repo)
 
-	result, err := FetchChecksResult(config.Repo, config.PRNumber)
+	result, err := fetchChecksResultInternal(config.Repo, config.PRNumber, config.HeadSHA)
 	if err != nil {
 		return err
 	}
@@ -136,14 +144,24 @@ func RunChecks(config ChecksConfig) error {
 // FetchChecksResult fetches check runs and statuses for a PR and returns a classified result.
 // This function is exported for use in tests and other packages.
 func FetchChecksResult(repoOverride string, prNumber string) (*ChecksResult, error) {
+	return fetchChecksResultInternal(repoOverride, prNumber, "")
+}
+
+// fetchChecksResultInternal is the shared implementation used by both RunChecks and
+// FetchChecksResult. When headSHA is non-empty it is used directly, skipping the
+// REST call that would otherwise resolve the SHA from the PR number.
+func fetchChecksResultInternal(repoOverride string, prNumber string, headSHA string) (*ChecksResult, error) {
 	checksLog.Printf("Fetching checks result: repo=%s, pr=%s", repoOverride, prNumber)
 
-	// Step 1: Resolve head SHA from PR
-	headSHA, err := fetchPRHeadSHA(repoOverride, prNumber)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch PR head SHA: %w", err)
+	if headSHA == "" {
+		// Step 1: Resolve head SHA from PR (skipped when caller provides it).
+		var err error
+		headSHA, err = fetchPRHeadSHA(repoOverride, prNumber)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch PR head SHA: %w", err)
+		}
 	}
-	checksLog.Printf("Resolved head SHA: %s", headSHA)
+	checksLog.Printf("Using head SHA: %s", headSHA)
 
 	// Step 2: Fetch check runs
 	checkRuns, err := fetchCheckRuns(repoOverride, headSHA)
