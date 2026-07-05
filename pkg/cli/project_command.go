@@ -302,11 +302,19 @@ func createProject(ctx context.Context, ownerId, title string, verbose bool) (ma
 		}
 	}`
 
-	output, err := workflow.RunGH("Creating project...", "api", "graphql",
-		"-f", "query="+mutation,
-		"-f", "ownerId="+ownerId,
-		"-f", "title="+title,
-	)
+	requestBody := map[string]any{
+		"query": mutation,
+		"variables": map[string]any{
+			"ownerId": ownerId,
+			"title":   title,
+		},
+	}
+	requestJSON, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal GraphQL request: %w", err)
+	}
+
+	output, err := workflow.RunGHInputContext(ctx, "Creating project...", bytes.NewReader(requestJSON), "api", "graphql", "--input", "-")
 	if err != nil {
 		// Check for permission errors
 		//nolint:errstringmatch // gh CLI GraphQL surfaces missing Projects scope as INSUFFICIENT_SCOPES text.
@@ -381,11 +389,19 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 		}
 	}`
 
-	_, err = workflow.RunGH("Linking project to repository...", "api", "graphql",
-		"-f", "query="+mutation,
-		"-f", "projectId="+projectId,
-		"-f", "repositoryId="+repoId,
-	)
+	mutationBody := map[string]any{
+		"query": mutation,
+		"variables": map[string]any{
+			"projectId":    projectId,
+			"repositoryId": repoId,
+		},
+	}
+	mutationJSON, err := json.Marshal(mutationBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal GraphQL request: %w", err)
+	}
+
+	_, err = workflow.RunGHInputContext(ctx, "Linking project to repository...", bytes.NewReader(mutationJSON), "api", "graphql", "--input", "-")
 	if err != nil {
 		return fmt.Errorf("failed to link project to repository: %w", err)
 	}

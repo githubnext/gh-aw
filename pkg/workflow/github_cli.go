@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -161,6 +162,30 @@ func runGHWithSpinnerContext(ctx context.Context, spinnerMessage string, combine
 	if combined {
 		return cmd.CombinedOutput()
 	}
+	output, err := cmd.Output()
+	return output, enrichGHError(err)
+}
+
+// RunGHInputContext executes a gh CLI command with context, a spinner, and an io.Reader piped
+// to the command's stdin. Use this when passing request bodies via stdin (e.g., gh api --input -).
+// The spinner is shown in interactive terminals to provide feedback during network operations.
+//
+// Usage:
+//
+//	output, err := RunGHInputContext(ctx, "Creating project...", bytes.NewReader(jsonBody), "api", "graphql", "--input", "-")
+func RunGHInputContext(ctx context.Context, spinnerMessage string, input io.Reader, args ...string) ([]byte, error) {
+	cmd := ExecGHContext(ctx, args...)
+	cmd.Stdin = input
+
+	if tty.IsStderrTerminal() {
+		spinner := console.NewSpinner(spinnerMessage)
+		spinner.Start()
+		output, err := cmd.Output()
+		err = enrichGHError(err)
+		spinner.Stop()
+		return output, err
+	}
+
 	output, err := cmd.Output()
 	return output, enrichGHError(err)
 }

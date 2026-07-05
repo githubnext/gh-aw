@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os/exec"
 )
 
@@ -40,6 +41,10 @@ func RunGHContext(ctx context.Context, spinnerMessage string, args ...string) ([
 }
 
 func RunGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
+	return nil, errors.New("gh CLI not available in Wasm")
+}
+
+func RunGHInputContext(ctx context.Context, spinnerMessage string, input io.Reader, args ...string) ([]byte, error) {
 	return nil, errors.New("gh CLI not available in Wasm")
 }
 
