@@ -173,14 +173,14 @@ func TestBuildEvalsJob_DefaultRunsOn(t *testing.T) {
 func TestBuildEvalsJob_CustomRunsOn(t *testing.T) {
 	c := NewCompiler()
 	data := makeEvalsWorkflowData()
-	data.Evals.RunsOn = "ubuntu-latest"
+	data.Evals.RunsOn = "self-hosted"
 
 	job, err := c.buildEvalsJob(data)
 	require.NoError(t, err)
 	require.NotNil(t, job)
 
-	// RunsOn should still reference ubuntu-latest
-	assert.Contains(t, job.RunsOn, "ubuntu-latest")
+	// The custom runner should appear in the job's RunsOn field.
+	assert.Contains(t, job.RunsOn, "self-hosted", "custom RunsOn value should be reflected in the job")
 }
 
 // ---------------------------------------------------------------------------

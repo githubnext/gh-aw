@@ -28,7 +28,7 @@ func (c *Compiler) buildEvalsJobSteps(data *WorkflowData) []string {
 	steps = append(steps, c.buildEvalsHarnessStep(data)...)
 
 	// Step 3: Render step summary from JSONL results.
-	steps = append(steps, c.buildEvalsStepSummaryStep()...)
+	steps = append(steps, c.buildEvalsStepSummaryStep(data)...)
 
 	return steps
 }
@@ -223,13 +223,13 @@ if (anyError) {
 
 // buildEvalsStepSummaryStep creates a step that renders the evaluation results as a
 // GitHub Actions step summary in Markdown.
-func (c *Compiler) buildEvalsStepSummaryStep() []string {
+func (c *Compiler) buildEvalsStepSummaryStep(data *WorkflowData) []string {
 	var step strings.Builder
 	step.WriteString("      - name: Render evaluation summary\n")
 	step.WriteString("        id: evals_summary\n")
 	step.WriteString("        if: always()\n")
 	step.WriteString("        continue-on-error: true\n")
-	fmt.Fprintf(&step, "        uses: %s\n", getCachedActionPin("actions/github-script", nil))
+	fmt.Fprintf(&step, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	step.WriteString("        with:\n")
 	step.WriteString("          script: |\n")
 	step.WriteString("            const fs = require('fs');\n")
