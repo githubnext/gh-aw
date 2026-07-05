@@ -1,0 +1,16 @@
+{
+  "counts": {
+    "model_size": {
+      "small": 1
+    }
+  },
+  "runs": [
+    {
+      "run_id": "28742538332",
+      "timestamp": "2026-07-05T13:40:34.815Z",
+      "assignments": {
+        "model_size": "small"
+      }
+    }
+  ]
+}
