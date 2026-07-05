@@ -20,7 +20,25 @@ var writeScopeOrder = map[string]int{
 	"":               0,
 }
 
+// scopePriorityOrder maps scope names to their precedence rank.
+// Higher rank means the scope takes precedence over lower ranks.
+// Rules must be applied from highest to lowest precedence so that a higher-
+// precedence scope (e.g. organization) seeds the policy before lower-precedence
+// rules (e.g. intent) can only narrow it.
+var scopePriorityOrder = map[string]int{
+	"organization": 4,
+	"repository":   3,
+	"intent":       2,
+	"workflow":     1,
+	"":             0,
+}
+
 // ExecutionPolicy governs what an agent may do for a given intent.
+//
+// WARNING: PolicyCompiler is advisory only. All fields except Autonomy are
+// compiled and recorded for audit but are NOT yet wired into runtime enforcement.
+// Do not rely on this policy to gate actual tool calls or merge operations until
+// Authorizer.AuthorizeTool is implemented and integrated into the execution path.
 type ExecutionPolicy struct {
 	Autonomy string `json:"autonomy"`
 
@@ -36,7 +54,13 @@ type ExecutionPolicy struct {
 	RequiredChecks []string `json:"required_checks,omitempty"`
 
 	HumanApprovalRequired bool `json:"human_approval_required"`
-	AutoMergeAllowed      bool `json:"auto_merge_allowed"`
+
+	// AutoMergeAllowed uses a pointer so that an unset rule fragment (nil) is
+	// distinguishable from an explicit denial (false). The merge logic only applies
+	// the AND (more-restrictive) step when at least one side has an explicit value.
+	// nil means the rule did not express a preference; false is an explicit denial;
+	// true is an explicit grant.
+	AutoMergeAllowed *bool `json:"auto_merge_allowed,omitempty"`
 
 	MaxAttempts int `json:"max_attempts"`
 
@@ -89,18 +113,24 @@ func (c PolicyCondition) Matches(record IntentRecord, repo RepositoryContext) bo
 }
 
 // PolicyCompiler compiles a set of rules into an ExecutionPolicy for a given intent.
-// Rules are applied in declaration order; each merged step preserves stricter
-// higher-precedence constraints.
+// Rules are sorted by scope precedence (organization > repository > intent > workflow)
+// before merging; within the same scope, declaration order is preserved.
+//
+// WARNING: the compiled policy is advisory only. Runtime enforcement is not yet
+// wired to the orchestrator — see the intent-attribution-agent-governance spec for
+// the required follow-up before treating compiled policies as a security gate.
 type PolicyCompiler struct {
 	Rules []PolicyRule
 }
 
 // Compile returns the most restrictive policy produced by merging all matching rules.
-// If no rules match, the safe fail-closed default is returned. When rules do match, the
-// first matching rule's policy acts as the baseline (so rules can express less-restrictive-
-// than-safe values such as supervised autonomy or auto_merge_allowed=true); subsequent
-// rules are merged using more-restrictive-wins logic. Fields left unset by all rules
-// receive fail-closed defaults so that an incomplete rule set never grants open access.
+// If no rules match, the safe fail-closed default is returned. When rules do match,
+// they are first sorted by scope precedence so that organization constraints seed the
+// policy before repository or intent rules can only narrow them. The first rule's
+// policy acts as the baseline (so rules can express less-restrictive-than-safe values
+// such as supervised autonomy or auto_merge_allowed=true); subsequent rules are merged
+// using more-restrictive-wins logic. Fields left unset by all rules receive fail-closed
+// defaults so that an incomplete rule set never grants open access.
 func (c *PolicyCompiler) Compile(record IntentRecord, repo RepositoryContext) ExecutionPolicy {
 	var matched []PolicyRule
 	for _, rule := range c.Rules {
@@ -112,6 +142,13 @@ func (c *PolicyCompiler) Compile(record IntentRecord, repo RepositoryContext) Ex
 	if len(matched) == 0 {
 		return safestDefaultPolicy()
 	}
+
+	// Sort by scope precedence (highest first) so that organization rules seed
+	// the policy before repository or intent rules. slices.SortStableFunc preserves
+	// declaration order within the same scope.
+	slices.SortStableFunc(matched, func(a, b PolicyRule) int {
+		return scopePriorityOrder[b.Scope] - scopePriorityOrder[a.Scope]
+	})
 
 	// Seed from the first matching rule's policy fragment, not from the safest default.
 	// This allows higher-precedence rules to establish a less-restrictive-than-safe
@@ -135,8 +172,7 @@ func (c *PolicyCompiler) Compile(record IntentRecord, repo RepositoryContext) Ex
 // an unset zero value is detected and replaced. HumanApprovalRequired is also set here:
 // its safe default (true) differs from its zero value (false), so any compiled policy
 // that has not explicitly set it via the OR merge path is upgraded to true (fail-closed).
-// AutoMergeAllowed requires no override here because false is both its zero value and its
-// safe default — the AND merge logic already prevents it from being accidentally elevated.
+// AutoMergeAllowed uses *bool; nil (unset) is replaced with false (deny auto-merge).
 func applyFailClosedDefaults(p ExecutionPolicy) ExecutionPolicy {
 	safe := safestDefaultPolicy()
 	if p.Autonomy == "" {
@@ -151,6 +187,10 @@ func applyFailClosedDefaults(p ExecutionPolicy) ExecutionPolicy {
 	if !p.HumanApprovalRequired {
 		p.HumanApprovalRequired = safe.HumanApprovalRequired
 	}
+	// AutoMergeAllowed: nil means no rule expressed a preference; default to false.
+	if p.AutoMergeAllowed == nil {
+		p.AutoMergeAllowed = safe.AutoMergeAllowed
+	}
 	if p.MaxAttempts == 0 {
 		p.MaxAttempts = safe.MaxAttempts
 	}
@@ -164,7 +204,7 @@ func safestDefaultPolicy() ExecutionPolicy {
 		Autonomy:              "propose_only",
 		WriteScope:            "none",
 		HumanApprovalRequired: true,
-		AutoMergeAllowed:      false,
+		AutoMergeAllowed:      new(false),
 		MaxAttempts:           1,
 	}
 }
@@ -193,9 +233,25 @@ func mergePolicy(existing, incoming ExecutionPolicy) ExecutionPolicy {
 		result.HumanApprovalRequired = true
 	}
 
-	// AutoMergeAllowed: false is more restrictive; use AND.
-	if !incoming.AutoMergeAllowed {
-		result.AutoMergeAllowed = false
+	// AutoMergeAllowed uses *bool so that "not set" (nil) is distinct from "explicitly
+	// denied" (false). More-restrictive-wins semantics:
+	//   nil + nil     → nil  (neither expressed a preference)
+	//   nil + *v      → *v   (adopt the incoming explicit value)
+	//   *v + nil      → *v   (keep the existing explicit value)
+	//   *true + *true → *true
+	//   any + *false  → *false (false is more restrictive)
+	//   *false + any  → *false
+	switch {
+	case existing.AutoMergeAllowed == nil && incoming.AutoMergeAllowed == nil:
+		// leave result.AutoMergeAllowed as nil
+	case existing.AutoMergeAllowed == nil:
+		result.AutoMergeAllowed = incoming.AutoMergeAllowed
+	case incoming.AutoMergeAllowed == nil:
+		// result already holds existing.AutoMergeAllowed from `result := existing` above
+	default:
+		// both sides have explicit values; AND (false wins)
+		v := *existing.AutoMergeAllowed && *incoming.AutoMergeAllowed
+		result.AutoMergeAllowed = new(v)
 	}
 
 	// MaxAttempts: lower is more restrictive; keep the minimum of both if both are set.

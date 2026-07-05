@@ -11,6 +11,9 @@ import (
 	"github.com/github/gh-aw/pkg/intent"
 )
 
+// boolPtr returns a pointer to b, used to set *bool fields in ExecutionPolicy literals.
+func boolPtr(b bool) *bool { return new(b) }
+
 // Tests for PolicyCompiler.Compile() covering organization > repository > intent
 // precedence. A lower-precedence rule MUST NOT weaken a constraint imposed by a
 // higher-precedence rule.
@@ -38,7 +41,7 @@ func TestPolicyCompilerOrgConstraintsPreservedOverRepo(t *testing.T) {
 				When:  intent.PolicyCondition{},
 				Set: intent.ExecutionPolicy{
 					HumanApprovalRequired: true,
-					AutoMergeAllowed:      false,
+					AutoMergeAllowed:      boolPtr(false),
 					DeniedTools:           []string{"delete_repository", "push_direct_to_main"},
 					RequiredChecks:        []string{"security-scan"},
 					MaxAttempts:           2,
@@ -50,11 +53,11 @@ func TestPolicyCompilerOrgConstraintsPreservedOverRepo(t *testing.T) {
 				When:  intent.PolicyCondition{},
 				Set: intent.ExecutionPolicy{
 					// Lower-precedence attempt to weaken org constraints:
-					HumanApprovalRequired: false,      // tries to remove approval requirement
-					AutoMergeAllowed:      true,       // tries to enable auto-merge
-					DeniedTools:           []string{}, // tries to clear denied tools
-					RequiredChecks:        []string{}, // tries to clear required checks
-					MaxAttempts:           10,         // tries to increase max attempts
+					HumanApprovalRequired: false,         // tries to remove approval requirement
+					AutoMergeAllowed:      boolPtr(true), // tries to enable auto-merge
+					DeniedTools:           []string{},    // tries to clear denied tools
+					RequiredChecks:        []string{},    // tries to clear required checks
+					MaxAttempts:           10,            // tries to increase max attempts
 				},
 			},
 		},
@@ -70,7 +73,9 @@ func TestPolicyCompilerOrgConstraintsPreservedOverRepo(t *testing.T) {
 		"organization HumanApprovalRequired=true must not be weakened by repository rule")
 
 	// Org rule's AutoMergeAllowed=false must NOT be enabled by the repo rule.
-	assert.False(t, policy.AutoMergeAllowed,
+	require.NotNil(t, policy.AutoMergeAllowed,
+		"AutoMergeAllowed must be explicitly set by the org rule")
+	assert.False(t, *policy.AutoMergeAllowed,
 		"organization AutoMergeAllowed=false must not be enabled by repository rule")
 
 	// Org's denied tools must be preserved even when the repo rule passes an empty list.
@@ -84,8 +89,10 @@ func TestPolicyCompilerOrgConstraintsPreservedOverRepo(t *testing.T) {
 		"organization required check 'security-scan' must not be removed by repository rule")
 
 	// MaxAttempts must not be increased beyond the org limit.
-	assert.LessOrEqual(t, policy.MaxAttempts, 2,
-		"organization MaxAttempts=2 must not be increased by repository rule")
+	// Use Equal (not LessOrEqual) to verify the org rule's value (2) was actually applied,
+	// not silently replaced by the safe default (1).
+	assert.Equal(t, 2, policy.MaxAttempts,
+		"organization MaxAttempts=2 must be applied and not raised by repository rule")
 
 	// Both rules should appear in the applied rule IDs.
 	require.Contains(t, policy.RuleIDs, "org-security-policy")
@@ -213,7 +220,7 @@ func TestPolicyCompilerNoRulesMatchReturnsSafeDefault(t *testing.T) {
 		"ambiguous intent with no matching rules must produce write_scope=none")
 	assert.True(t, policy.HumanApprovalRequired,
 		"ambiguous intent with no matching rules must require human approval")
-	assert.False(t, policy.AutoMergeAllowed,
+	assert.False(t, policy.AutoMergeAllowed == nil || *policy.AutoMergeAllowed,
 		"ambiguous intent with no matching rules must not allow auto-merge")
 	assert.Equal(t, 1, policy.MaxAttempts,
 		"ambiguous intent with no matching rules must produce max_attempts=1")
@@ -238,7 +245,7 @@ func TestPolicyCompilerRulesCanGrantLessRestrictiveThanSafeDefault(t *testing.T)
 				Set: intent.ExecutionPolicy{
 					Autonomy:              "supervised",
 					WriteScope:            "feature_branch",
-					AutoMergeAllowed:      true,
+					AutoMergeAllowed:      boolPtr(true),
 					HumanApprovalRequired: false,
 					MaxAttempts:           5,
 				},
@@ -260,14 +267,71 @@ func TestPolicyCompilerRulesCanGrantLessRestrictiveThanSafeDefault(t *testing.T)
 		"a matching rule must be able to grant supervised autonomy (not just propose_only)")
 	assert.Equal(t, "feature_branch", policy.WriteScope,
 		"a matching rule must be able to grant feature_branch write scope")
-	assert.True(t, policy.AutoMergeAllowed,
+	require.NotNil(t, policy.AutoMergeAllowed,
+		"AutoMergeAllowed must be explicitly set by the matching rule")
+	assert.True(t, *policy.AutoMergeAllowed,
 		"a matching rule must be able to enable auto_merge_allowed")
 	assert.Equal(t, 5, policy.MaxAttempts,
 		"a matching rule must be able to set max_attempts > 1")
 	assert.Contains(t, policy.RuleIDs, "supervised-docs-rule")
 }
 
-// TestPolicyCompilerAllowedToolsDenyAllOnEmptyIntersection verifies that when two
+// TestPolicyCompilerScopeOrderingEnforced verifies that rules are applied in
+// scope-precedence order (organization > repository > intent) regardless of
+// the declaration order in the Rules slice. A lower-precedence scope declared
+// first must not override a higher-precedence scope declared last.
+func TestPolicyCompilerScopeOrderingEnforced(t *testing.T) {
+	// Rules are intentionally listed in reverse precedence order: intent first,
+	// then repository, then organization. The compiled policy must still apply
+	// them highest-precedence-first (org seeds the policy, intent only narrows).
+	compiler := &intent.PolicyCompiler{
+		Rules: []intent.PolicyRule{
+			{
+				// Declared first but lowest precedence: should NOT seed the policy.
+				ID:    "intent-rule",
+				Scope: "intent",
+				When:  intent.PolicyCondition{},
+				Set: intent.ExecutionPolicy{
+					Autonomy:    "bounded",
+					MaxAttempts: 10,
+				},
+			},
+			{
+				ID:    "repo-rule",
+				Scope: "repository",
+				When:  intent.PolicyCondition{},
+				Set: intent.ExecutionPolicy{
+					Autonomy:    "supervised",
+					MaxAttempts: 5,
+				},
+			},
+			{
+				// Declared last but highest precedence: MUST seed the policy.
+				ID:    "org-rule",
+				Scope: "organization",
+				When:  intent.PolicyCondition{},
+				Set: intent.ExecutionPolicy{
+					Autonomy:    "propose_only",
+					MaxAttempts: 2,
+				},
+			},
+		},
+	}
+
+	record := intent.IntentRecord{Status: intent.AttributionMapped}
+	repo := intent.RepositoryContext{Owner: "github", Name: "gh-aw"}
+
+	policy := compiler.Compile(record, repo)
+
+	// The org rule (propose_only, MaxAttempts=2) must dominate.
+	// If scope ordering were ignored, the intent rule (bounded, MaxAttempts=10) would
+	// seed the policy and produce a different autonomy level.
+	assert.Equal(t, "propose_only", policy.Autonomy,
+		"organization scope must take precedence over lower scopes")
+	assert.Equal(t, 2, policy.MaxAttempts,
+		"organization MaxAttempts=2 must win; declaration order must not override scope precedence")
+}
+
 // rules restrict AllowedTools to non-overlapping sets, the compiled policy denies
 // all tools ([]string{} sentinel) rather than silently reverting to unrestricted (nil).
 func TestPolicyCompilerAllowedToolsDenyAllOnEmptyIntersection(t *testing.T) {

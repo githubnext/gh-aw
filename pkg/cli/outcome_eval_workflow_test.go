@@ -151,3 +151,56 @@ func TestEvalDispatchWorkflowRunIDInt64(t *testing.T) {
 
 	assert.Equal(t, OutcomeAccepted, report.Result)
 }
+
+func TestEvalDispatchWorkflowFloat64OverflowGuard(t *testing.T) {
+	// A float64 value above 2^53 cannot represent integers exactly and must be
+	// treated as an invalid run_id (OutcomePending) rather than silently truncated.
+	// Use 2^53 + 2 (= 9007199254740994): consecutive integers around 2^53 collapse to
+	// the same float64, so this value would be mangled if cast to int64 directly.
+	tooLarge := float64(maxSafeFloat64Int) + 2
+
+	report := evalDispatchWorkflow(CreatedItemReport{
+		Type:     "dispatch_workflow",
+		Repo:     "owner/repo",
+		Metadata: map[string]any{"run_id": tooLarge},
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomePending, report.Result,
+		"a float64 run_id above 2^53 must be treated as invalid (OutcomePending)")
+}
+
+func TestEvalDispatchWorkflowActionRequired(t *testing.T) {
+	// action_required is a blocking conclusion that requires manual intervention;
+	// it must map to OutcomeRejected (not OutcomeIgnored).
+	old := workflowOutcomeGHAPIGet
+	t.Cleanup(func() { workflowOutcomeGHAPIGet = old })
+	workflowOutcomeGHAPIGet = func(_ string, _ string) (map[string]any, error) {
+		return map[string]any{
+			"status":     "completed",
+			"conclusion": "action_required",
+		}, nil
+	}
+
+	report := evalDispatchWorkflow(CreatedItemReport{
+		Type:     "dispatch_workflow",
+		Repo:     "owner/repo",
+		Metadata: map[string]any{"run_id": float64(12345678)},
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomeRejected, report.Result,
+		"action_required conclusion must map to OutcomeRejected")
+	assert.Contains(t, report.Detail, "action_required")
+}
+
+func TestEvalUpdateDiscussionReturnsIgnored(t *testing.T) {
+	// evalUpdateDiscussion must return OutcomeIgnored (not OutcomePending) so that
+	// callers do not enter an infinite retry loop waiting for a terminal status.
+	report := evalUpdateDiscussion(CreatedItemReport{
+		Type: "update_discussion",
+		URL:  "https://github.com/owner/repo/discussions/1",
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomeIgnored, report.Result,
+		"evalUpdateDiscussion must return OutcomeIgnored to prevent infinite retry")
+	assert.NotEmpty(t, report.Detail)
+}
