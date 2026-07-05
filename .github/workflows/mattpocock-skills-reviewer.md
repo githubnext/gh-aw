@@ -118,8 +118,6 @@ A successful review:
 - approves only when no actionable issue remains
 - uses `noop` instead of generic praise when there is nothing useful to say
 
-{{#runtime-import shared/quality-gate.md}}
-
 ### Step 1: Load Pre-fetched PR Data
 
 > **⚠️ Do NOT call any GitHub MCP tools for PR data.** All PR information is pre-fetched: use `/tmp/gh-aw/agent/pr-meta.json` and `/tmp/gh-aw/agent/pr-diff.patch` exclusively.

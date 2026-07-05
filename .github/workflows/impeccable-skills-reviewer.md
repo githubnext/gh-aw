@@ -88,8 +88,6 @@ A successful review:
 - uses `REQUEST_CHANGES` only for genuinely blocking issues
 - uses `noop` instead of posting generic praise or filler commentary when nothing actionable is found
 
-{{#runtime-import shared/quality-gate.md}}
-
 ## Context
 
 - **Repository**: ${{ github.repository }}

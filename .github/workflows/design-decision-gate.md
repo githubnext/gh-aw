@@ -194,12 +194,10 @@ Stop and emit a safe output **immediately** when any of the following is true:
 
 A successful gate result:
 
-- clearly states whether the PR is exempt, ADR-backed, divergent from the ADR, or missing enough context to decide
+- clearly states whether ADR enforcement is not required, ADR-backed, divergent from the ADR, or missing enough context to decide
 - cites the exact evidence used for the decision
 - gives the author one clear next action
 - stops immediately after the single final safe-output action
-
-{{#runtime-import shared/quality-gate.md}}
 
 ## Step 1: Determine if This PR Requires an ADR
 
