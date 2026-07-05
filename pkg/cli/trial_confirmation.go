@@ -179,8 +179,8 @@ func showTrialConfirmation(opts trialConfirmationOptions) error {
 		workflowName := opts.parsedSpecs[0].WorkflowName
 		if opts.repeatCount > 0 && opts.autoMergePRs {
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. For each of %d executions:\n"), stepNum, opts.repeatCount+1)
-			fmt.Fprintf(os.Stderr, "     a. Execute %s\n", workflowName)
-			fmt.Fprintf(os.Stderr, "     b. Auto-merge any pull requests created during execution\n")
+			fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("a. Execute %s", workflowName)))
+			fmt.Fprintln(os.Stderr, console.FormatListItemStderr("b. Auto-merge any pull requests created during execution"))
 		} else if opts.repeatCount > 0 {
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %s %d times\n"), stepNum, workflowName, opts.repeatCount+1)
 		} else if opts.autoMergePRs {
@@ -196,8 +196,8 @@ func showTrialConfirmation(opts trialConfirmationOptions) error {
 
 		if opts.repeatCount > 0 && opts.autoMergePRs {
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. For each of %d executions:\n"), stepNum, opts.repeatCount+1)
-			fmt.Fprintf(os.Stderr, "     a. Execute: %s\n", workflowList)
-			fmt.Fprintf(os.Stderr, "     b. Auto-merge any pull requests created during execution\n")
+			fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("a. Execute: %s", workflowList)))
+			fmt.Fprintln(os.Stderr, console.FormatListItemStderr("b. Auto-merge any pull requests created during execution"))
 		} else if opts.repeatCount > 0 {
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %d times: %s\n"), stepNum, opts.repeatCount+1, workflowList)
 		} else if opts.autoMergePRs {
