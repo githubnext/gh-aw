@@ -248,11 +248,7 @@ func displayScheduleCalendar(statsList []*WorkflowStats) {
 		fmt.Fprintf(&headerBuf, "%02d ", h)
 	}
 	header := headerBuf.String()
-	if isTerminal {
-		fmt.Fprintln(os.Stderr, styles.TableHeader.Render(header))
-	} else {
-		fmt.Fprintln(os.Stderr, header)
-	}
+	fmt.Fprintln(os.Stderr, console.FormatTableHeaderStderr(header))
 
 	// One row per day, ordered Mon through Sun.
 	for calendarIndex, dayLabel := range calendarDayNames {
@@ -260,11 +256,7 @@ func displayScheduleCalendar(statsList []*WorkflowStats) {
 
 		var row strings.Builder
 		label := fmt.Sprintf("%-*s", dayLabelWidth, dayLabel)
-		if isTerminal {
-			row.WriteString(styles.TableHeader.Render(label))
-		} else {
-			row.WriteString(label)
-		}
+		row.WriteString(console.FormatTableHeaderStderr(label))
 
 		for h := range 24 {
 			count := grid[cronDay][h]
