@@ -89,6 +89,7 @@ experiments:
       issue: 37302
 imports:
   - shared/otlp.md
+  - shared/token-telemetry-check.md
 features:
   gh-aw-detection: false
 ---

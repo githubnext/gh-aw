@@ -48,6 +48,7 @@ safe-outputs:
 timeout-minutes: 10
 imports:
   - shared/otlp.md
+  - shared/token-telemetry-check.md
 tools:
   cli-proxy: true
 experiments:

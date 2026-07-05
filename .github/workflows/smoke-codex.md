@@ -31,6 +31,7 @@ imports:
   - shared/mcp/serena-go.md
   - shared/trufflehog.md
   - shared/otlp.md
+  - shared/token-telemetry-check.md
 network:
   allowed:
     - defaults

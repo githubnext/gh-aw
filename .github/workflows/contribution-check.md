@@ -143,12 +143,6 @@ A `pre-agent` step has already queried and filtered PRs from `${{ env.TARGET_REP
 If `pr_numbers` is empty, create a report stating no PRs matched the filters and skip dispatch.
 Do **not** emit one `noop` per PR slot or placeholder. If you need a noop, emit exactly **one** consolidated noop for the entire run.
 
-## Safe-Output Path
-
-Use **only** the MCP safe-output tools (`create_issue`, `add_labels`, `add_comment`) for all safe-output calls. Do **not** emit safe outputs via the `safeoutputs` bash CLI. Never pipe JSON to `safeoutputs create_issue .` or similar.
-
-Do not probe safe-output tool schemas with `--help` commands or test invocations. All tool signatures are already in your system prompt.
-
 ## Step 1: Dispatch to Subagent
 
 For each PR number in the comma-separated list, delegate evaluation to the **contribution-checker** subagent (`.github/agents/contribution-checker.agent.md`).

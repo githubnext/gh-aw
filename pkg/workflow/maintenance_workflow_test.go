@@ -2123,6 +2123,93 @@ func TestCollectSideRepoTargets(t *testing.T) {
 		}
 	})
 
+	t.Run("github-app config is collected from checkout", func(t *testing.T) {
+		app := &GitHubAppConfig{
+			AppID:        "${{ secrets.APP_ID }}",
+			PrivateKey:   "${{ secrets.APP_PRIVATE_KEY }}",
+			Owner:        "my-org",
+			Repositories: []string{"target-repo"},
+		}
+		workflows := []*WorkflowData{
+			{Name: "wf", CheckoutConfigs: []*CheckoutConfig{
+				{Repository: "my-org/target-repo", Current: true, GitHubApp: app},
+			}},
+		}
+
+		targets := collectSideRepoTargets(workflows)
+		if len(targets) != 1 {
+			t.Fatalf("expected 1 target, got %d", len(targets))
+		}
+		if targets[0].GitHubToken != "" {
+			t.Errorf("expected empty GitHubToken when github-app is used, got %q", targets[0].GitHubToken)
+		}
+		if targets[0].GitHubApp == nil {
+			t.Fatal("expected GitHubApp to be set on target")
+		}
+		if targets[0].GitHubApp.AppID != "${{ secrets.APP_ID }}" {
+			t.Errorf("expected AppID %q, got %q", "${{ secrets.APP_ID }}", targets[0].GitHubApp.AppID)
+		}
+	})
+
+	t.Run("github-app is preferred over empty auth from earlier occurrence", func(t *testing.T) {
+		app := &GitHubAppConfig{
+			AppID:      "${{ secrets.APP_ID }}",
+			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			Owner:      "my-org",
+		}
+		workflows := []*WorkflowData{
+			{Name: "wf1", CheckoutConfigs: []*CheckoutConfig{
+				// First appearance has no auth.
+				{Repository: "my-org/shared-repo", Current: true},
+			}},
+			{Name: "wf2", CheckoutConfigs: []*CheckoutConfig{
+				// Second appearance has github-app — should win.
+				{Repository: "my-org/shared-repo", Current: true, GitHubApp: app},
+			}},
+		}
+
+		targets := collectSideRepoTargets(workflows)
+		if len(targets) != 1 {
+			t.Fatalf("expected 1 target, got %d", len(targets))
+		}
+		if targets[0].GitHubApp == nil {
+			t.Error("expected GitHubApp to be set after upgrade from later occurrence")
+		}
+		if targets[0].GitHubToken != "" {
+			t.Errorf("expected empty GitHubToken when github-app is used, got %q", targets[0].GitHubToken)
+		}
+	})
+
+	t.Run("later auth does not override existing auth (first-seen wins)", func(t *testing.T) {
+		app := &GitHubAppConfig{
+			AppID:      "${{ secrets.APP_ID }}",
+			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			Owner:      "my-org",
+		}
+		workflows := []*WorkflowData{
+			{Name: "wf1", CheckoutConfigs: []*CheckoutConfig{
+				// First appearance has github-app.
+				{Repository: "my-org/shared-repo", Current: true, GitHubApp: app},
+			}},
+			{Name: "wf2", CheckoutConfigs: []*CheckoutConfig{
+				// Second appearance has a token — should not override the already-set app.
+				{Repository: "my-org/shared-repo", Current: true, GitHubToken: "${{ secrets.TOKEN }}"},
+			}},
+		}
+
+		targets := collectSideRepoTargets(workflows)
+		if len(targets) != 1 {
+			t.Fatalf("expected 1 target, got %d", len(targets))
+		}
+		// The first-seen github-app should be preserved; the later token should be ignored.
+		if targets[0].GitHubApp == nil {
+			t.Error("expected GitHubApp to be preserved (first-seen auth wins)")
+		}
+		if targets[0].GitHubToken != "" {
+			t.Errorf("expected GitHubToken to remain empty, got %q", targets[0].GitHubToken)
+		}
+	})
+
 	t.Run("multiple repos preserve first-seen discovery order", func(t *testing.T) {
 		workflows := []*WorkflowData{
 			{Name: "wf1", CheckoutConfigs: []*CheckoutConfig{
@@ -2145,6 +2232,56 @@ func TestCollectSideRepoTargets(t *testing.T) {
 			if targets[i].Repository != want {
 				t.Errorf("targets[%d] = %q, want %q", i, targets[i].Repository, want)
 			}
+		}
+	})
+}
+
+func TestEffectiveSideRepoToken(t *testing.T) {
+	t.Run("explicit github-token wins", func(t *testing.T) {
+		target := SideRepoTarget{
+			Repository:  "org/repo",
+			GitHubToken: "${{ secrets.MY_TOKEN }}",
+		}
+		got := effectiveSideRepoToken(target)
+		if got != "${{ secrets.MY_TOKEN }}" {
+			t.Errorf("expected explicit token, got %q", got)
+		}
+	})
+
+	t.Run("github-app returns minted token reference", func(t *testing.T) {
+		target := SideRepoTarget{
+			Repository: "org/repo",
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ secrets.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_KEY }}",
+			},
+		}
+		got := effectiveSideRepoToken(target)
+		if got != sideRepoAppTokenRef {
+			t.Errorf("expected minted token ref %q, got %q", sideRepoAppTokenRef, got)
+		}
+	})
+
+	t.Run("falls back to GH_AW_GITHUB_TOKEN when no auth configured", func(t *testing.T) {
+		target := SideRepoTarget{Repository: "org/repo"}
+		got := effectiveSideRepoToken(target)
+		if got != "${{ secrets.GH_AW_GITHUB_TOKEN }}" {
+			t.Errorf("expected fallback secret, got %q", got)
+		}
+	})
+
+	t.Run("explicit github-token wins when both token and app are set", func(t *testing.T) {
+		target := SideRepoTarget{
+			Repository:  "org/repo",
+			GitHubToken: "${{ secrets.EXPLICIT_TOKEN }}",
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ secrets.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_KEY }}",
+			},
+		}
+		got := effectiveSideRepoToken(target)
+		if got != "${{ secrets.EXPLICIT_TOKEN }}" {
+			t.Errorf("expected explicit token to win, got %q", got)
 		}
 	})
 }

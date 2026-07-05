@@ -267,7 +267,10 @@ func classifyErrorMessage(message string) PrioritizedError {
 		strings.Contains(lower, "failed to parse yaml frontmatter"),
 		strings.Contains(lower, "no frontmatter found"),
 		strings.Contains(lower, "mapping values are not allowed"),
-		strings.Contains(lower, "did not find expected key"):
+		strings.Contains(lower, "did not find expected key"),
+		strings.Contains(lower, "missing ':' after key"),
+		strings.Contains(lower, "unexpected ':'"),
+		strings.Contains(lower, "tool config must be a mapping"):
 		return PrioritizedError{
 			Message:    message,
 			Severity:   SeverityCritical,

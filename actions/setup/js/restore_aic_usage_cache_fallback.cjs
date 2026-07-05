@@ -49,8 +49,12 @@ const CACHE_FILE_PATH = "/tmp/gh-aw/agentic-workflow-usage-cache.jsonl";
 /** Name of the artifact uploaded by the conclusion job that holds the aggregated cache. */
 const AIC_USAGE_CACHE_ARTIFACT_NAME = "aic-usage-cache";
 
-/** Maximum number of recent workflow runs to search for a usable cache artifact. */
-const MAX_RUNS_TO_SEARCH = 5;
+/**
+ * Maximum number of recent workflow runs to search for a usable cache artifact.
+ * A larger window improves hit rate on `pull_request` branches where `actions/cache` is
+ * branch-scoped and frequently misses, requiring the artifact fallback to look further back.
+ */
+const MAX_RUNS_TO_SEARCH = 30;
 
 /**
  * @param {string} message

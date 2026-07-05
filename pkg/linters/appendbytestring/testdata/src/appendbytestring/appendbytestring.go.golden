@@ -1,0 +1,61 @@
+package appendbytestring
+
+func bad() {
+	b := []byte("hello")
+	s := " world"
+	b = append(b, s...) // want `append\(b, \[\]byte\(s\)\.\.\.\) can be simplified to append\(b, s\.\.\.\); the \[\]byte conversion is unnecessary`
+	_ = b
+}
+
+func badLiteral() {
+	b := []byte("hello")
+	b = append(b, " world"...) // want `append\(b, \[\]byte\(" world"\)\.\.\.\) can be simplified to append\(b, " world"\.\.\.\); the \[\]byte conversion is unnecessary`
+	_ = b
+}
+
+type myString string
+
+func badNamedString() {
+	b := []byte("hello")
+	s := myString(" world")
+	b = append(b, s...) // want `append\(b, \[\]byte\(s\)\.\.\.\) can be simplified to append\(b, s\.\.\.\); the \[\]byte conversion is unnecessary`
+	_ = b
+}
+
+func badUint8() {
+	b := []byte("hello")
+	s := " world"
+	b = append(b, s...) // want `append\(b, \[\]byte\(s\)\.\.\.\) can be simplified to append\(b, s\.\.\.\); the \[\]byte conversion is unnecessary`
+	_ = b
+}
+
+func good() {
+	b := []byte("hello")
+	s := " world"
+	// Direct string append — already the idiomatic form.
+	b = append(b, s...)
+	_ = b
+}
+
+func goodAlreadyBytes() {
+	b := []byte("hello")
+	extra := []byte(" world")
+	// Appending []byte directly with ellipsis is fine; the conversion is necessary here.
+	b = append(b, extra...)
+	_ = b
+}
+
+func goodMultipleArgs() {
+	b := []byte("hello")
+	// append with multiple non-ellipsis args is fine.
+	b = append(b, 'a', 'b', 'c')
+	_ = b
+}
+
+func suppressed() {
+	b := []byte("hello")
+	s := " world"
+	//nolint:appendbytestring
+	b = append(b, []byte(s)...)
+	_ = b
+}

@@ -411,4 +411,29 @@ main().then(() => process.exit(0)).catch(err => { console.error(err); process.ex
       ],
     });
   });
+
+  it("invalid: bare call to async function in multi-declarator module-scope const is flagged", () => {
+    cjsRuleTester.run("require-async-entrypoint-catch", requireAsyncEntrypointCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const helper = () => 1, main = async () => { return 42; };
+main();`,
+          errors: [
+            {
+              messageId: "requireCatch",
+              data: { name: "main" },
+              suggestions: [
+                {
+                  messageId: "addCatch",
+                  output: `const helper = () => 1, main = async () => { return 42; };
+main().catch(err => { console.error(err); process.exitCode = 1; });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
 });

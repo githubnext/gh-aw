@@ -231,6 +231,14 @@ security-govulncheck-sarif:
 	@echo "✓ Govulncheck complete (results in govulncheck-results.sarif)"
 
 # Test JavaScript files
+.PHONY: check-cjs-syntax
+check-cjs-syntax:
+	@echo "→ Checking CommonJS runtime syntax..."
+	@find actions/setup/js \
+		-path 'actions/setup/js/node_modules' -prune -o \
+		-type f -name '*.cjs' ! -name '*.test.cjs' -print0 | xargs -0 -r -n1 node --check
+	@echo "✓ CommonJS runtime syntax validated"
+
 .PHONY: test-js
 test-js: build-js
 	cd actions/setup/js && npm run test:js -- --no-file-parallelism
@@ -953,8 +961,8 @@ clean-docs:
 sync-action-pins:
 	@echo "Syncing actions-lock.json from .github/aw to pkg/actionpins/data/action_pins.json and pkg/workflow/data/action_pins.json..."
 	@if [ -f .github/aw/actions-lock.json ]; then \
-		cp .github/aw/actions-lock.json pkg/actionpins/data/action_pins.json; \
-		cp .github/aw/actions-lock.json pkg/workflow/data/action_pins.json; \
+		jq --indent 2 . .github/aw/actions-lock.json > pkg/actionpins/data/action_pins.json; \
+		jq --indent 2 . .github/aw/actions-lock.json > pkg/workflow/data/action_pins.json; \
 		echo "✓ Action pins synced successfully"; \
 	else \
 		echo "⚠ Warning: .github/aw/actions-lock.json does not exist yet"; \

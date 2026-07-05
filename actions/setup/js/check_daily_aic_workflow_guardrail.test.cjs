@@ -574,6 +574,106 @@ describe("check_daily_aic_workflow_guardrail", () => {
     }
   });
 
+  it("main() stops the inspection loop early when in-loop rate-limit re-check finds headroom exhausted", async () => {
+    // Set up 15 candidate runs (all within 24 h), no cache entries, and a rate-limit mock that
+    // returns plenty of budget on the first call (start snapshot) but drops below the reserve
+    // (RATE_LIMIT_RESERVE = 100) on the second call, which is the in-loop re-check triggered
+    // after RATE_LIMIT_RECHECK_INTERVAL = 10 consumed API operations.
+    // With ESTIMATED_API_OPERATIONS_PER_RUN = 2, 10 ops = 5 cache-miss runs processed before
+    // the 6th iteration triggers the re-check and breaks out of the loop.
+    const getRunAICSpy = vi.spyOn(exports, "getRunAIC").mockResolvedValue(10);
+
+    let rateLimitGetCallCount = 0;
+    const nowIso = new Date().toISOString();
+
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: async () => {
+            rateLimitGetCallCount++;
+            // First call (start snapshot): plenty of budget.
+            // Subsequent calls (in-loop re-check, end snapshot): below reserve.
+            const remaining = rateLimitGetCallCount === 1 ? 5000 : 50;
+            return {
+              data: {
+                resources: {
+                  core: { limit: 5000, remaining, used: 5000 - remaining, reset: Math.floor(Date.now() / 1000) + 3600 },
+                },
+              },
+              headers: {},
+            };
+          },
+        },
+        actions: {
+          getWorkflowRun: async () => ({
+            data: { workflow_id: 444, actor: { login: "bot" }, triggering_actor: { login: "bot" } },
+            headers: {},
+          }),
+          listWorkflowRuns: async () => ({
+            data: {
+              workflow_runs: Array.from({ length: 15 }, (_, i) => ({
+                id: i + 100,
+                html_url: `https://example.test/runs/${i + 100}`,
+                created_at: nowIso,
+                conclusion: "success",
+              })),
+            },
+            headers: {},
+          }),
+        },
+      },
+    };
+
+    const coreInfos = [];
+    const coreOutputs = {};
+    const mockCore = {
+      setOutput: (key, value) => {
+        coreOutputs[key] = value;
+      },
+      info: msg => coreInfos.push(msg),
+      warning: () => {},
+      summary: {
+        addDetails: function () {
+          return this;
+        },
+        write: async () => {},
+      },
+    };
+
+    const mockContext = { repo: { owner: "test-owner", repo: "test-repo" }, runId: 42 };
+
+    global.core = mockCore;
+    global.github = mockGithub;
+    global.context = mockContext;
+
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "1000000";
+    process.env.GH_AW_GITHUB_TOKEN = "fake-token";
+    process.env.GITHUB_EVENT_NAME = "pull_request";
+
+    try {
+      await expect(exports.main()).resolves.toBeUndefined();
+
+      // 5 cache-miss runs are processed (10 consumed API ops) before iteration 6 triggers the
+      // in-loop re-check, finds remaining=50 <= RATE_LIMIT_RESERVE=100, and breaks the loop.
+      expect(getRunAICSpy).toHaveBeenCalledTimes(5);
+
+      // The in-loop stop log must have been emitted.
+      const stopLog = coreInfos.find(msg => msg.includes("Stopping inspection: rate limit headroom exhausted during inspection loop"));
+      expect(stopLog).toBeDefined();
+
+      // Guardrail not exceeded (5 × 10 = 50 < 1000000).
+      expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+      delete process.env.GITHUB_EVENT_NAME;
+      getRunAICSpy.mockRestore();
+    }
+  });
+
   describe("loadAICUsageCache", () => {
     let tmpDir;
     let cacheFile;

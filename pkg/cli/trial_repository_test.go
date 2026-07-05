@@ -2,7 +2,11 @@
 
 package cli
 
-import "testing"
+import (
+	"os/exec"
+	"strings"
+	"testing"
+)
 
 func TestTrialRepositoryURLHelpers(t *testing.T) {
 	tests := []struct {
@@ -60,4 +64,90 @@ func TestTrialRepositoryURLHelpers(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetCurrentBranchIn(t *testing.T) {
+	// initRepo creates a minimal git repo in dir with the given branch name.
+	initRepo := func(t *testing.T, dir, branch string) {
+		t.Helper()
+		run := func(args ...string) {
+			t.Helper()
+			cmd := exec.Command(args[0], args[1:]...)
+			cmd.Dir = dir
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("command %v failed: %v (output: %s)", args, err, out)
+			}
+		}
+		run("git", "init")
+		run("git", "config", "user.email", "test@example.com")
+		run("git", "config", "user.name", "Test")
+		run("git", "symbolic-ref", "HEAD", "refs/heads/"+branch)
+		run("git", "commit", "--allow-empty", "-m", "init")
+	}
+
+	t.Run("returns main for a repo using main", func(t *testing.T) {
+		dir := t.TempDir()
+		initRepo(t, dir, "main")
+		got, err := getCurrentBranchIn(dir)
+		if err != nil {
+			t.Fatalf("getCurrentBranchIn() unexpected error: %v", err)
+		}
+		if got != "main" {
+			t.Fatalf("getCurrentBranchIn() = %q, want %q", got, "main")
+		}
+	})
+
+	t.Run("returns master for a repo using master", func(t *testing.T) {
+		dir := t.TempDir()
+		initRepo(t, dir, "master")
+		got, err := getCurrentBranchIn(dir)
+		if err != nil {
+			t.Fatalf("getCurrentBranchIn() unexpected error: %v", err)
+		}
+		if got != "master" {
+			t.Fatalf("getCurrentBranchIn() = %q, want %q", got, "master")
+		}
+	})
+
+	t.Run("returns custom branch name", func(t *testing.T) {
+		dir := t.TempDir()
+		initRepo(t, dir, "trunk")
+		got, err := getCurrentBranchIn(dir)
+		if err != nil {
+			t.Fatalf("getCurrentBranchIn() unexpected error: %v", err)
+		}
+		if got != "trunk" {
+			t.Fatalf("getCurrentBranchIn() = %q, want %q", got, "trunk")
+		}
+	})
+
+	t.Run("returns error for non-git directory", func(t *testing.T) {
+		dir := t.TempDir()
+		_, err := getCurrentBranchIn(dir)
+		if err == nil {
+			t.Fatal("getCurrentBranchIn() expected an error for non-git directory, got nil")
+		}
+	})
+
+	t.Run("returns error in detached HEAD state", func(t *testing.T) {
+		dir := t.TempDir()
+		initRepo(t, dir, "main")
+		// Detach HEAD by checking out the commit hash directly.
+		cmd := exec.Command("git", "rev-parse", "HEAD")
+		cmd.Dir = dir
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("git rev-parse HEAD failed: %v", err)
+		}
+		hash := strings.TrimSpace(string(out))
+		detach := exec.Command("git", "checkout", hash)
+		detach.Dir = dir
+		if out, err := detach.CombinedOutput(); err != nil {
+			t.Fatalf("git checkout %s failed: %v (output: %s)", hash, err, out)
+		}
+		_, err = getCurrentBranchIn(dir)
+		if err == nil {
+			t.Fatal("getCurrentBranchIn() expected an error in detached HEAD state, got nil")
+		}
+	})
 }

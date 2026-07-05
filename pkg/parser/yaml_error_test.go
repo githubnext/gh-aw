@@ -268,6 +268,12 @@ func TestTranslateYAMLMessage(t *testing.T) {
 			excludes: "mapping value not found",
 		},
 		{
+			name:     "scalar with nested key diagnostic",
+			input:    "value is not allowed in this context. map key-value is pre-defined",
+			contains: "must be an object/mapping",
+			excludes: "map key-value is pre-defined",
+		},
+		{
 			name:     "found character that cannot start any token",
 			input:    "found character that cannot start any token",
 			contains: "invalid character",

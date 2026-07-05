@@ -19,6 +19,17 @@ const MAX_WORKFLOW_RUN_PAGES = 10;
 const RATE_LIMIT_RESERVE = 100;
 const REQUEST_OVERHEAD_BUDGET = MAX_WORKFLOW_RUN_PAGES + 4;
 const ESTIMATED_API_OPERATIONS_PER_RUN = 2;
+/**
+ * Re-check the GitHub API rate limit after this many consumed API operations inside the
+ * per-run inspection loop.  Under concurrent activations each run independently computes
+ * its upfront budget, but collectively they can exhaust the shared reserve faster than any
+ * single job anticipates.  Periodic re-checks during the loop detect that situation and
+ * allow each job to stop early before the reserve is fully drained.
+ *
+ * The cost of a re-check is 1 API call per RATE_LIMIT_RECHECK_INTERVAL consumed operations,
+ * so at ESTIMATED_API_OPERATIONS_PER_RUN=2 this fires after every 5 cache-miss runs.
+ */
+const RATE_LIMIT_RECHECK_INTERVAL = 10;
 const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
 
 /** Path where the per-workflow usage cache is restored by the activation job's cache-restore step. */
@@ -547,7 +558,30 @@ async function main() {
     let totalAIC = 0;
     /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, aic:number}>} */
     const countedRuns = [];
+    // Track how many cache-miss API operations have been consumed inside this loop.
+    // Used to trigger periodic rate-limit re-checks so concurrent activations that
+    // collectively drain the shared budget are caught early (rather than relying solely
+    // on the upfront computeMaxInspectableRuns estimate, which each job computes in
+    // isolation without knowledge of other concurrently running jobs).
+    let apiCallsInLoop = 0;
     for (const run of candidateRuns) {
+      // Periodically re-check the real rate-limit remaining after consuming API budget inside
+      // the loop.  The upfront computeMaxInspectableRuns snapshot is stale once multiple
+      // concurrent activations start making calls simultaneously.  Re-checking every
+      // RATE_LIMIT_RECHECK_INTERVAL consumed operations (1 re-check per ~5 cache-miss runs)
+      // lets each job detect budget exhaustion and stop before the reserve is fully drained.
+      if (apiCallsInLoop > 0 && apiCallsInLoop % RATE_LIMIT_RECHECK_INTERVAL === 0) {
+        const midLoopRL = await getCoreRateLimitSnapshot(githubClient);
+        if (midLoopRL.remaining <= RATE_LIMIT_RESERVE) {
+          logDailyGuardrail("Stopping inspection: rate limit headroom exhausted during inspection loop", {
+            remaining: midLoopRL.remaining,
+            reserve: RATE_LIMIT_RESERVE,
+            apiCallsConsumedInLoop: apiCallsInLoop,
+          });
+          truncatedByRateLimit = true;
+          break;
+        }
+      }
       try {
         let runAIC;
         if (usageCache.has(run.id)) {
@@ -559,6 +593,7 @@ async function main() {
           });
         } else {
           // Cache miss: fetch AIC from the run's usage artifact.
+          apiCallsInLoop += ESTIMATED_API_OPERATIONS_PER_RUN;
           runAIC = await module.exports.getRunAIC(artifactClient, run.id, token, owner, repo);
         }
         if (runAIC <= 0) {

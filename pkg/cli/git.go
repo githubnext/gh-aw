@@ -441,10 +441,23 @@ func ensureLogsGitignore() error {
 	return nil
 }
 
-// getCurrentBranch gets the current git branch name
+// getCurrentBranch gets the current git branch name in the current working directory.
 func getCurrentBranch() (string, error) {
-	gitLog.Print("Getting current git branch")
+	return getCurrentBranchIn("")
+}
+
+// getCurrentBranchIn gets the current git branch name in the given directory.
+// Pass an empty string to use the current working directory.
+func getCurrentBranchIn(dir string) (string, error) {
+	if dir == "" {
+		gitLog.Print("Getting current git branch")
+	} else {
+		gitLog.Printf("Getting current git branch in %s", dir)
+	}
 	cmd := exec.Command("git", "branch", "--show-current")
+	if dir != "" {
+		cmd.Dir = dir
+	}
 	output, err := cmd.Output()
 	if err != nil {
 		gitLog.Printf("Failed to get current branch: %v", err)
