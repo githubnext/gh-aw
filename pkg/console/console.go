@@ -304,7 +304,7 @@ func formatListItemWithTTY(item string, ttyCheck func() bool) string {
 
 // FormatErrorMessage formats a simple error message (for stderr output)
 func FormatErrorMessage(message string) string {
-	return applyStyle(styles.Error, "✗ ") + message
+	return applyStyleWithTTY(styles.Error, "✗ ", isStderrTTY) + message
 }
 
 // FormatErrorTextStderr formats plain error-styled text for stderr output.
