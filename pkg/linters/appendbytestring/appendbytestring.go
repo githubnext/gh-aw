@@ -4,8 +4,8 @@
 package appendbytestring
 
 import (
+	"fmt"
 	"go/ast"
-	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
@@ -69,7 +69,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		if !isByteSliceConversion(conv) {
+		if !isByteSliceConversion(pass, conv) {
 			return
 		}
 		if len(conv.Args) != 1 {
@@ -80,11 +80,16 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
+		sText := astutil.NodeText(pass.Fset, strArg)
+		if sText == "" {
+			return
+		}
+
 		pass.Report(analysis.Diagnostic{
 			Pos:            call.Pos(),
 			End:            call.End(),
-			Message:        "append(b, []byte(s)...) can be simplified to append(b, s...); the []byte conversion is unnecessary",
-			SuggestedFixes: buildFix(pass, call, conv, strArg),
+			Message:        fmt.Sprintf("append(b, []byte(%s)...) can be simplified to append(b, %s...); the []byte conversion is unnecessary", sText, sText),
+			SuggestedFixes: buildFix(pass, conv, strArg),
 		})
 	})
 
@@ -105,20 +110,14 @@ func isByteSlice(pass *analysis.Pass, expr ast.Expr) bool {
 	return ok && elem.Kind() == types.Byte
 }
 
-// isByteSliceConversion reports whether conv is a []byte(...) type conversion expression.
-func isByteSliceConversion(conv *ast.CallExpr) bool {
-	// A type conversion looks like a call but has a type expression as the function.
-	// []byte(...) has an ArrayType as the Fun.
-	arr, ok := conv.Fun.(*ast.ArrayType)
-	if !ok {
+// isByteSliceConversion reports whether conv is a []byte/[]uint8 conversion expression.
+func isByteSliceConversion(pass *analysis.Pass, conv *ast.CallExpr) bool {
+	// A type conversion has a type expression as the call function.
+	funTypeInfo, ok := pass.TypesInfo.Types[conv.Fun]
+	if !ok || !funTypeInfo.IsType() {
 		return false
 	}
-	// Must be a slice (no length), element must be "byte".
-	if arr.Len != nil {
-		return false
-	}
-	ident, ok := arr.Elt.(*ast.Ident)
-	return ok && ident.Name == "byte"
+	return isByteSlice(pass, conv)
 }
 
 // isStringType reports whether expr has type string.
@@ -132,7 +131,7 @@ func isStringType(pass *analysis.Pass, expr ast.Expr) bool {
 }
 
 // buildFix returns a SuggestedFix rewriting append(b, []byte(s)...) to append(b, s...).
-func buildFix(pass *analysis.Pass, call *ast.CallExpr, conv *ast.CallExpr, strArg ast.Expr) []analysis.SuggestedFix {
+func buildFix(pass *analysis.Pass, conv *ast.CallExpr, strArg ast.Expr) []analysis.SuggestedFix {
 	sText := astutil.NodeText(pass.Fset, strArg)
 	if sText == "" {
 		return nil
@@ -145,7 +144,7 @@ func buildFix(pass *analysis.Pass, call *ast.CallExpr, conv *ast.CallExpr, strAr
 		TextEdits: []analysis.TextEdit{
 			{
 				Pos:     conv.Pos(),
-				End:     token.Pos(int(call.Rparen)), // rewrite up to (but not including) the closing paren of append
+				End:     conv.End(),
 				NewText: []byte(sText),
 			},
 		},

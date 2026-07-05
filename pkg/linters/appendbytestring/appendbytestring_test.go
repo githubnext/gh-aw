@@ -12,5 +12,5 @@ import (
 
 func TestAnalyzer(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, appendbytestring.Analyzer, "appendbytestring")
+	analysistest.RunWithSuggestedFixes(t, testdata, appendbytestring.Analyzer, "appendbytestring")
 }

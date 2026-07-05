@@ -3,13 +3,13 @@ package appendbytestring
 func bad() {
 	b := []byte("hello")
 	s := " world"
-	b = append(b, []byte(s)...) // want `append\(b, \[\]byte\(s\)\.\.\.\) can be simplified to append\(b, s\.\.\.\); the \[\]byte conversion is unnecessary`
+	b = append(b, s...) // want `append\(b, \[\]byte\(s\)\.\.\.\) can be simplified to append\(b, s\.\.\.\); the \[\]byte conversion is unnecessary`
 	_ = b
 }
 
 func badLiteral() {
 	b := []byte("hello")
-	b = append(b, []byte(" world")...) // want `append\(b, \[\]byte\(" world"\)\.\.\.\) can be simplified to append\(b, " world"\.\.\.\); the \[\]byte conversion is unnecessary`
+	b = append(b, " world"...) // want `append\(b, \[\]byte\(" world"\)\.\.\.\) can be simplified to append\(b, " world"\.\.\.\); the \[\]byte conversion is unnecessary`
 	_ = b
 }
 
@@ -18,14 +18,14 @@ type myString string
 func badNamedString() {
 	b := []byte("hello")
 	s := myString(" world")
-	b = append(b, []byte(s)...) // want `append\(b, \[\]byte\(s\)\.\.\.\) can be simplified to append\(b, s\.\.\.\); the \[\]byte conversion is unnecessary`
+	b = append(b, s...) // want `append\(b, \[\]byte\(s\)\.\.\.\) can be simplified to append\(b, s\.\.\.\); the \[\]byte conversion is unnecessary`
 	_ = b
 }
 
 func badUint8() {
 	b := []byte("hello")
 	s := " world"
-	b = append(b, []uint8(s)...) // want `append\(b, \[\]byte\(s\)\.\.\.\) can be simplified to append\(b, s\.\.\.\); the \[\]byte conversion is unnecessary`
+	b = append(b, s...) // want `append\(b, \[\]byte\(s\)\.\.\.\) can be simplified to append\(b, s\.\.\.\); the \[\]byte conversion is unnecessary`
 	_ = b
 }
 
