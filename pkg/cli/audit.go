@@ -498,6 +498,13 @@ func processedRunFromSummary(summary *RunSummary, runOutputDir string) Processed
 		GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
 		JobDetails:              summary.JobDetails,
 	}
+	// Run.Turns may be zero on cached-summary paths where the RunSummary was
+	// serialised before the run completed. Metrics.Turns is populated from log
+	// parsing and is authoritative; backfill here so that audit comparison deltas
+	// are computed from an accurate value.
+	if processedRun.Run.Turns == 0 && summary.Metrics.Turns > 0 {
+		processedRun.Run.Turns = summary.Metrics.Turns
+	}
 	processedRun.Run.LogsPath = runOutputDir
 	return processedRun
 }
