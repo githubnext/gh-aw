@@ -4,6 +4,11 @@ package workflow
 
 import (
 	"context"
+	"go/ast"
+	"go/parser"
+	gotoken "go/token"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -83,6 +88,49 @@ func TestMergeModelPricingIntoModelCosts_DoesNotMutateInput(t *testing.T) {
 	// Original map must be unchanged.
 	openai := base["providers"].(map[string]any)["openai"].(map[string]any)
 	assert.Empty(t, openai["models"].(map[string]any))
+}
+
+func TestMergeModelPricingIntoModelCosts_DoesNotPreSizeTopLevelClone(t *testing.T) {
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "runtime.Caller failed")
+
+	sourcePath := filepath.Join(filepath.Dir(thisFile), "compiler_model_pricing.go")
+	file, err := parser.ParseFile(gotoken.NewFileSet(), sourcePath, nil, parser.SkipObjectResolution)
+	require.NoError(t, err)
+
+	var foundResultMake bool
+	ast.Inspect(file, func(n ast.Node) bool {
+		fn, ok := n.(*ast.FuncDecl)
+		if !ok || fn.Name.Name != "mergeModelPricingIntoModelCosts" {
+			return true
+		}
+
+		for _, stmt := range fn.Body.List {
+			assign, ok := stmt.(*ast.AssignStmt)
+			if !ok || len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
+				continue
+			}
+			lhs, ok := assign.Lhs[0].(*ast.Ident)
+			if !ok || lhs.Name != "result" {
+				continue
+			}
+			call, ok := assign.Rhs[0].(*ast.CallExpr)
+			if !ok {
+				continue
+			}
+			fun, ok := call.Fun.(*ast.Ident)
+			if !ok || fun.Name != "make" {
+				continue
+			}
+
+			foundResultMake = true
+			assert.Len(t, call.Args, 1, "result map allocation should not pre-size capacity")
+			return false
+		}
+		return false
+	})
+
+	assert.True(t, foundResultMake, "expected to find result map allocation in mergeModelPricingIntoModelCosts")
 }
 
 // ── resolveEngineProviderForPricing ─────────────────────────────────────────
