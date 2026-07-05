@@ -50,6 +50,9 @@ jobs:
       - name: Install npm dependencies
         run: cd actions/setup/js && npm ci
 
+      - name: Check runtime CJS syntax
+        run: make check-cjs-syntax
+
       - name: Run typecheck
         run: cd actions/setup/js && npm run typecheck
 

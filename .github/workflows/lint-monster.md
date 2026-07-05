@@ -76,7 +76,7 @@ safe-outputs:
     allowed: [copilot]
   create-discussion:
     expires: 2d
-    category: reports
+    category: audits
     title-prefix: "[lint-monster] "
     max: 1
     close-older-discussions: true
