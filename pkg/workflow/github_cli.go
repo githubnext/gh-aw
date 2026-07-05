@@ -240,10 +240,9 @@ func RunGHWithHost(spinnerMessage string, host string, args ...string) ([]byte, 
 	if tty.IsStderrTerminal() {
 		spinner := console.NewSpinner(spinnerMessage)
 		spinner.Start()
+		defer spinner.Stop()
 		output, err := cmd.Output()
-		err = enrichGHError(err)
-		spinner.Stop()
-		return output, err
+		return output, enrichGHError(err)
 	}
 
 	output, err := cmd.Output()
@@ -259,10 +258,9 @@ func RunGHContextWithHost(ctx context.Context, spinnerMessage string, host strin
 	if tty.IsStderrTerminal() {
 		spinner := console.NewSpinner(spinnerMessage)
 		spinner.Start()
+		defer spinner.Stop()
 		output, err := cmd.Output()
-		err = enrichGHError(err)
-		spinner.Stop()
-		return output, err
+		return output, enrichGHError(err)
 	}
 
 	output, err := cmd.Output()

@@ -374,7 +374,7 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 	}
 	repoIdJSON, err := json.Marshal(repoIdBody)
 	if err != nil {
-		return fmt.Errorf("failed to marshal GraphQL request: %w", err)
+		return fmt.Errorf("failed to marshal repository ID GraphQL request: %w", err)
 	}
 	output, err := workflow.RunGHInputContext(ctx, "Getting repository ID...", bytes.NewReader(repoIdJSON), "api", "graphql", "--input", "-", "--jq", ".data.repository.id")
 	if err != nil {
