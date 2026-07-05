@@ -1,44 +1,43 @@
 {
-  "lastRun": "2026-07-04",
-  "ruleCount": 8,
-  "rules": ["no-core-setoutput-non-string", "no-unsafe-catch-error-property", "no-unsafe-promise-catch-error-property", "prefer-get-error-message", "require-async-entrypoint-catch", "require-await-core-summary-write", "require-json-parse-try-catch", "require-parseInt-radix"],
-  "newRuleThisPeriod": "require-await-core-summary-write added since 2026-07-03 run (was 7, now 8). This was a nextPriorities candidate from prior run (missing await on core.summary.write) - maintainers shipped it.",
-  "focusThisRun": "First analysis of NEW rule require-await-core-summary-write. Filed 3 refinement issues.",
+  "lastRun": "2026-07-05",
+  "ruleCount": 9,
+  "rules": ["no-core-setoutput-non-string", "no-unsafe-catch-error-property", "no-unsafe-promise-catch-error-property", "prefer-get-error-message", "prefer-number-isnan", "require-async-entrypoint-catch", "require-await-core-summary-write", "require-json-parse-try-catch", "require-parseInt-radix"],
+  "newRuleThisPeriod": "prefer-number-isnan added since 2026-07-04 run (was 8, now 9). Not in prior state.json rules list; never reviewed before. type=suggestion, warn.",
+  "shipped_since_last_run": "Commit bd0c249 (#43404) fixed the await-summary alias FN #1 I filed 2026-07-04 (local `summary = core.summary` aliases now detected). Issue #43326 is my await-summary FN3 (non-bare-call statement positions) - still OPEN.",
+  "focusThisRun": "First review of NEW 9th rule prefer-number-isnan. Filed 2 grounded refinement issues (kept to 2, not 3, to avoid dilution).",
   "issuesFiledThisRun": [
-    "await-summary FN (HIGH): can't see through local `summary` alias of core.summary. getRootIdentifier('summary') fails isCoreLikeIdentifier /^core/i. LIVE idiom: route_slash_command.cjs:20 const summary=core.summary; check_workflow_timestamp_api.cjs:414/435 let summary=core.summary (all currently awaited, so preventive-but-grounded). Ask: resolve const/let/destructure aliases.",
-    "await-summary FP (MED): isCoreLikeIdentifier /^core/i over-matches ANY core* ident (coreData/coreResults/coreference). No live FP (fs./db.summary ignored, coreObj is real @actions/core). Ask: tighten to known-alias/scope-resolved OR document breadth + add test.",
-    "await-summary FN (MED): visitor only ExpressionStatement->direct CallExpression (line 92). Misses Logical(&&)/Conditional(?:)/Sequence(,) wrapped + .then()-chain-no-await. No live sites. Ask: unwrap those, keep void exempt, add tests."
+    "prefer-number-isnan HIGH (grounded 51 sites): misleading 'wrap with Number(...)' caveat + suggestion-only. 0/51 live isNaN sites hit the coercion footgun - EVERY arg is provably numeric (parseInt/parseFloat/Number/.getTime result). For those the transform is a pure equivalence but rule offers no autofix and attaches a wrong caveat. Ask: detect provably-numeric arg -> safe `fix` + caveat-free message; keep suggest-only+caveat for unknown args; add idiom tests.",
+    "prefer-number-isnan MED (ungrounded/latent): hasLocalBinding excludes ImportBinding defs (d.type !== 'ImportBinding') -> import-bound isNaN (lodash) / window / global get flagged as the real global. No ESM consumers in corpus (CJS only), no test, undocumented rationale. Ask: document+test OR drop the filter so imports count as shadows."
   ],
-  "awaitSummaryFindings": {
-    "liveSummaryWriteSites_allAwaited": ["parse_mcp_gateway_log.cjs:236 coreObj.summary.write (CAUGHT-able)", "check_daily_aic_workflow_guardrail:399", "install_frontmatter_skills:139", "check_workflow_timestamp_api:422/445 (bare summary alias - NOT caught)", "cleanup_cache_memory:190/204/213/229/299", "parse_token_usage:144", "route_slash_command:38 (bare summary alias - NOT caught)", "check_version_updates:128/140", "upload_assets:200"],
-    "ruleCatchesWell": "core.summary.write() and coreObj.summary...write() bare-statement forms + chained addRaw/addHeading; suggestion gated on innermost-async (correct)",
-    "corpusDiscipline": "ZERO live un-awaited summary.write. All 3 issues are preventive; #1 is grounded in a live alias idiom (2 files)",
-    "aliasBindingSites": ["route_slash_command.cjs:20 const summary=core.summary", "check_workflow_timestamp_api.cjs:414/435 let summary=core.summary"]
+  "preferNumberIsNanFindings": {
+    "corpus": "51 global isNaN() call sites in actions/setup/js; 12 Number.isNaN sites; 0 isFinite; 0 aliased/destructured isNaN bindings; 0 raw-string isNaN args (all args are parseInt/parseFloat/Number/.getTime results).",
+    "ruleCatchesWell": "bare isNaN(x), globalThis/window/global .isNaN and [\"isNaN\"] computed forms, scope-aware shadow exclusion (const isNaN=Number.isNaN skipped). Suggestion (not fix) correctly gated behind semantic-flip caveat.",
+    "dominantIdiom": "const n = parseInt(String(v),10); if (isNaN(n)) ... -> isNaN===Number.isNaN here (arg already number), so replacement is guaranteed-equivalent.",
+    "notFiled_lowValue": "isFinite sibling rule candidate (0 corpus sites); alias-binding FN (0 sites); template-literal computed prop globalThis[`isNaN`] FN (contrived); optional-chain globalThis?.isNaN is already handled."
   },
   "priorOpenIssues_stillValid_notRefiled": {
+    "43326": "await-summary FN: discarded promise in non-bare-call statement positions (my 2026-07-04 FN3, landed as issue, OPEN)",
     "42680": "setoutput nonStringKind Literal only, misses UnaryExpression -1/+5",
     "42682": "setoutput only .length not .number/.size",
-    "42189": "sibling catch whole-block branch-order FN",
-    "42915": "promise-catch whole-callback branch-order FN",
-    "42188": "broaden catch beyond message/stack/code",
-    "42190": "catch add suggestions + computed access",
+    "42189/42915": "catch/promise-catch whole-block branch-order FN",
+    "42188/42190": "broaden catch beyond message/stack/code; add suggestions + computed access",
     "async-entrypoint (2 filed 2026-07-03)": "arrow/fn-expr + .then-no-catch FN; scope-blind bare-name Set FP",
     "42015/42016/42017/41962/41963": "parseInt+json alias/computed/deferred-callback out of scope or fix asks"
   },
-  "note_issueLimit": "create_issue max 3/run. Filed 3 this run (all new-rule await-summary). Did NOT refile prior open issues.",
+  "note_issueLimit": "create_issue max 3/run. Filed 2 this run (both prefer-number-isnan). Chose quality over cap.",
   "nextPriorities": [
-    "Re-read src before refiling: codebase ships new rules/refines fast (8th rule appeared in 1 day).",
-    "Watch whether await-summary issues #1-3 land; if alias-resolution shipped, re-scan corpus for newly-caught un-awaited sites.",
-    "Suggest maintainers extract shared reporting between no-unsafe-catch-error-property and no-unsafe-promise-catch-error-property (drift risk, still not filed - low priority maintainability).",
-    "Mine a genuinely new defect class beyond error-handling+summary family. Candidates: core.setFailed non-string (twin of setOutput); missing await on exec.exec/io ops (hard low-FP without types); unhandled fs.promises calls.",
-    "Cannot close issues (safe outputs: create_issue/create_discussion/missing_tool/missing_data/noop). Close-recs -> discussion only."
+    "Re-read src before refiling: repo ships new rules fast (9th rule appeared since 2026-07-04; await-summary alias fix landed same-day-ish as #43404).",
+    "Watch whether prefer-number-isnan gains provably-numeric autofix; if so, corpus becomes --fix-able for ~51 sites.",
+    "All 9 known rules now reviewed at least once. Next: mine a genuinely NEW defect class. Candidates: core.setFailed non-string (twin of setOutput); global isFinite (0 sites today - skip); Array.prototype.includes-on-NaN; unchecked fs.promises rejections; String.prototype.replace w/o /g on repeated tokens.",
+    "Consider re-sweeps of oldest-reviewed rules (require-json-parse-try-catch, require-parseInt-radix) for regressions after heavy refinement churn.",
+    "Cannot close issues (safe outputs: create_issue/create_discussion/missing_tool/missing_data/noop/push_repo_memory). Close-recs -> discussion only."
   ],
   "ops": [
-    "repo-memory readable via Read tool ONLY (Bash/Grep/Glob/find/ls BLOCKED on /tmp - scoped to working dir). Write works for /tmp/gh-aw/{repo-memory,agent}.",
-    "create issue: Write JSON (title/body/labels) to /tmp/gh-aw/agent/x.json then `safeoutputs create_issue . < x.json`. {\"result\":\"success\"}==accepted. Add 2>/dev/null to suppress verbose bridge log.",
-    "dedupe: `gh api -X GET search/issues -f q='repo:github/gh-aw is:issue is:open KEYWORD in:title'`. gh issue list --json throws malformed-version.",
-    "Bash blocks compound cmds (&&, ;, echo-chains) needing approval - run single commands or use grep -E with pipes to a single filter. printf chokes on [n] subscripts.",
-    "eslint-factory has NO node_modules/dist; npm firewalled - cannot run linter live. Ground findings statically via Grep on .cjs + reading rule src.",
-    "patch limit ~10KB - keep state.json lean, prune old verbatim finding lists. Pruned strategy.json rules_inventory is stale (v3, 2026-06-29) - state.json is source of truth."
+    "repo-memory readable+writable via Read/Write/Glob tools ONLY (Bash ls/cat/find BLOCKED on /tmp - scoped to working dir). Write works for /tmp/gh-aw/repo-memory.",
+    "create issue: Write JSON {title,body,labels} to a file INSIDE working dir (e.g. eslint-factory/.tmp_issue.json - /tmp/gh-aw/agent write via Bash redirect is BLOCKED), then `cd <dir> && safeoutputs create_issue . < file` (2>/dev/null suppresses bridge log). {\"result\":\"success\"}==accepted. rm temp files after.",
+    "dedupe: `gh api \"repos/github/gh-aw/issues?state=open&per_page=100\" --jq '.[]|select(...)'`. NOTE: gh api search/issues returned a GHOST result (total_count=1, all item fields null) for isNaN queries - an indexing artifact, NOT a real dup. Use the issues endpoint + jq title filter instead. `gh search issues --json` throws 'malformed version'.",
+    "Bash blocks compound cmds (&&, ;, echo-chains, $() expansion, $var in some contexts) needing approval - run single commands. sed -n 'A,Bp' works for context. grep -rn ok.",
+    "eslint-factory has NO node_modules/dist; npm firewalled - cannot run linter live. Ground findings statically via grep on .cjs + reading rule src + tests.",
+    "patch limit ~10KB per push - keep state.json lean, prune old verbatim finding lists."
   ]
 }

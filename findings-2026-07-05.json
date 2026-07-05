@@ -1,0 +1,38 @@
+{
+  "date": "2026-07-05",
+  "rule": "prefer-number-isnan",
+  "method": "static review of eslint-factory/src/rules/prefer-number-isnan.ts + .test.ts; grep grounding on actions/setup/js/**/*.cjs (live lint blocked by sandbox: no node_modules/dist, npm firewalled)",
+  "corpus_signals": {
+    "global_isNaN_call_sites": 51,
+    "number_isNaN_call_sites": 12,
+    "isFinite_sites": 0,
+    "aliased_or_destructured_isNaN_bindings": 0,
+    "raw_string_isNaN_args": 0,
+    "note": "All 51 global isNaN args are provably numeric (parseInt/parseFloat/Number/.getTime results) -> coercion footgun the rule warns about applies to ZERO live sites"
+  },
+  "findings": [
+    {
+      "id": "isnan-provably-numeric-safe-autofix",
+      "class": "weak-diagnostic + missing-safe-autofix",
+      "severity": "high",
+      "filed_issue": true,
+      "summary": "Message/suggestion caveat ('review whether to wrap with Number(...)') is misleading for the dominant idiom isNaN(parseInt(x,10)) where arg is already a number and isNaN===Number.isNaN. Rule offers only suggest (no fix) so ~51 equivalence-preserving replacements are not --fix-able.",
+      "evidence": "prefer-number-isnan.ts:60-73 report(); live sites templatable.cjs:62, check_skip_if_no_match.cjs:23, pr_helpers.cjs:52, error_recovery.cjs:138/147, generate_usage_activity_summary.cjs:149, update_project.cjs:579",
+      "ask": "Detect provably-numeric arg (parseInt/parseFloat/Number(.parseX)/.getTime/numeric literal) -> safe `fix` + caveat-free message; keep suggest-only+caveat for unknown/raw args; add idiom tests"
+    },
+    {
+      "id": "isnan-importbinding-shadow-exclusion",
+      "class": "false-positive-vector (latent)",
+      "severity": "medium",
+      "filed_issue": true,
+      "summary": "hasLocalBinding excludes ImportBinding defs (d.type !== 'ImportBinding'), so import-bound isNaN (lodash) / window / global are flagged as the real global. Latent: 0 ESM consumers in CJS corpus, no test, undocumented rationale.",
+      "evidence": "prefer-number-isnan.ts:37",
+      "ask": "Document+test the ESM behavior OR drop the filter so import bindings count as shadows"
+    }
+  ],
+  "not_filed": [
+    "isFinite sibling rule candidate: 0 corpus sites -> skip",
+    "template-literal computed prop globalThis[`isNaN`](x): TemplateLiteral not Literal -> FN, but contrived/no sites",
+    "already-handled: optional chain globalThis?.isNaN(x); computed literal ['isNaN']; scope-aware shadowing"
+  ]
+}
