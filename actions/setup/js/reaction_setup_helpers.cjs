@@ -14,11 +14,11 @@ const VALID_REACTIONS = Object.freeze(["+1", "-1", "laugh", "confused", "heart",
  */
 function resolveReactionSetup(rawContext) {
   const reaction = process.env.GH_AW_REACTION || "eyes";
-  const invocationContext = resolveInvocationContext(rawContext);
   if (!VALID_REACTIONS.includes(reaction)) {
     core.setFailed(`${ERR_VALIDATION}: Invalid reaction type: ${reaction}. Valid reactions are: ${VALID_REACTIONS.join(", ")}`);
     return null;
   }
+  const invocationContext = resolveInvocationContext(rawContext);
   return { reaction, invocationContext };
 }
 

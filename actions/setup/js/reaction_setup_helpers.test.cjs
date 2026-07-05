@@ -57,4 +57,11 @@ describe("reaction_setup_helpers", () => {
     expect(result).toBeNull();
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Invalid reaction type: invalid"));
   });
+
+  it("VALID_REACTIONS stays in sync with REACTION_MAP keys", async () => {
+    const { VALID_REACTIONS } = await importHelpers();
+    const { REACTION_MAP } = await import("./add_reaction.cjs?" + Date.now());
+
+    expect([...VALID_REACTIONS].sort()).toEqual(Object.keys(REACTION_MAP).sort());
+  });
 });
