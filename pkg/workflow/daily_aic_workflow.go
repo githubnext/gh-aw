@@ -60,7 +60,7 @@ func extractMaxDailyAICGitHubApp(frontmatter map[string]any) *GitHubAppConfig {
 		return nil
 	}
 	app := parseAppConfig(appMap)
-	if app.AppID == "" || app.PrivateKey == "" {
+	if (app.AppID == "" || app.PrivateKey == "") && !app.IgnoreIfMissing {
 		return nil
 	}
 	return app
@@ -179,6 +179,12 @@ func validateMaxDailyAICFrontmatter(data *WorkflowData) error {
 	raw, ok := data.RawFrontmatter[maxDailyAICreditsField]
 	if !ok {
 		return nil
+	}
+	// Object form: require a "value" key and validate the value.
+	if m, ok := raw.(map[string]any); ok {
+		if _, hasValue := m["value"]; !hasValue {
+			return fmt.Errorf("%s object form requires a 'value' field", maxDailyAICreditsField)
+		}
 	}
 	effective := extractMaxDailyAICObjectValue(raw)
 	if val, ok := typeutil.ParseIntValue(effective); ok && val < -1 {

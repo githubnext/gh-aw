@@ -310,6 +310,40 @@ Invalid negative daily guardrail value`
 	}
 }
 
+func TestDailyAICObjectFormMissingValueRejected(t *testing.T) {
+	testDir := testutil.TempDir(t, "daily-aic-missing-value-*")
+	workflowFile := filepath.Join(testDir, "daily-aic-missing-value.md")
+
+	// Object form without a 'value' key must be rejected with a clear error.
+	workflow := `---
+on:
+  workflow_dispatch:
+  stale-check: false
+max-daily-ai-credits:
+  github-app:
+    client-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_KEY }}
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+Object form without value key`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
+		t.Fatalf("failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(workflowFile)
+	if err == nil {
+		t.Fatal("expected compile to fail for object form missing 'value' key")
+	}
+	if !strings.Contains(err.Error(), "value") {
+		t.Fatalf("expected error to mention 'value' field, got: %v", err)
+	}
+}
+
 func TestMaxDailyAICObjectForm(t *testing.T) {
 	t.Run("object form value is used as threshold", func(t *testing.T) {
 		got := resolveMaxDailyAIC(map[string]any{
@@ -319,6 +353,17 @@ func TestMaxDailyAICObjectForm(t *testing.T) {
 		}, "")
 		if got == nil || *got != "5000" {
 			t.Fatalf("expected object form value to be used as threshold, got %v", got)
+		}
+	})
+
+	t.Run("object form with value -1 is treated as disabled", func(t *testing.T) {
+		got := resolveMaxDailyAIC(map[string]any{
+			"max-daily-ai-credits": map[string]any{
+				"value": -1,
+			},
+		}, "")
+		if got != nil {
+			t.Fatalf("expected nil (disabled) for object form value -1, got %v", got)
 		}
 	})
 
@@ -341,6 +386,44 @@ func TestMaxDailyAICObjectForm(t *testing.T) {
 		}
 		if app.PrivateKey != "${{ secrets.APP_PRIVATE_KEY }}" {
 			t.Fatalf("unexpected PrivateKey: %s", app.PrivateKey)
+		}
+	})
+
+	t.Run("object form github-app with ignore-if-missing is preserved", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"max-daily-ai-credits": map[string]any{
+				"value": 5000,
+				"github-app": map[string]any{
+					"client-id":         "${{ vars.APP_ID }}",
+					"private-key":       "${{ secrets.APP_KEY }}",
+					"ignore-if-missing": true,
+				},
+			},
+		}
+		app := extractMaxDailyAICGitHubApp(frontmatter)
+		if app == nil {
+			t.Fatal("expected non-nil app when ignore-if-missing is set")
+		}
+		if !app.IgnoreIfMissing {
+			t.Fatal("expected IgnoreIfMissing to be true")
+		}
+	})
+
+	t.Run("object form github-app with ignore-if-missing and empty credentials is preserved", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"max-daily-ai-credits": map[string]any{
+				"value": 5000,
+				"github-app": map[string]any{
+					"ignore-if-missing": true,
+				},
+			},
+		}
+		app := extractMaxDailyAICGitHubApp(frontmatter)
+		if app == nil {
+			t.Fatal("expected non-nil app when ignore-if-missing is set, even with empty credentials")
+		}
+		if !app.IgnoreIfMissing {
+			t.Fatal("expected IgnoreIfMissing to be true")
 		}
 	})
 
@@ -405,6 +488,11 @@ Daily AIC guardrail with dedicated GitHub App`
 
 	if !strings.Contains(lockStr, "id: "+dailyAICAppTokenStepID) {
 		t.Fatal("expected compiled workflow to include the daily AIC GitHub App token mint step")
+	}
+	// The mint step must be gated on the guardrail env var so it is skipped in workflows
+	// where the guardrail is not active at runtime.
+	if !strings.Contains(lockStr, "if: "+maxDailyAICreditsConfiguredIfExpr) {
+		t.Fatalf("expected mint step to be gated on guardrail env var %s", maxDailyAICreditsConfiguredIfExpr)
 	}
 	if !strings.Contains(lockStr, "${{ vars.AIC_APP_CLIENT_ID }}") {
 		t.Fatal("expected daily AIC token step to include the configured client-id")

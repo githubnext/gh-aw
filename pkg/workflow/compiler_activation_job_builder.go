@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
@@ -409,10 +411,38 @@ func (c *Compiler) buildDailyAICAppTokenMintStep(app *GitHubAppConfig) []string 
 		owner = "${{ github.repository_owner }}"
 	}
 	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
-	steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
+	if len(app.Repositories) == 1 && app.Repositories[0] == "*" {
+		// Org-wide access: omit repositories field entirely
+	} else if len(app.Repositories) == 1 {
+		steps = append(steps, fmt.Sprintf("          repositories: %s\n", app.Repositories[0]))
+	} else if len(app.Repositories) > 1 {
+		steps = append(steps, "          repositories: |-\n")
+		for _, repo := range app.Repositories {
+			steps = append(steps, fmt.Sprintf("            %s\n", repo))
+		}
+	} else {
+		steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
+	}
 	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
-	// The guardrail script reads workflow run data, so actions: read is required.
-	steps = append(steps, "          permission-actions: read\n")
+	// Build permission fields: baseline is actions: read (required for guardrail script to read
+	// workflow run data). Merge any user-configured app.Permissions on top so callers can extend
+	// or override the scope without changing the compiler. Sort keys for deterministic output.
+	basePerms := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionActions: PermissionRead,
+	})
+	permissionFields := convertPermissionsToAppTokenFields(basePerms)
+	for key, val := range app.Permissions {
+		scope := convertStringToPermissionScope(key)
+		if scope == "" {
+			continue
+		}
+		level := strings.ToLower(strings.TrimSpace(val))
+		tempPerms := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{scope: PermissionLevel(level)})
+		maps.Copy(permissionFields, convertPermissionsToAppTokenFields(tempPerms))
+	}
+	for _, key := range sliceutil.SortedKeys(permissionFields) {
+		steps = append(steps, fmt.Sprintf("          %s: %s\n", key, permissionFields[key]))
+	}
 	return steps
 }
 
