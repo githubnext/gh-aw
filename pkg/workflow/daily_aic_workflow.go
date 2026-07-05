@@ -98,8 +98,11 @@ func parseMaxDailyAICValue(raw any) *string {
 	return nil
 }
 
-func isMaxDailyAICDisabled(raw any) bool {
-	effective := extractMaxDailyAICObjectValue(raw)
+// isEffectiveDisabledValue reports whether an already-extracted scalar value
+// represents an explicit disable (i.e. equals -1). Call this when the value
+// has already been unwrapped by extractMaxDailyAICObjectValue to avoid
+// a redundant extraction pass.
+func isEffectiveDisabledValue(effective any) bool {
 	if val, ok := typeutil.ParseIntValue(effective); ok {
 		return val == -1
 	}
@@ -110,9 +113,13 @@ func isMaxDailyAICDisabled(raw any) bool {
 	return strings.TrimSpace(rawStr) == "-1"
 }
 
+func isMaxDailyAICDisabled(raw any) bool {
+	return isEffectiveDisabledValue(extractMaxDailyAICObjectValue(raw))
+}
+
 func resolveMaxDailyAICFromRaw(raw any) (*string, bool) {
 	effective := extractMaxDailyAICObjectValue(raw)
-	if isMaxDailyAICDisabled(effective) {
+	if isEffectiveDisabledValue(effective) {
 		return nil, true
 	}
 	if value := parseMaxDailyAICValue(effective); value != nil {
