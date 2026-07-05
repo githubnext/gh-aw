@@ -155,14 +155,14 @@ func TestEvalDispatchWorkflowRunIDInt64(t *testing.T) {
 func TestEvalDispatchWorkflowFloat64OverflowGuard(t *testing.T) {
 	// A float64 value above 2^53 cannot represent integers exactly and must be
 	// treated as an invalid run_id (OutcomePending) rather than silently truncated.
-	// Use 2^53 + 2 (= 9007199254740994): consecutive integers around 2^53 collapse to
-	// the same float64, so this value would be mangled if cast to int64 directly.
-	tooLarge := float64(maxSafeFloat64Int) + 2
+	// Use 2^53 + 2 (= 9007199254740994): consecutive integers around 2^53 collapse
+	// to the same float64, so this value would be mangled if cast to int64 directly.
+	aboveMaxSafeInt := float64(maxSafeFloat64Int) + 2
 
 	report := evalDispatchWorkflow(CreatedItemReport{
 		Type:     "dispatch_workflow",
 		Repo:     "owner/repo",
-		Metadata: map[string]any{"run_id": tooLarge},
+		Metadata: map[string]any{"run_id": aboveMaxSafeInt},
 	}, "owner/repo")
 
 	assert.Equal(t, OutcomePending, report.Result,

@@ -26,11 +26,11 @@ var writeScopeOrder = map[string]int{
 // precedence scope (e.g. organization) seeds the policy before lower-precedence
 // rules (e.g. intent) can only narrow it.
 var scopePriorityOrder = map[string]int{
-	"organization": 4,
-	"repository":   3,
-	"intent":       2,
-	"workflow":     1,
-	"":             0,
+	"organization": 4, // highest: org-wide rules always dominate
+	"repository":   3, // repo-specific constraints narrow org rules
+	"intent":       2, // intent-level rules narrow within a repo
+	"workflow":     1, // workflow defaults are lowest named scope
+	"":             0, // unscoped rules are lowest priority of all
 }
 
 // ExecutionPolicy governs what an agent may do for a given intent.
