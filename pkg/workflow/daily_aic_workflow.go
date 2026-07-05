@@ -17,6 +17,55 @@ const maxDailyAICreditsField = "max-daily-ai-credits"
 const maxDailyAICreditsEnvVar = "GH_AW_MAX_DAILY_AI_CREDITS"
 const maxDailyAICreditsConfiguredIfExpr = "${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}"
 
+// extractMaxDailyAICObjectValue normalizes the max-daily-ai-credits frontmatter
+// value for scalar processing. When the value is in the object form
+// (e.g. {value: 123, github-app: {...}}), the inner "value" key is extracted
+// and returned. When the object form lacks a "value" key, nil is returned so
+// that downstream callers treat the limit as unset and fall back to imported or
+// default values. When the value is not in object form, it is returned unchanged.
+func extractMaxDailyAICObjectValue(raw any) any {
+	if m, ok := raw.(map[string]any); ok {
+		// Object form: extract "value" if present, otherwise return nil so the
+		// limit is treated as unset (the github-app key alone does not set a limit).
+		return m["value"]
+	}
+	return raw
+}
+
+// extractMaxDailyAICGitHubApp extracts the optional github-app configuration
+// from the object form of the max-daily-ai-credits frontmatter field.
+//
+//	max-daily-ai-credits:
+//	  value: 123
+//	  github-app:
+//	    client-id: ${{ vars.APP_ID }}
+//	    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+//
+// Returns nil when the field is not in object form or no valid github-app is present.
+func extractMaxDailyAICGitHubApp(frontmatter map[string]any) *GitHubAppConfig {
+	raw, ok := frontmatter[maxDailyAICreditsField]
+	if !ok {
+		return nil
+	}
+	rawMap, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	appAny, ok := rawMap["github-app"]
+	if !ok {
+		return nil
+	}
+	appMap, ok := appAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	app := parseAppConfig(appMap)
+	if (app.AppID == "" || app.PrivateKey == "") && !app.IgnoreIfMissing {
+		return nil
+	}
+	return app
+}
+
 // parseMaxDailyAICValue normalizes max-daily-ai-credits
 // values into a runtime-ready string.
 //
@@ -49,22 +98,31 @@ func parseMaxDailyAICValue(raw any) *string {
 	return nil
 }
 
-func isMaxDailyAICDisabled(raw any) bool {
-	if val, ok := typeutil.ParseIntValue(raw); ok {
+// isEffectiveDisabledValue reports whether an already-extracted scalar value
+// represents an explicit disable (i.e. equals -1). Call this when the value
+// has already been unwrapped by extractMaxDailyAICObjectValue to avoid
+// a redundant extraction pass.
+func isEffectiveDisabledValue(effective any) bool {
+	if val, ok := typeutil.ParseIntValue(effective); ok {
 		return val == -1
 	}
-	rawStr, ok := raw.(string)
+	rawStr, ok := effective.(string)
 	if !ok {
 		return false
 	}
 	return strings.TrimSpace(rawStr) == "-1"
 }
 
+func isMaxDailyAICDisabled(raw any) bool {
+	return isEffectiveDisabledValue(extractMaxDailyAICObjectValue(raw))
+}
+
 func resolveMaxDailyAICFromRaw(raw any) (*string, bool) {
-	if isMaxDailyAICDisabled(raw) {
+	effective := extractMaxDailyAICObjectValue(raw)
+	if isEffectiveDisabledValue(effective) {
 		return nil, true
 	}
-	if value := parseMaxDailyAICValue(raw); value != nil {
+	if value := parseMaxDailyAICValue(effective); value != nil {
 		return value, true
 	}
 	return nil, false
@@ -129,7 +187,14 @@ func validateMaxDailyAICFrontmatter(data *WorkflowData) error {
 	if !ok {
 		return nil
 	}
-	if val, ok := typeutil.ParseIntValue(raw); ok && val < -1 {
+	// Object form: require a "value" key and validate the value.
+	if m, ok := raw.(map[string]any); ok {
+		if _, hasValue := m["value"]; !hasValue {
+			return fmt.Errorf("%s object form requires a 'value' field", maxDailyAICreditsField)
+		}
+	}
+	effective := extractMaxDailyAICObjectValue(raw)
+	if val, ok := typeutil.ParseIntValue(effective); ok && val < -1 {
 		return fmt.Errorf("%s must be -1 (disable) or a positive integer, got %d", maxDailyAICreditsField, val)
 	}
 	return nil

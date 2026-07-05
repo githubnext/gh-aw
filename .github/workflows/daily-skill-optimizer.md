@@ -226,3 +226,9 @@ Structure the issue body as follows:
 ```
 
 Do not call `noop` for this workflow; always create exactly one issue with exactly 3 improvements.
+
+### Output Format
+
+Use `###` (or lower) headers only.
+
+The issue body template above is authoritative — do not deviate from it.

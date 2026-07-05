@@ -86,4 +86,8 @@ Make your selection based on the day of the week:
 
 Provide a brief explanation of why you chose this configuration.
 
+### Output Format
+
+Respond with a single short paragraph explaining the chosen environment, test type, and day-based rationale.
+
 {{#runtime-import shared/noop-reminder.md}}

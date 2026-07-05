@@ -329,4 +329,9 @@ A successful analysis run:
 
 Begin your analysis now. Focus on evaluating error messages from a developer experience perspective - imagine you're a developer encountering this error for the first time and ask: "Would this help me fix the problem quickly?"
 
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 {{#runtime-import shared/noop-reminder.md}}

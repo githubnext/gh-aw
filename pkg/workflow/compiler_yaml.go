@@ -304,6 +304,24 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	c.jobManager.WriteJobsYAML(yaml)
 }
 
+// normalizeBlankLines rewrites the assembled workflow YAML so that:
+//   - every whitespace-only line is emitted as an empty line (no trailing spaces), and
+//   - the file ends with exactly one trailing newline (no trailing blank line).
+//
+// A whitespace-only line is semantically a blank line inside YAML block scalars, so
+// clearing its whitespace does not change the parsed content. This removes the bulk
+// of yamllint trailing-spaces and empty-lines noise from generated lock files without
+// touching lines that carry real content.
+func normalizeBlankLines(yamlContent string) string {
+	lines := strings.Split(yamlContent, "\n")
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			lines[i] = ""
+		}
+	}
+	return strings.TrimRight(strings.Join(lines, "\n"), "\n") + "\n"
+}
+
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, []string, []string, error) {
 	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
 
@@ -424,6 +442,15 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		compilerYamlLog.Print("Trial mode enabled, replacing issue number references")
 		yamlContent = c.replaceIssueNumberReferences(yamlContent)
 	}
+
+	// Normalize whitespace-only lines to empty lines. Many generated blocks
+	// (heredoc prompt bodies, embedded scripts, indented sub-documents) emit blank
+	// lines that carry the surrounding indentation as pure whitespace, which
+	// yamllint flags as trailing-spaces. A whitespace-only line is semantically a
+	// blank line inside YAML block scalars, so clearing it does not change the
+	// parsed content. Also ensure the file ends with exactly one trailing newline
+	// (a trailing blank line is flagged by yamllint as empty-lines).
+	yamlContent = normalizeBlankLines(yamlContent)
 
 	compilerYamlLog.Printf("Successfully generated YAML for workflow: %s (%d bytes)", data.Name, len(yamlContent))
 	return yamlContent, secrets, actions, nil

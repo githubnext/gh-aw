@@ -16,6 +16,7 @@ permissions:
   copilot-requests: write
 engine:
   id: copilot
+  model: "${{ needs.activation.outputs.model_size }}"
   max-continuations: 15
 tools:
   cli-proxy: true
@@ -125,6 +126,21 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+experiments:
+  model_size:
+    variants: [claude-haiku-4.5, claude-sonnet-4.6]
+    description: "Tests whether a smaller model can preserve test-review decision quality at lower cost versus a larger reasoning-capable model."
+    hypothesis: "H0: model-size variant does not improve review usefulness acceptance rate. H1: a larger reasoning-capable model improves review usefulness acceptance rate by >=15 percentage points without materially increasing false-positive change requests."
+    metric: review_usefulness_acceptance_rate
+    secondary_metrics: [ai_credits_total, false_positive_change_request_rate]
+    guardrail_metrics:
+      - name: false_positive_change_request_rate
+        threshold: "<=0.20"
+      - name: run_success_rate
+        threshold: ">=0.90"
+    min_samples: 70
+    weight: [50, 50]
+    start_date: "2026-07-05"
 ---
 
 # Test Quality Sentinel 🧪

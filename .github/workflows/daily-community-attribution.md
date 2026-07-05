@@ -532,3 +532,7 @@ If you encounter a genuine error that prevents completion (e.g., data fetch fail
 {"create_issue": {"title": "Brief description of the failure", "body": "### What failed\n\nDescribe the specific step or data source that failed.\n\n### Error details\n\n(Include the error message or unexpected output here)\n\n### Steps to investigate\n\n1. Check the workflow run logs for the full error message\n2. Verify that community_issues.json and pull_requests.json were fetched successfully\n3. Re-run the workflow manually via workflow_dispatch to see if the failure is transient"}}
 ```
 {{#endif}}
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.

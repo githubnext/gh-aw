@@ -230,4 +230,9 @@ Before finishing, you MUST call a safe-output tool:
 
 Never end the run with plain text output only. A safe-output tool call is required so the workflow run is classified as `success` (instead of `action_required`).
 
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 {{#runtime-import shared/noop-reminder.md}}

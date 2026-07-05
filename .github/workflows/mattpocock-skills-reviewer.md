@@ -108,6 +108,16 @@ The following skills have been installed via `gh skill` and are available under 
 
 Review this pull request using the most appropriate Matt Pocock skill(s) for the type of changes made, then deliver actionable, specific improvement suggestions as inline review comments and an overall review.
 
+## Success Criteria
+
+A successful review:
+
+- focuses on the highest-impact changed lines instead of broad restatement of the PR
+- maps each finding to a concrete risk and a specific fix
+- uses skill labels only when they materially improve the advice
+- approves only when no actionable issue remains
+- uses `noop` instead of generic praise when there is nothing useful to say
+
 ### Step 1: Load Pre-fetched PR Data
 
 > **⚠️ Do NOT call any GitHub MCP tools for PR data.** All PR information is pre-fetched: use `/tmp/gh-aw/agent/pr-meta.json` and `/tmp/gh-aw/agent/pr-diff.patch` exclusively.
@@ -205,7 +215,7 @@ Submit a review using `submit_pull_request_review` with an overall summary:
 - **`APPROVE`** — Changes are solid; only minor suggestions
 - **`REQUEST_CHANGES`** — There are important issues that should be addressed
 - **`COMMENT`** — Observations only; no blocking issues
-- If you choose **`APPROVE`**, also call `create_check_run` with `conclusion: "success"` and a short summary that no blocking issues were found.
+- If you choose **`APPROVE`**, submit the approval review first. Only add `create_check_run` when you have a concrete success summary that helps the author or merge queue; skip it otherwise.
 
 The review body should apply progressive disclosure — keep the immediately visible portion brief and collapse details:
 

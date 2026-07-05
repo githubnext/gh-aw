@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -306,5 +307,207 @@ Invalid negative daily guardrail value`
 	// correctly rejects values below -1.
 	if !strings.Contains(err.Error(), "must be -1") && !strings.Contains(err.Error(), "minimum") {
 		t.Fatalf("expected validation error rejecting -2, got: %v", err)
+	}
+}
+
+func TestDailyAICObjectFormMissingValueRejected(t *testing.T) {
+	testDir := testutil.TempDir(t, "daily-aic-missing-value-*")
+	workflowFile := filepath.Join(testDir, "daily-aic-missing-value.md")
+
+	// Object form without a 'value' key must be rejected with a clear error.
+	workflow := `---
+on:
+  workflow_dispatch:
+  stale-check: false
+max-daily-ai-credits:
+  github-app:
+    client-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_KEY }}
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+Object form without value key`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
+		t.Fatalf("failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(workflowFile)
+	if err == nil {
+		t.Fatal("expected compile to fail for object form missing 'value' key")
+	}
+	if !strings.Contains(err.Error(), "value") {
+		t.Fatalf("expected error to mention 'value' field, got: %v", err)
+	}
+}
+
+func TestMaxDailyAICObjectForm(t *testing.T) {
+	t.Run("object form value is used as threshold", func(t *testing.T) {
+		got := resolveMaxDailyAIC(map[string]any{
+			"max-daily-ai-credits": map[string]any{
+				"value": 5000,
+			},
+		}, "")
+		if got == nil || *got != "5000" {
+			t.Fatalf("expected object form value to be used as threshold, got %v", got)
+		}
+	})
+
+	t.Run("object form with value -1 is treated as disabled", func(t *testing.T) {
+		got := resolveMaxDailyAIC(map[string]any{
+			"max-daily-ai-credits": map[string]any{
+				"value": -1,
+			},
+		}, "")
+		if got != nil {
+			t.Fatalf("expected nil (disabled) for object form value -1, got %v", got)
+		}
+	})
+
+	t.Run("object form github-app is extracted", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"max-daily-ai-credits": map[string]any{
+				"value": 5000,
+				"github-app": map[string]any{
+					"client-id":   "${{ vars.APP_ID }}",
+					"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+			},
+		}
+		app := extractMaxDailyAICGitHubApp(frontmatter)
+		if app == nil {
+			t.Fatal("expected github-app to be extracted from object form")
+		}
+		if app.AppID != "${{ vars.APP_ID }}" {
+			t.Fatalf("unexpected AppID: %s", app.AppID)
+		}
+		if app.PrivateKey != "${{ secrets.APP_PRIVATE_KEY }}" {
+			t.Fatalf("unexpected PrivateKey: %s", app.PrivateKey)
+		}
+	})
+
+	t.Run("object form github-app with ignore-if-missing is preserved", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"max-daily-ai-credits": map[string]any{
+				"value": 5000,
+				"github-app": map[string]any{
+					"client-id":         "${{ vars.APP_ID }}",
+					"private-key":       "${{ secrets.APP_KEY }}",
+					"ignore-if-missing": true,
+				},
+			},
+		}
+		app := extractMaxDailyAICGitHubApp(frontmatter)
+		if app == nil {
+			t.Fatal("expected non-nil app when ignore-if-missing is set")
+		}
+		if !app.IgnoreIfMissing {
+			t.Fatal("expected IgnoreIfMissing to be true")
+		}
+	})
+
+	t.Run("object form github-app with ignore-if-missing and empty credentials is preserved", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"max-daily-ai-credits": map[string]any{
+				"value": 5000,
+				"github-app": map[string]any{
+					"ignore-if-missing": true,
+				},
+			},
+		}
+		app := extractMaxDailyAICGitHubApp(frontmatter)
+		if app == nil {
+			t.Fatal("expected non-nil app when ignore-if-missing is set, even with empty credentials")
+		}
+		if !app.IgnoreIfMissing {
+			t.Fatal("expected IgnoreIfMissing to be true")
+		}
+	})
+
+	t.Run("scalar form returns nil github-app", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"max-daily-ai-credits": 5000,
+		}
+		app := extractMaxDailyAICGitHubApp(frontmatter)
+		if app != nil {
+			t.Fatalf("expected nil github-app for scalar form, got %+v", app)
+		}
+	})
+
+	t.Run("object form without github-app returns nil", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"max-daily-ai-credits": map[string]any{
+				"value": 5000,
+			},
+		}
+		app := extractMaxDailyAICGitHubApp(frontmatter)
+		if app != nil {
+			t.Fatalf("expected nil github-app when not specified, got %+v", app)
+		}
+	})
+}
+
+func TestMaxDailyAICWithGitHubAppCompiledWorkflow(t *testing.T) {
+	testDir := testutil.TempDir(t, "daily-aic-github-app-*")
+	workflowFile := filepath.Join(testDir, "daily-aic-github-app.md")
+
+	workflow := `---
+on:
+  workflow_dispatch:
+  stale-check: false
+max-daily-ai-credits:
+  value: 10000
+  github-app:
+    client-id: ${{ vars.AIC_APP_CLIENT_ID }}
+    private-key: ${{ secrets.AIC_APP_PRIVATE_KEY }}
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+Daily AIC guardrail with dedicated GitHub App`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
+		t.Fatalf("failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("failed to read lock file: %v", err)
+	}
+	lockStr := string(lockContent)
+
+	if !strings.Contains(lockStr, "id: "+dailyAICAppTokenStepID) {
+		t.Fatal("expected compiled workflow to include the daily AIC GitHub App token mint step")
+	}
+	// The mint step must be gated on the guardrail env var so it is skipped in workflows
+	// where the guardrail is not active at runtime.
+	if !strings.Contains(lockStr, "if: "+maxDailyAICreditsConfiguredIfExpr) {
+		t.Fatalf("expected mint step to be gated on guardrail env var %s", maxDailyAICreditsConfiguredIfExpr)
+	}
+	if !strings.Contains(lockStr, "${{ vars.AIC_APP_CLIENT_ID }}") {
+		t.Fatal("expected daily AIC token step to include the configured client-id")
+	}
+	if !strings.Contains(lockStr, "${{ secrets.AIC_APP_PRIVATE_KEY }}") {
+		t.Fatal("expected daily AIC token step to include the configured private-key")
+	}
+	if !strings.Contains(lockStr, "permission-actions: read") {
+		t.Fatal("expected daily AIC token step to request actions: read permission")
+	}
+	aicTokenRef := fmt.Sprintf("${{ steps.%s.outputs.token }}", dailyAICAppTokenStepID)
+	if !strings.Contains(lockStr, aicTokenRef) {
+		t.Fatalf("expected guardrail steps to use the dedicated AIC app token %s", aicTokenRef)
+	}
+	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_AI_CREDITS: "10000"`) {
+		t.Fatal("expected activation job env to include the guardrail threshold from the object form")
 	}
 }

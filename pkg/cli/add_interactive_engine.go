@@ -67,7 +67,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 				if opt.EnvVarName != "" {
 					envVar = opt.EnvVarName
 				}
-				if os.Getenv(envVar) != "" {
+				if lookupEnv(envVar) != "" {
 					defaultEngine = opt.Value
 					addInteractiveLog.Printf("Found env var %s, recommending engine: %s", envVar, opt.Value)
 					break

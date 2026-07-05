@@ -144,4 +144,9 @@ A successful run MUST:
 - Ensure covered threats are represented in the W3C-style spec
 - Preserve secure compiler behavior
 
+
+### Output Format
+
+Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.
+
 {{#runtime-import shared/noop-reminder.md}}
