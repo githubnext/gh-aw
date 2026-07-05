@@ -4,11 +4,13 @@ package workflow
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
@@ -38,6 +40,40 @@ func latestPinnedUsesForRepo(t *testing.T, repo string) string {
 		t.Fatalf("getCachedActionPin(%s) returned empty", repo)
 	}
 	return result
+}
+
+func latestActionVersionForRepo(t *testing.T, repo string) string {
+	t.Helper()
+
+	pin, ok := getLatestActionPinByRepo(repo)
+	if !ok || pin.Version == "" {
+		t.Fatalf("getLatestActionPinByRepo(%s) returned no latest pin", repo)
+	}
+	return pin.Version
+}
+
+func captureStderrOutput(t *testing.T, fn func()) string {
+	t.Helper()
+
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe() failed: %v", err)
+	}
+	os.Stderr = w
+	t.Cleanup(func() {
+		_ = w.Close()
+		os.Stderr = oldStderr
+	})
+
+	fn()
+
+	_ = w.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	return buf.String()
 }
 
 // TestGetActionPinFallback tests that getActionPin returns empty string for unknown actions
@@ -1716,9 +1752,8 @@ func TestGetActionPinPrefersLatestEmbeddedOverStaleCache(t *testing.T) {
 
 // TestWarnIfOutdatedActionVersion tests the warnIfOutdatedActionVersion helper.
 func TestWarnIfOutdatedActionVersion(t *testing.T) {
-	// actions/checkout has only v7.0.0 in the embedded pins.
-	const checkoutLatest = "v7.0.0"
 	const checkoutRepo = "actions/checkout"
+	checkoutLatest := latestActionVersionForRepo(t, checkoutRepo)
 
 	tests := []struct {
 		name         string
@@ -1759,12 +1794,27 @@ func TestWarnIfOutdatedActionVersion(t *testing.T) {
 			expectWarn: false,
 		},
 		{
+			name:       "minor partial tag same major does not warn",
+			repo:       checkoutRepo,
+			rawVersion: "v7.0",
+			latestVer:  "v7.1.0",
+			expectWarn: false,
+		},
+		{
 			name:         "partial tag older major warns",
 			repo:         checkoutRepo,
 			rawVersion:   "v6",
 			latestVer:    checkoutLatest,
 			expectWarn:   true,
 			warnContains: "v6",
+		},
+		{
+			name:         "minor partial tag older major warns",
+			repo:         checkoutRepo,
+			rawVersion:   "v6.1",
+			latestVer:    "v7.1.0",
+			expectWarn:   true,
+			warnContains: "v6.1",
 		},
 		{
 			name:       "SHA ref does not warn",
@@ -1791,25 +1841,14 @@ func TestWarnIfOutdatedActionVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			oldStderr := os.Stderr
-			r, w, err := os.Pipe()
-			if err != nil {
-				t.Fatalf("os.Pipe() failed: %v", err)
-			}
-			os.Stderr = w
-
 			data := &WorkflowData{}
-			warnIfOutdatedActionVersion(tt.repo, tt.rawVersion, tt.latestVer, data)
-
-			w.Close()
-			os.Stderr = oldStderr
-			_, _ = buf.ReadFrom(r)
-			output := buf.String()
+			output := captureStderrOutput(t, func() {
+				warnIfOutdatedActionVersion(tt.repo, tt.rawVersion, tt.latestVer, data)
+			})
 
 			if tt.expectWarn {
-				if output == "" {
-					t.Errorf("expected a warning to be printed but got none")
+				if !strings.Contains(output, "⚠") || !strings.Contains(output, "is outdated") {
+					t.Errorf("expected outdated warning marker/message in %q", output)
 				}
 				if tt.warnContains != "" && !strings.Contains(output, tt.warnContains) {
 					t.Errorf("warning output %q does not contain %q", output, tt.warnContains)
@@ -1817,35 +1856,37 @@ func TestWarnIfOutdatedActionVersion(t *testing.T) {
 				if !strings.Contains(output, tt.latestVer) {
 					t.Errorf("warning output %q does not mention latest version %q", output, tt.latestVer)
 				}
+				if !strings.Contains(output, "\n  Consider upgrading") {
+					t.Errorf("warning output %q does not include upgrade guidance on a new line", output)
+				}
 			} else {
-				if output != "" {
-					t.Errorf("expected no warning but got: %q", output)
+				if strings.Contains(output, "⚠") || strings.Contains(output, "is outdated") {
+					t.Errorf("expected no outdated warning but got: %q", output)
 				}
 			}
 		})
 	}
 }
 
+func TestWarnIfOutdatedActionVersion_NilDataDoesNotWarn(t *testing.T) {
+	output := captureStderrOutput(t, func() {
+		warnIfOutdatedActionVersion("actions/checkout", "v5.0.0", "v7.0.0", nil)
+	})
+
+	if strings.Contains(output, "⚠") || strings.Contains(output, "is outdated") {
+		t.Fatalf("expected nil WorkflowData to suppress outdated warnings, got: %q", output)
+	}
+}
+
 // TestWarnIfOutdatedActionVersion_Deduplication verifies the warning fires only once per repo@version.
 func TestWarnIfOutdatedActionVersion_Deduplication(t *testing.T) {
-	var buf bytes.Buffer
-	oldStderr := os.Stderr
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe() failed: %v", err)
-	}
-	os.Stderr = w
-
 	data := &WorkflowData{}
-	warnIfOutdatedActionVersion("actions/checkout", "v5.0.0", "v7.0.0", data)
-	warnIfOutdatedActionVersion("actions/checkout", "v5.0.0", "v7.0.0", data)
+	output := captureStderrOutput(t, func() {
+		warnIfOutdatedActionVersion("actions/checkout", "v5.0.0", "v7.0.0", data)
+		warnIfOutdatedActionVersion("actions/checkout", "v5.0.0", "v7.0.0", data)
+	})
 
-	w.Close()
-	os.Stderr = oldStderr
-	_, _ = buf.ReadFrom(r)
-	output := buf.String()
-
-	count := strings.Count(output, "v5.0.0")
+	count := strings.Count(output, "Action actions/checkout@v5.0.0 is outdated")
 	if count != 1 {
 		t.Errorf("expected warning to appear exactly once, got %d occurrences in: %q", count, output)
 	}
@@ -1854,66 +1895,57 @@ func TestWarnIfOutdatedActionVersion_Deduplication(t *testing.T) {
 // TestApplyActionPinToTypedStep_OutdatedWarning checks that applying an outdated action
 // pin via applyActionPinToTypedStep emits a warning on stderr.
 func TestApplyActionPinToTypedStep_OutdatedWarning(t *testing.T) {
+	latestVersion := latestActionVersionForRepo(t, "actions/checkout")
+	latestSemver := semverutil.ParseVersion(latestVersion)
+	if latestSemver == nil || latestSemver.Major < 2 {
+		t.Skipf("need a latest checkout version with major >= 2, got %q", latestVersion)
+	}
+	outdatedVersion := fmt.Sprintf("v%d.0.0", latestSemver.Major-1)
+
 	step := &WorkflowStep{
 		Name: "Checkout",
-		Uses: "actions/checkout@v5.0.0",
+		Uses: "actions/checkout@" + outdatedVersion,
 	}
-
-	var buf bytes.Buffer
-	oldStderr := os.Stderr
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe() failed: %v", err)
-	}
-	os.Stderr = w
 
 	data := &WorkflowData{}
-	_, pinErr := applyActionPinToTypedStep(step, data)
-
-	w.Close()
-	os.Stderr = oldStderr
-	_, _ = buf.ReadFrom(r)
-	output := buf.String()
+	var pinErr error
+	output := captureStderrOutput(t, func() {
+		_, pinErr = applyActionPinToTypedStep(step, data)
+	})
 
 	if pinErr != nil {
 		t.Fatalf("applyActionPinToTypedStep() returned unexpected error: %v", pinErr)
 	}
-	if !strings.Contains(output, "v5.0.0") {
-		t.Errorf("expected outdated-version warning mentioning v5.0.0 in stderr, got: %q", output)
+	if !strings.Contains(output, "⚠") || !strings.Contains(output, "is outdated") {
+		t.Fatalf("expected outdated-version warning marker/message in stderr, got: %q", output)
 	}
-	if !strings.Contains(output, "v7.0.0") {
-		t.Errorf("expected outdated-version warning mentioning latest v7.0.0 in stderr, got: %q", output)
+	if !strings.Contains(output, outdatedVersion) {
+		t.Errorf("expected outdated-version warning mentioning %s in stderr, got: %q", outdatedVersion, output)
+	}
+	if !strings.Contains(output, latestVersion) {
+		t.Errorf("expected outdated-version warning mentioning latest %s in stderr, got: %q", latestVersion, output)
 	}
 }
 
 // TestApplyActionPinToTypedStep_NoOutdatedWarningForCurrentVersion checks that no
 // outdated warning is emitted when the step uses the latest available version.
 func TestApplyActionPinToTypedStep_NoOutdatedWarningForCurrentVersion(t *testing.T) {
+	latestVersion := latestActionVersionForRepo(t, "actions/checkout")
 	step := &WorkflowStep{
 		Name: "Checkout",
-		Uses: "actions/checkout@v7.0.0",
+		Uses: "actions/checkout@" + latestVersion,
 	}
-
-	var buf bytes.Buffer
-	oldStderr := os.Stderr
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe() failed: %v", err)
-	}
-	os.Stderr = w
 
 	data := &WorkflowData{}
-	_, pinErr := applyActionPinToTypedStep(step, data)
-
-	w.Close()
-	os.Stderr = oldStderr
-	_, _ = buf.ReadFrom(r)
-	output := buf.String()
+	var pinErr error
+	output := captureStderrOutput(t, func() {
+		_, pinErr = applyActionPinToTypedStep(step, data)
+	})
 
 	if pinErr != nil {
 		t.Fatalf("applyActionPinToTypedStep() returned unexpected error: %v", pinErr)
 	}
-	if strings.Contains(output, "is outdated") {
+	if strings.Contains(output, "⚠") || strings.Contains(output, "is outdated") {
 		t.Errorf("expected no outdated warning for current version, got: %q", output)
 	}
 }

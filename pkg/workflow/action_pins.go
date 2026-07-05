@@ -214,6 +214,10 @@ func getCachedActionPin(repo string, data *WorkflowData) string {
 // available major version is higher than the requested one; within the same major the tag
 // is treated as a floating reference and no warning is emitted.
 func warnIfOutdatedActionVersion(actionRepo, rawVersion, latestVersion string, data *WorkflowData) {
+	if data == nil {
+		return
+	}
+
 	// SHAs are already pinned to a specific commit — no version to compare.
 	if gitutil.IsValidFullSHA(rawVersion) {
 		return
@@ -229,11 +233,12 @@ func warnIfOutdatedActionVersion(actionRepo, rawVersion, latestVersion string, d
 		return
 	}
 
-	// For major-only tags (e.g. "@v4"), treat them as floating references that
-	// resolve to the latest compatible patch within that major.  Only warn when
-	// the latest available major version is higher — same-major newer patches are
-	// not "outdated" for a floating tag.
-	isPartialTag := !strings.Contains(strings.TrimPrefix(rawVersion, "v"), ".")
+	// For tags without a patch component (e.g. "@v4", "@v4.1"), treat them as
+	// floating references that resolve to the latest compatible patch within that
+	// major version line (for major-only tags) or minor version line (for
+	// major.minor tags). Only warn when the latest available major version is
+	// higher — same-major newer minors/patches are not "outdated" for a floating tag.
+	isPartialTag := strings.Count(strings.TrimPrefix(rawVersion, "v"), ".") < 2
 	if isPartialTag {
 		if latestSemver.Major <= requestedSemver.Major {
 			return
@@ -244,17 +249,15 @@ func warnIfOutdatedActionVersion(actionRepo, rawVersion, latestVersion string, d
 
 	// Deduplicate: only emit the warning once per repo@version within this compilation.
 	cacheKey := "outdated:" + actionpins.FormatCacheKey(actionRepo, rawVersion)
-	if data != nil {
-		if data.ActionPinWarnings == nil {
-			data.ActionPinWarnings = make(map[string]bool)
-		}
-		if data.ActionPinWarnings[cacheKey] {
-			return
-		}
-		data.ActionPinWarnings[cacheKey] = true
+	if data.ActionPinWarnings == nil {
+		data.ActionPinWarnings = make(map[string]bool)
 	}
+	if data.ActionPinWarnings[cacheKey] {
+		return
+	}
+	data.ActionPinWarnings[cacheKey] = true
 
-	warningMsg := fmt.Sprintf("Action %s@%s is outdated; latest available version is %s. Consider upgrading (update the version tag in your workflow file).",
+	warningMsg := fmt.Sprintf("Action %s@%s is outdated; latest available version is %s.\n  Consider upgrading (update the version tag in your workflow file).",
 		actionRepo, rawVersion, latestVersion)
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	actionPinsLog.Printf("Outdated action version detected: %s@%s (latest: %s)", actionRepo, rawVersion, latestVersion)
