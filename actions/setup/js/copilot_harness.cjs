@@ -62,7 +62,7 @@ const {
 } = require("./awf_reflect.cjs");
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
-const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
+const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, hasExcessiveWriteOnceProbeRejections, countWriteOnceProbeRejections, WRITE_ONCE_PROBE_REJECTION_THRESHOLD } = require("./harness_retry_guard.cjs");
 const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
 const { loadModelsJson } = require("./model_costs.cjs");
 
@@ -353,6 +353,7 @@ function extractOutputTail(output, options) {
  *   isQuotaExceeded?: boolean,
  *   isSDKSessionIdleTimeout?: boolean,
  *   hasNumerousPermissionDenied?: boolean,
+ *   hasExcessiveProbeRejections?: boolean,
  * }} detection
  * @returns {string}
  */
@@ -367,6 +368,7 @@ function classifyCopilotFailure(detection) {
   if (detection.isSDKSessionIdleTimeout) return "sdk_session_idle_timeout";
   if (detection.isMCPGatewayShutdown) return "mcp_gateway_shutdown";
   if (detection.hasNumerousPermissionDenied) return "permission_denied";
+  if (detection.hasExcessiveProbeRejections) return "write_once_probe_loop";
   if (detection.isTransientCAPIError) return "capi_error_400";
   return detection.hasOutput ? "partial_execution" : "no_output";
 }
@@ -910,7 +912,18 @@ async function main() {
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
         // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The harness has
         // already started the sidecar; the driver only opens an SDK client connection.
-        const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
+        const result = await runProcess({
+          command,
+          args: currentArgs,
+          attempt,
+          log,
+          logArgs: safeArgs,
+          env: childEnv,
+          // Kill-guard: terminate the process early when the agent enters a write-once
+          // probe loop (-32602 empty-argument rejections) to avoid burning the full
+          // 15-minute step timeout.  See harness_retry_guard.cjs.
+          killGuard: output => hasExcessiveWriteOnceProbeRejections(output),
+        });
         lastExitCode = result.exitCode;
         const attemptDetections = detectCopilotErrors(result.output);
         detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
@@ -938,6 +951,8 @@ async function main() {
         //     permanently disabled.
         //   - Null-type tool_call 400 errors poison conversation history — always restart fresh and
         //     permanently disable --continue so the corrupt state is never reloaded.
+        //   - Write-once probe loops (-32602 empty-argument rejections) are non-retryable because
+        //     the agent will reproduce the same loop on every attempt.
         const isCAPIError = isTransientCAPIError(result.output);
         const isQuotaExceeded = isCAPIQuotaExceededError(result.output);
         const isMCPPolicy = isMCPPolicyError(result.output);
@@ -952,6 +967,8 @@ async function main() {
         const isMCPGatewayShutdown = isMCPGatewayShutdownError(result.output);
         const permissionDeniedCount = countPermissionDeniedIssues(result.output);
         const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
+        const probeRejectionCount = countWriteOnceProbeRejections(result.output);
+        const hasExcessiveProbeRejections = hasExcessiveWriteOnceProbeRejections(result.output);
         const failureClass = classifyCopilotFailure({
           hasOutput: result.hasOutput,
           isAuthErr,
@@ -965,6 +982,7 @@ async function main() {
           isQuotaExceeded,
           isSDKSessionIdleTimeout,
           hasNumerousPermissionDenied,
+          hasExcessiveProbeRejections,
         });
         const outputTail = extractOutputTail(result.output);
         log(
@@ -983,6 +1001,8 @@ async function main() {
             ` isAuthenticationFailedError=${isAuthenticationFailed}` +
             ` permissionDeniedCount=${permissionDeniedCount}` +
             ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
+            ` probeRejectionCount=${probeRejectionCount}` +
+            ` hasExcessiveProbeRejections=${hasExcessiveProbeRejections}` +
             ` hasOutput=${result.hasOutput}` +
             ` retriesRemaining=${maxRetries - attempt}`
         );
@@ -1005,6 +1025,20 @@ async function main() {
           if (nonRetryableGuard.aiCreditsExceeded) reasons.push("AI credits budget exceeded");
           if (nonRetryableGuard.awfAPIProxyBlockingRequests) reasons.push("AWF API proxy is blocking requests");
           log(`attempt ${attempt + 1}: ${reasons.join(" and ")} — not retrying (non-retryable guard condition)`);
+          break;
+        }
+
+        // Write-once probe loop: the agent repeatedly called safe-output tools with empty
+        // arguments and received -32602 rejections.  The process was killed early by the
+        // kill-guard (or ran to exhaustion).  Retrying would reproduce the same loop.
+        if (hasExcessiveProbeRejections) {
+          emitInfrastructureIncomplete(
+            `Agent entered a write-once probe loop: ${probeRejectionCount} repeated -32602 errors from empty-argument safe-output tool calls. ` +
+              `The agent should call noop with a message, or use tools/list to inspect schemas before calling tools.`
+          );
+          log(
+            `attempt ${attempt + 1}: excessive write-once probe rejections detected (count=${probeRejectionCount}, threshold=${WRITE_ONCE_PROBE_REJECTION_THRESHOLD}) — not retrying (agent probe loop terminated; retrying would reproduce the same loop)`
+          );
           break;
         }
 
@@ -1218,6 +1252,9 @@ if (typeof module !== "undefined" && module.exports) {
     resolveRetryConfig,
     parseCopilotSDKServerArgsFromEnv,
     isCAPIQuotaExceededError,
+    countWriteOnceProbeRejections,
+    hasExcessiveWriteOnceProbeRejections,
+    WRITE_ONCE_PROBE_REJECTION_THRESHOLD,
   };
 }
 

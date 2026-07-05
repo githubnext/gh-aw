@@ -254,6 +254,73 @@ describe("process_runner.cjs", () => {
       }
     });
 
+    it("killGuard terminates the process when it returns true", async () => {
+      const logs = [];
+      // Spawn a process that writes the trigger phrase multiple times and then waits
+      const script = `
+        const phrase = "write-once, not a discovery probe";
+        process.stdout.write(phrase + "\\n");
+        process.stdout.write(phrase + "\\n");
+        process.stdout.write(phrase + "\\n");
+        // Would block forever, but the kill guard should terminate it
+        setInterval(() => {}, 100000);
+      `;
+      let killGuardCallCount = 0;
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", script],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        killGuard: output => {
+          const matches = (output.match(/write-once, not a discovery probe/g) || []).length;
+          killGuardCallCount++;
+          return matches >= 3;
+        },
+      });
+      expect(result.exitCode).not.toBe(0);
+      expect(result.hasOutput).toBe(true);
+      expect(result.output).toContain("write-once, not a discovery probe");
+      expect(killGuardCallCount).toBeGreaterThan(0);
+      const killLog = logs.find(l => l.includes("kill-guard fired"));
+      expect(killLog).toBeDefined();
+    });
+
+    it("killGuard does not fire when guard returns false", async () => {
+      const logs = [];
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", 'process.stdout.write("normal output"); process.exit(0)'],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        killGuard: () => false,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("normal output");
+      const killLog = logs.find(l => l.includes("kill-guard fired"));
+      expect(killLog).toBeUndefined();
+    });
+
+    it("killGuard fires at most once even if guard keeps returning true", async () => {
+      const logs = [];
+      const script = `
+        process.stdout.write("trigger\\n");
+        setInterval(() => {}, 100000);
+      `;
+      let guardCallCount = 0;
+      await runProcess({
+        command: process.execPath,
+        args: ["-e", script],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        killGuard: () => {
+          guardCallCount++;
+          return true;
+        },
+      });
+      const killLogs = logs.filter(l => l.includes("kill-guard fired"));
+      expect(killLogs).toHaveLength(1);
+    });
+
     describe("copilot sdk env helpers", () => {
       it("detects copilot sdk mode from COPILOT_SDK_URI", () => {
         expect(isCopilotSDKEnabled({ COPILOT_SDK_URI: "http://127.0.0.1:3000" })).toBe(true);

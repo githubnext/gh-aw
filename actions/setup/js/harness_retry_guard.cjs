@@ -8,6 +8,17 @@ const { emitInfrastructureIncomplete } = require("./safeoutputs_cli.cjs");
 // structured safe-output diagnostics instead of being terminated by Actions.
 const SOFT_TIMEOUT_BUFFER_MS = 90 * 1000;
 
+// Pattern to detect write-once tool probe rejections (-32602 empty-argument errors).
+// Matches the MCP server error message emitted when the agent calls a write-once
+// safe-output tool with empty arguments as a discovery probe.
+// See mcp_server_core.cjs: "write-once, not a discovery probe".
+const WRITE_ONCE_PROBE_REJECTION_PATTERN = /write-once, not a discovery probe/g;
+
+// Threshold: number of write-once probe rejections before the kill guard fires.
+// Three rejections indicate a persistent probe loop — the tool schema does not
+// change between calls, so no further retries will succeed.
+const WRITE_ONCE_PROBE_REJECTION_THRESHOLD = 3;
+
 const AI_CREDITS_EXCEEDED_PATTERNS = [/\bmax[\s_-]*ai[\s_-]*credits[\s_-]*exceeded\b/i, /\bai[\s_-]*credits[\s_-]*rate[\s_-]*limit[\s_-]*error\b/i, /ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i];
 
 const AWF_API_PROXY_BLOCKING_REQUESTS_PATTERNS = [/\bawf\b.*\bapi[\s_-]*proxy\b.*\bblocking requests\b/i, /\bapi[\s_-]*proxy\b.*\bblocking requests\b/i, /\bapi[\s_-]*proxy\b.*\bblocked requests?\b/i, /\bDIFC_FILTERED\b/];
@@ -34,6 +45,32 @@ function detectNonRetryableHarnessGuard(output) {
     goalAlreadyActive: GOAL_ALREADY_ACTIVE_PATTERNS.some(pattern => pattern.test(safeOutput)),
     maxRunsExceeded: MAX_RUNS_EXCEEDED_PATTERNS.some(pattern => pattern.test(safeOutput)),
   };
+}
+
+/**
+ * Count write-once probe rejection errors in process output.
+ * Each occurrence of the pattern indicates the agent called a write-once safe-output
+ * tool with empty arguments instead of using tools/list or calling noop.
+ * @param {unknown} output
+ * @returns {number}
+ */
+function countWriteOnceProbeRejections(output) {
+  const safeOutput = typeof output === "string" ? output : "";
+  if (!safeOutput) return 0;
+  const matches = safeOutput.match(/write-once, not a discovery probe/g);
+  return matches ? matches.length : 0;
+}
+
+/**
+ * Detect whether output contains an excessive number of write-once probe rejections.
+ * When this threshold is reached the agent is stuck in a probe loop — further
+ * execution will never succeed and the process should be killed rather than allowed
+ * to run to the full 15-minute step timeout.
+ * @param {unknown} output
+ * @returns {boolean}
+ */
+function hasExcessiveWriteOnceProbeRejections(output) {
+  return countWriteOnceProbeRejections(output) >= WRITE_ONCE_PROBE_REJECTION_THRESHOLD;
 }
 
 /**
@@ -73,6 +110,10 @@ if (typeof module !== "undefined" && module.exports) {
     GOAL_ALREADY_ACTIVE_PATTERNS,
     MAX_RUNS_EXCEEDED_PATTERNS,
     SOFT_TIMEOUT_BUFFER_MS,
+    WRITE_ONCE_PROBE_REJECTION_PATTERN,
+    WRITE_ONCE_PROBE_REJECTION_THRESHOLD,
+    countWriteOnceProbeRejections,
+    hasExcessiveWriteOnceProbeRejections,
     buildSoftTimeoutGuard,
     emitSoftTimeoutSignal,
   };

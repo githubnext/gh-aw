@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
+const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, countWriteOnceProbeRejections, hasExcessiveWriteOnceProbeRejections, WRITE_ONCE_PROBE_REJECTION_THRESHOLD } = require("./harness_retry_guard.cjs");
 
 describe("harness_retry_guard.cjs", () => {
   it("detects AI credits exceeded markers", () => {
@@ -156,5 +156,68 @@ describe("buildSoftTimeoutGuard", () => {
       timeoutMinutes: 1,
       softDeadlineMs: 11_000,
     });
+  });
+});
+
+describe("write-once probe rejection detection", () => {
+  const PROBE_MSG = "write-once, not a discovery probe";
+
+  it("counts zero when output is empty", () => {
+    expect(countWriteOnceProbeRejections("")).toBe(0);
+  });
+
+  it("counts zero when output has no probe rejection", () => {
+    expect(countWriteOnceProbeRejections("some normal output")).toBe(0);
+  });
+
+  it("counts one occurrence", () => {
+    expect(countWriteOnceProbeRejections(`Error [-32602]: Empty arguments are not allowed — this tool is ${PROBE_MSG}.`)).toBe(1);
+  });
+
+  it("counts multiple occurrences", () => {
+    const output = [
+      `[safeoutputs] Tool call error: Error [-32602]: calling "tools/call": Empty arguments are not allowed — this tool is ${PROBE_MSG}.`,
+      `[safeoutputs] Tool call error: Error [-32602]: calling "tools/call": Empty arguments are not allowed — this tool is ${PROBE_MSG}.`,
+      `[safeoutputs] Tool call error: Error [-32602]: calling "tools/call": Empty arguments are not allowed — this tool is ${PROBE_MSG}.`,
+    ].join("\n");
+    expect(countWriteOnceProbeRejections(output)).toBe(3);
+  });
+
+  it("returns zero for non-string input", () => {
+    expect(countWriteOnceProbeRejections(null)).toBe(0);
+    expect(countWriteOnceProbeRejections(undefined)).toBe(0);
+  });
+
+  it("hasExcessiveWriteOnceProbeRejections returns false below threshold", () => {
+    const output = Array(WRITE_ONCE_PROBE_REJECTION_THRESHOLD - 1)
+      .fill(`this tool is ${PROBE_MSG}.`)
+      .join("\n");
+    expect(hasExcessiveWriteOnceProbeRejections(output)).toBe(false);
+  });
+
+  it("hasExcessiveWriteOnceProbeRejections returns true at threshold", () => {
+    const output = Array(WRITE_ONCE_PROBE_REJECTION_THRESHOLD).fill(`this tool is ${PROBE_MSG}.`).join("\n");
+    expect(hasExcessiveWriteOnceProbeRejections(output)).toBe(true);
+  });
+
+  it("hasExcessiveWriteOnceProbeRejections returns true above threshold", () => {
+    const output = Array(WRITE_ONCE_PROBE_REJECTION_THRESHOLD + 5)
+      .fill(`this tool is ${PROBE_MSG}.`)
+      .join("\n");
+    expect(hasExcessiveWriteOnceProbeRejections(output)).toBe(true);
+  });
+
+  it("does not false-positive on unrelated output containing 'probe'", () => {
+    expect(countWriteOnceProbeRejections("probing for issues in the codebase")).toBe(0);
+  });
+
+  it("does not false-positive on partial pattern match", () => {
+    expect(countWriteOnceProbeRejections("write-once is good practice")).toBe(0);
+    expect(countWriteOnceProbeRejections("not a discovery probe without write-once prefix")).toBe(0);
+  });
+
+  it("WRITE_ONCE_PROBE_REJECTION_THRESHOLD is a positive integer", () => {
+    expect(Number.isInteger(WRITE_ONCE_PROBE_REJECTION_THRESHOLD)).toBe(true);
+    expect(WRITE_ONCE_PROBE_REJECTION_THRESHOLD).toBeGreaterThan(0);
   });
 });

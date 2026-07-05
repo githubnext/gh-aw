@@ -55,7 +55,8 @@ function sleep(ms) {
  *   attempt: number,
  *   log: (message: string) => void,
  *   logArgs?: string[],
- *   env?: NodeJS.ProcessEnv
+ *   env?: NodeJS.ProcessEnv,
+ *   killGuard?: (output: string) => boolean
  * }} options
  *   - command   - The executable to run
  *   - args      - Arguments to pass to the command
@@ -63,9 +64,13 @@ function sleep(ms) {
  *   - log       - Caller-supplied logging function (harness-specific prefix)
  *   - logArgs   - Safe arg list used only for logging; defaults to `args`.
  *                 Pass a redacted copy to avoid leaking sensitive values.
+ *   - killGuard - Optional live-output guard: called with accumulated output after
+ *                 each data chunk. Return true to kill the process immediately
+ *                 (SIGTERM). Fires at most once per attempt. Use to abort runaway
+ *                 agent loops before the step hard timeout fires.
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-function runProcess({ command, args, attempt, log, logArgs, env }) {
+function runProcess({ command, args, attempt, log, logArgs, env, killGuard }) {
   return new Promise(resolve => {
     const startTime = Date.now();
     // Guard against the promise being settled more than once.  On some systems Node
@@ -94,6 +99,20 @@ function runProcess({ command, args, attempt, log, logArgs, env }) {
     let hasOutput = false;
     let stdoutBytes = 0;
     let stderrBytes = 0;
+    let killGuardFired = false;
+
+    /**
+     * Check the kill guard against the current accumulated output.
+     * Kills the child process with SIGTERM the first time the guard returns true.
+     */
+    function checkKillGuard() {
+      if (!killGuard || killGuardFired) return;
+      if (killGuard(collectedOutput)) {
+        killGuardFired = true;
+        log(`attempt ${attempt + 1}: kill-guard fired — terminating process (SIGTERM)`);
+        child.kill("SIGTERM");
+      }
+    }
 
     child.stdout.on(
       "data",
@@ -102,6 +121,7 @@ function runProcess({ command, args, attempt, log, logArgs, env }) {
         stdoutBytes += data.length;
         collectedOutput += data.toString();
         process.stdout.write(data);
+        checkKillGuard();
       }
     );
 
@@ -112,6 +132,7 @@ function runProcess({ command, args, attempt, log, logArgs, env }) {
         stderrBytes += data.length;
         collectedOutput += data.toString();
         process.stderr.write(data);
+        checkKillGuard();
       }
     );
 
