@@ -10,9 +10,10 @@
  *     access to inference (e.g., "Access denied by policy settings").
  *   - mcp_policy_error: MCP servers were blocked by enterprise/organization
  *     policy (e.g., "MCP servers were blocked by policy: 'github', 'safeoutputs'").
- *   - agentic_engine_timeout: The agentic engine process was killed by a
- *     signal (SIGTERM/SIGKILL/SIGINT), typically due to the step
- *     timeout-minutes limit being reached.
+ *   - agentic_engine_timeout: A timeout signature was detected in engine logs.
+ *     This includes process termination by signal (SIGTERM/SIGKILL/SIGINT),
+ *     typically due to step timeout-minutes, and SDK idle-timeout messages
+ *     ("Timeout after <n>ms waiting for session.idle").
  *   - model_not_supported_error: The configured model is invalid or unsupported
  *     for the selected engine/account (for example unknown model name, model not
  *     found, or model unavailable for the plan).
@@ -43,14 +44,15 @@ const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid
 // Pattern: MCP servers blocked by enterprise/organization policy
 const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 
-// Pattern: Agentic engine process killed by signal (timeout).
-// When GitHub Actions cancels a step due to timeout-minutes, the runner sends
-// SIGINT/SIGTERM/SIGKILL to the process group.  The copilot_harness.cjs (and
-// other engine wrappers) log the signal in their close handlers:
-//   [copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM ...
-// The pattern matches any "signal=SIG(TERM|KILL|INT)" occurrence in the log,
-// making it engine-agnostic.
-const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
+// Pattern: Agentic engine timeout.
+// Covers both timeout signatures observed in engine logs:
+//   1) Process killed by signal after step timeout-minutes:
+//      [copilot-harness] ... process closed exitCode=1 signal=SIGTERM ...
+//   2) Copilot SDK idle-timeout while waiting for session.idle:
+//      [sdk-driver] error: Timeout after 870000ms waiting for session.idle
+// The second form can occur even when the driver collected output, and should
+// still be classified as a timeout for conclusion/reporting purposes.
+const AGENTIC_ENGINE_TIMEOUT_PATTERN = /(?:signal=SIG(?:TERM|KILL|INT)|Timeout after \d+ms waiting for session\.idle)/;
 
 // Pattern: Configured model is invalid or unavailable.
 // Covers common engine/provider variants:
@@ -148,7 +150,7 @@ function main() {
     process.stderr.write("[detect-agent-errors] Detected MCP policy error in agent log\n");
   }
   if (results.agenticEngineTimeout) {
-    process.stderr.write("[detect-agent-errors] Detected timeout: engine process was killed by signal (step timeout-minutes likely exceeded)\n");
+    process.stderr.write("[detect-agent-errors] Detected agentic engine timeout signature in agent log\n");
   }
   if (results.modelNotSupportedError) {
     process.stderr.write("[detect-agent-errors] Detected model configuration error: configured model is invalid or unavailable for this engine/account\n");
