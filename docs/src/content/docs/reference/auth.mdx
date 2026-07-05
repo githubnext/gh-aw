@@ -12,7 +12,7 @@ This page describes authentication settings for GitHub Agentic Workflows.
 
 ## Which secret do I need?
 
-Configure one GitHub Actions secret per engine before running your first workflow:
+Configure the authentication method your engine needs before running your first workflow. Some engines require a GitHub Actions secret, while Copilot can use `permissions: { copilot-requests: write }` with `${{ github.token }}` and no PAT:
 
 ### Copilot (default)
 
@@ -60,6 +60,9 @@ Workflows using custom MCP tools or safe outputs may require additional authenti
 
 You can add secrets manually in the GitHub UI or use the CLI for a streamlined experience.
 
+> [!NOTE]
+> If your Copilot workflow uses `permissions: { copilot-requests: write }`, skip this section for Copilot authentication. gh-aw uses `${{ github.token }}` for inference in that mode, so no PAT or `COPILOT_GITHUB_TOKEN` secret is required.
+
 ### Adding secrets using the CLI
 
 ```bash
@@ -91,7 +94,7 @@ A reference for all GitHub Actions secrets used by GitHub Agentic Workflows for 
 
 ### `copilot-requests: write` permission
 
-The recommended way to authenticate Copilot inference is to grant the `copilot-requests: write` permission in your workflow. This uses the built-in GitHub Actions token — no PAT or repository secret is required. Billing is handled centrally through your organization's Copilot subscription.
+The recommended way to authenticate Copilot inference is to grant the `copilot-requests: write` permission in your workflow. This uses the built-in GitHub Actions token (`${{ github.token }}`) — no PAT or repository secret is required. Billing is handled centrally through your organization's Copilot subscription.
 
 **Setup**:
 

@@ -19,3 +19,4 @@ Add your repository-specific standards here, for example:
 - Standard frontmatter defaults
 - Frontmatter ordering/style conventions
 - Security or policy constraints specific to this repository
+- When documenting or recommending Copilot authentication, state that `permissions: { copilot-requests: write }` uses `${{ github.token }}` for inference and does not require a PAT or `COPILOT_GITHUB_TOKEN` secret
