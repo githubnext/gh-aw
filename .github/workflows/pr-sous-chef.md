@@ -58,11 +58,16 @@ steps:
       filtered_last_comment_from_sous_chef=0
       filtered_cooldown=0
 
+      # statusCheckRollup is fetched here alongside other PR fields so that the
+      # per-PR pending-checks filter below can classify check state without
+      # issuing individual REST calls for each PR.  Including this field in the
+      # batch GraphQL query replaces up to 3 REST calls per PR (PR detail +
+      # check-runs + commit-status) with zero additional REST calls.
       gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
         --state open \
         --search "is:pr is:open -is:draft sort:updated-desc" \
         --limit 30 \
-        --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus \
+        --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus,statusCheckRollup \
         > "$candidate_file"
 
       jq -n '[]' > "$eligible_file"
@@ -73,13 +78,22 @@ steps:
           continue
         fi
 
-        checks_state="$(
-          {
-            gh aw checks "$pr_number" --repo "$EXPR_GITHUB_REPOSITORY" --json \
-              | jq -r '.required_state // .state // "unknown"'
-          } 2>/dev/null || echo "unknown"
+        # Determine pending-check state from the statusCheckRollup data already
+        # fetched in the gh pr list call above — no per-PR REST calls needed.
+        # CheckRun statuses are UPPERCASE in the GraphQL response.
+        checks_pending="$(
+          jq -r '
+            (.statusCheckRollup // []) as $checks |
+            if ($checks | any(
+              if .__typename == "CheckRun" then
+                (.status // "COMPLETED") | IN("QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED", "PENDING")
+              elif .__typename == "StatusContext" then
+                (.state // "") == "PENDING"
+              else false end
+            )) then "true" else "false" end
+          ' <<<"$pr"
         )"
-        if [ "$checks_state" = "pending" ]; then
+        if [ "$checks_pending" = "true" ]; then
           filtered_checks_pending=$((filtered_checks_pending + 1))
           continue
         fi
@@ -230,9 +244,10 @@ When this workflow is triggered by the `/souschef` slash command on a PR comment
 Before any nudge for a PR:
 
 1. **Skip when checks/actions are running on the PR head branch**
-   - Candidate prefilter already uses `gh aw checks` and removes PRs with `required_state == pending`.
+   - Candidate prefilter already uses `statusCheckRollup` from the batch `gh pr list` call and removes PRs with any pending/in-progress checks.
    - Detect pending/running checks via GitHub PR check runs / statuses for the head SHA.
    - If any check is `queued`, `in_progress`, or `pending`, skip this PR.
+   - When calling `gh aw checks` directly, pass `--head-sha <headRefOid>` to avoid a redundant PR-detail fetch (the `headRefOid` is available in the compact JSON).
 
 2. **Skip when the latest PR comment is from pr-sous-chef itself (unless the PR is in a merge-conflict state)**
    - Candidate prefilter already removes PRs when the latest issue comment body includes the hidden marker `<!-- gh-aw-pr-sous-chef-nudge -->`, **except** when `mergeStateStatus` is `CONFLICTING`.
@@ -338,7 +353,7 @@ model: sonnet
 Given one PR number and compact metadata:
 
 1. Check skip conditions in this order:
-   - checks/actions running
+   - checks/actions running — note: the candidate prefilter already excluded PRs with pending checks via `statusCheckRollup`; only re-verify if you have reason to believe state changed since the prefilter ran
    - latest comment contains `<!-- gh-aw-pr-sous-chef-nudge -->` **and** `mergeStateStatus` is **not** `CONFLICTING` (when the branch has merge conflicts, do NOT skip even if the last comment is from sous-chef — it must nudge Copilot to resolve them)
    - any recent comment contains `<!-- gh-aw-pr-sous-chef-nudge -->` and was posted within the last 30 minutes
 2. If skipped, return `skip_reason` only.

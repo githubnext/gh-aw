@@ -92,6 +92,88 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
   },
   defaultOptions: [],
   create(context) {
+    /**
+     * Checks whether an Identifier in the current scope is a single-assignment
+     * local alias for `core.summary` (or any CORE_ALIASES member's `.summary`).
+     *
+     * Accepted initializer patterns:
+     *   - `const/let summaryVar = core.summary;`
+     *   - `const { summary } = core;` or `const { summary: alias } = core;`
+     *
+     * Re-assigned `let` bindings are rejected (conservative: source unknown after
+     * reassignment).
+     */
+    function isCoreSummaryAlias(identifier: TSESTree.Identifier): boolean {
+      let currentScope: TSESLint.Scope.Scope | null = context.sourceCode.getScope(identifier);
+      while (currentScope !== null) {
+        const variable = currentScope.set.get(identifier.name);
+        if (variable !== undefined) {
+          // Only handle single-declaration bindings (no overloads / duplicate lets).
+          if (variable.defs.length !== 1) return false;
+          const def = variable.defs[0];
+
+          // Must be a VariableDeclarator (not a function parameter, import, etc.).
+          if (def.type !== "Variable") return false;
+
+          // Reject let bindings that are re-assigned after initialisation.
+          // ref.init === true marks the write that comes from the initialiser itself.
+          if (variable.references.some(ref => ref.isWrite() && !ref.init)) return false;
+
+          const declarator = def.node as TSESTree.VariableDeclarator;
+          if (!declarator.init) return false;
+
+          // Pattern 1: const/let summaryVar = core.summary;
+          // rootsSummary covers `core.summary` and chained inits like
+          // `core.summary.addRaw(x)` — addRaw returns Summary, so the alias
+          // still wraps a Summary object.
+          // .write() is explicitly rejected: write() returns Promise<Summary>,
+          // not Summary, so `const s = core.summary.write()` must not be
+          // treated as a Summary alias.
+          if (declarator.id.type === "Identifier") {
+            if (declarator.init.type === "CallExpression" && declarator.init.callee.type === "MemberExpression" && isWriteProperty(declarator.init.callee)) return false;
+            return rootsSummary(declarator.init);
+          }
+
+          // Pattern 2: const { summary } = core; or const { summary: alias } = core;
+          if (declarator.id.type === "ObjectPattern" && declarator.init.type === "Identifier" && isCoreLikeIdentifier(declarator.init.name)) {
+            return declarator.id.properties.some(prop => {
+              if (prop.type !== "Property" || prop.computed) return false;
+              const keyIsSummary = prop.key.type === "Identifier" && prop.key.name === "summary";
+              const valueIsAlias = prop.value.type === "Identifier" && prop.value.name === identifier.name;
+              return keyIsSummary && valueIsAlias;
+            });
+          }
+
+          return false;
+        }
+        currentScope = currentScope.upper;
+      }
+      return false;
+    }
+
+    /**
+     * Extended version of rootsSummary that also handles local aliases of
+     * `core.summary` (e.g. `const summary = core.summary; summary.write()`).
+     * The depth guard prevents unbounded recursion on pathologically deep
+     * call chains (> 32 levels); real source code is well below this limit.
+     */
+    function rootsSummaryOrAlias(node: TSESTree.Node, depth = 0): boolean {
+      if (depth > 32) return false;
+      // Fast path: already handles core.summary and chained core.summary.*() calls.
+      if (rootsSummary(node)) return true;
+
+      // Direct alias: `summary.write()` — callee.object is an Identifier.
+      if (node.type === "Identifier") return isCoreSummaryAlias(node);
+
+      // Chained alias: `summary.addRaw(x).write()` — callee.object is a CallExpression
+      // rooted on the alias identifier.
+      if (node.type === "CallExpression" && node.callee.type === "MemberExpression") {
+        return rootsSummaryOrAlias(node.callee.object, depth + 1);
+      }
+
+      return false;
+    }
+
     return {
       ExpressionStatement(node) {
         const expr = node.expression;
@@ -107,8 +189,8 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
         // Property must be `write` (direct or computed string-literal access)
         if (!isWriteProperty(callee)) return;
 
-        // Object must trace back through a `.summary` member access
-        if (!rootsSummary(callee.object)) return;
+        // Object must trace back through a `.summary` member access (or an alias)
+        if (!rootsSummaryOrAlias(callee.object)) return;
 
         // Only offer the `await` suggestion when already inside an async function —
         // applying `await` outside an async context would produce a syntax error.

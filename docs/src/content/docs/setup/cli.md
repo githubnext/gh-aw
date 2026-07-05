@@ -589,14 +589,17 @@ Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ de
 Classify CI check state for a pull request and emit a normalized result.
 
 ```bash wrap
-gh aw checks 42                    # Classify checks for PR #42
-gh aw checks 42 --repo owner/repo  # Specify repository
-gh aw checks 42 --json             # Output in JSON format
+gh aw checks 42                              # Classify checks for PR #42
+gh aw checks 42 --repo owner/repo           # Specify repository
+gh aw checks 42 --json                      # Output in JSON format
+gh aw checks 42 --head-sha <sha>            # Skip the PR head SHA lookup (use pre-resolved SHA)
 ```
 
-**Options:** `--repo/-r`, `--json/-j`
+**Options:** `--repo/-r`, `--json/-j`, `--head-sha`
 
 Maps PR check rollups to one of the following normalized states: `success`, `failed`, `pending`, `no_checks`, `policy_blocked`. JSON output includes two state fields: `state` (aggregate across all checks) and `required_state` (derived from required checks only, ignoring optional third-party statuses like deployment integrations).
+
+`--head-sha` accepts a pre-resolved commit SHA (e.g. from `gh pr list --json headRefOid`) and skips the REST call that would otherwise fetch it from the PR. Use this flag when the SHA is already available to reduce API consumption.
 
 #### `forecast` `[EXPERIMENTAL]`
 
