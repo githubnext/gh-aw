@@ -148,11 +148,21 @@ func selectPaginationCursorDate(filteredRuns []WorkflowRun, oldestFetchedCreated
 //   - countLimitReached: in fetchAllInRange mode the count cap was hit before the
 //     date window was exhausted; the next page starts just before the oldest run
 //     returned in this batch.
+type continuationOptions struct {
+	workflowName   string
+	startDate      string
+	endDate        string
+	engine         string
+	branch         string
+	afterRunID     int64
+	count          int
+	timeoutMinutes int
+}
+
 func buildContinuationIfNeeded(
 	processedRuns []ProcessedRun,
 	timeoutReached, countLimitReached bool,
-	workflowName, startDate, endDate, engine, branch string,
-	afterRunID int64, count, timeoutMinutes int,
+	opts continuationOptions,
 ) *ContinuationData {
 	if len(processedRuns) == 0 || (!timeoutReached && !countLimitReached) {
 		return nil
@@ -166,15 +176,15 @@ func buildContinuationIfNeeded(
 	}
 	return &ContinuationData{
 		Message:      message,
-		WorkflowName: workflowName,
-		Count:        count,
-		StartDate:    startDate,
-		EndDate:      endDate,
-		Engine:       engine,
-		Branch:       branch,
-		AfterRunID:   afterRunID,
+		WorkflowName: opts.workflowName,
+		Count:        opts.count,
+		StartDate:    opts.startDate,
+		EndDate:      opts.endDate,
+		Engine:       opts.engine,
+		Branch:       opts.branch,
+		AfterRunID:   opts.afterRunID,
 		BeforeRunID:  oldestRunID,
-		Timeout:      timeoutMinutes,
+		Timeout:      opts.timeoutMinutes,
 	}
 }
 
@@ -735,8 +745,16 @@ outerLoop:
 
 	// Build continuation data if timeout was reached and there are processed runs,
 	// OR if a date-range fetch hit the count limit (more runs may exist in the window).
-	continuation := buildContinuationIfNeeded(processedRuns, timeoutReached, countLimitReached,
-		workflowName, startDate, endDate, engine, ref, afterRunID, count, timeoutMinutes)
+	continuation := buildContinuationIfNeeded(processedRuns, timeoutReached, countLimitReached, continuationOptions{
+		workflowName:   workflowName,
+		startDate:      startDate,
+		endDate:        endDate,
+		engine:         engine,
+		branch:         ref,
+		afterRunID:     afterRunID,
+		count:          count,
+		timeoutMinutes: timeoutMinutes,
+	})
 
 	return renderLogsOutput(processedRuns, renderLogsOutputOptions{
 		outputDir:      outputDir,

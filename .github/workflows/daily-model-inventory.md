@@ -20,6 +20,11 @@ engine:
   driver: .github/drivers/copilot_sdk_driver_sample_node.cjs
 strict: true
 timeout-minutes: 30
+network:
+  allowed:
+    - defaults
+    - github
+    - models.dev
 
 jobs:
   collect_openai_models:

@@ -144,10 +144,16 @@ func TestBuildContinuationIfNeeded(t *testing.T) {
 	}
 
 	t.Run("count limit reached emits cursor with correct message and BeforeRunID", func(t *testing.T) {
-		c := buildContinuationIfNeeded(runs, false, true,
-			"my-workflow", "2026-06-01", "2026-06-30", "claude", "main",
-			0, 100, 3,
-		)
+		c := buildContinuationIfNeeded(runs, false, true, continuationOptions{
+			workflowName:   "my-workflow",
+			startDate:      "2026-06-01",
+			endDate:        "2026-06-30",
+			engine:         "claude",
+			branch:         "main",
+			afterRunID:     0,
+			count:          100,
+			timeoutMinutes: 3,
+		})
 		require.NotNil(t, c, "expected continuation when countLimitReached=true")
 		assert.Equal(t, int64(2999), c.BeforeRunID, "BeforeRunID should be oldest processed run")
 		assert.Equal(t, "2026-06-01", c.StartDate)
@@ -157,26 +163,46 @@ func TestBuildContinuationIfNeeded(t *testing.T) {
 	})
 
 	t.Run("timeout reached emits cursor with timeout message", func(t *testing.T) {
-		c := buildContinuationIfNeeded(runs, true, false,
-			"my-workflow", "2026-06-01", "", "claude", "",
-			0, 50, 10,
-		)
+		c := buildContinuationIfNeeded(runs, true, false, continuationOptions{
+			workflowName:   "my-workflow",
+			startDate:      "2026-06-01",
+			endDate:        "",
+			engine:         "claude",
+			branch:         "",
+			afterRunID:     0,
+			count:          50,
+			timeoutMinutes: 10,
+		})
 		require.NotNil(t, c, "expected continuation when timeoutReached=true")
 		assert.Equal(t, int64(2999), c.BeforeRunID)
 		assert.Contains(t, c.Message, "Timeout reached")
 	})
 
 	t.Run("neither flag set returns nil", func(t *testing.T) {
-		c := buildContinuationIfNeeded(runs, false, false,
-			"my-workflow", "2026-06-01", "", "claude", "", 0, 100, 3,
-		)
+		c := buildContinuationIfNeeded(runs, false, false, continuationOptions{
+			workflowName:   "my-workflow",
+			startDate:      "2026-06-01",
+			endDate:        "",
+			engine:         "claude",
+			branch:         "",
+			afterRunID:     0,
+			count:          100,
+			timeoutMinutes: 3,
+		})
 		assert.Nil(t, c, "expected nil when neither timeout nor count limit was reached")
 	})
 
 	t.Run("empty processedRuns returns nil even when count limit reached", func(t *testing.T) {
-		c := buildContinuationIfNeeded(nil, false, true,
-			"my-workflow", "2026-06-01", "", "claude", "", 0, 100, 3,
-		)
+		c := buildContinuationIfNeeded(nil, false, true, continuationOptions{
+			workflowName:   "my-workflow",
+			startDate:      "2026-06-01",
+			endDate:        "",
+			engine:         "claude",
+			branch:         "",
+			afterRunID:     0,
+			count:          100,
+			timeoutMinutes: 3,
+		})
 		assert.Nil(t, c, "expected nil when no runs were processed")
 	})
 }
