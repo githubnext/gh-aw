@@ -114,12 +114,28 @@ If no uncleaned files remain, start over with the oldest cleaned file (reset `cl
 
 ### 2. Analyze the File
 
-Before making changes to the file:
-- Determine the execution context (github-script vs Node.js)
-- **Check if the file has `@ts-nocheck` comment** - if so, your goal is to remove it and fix type errors
-- Identify code smells: unnecessary try/catch, verbose patterns, missing modern syntax
-- Check if the file has a corresponding test file
-- Read the test file to understand expected behavior
+Use the `file-triage` sub-agent **exactly once** before you read any of the file in the main agent.
+
+Pass it:
+- `file_path: <absolute path to the selected .cjs file>`
+- `test_path: <absolute path to the matching .test.cjs file>`
+
+The sub-agent will read only the first 80 lines and return a compact decision with:
+- execution context (`github-script`, `node`, or `unclear`)
+- whether the file has `@ts-nocheck` in either form (`@ts-nocheck` or `// @ts-nocheck`)
+- whether the corresponding test file exists
+- a `decision` of `cleanup` or `noop`
+- up to 3 concrete target changes if cleanup should proceed
+
+**Quick Decision — make this choice NOW before reading further:**
+
+- If the sub-agent reports `has_ts_nocheck: true` (for either `@ts-nocheck` or `// @ts-nocheck`): proceed to Step 3 to remove it and fix types.
+- If the sub-agent returns `decision: "noop"`: call `noop` immediately with its reason and STOP. Do not read additional sections.
+- If the sub-agent returns `decision: "cleanup"` with specific target changes: proceed to Step 3 to make exactly those changes.
+
+> **Do NOT read the entire file before deciding.** Let the sub-agent inspect only the first 80 lines, then pick a direction immediately. Reading large files without a clear improvement target will exhaust your context.
+
+If you choose to proceed, read only the sections of the file you need to make the targeted changes returned by the sub-agent.
 
 ### 3. Clean the Code
 
@@ -269,7 +285,7 @@ cat /tmp/gh-aw/cache-memory/jsweep-state.json
 
 ## Done Conditions
 
-**Your task for this run is complete when you have processed exactly one file and called `safeoutputs.create_pull_request`.** This is the final step — do not continue after this point.
+**Your task for this run is complete when you have processed exactly one file and called the safe-output tool `create_pull_request`.** This is the final step — do not continue after this point.
 
 - **STOP immediately after calling `create_pull_request`** — do not loop back to Step 1 to find another file
 - Do not call `create_pull_request` more than once per run
@@ -279,9 +295,10 @@ If the pull request cannot be created (e.g., one already exists, validation fail
 - **Do not retry more than once**
 - Call the `noop` safe-output tool to report what happened, then STOP
 
-**Final Safe-Output Guardrail (required):**
-- This workflow must always emit at least one safe output before exiting.
-- If you are about to stop and have not called any safe-output tool yet, call `noop` with a brief explanation, then STOP.
+**⚠️ Final Safe-Output Guardrail (REQUIRED — failure to comply is the #1 cause of workflow failures):**
+- This workflow **must always** emit at least one safe output before exiting.
+- If you are about to stop and have **not** called any safe-output tool yet (`create_pull_request`, `noop`, or `report_incomplete`), call `noop` **right now** with a brief explanation, then STOP.
+- An empty session with no safe-output call is a workflow failure. When in doubt, call `noop`.
 
 ## Important Constraints
 
@@ -310,3 +327,36 @@ If the pull request cannot be created (e.g., one already exists, validation fail
 Begin by running the cache load script in **Step 1** to determine cold-start vs. cache-hit status, then find and clean the next `.cjs` file!
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `file-triage`
+---
+description: Reads only the first 80 lines of the selected .cjs file and returns a compact cleanup decision.
+model: small
+---
+
+You are a bounded JavaScript file triage sub-agent.
+
+You receive:
+- `file_path: /absolute/path/to/file.cjs`
+- `test_path: /absolute/path/to/file.test.cjs`
+
+Rules:
+- Read **only** the first 80 lines of `file_path`.
+- Determine whether the execution context appears to be `github-script`, `node`, or `unclear`.
+- Detect `@ts-nocheck` in either form: `@ts-nocheck` or `// @ts-nocheck`.
+- Check whether `test_path` exists.
+- If the file already looks well-maintained from the first 80 lines and you cannot justify 1–3 concrete cleanup targets, choose `noop`.
+- If you can identify 1–3 concrete cleanup targets from the first 80 lines, choose `cleanup`.
+- If `@ts-nocheck` is present, always choose `cleanup`.
+- Do not read past line 80.
+
+Return **JSON only** in this exact shape:
+
+```json
+{"decision":"cleanup|noop","reason":"...","execution_context":"github-script|node|unclear","has_ts_nocheck":true,"test_file":"present|missing","target_changes":["..."]}
+```
+
+Constraints for the JSON:
+- `reason` must be one short sentence.
+- `target_changes` must contain 0-3 short strings.
+- If `decision` is `noop`, `target_changes` should be an empty array.

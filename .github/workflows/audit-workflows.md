@@ -12,6 +12,21 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: audit-workflows-daily
+experiments:
+  audit_decomposition:
+    variants: [single_agent, phased_sub_agents]
+    description: "Tests whether decomposing audit-workflows into explicit analysis phases improves reliability and reduces long failing runs."
+    hypothesis: "H0: no change in run_success_rate. H1: phased_sub_agents improves run_success_rate by at least 15% relative while keeping runtime within +10%."
+    metric: run_success_rate
+    secondary_metrics: [run_duration_minutes, empty_findings_rate]
+    guardrail_metrics:
+      - name: timeout_rate
+        direction: min
+        threshold: 0.05
+    min_samples: 264
+    weight: [50, 50]
+    start_date: "2026-07-03"
+    issue: 43177
 engine:
   id: claude
   mcp:
@@ -85,11 +100,25 @@ Output is saved to: /tmp/gh-aw/aw-mcp/logs
 
 **IMPORTANT**: Do NOT infer engine type by scanning `.lock.yml` files. Lock files contain the word `copilot` in allowed-domains lists and workflow source paths regardless of which engine the workflow uses, causing false positives.
 
+{{#if experiments.audit_decomposition == 'phased_sub_agents'}}
+**Analyze** in explicit phases:
+1. **Collection phase**: summarize missing tools, hard failures, and token/runtime outliers.
+2. **Clustering phase**: group recurring failure signatures and map them to known issues vs. novel anomalies.
+3. **Recommendation phase**: derive the smallest actionable set of fixes, each linked to evidence.
+4. **Synthesis phase**: combine phase outputs into one final audit report and repo-memory update.
+{{else}}
 **Analyze**: Review logs for:
 - Missing tools (patterns, frequency, legitimacy)
 - Errors (tool execution, MCP failures, auth, timeouts, resources)
 - Performance (token usage, timeouts, efficiency)
 - Patterns (recurring issues, frequent failures)
+{{/if}}
+
+{{#if experiments.audit_decomposition == 'phased_sub_agents'}}
+Before writing the final report, verify that each recommendation cites at least one concrete log or trend signal and that recurring issues are deduplicated across phases.
+{{else}}
+Before writing the final report, verify recommendations are concrete and evidence-based.
+{{/if}}
 
 **Repo Memory**: Store findings in `/tmp/gh-aw/repo-memory/default/`:
 - `audit-history.jsonl` — append one structured summary entry per audit cycle
