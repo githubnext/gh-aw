@@ -8,7 +8,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
-const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
+const { VALID_REACTIONS, resolveReactionSetup } = require("./reaction_setup_helpers.cjs");
 const { addReaction, addDiscussionReaction, getDiscussionNodeId } = require("./add_reaction.cjs");
 
 /**
@@ -23,9 +23,6 @@ const EVENT_TYPE_DESCRIPTIONS = {
   discussion: "discussion",
   discussion_comment: "discussion comment",
 };
-
-/** Valid GitHub reaction types */
-const VALID_REACTIONS = Object.freeze(["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"]);
 
 /**
  * Resolve the reaction and comment API endpoints for a given event.
@@ -138,21 +135,19 @@ async function resolveEventEndpoints(eventName, owner, repo, payload) {
 }
 
 async function main() {
-  const reaction = process.env.GH_AW_REACTION || "eyes";
+  const setup = resolveReactionSetup(context);
+  if (!setup) {
+    return;
+  }
+  const { reaction, invocationContext } = setup;
   const commandsJSON = process.env.GH_AW_COMMANDS;
   const command = commandsJSON ? (JSON.parse(commandsJSON)[0] ?? null) : null; // Only present for command workflows
-  const invocationContext = resolveInvocationContext(context);
   const runUrl = buildWorkflowRunUrl(context, invocationContext.workflowRepo);
 
   core.info(`Reaction type: ${reaction}`);
   core.info(`Command name: ${command || "none"}`);
   core.info(`Run ID: ${context.runId}`);
   core.info(`Run URL: ${runUrl}`);
-
-  if (!VALID_REACTIONS.includes(reaction)) {
-    core.setFailed(`${ERR_VALIDATION}: Invalid reaction type: ${reaction}. Valid reactions are: ${VALID_REACTIONS.join(", ")}`);
-    return;
-  }
 
   const eventName = invocationContext.eventName;
   const { owner, repo } = invocationContext.eventRepo;

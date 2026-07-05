@@ -3,7 +3,7 @@
 
 const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
-const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
+const { resolveReactionSetup } = require("./reaction_setup_helpers.cjs");
 
 /** @type {Record<string, string>} Maps REST reaction names to GraphQL ReactionContent enum values */
 const REACTION_MAP = {
@@ -24,20 +24,15 @@ const REACTION_MAP = {
  * Use add_reaction_and_edit_comment.cjs in the activation job to create the comment with workflow link.
  */
 async function main() {
-  // Read inputs from environment variables
-  const reaction = process.env.GH_AW_REACTION || "eyes";
+  const setup = resolveReactionSetup(context);
+  if (!setup) {
+    return;
+  }
+  const { reaction, invocationContext } = setup;
 
   core.info(`Adding reaction: ${reaction}`);
 
-  // Validate reaction type
-  const validReactions = Object.keys(REACTION_MAP);
-  if (!validReactions.includes(reaction)) {
-    core.setFailed(`${ERR_VALIDATION}: Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
-    return;
-  }
-
   // Determine the API endpoint based on the event type
-  const invocationContext = resolveInvocationContext(context);
   const eventName = invocationContext.eventName;
   const { owner, repo } = invocationContext.eventRepo;
   const payload = invocationContext.eventPayload;
