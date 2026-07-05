@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRenderOrgActionSummaryUsesConsoleListItems(t *testing.T) {
+func TestRenderOrgActionSummaryUsesConsoleFormatListItemStderr(t *testing.T) {
 	preview := orgRepoPreview{
 		Repo:           "octo/repo",
 		TotalWorkflows: 2,
@@ -38,7 +38,7 @@ func TestRenderOrgActionSummaryUsesConsoleListItems(t *testing.T) {
 	assert.Equal(t, console.FormatListItemStderr("repo-assist: v1.0.0 -> v1.1.0"), lines[4])
 }
 
-func TestFindWorkflowsWithMCPServerUsesInfoMessages(t *testing.T) {
+func TestFindWorkflowsWithMCPServerUsesConsoleFormatInfoMessageStderr(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
