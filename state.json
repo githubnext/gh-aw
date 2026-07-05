@@ -1,7 +1,8 @@
 {
   "counts": {
     "model_size": {
-      "small": 1
+      "small": 1,
+      "claude-sonnet-4.6": 1
     }
   },
   "runs": [
@@ -10,6 +11,13 @@
       "timestamp": "2026-07-05T13:40:34.815Z",
       "assignments": {
         "model_size": "small"
+      }
+    },
+    {
+      "run_id": "28745935871",
+      "timestamp": "2026-07-05T15:38:45.867Z",
+      "assignments": {
+        "model_size": "claude-sonnet-4.6"
       }
     }
   ]
