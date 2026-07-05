@@ -169,9 +169,15 @@ function createLogParserFormatters(deps) {
       }
 
       // Truncate body at a clean UTF-8 character boundary.
+      // UTF-8 continuation bytes have the form 10xxxxxx (0x80–0xBF).
+      // Walking back past them ensures the cutoff lands on a start byte
+      // (0x00–0x7F for ASCII, 0xC0–0xFF for multi-byte leaders), so the
+      // resulting slice is always a well-formed UTF-8 string.
+      const UTF8_CONTINUATION_MASK = 0xc0;
+      const UTF8_CONTINUATION_PREFIX = 0x80;
       const bodyBuf = Buffer.from(body, "utf8");
       let cutoff = Math.min(availableForBody, bodyBuf.length);
-      while (cutoff > 0 && (bodyBuf[cutoff] & 0xc0) === 0x80) {
+      while (cutoff > 0 && (bodyBuf[cutoff] & UTF8_CONTINUATION_MASK) === UTF8_CONTINUATION_PREFIX) {
         cutoff--;
       }
       const truncatedBody = bodyBuf.slice(0, cutoff).toString("utf8") + truncationNote;
