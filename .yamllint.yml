@@ -1,0 +1,28 @@
+---
+extends: default
+rules:
+  # Generated lock files use long lines for shell scripts and expressions
+  line-length: disable
+  # Generated lock files don't use YAML document-start markers
+  document-start: disable
+  # GitHub Actions uses "on:" as a string key (YAML 1.2), not a boolean
+  truthy:
+    check-keys: false
+  # Allow comments after content (e.g. SHA pin comments)
+  comments:
+    require-starting-space: true
+    min-spaces-from-content: 1
+  # Accept both compact sequence notation (goccy/go-yaml emits schedule
+  # list items at the same level as their parent key) and standard indented
+  # sequences (e.g. steps: → - name:).
+  indentation:
+    spaces: 2
+    indent-sequences: whatever
+    check-multi-line-strings: false
+  # Comments after compact sequences may look misaligned; disable this check
+  comments-indentation: disable
+  # No blank lines at start/end of file
+  empty-lines:
+    max: 2
+    max-start: 0
+    max-end: 0

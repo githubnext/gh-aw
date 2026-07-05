@@ -403,7 +403,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	}
 	yaml.WriteString("          " + serverDelimiter + "\n")
 	yaml.WriteString("          chmod +x \"${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs\"\n")
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 
 	yaml.WriteString("      - name: Write MCP Scripts Tool Files\n")
 	yaml.WriteString("        run: |\n")
@@ -415,7 +415,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 			return err
 		}
 	}
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("      - name: Generate MCP Scripts Server Config\n")
 	yaml.WriteString("        id: mcp-scripts-config\n")
 	yaml.WriteString("        run: |\n")
@@ -423,17 +423,17 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	yaml.WriteString("          # Mask immediately to prevent timing vulnerabilities\n")
 	yaml.WriteString("          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')\n")
 	yaml.WriteString("          echo \"::add-mask::${API_KEY}\"\n")
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	fmt.Fprintf(yaml, "          PORT=%d\n", constants.DefaultMCPServerPort)
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          # Set outputs for next steps\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            echo \"mcp_scripts_api_key=${API_KEY}\"\n")
 	yaml.WriteString("            echo \"mcp_scripts_port=${PORT}\"\n")
 	yaml.WriteString("          } >> \"$GITHUB_OUTPUT\"\n")
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          echo \"MCP Scripts server will run on port ${PORT}\"\n")
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("      - name: Start MCP Scripts HTTP Server\n")
 	yaml.WriteString("        id: mcp-scripts-start\n")
 	yaml.WriteString("        env:\n")
@@ -454,9 +454,9 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	yaml.WriteString("          export DEBUG\n")
 	yaml.WriteString("          export GH_AW_MCP_SCRIPTS_PORT\n")
 	yaml.WriteString("          export GH_AW_MCP_SCRIPTS_API_KEY\n")
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/start_mcp_scripts_server.sh\"\n")
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	return nil
 }
 
@@ -570,7 +570,7 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	yaml.WriteString("          DOCKER_SOCK_GID=$(stat -c '%g' \"$DOCKER_SOCK_PATH\" 2>/dev/null || echo '0')\n")
 	cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd)
 	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	return engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 }
 
@@ -637,7 +637,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	payloadDir := opts.payloadDir
 	payloadPathPrefix := opts.payloadPathPrefix
 	payloadSizeThreshold := opts.payloadSizeThreshold
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
 	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + strconv.Itoa(port) + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
@@ -665,7 +665,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	}
 	yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD=\"" + strconv.Itoa(payloadSizeThreshold) + "\"\n")
 	yaml.WriteString("          export DEBUG=\"*\"\n")
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
 	if cliServers := getMCPCLIExcludeFromAgentConfig(workflowData); len(cliServers) > 0 {
 		cliServersJSON, err := json.Marshal(cliServers)

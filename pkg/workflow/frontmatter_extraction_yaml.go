@@ -34,7 +34,7 @@ func (c *Compiler) indentYAMLLines(yamlContent, indent string) string {
 		if strings.TrimSpace(lines[i]) != "" {
 			result.WriteString("\n" + indent + lines[i])
 		} else {
-			result.WriteString("\n" + lines[i])
+			result.WriteString("\n")
 		}
 	}
 

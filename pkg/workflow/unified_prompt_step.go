@@ -390,7 +390,11 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
 				contentLines := strings.SplitSeq(cleanedContent, "\n")
 				for line := range contentLines {
-					yaml.WriteString("            " + line + "\n")
+					if strings.TrimSpace(line) == "" {
+						yaml.WriteString("\n")
+					} else {
+						yaml.WriteString("            " + line + "\n")
+					}
 				}
 				yaml.WriteString("            " + delimiter + "\n")
 			}
@@ -430,7 +434,11 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
 				contentLines := strings.SplitSeq(cleanedContent, "\n")
 				for line := range contentLines {
-					yaml.WriteString("          " + line + "\n")
+					if strings.TrimSpace(line) == "" {
+						yaml.WriteString("\n")
+					} else {
+						yaml.WriteString("          " + line + "\n")
+					}
 				}
 			}
 		}
@@ -483,9 +491,13 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 
 		lines := strings.SplitSeq(chunk, "\n")
 		for line := range lines {
-			yaml.WriteString("          ")
-			yaml.WriteString(line)
-			yaml.WriteByte('\n')
+			if strings.TrimSpace(line) == "" {
+				yaml.WriteByte('\n')
+			} else {
+				yaml.WriteString("          ")
+				yaml.WriteString(line)
+				yaml.WriteByte('\n')
+			}
 		}
 	}
 

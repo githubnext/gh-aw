@@ -114,7 +114,7 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 
 	mcpRendererLog.Printf("Rendering GitHub MCP TOML: type=%s, read_only=%t, lockdown=%t, toolsets=%s", githubType, readOnly, lockdown, toolsets)
 
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          [mcp_servers.github]\n")
 
 	// Add user_agent field defaulting to workflow identifier

@@ -91,7 +91,7 @@ func TestIndentYAMLLines(t *testing.T) {
 			name:    "blank lines are preserved without extra indentation",
 			input:   "first: value\n\nsecond: value\n  \nthird: value",
 			indent:  "  ",
-			wantOut: "first: value\n\n  second: value\n  \n  third: value",
+			wantOut: "first: value\n\n  second: value\n\n  third: value",
 		},
 	}
 

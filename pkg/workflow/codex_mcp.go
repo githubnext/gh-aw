@@ -85,7 +85,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 	// Append custom config if provided
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Config != "" {
-		mcpConfigContent.WriteString("          \n")
+		mcpConfigContent.WriteString("\n")
 		mcpConfigContent.WriteString("          # Custom configuration\n")
 		// Write the custom config line by line with proper indentation
 		configLines := strings.SplitSeq(workflowData.EngineConfig.Config, "\n")
@@ -93,7 +93,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			if strings.TrimSpace(line) != "" {
 				mcpConfigContent.WriteString("          " + line + "\n")
 			} else {
-				mcpConfigContent.WriteString("          \n")
+				mcpConfigContent.WriteString("\n")
 			}
 		}
 	}
@@ -109,7 +109,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	// Also generate JSON config for MCP gateway
 	// Per MCP Gateway Specification v1.0.0 section 4.1, the gateway requires JSON input
 	// This JSON config is used by the gateway, while the TOML config above is used by Codex
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          # Generate JSON config for MCP gateway\n")
 
 	// Gateway uses JSON format without Copilot-specific fields and multi-line args
@@ -129,7 +129,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	// ${RUNNER_TEMP}/gh-aw/mcp-config/config.toml. Codex reads config from
 	// $CODEX_HOME/config.toml, so copy the converted config into writable CODEX_HOME
 	// and prepend shell policy (converter output does not include this section).
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          # Sync converter output to writable CODEX_HOME for Codex\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
 
@@ -151,7 +151,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	}
 	if workflowData.EngineConfig != nil && strings.TrimSpace(workflowData.EngineConfig.Config) != "" {
 		customConfigDelimiter := GenerateHeredocDelimiterFromContent("CODEX_CUSTOM_CONFIG", workflowData.EngineConfig.Config)
-		yaml.WriteString("          \n")
+		yaml.WriteString("\n")
 		yaml.WriteString("          # Append engine-level custom Codex config\n")
 		yaml.WriteString("          cat >> \"/tmp/gh-aw/mcp-config/config.toml\" << " + customConfigDelimiter + "\n")
 		yaml.WriteString(workflowData.EngineConfig.Config)
@@ -203,7 +203,7 @@ func (e *CodexEngine) renderCodexMCPConfigWithContext(yaml *strings.Builder, too
 	rewriteLocalhost := shouldRewriteLocalhostToDocker(workflowData)
 	codexMCPLog.Printf("Rendering TOML MCP config for custom tool: %s (rewrite_localhost=%v)", toolName, rewriteLocalhost)
 
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	fmt.Fprintf(yaml, "          [mcp_servers.%s]\n", toolName)
 
 	// Use the shared MCP config renderer with TOML format

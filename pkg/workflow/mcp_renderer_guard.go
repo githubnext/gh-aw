@@ -63,12 +63,12 @@ func renderGuardPoliciesToml(yaml *strings.Builder, policies map[string]any, ser
 		return
 	}
 
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          [mcp_servers." + serverID + ".\"guard-policies\"]\n")
 
 	// Iterate over each policy (e.g., "write-sink")
 	for policyName, policyConfig := range policies {
-		yaml.WriteString("          \n")
+		yaml.WriteString("\n")
 		yaml.WriteString("          [mcp_servers." + serverID + ".\"guard-policies\"." + policyName + "]\n")
 
 		// Extract policy fields (e.g., "accept")

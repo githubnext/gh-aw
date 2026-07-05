@@ -40,7 +40,7 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	// Use official Playwright MCP Docker image (no version tag - only one image)
 	playwrightImage := "mcr.microsoft.com/playwright/mcp"
 
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
 	yaml.WriteString("          container = \"" + playwrightImage + "\"\n")
 
@@ -90,7 +90,7 @@ func (r *MCPConfigRendererUnified) RenderSafeOutputsMCP(yaml *strings.Builder, w
 // default entrypoint to run the stdio MCP server script.
 func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, workflowData *WorkflowData) {
 	containerImage := resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, workflowData)
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + "]\n")
 	yaml.WriteString("          container = \"" + containerImage + "\"\n")
 	yaml.WriteString("          mounts = [\"" + constants.DefaultWorkspaceMount + "\", \"" + constants.DefaultSafeOutputsMount + "\", \"" + constants.DefaultTmpGhAwMount + "\"]\n")
@@ -130,7 +130,7 @@ func (r *MCPConfigRendererUnified) RenderMCPScriptsMCP(yaml *strings.Builder, mc
 // renderMCPScriptsTOML generates MCP Scripts configuration in TOML format
 // Uses HTTP transport exclusively
 func (r *MCPConfigRendererUnified) renderMCPScriptsTOML(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, workflowData *WorkflowData) {
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          [mcp_servers." + constants.MCPScriptsMCPServerID.String() + "]\n")
 	yaml.WriteString("          type = \"http\"\n")
 
@@ -172,7 +172,7 @@ func (r *MCPConfigRendererUnified) RenderAgenticWorkflowsMCP(yaml *strings.Build
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Builder) {
 	mcpRendererBuiltinLog.Printf("Rendering Agentic Workflows MCP in TOML format: action_mode=%s", r.options.ActionMode)
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          [mcp_servers." + constants.AgenticWorkflowsMCPServerID.String() + "]\n")
 
 	containerImage := constants.DefaultAlpineImage

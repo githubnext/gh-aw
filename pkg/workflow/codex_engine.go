@@ -640,7 +640,7 @@ func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools 
 	sortedEnvVars := e.getShellEnvironmentPolicyVars(tools, mcpTools)
 
 	// Render [shell_environment_policy] section
-	yaml.WriteString("          \n")
+	yaml.WriteString("\n")
 	yaml.WriteString("          [shell_environment_policy]\n")
 	yaml.WriteString("          inherit = \"core\"\n")
 	yaml.WriteString("          include_only = [")

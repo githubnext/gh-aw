@@ -598,6 +598,24 @@ tools: ## Install build-time tools from tools.go
 	@go install golang.org/x/tools/gopls@v0.21.1
 	@echo "✓ Tools installed successfully"
 
+# Install yamllint for YAML linting
+.PHONY: install-yamllint
+install-yamllint:
+	@echo "Installing yamllint..."
+	@pip3 install yamllint==1.38.0 --quiet
+	@echo "✓ yamllint installed"
+
+# Lint generated lock files with yamllint
+.PHONY: lint-yaml
+lint-yaml:
+	@echo "Linting generated lock files with yamllint..."
+	@if ! command -v yamllint >/dev/null 2>&1; then \
+		echo "yamllint is not installed. Run 'make install-yamllint' to install."; \
+		exit 1; \
+	fi
+	@yamllint -c .yamllint.yml .github/workflows/*.lock.yml
+	@echo "✓ yamllint passed"
+
 # Install golangci-lint binary (avoiding GPL dependencies in go.mod)
 # Downloads pre-built binary from GitHub releases
 .PHONY: install-golangci-lint
@@ -681,7 +699,7 @@ deps: check-node-version
 
 # Install development tools (including linter)
 .PHONY: deps-dev
-deps-dev: check-node-version deps tools install-golangci-lint download-github-actions-schema
+deps-dev: check-node-version deps tools install-golangci-lint install-yamllint download-github-actions-schema
 	@echo "✓ Development dependencies installed"
 
 # Download GitHub Actions workflow schema for embedded validation
@@ -908,7 +926,7 @@ lint-action-sh:
 
 # Validate all project files
 .PHONY: lint
-lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh
+lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh lint-yaml
 	@echo "✓ All validations passed"
 
 # Install the binary locally

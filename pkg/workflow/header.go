@@ -47,7 +47,7 @@ func GenerateWorkflowHeader(sourceFile string, generatedBy string, customInstruc
 	logoLines := strings.Split(strings.TrimRight(headerAsciiLogo, "\n"), "\n")
 	headerLog.Printf("Adding ASCII logo with %d lines", len(logoLines))
 	for _, line := range logoLines {
-		fmt.Fprintf(&header, "# %s\n", line)
+		fmt.Fprintf(&header, "# %s\n", strings.TrimRight(line, " \t"))
 	}
 	header.WriteString("#\n")
 	header.WriteString("#\n")

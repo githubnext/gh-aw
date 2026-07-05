@@ -102,10 +102,10 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	// Use setup_globals helper to make GitHub Actions objects available globally
 	yaml.WriteString(indent + "      const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString(indent + "      setupGlobals(core, github, context, exec, io, getOctokit);\n")
-	yaml.WriteString(indent + "      \n")
+	yaml.WriteString("\n")
 	// Use require() to load script from copied files
 	yaml.WriteString(indent + "      const substitutePlaceholders = require('" + SetupActionDestination + "/substitute_placeholders.cjs');\n")
-	yaml.WriteString(indent + "      \n")
+	yaml.WriteString("\n")
 	yaml.WriteString(indent + "      // Call the substitution function\n")
 	yaml.WriteString(indent + "      return await substitutePlaceholders({\n")
 	yaml.WriteString(indent + "        file: process.env.GH_AW_PROMPT,\n")

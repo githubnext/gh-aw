@@ -418,6 +418,9 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	yamlContent := yaml.String()
 
+	// Ensure exactly one trailing newline (yamllint: empty-lines max-end: 0)
+	yamlContent = strings.TrimRight(yamlContent, "\n") + "\n"
+
 	// If we're in non-cloning trial mode and this workflow has issue triggers,
 	// replace github.event.issue.number with inputs.issue_number
 	if c.trialMode && c.hasIssueTrigger(data.On) {
