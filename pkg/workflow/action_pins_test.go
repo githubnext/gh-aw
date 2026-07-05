@@ -1886,7 +1886,7 @@ func TestWarnIfOutdatedActionVersion_Deduplication(t *testing.T) {
 		warnIfOutdatedActionVersion("actions/checkout", "v5.0.0", "v7.0.0", data)
 	})
 
-	count := strings.Count(output, "Action actions/checkout@v5.0.0 is outdated")
+	count := strings.Count(output, "⚠")
 	if count != 1 {
 		t.Errorf("expected warning to appear exactly once, got %d occurrences in: %q", count, output)
 	}
