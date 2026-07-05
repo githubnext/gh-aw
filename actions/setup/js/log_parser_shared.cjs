@@ -119,6 +119,14 @@ class StepSummaryTracker {
   }
 
   /**
+   * Gets the remaining byte capacity before the limit.
+   * @returns {number} Remaining bytes available (0 when limit is reached)
+   */
+  remaining() {
+    return Math.max(0, this.maxSize - this.currentSize);
+  }
+
+  /**
    * Gets the current accumulated size.
    * @returns {number} Current size in bytes
    */

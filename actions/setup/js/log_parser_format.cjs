@@ -90,14 +90,22 @@ function createLogParserFormatters(deps) {
   /**
    * Builds a step-summary section with a collapsible details body whose summary
    * acts as the section header.
+   *
+   * NOTE: This is a local copy of log_parser_shared.cjs:buildStepSummaryDetailsSection.
+   * It cannot be imported from there because log_parser_shared.cjs requires
+   * log_parser_format.cjs (circular dependency). Keep both copies in sync.
+   *
    * @param {string} title
    * @param {string} body
+   * @param {{open?: boolean, emptyBodyMessage?: string}} [options]
    * @returns {string}
    */
-  function buildStepSummaryDetailsSection(title, body) {
+  function buildStepSummaryDetailsSection(title, body, options = {}) {
+    const { open = false, emptyBodyMessage = "No details available." } = options;
+    const openAttr = open ? " open" : "";
     const trimmedBody = typeof body === "string" ? body.trim() : "";
-    const content = trimmedBody || "No details available.";
-    return `<details>\n<summary>${title}</summary>\n\n${content}\n</details>\n\n`;
+    const content = trimmedBody || emptyBodyMessage;
+    return `<details${openAttr}>\n<summary>${title}</summary>\n\n${content}\n</details>\n\n`;
   }
 
   /**
@@ -131,6 +139,45 @@ function createLogParserFormatters(deps) {
       return true;
     }
 
+    /**
+     * Adds a details section, truncating the body when it would exceed the
+     * remaining step-summary budget. Emits partial content with a truncation
+     * note rather than dropping the entire section.
+     * @param {string} title
+     * @param {string} body
+     * @returns {boolean} True if any content was emitted
+     */
+    function addDetailsSectionFitting(title, body) {
+      const fullSection = buildStepSummaryDetailsSection(title, body);
+      if (addContent(fullSection)) {
+        return true;
+      }
+
+      // Full section doesn't fit — try truncating the body to use what remains.
+      if (!summaryTracker) {
+        return false;
+      }
+
+      const truncationNote = "\n\n*(content truncated — step summary size limit reached)*\n";
+      const truncNoteSize = Buffer.byteLength(truncationNote, "utf8");
+      const shell = `<details>\n<summary>${title}</summary>\n\n\n</details>\n\n`;
+      const shellSize = Buffer.byteLength(shell, "utf8");
+      const availableForBody = summaryTracker.remaining() - shellSize - truncNoteSize;
+
+      if (availableForBody <= 0) {
+        return false;
+      }
+
+      // Truncate body at a clean UTF-8 character boundary.
+      const bodyBuf = Buffer.from(body, "utf8");
+      let cutoff = Math.min(availableForBody, bodyBuf.length);
+      while (cutoff > 0 && (bodyBuf[cutoff] & 0xc0) === 0x80) {
+        cutoff--;
+      }
+      const truncatedBody = bodyBuf.slice(0, cutoff).toString("utf8") + truncationNote;
+      return addContent(buildStepSummaryDetailsSection(title, truncatedBody));
+    }
+
     const initEntry = renderEntries.find(entry => entry.type === "system" && entry.subtype === "init");
     if (initEntry && formatInitCallback) {
       const initResult = formatInitCallback(initEntry);
@@ -147,6 +194,9 @@ function createLogParserFormatters(deps) {
     for (const entry of renderEntries) {
       if (entry.type !== "assistant" || !entry.message?.content) {
         continue;
+      }
+      if (summaryTracker && summaryTracker.isLimitReached()) {
+        break;
       }
 
       for (const content of entry.message.content) {
@@ -172,20 +222,18 @@ function createLogParserFormatters(deps) {
       }
     }
 
-    if (!addContent(buildStepSummaryDetailsSection("Reasoning", reasoningBody))) {
+    if (!addDetailsSectionFitting("Reasoning", reasoningBody)) {
       markdown += SIZE_LIMIT_WARNING;
-      return { markdown, commandSummary: [], sizeLimitReached };
-    }
-
-    if (sizeLimitReached) {
-      markdown += SIZE_LIMIT_WARNING;
-      return { markdown, commandSummary: [], sizeLimitReached };
+      return { markdown, commandSummary: [], sizeLimitReached: true };
     }
 
     const commandSummary = [];
     for (const entry of renderEntries) {
       if (entry.type !== "assistant" || !entry.message?.content) {
         continue;
+      }
+      if (summaryTracker && summaryTracker.isLimitReached()) {
+        break;
       }
 
       for (const content of entry.message.content) {
@@ -227,7 +275,7 @@ function createLogParserFormatters(deps) {
       commandsBody += commandDetailsBody.trim() + "\n";
     }
 
-    if (!addContent(buildStepSummaryDetailsSection("Commands and Tools", commandsBody))) {
+    if (!addDetailsSectionFitting("Commands and Tools", commandsBody)) {
       markdown += SIZE_LIMIT_WARNING;
       return { markdown, commandSummary, sizeLimitReached: true };
     }
