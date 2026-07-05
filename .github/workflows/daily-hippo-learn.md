@@ -53,6 +53,11 @@ safe-outputs:
     title-prefix: "🦛 "
     close-older-discussions: true
     max: 1
+  create-issue:
+    expires: 3d
+    labels: [automated-analysis, cookie]
+    title-prefix: "[hippo] "
+    max: 3
 
 imports:
   - shared/hippo-memory.md
@@ -172,6 +177,22 @@ Any stale, very-low-confidence, or duplicated memories worth pruning. Run
 
 Keep the report concise and focused on what the team can act on. Wrap verbose
 memory lists in `<details>` tags to reduce scrolling.
+
+## Step 6 — Create quick-win issues
+
+From the **Quick Wins** section of your analysis, pick the top 3 highest-confidence,
+most actionable improvements that a developer could complete within a day or two.
+For each one, create a separate GitHub issue using the `create_issue` safe-output tool.
+
+Each issue should:
+- Have a short, specific title describing the improvement
+- Include the memory ID(s) that support it (e.g. `Memory: <id>`) for traceability
+- Explain the rationale in 2–3 sentences backed by the recalled memories
+- Describe concrete next steps (commands to run, files to edit, etc.)
+- Not duplicate an issue already open in the repository
+
+Do **not** create more than 3 issues. If fewer than 3 compelling quick wins exist,
+create only as many as are genuinely actionable.
 
 **Important**: If no action is needed after completing your analysis, you **MUST**
 call the `noop` safe-output tool with a brief explanation. Failing to call any
