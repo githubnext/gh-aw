@@ -1,11 +1,11 @@
 {
-  "total_runs": 56,
-  "total_findings": 384,
-  "total_tasks": 105,
-  "avg_success_score": 8.77,
-  "last_run": "2026-07-04",
+  "total_runs": 57,
+  "total_findings": 389,
+  "total_tasks": 106,
+  "avg_success_score": 8.75,
+  "last_run": "2026-07-05",
   "serena_lsp": "23 tools stable. activate_project --project. find_symbol broad 70s+ (prefer Grep). gh issue list --search BROKEN -> gh api issues?labels=sergo. gh api sergo BEFORE strategy + grep code (OPEN!=fixed).",
-  "open_issues": "R56 OPEN(gh api verified): 42174(hardcodedfilepath verb-set) 42004(httpstatuscode name-gate) 41845(fmterrorfnoverbs %%) 41844(nolint-parity 5) +NEW sg56a1=#aw_sg56a1(autofix verification-parity 3 linters). CLOSED since R55: #41606(panicinlib) + all prior holdouts(sg54a1#42901,seenmapbool#40733,errstringmatch#40244,sprintferrdot#40434,#40243). ALWAYS gh api reconcile before refile; landed-but-open common.",
+  "open_issues": "R57 OPEN(gh api verified): 42174(hardcodedfilepath verb-set) 42004(httpstatuscode name-gate) 41845(fmterrorfnoverbs %%) 41844(nolint-parity 5) + sg56a1(autofix verification-parity 3 linters) +NEW sg57a1=#aw_sg57a1(httprespbodyclose closure FN). NOTE #41164 CLOSED=ctxbackground SAME FuncLit-skip class(precedent for sg57a1). CLOSED since R55: #41606 + sg54a1#42901,seenmapbool#40733,errstringmatch#40244,sprintferrdot#40434,#40243. ALWAYS gh api reconcile before refile; landed-but-open common.",
   "patterns": {
     "phantom_reconcile": "gh api sergo issues BEFORE strategy + grep CODE for fix (team rarely auto-closes; landed-but-open common).",
     "registry_delta_detect": "main.go grep -c 'Analyzer' vs doc.go:3 'NN active' header = new-linter detector. R42-44: 30,31,32. doc.go drifts=#40436. New linter=fresh audit target.",
@@ -23,7 +23,7 @@
   "linters_R44": {
     "registered": 41,
     "delta": "R54: 39->40 40th=timesleepnocontext(type-resolved CLEAN core, 0 prod TP, LATENT scope_boundary_funclit over-attribution FP=#aw_sg54a1). R53: 38->39 39th=sprintfint(CLEAN type-resolved, 0 default-build viol, enforce-ready #aw_sg53a1; wasm blind-spot #aw_sg53a2). R52: 37->38 38th=errortypeassertion(CLEAN, ADR 42323, enforce-batch #42416 LANDED+CLOSED). R51: 37th=osgetenvlibrary(clean). R50:36th=httpstatuscode(#42004). doc.go drifts=#40436. Detector: grep -c Analyzer main.go vs prev + doc-omitted-minus-known. CLEAN audits: errorfwrapv,ossetenv/osgetenv,largefunc,deferinloop,stringreplaceminusone,lenstringsplit,ctxbackground,regexpcompileinfunction,sortslice,manualmutexunlock,tolowerequalfold(type-resolved).",
-    "next_R57": "registry NOW 41 (R56 delta 40->41 stringsindexcontains). Watch 42nd: grep -c Analyzer cmd/linters/main.go vs 41. R56 NEW PATTERN autofix_verification_parity sg56a1=#aw_sg56a1(3/9 SuggestedFix linters 0-golden: stringsindexcontains+sprintfint+stringreplaceminusone). NEXT: audit FIX BODIES for semantic bugs (R55 fprintlnsprintf newline precedent) across the 9 SuggestedFix set, esp sprintfint import-mgmt. RECONCILE gh api first. OPEN pre-R56: 42174 42004 41845 41844(41606 CLOSED). AUDITED-CLEAN: stringsindexcontains(R56)+prior. Prefer single-file precision 1-2 issues/run."
+    "next_R58": "registry NOW 42 (R57 delta 41->42; new = httprespbodyclose OR appendbytestring, both untracked+absent-from-doc.go/'30 active'-stale#40436). Watch 43rd: grep -c Analyzer cmd/linters/main.go vs 42. R57 fix-body semantic audit found 3 uncovered SuggestedFix bodies CLEAN (stringsindexcontains/stringreplaceminusone/sprintfint) => sg56a1 remains VERIFICATION-only gap, not logic. NEW PATTERN funclit_skip_FN: httprespbodyclose FuncDecl-only=sg57a1(=#41164 ctxbackground class). NEXT R58: probe any linter still FuncDecl-only nodeFilter w/o FuncLit (grep 'FuncDecl)(nil)' + NOT FuncLit nearby); also audit execcommandwithoutcontext(NEWLY cgo-enforced R57) + httprespbodyclose reassign/nolint-placement. RECONCILE gh api first. OPEN: 42174 42004 41845 41844 sg56a1 sg57a1. AUDITED-CLEAN: httprespbodyclose-core,appendbytestring,stringsindexcontains,stringreplaceminusone,sprintfint-fixbodies. Prefer single-file precision 1-2 issues/run."
   },
   "repo_context": "pkg/: ~937 prod .go (947 incl test). 32 analyzers cmd/linters/main.go:55-86. astutil.IsPkgSelector(astutil.go:75-94)=canonical pkg-identity; internal/nolint=per-line suppress (20/32 wire); internal/filecheck.IsTestFile=test-skip. Linters in pkg/linters/. Issue flow: Write JSON /tmp/gh-aw/agent/issueN.json, `safeoutputs create_issue . < file`; labels['sergo']+temporary_id aw_sg44aN. Dedup `gh api ...issues?labels=sergo --jq` (gh issue list --search BROKEN). Bash blocks: go build, /tmp ls/cat/mkdir, multi-stmt, $var loops, grep|grep. Repo-memory: Glob/Read/Write/Edit ONLY. MEMORY 10KB TOTAL PATCH: surgical edits + append-only strategies, avoid full-rewriting both JSONs same run."
 }
