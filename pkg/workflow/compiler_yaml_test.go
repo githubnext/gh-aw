@@ -195,6 +195,25 @@ Invalid YAML with missing comma in array.`,
 			description:         "missing comma in array should be detected",
 		},
 		{
+			name: "github_tool_scalar_with_nested_key",
+			content: `---
+on: push
+tools:
+  github: "invalid-string"
+    toolsets: [default]
+engine: claude
+strict: false
+---
+
+# Test Workflow
+
+Invalid YAML with scalar github tool config that has nested keys.`,
+			expectedErrorLine:   4, // highlight the invalid github scalar value line, not the nested key line
+			expectedErrorColumn: 11,
+			expectedMessagePart: "tools.github tool config must be a mapping (object), not a scalar value",
+			description:         "invalid github tool scalar should point to the scalar line with actionable message",
+		},
+		{
 			name:                "mixed_tabs_and_spaces",
 			content:             "---\non: push\npermissions:\n  contents: read\n\tissues: write\nengine: claude\n---\n\n# Test Workflow\n\nInvalid YAML with mixed tabs and spaces.",
 			expectedErrorLine:   5, // Line 5 in file (line 4 in YAML content - the line with tab)

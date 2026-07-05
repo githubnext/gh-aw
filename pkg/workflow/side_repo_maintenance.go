@@ -29,21 +29,46 @@ type SideRepoTarget struct {
 	// GitHubToken is the token expression used to authenticate against the target
 	// repository, e.g. "${{ secrets.GH_AW_MAIN_REPO_TOKEN }}". Empty when the
 	// checkout config does not specify a custom token.
+	// Mutually exclusive with GitHubApp.
 	GitHubToken string
+
+	// GitHubApp carries the GitHub App authentication config discovered from the
+	// source checkout. When set, each cross-repo maintenance job gets a
+	// create-github-app-token mint step and the minted token is used for all
+	// github-token: inputs and GH_TOKEN: env vars.
+	// Mutually exclusive with GitHubToken.
+	GitHubApp *GitHubAppConfig
+}
+
+// sideRepoAppTokenStepID is the step ID used for the GitHub App token mint step
+// emitted in each cross-repo maintenance job.
+const sideRepoAppTokenStepID = "side-repo-app-token"
+
+// sideRepoAppTokenRef is the GitHub Actions expression that references the minted
+// token output from the sideRepoAppTokenStepID step.
+const sideRepoAppTokenRef = "${{ steps." + sideRepoAppTokenStepID + ".outputs.token }}"
+
+// sideRepoAuth accumulates authentication configuration for a single side-repo target.
+// GitHubToken and GitHubApp are mutually exclusive (matching CheckoutConfig).
+type sideRepoAuth struct {
+	token     string
+	githubApp *GitHubAppConfig
 }
 
 // collectSideRepoTargets scans all compiled workflow data and returns the unique
 // SideRepoTarget entries inferred from checkout blocks with current: true.
 // Only checkouts with a static (non-expression) repository string are included.
-// When the same repository appears multiple times, a non-empty GitHubToken is
-// preferred over an empty one so that the generated workflow uses the custom
-// token rather than falling back to GH_AW_GITHUB_TOKEN.
+// When the same repository appears multiple times, a non-empty GitHubToken or a
+// non-nil GitHubApp is preferred over an empty auth so that the generated workflow
+// uses the custom token rather than falling back to GH_AW_GITHUB_TOKEN.
+// The first-seen auth for a given repo is preserved; later occurrences only
+// upgrade from "no auth" → "has auth" and never replace an existing auth choice.
 func collectSideRepoTargets(workflowDataList []*WorkflowData) []SideRepoTarget {
 	maintenanceLog.Printf("Scanning %d workflows for side-repo targets", len(workflowDataList))
-	// Use a map to accumulate the best token seen for each slug.
+	// Use a map to accumulate the best auth seen for each slug.
 	// Order slice preserves first-seen repository discovery order for stable output;
-	// tokens may be upgraded to non-empty values from later occurrences.
-	tokenByRepo := make(map[string]string)
+	// auth may be upgraded from empty to a non-empty value from later occurrences.
+	authByRepo := make(map[string]sideRepoAuth)
 	var order []string
 	for _, wd := range workflowDataList {
 		if wd == nil {
@@ -58,21 +83,36 @@ func collectSideRepoTargets(workflowDataList []*WorkflowData) []SideRepoTarget {
 				// Skip empty repositories and expression-based (dynamic) ones.
 				continue
 			}
-			existing, seen := tokenByRepo[repo]
+			existing, seen := authByRepo[repo]
 			if !seen {
 				order = append(order, repo)
-				tokenByRepo[repo] = checkout.GitHubToken
-			} else if existing == "" && checkout.GitHubToken != "" {
-				// Upgrade to a non-empty token when one is encountered later.
-				tokenByRepo[repo] = checkout.GitHubToken
+				authByRepo[repo] = sideRepoAuth{
+					token:     checkout.GitHubToken,
+					githubApp: checkout.GitHubApp,
+				}
+			} else if existing.token == "" && existing.githubApp == nil {
+				// Upgrade from no-auth to any-auth from a later occurrence.
+				if checkout.GitHubToken != "" || checkout.GitHubApp != nil {
+					authByRepo[repo] = sideRepoAuth{
+						token:     checkout.GitHubToken,
+						githubApp: checkout.GitHubApp,
+					}
+				}
+			} else if checkout.GitHubToken != "" || checkout.GitHubApp != nil {
+				// A later occurrence provides auth, but an earlier one already set auth.
+				// First-seen auth wins; log a notice so users can diagnose unexpected choices.
+				maintenanceLog.Printf("Ignoring later auth for %s: first-seen auth (token=%t, app=%t) already recorded",
+					repo, existing.token != "", existing.githubApp != nil)
 			}
 		}
 	}
 	targets := make([]SideRepoTarget, 0, len(order))
 	for _, repo := range order {
+		auth := authByRepo[repo]
 		targets = append(targets, SideRepoTarget{
 			Repository:  repo,
-			GitHubToken: tokenByRepo[repo],
+			GitHubToken: auth.token,
+			GitHubApp:   auth.githubApp,
 		})
 	}
 	maintenanceLog.Printf("Detected %d side-repo target(s) from checkout configs", len(targets))
@@ -81,12 +121,36 @@ func collectSideRepoTargets(workflowDataList []*WorkflowData) []SideRepoTarget {
 
 // effectiveSideRepoToken returns the GitHub token expression to use for the
 // side-repo maintenance workflow. It prefers the token from the checkout config;
-// when none is set it falls back to a conventional secret name.
+// when a GitHub App is configured it returns the minted token reference; when
+// neither is set it falls back to a conventional secret name.
 func effectiveSideRepoToken(checkout SideRepoTarget) string {
+	if checkout.GitHubToken != "" && checkout.GitHubApp != nil {
+		maintenanceLog.Printf("SideRepoTarget %s has both GitHubToken and GitHubApp configured; using explicit GitHubToken", checkout.Repository)
+	}
 	if checkout.GitHubToken != "" {
 		return checkout.GitHubToken
 	}
+	if checkout.GitHubApp != nil {
+		return sideRepoAppTokenRef
+	}
 	return "${{ secrets.GH_AW_GITHUB_TOKEN }}"
+}
+
+// sideRepoAppTokenMintStepYAML generates the YAML snippet for a
+// create-github-app-token step to be inserted at the top of each cross-repo
+// maintenance job. The step ID is sideRepoAppTokenStepID so the minted token is
+// referenced via sideRepoAppTokenRef by subsequent steps in the same job.
+func sideRepoAppTokenMintStepYAML(app *GitHubAppConfig, targetRepo string) string {
+	var c Compiler
+	lines := c.buildGitHubAppTokenMintStepWithMeta(
+		app,
+		nil, // no additional permission scoping; the app's installation grants determine access
+		targetRepo,
+		targetRepo,
+		"Generate GitHub App token",
+		sideRepoAppTokenStepID,
+	)
+	return strings.Join(lines, "")
 }
 
 // generateAllSideRepoMaintenanceWorkflowsOptions configures side-repo maintenance workflow generation.
@@ -212,6 +276,16 @@ func generateSideRepoMaintenanceWorkflow(
 	repoSlug := target.Repository
 	maintenanceLog.Printf("Building side-repo workflow content: repo=%s, actionMode=%s, hasExpires=%t", repoSlug, actionMode, hasExpires)
 
+	// Compute the GitHub App token mint step YAML once; it is inserted as the
+	// first step of every cross-repo job when app-based auth is configured.
+	var mintStepYAML string
+	if target.GitHubApp != nil && target.GitHubToken == "" {
+		mintStepYAML = sideRepoAppTokenMintStepYAML(target.GitHubApp, target.Repository)
+		maintenanceLog.Printf("GitHub App auth configured for %s; will emit mint step in cross-repo jobs", repoSlug)
+	} else if target.GitHubApp != nil {
+		maintenanceLog.Printf("SideRepoTarget %s has both GitHubToken and GitHubApp configured; skipping app token mint step", repoSlug)
+	}
+
 	var yaml strings.Builder
 
 	customInstructions := strings.ReplaceAll(sideRepoMaintenanceHeaderTemplate, "{REPO_SLUG}", repoSlug)
@@ -303,6 +377,7 @@ jobs:
     # Runs on schedule: ` + cronSchedule + ` (` + scheduleDesc + `)
     steps:
 `)
+		yaml.WriteString(mintStepYAML)
 
 		if actionMode == ActionModeDev || actionMode == ActionModeScript {
 			yaml.WriteString("      - name: Checkout actions folder\n")
@@ -372,6 +447,7 @@ jobs:
       run_url: ${{ steps.record.outputs.run_url }}
     steps:
 `)
+	yaml.WriteString(mintStepYAML)
 
 	if actionMode == ActionModeDev || actionMode == ActionModeScript {
 		yaml.WriteString("      - name: Checkout actions folder\n")
@@ -428,7 +504,9 @@ jobs:
       contents: read
       issues: write
     steps:
-      - name: Checkout repository
+`)
+	yaml.WriteString(mintStepYAML)
+	yaml.WriteString(`      - name: Checkout repository
         uses: ` + getActionPin("actions/checkout") + `
         with:
           persist-credentials: false
@@ -476,7 +554,9 @@ jobs:
       contents: read
       issues: write
     steps:
-      - name: Checkout repository
+`)
+	yaml.WriteString(mintStepYAML)
+	yaml.WriteString(`      - name: Checkout repository
         uses: ` + getActionPin("actions/checkout") + `
         with:
           persist-credentials: false

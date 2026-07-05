@@ -231,6 +231,14 @@ security-govulncheck-sarif:
 	@echo "✓ Govulncheck complete (results in govulncheck-results.sarif)"
 
 # Test JavaScript files
+.PHONY: check-cjs-syntax
+check-cjs-syntax:
+	@echo "→ Checking CommonJS runtime syntax..."
+	@find actions/setup/js \
+		-path 'actions/setup/js/node_modules' -prune -o \
+		-type f -name '*.cjs' ! -name '*.test.cjs' -print0 | xargs -0 -r -n1 node --check
+	@echo "✓ CommonJS runtime syntax validated"
+
 .PHONY: test-js
 test-js: build-js
 	cd actions/setup/js && npm run test:js -- --no-file-parallelism
@@ -820,10 +828,18 @@ fmt-check-json:
 		exit 1; \
 	fi
 
+# Validate CJS module syntax by running `node --check` on every non-test .cjs file.
+# This catches module-load SyntaxErrors (e.g. `await` inside a non-async function)
+# before any workflow runs, closing the gap that caused the PR #43170 regression.
+.PHONY: validate-cjs-syntax
+validate-cjs-syntax:
+	@bash scripts/validate-cjs-syntax.sh
+
 # Lint JavaScript (.cjs and .js) and JSON files in actions/setup/js directory
 .PHONY: lint-cjs
-lint-cjs: fmt-check-cjs
-	@echo "✓ JavaScript formatting validated"
+lint-cjs: fmt-check-cjs validate-cjs-syntax check-node-version
+	@cd eslint-factory && { [ -d node_modules ] || npm ci; } && npm run lint:setup-js
+	@echo "✓ JavaScript formatting, syntax, and lint validated"
 
 # Lint JSON files in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: lint-json
@@ -953,8 +969,8 @@ clean-docs:
 sync-action-pins:
 	@echo "Syncing actions-lock.json from .github/aw to pkg/actionpins/data/action_pins.json and pkg/workflow/data/action_pins.json..."
 	@if [ -f .github/aw/actions-lock.json ]; then \
-		cp .github/aw/actions-lock.json pkg/actionpins/data/action_pins.json; \
-		cp .github/aw/actions-lock.json pkg/workflow/data/action_pins.json; \
+		jq --indent 2 . .github/aw/actions-lock.json > pkg/actionpins/data/action_pins.json; \
+		jq --indent 2 . .github/aw/actions-lock.json > pkg/workflow/data/action_pins.json; \
 		echo "✓ Action pins synced successfully"; \
 	else \
 		echo "⚠ Warning: .github/aw/actions-lock.json does not exist yet"; \
@@ -1127,6 +1143,7 @@ help:
 	@echo "  fmt-check-cjs    - Check JavaScript/TypeScript/JSON formatting in actions/setup/js and eslint-factory"
 	@echo "  fmt-check-json   - Check JSON file formatting in pkg directory (excluding actions/setup/js)"
 	@echo "  lint-cjs         - Lint JavaScript/TypeScript/JSON formatting in actions/setup/js and eslint-factory"
+	@echo "  validate-cjs-syntax - Syntax-check all non-test .cjs files (catches module-load SyntaxErrors)"
 	@echo "  lint-json        - Lint JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  lint-errors      - Lint error messages for quality compliance"
 	@echo "  validate-otel-contract - Validate the gh-aw OpenTelemetry compatibility contract"

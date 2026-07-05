@@ -160,42 +160,7 @@ Read `/tmp/gh-aw/agent/go-linters-skill.txt` to review the exact conventions and
 
 ## Step 5 — Implement the Linter
 
-Use the `linter-writer` sub-agent to implement the chosen linter.
-
-Provide it with:
-- The linter name (kebab-case)
-- The one-sentence description
-- The preloaded linter source corpus from `/tmp/gh-aw/agent/linters-src.txt` (use `largefunc` as the primary reference style)
-- The Go module path `github.com/github/gh-aw`
-
-The sub-agent must create:
-
-1. **`pkg/linters/<name>/<name>.go`** — the analyzer package following the `largefunc` conventions:
-   - Package doc comment
-   - `DefaultMaxXxx` constant if the linter has a configurable threshold
-   - Exported `Analyzer *analysis.Analyzer`
-   - `init()` registering any flags
-   - `run(pass *analysis.Pass) (any, error)` with AST traversal
-   - Uses `golang.org/x/tools/go/analysis` and `golang.org/x/tools/go/analysis/passes/inspect`
-
-2. **`pkg/linters/<name>/<name>_test.go`** — build-tag-gated test:
-   ```go
-   //go:build !integration
-   ```
-   Uses `golang.org/x/tools/go/analysis/analysistest` with at least one `testdata/src/<name>/` fixture.
-
-3. **`pkg/linters/<name>/testdata/src/<name>/<name>.go`** — one or two Go fixture files:
-   - Contains a `// want` annotation for the expected diagnostic
-   - Demonstrates both a flagged and an unflagged case
-
-4. **Update `cmd/linters/main.go`** — add an import for the new package and register `<name>.Analyzer` in `multichecker.Main(...)`.
-
-After creating the files, verify the implementation compiles:
-```bash
-go build ./cmd/linters
-```
-
-If compilation fails, fix the errors before proceeding. If you cannot fix the compilation errors after two separate fix attempts, call `report_incomplete` with a description of the compilation errors.
+Use the `linter-writer` sub-agent to implement the chosen linter. Provide it with the linter name (kebab-case), the one-sentence description, the preloaded linter source corpus from `/tmp/gh-aw/agent/linters-src.txt`, and the Go module path `github.com/github/gh-aw`. The sub-agent carries the full specification for file layout, test structure, fixture files, `cmd/linters/main.go` registration, and compilation verification.
 
 ---
 

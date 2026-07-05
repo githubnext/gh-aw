@@ -34,10 +34,6 @@ safe-outputs:
     title-prefix: "[yamllint-fixer] "
     labels: [automation, yamllint-fixer]
     draft: true
-    allowed-files:
-      - "pkg/workflow/**/*.go"
-      - "pkg/workflow/assets/**"
-      - "pkg/workflow/testdata/**"
   noop:
 timeout-minutes: 30
 strict: true
