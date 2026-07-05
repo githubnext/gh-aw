@@ -1,0 +1,87 @@
+# RL-001 Glob Semantics — Compliance Fixture
+# Tests: T-RL-020, T-RL-021, T-RL-022, T-RL-023
+# Spec: §4.1 Glob Pattern Matching (RL-001)
+
+fixture_id: "rl-001-glob-semantics"
+description: >
+  Glob pattern matching for `allowed-add`, `allowed-remove`, and `blocked` MUST follow
+  gobwas/glob semantics: `*` matches any sequence of characters within a label name,
+  and `[...]` denotes a character class (RL-001).
+
+spec_refs:
+  - "RL-001 — Glob pattern matching MUST use gobwas/glob semantics"
+  - "§4.1 — allowed-add and allowed-remove glob evaluation"
+  - "§4.2 — blocked glob evaluation"
+  - "T-RL-020 — Star glob matches any sequence within a label name"
+  - "T-RL-021 — Exact pattern matches only the exact label name"
+  - "T-RL-022 — Character class pattern matches a label in the class"
+  - "T-RL-023 — Glob pattern does NOT match when no characters satisfy the pattern"
+
+scenarios:
+  # --- Scenario A: star glob matches a label name containing extra characters ---
+  - scenario_id: "rl-001-glob-star-match"
+    description: "allowed-add pattern 'priority-*' allows adding 'priority-high'"
+    input:
+      safe_output_config:
+        allowed-add:
+          - "priority-*"
+        allowed-remove: []
+        blocked: []
+      message:
+        label_to_add: "priority-high"
+        label_to_remove: ""
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario B: star glob does NOT match a completely different prefix ---
+  - scenario_id: "rl-001-glob-star-no-match"
+    description: "allowed-add pattern 'priority-*' rejects adding 'bug'"
+    input:
+      safe_output_config:
+        allowed-add:
+          - "priority-*"
+        allowed-remove: []
+        blocked: []
+      message:
+        label_to_add: "bug"
+        label_to_remove: ""
+    expected:
+      decision: deny
+      error_code: -32002
+      reason: "label not in allowed-add list"
+
+  # --- Scenario C: character class pattern matches ---
+  - scenario_id: "rl-001-glob-char-class-match"
+    description: "allowed-add pattern 'p[0-9]' allows adding 'p1'"
+    input:
+      safe_output_config:
+        allowed-add:
+          - "p[0-9]"
+        allowed-remove: []
+        blocked: []
+      message:
+        label_to_add: "p1"
+        label_to_remove: ""
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario D: exact pattern matches only the exact label ---
+  - scenario_id: "rl-001-exact-no-glob"
+    description: "allowed-remove pattern 'bug' rejects removing 'bug-fix' (exact match, no wildcard)"
+    input:
+      safe_output_config:
+        allowed-add: []
+        allowed-remove:
+          - "bug"
+        blocked: []
+      message:
+        label_to_add: ""
+        label_to_remove: "bug-fix"
+    expected:
+      decision: deny
+      error_code: -32002
+      reason: "label not in allowed-remove list"

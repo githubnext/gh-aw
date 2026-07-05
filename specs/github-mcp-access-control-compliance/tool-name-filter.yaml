@@ -1,0 +1,75 @@
+# Tool Name Filter — Compliance Fixture
+# Tests: T-GH-031, T-GH-032, T-GH-033
+# Spec: §6 Tool-Level Filtering, §6.1 Allowed Tool Names
+
+fixture_id: "tool-name-filter"
+description: >
+  When `allowed-tools` is configured, the MCP gateway MUST allow only the explicitly
+  listed tool names (T-GH-031). A request invoking a tool not in the allowed list
+  MUST be denied with error code -32005 (T-GH-032). When `allowed-tools` is absent,
+  all tool names are permitted subject to other access controls (T-GH-033).
+
+spec_refs:
+  - "§6.1 — allowed-tools restricts which tool names are callable"
+  - "§6.1 — T-GH-031: listed tool name is allowed"
+  - "§6.1 — T-GH-032: unlisted tool name is denied"
+  - "§6.1 — T-GH-033: absent allowed-tools permits all tool names"
+
+scenarios:
+  # --- Scenario A: allowed tool name passes the filter ---
+  - scenario_id: "tool-name-filter-A"
+    description: "Tool 'issue_read' is allowed when allowed-tools contains 'issue_read'"
+    input:
+      tool_config:
+        repos:
+          - "*/*"
+        allowed-tools:
+          - "issue_read"
+          - "list_issues"
+        min-integrity: "unapproved"
+      request:
+        repository: "example/repo"
+        tool_name: "issue_read"
+        content_integrity: "unapproved"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario B: unlisted tool name is denied ---
+  - scenario_id: "tool-name-filter-B"
+    description: "Tool 'delete_repository' is denied when not in allowed-tools"
+    input:
+      tool_config:
+        repos:
+          - "*/*"
+        allowed-tools:
+          - "issue_read"
+          - "list_issues"
+        min-integrity: "unapproved"
+      request:
+        repository: "example/repo"
+        tool_name: "delete_repository"
+        content_integrity: "unapproved"
+    expected:
+      decision: deny
+      error_code: -32005
+      reason: "tool not in allowed-tools list"
+
+  # --- Scenario C: absent allowed-tools permits all tool names ---
+  - scenario_id: "tool-name-filter-C"
+    description: "Any tool name is permitted when allowed-tools is not configured"
+    input:
+      tool_config:
+        repos:
+          - "*/*"
+        # no allowed-tools field
+        min-integrity: "unapproved"
+      request:
+        repository: "example/repo"
+        tool_name: "delete_repository"
+        content_integrity: "unapproved"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
