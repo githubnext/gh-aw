@@ -99,7 +99,7 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 	// Ask if user wants to run the workflow
 	fmt.Fprintln(os.Stderr, "")
 	runNow := true // Default to yes
-	form := console.PromptConfirm(
+	form := console.NewConfirmForm(
 		huh.NewConfirm().
 			Title("Would you like to run the workflow once now?").
 			Description("This will trigger the workflow immediately").

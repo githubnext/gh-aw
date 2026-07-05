@@ -12,7 +12,7 @@ The `huh` TUI form library requires callers to chain `.WithTheme(styles.HuhTheme
 
 ### Decision
 
-We will introduce a small set of constructor wrappers in `pkg/console` (`PromptForm`, `PromptInput`, `PromptSelect`, `PromptMultiSelect`, `PromptText`, `PromptConfirm`) that bake in `.WithTheme(styles.HuhTheme).WithAccessible(IsAccessibleMode())`. All interactive form callsites in `pkg/cli` and within `pkg/console` itself will migrate to these wrappers. The wrappers are gated to non-WASM builds with a `//go:build !js && !wasm` tag, preserving the existing WASM exclusion already present in the package.
+We will introduce a small set of constructor wrappers in `pkg/console` (`NewForm`, `NewInputForm`, `NewSelectForm`, `NewMultiSelectForm`, `NewTextForm`, `NewConfirmForm`) that bake in `.WithTheme(styles.HuhTheme).WithAccessible(IsAccessibleMode())`. All interactive form callsites in `pkg/cli` and within `pkg/console` itself will migrate to these wrappers. The wrappers are gated to non-WASM builds with a `//go:build !js && !wasm` tag, preserving the existing WASM exclusion already present in the package.
 
 ### Alternatives Considered
 

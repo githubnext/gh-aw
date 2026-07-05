@@ -108,7 +108,7 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
 		return b.promptForWorkflowNameFrom(os.Stdin)
 	}
 
-	form := console.PromptInput(
+	form := console.NewInputForm(
 		huh.NewInput().
 			Title("What should we call this workflow?").
 			Description("Enter a descriptive name for your workflow (e.g., 'issue-triage', 'code-review-helper')").
@@ -207,7 +207,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 	var selectedOutputs []string
 
 	// Create form with organized groups
-	form := console.PromptForm(
+	form := console.NewForm(
 		// Group 1: Basic Configuration
 		huh.NewGroup(
 			huh.NewSelect[string]().
@@ -495,7 +495,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 	// Check if destination file already exists
 	if _, err := os.Stat(destFile); err == nil && !force {
 		var overwrite bool
-		confirmForm := console.PromptConfirm(
+		confirmForm := console.NewConfirmForm(
 			huh.NewConfirm().
 				Title(fmt.Sprintf("Workflow file '%s' already exists. Overwrite?", filepath.Base(destFile))).
 				Affirmative("Yes, overwrite").

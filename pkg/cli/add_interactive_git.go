@@ -98,7 +98,7 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 			}
 
 			var chosen mergeAction
-			selectForm := console.PromptSelect(
+			selectForm := console.NewSelectForm(
 				huh.NewSelect[mergeAction]().
 					Title("What would you like to do with pull request " + result.PRURL + "?").
 					Options(options...).
@@ -129,7 +129,7 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 
 			case mergeActionEditTitle:
 				var newTitle string
-				titleForm := console.PromptInput(
+				titleForm := console.NewInputForm(
 					huh.NewInput().
 						Title("Enter new PR title").
 						Description("Add a prefix if required, for example: feat: or fix:").

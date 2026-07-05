@@ -219,7 +219,7 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("This workflow runs on a schedule."))
 
 		var selected string
-		form := console.PromptSelect(
+		form := console.NewSelectForm(
 			huh.NewSelect[string]().
 				Title("How often should this workflow run?").
 				Description("Current schedule: " + rawExpr).

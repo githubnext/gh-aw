@@ -41,7 +41,7 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 		fmt.Fprintln(os.Stderr, "")
 
 		var userRepo string
-		form := console.PromptInput(
+		form := console.NewInputForm(
 			huh.NewInput().
 				Title("Enter the target repository (owner/repo):").
 				Description("For example: myorg/myrepo").

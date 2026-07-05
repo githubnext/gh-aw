@@ -7,32 +7,32 @@ import (
 	"github.com/github/gh-aw/pkg/styles"
 )
 
-// PromptForm creates a huh form with gh-aw's default theme and accessibility mode.
-func PromptForm(groups ...*huh.Group) *huh.Form {
+// NewForm creates a huh form with gh-aw's default theme and accessibility mode.
+func NewForm(groups ...*huh.Group) *huh.Form {
 	return huh.NewForm(groups...).WithTheme(styles.HuhTheme).WithAccessible(IsAccessibleMode())
 }
 
-// PromptInput creates a themed, accessibility-aware single-input form.
-func PromptInput(input *huh.Input) *huh.Form {
-	return PromptForm(huh.NewGroup(input))
+// NewInputForm creates a themed, accessibility-aware single-input form.
+func NewInputForm(input *huh.Input) *huh.Form {
+	return NewForm(huh.NewGroup(input))
 }
 
-// PromptSelect creates a themed, accessibility-aware single-select form.
-func PromptSelect[T comparable](selectField *huh.Select[T]) *huh.Form {
-	return PromptForm(huh.NewGroup(selectField))
+// NewSelectForm creates a themed, accessibility-aware single-select form.
+func NewSelectForm[T comparable](selectField *huh.Select[T]) *huh.Form {
+	return NewForm(huh.NewGroup(selectField))
 }
 
-// PromptMultiSelect creates a themed, accessibility-aware single-multiselect form.
-func PromptMultiSelect[T comparable](multiSelect *huh.MultiSelect[T]) *huh.Form {
-	return PromptForm(huh.NewGroup(multiSelect))
+// NewMultiSelectForm creates a themed, accessibility-aware single multi-select form.
+func NewMultiSelectForm[T comparable](multiSelect *huh.MultiSelect[T]) *huh.Form {
+	return NewForm(huh.NewGroup(multiSelect))
 }
 
-// PromptText creates a themed, accessibility-aware single-text form.
-func PromptText(text *huh.Text) *huh.Form {
-	return PromptForm(huh.NewGroup(text))
+// NewTextForm creates a themed, accessibility-aware single-text form.
+func NewTextForm(text *huh.Text) *huh.Form {
+	return NewForm(huh.NewGroup(text))
 }
 
-// PromptConfirm creates a themed, accessibility-aware single-confirm form.
-func PromptConfirm(confirm *huh.Confirm) *huh.Form {
-	return PromptForm(huh.NewGroup(confirm))
+// NewConfirmForm creates a themed, accessibility-aware single-confirm form.
+func NewConfirmForm(confirm *huh.Confirm) *huh.Form {
+	return NewForm(huh.NewGroup(confirm))
 }

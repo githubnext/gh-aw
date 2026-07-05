@@ -179,7 +179,7 @@ func selectWorkflow(ctx context.Context, workflows []WorkflowOption) (*WorkflowO
 	options := sliceutil.Map(workflows, func(wf WorkflowOption) huh.Option[string] { return huh.NewOption(wf.Name, wf.Name) })
 
 	var selected string
-	form := console.PromptSelect(
+	form := console.NewSelectForm(
 		huh.NewSelect[string]().
 			Title("Select a workflow to run").
 			Description("↑/↓ to navigate, / to search, Enter to select").
@@ -311,7 +311,7 @@ func collectInputsWithMap(ctx context.Context, inputs map[string]*workflow.Input
 	}
 
 	// Show the form
-	form := console.PromptForm(formGroups...)
+	form := console.NewForm(formGroups...)
 	if err := form.RunWithContext(ctx); err != nil {
 		return nil, fmt.Errorf("input collection cancelled: %w", err)
 	}
@@ -340,7 +340,7 @@ func confirmExecution(ctx context.Context, wf *WorkflowOption, inputs []string) 
 		message = fmt.Sprintf("Run workflow '%s' with %d input(s)?", wf.Name, len(inputs))
 	}
 
-	form := console.PromptConfirm(
+	form := console.NewConfirmForm(
 		huh.NewConfirm().
 			Title(message).
 			Affirmative("Yes, run it").

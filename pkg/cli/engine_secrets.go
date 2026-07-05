@@ -307,7 +307,7 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	fmt.Fprintln(os.Stderr, "If you run into trouble see https://github.github.com/gh-aw/reference/auth/#copilot_github_token.")
 
 	var token string
-	form := console.PromptInput(
+	form := console.NewInputForm(
 		huh.NewInput().
 			Title("After creating, please paste your fine-grained Copilot PAT:").
 			Description("Must start with 'github_pat_'. Classic PATs (ghp_...) are not supported.").
@@ -351,7 +351,7 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 	fmt.Fprintln(os.Stderr, "")
 
 	var token string
-	form := console.PromptInput(
+	form := console.NewInputForm(
 		huh.NewInput().
 			Title(fmt.Sprintf("Paste your %s token:", req.Name)).
 			Description("The token will be stored securely as a repository secret").
@@ -400,7 +400,7 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 	}
 
 	var apiKey string
-	form := console.PromptInput(
+	form := console.NewInputForm(
 		huh.NewInput().
 			Title(fmt.Sprintf("Paste your %s API key:", label)).
 			Description("The key will be stored securely as a repository secret").

@@ -42,7 +42,7 @@ func ShowInteractiveList(title string, items []ListItem) (string, error) {
 	}
 
 	var selected string
-	form := PromptSelect(
+	form := NewSelectForm(
 		huh.NewSelect[string]().
 			Title(title).
 			Options(opts...).

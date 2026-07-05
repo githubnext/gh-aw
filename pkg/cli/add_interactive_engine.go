@@ -119,7 +119,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	form := console.PromptSelect(
+	form := console.NewSelectForm(
 		huh.NewSelect[string]().
 			Title("Which coding agent would you like to use?").
 			Description("This determines which coding agent processes your workflows").
@@ -274,7 +274,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 		})
 	}
 
-	form := console.PromptSelect(selectField)
+	form := console.NewSelectForm(selectField)
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("failed to select Copilot authentication method: %w", err)

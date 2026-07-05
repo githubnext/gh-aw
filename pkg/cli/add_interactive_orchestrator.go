@@ -296,7 +296,7 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 	fmt.Fprintln(os.Stderr, "")
 
 	confirmed := true // Default to yes
-	form := console.PromptConfirm(
+	form := console.NewConfirmForm(
 		huh.NewConfirm().
 			Title("Do you want to proceed with these changes?").
 			Description("A pull request will be created with the workflow files").

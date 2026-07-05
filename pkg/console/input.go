@@ -20,7 +20,7 @@ func PromptSecretInput(title, description string) (string, error) {
 
 	var value string
 
-	form := PromptInput(
+	form := NewInputForm(
 		huh.NewInput().
 			Title(title).
 			Description(description).

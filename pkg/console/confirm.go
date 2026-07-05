@@ -28,7 +28,7 @@ func ConfirmAction(title, affirmative, negative string) (bool, error) {
 
 	var confirmed bool
 
-	confirmForm := PromptConfirm(
+	confirmForm := NewConfirmForm(
 		huh.NewConfirm().
 			Title(title).
 			Affirmative(affirmative).

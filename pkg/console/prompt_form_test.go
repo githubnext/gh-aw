@@ -11,21 +11,21 @@ import (
 
 func TestPromptWrappersReturnNonNilForms(t *testing.T) {
 	var inputValue string
-	require.NotNil(t, PromptInput(huh.NewInput().Value(&inputValue)))
+	require.NotNil(t, NewInputForm(huh.NewInput().Value(&inputValue)))
 
 	var selectValue string
-	require.NotNil(t, PromptSelect(huh.NewSelect[string]().
+	require.NotNil(t, NewSelectForm(huh.NewSelect[string]().
 		Options(huh.NewOption("Option", "option")).
 		Value(&selectValue)))
 
 	var multiValue []string
-	require.NotNil(t, PromptMultiSelect(huh.NewMultiSelect[string]().
+	require.NotNil(t, NewMultiSelectForm(huh.NewMultiSelect[string]().
 		Options(huh.NewOption("Option", "option")).
 		Value(&multiValue)))
 
 	var textValue string
-	require.NotNil(t, PromptText(huh.NewText().Value(&textValue)))
+	require.NotNil(t, NewTextForm(huh.NewText().Value(&textValue)))
 
 	var confirmValue bool
-	require.NotNil(t, PromptConfirm(huh.NewConfirm().Value(&confirmValue)))
+	require.NotNil(t, NewConfirmForm(huh.NewConfirm().Value(&confirmValue)))
 }
