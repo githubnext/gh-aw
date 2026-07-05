@@ -229,4 +229,6 @@ Do not call `noop` for this workflow; always create exactly one issue with exact
 
 ### Output Format
 
-Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+Use `###` (or lower) headers only.
+
+The issue body template above is authoritative — do not deviate from it.

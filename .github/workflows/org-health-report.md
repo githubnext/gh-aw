@@ -513,6 +513,6 @@ Begin the organization health report analysis now. Follow the phases in order, a
 
 ### Output Format
 
-Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+Structure reports as: overview → key metrics/issues → collapsible details → next actions.
 
 {{#runtime-import shared/noop-reminder.md}}
