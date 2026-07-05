@@ -2,11 +2,14 @@ import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 const GLOBAL_IS_NAN_OBJECTS = new Set(["globalThis", "window", "global"]);
+const NUMERIC_CALL_NAMES = new Set(["parseInt", "parseFloat", "Number"]);
+const NUMERIC_METHOD_NAMES = new Set(["getTime", "getTimezoneOffset", "valueOf"]);
 
 export const preferNumberIsNanRule = createRule({
   name: "prefer-number-isnan",
   meta: {
     type: "suggestion",
+    fixable: "code",
     hasSuggestions: true,
     docs: {
       description: "Prefer Number.isNaN() over global isNaN() to avoid coercion footguns when validating unknown inputs.",
@@ -57,19 +60,69 @@ export const preferNumberIsNanRule = createRule({
       return isDirectAccess || isComputedAccess;
     }
 
+    /**
+     * Returns true when the argument is provably already a number type, making
+     * isNaN(x) → Number.isNaN(x) a guaranteed semantics-preserving equivalence.
+     *
+     * Provably-numeric means: a numeric Literal, or a CallExpression to
+     * parseInt / parseFloat / Number / Number.parseInt / Number.parseFloat, or a
+     * CallExpression whose callee property is getTime / getTimezoneOffset / valueOf.
+     */
+    function isProvablyNumeric(arg: TSESTree.Node): boolean {
+      if (arg.type === "Literal" && typeof arg.value === "number") {
+        return true;
+      }
+      if (arg.type === "CallExpression") {
+        const callee = arg.callee;
+        // parseInt(x), parseFloat(x), Number(x)
+        if (callee.type === "Identifier" && NUMERIC_CALL_NAMES.has(callee.name)) {
+          return true;
+        }
+        // Number.parseInt(x), Number.parseFloat(x)
+        if (
+          callee.type === "MemberExpression" &&
+          !callee.computed &&
+          callee.object.type === "Identifier" &&
+          callee.object.name === "Number" &&
+          callee.property.type === "Identifier" &&
+          (callee.property.name === "parseInt" || callee.property.name === "parseFloat")
+        ) {
+          return true;
+        }
+        // x.getTime(), x.getTimezoneOffset(), x.valueOf()
+        if (callee.type === "MemberExpression" && !callee.computed && callee.property.type === "Identifier" && NUMERIC_METHOD_NAMES.has(callee.property.name)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     function report(node: TSESTree.CallExpression): void {
-      context.report({
-        node: node.callee,
-        messageId: "preferNumberIsNaN",
-        suggest: [
-          {
-            messageId: "replaceWithNumberIsNaN",
-            fix(fixer: TSESLint.RuleFixer) {
-              return fixer.replaceText(node.callee, "Number.isNaN");
-            },
+      const [arg] = node.arguments;
+      const provablyNumeric = arg !== undefined && arg.type !== "SpreadElement" && isProvablyNumeric(arg);
+
+      if (provablyNumeric) {
+        context.report({
+          node: node.callee,
+          messageId: "preferNumberIsNaN",
+          fix(fixer: TSESLint.RuleFixer) {
+            return fixer.replaceText(node.callee, "Number.isNaN");
           },
-        ],
-      });
+        });
+      } else {
+        context.report({
+          node: node.callee,
+          messageId: "preferNumberIsNaN",
+          suggest: [
+            {
+              messageId: "replaceWithNumberIsNaN",
+              fix(fixer: TSESLint.RuleFixer) {
+                return fixer.replaceText(node.callee, "Number.isNaN");
+              },
+            },
+          ],
+        });
+      }
     }
 
     return {

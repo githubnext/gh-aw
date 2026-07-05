@@ -99,4 +99,61 @@ describe("prefer-number-isnan", () => {
       ],
     });
   });
+
+  it("invalid: provably-numeric argument gets a real autofix (no caveat, --fix-able)", () => {
+    cjsRuleTester.run("prefer-number-isnan", preferNumberIsNanRule, {
+      valid: [],
+      invalid: [
+        // parseInt / parseFloat / Number — the dominant idiom in actions/setup/js
+        {
+          code: `isNaN(parseInt(x, 10));`,
+          output: `Number.isNaN(parseInt(x, 10));`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+        {
+          code: `isNaN(parseFloat(x));`,
+          output: `Number.isNaN(parseFloat(x));`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+        {
+          code: `isNaN(Number(x));`,
+          output: `Number.isNaN(Number(x));`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+        // Number.parseInt / Number.parseFloat
+        {
+          code: `isNaN(Number.parseInt(x, 10));`,
+          output: `Number.isNaN(Number.parseInt(x, 10));`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+        {
+          code: `isNaN(Number.parseFloat(x));`,
+          output: `Number.isNaN(Number.parseFloat(x));`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+        // Date method results
+        {
+          code: `isNaN(d.getTime());`,
+          output: `Number.isNaN(d.getTime());`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+        {
+          code: `isNaN(d.getTimezoneOffset());`,
+          output: `Number.isNaN(d.getTimezoneOffset());`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+        {
+          code: `isNaN(x.valueOf());`,
+          output: `Number.isNaN(x.valueOf());`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+        // Numeric literal
+        {
+          code: `isNaN(42);`,
+          output: `Number.isNaN(42);`,
+          errors: [{ messageId: "preferNumberIsNaN" }],
+        },
+      ],
+    });
+  });
 });
