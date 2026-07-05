@@ -1,18 +1,18 @@
 {
-  "updated": "2026-07-04",
-  "date": "2026-07-04",
+  "updated": "2026-07-05",
+  "date": "2026-07-05",
   "partial": true,
   "latest_window": {
-    "date": "2026-07-04",
-    "runs": 101,
-    "success": 90,
+    "date": "2026-07-05",
+    "runs": 108,
+    "success": 97,
     "failure": 11,
-    "rate": 89.1,
-    "rate_ex_intentional": 90.9,
-    "aic": 6375.29,
-    "tokens": 4372805,
-    "pi_rate": 100.0,
-    "note": "partial 9.5h; REBOUND, pi fully recovered, all fails copilot 0-turn"
+    "rate": 89.8,
+    "prod_main_rate": 81.6,
+    "non_main_rate": 96.6,
+    "aic": 6311,
+    "tokens": 3361628,
+    "note": "partial 6h; HEALTHY-on-baseline; ALL 11 fails copilot 0-turn Execute-CLI; Smoke CI 7/7 chronic + copilot-sdk-longrun x4; claude/pi/codex 100%"
   },
   "totals": {
     "r": 171,
@@ -44,8 +44,7 @@
       "r": 53,
       "s": 48,
       "rate": 90.6,
-      "tok": 30404314,
-      "note": "full window (~4h evening cluster; continuation returned 0 older runs). 5 fail: NEW model/param config-incompatibility x2 prod-main (Cavem..."
+      "tok": 30404314
     },
     {
       "d": "2026-06-06",
@@ -53,16 +52,14 @@
       "s": 81,
       "rate": 83.5,
       "tok": 41627101,
-      "partial": true,
-      "note": "PARTIAL ~6h window (15:11-21:29Z; logs tool timed out at 120s, newest 100 runs only, ~18h unobserved). 16 fail. DOMINANT: copilot SDK-dri..."
+      "partial": true
     },
     {
       "d": "2026-06-07",
       "r": 54,
       "s": 46,
       "rate": 85.2,
-      "tok": 23994237,
-      "note": "FULL but SMALL 24h window (~3.7h active cluster 17:56-21:38Z; continuation returned 0 older runs — quiet Sunday). PROD-MAIN 39/42 real = ..."
+      "tok": 23994237
     },
     {
       "d": "2026-06-08",
@@ -70,8 +67,7 @@
       "s": 66,
       "rate": 75.0,
       "tok": 24367927,
-      "partial": true,
-      "note": "PARTIAL ~3.3h evening cluster (18:21-21:40Z; logs timeout, 93/260 dirs had summaries). ACTIVE INCIDENT copilot-pat-not-supported-400 (NEW..."
+      "partial": true
     },
     {
       "d": "2026-06-09",
@@ -79,8 +75,7 @@
       "s": 31,
       "rate": 83.8,
       "tok": 23834861,
-      "partial": true,
-      "note": "PARTIAL ~2.5h evening cluster (19:13-21:41Z, 38 in-window). PAT-400 incident RESOLVED (4 signature-carrying runs all SUCCEEDED attempt1; ..."
+      "partial": true
     },
     {
       "d": "2026-06-10",
@@ -88,8 +83,7 @@
       "s": 81,
       "rate": 88.0,
       "tok": 69624404,
-      "partial": true,
-      "note": "morning48+evening47 merged; mid-day gap"
+      "partial": true
     },
     {
       "d": "2026-06-11",
@@ -98,8 +92,7 @@
       "rate": 84.6,
       "tok": 25421016,
       "$": 14.1,
-      "partial": true,
-      "note": "evening cluster ~3.5h; prod-main 93.1%; both main fails recurring config; PR noise=smoke probes+daily-cap gate"
+      "partial": true
     },
     {
       "d": "2026-06-12",
@@ -108,8 +101,7 @@
       "rate": 90.0,
       "tok": 126744181,
       "aic": 19991.9,
-      "partial": true,
-      "note": "~6.5h window 15:08-21:41Z; 120 local run dirs. prod-main 93.2%. Dominant prod-main fail=copilot-sdk tool-perm-lockout x4 (RECUR day6). NE..."
+      "partial": true
     },
     {
       "d": "2026-06-13",
@@ -118,8 +110,7 @@
       "rate": 68.4,
       "$": 22.62,
       "tok": 43899856,
-      "partial": true,
-      "note": "WORST since 05-23. Avenger x6 + PR Sous Chef x6 NEW clusters dominate. Fix branches in flight."
+      "partial": true
     },
     {
       "d": "2026-06-14",
@@ -128,8 +119,7 @@
       "rate": 87.0,
       "$": 26.32,
       "tok": 54464548,
-      "partial": true,
-      "note": "REBOUND from 06-13. PR Sous Chef recovered 10/10. Remaining fails all known-recurring (Avenger ERR_CONFIG day2, copilot-sdk tool-perm-loc..."
+      "partial": true
     },
     {
       "d": "2026-06-15",
@@ -138,8 +128,7 @@
       "rate": 86.5,
       "tok": 33390606,
       "aic": 9962.87,
-      "partial": true,
-      "note": "~4.5h evening window. 5 fail/4-5 classes mostly recurring: tree-map-timeout, safe-out-integrator sdk-perm-lockout day9, security-obs 0-to..."
+      "partial": true
     },
     {
       "d": "2026-06-16",
@@ -147,8 +136,7 @@
       "s": 47,
       "rate": 71.2,
       "tok": 41946177,
-      "partial": true,
-      "note": "~3.3h evening window. Overall 71.2% skewed by 9-run PR container-validation cluster (copilot/add-gh-aw-node-to-default-containers smoke+c..."
+      "partial": true
     },
     {
       "d": "2026-06-17",
@@ -163,8 +151,7 @@
       "s": 67,
       "rate": 88.2,
       "tok": 42796721,
-      "partial": true,
-      "note": "prod-main 74.2%; 8-fail cluster all KNOWN-recurring (avenger x2, copilot-sdk-lockout x2, doc-unbloat, codex-binary, security-obs 0tok, PR..."
+      "partial": true
     },
     {
       "d": "2026-06-19",
@@ -172,8 +159,7 @@
       "s": 97,
       "rate": 91.5,
       "tok": null,
-      "partial": true,
-      "note": "prod-main 85.2% rebound; 9 fails ALL known (avenger x4 100%, copilot-sdk-lockout x3, codex-cache-strategy, doc-unbloat); 0 missing-tools/..."
+      "partial": true
     },
     {
       "d": "2026-06-20",
@@ -182,8 +168,7 @@
       "rate": 69.6,
       "rate_ex_skillet": 94.2,
       "tok": 18325653,
-      "partial": true,
-      "note": "Skillet NEW 100%-fail x103 skews overall; ex-Skillet 94.2% healthy. Avenger escalating x8."
+      "partial": true
     },
     {
       "d": "2026-06-21",
@@ -191,8 +176,7 @@
       "s": 298,
       "rate": 91.7,
       "tok": null,
-      "partial": true,
-      "note": "REBOUND 91.7% (prod-main 88.7%); Skillet 103->4 de-escalate; Avenger 7/7 chronic; long-run copilot agent-job fails (Delight/FormalSpec/Sa..."
+      "partial": true
     },
     {
       "d": "2026-06-22",
@@ -200,8 +184,7 @@
       "s": 259,
       "rate": 94.5,
       "tok": null,
-      "partial": true,
-      "note": "HEALTHY on-baseline; prod-main 91.7% (92.9% ex-2-intentional). 0 new class, 0 missing-tools/data/mcp, no shared incident. Avenger 0 runs (streak broken by absence). Skillet 0 fails (de-escalation comp…"
+      "partial": true
     },
     {
       "d": "2026-06-23",
@@ -210,8 +193,7 @@
       "rate": 92.5,
       "aic": 12635,
       "tok": null,
-      "partial": true,
-      "note": "HEALTHY on-baseline; prod-main 89.1% (91.1% ex-2-intentional). 0 missing-tools/data/mcp. copilot-sdk LONG-RUN dominant (4/8 real prod-main). Blog Writer $144/52.6m + claude Failure Investigator 0-tok …"
+      "partial": true
     },
     {
       "d": "2026-06-24",
@@ -220,8 +202,7 @@
       "rate": 92.7,
       "aic": 26654,
       "tok": null,
-      "partial": false,
-      "note": "HEALTHY on-baseline (FULL 23.4h window). prod-main 92.4% (93.3% ex-2-intentional). 0 missing-tools/data/mcp. HEADLINE: Avenger RESUMED 2x fail after 06-22/23 absence (err-config unfixed, pause lifted)…"
+      "partial": false
     },
     {
       "d": "2026-06-25",
@@ -231,7 +212,7 @@
       "aic": 24173,
       "tok": null,
       "partial": false,
-      "note": "DEGRADED 85.3% overall / prod-main 81.0% (81.8% ex-2-intentional) — worst prod-main since ~06-18; UNLIKE 06-20 NOT skewed by one wf. 32/40 prod-main fails are 0-tok/0-turn agent-job fails across 4 eng…"
+      "note": "DEGRADED 85.3% overall / prod-main 81.0% (81.8% ex-2-intentional) \u2014 worst prod-main since ~06-18; UNLIKE 06-20 NOT skewed by one wf. 32/40 prod-main fails are 0-tok/0-turn agent-job fails across 4 eng\u2026"
     },
     {
       "d": "2026-06-27",
@@ -240,7 +221,7 @@
       "rate": 90.9,
       "aic": 23272,
       "tok": null,
-      "note": "RECOVERED to 90.9% (prod-main 86.3%, 87.3% ex-2-intentional) from 06-25 trough. Avenger 10/10 fail DOMINANT (38% of prod-main fails); ex-Avenger prod-main=91.2%. copilot/claude longrun-0turn persists …"
+      "note": "RECOVERED to 90.9% (prod-main 86.3%, 87.3% ex-2-intentional) from 06-25 trough. Avenger 10/10 fail DOMINANT (38% of prod-main fails); ex-Avenger prod-main=91.2%. copilot/claude longrun-0turn persists \u2026"
     },
     {
       "d": "2026-06-30",
@@ -249,7 +230,7 @@
       "rate": 81.3,
       "tok": null,
       "partial": true,
-      "note": "PARTIAL ~10.5h (10:44-21:19Z) 2nd-half window; pagination stalled. prod-main 65.9% DOMINATED by 2 copilot-CLI-startup clusters: NEW Smoke CI 11/11=100% fail on push + PR Sous Chef 9/11=82%. Ex-both pr…"
+      "note": "PARTIAL ~10.5h (10:44-21:19Z) 2nd-half window; pagination stalled. prod-main 65.9% DOMINATED by 2 copilot-CLI-startup clusters: NEW Smoke CI 11/11=100% fail on push + PR Sous Chef 9/11=82%. Ex-both pr\u2026"
     },
     {
       "d": "2026-07-01",
@@ -259,7 +240,7 @@
       "tok": null,
       "aic": 5703.6,
       "partial": true,
-      "note": "partial evening window (bridge 60s cap). 3 fail clusters: copilot Execute-CLI 0-turn x8 (incl Smoke CI 4/4), NEW cross-engine Playwright-install x3, codex Process-Safe-Outputs x1. pi 16/16=100%. 0 mis…"
+      "note": "partial evening window (bridge 60s cap). 3 fail clusters: copilot Execute-CLI 0-turn x8 (incl Smoke CI 4/4), NEW cross-engine Playwright-install x3, codex Process-Safe-Outputs x1. pi 16/16=100%. 0 mis\u2026"
     },
     {
       "d": "2026-07-02",
@@ -290,6 +271,16 @@
       "aic": 6375.29,
       "partial": true,
       "note": "partial 9.5h 11:39-21:12Z. REBOUND 89.1% (90.9% ex-2-intentional). MAJOR: PR Sous Chef 19/19=100% recovered (07-03 pi-collapse resolved); pi 27/27=100%. ALL 9 real fails copilot 0-turn: Smoke CI 4/4 chronic + copilot-sdk-longrun x4 + chroot-node x1. claude/pi/codex all clean. 0 missing-tools/data/mcp."
+    },
+    {
+      "d": "2026-07-05",
+      "r": 108,
+      "s": 97,
+      "rate": 89.8,
+      "tok": 3361628,
+      "aic": 6311,
+      "partial": true,
+      "note": "partial 6h 15:08-21:15Z. HEALTHY-on-baseline. ALL 11 fails copilot 0-turn Execute-CLI: Smoke CI 7/7=100% chronic + copilot-sdk-longrun x4 (Daily Safe Output Integrator, PR CQR, Impeccable Skills Reviewer[new], Linter Miner[new]). claude 20/20, pi 15/15, codex 1/1 all 100%. 0 missing-tools/data/mcp."
     }
   ]
 }

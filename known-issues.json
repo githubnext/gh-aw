@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-04",
+  "updated": "2026-07-05",
   "issues": [
     {
       "id": "model-param-config-incompatibility",
@@ -9,12 +9,12 @@
       "new": false,
       "first_seen": "2026-06-05",
       "last_seen": "2026-06-27",
-      "recurrence": "RECUR 2026-06-27 (count5): Daily Cache Strategy Analyzer (codex) fails again 7.4m — SAME wf, unfixed since 06-05.",
+      "recurrence": "RECUR 2026-06-27 (count5): Daily Cache Strategy Analyzer (codex) fails again 7.4m \u2014 SAME wf, unfixed since 06-05.",
       "affected": [
         "Daily Caveman Optimizer",
         "Daily Cache Strategy Analyzer"
       ],
-      "note": "Two variants: (a) Daily Caveman Optimizer [claude] -> 400 invalid_request_error 'This model does not support the effort parameter' (claude model pinned with a r…",
+      "note": "Two variants: (a) Daily Caveman Optimizer [claude] -> 400 invalid_request_error 'This model does not support the effort parameter' (claude model pinned with a r\u2026",
       "recurrence_count": 5
     },
     {
@@ -24,7 +24,7 @@
       "severity": "HIGH",
       "first_seen": "2026-05",
       "last_seen": "2026-07-01",
-      "recurrence": "2026-06-30 NO new instances of the TRUE safe-output-partial signature (agent SUCCESS reddened by safe_outputs). PR Sous Chef's 06-30 fails were copilot-CLI-exec 0-turn (agent never ran) — moved to copilot-sdk-driver-failures. Issue stays OPEN on prior evidence; watch for genuine recurrence.",
+      "recurrence": "2026-06-30 NO new instances of the TRUE safe-output-partial signature (agent SUCCESS reddened by safe_outputs). PR Sous Chef's 06-30 fails were copilot-CLI-exec 0-turn (agent never ran) \u2014 moved to copilot-sdk-driver-failures. Issue stays OPEN on prior evidence; watch for genuine recurrence.",
       "affected": [
         "Changeset Generator",
         "Contribution Check",
@@ -42,8 +42,8 @@
       "status": "recurring",
       "severity": "HIGH",
       "first_seen": "2026-06-02",
-      "last_seen": "2026-07-04",
-      "recurrence": "RECUR 2026-07-04 (count22): longrun-0turn variant dominant among real fails: Daily Formal Spec Verifier 28m/AIC348, Daily Safe Output Integrator 23m, Matt Pocock Skills Reviewer 19m(PR), PR Code Quality Reviewer 18m/AIC201(PR). Agent does real work then job fails 0-turn/0-tok. Chronic.",
+      "last_seen": "2026-07-05",
+      "recurrence": "RECUR 2026-07-05 (count23): longrun-0turn dominant: Daily Safe Output Integrator 24m/main, PR Code Quality Reviewer 19m/PR, Impeccable Skills Reviewer 18m/PR (NEW name), Linter Miner 10m/main (NEW name). Agent does real work then Execute-CLI fails 0-turn. Chronic.",
       "affected": [
         "Daily Formal Spec Verifier",
         "Daily SPDD Spec Planner",
@@ -57,13 +57,12 @@
         "Smoke Copilot Sub Agents",
         "Daily Project Performance Summary Generator (Using MCP Scripts)",
         "Copilot PR Prompt Pattern Analysis",
-        "Deployment Incident Monitor"
+        "Deployment Incident Monitor",
+        "Impeccable Skills Reviewer",
+        "Linter Miner"
       ],
-      "note": "06-19 x3 prod/PR tool-perm-lockout (Safe Output Integrator, SPDD, PR CQR) | [2026-07-01] 4 more: Daily Formal Spec Verifier, Matt Pocock Skills Reviewer (1/5), Smoke Copilot Sub Agents, Daily Safe Output Integrator — all Execute Copilot CLI 0-turn.",
-      "recurrence_count": 22,
-      "count": 16,
-      "summary": "2 tool-perm-lockout 0-tok fails: Daily Safe Output Integrator (27880811834, 24min, 1-turn) + PR Code Quality Reviewer (PR branch). Day14 of chronic copilot-sdk path.",
-      "recur": "RECUR 2026-06-25 (count 19): LONG-RUN variant persists — Daily Safe Output Integrator 25.4m ($85) + Daily SPDD Spec Planner 24.4m ($100), both copilot agent-job fails after 24-25min real work. Day23+ chronic, still the dominant 'ran-work' prod-main fail family.",
+      "note": "06-19 x3 prod/PR tool-perm-lockout (Safe Output Integrator, SPDD, PR CQR) | [2026-07-01] 4 more: Daily Formal Spec Verifier, Matt Pocock Skills Reviewer (1/5), Smoke Copilot Sub Agents, Daily Safe Output Integrator \u2014 all Execute Copilot CLI 0-turn.",
+      "recurrence_count": 23,
       "new": false
     },
     {
@@ -78,8 +77,7 @@
       "affected_workflows": [
         "Smoke Copilot - AOAI (apikey)"
       ],
-      "fix": "Cap retry budget / add max-token guard on AOAI smoke probe so a transient-error loop can't burn 2M+ tokens. Investigate AOAI o4-mini-aw endpoint stability.",
-      "recur": "RECUR 2026-06-21 (count 5): Smoke Copilot AOAI (Entra) x2 on copilot/* dev branches, workflow_dispatch by-design probe."
+      "fix": "Cap retry budget / add max-token guard on AOAI smoke probe so a transient-error loop can't burn 2M+ tokens. Investigate AOAI o4-mini-aw endpoint stability."
     },
     {
       "id": "chroot-node-not-available",
@@ -89,13 +87,12 @@
       "first_seen": "2026-06-12",
       "last_seen": "2026-07-04",
       "recurrence_count": 10,
-      "title": "Copilot CLI requires Node.js but 'node' not available inside AWF chroot — agent never starts",
+      "title": "Copilot CLI requires Node.js but 'node' not available inside AWF chroot \u2014 agent never starts",
       "recurrence": "RECUR 2026-07-04 (count10): Daily Issues Report Generator (copilot) 10m 0-turn fail. Same chroot-node/entrypoint family. Chronic since 06-12.",
       "affected_workflows": [
         "Daily Issues Report Generator"
       ],
-      "fix": "Ensure node (setup-node/nvm install path) is bind-mounted into /host and on PATH inside the AWF chroot, OR bundle a node binary into the chroot image. Add a chroot smoke check that `node --version` resolves before invoking Copilot CLI so this fails fast with a clear message rather than mid-entrypoint.",
-      "recur": "RECUR 2026-06-25 (count 7): Daily Issues Report Generator 9.0m 0-tok agent-job fail main/schedule (run 28181048821). 5 CONSECUTIVE days (06-21..25). Still unfixed."
+      "fix": "Ensure node (setup-node/nvm install path) is bind-mounted into /host and on PATH inside the AWF chroot, OR bundle a node binary into the chroot image. Add a chroot smoke check that `node --version` resolves before invoking Copilot CLI so this fails fast with a clear message rather than mid-entrypoint."
     },
     {
       "id": "avenger-err-config-no-structured-logs",
@@ -106,14 +103,11 @@
       "first_seen": "2026-06-13",
       "last_seen": "2026-06-30",
       "recurrence_count": 17,
-      "recurrence": "RECUR 2026-06-30 (recur17): Avenger 4/4 fail this 10.5h window (claude, model now claude-haiku-4.5 — CHANGED from prior 'agent'/sonnet), 0-turn 17-18m, fails at 'Parse agent logs for step summary'. Model swap did NOT fix err-config/no-structured-logs root cause. Still firing ~every 90min and failing each time.",
+      "recurrence": "RECUR 2026-06-30 (recur17): Avenger 4/4 fail this 10.5h window (claude, model now claude-haiku-4.5 \u2014 CHANGED from prior 'agent'/sonnet), 0-turn 17-18m, fails at 'Parse agent logs for step summary'. Model swap did NOT fix err-config/no-structured-logs root cause. Still firing ~every 90min and failing each time.",
       "affected": [
         "Avenger"
       ],
-      "note": "Chronic #1 prod-main offender 06-18..06-21 (x2/x4/x8/x7), absent 06-22/06-23, RESUMED 06-24 x2 fail. Root cause (err-config/no-structured-logs on follow-up invocation) confirmed NOT fixed — absence was a pause, not a fix.",
-      "count": 15,
-      "summary": "06-24: Avenger resumed, 2/2 fail (0-tok). Prior: 06-18 x2 -> 06-19 x4 -> 06-20 x8 -> 06-21 x7 -> 06-22/23 absent -> 06-24 x2. WATCH-status closed, back to OPEN.",
-      "recur": "2026-06-25: Avenger DID NOT RUN AGAIN (absent like 06-22/06-23). Pattern now: 06-18..21 chronic-fail -> 06-22/23 absent -> 06-24 resumed 2x-fail -> 06-25 absent again. Toggling on/off; err-config root cause still unfixed when it does fire. Likely re-paused. WATCH next fire."
+      "note": "Chronic #1 prod-main offender 06-18..06-21 (x2/x4/x8/x7), absent 06-22/06-23, RESUMED 06-24 x2 fail. Root cause (err-config/no-structured-logs on follow-up invocation) confirmed NOT fixed \u2014 absence was a pause, not a fix."
     },
     {
       "id": "doc-unbloat-empty-output",
@@ -143,8 +137,7 @@
       "affected": [
         "Daily Cache Strategy Analyzer"
       ],
-      "note": "06-19 codex 0-tok agent:failure again; chronically broken wf",
-      "recur": "RECUR 2026-06-23 (count 5): Daily Cache Strategy Analyzer (28050001864) 7.3m 0-tok agent:failure main/schedule. Still ~100% fail. Unfixed."
+      "note": "06-19 codex 0-tok agent:failure again; chronically broken wf"
     },
     {
       "id": "copilot-agent-artifact-missing-0tok",
@@ -159,9 +152,7 @@
       "affected": [
         "Daily Security Observability Report"
       ],
-      "note": "Daily Security Observability Report copilot 0-tok agent:failure 06-18",
-      "count": 2,
-      "summary": "Daily Security Observability Report 0-tok agent:failure (10.4m) main/schedule. Recurs."
+      "note": "Daily Security Observability Report copilot 0-tok agent:failure 06-18"
     },
     {
       "id": "upload-assets-reddens-successful-run",
@@ -172,7 +163,7 @@
       "first_seen": "2026-06-16",
       "last_seen": "2026-06-18",
       "recurrence_count": 2,
-      "recurrence": "RECUR 2026-06-17 (count 2): Daily Project Performance Summary Generator copilot run 27720651183 — observability flagged 100% failure (1/1), GitHub status=completed 21.7m. Same upload_assets safe-output reddening signature as 06-16. Still unfixed.",
+      "recurrence": "RECUR 2026-06-17 (count 2): Daily Project Performance Summary Generator copilot run 27720651183 \u2014 observability flagged 100% failure (1/1), GitHub status=completed 21.7m. Same upload_assets safe-output reddening signature as 06-16. Still unfixed.",
       "affected": [
         "Daily Code Metrics and Trend Tracking Agent",
         "Daily Project Performance Summary Generator",
@@ -185,7 +176,6 @@
       "id": "claude-agent-job-fail-longrun",
       "first_seen": "2026-06-21",
       "last_seen": "2026-06-27",
-      "count": 3,
       "status": "recurring",
       "affected": [
         "Claude Code User Documentation Review",
@@ -193,14 +183,12 @@
         "[aw] Failure Investigator (6h)",
         "Daily Rendering Scripts Verifier"
       ],
-      "recur": "RECUR 2026-06-24 (count 4): Daily Rendering Scripts Verifier (claude 32.0m, agent-job fail, run 28086187098) — NEW affected wf, LONG 32min variant. Claude-engine long-run agent-job fails keep rotating across wfs (now 4 distinct wfs over 4 days).",
-      "note": " | 06-27: cross-engine confirmed — Daily Rendering Scripts Verifier(claude 25m) + Daily yamllint Fixer(claude 19m) both 0-turn longrun-fail, SAME signature as copilot SDK-longrun. The longrun-0turn-then-fail pattern now spans claude AND copilot engines."
+      "note": " | 06-27: cross-engine confirmed \u2014 Daily Rendering Scripts Verifier(claude 25m) + Daily yamllint Fixer(claude 19m) both 0-turn longrun-fail, SAME signature as copilot SDK-longrun. The longrun-0turn-then-fail pattern now spans claude AND copilot engines."
     },
     {
       "id": "diverse-single-occurrence-fails-2026-06-22",
       "first_seen": "2026-06-22",
       "last_seen": "2026-06-24",
-      "count": 2,
       "status": "WATCH",
       "severity": "LOW",
       "affected": [
@@ -212,8 +200,7 @@
         "Daily Sub-Agent Model Resolution Audit",
         "Daily BYOK Ollama Test",
         "Agent Persona Explorer"
-      ],
-      "recur": "RECUR 2026-06-24 (count 2): 7 diverse single-occurrence prod-main fails, no shared signature: Super Linter Report (null-engine, 3.6m, RECURS from 06-22), Code Simplifier (copilot 13.8m), GitHub Remote MCP Auth Test (copilot 5.0m), Daily Sub-Agent Model Resolution Audit (codex 6.1m), Daily BYOK Ollama Test (copilot 6.1m), Agent Persona Explorer (pi 1.8m), Daily Credit Limit Test (intentional). Super Linter is the only repeat; watch for it forming a cluster."
+      ]
     },
     {
       "id": "pi-gpt54-0tok-agentjob-fail",
@@ -229,7 +216,7 @@
       ],
       "engine": "pi",
       "model": "copilot/gpt-5.4 (experimental)",
-      "note": "5/6 Auto-Triage runs failed 2026-06-25 (issues + schedule events). Agent job fails 0-tok/0-turn ~2-6min while pre_activation/activation/detection/safe_outputs all green. pi engine on experimental gpt-5.4 model. NEW cluster — top prod-main offender this window. | 2026-07-04 RECOVERED: PR Sous Chef 19/19=100% + Auto-Triage 2/2=100% on pi/copilot-gpt-5.4. pi engine 27/27=100%. 07-03 collapse resolved. Watch for relapse.",
+      "note": "5/6 Auto-Triage runs failed 2026-06-25 (issues + schedule events). Agent job fails 0-tok/0-turn ~2-6min while pre_activation/activation/detection/safe_outputs all green. pi engine on experimental gpt-5.4 model. NEW cluster \u2014 top prod-main offender this window. | 2026-07-04 RECOVERED: PR Sous Chef 19/19=100% + Auto-Triage 2/2=100% on pi/copilot-gpt-5.4. pi engine 27/27=100%. 07-03 collapse resolved. Watch for relapse.",
       "fix": "Investigate pi-agent-core driver startup on copilot/gpt-5.4; check if experimental model id is valid/available. Consider pinning Auto-Triage to a stable model (observability suggested gpt-4.1-mini/claude-haiku-4-5) until pi/gpt-5.4 stabilizes."
     },
     {
@@ -250,21 +237,21 @@
     },
     {
       "id": "smoke-ci-copilot-cli-100pct-fail-on-push",
-      "title": "Smoke CI (copilot/claude-sonnet-4.6) 100% fail on every push to main — agent job fails at 'Execute GitHub Copilot CLI' 0-turn/0-tok",
+      "title": "Smoke CI (copilot/claude-sonnet-4.6) 100% fail on every push to main \u2014 agent job fails at 'Execute GitHub Copilot CLI' 0-turn/0-tok",
       "status": "OPEN",
       "severity": "HIGH",
       "new": false,
       "first_seen": "2026-06-30",
-      "last_seen": "2026-07-04",
-      "recurrence_count": 4,
+      "last_seen": "2026-07-05",
+      "recurrence_count": 5,
       "affected": [
         "Smoke CI"
       ],
       "engine": "copilot",
       "model": "claude-sonnet-4.6",
-      "note": "…th Turns=0/Tok=0/ErrorCount=0. High-frequency (fires on every push) so this is a constant red on main. Same copilot-CLI-startup signature as the chronic copilot-sdk-driver family and the 06-25 distributed-0tok elevation — but here it is 100% deterministic for one workflow. NOTE: 06-28/06-29 unobserved, so first_seen may predate 06-30. | [2026-07-01] STILL 100%: 4/4 Smoke CI fails again at Execute GitHub Copilot CLI 0-turn. Now 2+ consecutive observed windows — deterministic red on main persists.",
-      "fix": "Investigate copilot CLI execution path for Smoke CI specifically (model claude-sonnet-4.6, push event). Compare to copilot wfs that succeed. If Smoke CI is meant to validate the copilot engine, its 100% red likely signals a real copilot CLI / engine startup regression on main — escalate to engine owners. Add a fast-fail diagnostic that surfaces WHY 'Execute GitHub Copilot CLI' aborts 0-turn.",
-      "recurrence": "RECUR 2026-07-04 (count4): Smoke CI 4/4=100% fail on push to main, 0-turn ~3m Execute Copilot CLI. Chronic across 06-30..07-04 observed windows. Still unfixed."
+      "note": "\u2026th Turns=0/Tok=0/ErrorCount=0. High-frequency (fires on every push) so this is a constant red on main. Same copilot-CLI-startup signature as the chronic copilot-sdk-driver family and the 06-25 distributed-0tok elevation \u2014 but here it is 100% deterministic for one workflow. NOTE: 06-28/06-29 unobserved, so first_seen may predate 06-30. | [2026-07-01] STILL 100%: 4/4 Smoke CI fails again at Execute GitHub Copilot CLI 0-turn. Now 2+ consecutive observed windows \u2014 deterministic red on main persists.",
+      "fix": "Investigate copilot CLI execution path for Smoke CI specifically (model claude-sonnet-4.6, push event). Compare to copilot wfs that succeed. If Smoke CI is meant to validate the copilot engine, its 100% red likely signals a real copilot CLI / engine startup regression on main \u2014 escalate to engine owners. Add a fast-fail diagnostic that surfaces WHY 'Execute GitHub Copilot CLI' aborts 0-turn.",
+      "recurrence": "RECUR 2026-07-05 (count5): Smoke CI 7/7=100% fail on push to main, 0-turn ~3m at agent>>Execute GitHub Copilot CLI. Chronic 06-30..07-05. Still unfixed \u2014 deterministic red on main."
     },
     {
       "id": "daily-fact-codex-gpt54-0turn",
@@ -299,7 +286,7 @@
       "engine": "cross-engine (copilot,claude,codex)",
       "model": "n/a",
       "note": "3 runs across 3 different engines all failed at the 'Install Playwright CLI' agent-job step 0-turn/0-tok. Because it spans copilot+claude+codex simultaneously in the same window, root cause is almost certainly infra/network (npm registry / download / firewall allowlist) rather than any single engine. Playwright is being installed as part of agent setup for these playwright-enabled workflows.",
-      "fix": "Check whether the Playwright download host (playwright.azureedge.net / npm registry / cdn) is on the firewall allowlist for these workflows, and whether a transient registry outage occurred at ~2026-07-01 evening. Consider pinning/ caching the Playwright browser binaries, adding retry to the install step, or gating Playwright install so its failure does not red the whole agent job when the browser…"
+      "fix": "Check whether the Playwright download host (playwright.azureedge.net / npm registry / cdn) is on the firewall allowlist for these workflows, and whether a transient registry outage occurred at ~2026-07-01 evening. Consider pinning/ caching the Playwright browser binaries, adding retry to the install step, or gating Playwright install so its failure does not red the whole agent job when the browser\u2026"
     }
   ]
 }
