@@ -6,7 +6,11 @@ on:
     types: [opened, synchronize, reopened]
 timeout-minutes: 45
 
-permissions: read-all
+permissions:
+  actions: read
+  contents: read
+  issues: read
+  pull-requests: read
 if: github.event.pull_request.user.login == 'dependabot[bot]'
 
 imports:
