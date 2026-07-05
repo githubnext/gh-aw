@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"charm.land/huh/v2"
-	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
 )
 
@@ -21,21 +20,19 @@ func PromptSecretInput(title, description string) (string, error) {
 
 	var value string
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title(title).
-				Description(description).
-				EchoMode(huh.EchoModePassword). // Masks input for security
-				Validate(func(s string) error {
-					if s == "" {
-						return errors.New("value cannot be empty")
-					}
-					return nil
-				}).
-				Value(&value),
-		),
-	).WithTheme(styles.HuhTheme).WithAccessible(IsAccessibleMode())
+	form := PromptInput(
+		huh.NewInput().
+			Title(title).
+			Description(description).
+			EchoMode(huh.EchoModePassword). // Masks input for security
+			Validate(func(s string) error {
+				if s == "" {
+					return errors.New("value cannot be empty")
+				}
+				return nil
+			}).
+			Value(&value),
+	)
 
 	if err := form.Run(); err != nil {
 		return "", err
