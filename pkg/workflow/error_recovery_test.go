@@ -165,3 +165,20 @@ func TestBuildPrioritizedErrorReportFromMessages_YAMLSyntaxGetsSyntaxHint(t *tes
 	assert.Equal(t, "Fix the YAML/frontmatter syntax first, then re-run `gh aw compile`.", prioritized.Suggestion)
 	assert.NotContains(t, prioritized.Suggestion, "event or filter")
 }
+
+func TestBuildPrioritizedErrorReportFromMessages_ToolConfigMappingGetsSyntaxHint(t *testing.T) {
+	message := `/tmp/workflow.md:4:11: error: tools.github tool config must be a mapping (object), not a scalar value (for example: toolsets: [default])
+  3 | tools:
+> 4 |   github: "invalid-string"
+                ^
+  5 |     toolsets: [default]`
+
+	report := BuildPrioritizedErrorReportFromMessages([]string{message}, true)
+
+	require.Len(t, report.DisplayedErrors, 1)
+	prioritized := report.DisplayedErrors[0]
+	assert.Equal(t, SeverityCritical, prioritized.Severity)
+	assert.Equal(t, "syntax", prioritized.Category)
+	assert.Equal(t, "Fix the YAML/frontmatter syntax first, then re-run `gh aw compile`.", prioritized.Suggestion)
+	assert.NotContains(t, prioritized.Suggestion, "event or filter")
+}

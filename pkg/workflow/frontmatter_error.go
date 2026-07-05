@@ -152,9 +152,9 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 // point at the true source line and provide user-facing wording.
 func improveFrontmatterDiagnostic(content, line, col, message string) (string, string, string) {
 	lower := strings.ToLower(strings.TrimSpace(message))
-	isScalarWithNestedKey :=
-		(strings.Contains(lower, "value is not allowed in this context") && strings.Contains(lower, "map key-value is pre-defined")) ||
-			strings.Contains(lower, "value cannot have child keys here")
+	// Only the translated phrase is checked here because TranslateYAMLMessage runs
+	// before improveFrontmatterDiagnostic; the raw parser wording is never seen.
+	isScalarWithNestedKey := strings.Contains(lower, "value cannot have child keys here")
 	if !isScalarWithNestedKey {
 		return line, col, message
 	}
@@ -198,13 +198,18 @@ func improveFrontmatterDiagnostic(content, line, col, message string) (string, s
 		return line, col, message
 	}
 
-	valueCol := strings.Index(parentLine, parentValue)
-	if valueCol < 0 {
-		valueCol = colNum - 1
+	// Find the value's column offset by searching after the colon, not the full line,
+	// to correctly handle keys and values that share a substring (e.g. "foo: foo").
+	keyEnd := len(parentMatch[1]) + len(parentMatch[2])
+	valueCol := colNum - 1 // fallback: original column
+	if colonPos := strings.Index(parentLine[keyEnd:], ":"); colonPos >= 0 {
+		afterColon := parentLine[keyEnd+colonPos+1:]
+		trimmed := strings.TrimLeft(afterColon, " ")
+		valueCol = keyEnd + colonPos + 1 + (len(afterColon) - len(trimmed))
 	}
 
 	return strconv.Itoa(parentLineNum), strconv.Itoa(valueCol + 1),
-		fmt.Sprintf("tools.%s tool config must be an object, not a string (for example: toolsets: [default])", parentKey)
+		fmt.Sprintf("tools.%s tool config must be a mapping (object), not a scalar value (for example: toolsets: [default])", parentKey)
 }
 
 func parsePositiveInt(v string) int {
@@ -268,7 +273,9 @@ func renderSourceContextForPosition(content string, targetLine, targetCol int) s
 		}
 		fmt.Fprintf(&b, "%s %3d | %s\n", prefix, lineNum, lines[lineNum-1])
 		if lineNum == targetLine {
-			fmt.Fprintf(&b, "%s^\n", strings.Repeat(" ", 7+targetCol-1))
+			// The source-context prefix is 8 characters: one prefix char ("%s"), one space, three
+			// digits ("%3d"), and " | " — so targetCol=1 requires 8 leading spaces before "^".
+			fmt.Fprintf(&b, "%s^\n", strings.Repeat(" ", 7+targetCol))
 		}
 	}
 	return strings.TrimRight(b.String(), "\n")

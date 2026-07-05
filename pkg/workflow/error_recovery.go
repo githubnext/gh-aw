@@ -270,7 +270,7 @@ func classifyErrorMessage(message string) PrioritizedError {
 		strings.Contains(lower, "did not find expected key"),
 		strings.Contains(lower, "missing ':' after key"),
 		strings.Contains(lower, "unexpected ':'"),
-		strings.Contains(lower, "must be an object, not a string"):
+		strings.Contains(lower, "tool config must be a mapping"):
 		return PrioritizedError{
 			Message:    message,
 			Severity:   SeverityCritical,

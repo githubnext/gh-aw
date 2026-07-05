@@ -210,7 +210,7 @@ strict: false
 Invalid YAML with scalar github tool config that has nested keys.`,
 			expectedErrorLine:   4, // highlight the invalid github scalar value line, not the nested key line
 			expectedErrorColumn: 11,
-			expectedMessagePart: "tools.github tool config must be an object, not a string",
+			expectedMessagePart: "tools.github tool config must be a mapping (object), not a scalar value",
 			description:         "invalid github tool scalar should point to the scalar line with actionable message",
 		},
 		{
