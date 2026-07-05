@@ -30,6 +30,11 @@ Engineering-focused:
 
 - **Schema/API review on PRs**: trigger `pull_request` with `paths:` scoped to backend contract files (for example `db/migrate/**`, `migrations/**`, `schema/**`, `openapi/**`, `api/**`), read via `github` (`gh-proxy`), publish findings with `add-comment`, call `noop` when contracts are unchanged.
 - **Visual regression on UI changes**: trigger `pull_request`, use only `playwright` + `cache-memory` (no extra tools), keep network minimal (allowlist only target preview/app hosts if required), state the exact baseline source (`cache-memory` key, artifact, or branch path), publish via `add-comment`, call `noop` when UI paths are unchanged.
+- **Design-token governance on PRs**:
+  - trigger `pull_request` with `paths:` scoped to token sources and theme/config files (for example `tokens/**`, `**/*tokens*.json`, `**/theme/**`, `**/tailwind*.{js,ts}`, `**/*design-token*`)
+  - read via `github` (`gh-proxy`) and validate linked token references (style dictionary source, token registry, or design-spec URL) before assessment
+  - publish actionable findings with `add-comment`
+  - call `noop` when no token files changed, when required references are absent from the in-scope changes, or when no policy/token drift is detected
 - **Deployment incident triage**: use `deployment_status` for external provider failures and `workflow_run` for GitHub Actions failures, publish incident reports via `create-issue`, derive a stable failure key (for example workflow + job + failing step or error signature), and call `noop` when a failure self-recovers or matches an existing open incident.
 - **Dependency-license compliance review on PRs**: trigger `pull_request` with `paths:` scoped to dependency manifests (for example `package.json`, `go.mod`, `requirements.txt`, `Cargo.toml`), read new dependency additions via `github` (`gh-proxy`), classify each addition by license tier (allowed / needs-review / blocked), publish findings with `add-comment`, escalate blocked additions with `create-issue` for team-wide follow-up, call `noop` when no new dependencies were added or all additions are pre-approved.
 

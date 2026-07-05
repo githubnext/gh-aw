@@ -136,6 +136,29 @@ Rules:
 - if a matching open issue already exists, add a linked `add-comment` on the PR referencing it instead of opening a duplicate issue
 - call `noop` explicitly whenever no actionable finding exists — do not comment with "no issues found" text
 
+### 2c1. Incident dedup-key templates (`workflow_run` and `deployment_status`)
+
+For incident workflows, define one stable dedup key before creating output and search for an open issue containing that key.
+
+Use and adapt these templates:
+
+```text
+# workflow_run incident key
+incident:workflow_run:<workflow-name>:<job-name-or-unknown>:<error-signature>:<window-id>
+example: incident:workflow_run:CI:lint:eslint-error:2026-07-05
+
+# deployment_status incident key
+incident:deployment_status:<environment-or-ref>:<provider-or-target>:<error-signature>:<window-id>
+example: incident:deployment_status:production:vercel:build-timeout:2026-07-05
+```
+
+Template rules:
+
+- keep `<error-signature>` stable (normalized failing step, error class, or provider error code)
+- use `<window-id>` based on the selected reporting window (for example `2026-07-05` or `2026-W27`)
+- create a new issue only when no open issue matches the same key
+- call `noop` when the event is non-terminal, recovered, or already represented by an open issue with the same key
+
 ### 2d. Compliance review compact guidance
 
 For dependency-license compliance and policy review on PRs:
