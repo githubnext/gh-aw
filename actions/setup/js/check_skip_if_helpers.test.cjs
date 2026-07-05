@@ -69,6 +69,68 @@ describe("check_skip_if_helpers.cjs - buildSearchQuery", () => {
     });
   });
 
+  describe("check_skip_if_helpers.cjs - runSkipQueryGate", () => {
+    /** @returns {Promise<{runSkipQueryGate: (options: any) => Promise<void>}>} */
+    const loadModule = () => import("./check_skip_if_helpers.cjs");
+
+    beforeEach(() => {
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(),
+          },
+        },
+      };
+    });
+
+    it("uses thresholdEnvVar in validation errors", async () => {
+      const { runSkipQueryGate } = await loadModule();
+
+      await runSkipQueryGate({
+        skipQuery: "is:issue is:open",
+        workflowName: "test-workflow",
+        thresholdStr: "invalid",
+        thresholdEnvVar: "GH_AW_SKIP_MAX_MATCHES",
+        thresholdLabel: "Maximum matches threshold",
+        checkLabel: "skip-if-match",
+        outputName: "skip_check_ok",
+        skipScope: undefined,
+        shouldSkip: () => false,
+        warningMessage: () => "",
+        successMessage: () => "",
+        denialSummaryMessage: () => "",
+        denialSummaryNextStep: "",
+      });
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_SKIP_MAX_MATCHES must be a positive integer"));
+      expect(global.github.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+    });
+
+    it("applies policy decision and output name when skip condition matches", async () => {
+      global.github.rest.search.issuesAndPullRequests.mockResolvedValue({ data: { total_count: 2 } });
+      const { runSkipQueryGate } = await loadModule();
+
+      await runSkipQueryGate({
+        skipQuery: "is:issue is:open",
+        workflowName: "test-workflow",
+        thresholdStr: "1",
+        thresholdEnvVar: "GH_AW_SKIP_MAX_MATCHES",
+        thresholdLabel: "Maximum matches threshold",
+        checkLabel: "skip-if-match",
+        outputName: "skip_check_ok",
+        skipScope: undefined,
+        shouldSkip: (totalCount, threshold) => totalCount >= threshold,
+        warningMessage: () => "skip warning",
+        successMessage: () => "success message",
+        denialSummaryMessage: () => "summary message",
+        denialSummaryNextStep: "summary next step",
+      });
+
+      expect(mockCore.warning).toHaveBeenCalledWith("skip warning");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "false");
+    });
+  });
+
   describe("scope: default (repo-scoped)", () => {
     it("appends repo:owner/repo when skipScope is undefined", async () => {
       const { buildSearchQuery } = await loadModule();
