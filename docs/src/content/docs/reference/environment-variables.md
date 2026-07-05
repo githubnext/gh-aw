@@ -5,11 +5,11 @@ sidebar:
   order: 650
 ---
 
-Environment variables in GitHub Agentic Workflows can be defined at multiple scopes, each serving a specific purpose in the workflow lifecycle. Variables defined at more specific scopes override those at more general scopes, following GitHub Actions conventions while adding AWF-specific contexts.
+Environment variables in GitHub Agentic Workflows can be defined at multiple scopes. More specific scopes override more general ones, following GitHub Actions conventions and adding AWF-specific contexts.
 
 ## Environment Variable Scopes
 
-GitHub Agentic Workflows supports environment variables in 13 distinct contexts:
+GitHub Agentic Workflows supports 13 contexts:
 
 | Scope | Syntax | Context | Typical Use |
 | ------- | -------- | --------- | ------------- |
@@ -27,22 +27,16 @@ GitHub Agentic Workflows supports environment variables in 13 distinct contexts:
 | **Safe Outputs Job** | `safe-outputs.jobs.<name>.env` | Specific safe-output job | Job-specific config |
 | **GitHub Actions Step** | `githubActionsStep.env` | Pre-defined steps | Step configuration |
 
-### Example Configurations
+### Examples
 
-**Workflow-level shared configuration:**
+These examples show shared workflow config, job overrides, and AWF-specific scopes.
 
 ```yaml wrap
 ---
 env:
   NODE_ENV: production
   API_ENDPOINT: https://api.example.com
----
-```
 
-**Job-specific overrides:**
-
-```yaml wrap
----
 jobs:
   validation:
     env:
@@ -51,20 +45,12 @@ jobs:
       - run: npm run build
         env:
           BUILD_ENV: production  # Overrides job and workflow levels
----
-```
 
-**AWF-specific contexts:**
-
-```yaml wrap
----
-# Engine configuration
 engine:
   id: copilot
   env:
     OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }}
 
-# MCP server with secrets
 tools:
   database:
     command: npx
@@ -72,7 +58,6 @@ tools:
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-# Safe outputs with custom PAT
 safe-outputs:
   create-issue:
   env:
@@ -100,7 +85,7 @@ The output appears in the **Summary** tab of the GitHub Actions workflow run.
 
 ## System-Injected Runtime Variables
 
-GitHub Agentic Workflows automatically injects the following environment variables into every agentic engine execution step (both the main agent run and the threat detection run). These variables are read-only from the agent's perspective and are useful for writing workflows or agents that need to detect their execution context.
+GitHub Agentic Workflows automatically injects these read-only variables into every agentic engine execution step, including both the main agent run and the threat detection run.
 
 | Variable | Value | Description |
 | ---------- | ------- | ------------- |
@@ -123,7 +108,7 @@ env:
 
 ## CLI Configuration Variables
 
-These variables configure the `gh aw` CLI tool. Set them in your local shell environment or as repository/organization variables in GitHub Actions.
+These variables configure the `gh aw` CLI. Set them in your local shell environment or as repository or organization variables in GitHub Actions.
 
 | Variable | Default | Description |
 | --- | --- | --- |
@@ -160,14 +145,10 @@ These variables override the default AI model used for agent runs and threat det
 
 ### Compiler-managed default behavior
 
-Model defaults now use two different resolution paths:
+Model defaults use two resolution paths:
 
-- **Compiler process environment (compile time):**
-  `GH_AW_DEFAULT_DETECTION_MODEL`
-- **GitHub `vars.*` expressions (runtime in compiled workflow):**
-  `GH_AW_DEFAULT_MODEL_COPILOT`,
-  `GH_AW_DEFAULT_MODEL_CLAUDE`,
-  `GH_AW_DEFAULT_MODEL_CODEX`
+- Compile-time compiler environment: `GH_AW_DEFAULT_DETECTION_MODEL`
+- Runtime `vars.*` expressions in compiled workflows: `GH_AW_DEFAULT_MODEL_COPILOT`, `GH_AW_DEFAULT_MODEL_CLAUDE`, `GH_AW_DEFAULT_MODEL_CODEX`
 
 At compile time, gh-aw emits runtime model expressions like:
 
@@ -175,11 +156,7 @@ At compile time, gh-aw emits runtime model expressions like:
 COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || '<engine default model>' }}
 ```
 
-Use `gh aw env get` / `gh aw env update` to batch-manage
-these `GH_AW_DEFAULT_*` variables at repo, org, or enterprise scope with
-`default_`-prefixed YAML keys such as `default_max_ai_credits`,
-`default_max_turn_cache_misses`,
-`default_detection_max_ai_credits`, `default_max_daily_ai_credits`, and `default_model_copilot`.
+Use `gh aw env get` and `gh aw env update` to batch-manage these `GH_AW_DEFAULT_*` variables at repo, org, or enterprise scope with `default_`-prefixed YAML keys such as `default_max_ai_credits`, `default_max_turn_cache_misses`, `default_detection_max_ai_credits`, `default_max_daily_ai_credits`, and `default_model_copilot`.
 
 ### Agent runs
 
@@ -214,7 +191,7 @@ See [Engines](/gh-aw/reference/engines/) for available engine identifiers and mo
 
 ## Guard Policy Fallback Variables
 
-These variables provide fallback values for guard policy fields when the corresponding `tools.github.*` configuration is absent from workflow frontmatter. Set them as GitHub Actions organization or repository variables to enforce a consistent policy across all workflows.
+These variables provide fallback values for guard policy fields when the corresponding `tools.github.*` configuration is absent from workflow frontmatter. Set them as organization or repository variables in GitHub Actions to enforce a consistent policy across workflows.
 
 > [!NOTE]
 > Explicit `tools.github.*` values in workflow frontmatter always take precedence over these variables.
@@ -247,9 +224,9 @@ These variables enforce runtime policy decisions in compiled workflows without r
 
 ## Precedence Rules
 
-Environment variables follow a **most-specific-wins** model, consistent with GitHub Actions. Variables at more specific scopes completely override variables with the same name at less specific scopes.
+Environment variables follow a **most-specific-wins** model. Variables at more specific scopes override variables with the same name at less specific scopes.
 
-### General Precedence (Highest to Lowest)
+### General Precedence
 
 1. **Step-level** (`steps[*].env`, `githubActionsStep.env`)
 2. **Job-level** (`jobs.<job_id>.env`)
@@ -263,7 +240,7 @@ Environment variables follow a **most-specific-wins** model, consistent with Git
 
 ### Context-Specific Scopes
 
-These scopes are independent and operate in different contexts: `engine.env`, `container.env`, `services.<id>.env`, `sandbox.agent.env`, `sandbox.mcp.env`, `tools.<tool>.env`, `mcp-scripts.<tool>.env`.
+These scopes are independent and apply only within their own contexts: `engine.env`, `container.env`, `services.<id>.env`, `sandbox.agent.env`, `sandbox.mcp.env`, `tools.<tool>.env`, and `mcp-scripts.<tool>.env`.
 
 ### Override Example
 
