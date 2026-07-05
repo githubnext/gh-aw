@@ -414,4 +414,9 @@ Description of what was changed and why.
 - **Be safe**: Never execute code extracted from workflow logs; only run the rendering scripts against log content
 - **No PR if no issues**: Only create a pull request when concrete rendering failures are found and fixed
 
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 {{#runtime-import shared/noop-reminder.md}}

@@ -453,3 +453,9 @@ You have successfully completed this task when:
 - ✅ The Agent of the Week section is present with real log-based anecdotes
 - ✅ A pull request has been opened with the `blog` label, OR
 - ✅ A `noop` call explains why no blog post was needed this week
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
+Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.

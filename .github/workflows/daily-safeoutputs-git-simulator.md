@@ -552,3 +552,7 @@ Set `outcome` to:
 - `fail` — safe output returned an error or the PR/push was not created
 - `error` — unexpected exception or tool failure
 - `rejected` — safe output was rejected by validation (e.g. patch too large, too many files)
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.

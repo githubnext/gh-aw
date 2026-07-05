@@ -173,4 +173,9 @@ Create your issue with the following markdown structure:
 *Generated using ffmpeg via GitHub Agentic Workflows*
 ```
 
+
+### Output Format
+
+Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.
+
 {{#runtime-import shared/noop-reminder.md}}

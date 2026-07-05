@@ -6,6 +6,7 @@ The `linters` package namespace contains custom static analysis linters used by 
 
 This package currently provides custom Go analyzers in the following subpackages:
 
+- `appendbytestring` — reports `append(b, []byte(s)...)` calls where `b` is `[]byte` and `s` is a string, which can be simplified to `append(b, s...)`.
 - `contextcancelnotdeferred` — reports context cancel functions that are called directly instead of deferred.
 - `ctxbackground` — reports `context.Background()` calls inside functions that already receive a `context.Context` parameter.
 - `deferinloop` — reports `defer` statements placed directly inside `for`/`range` loop bodies, which execute when the enclosing function returns rather than each iteration and can cause resource leaks.
@@ -55,6 +56,7 @@ This package currently provides custom Go analyzers in the following subpackages
 
 | Subpackage | Description |
 |------------|-------------|
+| `appendbytestring` | Custom `go/analysis` analyzer that flags `append(b, []byte(s)...)` calls where `s` is a string that can be simplified to `append(b, s...)` |
 | `contextcancelnotdeferred` | Custom `go/analysis` analyzer that flags context cancel functions called directly instead of deferred |
 | `ctxbackground` | Custom `go/analysis` analyzer that flags `context.Background()` calls inside functions that already receive a context parameter |
 | `deferinloop` | Custom `go/analysis` analyzer that flags `defer` statements inside `for`/`range` loop bodies that execute when the enclosing function returns rather than each iteration |
@@ -164,6 +166,7 @@ _ = timesleepnocontext.Analyzer
 ## Dependencies
 
 **Internal**:
+- `github.com/github/gh-aw/pkg/linters/appendbytestring` — append-byte-string analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred` — context-cancel-not-deferred analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/ctxbackground` — context-background analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/deferinloop` — defer-in-loop analyzer subpackage

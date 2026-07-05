@@ -11861,7 +11861,7 @@
       ]
     },
     "max_daily_ai_credits_limit": {
-      "description": "Maximum AI Credits budget allowed across the last 24 hours for runs of this workflow by the triggering user. Accepts positive integers (including K/M suffix strings and expressions). Set to -1 to disable.",
+      "description": "Maximum AI Credits budget allowed across the last 24 hours for runs of this workflow by the triggering user. Accepts positive integers (including K/M suffix strings and expressions), or an object with a 'value' field and an optional 'github-app' field for a dedicated token. Set to -1 to disable.",
       "oneOf": [
         {
           "$ref": "#/$defs/positive_ai_credits_limit"
@@ -11873,6 +11873,22 @@
         {
           "type": "string",
           "pattern": "^-1$"
+        },
+        {
+          "type": "object",
+          "description": "Object form: specify a 'value' (the credit limit) and an optional 'github-app' to mint a dedicated token for the guardrail API calls.",
+          "properties": {
+            "value": {
+              "$ref": "#/$defs/positive_ai_credits_limit",
+              "description": "The maximum AI Credits budget (positive integer, K/M suffix, or expression). To disable the guardrail, use the scalar form `max-daily-ai-credits: -1` instead."
+            },
+            "github-app": {
+              "$ref": "#/$defs/github_app",
+              "description": "Optional GitHub App to mint the token used to compute the daily AI Credits total. Avoids depleting API credits from other apps."
+            }
+          },
+          "required": ["value"],
+          "additionalProperties": false
         }
       ]
     },

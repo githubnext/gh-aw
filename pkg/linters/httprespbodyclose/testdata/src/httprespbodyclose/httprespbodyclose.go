@@ -42,6 +42,55 @@ func GoodCloseInsideClosure(client *http.Client, req *http.Request) {
 	}()
 }
 
+// BadManualCloseInsideIIFE reports manual close when assignment and close are in the same closure.
+func BadManualCloseInsideIIFE(client *http.Client, req *http.Request) {
+	func() {
+		resp, err := client.Do(req) // want `HTTP response Body\.Close\(\) should be deferred immediately after receiving the response to prevent resource leaks`
+		if err != nil {
+			return
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
+}
+
+// BadManualCloseInsideGoClosure reports manual close when assignment and close are in a go closure.
+func BadManualCloseInsideGoClosure(client *http.Client, req *http.Request) {
+	go func() {
+		resp, err := client.Do(req) // want `HTTP response Body\.Close\(\) should be deferred immediately after receiving the response to prevent resource leaks`
+		if err != nil {
+			return
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
+}
+
+// BadManualCloseInsideHandler reports manual close when assignment and close are in a handler closure.
+func BadManualCloseInsideHandler(client *http.Client, req *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/x", func(http.ResponseWriter, *http.Request) {
+		resp, err := client.Do(req) // want `HTTP response Body\.Close\(\) should be deferred immediately after receiving the response to prevent resource leaks`
+		if err != nil {
+			return
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	})
+}
+
+// GoodDeferCloseInsideClosure uses defer close inside closure — not flagged.
+func GoodDeferCloseInsideClosure(client *http.Client, req *http.Request) {
+	func() {
+		resp, err := client.Do(req)
+		if err != nil {
+			return
+		}
+		defer resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+	}()
+}
+
 // GoodShadowedResp closes both outer and inner shadowed responses with defer — not flagged.
 func GoodShadowedResp(client *http.Client, req1, req2 *http.Request) error {
 	resp, err := client.Do(req1)

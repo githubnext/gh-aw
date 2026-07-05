@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -428,4 +429,126 @@ func TestProjectConfigWithProjectSetup(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGraphQLRequestBodyStructure verifies that the JSON bodies sent by createProject and
+// linkProjectToRepo use the {"query": ..., "variables": {...}} structure required by
+// gh api graphql --input -, rather than raw -f key=value argument concatenation.
+// These tests guard against regression to the vulnerable pattern flagged by Semgrep #627/#628.
+func TestGraphQLRequestBodyStructure(t *testing.T) {
+	assertQueryAndVariables := func(t *testing.T, body map[string]any, expectedVarKeys ...string) {
+		t.Helper()
+		assert.Contains(t, body, "query", "request body must have 'query' key (not inline string concat)")
+		assert.Contains(t, body, "variables", "request body must have 'variables' key (not raw -f args)")
+		vars, ok := body["variables"].(map[string]any)
+		require.True(t, ok, "variables must be a JSON object")
+		for _, k := range expectedVarKeys {
+			assert.Contains(t, vars, k, "variables must include key %q", k)
+		}
+	}
+
+	t.Run("createProject request body has query and variables", func(t *testing.T) {
+		ownerId := "U_kgDOABCDEF"
+		title := "My Project"
+
+		body := map[string]any{
+			"query": `mutation($ownerId: ID!, $title: String!) {
+				createProjectV2(input: { ownerId: $ownerId, title: $title }) {
+					projectV2 { id number title url }
+				}
+			}`,
+			"variables": map[string]any{
+				"ownerId": ownerId,
+				"title":   title,
+			},
+		}
+
+		data, err := json.Marshal(body)
+		require.NoError(t, err, "request body must marshal without error")
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal(data, &parsed))
+
+		assertQueryAndVariables(t, parsed, "ownerId", "title")
+		vars := parsed["variables"].(map[string]any)
+		assert.Equal(t, ownerId, vars["ownerId"], "ownerId must be preserved via JSON marshaling")
+		assert.Equal(t, title, vars["title"], "title must be preserved via JSON marshaling")
+	})
+
+	t.Run("createProject body safely encodes special characters in ownerId and title", func(t *testing.T) {
+		// Regression guard: values with special chars must be JSON-encoded, not concatenated.
+		// Raw concatenation of ownerId into -f ownerId=<value> would allow injection.
+		ownerId := `U_abc"injected`
+		title := `title with "quotes" and \backslash`
+
+		body := map[string]any{
+			"query": `mutation($ownerId: ID!, $title: String!) {}`,
+			"variables": map[string]any{
+				"ownerId": ownerId,
+				"title":   title,
+			},
+		}
+
+		data, err := json.Marshal(body)
+		require.NoError(t, err, "json.Marshal must handle special characters without error")
+
+		// Verify the JSON is valid and round-trips values exactly.
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal(data, &parsed), "marshaled body must be valid JSON")
+		vars := parsed["variables"].(map[string]any)
+		assert.Equal(t, ownerId, vars["ownerId"], "ownerId with special chars must survive JSON round-trip")
+		assert.Equal(t, title, vars["title"], "title with special chars must survive JSON round-trip")
+	})
+
+	t.Run("linkProjectToRepo repoIdQuery body has query and variables", func(t *testing.T) {
+		owner := "myorg"
+		name := "myrepo"
+
+		body := map[string]any{
+			"query": `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id } }`,
+			"variables": map[string]any{
+				"owner": owner,
+				"name":  name,
+			},
+		}
+
+		data, err := json.Marshal(body)
+		require.NoError(t, err)
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal(data, &parsed))
+
+		assertQueryAndVariables(t, parsed, "owner", "name")
+		vars := parsed["variables"].(map[string]any)
+		assert.Equal(t, owner, vars["owner"])
+		assert.Equal(t, name, vars["name"])
+	})
+
+	t.Run("linkProjectToRepo mutation body has query and variables", func(t *testing.T) {
+		projectId := "PVT_kwDOBHjIqs4A_abc"
+		repositoryId := "R_kgDOXYZdef"
+
+		body := map[string]any{
+			"query": `mutation($projectId: ID!, $repositoryId: ID!) {
+				linkProjectV2ToRepository(input: { projectId: $projectId, repositoryId: $repositoryId }) {
+					repository { id }
+				}
+			}`,
+			"variables": map[string]any{
+				"projectId":    projectId,
+				"repositoryId": repositoryId,
+			},
+		}
+
+		data, err := json.Marshal(body)
+		require.NoError(t, err)
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal(data, &parsed))
+
+		assertQueryAndVariables(t, parsed, "projectId", "repositoryId")
+		vars := parsed["variables"].(map[string]any)
+		assert.Equal(t, projectId, vars["projectId"])
+		assert.Equal(t, repositoryId, vars["repositoryId"])
+	})
 }

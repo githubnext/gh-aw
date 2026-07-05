@@ -33,29 +33,39 @@ func run(pass *analysis.Pass) (any, error) {
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
+		(*ast.FuncLit)(nil),
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		inspectFuncDecl(pass, n, noLintLinesByFile)
+		inspectFunc(pass, n, noLintLinesByFile)
 	})
 
 	return nil, nil
 }
 
-func inspectFuncDecl(pass *analysis.Pass, n ast.Node, noLintLinesByFile map[string]map[int]struct{}) {
-	fn, ok := n.(*ast.FuncDecl)
-	if !ok || fn.Body == nil {
-		return
+func inspectFunc(pass *analysis.Pass, n ast.Node, noLintLinesByFile map[string]map[int]struct{}) {
+	var body *ast.BlockStmt
+	switch fn := n.(type) {
+	case *ast.FuncDecl:
+		if fn.Body == nil {
+			return
+		}
+		body = fn.Body
+	case *ast.FuncLit:
+		if fn.Body == nil {
+			return
+		}
+		body = fn.Body
 	}
 
-	pos := pass.Fset.PositionFor(fn.Pos(), false)
+	pos := pass.Fset.PositionFor(n.Pos(), false)
 	if filecheck.IsTestFile(pos.Filename) {
 		return
 	}
 
 	respVars := make(map[types.Object]*respVarState)
 
-	ast.Inspect(fn.Body, func(node ast.Node) bool {
+	ast.Inspect(body, func(node ast.Node) bool {
 		return inspectNode(pass, respVars, node, noLintLinesByFile)
 	})
 

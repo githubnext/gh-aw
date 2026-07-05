@@ -35,21 +35,21 @@ sandbox:
     sudo: false
 ---
 
-# Deployment Incident Monitor
+### Deployment Incident Monitor
 
 A deployment to **${{ github.event.deployment.environment }}** has failed with state `${{ github.event.deployment_status.state }}`.
 
-## Your Task
+#### Your Task
 
 Perform a root cause analysis of this deployment failure and create a focused incident issue.
 
-## Deployment Context
+#### Deployment Context
 
 - **Environment**: ${{ github.event.deployment.environment }}
 - **Status**: ${{ github.event.deployment_status.state }}
 - **Repository**: ${{ github.repository }}
 
-## Investigation Steps
+#### Investigation Steps
 
 1. **Check for an existing open incident issue**: Look for open issues with both `incident` and `deployment-failure` labels. If one already exists for this environment and recent timeframe, call `noop` with a brief explanation.
 
@@ -66,8 +66,10 @@ Perform a root cause analysis of this deployment failure and create a focused in
    - **Suggested remediation** steps for the on-call team
    - A link to the failing deployment for quick access
 
-## Output Guidelines
+#### Output Guidelines
 
 - Use `noop` if a duplicate open incident issue already exists.
 - Keep the issue concise and actionable — focus on what the on-call engineer needs to know immediately.
 - Do not create speculative issues; only create one when there is concrete evidence of a failure.
+- In created incident issues, use `###` or `####` section headings only (never `#` or `##`).
+- Wrap long evidence/log excerpts in `<details>` blocks with clear `<summary>` labels to keep issues scannable.
