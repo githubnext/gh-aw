@@ -226,3 +226,7 @@ Structure the issue body as follows:
 ```
 
 Do not call `noop` for this workflow; always create exactly one issue with exactly 3 improvements.
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.

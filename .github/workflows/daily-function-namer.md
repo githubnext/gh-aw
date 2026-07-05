@@ -433,3 +433,7 @@ Only include a rename suggestion if you are confident it would measurably improv
 ```json
 {"noop": {"message": "No rename suggestions found for package <pkg>. All analyzed functions already have clear, descriptive names that support agent discoverability."}}
 ```
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.

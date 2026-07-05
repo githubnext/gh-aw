@@ -309,3 +309,9 @@ YAML generator code.
   - Your fixes do not reduce the warning count
   - Compilation fails after your edits (revert changes first)
   - No root cause could be traced to Go generator code
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
+Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.

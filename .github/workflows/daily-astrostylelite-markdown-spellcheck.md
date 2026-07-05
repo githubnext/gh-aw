@@ -369,3 +369,7 @@ If no action is needed, call:
 {"noop": {"message": "No valid markdown spellcheck fixes needed for docs/src/content/."}}
 ```
 {{#endif}}
+
+### Output Format
+
+Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.

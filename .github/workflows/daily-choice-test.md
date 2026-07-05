@@ -86,4 +86,11 @@ Make your selection based on the day of the week:
 
 Provide a brief explanation of why you chose this configuration.
 
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
+Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.
+
 {{#runtime-import shared/noop-reminder.md}}

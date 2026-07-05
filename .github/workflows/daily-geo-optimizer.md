@@ -280,4 +280,9 @@ If **all scores are already Excellent (90+/100)** and there are no actionable re
 - **If a file is missing or empty**: Note it clearly rather than fabricating data.
 - **Efficient**: Read each file once; avoid redundant bash calls.
 
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 {{#runtime-import shared/noop-reminder.md}}

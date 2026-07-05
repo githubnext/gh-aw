@@ -666,4 +666,9 @@ If no updates are needed (all live models are already covered by existing aliase
 title `Model alias inventory - no changes needed - YYYY-MM-DD` and a brief summary confirming
 coverage is up to date.
 
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 {{#runtime-import shared/noop-reminder.md}}

@@ -355,3 +355,7 @@ Scoring rubric:
 Severity mapping: 7-10 -> `error`, 3-6 -> `warning`, 1-2 -> `note`.
 
 Return JSON only: `{"score":<int>,"severity":"error|warning|note","rationale":"<one sentence>"}`. Do not add extra fields.
+
+### Output Format
+
+Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.

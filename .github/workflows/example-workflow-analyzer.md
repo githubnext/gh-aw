@@ -55,4 +55,13 @@ Analyze the collected data and provide:
 
 Create a discussion with your findings and actionable recommendations for improving CI/CD reliability and performance.
 
+
+### Output Format
+
+Use `###` (or lower) headers only.
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
+Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.
+
 {{#runtime-import shared/noop-reminder.md}}

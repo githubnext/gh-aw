@@ -501,3 +501,7 @@ Rules:
 - return at most 3 opportunities
 - use only provided evidence
 - prefer opportunities that reduce first-request size without reducing safety
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.

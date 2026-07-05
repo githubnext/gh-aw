@@ -297,3 +297,7 @@ The server lifecycle is handled by pre-agent setup and job teardown.
 - **If testing could not be completed** (e.g., server failed to start, permission errors): Call `noop` with an explanation of what was attempted and what blocked completion
 
 The workflow will fail if you do not call either the `create-issue` or `noop` tool before exiting, regardless of whether testing succeeded or not.
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.

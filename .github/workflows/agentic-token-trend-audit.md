@@ -266,3 +266,7 @@ Summarize daily AIC movement across the requested range (up/down days, spikes, a
   - if `len(runs) > 0` and there are zero completed runs, say the collection window had runs but none completed yet
 - Do not claim the raw log file was empty unless you verified `len(runs) == 0` (or `jq '.runs | length' == 0`).
 - Keep the issue concise — the optimizer workflow will do the deep analysis.
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.

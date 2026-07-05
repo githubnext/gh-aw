@@ -77,4 +77,11 @@ Write a narrative security assessment describing the vulnerability patterns foun
 Create one code scanning alert per finding.
 {{/if}}
 
+
+### Output Format
+
+Use `###` (or lower) headers only.
+
+Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.
+
 {{#runtime-import shared/noop-reminder.md}}
