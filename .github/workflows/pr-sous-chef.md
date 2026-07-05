@@ -253,13 +253,13 @@ When this workflow is triggered by the `/souschef` slash command on a PR comment
 ## Token efficiency rules (mandatory)
 
 1. Read `/tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json` first.
-2. If `prs` is empty, create the run-report issue (see **Run summary** below) and stop.
+2. If `prs` is empty, create the run-report issue (see **Run summary** below) and stop. If `create_issue` is unavailable, fall back to `noop` with the message `"processed=0; nudged=0; no eligible PRs"` and stop.
 3. Process PRs in `updatedAt` descending order.
 4. Process all eligible PRs per run.
 5. Use the `pr-processor` sub-agent for each PR; pass only the PR number and compact context.
 6. If a `pr-processor` call returns non-JSON or an error, record `{pr_number: <N>, skip_reason: "sub_agent_error"}` in the `skipped` array of the run-summary issue payload and move to the next PR without retrying.
 7. Do not fetch full PR diffs or large file lists unless absolutely required for a skip decision.
-8. **Never finish without at least one safe-output tool call.** Always call the run-summary `create_issue` (see **Run summary** below) before finishing. If `create_issue` is unavailable, fall back to `noop` with the same payload.
+8. **Never finish without at least one safe-output tool call.** Always call the run-summary `create_issue` (see **Run summary** below) before finishing. If `create_issue` is unavailable, fall back to `noop` with a condensed message containing the run counts (see fallback example in **Run summary**).
 9. Use `safeoutputs <tool> --param value` shell commands for all safe-output operations (`add_comment`, `update_pull_request`, `push_to_pull_request_branch`, `create_issue`, `noop`, `report_incomplete`). Do **not** use `gh pr comment`, `gh pr update-branch`, `gh api ... -X POST`, or any GitHub API write calls outside of `safeoutputs`. Do **not** pipe `safeoutputs` to other commands or run `safeoutputs --help` — the tool schemas are already provided; use the examples below directly.
 
 ## Required skip rules per PR
@@ -369,7 +369,7 @@ Example (`create_issue` shell call):
 safeoutputs create_issue --title "Run report — 2 nudged, 1 skipped" --body $'<!-- gh-aw-pr-sous-chef-report -->\n> ⚠️ **This is an automated status report. Do not assign this issue to a Copilot agent.**\n\n...'
 ```
 
-If `create_issue` is unavailable, fall back to `noop` with the same counts as the message.
+If `create_issue` is unavailable, fall back to `noop` with a condensed message containing the run counts, e.g. `"processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=1; skipped_cooldown=1; nudged=2; branch_update_attempts=0; formatter_pushes=0; merge_main_scheduled=1; dismissed_reviews=1"`.
 
 ## Formatting Requirements
 
