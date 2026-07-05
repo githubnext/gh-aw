@@ -34,7 +34,7 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "reports"
+    category: "audits"
     max: 1
     close-older-discussions: true
   upload-artifact:
