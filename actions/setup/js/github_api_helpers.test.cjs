@@ -419,56 +419,57 @@ describe("github_api_helpers.cjs", () => {
       expect(result).toBe("DC_fallback123");
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("resolving top-level discussion comment"));
     });
+  });
 
-    describe("createDiscussionComment", () => {
-      it("should create a top-level discussion comment when replyToId is omitted", async () => {
-        const mockGraphql = vi.fn().mockResolvedValueOnce({
-          addDiscussionComment: { comment: { id: "DC_1", url: "https://github.com/o/r/discussions/1#discussioncomment-1" } },
-        });
-
-        const result = await createDiscussionComment({ graphql: mockGraphql }, "D_1", "hello");
-
-        expect(result).toEqual({ id: "DC_1", url: "https://github.com/o/r/discussions/1#discussioncomment-1" });
-        expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("addDiscussionComment"), {
-          dId: "D_1",
-          body: "hello",
-        });
-        expect(String(mockGraphql.mock.calls[0][0])).not.toContain("$replyToId");
+  describe("createDiscussionComment", () => {
+    it("should create a top-level discussion comment when replyToId is omitted", async () => {
+      const mockGraphql = vi.fn().mockResolvedValueOnce({
+        addDiscussionComment: { comment: { id: "DC_1", url: "https://github.com/o/r/discussions/1#discussioncomment-1" } },
       });
 
-      it("should create a threaded discussion comment when replyToId is provided", async () => {
-        const mockGraphql = vi.fn().mockResolvedValueOnce({
-          addDiscussionComment: { comment: { id: "DC_2", url: "https://github.com/o/r/discussions/1#discussioncomment-2" } },
-        });
+      const result = await createDiscussionComment({ graphql: mockGraphql }, "D_1", "hello");
 
-        await createDiscussionComment({ graphql: mockGraphql }, "D_1", "reply", "DC_parent");
+      expect(result).toEqual({ id: "DC_1", url: "https://github.com/o/r/discussions/1#discussioncomment-1" });
+      expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("addDiscussionComment"), {
+        dId: "D_1",
+        body: "hello",
+      });
+      expect(String(mockGraphql.mock.calls[0][0])).not.toContain("$replyToId");
+    });
 
-        expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("$replyToId"), {
-          dId: "D_1",
-          body: "reply",
-          replyToId: "DC_parent",
-        });
+    it("should create a threaded discussion comment when replyToId is provided", async () => {
+      const mockGraphql = vi.fn().mockResolvedValueOnce({
+        addDiscussionComment: { comment: { id: "DC_2", url: "https://github.com/o/r/discussions/1#discussioncomment-2" } },
       });
 
-      it("should treat null replyToId as omitted", async () => {
-        const mockGraphql = vi.fn().mockResolvedValueOnce({
-          addDiscussionComment: { comment: { id: "DC_3", url: "https://github.com/o/r/discussions/1#discussioncomment-3" } },
-        });
+      await createDiscussionComment({ graphql: mockGraphql }, "D_1", "reply", "DC_parent");
 
-        await createDiscussionComment({ graphql: mockGraphql }, "D_1", "top-level", null);
+      expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("$replyToId"), {
+        dId: "D_1",
+        body: "reply",
+        replyToId: "DC_parent",
+      });
+    });
 
-        expect(mockGraphql).toHaveBeenCalledWith(expect.not.stringContaining("$replyToId"), {
-          dId: "D_1",
-          body: "top-level",
-        });
+    it("should treat null replyToId as omitted", async () => {
+      const mockGraphql = vi.fn().mockResolvedValueOnce({
+        addDiscussionComment: { comment: { id: "DC_3", url: "https://github.com/o/r/discussions/1#discussioncomment-3" } },
       });
 
-      it("should propagate graphql errors", async () => {
-        const error = new Error("GraphQL failed");
-        const mockGraphql = vi.fn().mockRejectedValueOnce(error);
+      await createDiscussionComment({ graphql: mockGraphql }, "D_1", "top-level", null);
 
-        await expect(createDiscussionComment({ graphql: mockGraphql }, "D_1", "hello")).rejects.toThrow("GraphQL failed");
+      expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("addDiscussionComment"), {
+        dId: "D_1",
+        body: "top-level",
       });
+      expect(String(mockGraphql.mock.calls[0][0])).not.toContain("$replyToId");
+    });
+
+    it("should propagate graphql errors", async () => {
+      const error = new Error("GraphQL failed");
+      const mockGraphql = vi.fn().mockRejectedValueOnce(error);
+
+      await expect(createDiscussionComment({ graphql: mockGraphql }, "D_1", "hello")).rejects.toThrow("GraphQL failed");
     });
   });
 });
