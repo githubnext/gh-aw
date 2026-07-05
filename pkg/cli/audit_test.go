@@ -150,6 +150,17 @@ func TestProcessedRunFromSummaryPreservesExistingTurns(t *testing.T) {
 	assert.Equal(t, 7, processed.Run.Turns, "existing run turns should not be overwritten by summary metrics")
 }
 
+func TestProcessedRunFromSummaryBothTurnsZero(t *testing.T) {
+	summary := &RunSummary{
+		Run:     WorkflowRun{DatabaseID: 789, Turns: 0},
+		Metrics: LogMetrics{Turns: 0},
+	}
+
+	processed := processedRunFromSummary(summary, "/tmp/run-output")
+
+	assert.Equal(t, 0, processed.Run.Turns, "run turns should remain zero when neither Run.Turns nor Metrics.Turns is available")
+}
+
 func TestBuildAuditData(t *testing.T) {
 	// Create test data
 	run := WorkflowRun{
