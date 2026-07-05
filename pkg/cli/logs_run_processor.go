@@ -134,6 +134,8 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					LogsPath:                runOutputDir,
 					Cached:                  true, // Mark as cached
 				}
+				// Re-apply the usage activity backfill to heal stale cache entries.
+				backfillCacheHitIfNeeded(&result, runOutputDir, verbose)
 				// Update progress counter
 				completed := completedCount.Add(1)
 				if progressBar != nil {
@@ -458,6 +460,23 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 
 	logsOrchestratorLog.Printf("Concurrent download complete: total=%d, results=%d", len(actualRuns), len(results))
 	return results
+}
+
+// backfillCacheHitIfNeeded re-applies the usage activity summary backfill to heal
+// stale cache entries that were saved before safe-outputs or turn backfill was
+// introduced. It is a no-op when both Run.Turns and Run.SafeItemsCount are already
+// non-zero. Errors loading the summary are logged when verbose is true; a missing
+// summary file is silent (no summary = nothing to backfill).
+func backfillCacheHitIfNeeded(result *DownloadResult, runOutputDir string, verbose bool) {
+	if result.Run.Turns == 0 || result.Run.SafeItemsCount == 0 {
+		usageActivitySummary, err := loadUsageActivitySummary(runOutputDir)
+		if err != nil && verbose {
+			logsOrchestratorLog.Printf("Warning: failed to load usage activity summary for cache-hit backfill (run %d): %v", result.Run.DatabaseID, err)
+		}
+		if usageActivitySummary != nil {
+			applyUsageActivitySummaryToResult(usageActivitySummary, result, true)
+		}
+	}
 }
 
 // runContainsSafeOutputType checks if a run's agent_output.json contains a specific safe output type

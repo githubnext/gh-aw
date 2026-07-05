@@ -828,9 +828,16 @@ fmt-check-json:
 		exit 1; \
 	fi
 
+# Validate CJS module syntax by running `node --check` on every non-test .cjs file.
+# This catches module-load SyntaxErrors (e.g. `await` inside a non-async function)
+# before any workflow runs, closing the gap that caused the PR #43170 regression.
+.PHONY: validate-cjs-syntax
+validate-cjs-syntax:
+	@bash scripts/validate-cjs-syntax.sh
+
 # Lint JavaScript (.cjs and .js) and JSON files in actions/setup/js directory
 .PHONY: lint-cjs
-lint-cjs: fmt-check-cjs
+lint-cjs: fmt-check-cjs validate-cjs-syntax
 	@echo "✓ JavaScript formatting validated"
 
 # Lint JSON files in pkg directory (excluding actions/setup/js, which is handled by npm script)
@@ -1135,6 +1142,7 @@ help:
 	@echo "  fmt-check-cjs    - Check JavaScript/TypeScript/JSON formatting in actions/setup/js and eslint-factory"
 	@echo "  fmt-check-json   - Check JSON file formatting in pkg directory (excluding actions/setup/js)"
 	@echo "  lint-cjs         - Lint JavaScript/TypeScript/JSON formatting in actions/setup/js and eslint-factory"
+	@echo "  validate-cjs-syntax - Syntax-check all non-test .cjs files (catches module-load SyntaxErrors)"
 	@echo "  lint-json        - Lint JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  lint-errors      - Lint error messages for quality compliance"
 	@echo "  validate-otel-contract - Validate the gh-aw OpenTelemetry compatibility contract"
