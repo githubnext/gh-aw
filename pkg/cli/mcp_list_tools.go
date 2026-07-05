@@ -95,7 +95,7 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 	mcpListToolsLog.Printf("Connected to MCP server: tools=%d", len(info.Tools))
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully connected to MCP server"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Successfully connected to MCP server"))
 	}
 
 	// Display the tools

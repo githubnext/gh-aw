@@ -31,7 +31,7 @@ func TestRenderOrgActionSummaryUsesConsoleFormatListItemStderr(t *testing.T) {
 
 	lines := strings.Split(strings.TrimSuffix(stderr, "\n"), "\n")
 	require.Len(t, lines, 5)
-	assert.Equal(t, console.FormatInfoMessage("Ready to update"), lines[0])
+	assert.Equal(t, console.FormatInfoMessageStderr("Ready to update"), lines[0])
 	assert.Equal(t, console.FormatListItemStderr("Repository: octo/repo"), lines[1])
 	assert.Equal(t, console.FormatListItemStderr("Workflows: 2"), lines[2])
 	assert.Equal(t, console.FormatListItemStderr("Pending workflow updates:"), lines[3])
