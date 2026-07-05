@@ -45,6 +45,22 @@ func findAvailablePort(startPort int, verbose bool) int {
 
 var errMCPScriptsServerStartupTimeout = errors.New("mcp-scripts HTTP server failed to start within timeout")
 
+func isServerReady(client *http.Client, req *http.Request, port int, verbose bool) bool {
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			mcpInspectLog.Printf("Warning: failed to close response body: %v", closeErr)
+		}
+	}()
+	if verbose {
+		mcpInspectLog.Printf("Server is ready on port %d", port)
+	}
+	return true
+}
+
 // waitForServerReady waits for the HTTP server to be ready by polling the endpoint.
 func waitForServerReady(ctx context.Context, port int, timeout time.Duration, verbose bool) error {
 	deadline := time.Now().Add(timeout)
@@ -64,16 +80,7 @@ func waitForServerReady(ctx context.Context, port int, timeout time.Duration, ve
 			mcpInspectLog.Printf("Failed to create request: %v", err)
 			return err
 		}
-		resp, err := client.Do(req)
-		if err == nil {
-			defer func() {
-				if closeErr := resp.Body.Close(); closeErr != nil {
-					mcpInspectLog.Printf("Warning: failed to close response body: %v", closeErr)
-				}
-			}()
-			if verbose {
-				mcpInspectLog.Printf("Server is ready on port %d", port)
-			}
+		if isServerReady(client, req, port, verbose) {
 			return nil
 		}
 		timer := time.NewTimer(mcpScriptsServerStartupDelay)

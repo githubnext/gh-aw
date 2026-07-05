@@ -337,3 +337,160 @@ func TestExtractThenApplyProcessorOrderingBackfillsSafeItemsCount(t *testing.T) 
 
 	assert.Equal(t, 5, result.Run.SafeItemsCount, "SafeItemsCount should be backfilled from summary when no manifest is present")
 }
+
+// TestCacheHitBackfillsStaleZeroSafeItemsCount verifies that backfillCacheHitIfNeeded
+// re-applies the usage activity backfill when SafeItemsCount is zero in the cached
+// run_summary.json. This covers stale cache entries that were saved before the
+// safe-outputs backfill was introduced.
+func TestCacheHitBackfillsStaleZeroSafeItemsCount(t *testing.T) {
+	t.Parallel()
+
+	runDir := t.TempDir()
+
+	// Write an activity summary with safe_outputs populated.
+	summaryPath := filepath.Join(runDir, "usage", "activity", "summary.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(summaryPath), 0o755))
+	require.NoError(t, os.WriteFile(summaryPath, []byte(`{
+		"schema":"`+usageActivitySummarySchema+`",
+		"safe_outputs":{"total_items":4,"items_by_type":{"create_issue":4}}
+	}`), 0o644))
+
+	// Simulate a stale cache: SafeItemsCount is 0 (saved before backfill existed).
+	result := DownloadResult{Run: WorkflowRun{SafeItemsCount: 0}}
+
+	backfillCacheHitIfNeeded(&result, runDir, false)
+
+	assert.Equal(t, 4, result.Run.SafeItemsCount, "cache-hit backfill should heal stale SafeItemsCount=0 from activity summary")
+}
+
+// TestCacheHitBackfillsStaleZeroTurns verifies that backfillCacheHitIfNeeded correctly
+// re-applies the usage activity backfill when Turns is zero in the cached
+// run_summary.json. This covers stale cache entries where the session.turns
+// backfill had not yet run.
+func TestCacheHitBackfillsStaleZeroTurns(t *testing.T) {
+	t.Parallel()
+
+	runDir := t.TempDir()
+
+	// Write an activity summary with a session turns count.
+	summaryPath := filepath.Join(runDir, "usage", "activity", "summary.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(summaryPath), 0o755))
+	require.NoError(t, os.WriteFile(summaryPath, []byte(`{
+		"schema":"`+usageActivitySummarySchema+`",
+		"session":{"turns":34}
+	}`), 0o644))
+
+	// Simulate a stale cache: Turns is 0 (saved before turns backfill existed).
+	result := DownloadResult{Run: WorkflowRun{Turns: 0}}
+
+	backfillCacheHitIfNeeded(&result, runDir, false)
+
+	assert.Equal(t, 34, result.Run.Turns, "cache-hit backfill should heal stale Turns=0 from activity summary")
+}
+
+// TestCacheHitDoesNotOverwriteNonZeroValues verifies that backfillCacheHitIfNeeded
+// is a no-op when both Run.Turns and Run.SafeItemsCount are already non-zero.
+func TestCacheHitDoesNotOverwriteNonZeroValues(t *testing.T) {
+	t.Parallel()
+
+	runDir := t.TempDir()
+
+	// Write an activity summary with different values than what is in the cache.
+	summaryPath := filepath.Join(runDir, "usage", "activity", "summary.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(summaryPath), 0o755))
+	require.NoError(t, os.WriteFile(summaryPath, []byte(`{
+		"schema":"`+usageActivitySummarySchema+`",
+		"session":{"turns":99},
+		"safe_outputs":{"total_items":99}
+	}`), 0o644))
+
+	// Cache has non-zero values — the backfill guard should be a no-op.
+	result := DownloadResult{Run: WorkflowRun{Turns: 14, SafeItemsCount: 5}}
+
+	backfillCacheHitIfNeeded(&result, runDir, false)
+
+	// Guard condition is false (both >0), so neither value should change.
+	assert.Equal(t, 14, result.Run.Turns, "non-zero cached Turns must not be overwritten by the cache-hit backfill guard")
+	assert.Equal(t, 5, result.Run.SafeItemsCount, "non-zero cached SafeItemsCount must not be overwritten by the cache-hit backfill guard")
+}
+
+// TestCacheHitBackfillsPartialZeroTurns verifies that backfillCacheHitIfNeeded
+// triggers on the || condition when only Turns is zero, backfills Turns from the
+// activity summary, and leaves the non-zero SafeItemsCount untouched.
+func TestCacheHitBackfillsPartialZeroTurns(t *testing.T) {
+	t.Parallel()
+
+	runDir := t.TempDir()
+
+	summaryPath := filepath.Join(runDir, "usage", "activity", "summary.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(summaryPath), 0o755))
+	require.NoError(t, os.WriteFile(summaryPath, []byte(`{
+		"schema":"`+usageActivitySummarySchema+`",
+		"session":{"turns":34},
+		"safe_outputs":{"total_items":99}
+	}`), 0o644))
+
+	// Turns=0 triggers the guard; SafeItemsCount=5 is already non-zero.
+	result := DownloadResult{Run: WorkflowRun{Turns: 0, SafeItemsCount: 5}}
+
+	backfillCacheHitIfNeeded(&result, runDir, false)
+
+	assert.Equal(t, 34, result.Run.Turns, "stale Turns=0 must be backfilled when SafeItemsCount is non-zero")
+	assert.Equal(t, 5, result.Run.SafeItemsCount, "non-zero SafeItemsCount must not be overwritten when only Turns triggers the guard")
+}
+
+// TestCacheHitBackfillsPartialZeroSafeItemsCount verifies that backfillCacheHitIfNeeded
+// triggers on the || condition when only SafeItemsCount is zero, backfills SafeItemsCount
+// from the activity summary, and leaves the non-zero Turns untouched.
+func TestCacheHitBackfillsPartialZeroSafeItemsCount(t *testing.T) {
+	t.Parallel()
+
+	runDir := t.TempDir()
+
+	summaryPath := filepath.Join(runDir, "usage", "activity", "summary.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(summaryPath), 0o755))
+	require.NoError(t, os.WriteFile(summaryPath, []byte(`{
+		"schema":"`+usageActivitySummarySchema+`",
+		"session":{"turns":99},
+		"safe_outputs":{"total_items":4}
+	}`), 0o644))
+
+	// SafeItemsCount=0 triggers the guard; Turns=14 is already non-zero.
+	result := DownloadResult{Run: WorkflowRun{Turns: 14, SafeItemsCount: 0}}
+
+	backfillCacheHitIfNeeded(&result, runDir, false)
+
+	assert.Equal(t, 14, result.Run.Turns, "non-zero Turns must not be overwritten when only SafeItemsCount triggers the guard")
+	assert.Equal(t, 4, result.Run.SafeItemsCount, "stale SafeItemsCount=0 must be backfilled when Turns is non-zero")
+}
+
+// TestMetricsTurnsZeroDoesNotOverwriteBackfilledTurns verifies that
+// applyMetricsTurnsToRun preserves backfilled run.Turns when metrics.Turns is 0.
+// This is the case for usage-only artifact downloads where no events.jsonl/.log
+// files exist, so extractLogMetrics returns Turns=0.
+func TestMetricsTurnsZeroDoesNotOverwriteBackfilledTurns(t *testing.T) {
+	t.Parallel()
+
+	// Simulate a result where the backfill set Run.Turns=34 but Metrics.Turns=0
+	// because only the usage artifact was downloaded (no log files).
+	run := WorkflowRun{Turns: 34}
+	metrics := LogMetrics{Turns: 0}
+
+	applyMetricsTurnsToRun(&run, metrics)
+
+	assert.Equal(t, 34, run.Turns, "backfilled Turns must be preserved when Metrics.Turns is 0 (usage-only download)")
+}
+
+// TestMetricsTurnsNonZeroOverridesBackfilledTurns verifies that when full log
+// artifacts are present (Metrics.Turns > 0), applyMetricsTurnsToRun uses the more
+// precise log-derived count over the backfilled session.turns value.
+func TestMetricsTurnsNonZeroOverridesBackfilledTurns(t *testing.T) {
+	t.Parallel()
+
+	run := WorkflowRun{Turns: 34}    // backfilled from session.turns
+	metrics := LogMetrics{Turns: 36} // from events.jsonl (more precise)
+
+	applyMetricsTurnsToRun(&run, metrics)
+
+	assert.Equal(t, 36, run.Turns, "log-derived Metrics.Turns must override backfilled value when non-zero")
+}

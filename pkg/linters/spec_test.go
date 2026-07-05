@@ -11,6 +11,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	"github.com/github/gh-aw/pkg/linters"
+	"github.com/github/gh-aw/pkg/linters/appendbytestring"
 	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
 	"github.com/github/gh-aw/pkg/linters/deferinloop"
@@ -63,13 +64,13 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 37 analyzers
+// "Public API > Subpackages" table. The README documents 38 analyzers
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
 // Spec (README "Public API > Subpackages"):
 //
-//	contextcancelnotdeferred, ctxbackground, deferinloop, errorfwrapv, excessivefuncparams, errormessage,
+//	appendbytestring, contextcancelnotdeferred, ctxbackground, deferinloop, errorfwrapv, excessivefuncparams, errormessage,
 //	errortypeassertion, errstringmatch, execcommandwithoutcontext, fileclosenotdeferred, fmterrorfnoverbs, fprintlnsprintf,
 //	hardcodedfilepath, httpnoctx, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
 //	manualmutexunlock, osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
@@ -78,6 +79,7 @@ type docAnalyzer struct {
 //	tolowerequalfold, uncheckedtypeassertion, wgdonenotdeferred
 func documentedAnalyzers() []docAnalyzer {
 	return []docAnalyzer{
+		{"appendbytestring", appendbytestring.Analyzer},
 		{"contextcancelnotdeferred", contextcancelnotdeferred.Analyzer},
 		{"ctxbackground", ctxbackground.Analyzer},
 		{"deferinloop", deferinloop.Analyzer},

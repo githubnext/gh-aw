@@ -26,6 +26,7 @@ imports:
   - shared/gh.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/token-telemetry-check.md
 network:
   allowed:
     - defaults

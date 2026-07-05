@@ -12,5 +12,5 @@ import (
 
 func TestStringReplaceMinusOne(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, stringreplaceminusone.Analyzer, "stringreplaceminusone")
+	analysistest.RunWithSuggestedFixes(t, testdata, stringreplaceminusone.Analyzer, "stringreplaceminusone")
 }

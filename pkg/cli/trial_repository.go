@@ -522,16 +522,22 @@ func commitAndPushWorkflow(tempDir, workflowName string, verbose bool) error {
 		return fmt.Errorf("failed to commit changes: %w (output: %s)", err, string(output))
 	}
 
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from main branch"))
+	branch, err := getCurrentBranchIn(tempDir)
+	if err != nil {
+		trialRepoLog.Printf("Failed to detect branch in %s: %v, falling back to main", tempDir, err)
+		branch = "main"
 	}
-	cmd = exec.Command("git", "pull", "origin", "main")
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from "+branch+" branch"))
+	}
+	cmd = exec.Command("git", "pull", "--rebase", "origin", branch)
+	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to pull latest changes: %w (output: %s)", err, string(output))
 	}
 
-	// Push to main
-	cmd = exec.Command("git", "push", "origin", "main")
+	// Push to current branch
+	cmd = exec.Command("git", "push", "origin", branch)
 	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to push changes: %w (output: %s)", err, string(output))

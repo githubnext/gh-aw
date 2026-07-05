@@ -13,5 +13,5 @@ import (
 
 func TestSprintfInt(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, sprintfint.Analyzer, "sprintfint")
+	analysistest.RunWithSuggestedFixes(t, testdata, sprintfint.Analyzer, "sprintfint")
 }

@@ -34,6 +34,7 @@ imports:
   - shared/go-make.md
   - shared/github-mcp-app.md
   - shared/otlp.md
+  - shared/token-telemetry-check.md
 network:
   allowed:
     - defaults

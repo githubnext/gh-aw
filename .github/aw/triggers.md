@@ -50,6 +50,12 @@ Non-engineering personas:
   - publish with `create-issue` by default
   - reuse a stable deduplication key for the same scope and window
   - call `noop` when there are no updates in that window
+- **Compliance audit (material drift example)**:
+  - trigger `schedule: daily on weekdays` as the preferred baseline cadence, and add `workflow_dispatch` for ad hoc reruns
+  - define **material drift** as any control-state change that affects compliance posture (for example: required policy file removed, control owner missing, control status downgraded from pass to fail, or required approval evidence link missing)
+  - use `github` (`gh-proxy`) to compare current control evidence with the previous successful run window
+  - publish violations with `create-issue` using `close-older-issues: true` and a stable key such as `compliance-drift:<framework>:<window-id>`
+  - call `noop` when no material drift is detected in the selected window
 - **Compliance review (regulatory/policy)**: trigger `schedule` (monthly) or `pull_request` with `paths:` scoped to policy files, read current policy state via `github` (`gh-proxy`), produce a structured compliance report per control or requirement, publish with `create-issue` and `close-older-issues: true`, call `noop` when all controls pass.
 
 ### Program Manager and Information-Worker Digest Defaults
