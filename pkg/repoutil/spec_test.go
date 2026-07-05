@@ -63,3 +63,35 @@ func TestSpec_PublicAPI_SplitRepoSlug(t *testing.T) {
 		})
 	}
 }
+
+// TestSpec_PublicAPI_NormalizeRepoForAPI validates the documented behavior of
+// NormalizeRepoForAPI as described in the repoutil README.md specification.
+func TestSpec_PublicAPI_NormalizeRepoForAPI(t *testing.T) {
+	tests := []struct {
+		name              string
+		input             string
+		expectedOwnerRepo string
+		expectedHost      string
+	}{
+		{
+			name:              "plain owner repo keeps empty host",
+			input:             "github/gh-aw",
+			expectedOwnerRepo: "github/gh-aw",
+			expectedHost:      "",
+		},
+		{
+			name:              "host owner repo splits into owner repo and host",
+			input:             "ghe.example.com/github/gh-aw",
+			expectedOwnerRepo: "github/gh-aw",
+			expectedHost:      "ghe.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ownerRepo, host := NormalizeRepoForAPI(tt.input)
+			assert.Equal(t, tt.expectedOwnerRepo, ownerRepo, "owner/repo mismatch for input %q", tt.input)
+			assert.Equal(t, tt.expectedHost, host, "host mismatch for input %q", tt.input)
+		})
+	}
+}
