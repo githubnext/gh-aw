@@ -1,0 +1,40 @@
+{
+  "date": "2026-07-05",
+  "files_analyzed": {
+    "documentation": [
+      "docs/src/content/docs/reference/rate-limiting-controls.md",
+      "docs/src/content/docs/examples/multi-repo/feature-sync.md"
+    ],
+    "cli": ["gh aw compile (source review)", "gh aw run (source review)"],
+    "messages": [
+      ".github/workflows/smoke-project.md",
+      ".github/workflows/smoke-claude.md"
+    ],
+    "validation": [
+      "pkg/workflow/safe_outputs_validation_merge_pull_request_test.go"
+    ]
+  },
+  "overall_quality": "needs-minor-work",
+  "quality_highlights": [
+    {
+      "file": "pkg/workflow/safe_outputs_validation_merge_pull_request_test.go",
+      "aspect": "Error strings include exact field paths and index positions (e.g., safe-outputs.merge-pull-request.required-labels[1]). Textbook enterprise error design."
+    },
+    {
+      "file": "docs/src/content/docs/reference/rate-limiting-controls.md",
+      "aspect": "Every section includes a working code block, safe output limits table is crisp, [!NOTE] admonition well-placed, Troubleshooting uses bold lead-ins per scenario."
+    }
+  ],
+  "single_file_improvements": [
+    {
+      "file": "docs/src/content/docs/reference/rate-limiting-controls.md",
+      "priority": "high",
+      "issue": "Line 175: Best Practices section packs four distinct recommendations into one dense paragraph. Should be a numbered list with bold lead-ins."
+    },
+    {
+      "file": "docs/src/content/docs/examples/multi-repo/feature-sync.md",
+      "priority": "medium",
+      "issue": "Line 11: When to Use section lists four distinct use cases in a single comma-separated sentence. Should be a bullet list with bold lead-ins."
+    }
+  ]
+}

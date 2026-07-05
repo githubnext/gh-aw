@@ -1,6 +1,18 @@
 {
-  "last_updated": "2026-07-04",
+  "last_updated": "2026-07-05",
   "pending_tasks": [
+    {
+      "file": "docs/src/content/docs/reference/rate-limiting-controls.md",
+      "created": "2026-07-05",
+      "priority": "high",
+      "title": "Convert Best Practices paragraph (line 175) to numbered list with bold lead-ins"
+    },
+    {
+      "file": "docs/src/content/docs/examples/multi-repo/feature-sync.md",
+      "created": "2026-07-05",
+      "priority": "medium",
+      "title": "Convert When to Use run-on sentence (line 11) to bullet list with bold lead-ins"
+    },
     {
       "file": "docs/src/content/docs/guides/agentic-authoring.mdx",
       "created": "2026-07-04",
@@ -24,36 +36,6 @@
       "created": "2026-07-03",
       "priority": "high",
       "title": "Convert Best Practices wall-of-text to bullet list and remove duplicate 'Using MCPs' link in Related Documentation"
-    },
-    {
-      "file": "docs/src/content/docs/blog/2026-01-13-meet-the-workflows-documentation.md",
-      "created": "2026-07-01",
-      "priority": "high",
-      "title": "Replace theatrical opening paragraph with professional blog introduction"
-    },
-    {
-      "file": ".github/workflows/smoke-copilot.md",
-      "created": "2026-07-01",
-      "priority": "medium",
-      "title": "Fix run-success message: remove 'This is a developing story.' and replace 🎤 with ✅"
-    },
-    {
-      "file": "docs/src/content/docs/reference/repository-package-manifest.md",
-      "created": "2026-06-30",
-      "priority": "high",
-      "title": "Add WARNING admonition around 'Missing README.md causes package validation to fail'"
-    },
-    {
-      "file": ".github/workflows/smoke-agent-all-none.md",
-      "created": "2026-06-30",
-      "priority": "medium",
-      "title": "Improve run-failure message: replace generic 'Check the logs for details.' with hyperlinked '[View run logs]({run_url})'"
-    },
-    {
-      "file": ".github/workflows/pr-code-quality-reviewer.md",
-      "created": "2026-06-29",
-      "priority": "high",
-      "title": "Add 'See inline review comments for findings.' to run-success; add log link to run-failure"
     }
   ]
 }
