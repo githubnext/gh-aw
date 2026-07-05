@@ -11880,7 +11880,7 @@
           "properties": {
             "value": {
               "$ref": "#/$defs/positive_ai_credits_limit",
-              "description": "The maximum AI Credits budget (positive integer, K/M suffix, or expression)."
+              "description": "The maximum AI Credits budget (positive integer, K/M suffix, or expression). To disable the guardrail, use the scalar form `max-daily-ai-credits: -1` instead."
             },
             "github-app": {
               "$ref": "#/$defs/github_app",

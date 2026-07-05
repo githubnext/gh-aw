@@ -391,7 +391,7 @@ const dailyAICAppTokenStepID = "daily-aic-app-token"
 //
 // The step is gated on maxDailyAICreditsConfiguredIfExpr so it is skipped when
 // the guardrail is not active at runtime.
-func (c *Compiler) buildDailyAICAppTokenMintStep(app *GitHubAppConfig, data *WorkflowData) []string {
+func (c *Compiler) buildDailyAICAppTokenMintStep(app *GitHubAppConfig) []string {
 	var steps []string
 	steps = append(steps, "      - name: Generate GitHub App token for daily AIC guardrail\n")
 	steps = append(steps, fmt.Sprintf("        id: %s\n", dailyAICAppTokenStepID))
@@ -424,7 +424,7 @@ func (c *Compiler) resolveDailyAICToken(data *WorkflowData) string {
 		if data.MaxDailyAICreditsGitHubApp.shouldIgnoreMissingKey() {
 			return combineTokenExpressions(
 				fmt.Sprintf("${{ steps.%s.outputs.token }}", dailyAICAppTokenStepID),
-				"${{ secrets.GITHUB_TOKEN }}",
+				c.resolveActivationToken(data),
 			)
 		}
 		return fmt.Sprintf("${{ steps.%s.outputs.token }}", dailyAICAppTokenStepID)
@@ -437,7 +437,7 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 	// When a dedicated GitHub App is configured for the daily AIC guardrail, mint
 	// its token first so the subsequent steps can reference it.
 	if data.MaxDailyAICreditsGitHubApp != nil {
-		steps = append(steps, c.buildDailyAICAppTokenMintStep(data.MaxDailyAICreditsGitHubApp, data)...)
+		steps = append(steps, c.buildDailyAICAppTokenMintStep(data.MaxDailyAICreditsGitHubApp)...)
 	}
 	// Prepend cache restore step so cached AIC values from prior runs are available
 	// when the guardrail script runs, allowing it to skip artifact downloads.
