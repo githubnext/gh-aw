@@ -6,7 +6,6 @@ tools:
   bash: ["*"]
 
 imports:
-  - ../skills/jqschema/SKILL.md
   - shared/reporting.md
   - shared/copilot-pr-data-fetch.md
 ---
