@@ -544,6 +544,13 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.Experiments = experimentVariantsFromConfigs(workflowData.ExperimentConfigs)
 	workflowData.ExperimentsStorage = extractExperimentsStorageFromFrontmatter(frontmatter)
 
+	// Extract BinEval evals configuration.
+	evalsConfig, err := c.parseEvalsFromFrontmatter(frontmatter)
+	if err != nil {
+		return fmt.Errorf("invalid evals configuration: %w", err)
+	}
+	workflowData.Evals = evalsConfig
+
 	return nil
 }
 

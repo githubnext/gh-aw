@@ -4861,7 +4861,7 @@
     },
     "lsp": {
       "type": "object",
-      "description": "⚠️ Experimental. Top-level Language Server Protocol (LSP) configuration for Copilot CLI. Each key is a language identifier and each value defines the server command, args, and file extension mappings. Using this field emits a compile-time warning.",
+      "description": "\u26a0\ufe0f Experimental. Top-level Language Server Protocol (LSP) configuration for Copilot CLI. Each key is a language identifier and each value defines the server command, args, and file extension mappings. Using this field emits a compile-time warning.",
       "patternProperties": {
         "^[a-zA-Z0-9_-]+$": {
           "type": "object",
@@ -5151,7 +5151,7 @@
                       "$ref": "#/$defs/templatable_bool_or_int"
                     }
                   ],
-                  "description": "Title-based deduplication for create-issue. Set to true for exact title matching, or provide a non-negative integer (0–100) to deduplicate by Levenshtein edit distance (e.g., 1 allows one-character differences). Accepts a GitHub Actions expression that resolves to a boolean or integer at runtime. Applies within-run and against open/recently-closed repository issues."
+                  "description": "Title-based deduplication for create-issue. Set to true for exact title matching, or provide a non-negative integer (0\u2013100) to deduplicate by Levenshtein edit distance (e.g., 1 allows one-character differences). Accepts a GitHub Actions expression that resolves to a boolean or integer at runtime. Applies within-run and against open/recently-closed repository issues."
                 },
                 "target-repo": {
                   "type": "string",
@@ -11610,6 +11610,74 @@
           }
         }
       ]
+    },
+    "evals": {
+      "description": "BinEval binary evaluation questions to run after safe-outputs and before the conclusion job. Can be a plain list of questions (shorthand) or an object with questions, engine-config, and runs-on fields.",
+      "oneOf": [
+        {
+          "type": "array",
+          "description": "Shorthand form: plain list of evaluation question objects.",
+          "items": {
+            "type": "object",
+            "required": ["id", "question"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the evaluation question."
+              },
+              "question": {
+                "type": "string",
+                "description": "The binary (YES/NO) question to evaluate."
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "description": "Extended form: object with questions list and optional configuration.",
+          "additionalProperties": false,
+          "properties": {
+            "questions": {
+              "type": "array",
+              "description": "List of binary evaluation question objects.",
+              "items": {
+                "type": "object",
+                "required": ["id", "question"],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique identifier for the evaluation question."
+                  },
+                  "question": {
+                    "type": "string",
+                    "description": "The binary (YES/NO) question to evaluate."
+                  }
+                }
+              }
+            },
+            "engine-config": {
+              "description": "Engine configuration override for the evaluation model. Allows specifying a small/cheap model.",
+              "type": "object"
+            },
+            "runs-on": {
+              "description": "Runner override for the evals job.",
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array"
+                },
+                {
+                  "type": "object"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   },
   "additionalProperties": false,
@@ -11797,7 +11865,7 @@
       ]
     },
     "templatable_bool_or_int": {
-      "description": "A boolean or non-negative integer (0–100) value that may also be specified as a GitHub Actions expression string that resolves to a boolean or integer at runtime (e.g. '${{ inputs.dedup }}').",
+      "description": "A boolean or non-negative integer (0\u2013100) value that may also be specified as a GitHub Actions expression string that resolves to a boolean or integer at runtime (e.g. '${{ inputs.dedup }}').",
       "oneOf": [
         {
           "type": "boolean"
@@ -12127,19 +12195,51 @@
                       "description": "Custom Node.js harness script filename. This replaces the engine's built-in harness wrapper and must end with .js, .cjs, or .mjs."
                     },
                     "max-retries": {
-                      "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }],
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
                       "description": "Maximum retry attempts after the initial run (0 = no retries). Accepts a literal integer or a GitHub Actions expression."
                     },
                     "initial-delay-ms": {
-                      "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }],
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
                       "description": "Delay in ms before the first retry. Accepts a literal integer or a GitHub Actions expression."
                     },
                     "backoff-multiplier": {
-                      "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "string" }],
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
                       "description": "Multiplier applied to the delay after each retry. Accepts a literal integer or a GitHub Actions expression."
                     },
                     "max-delay-ms": {
-                      "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }],
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
                       "description": "Maximum delay cap in ms. Accepts a literal integer or a GitHub Actions expression."
                     }
                   },
