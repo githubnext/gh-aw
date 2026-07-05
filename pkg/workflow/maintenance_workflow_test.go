@@ -2269,6 +2269,21 @@ func TestEffectiveSideRepoToken(t *testing.T) {
 			t.Errorf("expected fallback secret, got %q", got)
 		}
 	})
+
+	t.Run("explicit github-token wins when both token and app are set", func(t *testing.T) {
+		target := SideRepoTarget{
+			Repository:  "org/repo",
+			GitHubToken: "${{ secrets.EXPLICIT_TOKEN }}",
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ secrets.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_KEY }}",
+			},
+		}
+		got := effectiveSideRepoToken(target)
+		if got != "${{ secrets.EXPLICIT_TOKEN }}" {
+			t.Errorf("expected explicit token to win, got %q", got)
+		}
+	})
 }
 
 func TestSanitizeRepoForFilename(t *testing.T) {

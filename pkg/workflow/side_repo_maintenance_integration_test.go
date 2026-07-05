@@ -417,20 +417,40 @@ This workflow uses a GitHub App for cross-repo authentication.
 	content, err := os.ReadFile(sideRepoFile)
 	require.NoError(t, err, "side-repo maintenance file should have been created")
 	contentStr := string(content)
+	extractJobContent := func(jobName string) string {
+		t.Helper()
+		startMarker := "  " + jobName + ":\n"
+		start := strings.Index(contentStr, startMarker)
+		require.GreaterOrEqualf(t, start, 0, "%s job must be present", jobName)
+		searchStart := start + len(startMarker)
+		end := len(contentStr)
+		for _, candidate := range []string{"close-expired-entities", "apply_safe_outputs", "create_labels", "activity_report", "validate_workflows"} {
+			next := strings.Index(contentStr[searchStart:], "\n  "+candidate+":\n")
+			if next >= 0 {
+				candidateStart := searchStart + next
+				if candidateStart < end {
+					end = candidateStart
+				}
+			}
+		}
+		return contentStr[start:end]
+	}
 
 	// The minted token reference must be used (not the fallback secret).
 	assert.Contains(t, contentStr, "steps.side-repo-app-token.outputs.token",
 		"minted app token should be referenced via steps output")
-	assert.NotContains(t, contentStr, "secrets.GH_AW_GITHUB_TOKEN",
-		"fallback GH_AW_GITHUB_TOKEN should not appear when github-app auth is configured")
-
-	// Each cross-repo job must contain the create-github-app-token mint step.
-	assert.Contains(t, contentStr, "create-github-app-token",
-		"create-github-app-token action should be present in the workflow")
-	assert.Contains(t, contentStr, "id: side-repo-app-token",
-		"mint step should have the expected step ID")
-	assert.Contains(t, contentStr, "Generate GitHub App token",
-		"mint step should have the expected step name")
+	// Each cross-repo job should include the mint step and avoid fallback secret use.
+	for _, jobName := range []string{"apply_safe_outputs", "create_labels", "activity_report"} {
+		jobContent := extractJobContent(jobName)
+		assert.Containsf(t, jobContent, "create-github-app-token",
+			"%s job should include create-github-app-token action", jobName)
+		assert.Containsf(t, jobContent, "id: side-repo-app-token",
+			"%s job should include mint step ID", jobName)
+		assert.Containsf(t, jobContent, "Generate GitHub App token",
+			"%s job should include mint step name", jobName)
+		assert.NotContainsf(t, jobContent, "secrets.GH_AW_GITHUB_TOKEN",
+			"%s job should not use fallback GH_AW_GITHUB_TOKEN when github-app auth is configured", jobName)
+	}
 
 	// GitHub App credentials must be forwarded.
 	assert.Contains(t, contentStr, "secrets.ASPIRE_BOT_APP_ID",
@@ -460,9 +480,7 @@ This workflow uses a GitHub App for cross-repo authentication.
 
 	// Validate that the mint step appears before the first token-using step in at
 	// least one job by checking ordering within apply_safe_outputs.
-	applyIdx := strings.Index(contentStr, "apply_safe_outputs:")
-	require.Greater(t, applyIdx, 0, "apply_safe_outputs job must be present")
-	applyJobContent := contentStr[applyIdx:]
+	applyJobContent := extractJobContent("apply_safe_outputs")
 	mintIdx := strings.Index(applyJobContent, "id: side-repo-app-token")
 	tokenUseIdx := strings.Index(applyJobContent, "steps.side-repo-app-token.outputs.token")
 	assert.Greater(t, mintIdx, 0, "mint step must be present in apply_safe_outputs job")

@@ -46,7 +46,7 @@ const sideRepoAppTokenStepID = "side-repo-app-token"
 
 // sideRepoAppTokenRef is the GitHub Actions expression that references the minted
 // token output from the sideRepoAppTokenStepID step.
-const sideRepoAppTokenRef = "${{ steps.side-repo-app-token.outputs.token }}"
+const sideRepoAppTokenRef = "${{ steps." + sideRepoAppTokenStepID + ".outputs.token }}"
 
 // sideRepoAuth accumulates authentication configuration for a single side-repo target.
 // GitHubToken and GitHubApp are mutually exclusive (matching CheckoutConfig).
@@ -124,6 +124,9 @@ func collectSideRepoTargets(workflowDataList []*WorkflowData) []SideRepoTarget {
 // when a GitHub App is configured it returns the minted token reference; when
 // neither is set it falls back to a conventional secret name.
 func effectiveSideRepoToken(checkout SideRepoTarget) string {
+	if checkout.GitHubToken != "" && checkout.GitHubApp != nil {
+		maintenanceLog.Printf("SideRepoTarget %s has both GitHubToken and GitHubApp configured; using explicit GitHubToken", checkout.Repository)
+	}
 	if checkout.GitHubToken != "" {
 		return checkout.GitHubToken
 	}
@@ -138,11 +141,11 @@ func effectiveSideRepoToken(checkout SideRepoTarget) string {
 // maintenance job. The step ID is sideRepoAppTokenStepID so the minted token is
 // referenced via sideRepoAppTokenRef by subsequent steps in the same job.
 func sideRepoAppTokenMintStepYAML(app *GitHubAppConfig, targetRepo string) string {
-	c := NewCompiler()
+	var c Compiler
 	lines := c.buildGitHubAppTokenMintStepWithMeta(
 		app,
 		nil, // no additional permission scoping; the app's installation grants determine access
-		"",  // no fallback repo expression; the app.Repositories field handles scoping
+		targetRepo,
 		targetRepo,
 		"Generate GitHub App token",
 		sideRepoAppTokenStepID,
@@ -276,9 +279,11 @@ func generateSideRepoMaintenanceWorkflow(
 	// Compute the GitHub App token mint step YAML once; it is inserted as the
 	// first step of every cross-repo job when app-based auth is configured.
 	var mintStepYAML string
-	if target.GitHubApp != nil {
+	if target.GitHubApp != nil && target.GitHubToken == "" {
 		mintStepYAML = sideRepoAppTokenMintStepYAML(target.GitHubApp, target.Repository)
 		maintenanceLog.Printf("GitHub App auth configured for %s; will emit mint step in cross-repo jobs", repoSlug)
+	} else if target.GitHubApp != nil {
+		maintenanceLog.Printf("SideRepoTarget %s has both GitHubToken and GitHubApp configured; skipping app token mint step", repoSlug)
 	}
 
 	var yaml strings.Builder
