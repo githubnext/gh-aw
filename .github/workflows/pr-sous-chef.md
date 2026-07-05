@@ -255,7 +255,7 @@ When this workflow is triggered by the `/souschef` slash command on a PR comment
 1. Read `/tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json` first.
 2. If `prs` is empty, create the run-report issue (see **Run summary** below) and stop. If `create_issue` is unavailable, fall back to `noop` with the message `"processed=0; nudged=0; no eligible PRs"` and stop.
 3. Process PRs in `updatedAt` descending order.
-4. Process at most **5 PRs** per run.
+4. Process all eligible PRs per run.
 5. Use the `pr-processor` sub-agent for each PR; pass only the PR number and compact context.
 6. If a `pr-processor` call returns non-JSON or an error, record `{pr_number: <N>, skip_reason: "sub_agent_error"}` in the `skipped` array of the run-summary issue payload and move to the next PR without retrying.
 7. Do not fetch full PR diffs or large file lists unless absolutely required for a skip decision.
