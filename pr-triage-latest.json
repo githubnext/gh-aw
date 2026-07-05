@@ -1,13 +1,13 @@
 {
-  "run_date": "2026-07-04T18:31:47Z",
-  "run_id": "28715668077",
-  "prior_run_prs_closed": 4,
+  "run_date": "2026-07-05T01:04:34Z",
+  "run_id": "28725134784",
+  "prior_run_id": "28715668077",
   "summary": {
     "total": 17,
-    "new": 14,
-    "carry_over": 3,
+    "new": 1,
+    "carry_over": 16,
     "fast_track": 3,
-    "batch_review": 8,
+    "batch_review": 9,
     "defer": 4,
     "close": 2
   },
@@ -43,7 +43,7 @@
       "score": 68,
       "action": "fast_track",
       "draft": false,
-      "ci": "copilot_check_passed",
+      "ci": "passing",
       "review": "changes_requested",
       "note": "CHANGES_REQUESTED: correctness regression in transient-error classifier. Author must fix before merge."
     },
@@ -88,6 +88,17 @@
       "draft": true
     },
     {
+      "number": 43414,
+      "title": "Targeted custom-lint cleanup: defer-in-loop resource handling and continuation options struct",
+      "category": "bug",
+      "risk": "low",
+      "score": 55,
+      "action": "batch_review",
+      "batch": "pr-batch:go-bugfix",
+      "draft": true,
+      "note": "5 files, Go lint cleanup. Labels applied this run."
+    },
+    {
       "number": 43404,
       "title": "fix(eslint): detect dropped await on local core.summary aliases",
       "category": "bug",
@@ -98,15 +109,16 @@
       "draft": true
     },
     {
-      "number": 43376,
-      "title": "test: add golden files and RunWithSuggestedFixes for 3 autofix linters",
-      "category": "test",
+      "number": 43440,
+      "title": "Fix TypeScript never-narrowing in require-async-entrypoint-catch for setup/js lint path",
+      "category": "bug",
       "risk": "low",
-      "score": 52,
+      "score": 49,
       "action": "batch_review",
-      "batch": "pr-batch:draft-backlog",
-      "draft": false,
-      "note": "Previously draft, now open. Design Decision Gate pending."
+      "batch": "pr-batch:eslint-bugfix",
+      "draft": true,
+      "new_this_run": true,
+      "note": "2 files, +31/-12. New this run. Labeled and commented."
     },
     {
       "number": 43403,
@@ -117,6 +129,16 @@
       "action": "batch_review",
       "batch": "pr-batch:new-workflows",
       "draft": true
+    },
+    {
+      "number": 43376,
+      "title": "test: add golden files and RunWithSuggestedFixes for 3 autofix linters",
+      "category": "test",
+      "risk": "low",
+      "score": 52,
+      "action": "batch_review",
+      "batch": "pr-batch:draft-backlog",
+      "draft": false
     },
     {
       "number": 43412,
@@ -137,16 +159,6 @@
       "draft": true
     },
     {
-      "number": 43421,
-      "title": "Add daily HTML-change Playwright test generator workflow",
-      "category": "feature",
-      "risk": "medium",
-      "score": 28,
-      "action": "defer",
-      "batch": "pr-batch:new-workflows",
-      "draft": true
-    },
-    {
       "number": 43145,
       "title": "Clarify checkout, safe-outputs, and cross-repo credential precedence",
       "category": "docs",
@@ -154,7 +166,7 @@
       "score": 28,
       "action": "defer",
       "draft": true,
-      "note": "Carry-over 3rd run. Still draft."
+      "note": "Carry-over 4th run. Still draft."
     },
     {
       "number": 43408,
@@ -174,18 +186,7 @@
       "score": 18,
       "action": "close",
       "draft": true,
-      "note": "Stale 5+ days, 288 files, no active review. Recommend close."
-    },
-    {
-      "number": 43414,
-      "title": "Targeted custom-lint cleanup: defer-in-loop resource handling and continuation options struct",
-      "category": "bug",
-      "risk": "low",
-      "score": 55,
-      "action": "batch_review",
-      "batch": "pr-batch:go-bugfix",
-      "draft": true,
-      "note": "5 files, includes action_pins churn. Go lint cleanup."
+      "note": "Stale 6+ days, 288 files, no active review. Recommend close."
     }
   ],
   "batches": [
@@ -196,13 +197,13 @@
     },
     {
       "id": "pr-batch:new-workflows",
-      "prs": [43411, 43403, 43421],
-      "note": "New/updated workflow YAML/md files."
+      "prs": [43411, 43403],
+      "note": "New/updated workflow YAML/md files. (43421 closed)"
     },
     {
       "id": "pr-batch:eslint-bugfix",
-      "prs": [43404],
-      "note": "ESLint rule fixes."
+      "prs": [43404, 43440],
+      "note": "ESLint rule fixes. 43440 new this run."
     },
     {
       "id": "pr-batch:draft-backlog",
@@ -213,9 +214,10 @@
   "flags": [
     "PR 43383 CHANGES_REQUESTED: correctness regression in error classifier — author must fix",
     "PR 43408 empty diff (0 files changed) — close immediately",
-    "PR 42314 stale 5+ days 288 files — recommend close",
-    "Action pins churn (+756/-756) present in 9 PRs — auto-generated noise, skip in review",
-    "Burst of 11 draft PRs opened in 4-hour window on 2026-07-04"
+    "PR 42314 stale 6+ days 288 files — recommend close",
+    "Action pins churn (+756/-756) in multiple PRs — auto-generated noise, skip in review",
+    "PR 43440 new this run: TypeScript narrowing bug in eslint-factory"
   ],
-  "newly_closed_since_prior": [43375, 43366, 43356, 43364]
+  "newly_closed_since_prior": [43421],
+  "report_issue_tid": "aw_triage_run5"
 }
