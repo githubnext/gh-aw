@@ -17,6 +17,53 @@ const maxDailyAICreditsField = "max-daily-ai-credits"
 const maxDailyAICreditsEnvVar = "GH_AW_MAX_DAILY_AI_CREDITS"
 const maxDailyAICreditsConfiguredIfExpr = "${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}"
 
+// extractMaxDailyAICObjectValue normalizes the max-daily-ai-credits frontmatter
+// value for scalar processing. When the value is in the object form
+// (e.g. {value: 123, github-app: {...}}), the inner "value" key is extracted
+// and returned; otherwise the original value is returned unchanged.
+func extractMaxDailyAICObjectValue(raw any) any {
+	if m, ok := raw.(map[string]any); ok {
+		if v, ok := m["value"]; ok {
+			return v
+		}
+	}
+	return raw
+}
+
+// extractMaxDailyAICGitHubApp extracts the optional github-app configuration
+// from the object form of the max-daily-ai-credits frontmatter field.
+//
+//	max-daily-ai-credits:
+//	  value: 123
+//	  github-app:
+//	    client-id: ${{ vars.APP_ID }}
+//	    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+//
+// Returns nil when the field is not in object form or no valid github-app is present.
+func extractMaxDailyAICGitHubApp(frontmatter map[string]any) *GitHubAppConfig {
+	raw, ok := frontmatter[maxDailyAICreditsField]
+	if !ok {
+		return nil
+	}
+	rawMap, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	appAny, ok := rawMap["github-app"]
+	if !ok {
+		return nil
+	}
+	appMap, ok := appAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	app := parseAppConfig(appMap)
+	if app.AppID == "" || app.PrivateKey == "" {
+		return nil
+	}
+	return app
+}
+
 // parseMaxDailyAICValue normalizes max-daily-ai-credits
 // values into a runtime-ready string.
 //
@@ -50,10 +97,11 @@ func parseMaxDailyAICValue(raw any) *string {
 }
 
 func isMaxDailyAICDisabled(raw any) bool {
-	if val, ok := typeutil.ParseIntValue(raw); ok {
+	effective := extractMaxDailyAICObjectValue(raw)
+	if val, ok := typeutil.ParseIntValue(effective); ok {
 		return val == -1
 	}
-	rawStr, ok := raw.(string)
+	rawStr, ok := effective.(string)
 	if !ok {
 		return false
 	}
@@ -61,10 +109,11 @@ func isMaxDailyAICDisabled(raw any) bool {
 }
 
 func resolveMaxDailyAICFromRaw(raw any) (*string, bool) {
-	if isMaxDailyAICDisabled(raw) {
+	effective := extractMaxDailyAICObjectValue(raw)
+	if isMaxDailyAICDisabled(effective) {
 		return nil, true
 	}
-	if value := parseMaxDailyAICValue(raw); value != nil {
+	if value := parseMaxDailyAICValue(effective); value != nil {
 		return value, true
 	}
 	return nil, false
@@ -129,7 +178,8 @@ func validateMaxDailyAICFrontmatter(data *WorkflowData) error {
 	if !ok {
 		return nil
 	}
-	if val, ok := typeutil.ParseIntValue(raw); ok && val < -1 {
+	effective := extractMaxDailyAICObjectValue(raw)
+	if val, ok := typeutil.ParseIntValue(effective); ok && val < -1 {
 		return fmt.Errorf("%s must be -1 (disable) or a positive integer, got %d", maxDailyAICreditsField, val)
 	}
 	return nil

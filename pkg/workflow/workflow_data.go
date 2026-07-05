@@ -36,23 +36,24 @@ type SkipIfCheckFailingConfig struct {
 }
 type WorkflowData struct {
 	Name                           string
-	WorkflowID                     string         // workflow identifier derived from markdown filename (basename without extension)
-	TrialMode                      bool           // whether the workflow is running in trial mode
-	TrialLogicalRepo               string         // target repository slug for trial mode (owner/repo)
-	UseSamples                     bool           // whether the agentic step should be replaced by a deterministic samples replay driver (hidden feature)
-	FrontmatterName                string         // name field from frontmatter (for code scanning alert driver default)
-	FrontmatterEmoji               string         // emoji field from frontmatter (for display in footers and UI)
-	FrontmatterYAML                string         // raw frontmatter YAML content (rendered as comment in lock file for reference)
-	FrontmatterHash                string         // SHA-256 hash of frontmatter (computed before job building, used to derive stable heredoc delimiters)
-	FrontmatterFieldLines          map[string]int // absolute 1-based line numbers of top-level frontmatter keys in the source file (populated by parser)
-	RawMarkdown                    string         // raw markdown body before include expansion, used for frontmatter hash computation without re-reading the file
-	Description                    string         // optional description rendered as comment in lock file
-	Source                         string         // optional source field (owner/repo@ref/path) rendered as comment in lock file
-	Redirect                       string         // optional redirect field describing a moved workflow location
-	TrackerID                      string         // optional tracker identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
-	MaxDailyAICredits              *string        // optional 24-hour per-workflow ET threshold (numeric string or GitHub Actions expression)
-	ImportedFiles                  []string       // list of files imported via imports field (rendered as comment in lock file)
-	Skills                         []string       // skill specs from frontmatter (owner/repo@sha or owner/repo/skill/path@sha)
+	WorkflowID                     string           // workflow identifier derived from markdown filename (basename without extension)
+	TrialMode                      bool             // whether the workflow is running in trial mode
+	TrialLogicalRepo               string           // target repository slug for trial mode (owner/repo)
+	UseSamples                     bool             // whether the agentic step should be replaced by a deterministic samples replay driver (hidden feature)
+	FrontmatterName                string           // name field from frontmatter (for code scanning alert driver default)
+	FrontmatterEmoji               string           // emoji field from frontmatter (for display in footers and UI)
+	FrontmatterYAML                string           // raw frontmatter YAML content (rendered as comment in lock file for reference)
+	FrontmatterHash                string           // SHA-256 hash of frontmatter (computed before job building, used to derive stable heredoc delimiters)
+	FrontmatterFieldLines          map[string]int   // absolute 1-based line numbers of top-level frontmatter keys in the source file (populated by parser)
+	RawMarkdown                    string           // raw markdown body before include expansion, used for frontmatter hash computation without re-reading the file
+	Description                    string           // optional description rendered as comment in lock file
+	Source                         string           // optional source field (owner/repo@ref/path) rendered as comment in lock file
+	Redirect                       string           // optional redirect field describing a moved workflow location
+	TrackerID                      string           // optional tracker identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
+	MaxDailyAICredits              *string          // optional 24-hour per-workflow ET threshold (numeric string or GitHub Actions expression)
+	MaxDailyAICreditsGitHubApp     *GitHubAppConfig // optional GitHub App for minting the token used by the daily AIC guardrail
+	ImportedFiles                  []string         // list of files imported via imports field (rendered as comment in lock file)
+	Skills                         []string         // skill specs from frontmatter (owner/repo@sha or owner/repo/skill/path@sha)
 	SkillReferences                []SkillReference
 	ImportedMarkdown               string   // Only imports WITH inputs (for compile-time substitution)
 	ImportPaths                    []string // Import file paths for runtime-import macro generation (imports without inputs)
