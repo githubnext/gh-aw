@@ -152,8 +152,9 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 // point at the true source line and provide user-facing wording.
 func improveFrontmatterDiagnostic(content, line, col, message string) (string, string, string) {
 	lower := strings.ToLower(strings.TrimSpace(message))
-	// Only the translated phrase is checked here because TranslateYAMLMessage runs
-	// before improveFrontmatterDiagnostic; the raw parser wording is never seen.
+	// Only the translated phrase is checked here because parser.TranslateYAMLMessage
+	// runs before improveFrontmatterDiagnostic (see createFrontmatterError); the raw
+	// parser wording is never seen by the time this function is called.
 	isScalarWithNestedKey := strings.Contains(lower, "value cannot have child keys here")
 	if !isScalarWithNestedKey {
 		return line, col, message
@@ -273,8 +274,9 @@ func renderSourceContextForPosition(content string, targetLine, targetCol int) s
 		}
 		fmt.Fprintf(&b, "%s %3d | %s\n", prefix, lineNum, lines[lineNum-1])
 		if lineNum == targetLine {
-			// The source-context prefix is 8 characters: one prefix char ("%s"), one space, three
-			// digits ("%3d"), and " | " — so targetCol=1 requires 8 leading spaces before "^".
+			// The source-context prefix is: one prefix char ("%s") + one space + three-digit
+			// line number ("%3d") + " | " = 7 fixed chars plus the variable prefix char = 8
+			// total. Column N therefore needs 7+N spaces before the caret character.
 			fmt.Fprintf(&b, "%s^\n", strings.Repeat(" ", 7+targetCol))
 		}
 	}
