@@ -3,7 +3,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-import { ensureSafeOutputsTools, formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync, showHelp, showToolHelp, writeStdoutAndFlush } from "./mcp_cli_bridge.cjs";
+import { ensureSafeOutputsTools, formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync, shouldShowToolHelpForEmptyArgs, showHelp, showToolHelp, writeStdoutAndFlush } from "./mcp_cli_bridge.cjs";
 
 describe("mcp_cli_bridge.cjs", () => {
   let originalCore;
@@ -190,6 +190,39 @@ describe("mcp_cli_bridge.cjs", () => {
     }
   });
 
+  it("shows help instead of calling required-argument tools with an empty args object", () => {
+    expect(
+      shouldShowToolHelpForEmptyArgs(
+        {
+          inputSchema: {
+            required: ["title", "body"],
+          },
+        },
+        {}
+      )
+    ).toBe(true);
+    expect(
+      shouldShowToolHelpForEmptyArgs(
+        {
+          inputSchema: {
+            required: ["title", "body"],
+          },
+        },
+        { title: "Bug report" }
+      )
+    ).toBe(false);
+    expect(
+      shouldShowToolHelpForEmptyArgs(
+        {
+          inputSchema: {
+            required: [],
+          },
+        },
+        {}
+      )
+    ).toBe(false);
+  });
+
   it("coerces scientific notation when schema properties are unavailable", () => {
     const { args } = parseToolArgs(["--max_tokens", "1e3", "--threshold", "-2E-4"], {});
 
@@ -246,6 +279,25 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(stderrChunks.join("")).toContain("Progress: 2/5");
     expect(stdoutChunks.join("")).toBe("ok\n");
     expect(process.exitCode).toBe(0);
+  });
+
+  it("adds a non-retry hint for safeoutputs empty-argument rejections", async () => {
+    await formatResponse(
+      {
+        error: {
+          code: -32602,
+          message: "Empty arguments are not allowed — this tool is write-once, not a discovery probe.",
+        },
+      },
+      "safeoutputs",
+      "create_issue"
+    );
+
+    const stderr = stderrChunks.join("");
+    expect(stderr).toContain("Error [-32602]: Empty arguments are not allowed");
+    expect(stderr).toContain("do not retry 'safeoutputs create_issue' with empty arguments");
+    expect(stderr).toContain("safeoutputs create_issue --help");
+    expect(process.exitCode).toBe(1);
   });
 
   it("keeps top-level help compact for many commands", () => {
