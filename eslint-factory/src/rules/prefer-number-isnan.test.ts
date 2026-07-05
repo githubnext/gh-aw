@@ -34,9 +34,12 @@ describe("prefer-number-isnan", () => {
       valid: [
         `function isNaN(value) { return false; } isNaN(value);`,
         `const isNaN = Number.isNaN; isNaN(value);`,
+        `import { isNaN } from "lodash"; isNaN(value);`,
         `const globalThis = { isNaN(value) { return value; } }; globalThis.isNaN(value);`,
         `const window = { isNaN(value) { return value; } }; window["isNaN"](value);`,
         `const global = { isNaN(value) { return value; } }; global.isNaN(value);`,
+        `import { window } from "./browser-shim"; window.isNaN(value);`,
+        `import { global } from "./server-shim"; global["isNaN"](value);`,
         // Dynamic computed access — identifier property reference, not string literal "isNaN"
         `globalThis[isNaN](value);`,
       ],
