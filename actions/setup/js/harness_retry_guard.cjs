@@ -57,7 +57,7 @@ function detectNonRetryableHarnessGuard(output) {
 function countWriteOnceProbeRejections(output) {
   const safeOutput = typeof output === "string" ? output : "";
   if (!safeOutput) return 0;
-  const matches = safeOutput.match(/write-once, not a discovery probe/g);
+  const matches = safeOutput.match(WRITE_ONCE_PROBE_REJECTION_PATTERN);
   return matches ? matches.length : 0;
 }
 

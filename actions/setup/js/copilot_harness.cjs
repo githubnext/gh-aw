@@ -1034,7 +1034,7 @@ async function main() {
         if (hasExcessiveProbeRejections) {
           emitInfrastructureIncomplete(
             `Agent entered a write-once probe loop: ${probeRejectionCount} repeated -32602 errors from empty-argument safe-output tool calls. ` +
-              `The agent should call noop with a message, or use tools/list to inspect schemas before calling tools.`
+              `The agent should call noop with a message, or use the tools/list MCP method to inspect schemas before calling tools.`
           );
           log(
             `attempt ${attempt + 1}: excessive write-once probe rejections detected (count=${probeRejectionCount}, threshold=${WRITE_ONCE_PROBE_REJECTION_THRESHOLD}) — not retrying (agent probe loop terminated; retrying would reproduce the same loop)`
