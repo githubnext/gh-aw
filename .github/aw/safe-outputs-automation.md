@@ -74,11 +74,11 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
   ```
 
   Triggers other agentic workflows using workflow_dispatch. Agent output includes `workflow_name` (without .md extension) and optional `inputs` (key-value pairs). Cross-repo dispatch is supported via `target-repo` plus an `allowed-repos` allowlist; cross-repo targets require a token with `actions: write` on the target repository.
-- `dispatch_repository:` - Dispatch `repository_dispatch` events to external repositories (experimental)
+- `dispatch-repository:` - Dispatch `repository_dispatch` events to external repositories (experimental)
 
   ```yaml
   safe-outputs:
-    dispatch_repository:
+    dispatch-repository:
       trigger_ci:                              # Tool name (normalized to MCP tool: trigger_ci)
         description: "Trigger CI in target repo"
         workflow: ci.yml                       # Required: target workflow name (for traceability)
@@ -97,7 +97,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
         staged: false                         # Optional: preview-only mode
   ```
 
-  Accepts both `dispatch_repository` (underscore, preferred) and `dispatch-repository` (dash). Each key in the config defines a named MCP tool. Requires a token with `repo` scope since `GITHUB_TOKEN` cannot trigger `repository_dispatch` in external repositories. Use `github-token` or set a PAT as `GH_AW_SAFE_OUTPUTS_TOKEN`.
+  Accepts both `dispatch-repository` (dash, canonical) and `dispatch_repository` (underscore, deprecated alias). Each key in the config defines a named MCP tool. Requires a token with `repo` scope since `GITHUB_TOKEN` cannot trigger `repository_dispatch` in external repositories. Use `github-token` or set a PAT as `GH_AW_SAFE_OUTPUTS_TOKEN`.
 
   **⚠️ Experimental**: Compilation emits a warning when this feature is used.
 - `call-workflow:` - Call reusable workflows via workflow_call fan-out (orchestrator pattern)
