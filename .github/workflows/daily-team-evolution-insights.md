@@ -303,4 +303,9 @@ Always create a GitHub Discussion with your findings using this structure:
 
 Begin your analysis now. Gather the data, identify the patterns, and create an insightful discussion about the team's evolution.
 
+
+### Output Format
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 {{#runtime-import shared/noop-reminder.md}}

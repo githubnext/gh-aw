@@ -77,6 +77,8 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
 
   Set `allow-body: false` to guarantee a clean close with no comment — useful when an earlier `add-comment` step already posted the summary and you want to prevent the agent from duplicating it.
 
+  To close as a duplicate, the agent emits `duplicate_of` in the `close_issue` output (a bare number, `#N`, `owner/repo#N`, or issue URL) together with `state-reason: duplicate`; this creates a native GitHub duplicate relationship (a `marked_as_duplicate` timeline event) rather than just a comment.
+
 - `create-discussion:` - Safe GitHub discussion creation (status, audits, reports, logs)
 
   ```yaml

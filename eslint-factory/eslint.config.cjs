@@ -13,6 +13,7 @@ module.exports = [
     },
     rules: {
       "gh-aw-custom/no-core-setoutput-non-string": "warn",
+      "gh-aw-custom/no-json-stringify-error": "warn",
       "gh-aw-custom/no-unsafe-catch-error-property": "warn",
       "gh-aw-custom/no-unsafe-promise-catch-error-property": "warn",
       "gh-aw-custom/prefer-get-error-message": "warn",

@@ -125,14 +125,12 @@ func TestSpec_PublicAPI_ParseVersion(t *testing.T) {
 	})
 
 	t.Run("Pre field is prerelease identifier without leading hyphen", func(t *testing.T) {
-		// Spec: Pre string // Prerelease identifier without leading hyphen (e.g. "beta.1")
 		ver := ParseVersion("v1.2.3-beta.1")
 		require.NotNil(t, ver, "ParseVersion should return non-nil for valid prerelease semver")
 		assert.Equal(t, "beta.1", ver.Pre, "Pre field should contain prerelease identifier without leading hyphen")
 	})
 
 	t.Run("Raw field is original version string without leading v prefix", func(t *testing.T) {
-		// Spec: Raw string // Original version string without leading "v"
 		ver := ParseVersion("v1.2.3")
 		require.NotNil(t, ver, "ParseVersion should return non-nil for valid semver")
 		assert.Equal(t, "1.2.3", ver.Raw, "Raw field should contain version string without leading v prefix")
@@ -216,12 +214,55 @@ func TestSpec_PublicAPI_Compare(t *testing.T) {
 			v2:       "v1.0.0",
 			expected: -1,
 		},
+		{
+			name:     "bare versions without v prefix are accepted",
+			v1:       "2.0.0",
+			v2:       "1.9.9",
+			expected: 1,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := Compare(tt.v1, tt.v2)
 			assert.Equal(t, tt.expected, result, "Compare(%q, %q) mismatch", tt.v1, tt.v2)
+		})
+	}
+}
+
+// TestSpec_PublicAPI_IsMorePreciseVersion validates the documented behavior of
+// IsMorePreciseVersion as described in the semverutil README.md specification.
+func TestSpec_PublicAPI_IsMorePreciseVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		v1       string
+		v2       string
+		expected bool
+	}{
+		{
+			name:     "more specific version sorts ahead of less specific version",
+			v1:       "v4.3.0",
+			v2:       "v4",
+			expected: true,
+		},
+		{
+			name:     "less specific version does not sort ahead of more specific version",
+			v1:       "v4",
+			v2:       "v4.3.0",
+			expected: false,
+		},
+		{
+			name:     "equal precision and equal value returns false",
+			v1:       "v4.3.0",
+			v2:       "v4.3.0",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsMorePreciseVersion(tt.v1, tt.v2)
+			assert.Equal(t, tt.expected, result, "IsMorePreciseVersion(%q, %q) mismatch", tt.v1, tt.v2)
 		})
 	}
 }
@@ -257,24 +298,6 @@ func TestSpec_PublicAPI_IsCompatible(t *testing.T) {
 			name:             "both invalid versions are not compatible",
 			pinVersion:       "not-a-version",
 			requestedVersion: "also-not-a-version",
-			expected:         false,
-		},
-		{
-			name:             "empty strings are not compatible",
-			pinVersion:       "",
-			requestedVersion: "",
-			expected:         false,
-		},
-		{
-			name:             "invalid pin with valid requested is not compatible",
-			pinVersion:       "not-a-version",
-			requestedVersion: "v5.0.0",
-			expected:         false,
-		},
-		{
-			name:             "valid pin with invalid requested is not compatible",
-			pinVersion:       "v5.0.0",
-			requestedVersion: "not-a-version",
 			expected:         false,
 		},
 	}

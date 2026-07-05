@@ -225,15 +225,15 @@ jobs:
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
-          
+
           GH_AW_PROMPT_NORM_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_prompt.md"
           cat << 'GH_AW_PROMPT_NORM_EOF'
           </system>
           # Mission
-          
+
           Test the pi engine compilation path.
-          
+
           GH_AW_PROMPT_NORM_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
@@ -264,9 +264,9 @@ jobs:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            
+
             const substitutePlaceholders = require('${{ runner.temp }}/gh-aw/actions/substitute_placeholders.cjs');
-            
+
             // Call the substitution function
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
@@ -653,4 +653,3 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
             await main();
-

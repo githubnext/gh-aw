@@ -190,6 +190,59 @@ describe("require-await-core-summary-write", () => {
     });
   });
 
+  it("valid: void core.summary.write() is not flagged (deliberate-discard marker)", () => {
+    cjsRuleTester.run("require-await-core-summary-write", requireAwaitCoreSummaryWriteRule, {
+      valid: [`async function f() { void core.summary.write(); }`, `async function f() { void core.summary.addRaw(x).write(); }`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: write() in compound expression forms is flagged", () => {
+    cjsRuleTester.run("require-await-core-summary-write", requireAwaitCoreSummaryWriteRule, {
+      valid: [],
+      invalid: [
+        // LogicalExpression: right operand is the dropped promise
+        {
+          code: `async function f() { cond && core.summary.write(); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { cond && await core.summary.write(); }` }] }],
+        },
+        // LogicalExpression: left operand is the dropped promise
+        {
+          code: `async function f() { core.summary.write() && cond; }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { await core.summary.write() && cond; }` }] }],
+        },
+        // ConditionalExpression: the write() branch is dropped
+        {
+          code: `async function f() { cond ? core.summary.write() : noop(); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { cond ? await core.summary.write() : noop(); }` }] }],
+        },
+        // ConditionalExpression: both branches are write() calls — two errors
+        {
+          code: `async function f() { cond ? core.summary.write() : core.summary.write(); }`,
+          errors: [
+            { messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { cond ? await core.summary.write() : core.summary.write(); }` }] },
+            { messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { cond ? core.summary.write() : await core.summary.write(); }` }] },
+          ],
+        },
+        // SequenceExpression: last element is the dropped promise
+        {
+          code: `async function f() { (log(), core.summary.write()); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { (log(), await core.summary.write()); }` }] }],
+        },
+        // SequenceExpression: non-last element is also a dropped promise
+        {
+          code: `async function f() { (core.summary.write(), log()); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { (await core.summary.write(), log()); }` }] }],
+        },
+        // .then() chain: outer promise is also dropped
+        {
+          code: `async function f() { core.summary.write().then(() => {}); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { await core.summary.write().then(() => {}); }` }] }],
+        },
+      ],
+    });
+  });
+
   it("suggestion: inserts 'await ' before the expression", () => {
     cjsRuleTester.run("require-await-core-summary-write", requireAwaitCoreSummaryWriteRule, {
       valid: [],

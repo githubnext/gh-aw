@@ -55,6 +55,7 @@ safe-outputs:
   hide-comment:
     max: 5
     allowed-reasons: [spam]
+  noop:
   threat-detection: false
 checkout: false
 features:
@@ -171,7 +172,7 @@ Use the cache memory at `/tmp/gh-aw/cache-memory/` to track spam activity across
 
 ### Reading the Spam Log
 
-At the start of your analysis, try to read the spam log file at `/tmp/gh-aw/cache-memory/spam-log.json`. This file may not exist (it is absent on the first run or whenever the 24-hour cache has expired) — if it is missing, proceed with an empty array and **do not** call `missing_data`. The file contains an array of spam events:
+At the start of your analysis, try to read the spam log file at `/tmp/gh-aw/cache-memory/spam-log.json`. **This file is optional.** A missing file is completely normal — it will be absent on the first run, after the 24-hour cache expires, or after a cache miss. A missing file is **not** a missing-data error. If the file does not exist, start immediately with an empty array and continue your analysis. **Never call `missing_data` for a missing spam log** — doing so will cause the workflow to fail unnecessarily. The file contains an array of spam events:
 
 ```json
 [
@@ -214,6 +215,7 @@ If no spam was detected, you may still update the log to remove stale entries, b
 - New contributors may have less polished writing - this doesn't necessarily indicate AI generation
 - Provide clear reasoning for each detection in your analysis
 - Only take action if you have high confidence in the detection
+- **You MUST always emit at least one safe output.** After completing your analysis, if no spam was detected and no labels were applied, call the `noop` safe output to confirm that the content was reviewed and no action was required. Never exit without calling a safe output.
 
 ## Report Formatting
 

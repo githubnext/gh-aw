@@ -1,4 +1,5 @@
 import { noCoreSetOutputNonStringRule } from "./rules/no-core-setoutput-non-string";
+import { noJsonStringifyErrorRule } from "./rules/no-json-stringify-error";
 import { noUnsafeCatchErrorPropertyRule } from "./rules/no-unsafe-catch-error-property";
 import { noUnsafePromiseCatchErrorPropertyRule } from "./rules/no-unsafe-promise-catch-error-property";
 import { preferGetErrorMessageRule } from "./rules/prefer-get-error-message";
@@ -15,6 +16,7 @@ const plugin = {
   },
   rules: {
     "no-core-setoutput-non-string": noCoreSetOutputNonStringRule,
+    "no-json-stringify-error": noJsonStringifyErrorRule,
     "no-unsafe-catch-error-property": noUnsafeCatchErrorPropertyRule,
     "no-unsafe-promise-catch-error-property": noUnsafePromiseCatchErrorPropertyRule,
     "prefer-get-error-message": preferGetErrorMessageRule,

@@ -174,6 +174,75 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
       return false;
     }
 
+    /**
+     * Collects all bare `core.summary.write()` call expressions within a compound
+     * expression that would discard the returned `Promise<Summary>`.
+     *
+     * Unwraps through:
+     *  - `LogicalExpression` — right operand only (the potential dropped value)
+     *  - `ConditionalExpression` — both branches
+     *  - `SequenceExpression` — last element only (the sequence result)
+     *
+     * Explicitly exempt:
+     *  - `UnaryExpression` with `void` — idiomatic deliberate-discard marker;
+     *    `void core.summary.write()` is intentional and must not be flagged.
+     *
+     * `.then()` / `.catch()` / `.finally()` chains: when the callee object is
+     * itself a bare `write()` call, the `Promise` returned by the chain method is
+     * also dropped; the outer call expression is flagged (and the suggestion wraps
+     * the entire chain in `await`).
+     */
+    function collectBareWriteCalls(expr: TSESTree.Expression): TSESTree.CallExpression[] {
+      // void is the idiomatic deliberate-discard marker — not a bug
+      if (expr.type === "UnaryExpression" && expr.operator === "void") return [];
+
+      // Logical short-circuit: either operand can be a dropped promise.
+      // `write() && cond` always calls write(); `cond && write()` calls it when
+      // cond is truthy.  In both cases the Promise is discarded by the ExpressionStatement.
+      if (expr.type === "LogicalExpression") {
+        return [...collectBareWriteCalls(expr.left), ...collectBareWriteCalls(expr.right)];
+      }
+
+      // Conditional: either branch may be dropped
+      if (expr.type === "ConditionalExpression") {
+        return [...collectBareWriteCalls(expr.consequent), ...collectBareWriteCalls(expr.alternate)];
+      }
+
+      // Sequence: all elements except the last have their values discarded, and the
+      // last element's value is the result of the sequence — also discarded by an
+      // ExpressionStatement.  Inspect every element.
+      // SequenceExpression always has ≥2 elements per the ECMAScript spec, but
+      // guard defensively since the type signature allows an empty array.
+      if (expr.type === "SequenceExpression") {
+        const { expressions } = expr;
+        if (expressions.length === 0) return [];
+        return expressions.flatMap(collectBareWriteCalls);
+      }
+
+      if (expr.type !== "CallExpression") return [];
+      const callee = expr.callee;
+      if (callee.type !== "MemberExpression") return [];
+
+      // Direct write(): core.summary.write()
+      if (isWriteProperty(callee) && rootsSummaryOrAlias(callee.object)) {
+        return [expr];
+      }
+
+      // Chained on write() via a Promise method: core.summary.write().then(fn) /
+      // .catch(fn) / .finally(fn).  The Promise returned by the chain method is
+      // also dropped; flag the outer call so the entire chain is awaited or returned.
+      // Restricted to known Promise instance methods to avoid false positives on
+      // unrelated method chains that happen to call a member of a write() result.
+      const chainProperty = callee.property;
+      const isPromiseChainMethod = !callee.computed && chainProperty.type === "Identifier" && (chainProperty.name === "then" || chainProperty.name === "catch" || chainProperty.name === "finally");
+      if (isPromiseChainMethod && callee.object.type === "CallExpression") {
+        const inner = collectBareWriteCalls(callee.object);
+        if (inner.length > 0) return [expr];
+      }
+
+      return [];
+    }
+
     return {
       ExpressionStatement(node) {
         const expr = node.expression;
@@ -181,36 +250,32 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
         // Only flag bare expression statements — AwaitExpression, ReturnStatement,
         // VariableDeclaration, and AssignmentExpression propagate the Promise to the
         // caller and are not flagged (zero false positives on existing correct uses).
-        if (expr.type !== "CallExpression") return;
-
-        const callee = expr.callee;
-        if (callee.type !== "MemberExpression") return;
-
-        // Property must be `write` (direct or computed string-literal access)
-        if (!isWriteProperty(callee)) return;
-
-        // Object must trace back through a `.summary` member access (or an alias)
-        if (!rootsSummaryOrAlias(callee.object)) return;
+        const writeCalls = collectBareWriteCalls(expr);
+        if (writeCalls.length === 0) return;
 
         // Only offer the `await` suggestion when already inside an async function —
         // applying `await` outside an async context would produce a syntax error.
         const ancestors = context.sourceCode.getAncestors(node);
-        const suggest = isInsideAsyncFunction(ancestors)
-          ? [
-              {
-                messageId: "addAwait" as const,
-                fix(fixer: TSESLint.RuleFixer) {
-                  return fixer.insertTextBefore(expr, "await ");
-                },
-              },
-            ]
-          : [];
+        const insideAsync = isInsideAsyncFunction(ancestors);
 
-        context.report({
-          node: expr,
-          messageId: "requireAwait",
-          suggest,
-        });
+        for (const callExpr of writeCalls) {
+          const suggest = insideAsync
+            ? [
+                {
+                  messageId: "addAwait" as const,
+                  fix(fixer: TSESLint.RuleFixer) {
+                    return fixer.insertTextBefore(callExpr, "await ");
+                  },
+                },
+              ]
+            : [];
+
+          context.report({
+            node: callExpr,
+            messageId: "requireAwait",
+            suggest,
+          });
+        }
       },
     };
   },
