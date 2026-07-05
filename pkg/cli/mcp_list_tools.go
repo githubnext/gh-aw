@@ -133,7 +133,7 @@ func findWorkflowsWithMCPServer(workflowsDir string, mcpServerName string, verbo
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(
 		fmt.Sprintf("Found MCP server '%s' in %d workflow(s): %s", mcpServerName, len(matchingWorkflows), strings.Join(matchingWorkflows, ", ")),
 	))
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(
 		fmt.Sprintf("Run 'gh aw mcp list-tools <workflow-name> --server %s' to list tools for a specific workflow", mcpServerName),
 	))
@@ -148,7 +148,7 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 		return
 	}
 
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("🛠️  Available Tools (%d total)", len(info.Tools))))
 
 	// Configure options based on verbose flag
