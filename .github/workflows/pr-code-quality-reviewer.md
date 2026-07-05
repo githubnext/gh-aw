@@ -44,7 +44,7 @@ safe-outputs:
     run-started: "🔎 [{workflow_name}]({run_url}) is reviewing code quality for this {event_type}..."
     run-success: "✅ [{workflow_name}]({run_url}) completed the code quality review."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during code quality review."
-timeout-minutes: 15
+timeout-minutes: 20
 
 ---
 
@@ -165,7 +165,7 @@ Use `COMMENT` only when all findings are non-blocking; use `APPROVE` only when n
 - **Default to skepticism** — assume code is fragile until verified otherwise
 - **Quality over quantity** — fewer precise, high-signal blocking comments beat many vague comments
 - **Be constructive but uncompromising** — critique the code, not the author; explain the rationale
-- **Respect time** — complete within the 15-minute timeout
+- **Respect time** — complete within the 20-minute timeout
 - **Avoid friendliness padding** — no empty compliments, no generic "looks good"; brief praise is allowed only for clearly exceptional implementation choices
 
 {{#runtime-import shared/noop-reminder.md}}
