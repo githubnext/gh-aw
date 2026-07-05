@@ -34,7 +34,8 @@ export const preferNumberIsNanRule = createRule({
       while (scope) {
         const variable = scope.set.get(name);
 
-        if (variable?.defs.some(d => d.type !== "ImportBinding")) {
+        // Any local definition shadows the global (including ESM ImportBinding).
+        if (variable && variable.defs.length > 0) {
           return true;
         }
 
