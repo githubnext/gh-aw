@@ -27,7 +27,7 @@ const main = createEngineLogParser({
 function parseAntigravityLog(logContent) {
   if (!logContent) {
     return {
-      markdown: buildStepSummaryDetailsSection("Antigravity", "Show parser status", "No log content provided."),
+      markdown: buildStepSummaryDetailsSection("Antigravity", "No log content provided."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,
@@ -53,7 +53,7 @@ function parseAntigravityLog(logContent) {
 
   if (parsedLines.length === 0) {
     return {
-      markdown: buildStepSummaryDetailsSection("Antigravity", "Show parser status", "Log format not recognized as Antigravity stream-json."),
+      markdown: buildStepSummaryDetailsSection("Antigravity", "Log format not recognized as Antigravity stream-json."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,
@@ -66,7 +66,7 @@ function parseAntigravityLog(logContent) {
   const stats = lastEntry.stats || {};
 
   // Build markdown output
-  let markdown = buildStepSummaryDetailsSection("Antigravity", "Show final response", finalResponse.trim());
+  let markdown = buildStepSummaryDetailsSection("Antigravity", finalResponse.trim());
 
   // Compute aggregated token usage from all models
   let totalInputTokens = 0;

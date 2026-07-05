@@ -31,7 +31,7 @@ const main = createEngineLogParser({
 function parsePiLog(logContent) {
   if (!logContent) {
     return {
-      markdown: buildStepSummaryDetailsSection("Pi", "Show parser status", "No log content provided."),
+      markdown: buildStepSummaryDetailsSection("Pi", "No log content provided."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,
@@ -54,7 +54,7 @@ function parsePiLog(logContent) {
 
   if (rawEntries.length === 0) {
     return {
-      markdown: buildStepSummaryDetailsSection("Pi", "Show parser status", "Log format not recognized as Pi JSONL."),
+      markdown: buildStepSummaryDetailsSection("Pi", "Log format not recognized as Pi JSONL."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,

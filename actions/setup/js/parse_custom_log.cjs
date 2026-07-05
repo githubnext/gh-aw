@@ -58,7 +58,6 @@ function parseCustomLog(logContent) {
   return {
     markdown: buildStepSummaryDetailsSection(
       "Custom Engine Log",
-      "Show parser status and raw log preview",
       `Log format not recognized as Claude or Codex format.
 
 **Basic Statistics:**

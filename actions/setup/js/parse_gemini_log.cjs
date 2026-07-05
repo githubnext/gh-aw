@@ -31,7 +31,7 @@ const main = createEngineLogParser({
 function parseGeminiLog(logContent) {
   if (!logContent) {
     return {
-      markdown: buildStepSummaryDetailsSection("Gemini", "Show parser status", "No log content provided."),
+      markdown: buildStepSummaryDetailsSection("Gemini", "No log content provided."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,
@@ -55,7 +55,7 @@ function parseGeminiLog(logContent) {
 
   if (rawEntries.length === 0) {
     return {
-      markdown: buildStepSummaryDetailsSection("Gemini", "Show parser status", "Log format not recognized as Gemini JSONL."),
+      markdown: buildStepSummaryDetailsSection("Gemini", "Log format not recognized as Gemini JSONL."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,

@@ -29,7 +29,7 @@ function parseClaudeLog(logContent) {
 
   if (!logEntries) {
     return {
-      markdown: buildStepSummaryDetailsSection("Agent Log Summary", "Show parser status", "Log format not recognized as Claude JSON array or JSONL."),
+      markdown: buildStepSummaryDetailsSection("Agent Log Summary", "Log format not recognized as Claude JSON array or JSONL."),
       mcpFailures: [],
       maxTurnsHit: false,
       logEntries: [],

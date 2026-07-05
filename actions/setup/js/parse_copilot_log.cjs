@@ -120,7 +120,7 @@ function parseCopilotLog(logContent) {
   }
 
   if (!logEntries || logEntries.length === 0) {
-    return { markdown: buildStepSummaryDetailsSection("Agent Log Summary", "Show parser status", "Log format not recognized as Copilot JSON array or JSONL."), logEntries: [] };
+    return { markdown: buildStepSummaryDetailsSection("Agent Log Summary", "Log format not recognized as Copilot JSON array or JSONL."), logEntries: [] };
   }
 
   const isEventFormat = isCopilotSdkEventsFormat(logEntries);
@@ -195,7 +195,7 @@ function parseCopilotLog(logContent) {
     for (const warning of awfTokenWarnings) {
       steeringBody += `- ${warning}\n`;
     }
-    markdown += buildStepSummaryDetailsSection("Firewall Steering", "Show firewall steering notices", steeringBody);
+    markdown += buildStepSummaryDetailsSection("Firewall Steering", steeringBody);
   }
 
   // Add Information section

@@ -491,7 +491,7 @@ function parseCodexLog(logContent) {
   }
   if (!logContent) {
     return {
-      markdown: buildStepSummaryDetailsSection("Commands and Tools", "Show commands and tool calls", "No log content provided.") + buildStepSummaryDetailsSection("Reasoning", "Show reasoning", "Unable to parse reasoning from log."),
+      markdown: buildStepSummaryDetailsSection("Commands and Tools", "No log content provided.") + buildStepSummaryDetailsSection("Reasoning", "Unable to parse reasoning from log."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,
@@ -510,7 +510,7 @@ function parseCodexLog(logContent) {
   // Extract MCP initialization information
   const mcpInfo = extractMCPInitialization(lines);
   if (mcpInfo.hasInfo) {
-    markdown += buildStepSummaryDetailsSection("Initialization", "Show initialization details", mcpInfo.markdown);
+    markdown += buildStepSummaryDetailsSection("Initialization", mcpInfo.markdown);
   }
 
   // Extract error messages (e.g., model access blocked, cyber_policy_violation)
