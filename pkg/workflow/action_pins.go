@@ -254,7 +254,7 @@ func warnIfOutdatedActionVersion(actionRepo, rawVersion, latestVersion string, d
 		data.ActionPinWarnings[cacheKey] = true
 	}
 
-	warningMsg := fmt.Sprintf("Action %s@%s is outdated; latest available version is %s. Consider upgrading.",
+	warningMsg := fmt.Sprintf("Action %s@%s is outdated; latest available version is %s. Consider upgrading (update the version tag in your workflow file).",
 		actionRepo, rawVersion, latestVersion)
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	actionPinsLog.Printf("Outdated action version detected: %s@%s (latest: %s)", actionRepo, rawVersion, latestVersion)
