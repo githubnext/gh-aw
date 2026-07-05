@@ -295,7 +295,7 @@ func displayStatsTable(statsList []*WorkflowStats) {
 		fileSize := console.FormatFileSize(stats.FileSize)
 
 		if stats.FileSize > maxSize {
-			workflowName = console.FormatErrorTextStderr("✗ ") + console.FormatErrorTextStderr(stats.Workflow)
+			workflowName = console.FormatErrorTextStderr("✗ " + stats.Workflow)
 			fileSize = console.FormatErrorTextStderr(console.FormatFileSize(stats.FileSize))
 		}
 
