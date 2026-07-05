@@ -172,7 +172,10 @@ This workflow combines: rate limiting (5/hour per user), concurrency control (on
 
 ## Best Practices
 
-Start with conservative limits and increase as needed. Use environments for high-risk operations (workflow dispatches, cross-repo operations, production systems). Layer multiple controls: rate limiting with concurrency, timeouts with stop-after, safe output limits with environments. Monitor workflow runs, safe output logs, and rate limit cancellations to identify needed adjustments.
+1. **Start conservative:** Begin with lower limits and increase as needed.
+2. **Use environments for high-risk operations:** Require environments for workflow dispatches, cross-repo operations, and production systems.
+3. **Layer controls:** Combine rate limiting with concurrency, timeouts with stop-after, and safe output limits with environments.
+4. **Monitor signals:** Track workflow runs, safe output logs, and rate limit cancellations to identify needed adjustments.
 
 ## Troubleshooting
 
