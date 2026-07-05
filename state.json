@@ -1,7 +1,8 @@
 {
   "counts": {
     "reasoning_depth": {
-      "shallow": 1
+      "shallow": 1,
+      "baseline": 1
     }
   },
   "runs": [
@@ -10,6 +11,13 @@
       "timestamp": "2026-07-03T03:06:20.607Z",
       "assignments": {
         "reasoning_depth": "shallow"
+      }
+    },
+    {
+      "run_id": "28745308192",
+      "timestamp": "2026-07-05T15:16:02.835Z",
+      "assignments": {
+        "reasoning_depth": "baseline"
       }
     }
   ]
