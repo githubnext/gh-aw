@@ -53,7 +53,7 @@ safe-outputs:
   upload-artifact:
     retention-days: 30
   create-discussion:
-    category: "reports"
+    category: "audits"
     max: 1
     close-older-discussions: true
   create-issue:
@@ -114,7 +114,7 @@ Continuously review and aggregate information from the various reports created a
 Analyze recent discussions in this repository, focusing on:
 - **Daily News** reports (category: daily-news) - Repository activity summaries
 - **Audit** reports (category: audits) - Security and workflow audits
-- **Report** discussions (category: reports) - Various agent analysis reports
+- **Analysis** discussions (category: audits) - Various agent analysis reports
 - **General** discussions - Other agent outputs
 
 Pre-fetched discussions data is available at `/tmp/gh-aw/agent/discussions-data/discussions.json` (populated by the discussions-data-fetch step). Use this file as the primary source for discussion analysis.
@@ -314,7 +314,7 @@ List all reports and data sources analyzed:
 #### Final Steps
 
 1. **Create GitHub Issues**: For each of the 7 actionable tasks identified (if any), create a GitHub issue using the safe-outputs create-issue capability
-2. **Create Discussion Report**: Create a new GitHub discussion titled "DeepReport Intelligence Briefing - [Today's Date]" in the "reports" category with your full analysis (including the identified actionable tasks)
+2. **Create Discussion Report**: Create a new GitHub discussion titled "DeepReport Intelligence Briefing - [Today's Date]" in the "audits" category with your full analysis (including the identified actionable tasks)
 
 {{#runtime-import shared/noop-reminder.md}}
 

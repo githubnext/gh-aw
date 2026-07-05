@@ -13,7 +13,7 @@ imports:
 - shared/otlp.md
 safe-outputs:
   create-discussion:
-    category: reports
+    category: audits
     close-older-discussions: true
     max: 1
   create-issue:
