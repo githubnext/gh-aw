@@ -7,6 +7,11 @@ interface ErrorScope {
   isSentinel: boolean;
 }
 
+/**
+ * Returns true when the function is passed directly as the first argument to a
+ * `.catch()` call. Named-reference handlers (for example `p.catch(handler)`)
+ * are intentionally out of scope.
+ */
 function isCatchCallback(node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): boolean {
   const parent = node.parent;
   if (!parent || parent.type !== AST_NODE_TYPES.CallExpression) return false;
@@ -27,8 +32,8 @@ export const noJsonStringifyErrorRule = createRule({
     schema: [],
     messages: {
       jsonStringifyError:
-        "JSON.stringify({{errorVar}}) produces {} for Error objects — Error properties (message, stack, etc.) are non-enumerable. Use getErrorMessage({{errorVar}}) or serialize explicitly: JSON.stringify({ message: {{errorVar}}.message, stack: {{errorVar}}.stack }).",
-      useGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) for safe error message extraction.",
+        "JSON.stringify({{errorVar}}) produces {} for Error objects — Error properties (message, stack, etc.) are non-enumerable. Prefer getErrorMessage({{errorVar}}) from error_helpers.cjs or explicitly serialize a safe, guarded shape.",
+      useGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) — ensure getErrorMessage is imported from error_helpers.cjs before applying.",
     },
   },
   defaultOptions: [],
@@ -39,10 +44,10 @@ export const noJsonStringifyErrorRule = createRule({
 
     function getCaughtVarNames(): Set<string> {
       const names = new Set<string>();
-      for (const scope of scopeStack) {
-        if (!scope.isSentinel && scope.varName) {
-          names.add(scope.varName);
-        }
+      for (let i = scopeStack.length - 1; i >= 0; i--) {
+        const scope = scopeStack[i];
+        if (scope.isSentinel) break;
+        if (scope.varName) names.add(scope.varName);
       }
       return names;
     }
@@ -88,8 +93,6 @@ export const noJsonStringifyErrorRule = createRule({
 
       // Detect JSON.stringify(caughtErrorVar, ...)
       CallExpression(node) {
-        if (scopeStack.length === 0) return;
-
         const caughtNames = getCaughtVarNames();
         if (caughtNames.size === 0) return;
 

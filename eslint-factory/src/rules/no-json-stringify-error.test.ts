@@ -19,33 +19,21 @@ const esmRuleTester = new RuleTester({
 describe("no-json-stringify-error", () => {
   it("valid: JSON.stringify on a non-caught variable is not flagged", () => {
     cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
-      valid: [
-        `const obj = { a: 1 }; JSON.stringify(obj);`,
-        `JSON.stringify({ message: "hello" });`,
-        `JSON.stringify("a string");`,
-        `const data = fetchData(); JSON.stringify(data);`,
-      ],
+      valid: [`const obj = { a: 1 }; JSON.stringify(obj);`, `JSON.stringify({ message: "hello" });`, `JSON.stringify("a string");`, `const data = fetchData(); JSON.stringify(data);`],
       invalid: [],
     });
   });
 
   it("valid: JSON.stringify on a non-error variable inside a catch block is not flagged", () => {
     cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
-      valid: [
-        `try { f(); } catch (err) { const data = { a: 1 }; JSON.stringify(data); }`,
-        `try { f(); } catch (err) { JSON.stringify(someOtherVar); }`,
-        `try { f(); } catch (err) { JSON.stringify({ message: err.message }); }`,
-      ],
+      valid: [`try { f(); } catch (err) { const data = { a: 1 }; JSON.stringify(data); }`, `try { f(); } catch (err) { JSON.stringify(someOtherVar); }`, `try { f(); } catch (err) { JSON.stringify({ message: err.message }); }`],
       invalid: [],
     });
   });
 
   it("valid: JSON.stringify with explicit error properties is not flagged", () => {
     cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
-      valid: [
-        `try { f(); } catch (err) { JSON.stringify({ message: err.message, stack: err.stack }); }`,
-        `try { f(); } catch (err) { JSON.stringify({ error: String(err) }); }`,
-      ],
+      valid: [`try { f(); } catch (err) { JSON.stringify({ message: err.message, stack: err.stack }); }`, `try { f(); } catch (err) { JSON.stringify({ error: String(err) }); }`],
       invalid: [],
     });
   });
@@ -54,6 +42,8 @@ describe("no-json-stringify-error", () => {
     cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
       valid: [
         `const err = { a: 1 }; try { f(); } catch (err) { } JSON.stringify(err);`,
+        `try { f(); } catch (err) { [1].forEach(function(err) { JSON.stringify(err); }); }`,
+        `try { f(); } catch (err) { items.map(err => JSON.stringify(err)); }`,
       ],
       invalid: [],
     });
@@ -61,19 +51,14 @@ describe("no-json-stringify-error", () => {
 
   it("valid: JSON.stringify on promise .catch() non-error param is not flagged", () => {
     cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
-      valid: [
-        `p.catch(function(err) { JSON.stringify(otherVar); })`,
-        `p.catch(err => JSON.stringify(notErr))`,
-      ],
+      valid: [`p.catch(function(err) { JSON.stringify(otherVar); })`, `p.catch(err => JSON.stringify(notErr))`],
       invalid: [],
     });
   });
 
   it("valid: bare catch {} without binding is not flagged", () => {
     cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
-      valid: [
-        `try { f(); } catch { JSON.stringify(someObj); }`,
-      ],
+      valid: [`try { f(); } catch { JSON.stringify(someObj); }`],
       invalid: [],
     });
   });
