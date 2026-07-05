@@ -123,18 +123,19 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
           if (!declarator.init) return false;
 
           // Pattern 1: const/let summaryVar = core.summary;
-          // rootsSummary covers both `core.summary` and chained inits like
-          // `core.summary.addRaw(x)` (which still returns a Summary object).
+          // rootsSummary covers `core.summary` and chained inits like
+          // `core.summary.addRaw(x)` — addRaw returns Summary, so the alias
+          // still wraps a Summary object.
+          // .write() is explicitly rejected: write() returns Promise<Summary>,
+          // not Summary, so `const s = core.summary.write()` must not be
+          // treated as a Summary alias.
           if (declarator.id.type === "Identifier") {
+            if (declarator.init.type === "CallExpression" && declarator.init.callee.type === "MemberExpression" && isWriteProperty(declarator.init.callee)) return false;
             return rootsSummary(declarator.init);
           }
 
           // Pattern 2: const { summary } = core; or const { summary: alias } = core;
-          if (
-            declarator.id.type === "ObjectPattern" &&
-            declarator.init.type === "Identifier" &&
-            isCoreLikeIdentifier(declarator.init.name)
-          ) {
+          if (declarator.id.type === "ObjectPattern" && declarator.init.type === "Identifier" && isCoreLikeIdentifier(declarator.init.name)) {
             return declarator.id.properties.some(prop => {
               if (prop.type !== "Property" || prop.computed) return false;
               const keyIsSummary = prop.key.type === "Identifier" && prop.key.name === "summary";
@@ -153,8 +154,11 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
     /**
      * Extended version of rootsSummary that also handles local aliases of
      * `core.summary` (e.g. `const summary = core.summary; summary.write()`).
+     * The depth guard prevents unbounded recursion on pathologically deep
+     * call chains (> 32 levels); real source code is well below this limit.
      */
-    function rootsSummaryOrAlias(node: TSESTree.Node): boolean {
+    function rootsSummaryOrAlias(node: TSESTree.Node, depth = 0): boolean {
+      if (depth > 32) return false;
       // Fast path: already handles core.summary and chained core.summary.*() calls.
       if (rootsSummary(node)) return true;
 
@@ -164,7 +168,7 @@ export const requireAwaitCoreSummaryWriteRule = createRule({
       // Chained alias: `summary.addRaw(x).write()` — callee.object is a CallExpression
       // rooted on the alias identifier.
       if (node.type === "CallExpression" && node.callee.type === "MemberExpression") {
-        return rootsSummaryOrAlias(node.callee.object);
+        return rootsSummaryOrAlias(node.callee.object, depth + 1);
       }
 
       return false;

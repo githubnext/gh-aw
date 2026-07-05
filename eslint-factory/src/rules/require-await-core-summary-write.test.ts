@@ -138,6 +138,12 @@ describe("require-await-core-summary-write", () => {
         `async function f() { let summary = core.summary; summary = other; summary.write(); }`,
         // Non-core initializer — not a core.summary alias
         `async function f() { const summary = fs.summary; summary.write(); }`,
+        // Alias without .write() — addRaw alone must NOT be flagged
+        `async function f() { const { summary } = core; summary.addRaw("x"); }`,
+        // Chained init: core.summary.addRaw(x) still returns Summary — alias is valid; awaited call is safe
+        `async function f() { const s = core.summary.addRaw("x"); await s.write(); }`,
+        // Initializer is core.summary.write() — write() returns Promise<Summary>, not Summary; not treated as alias
+        `async function f() { const s = core.summary.write(); s.write(); }`,
       ],
       invalid: [
         // Corpus pattern 1: const summary = core.summary; summary.write();
@@ -159,6 +165,21 @@ describe("require-await-core-summary-write", () => {
         {
           code: `async function f() { const { summary: s } = core; s.write(); }`,
           errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { const { summary: s } = core; await s.write(); }` }] }],
+        },
+        // coreObj alias: const summary = coreObj.summary; summary.write();
+        {
+          code: `async function f() { const summary = coreObj.summary; summary.write(); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { const summary = coreObj.summary; await summary.write(); }` }] }],
+        },
+        // coreObj destructuring: const { summary } = coreObj; summary.write();
+        {
+          code: `async function f() { const { summary } = coreObj; summary.write(); }`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function f() { const { summary } = coreObj; await summary.write(); }` }] }],
+        },
+        // Cross-scope: alias declared in outer scope, write() called inside inner async function
+        {
+          code: `async function outer() {\n  const summary = core.summary;\n  return (async function inner() { summary.write(); })();\n}`,
+          errors: [{ messageId: "requireAwait", suggestions: [{ messageId: "addAwait", output: `async function outer() {\n  const summary = core.summary;\n  return (async function inner() { await summary.write(); })();\n}` }] }],
         },
         // Outside async: flagged, no suggestion
         {
