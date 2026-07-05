@@ -10,9 +10,10 @@
  *     access to inference (e.g., "Access denied by policy settings").
  *   - mcp_policy_error: MCP servers were blocked by enterprise/organization
  *     policy (e.g., "MCP servers were blocked by policy: 'github', 'safeoutputs'").
- *   - agentic_engine_timeout: The agentic engine process was killed by a
- *     signal (SIGTERM/SIGKILL/SIGINT), typically due to the step
- *     timeout-minutes limit being reached.
+ *   - agentic_engine_timeout: A timeout signature was detected in engine logs.
+ *     This includes process termination by signal (SIGTERM/SIGKILL/SIGINT),
+ *     typically due to step timeout-minutes, and SDK idle-timeout messages
+ *     ("Timeout after <n>ms waiting for session.idle").
  *   - model_not_supported_error: The configured model is invalid or unsupported
  *     for the selected engine/account (for example unknown model name, model not
  *     found, or model unavailable for the plan).
@@ -149,7 +150,7 @@ function main() {
     process.stderr.write("[detect-agent-errors] Detected MCP policy error in agent log\n");
   }
   if (results.agenticEngineTimeout) {
-    process.stderr.write("[detect-agent-errors] Detected timeout: engine process was killed by signal (step timeout-minutes likely exceeded)\n");
+    process.stderr.write("[detect-agent-errors] Detected agentic engine timeout signature in agent log\n");
   }
   if (results.modelNotSupportedError) {
     process.stderr.write("[detect-agent-errors] Detected model configuration error: configured model is invalid or unavailable for this engine/account\n");

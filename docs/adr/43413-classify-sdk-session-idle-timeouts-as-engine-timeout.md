@@ -1,8 +1,8 @@
 # ADR-43413: Classify SDK Session-Idle Timeouts as Agentic Engine Timeout
 
 **Date**: 2026-07-05
-**Status**: Draft
-**Deciders**: Unknown (automated fix by copilot-swe-agent / @pelikhan)
+**Status**: Accepted
+**Deciders**: @pelikhan, @copilot
 
 ---
 
@@ -36,8 +36,5 @@ Remap the SDK's `session.idle` error to a signal exit before it reaches the log 
 
 #### Neutral
 - Regression tests are added for both the direct `AGENTIC_ENGINE_TIMEOUT_PATTERN.test()` match and the `detectErrors()` return value, establishing explicit coverage for this timeout signature.
-- The `pkg/actionpins/data/action_pins.json` file was reformatted from 2-space to 4-space indentation as part of this PR; this accounts for the majority of changed lines but has no semantic impact on action pin data.
 
 ---
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
