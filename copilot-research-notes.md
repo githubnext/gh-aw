@@ -1,59 +1,62 @@
 # Copilot Research Notes (condensed)
 
 ## Persistent Gaps (never resolved across all runs)
-- max-tool-denials: 0/64 SDK workflows (12+ consecutive runs)
+- max-tool-denials: 0/65 SDK workflows (14+ consecutive runs — most persistent critical gap)
 - engine.api-target: 0, engine.token-weights: 0
-- network.blocked: 0 (engine-level domain blocking)
+- network.blocked: effectively 0 (only in smoke-claude.md, not a real Copilot workflow)
 - engine.version genuine pinning: 0
-- engine.args: 0 (only in smoke tests)
-- tools.startup-timeout: ~1/257 (barely used)
-- tools.timeout: ~1/257
-- append-only-comments: 0 non-smoke uses
-- model-provider (non-GitHub): 0 non-smoke
+- tools.timeout: 0 workflows
+- tools.startup-timeout: 1 workflow (ruflo-backed-task only)
+- engine.copilot-sdk-driver: 0
 
-## Key Trends (Jun-26 → Jun-28)
-- copilot_workflows: 128→126 (counting method diff)
-- sdk_workflows: 63→64 (+1)
-- max_tool_denials: still 0 (no progress, 12+ consecutive runs)
-- total_workflows: 252→257 (+5)
+## Key Trends (Jun-28 → Jul-05)
+- sdk_workflows: 64 → 65 (+1)
+- total_workflows: 257 → 258 (+1)
+- copilot effective (default+explicit): ~126 → 202 (measurement refined)
+- max_tool_denials: still 0 (no progress, 14+ runs)
+- engine.harness: 1 (stable)
+- grumpy-reviewer: now used in designer-drift-audit.md
+- interactive-agent-designer: used in designer-drift-audit.md
+- append-only-comments: 8 workflows (first tracked)
+- mcp-scripts: 18 workflows (first tracked)
 
 ## Historical Milestones
-- cache-memory: 30 (May-21) → 72 (Jun-22) → 72 (Jun-25) → 44 (Jun-28, counting change)
-- copilot-sdk: 63 (Jun-22, Jun-26) → 64 (Jun-28) [slow growth]
-- engine.agent (custom): 8 (stable since Jun-22)
-- total workflows: 233 (May-21) → 251 (Jun-25) → 257 (Jun-28)
-- copilot workflows: 100 (May-21) → 128 (Jun-26) → 126 (Jun-28)
-- engine.harness: 0 (Jun-25) → 1 (Jun-26) → 1+ (Jun-28)
+- cache-memory: 30 (May-21) → 72 (Jun-22) → 44 (Jun-28) → 96 (Jul-05, counting all engines)
+- copilot-sdk: 63 (Jun-22) → 64 (Jun-28) → 65 (Jul-05)
+- engine.agent (custom): 8 → 20 (significant growth!)
+- total workflows: 233 (May-21) → 257 (Jun-28) → 258 (Jul-05)
+- copilot effective: 100 (May-21) → ~126 (Jun-28) → 202 (Jul-05, refined counting)
 
-## Engine Distribution (Jun-28)
-- Copilot: 126/257 (~49%) - scalar + object form
-- Claude: ~58 (~23%)
-- Pi: ~19 (~7%)
-- Codex: ~17 (~7%)
+## Engine Distribution (Jul-05, top-level workflows)
+- Copilot (explicit): 38/258 (15%)
+- Copilot (default 'engine:' empty): 137 + implicit
+- Claude: 47 (18%)
+- Codex: 10 (4%)
+- No engine field (default copilot): many
 
-## Agent Files Available (11 total in .github/agents/)
-Used by workflows (6 unique agents):
-- adr-writer: archie.md
-- ci-cleaner: avenger.md, hourly-ci-cleaner.md
-- contribution-checker: 1 workflow
-- technical-doc-writer: glossary-maintainer.md, technical-doc-writer.md
-- agentic-workflows: workflow-generator.md
-- developer.instructions: daily-file-diet.md
+## Agent Files Available (11 in .github/agents/)
+Used by workflows:
+- adr-writer: 4 workflows
+- agentic-workflows: 241 workflows (AGENTS.md effectively)
+- ci-cleaner: 2 workflows
+- contribution-checker: 2 workflows
+- developer: 36 workflows
+- grumpy-reviewer: 2 workflows (designer-drift-audit.md) 
+- interactive-agent-designer: 2 workflows (designer-drift-audit.md)
+- technical-doc-writer: 4 workflows
 
 Unused (no workflow references):
-- create-safe-output-type
-- custom-engine-implementation
-- grumpy-reviewer
-- interactive-agent-designer
-- w3c-specification-writer
+- create-safe-output-type: 0
+- custom-engine-implementation: 0
+- w3c-specification-writer: 0
 
-## Top Optimization Opportunities
-1. max-tool-denials on ALL 64 SDK workflows (HIGH, prevents infinite tool denial loops)
-2. tools.timeout for MCP stability (HIGH, prevents hanging workflows)
-3. startup-timeout on all workflows with MCP servers (MEDIUM)
-4. network.blocked for security-sensitive workflows (MEDIUM)
-5. max-continuations on long-timeout workflows (MEDIUM, autopilot)
-6. Adopt unused agent files (MEDIUM, grumpy-reviewer, w3c-specification-writer)
-7. Version pinning for stable/release workflows (MEDIUM)
-8. engine.api-target for GHEC/GHES readiness (LOW)
-9. BYOK mode for cost optimization (LOW)
+## Top Optimization Opportunities (Jul-05)
+1. max-tool-denials on ALL 65 SDK workflows (HIGH, 14+ runs unchanged, prevents infinite loops)
+2. tools.timeout for MCP stability (HIGH, only 0 production workflows)
+3. copilot-requests:write adoption: 31/38 explicit Copilot, 81/137 default Copilot missing
+4. startup-timeout on all MCP-using workflows (MEDIUM, only 1 workflow uses it)
+5. max-continuations on long-timeout workflows: 13 Copilot workflows have 30+ min timeout without it
+6. engine.token-weights for AI credit budgeting (MEDIUM, 0 production despite feature availability)
+7. Adopt w3c-specification-writer and create-safe-output-type agent files
+8. network.blocked for security-sensitive workflows (MEDIUM)
+9. engine.version genuine pinning for stable/release workflows (LOW)
