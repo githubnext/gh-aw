@@ -822,8 +822,9 @@ fmt-check-json:
 
 # Lint JavaScript (.cjs and .js) and JSON files in actions/setup/js directory
 .PHONY: lint-cjs
-lint-cjs: fmt-check-cjs
-	@echo "✓ JavaScript formatting validated"
+lint-cjs: fmt-check-cjs check-node-version
+	@cd eslint-factory && { [ -d node_modules ] || npm ci; } && npm run lint:setup-js
+	@echo "✓ JavaScript formatting and lint validated"
 
 # Lint JSON files in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: lint-json
