@@ -41,7 +41,7 @@ function buildSearchQuery(skipQuery, skipScope) {
  * }} options
  */
 async function runSkipQueryGate(options) {
-  const { skipQuery, workflowName, thresholdStr = "1", thresholdEnvVar, thresholdLabel, checkLabel, outputName, skipScope, shouldSkip, warningMessage, successMessage, denialSummaryMessage, denialSummaryNextStep } = options;
+  const { skipQuery, workflowName, thresholdStr, thresholdEnvVar, thresholdLabel, checkLabel, outputName, skipScope, shouldSkip, warningMessage, successMessage, denialSummaryMessage, denialSummaryNextStep } = options;
 
   if (!skipQuery) {
     core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_SKIP_QUERY not specified.`);
@@ -52,6 +52,8 @@ async function runSkipQueryGate(options) {
     core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_WORKFLOW_NAME not specified.`);
     return;
   }
+
+  core.info(`Running ${checkLabel} gate for workflow: ${workflowName}`);
 
   const threshold = parseInt(thresholdStr, 10);
   if (isNaN(threshold) || threshold < 1) {
