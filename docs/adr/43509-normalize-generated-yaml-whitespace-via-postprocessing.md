@@ -1,8 +1,8 @@
 # ADR-43509: Normalize Generated YAML Whitespace via Post-Processing Pass
 
 **Date**: 2026-07-05
-**Status**: Draft
-**Deciders**: Unknown (automated PR — review and finalize before accepting)
+**Status**: Accepted
+**Deciders**: pelikhan, Copilot
 
 ---
 
@@ -52,8 +52,9 @@ with suppressed categories, making the overall linter output harder to interpret
 Modify the template rendering engine or block scalar emitter to strip trailing whitespace from blank
 lines as part of the rendering pipeline. This is architecturally cleaner but requires changes at a
 lower level than the current PR scope, carries higher risk of altering content in block-scalar
-strings, and is a larger refactor that defers the immediate noise reduction. [TODO: verify — this
-may be the correct long-term approach once the templating layer is better understood]
+strings, and is a larger refactor that defers the immediate noise reduction. This may be the correct
+long-term approach once the templating layer is better understood; the post-processing pass chosen
+here is an interim measure that can be replaced once a lower-level solution is validated.
 
 ### Consequences
 
@@ -85,4 +86,4 @@ may be the correct long-term approach once the templating layer is better unders
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent] and finalized by [copilot-swe-agent].*
