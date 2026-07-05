@@ -756,10 +756,12 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				indentation = line[:len(line)-len(trimmed)]
 			}
 
-			// TrimRight avoids emitting trailing whitespace when commenting out
-			// blank lines inside multi-line blocks (e.g. "# " on an empty script line),
-			// which yamllint flags as trailing-spaces.
-			commentedLine := strings.TrimRight(indentation+"# "+trimmed+commentReason, " \t")
+			commentedLine := indentation + "# " + trimmed + commentReason
+			// Blank lines inside multi-line blocks would otherwise become "# "
+			// with trailing whitespace, which yamllint flags as trailing-spaces.
+			if trimmed == "" {
+				commentedLine = strings.TrimRight(commentedLine, " \t")
+			}
 			result = append(result, commentedLine)
 		} else {
 			result = append(result, line)
