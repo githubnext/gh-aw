@@ -129,7 +129,7 @@ The sub-agent will read only the first 80 lines and return a compact decision wi
 
 **Quick Decision — make this choice NOW before reading further:**
 
-- If the sub-agent reports `has_ts_nocheck: true`: proceed to Step 3 to remove it and fix types.
+- If the sub-agent reports `has_ts_nocheck: true` (for either `@ts-nocheck` or `// @ts-nocheck`): proceed to Step 3 to remove it and fix types.
 - If the sub-agent returns `decision: "noop"`: call `noop` immediately with its reason and STOP. Do not read additional sections.
 - If the sub-agent returns `decision: "cleanup"` with specific target changes: proceed to Step 3 to make exactly those changes.
 
