@@ -4,6 +4,7 @@ package cli
 
 import (
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -125,6 +126,28 @@ func TestGetCurrentBranchIn(t *testing.T) {
 		_, err := getCurrentBranchIn(dir)
 		if err == nil {
 			t.Fatal("getCurrentBranchIn() expected an error for non-git directory, got nil")
+		}
+	})
+
+	t.Run("returns error in detached HEAD state", func(t *testing.T) {
+		dir := t.TempDir()
+		initRepo(t, dir, "main")
+		// Detach HEAD by checking out the commit hash directly.
+		cmd := exec.Command("git", "rev-parse", "HEAD")
+		cmd.Dir = dir
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("git rev-parse HEAD failed: %v", err)
+		}
+		hash := strings.TrimSpace(string(out))
+		detach := exec.Command("git", "checkout", hash)
+		detach.Dir = dir
+		if out, err := detach.CombinedOutput(); err != nil {
+			t.Fatalf("git checkout %s failed: %v (output: %s)", hash, err, out)
+		}
+		_, err = getCurrentBranchIn(dir)
+		if err == nil {
+			t.Fatal("getCurrentBranchIn() expected an error in detached HEAD state, got nil")
 		}
 	})
 }

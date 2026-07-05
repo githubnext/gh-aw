@@ -373,7 +373,7 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from "+branch+" branch"))
 	}
-	cmd = exec.Command("git", "pull", "origin", branch)
+	cmd = exec.Command("git", "pull", "--rebase", "origin", branch)
 	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to pull latest changes: %w (output: %s)", err, string(output))
