@@ -273,6 +273,43 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(process.exitCode).toBe(1);
   });
 
+  it("omits non-retry hint when toolName is absent", async () => {
+    await formatResponse(
+      {
+        error: {
+          code: -32602,
+          message: "Empty arguments are not allowed — this tool is write-once, not a discovery probe.",
+        },
+      },
+      "safeoutputs"
+      // toolName omitted → defaults to ""
+    );
+
+    const stderr = stderrChunks.join("");
+    expect(stderr).toContain("Error [-32602]");
+    expect(stderr).not.toContain("do not retry");
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("does not add a non-retry hint for -32602 errors from non-safeoutputs servers", async () => {
+    await formatResponse(
+      {
+        error: {
+          code: -32602,
+          message: "Empty arguments are not allowed — this tool is write-once, not a discovery probe.",
+        },
+      },
+      "agenticworkflows",
+      "some_tool"
+    );
+
+    const stderr = stderrChunks.join("");
+    expect(stderr).toContain("Error [-32602]");
+    expect(stderr).not.toContain("do not retry");
+    expect(stderr).not.toContain("--help");
+    expect(process.exitCode).toBe(1);
+  });
+
   it("keeps top-level help compact for many commands", () => {
     const tools = Array.from({ length: 25 }, (_, i) => ({
       name: `tool_${i + 1}`,

@@ -1143,13 +1143,14 @@ async function formatResponse(responseBody, serverName, toolName = "") {
     const isSafeOutputsEmptyArgs = serverName === SAFEOUTPUTS_SERVER_NAME && code === "-32602" && /Empty arguments are not allowed/i.test(message);
     const hint =
       isSafeOutputsEmptyArgs && toolName
-        ? `\nHint: do not retry '${serverName} ${toolName}' with empty arguments. Run '${serverName} ${toolName} --help' to inspect the required options, or call 'noop' with a message if no action is needed.`
+        ? `Hint: do not retry '${serverName} ${toolName}' with empty arguments. Run '${serverName} ${toolName} --help' to inspect the required options, or call 'noop' with a message if no action is needed.`
         : "";
-    const errText = code ? `Error [${code}]: ${message}${hint}` : `Error: ${message}`;
+    const errText = code ? `Error [${code}]: ${message}` : `Error: ${message}`;
     process.stderr.write(errText + "\n");
     core.error(`[${serverName}] Tool call error: ${errText}`);
     auditLog(serverName, { event: "tool_error", error: errText });
     process.exitCode = 1;
+    if (hint) process.stderr.write(hint + "\n");
     return;
   }
 
