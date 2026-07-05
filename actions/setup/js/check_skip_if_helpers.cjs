@@ -40,8 +40,15 @@ function buildSearchQuery(skipQuery, skipScope) {
  *   denialSummaryNextStep: string;
  * }} options
  */
+// Ambient globals provided by @actions/github-script: core, github, context
 async function runSkipQueryGate(options) {
-  const { skipQuery, workflowName, thresholdStr, thresholdEnvVar, thresholdLabel, checkLabel, outputName, skipScope, shouldSkip, warningMessage, successMessage, denialSummaryMessage, denialSummaryNextStep } = options;
+  // prettier-ignore
+  const {
+    skipQuery, workflowName, thresholdStr,
+    thresholdEnvVar, thresholdLabel, checkLabel, outputName, skipScope,
+    shouldSkip, warningMessage, successMessage,
+    denialSummaryMessage, denialSummaryNextStep,
+  } = options;
 
   if (!skipQuery) {
     core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_SKIP_QUERY not specified.`);
@@ -55,7 +62,7 @@ async function runSkipQueryGate(options) {
 
   core.info(`Running ${checkLabel} gate for workflow: ${workflowName}`);
 
-  const threshold = parseInt(thresholdStr, 10);
+  const threshold = parseInt(thresholdStr ?? "", 10);
   if (isNaN(threshold) || threshold < 1) {
     core.setFailed(`${ERR_CONFIG}: Configuration error: ${thresholdEnvVar} must be a positive integer, got "${thresholdStr}".`);
     return;
