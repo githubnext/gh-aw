@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-Condensed 06-30 to fit the 10 KB repo-memory budget. **64/3600 tested, all PASS.**
+Condensed 06-30 to fit the 10 KB repo-memory budget. **68/3600 tested, all PASS.**
 
 ## Coverage map
 
@@ -22,8 +22,12 @@ Condensed 06-30 to fit the 10 KB repo-memory budget. **64/3600 tested, all PASS.
   files, --merges empty + parent=1, filename leak 0001-Merge-branch-topic-...patch
   RECONFIRMED. All carry append-only push follow-up (commit_count≥2), main's
   diverged history.md commit correctly excluded via merge-base.
-- **tiny-none-few-medium-clean-single (idx 63): PASS.** 204.20 KB /1 file /1 commit
-  (5 files×40960 B = 200.00 KB payload; +2.1% format-patch framing). 5.0% of cap.
+- **tiny-none-few-medium (idx 63-67): all PASS.** 5×40960 B base64 (200 KB payload),
+  ~5% of cap. clean-single(63) 204.20 KB/1f; clean-multi(64) 204.67 KB/3f ~1.023×;
+  clean-merge_msg(65) 206.80 KB/1f, --merges empty+parent=1, filename leak
+  0001-Merge-branch-topic-into-feature.patch RECONFIRMED; ahead-single(66) PR 206.78
+  KB/1f + push 0.89 KB (clean FF, 2 commits after); ahead-multi(67) PR 207.31 KB/3f
+  ~1.036× + push 0.89 KB (clean FF, 4 commits after). Short-line multi law holds ~1×.
 
 ## The cap (grounded in source)
 
@@ -85,9 +89,9 @@ it's a real bug (over-count, or runtime measuring excluded commits).
 
 ## Next
 
-Next index: **64** → `tiny-none-few-medium-clean-multi` (idx 64-65 finish
-few-medium-clean; 66-71 few-medium ahead/diverged ~200-410 KB → PASS predicted).
-few-large (~idx 72-80) ~1 MB, few-xlarge (~idx 81-89) predicted ~4054 KB → PASS. HISTORY=deep (500) and
+Next index: **68** → `tiny-none-few-medium-diverged-*` (68-71 finish few-medium
+diverged ~200-210 KB → PASS predicted). few-large (~idx 72-80) ~1 MB, few-xlarge
+(~idx 81-89) predicted ~4054 KB → PASS. HISTORY=deep (500) and
 FILES=many/batch far ahead — prime untested regions for a first rejection. SIZE
 stays tiny (payload small) until idx 720, so no real `rejected` expected before
 then unless a PATCH tier is tuned over 4096 KB or a downstream over-count bug fires.
