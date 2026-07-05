@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/styles"
 )
 
 func TestFormatCommandMessage(t *testing.T) {
@@ -282,6 +284,40 @@ func TestFormatErrorMessage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFormatTableHeaderWithTTY(t *testing.T) {
+	t.Run("plain text when not tty", func(t *testing.T) {
+		result := formatTableHeaderWithTTY("Header", func() bool { return false })
+		if result != "Header" {
+			t.Fatalf("formatTableHeaderWithTTY() = %q, want %q", result, "Header")
+		}
+	})
+
+	t.Run("styled text when tty", func(t *testing.T) {
+		result := formatTableHeaderWithTTY("Header", func() bool { return true })
+		expected := styles.TableHeader.Render("Header")
+		if result != expected {
+			t.Fatalf("formatTableHeaderWithTTY() = %q, want %q", result, expected)
+		}
+	})
+}
+
+func TestFormatErrorTextWithTTY(t *testing.T) {
+	t.Run("plain text when not tty", func(t *testing.T) {
+		result := formatErrorTextWithTTY("boom", func() bool { return false })
+		if result != "boom" {
+			t.Fatalf("formatErrorTextWithTTY() = %q, want %q", result, "boom")
+		}
+	})
+
+	t.Run("styled text when tty", func(t *testing.T) {
+		result := formatErrorTextWithTTY("boom", func() bool { return true })
+		expected := styles.Error.Render("boom")
+		if result != expected {
+			t.Fatalf("formatErrorTextWithTTY() = %q, want %q", result, expected)
+		}
+	})
 }
 
 func TestFormatSectionHeader(t *testing.T) {

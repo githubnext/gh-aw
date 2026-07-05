@@ -1366,3 +1366,106 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 		t.Errorf("Expected 'Download safe outputs items manifest' to appear before 'Collect usage artifact files'.\ndownloadIdx=%d collectIdx=%d\nGenerated steps:\n%s", downloadIdx, collectIdx, allSteps)
 	}
 }
+
+// TestConclusionJobNeedsPreActivationFromMessages tests that pre_activation is automatically
+// added to the conclusion job's needs when any message template references
+// needs.pre_activation.outputs.*, and that it is not duplicated.
+func TestConclusionJobNeedsPreActivationFromMessages(t *testing.T) {
+	tests := []struct {
+		name              string
+		messages          *SafeOutputMessagesConfig
+		registerPreAct    bool
+		expectPreActNeeds bool
+	}{
+		{
+			name: "adds pre_activation when Footer references its outputs",
+			messages: &SafeOutputMessagesConfig{
+				Footer: "Skill: ${{ needs.pre_activation.outputs.skill_name }}",
+			},
+			registerPreAct:    true,
+			expectPreActNeeds: true,
+		},
+		{
+			name: "adds pre_activation when RunFailure references its outputs",
+			messages: &SafeOutputMessagesConfig{
+				RunFailure: "Failed in ${{ needs.pre_activation.outputs.skill_name }}",
+			},
+			registerPreAct:    true,
+			expectPreActNeeds: true,
+		},
+		{
+			name: "does not add pre_activation when messages have no reference",
+			messages: &SafeOutputMessagesConfig{
+				Footer: "No expression here",
+			},
+			registerPreAct:    true,
+			expectPreActNeeds: false,
+		},
+		{
+			name: "does not add pre_activation when job is not registered",
+			messages: &SafeOutputMessagesConfig{
+				Footer: "Skill: ${{ needs.pre_activation.outputs.skill_name }}",
+			},
+			registerPreAct:    false,
+			expectPreActNeeds: false,
+		},
+		{
+			name:              "does not add pre_activation when messages is nil",
+			messages:          nil,
+			registerPreAct:    true,
+			expectPreActNeeds: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			if tt.registerPreAct {
+				preActJob := &Job{Name: string(constants.PreActivationJobName)}
+				if err := compiler.jobManager.AddJob(preActJob); err != nil {
+					t.Fatalf("Failed to register pre_activation job: %v", err)
+				}
+			}
+
+			workflowData := &WorkflowData{
+				Name: "Test Workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					AddComments: &AddCommentsConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					},
+					Messages: tt.messages,
+				},
+			}
+
+			job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+			if err != nil {
+				t.Fatalf("buildConclusionJob returned error: %v", err)
+			}
+			if job == nil {
+				t.Fatal("Expected conclusion job to be non-nil")
+			}
+
+			preActName := string(constants.PreActivationJobName)
+			if tt.expectPreActNeeds {
+				if !slices.Contains(job.Needs, preActName) {
+					t.Errorf("Expected pre_activation in conclusion job needs, got: %v", job.Needs)
+				}
+				// Ensure no duplicate
+				count := 0
+				for _, n := range job.Needs {
+					if n == preActName {
+						count++
+					}
+				}
+				if count != 1 {
+					t.Errorf("pre_activation appears %d times in conclusion job needs (expected 1): %v", count, job.Needs)
+				}
+			} else {
+				if slices.Contains(job.Needs, preActName) {
+					t.Errorf("Did not expect pre_activation in conclusion job needs, got: %v", job.Needs)
+				}
+			}
+		})
+	}
+}

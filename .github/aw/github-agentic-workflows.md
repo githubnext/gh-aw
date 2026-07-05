@@ -5,6 +5,14 @@ applyTo: ".github/workflows/*.md,.github/workflows/**/*.md"
 
 # GitHub Agentic Workflows
 
+## Persona-to-Pattern Quick Matrix
+
+| Persona | Preferred trigger and scope | Typical read tools | Typical write path | Explicit `noop` rule |
+|---|---|---|---|---|
+| Backend Engineer | `pull_request` with `paths:` scoped to migrations, schema, and API contracts | `github` (`gh-proxy`) | `add-comment` for PR-local findings; `create-issue` only for cross-cutting incidents | `noop` when no backend contract files changed |
+| Frontend Developer | `pull_request` with `paths:` scoped to UI, design-token, and asset files | `github` (`gh-proxy`), optional `playwright`, optional `cache-memory` for baselines | `add-comment` | `noop` when no UI/token files changed or no actionable visual/token issues were found |
+| DevOps Engineer | `workflow_run` for GitHub Actions failures, `deployment_status` for external deployment failures | `github` (`gh-proxy`) with `actions: read` or `deployments: read` | `create-issue` with stable dedup key | `noop` when status is non-terminal, self-recovered, or an open incident already exists for the same dedup key |
+
 ## File Format
 
 Agentic workflows are markdown files with YAML frontmatter.

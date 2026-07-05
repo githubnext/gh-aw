@@ -34,7 +34,10 @@ func (c *Compiler) indentYAMLLines(yamlContent, indent string) string {
 		if strings.TrimSpace(lines[i]) != "" {
 			result.WriteString("\n" + indent + lines[i])
 		} else {
-			result.WriteString("\n" + lines[i])
+			// Emit a bare newline for blank/whitespace-only lines so we don't
+			// carry the surrounding indentation as trailing whitespace, which
+			// yamllint flags as trailing-spaces.
+			result.WriteString("\n")
 		}
 	}
 
@@ -754,6 +757,11 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 
 			commentedLine := indentation + "# " + trimmed + commentReason
+			// Blank lines inside multi-line blocks would otherwise become "# "
+			// with trailing whitespace, which yamllint flags as trailing-spaces.
+			if trimmed == "" {
+				commentedLine = strings.TrimRight(commentedLine, " \t")
+			}
 			result = append(result, commentedLine)
 		} else {
 			result = append(result, line)

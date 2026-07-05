@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPullRequestDraftFilter(t *testing.T) {
@@ -537,6 +538,20 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCommentOutProcessedFieldsInOnSectionBlankLineInBlock(t *testing.T) {
+	compiler := NewCompiler()
+
+	result := compiler.commentOutProcessedFieldsInOnSection(`on:
+  steps: |
+    echo hello
+
+    echo world
+  workflow_dispatch:`, map[string]any{})
+
+	assert.Contains(t, result, "\n#\n")
+	assert.NotContains(t, result, "# \n")
 }
 
 // containsInNonCommentLines checks if a string appears in any non-comment lines

@@ -67,8 +67,10 @@ func FormatError(err CompilerError) string {
 
 func FormatSuccessMessage(message string) string  { return "✓ " + message }
 func FormatInfoMessage(message string) string     { return "i " + message }
+func FormatTableHeaderStderr(text string) string  { return text }
 func FormatWarningMessage(message string) string  { return "⚠ " + message }
 func FormatErrorMessage(message string) string    { return "✗ " + message }
+func FormatErrorTextStderr(text string) string    { return text }
 func FormatLocationMessage(message string) string { return "~ " + message }
 func FormatCommandMessage(command string) string  { return "$ " + command }
 func FormatProgressMessage(message string) string { return "▸ " + message }
