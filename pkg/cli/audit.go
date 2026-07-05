@@ -498,6 +498,9 @@ func processedRunFromSummary(summary *RunSummary, runOutputDir string) Processed
 		GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
 		JobDetails:              summary.JobDetails,
 	}
+	if processedRun.Run.Turns == 0 && summary.Metrics.Turns > 0 {
+		processedRun.Run.Turns = summary.Metrics.Turns
+	}
 	processedRun.Run.LogsPath = runOutputDir
 	return processedRun
 }
