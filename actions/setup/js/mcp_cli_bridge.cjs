@@ -925,6 +925,22 @@ function showToolHelp(serverName, toolName, tools) {
 }
 
 /**
+ * Determine whether the bridge should show tool help instead of invoking the tool
+ * with an empty arguments object.
+ *
+ * safeoutputs tools always require arguments, so any call with an empty argument
+ * object is a schema-discovery probe that would otherwise trigger a -32602
+ * validation error and encourage wasteful retries.
+ *
+ * @param {string} serverName
+ * @param {Record<string, unknown>} toolArgs
+ * @returns {boolean}
+ */
+function shouldShowToolHelpForEmptyArgs(serverName, toolArgs) {
+  return serverName === SAFEOUTPUTS_SERVER_NAME && Object.keys(toolArgs).length === 0;
+}
+
+/**
  * Collapse whitespace and trim long help text for compact output.
  *
  * @param {string} value
@@ -1109,9 +1125,10 @@ function isResultMessage(message) {
  *
  * @param {unknown} responseBody - Parsed JSON-RPC response body
  * @param {string} serverName - Server name (for logging)
+ * @param {string} [toolName] - Tool name, when known
  * @returns {Promise<void>}
  */
-async function formatResponse(responseBody, serverName) {
+async function formatResponse(responseBody, serverName, toolName = "") {
   const core = global.core;
   const messages = extractJSONRPCMessages(responseBody);
   renderProgressMessages(messages);
@@ -1123,11 +1140,17 @@ async function formatResponse(responseBody, serverName) {
     const errRecord = resp.error;
     const message = "message" in errRecord ? String(errRecord.message || "Unknown error") : "Unknown error";
     const code = "code" in errRecord && errRecord.code != null ? String(errRecord.code) : "";
+    const isSafeOutputsEmptyArgs = serverName === SAFEOUTPUTS_SERVER_NAME && code === "-32602" && /Empty arguments are not allowed/i.test(message);
+    const hint =
+      isSafeOutputsEmptyArgs && toolName
+        ? `Hint: do not retry '${serverName} ${toolName}' with empty arguments. Run '${serverName} ${toolName} --help' to inspect the required options, or call 'noop' with a message if no action is needed.`
+        : "";
     const errText = code ? `Error [${code}]: ${message}` : `Error: ${message}`;
     process.stderr.write(errText + "\n");
     core.error(`[${serverName}] Tool call error: ${errText}`);
     auditLog(serverName, { event: "tool_error", error: errText });
     process.exitCode = 1;
+    if (hint) process.stderr.write(hint + "\n");
     return;
   }
 
@@ -1231,6 +1254,13 @@ async function main() {
   const stdinContent = hasStdinJsonPayload(toolUserArgs) ? readStdinSync() : null;
   const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs, schemaProperties, stdinContent);
 
+  if (shouldShowToolHelpForEmptyArgs(serverName, toolArgs)) {
+    core.warning(`[${serverName}] No arguments provided for '${toolName}'; showing command help instead of calling the tool`);
+    auditLog(serverName, { event: "show_tool_help_empty_args", tool: toolName });
+    showToolHelp(serverName, toolName, tools);
+    return;
+  }
+
   core.info(`[${serverName}] Calling tool '${toolName}' with args: ${JSON.stringify(toolArgs)}${jsonOutput ? " (--json)" : ""}`);
   auditLog(serverName, { event: "call_start", tool: toolName, arguments: toolArgs });
 
@@ -1263,7 +1293,7 @@ async function main() {
       // --json: print the raw JSON-RPC response body
       await writeStdoutAndFlush(JSON.stringify(resp.body, null, 2) + "\n");
     } else {
-      await formatResponse(resp.body, serverName);
+      await formatResponse(resp.body, serverName, toolName);
     }
   } catch (err) {
     const totalMs = Date.now() - callStartMs;
@@ -1300,6 +1330,7 @@ module.exports = {
   writeStdoutAndFlush,
   showHelp,
   showToolHelp,
+  shouldShowToolHelpForEmptyArgs,
   hasStdinJsonPayload,
   readStdinSync,
   ensureSafeOutputsTools,
