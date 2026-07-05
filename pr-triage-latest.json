@@ -1,223 +1,112 @@
 {
-  "run_date": "2026-07-05T01:04:34Z",
-  "run_id": "28725134784",
-  "prior_run_id": "28715668077",
+  "run_date": "2026-07-05T07:19:01Z",
+  "run_id": "28733101041",
+  "prior_run_id": "28725134784",
   "summary": {
-    "total": 17,
-    "new": 1,
-    "carry_over": 16,
+    "total": 6,
+    "new": 6,
+    "carry_over": 0,
     "fast_track": 3,
-    "batch_review": 9,
-    "defer": 4,
-    "close": 2
+    "batch_review": 2,
+    "defer": 0,
+    "close": 1
+  },
+  "prior_run_resolution": {
+    "total": 17,
+    "merged": 13,
+    "closed": 4,
+    "merged_prs": [43410, 43411, 43406, 43409, 43413, 43405, 43414, 43404, 43440, 43403, 43376, 43412],
+    "closed_prs": [43383, 43419, 43145, 43408, 42314]
   },
   "prs": [
     {
-      "number": 43410,
-      "title": "fix(logs): total_turns and total_safe_items always 0 in summary",
+      "number": 43467,
+      "title": "Fix GraphQL ID injection in project_command.go (Semgrep #627/#628, CWE-89)",
       "category": "bug",
-      "risk": "low",
-      "score": 72,
+      "risk": "high",
+      "score": 80,
       "action": "fast_track",
-      "draft": true,
+      "batch": "pr-batch:security-fixes",
+      "draft": false,
       "ci": "no_ci",
-      "note": "Small targeted fix, 3 files, +137 test lines. Undraft to fast-track."
+      "note": "CWE-89 GraphQL injection fix. 3 files, +69/-26. Security — merge ASAP."
     },
     {
-      "number": 43411,
-      "title": "Scope dependabot-repair workflow token permissions to least privilege",
-      "category": "chore",
-      "risk": "low",
+      "number": 43468,
+      "title": "Fix allocation-size overflow risk in model pricing merge",
+      "category": "bug",
+      "risk": "medium",
       "score": 70,
       "action": "fast_track",
-      "batch": "pr-batch:new-workflows",
-      "draft": true,
-      "ci": "no_ci",
-      "note": "Security hardening, 2 YAML files. Undraft to fast-track."
-    },
-    {
-      "number": 43383,
-      "title": "fix: add retry/backoff to Fetch open non-draft PR queue in pr-sous-chef",
-      "category": "bug",
-      "risk": "medium",
-      "score": 68,
-      "action": "fast_track",
+      "batch": "pr-batch:security-fixes",
       "draft": false,
-      "ci": "passing",
-      "review": "changes_requested",
-      "note": "CHANGES_REQUESTED: correctness regression in transient-error classifier. Author must fix before merge."
+      "ci": "no_ci",
+      "note": "CodeQL overflow fix with regression test. 2 files, +51/-3."
     },
     {
-      "number": 43406,
-      "title": "fix: github-app auth support in SideRepoOps maintenance workflow generator",
-      "category": "bug",
+      "number": 43455,
+      "title": "Warn on outdated action versions in user-provided steps",
+      "category": "feature",
       "risk": "medium",
       "score": 60,
+      "action": "fast_track",
+      "draft": false,
+      "ci": "no_ci",
+      "note": "New compiler warning for stale uses: refs. 3 files, +384/-0 incl tests."
+    },
+    {
+      "number": 43480,
+      "title": "Deduplicate skip-query gate logic for setup action guards",
+      "category": "refactor",
+      "risk": "low",
+      "score": 44,
       "action": "batch_review",
-      "batch": "pr-batch:go-bugfix",
-      "draft": true
+      "batch": "pr-batch:js-refactor",
+      "draft": false,
+      "ci": "no_ci",
+      "note": "Extracts runSkipQueryGate helper. 4 files, +165/-95."
     },
     {
-      "number": 43409,
-      "title": "Improve frontmatter diagnostics for invalid tools config shape",
-      "category": "bug",
-      "risk": "medium",
-      "score": 58,
+      "number": 43483,
+      "title": "Refactor duplicated reaction setup into shared helper",
+      "category": "refactor",
+      "risk": "low",
+      "score": 40,
       "action": "batch_review",
-      "batch": "pr-batch:go-bugfix",
-      "draft": true
+      "batch": "pr-batch:js-refactor",
+      "draft": false,
+      "ci": "no_ci",
+      "note": "Extracts resolveReactionSetup helper. 4 files, +97/-22."
     },
     {
-      "number": 43413,
-      "title": "Classify Copilot SDK session.idle timeouts as agentic_engine_timeout",
-      "category": "bug",
+      "number": 43482,
+      "title": "Deduplicate discussion comment mutation flow across comment actions",
+      "category": "refactor",
       "risk": "low",
-      "score": 58,
-      "action": "batch_review",
-      "batch": "pr-batch:go-bugfix",
-      "draft": true
-    },
-    {
-      "number": 43405,
-      "title": "Fix hardcoded main branch in gh aw trial --host-repo",
-      "category": "bug",
-      "risk": "low",
-      "score": 56,
-      "action": "batch_review",
-      "batch": "pr-batch:go-bugfix",
-      "draft": true
-    },
-    {
-      "number": 43414,
-      "title": "Targeted custom-lint cleanup: defer-in-loop resource handling and continuation options struct",
-      "category": "bug",
-      "risk": "low",
-      "score": 55,
-      "action": "batch_review",
-      "batch": "pr-batch:go-bugfix",
-      "draft": true,
-      "note": "5 files, Go lint cleanup. Labels applied this run."
-    },
-    {
-      "number": 43404,
-      "title": "fix(eslint): detect dropped await on local core.summary aliases",
-      "category": "bug",
-      "risk": "low",
-      "score": 54,
-      "action": "batch_review",
-      "batch": "pr-batch:eslint-bugfix",
-      "draft": true
-    },
-    {
-      "number": 43440,
-      "title": "Fix TypeScript never-narrowing in require-async-entrypoint-catch for setup/js lint path",
-      "category": "bug",
-      "risk": "low",
-      "score": 49,
-      "action": "batch_review",
-      "batch": "pr-batch:eslint-bugfix",
-      "draft": true,
-      "new_this_run": true,
-      "note": "2 files, +31/-12. New this run. Labeled and commented."
-    },
-    {
-      "number": 43403,
-      "title": "Add smoke-token-telemetry workflow to catch token telemetry emitter regressions",
-      "category": "test",
-      "risk": "low",
-      "score": 48,
-      "action": "batch_review",
-      "batch": "pr-batch:new-workflows",
-      "draft": true
-    },
-    {
-      "number": 43376,
-      "title": "test: add golden files and RunWithSuggestedFixes for 3 autofix linters",
-      "category": "test",
-      "risk": "low",
-      "score": 52,
-      "action": "batch_review",
-      "batch": "pr-batch:draft-backlog",
-      "draft": false
-    },
-    {
-      "number": 43412,
-      "title": "Strengthen persona-driven workflow guidance for recurring reports and compliance audits",
-      "category": "docs",
-      "risk": "low",
-      "score": 32,
-      "action": "defer",
-      "draft": true
-    },
-    {
-      "number": 43419,
-      "title": "docs: add robots.txt with AI crawler Allow rules",
-      "category": "docs",
-      "risk": "low",
-      "score": 30,
-      "action": "defer",
-      "draft": true
-    },
-    {
-      "number": 43145,
-      "title": "Clarify checkout, safe-outputs, and cross-repo credential precedence",
-      "category": "docs",
-      "risk": "low",
-      "score": 28,
-      "action": "defer",
-      "draft": true,
-      "note": "Carry-over 4th run. Still draft."
-    },
-    {
-      "number": 43408,
-      "title": "fix: reduce AIC guardrail listArtifacts fan-out and add in-loop rate-limit backoff",
-      "category": "bug",
-      "risk": "medium",
-      "score": 20,
+      "score": 12,
       "action": "close",
-      "draft": true,
-      "note": "0 files changed — empty diff."
-    },
-    {
-      "number": 42314,
-      "title": "Add experimental Auggie engine support",
-      "category": "feature",
-      "risk": "high",
-      "score": 18,
-      "action": "close",
-      "draft": true,
-      "note": "Stale 6+ days, 288 files, no active review. Recommend close."
+      "draft": false,
+      "ci": "no_ci",
+      "note": "Empty diff — 0 files changed. Close and reopen when changes are committed."
     }
   ],
   "batches": [
     {
-      "id": "pr-batch:go-bugfix",
-      "prs": [43406, 43409, 43413, 43405, 43414],
-      "note": "Go/JS bugfixes, 2-5 files each, low-medium risk."
+      "id": "pr-batch:security-fixes",
+      "prs": [43467, 43468],
+      "note": "Security fixes: GraphQL injection (CWE-89) + CodeQL overflow. Review together."
     },
     {
-      "id": "pr-batch:new-workflows",
-      "prs": [43411, 43403],
-      "note": "New/updated workflow YAML/md files. (43421 closed)"
-    },
-    {
-      "id": "pr-batch:eslint-bugfix",
-      "prs": [43404, 43440],
-      "note": "ESLint rule fixes. 43440 new this run."
-    },
-    {
-      "id": "pr-batch:draft-backlog",
-      "prs": [43376],
-      "note": "Previously deferred drafts, now undrafted."
+      "id": "pr-batch:js-refactor",
+      "prs": [43480, 43483],
+      "note": "JS helper extraction refactors in actions/setup/js/. Low risk."
     }
   ],
   "flags": [
-    "PR 43383 CHANGES_REQUESTED: correctness regression in error classifier — author must fix",
-    "PR 43408 empty diff (0 files changed) — close immediately",
-    "PR 42314 stale 6+ days 288 files — recommend close",
-    "Action pins churn (+756/-756) in multiple PRs — auto-generated noise, skip in review",
-    "PR 43440 new this run: TypeScript narrowing bug in eslint-factory"
+    "PR 43467: CWE-89 GraphQL injection security fix — merge ASAP",
+    "PR 43468: CodeQL allocation-size overflow — pair with 43467",
+    "PR 43482: empty diff (0 files changed) — close immediately",
+    "Full prior-run clearance: 17 PRs resolved (13 merged, 4 closed)"
   ],
-  "newly_closed_since_prior": [43421],
-  "report_issue_tid": "aw_triage_run5"
+  "report_issue_tid": "aw_triage_run7"
 }
