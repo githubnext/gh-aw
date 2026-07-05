@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPromptWrappersReturnForms(t *testing.T) {
+func TestPromptWrappersReturnNonNilForms(t *testing.T) {
 	var inputValue string
 	require.NotNil(t, PromptInput(huh.NewInput().Value(&inputValue)))
 
