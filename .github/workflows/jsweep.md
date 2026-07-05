@@ -285,7 +285,7 @@ cat /tmp/gh-aw/cache-memory/jsweep-state.json
 
 ## Done Conditions
 
-**Your task for this run is complete when you have processed exactly one file and called `create_pull_request`.** This is the final step — do not continue after this point.
+**Your task for this run is complete when you have processed exactly one file and called the safe-output tool `create_pull_request`.** This is the final step — do not continue after this point.
 
 - **STOP immediately after calling `create_pull_request`** — do not loop back to Step 1 to find another file
 - Do not call `create_pull_request` more than once per run
