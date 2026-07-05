@@ -42,7 +42,7 @@ const MAX_AGENT_TEXT_LENGTH = 2000;
  * This message is added directly to markdown (not tracked) to ensure it's always visible.
  * The message is small (~70 bytes) and won't cause practical issues with the 8MB limit.
  */
-const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
+const SIZE_LIMIT_WARNING = "\n\n*Step summary size limit reached. Additional content truncated.*\n\n";
 
 /**
  * Matches AWF infrastructure lines written by the firewall/container wrapper.
@@ -263,6 +263,22 @@ function isLikelyCustomAgent(toolName) {
 }
 
 /**
+ * Builds a step-summary section with an h3 heading and collapsible details body.
+ * @param {string} title
+ * @param {string} summary
+ * @param {string} body
+ * @param {{open?: boolean}} [options]
+ * @returns {string}
+ */
+function buildStepSummaryDetailsSection(title, summary, body, options = {}) {
+  const { open = false } = options;
+  const openAttr = open ? " open" : "";
+  const trimmedBody = typeof body === "string" ? body.trim() : "";
+  const content = trimmedBody || `No ${title.toLowerCase()} available.`;
+  return `### ${title}\n\n<details${openAttr}>\n<summary>${summary}</summary>\n\n${content}\n</details>\n\n`;
+}
+
+/**
  * Generates information section markdown from the last log entry
  * @param {any} lastEntry - The last log entry with metadata (num_turns, duration_ms, etc.)
  * @param {Object} options - Configuration options
@@ -272,10 +288,10 @@ function isLikelyCustomAgent(toolName) {
 function generateInformationSection(lastEntry, options = {}) {
   const { additionalInfoCallback } = options;
 
-  let markdown = "\n## 📊 Information\n\n";
+  let markdown = "";
 
   if (!lastEntry) {
-    return markdown;
+    return buildStepSummaryDetailsSection("Information", "Show run metadata", "");
   }
 
   if (lastEntry.num_turns) {
@@ -333,7 +349,7 @@ function generateInformationSection(lastEntry, options = {}) {
     markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
   }
 
-  return markdown;
+  return buildStepSummaryDetailsSection("Information", "Show run metadata", markdown);
 }
 
 /**
@@ -1372,6 +1388,7 @@ module.exports = {
   estimateTokens,
   formatMcpName,
   isLikelyCustomAgent,
+  buildStepSummaryDetailsSection,
   generateConversationMarkdown,
   generateInformationSection,
   formatMcpParameters,

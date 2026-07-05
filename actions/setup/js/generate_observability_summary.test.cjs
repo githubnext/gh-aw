@@ -74,7 +74,7 @@ describe("generate_observability_summary.cjs", () => {
     expect(summary).toContain("- **blocked requests**: 1");
     expect(summary).toContain("- **agent output errors**: 1");
     expect(summary).toContain("- **otlp export errors**: 2");
-    expect(summary).toContain("- ⚠️ OTLP export failures detected; telemetry may not be visible in the backend.");
+    expect(summary).toContain("- OTLP export failures detected; telemetry may not be visible in the backend.");
     expect(summary).toContain("- **otlp export failure details**:");
     expect(summary).toContain("  - collector-a.example.com:4318 status=401 reason=Unauthorized");
     expect(summary).toContain("  - collector-b.example.com:4318 reason=upstream timeout");

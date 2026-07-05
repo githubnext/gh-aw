@@ -88,6 +88,19 @@ function createLogParserFormatters(deps) {
   }
 
   /**
+   * Builds a step-summary section with a plain-text h3 heading and collapsible details body.
+   * @param {string} title
+   * @param {string} summary
+   * @param {string} body
+   * @returns {string}
+   */
+  function buildStepSummaryDetailsSection(title, summary, body) {
+    const trimmedBody = typeof body === "string" ? body.trim() : "";
+    const content = trimmedBody || `No ${title.toLowerCase()} available.`;
+    return `### ${title}\n\n<details>\n<summary>${summary}</summary>\n\n${content}\n</details>\n\n`;
+  }
+
+  /**
    * Generates markdown summary from conversation log entries
    * This is the core shared logic between Claude and Copilot log parsers
    *
@@ -104,7 +117,6 @@ function createLogParserFormatters(deps) {
   function generateConversationMarkdown(logEntries, options) {
     const { formatToolCallback, formatInitCallback, summaryTracker } = options;
     const renderEntries = normalizeEntriesForRendering(logEntries);
-
     const toolUsePairs = collectToolUsePairs(renderEntries);
 
     let markdown = "";
@@ -120,64 +132,50 @@ function createLogParserFormatters(deps) {
     }
 
     const initEntry = renderEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-
     if (initEntry && formatInitCallback) {
-      if (!addContent("## 🚀 Initialization\n\n")) {
-        return { markdown, commandSummary: [], sizeLimitReached };
-      }
       const initResult = formatInitCallback(initEntry);
-      if (typeof initResult === "string") {
-        if (!addContent(initResult)) {
-          return { markdown, commandSummary: [], sizeLimitReached };
-        }
-      } else if (initResult && initResult.markdown) {
-        if (!addContent(initResult.markdown)) {
-          return { markdown, commandSummary: [], sizeLimitReached };
-        }
-      }
-      if (!addContent("\n")) {
+      const initBody = typeof initResult === "string" ? initResult : initResult && initResult.markdown ? initResult.markdown : "";
+      if (!addContent(buildStepSummaryDetailsSection("Initialization", "Show initialization details", initBody))) {
+        markdown += SIZE_LIMIT_WARNING;
         return { markdown, commandSummary: [], sizeLimitReached };
       }
     }
 
-    if (!addContent("\n## 🤖 Reasoning\n\n")) {
-      return { markdown, commandSummary: [], sizeLimitReached };
-    }
+    let reasoningBody = "";
+    let commandDetailsBody = "";
 
     for (const entry of renderEntries) {
-      if (sizeLimitReached) break;
+      if (entry.type !== "assistant" || !entry.message?.content) {
+        continue;
+      }
 
-      if (entry.type === "assistant" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (sizeLimitReached) break;
-
-          if (content.type === "text" && content.text) {
-            let text = content.text.trim();
-            text = unfenceMarkdown(text);
-            if (text && text.length > 0) {
-              if (!addContent(text + "\n\n")) {
-                break;
-              }
-            }
-          } else if (content.type === "thinking" && content.thinking) {
-            let text = content.thinking.trim();
-            text = unfenceMarkdown(text);
-            if (text && text.length > 0) {
-              if (!addContent(`<sub>◐ <em>${text.replace(/\n/g, "<br>")}</em></sub>\n\n`)) {
-                break;
-              }
-            }
-          } else if (content.type === "tool_use") {
-            const toolResult = toolUsePairs.get(content.id);
-            const toolMarkdown = formatToolCallback(content, toolResult);
-            if (toolMarkdown) {
-              if (!addContent(toolMarkdown)) {
-                break;
-              }
-            }
+      for (const content of entry.message.content) {
+        if (content.type === "text" && content.text) {
+          let text = content.text.trim();
+          text = unfenceMarkdown(text);
+          if (text) {
+            reasoningBody += text + "\n\n";
+          }
+        } else if (content.type === "thinking" && content.thinking) {
+          let text = content.thinking.trim();
+          text = unfenceMarkdown(text);
+          if (text) {
+            commandDetailsBody += "";
+            reasoningBody += `<sub><em>${text.replace(/\n/g, "<br>")}</em></sub>\n\n`;
+          }
+        } else if (content.type === "tool_use") {
+          const toolResult = toolUsePairs.get(content.id);
+          const toolMarkdown = formatToolCallback(content, toolResult);
+          if (toolMarkdown) {
+            commandDetailsBody += toolMarkdown;
           }
         }
       }
+    }
+
+    if (!addContent(buildStepSummaryDetailsSection("Reasoning", "Show reasoning", reasoningBody))) {
+      markdown += SIZE_LIMIT_WARNING;
+      return { markdown, commandSummary: [], sizeLimitReached };
     }
 
     if (sizeLimitReached) {
@@ -185,52 +183,52 @@ function createLogParserFormatters(deps) {
       return { markdown, commandSummary: [], sizeLimitReached };
     }
 
-    if (!addContent("## 🤖 Commands and Tools\n\n")) {
-      markdown += SIZE_LIMIT_WARNING;
-      return { markdown, commandSummary: [], sizeLimitReached: true };
-    }
-
     const commandSummary = [];
-
     for (const entry of renderEntries) {
-      if (entry.type === "assistant" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === "tool_use") {
-            const toolName = content.name;
-            const input = content.input || {};
+      if (entry.type !== "assistant" || !entry.message?.content) {
+        continue;
+      }
 
-            if (INTERNAL_TOOLS.includes(toolName)) {
-              continue;
-            }
+      for (const content of entry.message.content) {
+        if (content.type !== "tool_use") {
+          continue;
+        }
 
-            const toolResult = toolUsePairs.get(content.id);
-            let statusIcon = "❓";
-            if (toolResult) {
-              statusIcon = toolResult.is_error === true ? "❌" : "✅";
-            }
+        const toolName = content.name;
+        const input = content.input || {};
+        if (INTERNAL_TOOLS.includes(toolName)) {
+          continue;
+        }
 
-            if (toolName === "Bash") {
-              const formattedCommand = formatBashCommand(input.command || "");
-              commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
-            } else if (toolName.startsWith("mcp__")) {
-              const mcpName = formatMcpName(toolName);
-              commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
-            } else {
-              commandSummary.push(`* ${statusIcon} ${toolName}`);
-            }
-          }
+        const toolResult = toolUsePairs.get(content.id);
+        let statusIcon = "❓";
+        if (toolResult) {
+          statusIcon = toolResult.is_error === true ? "❌" : "✅";
+        }
+
+        if (toolName === "Bash") {
+          const formattedCommand = formatBashCommand(input.command || "");
+          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
+        } else if (toolName.startsWith("mcp__")) {
+          const mcpName = formatMcpName(toolName);
+          commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
+        } else {
+          commandSummary.push(`* ${statusIcon} ${toolName}`);
         }
       }
     }
 
+    let commandsBody = "";
     if (commandSummary.length > 0) {
-      for (const cmd of commandSummary) {
-        if (!addContent(`${cmd}\n`)) {
-          markdown += SIZE_LIMIT_WARNING;
-          return { markdown, commandSummary, sizeLimitReached: true };
-        }
-      }
-    } else if (!addContent("No commands or tools used.\n")) {
+      commandsBody += commandSummary.join("\n") + "\n\n";
+    } else {
+      commandsBody += "No commands or tools used.\n";
+    }
+    if (commandDetailsBody.trim()) {
+      commandsBody += commandDetailsBody.trim() + "\n";
+    }
+
+    if (!addContent(buildStepSummaryDetailsSection("Commands and Tools", "Show commands and tool calls", commandsBody))) {
       markdown += SIZE_LIMIT_WARNING;
       return { markdown, commandSummary, sizeLimitReached: true };
     }
