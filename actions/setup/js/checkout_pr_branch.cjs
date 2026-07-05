@@ -157,12 +157,14 @@ async function assertTrustedCheckoutRuntime() {
     // A 404 here is ambiguous: it can indicate either a non-user app/bot actor
     // or a real user that is not a collaborator. Disambiguate via users API.
     // Real users resolve via users.getByUsername; app/bot actors return 404.
-    if (err.status === 404) {
+    const errAny = /** @type {any} */ err;
+    if (errAny.status === 404) {
       try {
         await github.rest.users.getByUsername({ username: actor });
         throw new Error(`Refusing PR checkout: actor '${actor}' is not a collaborator (requires write or higher)`);
       } catch (userErr) {
-        if (userErr.status === 404) {
+        const userErrAny = /** @type {any} */ userErr;
+        if (userErrAny.status === 404) {
           core.info(`Runtime safety check passed for app actor '${actor}' (not a regular user)`);
           return;
         }

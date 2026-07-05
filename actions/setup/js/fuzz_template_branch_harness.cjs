@@ -26,6 +26,7 @@ if (!global.core) {
 }
 
 const { renderMarkdownTemplate } = require("./render_template.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 if (require.main === module) {
   let input = "";
@@ -50,7 +51,7 @@ if (require.main === module) {
       process.stdout.write(JSON.stringify(result));
       process.exit(0);
     } catch (err) {
-      process.stdout.write(JSON.stringify({ result: null, error: err instanceof Error ? err.message : String(err) }));
+      process.stdout.write(JSON.stringify({ result: null, error: getErrorMessage(err) }));
       process.exit(1);
     }
   });

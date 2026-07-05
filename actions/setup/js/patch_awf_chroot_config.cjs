@@ -3,6 +3,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Patch the AWF config file with chroot settings for ARC/DinD runners.
@@ -46,7 +47,7 @@ if (require.main === module) {
   try {
     patchAWFChrootConfig();
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     throw new Error(`chroot config patch failed: ${message}`);
   }
 }

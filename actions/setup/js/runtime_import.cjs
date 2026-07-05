@@ -539,7 +539,7 @@ function evaluateExpression(expr) {
       }
     } catch (error) {
       // If evaluation fails, log but don't throw
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       core.warning(`Failed to evaluate expression "${trimmed}": ${errorMessage}`);
     }
   }

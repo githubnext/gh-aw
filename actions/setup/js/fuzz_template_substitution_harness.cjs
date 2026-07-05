@@ -13,6 +13,7 @@ const { isTruthy } = require("./is_truthy.cjs");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Simulates the template rendering logic from interpolate_prompt
@@ -100,7 +101,7 @@ async function testTemplateSubstitution(template, substitutions, variables) {
 
     return {
       result: "",
-      error: err instanceof Error ? err.message : String(err),
+      error: getErrorMessage(err),
       stages: {
         afterSubstitution: "",
         afterInterpolation: "",
@@ -151,7 +152,7 @@ async function testValueState(value) {
       isTruthyResult: false,
       substitutedValue: "",
       templateRemoved: true,
-      error: err instanceof Error ? err.message : String(err),
+      error: getErrorMessage(err),
     };
   }
 }
@@ -181,7 +182,7 @@ if (require.main === module) {
       process.stdout.write(JSON.stringify(result));
       process.exit(0);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       process.stdout.write(
         JSON.stringify({
           result: "",

@@ -1,4 +1,5 @@
 // @ts-check
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Copilot Harness with Retry Logic
@@ -37,7 +38,7 @@
  * Example: node copilot_harness.cjs copilot --add-dir /tmp/ --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt
  */
 
-"use strict";
+("use strict");
 
 require("./shim.cjs");
 
@@ -1223,7 +1224,7 @@ if (typeof module !== "undefined" && module.exports) {
 
 if (require.main === module) {
   main().catch(err => {
-    log(`unexpected error: ${err.message}`);
+    log(`unexpected error: ${getErrorMessage(err)}`);
     process.exit(1);
   });
 }

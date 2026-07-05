@@ -1,4 +1,5 @@
 // @ts-check
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Pi Agent Core Driver (inner harness)
@@ -34,7 +35,7 @@
  *   { type: "result",      stats: { input_tokens, output_tokens, duration_ms, turns } }
  */
 
-"use strict";
+("use strict");
 
 const fs = require("fs");
 const path = require("path");
@@ -91,7 +92,7 @@ function readGatewayConfig(agentDir) {
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    log(`warning: failed to parse ${modelsPath}: ${err instanceof Error ? err.message : String(err)}`);
+    log(`warning: failed to parse ${modelsPath}: ${getErrorMessage(err)}`);
     return null;
   }
 
@@ -267,7 +268,7 @@ async function main() {
   try {
     prompt = fs.readFileSync(promptFile, "utf8");
   } catch (err) {
-    process.stderr.write(`[pi-agent-core-driver] error: failed to read prompt file ${promptFile}: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(`[pi-agent-core-driver] error: failed to read prompt file ${promptFile}: ${getErrorMessage(err)}\n`);
     process.exit(1);
   }
 

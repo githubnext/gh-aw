@@ -21,6 +21,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 const MAX_STATE_FILE_BYTES = 102400;
 // Keep this allowlist aligned with actions/setup/js/normalize_branch_name.cjs valid characters.
@@ -94,7 +95,8 @@ async function fetchFileFromBranch(octokit, owner, repo, branch, filePath) {
     return Buffer.from(data.content, "base64").toString("utf8");
   } catch (/** @type {any} */ err) {
     // 404 means the branch or file does not exist yet – that is normal on first run.
-    if (err.status === 404) {
+    const errAny = /** @type {any} */ err;
+    if (errAny.status === 404) {
       return null;
     }
     throw err;
@@ -129,7 +131,7 @@ async function main() {
   try {
     content = await fetchFileFromBranch(octokit, owner, repo, branch, stateFileName);
   } catch (/** @type {any} */ err) {
-    core.warning(`Failed to fetch experiment state from branch "${branch}": ${err.message} – starting fresh`);
+    core.warning(`Failed to fetch experiment state from branch "${branch}": ${getErrorMessage(err)} – starting fresh`);
   }
 
   // Ensure the directory exists regardless of whether we fetched the file.

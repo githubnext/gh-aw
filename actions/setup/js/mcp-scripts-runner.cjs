@@ -1,4 +1,5 @@
 // @ts-check
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * MCP Scripts Runner
@@ -36,7 +37,7 @@ function runMCPScript(execute) {
         inputs = JSON.parse(inputJson.trim());
       }
     } catch (e) {
-      process.stderr.write("Warning: Failed to parse inputs: " + (e instanceof Error ? e.message : String(e)) + "\n");
+      process.stderr.write("Warning: Failed to parse inputs: " + getErrorMessage(e) + "\n");
     }
     try {
       const result = await execute(inputs);

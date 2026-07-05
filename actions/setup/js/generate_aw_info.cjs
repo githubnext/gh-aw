@@ -8,6 +8,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { validateContextVariables } = require("./validate_context_variables.cjs");
 const validateLockdownRequirements = require("./validate_lockdown_requirements.cjs");
 const { writeMergedModelsJSON } = require("./merge_frontmatter_models.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Generate aw_info.json with workflow run metadata.
@@ -250,7 +251,7 @@ async function main(core, ctx) {
       }
       return skills.length > 0 ? skills : null;
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = getErrorMessage(err);
       core.warning(`Failed to parse GH_AW_INFO_SKILLS: ${skillsEnv} (${message})`);
       return null;
     }

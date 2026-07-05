@@ -1,4 +1,5 @@
 // @ts-check
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Copilot SDK Session Runner
@@ -29,7 +30,7 @@
  * telemetry without duplicating the implementation.
  */
 
-"use strict";
+("use strict");
 
 const fs = require("fs");
 const path = require("path");
@@ -401,7 +402,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           log(`warning: post-completion idle watchdog fired after ${postCompletionIdleMs}ms — force-disconnecting session`);
           postCompletionWatchdogTriggered = true;
           void session.disconnect().catch(err => {
-            log(`warning: post-completion watchdog disconnect failed: ${err instanceof Error ? err.message : String(err)}`);
+            log(`warning: post-completion watchdog disconnect failed: ${getErrorMessage(err)}`);
           });
         }, postCompletionIdleMs);
       } else {

@@ -9,6 +9,7 @@
  */
 
 const { displayFileContent } = require("./display_file_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Generate a step summary for a single safe-output message
@@ -179,7 +180,7 @@ async function writeSafeOutputSummaries(results, messages) {
           displayFileContent(safeOutputsFile, "safe-outputs.jsonl", 5000);
         }
       } catch (error) {
-        core.debug(`Could not read raw safe-output file: ${error instanceof Error ? error.message : String(error)}`);
+        core.debug(`Could not read raw safe-output file: ${getErrorMessage(error)}`);
       }
     }
   }
@@ -216,7 +217,7 @@ async function writeSafeOutputSummaries(results, messages) {
     await core.summary.addRaw(summaryContent).write();
     core.info(`📝 Safe output summaries written to step summary`);
   } catch (error) {
-    core.warning(`Failed to write safe output summaries: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Failed to write safe output summaries: ${getErrorMessage(error)}`);
   }
 }
 

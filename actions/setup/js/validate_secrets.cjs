@@ -163,7 +163,7 @@ async function testGitHubRESTAPI(token, owner, repo) {
       };
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     return {
       status: Status.FAILURE,
       message: `REST API error: ${errorMessage}`,
@@ -235,7 +235,7 @@ async function testGitHubGraphQLAPI(token, owner, repo) {
       };
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     return {
       status: Status.FAILURE,
       message: `GraphQL API error: ${errorMessage}`,
@@ -350,7 +350,7 @@ async function testAnthropicAPI(apiKey) {
       };
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     return {
       status: Status.FAILURE,
       message: `Anthropic API error: ${errorMessage}`,
@@ -395,7 +395,7 @@ async function testOpenAIAPI(apiKey) {
       };
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     return {
       status: Status.FAILURE,
       message: `OpenAI API error: ${errorMessage}`,
@@ -440,7 +440,7 @@ async function testBraveSearchAPI(apiKey) {
       };
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     return {
       status: Status.FAILURE,
       message: `Brave Search API error: ${errorMessage}`,
@@ -486,7 +486,7 @@ async function testNotionAPI(token) {
       };
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     return {
       status: Status.FAILURE,
       message: `Notion API error: ${errorMessage}`,

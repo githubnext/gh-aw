@@ -1842,8 +1842,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         invocationContext = resolveInvocationContext(context);
       } catch (err) {
         // A validation error (e.g. disallowed target_repo / SEC-005) is a real failure — surface it.
-        if (err?.message?.startsWith(ERR_VALIDATION)) {
-          return buildIntentErrorResponse(err.message);
+        const errMsg = getErrorMessage(err);
+        if (errMsg.startsWith(ERR_VALIDATION)) {
+          return buildIntentErrorResponse(errMsg);
         }
         // Unexpected structural error: skip validation and let downstream handle gracefully.
       }
@@ -2126,8 +2127,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         invocationContext = resolveInvocationContext(context);
       } catch (err) {
         // A validation error (e.g. disallowed target_repo / SEC-005) is a real failure — surface it.
-        if (err?.message?.startsWith(ERR_VALIDATION)) {
-          return buildIntentErrorResponse(err.message);
+        const errMsg = getErrorMessage(err);
+        if (errMsg.startsWith(ERR_VALIDATION)) {
+          return buildIntentErrorResponse(errMsg);
         }
         // Unexpected structural error: skip validation and let downstream handle gracefully.
       }
@@ -2177,8 +2179,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         invocationContext = resolveInvocationContext(context);
       } catch (err) {
         // A validation error (e.g. disallowed target_repo / SEC-005) is a real failure — surface it.
-        if (err?.message?.startsWith(ERR_VALIDATION)) {
-          return buildIntentErrorResponse(err.message);
+        const errMsg = getErrorMessage(err);
+        if (errMsg.startsWith(ERR_VALIDATION)) {
+          return buildIntentErrorResponse(errMsg);
         }
         // Unexpected structural error: skip validation and let downstream handle gracefully.
       }

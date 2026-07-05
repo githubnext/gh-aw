@@ -15,6 +15,7 @@ global.core = {
 };
 
 const { updateBody } = require("./update_pr_description_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Test the updateBody function with given parameters
@@ -40,7 +41,7 @@ function testUpdateBody(currentBody, newContent, operation, workflowName, runUrl
   } catch (err) {
     return {
       result: "",
-      error: err instanceof Error ? err.message : String(err),
+      error: getErrorMessage(err),
     };
   }
 }
@@ -61,7 +62,7 @@ if (require.main === module) {
       process.stdout.write(JSON.stringify(result));
       process.exit(0);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       process.stdout.write(JSON.stringify({ result: "", error: errorMsg }));
       process.exit(1);
     }

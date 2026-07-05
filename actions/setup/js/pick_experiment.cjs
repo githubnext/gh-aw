@@ -28,6 +28,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /** Maximum number of per-run records retained in state.runs. Older entries are pruned to keep state.json small. */
 const MAX_RUN_HISTORY = 512;
@@ -365,7 +366,7 @@ async function main() {
   try {
     rawSpec = JSON.parse(specRaw);
   } catch (e) {
-    core.setFailed(`Failed to parse GH_AW_EXPERIMENT_SPEC: ${e.message}`);
+    core.setFailed(`Failed to parse GH_AW_EXPERIMENT_SPEC: ${getErrorMessage(e)}`);
     return;
   }
 

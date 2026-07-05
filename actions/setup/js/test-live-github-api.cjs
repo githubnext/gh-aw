@@ -13,6 +13,7 @@
  */
 
 const { computeFrontmatterHash, createGitHubFileReader } = require("./frontmatter_hash_pure.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function testLiveGitHubAPI() {
   // Check for GitHub token
@@ -84,7 +85,7 @@ async function testLiveGitHubAPI() {
     console.log(`\n✨ All tests passed! The JavaScript implementation works correctly with GitHub API.`);
   } catch (err) {
     const error = err;
-    console.error(`\n❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`\n❌ Error: ${getErrorMessage(error)}`);
     if (error && typeof error === "object" && "status" in error) {
       const statusError = error;
       if (statusError.status === 401) {
