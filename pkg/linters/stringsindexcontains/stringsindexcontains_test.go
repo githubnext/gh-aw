@@ -12,5 +12,5 @@ import (
 
 func TestAnalyzer(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, stringsindexcontains.Analyzer, "stringsindexcontains")
+	analysistest.RunWithSuggestedFixes(t, testdata, stringsindexcontains.Analyzer, "stringsindexcontains")
 }
