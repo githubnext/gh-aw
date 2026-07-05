@@ -7,7 +7,7 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
+const { createDiscussionComment, resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 const { addReaction, addDiscussionReaction, getDiscussionNodeId } = require("./add_reaction.cjs");
 
@@ -250,19 +250,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
       // For discussion_comment events, thread the reply under the triggering comment.
       // GitHub Discussions only supports two nesting levels, so resolve the top-level parent node ID.
       const replyToId = eventName === "discussion_comment" ? await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id) : null;
-      const mutation = replyToId
-        ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
-            addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
-              comment { id url }
-            }
-          }`
-        : `mutation($dId: ID!, $body: String!) {
-            addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-              comment { id url }
-            }
-          }`;
-      const result = await github.graphql(mutation, { dId: discussionId, body: commentBody, ...(replyToId ? { replyToId } : {}) });
-      const comment = result.addDiscussionComment.comment;
+      const comment = await createDiscussionComment(github, discussionId, commentBody, replyToId);
       setCommentOutputs(comment.id, comment.url, eventRepo);
       return;
     }

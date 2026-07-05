@@ -2,9 +2,12 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	actionpins "github.com/github/gh-aw/pkg/actionpins"
+	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/semverutil"
 )
@@ -198,6 +201,68 @@ func getCachedActionPin(repo string, data *WorkflowData) string {
 // Step-level helpers that depend on WorkflowStep (stay in pkg/workflow)
 // --------------------------------------------------------------------------
 
+// warnIfOutdatedActionVersion emits a warning to stderr when rawVersion is a semver
+// action-version tag (e.g. "v3", "v4.0.0") and a strictly newer version exists in the
+// embedded action pins. The check is skipped when rawVersion is already a full SHA or a
+// non-semver ref (branch name, etc.), and when the latest available version is not newer.
+//
+// Warnings are deduplicated per repo@version pair via data.ActionPinWarnings so that the
+// same step appearing in multiple places (pre-steps, steps, post-steps) only produces one
+// diagnostic.
+//
+// Partial version tags (e.g. "v4" without minor/patch) are only flagged when the latest
+// available major version is higher than the requested one; within the same major the tag
+// is treated as a floating reference and no warning is emitted.
+func warnIfOutdatedActionVersion(actionRepo, rawVersion, latestVersion string, data *WorkflowData) {
+	if data == nil {
+		return
+	}
+
+	// SHAs are already pinned to a specific commit — no version to compare.
+	if gitutil.IsValidFullSHA(rawVersion) {
+		return
+	}
+	// Only check recognised action version tags (vN, vN.M, vN.M.P).
+	if !semverutil.IsActionVersionTag(rawVersion) {
+		return
+	}
+
+	latestSemver := semverutil.ParseVersion(latestVersion)
+	requestedSemver := semverutil.ParseVersion(rawVersion)
+	if latestSemver == nil || requestedSemver == nil {
+		return
+	}
+
+	// For tags without a patch component (e.g. "@v4", "@v4.1"), treat them as
+	// floating references that resolve to the latest compatible patch within that
+	// major version line (for major-only tags) or minor version line (for
+	// major.minor tags). Only warn when the latest available major version is
+	// higher — same-major newer minors/patches are not "outdated" for a floating tag.
+	isPartialTag := strings.Count(strings.TrimPrefix(rawVersion, "v"), ".") < 2
+	if isPartialTag {
+		if latestSemver.Major <= requestedSemver.Major {
+			return
+		}
+	} else if !latestSemver.IsNewer(requestedSemver) {
+		return
+	}
+
+	// Deduplicate: only emit the warning once per repo@version within this compilation.
+	cacheKey := "outdated:" + actionpins.FormatCacheKey(actionRepo, rawVersion)
+	if data.ActionPinWarnings == nil {
+		data.ActionPinWarnings = make(map[string]bool)
+	}
+	if data.ActionPinWarnings[cacheKey] {
+		return
+	}
+	data.ActionPinWarnings[cacheKey] = true
+
+	warningMsg := fmt.Sprintf("Action %s@%s is outdated; latest available version is %s.\n  Consider upgrading (update the version tag in your workflow file).",
+		actionRepo, rawVersion, latestVersion)
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+	actionPinsLog.Printf("Outdated action version detected: %s@%s (latest: %s)", actionRepo, rawVersion, latestVersion)
+}
+
 // applyActionPinToTypedStep applies SHA pinning to a WorkflowStep if it uses an action.
 // Returns a modified copy of the step with pinned references.
 // If the step doesn't use an action or the action is not pinned, returns the original step.
@@ -236,6 +301,11 @@ func applyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) (*Workflo
 	// Strip the comment suffix before checking if it's already a SHA.
 	// Uses strings like "repo@sha # version" are treated as already-pinned.
 	rawVersion, _, _ := strings.Cut(version, " ")
+
+	// Warn if the requested version is older than the latest available in embedded pins.
+	if latestPin, hasLatest := getLatestActionPinByRepo(actionRepo); hasLatest {
+		warnIfOutdatedActionVersion(actionRepo, rawVersion, latestPin.Version, data)
+	}
 
 	pinnedRef, err := getActionPinWithData(actionRepo, rawVersion, data)
 	if err != nil || pinnedRef == "" {
