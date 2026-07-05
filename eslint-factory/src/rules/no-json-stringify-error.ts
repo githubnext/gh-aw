@@ -44,6 +44,8 @@ export const noJsonStringifyErrorRule = createRule({
 
     function getCaughtVarNames(): Set<string> {
       const names = new Set<string>();
+      // Walk from the innermost active scope outward and stop at the first
+      // sentinel so non-.catch() callbacks cannot see shadowed catch vars.
       for (let i = scopeStack.length - 1; i >= 0; i--) {
         const scope = scopeStack[i];
         if (scope.isSentinel) break;
