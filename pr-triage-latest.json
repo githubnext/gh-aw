@@ -1,212 +1,102 @@
 {
-  "run_date": "2026-07-05T12:41:37Z",
-  "run_id": "28741077056",
-  "prior_run_id": "28733101041",
+  "run_date": "2026-07-05T18:34:11Z",
+  "run_id": "28750744185",
+  "prior_run_id": "28741077056",
   "summary": {
-    "total": 14,
-    "new": 13,
-    "carry_over": 1,
-    "auto_merge": 1,
-    "fast_track": 6,
-    "batch_review": 3,
-    "defer": 4,
+    "total": 5,
+    "new": 5,
+    "carry_over": 0,
+    "auto_merge": 0,
+    "fast_track": 2,
+    "batch_review": 1,
+    "defer": 2,
     "close": 0
   },
   "prior_run_resolution": {
-    "total": 17,
+    "total": 14,
     "merged": 13,
-    "closed": 4,
-    "merged_prs": [43410, 43411, 43406, 43409, 43413, 43405, 43414, 43404, 43440, 43403, 43376, 43412],
-    "closed_prs": [43383, 43419, 43145, 43408, 42314]
+    "closed": 1,
+    "merged_prs": [43467, 43525, 43507, 43501, 43527, 43526, 43500, 43508, 43516, 43506, 43497],
+    "closed_prs": [43515]
   },
   "prs": [
     {
-      "number": 43467,
-      "title": "Fix GraphQL ID injection in project_command.go (Semgrep #627/#628, CWE-89)",
-      "category": "bug",
-      "risk": "high",
-      "score": 83,
-      "action": "fast_track",
-      "batch": "pr-batch:security-fixes",
-      "draft": false,
-      "reviews": "DISMISSED",
-      "note": "CWE-89 GraphQL injection. 2nd carry-over. 6 files +236/-27. MERGE ASAP."
-    },
-    {
-      "number": 43525,
-      "title": "fix(ai-moderator): noop safe output + cache miss hardening",
-      "category": "bug",
-      "risk": "low",
-      "score": 78,
-      "action": "fast_track",
-      "batch": null,
-      "draft": false,
-      "reviews": "APPROVED",
-      "note": "Fixes 86% failure rate. 2 files +4/-2. 1x APPROVED."
-    },
-    {
-      "number": 43514,
-      "title": "fix(pr-code-quality-reviewer): increase timeout-minutes from 15 to 20",
-      "category": "chore",
-      "risk": "low",
-      "score": 63,
-      "action": "auto_merge",
-      "batch": null,
-      "draft": false,
-      "reviews": "3xAPPROVED",
-      "note": "One-line timeout bump. 3x APPROVED. Zero risk."
-    },
-    {
-      "number": 43507,
-      "title": "fix(eslint): harden require-await-core-summary-write for compound expression forms",
-      "category": "bug",
-      "risk": "low",
-      "score": 55,
-      "action": "fast_track",
-      "batch": null,
-      "draft": false,
-      "reviews": "2xAPPROVED",
-      "note": "ESLint rule fix capturing compound-expression Promise drops. 2x APPROVED."
-    },
-    {
-      "number": 43501,
-      "title": "Fix audit comparison turns delta for cached summaries",
-      "category": "bug",
-      "risk": "medium",
-      "score": 52,
-      "action": "fast_track",
-      "batch": null,
-      "draft": false,
-      "reviews": "2xAPPROVED+CR",
-      "note": "Fixes false turns_decrease misclassification. 2x APPROVED, bot CR."
-    },
-    {
-      "number": 43527,
-      "title": "Add shared prompt quality gate for plateaued agent-review workflows",
-      "category": "feature",
-      "risk": "medium",
-      "score": 50,
-      "action": "fast_track",
-      "batch": null,
-      "draft": false,
-      "reviews": "COMMENTED",
-      "note": "Targets stalled 61/62 effectiveness score. 9 workflow files. Needs human prompt review."
-    },
-    {
-      "number": 43526,
-      "title": "httprespbodyclose: analyze function literals as first-class scopes",
-      "category": "bug",
-      "risk": "low",
-      "score": 45,
-      "action": "fast_track",
-      "batch": null,
-      "draft": false,
-      "reviews": "APPROVED",
-      "note": "Go analyzer FuncLit scope fix. 2 files +67/-6. 1x APPROVED."
-    },
-    {
-      "number": 43500,
-      "title": "prefer-number-isnan: treat ESM import bindings as local shadows",
-      "category": "bug",
-      "risk": "low",
-      "score": 48,
-      "action": "batch_review",
-      "batch": "pr-batch:eslint-isnan",
-      "draft": false,
-      "reviews": "2xAPPROVED",
-      "note": "ESM import shadow fix for isNaN rule. 2x APPROVED. Review with #43515."
-    },
-    {
-      "number": 43508,
-      "title": "feat: support github-app in max-daily-ai-credits for dedicated guardrail token",
+      "number": 43594,
+      "title": "SPDD 2026-07-05: outcome evaluators, policy compiler, and spec coverage for batch 20-24",
       "category": "feature",
       "risk": "high",
-      "score": 48,
-      "action": "batch_review",
+      "score": 71,
+      "action": "fast_track",
       "batch": null,
       "draft": false,
-      "reviews": "CR",
-      "note": "github-app object syntax for credits guardrail. 7 files +495/-77. Bot CR."
+      "reviews": "DISMISSED+COMMENTED",
+      "note": "P0/P1/P2 gap fills: Go evaluators + PolicyCompiler. 16 files +1282/-6. CI passing. Needs human logic review."
     },
     {
-      "number": 43515,
-      "title": "prefer-number-isnan: autofix for provably-numeric args, drop misleading caveat",
-      "category": "bug",
-      "risk": "low",
-      "score": 40,
-      "action": "batch_review",
-      "batch": "pr-batch:eslint-isnan",
-      "draft": false,
-      "reviews": "COMMENTED",
-      "note": "Autofix promotion for isNaN rule. Review with #43500."
-    },
-    {
-      "number": 43516,
-      "title": "[workflow-style] Normalize report formatting for 36 non-compliant workflows",
-      "category": "formatting",
-      "risk": "medium",
-      "score": 31,
-      "action": "defer",
-      "batch": null,
-      "draft": false,
-      "reviews": "CR",
-      "note": "30 files. Bot CHANGES_REQUESTED blocks."
-    },
-    {
-      "number": 43495,
-      "title": "Tighten step summary hierarchy and progressive disclosure",
-      "category": "formatting",
-      "risk": "medium",
-      "score": 28,
-      "action": "defer",
-      "batch": null,
-      "draft": false,
-      "reviews": "CR",
-      "note": "18 files. Bot CHANGES_REQUESTED blocks."
-    },
-    {
-      "number": 43506,
-      "title": "fix(lint): eliminate env-coupling in workflow_data, add_interactive_engine, outcomes_command",
-      "category": "chore",
-      "risk": "medium",
-      "score": 25,
-      "action": "defer",
-      "batch": null,
-      "draft": false,
-      "reviews": "2xCR",
-      "note": "5 files. Bot 2x CHANGES_REQUESTED blocks."
-    },
-    {
-      "number": 43497,
-      "title": "docs: update DICTATION.md with high-frequency project terms",
+      "number": 43599,
+      "title": "Add explicit AI crawler allowlist to docs robots.txt",
       "category": "docs",
       "risk": "low",
-      "score": 12,
-      "action": "defer",
+      "score": 62,
+      "action": "fast_track",
       "batch": null,
-      "draft": true,
-      "reviews": "none",
-      "note": "Draft. 1 file +801/-10. Low urgency."
+      "draft": false,
+      "reviews": "COMMENTED+APPROVED(bot)",
+      "note": "GEO audit docs fix. 2 files +27/-63. CI passing. No blocking reviews."
+    },
+    {
+      "number": 43589,
+      "title": "Wrap org runner and MCP list-tools stderr output with console formatting helpers",
+      "category": "refactor",
+      "risk": "low",
+      "score": 44,
+      "action": "batch_review",
+      "batch": "pr-batch:console-migration",
+      "draft": false,
+      "reviews": "DISMISSED",
+      "note": "3 files +89/-16. CI passing. Dismissed review had correctness concerns — verify resolved."
+    },
+    {
+      "number": 43587,
+      "title": "Centralize interactive huh form setup in `pkg/console` and remove CLI duplication",
+      "category": "refactor",
+      "risk": "high",
+      "score": 38,
+      "action": "defer",
+      "batch": "pr-batch:console-migration",
+      "draft": false,
+      "reviews": "CHANGES_REQUESTED",
+      "note": "15 files +268/-203. CHANGES_REQUESTED blocks. High risk — touches all interactive prompts."
+    },
+    {
+      "number": 43588,
+      "title": "Fix trial_confirmation.go sub-step bullets to use console.FormatListItemStderr",
+      "category": "bug",
+      "risk": "low",
+      "score": 28,
+      "action": "defer",
+      "batch": "pr-batch:console-migration",
+      "draft": false,
+      "reviews": "CHANGES_REQUESTED",
+      "note": "1 file +33/-27. CHANGES_REQUESTED blocks. Cosmetic consistency fix."
     }
   ],
   "batches": [
     {
-      "id": "pr-batch:security-fixes",
-      "prs": [43467],
-      "note": "Security: CWE-89 GraphQL injection. 2nd carry-over."
-    },
-    {
-      "id": "pr-batch:eslint-isnan",
-      "prs": [43500, 43515],
-      "note": "isNaN ESLint rule pair: ESM shadow + autofix. Review together."
+      "id": "pr-batch:console-migration",
+      "prs": [43589, 43587, 43588],
+      "note": "Coordinated stderr/huh-form console helper migration. Resolve #43587 CHANGES_REQUESTED first."
     }
   ],
   "flags": [
-    "PR 43467: CWE-89 security fix — 2nd carry-over, ESCALATE NOW",
-    "PR 43525: 86% AI Moderator failure rate — merge ASAP",
-    "PR 43514: 3x APPROVED one-liner — auto_merge candidate",
-    "4 PRs blocked by bot CHANGES_REQUESTED (43516, 43495, 43506, 43508)",
-    "eslint-isnan cluster: review #43500 + #43515 together"
+    "PR 43594: SPDD batch — highest priority fast_track this cycle",
+    "PR 43599: trivial docs fix, CI passing — merge ASAP",
+    "console-migration cluster (43587/43588/43589): 2/3 blocked by CHANGES_REQUESTED",
+    "PR 43589 dismissed review: verify correctness concerns were addressed"
   ],
-  "report_issue_tid": "aw_triage_run8"
+  "report_issue_tid": "aw_triage_run9",
+  "non_eligible_open_prs": [
+    {"number": 43495, "author": "app/copilot-swe-agent", "note": "prior run deferred, still open, CHANGES_REQUESTED"},
+    {"number": 43228, "author": "app/github-actions", "note": "not copilot-swe-agent authored, needs-review label"}
+  ]
 }
