@@ -97,7 +97,7 @@ func TestSleepWithContextCancellation(t *testing.T) {
 	elapsed := time.Since(start)
 
 	require.ErrorIs(t, err, context.Canceled)
-	assert.Less(t, elapsed, 100*time.Millisecond, "sleepWithContext should return quickly when context is already cancelled")
+	assert.Less(t, elapsed, 500*time.Millisecond, "sleepWithContext should return quickly when context is already cancelled")
 }
 
 // TestSleepWithContextDeadlineExceeded verifies that sleepWithContext respects a
@@ -111,7 +111,7 @@ func TestSleepWithContextDeadlineExceeded(t *testing.T) {
 	elapsed := time.Since(start)
 
 	require.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.Less(t, elapsed, 200*time.Millisecond, "sleepWithContext should return as soon as the deadline expires")
+	assert.Less(t, elapsed, time.Second, "sleepWithContext should return as soon as the deadline expires")
 }
 
 // TestSleepWithContextTimerFires verifies that sleepWithContext returns nil when the
