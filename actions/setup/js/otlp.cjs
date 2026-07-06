@@ -25,6 +25,7 @@
  */
 
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 // Ensures global.core / global.context shims are available when this module
 // is loaded outside the github-script runtime (e.g., in plain Node.js or the
@@ -164,7 +165,7 @@ async function logSpan(toolName, attributes = {}, options = {}) {
     }
   } catch (err) {
     // Export failures must never break the workflow.
-    console.warn(`[otlp] ${toolName}: failed to emit span: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[otlp] ${toolName}: failed to emit span: ${getErrorMessage(err)}`);
   }
 }
 

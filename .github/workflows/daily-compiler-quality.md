@@ -373,11 +373,13 @@ Generate a comprehensive discussion report with findings.
 
 1. Call safe-output tools **directly**. Use the `create_discussion` or `noop` tool itself — **never** use `bash`, `shell`, or `safeoutputs ...` CLI commands to invoke safe outputs.
 2. If the final report body is complete and valid, emit **exactly one** direct `create_discussion` tool call.
-3. Do **not** emit placeholder or draft bodies (for example: `test`, `.`, `todo`, or similar short placeholders).
-4. Only call `create_discussion` after the final report body is complete and fully rendered.
-5. If you cannot produce a valid discussion body, or decide no discussion should be created, call `noop` directly with a brief explanation instead of returning plain text.
-6. The workflow enforces a **minimum 200-character body length**, so very short outputs (placeholder or otherwise) will fail safe-outputs.
-7. **Before finishing, confirm you called either `create_discussion` or `noop`.** If not, call `noop` immediately with a short explanation. Never end the run with plain text only.
+3. Keep the final `create_discussion.body` under **9 KB / 9000 bytes**. The safe-output tool rejects string inputs above 10 KB, so prefer an executive summary plus a single compact `<details>` block instead of full per-file dumps.
+4. Limit the report to the **top 3** strengths, **top 3** issues, and **top 3** recommended actions across the analyzed files. Summarize trends instead of reproducing every metric.
+5. Do **not** emit placeholder or draft bodies (for example: `test`, `.`, `todo`, or similar short placeholders).
+6. Only call `create_discussion` after the final report body is complete, fully rendered, and checked for the size budget above.
+7. If you cannot produce a valid discussion body within that size budget, or decide no discussion should be created, call `noop` directly with a brief explanation instead of returning plain text.
+8. The workflow enforces a **minimum 200-character body length**, so very short outputs (placeholder or otherwise) will fail safe-outputs.
+9. **Before finishing, confirm you called either `create_discussion` or `noop`.** If not, call `noop` immediately with a short explanation. Never end the run with plain text only.
 
 ### Direct Tool Call Examples
 

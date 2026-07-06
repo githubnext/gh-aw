@@ -147,8 +147,8 @@ async function main() {
           return sanitizePrototypePollution(parsed);
         } catch (repairError) {
           core.info(`invalid input json: ${jsonStr}`);
-          const originalMsg = originalError instanceof Error ? originalError.message : String(originalError);
-          const repairMsg = repairError instanceof Error ? repairError.message : String(repairError);
+          const originalMsg = getErrorMessage(originalError);
+          const repairMsg = getErrorMessage(repairError);
           throw new Error(`${ERR_PARSE}: JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`);
         }
       }

@@ -1,4 +1,5 @@
 // @ts-check
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * mcp_cli_bridge.cjs
@@ -73,7 +74,7 @@ function ensureAuditDir() {
     fs.mkdirSync(AUDIT_LOG_DIR, { recursive: true });
   } catch (err) {
     const core = global.core;
-    core.warning(`Failed to create audit log directory ${AUDIT_LOG_DIR}: ${err instanceof Error ? err.message : String(err)}`);
+    core.warning(`Failed to create audit log directory ${AUDIT_LOG_DIR}: ${getErrorMessage(err)}`);
   }
 }
 
@@ -94,7 +95,7 @@ function auditLog(serverName, entry) {
     fs.appendFileSync(logPath, JSON.stringify(record) + "\n", { mode: 0o644 });
   } catch (err) {
     const core = global.core;
-    core.warning(`Failed to write audit log for ${serverName}: ${err instanceof Error ? err.message : String(err)}`);
+    core.warning(`Failed to write audit log for ${serverName}: ${getErrorMessage(err)}`);
   }
 }
 
@@ -254,7 +255,7 @@ async function mcpInitialize(serverUrl, apiKey, serverName) {
     return sessionId;
   } catch (err) {
     const elapsedMs = Date.now() - startMs;
-    const message = err instanceof Error ? err.message : String(err);
+    const message = getErrorMessage(err);
     core.warning(`[${serverName}] MCP initialize failed (${elapsedMs}ms): ${message}`);
     auditLog(serverName, { event: "initialize_error", error: message, elapsedMs });
     return "";
@@ -290,7 +291,7 @@ async function mcpNotifyInitialized(serverUrl, apiKey, sessionId, serverName) {
     auditLog(serverName, { event: "notify_initialized_done", elapsedMs });
   } catch (err) {
     const elapsedMs = Date.now() - startMs;
-    const message = err instanceof Error ? err.message : String(err);
+    const message = getErrorMessage(err);
     core.warning(`[${serverName}] MCP notifications/initialized failed (${elapsedMs}ms): ${message}`);
     auditLog(serverName, { event: "notify_initialized_error", error: message, elapsedMs });
   }
@@ -402,7 +403,7 @@ function startMcpKeepalivePings(serverUrl, apiKey, sessionId, serverName) {
       auditLog(serverName, { event: "keepalive_ping_done", pingId: currentPingId, elapsedMs });
     } catch (err) {
       const elapsedMs = Date.now() - startMs;
-      const message = err instanceof Error ? err.message : String(err);
+      const message = getErrorMessage(err);
       core.warning(`[${serverName}] MCP keepalive ping failed: ${message}`);
       auditLog(serverName, { event: "keepalive_ping_error", pingId: currentPingId, error: message, elapsedMs });
     }
@@ -1297,7 +1298,7 @@ async function main() {
     }
   } catch (err) {
     const totalMs = Date.now() - callStartMs;
-    const message = err instanceof Error ? err.message : String(err);
+    const message = getErrorMessage(err);
     core.error(`[${serverName}] Tool call failed (${totalMs}ms): ${message}`);
     auditLog(serverName, {
       event: "call_error",

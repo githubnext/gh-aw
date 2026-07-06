@@ -3,6 +3,7 @@
 
 const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot, isConfusedDeputyAttack } = require("./check_permissions_utils.cjs");
 const { writeDenialSummary } = require("./pre_activation_summary.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Attempt to authorize the actor via the bots allowlist.
@@ -147,7 +148,7 @@ async function main() {
             return;
           }
         } catch (error) {
-          const errorMessage = `Repository permission check failed: Unable to verify pull request provenance (${error?.message ?? String(error)}).`;
+          const errorMessage = `Repository permission check failed: Unable to verify pull request provenance (${getErrorMessage(error)}).`;
           core.warning(errorMessage);
           core.setOutput("is_team_member", "false");
           core.setOutput("result", "api_error");

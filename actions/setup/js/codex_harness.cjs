@@ -33,6 +33,7 @@
 
 "use strict";
 
+const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
 const {
@@ -602,7 +603,7 @@ if (typeof module !== "undefined" && module.exports) {
 
 if (require.main === module) {
   main().catch(err => {
-    log(`unexpected error: ${err.message}`);
+    log(`unexpected error: ${getErrorMessage(err)}`);
     process.exit(1);
   });
 }

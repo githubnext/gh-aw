@@ -179,7 +179,7 @@ async function detectWorkflowFileChanges(exec, gitOptions, baseBranch, coreLogge
       ),
     ];
   } catch (err) {
-    coreLogger.debug(`detectWorkflowFileChanges: git log threw (baseline '${baseline}'); skipping pre-flight: ${err instanceof Error ? err.message : String(err)}`);
+    coreLogger.debug(`detectWorkflowFileChanges: git log threw (baseline '${baseline}'); skipping pre-flight: ${getErrorMessage(err)}`);
     return [];
   }
 }
@@ -718,7 +718,7 @@ async function main(config = {}) {
           branchStateBefore
         );
       } catch (issueError) {
-        const error = `Manifest file protection: failed to create review issue. Error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+        const error = `Manifest file protection: failed to create review issue. Error: ${getErrorMessage(issueError)}`;
         core.error(error);
         return { success: false, error };
       }
@@ -779,13 +779,13 @@ async function main(config = {}) {
         ...baseGitOpts,
       });
     } catch (fetchError) {
-      const fetchErrorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      const fetchErrorMessage = getErrorMessage(fetchError);
       if (ignoreMissingBranchFailure && looksLikeMissingRemoteBranchError(fetchErrorMessage)) {
         const missingBranchError = MISSING_BRANCH_ERROR_TEMPLATE(branchName);
         core.warning(`${missingBranchError} Skipping as configured by ignore-missing-branch-failure.`);
         return { success: false, error: missingBranchError, skipped: true };
       }
-      return { success: false, error: `Failed to fetch branch ${branchName}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}` };
+      return { success: false, error: `Failed to fetch branch ${branchName}: ${getErrorMessage(fetchError)}` };
     }
 
     // Check if branch exists on origin
@@ -797,7 +797,7 @@ async function main(config = {}) {
         core.warning(`${missingBranchError} Skipping as configured by ignore-missing-branch-failure.`);
         return { success: false, error: missingBranchError, skipped: true };
       }
-      return { success: false, error: `Branch ${branchName} does not exist on origin, can't push to it: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}` };
+      return { success: false, error: `Branch ${branchName} does not exist on origin, can't push to it: ${getErrorMessage(verifyError)}` };
     }
 
     // Checkout the branch from origin
@@ -805,7 +805,7 @@ async function main(config = {}) {
       await exec.exec(`git checkout -B ${branchName} origin/${branchName}`, [], baseGitOpts);
       core.info(`Checked out existing branch from origin: ${branchName}`);
     } catch (checkoutError) {
-      return { success: false, error: `Failed to checkout branch ${branchName}: ${checkoutError instanceof Error ? checkoutError.message : String(checkoutError)}` };
+      return { success: false, error: `Failed to checkout branch ${branchName}: ${getErrorMessage(checkoutError)}` };
     }
 
     // Apply the patch/bundle using git CLI (skip if empty)
@@ -962,7 +962,7 @@ async function main(config = {}) {
             // Non-fatal cleanup
           }
         } catch (bundleError) {
-          core.error(`Failed to apply bundle: ${bundleError instanceof Error ? bundleError.message : String(bundleError)}`);
+          core.error(`Failed to apply bundle: ${getErrorMessage(bundleError)}`);
           // Clean up temp ref if it exists
           try {
             await exec.exec("git", ["update-ref", "-d", bundleRef], baseGitOpts);
@@ -1070,7 +1070,7 @@ async function main(config = {}) {
               core.info("Failed patch (full):");
               core.info(patchFullResult.stdout);
             } catch (investigateError) {
-              core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
+              core.warning(`Failed to investigate patch failure: ${getErrorMessage(investigateError)}`);
             }
 
             return { success: false, error: "Failed to apply patch" };

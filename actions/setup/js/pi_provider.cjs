@@ -30,6 +30,7 @@
 const { fetchAWFReflect, AWF_API_PROXY_REFLECT_URL, AWF_REFLECT_OUTPUT_PATH, AWF_REFLECT_TIMEOUT_MS, AWF_MODELS_URL_TIMEOUT_MS } = require("./awf_reflect.cjs");
 const fs = require("fs");
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 // Default logger: prefixed with "[gh-aw/pi-provider]" for easy grepping.
 // prettier-ignore
@@ -180,7 +181,7 @@ function emitInfrastructureIncompleteIfNoSafeOutputs(details, logger) {
     fs.appendFileSync(safeOutputsPath, buildInfrastructureIncompletePayload(details) + "\n", { encoding: "utf8" });
     logger(`report_incomplete emitted: ${safeOutputsPath}`);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     logger(`report_incomplete emission failed: ${message}`);
   }
 }

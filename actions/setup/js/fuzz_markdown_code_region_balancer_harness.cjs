@@ -5,6 +5,7 @@
  */
 
 const { balanceCodeRegions, isBalanced, countCodeRegions } = require("./markdown_code_region_balancer.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Test the balanceCodeRegions function with given input
@@ -27,7 +28,7 @@ function testBalanceCodeRegions(markdown) {
       balanced: "",
       isBalanced: false,
       counts: { total: 0, balanced: 0, unbalanced: 0 },
-      error: err instanceof Error ? err.message : String(err),
+      error: getErrorMessage(err),
     };
   }
 }
@@ -48,7 +49,7 @@ if (require.main === module) {
       process.stdout.write(JSON.stringify(result));
       process.exit(0);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       process.stdout.write(
         JSON.stringify({
           balanced: "",

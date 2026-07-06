@@ -23,7 +23,7 @@
     "emoji": {
       "type": "string",
       "description": "Optional emoji to represent the workflow visually in listings and UI surfaces.",
-      "examples": ["\ud83e\udd16", "\ud83d\udd0d", "\ud83d\ude80"]
+      "examples": ["🤖", "🔍", "🚀"]
     },
     "source": {
       "type": "string",
@@ -687,7 +687,7 @@
                         {
                           "type": "array",
                           "minItems": 1,
-                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
+                          "description": "Array of label names — any of these labels will trigger the workflow.",
                           "items": {
                             "type": "string",
                             "minLength": 1,
@@ -708,7 +708,7 @@
                         {
                           "type": "array",
                           "minItems": 1,
-                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
+                          "description": "Array of label names — any of these labels will trigger the workflow.",
                           "items": {
                             "type": "string",
                             "minLength": 1,
@@ -1867,7 +1867,7 @@
               "oneOf": [
                 {
                   "type": "null",
-                  "description": "Bare key with no value \u2014 equivalent to true. Skips workflow execution if any CI checks on the target branch are currently failing."
+                  "description": "Bare key with no value — equivalent to true. Skips workflow execution if any CI checks on the target branch are currently failing."
                 },
                 {
                   "type": "boolean",
@@ -1963,12 +1963,12 @@
               }
             },
             "roles": {
-              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
+              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
               "oneOf": [
                 {
                   "type": "string",
                   "enum": ["admin", "maintainer", "maintain", "write", "triage", "read", "all"],
-                  "description": "Single repository permission level that can trigger the workflow. Use 'all' to allow any authenticated user (\u26a0\ufe0f disables permission checking entirely - use with caution)"
+                  "description": "Single repository permission level that can trigger the workflow. Use 'all' to allow any authenticated user (⚠️ disables permission checking entirely - use with caution)"
                 },
                 {
                   "type": "array",
@@ -1993,7 +1993,7 @@
               }
             },
             "labels": {
-              "description": "Filter workflows triggered by pull_request_target (or other labeled events) to only fire when the triggering label matches one of these names. Generates a job-level if: condition on the pre-activation job so unmatched label events show as Skipped (\u2298) rather than Failed (\u274c).",
+              "description": "Filter workflows triggered by pull_request_target (or other labeled events) to only fire when the triggering label matches one of these names. Generates a job-level if: condition on the pre-activation job so unmatched label events show as Skipped (⊘) rather than Failed (❌).",
               "oneOf": [
                 {
                   "$ref": "#/$defs/non_empty_string",
@@ -2012,7 +2012,7 @@
             },
             "allow-bot-authored-trigger-comment": {
               "type": "boolean",
-              "description": "Allow the bot-posted-menu / user-checks-box pattern: when a workflow posts a checkbox-menu comment as a GitHub App bot and a human maintainer edits it to tick a box (issue_comment:edited where actor \u2260 comment.user.login), treat this as safe and skip the confused-deputy check. When false (default), the check applies to all issue_comment events. The Dependabot confused-deputy attack vector (issue_comment:created) is unaffected."
+              "description": "Allow the bot-posted-menu / user-checks-box pattern: when a workflow posts a checkbox-menu comment as a GitHub App bot and a human maintainer edits it to tick a box (issue_comment:edited where actor ≠ comment.user.login), treat this as safe and skip the confused-deputy check. When false (default), the check applies to all issue_comment events. The Dependabot confused-deputy attack vector (issue_comment:created) is unaffected."
             },
             "manual-approval": {
               "type": "string",
@@ -3306,7 +3306,7 @@
     },
     "network": {
       "$comment": "Strict mode requirements: When strict=true, the 'network' field must be present (not null/undefined) and cannot contain standalone wildcard '*' in allowed domains (but patterns like '*.example.com' ARE allowed). This is validated in Go code (pkg/workflow/strict_mode_validation.go) via validateStrictNetwork().",
-      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' \u2014 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
+      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' — 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
       "examples": [
         "defaults",
         {
@@ -3819,7 +3819,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -3875,7 +3875,7 @@
       "type": "integer",
       "minimum": 1,
       "default": 5,
-      "description": "Maximum number of consecutive AWF cache misses allowed before the API proxy blocks further requests. Maps to `apiProxy.maxCacheMisses`. Precedence: frontmatter value \u2192 `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` env override \u2192 built-in default `5`."
+      "description": "Maximum number of consecutive AWF cache misses allowed before the API proxy blocks further requests. Maps to `apiProxy.maxCacheMisses`. Precedence: frontmatter value → `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` env override → built-in default `5`."
     },
     "max-daily-ai-credits": {
       "$ref": "#/$defs/max_daily_ai_credits_limit",
@@ -4350,7 +4350,7 @@
                 },
                 "mode": {
                   "type": "string",
-                  "description": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations \u2014 use playwright-cli commands in bash and localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP server.",
+                  "description": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations — use playwright-cli commands in bash and localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP server.",
                   "enum": ["cli", "mcp"]
                 }
               },
@@ -5237,7 +5237,7 @@
                 },
                 "normalize-closing-keywords": {
                   "type": "boolean",
-                  "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` \u2192 Closes #1) in body fields for this output type.",
+                  "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` → Closes #1) in body fields for this output type.",
                   "examples": [true, false]
                 }
               },
@@ -6573,7 +6573,7 @@
                 },
                 "normalize-closing-keywords": {
                   "type": "boolean",
-                  "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` \u2192 Closes #1) in body fields for this output type.",
+                  "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` → Closes #1) in body fields for this output type.",
                   "examples": [true, false]
                 }
               },
@@ -6898,14 +6898,14 @@
                       "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
                     }
                   ],
-                  "description": "Controls protected-file protection. String form: request_review (default), blocked, allowed, or fallback-to-issue \u2014 or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
+                  "description": "Controls protected-file protection. String form: request_review (default), blocked, allowed, or fallback-to-issue — or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "preserve-branch-name": {
                   "type": "boolean",
@@ -6974,7 +6974,7 @@
                 },
                 "normalize-closing-keywords": {
                   "type": "boolean",
-                  "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` \u2192 Closes #1) in body fields for this output type.",
+                  "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` → Closes #1) in body fields for this output type.",
                   "examples": [true, false]
                 }
               },
@@ -9008,14 +9008,14 @@
                       "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
                     }
                   ],
-                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue \u2014 or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
+                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue — or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "excluded-files": {
                   "type": "array",
@@ -10337,7 +10337,7 @@
         },
         "scripts": {
           "type": "object",
-          "description": "Inline JavaScript script handlers that run inside the consolidated safe-outputs job handler loop. Unlike 'jobs' (which create separate GitHub Actions jobs), scripts execute in-process alongside the built-in handlers. Users write only the body of the main function \u2014 the compiler wraps it with 'async function main(config = {}) { ... }' and 'module.exports = { main };' automatically. Script names containing dashes will be automatically normalized to underscores (e.g., 'post-slack-message' becomes 'post_slack_message').",
+          "description": "Inline JavaScript script handlers that run inside the consolidated safe-outputs job handler loop. Unlike 'jobs' (which create separate GitHub Actions jobs), scripts execute in-process alongside the built-in handlers. Users write only the body of the main function — the compiler wraps it with 'async function main(config = {}) { ... }' and 'module.exports = { main };' automatically. Script names containing dashes will be automatically normalized to underscores (e.g., 'post-slack-message' becomes 'post_slack_message').",
           "patternProperties": {
             "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
               "type": "object",
@@ -10395,7 +10395,7 @@
                 },
                 "script": {
                   "type": "string",
-                  "description": "JavaScript handler body. Write only the code that runs inside the handler for each item \u2014 the compiler generates the full outer wrapper including config input destructuring (`const { channel, message } = config;`) and the handler function (`return async function handleX(item, resolvedTemporaryIds) { ... }`). The body has access to `item` (runtime message with input values), `resolvedTemporaryIds` (map of temporary IDs), and config-destructured local variables for each declared input."
+                  "description": "JavaScript handler body. Write only the code that runs inside the handler for each item — the compiler generates the full outer wrapper including config input destructuring (`const { channel, message } = config;`) and the handler function (`return async function handleX(item, resolvedTemporaryIds) { ... }`). The body has access to `item` (runtime message with input values), `resolvedTemporaryIds` (map of temporary IDs), and config-destructured local variables for each declared input."
                 }
               },
               "required": ["script"],
@@ -10430,8 +10430,8 @@
             },
             "staged-title": {
               "type": "string",
-              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
-              "examples": ["\ud83c\udfad Preview: {operation}", "## Staged Mode: {operation}"]
+              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '🎭 Preview: {operation}'",
+              "examples": ["🎭 Preview: {operation}", "## Staged Mode: {operation}"]
             },
             "staged-description": {
               "type": "string",
@@ -10445,18 +10445,18 @@
             },
             "run-success": {
               "type": "string",
-              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": ["\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.", "\u2705 [{workflow_name}]({run_url}) finished."]
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "examples": ["✅ Agentic [{workflow_name}]({run_url}) completed successfully.", "✅ [{workflow_name}]({run_url}) finished."]
             },
             "run-failure": {
               "type": "string",
-              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
-              "examples": ["\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "\u274c [{workflow_name}]({run_url}) {status}."]
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "examples": ["❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "❌ [{workflow_name}]({run_url}) {status}."]
             },
             "detection-failure": {
               "type": "string",
-              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
-              "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "examples": ["⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "⚠️ Detection job failed in [{workflow_name}]({run_url})."]
             },
             "agent-failure-issue": {
               "type": "string",
@@ -10486,7 +10486,7 @@
             "body-header": {
               "type": "string",
               "description": "Custom header text prepended to every message body generated by safe outputs (issues, comments, pull requests, discussions). Applied after any threat-detection caution alert and before the agent-generated content. Available placeholders: {workflow_name}, {run_url}.",
-              "examples": ["> \u26a0\ufe0f This content was generated by [{workflow_name}]({run_url}).", "> \ud83e\udd16 AI-generated output \u2014 please review before acting."]
+              "examples": ["> ⚠️ This content was generated by [{workflow_name}]({run_url}).", "> 🤖 AI-generated output — please review before acting."]
             },
             "append-only-comments": {
               "type": "boolean",
@@ -10533,7 +10533,7 @@
                 },
                 "allowed-teams": {
                   "type": "array",
-                  "description": "List of team slugs whose members are always allowed to be mentioned. Accepts 'team-slug' (resolved against the current org) or 'org/team-slug' format. Team members are fetched from the GitHub API at runtime; bots are excluded. IMPORTANT: requires read:org scope \u2014 not available with the default GITHUB_TOKEN. Use a classic PAT with read:org, a fine-grained PAT with Members:Read, or a GitHub App with the Members:Read permission. Without the required scope, team lookups fail with a warning and those members are skipped.",
+                  "description": "List of team slugs whose members are always allowed to be mentioned. Accepts 'team-slug' (resolved against the current org) or 'org/team-slug' format. Team members are fetched from the GitHub API at runtime; bots are excluded. IMPORTANT: requires read:org scope — not available with the default GITHUB_TOKEN. Use a classic PAT with read:org, a fine-grained PAT with Members:Read, or a GitHub App with the Members:Read permission. Without the required scope, team lookups fail with a warning and those members are skipped.",
                   "items": {
                     "type": "string",
                     "minLength": 1
@@ -10846,11 +10846,11 @@
             },
             {
               "type": "object",
-              "description": "Configuration for replacing one label with another on issues/PRs in a single atomic operation. Enables clear state transitions (e.g. 'in-progress' \u2192 'done').",
+              "description": "Configuration for replacing one label with another on issues/PRs in a single atomic operation. Enables clear state transitions (e.g. 'in-progress' → 'done').",
               "properties": {
                 "allowed-transitions": {
                   "type": "array",
-                  "description": "Optional list of allowed label state transitions. Each entry specifies a (from, to) pair that is permitted. When specified, the agent may ONLY perform the listed transitions, regardless of allowed-add/allowed-remove. Useful for enforcing a strict state machine (e.g. only 'in-review' \u2192 'approved' is allowed).",
+                  "description": "Optional list of allowed label state transitions. Each entry specifies a (from, to) pair that is permitted. When specified, the agent may ONLY perform the listed transitions, regardless of allowed-add/allowed-remove. Useful for enforcing a strict state machine (e.g. only 'in-review' → 'approved' is allowed).",
                   "items": {
                     "type": "object",
                     "properties": {
@@ -11610,6 +11610,71 @@
           }
         }
       ]
+    },
+    "evals": {
+      "description": "⚠️ Experimental. BinEval binary evaluation questions to run after safe-outputs and before the conclusion job. Can be a plain list of questions (shorthand) or an object with questions, model, and runs-on fields.",
+      "oneOf": [
+        {
+          "type": "array",
+          "description": "Shorthand form: plain list of evaluation question objects.",
+          "items": {
+            "type": "object",
+            "required": ["id", "question"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the evaluation question."
+              },
+              "question": {
+                "type": "string",
+                "description": "The binary (YES/NO) question to evaluate."
+              },
+              "model": {
+                "type": "string",
+                "description": "Optional model override for this specific question. Overrides the top-level model setting. Use a model alias such as \"small\" or a full model ID."
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "description": "Extended form: object with questions list and optional configuration.",
+          "additionalProperties": false,
+          "properties": {
+            "questions": {
+              "type": "array",
+              "description": "List of binary evaluation question objects.",
+              "items": {
+                "type": "object",
+                "required": ["id", "question"],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique identifier for the evaluation question."
+                  },
+                  "question": {
+                    "type": "string",
+                    "description": "The binary (YES/NO) question to evaluate."
+                  },
+                  "model": {
+                    "type": "string",
+                    "description": "Optional model override for this specific question. Overrides the top-level model setting. Use a model alias such as \"small\" or a full model ID."
+                  }
+                }
+              }
+            },
+            "model": {
+              "type": "string",
+              "description": "Default model to use for all evaluation questions. Use a model alias such as \"small\" or a full model ID. Per-question model fields override this setting."
+            },
+            "runs-on": {
+              "$ref": "#/$defs/github_actions_runs_on"
+            }
+          }
+        }
+      ]
     }
   },
   "additionalProperties": false,
@@ -12127,19 +12192,51 @@
                       "description": "Custom Node.js harness script filename. This replaces the engine's built-in harness wrapper and must end with .js, .cjs, or .mjs."
                     },
                     "max-retries": {
-                      "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }],
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
                       "description": "Maximum retry attempts after the initial run (0 = no retries). Accepts a literal integer or a GitHub Actions expression."
                     },
                     "initial-delay-ms": {
-                      "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }],
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
                       "description": "Delay in ms before the first retry. Accepts a literal integer or a GitHub Actions expression."
                     },
                     "backoff-multiplier": {
-                      "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "string" }],
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
                       "description": "Multiplier applied to the delay after each retry. Accepts a literal integer or a GitHub Actions expression."
                     },
                     "max-delay-ms": {
-                      "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }],
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
                       "description": "Maximum delay cap in ms. Accepts a literal integer or a GitHub Actions expression."
                     }
                   },

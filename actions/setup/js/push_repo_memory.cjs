@@ -56,7 +56,7 @@ async function main() {
     try {
       allowedExtensions = JSON.parse(process.env.ALLOWED_EXTENSIONS);
     } catch (/** @type {any} */ error) {
-      core.setFailed(`Failed to parse ALLOWED_EXTENSIONS environment variable: ${error.message}. Expected JSON array format.`);
+      core.setFailed(`Failed to parse ALLOWED_EXTENSIONS environment variable: ${getErrorMessage(error)}. Expected JSON array format.`);
       return;
     }
   }
@@ -91,7 +91,7 @@ async function main() {
     try {
       return JSON.parse(raw);
     } catch (e) {
-      throw new Error(`Invalid JSON in ${absPath}: ${e instanceof Error ? e.message : String(e)}`);
+      throw new Error(`Invalid JSON in ${absPath}: ${getErrorMessage(e)}`);
     }
   }
 
@@ -186,7 +186,7 @@ async function main() {
       // (expected for new memory branches) or because of a network / auth
       // problem (unexpected – must surface as a real error and must NOT fall
       // through to orphan-branch creation).
-      const fetchErrMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      const fetchErrMsg = getErrorMessage(fetchError);
       const isMissingBranch = /couldn't find remote ref/i.test(fetchErrMsg) || /remote branch .* not found/i.test(fetchErrMsg);
       if (!isMissingBranch) {
         // Re-throw so the outer catch calls core.setFailed with the real cause.
@@ -221,7 +221,7 @@ async function main() {
           // createRef call.  Check for either the status code or the message
           // text since different Octokit versions surface errors differently.
           // Treat as success and use the existing branch instead.
-          const createRefErrMsg = createRefError instanceof Error ? createRefError.message : String(createRefError);
+          const createRefErrMsg = getErrorMessage(createRefError);
           if (!/422|Reference already exists/i.test(createRefErrMsg)) {
             throw createRefError;
           }
@@ -451,7 +451,7 @@ async function main() {
             if (error?.name === "FormatJSONSizeLimitError") {
               throw error;
             }
-            core.warning(`Skipping JSON formatting for ${path.relative(destMemoryPath, fullPath)}: ${error.message}`);
+            core.warning(`Skipping JSON formatting for ${path.relative(destMemoryPath, fullPath)}: ${getErrorMessage(error)}`);
           }
         }
       }

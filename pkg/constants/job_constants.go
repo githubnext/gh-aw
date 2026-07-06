@@ -61,6 +61,7 @@ const ActivationJobName JobName = "activation"
 const PreActivationJobName JobName = "pre_activation"
 const PreActivationHyphenJobName JobName = "pre-activation"
 const DetectionJobName JobName = "detection"
+const EvalsJobName JobName = "evals"
 const SafeOutputsJobName JobName = "safe_outputs"
 const SafeOutputsHyphenJobName JobName = "safe-outputs"
 const UploadAssetsJobName JobName = "upload_assets"
@@ -78,6 +79,7 @@ var KnownBuiltInJobNames = map[string]struct{}{
 	string(PreActivationJobName):       {},
 	string(PreActivationHyphenJobName): {},
 	string(DetectionJobName):           {},
+	string(EvalsJobName):               {},
 	string(SafeOutputsJobName):         {},
 	string(SafeOutputsHyphenJobName):   {},
 	string(UploadAssetsJobName):        {},
@@ -96,6 +98,16 @@ const AgentArtifactName = "agent"
 
 // DetectionArtifactName is the artifact name for the threat detection log.
 const DetectionArtifactName = "detection"
+
+// EvalsArtifactName is the artifact name for the BinEval evaluation results.
+const EvalsArtifactName = "evals"
+
+// EvalsResultFilename is the filename of the evaluation results JSONL file.
+const EvalsResultFilename = "evals.jsonl"
+
+// EvalsBranchPrefix is the git branch prefix for persisting evaluation results.
+// Results are stored in branches named evals/<workflow-id>/evals.jsonl.
+const EvalsBranchPrefix = "evals"
 
 // LegacyDetectionArtifactName is the old artifact name used before the rename.
 // Kept for backward compatibility when downloading artifacts from older workflow runs.

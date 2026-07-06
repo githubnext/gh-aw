@@ -413,4 +413,9 @@ type FrontmatterConfig struct {
 	Checkout         any               `json:"checkout,omitempty"` // Raw value (object, array, or false)
 	CheckoutConfigs  []*CheckoutConfig `json:"-"`                  // Parsed checkout configs (not in JSON)
 	CheckoutDisabled bool              `json:"-"`                  // true when checkout: false is set in frontmatter
+
+	// BinEval evaluations: list of binary questions evaluated after safe-outputs.
+	// Can be a plain list (shorthand) or an object with a questions list and optional
+	// engine-config / runs-on overrides.
+	Evals any `json:"evals,omitempty"`
 }

@@ -230,7 +230,7 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
           await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
           core.info("Bundle fetch retry succeeded after prerequisite recovery");
         } catch (retryError) {
-          throw new Error(`Bundle fetch failed after fetching ${prerequisiteCommits.length} prerequisite commit(s): ${retryError instanceof Error ? retryError.message : String(retryError)}`, { cause: retryError });
+          throw new Error(`Bundle fetch failed after fetching ${prerequisiteCommits.length} prerequisite commit(s): ${getErrorMessage(retryError)}`, { cause: retryError });
         }
       } else {
         // Fallback: resolve the source ref directly from the bundle contents.
@@ -285,7 +285,7 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
                   await execApi.exec("git", ["fetch", bundleFilePath, `HEAD:${bundleTempRef}`]);
                   core.info("HEAD bundle fetch retry succeeded after prerequisite recovery");
                 } catch (retryError) {
-                  const retryErrorMessage = retryError instanceof Error ? retryError.message : String(retryError);
+                  const retryErrorMessage = getErrorMessage(retryError);
                   throw new Error(`HEAD bundle fetch failed after fetching ${headPrereqCommits.length} prerequisite commit(s): ${retryErrorMessage}`, {
                     cause: retryError,
                   });
@@ -314,7 +314,7 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
       await execApi.exec("git", ["update-ref", "-d", bundleTempRef]);
     } catch (cleanupError) {
       // Non-fatal cleanup
-      core.warning(`Non-fatal cleanup: failed to delete temporary bundle ref ${bundleTempRef}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
+      core.warning(`Non-fatal cleanup: failed to delete temporary bundle ref ${bundleTempRef}: ${getErrorMessage(cleanupError)}`);
     }
   }
 }
@@ -536,7 +536,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
       remoteBranchExists = true;
     }
   } catch (checkError) {
-    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+    core.info(`Remote branch check failed (non-fatal): ${getErrorMessage(checkError)}`);
   }
 
   if (!remoteBranchExists) {
@@ -1531,7 +1531,7 @@ async function main(config = {}) {
         try {
           await applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, exec, baseBranch);
         } catch (bundleError) {
-          core.error(`Failed to apply bundle: ${bundleError instanceof Error ? bundleError.message : String(bundleError)}`);
+          core.error(`Failed to apply bundle: ${getErrorMessage(bundleError)}`);
           return { success: false, error: "Failed to apply bundle" };
         }
 
@@ -1569,7 +1569,7 @@ async function main(config = {}) {
             /** @type {unknown} */
             let pushError = initialPushError;
             let pushRecovered = false;
-            const pushErrorMessage = pushError instanceof Error ? pushError.message : String(pushError);
+            const pushErrorMessage = getErrorMessage(pushError);
             const isSignedMergeReplayRefusal = signedCommits && /pushSignedCommits: refusing unsigned push/.test(pushErrorMessage) && /merge commit/i.test(pushErrorMessage);
 
             if (isSignedMergeReplayRefusal) {
@@ -1604,7 +1604,7 @@ async function main(config = {}) {
             }
 
             if (!pushRecovered) {
-              core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+              core.error(`Git push failed: ${getErrorMessage(pushError)}`);
 
               if (manifestProtectionFallback) {
                 // Push failed specifically for a protected-file modification. Don't create
@@ -1614,7 +1614,7 @@ async function main(config = {}) {
                 core.warning("Git push failed for protected-file modification - deferring to protected-file review issue");
                 manifestProtectionPushFailedError = pushError;
               } else if (!fallbackAsIssue) {
-                const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
+                const error = `Failed to push changes: ${getErrorMessage(pushError)}`;
                 return { success: false, error, error_type: "push_failed" };
               } else {
                 core.warning("Git push operation failed - creating fallback issue instead of pull request");
@@ -1625,7 +1625,7 @@ async function main(config = {}) {
                 const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
                 const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
                 const fallbackBundleTempRef = createBundleTempRef(branchName);
-                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(pushError instanceof Error ? pushError.message : String(pushError)), { allowedAliases: allowedMentionAliases })
+                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases })
                   .replace(/\s+/g, " ")
                   .trim();
                 const fallbackBody = `${issueSafeBody}
@@ -1677,7 +1677,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
                     issue_url: issue.html_url,
                   };
                 } catch (issueError) {
-                  const error = `Failed to push changes and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+                  const error = `Failed to push changes and failed to create fallback issue. Push error: ${getErrorMessage(pushError)}. Issue error: ${getErrorMessage(issueError)}`;
                   return { success: false, error };
                 }
               }
@@ -1704,7 +1704,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
             try {
               await exec.exec("git", ["fetch", "origin", recordedBaseCommit, "--depth=1"]);
             } catch (fetchError) {
-              core.info(`Note: could not fetch base commit ${recordedBaseCommit} explicitly (${fetchError instanceof Error ? fetchError.message : String(fetchError)}); will verify local availability next`);
+              core.info(`Note: could not fetch base commit ${recordedBaseCommit} explicitly (${getErrorMessage(fetchError)}); will verify local availability next`);
             }
             await exec.exec("git", ["cat-file", "-e", recordedBaseCommit]);
             const ancestryCheck = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", recordedBaseCommit, `origin/${baseBranch}`], { ignoreReturnCode: true });
@@ -1713,7 +1713,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
             }
             branchBaseRef = recordedBaseCommit;
           } catch (baseCommitError) {
-            core.warning(`Recorded base_commit ${recordedBaseCommit} is not available in this checkout (${baseCommitError instanceof Error ? baseCommitError.message : String(baseCommitError)}); falling back to ${baseBranch}`);
+            core.warning(`Recorded base_commit ${recordedBaseCommit} is not available in this checkout (${getErrorMessage(baseCommitError)}); falling back to ${baseBranch}`);
           }
         } else if (String(pullRequestItem.base_commit ?? "").trim()) {
           core.warning(`Ignoring invalid base_commit value for patch apply: ${String(pullRequestItem.base_commit).trim()}`);
@@ -1763,7 +1763,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
             core.info("Patch applied successfully");
             patchApplied = true;
           } catch (patchError) {
-            core.error(`Failed to apply patch with --3way: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
+            core.error(`Failed to apply patch with --3way: ${getErrorMessage(patchError)}`);
 
             const recoveredFromAddAddConflict = await tryRecoverGitAmAddAddConflict(exec);
             if (recoveredFromAddAddConflict.recovered) {
@@ -1786,7 +1786,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
                 core.info("Failed patch content:");
                 core.info(patchResult.stdout);
               } catch (investigateError) {
-                core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
+                core.warning(`Failed to investigate patch failure: ${getErrorMessage(investigateError)}`);
               }
 
               // Abort the failed git am before attempting any fallback
@@ -1794,7 +1794,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
                 await exec.exec("git am --abort");
                 core.info("Aborted failed git am");
               } catch (abortError) {
-                core.warning(`Failed to abort git am: ${abortError instanceof Error ? abortError.message : String(abortError)}`);
+                core.warning(`Failed to abort git am: ${getErrorMessage(abortError)}`);
               }
 
               // Fallback (Option 1): create the PR branch at the original base commit so the PR
@@ -1819,7 +1819,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
                   } catch (fetchError) {
                     // Non-fatal: the commit may already be available, or the server may not support
                     // fetching individual SHAs (e.g. some GHE configurations). Log for troubleshooting.
-                    core.info(`Note: could not fetch base commit ${originalBaseCommit} explicitly (${fetchError instanceof Error ? fetchError.message : String(fetchError)}); will verify local availability next`);
+                    core.info(`Note: could not fetch base commit ${originalBaseCommit} explicitly (${getErrorMessage(fetchError)}); will verify local availability next`);
                   }
 
                   // Verify the base commit is available in this repo (may not exist cross-repo)
@@ -1862,7 +1862,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
                   patchApplied = true;
                 }
               } catch (fallbackError) {
-                core.warning(`Fallback to original base commit failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
+                core.warning(`Fallback to original base commit failed: ${getErrorMessage(fallbackError)}`);
               }
             }
 
@@ -1939,7 +1939,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
               }
             } catch (pushError) {
               // Push failed - create fallback issue instead of PR (if fallback is enabled)
-              core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+              core.error(`Git push failed: ${getErrorMessage(pushError)}`);
 
               if (manifestProtectionFallback) {
                 // Push failed specifically for a protected-file modification. Don't create
@@ -1951,7 +1951,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
               } else if (!fallbackAsIssue) {
                 // Fallback is disabled - return error without creating issue
                 core.error("fallback-as-issue is disabled - not creating fallback issue");
-                const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
+                const error = `Failed to push changes: ${getErrorMessage(pushError)}`;
                 return {
                   success: false,
                   error,
@@ -1971,7 +1971,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
                 }
 
                 const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
-                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(pushError instanceof Error ? pushError.message : String(pushError)), { allowedAliases: allowedMentionAliases })
+                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases })
                   .replace(/\s+/g, " ")
                   .trim();
                 const fallbackBody = `${issueSafeBody}
@@ -2025,7 +2025,7 @@ ${patchPreview}`;
                       `
 
 ## Push Failure Fallback
-- **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
+- **Push Error:** ${getErrorMessage(pushError)}
 - **Fallback Issue:** [#${issue.number}](${issue.html_url})
 - **Patch Artifact:** Available in workflow run artifacts
 - **Note:** Push failed, created issue as fallback
@@ -2043,7 +2043,7 @@ ${patchPreview}`;
                     repo: itemRepo,
                   };
                 } catch (issueError) {
-                  const error = `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+                  const error = `Failed to push and failed to create fallback issue. Push error: ${getErrorMessage(pushError)}. Issue error: ${getErrorMessage(issueError)}`;
                   core.error(error);
                   return {
                     success: false,
@@ -2091,7 +2091,7 @@ ${patchPreview}`;
                 core.info("Could not count new commits - extra empty commit will be skipped");
               }
             } catch (pushError) {
-              const error = `Failed to push empty branch: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
+              const error = `Failed to push empty branch: ${getErrorMessage(pushError)}`;
               core.error(error);
               return {
                 success: false,
@@ -2181,7 +2181,7 @@ ${patchPreview}`;
                 `update protected-file-protection fallback issue #${issue.number} with auto-close link`
               );
             } catch (updateIssueBodyError) {
-              core.warning(`Failed to update protected-file-protection fallback issue #${issue.number} with auto-close link: ${updateIssueBodyError instanceof Error ? updateIssueBodyError.message : String(updateIssueBodyError)}`);
+              core.warning(`Failed to update protected-file-protection fallback issue #${issue.number} with auto-close link: ${getErrorMessage(updateIssueBodyError)}`);
             }
           }
 
@@ -2198,7 +2198,7 @@ ${patchPreview}`;
             repo: itemRepo,
           };
         } catch (issueError) {
-          const error = `Protected file protection: failed to create review issue. Error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+          const error = `Protected file protection: failed to create review issue. Error: ${getErrorMessage(issueError)}`;
           core.error(error);
           return { success: false, error };
         }
@@ -2250,7 +2250,7 @@ ${patchPreview}`;
             // after creation, which causes label operations to fail with an unprocessable error.
             // If this warning appears, repository checks that require labels on the opened event
             // may fail transiently; consider triggering required-label checks on the labeled event instead.
-            core.warning(`Failed to add labels to PR #${pullRequest.number}: ${labelError instanceof Error ? labelError.message : String(labelError)}`);
+            core.warning(`Failed to add labels to PR #${pullRequest.number}: ${getErrorMessage(labelError)}`);
           }
         }
 
@@ -2275,7 +2275,7 @@ ${patchPreview}`;
               await githubClient.rest.pulls.requestReviewers(reviewerRequest);
               core.info(`Requested reviewers for pull request #${pullRequest.number}: reviewers=${JSON.stringify(otherReviewers)}, team_reviewers=${JSON.stringify(configTeamReviewers)}`);
             } catch (reviewerError) {
-              core.warning(`Failed to request reviewers for PR #${pullRequest.number}: ${reviewerError instanceof Error ? reviewerError.message : String(reviewerError)}`);
+              core.warning(`Failed to request reviewers for PR #${pullRequest.number}: ${getErrorMessage(reviewerError)}`);
             }
           }
 
@@ -2290,7 +2290,7 @@ ${patchPreview}`;
               });
               core.info(`Requested copilot as reviewer for pull request #${pullRequest.number}`);
             } catch (copilotError) {
-              core.warning(`Failed to request copilot as reviewer for PR #${pullRequest.number}: ${copilotError instanceof Error ? copilotError.message : String(copilotError)}`);
+              core.warning(`Failed to request copilot as reviewer for PR #${pullRequest.number}: ${getErrorMessage(copilotError)}`);
             }
           }
         }
@@ -2306,7 +2306,7 @@ ${patchPreview}`;
             });
             core.info(`Assigned assignees to pull request #${pullRequest.number}: ${JSON.stringify(configAssignees)}`);
           } catch (assigneeError) {
-            core.warning(`Failed to assign assignees to PR #${pullRequest.number}: ${assigneeError instanceof Error ? assigneeError.message : String(assigneeError)}`);
+            core.warning(`Failed to assign assignees to PR #${pullRequest.number}: ${getErrorMessage(assigneeError)}`);
           }
         }
 
@@ -2356,7 +2356,7 @@ ${patchPreview}`;
                 await withRetry(() => githubClient.rest.pulls.createReview(commentReviewParams), RATE_LIMIT_RETRY_CONFIG, `create COMMENT review fallback for PR #${pullRequest.number}`);
                 core.info(`Created COMMENT review fallback for PR #${pullRequest.number}`);
               } catch (commentReviewError) {
-                core.warning(`Failed to create COMMENT review fallback for PR #${pullRequest.number}: ${commentReviewError instanceof Error ? commentReviewError.message : String(commentReviewError)}`);
+                core.warning(`Failed to create COMMENT review fallback for PR #${pullRequest.number}: ${getErrorMessage(commentReviewError)}`);
               }
             } else {
               core.warning(`Failed to create REQUEST_CHANGES review for PR #${pullRequest.number}: ${requestChangesErrorMessage}`);
@@ -2381,7 +2381,7 @@ ${patchPreview}`;
             );
             core.info(`Enabled auto-merge for pull request #${pullRequest.number}`);
           } catch (autoMergeError) {
-            core.warning(`Failed to enable auto-merge for PR #${pullRequest.number}: ${autoMergeError instanceof Error ? autoMergeError.message : String(autoMergeError)}`);
+            core.warning(`Failed to enable auto-merge for PR #${pullRequest.number}: ${getErrorMessage(autoMergeError)}`);
           }
         }
 
@@ -2403,7 +2403,7 @@ ${patchPreview}`;
               }
             } catch (error) {
               // Log error but don't fail the workflow
-              core.warning(`Failed to close older pull requests: ${error instanceof Error ? error.message : String(error)}`);
+              core.warning(`Failed to close older pull requests: ${getErrorMessage(error)}`);
             }
           } else {
             core.warning("Close older pull requests enabled but neither GH_AW_WORKFLOW_ID nor close-older-key is set - skipping");
@@ -2448,7 +2448,7 @@ ${patchPreview}`;
           repo: itemRepo,
         };
       } catch (prError) {
-        const errorMessage = prError instanceof Error ? prError.message : String(prError);
+        const errorMessage = getErrorMessage(prError);
         core.warning(`Failed to create pull request: ${errorMessage}`);
 
         // Check if the error is the specific "GitHub actions is not permitted to create or approve pull requests" error
@@ -2495,7 +2495,7 @@ ${patchPreview}`;
               repo: itemRepo,
             };
           } catch (issueError) {
-            const error = `Failed to create pull request (permission denied) and failed to create fallback issue. PR error: ${errorMessage}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+            const error = `Failed to create pull request (permission denied) and failed to create fallback issue. PR error: ${errorMessage}. Issue error: ${getErrorMessage(issueError)}`;
             core.error(error);
             return {
               success: false,
@@ -2565,7 +2565,7 @@ ${patchPreview}`;
             repo: itemRepo,
           };
         } catch (issueError) {
-          const error = `Failed to create both pull request and fallback issue. PR error: ${errorMessage}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+          const error = `Failed to create both pull request and fallback issue. PR error: ${errorMessage}. Issue error: ${getErrorMessage(issueError)}`;
           core.error(error);
           return {
             success: false,

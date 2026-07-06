@@ -21,6 +21,7 @@
 "use strict";
 
 const { splitOnPipelineOperators, extractCommandName, extractCommandNamesFromPipeline } = require("./bash_command_parser.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Test splitOnPipelineOperators and return a structured result.
@@ -34,7 +35,7 @@ function testSplitOnPipelineOperators(commandText) {
     const segments = splitOnPipelineOperators(commandText);
     return { segments, error: null };
   } catch (err) {
-    return { segments: [], error: err instanceof Error ? err.message : String(err) };
+    return { segments: [], error: getErrorMessage(err) };
   }
 }
 
@@ -50,7 +51,7 @@ function testExtractCommandName(segment) {
     const name = extractCommandName(segment);
     return { name, error: null };
   } catch (err) {
-    return { name: null, error: err instanceof Error ? err.message : String(err) };
+    return { name: null, error: getErrorMessage(err) };
   }
 }
 
@@ -66,7 +67,7 @@ function testExtractCommandNamesFromPipeline(commandText) {
     const names = extractCommandNamesFromPipeline(commandText);
     return { names, error: null };
   } catch (err) {
-    return { names: [], error: err instanceof Error ? err.message : String(err) };
+    return { names: [], error: getErrorMessage(err) };
   }
 }
 
@@ -146,7 +147,7 @@ if (require.main === module) {
       process.stdout.write(JSON.stringify(result));
       process.exit(0);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       process.stdout.write(JSON.stringify({ error: errorMsg }));
       process.exit(1);
     }

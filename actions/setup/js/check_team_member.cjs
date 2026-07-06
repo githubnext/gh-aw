@@ -6,6 +6,7 @@
  * @returns {Promise<void>}
  */
 const { ERR_PERMISSION } = require("./error_codes.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 async function main() {
   const actor = context.actor;
   const { owner, repo } = context.repo;
@@ -29,7 +30,7 @@ async function main() {
       return;
     }
   } catch (repoError) {
-    const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+    const errorMessage = getErrorMessage(repoError);
     core.warning(`Repository permission check failed: ${errorMessage}`);
   }
 
