@@ -73,6 +73,8 @@ steps:
         echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/workflow-logs.json
       fi
 timeout-minutes: 25
+features:
+  gh-aw-detection: true
 source: githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473
 ---
 
