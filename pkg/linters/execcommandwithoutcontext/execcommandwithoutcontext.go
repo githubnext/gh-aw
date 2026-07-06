@@ -52,12 +52,16 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
-			funcType := astutil.EnclosingFuncType(encl.Node())
+			funcNode := encl.Node()
+			funcType := astutil.EnclosingFuncType(funcNode)
 			if funcType == nil {
 				continue
 			}
 			ctxParamName, hasCtx := astutil.ContextParamName(pass, funcType)
 			if !hasCtx {
+				if _, isFuncLit := funcNode.(*ast.FuncLit); isFuncLit && !astutil.IsGoOrDeferClosure(encl) {
+					break
+				}
 				continue
 			}
 			pass.Report(analysis.Diagnostic{

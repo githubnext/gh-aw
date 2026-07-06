@@ -153,7 +153,7 @@ function buildObservabilitySummary(data) {
   lines.push(`- **staged**: ${data.staged}`);
 
   if (data.otlpExportErrors > 0) {
-    lines.push("- ⚠️ OTLP export failures detected; telemetry may not be visible in the backend.");
+    lines.push("- OTLP export failures detected; telemetry may not be visible in the backend.");
   }
 
   if (data.createdItemTypes.length > 0) {

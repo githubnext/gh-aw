@@ -107,7 +107,7 @@ describe("parse_antigravity_log.cjs", () => {
 
       const result = parseAntigravityLog(logContent);
 
-      expect(result.markdown).toContain("## 🤖 Antigravity");
+      expect(result.markdown).toContain("<summary>Antigravity</summary>");
       expect(result.markdown).toContain("Hello from Antigravity");
       expect(result.markdown).toContain("500");
       expect(result.markdown).toContain("200");
@@ -128,7 +128,7 @@ describe("parse_antigravity_log.cjs", () => {
 
       const result = parseAntigravityLog(logContent);
 
-      expect(result.markdown).toContain("## 🤖 Antigravity");
+      expect(result.markdown).toContain("<summary>Antigravity</summary>");
       expect(result.logEntries).toHaveLength(0);
     });
 
