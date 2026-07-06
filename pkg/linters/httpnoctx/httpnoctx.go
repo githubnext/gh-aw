@@ -44,7 +44,7 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "httpnoctx")
-	ctxType := contextContextType(pass)
+	ctxType := astutil.ContextContextType(pass)
 
 	for cursor := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
 		call, ok := cursor.Node().(*ast.CallExpr)
@@ -140,48 +140,16 @@ func hasContextInEnclosingFunc(pass *analysis.Pass, cursor inspector.Cursor, ctx
 	}
 
 	for enclosing := range cursor.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
-		fnType := enclosingFuncType(enclosing.Node())
+		fnType := astutil.EnclosingFuncType(enclosing.Node())
 		if fnType == nil || fnType.Params == nil {
 			continue
 		}
-
-		for _, field := range fnType.Params.List {
-			t := pass.TypesInfo.TypeOf(field.Type)
-			if t == nil || !types.Identical(t, ctxType) {
-				continue
-			}
-			for _, name := range field.Names {
-				if name.Name != "_" {
-					return true
-				}
-			}
+		if _, ok := astutil.ContextParamName(pass, fnType); ok {
+			return true
 		}
 	}
 
 	return false
-}
-
-func enclosingFuncType(node ast.Node) *ast.FuncType {
-	switch fn := node.(type) {
-	case *ast.FuncDecl:
-		return fn.Type
-	case *ast.FuncLit:
-		return fn.Type
-	default:
-		return nil
-	}
-}
-
-func contextContextType(pass *analysis.Pass) types.Type {
-	for _, pkg := range pass.Pkg.Imports() {
-		if pkg.Path() != "context" {
-			continue
-		}
-		if obj := pkg.Scope().Lookup("Context"); obj != nil {
-			return obj.Type()
-		}
-	}
-	return nil
 }
 
 func isHTTPDefaultClient(pass *analysis.Pass, expr ast.Expr) bool {

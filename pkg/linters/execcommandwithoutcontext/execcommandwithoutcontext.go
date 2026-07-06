@@ -52,11 +52,11 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
-			funcType := enclosingFuncType(encl.Node())
+			funcType := astutil.EnclosingFuncType(encl.Node())
 			if funcType == nil {
 				continue
 			}
-			ctxParamName, hasCtx := contextParamName(pass, funcType)
+			ctxParamName, hasCtx := astutil.ContextParamName(pass, funcType)
 			if !hasCtx {
 				continue
 			}
@@ -112,53 +112,4 @@ func execCommandSelector(pass *analysis.Pass, call *ast.CallExpr) (*ast.Selector
 		return nil, false
 	}
 	return sel, true
-}
-
-// contextParamName returns the name of the first context.Context parameter
-// in fn, and true, or "", false if none exists.
-func contextParamName(pass *analysis.Pass, fn *ast.FuncType) (string, bool) {
-	if fn == nil || fn.Params == nil {
-		return "", false
-	}
-	ctxType := contextContextType(pass)
-	if ctxType == nil {
-		return "", false
-	}
-	for _, field := range fn.Params.List {
-		t := pass.TypesInfo.TypeOf(field.Type)
-		if t == nil || !types.Identical(t, ctxType) {
-			continue
-		}
-		for _, name := range field.Names {
-			if name.Name != "_" {
-				return name.Name, true
-			}
-		}
-	}
-	return "", false
-}
-
-func enclosingFuncType(node ast.Node) *ast.FuncType {
-	switch fn := node.(type) {
-	case *ast.FuncDecl:
-		return fn.Type
-	case *ast.FuncLit:
-		return fn.Type
-	default:
-		return nil
-	}
-}
-
-// contextContextType returns the types.Type for context.Context, or nil if
-// the context package is not imported.
-func contextContextType(pass *analysis.Pass) types.Type {
-	for _, pkg := range pass.Pkg.Imports() {
-		if pkg.Path() == "context" {
-			obj := pkg.Scope().Lookup("Context")
-			if obj != nil {
-				return obj.Type()
-			}
-		}
-	}
-	return nil
 }
