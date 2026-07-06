@@ -183,9 +183,9 @@ describe("no-json-stringify-error", () => {
     });
   });
 
-  it("valid: p.catch(handler) named-reference is not flagged (static cross-reference out of scope)", () => {
+  it("valid: p.catch(handler) named-reference is not flagged", () => {
     cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
-      valid: [`function handler(err) { JSON.stringify(err); } p.catch(handler);`],
+      valid: [`const handler = err => JSON.stringify(err); p.catch(handler);`],
       invalid: [],
     });
   });
@@ -212,6 +212,22 @@ describe("no-json-stringify-error", () => {
                   messageId: "useGetErrorMessage",
                   data: { errorVar: "err" },
                   output: `p.then(result => result, err => core.error(getErrorMessage(err)));`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `p.then(null, err => core.error(JSON.stringify(err, null, 2)));`,
+          errors: [
+            {
+              messageId: "jsonStringifyError",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `p.then(null, err => core.error(getErrorMessage(err)));`,
                 },
               ],
             },
@@ -247,7 +263,7 @@ describe("no-json-stringify-error", () => {
 
   it("valid: first argument of .then() (onFulfilled) is not treated as a rejection handler", () => {
     cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
-      valid: [`p.then(result => JSON.stringify(result));`, `p.then(function(result) { JSON.stringify(result); });`],
+      valid: [`p.then(result => JSON.stringify(result));`, `p.then(function(result) { JSON.stringify(result); });`, `p.then(err => core.info(JSON.stringify(err)));`],
       invalid: [],
     });
   });
@@ -267,6 +283,22 @@ describe("no-json-stringify-error", () => {
                   messageId: "useGetErrorMessage",
                   data: { errorVar: "e" },
                   output: `try { fetch(url); } catch (e) { console.error(getErrorMessage(e)); }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `p.then(ok, err => console.error(JSON.stringify(err)));`,
+          errors: [
+            {
+              messageId: "jsonStringifyError",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `p.then(ok, err => console.error(getErrorMessage(err)));`,
                 },
               ],
             },

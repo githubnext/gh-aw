@@ -8,17 +8,17 @@ interface ErrorScope {
 }
 
 /**
- * Returns true when the function node is a rejection-handler passed inline to
+ * Returns true when the function node is an inline rejection handler passed to
  * a promise method:
  *   - First argument of `.catch(fn)` — the canonical rejection handler.
- *   - Second argument of `.then(onFulfilled, onRejected)` — semantically
- *     equivalent to `.catch(onRejected)`.
+ *   - Second argument of `.then(onFulfilled, onRejected)` — the rejection-handler
+ *     position, analogous to `.catch(fn)`.
  *
  * Named-reference handlers (for example `p.catch(handler)`) are intentionally
  * out of scope because the rule cannot statically follow the reference to
- * inspect its parameter list without cross-file analysis.
+ * inspect its parameter list or body.
  */
-function isCatchCallback(node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): boolean {
+function isInlineRejectionHandler(node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): boolean {
   const parent = node.parent;
   if (!parent || parent.type !== AST_NODE_TYPES.CallExpression) return false;
   const callee = parent.callee;
@@ -69,7 +69,7 @@ export const noJsonStringifyErrorRule = createRule({
     }
 
     function enterFunction(node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): void {
-      if (isCatchCallback(node)) {
+      if (isInlineRejectionHandler(node)) {
         const params = node.params;
         if (params.length === 1 && params[0].type === AST_NODE_TYPES.Identifier) {
           scopeStack.push({ varName: params[0].name, isSentinel: false });
@@ -78,7 +78,7 @@ export const noJsonStringifyErrorRule = createRule({
           scopeStack.push({ varName: "", isSentinel: true });
         }
       } else {
-        // Non-.catch() function: sentinel to avoid false positives from shadowed names
+        // Non-rejection-handler function: sentinel to avoid false positives from shadowed names
         scopeStack.push({ varName: "", isSentinel: true });
       }
     }
@@ -101,7 +101,7 @@ export const noJsonStringifyErrorRule = createRule({
         scopeStack.pop();
       },
 
-      // Track .catch() callback parameters and .then(_, onRejected) rejection handler parameters
+      // Track inline rejection-handler parameters from .catch(fn) and .then(_, fn)
       ArrowFunctionExpression: enterFunction,
       "ArrowFunctionExpression:exit": exitFunction,
       FunctionExpression: enterFunction,
