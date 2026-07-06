@@ -195,5 +195,15 @@
     "recommendations_count": 3,
     "subagent_candidates": 0,
     "estimated_aic_savings_per_run": 62
+  },
+  {
+    "date": "2026-07-06",
+    "workflow_name": "Typist - Go Type Analysis",
+    "workflow_file": "typist",
+    "total_aic_analyzed": 261.792,
+    "runs_audited": 22,
+    "recommendations_count": 5,
+    "subagent_candidates": 0,
+    "estimated_aic_savings_per_run": 42
   }
 ]
