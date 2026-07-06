@@ -1,99 +1,135 @@
 {
-  "run_date": "2026-07-06T01:05:10Z",
-  "run_id": "28761293397",
-  "prior_run_id": "28750744185",
+  "run_date": "2026-07-06T07:51:16Z",
+  "run_id": "28776188550",
+  "prior_run_id": "28761293397",
   "summary": {
-    "total": 5,
-    "new": 4,
-    "carry_over": 1,
-    "auto_merge": 0,
-    "fast_track": 0,
+    "total": 8,
+    "new": 8,
+    "carry_over": 0,
+    "fast_track": 3,
     "batch_review": 2,
-    "defer": 2,
-    "close": 1
+    "defer": 3,
+    "close": 0
   },
   "prior_run_resolution": {
     "total": 5,
     "merged": 5,
     "closed": 0,
-    "merged_prs": [43594, 43599, 43589, 43587, 43588],
+    "merged_prs": [43641, 43639, 43638, 43637, 43495],
     "closed_prs": []
   },
   "prs": [
     {
-      "number": 43641,
-      "title": "feat: add BinEval evals support",
+      "number": 43716,
+      "title": "fix(security): replace curl|sh installer pipes with download+verify (RGS-018)",
+      "category": "bug",
+      "risk": "high",
+      "score": 88,
+      "action": "fast_track",
+      "batch": "pr-batch:go-runtime-fixes",
+      "draft": false,
+      "reviews": "",
+      "note": "Security fix: curl|sh → download+verify for Ollama, trufflehog, copilot-setup. 4 files +94/-63."
+    },
+    {
+      "number": 43729,
+      "title": "fix: honor GH_HOST for --trigger-context issue URLs in gh aw trial",
+      "category": "bug",
+      "risk": "medium",
+      "score": 63,
+      "action": "fast_track",
+      "batch": "pr-batch:go-runtime-fixes",
+      "draft": false,
+      "reviews": "",
+      "note": "GHES URL fix: net/url.Parse + getGitHubHost(). Tests + ADR update. 5 files +137/-62."
+    },
+    {
+      "number": 43732,
+      "title": "fix: populate engine_id from lock file metadata when aw_info.json is absent",
+      "category": "bug",
+      "risk": "medium",
+      "score": 60,
+      "action": "fast_track",
+      "batch": "pr-batch:go-runtime-fixes",
+      "draft": false,
+      "reviews": "",
+      "note": "Fallback engine_id from lock file gh-aw-metadata. 3 Go files +333/-64."
+    },
+    {
+      "number": 43700,
+      "title": "compiler: add evals job for BinEval binary evaluations",
       "category": "feature",
       "risk": "high",
-      "score": 42,
+      "score": 62,
+      "action": "batch_review",
+      "batch": null,
+      "draft": false,
+      "reviews": "",
+      "note": "New compiler feature: evals + push_evals jobs. 4 files +774/-11."
+    },
+    {
+      "number": 43731,
+      "title": "fix: exempt github_api_helpers.cjs from SEC-004 (false positive)",
+      "category": "chore",
+      "risk": "low",
+      "score": 40,
+      "action": "batch_review",
+      "batch": null,
+      "draft": false,
+      "reviews": "",
+      "note": "1-line @safe-outputs-exempt annotation. Very low risk. 1 file +51/-49 (mostly lock churn)."
+    },
+    {
+      "number": 43733,
+      "title": "[WIP] Fix failing GitHub Actions job: Integration Workflow Misc Part 2",
+      "category": "chore",
+      "risk": "medium",
+      "score": 40,
       "action": "defer",
       "batch": null,
       "draft": true,
       "reviews": "",
-      "note": "DRAFT. 11 Go files +1175/-7. New BinEval frontmatter+compiler feature. Wait for ready+CI."
+      "note": "DRAFT/WIP. Agent actively fixing CI. 49 files +54/-54. Monitor for ready."
     },
     {
-      "number": 43639,
-      "title": "fix(setup/js): guard JSON.parse call sites with try/catch",
+      "number": 43725,
+      "title": "Fix docs dev server network isolation and MonaSans preload warnings",
       "category": "chore",
       "risk": "low",
-      "score": 10,
-      "action": "close",
+      "score": 35,
+      "action": "defer",
       "batch": null,
-      "draft": false,
-      "reviews": "COMMENTED(bot)",
-      "note": "EMPTY PR — only Initial plan commit, 0 file changes. Agent failed to implement."
+      "draft": true,
+      "reviews": "",
+      "note": "DRAFT. Docs dev server moved inside agent context. Await ready signal."
     },
     {
-      "number": 43638,
-      "title": "fix(setup/js): normalize unsafe caught/rejected error property access",
-      "category": "chore",
-      "risk": "medium",
-      "score": 54,
-      "action": "batch_review",
-      "batch": "pr-batch:setup-js-eslint",
-      "draft": false,
-      "reviews": "COMMENTED(bot)",
-      "note": "64 JS files +224/-171. Mechanical ESLint fix: prefer-get-error-message, safe error access."
-    },
-    {
-      "number": 43637,
-      "title": "fix(setup/js): numeric coercion, setOutput stringification, and async entrypoint cleanup",
-      "category": "bug",
+      "number": 43724,
+      "title": "eslint-factory: extend no-json-stringify-error to cover .then(_, onRejected)",
+      "category": "refactor",
       "risk": "low",
-      "score": 58,
-      "action": "batch_review",
-      "batch": "pr-batch:setup-js-eslint",
-      "draft": false,
-      "reviews": "COMMENTED(bot)",
-      "note": "28 JS files +59/-48. Correctness fixes: Number.isNaN, parseInt radix, async .catch."
-    },
-    {
-      "number": 43495,
-      "title": "Tighten step summary hierarchy and progressive disclosure",
-      "category": "formatting",
-      "risk": "medium",
-      "score": 15,
+      "score": 30,
       "action": "defer",
       "batch": null,
       "draft": false,
       "reviews": "CHANGES_REQUESTED",
-      "note": "CARRY-OVER. CHANGES_REQUESTED still blocking. Unchanged since prior run."
+      "note": "CHANGES_REQUESTED: missing ESM test + isCatchCallback rename. 51 files, mostly lock churn."
     }
   ],
   "batches": [
     {
-      "id": "pr-batch:setup-js-eslint",
-      "prs": [43637, 43638],
-      "note": "setup/js ESLint custom rule remediation. Review together. #43639 is empty (close)."
+      "id": "pr-batch:go-runtime-fixes",
+      "prs": [43716, 43729, 43732],
+      "note": "Go runtime behavior/security fixes. Review together in one pass."
     }
   ],
   "flags": [
-    "PR 43639: EMPTY — agent wrote plan only, no implementation. Recommend close.",
-    "setup-js-eslint cluster (43637/43638/43639): 2 substantive, 1 empty",
-    "PR 43641: DRAFT large feature — BinEval evals support. Monitor for ready.",
-    "PR 43495: carry-over 2 runs, CHANGES_REQUESTED still blocking."
+    "PR 43716: SECURITY — curl|sh RGS-018 fix. Fast-track immediately.",
+    "pr-batch:go-runtime-fixes: 43716/43729/43732 are 3 related Go fixes — batch review.",
+    "PR 43700: Large compiler feature (BinEval, +774 lines). Needs careful review.",
+    "PR 43724: CHANGES_REQUESTED — missing ESM test + function rename.",
+    "PRs 43733 + 43725: Both DRAFT/WIP — agent still working."
   ],
-  "report_issue_tid": "aw_triage_run10",
+  "report_issue_tid": "aw_triage_run11",
   "non_eligible_open_prs": []
 }
