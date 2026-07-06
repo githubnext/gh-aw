@@ -118,6 +118,14 @@ func BadGoParenWithCtx(ctx context.Context) {
 	_ = ctx
 }
 
+// Bad: plain goroutine closure shares outer context lifetime.
+func BadGoWithCtx(ctx context.Context) {
+	go func() {
+		_ = exec.Command("ls") // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
+	}()
+	_ = ctx
+}
+
 func register(fn func()) {
 	fn()
 }
