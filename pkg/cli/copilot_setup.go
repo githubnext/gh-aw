@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,6 +19,23 @@ import (
 )
 
 var copilotSetupLog = logger.New("cli:copilot_setup")
+
+// resolveInstallScriptSHA256 fetches install-gh-aw.sh at the given immutable commit SHA
+// and returns its SHA256 hex digest for use in a sha256sum integrity check.
+// Returns an empty string and logs a warning if the fetch or computation fails.
+func resolveInstallScriptSHA256(ctx context.Context, commitSHA string) string {
+	if commitSHA == "" {
+		return ""
+	}
+	scriptURL := "https://raw.githubusercontent.com/github/gh-aw/" + commitSHA + "/install-gh-aw.sh"
+	res, err := FetchImportURL(ctx, scriptURL, FetchOptions{})
+	if err != nil {
+		copilotSetupLog.Printf("Could not fetch install-gh-aw.sh to compute SHA256: %v", err)
+		return ""
+	}
+	h := sha256.Sum256(res.Body)
+	return hex.EncodeToString(h[:])
+}
 
 // getActionRef returns the action reference string based on action mode and version.
 // If a resolver is provided and mode is release or action, attempts to resolve the SHA for a SHA-pinned reference.
@@ -85,10 +104,17 @@ jobs:
 	// Default (dev/script mode): try to resolve the main branch to a pinned SHA so the
 	// downloaded script is immutable; fall back to the mutable branch ref if unavailable.
 	installRef := "refs/heads/main"
+	installSHA256 := ""
 	if sha, err := workflow.ResolveGhAwRef(ctx, "main"); err == nil && sha != "" {
 		installRef = sha
+		// Fetch the script to compute an explicit SHA256 integrity check line.
+		installSHA256 = resolveInstallScriptSHA256(ctx, sha)
 	} else {
 		copilotSetupLog.Printf("Could not resolve github/gh-aw main SHA for dev-mode template, falling back to mutable ref: %v", err)
+	}
+	sha256Line := ""
+	if installSHA256 != "" {
+		sha256Line = `          echo "` + installSHA256 + `  /tmp/gh-aw/install-gh-aw.sh" | sha256sum -c -` + "\n"
 	}
 	return fmt.Sprintf(`name: "Copilot Setup Steps"
 
@@ -114,8 +140,8 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw
           curl -fsSL https://raw.githubusercontent.com/github/gh-aw/%s/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh
-          bash /tmp/gh-aw/install-gh-aw.sh
-`, installRef)
+%s          bash /tmp/gh-aw/install-gh-aw.sh
+`, installRef, sha256Line)
 }
 
 // copilotSetupStepsYAML is a static dev-mode template used only for YAML validity tests.
@@ -145,6 +171,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw
           curl -fsSL https://raw.githubusercontent.com/github/gh-aw/21a6827c430f89d3b7443074cfc8bd25b84d278f/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh
+          echo "248ccebcb998c6a506548156e1bf9f02429cbbaec407d5adbdfd316ab0f866a0  /tmp/gh-aw/install-gh-aw.sh" | sha256sum -c -
           bash /tmp/gh-aw/install-gh-aw.sh
 `
 
@@ -295,13 +322,18 @@ func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, 
 		// Dev/script mode: try to resolve main to a pinned SHA so the instructions emit an
 		// immutable URL; fall back to the mutable branch ref if resolution is unavailable.
 		installRef := "refs/heads/main"
+		installSHA256 := ""
 		if sha, err := workflow.ResolveGhAwRef(ctx, "main"); err == nil && sha != "" {
 			installRef = sha
+			installSHA256 = resolveInstallScriptSHA256(ctx, sha)
 		}
 		fmt.Fprintln(os.Stderr, "      - name: Install gh-aw extension")
 		fmt.Fprintln(os.Stderr, "        run: |")
 		fmt.Fprintln(os.Stderr, "          mkdir -p /tmp/gh-aw")
 		fmt.Fprintln(os.Stderr, "          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/"+installRef+"/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh")
+		if installSHA256 != "" {
+			fmt.Fprintln(os.Stderr, `          echo "`+installSHA256+`  /tmp/gh-aw/install-gh-aw.sh" | sha256sum -c -`)
+		}
 		fmt.Fprintln(os.Stderr, "          bash /tmp/gh-aw/install-gh-aw.sh")
 	}
 	fmt.Fprintln(os.Stderr)
