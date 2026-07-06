@@ -27,6 +27,7 @@ network:
     - github
 tools:
   bash: true
+  cache-memory: true
   cli-proxy: true
   repo-memory:
     branch-prefix: daily
