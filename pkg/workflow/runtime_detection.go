@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -17,6 +18,14 @@ func cloneRuntimeRequirements(requirements []RuntimeRequirement) []RuntimeRequir
 	}
 	cloned := make([]RuntimeRequirement, len(requirements))
 	copy(cloned, requirements)
+	for i, req := range cloned {
+		if req.ExtraFields == nil {
+			continue
+		}
+		extraFields := make(map[string]any, len(req.ExtraFields))
+		maps.Copy(extraFields, req.ExtraFields)
+		cloned[i].ExtraFields = extraFields
+	}
 	return cloned
 }
 
@@ -30,7 +39,7 @@ func detectRuntimeRequirementsCached(workflowData *WorkflowData) []RuntimeRequir
 	requirements := DetectRuntimeRequirements(workflowData)
 	workflowData.CachedRuntimeRequirements = cloneRuntimeRequirements(requirements)
 	workflowData.CachedRuntimeRequirementsSet = true
-	return requirements
+	return cloneRuntimeRequirements(workflowData.CachedRuntimeRequirements)
 }
 
 // DetectRuntimeRequirements analyzes workflow data to detect required runtimes
