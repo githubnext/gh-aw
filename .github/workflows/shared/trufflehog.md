@@ -38,13 +38,17 @@ jobs:
         id: install-trufflehog
         env:
           TRUFFLEHOG_VERSION: "3.88.27"
+          # SHA256 of the linux_amd64 .tar.gz from the pinned release. Only GitHub-hosted ubuntu-latest runners
+          # (always amd64) are supported; self-hosted ARM runners will need a separate per-arch hash.
+          # To update: curl -fsSL https://github.com/trufflesecurity/trufflehog/releases/download/vNEW/trufflehog_NEW_linux_amd64.tar.gz | sha256sum
           TRUFFLEHOG_SHA256: "e3b2647b7a7bc1591f316da91fd33fc7397f8e3c21e2feed791c171f0c406bc7"
         run: |
           echo "Downloading TruffleHog v${TRUFFLEHOG_VERSION}..."
           mkdir -p /tmp/gh-aw
           curl -fsSL "https://github.com/trufflesecurity/trufflehog/releases/download/v${TRUFFLEHOG_VERSION}/trufflehog_${TRUFFLEHOG_VERSION}_linux_amd64.tar.gz" -o /tmp/gh-aw/trufflehog.tar.gz
+          # SHA256 covers the .tar.gz archive; the binary is extracted from the verified archive
           echo "${TRUFFLEHOG_SHA256}  /tmp/gh-aw/trufflehog.tar.gz" | sha256sum -c -
-          sudo tar -xzf /tmp/gh-aw/trufflehog.tar.gz -C /usr/local/bin trufflehog
+          sudo tar -xzf /tmp/gh-aw/trufflehog.tar.gz --no-same-owner -C /usr/local/bin trufflehog
           trufflehog --version
 
       - name: Scan agent output for secrets
