@@ -205,29 +205,29 @@ async function main() {
  * @returns {string}
  */
 function buildEvalPrompt(questions, agentOutput) {
-  const questionList = questions.map((q, i) => `Q${i + 1} [id=${q.id}]: ${q.question}`).join("\n");
+  const questionList = questions.map((q, i) => `<question number="${i + 1}" id="${q.id}">${q.question}</question>`).join("\n");
 
-  const agentSection = agentOutput ? `## Agent Output\n\n${agentOutput}` : "## Agent Output\n\n(no agent output available)";
+  const agentSection = agentOutput ? `<agent_output>\n${agentOutput}\n</agent_output>` : "<agent_output>\n(no agent output available)\n</agent_output>";
 
   return `# BinEval: Binary Evaluation
 
 You are evaluating the output of an AI agentic workflow using BinEval (binary evaluation).
 For each question below, answer with exactly YES or NO based on the agent output provided.
 
-## Questions
-
+<questions>
 ${questionList}
+</questions>
 
 ${agentSection}
 
-## Instructions
-
+<instructions>
 Answer each question on a separate line using EXACTLY this format:
 Q1: YES
 Q2: NO
 
 Use only YES or NO. Do not provide explanations or reasoning.
-Evaluate each question solely based on the agent output shown above.`;
+Evaluate each question solely based on the agent output shown above.
+</instructions>`;
 }
 
 /**
