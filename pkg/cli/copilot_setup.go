@@ -21,6 +21,9 @@ import (
 
 var copilotSetupLog = logger.New("cli:copilot_setup")
 
+// installScriptTempPath is the temporary file path used for the downloaded gh-aw install script.
+const installScriptTempPath = "/tmp/gh-aw/install-gh-aw.sh"
+
 // sha256HexRegex matches a valid lowercase SHA256 hex digest (exactly 64 hex chars).
 var sha256HexRegex = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
@@ -35,7 +38,7 @@ func resolveInstallScriptSHA256(ctx context.Context, commitSHA string) string {
 	scriptURL := fmt.Sprintf("https://raw.githubusercontent.com/github/gh-aw/%s/install-gh-aw.sh", commitSHA)
 	res, err := FetchImportURL(ctx, scriptURL, FetchOptions{})
 	if err != nil {
-		copilotSetupLog.Printf("Could not fetch install-gh-aw.sh to compute SHA256: %v", err)
+		copilotSetupLog.Printf("Could not fetch install-gh-aw.sh from %s to compute SHA256: %v", scriptURL, err)
 		return ""
 	}
 	h := sha256.Sum256(res.Body)
@@ -123,8 +126,8 @@ jobs:
 		copilotSetupLog.Printf("Could not resolve github/gh-aw main SHA for dev-mode template, falling back to mutable ref: %v", err)
 	}
 	sha256Line := ""
-	if sha256HexRegex.MatchString(installSHA256) {
-		sha256Line = `          echo "` + installSHA256 + `  /tmp/gh-aw/install-gh-aw.sh" | sha256sum -c -` + "\n"
+	if installSHA256 != "" {
+		sha256Line = `          echo "` + installSHA256 + `  ` + installScriptTempPath + `" | sha256sum -c -` + "\n"
 	}
 	return fmt.Sprintf(`name: "Copilot Setup Steps"
 
@@ -340,11 +343,11 @@ func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, 
 		fmt.Fprintln(os.Stderr, "      - name: Install gh-aw extension")
 		fmt.Fprintln(os.Stderr, "        run: |")
 		fmt.Fprintln(os.Stderr, "          mkdir -p /tmp/gh-aw")
-		fmt.Fprintln(os.Stderr, "          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/"+installRef+"/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh")
-		if sha256HexRegex.MatchString(installSHA256) {
-			fmt.Fprintln(os.Stderr, `          echo "`+installSHA256+`  /tmp/gh-aw/install-gh-aw.sh" | sha256sum -c -`)
+		fmt.Fprintln(os.Stderr, "          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/"+installRef+"/install-gh-aw.sh -o "+installScriptTempPath)
+		if installSHA256 != "" {
+			fmt.Fprintln(os.Stderr, `          echo "`+installSHA256+`  `+installScriptTempPath+`" | sha256sum -c -`)
 		}
-		fmt.Fprintln(os.Stderr, "          bash /tmp/gh-aw/install-gh-aw.sh")
+		fmt.Fprintln(os.Stderr, "          bash "+installScriptTempPath)
 	}
 	fmt.Fprintln(os.Stderr)
 }
