@@ -1,13 +1,20 @@
 {
   "counts": {
     "audit_decomposition": {
-      "phased_sub_agents": 1
+      "phased_sub_agents": 2
     }
   },
   "runs": [
     {
       "run_id": "28755492097",
       "timestamp": "2026-07-05T21:29:17.044Z",
+      "assignments": {
+        "audit_decomposition": "phased_sub_agents"
+      }
+    },
+    {
+      "run_id": "28825007082",
+      "timestamp": "2026-07-06T21:38:27.624Z",
       "assignments": {
         "audit_decomposition": "phased_sub_agents"
       }
