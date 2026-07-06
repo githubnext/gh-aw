@@ -3,6 +3,7 @@
 
 const path = require("path");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Writes a pre-activation skip denial summary to the GitHub Actions job summary.
@@ -23,7 +24,7 @@ async function writeDenialSummary(reason, remediation) {
     } catch (err) {
       // Log unexpected errors but still fall through to the hardcoded fallback
       if (err && typeof err === "object" && "code" in err && err.code !== "ENOENT") {
-        core.warning(`pre_activation_summary: could not read template ${templatePath}: ${err instanceof Error ? err.message : String(err)}`);
+        core.warning(`pre_activation_summary: could not read template ${templatePath}: ${getErrorMessage(err)}`);
       }
     }
   }

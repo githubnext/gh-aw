@@ -3,6 +3,7 @@
 
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Dynamic repository checkout utilities for multi-repo scenarios
@@ -162,7 +163,7 @@ async function checkoutRepo(repoSlug, token, options = {}) {
       repoSlug: repoSlug,
     };
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorMsg = getErrorMessage(error);
     core.error(`Failed to checkout repository ${repoSlug}: ${errorMsg}`);
     return {
       success: false,

@@ -11,6 +11,7 @@ const { ERR_API } = require("./error_codes.cjs");
 const { loadTemporaryIdMapFromResolved, replaceTemporaryIdReferencesInPatch, TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN } = require("./temporary_id.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { backfillCommitObjects } = require("./git_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 const OID_PATTERN = /^[0-9a-f]{40}$/i;
 
 /**
@@ -326,7 +327,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       core.info(`pushSignedCommits: git push completed for orphan branch, HEAD=${headSha}`);
       return headSha;
     } catch (pushErr) {
-      const pushErrMsg = pushErr instanceof Error ? pushErr.message : String(pushErr);
+      const pushErrMsg = getErrorMessage(pushErr);
       throw new Error(
         `pushSignedCommits: failed to push orphan branch '${branch}' (first commit). ` +
           `If the repository requires signed commits, the branch must be seeded manually with a signed commit before this workflow can push to it. ` +
@@ -355,9 +356,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       );
     }
   } catch (baseRefResolveError) {
-    core.warning(
-      `pushSignedCommits: could not resolve baseRef '${baseRef}' to OID; boundary-commit filter is disabled for this run and parent OID resolution may fall back to per-commit rev-parse: ${baseRefResolveError instanceof Error ? baseRefResolveError.message : String(baseRefResolveError)}`
-    );
+    core.warning(`pushSignedCommits: could not resolve baseRef '${baseRef}' to OID; boundary-commit filter is disabled for this run and parent OID resolution may fall back to per-commit rev-parse: ${getErrorMessage(baseRefResolveError)}`);
   }
   // Collect the commits introduced (oldest-first) using topological order to ensure
   // correct sequencing even when commit dates are out of sync (e.g. after rebase --committer-date-is-author-date).
@@ -452,7 +451,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         try {
           recovered = await backfillCommitObjects(exec, fetchTargets, { cwd, env: { ...process.env, ...(gitAuthEnv || {}) } });
         } catch (recoveryError) {
-          core.warning(`pushSignedCommits: targeted object backfill failed: ${recoveryError instanceof Error ? recoveryError.message : String(recoveryError)}`);
+          core.warning(`pushSignedCommits: targeted object backfill failed: ${getErrorMessage(recoveryError)}`);
         }
 
         if (recovered) {
@@ -735,7 +734,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   } catch (err) {
     if (err instanceof PushSignedCommitsUnsupportedShape) {
       throw new Error(
-        `pushSignedCommits: refusing unsigned push for branch '${branch}': ${err.message}. ` +
+        `pushSignedCommits: refusing unsigned push for branch '${branch}': ${getErrorMessage(err)}. ` +
           `GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits, symlinks (mode 120000), ` +
           `submodule entries (mode 160000), or executable bits (mode 100755). ` +
           `Rewrite the commits to use only regular files (mode 100644) with no merge commits, ` +
@@ -744,12 +743,12 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       );
     }
     if (err instanceof PushSignedCommitsPolicyViolation) {
-      throw new Error(`pushSignedCommits: refusing unsigned push for branch '${branch}': ${err.message}`, { cause: err });
+      throw new Error(`pushSignedCommits: refusing unsigned push for branch '${branch}': ${getErrorMessage(err)}`, { cause: err });
     }
     if (allowGitPushFallback === false) {
-      throw new Error(`pushSignedCommits: signed commit push failed for branch '${branch}' and git push fallback is disabled: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+      throw new Error(`pushSignedCommits: signed commit push failed for branch '${branch}' and git push fallback is disabled: ${getErrorMessage(err)}`, { cause: err });
     }
-    core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${err instanceof Error ? err.message : String(err)}`);
+    core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${getErrorMessage(err)}`);
     const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
     core.info(`pushSignedCommits: git push fallback completed, using pushed SHA ${fallbackSha}`);
     return fallbackSha;

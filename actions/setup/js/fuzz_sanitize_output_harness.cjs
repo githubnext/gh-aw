@@ -5,6 +5,7 @@
  */
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Test the sanitizeContent function with given input
@@ -20,7 +21,7 @@ function testSanitizeOutput(text, allowedAliases, maxLength) {
   } catch (err) {
     return {
       sanitized: "",
-      error: err instanceof Error ? err.message : String(err),
+      error: getErrorMessage(err),
     };
   }
 }
@@ -41,7 +42,7 @@ if (require.main === module) {
       process.stdout.write(JSON.stringify(result));
       process.exit(0);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       process.stdout.write(JSON.stringify({ sanitized: "", error: errorMsg }));
       process.exit(1);
     }

@@ -41,6 +41,7 @@
 
 require("./shim.cjs");
 
+const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const crypto = require("crypto");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
@@ -1223,7 +1224,7 @@ if (typeof module !== "undefined" && module.exports) {
 
 if (require.main === module) {
   main().catch(err => {
-    log(`unexpected error: ${err.message}`);
+    log(`unexpected error: ${getErrorMessage(err)}`);
     process.exit(1);
   });
 }

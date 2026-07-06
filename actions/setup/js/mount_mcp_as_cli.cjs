@@ -25,6 +25,7 @@
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 const MANIFEST_FILE = path.join(process.env.RUNNER_TEMP || "/home/runner/work/_temp", "gh-aw/mcp-cli/manifest.json");
 // Use RUNNER_TEMP so the bin and tools directories are inside the AWF sandbox mount
@@ -58,7 +59,7 @@ function loadToolsFromJSONFile(toolsPath, core) {
     const parsed = JSON.parse(fs.readFileSync(toolsPath, "utf8"));
     return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
-    core.warning(`  Failed to read tools file ${toolsPath}: ${err instanceof Error ? err.message : String(err)}`);
+    core.warning(`  Failed to read tools file ${toolsPath}: ${getErrorMessage(err)}`);
     return [];
   }
 }
@@ -290,7 +291,7 @@ async function fetchMCPTools(serverUrl, apiKey, core) {
       sessionHeader = { "Mcp-Session-Id": sessionId };
     }
   } catch (err) {
-    core.warning(`  initialize failed for ${serverUrl}: ${err instanceof Error ? err.message : String(err)}`);
+    core.warning(`  initialize failed for ${serverUrl}: ${getErrorMessage(err)}`);
     return [];
   }
 
@@ -299,7 +300,7 @@ async function fetchMCPTools(serverUrl, apiKey, core) {
   try {
     await httpPostJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", method: "notifications/initialized", params: {} }, 10000);
   } catch (err) {
-    core.warning(`  notifications/initialized failed for ${serverUrl}: ${err instanceof Error ? err.message : String(err)}`);
+    core.warning(`  notifications/initialized failed for ${serverUrl}: ${getErrorMessage(err)}`);
   }
 
   // Step 3: tools/list – get the available tool definitions
@@ -314,7 +315,7 @@ async function fetchMCPTools(serverUrl, apiKey, core) {
     }
     return [];
   } catch (err) {
-    core.warning(`  tools/list failed for ${serverUrl}: ${err instanceof Error ? err.message : String(err)}`);
+    core.warning(`  tools/list failed for ${serverUrl}: ${getErrorMessage(err)}`);
     return [];
   }
 }
@@ -391,7 +392,7 @@ async function main() {
   try {
     manifest = JSON.parse(fs.readFileSync(MANIFEST_FILE, "utf8"));
   } catch (err) {
-    core.warning(`Failed to read MCP CLI manifest: ${err instanceof Error ? err.message : String(err)}`);
+    core.warning(`Failed to read MCP CLI manifest: ${getErrorMessage(err)}`);
     return;
   }
 
@@ -469,7 +470,7 @@ async function main() {
     try {
       fs.writeFileSync(toolsFile, JSON.stringify(tools, null, 2), { mode: 0o644 });
     } catch (err) {
-      core.warning(`  Failed to write tools cache for ${name}: ${err instanceof Error ? err.message : String(err)}`);
+      core.warning(`  Failed to write tools cache for ${name}: ${getErrorMessage(err)}`);
     }
 
     // Write the CLI wrapper script using the container-accessible URL
@@ -479,7 +480,7 @@ async function main() {
       mountedServers.push(name);
       core.info(`  ✓ Mounted as: ${scriptPath}`);
     } catch (err) {
-      core.warning(`  Failed to write CLI wrapper for ${name}: ${err instanceof Error ? err.message : String(err)}`);
+      core.warning(`  Failed to write CLI wrapper for ${name}: ${getErrorMessage(err)}`);
     }
   }
 
@@ -493,7 +494,7 @@ async function main() {
     fs.chmodSync(CLI_BIN_DIR, 0o555);
     core.info(`CLI bin directory locked (read-only): ${CLI_BIN_DIR}`);
   } catch (err) {
-    core.warning(`Failed to lock CLI bin directory: ${err instanceof Error ? err.message : String(err)}`);
+    core.warning(`Failed to lock CLI bin directory: ${getErrorMessage(err)}`);
   }
 
   // Add the bin directory to PATH for subsequent steps

@@ -54,7 +54,7 @@ async function createAssignToAgentGitHubClient(config) {
 async function main(config = {}) {
   // Parse configuration (replaces env vars from the old standalone step)
   const maxCount = parseInt(String(config.max ?? "1"), 10);
-  if (isNaN(maxCount) || maxCount < 1) {
+  if (Number.isNaN(maxCount) || maxCount < 1) {
     throw new Error(`Invalid max value: ${config.max}. Must be a positive integer`);
   }
   const defaultAgent = String(config.name ?? "copilot").trim();
@@ -299,7 +299,7 @@ async function main(config = {}) {
     const issueNumber = type === "issue" ? number : null;
     const pullNumber = type === "pull request" ? number : null;
 
-    if (isNaN(number) || number <= 0) {
+    if (Number.isNaN(number) || number <= 0) {
       const error = `Invalid ${type} number: ${number}`;
       core.error(error);
       _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });

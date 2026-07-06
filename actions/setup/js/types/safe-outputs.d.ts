@@ -438,7 +438,7 @@ interface ReplyToPullRequestReviewCommentItem extends BaseSafeOutputItem {
  */
 interface DismissPullRequestReviewItem extends BaseSafeOutputItem {
   type: "dismiss_pull_request_review";
-  /** Numeric review ID to dismiss */
+  /** Numeric review ID to dismiss, or "auto" to resolve latest dismissible review by current actor */
   review_id: number | string;
   /** Dismissal justification (minimum 20 characters) */
   justification: string;

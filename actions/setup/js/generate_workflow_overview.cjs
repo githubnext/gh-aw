@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { jsonObjectToMarkdown } = require("./json_object_to_markdown.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Generate workflow overview step that writes an agentic workflow run overview
@@ -16,7 +17,12 @@ async function generateWorkflowOverview(core) {
   const awInfoPath = "/tmp/gh-aw/aw_info.json";
 
   // Load aw_info.json
-  const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+  let awInfo;
+  try {
+    awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+  } catch (err) {
+    throw new Error("Failed to parse aw_info.json at " + awInfoPath + ": " + getErrorMessage(err), { cause: err });
+  }
 
   // Build the collapsible summary label with engine_id and version
   const engineLabel = [awInfo.engine_id, awInfo.version].filter(Boolean).join(" ");

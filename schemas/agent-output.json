@@ -413,7 +413,7 @@
         },
         "review_id": {
           "type": ["number", "string"],
-          "description": "The numeric review ID to dismiss."
+          "description": "The numeric review ID to dismiss, or 'auto' to dismiss all dismissible (APPROVED or CHANGES_REQUESTED) reviews authored by the current workflow actor. Defaults to 'auto' when omitted."
         },
         "justification": {
           "type": "string",
@@ -433,7 +433,7 @@
           "description": "Optional target repository in owner/repo format."
         }
       },
-      "required": ["type", "review_id", "justification"],
+      "required": ["type", "justification"],
       "additionalProperties": false
     },
     "ResolvePullRequestReviewThreadOutput": {

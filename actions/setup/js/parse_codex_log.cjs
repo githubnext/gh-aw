@@ -29,7 +29,7 @@ function extractMCPInitialization(lines) {
     // Match: Found N MCP servers in configuration
     const countMatch = line.match(/Found (\d+) MCP servers? in configuration/i);
     if (countMatch) {
-      serverCount = parseInt(countMatch[1]);
+      serverCount = parseInt(countMatch[1], 10);
     }
 
     // Match: Connecting to MCP server: <name>
@@ -142,8 +142,8 @@ function extractCodexErrorMessages(lines) {
     // Match: Reconnecting... N/M (error message) - reconnect attempts with error details
     const reconnectMatch = line.match(/^Reconnecting\.\.\.\s+(\d+)\/(\d+)\s*\((.+)\)$/);
     if (reconnectMatch) {
-      const attempt = parseInt(reconnectMatch[1]);
-      const total = parseInt(reconnectMatch[2]);
+      const attempt = parseInt(reconnectMatch[1], 10);
+      const total = parseInt(reconnectMatch[2], 10);
       if (attempt > reconnectCount) reconnectCount = attempt;
       if (total > maxReconnects) maxReconnects = total;
       messages.add(reconnectMatch[3].trim());
@@ -795,7 +795,7 @@ function parseCodexLog(logContent) {
   // TokenCount(TokenCountEvent { ... total_tokens: 13281 ...
   const tokenCountMatches = logContent.matchAll(/total_tokens:\s*(\d+)/g);
   for (const match of tokenCountMatches) {
-    const tokens = parseInt(match[1]);
+    const tokens = parseInt(match[1], 10);
     totalTokens = Math.max(totalTokens, tokens); // Use the highest value (final total)
   }
 
@@ -803,7 +803,7 @@ function parseCodexLog(logContent) {
   const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
   if (finalTokensMatch) {
     // Remove commas before parsing
-    totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
+    totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""), 10);
   }
 
   if (totalTokens > 0) {

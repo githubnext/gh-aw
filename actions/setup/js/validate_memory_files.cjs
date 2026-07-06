@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * @typedef {Object} ValidationResult
@@ -63,7 +64,7 @@ function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions)
   try {
     scanDirectory(memoryDir);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     core.error(`Failed to scan ${memoryType}-memory directory: ${message}`);
     return { valid: false, invalidFiles: [] };
   }

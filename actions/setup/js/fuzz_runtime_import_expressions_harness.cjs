@@ -1,4 +1,5 @@
 // @ts-check
+const { getErrorMessage } = require("./error_helpers.cjs");
 /**
  * Fuzz test harness for processExpressions in runtime_import.cjs.
  *
@@ -72,7 +73,7 @@ function testProcessExpressions(content, ctx) {
     const result = processExpressions(content, "fuzz-test.md");
     return { result, error: null };
   } catch (err) {
-    return { result: null, error: err instanceof Error ? err.message : String(err) };
+    return { result: null, error: getErrorMessage(err) };
   }
 }
 
@@ -92,7 +93,7 @@ if (require.main === module) {
       process.stdout.write(JSON.stringify(result));
       process.exit(0);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       process.stdout.write(JSON.stringify({ result: null, error: errorMsg }));
       process.exit(1);
     }

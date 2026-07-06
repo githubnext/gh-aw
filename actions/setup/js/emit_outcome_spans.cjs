@@ -21,6 +21,7 @@
 
 const fs = require("fs");
 const { nowMs } = require("./performance_now.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 const {
   generateTraceId,
@@ -314,7 +315,7 @@ async function main() {
 if (require.main === module) {
   main().catch(err => {
     // Non-fatal: OTEL export failures must never break the workflow
-    console.warn(`[outcome-otel] Export failed (non-fatal): ${err.message || err}`);
+    console.warn(`[outcome-otel] Export failed (non-fatal): ${getErrorMessage(err)}`);
   });
 }
 

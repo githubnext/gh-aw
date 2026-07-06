@@ -26,6 +26,7 @@ require("./shim.cjs");
 
 const path = require("path");
 const { rewriteUrl, normalizeGatewayEntry, loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Resolves the Copilot CLI MCP config output path from the runtime $HOME.
@@ -67,7 +68,7 @@ function main() {
   try {
     outputPath = resolveCopilotConfigOutputPath();
   } catch (err) {
-    core.error(`ERROR: ${err.message}`);
+    core.error(`ERROR: ${getErrorMessage(err)}`);
     process.exit(1);
   }
 

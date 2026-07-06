@@ -35,6 +35,7 @@ const http = require("http");
 const path = require("path");
 const { withRetry } = require("./error_recovery.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 // ---------------------------------------------------------------------------
 // Timing helpers
@@ -399,7 +400,7 @@ async function main() {
     core.error("ERROR: Configuration is not valid JSON");
     core.error("");
     core.error("JSON validation error:");
-    const parseMessage = /** @type {Error} */ err.message;
+    const parseMessage = getErrorMessage(err);
     core.error(parseMessage);
     const parseContext = getJSONParseErrorContext(mcpConfig, parseMessage);
     if (parseContext) {
@@ -743,7 +744,12 @@ async function main() {
   fs.chmodSync(outputPath, 0o600);
 
   // Check for error payload
-  const gatewayOutput = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  let gatewayOutput;
+  try {
+    gatewayOutput = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  } catch (err) {
+    throw new Error("Failed to parse gateway output file " + outputPath + ": " + getErrorMessage(err), { cause: err });
+  }
   if (gatewayOutput.error) {
     core.error("ERROR: Gateway returned an error payload instead of configuration");
     core.error("");
@@ -800,7 +806,7 @@ async function main() {
     try {
       ({ dir: copilotConfigDir, file: copilotConfigFile } = resolveCopilotConfigPaths());
     } catch (err) {
-      core.error(`ERROR: ${err.message}`);
+      core.error(`ERROR: ${getErrorMessage(err)}`);
       process.exit(1);
     }
     core.info(`No agent-specific converter found for engine: ${engineType}`);
@@ -937,7 +943,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = getErrorMessage(err);
     const stack = err instanceof Error ? err.stack : undefined;
     if (stack) core.error(stack);
     core.setFailed(`FATAL: ${message}`);

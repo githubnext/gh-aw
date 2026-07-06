@@ -17,6 +17,7 @@
  */
 
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json";
 
@@ -108,7 +109,7 @@ async function main() {
       "fetch update configuration"
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = getErrorMessage(err);
     core.info(`Could not fetch update configuration (${message}). Skipping version check.`);
     return;
   }

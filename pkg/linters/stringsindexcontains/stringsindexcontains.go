@@ -117,7 +117,7 @@ func matchIndexComparison(pass *analysis.Pass, expr *ast.BinaryExpr) (call *ast.
 
 	op := expr.Op
 	if flipped {
-		op = flipOp(op)
+		op = astutil.FlipComparisonOp(op)
 	}
 
 	litVal, ok := constIntValue(pass, right)
@@ -195,22 +195,6 @@ func constIntValue(pass *analysis.Pass, expr ast.Expr) (int64, bool) {
 	}
 	v, exact := constant.Int64Val(tv.Value)
 	return v, exact
-}
-
-// flipOp returns the comparison operator with left and right operands swapped.
-func flipOp(op token.Token) token.Token {
-	switch op {
-	case token.LSS:
-		return token.GTR
-	case token.GTR:
-		return token.LSS
-	case token.LEQ:
-		return token.GEQ
-	case token.GEQ:
-		return token.LEQ
-	default:
-		return op
-	}
 }
 
 // indexPkgText returns the package selector text (e.g., "strings") from a strings.Index call.

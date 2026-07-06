@@ -22,7 +22,7 @@ async function main() {
   // Parse the stop time (format: "YYYY-MM-DD HH:MM:SS")
   const stopTimeDate = new Date(stopTime);
 
-  if (isNaN(stopTimeDate.getTime())) {
+  if (Number.isNaN(stopTimeDate.getTime())) {
     core.setFailed(`${ERR_VALIDATION}: Invalid stop-time format: ${stopTime}. Expected format: YYYY-MM-DD HH:MM:SS`);
     return;
   }

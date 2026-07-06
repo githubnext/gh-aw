@@ -4,7 +4,6 @@ package ossetenvlibrary
 
 import (
 	"go/ast"
-	"go/types"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -50,7 +49,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		fn, ok := calledOSFunc(pass, call)
+		fn, ok := astutil.CalledOSFunc(pass, call, "Setenv", "Unsetenv")
 		if !ok {
 			return
 		}
@@ -67,25 +66,4 @@ func run(pass *analysis.Pass) (any, error) {
 	})
 
 	return nil, nil
-}
-
-func calledOSFunc(pass *analysis.Pass, call *ast.CallExpr) (*types.Func, bool) {
-	var obj types.Object
-	switch fun := call.Fun.(type) {
-	case *ast.SelectorExpr:
-		obj = pass.TypesInfo.Uses[fun.Sel]
-	case *ast.Ident:
-		obj = pass.TypesInfo.Uses[fun]
-	default:
-		return nil, false
-	}
-
-	fn, ok := obj.(*types.Func)
-	if !ok || fn.Pkg() == nil || fn.Pkg().Path() != "os" {
-		return nil, false
-	}
-	if fn.Name() != "Setenv" && fn.Name() != "Unsetenv" {
-		return nil, false
-	}
-	return fn, true
 }

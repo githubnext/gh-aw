@@ -224,7 +224,7 @@ async function main(config = {}) {
 
           // Not a temporary ID - parse as integer
           const issueNumber = parseInt(String(item.issue_number), 10);
-          if (isNaN(issueNumber)) {
+          if (Number.isNaN(issueNumber)) {
             return { success: false, error: `Invalid issue number: ${item.issue_number}` };
           }
           return { success: true, entityNumber: issueNumber, owner: repoParts.owner, repo: repoParts.repo, entityRepo };

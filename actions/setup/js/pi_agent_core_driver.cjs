@@ -36,6 +36,7 @@
 
 "use strict";
 
+const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -91,7 +92,7 @@ function readGatewayConfig(agentDir) {
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    log(`warning: failed to parse ${modelsPath}: ${err instanceof Error ? err.message : String(err)}`);
+    log(`warning: failed to parse ${modelsPath}: ${getErrorMessage(err)}`);
     return null;
   }
 
@@ -267,7 +268,7 @@ async function main() {
   try {
     prompt = fs.readFileSync(promptFile, "utf8");
   } catch (err) {
-    process.stderr.write(`[pi-agent-core-driver] error: failed to read prompt file ${promptFile}: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(`[pi-agent-core-driver] error: failed to read prompt file ${promptFile}: ${getErrorMessage(err)}\n`);
     process.exit(1);
   }
 

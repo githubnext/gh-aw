@@ -14,6 +14,7 @@
  */
 
 const { isSafeExpression } = require("./runtime_import.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Evaluates isSafeExpression and returns a structured result.
@@ -26,7 +27,7 @@ function testIsSafeExpression(expression) {
     const safe = isSafeExpression(expression);
     return { safe, error: null };
   } catch (err) {
-    return { safe: false, error: err instanceof Error ? err.message : String(err) };
+    return { safe: false, error: getErrorMessage(err) };
   }
 }
 
@@ -60,7 +61,7 @@ if (require.main === module) {
       process.stdout.write(JSON.stringify(result));
       process.exit(0);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       process.stdout.write(JSON.stringify({ safe: false, error: errorMsg }));
       process.exit(1);
     }

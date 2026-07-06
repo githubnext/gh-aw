@@ -156,7 +156,7 @@ function resolveEntityNumber(config, target, item, isEntityContext) {
     const targetNumber = item[config.numberField];
     if (targetNumber) {
       const parsed = parseInt(targetNumber, 10);
-      if (isNaN(parsed) || parsed <= 0) {
+      if (Number.isNaN(parsed) || parsed <= 0) {
         return {
           success: false,
           message: `Invalid ${config.displayName} number specified: ${targetNumber}`,
@@ -172,7 +172,7 @@ function resolveEntityNumber(config, target, item, isEntityContext) {
 
   if (target !== "triggering") {
     const parsed = parseInt(target, 10);
-    if (isNaN(parsed) || parsed <= 0) {
+    if (Number.isNaN(parsed) || parsed <= 0) {
       return {
         success: false,
         message: `Invalid ${config.displayName} number in target configuration: ${target}`,

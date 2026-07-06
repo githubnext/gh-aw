@@ -1,4 +1,5 @@
 // @ts-check
+const { getErrorMessage } = require("./error_helpers.cjs");
 /// <reference types="@actions/github-script" />
 
 /**
@@ -103,7 +104,7 @@ async function determineAutomaticLockdown(github, context, core) {
     const details = `<details>\n<summary>GitHub MCP Guard Policy</summary>\n\n${tableRows}\n\n</details>\n`;
     await core.summary.addRaw(details).write();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to determine automatic guard policy: ${errorMessage}`);
     // Default to safe guard policy for public repos on error
     core.setOutput("min_integrity", "approved");

@@ -166,7 +166,7 @@ function validateMaxCount(envValue, configDefault, fallbackDefault = 1) {
   }
 
   const parsed = parseInt(envValue, 10);
-  if (isNaN(parsed) || parsed < 1) {
+  if (Number.isNaN(parsed) || parsed < 1) {
     return {
       valid: false,
       error: `Invalid max value: ${envValue}. Must be a positive integer`,
