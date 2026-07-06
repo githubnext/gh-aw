@@ -15,6 +15,12 @@ import (
 	"github.com/github/gh-aw/pkg/actionpins"
 )
 
+type testContextKey string
+
+const testContextPropagationKey testContextKey = "actionpins.resolve.ctx"
+
+const testResolvedSHA = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
 // TestSpec_PublicAPI_FormatPinnedActionReference validates the documented format "repo@sha # version".
 func TestSpec_PublicAPI_FormatPinnedActionReference(t *testing.T) {
 	tests := []struct {
@@ -228,9 +234,10 @@ func TestSpec_PublicAPI_ResolveActionPin_NilContext(t *testing.T) {
 		"nil ctx should resolve from embedded pins with correct SHA and format")
 }
 
-// TestSpec_PublicAPI_ResolveActionPin_UnknownSHAPassthrough validates that an unknown full SHA
-// is returned as repo@sha # sha when it does not appear in the embedded pins.
-func TestSpec_PublicAPI_ResolveActionPin_UnknownSHAPassthrough(t *testing.T) {
+// TestSpec_PublicAPI_ResolveActionPin_UnknownFullSHAReturnsFormattedReference validates that
+// an unknown full SHA is returned in the formatted "repo@sha # sha" form when it does not
+// appear in the embedded pins.
+func TestSpec_PublicAPI_ResolveActionPin_UnknownFullSHAReturnsFormattedReference(t *testing.T) {
 	unknownSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 	result, err := actionpins.ResolveActionPin("actions/checkout", unknownSHA, nil)
@@ -363,10 +370,30 @@ func TestSpec_PublicAPI_ResolveLatestActionPin(t *testing.T) {
 // ResolveLatestActionPin falls back to the embedded latest-pin reference when ResolveActionPin
 // errors, and returns empty when no embedded fallback exists.
 func TestSpec_PublicAPI_ResolveLatestActionPin_FallbackOnEnforceError(t *testing.T) {
-	ctx := &actionpins.PinContext{EnforcePinned: true, Warnings: make(map[string]bool)}
+	t.Run("known repo falls back to embedded latest pin after enforce error", func(t *testing.T) {
+		known := "actions/checkout"
+		latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
+		require.True(t, ok, "expected embedded pins for known repository")
 
-	result := actionpins.ResolveLatestActionPin("does-not-exist/x", ctx)
-	assert.Empty(t, result, "unknown repo with enforce mode should return the empty embedded fallback")
+		ctx := &actionpins.PinContext{
+			Resolver:              &testSHAResolver{err: errors.New("network error")},
+			EnforcePinned:         true,
+			SkipHardcodedFallback: true,
+			Warnings:              make(map[string]bool),
+		}
+		result := actionpins.ResolveLatestActionPin(known, ctx)
+		assert.Equal(t,
+			actionpins.FormatPinnedActionReference(known, latestPin.SHA, latestPin.Version),
+			result,
+			"known repo should fall back to the embedded latest pin when ResolveActionPin errors")
+	})
+
+	t.Run("unknown repo returns empty when no embedded fallback exists", func(t *testing.T) {
+		ctx := &actionpins.PinContext{EnforcePinned: true, Warnings: make(map[string]bool)}
+
+		result := actionpins.ResolveLatestActionPin("does-not-exist/x", ctx)
+		assert.Empty(t, result, "unknown repo should return empty when no embedded fallback exists")
+	})
 }
 
 // TestSpec_Types_PinContext validates the documented PinContext type fields.
@@ -628,10 +655,11 @@ func TestSpec_PublicAPI_ResolveActionPin_DynamicHappyPath(t *testing.T) {
 // TestSpec_PublicAPI_ResolveActionPin_UsesProvidedContext validates that PinContext.Ctx
 // is forwarded to the resolver instead of being replaced with context.Background().
 func TestSpec_PublicAPI_ResolveActionPin_UsesProvidedContext(t *testing.T) {
-	resolver := &testSHAResolver{sha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
-	type contextKey struct{}
-	ctxValueKey := contextKey{}
-	providedCtx, cancel := context.WithCancel(context.WithValue(context.Background(), ctxValueKey, "expected"))
+	resolver := &testSHAResolver{sha: testResolvedSHA}
+	baseCtx := context.WithValue(context.Background(), testContextPropagationKey, "context-propagation-marker")
+	providedCtx, cancel := context.WithCancel(baseCtx)
+	// Pre-cancel the context so the resolver can verify that ResolveActionPin forwards the
+	// exact caller-provided context object, including its cancellation state, not just values.
 	cancel()
 
 	result, err := actionpins.ResolveActionPin("actions/checkout", "v4", &actionpins.PinContext{
@@ -640,9 +668,9 @@ func TestSpec_PublicAPI_ResolveActionPin_UsesProvidedContext(t *testing.T) {
 		Warnings: make(map[string]bool),
 	})
 	require.NoError(t, err)
-	require.Equal(t, providedCtx, resolver.capturedCtx, "resolver should receive the exact PinContext.Ctx value")
+	assert.Same(t, providedCtx, resolver.capturedCtx, "resolver should receive the exact PinContext.Ctx value")
 	assert.Equal(t, context.Canceled, resolver.capturedCtx.Err(), "resolver should observe the canceled context")
-	assert.Equal(t, "expected", resolver.capturedCtx.Value(ctxValueKey), "resolver should receive context values")
+	assert.Equal(t, "context-propagation-marker", resolver.capturedCtx.Value(testContextPropagationKey), "resolver should receive context values")
 	assert.Equal(t, "actions/checkout", resolver.capturedRepo, "resolver should receive the original repo")
 	assert.Equal(t, "v4", resolver.capturedRef, "resolver should receive the original version")
 	assert.Contains(t, result, resolver.sha, "successful resolution should use the resolver-provided SHA")
