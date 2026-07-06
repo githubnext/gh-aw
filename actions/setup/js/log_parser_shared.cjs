@@ -840,6 +840,25 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
     return "";
   };
 
+  // Builds the tool_use `input` object for a Copilot SDK tool event.
+  // Copilot SDK bash events carry the executed command as a top-level `data.command`
+  // field rather than nesting it inside `data.input`/`data.parameters`, so fall back
+  // to it (and merge it in when structured input lacks a command) to avoid dropping
+  // the command from the rendered summary.
+  const buildToolInput = data => {
+    const base = data.input || data.parameters;
+    if (base && typeof base === "object" && !Array.isArray(base)) {
+      if (base.command === undefined && typeof data.command === "string") {
+        return { ...base, command: data.command };
+      }
+      return base;
+    }
+    if (typeof data.command === "string") {
+      return { command: data.command };
+    }
+    return {};
+  };
+
   for (const entry of logEntries) {
     if (!entry || typeof entry !== "object") continue;
     const data = entry.data && typeof entry.data === "object" ? entry.data : {};
@@ -900,7 +919,7 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
         normalizedEntries.push({
           type: "assistant",
           message: {
-            content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: data.input || data.parameters || {} }],
+            content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: buildToolInput(data) }],
           },
         });
         break;
@@ -926,7 +945,7 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
           normalizedEntries.push({
             type: "assistant",
             message: {
-              content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: data.input || data.parameters || {} }],
+              content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: buildToolInput(data) }],
             },
           });
         }
