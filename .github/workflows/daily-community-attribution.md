@@ -274,7 +274,7 @@ steps:
         echo ""
         jq -r --arg base "$SEARCH_BASE" '
           .[] |
-          "[@\(.author) (\(.count))](\($base + .author))"
+          "[<img src=\"https://github.com/\(.author).png?size=24\" width=\"24\" height=\"24\" alt=\"@\(.author)\">](\($base + .author))"
         ' "$DATA_DIR/attribution_by_author.json"
         echo ""
       } > "$DATA_DIR/readme_community_section_tier012.md"
@@ -425,8 +425,8 @@ The expected format (for reference):
 
 <sup>Community members whose issues were resolved — updated automatically.</sup>
 
-[@author (N)](https://github.com/OWNER/REPO/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aauthor)
-[@author2 (M)](https://github.com/OWNER/REPO/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aauthor2)
+[<img src="https://github.com/author.png?size=24" width="24" height="24" alt="@author">](https://github.com/OWNER/REPO/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aauthor)
+[<img src="https://github.com/author2.png?size=24" width="24" height="24" alt="@author2">](https://github.com/OWNER/REPO/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aauthor2)
 
 ```
 
@@ -435,7 +435,7 @@ above) so that the next markdown header renders correctly.
 
 - One link per author, each on its own source line (renders as a single paragraph)
 - Sorted alphabetically by username
-- Link text: `@alias (count)` where count is the total number of attributed issues
+- Link content: 24px avatar image (`<img src="https://github.com/ALIAS.png?size=24" width="24" height="24" alt="@ALIAS">`) — no text alias
 - Link target: closed-issues search URL with `community` label for that author
 - When inserting Tier 3 entries, maintain alphabetical author order
 - Omit issues that cannot be attributed (Tier 4); do not render an attribution
