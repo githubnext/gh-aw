@@ -130,7 +130,7 @@ The workflow pre-agent steps already installed docs dependencies. Start the Astr
 
 ```bash
 mkdir -p /tmp/gh-aw/agent
-cd ${{ github.workspace }}/docs
+cd docs
 nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/gh-aw/agent/preview.log 2>&1 &
 PID=$!
 echo $PID > /tmp/gh-aw/agent/server.pid
