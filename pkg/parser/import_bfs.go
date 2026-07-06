@@ -184,7 +184,7 @@ func validateNoLockYMLImport(fullPath, importPath, workflowFilePath, yamlContent
 }
 
 func detectRemoteImportOrigin(filePath string) *remoteImportOrigin {
-	if !isWorkflowSpec(filePath) {
+	if !IsWorkflowSpec(filePath) {
 		return nil
 	}
 	origin := parseRemoteOrigin(filePath)
@@ -407,10 +407,10 @@ func enqueueNestedImportEntry(entry nestedImportEntry, item importQueueItem, bas
 }
 
 func resolveNestedImportPathAndOrigin(item importQueueItem, nestedFilePath string) (string, *remoteImportOrigin, error) {
-	if item.remoteOrigin != nil && !isWorkflowSpec(nestedFilePath) {
+	if item.remoteOrigin != nil && !IsWorkflowSpec(nestedFilePath) {
 		return resolveRemoteNestedPath(item, nestedFilePath)
 	}
-	if isWorkflowSpec(nestedFilePath) {
+	if IsWorkflowSpec(nestedFilePath) {
 		nestedRemoteOrigin := parseRemoteOrigin(nestedFilePath)
 		if nestedRemoteOrigin != nil {
 			importLog.Printf("Nested workflowspec import detected: %s (origin: %s/%s@%s)", nestedFilePath, nestedRemoteOrigin.Owner, nestedRemoteOrigin.Repo, nestedRemoteOrigin.Ref)
@@ -439,7 +439,7 @@ func resolveRemoteNestedPath(item importQueueItem, nestedFilePath string) (strin
 
 func determineNestedBaseDir(item importQueueItem, resolvedPath, baseDir string) string {
 	isLocalRelative := !strings.Contains(resolvedPath, "/") || strings.HasPrefix(resolvedPath, "./")
-	if item.remoteOrigin == nil && !isWorkflowSpec(resolvedPath) && isLocalRelative {
+	if item.remoteOrigin == nil && !IsWorkflowSpec(resolvedPath) && isLocalRelative {
 		return filepath.Dir(item.fullPath)
 	}
 	return baseDir

@@ -106,7 +106,7 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 		return builtinPath, err
 	}
 
-	if isWorkflowSpec(filePath) {
+	if IsWorkflowSpec(filePath) {
 		remoteLog.Printf("Detected workflowspec format: %s", filePath)
 		return downloadIncludeFromWorkflowSpec(filePath, cache)
 	}

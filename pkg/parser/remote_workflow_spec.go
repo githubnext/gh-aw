@@ -61,10 +61,6 @@ func IsWorkflowSpec(path string) bool {
 	return true
 }
 
-func isWorkflowSpec(path string) bool {
-	return IsWorkflowSpec(path)
-}
-
 // downloadIncludeFromWorkflowSpec downloads an include file from GitHub using workflowspec.
 // It first checks the cache, and only downloads if not cached.
 //
