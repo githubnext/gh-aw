@@ -232,8 +232,8 @@
       }
     },
     {
-      "run_id": "28790321425",
-      "timestamp": "2026-07-06T12:08:37.563Z",
+      "run_id": "28790378229",
+      "timestamp": "2026-07-06T12:09:01.589Z",
       "assignments": {
         "model_size": "claude-sonnet-4.6"
       }
