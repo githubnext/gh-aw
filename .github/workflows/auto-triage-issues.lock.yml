@@ -499,7 +499,7 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
       - name: Fetch unlabeled issues
-        run: |
+        run: |-
           mkdir -p /tmp/gh-aw/agent
           gh api "repos/github/gh-aw/issues?state=open&labels=&per_page=30" \
             --jq '[.[] | select(.labels | length == 0) | {number: .number, title: .title, body: .body}]' \

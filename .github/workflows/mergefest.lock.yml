@@ -535,7 +535,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Configure Git credentials
-        run: "git config user.name \"github-actions[bot]\"\ngit config user.email \"github-actions[bot]@users.noreply.github.com\"\n\n# Create .gitignore to exclude workflow YAML files\ncat > /tmp/gh-aw/agent/merge-gitignore << 'EOF'\n# Exclude all .yml files in .github/workflows/\n.github/workflows/*.yml\nEOF\n"
+        run: "git config user.name \"github-actions[bot]\"\ngit config user.email \"github-actions[bot]@users.noreply.github.com\"\n\n# Create .gitignore to exclude workflow YAML files\ncat > /tmp/gh-aw/agent/merge-gitignore << 'EOF'\n# Exclude all .yml files in .github/workflows/\n.github/workflows/*.yml\nEOF"
 
       - name: Configure Git credentials
         env:
