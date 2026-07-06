@@ -1150,7 +1150,7 @@ See [Governance](/gh-aw/guides/governance/#disabling-create-pull-request-org-wid
 
 ### `GH_HOST`
 
-An environment variable recognized by the `gh` CLI that specifies the GitHub hostname for GitHub Enterprise Server (GHES) or GitHub Enterprise Cloud (GHEC) deployments. When set, `gh` commands target the specified enterprise instance instead of `github.com`. Agentic workflows automatically configure this from `GITHUB_SERVER_URL` at agent job startup; the variable is also propagated to custom frontmatter jobs and the safe-outputs job so all `gh` calls target the correct enterprise host. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
+An environment variable recognized by the `gh` CLI that specifies the GitHub hostname for GitHub Enterprise Server (GHES) or GitHub Enterprise Cloud (GHEC) deployments. When set, `gh` commands target the specified enterprise instance instead of `github.com`. Agentic workflows automatically configure this from `GITHUB_SERVER_URL` at agent job startup; the variable is also propagated to custom frontmatter jobs and the safe-outputs job so all `gh` calls target the correct enterprise host. `gh aw trial` (including `--clone-repo` and `--trigger-context`) also honors `GH_HOST` — all trial repository URLs are built against the resolved host instead of hard-coded `github.com`, so trials work correctly against GHES instances. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
 
 ### Label Command Trigger (`label_command`)
 

@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+// @safe-outputs-exempt SEC-004: low-level GraphQL helper; body is sanitized by callers (add_comment.cjs, add_reaction_and_edit_comment.cjs) before it reaches this layer.
+
 /**
  * GitHub API helper functions
  * Provides common GitHub API operations with consistent error handling

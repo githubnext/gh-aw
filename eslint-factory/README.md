@@ -16,6 +16,25 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 
 ## Rules
 
+### `no-json-stringify-error`
+
+Disallow `JSON.stringify()` on caught error variables. `Error` properties (`message`, `stack`, etc.) are non-enumerable, so `JSON.stringify(err)` silently produces `{}`.
+
+**Detected scopes:**
+- `try { } catch (err) { }` — catch-clause bindings.
+- `p.catch(err => ...)` — inline arrow or function callbacks passed as the first argument to `.catch()`.
+- `p.then(onFulfilled, err => ...)` — inline rejection handlers passed as the **second** argument to `.then()`, which are semantically equivalent to `.catch()`.
+
+**Out of scope:** named-reference handlers such as `p.catch(handler)` or `p.then(ok, handler)` — the rule does not follow references across files or scopes.
+
+Flagged forms:
+- `JSON.stringify(err)` where `err` is a catch-clause or inline rejection-handler parameter.
+- `JSON.stringify(err, null, 2)` (with replacer/space arguments).
+
+Safe alternatives:
+- `getErrorMessage(err)` from `error_helpers.cjs` (auto-suggested fix).
+- `JSON.stringify({ message: err.message, stack: err.stack })` — explicitly serializing safe string properties.
+
 ### `prefer-number-isnan`
 
 Prefer `Number.isNaN()` over global `isNaN()` to avoid silent coercion of non-numeric inputs.
