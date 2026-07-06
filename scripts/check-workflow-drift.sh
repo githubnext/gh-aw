@@ -58,11 +58,20 @@ fi
 # git diff --name-only: tracked files whose content changed
 # git ls-files --others --exclude-standard: new untracked files (new lock files)
 # git ls-files --deleted: tracked files removed by --purge
+#
+# The pathspec is intentionally single-quoted to prevent the shell from
+# expanding the glob before passing it to git.  Git receives the literal
+# pattern '.github/workflows/*.lock.yml' and applies its own glob matching,
+# which works correctly across all git versions we target.
 drift_modified=$(git diff --name-only -- '.github/workflows/*.lock.yml' 2>/dev/null || true)
 drift_untracked=$(git ls-files --others --exclude-standard -- '.github/workflows/*.lock.yml' 2>/dev/null || true)
 drift_deleted=$(git ls-files --deleted -- '.github/workflows/*.lock.yml' 2>/dev/null || true)
 
-# Combine and de-duplicate, skipping empty variables to avoid spurious grep failures.
+# Combine and de-duplicate, skipping empty variables.
+# Each capture variable may contain multiple newline-separated filenames.
+# printf '%s\n' "$v" preserves embedded newlines, so all filenames are passed
+# to sort -u as individual lines.  The || true on each iteration prevents
+# set -e from killing the subshell when [ -n "$v" ] is false.
 all_drift=$(
     for v in "$drift_modified" "$drift_untracked" "$drift_deleted"; do
         [ -n "$v" ] && printf '%s\n' "$v" || true
