@@ -5,8 +5,6 @@ const os = require("os");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-const { getErrorMessage } = require("./error_helpers.cjs");
-
 /**
  * Patch the AWF config file with chroot settings for ARC/DinD runners.
  *
