@@ -531,7 +531,7 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
       - name: Fetch issues
-        run: |
+        run: |-
           # Create output directory
           mkdir -p /tmp/gh-aw/agent/issues-data
 

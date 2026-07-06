@@ -583,7 +583,7 @@ jobs:
           bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
       - name: Pre-fetch release and merged PR data
         if: ${{ needs.activation.outputs.prefetch_strategy == 'eager' }}
-        run: |
+        run: |-
           set -euo pipefail
           mkdir -p /tmp/gh-aw/agent
 
