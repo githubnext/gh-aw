@@ -9,6 +9,8 @@ import (
 	"testing"
 )
 
+const codeScanningAlertGuardLineWindow = 8
+
 func TestListCodeScanningAlertsPromptBounds(t *testing.T) {
 	paths := []string{
 		filepath.Join("..", "..", ".github", "workflows", "github-mcp-structural-analysis.md"),
@@ -33,8 +35,8 @@ func TestListCodeScanningAlertsPromptBounds(t *testing.T) {
 				if !strings.Contains(line, "list_code_scanning_alerts") {
 					continue
 				}
-				start := max(0, i-8)
-				end := min(len(lines), i+9)
+				start := max(0, i-codeScanningAlertGuardLineWindow)
+				end := min(len(lines), i+codeScanningAlertGuardLineWindow+1)
 				window := strings.Join(lines[start:end], "\n")
 				if strings.Contains(window, "state: open") && strings.Contains(window, "severity: critical,high") {
 					hasBoundedReference = true
