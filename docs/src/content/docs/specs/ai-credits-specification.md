@@ -544,6 +544,7 @@ Pricing catalogs are configuration inputs. Implementations MUST:
 
 ---
 
+<a id="sync-notes"></a>
 ## Sync Notes
 
 The canonical gh-aw mirror files for this specification are:
@@ -561,6 +562,7 @@ This specification MUST be revalidated when any of the following occurs:
 
 ---
 
+<a id="change-log"></a>
 ## Change Log
 
 ### Version 1.4.0 (2026-06-09)

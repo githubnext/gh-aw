@@ -337,6 +337,7 @@ A Class I (Integration Consumer) conforming implementation MUST NOT treat any pa
 
 ---
 
+<a id="sync-notes"></a>
 ## Sync Notes
 
 The canonical machine-readable vector collection for this specification is `specs/test-vectors/bash-command-parser/`.
@@ -353,6 +354,7 @@ These vectors MUST be revalidated whenever either of the following occurs:
 
 ---
 
+<a id="change-log"></a>
 ## Change Log
 
 ### Version 1.1.0 (2026-07-06 maintenance update)

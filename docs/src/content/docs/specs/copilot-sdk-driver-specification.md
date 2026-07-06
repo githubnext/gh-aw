@@ -498,6 +498,7 @@ A conforming implementation SHOULD:
 
 ---
 
+<a id="sync-notes"></a>
 ## Sync Notes
 
 The canonical gh-aw harness implementation for this specification is centered in:
@@ -515,6 +516,7 @@ This specification MUST be revalidated whenever any of the following occurs:
 
 ---
 
+<a id="change-log"></a>
 ## Change Log
 
 ### Version 1.0.2 (Draft Specification)
