@@ -100,7 +100,12 @@ async function downloadAgentArtifact(runId, destDir, repoSlug) {
  */
 function buildHandlerConfigFromOutput(agentOutputFile) {
   const content = fs.readFileSync(agentOutputFile, "utf8");
-  const validatedOutput = JSON.parse(content);
+  let validatedOutput;
+  try {
+    validatedOutput = JSON.parse(content);
+  } catch (err) {
+    throw new Error("Failed to parse agent output file " + agentOutputFile + ": " + getErrorMessage(err), { cause: err });
+  }
 
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
     core.info("No items found in agent output; handler config will be empty");

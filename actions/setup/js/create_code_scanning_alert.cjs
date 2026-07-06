@@ -147,7 +147,7 @@ async function main(config = {}) {
 
     // Parse line number
     const line = parseInt(securityItem.line, 10);
-    if (isNaN(line) || line <= 0) {
+    if (Number.isNaN(line) || line <= 0) {
       core.warning(`Invalid line number: ${securityItem.line}`);
       return {
         success: false,
@@ -166,7 +166,7 @@ async function main(config = {}) {
         };
       }
       const parsedColumn = parseInt(securityItem.column, 10);
-      if (isNaN(parsedColumn) || parsedColumn <= 0) {
+      if (Number.isNaN(parsedColumn) || parsedColumn <= 0) {
         core.warning(`Invalid column number: ${securityItem.column}`);
         return {
           success: false,
@@ -260,7 +260,7 @@ async function main(config = {}) {
 
       // Set outputs for the GitHub Action (these will be overwritten with each call)
       core.setOutput("sarif_file", sarifFilePath);
-      core.setOutput("findings_count", validFindings.length);
+      core.setOutput("findings_count", String(validFindings.length));
       core.setOutput("artifact_uploaded", "pending");
       core.setOutput("codeql_uploaded", "pending");
     } catch (error) {

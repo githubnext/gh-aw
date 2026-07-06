@@ -721,7 +721,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           // This mirrors the precedence order used by individual safe output handlers.
           const rawNumber = message.item_number ?? message.issue_number ?? message.pull_request_number;
           const itemNumber = rawNumber != null ? parseInt(String(rawNumber), 10) : undefined;
-          const validNumber = itemNumber != null && !isNaN(itemNumber) ? itemNumber : undefined;
+          const validNumber = itemNumber != null && !Number.isNaN(itemNumber) ? itemNumber : undefined;
 
           const messageResult = {
             ...(validNumber != null ? { number: validNumber } : {}),
@@ -1379,7 +1379,7 @@ async function main() {
       core.info("No safe-output messages available - nothing to process");
       if (!isStaged) ensureManifestExists();
       core.setOutput("temporary_id_map", "{}");
-      core.setOutput("processed_count", 0);
+      core.setOutput("processed_count", "0");
       return;
     }
 
@@ -1410,7 +1410,7 @@ async function main() {
       if (!isStaged) ensureManifestExists();
       // Set empty outputs for downstream steps
       core.setOutput("temporary_id_map", "{}");
-      core.setOutput("processed_count", 0);
+      core.setOutput("processed_count", "0");
       return;
     }
 
@@ -1566,7 +1566,7 @@ async function main() {
     }
 
     // Export processed count for consistency with project handler
-    core.setOutput("processed_count", successCount);
+    core.setOutput("processed_count", String(successCount));
 
     // Export assign_to_agent outputs when the handler was loaded
     if (messageHandlers.has("assign_to_agent")) {

@@ -272,7 +272,7 @@ describe("create_code_scanning_alert (Handler Factory Architecture)", () => {
     await handler(message, {});
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("sarif_file", sarifFile);
-    expect(mockCore.setOutput).toHaveBeenCalledWith("findings_count", 1);
+    expect(mockCore.setOutput).toHaveBeenCalledWith("findings_count", "1");
     expect(mockCore.setOutput).toHaveBeenCalledWith("artifact_uploaded", "pending");
     expect(mockCore.setOutput).toHaveBeenCalledWith("codeql_uploaded", "pending");
   });

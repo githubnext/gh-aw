@@ -183,7 +183,7 @@ async function main(config = {}) {
 
     let milestoneNumber = Number(item.milestone_number);
     const milestoneTitle = item.milestone_title || null;
-    const hasMilestoneNumber = !isNaN(milestoneNumber) && milestoneNumber > 0;
+    const hasMilestoneNumber = !Number.isNaN(milestoneNumber) && milestoneNumber > 0;
 
     // Validate that at least one of milestone_number or milestone_title is provided
     if (!hasMilestoneNumber && !milestoneTitle) {

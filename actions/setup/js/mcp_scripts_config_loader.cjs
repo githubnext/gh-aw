@@ -9,6 +9,7 @@
 
 const fs = require("fs");
 const { ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * @typedef {Object} MCPScriptsToolConfig
@@ -40,7 +41,12 @@ function loadConfig(configPath) {
   }
 
   const configContent = fs.readFileSync(configPath, "utf-8");
-  const config = JSON.parse(configContent);
+  let config;
+  try {
+    config = JSON.parse(configContent);
+  } catch (err) {
+    throw new Error("Failed to parse config file " + configPath + ": " + getErrorMessage(err), { cause: err });
+  }
 
   // Validate required fields
   if (!config.tools || !Array.isArray(config.tools)) {

@@ -64,7 +64,7 @@ async function main(config = {}) {
 
     // Parse alert number
     const alertNumber = parseInt(String(message.alert_number), 10);
-    if (isNaN(alertNumber) || alertNumber <= 0) {
+    if (Number.isNaN(alertNumber) || alertNumber <= 0) {
       core.warning(`Invalid alert_number: ${message.alert_number}`);
       return { success: false, error: `Invalid alert_number: ${message.alert_number}` };
     }

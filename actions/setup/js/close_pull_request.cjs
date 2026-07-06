@@ -110,7 +110,7 @@ async function main(config = {}) {
         let prNumber;
         if (item.pull_request_number !== undefined) {
           prNumber = parseInt(String(item.pull_request_number), 10);
-          if (isNaN(prNumber)) {
+          if (Number.isNaN(prNumber)) {
             return { success: false, error: `Invalid pull request number: ${item.pull_request_number}` };
           }
         } else {

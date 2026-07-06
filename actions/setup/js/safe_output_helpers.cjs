@@ -39,7 +39,7 @@ function parseMaxCount(envValue, defaultValue = 3) {
   }
 
   const parsed = parseInt(envValue, 10);
-  if (isNaN(parsed) || parsed < 1) {
+  if (Number.isNaN(parsed) || parsed < 1) {
     return {
       valid: false,
       error: `Invalid max value: ${envValue}. Must be a positive integer`,
@@ -155,7 +155,7 @@ function resolveTarget(params) {
 
     if (numberField) {
       itemNumber = typeof numberField === "number" ? numberField : parseInt(String(numberField), 10);
-      if (isNaN(itemNumber) || itemNumber <= 0) {
+      if (Number.isNaN(itemNumber) || itemNumber <= 0) {
         return {
           success: false,
           error: `Invalid ${fieldNames} specified: ${numberField}`,
@@ -177,7 +177,7 @@ function resolveTarget(params) {
   } else if (target !== "triggering") {
     // Explicit number
     itemNumber = parseInt(target, 10);
-    if (isNaN(itemNumber) || itemNumber <= 0) {
+    if (Number.isNaN(itemNumber) || itemNumber <= 0) {
       // Determine the correct item type name based on what the handler supports
       // Convention: supportsPR=true means both issues and PRs (unless supportsIssue explicitly says otherwise)
       //             supportsIssue=true means issues only
@@ -296,7 +296,7 @@ function resolveIssueNumber(message) {
   let issueNumber;
   if (message.issue_number !== undefined) {
     issueNumber = parseInt(String(message.issue_number), 10);
-    if (isNaN(issueNumber)) {
+    if (Number.isNaN(issueNumber)) {
       return {
         success: false,
         error: `Invalid issue_number: ${message.issue_number}`,

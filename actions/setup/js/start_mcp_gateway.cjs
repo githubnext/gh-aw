@@ -744,7 +744,12 @@ async function main() {
   fs.chmodSync(outputPath, 0o600);
 
   // Check for error payload
-  const gatewayOutput = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  let gatewayOutput;
+  try {
+    gatewayOutput = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  } catch (err) {
+    throw new Error("Failed to parse gateway output file " + outputPath + ": " + getErrorMessage(err), { cause: err });
+  }
   if (gatewayOutput.error) {
     core.error("ERROR: Gateway returned an error payload instead of configuration");
     core.error("");

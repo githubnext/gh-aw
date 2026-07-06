@@ -10,7 +10,12 @@ const { execFileSync } = require("child_process");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 function parseManifestEntries(entriesJSON = process.env.GH_AW_CHECKOUT_MANIFEST_ENTRIES || "[]") {
-  const parsed = JSON.parse(entriesJSON);
+  let parsed;
+  try {
+    parsed = JSON.parse(entriesJSON);
+  } catch (err) {
+    throw new Error("Failed to parse GH_AW_CHECKOUT_MANIFEST_ENTRIES: " + getErrorMessage(err), { cause: err });
+  }
   if (!Array.isArray(parsed)) {
     throw new Error("GH_AW_CHECKOUT_MANIFEST_ENTRIES must be a JSON array");
   }

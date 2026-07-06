@@ -135,7 +135,7 @@ function getRetryAfterMs(error) {
   const retryAfter = headers["retry-after"];
   if (retryAfter != null) {
     const seconds = parseInt(retryAfter, 10);
-    if (!isNaN(seconds) && seconds > 0) {
+    if (!Number.isNaN(seconds) && seconds > 0) {
       return seconds * 1000;
     }
   }
@@ -144,7 +144,7 @@ function getRetryAfterMs(error) {
   const resetAt = headers["x-ratelimit-reset"];
   if (resetAt != null) {
     const resetTimestampMs = parseInt(resetAt, 10) * 1000;
-    if (!isNaN(resetTimestampMs)) {
+    if (!Number.isNaN(resetTimestampMs)) {
       const waitMs = resetTimestampMs - Date.now();
       if (waitMs > 0) {
         return waitMs;

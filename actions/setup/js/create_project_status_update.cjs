@@ -237,7 +237,7 @@ function formatDate(date) {
     }
     // Otherwise parse and format
     const parsed = new Date(date);
-    if (isNaN(parsed.getTime())) {
+    if (Number.isNaN(parsed.getTime())) {
       core.warning(`Invalid date "${date}", using today`);
       return new Date().toISOString().split("T")[0];
     }

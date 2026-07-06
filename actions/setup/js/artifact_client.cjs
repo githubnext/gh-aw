@@ -15,6 +15,8 @@ const { Readable } = require("stream");
 const { pipeline } = require("stream/promises");
 const { spawnSync } = require("child_process");
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 const DEFAULT_RETRY_ATTEMPTS = 5;
 const RETRY_DELAY_MS = 5000;
 const RESULTS_SCOPE_PREFIX = "Actions.Results:";
@@ -33,7 +35,13 @@ function decodeJWTPayload(token) {
   }
   const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
   const padded = payload + "=".repeat((4 - (payload.length % 4 || 4)) % 4);
-  return JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
+  let parsed;
+  try {
+    parsed = JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
+  } catch (err) {
+    throw new Error("Failed to parse JWT payload: " + getErrorMessage(err), { cause: err });
+  }
+  return parsed;
 }
 
 function getBackendIdsFromRuntimeToken() {
