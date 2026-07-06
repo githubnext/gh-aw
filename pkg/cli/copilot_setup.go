@@ -105,8 +105,9 @@ jobs:
     steps:
       - name: Install gh-aw extension
         run: |
-          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh -o /tmp/install-gh-aw.sh
-          bash /tmp/install-gh-aw.sh
+          mkdir -p /tmp/gh-aw
+          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh
+          bash /tmp/gh-aw/install-gh-aw.sh
 `
 }
 
@@ -132,8 +133,9 @@ jobs:
     steps:
       - name: Install gh-aw extension
         run: |
-          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh -o /tmp/install-gh-aw.sh
-          bash /tmp/install-gh-aw.sh
+          mkdir -p /tmp/gh-aw
+          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh
+          bash /tmp/gh-aw/install-gh-aw.sh
 `
 
 // CopilotWorkflowStep represents a GitHub Actions workflow step for Copilot setup scaffolding
@@ -282,8 +284,9 @@ func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, 
 	} else {
 		fmt.Fprintln(os.Stderr, "      - name: Install gh-aw extension")
 		fmt.Fprintln(os.Stderr, "        run: |")
-		fmt.Fprintln(os.Stderr, "          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh -o /tmp/install-gh-aw.sh")
-		fmt.Fprintln(os.Stderr, "          bash /tmp/install-gh-aw.sh")
+		fmt.Fprintln(os.Stderr, "          mkdir -p /tmp/gh-aw")
+		fmt.Fprintln(os.Stderr, "          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh")
+		fmt.Fprintln(os.Stderr, "          bash /tmp/gh-aw/install-gh-aw.sh")
 	}
 	fmt.Fprintln(os.Stderr)
 }

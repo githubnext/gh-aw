@@ -15,8 +15,9 @@ jobs:
     steps:
     - name: Install gh-aw extension
       run: |
-        curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh -o /tmp/install-gh-aw.sh
-        bash /tmp/install-gh-aw.sh
+        mkdir -p /tmp/gh-aw
+        curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh
+        bash /tmp/gh-aw/install-gh-aw.sh
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:

@@ -25,9 +25,10 @@ steps:
       OLLAMA_INSTALL_SHA256: "25f64b810b947145095956533e1bdf56eacea2673c55a7e586be4515fc882c9f"
     run: |
       echo "Downloading Ollama v${OLLAMA_VERSION} install script..."
-      curl -fsSL "https://github.com/ollama/ollama/releases/download/v${OLLAMA_VERSION}/install.sh" -o /tmp/ollama-install.sh
-      echo "${OLLAMA_INSTALL_SHA256}  /tmp/ollama-install.sh" | sha256sum -c -
-      sh /tmp/ollama-install.sh
+      mkdir -p /tmp/gh-aw
+      curl -fsSL "https://github.com/ollama/ollama/releases/download/v${OLLAMA_VERSION}/install.sh" -o /tmp/gh-aw/ollama-install.sh
+      echo "${OLLAMA_INSTALL_SHA256}  /tmp/gh-aw/ollama-install.sh" | sha256sum -c -
+      sh /tmp/gh-aw/ollama-install.sh
   - name: Generate Ollama API key
     run: |
       OLLAMA_API_KEY="$(openssl rand -hex 16)"
