@@ -43,6 +43,6 @@ func TestAddWizardCommand_ExamplesMentionNewFlags(t *testing.T) {
 	cmd := NewAddWizardCommand(func(string) error { return nil })
 	require.NotNil(t, cmd)
 
-	assert.Contains(t, cmd.Example, "--append \"<!-- custom footer -->\"", "add-wizard examples should show append usage")
+	assert.Contains(t, cmd.Example, "--append \"custom footer\"", "add-wizard examples should show append usage")
 	assert.Contains(t, cmd.Example, "--no-security-scanner", "add-wizard examples should show no-security-scanner usage")
 }
