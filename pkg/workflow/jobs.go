@@ -20,7 +20,6 @@ const runtimeFeaturesEnvVarExpression = "${{ vars.GH_AW_RUNTIME_FEATURES }}"
 const pushExperimentsStateJobName = "push_experiments_state"
 const pushRepoMemoryJobName = "push_repo_memory"
 const updateCacheMemoryJobName = "update_cache_memory"
-const pushEvalsJobName = "push_evals"
 
 var runtimeFeaturesBuiltInJobNames = map[string]struct{}{
 	string(constants.AgentJobName):              {},
@@ -35,7 +34,6 @@ var runtimeFeaturesBuiltInJobNames = map[string]struct{}{
 	pushExperimentsStateJobName:                 {},
 	pushRepoMemoryJobName:                       {},
 	updateCacheMemoryJobName:                    {},
-	pushEvalsJobName:                            {},
 }
 
 // Job represents a GitHub Actions job with all its properties

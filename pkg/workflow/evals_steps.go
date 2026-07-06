@@ -21,10 +21,6 @@ const (
 
 	// evalsResultsPath is the parsed JSONL results file produced by the parse step.
 	evalsResultsPath = "/tmp/gh-aw/" + constants.EvalsResultFilename
-
-	// evalsArtifactDownloadDir is the directory into which the evals artifact is
-	// downloaded in the push_evals job.
-	evalsArtifactDownloadDir = "/tmp/gh-aw/evals-artifact"
 )
 
 // buildEvalsJobSteps builds all steps that run inside the evals job.
