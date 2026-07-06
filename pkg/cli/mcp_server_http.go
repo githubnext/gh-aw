@@ -75,15 +75,20 @@ func runHTTPServer(server *mcp.Server, port int) error {
 
 	handlerWithLogging := loggingHandler(handler)
 
-	// Create HTTP server
-	addr := fmt.Sprintf(":%d", port)
+	// Bind to loopback only. Since v1.6.0, the SDK no longer enables
+	// cross-origin protection by default, so binding to 127.0.0.1 (instead
+	// of all interfaces) is the safest default for a local MCP server — it
+	// prevents the server from being reachable on non-localhost interfaces.
+	// The SDK's built-in localhost protection (DisableLocalhostProtection=false)
+	// additionally rejects requests with non-localhost Host headers.
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	httpServer := &http.Server{
 		Addr:              addr,
 		Handler:           handlerWithLogging,
 		ReadHeaderTimeout: MCPServerHTTPTimeout,
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting MCP server on http://localhost"+addr))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting MCP server on http://localhost:%d", port)))
 	mcpLog.Printf("HTTP server listening on %s", addr)
 
 	// Run the HTTP server
