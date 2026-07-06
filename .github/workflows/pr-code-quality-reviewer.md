@@ -23,6 +23,11 @@ sandbox:
   agent:
     sudo: false
 
+network:
+  allowed:
+    - defaults
+    - go
+
 imports:
   - uses: shared/pr-review-base.md
     with:
