@@ -360,12 +360,12 @@ tools:
 ---`,
 			expectedYAML: `  pull_request:
     # forks: # Fork filtering applied via job conditions
-    # - org/repo # Fork filtering applied via job conditions
-    # - trusted/* # Fork filtering applied via job conditions
+      # - org/repo # Fork filtering applied via job conditions
+      # - trusted/* # Fork filtering applied via job conditions
     paths:
-    - src/**
+      - src/**
     types:
-    - opened`,
+      - opened`,
 			description: "Should comment out entire forks array but keep paths and types",
 		},
 		{
@@ -388,7 +388,7 @@ tools:
 ---`,
 			expectedYAML: `  pull_request:
     # forks: # Fork filtering applied via job conditions
-    # - specific/repo # Fork filtering applied via job conditions`,
+      # - specific/repo # Fork filtering applied via job conditions`,
 			description: "Should comment out forks array even when it's the only field",
 		},
 		{
