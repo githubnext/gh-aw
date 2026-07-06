@@ -945,6 +945,8 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
           normalizedEntries.push({
             type: "assistant",
             message: {
+              // Orphaned completion events have no corresponding start event, so the
+              // executed command cannot be recovered from SDK payloads here.
               content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: {} }],
             },
           });
