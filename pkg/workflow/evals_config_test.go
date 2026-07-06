@@ -3,7 +3,6 @@
 package workflow
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -96,11 +95,50 @@ func TestParseEvalsFromFrontmatter_PerQuestionModel(t *testing.T) {
 	assert.Empty(t, cfg.Questions[1].Model, "question without model should have empty Model")
 }
 
+func TestParseEvalsFromFrontmatter_PerQuestionNonStringModel(t *testing.T) {
+	c := NewCompiler()
+	_, err := c.parseEvalsFromFrontmatter(map[string]any{
+		"evals": []any{
+			map[string]any{"id": "q1", "question": "Is it correct?", "model": 99},
+		},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "model")
+	assert.Contains(t, err.Error(), "string")
+}
+
 func TestParseEvalsFromFrontmatter_InvalidType(t *testing.T) {
 	c := NewCompiler()
 	_, err := c.parseEvalsFromFrontmatter(map[string]any{"evals": "invalid"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "evals")
+}
+
+func TestParseEvalsFromFrontmatter_WrongTypeQuestions(t *testing.T) {
+	c := NewCompiler()
+	_, err := c.parseEvalsFromFrontmatter(map[string]any{
+		"evals": map[string]any{
+			"questions": "not-a-list",
+		},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "evals.questions")
+	assert.Contains(t, err.Error(), "list")
+}
+
+func TestParseEvalsFromFrontmatter_NonStringModel(t *testing.T) {
+	c := NewCompiler()
+	_, err := c.parseEvalsFromFrontmatter(map[string]any{
+		"evals": map[string]any{
+			"questions": []any{
+				map[string]any{"id": "q1", "question": "Is it correct?"},
+			},
+			"model": 42,
+		},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "evals.model")
+	assert.Contains(t, err.Error(), "string")
 }
 
 // ---------------------------------------------------------------------------
@@ -179,16 +217,6 @@ func TestParseEvalDefinition_TrimsWhitespace(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "q1", def.ID)
 	assert.Equal(t, "Is it OK?", def.Question)
-}
-
-// ---------------------------------------------------------------------------
-// evalsBranchName
-// ---------------------------------------------------------------------------
-
-func TestEvalsBranchName(t *testing.T) {
-	branch := evalsBranchName("my-workflow-123")
-	assert.True(t, strings.HasPrefix(branch, "evals/"), "branch should start with evals/")
-	assert.Equal(t, "evals/my-workflow-123", branch)
 }
 
 // ---------------------------------------------------------------------------

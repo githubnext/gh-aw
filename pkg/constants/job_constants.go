@@ -100,7 +100,7 @@ const AgentArtifactName = "agent"
 const DetectionArtifactName = "detection"
 
 // EvalsArtifactName is the artifact name for the BinEval evaluation results.
-const EvalsArtifactName = "eval"
+const EvalsArtifactName = "evals"
 
 // EvalsResultFilename is the filename of the evaluation results JSONL file.
 const EvalsResultFilename = "evals.jsonl"

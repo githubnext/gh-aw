@@ -14,11 +14,11 @@ var evalsConfigLog = logger.New("workflow:evals_config")
 // EvalDefinition represents a single binary evaluation question in a BinEval workflow.
 // Each question is evaluated independently and answered with YES or NO.
 type EvalDefinition struct {
-	ID       string `yaml:"id"`
-	Question string `yaml:"question"`
+	ID       string
+	Question string
 	// Model is an optional per-question model override. When set, it takes precedence over
 	// EvalsConfig.Model. Use a model alias such as "small" or a full model ID.
-	Model string `yaml:"model,omitempty"`
+	Model string
 }
 
 // EvalsConfig holds the configuration for BinEval-style evaluations declared in workflow
@@ -49,13 +49,12 @@ func (ec *EvalsConfig) HasEvals() bool {
 //	  - id: builds
 //	    question: Does the generated code compile?
 //
-//	# Extended — object with questions list and optional engine-config
+//	# Extended — object with questions list and optional model/runs-on
 //	evals:
 //	  questions:
 //	    - id: builds
 //	      question: Does the generated code compile?
-//	  engine-config:
-//	    model: gpt-4o-mini
+//	  model: small
 func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*EvalsConfig, error) {
 	raw, exists := frontmatter["evals"]
 	if !exists || raw == nil {
@@ -76,20 +75,24 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 	case map[string]any:
 		// Extended form: object with questions and optional model/runs-on
 		if questionsRaw, ok := v["questions"]; ok {
-			if questionsList, ok := questionsRaw.([]any); ok {
-				questions, err := parseEvalDefinitions(questionsList)
-				if err != nil {
-					return nil, fmt.Errorf("evals.questions: %w", err)
-				}
-				cfg.Questions = questions
+			questionsList, ok := questionsRaw.([]any)
+			if !ok {
+				return nil, fmt.Errorf("evals.questions: must be a list of question objects, got %T", questionsRaw)
 			}
+			questions, err := parseEvalDefinitions(questionsList)
+			if err != nil {
+				return nil, fmt.Errorf("evals.questions: %w", err)
+			}
+			cfg.Questions = questions
 		}
 
 		// Parse optional top-level model (default for all questions)
 		if modelRaw, ok := v["model"]; ok {
-			if modelStr, ok := modelRaw.(string); ok {
-				cfg.Model = strings.TrimSpace(modelStr)
+			modelStr, ok := modelRaw.(string)
+			if !ok {
+				return nil, fmt.Errorf("evals.model: must be a string, got %T", modelRaw)
 			}
+			cfg.Model = strings.TrimSpace(modelStr)
 		}
 
 		// Parse optional runs-on override
@@ -161,9 +164,11 @@ func parseEvalDefinition(m map[string]any, idx int) (EvalDefinition, error) {
 
 	// Optional per-question model override.
 	if modelRaw, ok := m["model"]; ok {
-		if modelStr, ok := modelRaw.(string); ok {
-			def.Model = strings.TrimSpace(modelStr)
+		modelStr, ok := modelRaw.(string)
+		if !ok {
+			return EvalDefinition{}, fmt.Errorf("item %d: 'model' must be a string, got %T", idx, modelRaw)
 		}
+		def.Model = strings.TrimSpace(modelStr)
 	}
 
 	return def, nil
@@ -190,10 +195,4 @@ func validateEvals(cfg *EvalsConfig) error {
 		}
 	}
 	return nil
-}
-
-// evalsBranchName returns the git branch name used to persist evaluation results.
-// Format: evals/<workflow-id>
-func evalsBranchName(workflowID string) string {
-	return "evals/" + workflowID
 }

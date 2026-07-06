@@ -37,7 +37,7 @@ A richer evaluation format (multi-dimensional scores, rubrics, or structured rat
 
 #### Neutral
 - The `evals` frontmatter field is typed as `any` in `FrontmatterConfig` to support both list and object forms; the strongly-typed `*EvalsConfig` lives on `WorkflowData` after parsing, following the same pattern as other configuration fields.
-- `EvalsBranchPrefix` (`"evals"`) and `EvalsArtifactName` (`"eval"`) are added as constants, reserving these names in the built-in job namespace.
+- `EvalsBranchPrefix` (`"evals"`) and `EvalsArtifactName` (`"evals"`) are added as constants, reserving these names in the built-in job namespace.
 
 ---
 
