@@ -1,5 +1,7 @@
 // @ts-check
 
+const { buildStepSummaryDetailsSection } = require("./log_parser_step_summary_builder.cjs");
+
 /**
  * Minimal dependency contract injected from log_parser_shared.cjs.
  * Keeping this explicit helps prevent silent drift between modules.
@@ -104,7 +106,6 @@ function createLogParserFormatters(deps) {
   function generateConversationMarkdown(logEntries, options) {
     const { formatToolCallback, formatInitCallback, summaryTracker } = options;
     const renderEntries = normalizeEntriesForRendering(logEntries);
-
     const toolUsePairs = collectToolUsePairs(renderEntries);
 
     let markdown = "";
@@ -119,118 +120,149 @@ function createLogParserFormatters(deps) {
       return true;
     }
 
+    /**
+     * Adds a details section, truncating the body when it would exceed the
+     * remaining step-summary budget. Emits partial content with a truncation
+     * note rather than dropping the entire section.
+     * @param {string} title
+     * @param {string} body
+     * @returns {boolean} True if any content was emitted
+     */
+    function addDetailsSectionFitting(title, body) {
+      const fullSection = buildStepSummaryDetailsSection(title, body);
+      if (addContent(fullSection)) {
+        return true;
+      }
+
+      // Full section doesn't fit — try truncating the body to use what remains.
+      if (!summaryTracker) {
+        return false;
+      }
+
+      const truncationNote = "\n\n*(content truncated — step summary size limit reached)*\n";
+      const truncNoteSize = Buffer.byteLength(truncationNote, "utf8");
+      const shell = `<details>\n<summary>${title}</summary>\n\n\n</details>\n\n`;
+      const shellSize = Buffer.byteLength(shell, "utf8");
+      const availableForBody = summaryTracker.remaining() - shellSize - truncNoteSize;
+
+      if (availableForBody <= 0) {
+        return false;
+      }
+
+      // Truncate body at a clean UTF-8 character boundary.
+      // UTF-8 continuation bytes have the form 10xxxxxx (0x80–0xBF).
+      // Walking back past them ensures the cutoff lands on a start byte
+      // (0x00–0x7F for ASCII, 0xC0–0xFF for multi-byte leaders), so the
+      // resulting slice is always a well-formed UTF-8 string.
+      const UTF8_CONTINUATION_MASK = 0xc0;
+      const UTF8_CONTINUATION_PREFIX = 0x80;
+      const bodyBuf = Buffer.from(body, "utf8");
+      let cutoff = Math.min(availableForBody, bodyBuf.length);
+      while (cutoff > 0 && (bodyBuf[cutoff] & UTF8_CONTINUATION_MASK) === UTF8_CONTINUATION_PREFIX) {
+        cutoff--;
+      }
+      const truncatedBody = bodyBuf.slice(0, cutoff).toString("utf8") + truncationNote;
+      return addContent(buildStepSummaryDetailsSection(title, truncatedBody));
+    }
+
     const initEntry = renderEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-
     if (initEntry && formatInitCallback) {
-      if (!addContent("## 🚀 Initialization\n\n")) {
-        return { markdown, commandSummary: [], sizeLimitReached };
-      }
       const initResult = formatInitCallback(initEntry);
-      if (typeof initResult === "string") {
-        if (!addContent(initResult)) {
-          return { markdown, commandSummary: [], sizeLimitReached };
-        }
-      } else if (initResult && initResult.markdown) {
-        if (!addContent(initResult.markdown)) {
-          return { markdown, commandSummary: [], sizeLimitReached };
-        }
-      }
-      if (!addContent("\n")) {
+      const initBody = typeof initResult === "string" ? initResult : initResult && initResult.markdown ? initResult.markdown : "";
+      if (!addContent(buildStepSummaryDetailsSection("Initialization", initBody))) {
+        markdown += SIZE_LIMIT_WARNING;
         return { markdown, commandSummary: [], sizeLimitReached };
       }
     }
 
-    if (!addContent("\n## 🤖 Reasoning\n\n")) {
-      return { markdown, commandSummary: [], sizeLimitReached };
-    }
+    let reasoningBody = "";
+    let commandDetailsBody = "";
 
     for (const entry of renderEntries) {
-      if (sizeLimitReached) break;
+      if (entry.type !== "assistant" || !entry.message?.content) {
+        continue;
+      }
+      if (summaryTracker && summaryTracker.isLimitReached()) {
+        break;
+      }
 
-      if (entry.type === "assistant" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (sizeLimitReached) break;
-
-          if (content.type === "text" && content.text) {
-            let text = content.text.trim();
-            text = unfenceMarkdown(text);
-            if (text && text.length > 0) {
-              if (!addContent(text + "\n\n")) {
-                break;
-              }
-            }
-          } else if (content.type === "thinking" && content.thinking) {
-            let text = content.thinking.trim();
-            text = unfenceMarkdown(text);
-            if (text && text.length > 0) {
-              if (!addContent(`<sub>◐ <em>${text.replace(/\n/g, "<br>")}</em></sub>\n\n`)) {
-                break;
-              }
-            }
-          } else if (content.type === "tool_use") {
-            const toolResult = toolUsePairs.get(content.id);
-            const toolMarkdown = formatToolCallback(content, toolResult);
-            if (toolMarkdown) {
-              if (!addContent(toolMarkdown)) {
-                break;
-              }
-            }
+      for (const content of entry.message.content) {
+        if (content.type === "text" && content.text) {
+          let text = content.text.trim();
+          text = unfenceMarkdown(text);
+          if (text) {
+            reasoningBody += text + "\n\n";
+          }
+        } else if (content.type === "thinking" && content.thinking) {
+          let text = content.thinking.trim();
+          text = unfenceMarkdown(text);
+          if (text) {
+            reasoningBody += `<sub><em>${text.replace(/\n/g, "<br>")}</em></sub>\n\n`;
+          }
+        } else if (content.type === "tool_use") {
+          const toolResult = toolUsePairs.get(content.id);
+          const toolMarkdown = formatToolCallback(content, toolResult);
+          if (toolMarkdown) {
+            commandDetailsBody += toolMarkdown;
           }
         }
       }
     }
 
-    if (sizeLimitReached) {
-      markdown += SIZE_LIMIT_WARNING;
-      return { markdown, commandSummary: [], sizeLimitReached };
-    }
-
-    if (!addContent("## 🤖 Commands and Tools\n\n")) {
+    if (!addDetailsSectionFitting("Reasoning", reasoningBody)) {
       markdown += SIZE_LIMIT_WARNING;
       return { markdown, commandSummary: [], sizeLimitReached: true };
     }
 
     const commandSummary = [];
-
     for (const entry of renderEntries) {
-      if (entry.type === "assistant" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === "tool_use") {
-            const toolName = content.name;
-            const input = content.input || {};
+      if (entry.type !== "assistant" || !entry.message?.content) {
+        continue;
+      }
+      if (summaryTracker && summaryTracker.isLimitReached()) {
+        break;
+      }
 
-            if (INTERNAL_TOOLS.includes(toolName)) {
-              continue;
-            }
+      for (const content of entry.message.content) {
+        if (content.type !== "tool_use") {
+          continue;
+        }
 
-            const toolResult = toolUsePairs.get(content.id);
-            let statusIcon = "❓";
-            if (toolResult) {
-              statusIcon = toolResult.is_error === true ? "❌" : "✅";
-            }
+        const toolName = content.name;
+        const input = content.input || {};
+        if (INTERNAL_TOOLS.includes(toolName)) {
+          continue;
+        }
 
-            if (toolName === "Bash") {
-              const formattedCommand = formatBashCommand(input.command || "");
-              commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
-            } else if (toolName.startsWith("mcp__")) {
-              const mcpName = formatMcpName(toolName);
-              commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
-            } else {
-              commandSummary.push(`* ${statusIcon} ${toolName}`);
-            }
-          }
+        const toolResult = toolUsePairs.get(content.id);
+        let statusIcon = "❓";
+        if (toolResult) {
+          statusIcon = toolResult.is_error === true ? "❌" : "✅";
+        }
+
+        if (toolName === "Bash") {
+          const formattedCommand = formatBashCommand(input.command || "");
+          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
+        } else if (toolName.startsWith("mcp__")) {
+          const mcpName = formatMcpName(toolName);
+          commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
+        } else {
+          commandSummary.push(`* ${statusIcon} ${toolName}`);
         }
       }
     }
 
+    let commandsBody = "";
     if (commandSummary.length > 0) {
-      for (const cmd of commandSummary) {
-        if (!addContent(`${cmd}\n`)) {
-          markdown += SIZE_LIMIT_WARNING;
-          return { markdown, commandSummary, sizeLimitReached: true };
-        }
-      }
-    } else if (!addContent("No commands or tools used.\n")) {
+      commandsBody += commandSummary.join("\n") + "\n\n";
+    } else {
+      commandsBody += "No commands or tools used.\n";
+    }
+    if (commandDetailsBody.trim()) {
+      commandsBody += commandDetailsBody.trim() + "\n";
+    }
+
+    if (!addDetailsSectionFitting("Commands and Tools", commandsBody)) {
       markdown += SIZE_LIMIT_WARNING;
       return { markdown, commandSummary, sizeLimitReached: true };
     }

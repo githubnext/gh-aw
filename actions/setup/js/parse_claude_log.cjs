@@ -1,7 +1,16 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries, convertLegacyLogEntriesToCopilotEvents } = require("./log_parser_shared.cjs");
+const {
+  createEngineLogParser,
+  generateConversationMarkdown,
+  generateInformationSection,
+  buildStepSummaryDetailsSection,
+  formatInitializationSummary,
+  formatToolUse,
+  parseLogEntries,
+  convertLegacyLogEntriesToCopilotEvents,
+} = require("./log_parser_shared.cjs");
 
 const main = createEngineLogParser({
   parserName: "Claude",
@@ -20,7 +29,7 @@ function parseClaudeLog(logContent) {
 
   if (!logEntries) {
     return {
-      markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
+      markdown: buildStepSummaryDetailsSection("Agent Log Summary", "Log format not recognized as Claude JSON array or JSONL."),
       mcpFailures: [],
       maxTurnsHit: false,
       logEntries: [],

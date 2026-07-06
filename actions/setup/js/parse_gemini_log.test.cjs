@@ -55,7 +55,7 @@ describe("parse_gemini_log.cjs", () => {
 
       const result = parseGeminiLog(logContent);
 
-      expect(result.markdown).toContain("## 🚀 Initialization");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
       expect(result.markdown).toContain("gemini-2.0-flash");
       expect(result.markdown).toContain("sess-123");
     });
@@ -65,7 +65,7 @@ describe("parse_gemini_log.cjs", () => {
 
       const result = parseGeminiLog(logContent);
 
-      expect(result.markdown).toContain("## 🤖 Reasoning");
+      expect(result.markdown).toContain("<summary>Reasoning</summary>");
       expect(result.markdown).toContain("I will analyze the repository.");
     });
 
@@ -111,7 +111,7 @@ describe("parse_gemini_log.cjs", () => {
 
       const result = parseGeminiLog(logContent);
 
-      expect(result.markdown).toContain("## 📊 Information");
+      expect(result.markdown).toContain("<summary>Information</summary>");
       expect(result.markdown).toContain("900");
       expect(result.markdown).toContain("100");
     });
@@ -129,13 +129,13 @@ describe("parse_gemini_log.cjs", () => {
 
       const result = parseGeminiLog(logContent);
 
-      expect(result.markdown).toContain("## 🚀 Initialization");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
       expect(result.markdown).toContain("auto-gemini-3");
-      expect(result.markdown).toContain("## 🤖 Reasoning");
+      expect(result.markdown).toContain("<summary>Reasoning</summary>");
       expect(result.markdown).toContain("I will list the PRs.");
-      expect(result.markdown).toContain("## 🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       expect(result.markdown).toContain("list_pull_requests");
-      expect(result.markdown).toContain("## 📊 Information");
+      expect(result.markdown).toContain("<summary>Information</summary>");
       expect(result.logEntries.length).toBeGreaterThan(0);
       expect(result.mcpFailures).toEqual([]);
       expect(result.maxTurnsHit).toBe(false);

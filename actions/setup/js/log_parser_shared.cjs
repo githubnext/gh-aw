@@ -5,6 +5,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { unfenceMarkdown } = require("./markdown_unfencing.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
 const createLogParserFormatters = require("./log_parser_format.cjs");
+const { buildStepSummaryDetailsSection } = require("./log_parser_step_summary_builder.cjs");
 
 /**
  * Shared utility functions for log parsers
@@ -42,7 +43,7 @@ const MAX_AGENT_TEXT_LENGTH = 2000;
  * This message is added directly to markdown (not tracked) to ensure it's always visible.
  * The message is small (~70 bytes) and won't cause practical issues with the 8MB limit.
  */
-const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
+const SIZE_LIMIT_WARNING = "\n\n*Step summary size limit reached. Additional content truncated.*\n\n";
 
 /**
  * Matches AWF infrastructure lines written by the firewall/container wrapper.
@@ -116,6 +117,14 @@ class StepSummaryTracker {
    */
   isLimitReached() {
     return this.limitReached;
+  }
+
+  /**
+   * Gets the remaining byte capacity before the limit.
+   * @returns {number} Remaining bytes available (0 when limit is reached)
+   */
+  remaining() {
+    return Math.max(0, this.maxSize - this.currentSize);
   }
 
   /**
@@ -272,10 +281,10 @@ function isLikelyCustomAgent(toolName) {
 function generateInformationSection(lastEntry, options = {}) {
   const { additionalInfoCallback } = options;
 
-  let markdown = "\n## 📊 Information\n\n";
+  let markdown = "";
 
   if (!lastEntry) {
-    return markdown;
+    return buildStepSummaryDetailsSection("Information", "", { emptyBodyMessage: "No information available." });
   }
 
   if (lastEntry.num_turns) {
@@ -333,7 +342,7 @@ function generateInformationSection(lastEntry, options = {}) {
     markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
   }
 
-  return markdown;
+  return buildStepSummaryDetailsSection("Information", markdown, { emptyBodyMessage: "No information available." });
 }
 
 /**
@@ -1372,6 +1381,7 @@ module.exports = {
   estimateTokens,
   formatMcpName,
   isLikelyCustomAgent,
+  buildStepSummaryDetailsSection,
   generateConversationMarkdown,
   generateInformationSection,
   formatMcpParameters,
