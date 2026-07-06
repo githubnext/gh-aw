@@ -96,6 +96,14 @@ fmt.Println(record.Status) // "mapped"
 fmt.Println(record.Source) // "issue_labels"
 ```
 
+## Dependencies
+
+**Internal**:
+- `github.com/github/gh-aw/pkg/logger` — debug logging for resolver and policy evaluation
+
+**External**:
+- None beyond the Go standard library (`slices`).
+
 ## Thread Safety
 
 `Resolver` holds no mutable state and is safe for concurrent use. `IntentRecord` values are returned by value and do not share mutable state with the caller.
