@@ -738,7 +738,7 @@ jobs:
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
       - name: Fetch merged PRs
-        run: |
+        run: |-
           bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
 
           # Fetch up to 500 merged PRs — title, body, metadata
