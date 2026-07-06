@@ -86,8 +86,8 @@ describe("parse_claude_log.cjs", () => {
       ]);
       const result = parseClaudeLog(jsonArrayLog);
 
-      expect(result.markdown).toContain("🚀 Initialization");
-      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       expect(result.markdown).toContain("test-123");
       expect(result.markdown).toContain("echo 'Hello World'");
       expect(result.markdown).toContain("Total Cost");
@@ -99,8 +99,8 @@ describe("parse_claude_log.cjs", () => {
         '[DEBUG] Starting Claude Code CLI\n[ERROR] Some error occurred\nnpm warn exec The following package was not found\n[{"type":"system","subtype":"init","session_id":"29d324d8-1a92-43c6-8740-babc2875a1d6","tools":["Task","Bash","mcp__safe_outputs__missing-tool"],"model":"claude-sonnet-4-20250514"},{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tool_123","name":"mcp__safe_outputs__missing-tool","input":{"tool":"draw_pelican","reason":"Tool needed to draw pelican artwork"}}]}},{"type":"result","total_cost_usd":0.1789264,"usage":{"input_tokens":25,"output_tokens":832},"num_turns":10}]\n[DEBUG] Session completed'
       );
 
-      expect(result.markdown).toContain("🚀 Initialization");
-      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       expect(result.markdown).toContain("29d324d8-1a92-43c6-8740-babc2875a1d6");
       expect(result.markdown).toContain("safe_outputs::missing-tool");
       expect(result.markdown).toContain("Total Cost");
@@ -112,8 +112,8 @@ describe("parse_claude_log.cjs", () => {
         '[DEBUG] Starting Claude Code CLI\n{"type":"system","subtype":"init","session_id":"test-456","tools":["Bash","Read"],"model":"claude-sonnet-4-20250514"}\n[DEBUG] Processing user prompt\n{"type":"assistant","message":{"content":[{"type":"text","text":"I\'ll help you."},{"type":"tool_use","id":"tool_123","name":"Bash","input":{"command":"ls -la"}}]}}\n{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool_123","content":"file1.txt\\nfile2.txt"}]}}\n{"type":"result","total_cost_usd":0.002,"usage":{"input_tokens":100,"output_tokens":25},"num_turns":2}\n[DEBUG] Workflow completed'
       );
 
-      expect(result.markdown).toContain("🚀 Initialization");
-      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       expect(result.markdown).toContain("test-456");
       expect(result.markdown).toContain("ls -la");
       expect(result.markdown).toContain("Total Cost");
@@ -136,7 +136,7 @@ describe("parse_claude_log.cjs", () => {
       ]);
       const result = parseClaudeLog(logWithFailures);
 
-      expect(result.markdown).toContain("🚀 Initialization");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
       expect(result.markdown).toContain("failed_server (failed)");
       expect(result.mcpFailures).toEqual(["failed_server"]);
     });
@@ -164,7 +164,7 @@ describe("parse_claude_log.cjs", () => {
       ]);
       const result = parseClaudeLog(logWithDetailedErrors);
 
-      expect(result.markdown).toContain("🚀 Initialization");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
       expect(result.markdown).toContain("failed_with_error (failed)");
       expect(result.markdown).toContain("**Error:** Connection timeout after 30s");
       expect(result.markdown).toContain("**Stderr:**");
@@ -264,7 +264,7 @@ describe("parse_claude_log.cjs", () => {
 
     it("should skip debug lines that look like arrays but aren't JSON", () => {
       const result = parseClaudeLog('[DEBUG] Starting\n[INFO] Processing\n[{"type":"system","subtype":"init","session_id":"test","tools":["Bash"],"model":"claude-sonnet-4-20250514"}]\n[DEBUG] Done');
-      expect(result.markdown).toContain("🚀 Initialization");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
     });
 
     it("should handle tool use with MCP tools", () => {
@@ -568,7 +568,7 @@ describe("parse_claude_log.cjs", () => {
       expect(result.markdown).toContain("Grep");
       expect(result.markdown).toContain("Bash");
 
-      const toolsSection = result.markdown.split("## 🤖 Reasoning")[0];
+      const toolsSection = result.markdown.split("<summary>Reasoning</summary>")[0];
       expect(toolsSection).not.toMatch(/and \d+ more/);
     });
 
@@ -634,8 +634,7 @@ describe("parse_claude_log.cjs", () => {
       ]);
       const result = parseClaudeLog(logWithThinking);
 
-      // Reasoning text should appear with open circle icon and italic markup
-      expect(result.markdown).toContain("◐");
+      expect(result.markdown).toContain("<sub><em>");
       expect(result.markdown).toContain("Let me reason through this problem step by step.");
       // Regular text should appear without open circle
       expect(result.markdown).toContain("Here is my response.");
