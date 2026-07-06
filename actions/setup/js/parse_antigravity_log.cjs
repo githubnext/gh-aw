@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createEngineLogParser, generateInformationSection, convertLegacyLogEntriesToCopilotEvents } = require("./log_parser_shared.cjs");
+const { createEngineLogParser, generateInformationSection, buildStepSummaryDetailsSection, convertLegacyLogEntriesToCopilotEvents } = require("./log_parser_shared.cjs");
 
 const main = createEngineLogParser({
   parserName: "Antigravity",
@@ -27,7 +27,7 @@ const main = createEngineLogParser({
 function parseAntigravityLog(logContent) {
   if (!logContent) {
     return {
-      markdown: "## 🤖 Antigravity\n\nNo log content provided.\n\n",
+      markdown: buildStepSummaryDetailsSection("Antigravity", "No log content provided."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,
@@ -53,7 +53,7 @@ function parseAntigravityLog(logContent) {
 
   if (parsedLines.length === 0) {
     return {
-      markdown: "## 🤖 Antigravity\n\nLog format not recognized as Antigravity stream-json.\n\n",
+      markdown: buildStepSummaryDetailsSection("Antigravity", "Log format not recognized as Antigravity stream-json."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,
@@ -66,11 +66,7 @@ function parseAntigravityLog(logContent) {
   const stats = lastEntry.stats || {};
 
   // Build markdown output
-  let markdown = "## 🤖 Antigravity\n\n";
-
-  if (finalResponse.trim()) {
-    markdown += finalResponse.trim() + "\n\n";
-  }
+  let markdown = buildStepSummaryDetailsSection("Antigravity", finalResponse.trim());
 
   // Compute aggregated token usage from all models
   let totalInputTokens = 0;

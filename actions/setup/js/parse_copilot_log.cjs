@@ -5,6 +5,7 @@ const {
   createEngineLogParser,
   generateConversationMarkdown,
   generateInformationSection,
+  buildStepSummaryDetailsSection,
   formatInitializationSummary,
   formatToolUse,
   parseLogEntries,
@@ -119,7 +120,7 @@ function parseCopilotLog(logContent) {
   }
 
   if (!logEntries || logEntries.length === 0) {
-    return { markdown: "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n", logEntries: [] };
+    return { markdown: buildStepSummaryDetailsSection("Agent Log Summary", "Log format not recognized as Copilot JSON array or JSONL."), logEntries: [] };
   }
 
   const isEventFormat = isCopilotSdkEventsFormat(logEntries);
@@ -190,11 +191,11 @@ function parseCopilotLog(logContent) {
   const awfTokenWarnings = extractAwfTokenWarnings(canonicalLogEntries);
 
   if (awfTokenWarnings.length > 0) {
-    markdown += "## ⚠️ Firewall Steering\n\n";
+    let steeringBody = "";
     for (const warning of awfTokenWarnings) {
-      markdown += `- ${warning}\n`;
+      steeringBody += `- ${warning}\n`;
     }
-    markdown += "\n";
+    markdown += buildStepSummaryDetailsSection("Firewall Steering", steeringBody);
   }
 
   // Add Information section

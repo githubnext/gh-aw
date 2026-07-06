@@ -1,7 +1,15 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, convertLegacyLogEntriesToCopilotEvents } = require("./log_parser_shared.cjs");
+const {
+  createEngineLogParser,
+  generateConversationMarkdown,
+  generateInformationSection,
+  buildStepSummaryDetailsSection,
+  formatInitializationSummary,
+  formatToolUse,
+  convertLegacyLogEntriesToCopilotEvents,
+} = require("./log_parser_shared.cjs");
 
 const main = createEngineLogParser({
   parserName: "Pi",
@@ -23,7 +31,7 @@ const main = createEngineLogParser({
 function parsePiLog(logContent) {
   if (!logContent) {
     return {
-      markdown: "## 🤖 Pi\n\nNo log content provided.\n\n",
+      markdown: buildStepSummaryDetailsSection("Pi", "No log content provided."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,
@@ -46,7 +54,7 @@ function parsePiLog(logContent) {
 
   if (rawEntries.length === 0) {
     return {
-      markdown: "## 🤖 Pi\n\nLog format not recognized as Pi JSONL.\n\n",
+      markdown: buildStepSummaryDetailsSection("Pi", "Log format not recognized as Pi JSONL."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,

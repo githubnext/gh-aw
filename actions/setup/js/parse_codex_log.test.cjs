@@ -50,8 +50,8 @@ github.list_pull_requests(...) success in 123ms:
 
       const result = parseCodexLog(logContent);
 
-      expect(result.markdown).toContain("## 🤖 Reasoning");
-      expect(result.markdown).toContain("## 🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Reasoning</summary>");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       expect(result.markdown).toContain("github::list_pull_requests");
       expect(result.markdown).toContain("✅");
     });
@@ -74,7 +74,7 @@ Let me start by listing the files in the root directory`;
 
       const result = parseCodexLog(logContent);
 
-      expect(result.markdown).toContain("## 🤖 Reasoning");
+      expect(result.markdown).toContain("<summary>Reasoning</summary>");
       expect(result.markdown).toContain("I need to analyze the repository structure");
       expect(result.markdown).toContain("Let me start by listing the files");
     });
@@ -85,9 +85,7 @@ I need to analyze the repository structure to understand the codebase`;
 
       const result = parseCodexLog(logContent);
 
-      // Thinking content should be wrapped in italic markup with open circle icon
-      expect(result.markdown).toContain("◐");
-      expect(result.markdown).toContain("<em>I need to analyze the repository structure");
+      expect(result.markdown).toContain("<sub><em>I need to analyze the repository structure");
     });
 
     it("should skip metadata lines", () => {
@@ -141,7 +139,7 @@ tokens used
 
       const result = parseCodexLog(logContent);
 
-      expect(result.markdown).toContain("📊 Information");
+      expect(result.markdown).toContain("<summary>Information</summary>");
       expect(result.markdown).toContain("Total Tokens Used");
       expect(result.markdown).toContain("1,500");
     });
@@ -159,8 +157,8 @@ ToolCall: github__add_labels {}`;
     it("should handle empty log content", () => {
       const result = parseCodexLog("");
 
-      expect(result.markdown).toContain("## 🤖 Reasoning");
-      expect(result.markdown).toContain("## 🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Reasoning</summary>");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
     });
 
     it("should handle log with errors gracefully", () => {
@@ -168,8 +166,8 @@ ToolCall: github__add_labels {}`;
       const result = parseCodexLog(malformedLog);
 
       expect(result.markdown).toContain("No log content provided");
-      expect(result.markdown).toContain("## 🤖 Commands and Tools");
-      expect(result.markdown).toContain("## 🤖 Reasoning");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
+      expect(result.markdown).toContain("<summary>Reasoning</summary>");
     });
 
     it("should handle tool calls without responses", () => {
@@ -199,7 +197,7 @@ x`;
 
       const result = parseCodexLog(logContent);
 
-      expect(result.markdown).toContain("📊 Information");
+      expect(result.markdown).toContain("<summary>Information</summary>");
       expect(result.markdown).toContain("**Tool Calls:** 1");
     });
 
@@ -525,14 +523,14 @@ I will now use the GitHub API to list issues`;
 
       const result = parseCodexLog(logContent);
 
-      expect(result.markdown).toContain("## 🚀 Initialization");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
       expect(result.markdown).toContain("**MCP Servers:**");
       expect(result.markdown).toContain("Total: 2");
       expect(result.markdown).toContain("Connected: 2");
       expect(result.markdown).toContain("✅");
       expect(result.markdown).toContain("github");
       expect(result.markdown).toContain("safe_outputs");
-      expect(result.markdown).toContain("## 🤖 Reasoning");
+      expect(result.markdown).toContain("<summary>Reasoning</summary>");
     });
 
     it("should skip initialization section when no MCP info present", () => {
@@ -542,8 +540,8 @@ I will analyze the code`;
 
       const result = parseCodexLog(logContent);
 
-      expect(result.markdown).not.toContain("## 🚀 Initialization");
-      expect(result.markdown).toContain("## 🤖 Reasoning");
+      expect(result.markdown).not.toContain("<summary>Initialization</summary>");
+      expect(result.markdown).toContain("<summary>Reasoning</summary>");
     });
   });
 
@@ -621,7 +619,7 @@ ERROR: stream disconnected before completion: This user's access to gpt-5.3-code
 
       const result = parseCodexLog(logContent);
 
-      expect(result.markdown).toContain("## ⚠️ Errors");
+      expect(result.markdown).toContain("<summary>Errors</summary>");
       expect(result.markdown).toContain("stream disconnected before completion");
       expect(result.markdown).toContain("cybersecurity");
     });
@@ -634,7 +632,7 @@ ERROR: stream disconnected before completion: This user's access to gpt-5.3-code
 
       const result = parseCodexLog(logContent);
 
-      expect(result.markdown).toContain("## ⚠️ Errors");
+      expect(result.markdown).toContain("<summary>Errors</summary>");
       expect(result.markdown).toContain("Reconnect attempts: 3/5");
     });
 
@@ -647,7 +645,7 @@ github.list_pull_requests(...) success in 123ms:
 
       const result = parseCodexLog(logContent);
 
-      expect(result.markdown).not.toContain("## ⚠️ Errors");
+      expect(result.markdown).not.toContain("<summary>Errors</summary>");
     });
 
     it("should place Errors section before Reasoning section", () => {
@@ -655,8 +653,8 @@ github.list_pull_requests(...) success in 123ms:
 
       const result = parseCodexLog(logContent);
 
-      const errorsIndex = result.markdown.indexOf("## ⚠️ Errors");
-      const reasoningIndex = result.markdown.indexOf("## 🤖 Reasoning");
+      const errorsIndex = result.markdown.indexOf("<summary>Errors</summary>");
+      const reasoningIndex = result.markdown.indexOf("<summary>Reasoning</summary>");
       expect(errorsIndex).toBeGreaterThan(-1);
       expect(reasoningIndex).toBeGreaterThan(-1);
       expect(errorsIndex).toBeLessThan(reasoningIndex);
