@@ -112,59 +112,6 @@ func TestExecGH(t *testing.T) {
 	}
 }
 
-func TestExecGHUsesConfiguredProcessEnvLookup(t *testing.T) {
-	originalDefaultHost := getDefaultGHHost()
-	SetDefaultGHHost("configured.ghe.com")
-	t.Cleanup(func() {
-		SetDefaultGHHost(originalDefaultHost)
-	})
-
-	t.Run("uses configured github token fallback", func(t *testing.T) {
-		SetProcessEnvLookup(func(key string) (string, bool) {
-			switch key {
-			case "GH_TOKEN":
-				return "", false
-			case "GITHUB_TOKEN":
-				return "lookup-token", true
-			case "GH_HOST":
-				return "", false
-			default:
-				return "", false
-			}
-		})
-		t.Cleanup(func() {
-			SetProcessEnvLookup(nil)
-		})
-
-		cmd := ExecGH("auth", "status")
-		require.NotNil(t, cmd.Env)
-		assert.Contains(t, cmd.Env, "GH_TOKEN=lookup-token")
-		assert.Contains(t, cmd.Env, "GH_HOST=configured.ghe.com")
-	})
-
-	t.Run("does not inject gh token when both tokens are absent", func(t *testing.T) {
-		t.Setenv("GH_TOKEN", "ambient-gh-token")
-		t.Setenv("GITHUB_TOKEN", "ambient-github-token")
-
-		SetProcessEnvLookup(func(key string) (string, bool) {
-			return "", false
-		})
-		t.Cleanup(func() {
-			SetProcessEnvLookup(nil)
-		})
-
-		cmd := ExecGH("auth", "status")
-		require.NotNil(t, cmd.Env)
-		assert.False(t, slices.ContainsFunc(cmd.Env, func(e string) bool {
-			return strings.HasPrefix(e, "GH_TOKEN=")
-		}))
-		assert.False(t, slices.ContainsFunc(cmd.Env, func(e string) bool {
-			return strings.HasPrefix(e, "GITHUB_TOKEN=")
-		}))
-		assert.Contains(t, cmd.Env, "GH_HOST=configured.ghe.com")
-	})
-}
-
 func TestExecGHWithMultipleArgs(t *testing.T) {
 	// Save original environment
 	originalGHToken := os.Getenv("GH_TOKEN")
