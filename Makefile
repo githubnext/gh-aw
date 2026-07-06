@@ -897,7 +897,9 @@ validate-models-json-sync:
 	jq -S . pkg/cli/data/models.json > "$$tmp1"; \
 	jq -S . actions/setup/js/models.json > "$$tmp2"; \
 	cmp -s "$$tmp1" "$$tmp2" || { \
-		echo "models.json mirrors diverged: pkg/cli/data/models.json and actions/setup/js/models.json must remain semantically identical after key sorting. Run 'make refresh-models-json' to synchronize the mirrors."; \
+		echo "models.json mirrors diverged:"; \
+		echo "  pkg/cli/data/models.json and actions/setup/js/models.json must remain semantically identical after key sorting."; \
+		echo "  Run 'make refresh-models-json' to synchronize the mirrors."; \
 		diff -u "$$tmp1" "$$tmp2" || true; \
 		exit 1; \
 	}

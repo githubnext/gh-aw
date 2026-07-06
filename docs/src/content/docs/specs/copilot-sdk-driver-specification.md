@@ -37,7 +37,7 @@ This document is governed by the GitHub Agentic Workflows project specifications
 9. [Appendices](#9-appendices)
 10. [References](#10-references)
 11. [Sync Notes](#sync-notes)
-12. [Change Log](#12-change-log)
+12. [Change Log](#change-log)
 
 ---
 
@@ -513,7 +513,7 @@ This specification MUST be revalidated whenever any of the following occurs:
 
 ---
 
-## 12. Change Log
+## Change Log
 
 ### Version 1.0.2 (Draft Specification)
 

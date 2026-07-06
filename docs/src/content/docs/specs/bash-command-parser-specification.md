@@ -36,8 +36,8 @@ This document is a draft extracted from the current production parser behavior a
 10. [Testing Strategies](#10-testing-strategies)
 11. [Security Considerations](#11-security-considerations)
 12. [References](#12-references)
-13. [Sync Notes](#13-sync-notes)
-14. [Change Log](#14-change-log)
+13. [Sync Notes](#sync-notes)
+14. [Change Log](#change-log)
 
 ---
 
@@ -337,7 +337,7 @@ A Class I (Integration Consumer) conforming implementation MUST NOT treat any pa
 
 ---
 
-## 13. Sync Notes
+## Sync Notes
 
 The canonical machine-readable vector collection for this specification is `specs/test-vectors/bash-command-parser/`.
 
@@ -353,7 +353,7 @@ These vectors MUST be revalidated whenever either of the following occurs:
 
 ---
 
-## 14. Change Log
+## Change Log
 
 ### Version 1.1.0 (2026-07-06 maintenance update)
 
