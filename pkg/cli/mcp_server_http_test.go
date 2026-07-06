@@ -20,7 +20,7 @@ func TestMCPHTTPServerAddr_BindsToLoopback(t *testing.T) {
 
 	for _, tc := range testCases {
 		if got := mcpHTTPServerAddr(tc.port); got != tc.want {
-			t.Fatalf("mcpHTTPServerAddr(%d) = %q, want %q", tc.port, got, tc.want)
+			t.Errorf("mcpHTTPServerAddr(%d) = %q, want %q", tc.port, got, tc.want)
 		}
 	}
 }
@@ -37,7 +37,7 @@ func TestMCPHTTPServerDisplayURL_UsesLoopbackAddress(t *testing.T) {
 
 	for _, tc := range testCases {
 		if got := mcpHTTPServerDisplayURL(tc.port); got != tc.want {
-			t.Fatalf("mcpHTTPServerDisplayURL(%d) = %q, want %q", tc.port, got, tc.want)
+			t.Errorf("mcpHTTPServerDisplayURL(%d) = %q, want %q", tc.port, got, tc.want)
 		}
 	}
 }
