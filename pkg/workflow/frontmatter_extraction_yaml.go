@@ -63,7 +63,16 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 		orderedValue := OrderMapFields(valueMap, []string{})
 		// Wrap the ordered value with the key using MapSlice
 		wrappedData := yaml.MapSlice{{Key: key, Value: orderedValue}}
-		yamlBytes, err = yaml.MarshalWithOptions(wrappedData, DefaultMarshalOptions...)
+		marshalOptions := DefaultMarshalOptions
+		if key == "on" {
+			// Indent sequence items (e.g. schedule cron lists and event `types:`
+			// arrays) under their parent key so that yamllint's default
+			// indentation rule (indent-sequences: true) is satisfied. Scoped to
+			// the `on:` section so that custom `steps:` marshaling elsewhere is
+			// unaffected.
+			marshalOptions = append(append([]yaml.EncodeOption{}, DefaultMarshalOptions...), yaml.IndentSequence(true))
+		}
+		yamlBytes, err = yaml.MarshalWithOptions(wrappedData, marshalOptions...)
 		if err != nil {
 			return ""
 		}
