@@ -413,7 +413,7 @@
         },
         "review_id": {
           "type": ["number", "string"],
-          "description": "The numeric review ID to dismiss."
+          "description": "The numeric review ID to dismiss, or 'auto' to resolve the latest dismissible review authored by the current workflow actor."
         },
         "justification": {
           "type": "string",

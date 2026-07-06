@@ -23,6 +23,31 @@ function getEffectiveActor() {
 }
 
 /**
+ * @param {any[]} reviews
+ * @param {string} expectedAuthor
+ * @returns {any|null}
+ */
+function findLatestDismissibleReviewForActor(reviews, expectedAuthor) {
+  if (!Array.isArray(reviews) || !expectedAuthor) return null;
+  const actor = expectedAuthor.toLowerCase();
+  const dismissibleStates = new Set(["CHANGES_REQUESTED", "APPROVED"]);
+  return (
+    reviews
+      .filter(review => {
+        const login = typeof review?.user?.login === "string" ? review.user.login.trim().toLowerCase() : "";
+        const state = typeof review?.state === "string" ? review.state.trim().toUpperCase() : "";
+        return login === actor && dismissibleStates.has(state);
+      })
+      .sort((a, b) => {
+        const aTime = Date.parse(a?.submitted_at || "") || 0;
+        const bTime = Date.parse(b?.submitted_at || "") || 0;
+        if (aTime !== bTime) return bTime - aTime;
+        return Number(b?.id || 0) - Number(a?.id || 0);
+      })[0] || null
+  );
+}
+
+/**
  * Main handler factory for dismiss_pull_request_review.
  * @type {HandlerFactoryFunction}
  */
@@ -46,13 +71,16 @@ async function main(config = {}) {
       };
     }
 
-    const reviewId = Number.parseInt(String(message.review_id || ""), 10);
-    if (!Number.isInteger(reviewId) || reviewId <= 0) {
+    const rawReviewId = String(message.review_id || "").trim();
+    const useAutoReviewId = rawReviewId.toLowerCase() === "auto";
+    const parsedReviewId = Number.parseInt(rawReviewId, 10);
+    if (!useAutoReviewId && (!Number.isInteger(parsedReviewId) || parsedReviewId <= 0)) {
       return {
         success: false,
-        error: "review_id must be a positive integer",
+        error: "review_id must be a positive integer or 'auto'",
       };
     }
+    let reviewId = useAutoReviewId ? null : parsedReviewId;
 
     const justification = typeof message.justification === "string" ? message.justification.trim() : "";
     if (justification.length < 20) {
@@ -99,12 +127,13 @@ async function main(config = {}) {
     if (filterResult) return filterResult;
 
     if (isStaged) {
-      logStagedPreviewInfo(`Would dismiss review #${reviewId} on PR #${pullRequestNumber} (${owner}/${repo}) as ${dismisser}`);
+      const previewReviewId = useAutoReviewId ? "auto" : reviewId;
+      logStagedPreviewInfo(`Would dismiss review #${previewReviewId} on PR #${pullRequestNumber} (${owner}/${repo}) as ${dismisser}`);
       processedCount++;
       return {
         success: true,
         staged: true,
-        review_id: reviewId,
+        review_id: previewReviewId,
         pull_request_number: pullRequestNumber,
         repo: `${owner}/${repo}`,
         author: expectedAuthor,
@@ -112,6 +141,39 @@ async function main(config = {}) {
     }
 
     try {
+      if (useAutoReviewId) {
+        const [{ data: pullRequest }, { data: reviews }] = await Promise.all([
+          githubClient.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: pullRequestNumber,
+          }),
+          githubClient.rest.pulls.listReviews({
+            owner,
+            repo,
+            pull_number: pullRequestNumber,
+            per_page: 100,
+          }),
+        ]);
+
+        const autoReview = findLatestDismissibleReviewForActor(reviews, expectedAuthor);
+        if (!autoReview || !Number.isInteger(autoReview.id) || autoReview.id <= 0) {
+          const noRequestedReviewers = Array.isArray(pullRequest?.requested_reviewers) && pullRequest.requested_reviewers.length === 0 && Array.isArray(pullRequest?.requested_teams) && pullRequest.requested_teams.length === 0;
+          const reviewRequiredBlockedState = noRequestedReviewers && pullRequest?.mergeable_state === "blocked";
+          if (reviewRequiredBlockedState) {
+            return {
+              success: false,
+              error: "detected a degenerate review-required state (PR is blocked but has no requested reviewers/teams); no dismissible actor-authored review was found",
+            };
+          }
+          return {
+            success: false,
+            error: `review_id=auto did not find a dismissible review authored by ${expectedAuthor}`,
+          };
+        }
+        reviewId = autoReview.id;
+      }
+
       const { data: review } = await githubClient.rest.pulls.getReview({
         owner,
         repo,

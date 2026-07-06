@@ -17,12 +17,16 @@ global.core = mockCore;
 
 const mockGetReview = vi.fn();
 const mockDismissReview = vi.fn();
+const mockGetPullRequest = vi.fn();
+const mockListReviews = vi.fn();
 
 const mockGithub = {
   rest: {
     pulls: {
       getReview: mockGetReview,
       dismissReview: mockDismissReview,
+      get: mockGetPullRequest,
+      listReviews: mockListReviews,
     },
   },
 };
@@ -53,6 +57,23 @@ describe("dismiss_pull_request_review", () => {
       data: {
         html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-123",
       },
+    });
+    mockGetPullRequest.mockResolvedValue({
+      data: {
+        mergeable_state: "clean",
+        requested_reviewers: [],
+        requested_teams: [],
+      },
+    });
+    mockListReviews.mockResolvedValue({
+      data: [
+        {
+          id: 123,
+          state: "CHANGES_REQUESTED",
+          submitted_at: "2026-07-06T00:00:00Z",
+          user: { login: "github-actions[bot]" },
+        },
+      ],
     });
 
     const { main } = require("./dismiss_pull_request_review.cjs");
@@ -109,6 +130,66 @@ describe("dismiss_pull_request_review", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("review author");
+    expect(mockDismissReview).not.toHaveBeenCalled();
+  });
+
+  it("resolves review_id=auto to latest dismissible review by current actor", async () => {
+    mockGetReview.mockResolvedValueOnce({
+      data: {
+        html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-456",
+        user: { login: "github-actions[bot]" },
+      },
+    });
+    mockListReviews.mockResolvedValueOnce({
+      data: [
+        {
+          id: 111,
+          state: "APPROVED",
+          submitted_at: "2026-07-01T00:00:00Z",
+          user: { login: "github-actions[bot]" },
+        },
+        {
+          id: 456,
+          state: "CHANGES_REQUESTED",
+          submitted_at: "2026-07-02T00:00:00Z",
+          user: { login: "github-actions[bot]" },
+        },
+      ],
+    });
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: "auto",
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockDismissReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pull_number: 42,
+        review_id: 456,
+      })
+    );
+  });
+
+  it("detects degenerate blocked state with no requested reviewers when review_id=auto has no candidate", async () => {
+    mockGetPullRequest.mockResolvedValueOnce({
+      data: {
+        mergeable_state: "blocked",
+        requested_reviewers: [],
+        requested_teams: [],
+      },
+    });
+    mockListReviews.mockResolvedValueOnce({ data: [] });
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: "auto",
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("degenerate review-required state");
     expect(mockDismissReview).not.toHaveBeenCalled();
   });
 });
