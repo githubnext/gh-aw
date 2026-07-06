@@ -3,7 +3,9 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
@@ -548,6 +550,10 @@ func (c *Compiler) extractAdditionalConfigurations(
 	evalsConfig, err := c.parseEvalsFromFrontmatter(frontmatter)
 	if err != nil {
 		return fmt.Errorf("invalid evals configuration: %w", err)
+	}
+	if evalsConfig.HasEvals() {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("evals support is experimental and the implementation is not yet complete"))
+		c.IncrementWarningCount()
 	}
 	workflowData.Evals = evalsConfig
 

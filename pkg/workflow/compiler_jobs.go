@@ -213,7 +213,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build BinEval evals job if evals are declared in frontmatter.
-	// Runs after safe-outputs and before conclusion.
+	// TODO: Job implementation is pending; buildEvalsJob currently returns nil (no-op).
 	if evalsJob, err := c.buildEvalsJob(data); err != nil {
 		return fmt.Errorf("failed to build evals job: %w", err)
 	} else if evalsJob != nil {
