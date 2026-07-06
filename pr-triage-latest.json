@@ -1,168 +1,120 @@
 {
-  "run_date": "2026-07-06T13:29:01Z",
-  "run_id": "28795034579",
-  "prior_run_id": "28776188550",
+  "run_date": "2026-07-06T18:49:02Z",
+  "run_id": "28815219785",
+  "prior_run_id": "28795034579",
   "summary": {
     "total": 12,
-    "new": 10,
-    "carry_over": 2,
+    "new": 9,
+    "carry_over": 3,
     "fast_track": 4,
-    "auto_merge": 3,
-    "batch_review": 2,
-    "defer": 3,
-    "close": 0
+    "auto_merge": 1,
+    "batch_review": 3,
+    "defer": 4,
+    "close": 0,
+    "drafts": 5
   },
   "prior_run_resolution": {
-    "total": 6,
-    "merged": 5,
-    "closed": 1,
-    "merged_prs": [43729, 43733, 43731, 43724, 43725],
-    "closed_prs": [43732]
+    "total": 9,
+    "merged": 9,
+    "closed": 0,
+    "merged_prs": [43750, 43758, 43747, 43744, 43748, 43776, 43754, 43774, 43779]
   },
   "prs": [
     {
       "number": 43766,
       "title": "fix(mcp-server): bind HTTP server to 127.0.0.1; document validation escalation",
-      "category": "bug",
-      "risk": "high",
-      "score": 82,
-      "action": "fast_track",
-      "batch": "pr-batch:go-security",
-      "draft": false,
-      "reviews": "CHANGES_REQUESTED(ci)",
-      "note": "Security: DNS-rebinding fix, bind MCP HTTP to loopback. 2 Go files."
+      "category": "bug", "risk": "high", "score": 82, "action": "fast_track",
+      "batch": "pr-batch:go-security", "draft": false, "carry_over": true,
+      "reviews": "CHANGES_REQUESTED(bot)", "ci": "no-ci",
+      "note": "Security: DNS-rebinding fix, bind MCP HTTP to loopback."
     },
     {
       "number": 43716,
       "title": "fix(security): replace curl|sh installer pipes with download+verify (RGS-018)",
-      "category": "bug",
-      "risk": "high",
-      "score": 75,
-      "action": "fast_track",
-      "batch": "pr-batch:go-security",
-      "draft": false,
-      "reviews": "CHANGES_REQUESTED(ci)",
-      "note": "Security: RGS-018 curl|sh → download+verify. 6 files. Carry-over."
+      "category": "bug", "risk": "high", "score": 75, "action": "fast_track",
+      "batch": "pr-batch:go-security", "draft": false, "carry_over": true,
+      "reviews": "CHANGES_REQUESTED(bot)x2", "ci": "no-ci",
+      "note": "Security: RGS-018 curl|sh → download+verify."
     },
     {
-      "number": 43750,
-      "title": "[rendering-scripts] fix(copilot-parser): render bash command from data.command in SDK events",
-      "category": "bug",
-      "risk": "medium",
-      "score": 59,
-      "action": "fast_track",
-      "batch": null,
-      "draft": false,
-      "reviews": "COMMENTED",
-      "note": "Log parser missing bash command rendering. 2 files + tests."
+      "number": 43802,
+      "title": "fix: address 7 CLI consistency issues from automated inspection",
+      "category": "bug", "risk": "medium", "score": 60, "action": "fast_track",
+      "batch": null, "draft": false, "carry_over": false,
+      "reviews": "CHANGES_REQUESTED(bot)/APPROVED(bot,dismissed)", "ci": "29/30",
+      "note": "7 CLI consistency fixes. CI clean."
+    },
+    {
+      "number": 43850,
+      "title": "fix(pr-code-quality-reviewer): add Go ecosystem to firewall allow-list",
+      "category": "chore", "risk": "low", "score": 57, "action": "fast_track",
+      "batch": "pr-batch:workflow-chore", "draft": true, "carry_over": false,
+      "reviews": "none", "ci": "no-ci",
+      "note": "Fixes 50-62% failure rate in PR review family. DRAFT."
+    },
+    {
+      "number": 43848,
+      "title": "fix: make checkAndWaitForRateLimit context-cancellable",
+      "category": "bug", "risk": "medium", "score": 55, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false,
+      "reviews": "none", "ci": "no-ci",
+      "note": "Ctrl-C fix during rate-limit waits. DRAFT."
     },
     {
       "number": 43700,
       "title": "compiler: add evals job for BinEval binary evaluations",
-      "category": "feature",
-      "risk": "high",
-      "score": 53,
-      "action": "batch_review",
-      "batch": null,
-      "draft": false,
-      "reviews": "CHANGES_REQUESTED(dismissed)",
-      "note": "New evals/push_evals compiler jobs. +774 lines. Carry-over. @pelikhan engaged."
+      "category": "feature", "risk": "high", "score": 53, "action": "batch_review",
+      "batch": null, "draft": false, "carry_over": true,
+      "reviews": "CHANGES_REQUESTED(dismissed)", "ci": "no-ci",
+      "note": "Carry-over. +774 lines. @pelikhan engaged."
     },
     {
-      "number": 43758,
-      "title": "[eslint-miner] feat(eslint): add require-error-cause-in-rethrow rule",
-      "category": "feature",
-      "risk": "medium",
-      "score": 49,
-      "action": "batch_review",
-      "batch": "pr-batch:eslint-rules",
-      "draft": false,
-      "reviews": "COMMENTED",
-      "note": "New eslint rule catching silent stack-trace loss. 4 files."
+      "number": 43834,
+      "title": "refactor(parser): split remote_fetch.go (1553 lines) into focused modules",
+      "category": "refactor", "risk": "medium", "score": 47, "action": "batch_review",
+      "batch": "pr-batch:go-refactor", "draft": false, "carry_over": false,
+      "reviews": "CHANGES_REQUESTED(bot)x2", "ci": "no-ci",
+      "note": "Pure refactor, no logic changes. 8 files."
     },
     {
-      "number": 43747,
-      "title": "feat: add CI drift check for workflow markdown vs generated lock files",
-      "category": "feature",
-      "risk": "medium",
-      "score": 46,
-      "action": "defer",
-      "batch": null,
-      "draft": false,
-      "reviews": "CHANGES_REQUESTED(ci)",
-      "note": "CI drift detection script. 3 files. Needs CI resolution."
+      "number": 43826,
+      "title": "[typist] Optimize prompt: tighten bash allowlist, fix multi-op rejection, trim Phase 4",
+      "category": "chore", "risk": "low", "score": 45, "action": "auto_merge",
+      "batch": "pr-batch:workflow-chore", "draft": false, "carry_over": false,
+      "reviews": "APPROVED(bot)", "ci": "25/30 (1 agent fail)",
+      "note": "Workflow optimization. APPROVED."
     },
     {
-      "number": 43744,
-      "title": "Constrain list_code_scanning_alerts prompt usage with explicit state/severity bounds",
-      "category": "docs",
-      "risk": "low",
-      "score": 44,
-      "action": "fast_track",
-      "batch": null,
-      "draft": false,
-      "reviews": "COMMENTED(@pelikhan)",
-      "note": "MCP prompt guardrails. 3 files. @pelikhan engaged."
+      "number": 43833,
+      "title": "Reduce CompileMCPWorkflow overhead by caching runtime requirement detection",
+      "category": "bug", "risk": "medium", "score": 45, "action": "batch_review",
+      "batch": "pr-batch:go-refactor", "draft": false, "carry_over": false,
+      "reviews": "CHANGES_REQUESTED(bot)x3", "ci": "27/30 (1 agent fail)",
+      "note": "~10% benchmark improvement via caching. 3x CHANGES_REQUESTED."
     },
     {
-      "number": 43748,
-      "title": "feat(no-json-stringify-error): scope-aware suggestions + detail-preserving second suggestion",
-      "category": "feature",
-      "risk": "medium",
-      "score": 38,
-      "action": "defer",
-      "batch": "pr-batch:eslint-rules",
-      "draft": false,
-      "reviews": "CHANGES_REQUESTED(ci)",
-      "note": "eslint-factory no-json-stringify-error enhancement. 2 files. CI blocking."
+      "number": 43839,
+      "title": "Close 2026-07-06 spec maintenance gaps",
+      "category": "docs", "risk": "low", "score": 37, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false,
+      "reviews": "none", "ci": "no-ci",
+      "note": "Spec maintenance: 4 areas, 9 files. DRAFT."
     },
     {
-      "number": 43776,
-      "title": "[docs] Update documentation for features from 2026-07-06",
-      "category": "docs",
-      "risk": "low",
-      "score": 37,
-      "action": "auto_merge",
-      "batch": "pr-batch:docs-auto",
-      "draft": false,
-      "reviews": "",
-      "note": "Daily automated docs. 1 file."
+      "number": 43849,
+      "title": "Auto-label [pr-sous-chef] run-report issues",
+      "category": "chore", "risk": "low", "score": 37, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false,
+      "reviews": "none", "ci": "no-ci",
+      "note": "Auto-label workflow fix. DRAFT."
     },
     {
-      "number": 43754,
-      "title": "[instructions] Sync instruction files with release v0.82.2",
-      "category": "chore",
-      "risk": "low",
-      "score": 37,
-      "action": "auto_merge",
-      "batch": null,
-      "draft": false,
-      "reviews": "",
-      "note": "Instruction sync v0.82.2. 1 file."
-    },
-    {
-      "number": 43774,
-      "title": "[docs] Update glossary - weekly full scan",
-      "category": "docs",
-      "risk": "low",
-      "score": 32,
-      "action": "auto_merge",
-      "batch": "pr-batch:docs-auto",
-      "draft": false,
-      "reviews": "",
-      "note": "Weekly glossary scan. 1 file."
-    },
-    {
-      "number": 43779,
-      "title": "deps: bump charm.land/bubbles/v2 to v2.1.1",
-      "category": "chore",
-      "risk": "low",
-      "score": 23,
-      "action": "defer",
-      "batch": null,
-      "draft": true,
-      "reviews": "",
-      "note": "DRAFT dep bump. 2 files (go.mod/go.sum). Await ready signal."
+      "number": 43843,
+      "title": "feat(docs): expand robots.txt with full AI crawler coverage",
+      "category": "docs", "risk": "low", "score": 27, "action": "defer",
+      "batch": null, "draft": true, "carry_over": false,
+      "reviews": "none", "ci": "no-ci",
+      "note": "robots.txt 9 crawler entries. DRAFT."
     }
   ],
   "batches": [
@@ -172,20 +124,20 @@
       "note": "Security fixes: DNS-rebinding (43766) + RGS-018 curl|sh (43716). Review together."
     },
     {
-      "id": "pr-batch:docs-auto",
-      "prs": [43776, 43774],
-      "note": "Automated daily/weekly docs updates. Auto-merge together."
+      "id": "pr-batch:go-refactor",
+      "prs": [43834, 43833],
+      "note": "Go refactoring: parser split (43834) + compile caching (43833). Review together."
     },
     {
-      "id": "pr-batch:eslint-rules",
-      "prs": [43758, 43748],
-      "note": "ESLint factory rule additions/improvements. Review together."
+      "id": "pr-batch:workflow-chore",
+      "prs": [43850, 43826],
+      "note": "Workflow improvements: firewall allow-list (43850, draft) + typist optimization (43826)."
     }
   ],
   "flags": [
     "SECURITY BATCH pr-batch:go-security: #43766 + #43716 — DNS-rebinding + RGS-018. Fast-track together.",
-    "PR 43700: Large compiler feature (+774 lines), carry-over, @pelikhan engaged. Needs careful review.",
-    "PR 43747: CI drift check — CHANGES_REQUESTED, monitor agent iteration.",
-    "PR 43779: DRAFT dep bump — await ready signal."
+    "PR 43700: Large compiler feature (+774 lines), carry-over ×3, @pelikhan engaged. Needs careful review.",
+    "PR 43850: DRAFT — firewall fix with high operational impact. Promote from draft to fast-track.",
+    "5 PRs still in DRAFT: 43850, 43848, 43839, 43849, 43843 — monitor for promotion."
   ]
 }
