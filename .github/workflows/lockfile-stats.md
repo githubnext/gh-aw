@@ -65,6 +65,14 @@ The script must parse all `.github/workflows/*.lock.yml` files and compute aggre
 - engine distribution
 - MCP server/tool usage frequencies
 
+Parser reliability requirements (must follow):
+
+- Ensure `PyYAML` is available before running the analyzer script (install it in the first-turn command if import fails).
+- Use `yaml.safe_load` as the primary parser.
+- Include `yaml_available` in the summary JSON.
+- If `yaml_available` is `false`, fail loudly (non-zero exit) or emit a clear warning and stop the report flow; never continue with silently empty safe-output stats.
+- If any regex/text fallback parsing is used, it must still populate `safe_output_types`, `discussion_categories`, and per-permission read/write maps.
+
 Keep only compact examples and enforce these limits so JSON stays within target size:
 - max 10 workflow names per bucket
 - max 100 items for any list
