@@ -1,7 +1,15 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, convertLegacyLogEntriesToCopilotEvents } = require("./log_parser_shared.cjs");
+const {
+  createEngineLogParser,
+  generateConversationMarkdown,
+  generateInformationSection,
+  buildStepSummaryDetailsSection,
+  formatInitializationSummary,
+  formatToolUse,
+  convertLegacyLogEntriesToCopilotEvents,
+} = require("./log_parser_shared.cjs");
 
 const main = createEngineLogParser({
   parserName: "Gemini",
@@ -23,7 +31,7 @@ const main = createEngineLogParser({
 function parseGeminiLog(logContent) {
   if (!logContent) {
     return {
-      markdown: "## 🤖 Gemini\n\nNo log content provided.\n\n",
+      markdown: buildStepSummaryDetailsSection("Gemini", "No log content provided."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,
@@ -47,7 +55,7 @@ function parseGeminiLog(logContent) {
 
   if (rawEntries.length === 0) {
     return {
-      markdown: "## 🤖 Gemini\n\nLog format not recognized as Gemini JSONL.\n\n",
+      markdown: buildStepSummaryDetailsSection("Gemini", "Log format not recognized as Gemini JSONL."),
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,

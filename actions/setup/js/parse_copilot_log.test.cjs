@@ -74,8 +74,8 @@ describe("parse_copilot_log.cjs", () => {
       ]);
       const result = parseCopilotLog(jsonArrayLog);
 
-      expect(result.markdown).toContain("🚀 Initialization");
-      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       expect(result.markdown).toContain("copilot-test-123");
       expect(result.markdown).toContain("echo 'Hello World'");
       expect(result.markdown).toContain("Total Cost");
@@ -88,8 +88,8 @@ describe("parse_copilot_log.cjs", () => {
         '[DEBUG] Starting Copilot CLI\n[ERROR] Some error occurred\n[{"type":"system","subtype":"init","session_id":"copilot-456","tools":["Bash","mcp__safe_outputs__missing-tool"],"model":"gpt-5"},{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tool_123","name":"mcp__safe_outputs__missing-tool","input":{"tool":"draw_pelican","reason":"Tool needed to draw pelican artwork"}}]}},{"type":"result","total_cost_usd":0.1789264,"usage":{"input_tokens":25,"output_tokens":832},"num_turns":10}]\n[DEBUG] Session completed'
       );
 
-      expect(result.markdown).toContain("🚀 Initialization");
-      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       expect(result.markdown).toContain("copilot-456");
       expect(result.markdown).toContain("safe_outputs::missing-tool");
       expect(result.markdown).toContain("Total Cost");
@@ -100,8 +100,8 @@ describe("parse_copilot_log.cjs", () => {
         '[DEBUG] Starting Copilot CLI\n{"type":"system","subtype":"init","session_id":"copilot-789","tools":["Bash","Read"],"model":"gpt-5"}\n[DEBUG] Processing user prompt\n{"type":"assistant","message":{"content":[{"type":"text","text":"I\'ll help you."},{"type":"tool_use","id":"tool_123","name":"Bash","input":{"command":"ls -la"}}]}}\n{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool_123","content":"file1.txt\\nfile2.txt"}]}}\n{"type":"result","total_cost_usd":0.002,"usage":{"input_tokens":100,"output_tokens":25},"num_turns":2}\n[DEBUG] Workflow completed'
       );
 
-      expect(result.markdown).toContain("🚀 Initialization");
-      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       expect(result.markdown).toContain("copilot-789");
       expect(result.markdown).toContain("ls -la");
       expect(result.markdown).toContain("Total Cost");
@@ -117,7 +117,7 @@ describe("parse_copilot_log.cjs", () => {
 
       const result = parseCopilotLog(sdkEventsLog);
 
-      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       expect(result.markdown).toContain("report_intent");
       expect(result.markdown).toContain("Rendered summary content");
       const resultData = getSessionResultData(result.logEntries);
@@ -222,7 +222,7 @@ describe("parse_copilot_log.cjs", () => {
 
       const result = parseCopilotLog(prettyLog);
 
-      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       // MCP tool name is formatted as server::name
       expect(result.markdown).toContain("github::create_issue");
       // Continuation output appears in the details
@@ -235,7 +235,7 @@ describe("parse_copilot_log.cjs", () => {
 
       const result = parseCopilotLog(prettyLog);
 
-      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("<summary>Commands and Tools</summary>");
       // Read tool name appears in the Reasoning section summary
       expect(result.markdown).toContain("Read");
       // Continuation output appears in the details
@@ -412,8 +412,7 @@ describe("parse_copilot_log.cjs", () => {
 
       const result = parseCopilotLog(debugLog);
 
-      // Reasoning should appear with open circle icon
-      expect(result.markdown).toContain("◐");
+      // Reasoning should appear in the reasoning section
       expect(result.markdown).toContain("I need to think carefully about the approach.");
       // Regular content should appear without open circle
       expect(result.markdown).toContain("Here is my answer.");

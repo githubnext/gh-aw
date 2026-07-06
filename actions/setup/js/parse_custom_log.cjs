@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createEngineLogParser } = require("./log_parser_shared.cjs");
+const { createEngineLogParser, buildStepSummaryDetailsSection } = require("./log_parser_shared.cjs");
 
 const main = createEngineLogParser({
   parserName: "Custom",
@@ -25,7 +25,7 @@ function parseCustomLog(logContent) {
     if (claudeResult && claudeResult.logEntries && claudeResult.logEntries.length > 0) {
       return {
         ...claudeResult,
-        markdown: "## Custom Engine Log (Claude format)\n\n" + claudeResult.markdown,
+        markdown: `### Custom Engine Log (Claude format)\n\n${claudeResult.markdown}`,
       };
     }
   } catch (error) {
@@ -41,7 +41,7 @@ function parseCustomLog(logContent) {
     // Check if we got meaningful content
     if (codexResult && codexResult.markdown && codexResult.markdown.length > 0) {
       return {
-        markdown: "## Custom Engine Log (Codex format)\n\n" + codexResult.markdown,
+        markdown: `### Custom Engine Log (Codex format)\n\n${codexResult.markdown}`,
         mcpFailures: codexResult.mcpFailures || [],
         maxTurnsHit: codexResult.maxTurnsHit || false,
         logEntries: codexResult.logEntries || [],
@@ -56,9 +56,9 @@ function parseCustomLog(logContent) {
   const charCount = logContent.length;
 
   return {
-    markdown: `## Custom Engine Log
-
-Log format not recognized as Claude or Codex format.
+    markdown: buildStepSummaryDetailsSection(
+      "Custom Engine Log",
+      `Log format not recognized as Claude or Codex format.
 
 **Basic Statistics:**
 - Lines: ${lineCount}
@@ -67,8 +67,8 @@ Log format not recognized as Claude or Codex format.
 **Raw Log Preview:**
 \`\`\`
 ${logContent.substring(0, 1000)}${logContent.length > 1000 ? "\n... (truncated)" : ""}
-\`\`\`
-`,
+\`\`\``
+    ),
     mcpFailures: [],
     maxTurnsHit: false,
     logEntries: [],
