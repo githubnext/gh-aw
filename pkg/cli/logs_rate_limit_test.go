@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"strconv"
 	"testing"
@@ -82,4 +83,40 @@ func TestRateLimitResourceIsBelowThreshold(t *testing.T) {
 // jsonInt is a helper that converts an int64 to its JSON number representation.
 func jsonInt(n int64) string {
 	return strconv.FormatInt(n, 10)
+}
+
+// TestSleepWithContextCancellation verifies that sleepWithContext returns ctx.Err()
+// immediately when the context is cancelled before the timer fires.
+func TestSleepWithContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	start := time.Now()
+	err := sleepWithContext(ctx, 10*time.Second)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Less(t, elapsed, time.Second, "sleepWithContext should return quickly when context is already cancelled")
+}
+
+// TestSleepWithContextDeadlineExceeded verifies that sleepWithContext respects a
+// deadline that expires before the sleep duration.
+func TestSleepWithContextDeadlineExceeded(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	err := sleepWithContext(ctx, 10*time.Second)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Less(t, elapsed, time.Second, "sleepWithContext should return as soon as the deadline expires")
+}
+
+// TestSleepWithContextTimerFires verifies that sleepWithContext returns nil when the
+// timer fires before context cancellation.
+func TestSleepWithContextTimerFires(t *testing.T) {
+	ctx := context.Background()
+	err := sleepWithContext(ctx, time.Millisecond)
+	require.NoError(t, err, "sleepWithContext should return nil when timer fires normally")
 }
