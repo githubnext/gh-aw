@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-Condensed 06-30 to fit the 10 KB repo-memory budget. **68/3600 tested, all PASS.**
+Condensed 06-30 to fit the 10 KB repo-memory budget. **72/3600 tested, all PASS.**
 
 ## Coverage map
 
@@ -22,12 +22,15 @@ Condensed 06-30 to fit the 10 KB repo-memory budget. **68/3600 tested, all PASS.
   files, --merges empty + parent=1, filename leak 0001-Merge-branch-topic-...patch
   RECONFIRMED. All carry append-only push follow-up (commit_count≥2), main's
   diverged history.md commit correctly excluded via merge-base.
-- **tiny-none-few-medium (idx 63-67): all PASS.** 5×40960 B base64 (200 KB payload),
-  ~5% of cap. clean-single(63) 204.20 KB/1f; clean-multi(64) 204.67 KB/3f ~1.023×;
-  clean-merge_msg(65) 206.80 KB/1f, --merges empty+parent=1, filename leak
-  0001-Merge-branch-topic-into-feature.patch RECONFIRMED; ahead-single(66) PR 206.78
-  KB/1f + push 0.89 KB (clean FF, 2 commits after); ahead-multi(67) PR 207.31 KB/3f
-  ~1.036× + push 0.89 KB (clean FF, 4 commits after). Short-line multi law holds ~1×.
+- **tiny-none-few-medium (idx 63-71): COMPLETE, all PASS.** 5×40960 B base64 (200 KB
+  payload), ~5% of cap. clean-single(63) 204.20/1f; clean-multi(64) 204.67/3f 1.023×;
+  clean-merge_msg(65) 206.80/1f leak; ahead-single(66) PR 206.78/1f+push 0.89 (FF,2);
+  ahead-multi(67) 207.31/3f 1.036×+push 0.89 (FF,4); ahead-merge_msg(68) 204.16/1f
+  leak (FF,2); diverged-single(69) 204.15/1f, two-dot delta=0 (diverged main..feature
+  already =merge-base..feature; over-count only when feature strictly ahead), FF 2;
+  diverged-multi(70) 205.32/3f **1.027×** (disjoint whole-file adds, NOT 2× — see law),
+  FF 4; diverged-merge_msg(71) 204.16/1f leak, --merges empty, FF. bundle ~153 KB
+  (~25%<patch). All KB. **few tier micro/small/medium DONE — all PASS.**
 
 ## The cap (grounded in source)
 
@@ -50,6 +53,11 @@ default ~hundreds (~800?); confirm before FILES=batch(100).
   102.8 KB vs 50 KB payload; added-'+'-bytes still ~1×≈51 KB, the overshoot is all
   context). Toward ~N× as lines lengthen. Still nowhere near cap at small payload,
   but the diff-sizer must assume up-to-~N× for long-line content, not 1×.
+  **SHARPENED idx70:** the ~2× only fires when successive commits APPEND to the SAME
+  long-line file (re-emitting its context). DISJOINT whole-file base64 adds (each
+  commit touches different new files) stay ~1× — idx70 measured 1.027× for 3 commits
+  spanning files{1-2},{3-4},{5}. So multiplier = f(same-file re-touch depth), not
+  f(commit count). Worst case (every commit appends to one growing long-line file).
 - **DIVERGED adds ZERO feature-patch bytes.** main's independent commit (history.md)
   is merge-base-side, EXCLUDED from `merge-base..feature` (the patch the cap
   measures). Two-dot `main..feature` over-counts it (cosmetic only). Append-only
@@ -89,9 +97,10 @@ it's a real bug (over-count, or runtime measuring excluded commits).
 
 ## Next
 
-Next index: **68** → `tiny-none-few-medium-diverged-*` (68-71 finish few-medium
-diverged ~200-210 KB → PASS predicted). few-large (~idx 72-80) ~1 MB, few-xlarge
-(~idx 81-89) predicted ~4054 KB → PASS. HISTORY=deep (500) and
-FILES=many/batch far ahead — prime untested regions for a first rejection. SIZE
-stays tiny (payload small) until idx 720, so no real `rejected` expected before
-then unless a PATCH tier is tuned over 4096 KB or a downstream over-count bug fires.
+Next index: **72** → `tiny-none-few-large-*` (72-80) ~1 MB/9 cells → PASS predicted;
+few-xlarge (81-89) predicted ~4054 KB → PASS (near 99% cap but header math shows
+few lands ~4054, under 4096). That FINISHES FILES=few. FILES=many (idx 90-179) &
+batch (180-269) next — many/batch × xlarge is the first place `max_patch_files`
+(default ~800?) could bite; confirm that handler count before batch. HISTORY=deep
+(500) far ahead. SIZE stays tiny (payload small) until idx 720, so no real `rejected`
+expected before then unless a PATCH tier is tuned over 4096 KB or an over-count fires.
