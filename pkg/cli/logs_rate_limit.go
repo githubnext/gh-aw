@@ -76,11 +76,11 @@ func fetchRateLimit() (rateLimitResource, error) {
 // ctx.Err() so callers can propagate cancellation immediately.
 func sleepWithContext(ctx context.Context, d time.Duration) error {
 	timer := time.NewTimer(d)
+	defer timer.Stop()
 	select {
 	case <-timer.C:
 		return nil
 	case <-ctx.Done():
-		timer.Stop()
 		return ctx.Err()
 	}
 }
