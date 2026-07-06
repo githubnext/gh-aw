@@ -10,7 +10,6 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/sliceutil"
-	"github.com/github/gh-aw/pkg/styles"
 )
 
 var scheduleWizardLog = logger.New("cli:add_interactive_schedule")
@@ -220,15 +219,13 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("This workflow runs on a schedule."))
 
 		var selected string
-		form := huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Title("How often should this workflow run?").
-					Description("Current schedule: " + rawExpr).
-					Options(options...).
-					Value(&selected),
-			),
-		).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+		form := console.NewSelectForm(
+			huh.NewSelect[string]().
+				Title("How often should this workflow run?").
+				Description("Current schedule: " + rawExpr).
+				Options(options...).
+				Value(&selected),
+		)
 
 		if err := form.RunWithContext(c.Ctx); err != nil {
 			return fmt.Errorf("failed to select schedule frequency: %w", err)

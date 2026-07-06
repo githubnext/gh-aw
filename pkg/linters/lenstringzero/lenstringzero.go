@@ -124,20 +124,20 @@ func matchLenLiteralExpr(pass *analysis.Pass, expr *ast.BinaryExpr, aliases map[
 	// Flip the operator so the normalized form has len on the left.
 	if isLenCall(expr.Y) {
 		if isIntZero(expr.X) {
-			return lenCallArg(expr.Y), true, flipOp(op), 0, true
+			return lenCallArg(expr.Y), true, astutil.FlipComparisonOp(op), 0, true
 		}
 		if isIntOne(expr.X) {
-			return lenCallArg(expr.Y), true, flipOp(op), 1, true
+			return lenCallArg(expr.Y), true, astutil.FlipComparisonOp(op), 1, true
 		}
 	}
 	if isIntZero(expr.X) {
 		if arg, ok2 := lenAliasArg(pass, expr.Y, aliases); ok2 {
-			return arg, false, flipOp(op), 0, true
+			return arg, false, astutil.FlipComparisonOp(op), 0, true
 		}
 	}
 	if isIntOne(expr.X) {
 		if arg, ok2 := lenAliasArg(pass, expr.Y, aliases); ok2 {
-			return arg, false, flipOp(op), 1, true
+			return arg, false, astutil.FlipComparisonOp(op), 1, true
 		}
 	}
 
@@ -204,23 +204,6 @@ func buildLenStringFix(pass *analysis.Pass, expr *ast.BinaryExpr, lenArg ast.Exp
 			NewText: []byte(replacement),
 		}},
 	}}
-}
-
-// flipOp returns the comparison operator adjusted for swapping left and right operands.
-// For example, when converting "0 < len(s)" to the normalized "len(s) > 0", LSS becomes GTR.
-func flipOp(op token.Token) token.Token {
-	switch op {
-	case token.LSS:
-		return token.GTR
-	case token.GTR:
-		return token.LSS
-	case token.LEQ:
-		return token.GEQ
-	case token.GEQ:
-		return token.LEQ
-	default:
-		return op
-	}
 }
 
 func isLenCall(expr ast.Expr) bool {

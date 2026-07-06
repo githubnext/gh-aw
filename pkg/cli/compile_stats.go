@@ -10,8 +10,6 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
-	"github.com/github/gh-aw/pkg/styles"
-	"github.com/github/gh-aw/pkg/tty"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
 )
@@ -297,14 +295,8 @@ func displayStatsTable(statsList []*WorkflowStats) {
 		fileSize := console.FormatFileSize(stats.FileSize)
 
 		if stats.FileSize > maxSize {
-			// Apply red color and error icon for large workflows
-			if tty.IsStderrTerminal() {
-				workflowName = styles.Error.Render("✗ ") + styles.Error.Render(stats.Workflow)
-				fileSize = styles.Error.Render(console.FormatFileSize(stats.FileSize))
-			} else {
-				// In non-TTY mode, just add the icon without color
-				workflowName = "✗ " + stats.Workflow
-			}
+			workflowName = console.FormatErrorTextStderr("✗ " + stats.Workflow)
+			fileSize = console.FormatErrorTextStderr(console.FormatFileSize(stats.FileSize))
 		}
 
 		rows = append(rows, []string{

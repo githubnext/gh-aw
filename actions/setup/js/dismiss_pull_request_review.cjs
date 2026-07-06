@@ -23,6 +23,61 @@ function getEffectiveActor() {
 }
 
 /**
+ * @param {any[]} reviews
+ * @param {string} expectedAuthor
+ * @returns {any[]}
+ */
+function findAllDismissibleReviewsForActor(reviews, expectedAuthor) {
+  if (!Array.isArray(reviews) || !expectedAuthor) return [];
+  const expectedAuthorLower = expectedAuthor.toLowerCase();
+  const dismissibleStates = new Set(["CHANGES_REQUESTED", "APPROVED"]);
+  return reviews.filter(review => {
+    const login = typeof review?.user?.login === "string" ? review.user.login.trim().toLowerCase() : "";
+    const state = typeof review?.state === "string" ? review.state.trim().toUpperCase() : "";
+    return login === expectedAuthorLower && dismissibleStates.has(state);
+  });
+}
+
+/**
+ * @param {any} pullRequest
+ * @returns {boolean}
+ */
+function hasNoRequestedReviewersOrTeams(pullRequest) {
+  const hasNoRequestedReviewers = Array.isArray(pullRequest?.requested_reviewers) && pullRequest.requested_reviewers.length === 0;
+  const hasNoRequestedTeams = Array.isArray(pullRequest?.requested_teams) && pullRequest.requested_teams.length === 0;
+  return hasNoRequestedReviewers && hasNoRequestedTeams;
+}
+
+/** Maximum number of pages (100 reviews/page) fetched when enumerating PR reviews. */
+const MAX_REVIEW_PAGES = 10;
+
+/**
+ * @param {any} githubClient
+ * @param {string} owner
+ * @param {string} repo
+ * @param {number} pullRequestNumber
+ * @returns {Promise<{reviews: any[], truncated: boolean}>}
+ */
+async function listAllPullRequestReviews(githubClient, owner, repo, pullRequestNumber) {
+  const all = [];
+  let page = 1;
+  while (page <= MAX_REVIEW_PAGES) {
+    const { data } = await githubClient.rest.pulls.listReviews({
+      owner,
+      repo,
+      pull_number: pullRequestNumber,
+      per_page: 100,
+      page,
+    });
+    if (!Array.isArray(data) || data.length === 0) break;
+    all.push(...data);
+    if (data.length < 100) break;
+    page++;
+  }
+  return { reviews: all, truncated: page > MAX_REVIEW_PAGES };
+}
+
+/**
  * Main handler factory for dismiss_pull_request_review.
  * @type {HandlerFactoryFunction}
  */
@@ -46,13 +101,16 @@ async function main(config = {}) {
       };
     }
 
-    const reviewId = Number.parseInt(String(message.review_id || ""), 10);
-    if (!Number.isInteger(reviewId) || reviewId <= 0) {
+    const rawReviewId = String(message.review_id ?? "").trim();
+    const useAutoReviewId = rawReviewId === "" || rawReviewId.toLowerCase() === "auto";
+    const parsedReviewId = Number.parseInt(rawReviewId, 10);
+    if (!useAutoReviewId && (!Number.isInteger(parsedReviewId) || parsedReviewId <= 0)) {
       return {
         success: false,
-        error: "review_id must be a positive integer",
+        error: "review_id must be a positive integer or 'auto'",
       };
     }
+    let reviewId = useAutoReviewId ? null : parsedReviewId;
 
     const justification = typeof message.justification === "string" ? message.justification.trim() : "";
     if (justification.length < 20) {
@@ -99,12 +157,13 @@ async function main(config = {}) {
     if (filterResult) return filterResult;
 
     if (isStaged) {
-      logStagedPreviewInfo(`Would dismiss review #${reviewId} on PR #${pullRequestNumber} (${owner}/${repo}) as ${dismisser}`);
+      const previewReviewId = useAutoReviewId ? "auto" : reviewId;
+      logStagedPreviewInfo(`Would dismiss ${useAutoReviewId ? "all actor-authored" : `review #${previewReviewId}`} on PR #${pullRequestNumber} (${owner}/${repo}) as ${dismisser}`);
       processedCount++;
       return {
         success: true,
         staged: true,
-        review_id: reviewId,
+        review_id: previewReviewId,
         pull_request_number: pullRequestNumber,
         repo: `${owner}/${repo}`,
         author: expectedAuthor,
@@ -112,6 +171,60 @@ async function main(config = {}) {
     }
 
     try {
+      if (useAutoReviewId) {
+        const [{ data: pullRequest }, { reviews, truncated }] = await Promise.all([
+          githubClient.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: pullRequestNumber,
+          }),
+          listAllPullRequestReviews(githubClient, owner, repo, pullRequestNumber),
+        ]);
+
+        const actorReviews = findAllDismissibleReviewsForActor(reviews, expectedAuthor);
+        if (actorReviews.length === 0) {
+          if (truncated) {
+            return {
+              success: false,
+              error: `review_id=auto could not resolve: review history exceeds ${MAX_REVIEW_PAGES * 100} entries and was truncated; specify an explicit review_id instead`,
+            };
+          }
+          const isBlockedWithoutReviewers = hasNoRequestedReviewersOrTeams(pullRequest) && pullRequest?.mergeable_state === "blocked";
+          if (isBlockedWithoutReviewers) {
+            return {
+              success: false,
+              error: "detected a degenerate review-required state (PR is blocked but has no requested reviewers/teams); no dismissible actor-authored review was found",
+            };
+          }
+          return {
+            success: false,
+            error: `review_id=auto did not find a dismissible review authored by ${expectedAuthor}`,
+          };
+        }
+
+        const dismissedReviews = [];
+        for (const review of actorReviews) {
+          const { data: dismissed } = await githubClient.rest.pulls.dismissReview({
+            owner,
+            repo,
+            pull_number: pullRequestNumber,
+            review_id: review.id,
+            message: justification,
+          });
+          dismissedReviews.push({ review_id: review.id, review_url: dismissed?.html_url || review?.html_url });
+        }
+
+        processedCount++;
+        return {
+          success: true,
+          review_ids: dismissedReviews.map(d => d.review_id),
+          dismissed_count: dismissedReviews.length,
+          pull_request_number: pullRequestNumber,
+          repo: `${owner}/${repo}`,
+          author: expectedAuthor,
+        };
+      }
+
       const { data: review } = await githubClient.rest.pulls.getReview({
         owner,
         repo,

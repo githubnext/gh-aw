@@ -46,16 +46,11 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
-			var ftype *ast.FuncType
-			switch fn := encl.Node().(type) {
-			case *ast.FuncDecl:
-				ftype = fn.Type
-			case *ast.FuncLit:
-				ftype = fn.Type
-			default:
+			ftype := astutil.EnclosingFuncType(encl.Node())
+			if ftype == nil {
 				continue
 			}
-			ctxParamName, ok := contextParamName(pass, ftype)
+			ctxParamName, ok := astutil.ContextParamName(pass, ftype)
 			if !ok {
 				break
 			}
@@ -102,45 +97,4 @@ func isContextBackgroundCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 		return false
 	}
 	return pkgName.Imported().Path() == "context"
-}
-
-// contextParamName returns the first non-blank context.Context parameter name.
-func contextParamName(pass *analysis.Pass, ftype *ast.FuncType) (string, bool) {
-	if ftype == nil || ftype.Params == nil {
-		return "", false
-	}
-	ctxType := contextType(pass)
-	if ctxType == nil {
-		return "", false
-	}
-	for _, field := range ftype.Params.List {
-		t := pass.TypesInfo.TypeOf(field.Type)
-		if t == nil {
-			continue
-		}
-		if !types.Identical(t, ctxType) {
-			continue
-		}
-		// At least one name must not be blank.
-		for _, name := range field.Names {
-			if name.Name != "_" {
-				return name.Name, true
-			}
-		}
-	}
-	return "", false
-}
-
-// contextType returns the types.Type for context.Context, or nil if the
-// package is not imported.
-func contextType(pass *analysis.Pass) types.Type {
-	for _, pkg := range pass.Pkg.Imports() {
-		if pkg.Path() == "context" {
-			obj := pkg.Scope().Lookup("Context")
-			if obj != nil {
-				return obj.Type()
-			}
-		}
-	}
-	return nil
 }

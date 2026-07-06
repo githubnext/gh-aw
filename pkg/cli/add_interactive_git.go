@@ -11,7 +11,6 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -99,14 +98,12 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 			}
 
 			var chosen mergeAction
-			selectForm := huh.NewForm(
-				huh.NewGroup(
-					huh.NewSelect[mergeAction]().
-						Title("What would you like to do with pull request " + result.PRURL + "?").
-						Options(options...).
-						Value(&chosen),
-				),
-			).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+			selectForm := console.NewSelectForm(
+				huh.NewSelect[mergeAction]().
+					Title("What would you like to do with pull request " + result.PRURL + "?").
+					Options(options...).
+					Value(&chosen),
+			)
 
 			if selectErr := selectForm.Run(); selectErr != nil {
 				return fmt.Errorf("failed to get user input: %w", selectErr)
@@ -132,14 +129,12 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 
 			case mergeActionEditTitle:
 				var newTitle string
-				titleForm := huh.NewForm(
-					huh.NewGroup(
-						huh.NewInput().
-							Title("Enter new PR title").
-							Description("Add a prefix if required, for example: feat: or fix:").
-							Value(&newTitle),
-					),
-				).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+				titleForm := console.NewInputForm(
+					huh.NewInput().
+						Title("Enter new PR title").
+						Description("Add a prefix if required, for example: feat: or fix:").
+						Value(&newTitle),
+				)
 				if titleErr := titleForm.Run(); titleErr != nil {
 					return fmt.Errorf("failed to get user input: %w", titleErr)
 				}

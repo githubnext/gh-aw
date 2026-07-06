@@ -1,0 +1,97 @@
+# RL-003 Blocklist Ordering — Compliance Fixture
+# Tests: T-RL-023, T-RL-024
+# Spec: §4.2 Blocklist Enforcement (RL-003)
+
+fixture_id: "rl-003-blocklist-ordering"
+description: >
+  A label MUST NOT match any pattern in the `blocked` list. Blocklist evaluation MUST
+  occur before allowlist evaluation (it is a security boundary). A label matching a
+  blocked pattern MUST be rejected immediately, regardless of any allowlist entry (RL-003).
+
+spec_refs:
+  - "RL-003 — Blocklist evaluation MUST occur before allowlist evaluation"
+  - "RL-003 — A blocked label MUST be rejected regardless of allowlist entries"
+  - "§4.2 — Security boundary: blocklist checked first"
+  - "T-RL-023 — Blocked label is rejected even when also in allowed-add"
+  - "T-RL-024 — Blocked label is rejected even when allowed-add contains a wildcard"
+
+scenarios:
+  # --- Scenario A: blocked label rejected even when it appears in allowed-add ---
+  - scenario_id: "rl-003-block-overrides-allow"
+    description: >
+      A label that matches both allowed-add and blocked MUST be rejected.
+      Blocklist evaluation occurs first and is a security boundary.
+    input:
+      safe_output_config:
+        allowed-add:
+          - "security"
+        allowed-remove: []
+        blocked:
+          - "security"
+      message:
+        label_to_add: "security"
+        label_to_remove: ""
+    expected:
+      decision: deny
+      error_code: -32003
+      reason: "label matches blocked pattern"
+
+  # --- Scenario B: wildcard blocked pattern overrides wildcard allowed-add pattern ---
+  - scenario_id: "rl-003-wildcard-block-overrides-wildcard-allow"
+    description: >
+      A label matching a blocked wildcard 'security-*' MUST be rejected even when
+      the same label matches an allowed-add wildcard '*'.
+    input:
+      safe_output_config:
+        allowed-add:
+          - "*"
+        allowed-remove: []
+        blocked:
+          - "security-*"
+      message:
+        label_to_add: "security-critical"
+        label_to_remove: ""
+    expected:
+      decision: deny
+      error_code: -32003
+      reason: "label matches blocked pattern"
+
+  # --- Scenario C: non-blocked label is allowed by wildcard ---
+  - scenario_id: "rl-003-unblocked-label-allowed"
+    description: >
+      A label that does NOT match any blocked pattern passes through to allowlist
+      evaluation and is allowed when it matches allowed-add.
+    input:
+      safe_output_config:
+        allowed-add:
+          - "*"
+        allowed-remove: []
+        blocked:
+          - "security-*"
+      message:
+        label_to_add: "bug"
+        label_to_remove: ""
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario D: blocked remove pattern prevents label removal ---
+  - scenario_id: "rl-003-block-prevents-removal"
+    description: >
+      A blocked pattern applies equally to removal operations. Attempting to remove
+      a label matching a blocked pattern MUST be rejected.
+    input:
+      safe_output_config:
+        allowed-add: []
+        allowed-remove:
+          - "*"
+        blocked:
+          - "~*"
+      message:
+        label_to_add: ""
+        label_to_remove: "~internal"
+    expected:
+      decision: deny
+      error_code: -32003
+      reason: "label matches blocked pattern"

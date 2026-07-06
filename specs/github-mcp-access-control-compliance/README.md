@@ -13,9 +13,13 @@ that implementations satisfy the normative requirements in §§4–10 of the spe
 |---|---|---|
 | `exact-match-allow.yaml` | Exact repository pattern allows matching repo | T-GH-011, T-GH-012 |
 | `wildcard-deny.yaml` | Owner-wildcard pattern denies non-matching owner | T-GH-013, T-GH-014 |
+| `empty-repos-block.yaml` | Absent or empty `repos` list denies all repository access | T-GH-015, T-GH-016 |
 | `role-deny.yaml` | Role filter denies access when user role is insufficient | T-GH-019, T-GH-020 |
+| `tool-name-filter.yaml` | `allowed-tools` filter allows or denies by tool name | T-GH-031, T-GH-032, T-GH-033 |
+| `blocked-user-deny.yaml` | `blocked-users` denies listed actors unconditionally | T-GH-071, T-GH-072 |
 | `private-repo-block.yaml` | `private-repos: false` blocks access to private repository | T-GH-024, T-GH-025 |
 | `integrity-level-block.yaml` | `min-integrity: approved` blocks content below the threshold | T-GH-051, T-GH-052 |
+| `combined-filter-allow.yaml` | All access-control conditions must be jointly satisfied | T-GH-081, T-GH-082, T-GH-083 |
 
 ## Fixture Schema
 
@@ -34,6 +38,23 @@ expected:
   error_code: integer | null  # Expected MCP JSON-RPC error code on deny (e.g., -32001)
   reason: string            # Expected denial reason substring (informative)
 ```
+
+## Error Code Reference
+
+When `expected.decision` is `deny`, the fixture records the MCP JSON-RPC error code that the
+implementation MUST return. The codes used in these fixtures are:
+
+| Code | Denial Reason |
+|---|---|
+| `-32001` | Repository not on the allowlist (`repos` filter) |
+| `-32002` | User role is insufficient (`role` filter) |
+| `-32003` | Repository is private and `private-repos: false` |
+| `-32004` | User is blocked (`blocked-users` filter) |
+| `-32005` | Tool name not permitted (`allowed-tools` filter) |
+| `-32006` | Content integrity level below threshold (`min-integrity` filter) |
+
+A `null` error code in `expected.error_code` means the scenario produces an `allow` decision
+and no error is returned.
 
 ## Adding New Fixtures
 

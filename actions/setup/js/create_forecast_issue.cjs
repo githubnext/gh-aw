@@ -3,6 +3,7 @@
 
 const fs = require("node:fs");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 const FORECAST_REPORT_PATH = "./.cache/gh-aw/forecast/report.json";
 const FORECAST_ERROR_PATH = "./.cache/gh-aw/forecast/error.json";
@@ -275,7 +276,7 @@ async function main() {
       reportBody = fs.readFileSync(FORECAST_REPORT_PATH, "utf8").trim();
     } catch (error) {
       outcome = "error";
-      errorMessage = `Failed to read forecast report JSON at ${FORECAST_REPORT_PATH}: ${error.message}`;
+      errorMessage = `Failed to read forecast report JSON at ${FORECAST_REPORT_PATH}: ${getErrorMessage(error)}`;
       core.warning(errorMessage);
     }
 
@@ -284,7 +285,7 @@ async function main() {
         report = JSON.parse(reportBody);
       } catch (error) {
         outcome = "error";
-        errorMessage = `Failed to parse forecast report JSON at ${FORECAST_REPORT_PATH}: ${error.message}`;
+        errorMessage = `Failed to parse forecast report JSON at ${FORECAST_REPORT_PATH}: ${getErrorMessage(error)}`;
         core.warning(errorMessage);
       }
     } else if (!errorMessage) {
@@ -316,7 +317,7 @@ async function main() {
         errorMessage = errorPayload.message.trim();
       }
     } catch (error) {
-      core.warning(`Failed to parse forecast error JSON at ${FORECAST_ERROR_PATH}: ${error.message}`);
+      core.warning(`Failed to parse forecast error JSON at ${FORECAST_ERROR_PATH}: ${getErrorMessage(error)}`);
     }
   }
 

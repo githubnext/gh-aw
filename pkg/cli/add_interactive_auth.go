@@ -8,7 +8,6 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/styles"
 )
 
 // checkGHAuthStatus verifies the user is logged in to GitHub CLI
@@ -42,21 +41,19 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 		fmt.Fprintln(os.Stderr, "")
 
 		var userRepo string
-		form := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title("Enter the target repository (owner/repo):").
-					Description("For example: myorg/myrepo").
-					Value(&userRepo).
-					Validate(func(s string) error {
-						parts := strings.Split(s, "/")
-						if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-							return errors.New("please enter in format 'owner/repo'")
-						}
-						return nil
-					}),
-			),
-		).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+		form := console.NewInputForm(
+			huh.NewInput().
+				Title("Enter the target repository (owner/repo):").
+				Description("For example: myorg/myrepo").
+				Value(&userRepo).
+				Validate(func(s string) error {
+					parts := strings.Split(s, "/")
+					if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+						return errors.New("please enter in format 'owner/repo'")
+					}
+					return nil
+				}),
+		)
 
 		if err := form.RunWithContext(c.Ctx); err != nil {
 			return fmt.Errorf("failed to get repository info: %w", err)

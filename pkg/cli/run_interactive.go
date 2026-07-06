@@ -13,7 +13,6 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
-	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -180,17 +179,15 @@ func selectWorkflow(ctx context.Context, workflows []WorkflowOption) (*WorkflowO
 	options := sliceutil.Map(workflows, func(wf WorkflowOption) huh.Option[string] { return huh.NewOption(wf.Name, wf.Name) })
 
 	var selected string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Select a workflow to run").
-				Description("↑/↓ to navigate, / to search, Enter to select").
-				Options(options...).
-				Filtering(true).
-				Height(15).
-				Value(&selected),
-		),
-	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	form := console.NewSelectForm(
+		huh.NewSelect[string]().
+			Title("Select a workflow to run").
+			Description("↑/↓ to navigate, / to search, Enter to select").
+			Options(options...).
+			Filtering(true).
+			Height(15).
+			Value(&selected),
+	)
 
 	if err := form.RunWithContext(ctx); err != nil {
 		return nil, fmt.Errorf("workflow selection cancelled or failed: %w", err)
@@ -314,7 +311,7 @@ func collectInputsWithMap(ctx context.Context, inputs map[string]*workflow.Input
 	}
 
 	// Show the form
-	form := huh.NewForm(formGroups...).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	form := console.NewForm(formGroups...)
 	if err := form.RunWithContext(ctx); err != nil {
 		return nil, fmt.Errorf("input collection cancelled: %w", err)
 	}
@@ -343,15 +340,13 @@ func confirmExecution(ctx context.Context, wf *WorkflowOption, inputs []string) 
 		message = fmt.Sprintf("Run workflow '%s' with %d input(s)?", wf.Name, len(inputs))
 	}
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewConfirm().
-				Title(message).
-				Affirmative("Yes, run it").
-				Negative("No, cancel").
-				Value(&confirm),
-		),
-	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	form := console.NewConfirmForm(
+		huh.NewConfirm().
+			Title(message).
+			Affirmative("Yes, run it").
+			Negative("No, cancel").
+			Value(&confirm),
+	)
 
 	if err := form.RunWithContext(ctx); err != nil {
 		runInteractiveLog.Printf("Confirmation failed: %v", err)

@@ -11,7 +11,6 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -297,16 +296,14 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 	fmt.Fprintln(os.Stderr, "")
 
 	confirmed := true // Default to yes
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewConfirm().
-				Title("Do you want to proceed with these changes?").
-				Description("A pull request will be created with the workflow files").
-				Affirmative("Yes, create pull request").
-				Negative("No, cancel").
-				Value(&confirmed),
-		),
-	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	form := console.NewConfirmForm(
+		huh.NewConfirm().
+			Title("Do you want to proceed with these changes?").
+			Description("A pull request will be created with the workflow files").
+			Affirmative("Yes, create pull request").
+			Negative("No, cancel").
+			Value(&confirmed),
+	)
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("confirmation failed: %w", err)

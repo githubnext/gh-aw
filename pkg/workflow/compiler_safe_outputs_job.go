@@ -19,6 +19,41 @@ var consolidatedSafeOutputsJobLog = logger.New("workflow:compiler_safe_outputs_j
 // step starts in job.Steps (6-space indent + "- name: ").
 const stepNameLinePrefix = "      - name: "
 
+// messagesContainPreActivationRef reports whether any message template in cfg
+// contains a reference to a needs.pre_activation.outputs.* expression.
+// When true, the safe_outputs and conclusion jobs must declare pre_activation
+// in their needs so that GitHub Actions can resolve the expression at runtime.
+func messagesContainPreActivationRef(cfg *SafeOutputMessagesConfig) bool {
+	if cfg == nil {
+		return false
+	}
+	preActivationOutputsRef := "needs." + string(constants.PreActivationJobName) + ".outputs."
+	for _, field := range []string{
+		cfg.Footer,
+		cfg.FooterInstall,
+		cfg.FooterWorkflowRecompile,
+		cfg.FooterWorkflowRecompileComment,
+		cfg.StagedTitle,
+		cfg.StagedDescription,
+		cfg.ActivationComments,
+		cfg.RunStarted,
+		cfg.RunSuccess,
+		cfg.RunFailure,
+		cfg.DetectionFailure,
+		cfg.PullRequestCreated,
+		cfg.IssueCreated,
+		cfg.CommitPushed,
+		cfg.AgentFailureIssue,
+		cfg.AgentFailureComment,
+		cfg.BodyHeader,
+	} {
+		if strings.Contains(field, preActivationOutputsRef) {
+			return true
+		}
+	}
+	return false
+}
+
 // buildConsolidatedSafeOutputsJob builds a single job containing all safe output operations
 // as separate steps within that job. This reduces the number of jobs in the workflow
 // while maintaining observability through distinct step names, IDs, and outputs.
@@ -596,6 +631,19 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 			seenNeeds[need] = struct {
 			}{}
 			consolidatedSafeOutputsJobLog.Printf("Added explicit safe-outputs needs dependency to safe_outputs job: %s", need)
+		}
+	}
+
+	// If any message template references needs.pre_activation.outputs.*, add pre_activation
+	// as a dependency so that GitHub Actions can resolve the expression at runtime.
+	if data.SafeOutputs != nil && messagesContainPreActivationRef(data.SafeOutputs.Messages) {
+		if _, exists := c.jobManager.GetJob(string(constants.PreActivationJobName)); exists {
+			preActName := string(constants.PreActivationJobName)
+			if !setutil.Contains(seenNeeds, preActName) {
+				needs = append(needs, preActName)
+				seenNeeds[preActName] = struct{}{}
+				consolidatedSafeOutputsJobLog.Print("Added pre_activation dependency to safe_outputs job (messages reference pre_activation outputs)")
+			}
 		}
 	}
 

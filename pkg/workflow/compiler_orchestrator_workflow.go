@@ -3,7 +3,9 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
@@ -543,6 +545,17 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.ExperimentConfigs = extractExperimentConfigsFromFrontmatter(frontmatter)
 	workflowData.Experiments = experimentVariantsFromConfigs(workflowData.ExperimentConfigs)
 	workflowData.ExperimentsStorage = extractExperimentsStorageFromFrontmatter(frontmatter)
+
+	// Extract BinEval evals configuration.
+	evalsConfig, err := c.parseEvalsFromFrontmatter(frontmatter)
+	if err != nil {
+		return fmt.Errorf("invalid evals configuration: %w", err)
+	}
+	if evalsConfig.HasEvals() {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("evals support is experimental; job compilation is pending"))
+		c.IncrementWarningCount()
+	}
+	workflowData.Evals = evalsConfig
 
 	return nil
 }

@@ -10,7 +10,6 @@ import (
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -100,16 +99,14 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 	// Ask if user wants to run the workflow
 	fmt.Fprintln(os.Stderr, "")
 	runNow := true // Default to yes
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewConfirm().
-				Title("Would you like to run the workflow once now?").
-				Description("This will trigger the workflow immediately").
-				Affirmative("Yes, run once now").
-				Negative("No, I'll run later").
-				Value(&runNow),
-		),
-	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	form := console.NewConfirmForm(
+		huh.NewConfirm().
+			Title("Would you like to run the workflow once now?").
+			Description("This will trigger the workflow immediately").
+			Affirmative("Yes, run once now").
+			Negative("No, I'll run later").
+			Value(&runNow),
+	)
 
 	if err := form.RunWithContext(ctx); err != nil {
 		return nil // Not critical, just skip

@@ -10,6 +10,7 @@
 
 const fs = require("fs");
 const { safeInfo } = require("./sanitized_logging.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Display a single file's content in a collapsible group
@@ -65,7 +66,7 @@ function displayFileContent(filePath, fileName, maxBytes = 64 * 1024) {
     }
     core.endGroup();
   } catch (/** @type {unknown} */ error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.warning(`Could not display file ${fileName}: ${errorMessage}`);
   }
 }
@@ -98,7 +99,7 @@ function displayDirectory(dirPath, maxBytes = 64 * 1024) {
       displayFileContent(filePath, file, maxBytes);
     }
   } catch (/** @type {unknown} */ error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Error reading directory ${dirPath}: ${errorMessage}`);
   }
 

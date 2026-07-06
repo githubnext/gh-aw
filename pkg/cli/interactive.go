@@ -18,7 +18,6 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
-	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -109,16 +108,14 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
 		return b.promptForWorkflowNameFrom(os.Stdin)
 	}
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("What should we call this workflow?").
-				Description("Enter a descriptive name for your workflow (e.g., 'issue-triage', 'code-review-helper')").
-				Suggestions(commonWorkflowNames).
-				Value(&b.WorkflowName).
-				Validate(ValidateWorkflowName),
-		),
-	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	form := console.NewInputForm(
+		huh.NewInput().
+			Title("What should we call this workflow?").
+			Description("Enter a descriptive name for your workflow (e.g., 'issue-triage', 'code-review-helper')").
+			Suggestions(commonWorkflowNames).
+			Value(&b.WorkflowName).
+			Validate(ValidateWorkflowName),
+	)
 
 	return form.RunWithContext(b.ctx)
 }
@@ -210,7 +207,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 	var selectedOutputs []string
 
 	// Create form with organized groups
-	form := huh.NewForm(
+	form := console.NewForm(
 		// Group 1: Basic Configuration
 		huh.NewGroup(
 			huh.NewSelect[string]().
@@ -267,7 +264,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		).
 			Title("Instructions").
 			Description("Describe what you want this workflow to accomplish"),
-	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	)
 
 	if err := form.RunWithContext(b.ctx); err != nil {
 		return err
@@ -498,15 +495,13 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 	// Check if destination file already exists
 	if _, err := os.Stat(destFile); err == nil && !force {
 		var overwrite bool
-		confirmForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewConfirm().
-					Title(fmt.Sprintf("Workflow file '%s' already exists. Overwrite?", filepath.Base(destFile))).
-					Affirmative("Yes, overwrite").
-					Negative("No, cancel").
-					Value(&overwrite),
-			),
-		).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+		confirmForm := console.NewConfirmForm(
+			huh.NewConfirm().
+				Title(fmt.Sprintf("Workflow file '%s' already exists. Overwrite?", filepath.Base(destFile))).
+				Affirmative("Yes, overwrite").
+				Negative("No, cancel").
+				Value(&overwrite),
+		)
 
 		if err := confirmForm.Run(); err != nil {
 			return fmt.Errorf("confirmation failed: %w", err)

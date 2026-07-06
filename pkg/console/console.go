@@ -180,6 +180,15 @@ func formatInfoMessageWithTTY(message string, ttyCheck func() bool) string {
 	return applyStyleWithTTY(styles.Info, "i ", ttyCheck) + message
 }
 
+// FormatTableHeaderStderr formats table header text for stderr output.
+func FormatTableHeaderStderr(text string) string {
+	return formatTableHeaderWithTTY(text, isStderrTTY)
+}
+
+func formatTableHeaderWithTTY(text string, ttyCheck func() bool) string {
+	return applyStyleWithTTY(styles.TableHeader, text, ttyCheck)
+}
+
 // FormatWarningMessage formats a warning message
 func FormatWarningMessage(message string) string {
 	return applyStyle(styles.Warning, "⚠ ") + message
@@ -295,7 +304,16 @@ func formatListItemWithTTY(item string, ttyCheck func() bool) string {
 
 // FormatErrorMessage formats a simple error message (for stderr output)
 func FormatErrorMessage(message string) string {
-	return applyStyle(styles.Error, "✗ ") + message
+	return applyStyleWithTTY(styles.Error, "✗ ", isStderrTTY) + message
+}
+
+// FormatErrorTextStderr formats plain error-styled text for stderr output.
+func FormatErrorTextStderr(text string) string {
+	return formatErrorTextWithTTY(text, isStderrTTY)
+}
+
+func formatErrorTextWithTTY(text string, ttyCheck func() bool) string {
+	return applyStyleWithTTY(styles.Error, text, ttyCheck)
 }
 
 // FormatErrorChain formats an error and its full unwrapped chain in a reading-friendly way.

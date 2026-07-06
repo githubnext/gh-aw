@@ -304,7 +304,7 @@ async function main(config = {}) {
   if (rawCloseOlderKey && !closeOlderKey) {
     throw new Error(`${ERR_VALIDATION}: close-older-key "${rawCloseOlderKey}" is invalid: it must contain at least one alphanumeric character after normalization`);
   }
-  if (isNaN(minBodyLength) || minBodyLength < 0) {
+  if (Number.isNaN(minBodyLength) || minBodyLength < 0) {
     throw new Error(`${ERR_VALIDATION}: min_body_length must be a non-negative integer (got: ${config.min_body_length})`);
   }
   const includeFooter = parseBoolTemplatable(config.footer, true);

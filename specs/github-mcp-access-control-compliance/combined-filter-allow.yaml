@@ -1,0 +1,121 @@
+# Combined Multi-Filter Allow — Compliance Fixture
+# Tests: T-GH-081, T-GH-082, T-GH-083
+# Spec: §10 Combined Condition Evaluation
+
+fixture_id: "combined-filter-allow"
+description: >
+  When multiple access control conditions are present (repository scope, role filter,
+  private-repos, min-integrity), ALL conditions MUST be satisfied for a request to be
+  allowed (T-GH-081). Failure of any single condition MUST produce a deny decision
+  even when all other conditions are satisfied (T-GH-082). The deny error code MUST
+  correspond to the first failing condition in evaluation order (T-GH-083).
+
+spec_refs:
+  - "§10 — Combined conditions require all to be satisfied for allow"
+  - "§10.1 — T-GH-081: request satisfying all conditions is allowed"
+  - "§10.2 — T-GH-082: request failing any single condition is denied"
+  - "§10.3 — T-GH-083: error code reflects the failing condition type"
+
+scenarios:
+  # --- Scenario A: all conditions satisfied → allowed ---
+  - scenario_id: "combined-filter-allow-A"
+    description: "Request satisfying all four conditions (repo, role, visibility, integrity) is allowed"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        private-repos: true
+        min-integrity: "approved"
+      request:
+        repository: "github/gh-aw"
+        user_role: "write"
+        is_private: true
+        content_integrity: "approved"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""
+
+  # --- Scenario B: repo condition fails → denied ---
+  - scenario_id: "combined-filter-allow-B"
+    description: "Request with wrong repository is denied even when role, visibility, and integrity match"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        private-repos: true
+        min-integrity: "approved"
+      request:
+        repository: "github/other-repo"
+        user_role: "write"
+        is_private: true
+        content_integrity: "approved"
+    expected:
+      decision: deny
+      error_code: -32001
+      reason: "repository not in allowed list"
+
+  # --- Scenario D: role condition fails → denied ---
+  - scenario_id: "combined-filter-allow-D"
+    description: "Request with insufficient role is denied even when repo, visibility, and integrity match"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        private-repos: true
+        min-integrity: "approved"
+      request:
+        repository: "github/gh-aw"
+        user_role: "read"
+        is_private: true
+        content_integrity: "approved"
+    expected:
+      decision: deny
+      error_code: -32002
+      reason: "user role does not meet minimum required role"
+
+  # --- Scenario E: private-repos condition fails → denied ---
+  - scenario_id: "combined-filter-allow-E"
+    description: "Request targeting a public repo is denied when private-repos=true requires a private repository"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        private-repos: true
+        min-integrity: "approved"
+      request:
+        repository: "github/gh-aw"
+        user_role: "write"
+        is_private: false
+        content_integrity: "approved"
+    expected:
+      decision: deny
+      error_code: -32003
+      reason: "repository visibility does not satisfy private-repos requirement"
+  - scenario_id: "combined-filter-allow-C"
+    description: "Request with insufficient integrity is denied even when repo, role, and visibility match"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        private-repos: true
+        min-integrity: "approved"
+      request:
+        repository: "github/gh-aw"
+        user_role: "write"
+        is_private: true
+        content_integrity: "none"
+    expected:
+      decision: deny
+      error_code: -32006
+      reason: "content integrity below minimum required level"

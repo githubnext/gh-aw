@@ -23,6 +23,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/charts.md`
 - `.github/aw/cli-commands.md`
 - `.github/aw/context.md`
+- `.github/aw/create-agentic-workflow-trigger-details.md`
 - `.github/aw/create-agentic-workflow.md`
 - `.github/aw/create-shared-agentic-workflow.md`
 - `.github/aw/debug-agentic-workflow.md`

@@ -266,6 +266,96 @@ func TestBuildConsolidatedSafeOutputsJobNeedsIncludesConfiguredDependencies(t *t
 	assert.Equal(t, 1, secretsFetcherCount, "duplicate configured dependencies should be deduplicated")
 }
 
+// TestBuildConsolidatedSafeOutputsJobNeedsPreActivationFromMessages tests that
+// pre_activation is automatically added to the safe_outputs job's needs when any
+// message template references needs.pre_activation.outputs.*.
+func TestBuildConsolidatedSafeOutputsJobNeedsPreActivationFromMessages(t *testing.T) {
+	tests := []struct {
+		name              string
+		messages          *SafeOutputMessagesConfig
+		registerPreAct    bool
+		expectPreActNeeds bool
+	}{
+		{
+			name: "adds pre_activation when Footer references its outputs",
+			messages: &SafeOutputMessagesConfig{
+				Footer: "Skill: ${{ needs.pre_activation.outputs.skill_name }}",
+			},
+			registerPreAct:    true,
+			expectPreActNeeds: true,
+		},
+		{
+			name: "adds pre_activation when RunSuccess references its outputs",
+			messages: &SafeOutputMessagesConfig{
+				RunSuccess: "Done — skill: ${{ needs.pre_activation.outputs.skill_name }}",
+			},
+			registerPreAct:    true,
+			expectPreActNeeds: true,
+		},
+		{
+			name: "does not add pre_activation when messages have no reference",
+			messages: &SafeOutputMessagesConfig{
+				Footer: "No expression here",
+			},
+			registerPreAct:    true,
+			expectPreActNeeds: false,
+		},
+		{
+			name: "does not add pre_activation when job is not registered",
+			messages: &SafeOutputMessagesConfig{
+				Footer: "Skill: ${{ needs.pre_activation.outputs.skill_name }}",
+			},
+			registerPreAct:    false,
+			expectPreActNeeds: false,
+		},
+		{
+			name:              "does not add pre_activation when messages is nil",
+			messages:          nil,
+			registerPreAct:    true,
+			expectPreActNeeds: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.jobManager = NewJobManager()
+
+			if tt.registerPreAct {
+				preActJob := &Job{Name: string(constants.PreActivationJobName)}
+				require.NoError(t, compiler.jobManager.AddJob(preActJob))
+			}
+
+			workflowData := &WorkflowData{
+				Name: "Test Workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues: &CreateIssuesConfig{TitlePrefix: "[Test] "},
+					Messages:     tt.messages,
+				},
+			}
+
+			job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test.md")
+			require.NoError(t, err)
+			require.NotNil(t, job)
+
+			preActName := string(constants.PreActivationJobName)
+			if tt.expectPreActNeeds {
+				assert.Contains(t, job.Needs, preActName, "safe_outputs job should depend on pre_activation when messages reference its outputs")
+				// Ensure no duplicate
+				count := 0
+				for _, n := range job.Needs {
+					if n == preActName {
+						count++
+					}
+				}
+				assert.Equal(t, 1, count, "pre_activation should appear exactly once in needs")
+			} else {
+				assert.NotContains(t, job.Needs, preActName, "safe_outputs job should not depend on pre_activation when messages don't reference its outputs")
+			}
+		})
+	}
+}
+
 // TestBuildConsolidatedSafeOutputsJobTimeoutMinutes tests that the timeout-minutes field
 // is correctly applied to the safe_outputs job, with 45 minutes as the default.
 func TestBuildConsolidatedSafeOutputsJobTimeoutMinutes(t *testing.T) {

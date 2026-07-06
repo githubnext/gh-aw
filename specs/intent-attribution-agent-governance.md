@@ -33,6 +33,45 @@ The central principle is:
 
 The system does not claim that GitHub labels or merged pull requests prove business impact, ROI, or realized customer value.
 
+## Conformance
+
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
+
+### RFC 2119 Norms
+
+#### Attribution-Resolution Order
+
+An implementation MUST resolve attribution in the following precedence order:
+
+1. Explicit intent metadata attached to the artifact (`ExplicitIntent` on the pull request).
+2. A single closing issue linked to the pull request.
+3. Pull request labels used as an artifact-label fallback when no closing issue is present.
+
+An implementation MUST NOT skip earlier sources in favor of later sources unless the earlier source is unavailable or explicitly absent.
+
+An implementation MUST NOT mix sources across precedence levels for a single attribution record. Each record MUST be attributed to exactly one source.
+
+#### Ambiguous-Root Handling
+
+An implementation MUST produce an `ambiguous` attribution when two or more distinct closing issues are linked to the same pull request and no explicit intent override is present.
+
+An implementation MUST NOT resolve ambiguity by arbitrary selection (e.g., first, last, or random issue).
+
+An ambiguous attribution MUST be recorded with `status: "ambiguous"` and `source: "closing_issue"`.
+
+An ambiguous attribution MUST NOT be treated as equivalent to a mapped attribution for reporting or authorization purposes.
+
+#### Fail-Closed Behavior
+
+An implementation MUST apply the safest available execution policy when the intent is `unlinked`, `ambiguous`, or otherwise indeterminate.
+
+The safest available policy MUST be: autonomy `propose_only`, write scope `none`, `human_approval_required: true`, `auto_merge_allowed: false`, `max_attempts: 1`.
+
+An implementation MUST NOT grant elevated authority based on absent or unresolved attribution.
+
+A policy decision MUST be deterministic: given identical attribution inputs, the same policy MUST always be produced.
+
+
 ## Current implementation
 
 The existing implementation provides the initial attribution and reporting foundation:
@@ -291,7 +330,116 @@ Separating dimensions prevents initiatives, priorities, domains, and risk labels
 
 Only the configured scoring dimension contributes to weight.
 
-## Intent record
+### `.github/intent-policy.json` Schema
+
+The future `.github/intent-policy.json` configuration file supersedes `.github/objective-mapping.json` for repositories that require policy governance in addition to attribution.
+
+**Top-level fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `version` | integer | Yes | Schema version. Current stable value: `1`. |
+| `labels` | object | Yes | Map of GitHub label name → label descriptor (see below). |
+| `scoring` | object | No | Scoring strategy for weighted attribution reporting. |
+| `attribution` | object | No | Attribution-resolution behaviour overrides. |
+| `rules` | array | No | Ordered policy rules compiled into an `ExecutionPolicy`. |
+
+**`labels` descriptor fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `dimension` | string | Yes | One of `"priority"`, `"domain"`, `"risk"`, `"initiative"`. Controls which axis the label belongs to. |
+| `value` | string | Yes | Canonical value for this label within its dimension (e.g., `"critical"`, `"security"`). |
+| `weight` | integer | No | Numeric weight for scoring. Only meaningful on the active scoring dimension. |
+
+**`scoring` fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `dimension` | string | Yes | The dimension used for weight computation (e.g., `"priority"`). |
+| `strategy` | string | Yes | One of `"max"` (use the highest weight found) or `"sum"` (add all weights). |
+
+**`attribution` fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `multiple_roots` | string | No | Behaviour when multiple closing issues are found. `"ambiguous"` (default) or `"first"`. MUST be `"ambiguous"` for governance use. |
+| `allow_artifact_label_fallback` | boolean | No | Whether PR labels may be used when no closing issue is present. Default: `true`. |
+
+**`rules` array element fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Stable unique identifier for the rule (e.g., `"security-critical"`). Used in policy decision provenance. |
+| `scope` | string | No | Hint for evaluation ordering: `"organization"`, `"repository"`, `"intent"`, or `"workflow"`. Rules MUST be listed from highest to lowest precedence. |
+| `when` | object | No | Match conditions. All specified fields must match. An empty `when` matches all intents. |
+| `set` | object | Yes | `ExecutionPolicy` fragment to merge when the rule matches. |
+
+**`when` match condition fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `domain` | string | Match if any label with `dimension: "domain"` has this value. |
+| `priority` | string | Match if any label with `dimension: "priority"` has this value. |
+| `risk` | string | Match if any label with `dimension: "risk"` has this value. |
+| `org` | string | Match if the repository's owner or org equals this value. |
+
+**`set` ExecutionPolicy fragment fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `autonomy` | string | `"propose_only"`, `"supervised"`, or `"bounded"`. |
+| `write_scope` | string | `"none"`, `"feature_branch"`, or `"any_branch"`. |
+| `allowed_tools` | array of string | Tool names the agent may call. Empty means unrestricted. |
+| `denied_tools` | array of string | Tool names the agent must never call. Union with higher-precedence denials. |
+| `required_checks` | array of string | Check names that must pass before completion. Union with higher-precedence checks. |
+| `human_approval_required` | boolean | Whether a human must approve before the agent proceeds with write operations. |
+| `auto_merge_allowed` | boolean | Whether the agent may auto-merge pull requests after checks pass. |
+| `max_attempts` | integer | Maximum number of times the agent may retry the workflow. |
+
+**Example `.github/intent-policy.json`:**
+
+```json
+{
+  "version": 1,
+  "labels": {
+    "critical": { "dimension": "priority", "value": "critical", "weight": 100 },
+    "p1":       { "dimension": "priority", "value": "high",     "weight": 50  },
+    "security": { "dimension": "domain",   "value": "security"                },
+    "documentation": { "dimension": "domain", "value": "documentation"        }
+  },
+  "scoring": { "dimension": "priority", "strategy": "max" },
+  "attribution": { "multiple_roots": "ambiguous", "allow_artifact_label_fallback": true },
+  "rules": [
+    {
+      "id": "security-critical",
+      "scope": "intent",
+      "when": { "domain": "security", "priority": "critical" },
+      "set": {
+        "autonomy": "supervised",
+        "human_approval_required": true,
+        "auto_merge_allowed": false,
+        "required_checks": ["unit-tests", "security-tests"],
+        "max_attempts": 2
+      }
+    },
+    {
+      "id": "documentation-safe",
+      "scope": "intent",
+      "when": { "domain": "documentation" },
+      "set": {
+        "autonomy": "bounded",
+        "write_scope": "feature_branch",
+        "human_approval_required": false,
+        "auto_merge_allowed": true,
+        "required_checks": ["docs-build"],
+        "max_attempts": 3
+      }
+    }
+  ]
+}
+```
+
 
 ```go
 type IntentRecord struct {
@@ -743,7 +891,26 @@ func (a *Authorizer) AuthorizeTool(
 
 The agent must not be able to modify or expand its own policy.
 
-## Outcome evaluation
+### `Authorizer.AuthorizeTool` Implementation Audit
+
+The `AuthorizeTool` function as specified in this section is **not yet implemented** in the Go orchestrator. The following table documents which fields of `ExecutionPolicy` are wired to runtime enforcement and which remain unused.
+
+| `ExecutionPolicy` field | Wired to enforcement? | Notes |
+|---|---|---|
+| `AllowedTools` | **Not wired** | The `pkg/intent` package implements `PolicyCompiler.Compile()` and `mergePolicy()` for this field, but no orchestrator calls `AuthorizeTool` at tool-call time. |
+| `DeniedTools` | **Not wired** | Same as `AllowedTools` — present in the spec and policy model, not enforced at runtime. |
+| `Autonomy` | **Not wired** | The autonomy level is compiled into the policy but not checked against actual workflow capabilities at execution time. |
+| `WriteScope` | **Not wired** | Defined in the policy model; no runtime enforcement in the Go orchestrator. |
+| `HumanApprovalRequired` | **Not wired** | Defined in policy model; human approval gates are not currently tied to `ExecutionPolicy`. |
+| `AutoMergeAllowed` | **Not wired** | Not enforced by the orchestrator. |
+| `RequiredChecks` | **Not wired** | Not checked before workflow execution. |
+| `MaxAttempts` | **Not wired** | Not enforced at the orchestrator level. |
+| `RuleIDs` | **Provenance only** | Recorded in the policy for auditing; not used to gate execution. |
+
+**Risk**: Policy constraints defined in `.github/intent-policy.json` (or the equivalent `rules` array) have no runtime effect until the orchestrator is wired to call `AuthorizeTool` and enforce `WriteScope`, `HumanApprovalRequired`, and `RequiredChecks`. Any policy compiled by `PolicyCompiler.Compile()` today is purely advisory.
+
+**Required follow-up**: Implement `Authorizer.AuthorizeTool` in `pkg/intent` or a new `pkg/intent/authz` sub-package and wire it into the execution path. Gate enforcement behind a feature flag until the policy model is validated in production.
+
 
 Initial observable rules:
 

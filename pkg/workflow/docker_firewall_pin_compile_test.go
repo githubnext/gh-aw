@@ -142,10 +142,10 @@ Test workflow.`
 	yamlStr := string(yaml)
 
 	expectedPins := map[string]string{
-		"ghcr.io/github/gh-aw-firewall/agent:" + imageTag:     "sha256:55f06588411008b7148eb64b8dfe28602a0cce3675b36c6b190b54aca138468e",
-		"ghcr.io/github/gh-aw-firewall/api-proxy:" + imageTag: "sha256:afb9ff9140b17d38871dfb9dbac5ff8689ea634c2f91c435da2825192d4881c1",
-		"ghcr.io/github/gh-aw-firewall/cli-proxy:" + imageTag: "sha256:e23e1604241f579b418e6522d938285b57ada31bc27742a65c90ee2250b1755c",
-		"ghcr.io/github/gh-aw-firewall/squid:" + imageTag:     "sha256:3cdcc1e2b4b4fe602ba69fd3e21aac7ac512d5c1fce24df4ce69dc4f98164b59",
+		"ghcr.io/github/gh-aw-firewall/agent:" + imageTag:     "sha256:b283b1f037d2e068532fe178a06f2944696c3933ba11604979134e7896ac6f8c",
+		"ghcr.io/github/gh-aw-firewall/api-proxy:" + imageTag: "sha256:1743dbac9bf4225f3acfdcbce4f77f5a3e61e22b2e929305525f00196693c015",
+		"ghcr.io/github/gh-aw-firewall/cli-proxy:" + imageTag: "sha256:6006b1c579ca550e023697b5dfd832ae03361328a4c0f2eb49fb181a6b8d7a4b",
+		"ghcr.io/github/gh-aw-firewall/squid:" + imageTag:     "sha256:d4647c3bfaf80889eb1dbd3d4e2063340cbf94c0ca6c5747bbfc8507b12f3485",
 	}
 
 	for image, digest := range expectedPins {
@@ -164,10 +164,10 @@ Test workflow.`
 	for _, imageTagPart := range []string{
 		`imageTag`,
 		imageTag + `,`,
-		`agent=sha256:55f06588411008b7148eb64b8dfe28602a0cce3675b36c6b190b54aca138468e`,
-		`api-proxy=sha256:afb9ff9140b17d38871dfb9dbac5ff8689ea634c2f91c435da2825192d4881c1`,
-		`cli-proxy=sha256:e23e1604241f579b418e6522d938285b57ada31bc27742a65c90ee2250b1755c`,
-		`squid=sha256:3cdcc1e2b4b4fe602ba69fd3e21aac7ac512d5c1fce24df4ce69dc4f98164b59`,
+		`agent=sha256:b283b1f037d2e068532fe178a06f2944696c3933ba11604979134e7896ac6f8c`,
+		`api-proxy=sha256:1743dbac9bf4225f3acfdcbce4f77f5a3e61e22b2e929305525f00196693c015`,
+		`cli-proxy=sha256:6006b1c579ca550e023697b5dfd832ae03361328a4c0f2eb49fb181a6b8d7a4b`,
+		`squid=sha256:d4647c3bfaf80889eb1dbd3d4e2063340cbf94c0ca6c5747bbfc8507b12f3485`,
 	} {
 		if !strings.Contains(yamlStr, imageTagPart) {
 			t.Errorf("Expected AWF config JSON to include %s", imageTagPart)

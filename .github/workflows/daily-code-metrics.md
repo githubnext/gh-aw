@@ -152,7 +152,7 @@ All charts save to `/tmp/gh-aw/python/charts/<filename>`.
 
 ### Python Script
 
-Use `figsize=(12, 7)`, DPI 300, `ax.grid(True, alpha=0.3)` (see `python-dataviz.md` for full chart setup and upload pattern). Create a script that:
+Use `figsize=(12, 7)` (see `python-dataviz.md` for full chart setup and upload pattern). Create a script that:
 
 1. Reads variant from `GH_AW_EXPERIMENTS_OUTPUT_FORMAT`
 2. Loads historical data from `/tmp/gh-aw/repo-memory/default/history.jsonl` and current metrics from `/tmp/gh-aw/python/data/current_metrics.json`

@@ -67,7 +67,7 @@ function parseListEnv(envValue) {
 async function getCurrentRunCheckRunIds(owner, repo, runId) {
   if (!runId) return new Set();
   const numericRunId = parseInt(runId, 10);
-  if (isNaN(numericRunId)) return new Set();
+  if (Number.isNaN(numericRunId)) return new Set();
   try {
     const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
       owner,

@@ -105,6 +105,8 @@ var outcomeEvaluators = map[string]outcomeEvaluator{
 	"push_to_pull_request_branch":           evalPushToPRBranch,
 	"add_reviewer":                          evalAddReviewer,
 	"submit_pull_request_review":            evalSubmitPullRequestReview,
+	"dispatch_workflow":                     evalDispatchWorkflow,
+	"update_discussion":                     evalUpdateDiscussion,
 }
 
 // EvaluateOutcomes checks the current state of all safe output items from a run.

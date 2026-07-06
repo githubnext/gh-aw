@@ -370,7 +370,7 @@ async function runLogParser(options) {
       core.setFailed(`${ERR_VALIDATION}: Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
     }
   } catch (error) {
-    core.setFailed(`${ERR_API}: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`${ERR_API}: ${getErrorMessage(error)}`);
   }
 }
 

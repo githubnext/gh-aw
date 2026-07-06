@@ -83,24 +83,24 @@ type orgRunCallbacks struct {
 }
 
 func renderOrgActionSummary(preview orgRepoPreview, action string) {
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Ready to "+action))
-	fmt.Fprintf(os.Stderr, "  - Repository: %s\n", preview.Repo)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Ready to "+action))
+	fmt.Fprintln(os.Stderr, console.FormatListItemStderr("Repository: "+preview.Repo))
 	if preview.TotalWorkflows > 0 {
-		fmt.Fprintf(os.Stderr, "  - Workflows: %d\n", preview.TotalWorkflows)
+		fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("Workflows: %d", preview.TotalWorkflows)))
 	}
 	if len(preview.Workflows) > 0 {
-		fmt.Fprintln(os.Stderr, "  - Pending workflow updates:")
+		fmt.Fprintln(os.Stderr, console.FormatListItemStderr("Pending workflow updates:"))
 		for _, wf := range preview.Workflows {
-			fmt.Fprintf(os.Stderr, "    - %s: %s -> %s\n", wf.Name, wf.CurrentRef, wf.LatestRef)
+			fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("%s: %s -> %s", wf.Name, wf.CurrentRef, wf.LatestRef)))
 		}
 	}
 	currentVersion := normalizeDisplayVersion(preview.CurrentVersion)
 	targetVersion := normalizeDisplayVersion(GetVersion())
 	if currentVersion != "" {
 		if targetVersion != "" && targetVersion != currentVersion {
-			fmt.Fprintf(os.Stderr, "  - Compiler version: %s -> %s\n", currentVersion, targetVersion)
+			fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("Compiler version: %s -> %s", currentVersion, targetVersion)))
 		} else {
-			fmt.Fprintf(os.Stderr, "  - Compiler version: %s\n", currentVersion)
+			fmt.Fprintln(os.Stderr, console.FormatListItemStderr("Compiler version: "+currentVersion))
 		}
 	}
 }

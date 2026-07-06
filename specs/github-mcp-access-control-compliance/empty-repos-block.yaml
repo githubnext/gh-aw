@@ -1,0 +1,45 @@
+# Empty Repos Block — Compliance Fixture
+# Tests: T-GH-015, T-GH-016
+# Spec: §5 Repository Scoping, §5.3 Empty or Absent Repository List
+
+fixture_id: "empty-repos-block"
+description: >
+  When the `repos` list is absent or empty, the tool configuration MUST deny access
+  to all repositories (T-GH-015, T-GH-016). An absent repos field is equivalent to
+  an empty allow-list: no repository matches and every request is denied.
+
+spec_refs:
+  - "§5.3 — An absent or empty repos list MUST deny all repository access"
+  - "§5.3 — T-GH-015: absent repos list denies access"
+  - "§5.3 — T-GH-016: empty repos list denies access"
+
+scenarios:
+  # --- Scenario A: absent repos field denies all repositories ---
+  - scenario_id: "empty-repos-block-A"
+    description: "Tool config with no repos field denies request for any repository"
+    input:
+      tool_config:
+        # repos field is intentionally absent
+        min-integrity: "unapproved"
+      request:
+        repository: "github/gh-aw"
+        content_integrity: "unapproved"
+    expected:
+      decision: deny
+      error_code: -32001
+      reason: "repository not in allowed list"
+
+  # --- Scenario B: empty repos list denies all repositories ---
+  - scenario_id: "empty-repos-block-B"
+    description: "Tool config with an empty repos: [] denies request for any repository"
+    input:
+      tool_config:
+        repos: []
+        min-integrity: "unapproved"
+      request:
+        repository: "github/gh-aw"
+        content_integrity: "unapproved"
+    expected:
+      decision: deny
+      error_code: -32001
+      reason: "repository not in allowed list"

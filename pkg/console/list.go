@@ -8,7 +8,6 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
 )
 
@@ -43,14 +42,12 @@ func ShowInteractiveList(title string, items []ListItem) (string, error) {
 	}
 
 	var selected string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title(title).
-				Options(opts...).
-				Value(&selected),
-		),
-	).WithTheme(styles.HuhTheme).WithAccessible(IsAccessibleMode())
+	form := NewSelectForm(
+		huh.NewSelect[string]().
+			Title(title).
+			Options(opts...).
+			Value(&selected),
+	)
 
 	if err := form.Run(); err != nil {
 		listLog.Printf("Error running list form: %v", err)

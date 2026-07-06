@@ -517,14 +517,14 @@
   },
   {
     "name": "dismiss_pull_request_review",
-    "description": "Use this tool to dismiss a pull request review when the review is stale after automated updates. The review must be authored by the same workflow actor who is dismissing it. By default, the actor is inferred from the current GitHub Actions context (github.actor / GITHUB_ACTOR). You must provide a justification of at least 20 characters.",
+    "description": "Use this tool to dismiss a pull request review when the review is stale after automated updates. The review must be authored by the same workflow actor who is dismissing it. By default, the actor is inferred from the current GitHub Actions context (github.actor / GITHUB_ACTOR). If review_id is omitted, all dismissible reviews by the current actor are dismissed automatically. You must provide a justification of at least 20 characters.",
     "inputSchema": {
       "type": "object",
-      "required": ["review_id", "justification"],
+      "required": ["justification"],
       "properties": {
         "review_id": {
           "type": ["number", "string"],
-          "description": "Numeric pull request review ID to dismiss (for example, 123456789).",
+          "description": "Numeric pull request review ID to dismiss (for example, 123456789), or 'auto' to dismiss all dismissible (APPROVED or CHANGES_REQUESTED) reviews authored by the current workflow actor. Defaults to 'auto' when omitted.",
           "x-synonyms": ["reviewId"]
         },
         "justification": {

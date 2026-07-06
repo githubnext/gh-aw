@@ -704,7 +704,7 @@ async function main(config = {}) {
         } else {
           // It's a real issue number
           const parsed = parseInt(withoutHash, 10);
-          if (!isNaN(parsed)) {
+          if (!Number.isNaN(parsed)) {
             effectiveParentIssueNumber = parsed;
           } else {
             core.warning(`Invalid parent value: ${message.parent}. Expected either a valid temporary ID (format: aw_XXXXXXXXXXXX where X is a hex digit) or a numeric issue number.`);
@@ -1224,7 +1224,7 @@ async function main(config = {}) {
             });
             core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
           } catch (commentError) {
-            core.info(`Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`);
+            core.info(`Warning: Could not add comment to parent issue: ${getErrorMessage(commentError)}`);
           }
         }
       } else if (effectiveParentIssueNumber && effectiveParentRepo !== qualifiedItemRepo) {

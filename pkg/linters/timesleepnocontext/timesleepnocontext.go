@@ -53,11 +53,11 @@ func run(pass *analysis.Pass) (any, error) {
 
 		for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
 			funcNode := encl.Node()
-			funcType := enclosingFuncType(funcNode)
+			funcType := astutil.EnclosingFuncType(funcNode)
 			if funcType == nil {
 				continue
 			}
-			ctxParamName, hasCtx := contextParamName(pass, funcType)
+			ctxParamName, hasCtx := astutil.ContextParamName(pass, funcType)
 			if !hasCtx {
 				if _, isFuncLit := funcNode.(*ast.FuncLit); isFuncLit && !isGoOrDeferClosure(encl) {
 					break
@@ -140,53 +140,4 @@ func isTimeSleepCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 		return false
 	}
 	return pkgName.Imported().Path() == "time"
-}
-
-func enclosingFuncType(node ast.Node) *ast.FuncType {
-	switch fn := node.(type) {
-	case *ast.FuncDecl:
-		return fn.Type
-	case *ast.FuncLit:
-		return fn.Type
-	default:
-		return nil
-	}
-}
-
-// contextParamName returns the name of the first context.Context parameter
-// in fn, and true, or "", false if none exists.
-func contextParamName(pass *analysis.Pass, fn *ast.FuncType) (string, bool) {
-	if fn == nil || fn.Params == nil {
-		return "", false
-	}
-	ctxType := contextContextType(pass)
-	if ctxType == nil {
-		return "", false
-	}
-	for _, field := range fn.Params.List {
-		t := pass.TypesInfo.TypeOf(field.Type)
-		if t == nil || !types.Identical(t, ctxType) {
-			continue
-		}
-		for _, name := range field.Names {
-			if name.Name != "_" {
-				return name.Name, true
-			}
-		}
-	}
-	return "", false
-}
-
-// contextContextType returns the types.Type for context.Context, or nil if
-// the context package is not imported.
-func contextContextType(pass *analysis.Pass) types.Type {
-	for _, pkg := range pass.Pkg.Imports() {
-		if pkg.Path() == "context" {
-			obj := pkg.Scope().Lookup("Context")
-			if obj != nil {
-				return obj.Type()
-			}
-		}
-	}
-	return nil
 }

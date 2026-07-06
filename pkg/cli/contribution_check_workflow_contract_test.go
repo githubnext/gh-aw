@@ -32,4 +32,5 @@ func TestContributionCheckWorkflowSafeOutputContract(t *testing.T) {
 	assert.Contains(t, text, "#<temporary_id>", "Workflow must describe item_number temporary_id reference format")
 	assert.Contains(t, text, "Never emit `add_comment` without a numeric target field", "Workflow must forbid targetless add_comment items")
 	assert.Contains(t, text, "\"issue_number\":35304", "Workflow should include a concrete add_comment issue_number example")
+	assert.Contains(t, text, "model: small", "Workflow should require small model for contribution-checker subagent calls")
 }

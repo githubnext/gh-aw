@@ -10,7 +10,6 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
 )
 
@@ -29,15 +28,13 @@ func ConfirmAction(title, affirmative, negative string) (bool, error) {
 
 	var confirmed bool
 
-	confirmForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewConfirm().
-				Title(title).
-				Affirmative(affirmative).
-				Negative(negative).
-				Value(&confirmed),
-		),
-	).WithTheme(styles.HuhTheme).WithAccessible(IsAccessibleMode())
+	confirmForm := NewConfirmForm(
+		huh.NewConfirm().
+			Title(title).
+			Affirmative(affirmative).
+			Negative(negative).
+			Value(&confirmed),
+	)
 
 	if err := confirmForm.Run(); err != nil {
 		confirmLog.Printf("Error running confirm form: %v", err)

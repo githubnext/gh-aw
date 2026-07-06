@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 const MAX_FRONTMATTER_HASH_INPUT_BYTES = 1 << 20; // 1 MiB
 
@@ -526,7 +527,7 @@ function createGitHubFileReader(github, owner, repo, ref) {
 
       return response.data.content;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       throw new Error(`${ERR_SYSTEM}: Failed to read file ${filePath} from GitHub: ${errorMessage}`);
     }
   };

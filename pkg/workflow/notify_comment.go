@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -61,6 +62,17 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
 	needs := buildConclusionJobNeeds(data, mainJobName, safeOutputJobNames)
+	// If any message template references needs.pre_activation.outputs.*, add pre_activation
+	// as a dependency so that GitHub Actions can resolve the expression at runtime.
+	if data.SafeOutputs != nil && messagesContainPreActivationRef(data.SafeOutputs.Messages) {
+		if _, exists := c.jobManager.GetJob(string(constants.PreActivationJobName)); exists {
+			preActName := string(constants.PreActivationJobName)
+			if !slices.Contains(needs, preActName) {
+				needs = append(needs, preActName)
+				notifyCommentLog.Print("Added pre_activation dependency to conclusion job (messages reference pre_activation outputs)")
+			}
+		}
+	}
 	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
 	return &Job{
 		Name:        "conclusion",

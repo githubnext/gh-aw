@@ -175,7 +175,7 @@ async function main(config = {}) {
       // For target "*", we need an explicit PR number from the comment item
       if (commentItem.pull_request_number) {
         pullRequestNumber = parseInt(commentItem.pull_request_number, 10);
-        if (isNaN(pullRequestNumber) || pullRequestNumber <= 0) {
+        if (Number.isNaN(pullRequestNumber) || pullRequestNumber <= 0) {
           core.warning(`Invalid pull request number specified: ${commentItem.pull_request_number}`);
           return {
             success: false,
@@ -192,7 +192,7 @@ async function main(config = {}) {
     } else if (commentTarget && commentTarget !== "triggering") {
       // Explicit PR number specified in target
       pullRequestNumber = parseInt(commentTarget, 10);
-      if (isNaN(pullRequestNumber) || pullRequestNumber <= 0) {
+      if (Number.isNaN(pullRequestNumber) || pullRequestNumber <= 0) {
         core.warning(`Invalid pull request number in target configuration: ${commentTarget}`);
         return {
           success: false,
@@ -256,7 +256,7 @@ async function main(config = {}) {
 
     // Parse line numbers
     const line = parseInt(commentItem.line, 10);
-    if (isNaN(line) || line <= 0) {
+    if (Number.isNaN(line) || line <= 0) {
       core.warning(`Invalid line number: ${commentItem.line}`);
       return {
         success: false,
@@ -267,7 +267,7 @@ async function main(config = {}) {
     let startLine = undefined;
     if (commentItem.start_line) {
       startLine = parseInt(commentItem.start_line, 10);
-      if (isNaN(startLine) || startLine <= 0 || startLine > line) {
+      if (Number.isNaN(startLine) || startLine <= 0 || startLine > line) {
         core.warning(`Invalid start_line number: ${commentItem.start_line} (must be <= line: ${line})`);
         return {
           success: false,

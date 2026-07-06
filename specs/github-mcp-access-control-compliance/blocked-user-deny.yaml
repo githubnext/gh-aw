@@ -1,0 +1,64 @@
+# Blocked User Deny — Compliance Fixture
+# Tests: T-GH-071, T-GH-072
+# Spec: §7 User and Actor Restrictions, §7.2 Blocked Users
+
+fixture_id: "blocked-user-deny"
+description: >
+  When a user is listed in the `blocked-users` field, the tool MUST deny all requests
+  from that user regardless of repository, role, or integrity status (T-GH-071).
+  A user not in the blocked-users list MUST be processed through the normal access
+  decision flow (T-GH-072).
+
+spec_refs:
+  - "§7.2 — blocked-users MUST deny access unconditionally for listed actors"
+  - "§7.2 — T-GH-071: blocked user is denied regardless of other conditions"
+  - "§7.2 — T-GH-072: non-blocked user proceeds through normal access decision"
+
+scenarios:
+  # --- Scenario A: request from a blocked user is denied ---
+  - scenario_id: "blocked-user-deny-A"
+    description: "A user in blocked-users is denied even when repo matches and role is sufficient"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        private-repos: true
+        min-integrity: "unapproved"
+        blocked-users:
+          - "bad-actor"
+      request:
+        repository: "github/gh-aw"
+        user_login: "bad-actor"
+        user_role: "write"
+        is_private: true
+        content_integrity: "approved"
+    expected:
+      decision: deny
+      error_code: -32004
+      reason: "user is blocked"
+
+  # --- Scenario B: request from a non-blocked user proceeds normally ---
+  - scenario_id: "blocked-user-deny-B"
+    description: "A user NOT in blocked-users is allowed when all other conditions are satisfied"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        private-repos: true
+        min-integrity: "unapproved"
+        blocked-users:
+          - "bad-actor"
+      request:
+        repository: "github/gh-aw"
+        user_login: "good-contributor"
+        user_role: "write"
+        is_private: true
+        content_integrity: "unapproved"
+    expected:
+      decision: allow
+      error_code: null
+      reason: ""

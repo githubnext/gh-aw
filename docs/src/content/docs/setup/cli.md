@@ -9,18 +9,18 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 
 ## Most Common Commands
 
-| Command | Description |
-|---------|-------------|
-| [`gh aw init`](#init) | Set up your repository for agentic workflows |
-| [`gh aw add-wizard`](#add-wizard) | Add workflows with interactive guided setup |
-| [`gh aw add`](#add) | Add workflows from other repositories (non-interactive) |
-| [`gh aw new`](#new) | Create a new workflow from scratch |
-| [`gh aw compile`](#compile) | Convert markdown to GitHub Actions YAML |
-| [`gh aw list`](#list) | Quick listing of all workflows |
-| [`gh aw run`](#run) | Execute workflows immediately in GitHub Actions |
-| [`gh aw status`](#status) | Check current state of all workflows |
-| [`gh aw logs`](#logs) | Download and analyze agentic workflow logs and artifacts |
-| [`gh aw audit`](#audit) | Audit and compare workflow runs |
+| Command | Description | When to use |
+|---------|-------------|-------------|
+| [`gh aw init`](#init) | Set up your repository for agentic workflows | First time configuring a repo — creates skills, agents, and `.gitattributes` |
+| [`gh aw add-wizard`](#add-wizard) | Add workflows with interactive guided setup | Adding a community workflow and want guided prompts for secrets and auth |
+| [`gh aw add`](#add) | Add workflows from other repositories (non-interactive) | Scripted or CI-based workflow installation without interactive prompts |
+| [`gh aw new`](#new) | Create a new workflow from scratch | Building a custom workflow when no existing template fits |
+| [`gh aw compile`](#compile) | Convert markdown to GitHub Actions YAML | After editing a workflow `.md` file to regenerate the `.lock.yml` |
+| [`gh aw list`](#list) | Quick listing of all workflows | Checking which workflows are installed in the current repository |
+| [`gh aw run`](#run) | Execute workflows immediately in GitHub Actions | Triggering a workflow run from the command line without opening GitHub |
+| [`gh aw status`](#status) | Check current state of all workflows | Verifying workflows are enabled and seeing their last run result |
+| [`gh aw logs`](#logs) | Download and analyze agentic workflow logs and artifacts | Debugging a past run by inspecting output, tokens used, and artifacts |
+| [`gh aw audit`](#audit) | Audit and compare workflow runs | Investigating cost, tool usage, or comparing two runs side-by-side |
 
 > [!TIP]
 > New to `gh aw`? You can stop here for day-one usage and jump to [Commands](#commands) when you're ready. The advanced enterprise setup is collapsed below and can be skipped for most users.

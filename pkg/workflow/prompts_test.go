@@ -346,6 +346,11 @@ func TestDailyFormalSpecVerifierDefinesDirectSafeOutputContract(t *testing.T) {
 	if !strings.Contains(workflow, reportIncompleteGuidance) {
 		t.Fatal("Expected daily-formal-spec-verifier workflow to require direct report_incomplete fallback")
 	}
+
+	terminalSafeOutputGuidance := "**Before finishing, confirm you called exactly one terminal safe output:** `create_issue`, `report_incomplete`, or `noop`."
+	if !strings.Contains(workflow, terminalSafeOutputGuidance) {
+		t.Fatal("Expected daily-formal-spec-verifier workflow to require exactly one terminal safe output before finishing")
+	}
 }
 
 func TestDailyFormalSpecVerifierAllowsReadOnlyFileInspection(t *testing.T) {

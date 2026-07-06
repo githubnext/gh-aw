@@ -4,6 +4,8 @@
 const fs = require("fs");
 const path = require("path");
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Rewrite a gateway URL to use the configured domain and port.
  * Replaces http://<anything>/mcp/ with http://<domain>:<port>/mcp/.
@@ -79,10 +81,20 @@ function loadGatewayContext(options = {}) {
   }
 
   /** @type {Set<string>} */
-  const cliServers = new Set(JSON.parse(process.env.GH_AW_MCP_CLI_SERVERS || "[]"));
+  let cliServers;
+  try {
+    cliServers = new Set(JSON.parse(process.env.GH_AW_MCP_CLI_SERVERS || "[]"));
+  } catch (err) {
+    throw new Error("Failed to parse GH_AW_MCP_CLI_SERVERS: " + getErrorMessage(err), { cause: err });
+  }
 
   /** @type {Record<string, unknown>} */
-  const config = JSON.parse(fs.readFileSync(gatewayOutput, "utf8"));
+  let config;
+  try {
+    config = JSON.parse(fs.readFileSync(gatewayOutput, "utf8"));
+  } catch (err) {
+    throw new Error("Failed to parse gateway output file " + gatewayOutput + ": " + getErrorMessage(err), { cause: err });
+  }
   const rawServers = config.mcpServers;
   /** @type {Record<string, Record<string, unknown>>} */
   let servers = {};

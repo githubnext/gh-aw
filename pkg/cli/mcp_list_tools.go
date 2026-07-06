@@ -48,7 +48,7 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Looking for MCP server '%s' in: %s", mcpServerName, workflowPath)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Looking for MCP server '%s' in: %s", mcpServerName, workflowPath)))
 	}
 
 	// Parse the workflow file and extract MCP configurations
@@ -74,9 +74,8 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 
 		// Show available servers
 		if len(mcpConfigs) > 0 {
-			fmt.Fprintf(os.Stderr, "Available MCP servers: ")
 			serverNames := sliceutil.Map(mcpConfigs, func(config parser.RegistryMCPServerConfig) string { return config.Name })
-			fmt.Fprintf(os.Stderr, "%s\n", strings.Join(serverNames, ", "))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Available MCP servers: "+strings.Join(serverNames, ", ")))
 		}
 		return nil
 	}
@@ -84,7 +83,7 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 	mcpListToolsLog.Printf("Found MCP server: name=%s, type=%s", targetConfig.Name, targetConfig.Type)
 
 	// Connect to the MCP server and get its tools
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("📡 Connecting to MCP server: %s (%s)",
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("📡 Connecting to MCP server: %s (%s)",
 		targetConfig.Name,
 		targetConfig.Type)))
 
@@ -96,7 +95,7 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 	mcpListToolsLog.Printf("Connected to MCP server: tools=%d", len(info.Tools))
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully connected to MCP server"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Successfully connected to MCP server"))
 	}
 
 	// Display the tools
@@ -131,9 +130,13 @@ func findWorkflowsWithMCPServer(workflowsDir string, mcpServerName string, verbo
 	}
 
 	// Display matching workflows and suggest using one
-	fmt.Fprintf(os.Stderr, "Found MCP server '%s' in %d workflow(s): %s\n",
-		mcpServerName, len(matchingWorkflows), strings.Join(matchingWorkflows, ", "))
-	fmt.Fprintf(os.Stderr, "\nRun 'gh aw mcp list-tools <workflow-name> --server %s' to list tools for a specific workflow\n", mcpServerName)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(
+		fmt.Sprintf("Found MCP server '%s' in %d workflow(s): %s", mcpServerName, len(matchingWorkflows), strings.Join(matchingWorkflows, ", ")),
+	))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(
+		fmt.Sprintf("Run 'gh aw mcp list-tools <workflow-name> --server %s' to list tools for a specific workflow", mcpServerName),
+	))
 
 	return nil
 }
@@ -145,7 +148,8 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 		return
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\n🛠️  Available Tools (%d total)", len(info.Tools))))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("🛠️  Available Tools (%d total)", len(info.Tools))))
 
 	// Configure options based on verbose flag
 	opts := MCPToolTableOptions{

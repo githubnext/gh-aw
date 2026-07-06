@@ -12,7 +12,6 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
-	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -120,15 +119,13 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Which coding agent would you like to use?").
-				Description("This determines which coding agent processes your workflows").
-				Options(engineOptions...).
-				Value(&selectedEngine),
-		),
-	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	form := console.NewSelectForm(
+		huh.NewSelect[string]().
+			Title("Which coding agent would you like to use?").
+			Description("This determines which coding agent processes your workflows").
+			Options(engineOptions...).
+			Value(&selectedEngine),
+	)
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("failed to select coding agent: %w", err)
@@ -277,9 +274,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 		})
 	}
 
-	form := huh.NewForm(
-		huh.NewGroup(selectField),
-	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	form := console.NewSelectForm(selectField)
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("failed to select Copilot authentication method: %w", err)

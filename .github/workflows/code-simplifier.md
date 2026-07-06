@@ -44,19 +44,7 @@ tools:
   github:
     mode: gh-proxy
     toolsets: [default]
-  bash:
-    - "cat /tmp/gh-aw/agent/code-simplifier/recent-context.json"
-    - "cat /tmp/gh-aw/agent/code-simplifier/source-files.json"
-    - "cat /tmp/gh-aw/agent/code-simplifier/recent-prs.json"
-    - "cat /tmp/gh-aw/agent/code-simplifier/recent-commits.jsonl"
-    - "cat /tmp/gh-aw/agent/code-simplifier/history-summary.json"
-    - "ls /tmp/gh-aw/agent/code-simplifier"
-    - "jq *"
-    - "make test-unit"
-    - "make lint"
-    - "make build"
-    - "make fmt"
-    - "go build ./..."
+  bash: ["*"]
 
 steps:
   - name: Prepare recent-change dataset (deterministic)

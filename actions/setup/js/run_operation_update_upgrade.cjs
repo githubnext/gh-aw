@@ -354,7 +354,8 @@ ${AUTO_UPGRADE_ISSUE_MARKER}
     });
   } catch (error) {
     // Label may not exist when auto-upgrade is used without maintenance label creation.
-    if (error?.status === 422) {
+    const errorAny = /** @type {any} */ error;
+    if (errorAny?.status === 422) {
       core.warning("Failed to create issue with label 'agentic-workflows'; retrying without labels");
       createdIssue = await github.rest.issues.create({
         owner,

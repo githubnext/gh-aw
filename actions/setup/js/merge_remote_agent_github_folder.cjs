@@ -435,7 +435,9 @@ async function main() {
 
 // Run if executed directly (not imported)
 if (require.main === module) {
-  main();
+  main().catch(err => {
+    coreObj.setFailed(err && err.stack ? err.stack : String(err));
+  });
 }
 
 module.exports = {

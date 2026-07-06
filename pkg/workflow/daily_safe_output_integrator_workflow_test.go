@@ -41,6 +41,9 @@ func TestDailySafeOutputIntegratorIncludesTempCoverageScriptAllowlist(t *testing
 		t.Fatal("expected workflow source bash tool allowlist to end before cli-proxy")
 	}
 	bashSection := sourceContentStr[bashSectionStart : bashSectionStart+bashSectionEnd]
+	if !strings.Contains(bashSection, "  - \"*\"") {
+		t.Fatal("expected bash allowlist to include wildcard access")
+	}
 	if !strings.Contains(bashSection, "  - cat > /tmp/gh-aw/agent/*.py") {
 		t.Fatal("expected bash allowlist to include temporary coverage script creation")
 	}
@@ -61,9 +64,7 @@ func TestDailySafeOutputIntegratorIncludesTempCoverageScriptAllowlist(t *testing
 
 	lockContentStr := string(lockContent)
 	for _, expected := range []string{
-		"shell(cat > /tmp/gh-aw/agent/*.py)",
-		"shell(git diff:*)",
-		"shell(git status:*)",
+		"--allow-all-tools",
 		"{{#runtime-import .github/workflows/daily-safe-output-integrator.md}}",
 	} {
 		if !strings.Contains(lockContentStr, expected) {

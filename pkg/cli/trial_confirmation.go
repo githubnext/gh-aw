@@ -14,6 +14,12 @@ import (
 
 var trialConfirmationLog = logger.New("cli:trial_confirmation")
 
+const trialNestedListIndent = "   "
+
+func formatTrialNestedListItem(item string) string {
+	return trialNestedListIndent + console.FormatListItemStderr(item)
+}
+
 // trialConfirmationOptions holds parameters for showTrialConfirmation.
 type trialConfirmationOptions struct {
 	parsedSpecs         []*WorkflowSpec
@@ -132,45 +138,45 @@ func showTrialConfirmation(opts trialConfirmationOptions) error {
 	// Step 1: Repository creation/reuse
 	stepNum := 1
 	if hostRepoExists && opts.forceDeleteHostRepo {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Delete and recreate host repository\n"), stepNum)
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Delete and recreate host repository\n"), stepNum)
 	} else if hostRepoExists {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Reuse existing host repository\n"), stepNum)
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Reuse existing host repository\n"), stepNum)
 	} else {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Create a private host repository\n"), stepNum)
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Create a private host repository\n"), stepNum)
 	}
 	stepNum++
 
 	// Step 2: Clone contents (only in clone-repo mode)
 	if opts.cloneRepoSlug != "" {
 		if hostRepoExists && !opts.forceDeleteHostRepo {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Force push contents from %s (overwriting existing content)\n"), stepNum, opts.cloneRepoSlug)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Force push contents from %s (overwriting existing content)\n"), stepNum, opts.cloneRepoSlug)
 		} else {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Clone contents from %s\n"), stepNum, opts.cloneRepoSlug)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Clone contents from %s\n"), stepNum, opts.cloneRepoSlug)
 		}
 		stepNum++
 
 		// Show that workflows will be disabled
 		if len(opts.parsedSpecs) == 1 {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Disable all workflows in cloned repository except %s\n"), stepNum, opts.parsedSpecs[0].WorkflowName)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Disable all workflows in cloned repository except %s\n"), stepNum, opts.parsedSpecs[0].WorkflowName)
 		} else {
 			workflowNames := sliceutil.Map(opts.parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Disable all workflows in cloned repository except: %s\n"), stepNum, strings.Join(workflowNames, ", "))
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Disable all workflows in cloned repository except: %s\n"), stepNum, strings.Join(workflowNames, ", "))
 		}
 		stepNum++
 	}
 
 	// Step 3/2: Install and compile workflows
 	if len(opts.parsedSpecs) == 1 {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Install and compile %s\n"), stepNum, opts.parsedSpecs[0].WorkflowName)
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Install and compile %s\n"), stepNum, opts.parsedSpecs[0].WorkflowName)
 	} else {
 		workflowNames := sliceutil.Map(opts.parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Install and compile: %s\n"), stepNum, strings.Join(workflowNames, ", "))
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Install and compile: %s\n"), stepNum, strings.Join(workflowNames, ", "))
 	}
 	stepNum++
 
 	// Step: Configure secrets (only when engine override is specified)
 	if opts.engineOverride != "" {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Ensure %s API key secret is configured\n"), stepNum, opts.engineOverride)
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Ensure %s API key secret is configured\n"), stepNum, opts.engineOverride)
 		stepNum++
 	}
 
@@ -178,47 +184,47 @@ func showTrialConfirmation(opts trialConfirmationOptions) error {
 	if len(opts.parsedSpecs) == 1 {
 		workflowName := opts.parsedSpecs[0].WorkflowName
 		if opts.repeatCount > 0 && opts.autoMergePRs {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. For each of %d executions:\n"), stepNum, opts.repeatCount+1)
-			fmt.Fprintf(os.Stderr, "     a. Execute %s\n", workflowName)
-			fmt.Fprintf(os.Stderr, "     b. Auto-merge any pull requests created during execution\n")
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. For each of %d executions:\n"), stepNum, opts.repeatCount+1)
+			fmt.Fprintln(os.Stderr, formatTrialNestedListItem("Execute "+workflowName))
+			fmt.Fprintln(os.Stderr, formatTrialNestedListItem("Auto-merge any pull requests created during execution"))
 		} else if opts.repeatCount > 0 {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %s %d times\n"), stepNum, workflowName, opts.repeatCount+1)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Execute %s %d times\n"), stepNum, workflowName, opts.repeatCount+1)
 		} else if opts.autoMergePRs {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %s\n"), stepNum, workflowName)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Execute %s\n"), stepNum, workflowName)
 			stepNum++
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Auto-merge any pull requests created during execution\n"), stepNum)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Auto-merge any pull requests created during execution\n"), stepNum)
 		} else {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %s\n"), stepNum, workflowName)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Execute %s\n"), stepNum, workflowName)
 		}
 	} else {
 		workflowNames := sliceutil.Map(opts.parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
 		workflowList := strings.Join(workflowNames, ", ")
 
 		if opts.repeatCount > 0 && opts.autoMergePRs {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. For each of %d executions:\n"), stepNum, opts.repeatCount+1)
-			fmt.Fprintf(os.Stderr, "     a. Execute: %s\n", workflowList)
-			fmt.Fprintf(os.Stderr, "     b. Auto-merge any pull requests created during execution\n")
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. For each of %d executions:\n"), stepNum, opts.repeatCount+1)
+			fmt.Fprintln(os.Stderr, formatTrialNestedListItem("Execute: "+workflowList))
+			fmt.Fprintln(os.Stderr, formatTrialNestedListItem("Auto-merge any pull requests created during execution"))
 		} else if opts.repeatCount > 0 {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %d times: %s\n"), stepNum, opts.repeatCount+1, workflowList)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Execute %d times: %s\n"), stepNum, opts.repeatCount+1, workflowList)
 		} else if opts.autoMergePRs {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute: %s\n"), stepNum, workflowList)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Execute: %s\n"), stepNum, workflowList)
 			stepNum++
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Auto-merge any pull requests created during execution\n"), stepNum)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Auto-merge any pull requests created during execution\n"), stepNum)
 		} else {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute: %s\n"), stepNum, workflowList)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Execute: %s\n"), stepNum, workflowList)
 		}
 	}
 	stepNum++
 
 	// Final step: Delete/preserve repository
 	if opts.deleteHostRepo {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Delete the host repository\n"), stepNum)
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Delete the host repository\n"), stepNum)
 	} else {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Preserve the host repository for inspection\n"), stepNum)
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessageStderr("  %d. Preserve the host repository for inspection\n"), stepNum)
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
 	fmt.Fprintln(os.Stderr, "")
 
 	// Ask for confirmation using console helper

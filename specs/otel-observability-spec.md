@@ -849,6 +849,21 @@ Level 1 and Level 2 compatibility validation MUST cover the following behaviors:
 
 The repository enforcement entry point for these checks is `make validate-otel-contract`. This target MUST remain focused on the customer-facing compatibility contract rather than all possible OTEL-related tests.
 
+### 17.1.1 Test ID Stubs: Level 1 Compliance
+
+The following test IDs are stubs for Level 1 (Stable Configuration and Export) compliance tests. Implementations MUST provide tests that correspond to each stub before claiming Level 1 conformance.
+
+| Test ID | Area | Description |
+|---------|------|-------------|
+| **T-OT-001** | Compiler config | Compiler accepts `observability.otlp.endpoint` with a valid HTTPS URL and emits `OTEL_EXPORTER_OTLP_ENDPOINT` in the generated workflow environment. |
+| **T-OT-002** | Compiler config | Compiler rejects `observability.otlp.endpoint` set to a non-HTTPS URL when `if-missing: block` is configured, producing a descriptive validation error. |
+| **T-OT-003** | Endpoint normalization | When multiple endpoints are declared, the compiler preserves them in declaration order and retains the first endpoint in the `OTEL_EXPORTER_OTLP_ENDPOINT` variable for backward compatibility. |
+| **T-OT-004** | OTLP export | The runtime JavaScript helper encodes span payloads as valid OTLP/HTTP protobuf-JSON and POSTs them to the configured endpoint; a successful 200 response is recognized as accepted. |
+| **T-OT-005** | Trace context | The compiler injects `GITHUB_AW_OTEL_TRACE_ID`, `GITHUB_AW_OTEL_PARENT_SPAN_ID`, and `TRACEPARENT` into the generated workflow environment when OTLP observability is enabled. |
+| **T-OT-006** | Local mirrors | The runtime helper writes each exported span as a raw OTLP/HTTP JSON line with a `resourceSpans` key to `/tmp/gh-aw/otel.jsonl`; the file format MUST NOT be an envelope-only summary. |
+| **T-OT-007** | Compiler config | `observability.otlp.headers` entries are emitted as `OTEL_EXPORTER_OTLP_HEADERS` in `key=value,key=value` format and are masked in diagnostics, job summaries, and artifacts. |
+
+
 ### 17.2 Optional Extension Tests
 
 An implementation claiming Level 3 MUST add automated tests for every Level 3 feature it enables, including any OpenTelemetry-native root spans, full-duration job spans, metrics, structured logs, outcome span links, Collector mode, or versioned mirror companion files.

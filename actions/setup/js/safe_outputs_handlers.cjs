@@ -50,7 +50,13 @@ function resolveEffectiveContext(invocationContext, rawContext) {
  * @returns {any}
  */
 function readJSONFile(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch (err) {
+    throw new Error("Failed to parse JSON file " + filePath + ": " + getErrorMessage(err), { cause: err });
+  }
+  return parsed;
 }
 
 const safeOutputsTools = readJSONFile(path.join(__dirname, "safe_outputs_tools.json"));
@@ -1842,8 +1848,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         invocationContext = resolveInvocationContext(context);
       } catch (err) {
         // A validation error (e.g. disallowed target_repo / SEC-005) is a real failure — surface it.
-        if (err?.message?.startsWith(ERR_VALIDATION)) {
-          return buildIntentErrorResponse(err.message);
+        const errMsg = getErrorMessage(err);
+        if (errMsg.startsWith(ERR_VALIDATION)) {
+          return buildIntentErrorResponse(errMsg);
         }
         // Unexpected structural error: skip validation and let downstream handle gracefully.
       }
@@ -2126,8 +2133,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         invocationContext = resolveInvocationContext(context);
       } catch (err) {
         // A validation error (e.g. disallowed target_repo / SEC-005) is a real failure — surface it.
-        if (err?.message?.startsWith(ERR_VALIDATION)) {
-          return buildIntentErrorResponse(err.message);
+        const errMsg = getErrorMessage(err);
+        if (errMsg.startsWith(ERR_VALIDATION)) {
+          return buildIntentErrorResponse(errMsg);
         }
         // Unexpected structural error: skip validation and let downstream handle gracefully.
       }
@@ -2177,8 +2185,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         invocationContext = resolveInvocationContext(context);
       } catch (err) {
         // A validation error (e.g. disallowed target_repo / SEC-005) is a real failure — surface it.
-        if (err?.message?.startsWith(ERR_VALIDATION)) {
-          return buildIntentErrorResponse(err.message);
+        const errMsg = getErrorMessage(err);
+        if (errMsg.startsWith(ERR_VALIDATION)) {
+          return buildIntentErrorResponse(errMsg);
         }
         // Unexpected structural error: skip validation and let downstream handle gracefully.
       }

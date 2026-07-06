@@ -16,7 +16,6 @@ import (
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
-	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -308,21 +307,19 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	fmt.Fprintln(os.Stderr, "If you run into trouble see https://github.github.com/gh-aw/reference/auth/#copilot_github_token.")
 
 	var token string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("After creating, please paste your fine-grained Copilot PAT:").
-				Description("Must start with 'github_pat_'. Classic PATs (ghp_...) are not supported.").
-				EchoMode(huh.EchoModePassword).
-				Value(&token).
-				Validate(func(s string) error {
-					if len(s) < 10 {
-						return errors.New("token appears to be too short")
-					}
-					return stringutil.ValidateCopilotPAT(s)
-				}),
-		),
-	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	form := console.NewInputForm(
+		huh.NewInput().
+			Title("After creating, please paste your fine-grained Copilot PAT:").
+			Description("Must start with 'github_pat_'. Classic PATs (ghp_...) are not supported.").
+			EchoMode(huh.EchoModePassword).
+			Value(&token).
+			Validate(func(s string) error {
+				if len(s) < 10 {
+					return errors.New("token appears to be too short")
+				}
+				return stringutil.ValidateCopilotPAT(s)
+			}),
+	)
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
 		return fmt.Errorf("failed to get Copilot token: %w", err)
@@ -354,21 +351,19 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 	fmt.Fprintln(os.Stderr, "")
 
 	var token string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title(fmt.Sprintf("Paste your %s token:", req.Name)).
-				Description("The token will be stored securely as a repository secret").
-				EchoMode(huh.EchoModePassword).
-				Value(&token).
-				Validate(func(s string) error {
-					if len(s) < 10 {
-						return errors.New("token appears to be too short")
-					}
-					return nil
-				}),
-		),
-	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	form := console.NewInputForm(
+		huh.NewInput().
+			Title(fmt.Sprintf("Paste your %s token:", req.Name)).
+			Description("The token will be stored securely as a repository secret").
+			EchoMode(huh.EchoModePassword).
+			Value(&token).
+			Validate(func(s string) error {
+				if len(s) < 10 {
+					return errors.New("token appears to be too short")
+				}
+				return nil
+			}),
+	)
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
 		return fmt.Errorf("failed to get %s token: %w", req.Name, err)
@@ -405,21 +400,19 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 	}
 
 	var apiKey string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title(fmt.Sprintf("Paste your %s API key:", label)).
-				Description("The key will be stored securely as a repository secret").
-				EchoMode(huh.EchoModePassword).
-				Value(&apiKey).
-				Validate(func(s string) error {
-					if len(s) < 10 {
-						return errors.New("API key appears to be too short")
-					}
-					return nil
-				}),
-		),
-	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	form := console.NewInputForm(
+		huh.NewInput().
+			Title(fmt.Sprintf("Paste your %s API key:", label)).
+			Description("The key will be stored securely as a repository secret").
+			EchoMode(huh.EchoModePassword).
+			Value(&apiKey).
+			Validate(func(s string) error {
+				if len(s) < 10 {
+					return errors.New("API key appears to be too short")
+				}
+				return nil
+			}),
+	)
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
 		return fmt.Errorf("failed to get %s API key: %w", label, err)

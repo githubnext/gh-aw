@@ -34,7 +34,10 @@ func (c *Compiler) indentYAMLLines(yamlContent, indent string) string {
 		if strings.TrimSpace(lines[i]) != "" {
 			result.WriteString("\n" + indent + lines[i])
 		} else {
-			result.WriteString("\n" + lines[i])
+			// Emit a bare newline for blank/whitespace-only lines so we don't
+			// carry the surrounding indentation as trailing whitespace, which
+			// yamllint flags as trailing-spaces.
+			result.WriteString("\n")
 		}
 	}
 
@@ -60,13 +63,26 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 		orderedValue := OrderMapFields(valueMap, []string{})
 		// Wrap the ordered value with the key using MapSlice
 		wrappedData := yaml.MapSlice{{Key: key, Value: orderedValue}}
-		yamlBytes, err = yaml.MarshalWithOptions(wrappedData, DefaultMarshalOptions...)
+		marshalOptions := DefaultMarshalOptions
+		if key == "on" {
+			// Indent sequence items (e.g. schedule cron lists and event `types:`
+			// arrays) under their parent key so that yamllint's default
+			// indentation rule (indent-sequences: true) is satisfied. Scoped to
+			// the `on:` section so that custom `steps:` marshaling elsewhere is
+			// unaffected.
+			marshalOptions = append(append([]yaml.EncodeOption{}, DefaultMarshalOptions...), yaml.IndentSequence(true))
+		}
+		yamlBytes, err = yaml.MarshalWithOptions(wrappedData, marshalOptions...)
 		if err != nil {
 			return ""
 		}
 	} else {
 		// Use standard marshaling for non-map types
-		yamlBytes, err = yaml.Marshal(map[string]any{key: value})
+		marshalOptions := DefaultMarshalOptions
+		if key == "on" {
+			marshalOptions = append(append([]yaml.EncodeOption{}, DefaultMarshalOptions...), yaml.IndentSequence(true))
+		}
+		yamlBytes, err = yaml.MarshalWithOptions(map[string]any{key: value}, marshalOptions...)
 		if err != nil {
 			return ""
 		}
@@ -754,6 +770,11 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 
 			commentedLine := indentation + "# " + trimmed + commentReason
+			// Blank lines inside multi-line blocks would otherwise become "# "
+			// with trailing whitespace, which yamllint flags as trailing-spaces.
+			if trimmed == "" {
+				commentedLine = strings.TrimRight(commentedLine, " \t")
+			}
 			result = append(result, commentedLine)
 		} else {
 			result = append(result, line)

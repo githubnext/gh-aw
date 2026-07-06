@@ -44,7 +44,7 @@ function checkoutOrCreateBranch(branchName, repoUrl, workspaceDir) {
     core.info(`Checked out existing branch ${branchName}, baseRef=${baseRef}`);
     return baseRef;
   } catch (fetchErr) {
-    const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+    const msg = getErrorMessage(fetchErr);
     const isMissing = /couldn't find remote ref/i.test(msg) || /remote branch .* not found/i.test(msg);
     if (!isMissing) throw fetchErr;
 

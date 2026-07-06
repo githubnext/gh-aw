@@ -67,7 +67,7 @@ function extractExpirationDate(body) {
     const expirationDate = new Date(expirationISO);
 
     // Validate the date
-    if (!isNaN(expirationDate.getTime())) {
+    if (!Number.isNaN(expirationDate.getTime())) {
       return expirationDate;
     }
   }
@@ -83,7 +83,7 @@ function extractExpirationDate(body) {
     const expirationDate = new Date(dateString);
 
     // Validate the date
-    if (!isNaN(expirationDate.getTime())) {
+    if (!Number.isNaN(expirationDate.getTime())) {
       return expirationDate;
     }
   }
