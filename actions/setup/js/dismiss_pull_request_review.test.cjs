@@ -133,13 +133,7 @@ describe("dismiss_pull_request_review", () => {
     expect(mockDismissReview).not.toHaveBeenCalled();
   });
 
-  it("resolves review_id=auto to latest dismissible review by current actor", async () => {
-    mockGetReview.mockResolvedValueOnce({
-      data: {
-        html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-456",
-        user: { login: "github-actions[bot]" },
-      },
-    });
+  it("resolves review_id=auto to all dismissible reviews by current actor", async () => {
     mockListReviews.mockResolvedValueOnce({
       data: [
         {
@@ -164,12 +158,42 @@ describe("dismiss_pull_request_review", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(mockDismissReview).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pull_number: 42,
-        review_id: 456,
-      })
-    );
+    expect(result.dismissed_count).toBe(2);
+    expect(result.review_ids).toEqual(expect.arrayContaining([111, 456]));
+    expect(mockDismissReview).toHaveBeenCalledTimes(2);
+    expect(mockDismissReview).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 42, review_id: 111 }));
+    expect(mockDismissReview).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 42, review_id: 456 }));
+  });
+
+  it("dismisses only actor-authored reviews when review_id=auto (ignores other authors)", async () => {
+    mockListReviews.mockResolvedValueOnce({
+      data: [
+        {
+          id: 100,
+          state: "CHANGES_REQUESTED",
+          submitted_at: "2026-07-01T00:00:00Z",
+          user: { login: "octocat" },
+        },
+        {
+          id: 200,
+          state: "APPROVED",
+          submitted_at: "2026-07-02T00:00:00Z",
+          user: { login: "github-actions[bot]" },
+        },
+      ],
+    });
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: "auto",
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.dismissed_count).toBe(1);
+    expect(result.review_ids).toEqual([200]);
+    expect(mockDismissReview).toHaveBeenCalledTimes(1);
+    expect(mockDismissReview).toHaveBeenCalledWith(expect.objectContaining({ review_id: 200 }));
   });
 
   it("detects degenerate blocked state with no requested reviewers when review_id=auto has no candidate", async () => {
@@ -233,12 +257,6 @@ describe("dismiss_pull_request_review", () => {
         },
       ],
     });
-    mockGetReview.mockResolvedValueOnce({
-      data: {
-        html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-1001",
-        user: { login: "github-actions[bot]" },
-      },
-    });
 
     const result = await handler({
       type: "dismiss_pull_request_review",
@@ -270,12 +288,6 @@ describe("dismiss_pull_request_review", () => {
         },
       ],
     });
-    mockGetReview.mockResolvedValueOnce({
-      data: {
-        html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-777",
-        user: { login: "custom-bot" },
-      },
-    });
 
     const result = await handler({
       type: "dismiss_pull_request_review",
@@ -303,6 +315,7 @@ describe("dismiss_pull_request_review", () => {
     });
 
     expect(result.success).toBe(false);
+    expect(result.error).toContain("truncated");
     expect(mockListReviews).toHaveBeenCalledTimes(10);
   });
 });

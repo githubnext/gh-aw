@@ -524,7 +524,7 @@
       "properties": {
         "review_id": {
           "type": ["number", "string"],
-          "description": "Numeric pull request review ID to dismiss (for example, 123456789), or 'auto' to resolve the latest dismissible review authored by the current workflow actor.",
+          "description": "Numeric pull request review ID to dismiss (for example, 123456789), or 'auto' to dismiss all dismissible (APPROVED or CHANGES_REQUESTED) reviews authored by the current workflow actor.",
           "x-synonyms": ["reviewId"]
         },
         "justification": {

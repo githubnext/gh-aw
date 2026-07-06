@@ -25,34 +25,17 @@ function getEffectiveActor() {
 /**
  * @param {any[]} reviews
  * @param {string} expectedAuthor
- * @returns {any|null}
+ * @returns {any[]}
  */
-function findLatestDismissibleReviewForActor(reviews, expectedAuthor) {
-  if (!Array.isArray(reviews) || !expectedAuthor) return null;
+function findAllDismissibleReviewsForActor(reviews, expectedAuthor) {
+  if (!Array.isArray(reviews) || !expectedAuthor) return [];
   const expectedAuthorLower = expectedAuthor.toLowerCase();
   const dismissibleStates = new Set(["CHANGES_REQUESTED", "APPROVED"]);
-  const getSubmittedAtTimestamp = review => {
-    if (typeof review?.submitted_at !== "string") return -1;
-    const parsed = Date.parse(review.submitted_at);
-    // Invalid/missing timestamps use -1 as a sentinel so they sort as older
-    // than valid submitted_at values. Deterministic ordering is preserved by
-    // the ID tie-breaker below.
-    return Number.isFinite(parsed) ? parsed : -1;
-  };
-  return (
-    reviews
-      .filter(review => {
-        const login = typeof review?.user?.login === "string" ? review.user.login.trim().toLowerCase() : "";
-        const state = typeof review?.state === "string" ? review.state.trim().toUpperCase() : "";
-        return login === expectedAuthorLower && dismissibleStates.has(state);
-      })
-      .sort((a, b) => {
-        const aTime = getSubmittedAtTimestamp(a);
-        const bTime = getSubmittedAtTimestamp(b);
-        if (aTime !== bTime) return bTime - aTime;
-        return Number(b?.id || 0) - Number(a?.id || 0);
-      })[0] || null
-  );
+  return reviews.filter(review => {
+    const login = typeof review?.user?.login === "string" ? review.user.login.trim().toLowerCase() : "";
+    const state = typeof review?.state === "string" ? review.state.trim().toUpperCase() : "";
+    return login === expectedAuthorLower && dismissibleStates.has(state);
+  });
 }
 
 /**
@@ -70,7 +53,7 @@ function hasNoRequestedReviewersOrTeams(pullRequest) {
  * @param {string} owner
  * @param {string} repo
  * @param {number} pullRequestNumber
- * @returns {Promise<any[]>}
+ * @returns {Promise<{reviews: any[], truncated: boolean}>}
  */
 async function listAllPullRequestReviews(githubClient, owner, repo, pullRequestNumber) {
   const all = [];
@@ -89,7 +72,7 @@ async function listAllPullRequestReviews(githubClient, owner, repo, pullRequestN
     if (data.length < 100) break;
     page++;
   }
-  return all;
+  return { reviews: all, truncated: page > maxPages };
 }
 
 /**
@@ -173,7 +156,7 @@ async function main(config = {}) {
 
     if (isStaged) {
       const previewReviewId = useAutoReviewId ? "auto" : reviewId;
-      logStagedPreviewInfo(`Would dismiss review #${previewReviewId} on PR #${pullRequestNumber} (${owner}/${repo}) as ${dismisser}`);
+      logStagedPreviewInfo(`Would dismiss ${useAutoReviewId ? "all actor-authored" : `review #${previewReviewId}`} on PR #${pullRequestNumber} (${owner}/${repo}) as ${dismisser}`);
       processedCount++;
       return {
         success: true,
@@ -187,7 +170,7 @@ async function main(config = {}) {
 
     try {
       if (useAutoReviewId) {
-        const [{ data: pullRequest }, reviews] = await Promise.all([
+        const [{ data: pullRequest }, { reviews, truncated }] = await Promise.all([
           githubClient.rest.pulls.get({
             owner,
             repo,
@@ -196,8 +179,14 @@ async function main(config = {}) {
           listAllPullRequestReviews(githubClient, owner, repo, pullRequestNumber),
         ]);
 
-        const autoReview = findLatestDismissibleReviewForActor(reviews, expectedAuthor);
-        if (!autoReview || !Number.isInteger(autoReview.id) || autoReview.id <= 0) {
+        const actorReviews = findAllDismissibleReviewsForActor(reviews, expectedAuthor);
+        if (actorReviews.length === 0) {
+          if (truncated) {
+            return {
+              success: false,
+              error: `review_id=auto could not resolve: review history exceeds ${10 * 100} entries and was truncated; specify an explicit review_id instead`,
+            };
+          }
           const isBlockedWithoutReviewers = hasNoRequestedReviewersOrTeams(pullRequest) && pullRequest?.mergeable_state === "blocked";
           if (isBlockedWithoutReviewers) {
             return {
@@ -210,7 +199,28 @@ async function main(config = {}) {
             error: `review_id=auto did not find a dismissible review authored by ${expectedAuthor}`,
           };
         }
-        reviewId = autoReview.id;
+
+        const dismissedReviews = [];
+        for (const review of actorReviews) {
+          const { data: dismissed } = await githubClient.rest.pulls.dismissReview({
+            owner,
+            repo,
+            pull_number: pullRequestNumber,
+            review_id: review.id,
+            message: justification,
+          });
+          dismissedReviews.push({ review_id: review.id, review_url: dismissed?.html_url || review?.html_url });
+        }
+
+        processedCount++;
+        return {
+          success: true,
+          review_ids: dismissedReviews.map(d => d.review_id),
+          dismissed_count: dismissedReviews.length,
+          pull_request_number: pullRequestNumber,
+          repo: `${owner}/${repo}`,
+          author: expectedAuthor,
+        };
       }
 
       const { data: review } = await githubClient.rest.pulls.getReview({
