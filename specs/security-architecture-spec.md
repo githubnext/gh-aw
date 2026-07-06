@@ -617,7 +617,7 @@ roles: all                         # Least restrictive
 
 **PM-11**: Role checks MUST be performed at runtime using membership validation.
 
-The separate `pre_activation` job defined in Section 7.6.1 is the normative runtime mechanism that satisfies **PM-11**. Role validation MUST complete in `pre_activation` before the `activation` job begins; implementations MUST NOT replace this gate with a later best-effort check in `activation`, `agent`, or `safe_outputs`.
+The separate `pre_activation` job defined in Section 7.6.1 is the normative runtime mechanism that satisfies **PM-11**. Role validation MUST complete in `pre_activation` before the `activation` job begins. Implementations MUST NOT replace this gate with a later best-effort check in `activation`, `agent`, or `safe_outputs`.
 
 **PM-12**: Failed role checks MUST cancel workflow execution with a warning message.
 

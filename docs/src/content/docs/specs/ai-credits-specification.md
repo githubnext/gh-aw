@@ -250,7 +250,7 @@ A conforming implementation MUST define and enforce behavior for catalog synchro
 
 3. **Missing required fields**: When a catalog entry is missing required fields (`input` or `output` cost values), the implementation MUST treat that entry as invalid and MUST NOT compute AIC using zero or undefined costs for that model. The entry MUST be skipped or flagged, and a diagnostic MUST be emitted.
 
-4. **Catalog version mismatch**: When the two required catalog paths (`pkg/cli/data/models.json` and `actions/setup/js/models.json`) diverge in content after a sync operation, the sync tooling/CI gate MUST treat this as a sync failure and MUST fail the refresh operation until consistency is restored. In the gh-aw repository, CI MUST run `make validate-models-json-sync` (or an equivalent normalized-content comparison gate) and MUST fail whenever these mirror files cease to represent the same JSON dataset.
+4. **Catalog version mismatch**: When the two required catalog paths (`pkg/cli/data/models.json` and `actions/setup/js/models.json`) diverge in content after a sync operation, the sync tooling/CI gate MUST treat this as a sync failure. The refresh operation MUST fail until consistency is restored. In the gh-aw repository, CI MUST run `make validate-models-json-sync` (or an equivalent normalized-content comparison gate). That gate MUST fail whenever these mirror files cease to represent the same JSON dataset.
 
 ---
 
