@@ -188,7 +188,7 @@ inference once the configured threshold is reached. When unset,
 non-numeric, or non-positive, implementations MUST apply the default
 value (`5`).
 
-This counting requirement documents the existing gh-aw driver behavior implemented in `actions/setup/js/copilot_sdk_session.cjs` and exercised by the `copilot_sdk_driver.test.cjs` guardrail coverage. It does not introduce a new optional conformance mode.
+This counting requirement tightens the specification to match the existing gh-aw reference implementation in `actions/setup/js/copilot_sdk_session.cjs` and the current `copilot_sdk_driver.test.cjs` guardrail coverage. It does not change gh-aw runtime behavior, but implementations that previously treated denial counting as optional would need to align with this clarified conformance requirement.
 
 ### 4.6 TypeScript Example (Non-Normative)
 
