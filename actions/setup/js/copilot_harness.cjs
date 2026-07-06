@@ -1,5 +1,4 @@
 // @ts-check
-const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Copilot Harness with Retry Logic
@@ -38,10 +37,11 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * Example: node copilot_harness.cjs copilot --add-dir /tmp/ --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt
  */
 
-("use strict");
+"use strict";
 
 require("./shim.cjs");
 
+const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const crypto = require("crypto");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");

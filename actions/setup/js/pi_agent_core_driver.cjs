@@ -1,5 +1,4 @@
 // @ts-check
-const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Pi Agent Core Driver (inner harness)
@@ -35,8 +34,9 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  *   { type: "result",      stats: { input_tokens, output_tokens, duration_ms, turns } }
  */
 
-("use strict");
+"use strict";
 
+const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");

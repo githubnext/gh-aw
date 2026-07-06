@@ -1,5 +1,4 @@
 // @ts-check
-const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Copilot SDK Session Runner
@@ -30,8 +29,9 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * telemetry without duplicating the implementation.
  */
 
-("use strict");
+"use strict";
 
+const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");

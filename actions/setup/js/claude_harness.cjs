@@ -1,5 +1,4 @@
 // @ts-check
-const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Claude Code CLI Harness with Retry Logic
@@ -31,8 +30,9 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * Example: node claude_harness.cjs claude --print --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt
  */
 
-("use strict");
+"use strict";
 
+const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
 const { resolveRetryConfig: resolveSharedRetryConfig } = require("./harness_retry_config.cjs");

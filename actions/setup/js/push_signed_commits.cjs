@@ -734,7 +734,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   } catch (err) {
     if (err instanceof PushSignedCommitsUnsupportedShape) {
       throw new Error(
-        `pushSignedCommits: refusing unsigned push for branch '${branch}': ${err.message}. ` +
+        `pushSignedCommits: refusing unsigned push for branch '${branch}': ${getErrorMessage(err)}. ` +
           `GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits, symlinks (mode 120000), ` +
           `submodule entries (mode 160000), or executable bits (mode 100755). ` +
           `Rewrite the commits to use only regular files (mode 100644) with no merge commits, ` +
@@ -743,7 +743,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       );
     }
     if (err instanceof PushSignedCommitsPolicyViolation) {
-      throw new Error(`pushSignedCommits: refusing unsigned push for branch '${branch}': ${err.message}`, { cause: err });
+      throw new Error(`pushSignedCommits: refusing unsigned push for branch '${branch}': ${getErrorMessage(err)}`, { cause: err });
     }
     if (allowGitPushFallback === false) {
       throw new Error(`pushSignedCommits: signed commit push failed for branch '${branch}' and git push fallback is disabled: ${getErrorMessage(err)}`, { cause: err });

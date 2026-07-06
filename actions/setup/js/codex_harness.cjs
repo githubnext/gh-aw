@@ -1,5 +1,4 @@
 // @ts-check
-const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * OpenAI Codex CLI Harness with Retry Logic
@@ -32,8 +31,9 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * Example: node codex_harness.cjs codex exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt
  */
 
-("use strict");
+"use strict";
 
+const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
 const {
