@@ -96,14 +96,22 @@ func getMaxConcurrentDownloads() int {
 	return envutil.GetIntFromEnv("GH_AW_MAX_CONCURRENT_DOWNLOADS", MaxConcurrentDownloads, 1, 100, logsOrchestratorLog)
 }
 
-// matchEngineFilter checks whether the run recorded in awInfo matches the
-// requested engine filter string.  It returns (matches, detectedEngineID).
-// detectedEngineID is "" when awInfo is unavailable or carries no engine_id.
-func matchEngineFilter(awInfo *AwInfo, awInfoErr error, filterEngine string) (bool, string) {
-	if awInfoErr != nil || awInfo == nil || awInfo.EngineID == "" {
+// matchEngineFilter checks whether the run matches the requested engine filter string.
+// It uses the engine_id from awInfo (authoritative) or falls back to lockFileEngineID
+// (derived from the lock file's gh-aw-metadata) when aw_info.json is absent or carries
+// no engine_id.  Returns (matches, detectedEngineID).
+// detectedEngineID is "" when the engine is unknown from both sources.
+func matchEngineFilter(awInfo *AwInfo, awInfoErr error, filterEngine string, lockFileEngineID string) (bool, string) {
+	engineID := ""
+	if awInfoErr == nil && awInfo != nil && awInfo.EngineID != "" {
+		engineID = awInfo.EngineID
+	} else if lockFileEngineID != "" {
+		engineID = lockFileEngineID
+	}
+	if engineID == "" {
 		return false, ""
 	}
-	return awInfo.EngineID == filterEngine, awInfo.EngineID
+	return engineID == filterEngine, engineID
 }
 
 type LogsDownloadOptions struct {
@@ -509,7 +517,8 @@ outerLoop:
 
 				// Apply engine filtering if specified
 				if engine != "" {
-					engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, engine)
+					lockFileEngineID := extractEngineIDFromLockFile(result.Run.WorkflowPath, verbose)
+					engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, engine, lockFileEngineID)
 					if !engineMatches {
 						if detectedEngineID == "" {
 							detectedEngineID = "unknown"
@@ -1116,7 +1125,8 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 		}
 
 		if opts.Engine != "" {
-			engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, opts.Engine)
+			lockFileEngineID := extractEngineIDFromLockFile(result.Run.WorkflowPath, opts.Verbose)
+			engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, opts.Engine, lockFileEngineID)
 			if !engineMatches {
 				if detectedEngineID == "" {
 					detectedEngineID = "unknown"

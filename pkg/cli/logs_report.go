@@ -243,13 +243,18 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			engineName = info.EngineName
 			awContext = info.Context
 		}
+		// Fall back to the lock file's gh-aw-metadata when aw_info.json is absent
+		// or does not carry an engine_id (e.g. older runs that pre-date the artifact).
+		if engineID == "" {
+			engineID = extractEngineIDFromLockFile(run.WorkflowPath, false)
+		}
 		if engineName == "" {
 			engineName = engineID
 		}
 		if awContext == nil {
 			awContext = pr.AwContext
 		}
-		// Accumulate engine counts from aw_info.json data (authoritative source).
+		// Accumulate engine counts from aw_info.json / lock file metadata.
 		if engineID != "" {
 			engineCounts[engineID]++
 		}

@@ -4,6 +4,7 @@
 //
 // Key responsibilities:
 //   - Parsing aw_info.json to extract engine configuration
+//   - Extracting engine ID from lock file gh-aw-metadata as a fallback
 //   - Registering the errWalkStop sentinel used by walk-based helpers in this package
 
 package cli
@@ -14,6 +15,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -106,4 +108,61 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 
 	logsParsingCoreLog.Printf("Successfully extracted engine: %s", engine.GetID())
 	return engine
+}
+
+// extractEngineIDFromLockFile reads the local lock file for the given workflow and
+// returns the agent_id embedded in its gh-aw-metadata comment.  This provides a
+// fallback engine source when aw_info.json is absent (e.g. for older runs that
+// pre-date the aw_info.json artifact).
+//
+// workflowPath is the workflow file path as returned by the GitHub API (e.g.
+// ".github/workflows/daily-cli-tools-tester.lock.yml").  Plain ".yml" paths are
+// also accepted and are automatically resolved to the ".lock.yml" variant.
+// Returns "" when the path is empty, the lock file cannot be read, or no
+// agent_id is present in the metadata.
+func extractEngineIDFromLockFile(workflowPath string, verbose bool) string {
+	if workflowPath == "" {
+		return ""
+	}
+
+	lockPath := resolveToLockFilePath(workflowPath)
+	if lockPath == "" {
+		logsParsingCoreLog.Printf("Cannot resolve lock file path from: %s", workflowPath)
+		return ""
+	}
+
+	content, err := os.ReadFile(filepath.Clean(lockPath))
+	if err != nil {
+		logsParsingCoreLog.Printf("Cannot read lock file %s: %v", lockPath, err)
+		return ""
+	}
+
+	metadata, _, err := workflow.ExtractMetadataFromLockFile(string(content))
+	if err != nil || metadata == nil || metadata.AgentID == "" {
+		logsParsingCoreLog.Printf("No agent_id in lock file metadata: %s", lockPath)
+		return ""
+	}
+
+	logsParsingCoreLog.Printf("Extracted engine_id=%s from lock file %s", metadata.AgentID, lockPath)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Detected engine from lock file metadata: "+metadata.AgentID))
+	}
+	return metadata.AgentID
+}
+
+// resolveToLockFilePath converts a workflow file path to its lock file path.
+// Handles .lock.yml paths (returned as-is), plain .yml paths (converted by
+// appending ".lock" before the ".yml" suffix), and .md source paths.
+// Returns "" for unrecognised extensions.
+func resolveToLockFilePath(workflowPath string) string {
+	switch {
+	case strings.HasSuffix(workflowPath, ".lock.yml"):
+		return workflowPath
+	case strings.HasSuffix(workflowPath, ".md"):
+		return strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	case strings.HasSuffix(workflowPath, ".yml"):
+		return strings.TrimSuffix(workflowPath, ".yml") + ".lock.yml"
+	default:
+		return ""
+	}
 }

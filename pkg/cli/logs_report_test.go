@@ -991,6 +991,63 @@ func TestBuildLogsDataEngineCountsFromAwInfo(t *testing.T) {
 	}
 }
 
+// TestBuildLogsDataEngineCountsFromLockFileFallback verifies that engine_counts and
+// RunData.Agent are populated from the lock file's gh-aw-metadata when aw_info.json
+// is absent (i.e. for older runs that pre-date the aw_info.json artifact).
+func TestBuildLogsDataEngineCountsFromLockFileFallback(t *testing.T) {
+	// Create a run dir WITHOUT aw_info.json to simulate an older run.
+	createRunDirNoAwInfo := func() string {
+		return t.TempDir()
+	}
+
+	// Write a lock file containing gh-aw-metadata with agent_id.
+	createLockFile := func(engineID string) string {
+		dir := t.TempDir()
+		lockContent := `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc","agent_id":"` + engineID + `"}
+name: test-workflow
+`
+		lockPath := filepath.Join(dir, "test-workflow.lock.yml")
+		if err := os.WriteFile(lockPath, []byte(lockContent), 0600); err != nil {
+			t.Fatalf("Failed to write lock file: %v", err)
+		}
+		return lockPath
+	}
+
+	copilotLockPath := createLockFile("copilot")
+	claudeLockPath := createLockFile("claude")
+
+	copilotRunDir := createRunDirNoAwInfo()
+	claudeRunDir := createRunDirNoAwInfo()
+
+	processedRuns := []ProcessedRun{
+		{Run: WorkflowRun{DatabaseID: 1, WorkflowName: "wf-copilot", LogsPath: copilotRunDir, WorkflowPath: copilotLockPath}},
+		{Run: WorkflowRun{DatabaseID: 2, WorkflowName: "wf-claude", LogsPath: claudeRunDir, WorkflowPath: claudeLockPath}},
+	}
+
+	data := buildLogsData(processedRuns, "/tmp/logs", nil)
+
+	if data.Summary.EngineCounts == nil {
+		t.Fatal("EngineCounts should not be nil when runs have lock file metadata")
+	}
+	if got := data.Summary.EngineCounts["copilot"]; got != 1 {
+		t.Errorf("Expected 1 copilot run from lock file fallback, got %d", got)
+	}
+	if got := data.Summary.EngineCounts["claude"]; got != 1 {
+		t.Errorf("Expected 1 claude run from lock file fallback, got %d", got)
+	}
+
+	agentsByID := make(map[int64]string)
+	for _, run := range data.Runs {
+		agentsByID[run.RunID] = run.Agent
+	}
+	if agentsByID[1] != "copilot" {
+		t.Errorf("Run 1: expected agent=copilot from lock file fallback, got %q", agentsByID[1])
+	}
+	if agentsByID[2] != "claude" {
+		t.Errorf("Run 2: expected agent=claude from lock file fallback, got %q", agentsByID[2])
+	}
+}
+
 func TestBuildLogsDataAggregatesSteeringEvents(t *testing.T) {
 	processedRuns := []ProcessedRun{
 		{
