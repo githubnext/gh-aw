@@ -6,6 +6,7 @@ sidebar:
 ---
 
 import Video from '../../../components/Video.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## Adding an Automated Daily Status Workflow to Your Repo
 
@@ -84,32 +85,33 @@ This will take you through an interactive process to:
 > [!NOTE]
 > The `.lock.yml` is the compiled GitHub Actions workflow generated from your markdown — it is what actually runs, and it is regenerated automatically, so you never edit it by hand. See [Lock File](/gh-aw/reference/workflow-structure/#lock-file-header) for the full explanation.
 
-> [!NOTE]
-> **Setting up `COPILOT_GITHUB_TOKEN`?**
-> 1. [Create a fine-grained Personal Access Token (PAT)](https://github.com/settings/personal-access-tokens/new) under your user account.
-> 2. Under **Permissions → Account permissions**, set **Copilot Requests** to **Read**, then generate the token.
-> 3. Add it as a repository secret from your repository root with `gh secret set COPILOT_GITHUB_TOKEN < /path/to/token.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#copilot_github_token) for more detail.
->
+**Setting up your API key?** Select the engine you chose above:
 
-> [!NOTE]
-> **Setting up `ANTHROPIC_API_KEY`?**
-> 1. Create an API key in [Anthropic Console](https://console.anthropic.com/settings/keys).
-> 2. Add it as a repository secret from your repository root with `gh secret set ANTHROPIC_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#anthropic_api_key) for more detail.
->
+<Tabs>
+  <TabItem label="Copilot">
+    **Setting up `COPILOT_GITHUB_TOKEN`:**
+    1. [Create a fine-grained Personal Access Token (PAT)](https://github.com/settings/personal-access-tokens/new) under your user account.
+    2. Under **Permissions → Account permissions**, set **Copilot Requests** to **Read**, then generate the token.
+    3. Add it as a repository secret from your repository root with `gh secret set COPILOT_GITHUB_TOKEN < /path/to/token.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#copilot_github_token) for more detail.
+  </TabItem>
+  <TabItem label="Claude">
+    **Setting up `ANTHROPIC_API_KEY`:**
+    1. Create an API key in [Anthropic Console](https://console.anthropic.com/settings/keys).
+    2. Add it as a repository secret from your repository root with `gh secret set ANTHROPIC_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#anthropic_api_key) for more detail.
+  </TabItem>
+  <TabItem label="Codex">
+    **Setting up `OPENAI_API_KEY`:**
+    1. Create an API key in [OpenAI API keys](https://platform.openai.com/api-keys).
+    2. Add it as a repository secret from your repository root with `gh secret set OPENAI_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#openai_api_key) for more detail.
 
-> [!NOTE]
-> **Setting up `OPENAI_API_KEY`?**
-> 1. Create an API key in [OpenAI API keys](https://platform.openai.com/api-keys).
-> 2. Add it as a repository secret from your repository root with `gh secret set OPENAI_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#openai_api_key) for more detail.
->
-> **Tip:** `CODEX_API_KEY` is also accepted and takes precedence over `OPENAI_API_KEY` — if you have already stored the key under that name, no action is needed. See [Authentication](/gh-aw/reference/auth/#openai_api_key) for details.
->
-
-> [!NOTE]
-> **Setting up `GEMINI_API_KEY`?**
-> 1. Create an API key in [Google AI Studio](https://aistudio.google.com/api-keys).
-> 2. Add it as a repository secret from your repository root with `gh secret set GEMINI_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#gemini_api_key) for more detail.
->
+    **Tip:** `CODEX_API_KEY` is also accepted and takes precedence over `OPENAI_API_KEY` — if you have already stored the key under that name, no action is needed. See [Authentication](/gh-aw/reference/auth/#openai_api_key) for details.
+  </TabItem>
+  <TabItem label="Gemini">
+    **Setting up `GEMINI_API_KEY`:**
+    1. Create an API key in [Google AI Studio](https://aistudio.google.com/api-keys).
+    2. Add it as a repository secret from your repository root with `gh secret set GEMINI_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#gemini_api_key) for more detail.
+  </TabItem>
+</Tabs>
 
 > [!TIP]
 > **Having trouble?** Check your [repository secrets](/gh-aw/reference/auth/), see the [FAQ](/gh-aw/reference/faq/) and [Common Issues](/gh-aw/troubleshooting/common-issues/).
