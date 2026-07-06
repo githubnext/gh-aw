@@ -775,6 +775,17 @@ lint-lock: build
 	@echo "Linting committed lock files with gh aw lint..."
 	./$(BINARY_NAME) lint
 
+# Check for drift between workflow markdown sources and generated lock files.
+# Compiles all .github/workflows/*.md files and fails if any .lock.yml would
+# change, reminding contributors to run 'make recompile' before committing.
+.PHONY: check-workflow-drift
+check-workflow-drift:
+	@if [ ! -x "./$(BINARY_NAME)" ]; then \
+		echo "./$(BINARY_NAME) not found; building it first..."; \
+		$(MAKE) build; \
+	fi
+	@bash scripts/check-workflow-drift.sh ./$(BINARY_NAME)
+
 # Format code
 .PHONY: fmt
 fmt: fmt-go fmt-cjs fmt-json
@@ -1083,10 +1094,10 @@ agent-finish: deps-dev fmt lint build build-wasm test-all validate-otel-contract
 
 # Lightweight pre-PR gate — run before every report_progress / create_pull_request call.
 # Includes formatting + lint validation to prevent lint-fix PR churn:
-# build + fmt + lint + test-unit.
+# build + fmt + lint + test-unit + workflow drift check.
 .PHONY: agent-report-progress
-agent-report-progress: build fmt lint test-unit
-	@echo "Pre-PR validation passed (zero lint errors). Safe to call report_progress."
+agent-report-progress: build fmt lint test-unit check-workflow-drift
+	@echo "Pre-PR validation passed (zero lint errors, lock files in sync). Safe to call report_progress."
 
 # Extended pre-PR gate with lock-file-only linting.
 .PHONY: agent-report-progress-lint
@@ -1157,6 +1168,7 @@ help:
 	@echo "  actionlint       - Validate workflows with actionlint (depends on build)"
 	@echo "  lint-lock        - Run lock-file-only lint with gh aw lint (depends on build)"
 	@echo "  validate-workflows - Validate compiled workflow lock files (depends on build)"
+	@echo "  check-workflow-drift - Check for drift between .md sources and .lock.yml files (builds binary if missing)"
 	@echo "  install          - Install binary locally"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/actionpins/data and pkg/workflow/data (runs automatically during build)"
 	@echo "  sync-action-scripts - Sync install-gh-aw.sh to actions/setup-cli/install.sh (runs automatically during build)"
@@ -1176,7 +1188,7 @@ help:
 	@echo "  clean-docs       - Clean documentation artifacts (dist, node_modules, .astro)"
 
 	@echo "  agent-finish            - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"
-	@echo "  agent-report-progress   - Lightweight pre-PR gate: build + fmt + lint + test-unit"
+	@echo "  agent-report-progress   - Lightweight pre-PR gate: build + fmt + lint + test-unit + check-workflow-drift"
 	@echo "  agent-report-progress-lint - Pre-PR gate + gh aw lint lock-file check"
 	@echo "  sbom             - Generate SBOM in SPDX and CycloneDX formats (requires syft)"
 	@echo "  help             - Show this help message"
