@@ -16,6 +16,9 @@ var evalsConfigLog = logger.New("workflow:evals_config")
 type EvalDefinition struct {
 	ID       string `yaml:"id"`
 	Question string `yaml:"question"`
+	// Model is an optional per-question model override. When set, it takes precedence over
+	// EvalsConfig.Model. Use a model alias such as "small" or a full model ID.
+	Model string `yaml:"model,omitempty"`
 }
 
 // EvalsConfig holds the configuration for BinEval-style evaluations declared in workflow
@@ -23,9 +26,10 @@ type EvalDefinition struct {
 type EvalsConfig struct {
 	// Questions is the ordered list of binary evaluation questions.
 	Questions []EvalDefinition
-	// EngineConfig allows overriding the evaluation engine (model, API target, etc.).
-	// When nil, a default small model is used.
-	EngineConfig *EngineConfig
+	// Model is the default LLM model to use for evaluations. Use a model alias such as
+	// "small" or a full model ID. Per-question Model fields override this value.
+	// When empty, the compiler default ("small") is used.
+	Model string
 	// RunsOn allows overriding the runner for the evals job.
 	RunsOn string
 }
@@ -70,7 +74,7 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 		cfg.Questions = questions
 
 	case map[string]any:
-		// Extended form: object with questions and optional engine-config
+		// Extended form: object with questions and optional model/runs-on
 		if questionsRaw, ok := v["questions"]; ok {
 			if questionsList, ok := questionsRaw.([]any); ok {
 				questions, err := parseEvalDefinitions(questionsList)
@@ -81,14 +85,10 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 			}
 		}
 
-		// Parse engine-config if present
-		if engineRaw, ok := v["engine-config"]; ok {
-			if engineMap, ok := engineRaw.(map[string]any); ok {
-				_, engineConfig := c.ExtractEngineConfig(map[string]any{"engine": engineMap})
-				cfg.EngineConfig = engineConfig
-				evalsConfigLog.Printf("Parsed evals engine-config")
-			} else if engineStr, ok := engineRaw.(string); ok {
-				cfg.EngineConfig = &EngineConfig{ID: engineStr}
+		// Parse optional top-level model (default for all questions)
+		if modelRaw, ok := v["model"]; ok {
+			if modelStr, ok := modelRaw.(string); ok {
+				cfg.Model = strings.TrimSpace(modelStr)
 			}
 		}
 
@@ -105,7 +105,7 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 		return nil, err
 	}
 
-	evalsConfigLog.Printf("Parsed %d eval definitions", len(cfg.Questions))
+	evalsConfigLog.Printf("Parsed %d eval definitions (model: %q)", len(cfg.Questions), cfg.Model)
 	return cfg, nil
 }
 
@@ -148,10 +148,19 @@ func parseEvalDefinition(m map[string]any, idx int) (EvalDefinition, error) {
 		return EvalDefinition{}, fmt.Errorf("item %d: 'question' must be a non-empty string", idx)
 	}
 
-	return EvalDefinition{
+	def := EvalDefinition{
 		ID:       strings.TrimSpace(id),
 		Question: strings.TrimSpace(question),
-	}, nil
+	}
+
+	// Optional per-question model override.
+	if modelRaw, ok := m["model"]; ok {
+		if modelStr, ok := modelRaw.(string); ok {
+			def.Model = strings.TrimSpace(modelStr)
+		}
+	}
+
+	return def, nil
 }
 
 // validateEvals checks for duplicate IDs and non-empty questions after parsing.

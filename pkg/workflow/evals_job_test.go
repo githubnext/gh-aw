@@ -132,7 +132,7 @@ func TestBuildEvalsJob_StepsContainHarness(t *testing.T) {
 	require.NotNil(t, job)
 
 	allSteps := strings.Join(job.Steps, "")
-	assert.Contains(t, allSteps, "BinEval", "steps should reference BinEval harness")
+	assert.Contains(t, allSteps, "run_evals_harness.cjs", "steps should reference run_evals_harness.cjs")
 }
 
 func TestBuildEvalsJob_StepsContainArtifactUpload(t *testing.T) {

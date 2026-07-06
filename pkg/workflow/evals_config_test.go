@@ -43,7 +43,7 @@ func TestParseEvalsFromFrontmatter_ShorthandForm(t *testing.T) {
 	assert.Equal(t, "builds", cfg.Questions[0].ID)
 	assert.Equal(t, "Does the code compile?", cfg.Questions[0].Question)
 	assert.Equal(t, "tests", cfg.Questions[1].ID)
-	assert.Nil(t, cfg.EngineConfig)
+	assert.Empty(t, cfg.Model)
 	assert.Empty(t, cfg.RunsOn)
 }
 
@@ -65,22 +65,35 @@ func TestParseEvalsFromFrontmatter_ExtendedForm(t *testing.T) {
 	assert.NotEmpty(t, cfg.RunsOn)
 }
 
-func TestParseEvalsFromFrontmatter_ExtendedForm_WithEngineConfig(t *testing.T) {
+func TestParseEvalsFromFrontmatter_ExtendedForm_WithModel(t *testing.T) {
 	c := NewCompiler()
 	frontmatter := map[string]any{
 		"evals": map[string]any{
 			"questions": []any{
 				map[string]any{"id": "q1", "question": "Is it correct?"},
 			},
-			"engine-config": map[string]any{
-				"model": "openai/gpt-4o-mini",
-			},
+			"model": "openai/gpt-4o-mini",
 		},
 	}
 	cfg, err := c.parseEvalsFromFrontmatter(frontmatter)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	assert.NotNil(t, cfg.EngineConfig)
+	assert.Equal(t, "openai/gpt-4o-mini", cfg.Model)
+}
+
+func TestParseEvalsFromFrontmatter_PerQuestionModel(t *testing.T) {
+	c := NewCompiler()
+	frontmatter := map[string]any{
+		"evals": []any{
+			map[string]any{"id": "q1", "question": "Is it correct?", "model": "openai/gpt-4o"},
+			map[string]any{"id": "q2", "question": "Is it safe?"},
+		},
+	}
+	cfg, err := c.parseEvalsFromFrontmatter(frontmatter)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	assert.Equal(t, "openai/gpt-4o", cfg.Questions[0].Model, "per-question model should be preserved")
+	assert.Empty(t, cfg.Questions[1].Model, "question without model should have empty Model")
 }
 
 func TestParseEvalsFromFrontmatter_InvalidType(t *testing.T) {
