@@ -43,13 +43,17 @@ timeout-minutes: 20
 tools:
   bash:
   - find pkg -name "*.go" ! -name "*_test.go" -type f
-  - find pkg -type f -name "*.go" ! -name "*_test.go"
-  - find pkg/ -maxdepth 1 -ls
-  - wc -l pkg/**/*.go
-  - grep -r "type " pkg --include="*.go"
-  - grep -r "interface{}" pkg --include="*.go"
-  - "grep -r \"\\\\bany\\\\b\" pkg --include=\"*.go\""
-  - cat pkg/**/*.go
+  - grep -rn
+  - grep -rhnP
+  - grep -rhoP
+  - grep -rcP
+  - wc -l
+  - awk
+  - python3
+  - serena
+  - sed -n
+  - head
+  - mkdir -p
   cli-proxy: true
   edit: null
   github:
@@ -97,17 +101,17 @@ When you're done, create a discussion that explains what you found and how to fi
 
 ## Analysis Process
 
-{{#if experiments.tone_style == 'conversational'}}
 ### Phase 0: Setup and Activation
-
+{{#if experiments.tone_style == 'conversational'}}
 First things first—let's activate Serena and discover all the Go files we need to analyze.
 {{/if}}
-{{#if experiments.tone_style == 'formal'}}
-### Phase 0: Setup and Activation
-{{/if}}
 
-1. **Activate Serena Project**:
-   Use Serena's `activate_project` tool with the workspace path to enable semantic analysis.
+> **Bash constraint:** Run one logical operation per Bash call. Chain with `&&` only when both parts are on the configured allowlist.
+
+1. **Activate Serena** (skip any help-check):
+   ```bash
+   serena activate_project --project ${{ github.workspace }} 2>&1 | tail -20
+   ```
 
 2. **Discover Go Source Files**:
    Find all non-test Go files in the repository:
@@ -152,30 +156,9 @@ Scan for untyped or weakly-typed code:
    - Prioritize by safety impact and code clarity
 
 **Examples of Untyped Usages**:
-```go
-// BEFORE (untyped)
-func processData(input interface{}) error {
-    data := input.(map[string]interface{})  // Type assertion needed
-    return nil
-}
-
-// AFTER (strongly typed)
-type InputData struct {
-    Fields map[string]string
-}
-
-func processData(input InputData) error {
-    // No type assertion needed
-    return nil
-}
-
-// BEFORE (untyped constant)
-const DefaultTimeout = 30  // Could be seconds, milliseconds, etc.
-
-// AFTER (strongly typed)
-type Duration int
-const DefaultTimeout Duration = 30  // Clearly defined type
-```
+- Replace `interface{}` params with domain-specific struct types (eliminates type assertions)
+- Replace `any` map values with typed value structs
+- Replace untyped numeric/string constants with semantic type aliases (e.g., `type Seconds int`)
 
 ### Phase 3: Cross-Reference Analysis
 
@@ -242,15 +225,7 @@ Create a comprehensive discussion with your findings.
 2. `pkg/cli/config.go:23` - `type Config struct { ... }`
 3. `pkg/parser/config.go:8` - `type Config struct { ... }`
 
-**Definition Comparison**:
-```go
-// All three are identical:
-type Config struct {
-    Timeout  int
-    Verbose  bool
-    LogLevel string
-}
-```
+**Definition Comparison**: All occurrences share identical fields — consolidate into a single shared type.
 
 **Recommendation**:
 - Create shared types package: `pkg/types/config.go`
@@ -286,21 +261,14 @@ type Config struct {
 - **Location**: `pkg/workflow/processor.go:45`
 - **Current signature**: `func processData(input interface{}) error`
 - **Actual usage**: Always receives `map[string]string`
-- **Suggested fix**:
-  ```go
-  type ProcessInput map[string]string
-  func processData(input ProcessInput) error
-  ```
+- **Suggested fix**: Define `type ProcessInput map[string]string` and use it in the signature (eliminates type assertion)
 - **Benefits**: Compile-time type safety, no type assertions needed
 
 #### Example 2: handleConfig function
 - **Location**: `pkg/cli/handler.go:67`
 - **Current signature**: `func handleConfig(cfg interface{}) error`
 - **Actual usage**: Always receives `*Config` struct
-- **Suggested fix**:
-  ```go
-  func handleConfig(cfg *Config) error
-  ```
+- **Suggested fix**: Update signature to `func handleConfig(cfg *Config) error`
 - **Benefits**: Clear API, prevents runtime panics
 
 [More examples...]
@@ -314,18 +282,8 @@ type Config struct {
 **Examples**:
 
 #### Example 1: Timeout values
-```go
-// Current (unclear units)
-const DefaultTimeout = 30
-const MaxRetries = 5
-
-// Suggested (clear semantic types)
-type Seconds int
-type RetryCount int
-
-const DefaultTimeout Seconds = 30
-const MaxRetries RetryCount = 5
-```
+- Replace untyped `const DefaultTimeout = 30` with `type Seconds int; const DefaultTimeout Seconds = 30`
+- Replace untyped `const MaxRetries = 5` with `type RetryCount int; const MaxRetries RetryCount = 5`
 
 **Locations**:
 - `pkg/workflow/constants.go:12`
@@ -344,22 +302,7 @@ const MaxRetries RetryCount = 5
 **Examples**:
 
 #### Example 1: Cache implementation
-```go
-// Current
-type Cache struct {
-    data map[string]interface{}
-}
-
-// Suggested
-type CacheValue struct {
-    Value string
-    Metadata map[string]string
-}
-
-type Cache struct {
-    data map[string]CacheValue
-}
-```
+- Replace `map[string]interface{}` field with a typed `map[string]CacheValue` where `CacheValue` holds the value and metadata as concrete fields
 
 **Location**: `pkg/cache/cache.go:15`
 **Benefits**: No type assertions, easier to work with
