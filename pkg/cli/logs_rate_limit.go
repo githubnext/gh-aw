@@ -114,7 +114,7 @@ func checkAndWaitForRateLimit(ctx context.Context, verbose bool) error {
 		// Best-effort: fall back to static cooldown so the caller can continue.
 		logsRateLimitLog.Printf("Could not fetch rate limit, using static cooldown: %v", err)
 		if sleepErr := sleepWithContext(ctx, APICallCooldown); sleepErr != nil {
-			return fmt.Errorf("rate-limit fetch failed during context termination: %w", errors.Join(err, sleepErr))
+			return fmt.Errorf("rate-limit fetch failed and context terminated during fallback cooldown: %w", errors.Join(err, sleepErr))
 		}
 		return err
 	}

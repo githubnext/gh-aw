@@ -132,7 +132,9 @@ func TestSleepWithContextNilContext(t *testing.T) {
 	elapsed := time.Since(start)
 	require.NoError(t, err, "nil context should fall back to background context")
 	assert.Less(t, elapsed, time.Second, "nil context should not block longer than timer duration")
+}
 
+func TestSleepWithContextAlreadyCanceled(t *testing.T) {
 	canceledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 	require.ErrorIs(t, sleepWithContext(canceledCtx, 2*time.Millisecond), context.Canceled)
