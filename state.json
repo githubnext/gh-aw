@@ -1,43 +1,43 @@
 {
-  "lastRun": "2026-07-05",
-  "ruleCount": 9,
-  "rules": ["no-core-setoutput-non-string", "no-unsafe-catch-error-property", "no-unsafe-promise-catch-error-property", "prefer-get-error-message", "prefer-number-isnan", "require-async-entrypoint-catch", "require-await-core-summary-write", "require-json-parse-try-catch", "require-parseInt-radix"],
-  "newRuleThisPeriod": "prefer-number-isnan added since 2026-07-04 run (was 8, now 9). Not in prior state.json rules list; never reviewed before. type=suggestion, warn.",
-  "shipped_since_last_run": "Commit bd0c249 (#43404) fixed the await-summary alias FN #1 I filed 2026-07-04 (local `summary = core.summary` aliases now detected). Issue #43326 is my await-summary FN3 (non-bare-call statement positions) - still OPEN.",
-  "focusThisRun": "First review of NEW 9th rule prefer-number-isnan. Filed 2 grounded refinement issues (kept to 2, not 3, to avoid dilution).",
+  "lastRun": "2026-07-06",
+  "ruleCount": 10,
+  "rules": ["no-core-setoutput-non-string", "no-json-stringify-error", "no-unsafe-catch-error-property", "no-unsafe-promise-catch-error-property", "prefer-get-error-message", "prefer-number-isnan", "require-async-entrypoint-catch", "require-await-core-summary-write", "require-json-parse-try-catch", "require-parseInt-radix"],
+  "newRuleThisPeriod": "no-json-stringify-error added since 2026-07-05 run (was 9, now 10). Pattern holds: repo ships a new rule ~daily. This was the never-reviewed rule; focused this run on it.",
+  "focusThisRun": "First review of NEW 10th rule no-json-stringify-error. Filed 2 grounded refinement issues (kept to 2 not 3, quality over cap - same discipline as prior run).",
+  "noJsonStringifyErrorFindings": {
+    "verdict": "Well-designed. Detection is Identifier-only + catch/.catch()-scoped with sentinel shadow-exclusion. Precisely matches the ONE real corpus footgun with ZERO false positives.",
+    "liveTruePositive": "expired_entity_cleanup_helpers.cjs:134 - `JSON.stringify(error, null, 2)` inside catch(error), produces {}. Rule catches it. Only live TP site in corpus.",
+    "correctNonFlags": "github_api_helpers.cjs:56-57 JSON.stringify(error.request/.data, null,2) - member access on plain objects, correctly NOT flagged (firstArg must be bare Identifier).",
+    "corpusFNsAllUngrounded_0sites": "spread {...err} (0), array/object-shorthand [err]/{err} (0), aliased err->JSON.stringify (0), .then(_,onRejected) 2-arg reject handlers (0), nested non-.catch callback referencing outer err (blocked by sentinel design, 0 grounded).",
+    "getErrorMessage_returns": "error_helpers.cjs:26-44 returns ONLY error.message (no stack/props). So the single suggestion narrows detail - grounds issue #1."
+  },
   "issuesFiledThisRun": [
-    "prefer-number-isnan HIGH (grounded 51 sites): misleading 'wrap with Number(...)' caveat + suggestion-only. 0/51 live isNaN sites hit the coercion footgun - EVERY arg is provably numeric (parseInt/parseFloat/Number/.getTime result). For those the transform is a pure equivalence but rule offers no autofix and attaches a wrong caveat. Ask: detect provably-numeric arg -> safe `fix` + caveat-free message; keep suggest-only+caveat for unknown args; add idiom tests.",
-    "prefer-number-isnan MED (ungrounded/latent): hasLocalBinding excludes ImportBinding defs (d.type !== 'ImportBinding') -> import-bound isNaN (lodash) / window / global get flagged as the real global. No ESM consumers in corpus (CJS only), no test, undocumented rationale. Ask: document+test OR drop the filter so imports count as shadows."
+    "no-json-stringify-error MED (grounded at sole live site): getErrorMessage() suggestion is message-only. At expired_entity_cleanup_helpers.cjs:134 it would DUPLICATE adjacent line 133 getErrorMessage(error) and DISCARD the 'Error details' + null,2 full-detail intent. Also scope-blind (ReferenceError if getErrorMessage not imported). Ask: detail-preserving 2nd suggestion (stack) + String(err) fallback when unimported + tests.",
+    "no-json-stringify-error MED/latent (0 sites): silently skips .then(onFulfilled,onRejected) reject handlers + named .catch(handler) refs; exclusion undocumented in docs/README. Ask: pin behavior w/ test matrix, document boundary, decide whether to extend to .then 2-arg."
   ],
-  "preferNumberIsNanFindings": {
-    "corpus": "51 global isNaN() call sites in actions/setup/js; 12 Number.isNaN sites; 0 isFinite; 0 aliased/destructured isNaN bindings; 0 raw-string isNaN args (all args are parseInt/parseFloat/Number/.getTime results).",
-    "ruleCatchesWell": "bare isNaN(x), globalThis/window/global .isNaN and [\"isNaN\"] computed forms, scope-aware shadow exclusion (const isNaN=Number.isNaN skipped). Suggestion (not fix) correctly gated behind semantic-flip caveat.",
-    "dominantIdiom": "const n = parseInt(String(v),10); if (isNaN(n)) ... -> isNaN===Number.isNaN here (arg already number), so replacement is guaranteed-equivalent.",
-    "notFiled_lowValue": "isFinite sibling rule candidate (0 corpus sites); alias-binding FN (0 sites); template-literal computed prop globalThis[`isNaN`] FN (contrived); optional-chain globalThis?.isNaN is already handled."
-  },
   "priorOpenIssues_stillValid_notRefiled": {
-    "43326": "await-summary FN: discarded promise in non-bare-call statement positions (my 2026-07-04 FN3, landed as issue, OPEN)",
-    "42680": "setoutput nonStringKind Literal only, misses UnaryExpression -1/+5",
-    "42682": "setoutput only .length not .number/.size",
-    "42189/42915": "catch/promise-catch whole-block branch-order FN",
-    "42188/42190": "broaden catch beyond message/stack/code; add suggestions + computed access",
-    "async-entrypoint (2 filed 2026-07-03)": "arrow/fn-expr + .then-no-catch FN; scope-blind bare-name Set FP",
-    "42015/42016/42017/41962/41963": "parseInt+json alias/computed/deferred-callback out of scope or fix asks"
+    "43486": "prefer-number-isnan HIGH: misleading Number() caveat + suggestion-only on already-numeric args (my 2026-07-05 filing, OPEN)",
+    "43486_MED_sibling": "prefer-number-isnan hasLocalBinding excludes ImportBinding (my 2026-07-05 MED, OPEN)",
+    "43326": "await-summary FN: discarded promise in non-bare-call statement positions (2026-07-04 FN3, OPEN)",
+    "42915": "no-unsafe-promise-catch-error-property whole-callback branch-order FN",
+    "42682": "setoutput only .length, misses .number/.size",
+    "42680": "setoutput misses negative/unary numeric literals -1/+5",
+    "42190/42189/42188": "no-unsafe-catch-error-property: add stack/code suggestions+computed; whole-block branch-order FN; broaden beyond message/stack/code to .status/.cause/.name"
   },
-  "note_issueLimit": "create_issue max 3/run. Filed 2 this run (both prefer-number-isnan). Chose quality over cap.",
+  "note_issueLimit": "create_issue max 3/run. Filed 2 (both no-json-stringify-error). All 10 known rules now reviewed at least once.",
   "nextPriorities": [
-    "Re-read src before refiling: repo ships new rules fast (9th rule appeared since 2026-07-04; await-summary alias fix landed same-day-ish as #43404).",
-    "Watch whether prefer-number-isnan gains provably-numeric autofix; if so, corpus becomes --fix-able for ~51 sites.",
-    "All 9 known rules now reviewed at least once. Next: mine a genuinely NEW defect class. Candidates: core.setFailed non-string (twin of setOutput); global isFinite (0 sites today - skip); Array.prototype.includes-on-NaN; unchecked fs.promises rejections; String.prototype.replace w/o /g on repeated tokens.",
-    "Consider re-sweeps of oldest-reviewed rules (require-json-parse-try-catch, require-parseInt-radix) for regressions after heavy refinement churn.",
+    "Re-read src/index.ts FIRST before assuming rule set: repo adds ~1 new rule/day (8->9->10 over 3 runs). Diff index.ts against state.json rules[] to find the newest never-reviewed rule and lead with it.",
+    "Mine a genuinely NEW defect class (all 10 rules reviewed). Prior candidate still open: core.setFailed(non-string) twin of no-core-setoutput-non-string. Also: String.prototype.replace w/o /g on repeated tokens; unchecked fs.promises rejections. Check grounding before filing.",
+    "If no-json-stringify-error gains a detail-preserving/scope-aware suggestion, re-verify at expired_entity_cleanup_helpers.cjs:134.",
+    "Watch for regressions in oldest-reviewed rules (require-json-parse-try-catch, require-parseInt-radix) after refinement churn.",
     "Cannot close issues (safe outputs: create_issue/create_discussion/missing_tool/missing_data/noop/push_repo_memory). Close-recs -> discussion only."
   ],
   "ops": [
-    "repo-memory readable+writable via Read/Write/Glob tools ONLY (Bash ls/cat/find BLOCKED on /tmp - scoped to working dir). Write works for /tmp/gh-aw/repo-memory.",
-    "create issue: Write JSON {title,body,labels} to a file INSIDE working dir (e.g. eslint-factory/.tmp_issue.json - /tmp/gh-aw/agent write via Bash redirect is BLOCKED), then `cd <dir> && safeoutputs create_issue . < file` (2>/dev/null suppresses bridge log). {\"result\":\"success\"}==accepted. rm temp files after.",
-    "dedupe: `gh api \"repos/github/gh-aw/issues?state=open&per_page=100\" --jq '.[]|select(...)'`. NOTE: gh api search/issues returned a GHOST result (total_count=1, all item fields null) for isNaN queries - an indexing artifact, NOT a real dup. Use the issues endpoint + jq title filter instead. `gh search issues --json` throws 'malformed version'.",
-    "Bash blocks compound cmds (&&, ;, echo-chains, $() expansion, $var in some contexts) needing approval - run single commands. sed -n 'A,Bp' works for context. grep -rn ok.",
-    "eslint-factory has NO node_modules/dist; npm firewalled - cannot run linter live. Ground findings statically via grep on .cjs + reading rule src + tests.",
+    "repo-memory: Read/Write/Glob tools ONLY. Bash ls/cat/find on /tmp are BLOCKED (scoped to working dir) even with dangerouslyDisableSandbox. Read tool WORKS on /tmp/gh-aw/repo-memory paths; Write WORKS.",
+    "create issue: Write JSON {title,body,labels} to file INSIDE working dir (e.g. eslint-factory/.tmp_issueN.json), then `cd <dir> && safeoutputs create_issue . < file 2>/dev/null`. {\"result\":\"success\"}==accepted. rm temp after. safeoutputs create_issue --help lists params (title*,body*,labels,...).",
+    "dedupe: `gh api \"repos/github/gh-aw/issues?state=open&per_page=100\" --jq '.[]|select(.title//\"\"|test(\"pat\";\"i\"))|\"\\(.number)\\t\\(.title)\"'`. gh search issues --json throws 'malformed version'; gh api search endpoint returned GHOST null-field results before - use issues endpoint + jq.",
+    "Bash blocks compound cmds (&&, ;, echo-chains, glob-in-cat, 2>&1 sometimes) needing approval - run single commands. Grep/Glob/Read tools preferred over bash for search.",
+    "eslint-factory has NO node_modules/dist; npm firewalled - cannot run linter live. Ground findings statically via Grep on .cjs + reading rule src + tests.",
     "patch limit ~10KB per push - keep state.json lean, prune old verbatim finding lists."
   ]
 }
