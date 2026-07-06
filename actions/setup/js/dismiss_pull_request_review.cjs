@@ -101,8 +101,8 @@ async function main(config = {}) {
       };
     }
 
-    const rawReviewId = String(message.review_id || "").trim();
-    const useAutoReviewId = rawReviewId.toLowerCase() === "auto";
+    const rawReviewId = String(message.review_id ?? "").trim();
+    const useAutoReviewId = rawReviewId === "" || rawReviewId.toLowerCase() === "auto";
     const parsedReviewId = Number.parseInt(rawReviewId, 10);
     if (!useAutoReviewId && (!Number.isInteger(parsedReviewId) || parsedReviewId <= 0)) {
       return {

@@ -165,6 +165,29 @@ describe("dismiss_pull_request_review", () => {
     expect(mockDismissReview).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 42, review_id: 456 }));
   });
 
+  it("defaults to auto when review_id is omitted", async () => {
+    mockListReviews.mockResolvedValueOnce({
+      data: [
+        {
+          id: 789,
+          state: "APPROVED",
+          submitted_at: "2026-07-01T00:00:00Z",
+          user: { login: "github-actions[bot]" },
+        },
+      ],
+    });
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.dismissed_count).toBe(1);
+    expect(result.review_ids).toEqual([789]);
+    expect(mockDismissReview).toHaveBeenCalledWith(expect.objectContaining({ review_id: 789 }));
+  });
+
   it("dismisses only actor-authored reviews when review_id=auto (ignores other authors)", async () => {
     mockListReviews.mockResolvedValueOnce({
       data: [
