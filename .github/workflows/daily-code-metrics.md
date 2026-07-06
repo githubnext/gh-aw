@@ -131,12 +131,14 @@ Before writing `history.jsonl`, prune entries older than 90 days to keep the fil
 ```bash
 # Prune history.jsonl to 90-day retention window
 HISTORY=/tmp/gh-aw/repo-memory/default/history.jsonl
-CUTOFF=$(date -u -d "90 days ago" +%Y-%m-%d 2>/dev/null || date -u -v-90d +%Y-%m-%d)
+CUTOFF=$(python3 -c "from datetime import date, timedelta; print((date.today() - timedelta(days=90)).isoformat())")
 if [ -f "$HISTORY" ]; then
   tmp=$(mktemp)
   while IFS= read -r line; do
     row_date=$(echo "$line" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('date',''))" 2>/dev/null)
-    [ "$row_date" \> "$CUTOFF" ] || [ "$row_date" = "$CUTOFF" ] && echo "$line" >> "$tmp"
+    if [ -n "$row_date" ] && ([ "$row_date" \> "$CUTOFF" ] || [ "$row_date" = "$CUTOFF" ]); then
+      echo "$line" >> "$tmp"
+    fi
   done < "$HISTORY"
   mv "$tmp" "$HISTORY"
 fi
