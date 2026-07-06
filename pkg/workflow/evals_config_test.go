@@ -95,7 +95,7 @@ func TestParseEvalsFromFrontmatter_PerQuestionModel(t *testing.T) {
 	assert.Empty(t, cfg.Questions[1].Model, "question without model should have empty Model")
 }
 
-func TestParseEvalsFromFrontmatter_PerQuestionNonStringModel(t *testing.T) {
+func TestParseEvalsFromFrontmatter_QuestionLevelNonStringModel(t *testing.T) {
 	c := NewCompiler()
 	_, err := c.parseEvalsFromFrontmatter(map[string]any{
 		"evals": []any{
