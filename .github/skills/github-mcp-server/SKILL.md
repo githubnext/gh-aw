@@ -108,7 +108,7 @@ The following toolsets are enabled by default when `toolsets:` is not specified:
 | `issues` | Issue management | `issue_read`, `list_issues`, `create_issue`, `search_issues` |
 | `pull_requests` | Pull request operations | `pull_request_read`, `list_pull_requests`, `create_pull_request` |
 | `actions` | GitHub Actions/CI/CD | `list_workflows`, `list_workflow_runs`, `download_workflow_run_artifact` |
-| `code_security` | Code scanning and security | `list_code_scanning_alerts`, `get_code_scanning_alert` |
+| `code_security` | Code scanning and security | `list_code_scanning_alerts` ⚠️ (always include `state: open` and `severity: critical,high`), `get_code_scanning_alert` |
 | `dependabot` | Dependency management | Dependabot alerts and updates |
 | `discussions` | GitHub Discussions | `list_discussions`, `create_discussion` |
 | `experiments` | Experimental features | Unstable/preview APIs |
@@ -294,7 +294,7 @@ Use this table to identify which toolset contains the tools you need:
 | `issue_read`, `list_issues`, `create_issue`, `update_issue`, `search_issues` | `issues` |
 | `pull_request_read`, `list_pull_requests`, `create_pull_request` | `pull_requests` |
 | `list_workflows`, `list_workflow_runs`, `get_workflow_run` | `actions` |
-| `list_code_scanning_alerts`, `get_code_scanning_alert` | `code_security` |
+| `list_code_scanning_alerts` ⚠️ (always include `state: open` and `severity: critical,high`), `get_code_scanning_alert` | `code_security` |
 | `list_discussions`, `create_discussion` | `discussions` |
 | `get_label`, `list_labels`, `create_label` | `labels` |
 | `get_user`, `list_users` | `users` |
