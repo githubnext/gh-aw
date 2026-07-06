@@ -2,6 +2,7 @@ package execcommandwithoutcontext
 
 import (
 	"context"
+	"net/http"
 	"os/exec"
 )
 
@@ -72,4 +73,59 @@ func OuterCtxInnerClosure(ctx context.Context) {
 func GoodNoLint(ctx context.Context, name string) {
 	_ = ctx
 	_ = exec.Command(name) //nolint:execcommandwithoutcontext
+}
+
+// Good: non-go/defer callback closure nested in ctx func — outer ctx is not in scope.
+func GoodHTTPHandleFuncCallbackInCtxFunc(ctx context.Context) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/run", func(w http.ResponseWriter, r *http.Request) {
+		_ = w
+		_ = r
+		_ = exec.Command("ls")
+	})
+	_ = ctx
+}
+
+// Good: ordinary synchronous callback closure should not be attributed to outer ctx.
+func GoodSyncCallbackInCtxFunc(ctx context.Context) {
+	register(func() {
+		_ = exec.Command("ls")
+	})
+	_ = ctx
+}
+
+// Bad: deferred closure shares outer context lifetime.
+func BadDeferWithCtx(ctx context.Context) {
+	defer func() {
+		_ = exec.CommandContext(ctx, "ls") // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
+	}()
+	_ = ctx
+}
+
+// Bad: parenthesized deferred closure shares outer context lifetime.
+func BadDeferParenWithCtx(ctx context.Context) {
+	defer (func() {
+		_ = exec.CommandContext(ctx, "ls") // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
+	})()
+	_ = ctx
+}
+
+// Bad: parenthesized goroutine closure shares outer context lifetime.
+func BadGoParenWithCtx(ctx context.Context) {
+	go (func() {
+		_ = exec.CommandContext(ctx, "ls") // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
+	})()
+	_ = ctx
+}
+
+// Bad: plain goroutine closure shares outer context lifetime.
+func BadGoWithCtx(ctx context.Context) {
+	go func() {
+		_ = exec.CommandContext(ctx, "ls") // want `use exec\.CommandContext\(ctx, \.\.\.\) instead of exec\.Command to propagate context cancellation`
+	}()
+	_ = ctx
+}
+
+func register(fn func()) {
+	fn()
 }

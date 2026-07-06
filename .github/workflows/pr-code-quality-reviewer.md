@@ -44,6 +44,28 @@ safe-outputs:
     run-started: "🔎 [{workflow_name}]({run_url}) is reviewing code quality for this {event_type}..."
     run-success: "✅ [{workflow_name}]({run_url}) completed the code quality review."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during code quality review."
+pre-agent-steps:
+  - name: Pre-fetch PR diff
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
+      PR_DIFF_MAX_LINES: "3000"
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/agent
+      { gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
+          --exclude '**/*.lock.yml' \
+          --exclude '**/generated/**' \
+          --exclude '**/dist/**' \
+          --exclude '**/build/**' \
+          || true; } | head -n "${PR_DIFF_MAX_LINES}" > /tmp/gh-aw/agent/pr-diff.patch
+      LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
+      gh pr view "$PR_NUMBER" \
+        --repo $EXPR_GITHUB_REPOSITORY \
+        --json number,title,body,headRefName,additions,deletions,changedFiles,files \
+        > /tmp/gh-aw/agent/pr-meta.json
+      echo "Pre-fetched PR diff (${LINES} lines) and metadata"
 timeout-minutes: 15
 
 ---
@@ -60,13 +82,17 @@ You are a highly critical code reviewer. Your mission is to aggressively find co
 
 ## Review Process
 
-### Step 1: Fetch Pull Request Details and Launch Sub-Agent
+### Step 1: Load Pre-Fetched PR Data and Launch Sub-Agent
 
-In **one parallel turn**, fetch all of the following using GitHub MCP tools. **Always** use `get_diff` for the PR diff and `get_files` for the changed-file list — do not use `git diff` bash commands, which are unreliable in shallow clones:
-- PR diff (line-by-line changes) — use `get_diff`
-- List of changed files — use `get_files`
+The PR diff and metadata have already been pre-fetched and are available as local files:
+- **PR diff** (capped at 3000 lines, lock/generated/dist/build files excluded): `/tmp/gh-aw/agent/pr-diff.patch`
+- **PR metadata** (files list, additions, deletions): `/tmp/gh-aw/agent/pr-meta.json`
+
+In **one parallel turn**, read those two files and also fetch:
 - Existing review comments — use `get_review_comments` (to avoid duplication)
 - (Optional) `/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.number || github.event.pull_request.number }}.json` for past review themes
+
+**Do not** call `get_diff`; use the pre-fetched `/tmp/gh-aw/agent/pr-diff.patch` instead — it is already capped to prevent token-heavy context payloads.
 
 **In the same turn**, start the `grumpy-coder` sub-agent in the background, passing the PR diff and changed-file list as input context.
 

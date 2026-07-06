@@ -55,7 +55,7 @@ describe("parse_pi_log.cjs", () => {
 
       const result = parsePiLog(logContent);
 
-      expect(result.markdown).toContain("## 🚀 Initialization");
+      expect(result.markdown).toContain("<summary>Initialization</summary>");
       expect(result.markdown).toContain("pi-3");
       expect(result.markdown).toContain("sess-abc");
     });
@@ -65,7 +65,7 @@ describe("parse_pi_log.cjs", () => {
 
       const result = parsePiLog(logContent);
 
-      expect(result.markdown).toContain("## 🤖 Reasoning");
+      expect(result.markdown).toContain("<summary>Reasoning</summary>");
       expect(result.markdown).toContain("I will analyze the repository.");
     });
 
