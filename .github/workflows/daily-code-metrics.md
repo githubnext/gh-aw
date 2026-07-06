@@ -135,8 +135,9 @@ CUTOFF=$(python3 -c "from datetime import date, timedelta; print((date.today() -
 if [ -f "$HISTORY" ]; then
   tmp=$(mktemp)
   while IFS= read -r line; do
+    # Lines with malformed JSON or missing date are silently dropped (treated as expired)
     row_date=$(echo "$line" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('date',''))" 2>/dev/null)
-    if [ -n "$row_date" ] && ([ "$row_date" \> "$CUTOFF" ] || [ "$row_date" = "$CUTOFF" ]); then
+    if [ -n "$row_date" ] && [[ "$row_date" > "$CUTOFF" || "$row_date" = "$CUTOFF" ]]; then
       echo "$line" >> "$tmp"
     fi
   done < "$HISTORY"
