@@ -194,6 +194,54 @@ func FlipComparisonOp(op token.Token) token.Token {
 	}
 }
 
+// IsGoOrDeferClosure reports whether the FuncLit at funcLitCur is the direct
+// callee of a go or defer statement, handling parenthesized forms like
+// defer (func(){})().
+func IsGoOrDeferClosure(funcLitCur inspector.Cursor) bool {
+	// Walk up from the FuncLit, unwrapping any ParenExpr wrappers, to find the
+	// enclosing CallExpr. This handles parenthesized forms like defer (func(){})().
+	cur := funcLitCur.Parent()
+	for {
+		if cur.Node() == nil {
+			return false
+		}
+		if _, ok := cur.Node().(*ast.ParenExpr); ok {
+			cur = cur.Parent()
+			continue
+		}
+		break
+	}
+
+	call, ok := cur.Node().(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	// Unwrap ParenExpr from call.Fun and verify it resolves to our FuncLit.
+	callee := call.Fun
+	for {
+		if paren, ok := callee.(*ast.ParenExpr); ok {
+			callee = paren.X
+		} else {
+			break
+		}
+	}
+	if callee != funcLitCur.Node() {
+		return false
+	}
+
+	grandparent := cur.Parent().Node()
+	if grandparent == nil {
+		return false
+	}
+
+	switch grandparent.(type) {
+	case *ast.GoStmt, *ast.DeferStmt:
+		return true
+	default:
+		return false
+	}
+}
+
 // Inspector extracts the *inspector.Inspector from pass.ResultOf.
 // It returns an error if the result has an unexpected type.
 func Inspector(pass *analysis.Pass) (*inspector.Inspector, error) {
