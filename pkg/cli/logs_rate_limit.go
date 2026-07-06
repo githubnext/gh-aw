@@ -13,6 +13,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -23,6 +24,7 @@ import (
 )
 
 var logsRateLimitLog = logger.New("cli:logs_rate_limit")
+var fetchRateLimitFunc = fetchRateLimit
 
 // rateLimitResponse models the JSON returned by `gh api rate_limit`.
 // Only the "core" resource bucket is used because log downloads and
@@ -75,6 +77,15 @@ func fetchRateLimit() (rateLimitResource, error) {
 // If ctx is cancelled before the timer expires, it stops the timer and returns
 // ctx.Err() so callers can propagate cancellation immediately.
 func sleepWithContext(ctx context.Context, d time.Duration) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	timer := time.NewTimer(d)
 	defer timer.Stop()
 	select {
@@ -98,12 +109,12 @@ func sleepWithContext(ctx context.Context, d time.Duration) error {
 // back to the static APICallCooldown sleep and returns the error so callers
 // can decide whether to surface it.
 func checkAndWaitForRateLimit(ctx context.Context, verbose bool) error {
-	rl, err := fetchRateLimit()
+	rl, err := fetchRateLimitFunc()
 	if err != nil {
 		// Best-effort: fall back to static cooldown so the caller can continue.
 		logsRateLimitLog.Printf("Could not fetch rate limit, using static cooldown: %v", err)
 		if sleepErr := sleepWithContext(ctx, APICallCooldown); sleepErr != nil {
-			return sleepErr
+			return fmt.Errorf("rate-limit fetch failed and cooldown wait was interrupted: %w", errors.Join(err, sleepErr))
 		}
 		return err
 	}
