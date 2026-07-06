@@ -23,7 +23,7 @@ tools:
     branch-prefix: daily
     description: "Historical code quality and health metrics"
     file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
-    max-file-size: 102400  # 100KB
+    max-file-size: 262144  # 256KB - increased from 100KB to accommodate growing history.jsonl
     max-patch-size: 131072  # 128KB - increased from 50KB to prevent history.jsonl truncation failures
   bash: true
 safe-outputs:
@@ -123,6 +123,26 @@ Store as JSON Lines in `/tmp/gh-aw/repo-memory/default/history.jsonl`:
 ```
 
 **Note**: Churn metrics are split into `source` (excludes `*.lock.yml` and `actions-lock.json`) and `generated_files` (only `*.lock.yml` and `actions-lock.json`) for separate tracking.
+
+## Update Memory
+
+Before writing `history.jsonl`, prune entries older than 90 days to keep the file bounded:
+
+```bash
+# Prune history.jsonl to 90-day retention window
+HISTORY=/tmp/gh-aw/repo-memory/default/history.jsonl
+CUTOFF=$(date -u -d "90 days ago" +%Y-%m-%d 2>/dev/null || date -u -v-90d +%Y-%m-%d)
+if [ -f "$HISTORY" ]; then
+  tmp=$(mktemp)
+  while IFS= read -r line; do
+    row_date=$(echo "$line" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('date',''))" 2>/dev/null)
+    [ "$row_date" \> "$CUTOFF" ] || [ "$row_date" = "$CUTOFF" ] && echo "$line" >> "$tmp"
+  done < "$HISTORY"
+  mv "$tmp" "$HISTORY"
+fi
+```
+
+Append today's entry after pruning, then push via `push_repo_memory`.
 
 ## Data Visualization with Python
 
