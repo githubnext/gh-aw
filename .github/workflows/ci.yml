@@ -436,7 +436,7 @@ jobs:
       run: chmod +x ./gh-aw
 
     - name: Check workflow drift
-      run: make check-workflow-drift
+      run: bash scripts/check-workflow-drift.sh ./gh-aw
 
   js-integration-live-api:
     if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}

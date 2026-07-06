@@ -779,7 +779,11 @@ lint-lock: build
 # Compiles all .github/workflows/*.md files and fails if any .lock.yml would
 # change, reminding contributors to run 'make recompile' before committing.
 .PHONY: check-workflow-drift
-check-workflow-drift: build
+check-workflow-drift:
+	@if [ ! -x "./$(BINARY_NAME)" ]; then \
+		echo "./$(BINARY_NAME) not found; building it first..."; \
+		$(MAKE) build; \
+	fi
 	@bash scripts/check-workflow-drift.sh ./$(BINARY_NAME)
 
 # Format code
@@ -1164,7 +1168,7 @@ help:
 	@echo "  actionlint       - Validate workflows with actionlint (depends on build)"
 	@echo "  lint-lock        - Run lock-file-only lint with gh aw lint (depends on build)"
 	@echo "  validate-workflows - Validate compiled workflow lock files (depends on build)"
-	@echo "  check-workflow-drift - Check for drift between .md sources and .lock.yml files (depends on build)"
+	@echo "  check-workflow-drift - Check for drift between .md sources and .lock.yml files (builds binary if missing)"
 	@echo "  install          - Install binary locally"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/actionpins/data and pkg/workflow/data (runs automatically during build)"
 	@echo "  sync-action-scripts - Sync install-gh-aw.sh to actions/setup-cli/install.sh (runs automatically during build)"

@@ -8,10 +8,10 @@ set +o histexpand
 # remediation message if any drift is detected.
 #
 # Usage:
-#   check-workflow-drift.sh [<path-to-binary>]
+#   check-workflow-drift.sh <path-to-binary>
 #
 # Arguments:
-#   <path-to-binary>  Path to the gh-aw binary. Defaults to ./gh-aw.
+#   <path-to-binary>  Path to the gh-aw binary.
 #
 # Exit codes:
 #   0 - Lock files are up to date with their markdown sources
@@ -33,7 +33,59 @@ else
     NC=''
 fi
 
-BINARY="${1:-./gh-aw}"
+BINARY="${1:?Usage: check-workflow-drift.sh <path-to-binary>}"
+
+if [ ! -e "$BINARY" ]; then
+    echo -e "${RED}ERROR${NC}: gh-aw binary not found at '$BINARY'."
+    echo ""
+    echo "Build or download the binary first, then rerun:"
+    echo ""
+    echo "  make build"
+    echo "  bash scripts/check-workflow-drift.sh ./gh-aw"
+    exit 1
+fi
+
+if [ ! -x "$BINARY" ]; then
+    echo -e "${RED}ERROR${NC}: gh-aw binary at '$BINARY' is not executable."
+    echo ""
+    echo "Mark it executable (or rebuild it), then rerun:"
+    echo ""
+    echo "  chmod +x '$BINARY'"
+    echo "  bash scripts/check-workflow-drift.sh '$BINARY'"
+    exit 1
+fi
+
+SNAPSHOT_DIR=$(mktemp -d)
+PRE_LOCKFILES_FILE="$SNAPSHOT_DIR/pre-lockfiles.txt"
+POST_LOCKFILES_FILE="$SNAPSHOT_DIR/post-lockfiles.txt"
+SNAPSHOT_ROOT="$SNAPSHOT_DIR/original"
+
+restore_lockfiles() {
+    local file
+
+    find .github/workflows -maxdepth 1 -type f -name '*.lock.yml' -delete
+
+    while IFS= read -r file; do
+        [ -n "$file" ] || continue
+        mkdir -p "$(dirname "$file")"
+        cp "$SNAPSHOT_ROOT/$file" "$file"
+    done < "$PRE_LOCKFILES_FILE"
+}
+
+cleanup() {
+    if [ -d "$SNAPSHOT_DIR" ]; then
+        restore_lockfiles
+        rm -rf "$SNAPSHOT_DIR"
+    fi
+}
+trap cleanup EXIT
+
+find .github/workflows -maxdepth 1 -type f -name '*.lock.yml' | LC_ALL=C sort > "$PRE_LOCKFILES_FILE"
+while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    mkdir -p "$SNAPSHOT_ROOT/$(dirname "$file")"
+    cp "$file" "$SNAPSHOT_ROOT/$file"
+done < "$PRE_LOCKFILES_FILE"
 
 echo "Checking for workflow markdown/lock file drift..."
 echo ""
@@ -43,8 +95,8 @@ echo ""
 # --no-check-update: skip version-update check (CI-safe, avoids network calls)
 # --purge:           remove orphaned .lock.yml files whose .md source was deleted
 #
-# The compiler skips writing a lock file when its content is already up to date,
-# so running this on a clean checkout leaves the working tree unmodified.
+# Snapshot and restore the current lock files so the check never leaves the
+# caller's working tree dirty, even when compilation rewrites or purges files.
 if ! "$BINARY" compile --validate --no-check-update --purge 2>&1; then
     echo ""
     echo -e "${RED}ERROR${NC}: Workflow compilation failed — fix the errors above, then run:"
@@ -54,28 +106,22 @@ if ! "$BINARY" compile --validate --no-check-update --purge 2>&1; then
     exit 1
 fi
 
-# Collect lock files that changed (modified or newly created by compilation).
-# git diff --name-only: tracked files whose content changed
-# git ls-files --others --exclude-standard: new untracked files (new lock files)
-# git ls-files --deleted: tracked files removed by --purge
-#
-# The pathspec is intentionally single-quoted to prevent the shell from
-# expanding the glob before passing it to git.  Git receives the literal
-# pattern '.github/workflows/*.lock.yml' and applies its own glob matching,
-# which works correctly across all git versions we target.
-drift_modified=$(git diff --name-only -- '.github/workflows/*.lock.yml' 2>/dev/null || true)
-drift_untracked=$(git ls-files --others --exclude-standard -- '.github/workflows/*.lock.yml' 2>/dev/null || true)
-drift_deleted=$(git ls-files --deleted -- '.github/workflows/*.lock.yml' 2>/dev/null || true)
-
-# Combine and de-duplicate, skipping empty variables.
-# Each capture variable may contain multiple newline-separated filenames.
-# printf '%s\n' "$v" preserves embedded newlines, so all filenames are passed
-# to sort -u as individual lines.  The || true on each iteration prevents
-# set -e from killing the subshell when [ -n "$v" ] is false.
+# Collect lock files that changed, appeared, or were deleted relative to the
+# pre-compilation snapshot.
+find .github/workflows -maxdepth 1 -type f -name '*.lock.yml' | LC_ALL=C sort > "$POST_LOCKFILES_FILE"
 all_drift=$(
-    for v in "$drift_modified" "$drift_untracked" "$drift_deleted"; do
-        [ -n "$v" ] && printf '%s\n' "$v" || true
-    done | sort -u
+    cat "$PRE_LOCKFILES_FILE" "$POST_LOCKFILES_FILE" \
+        | sed '/^$/d' \
+        | LC_ALL=C sort -u \
+        | while IFS= read -r file; do
+            if ! grep -Fxq "$file" "$PRE_LOCKFILES_FILE"; then
+                printf '%s\n' "$file"
+            elif ! grep -Fxq "$file" "$POST_LOCKFILES_FILE"; then
+                printf '%s\n' "$file"
+            elif ! cmp -s "$SNAPSHOT_ROOT/$file" "$file"; then
+                printf '%s\n' "$file"
+            fi
+        done
 )
 
 if [ -z "$all_drift" ]; then
@@ -92,11 +138,11 @@ while IFS= read -r file; do
     echo "  $file"
 done <<< "$all_drift"
 echo ""
-echo -e "${YELLOW}Fix:${NC} Run the following commands to regenerate the lock files and commit them:"
+echo -e "${YELLOW}Fix:${NC} Regenerate and stage the lock files, then use report_progress:"
 echo ""
 echo "  make recompile"
 echo "  git add .github/workflows/*.lock.yml"
-echo "  git commit -m 'chore: regenerate workflow lock files'"
+echo "  # then call report_progress to commit and push via the pre-PR gate"
 echo ""
 echo "Lock files must always be committed together with their .md sources."
 exit 1
