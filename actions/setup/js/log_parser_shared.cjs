@@ -845,15 +845,16 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
   // field rather than nesting it inside `data.input`/`data.parameters`, so fall back
   // to it (and merge it in when structured input lacks a command) to avoid dropping
   // the command from the rendered summary.
-  const buildToolInput = data => {
+  const buildToolInput = (data, options = {}) => {
+    const { includeCommand = true } = options;
     const base = data.input || data.parameters;
     if (base && typeof base === "object" && !Array.isArray(base)) {
-      if (base.command === undefined && typeof data.command === "string") {
+      if (includeCommand && base.command === undefined && typeof data.command === "string") {
         return { ...base, command: data.command };
       }
       return base;
     }
-    if (typeof data.command === "string") {
+    if (includeCommand && typeof data.command === "string") {
       return { command: data.command };
     }
     return {};
@@ -945,9 +946,9 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
           normalizedEntries.push({
             type: "assistant",
             message: {
-              // Orphaned completion events have no corresponding start event, so the
-              // executed command cannot be recovered from SDK payloads here.
-              content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: {} }],
+              // Orphaned completion events have no corresponding start event, so keep
+              // structured input but do not synthesize a command from completion data.
+              content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: buildToolInput(data, { includeCommand: false }) }],
             },
           });
         }

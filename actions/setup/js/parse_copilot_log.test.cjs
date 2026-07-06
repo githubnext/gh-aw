@@ -170,6 +170,20 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("file1.txt");
     });
 
+    it("preserves structured input for orphaned completion events without inventing a command", () => {
+      const eventsLog = [
+        '{"type":"user.message","timestamp":"2026-06-05T00:44:01.367Z","data":{}}',
+        '{"type":"tool.execution_complete","timestamp":"2026-06-05T00:44:04.700Z","data":{"toolName":"bash","mcpServerName":"","input":{"cwd":"/tmp"},"success":true,"result":{"content":"file1.txt\\nfile2.txt"}}}',
+        '{"type":"assistant.message","timestamp":"2026-06-05T00:44:59.769Z","data":{"content":"Done"}}',
+      ].join("\n");
+
+      const result = parseCopilotLog(eventsLog);
+
+      expect(result.markdown).toContain("bash");
+      expect(result.markdown).toContain("/tmp");
+      expect(result.markdown).toContain("file1.txt");
+    });
+
     it("renders tool output preview from array-based result.content in Copilot CLI events.jsonl", () => {
       const eventsLog = [
         '{"type":"user.message","timestamp":"2026-06-05T00:44:01.367Z","data":{}}',
