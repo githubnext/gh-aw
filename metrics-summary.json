@@ -1,18 +1,19 @@
 {
-  "updated": "2026-07-05",
-  "date": "2026-07-05",
+  "updated": "2026-07-06",
+  "date": "2026-07-06",
   "partial": true,
   "latest_window": {
-    "date": "2026-07-05",
-    "runs": 108,
-    "success": 97,
-    "failure": 11,
-    "rate": 89.8,
-    "prod_main_rate": 81.6,
-    "non_main_rate": 96.6,
-    "aic": 6311,
-    "tokens": 3361628,
-    "note": "partial 6h; HEALTHY-on-baseline; ALL 11 fails copilot 0-turn Execute-CLI; Smoke CI 7/7 chronic + copilot-sdk-longrun x4; claude/pi/codex 100%"
+    "date": "2026-07-06",
+    "runs": 400,
+    "success": 345,
+    "failure": 55,
+    "rate": 86.25,
+    "prod_main_rate": 82.4,
+    "prod_main_ex_smokeci": 89.4,
+    "non_main_rate": 90.8,
+    "aic": 29611,
+    "tokens": null,
+    "note": "partial 21.5h. HEALTHY-on-baseline. ALL 55 fails 0-turn driver fails. Smoke CI 17(31%) DOMINANT chronic + copilot-sdk-longrun ~22 + claude-longrun 4 + Avenger/chroot-node/DailyFact recurs. pi 100%. 0 missing-tools/data/mcp."
   },
   "totals": {
     "r": 171,
@@ -39,70 +40,6 @@
     "gemini": 1
   },
   "history": [
-    {
-      "d": "2026-06-05",
-      "r": 53,
-      "s": 48,
-      "rate": 90.6,
-      "tok": 30404314
-    },
-    {
-      "d": "2026-06-06",
-      "r": 97,
-      "s": 81,
-      "rate": 83.5,
-      "tok": 41627101,
-      "partial": true
-    },
-    {
-      "d": "2026-06-07",
-      "r": 54,
-      "s": 46,
-      "rate": 85.2,
-      "tok": 23994237
-    },
-    {
-      "d": "2026-06-08",
-      "r": 88,
-      "s": 66,
-      "rate": 75.0,
-      "tok": 24367927,
-      "partial": true
-    },
-    {
-      "d": "2026-06-09",
-      "r": 37,
-      "s": 31,
-      "rate": 83.8,
-      "tok": 23834861,
-      "partial": true
-    },
-    {
-      "d": "2026-06-10",
-      "r": 93,
-      "s": 81,
-      "rate": 88.0,
-      "tok": 69624404,
-      "partial": true
-    },
-    {
-      "d": "2026-06-11",
-      "r": 65,
-      "s": 55,
-      "rate": 84.6,
-      "tok": 25421016,
-      "$": 14.1,
-      "partial": true
-    },
-    {
-      "d": "2026-06-12",
-      "r": 120,
-      "s": 108,
-      "rate": 90.0,
-      "tok": 126744181,
-      "aic": 19991.9,
-      "partial": true
-    },
     {
       "d": "2026-06-13",
       "r": 98,
@@ -281,6 +218,16 @@
       "aic": 6311,
       "partial": true,
       "note": "partial 6h 15:08-21:15Z. HEALTHY-on-baseline. ALL 11 fails copilot 0-turn Execute-CLI: Smoke CI 7/7=100% chronic + copilot-sdk-longrun x4 (Daily Safe Output Integrator, PR CQR, Impeccable Skills Reviewer[new], Linter Miner[new]). claude 20/20, pi 15/15, codex 1/1 all 100%. 0 missing-tools/data/mcp."
+    },
+    {
+      "d": "2026-07-06",
+      "r": 400,
+      "s": 345,
+      "rate": 86.25,
+      "aic": 29611,
+      "tok": null,
+      "partial": true,
+      "note": "HEALTHY-baseline 86.25%/prod-main 82.4%(ex-SmokeCI 89.4%). 55 fails all 0-turn driver. Smoke CI 17 DOMINANT+copilot-longrun 22+claude-longrun 4. pi 48/48. 0 missing-tools/data/mcp. token-reporting-gap persists."
     }
   ]
 }
