@@ -220,6 +220,7 @@ safe-outputs:
     max: 10
   create-issue:
     title-prefix: "[pr-sous-chef] "
+    labels: ["automation"]
     expires: 3d
     close-older-issues: true
   mentions:
