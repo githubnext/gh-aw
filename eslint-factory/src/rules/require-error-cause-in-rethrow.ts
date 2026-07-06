@@ -50,6 +50,7 @@ function expressionReferencesCatchVar(node: TSESTree.Expression, varName: string
     if (node.computed) {
       return expressionReferencesCatchVar(node.property as TSESTree.Expression, varName);
     }
+    return false;
   }
   return false;
 }
@@ -85,7 +86,7 @@ export const requireErrorCauseInRethrowRule = createRule({
     },
     schema: [],
     messages: {
-      missingCause: "`new Error(...)` inside catch ({{catchVar}}) references {{catchVar}} but omits `{ cause: {{catchVar}} }` — the original stack trace will be lost. " + "Add `{ cause: {{catchVar}} }` as the second argument.",
+      missingCause: "`new Error(...)` inside catch ({{catchVar}}) references {{catchVar}} but omits `{ cause: {{catchVar}} }` — the original stack trace will be lost. Add `{ cause: {{catchVar}} }` as the second argument.",
       addCause: "Add `{ cause: {{catchVar}} }` as the second argument to preserve the original error chain.",
     },
   },
