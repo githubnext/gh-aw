@@ -1,5 +1,7 @@
 // @ts-check
 
+const { buildStepSummaryDetailsSection } = require("./log_parser_step_summary_builder.cjs");
+
 /**
  * Minimal dependency contract injected from log_parser_shared.cjs.
  * Keeping this explicit helps prevent silent drift between modules.
@@ -85,27 +87,6 @@ function createLogParserFormatters(deps) {
       return convertCopilotEventsToLegacyLogEntries(logEntries);
     }
     return logEntries;
-  }
-
-  /**
-   * Builds a step-summary section with a collapsible details body whose summary
-   * acts as the section header.
-   *
-   * NOTE: This is a local copy of log_parser_shared.cjs:buildStepSummaryDetailsSection.
-   * It cannot be imported from there because log_parser_shared.cjs requires
-   * log_parser_format.cjs (circular dependency). Keep both copies in sync.
-   *
-   * @param {string} title
-   * @param {string} body
-   * @param {{open?: boolean, emptyBodyMessage?: string}} [options]
-   * @returns {string}
-   */
-  function buildStepSummaryDetailsSection(title, body, options = {}) {
-    const { open = false, emptyBodyMessage = "No details available." } = options;
-    const openAttr = open ? " open" : "";
-    const trimmedBody = typeof body === "string" ? body.trim() : "";
-    const content = trimmedBody || emptyBodyMessage;
-    return `<details${openAttr}>\n<summary>${title}</summary>\n\n${content}\n</details>\n\n`;
   }
 
   /**
