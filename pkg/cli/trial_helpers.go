@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,8 +23,8 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-// issueURLPattern matches GitHub issue URLs like https://github.com/owner/repo/issues/123
-var issueURLPattern = regexp.MustCompile(`https://github\.com/[^/]+/[^/]+/issues/(\d+)`)
+// issuePathPattern matches the path portion of a GitHub issue URL: /owner/repo/issues/NUMBER
+var issuePathPattern = regexp.MustCompile(`^/[^/]+/[^/]+/issues/(\d+)`)
 
 // issueRefPattern matches issue references like #123
 var issueRefPattern = regexp.MustCompile(`^#(\d+)$`)
@@ -236,15 +237,23 @@ func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, ve
 
 // parseIssueSpec extracts the issue number from various formats
 // Supports:
-// - GitHub issue URLs: https://github.com/owner/repo/issues/123
+// - GitHub issue URLs: https://github.com/owner/repo/issues/123 (public GitHub)
+// - GitHub Enterprise issue URLs: https://example.ghe.com/owner/repo/issues/123 (GHES, respects GH_HOST)
 // - Issue references: #123
 // - Plain numbers: 123
 func parseIssueSpec(input string) string {
 	input = strings.TrimSpace(input)
 
-	// First try to match GitHub issue URLs
-	if matches := issueURLPattern.FindStringSubmatch(input); len(matches) >= 2 {
-		return matches[1]
+	// First try to match GitHub issue URLs (supports public GitHub and GHES via GH_HOST).
+	// Both the scheme and host are compared against the configured GitHub host so that
+	// HTTP-only GHES instances and unrelated hosts are handled correctly.
+	if u, err := url.Parse(input); err == nil && u.Host != "" {
+		configuredHostURL, err := url.Parse(getGitHubHost())
+		if err == nil && u.Scheme == configuredHostURL.Scheme && u.Host == configuredHostURL.Host {
+			if matches := issuePathPattern.FindStringSubmatch(u.Path); len(matches) >= 2 {
+				return matches[1]
+			}
+		}
 	}
 
 	// Try to match issue references like #123
