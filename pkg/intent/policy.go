@@ -1,6 +1,12 @@
 package intent
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var policyLog = logger.New("intent:policy")
 
 // autonomyOrder maps autonomy level names to their restrictiveness rank.
 // Higher rank means more restrictive.
@@ -132,6 +138,8 @@ type PolicyCompiler struct {
 // using more-restrictive-wins logic. Fields left unset by all rules receive fail-closed
 // defaults so that an incomplete rule set never grants open access.
 func (c *PolicyCompiler) Compile(record IntentRecord, repo RepositoryContext) ExecutionPolicy {
+	policyLog.Printf("Compiling execution policy: total_rules=%d, repo=%s/%s", len(c.Rules), repo.Owner, repo.Name)
+
 	var matched []PolicyRule
 	for _, rule := range c.Rules {
 		if rule.When.Matches(record, repo) {
@@ -140,6 +148,7 @@ func (c *PolicyCompiler) Compile(record IntentRecord, repo RepositoryContext) Ex
 	}
 
 	if len(matched) == 0 {
+		policyLog.Print("No rules matched; returning fail-closed default policy")
 		return safestDefaultPolicy()
 	}
 
@@ -155,13 +164,17 @@ func (c *PolicyCompiler) Compile(record IntentRecord, repo RepositoryContext) Ex
 	// baseline (e.g. supervised autonomy) that lower-precedence rules can only tighten.
 	policy := matched[0].Set
 	policy.RuleIDs = []string{matched[0].ID}
+	policyLog.Printf("Matched %d rule(s); seeding from rule %s (scope=%q)", len(matched), matched[0].ID, matched[0].Scope)
 
 	for _, rule := range matched[1:] {
+		policyLog.Printf("Merging rule %s (scope=%q) into accumulated policy", rule.ID, rule.Scope)
 		policy = mergePolicy(policy, rule.Set)
 		policy.RuleIDs = append(policy.RuleIDs, rule.ID)
 	}
 
-	return applyFailClosedDefaults(policy)
+	compiled := applyFailClosedDefaults(policy)
+	policyLog.Printf("Compiled policy: autonomy=%q, write_scope=%q, human_approval=%v, rule_ids=%v", compiled.Autonomy, compiled.WriteScope, compiled.HumanApprovalRequired, compiled.RuleIDs)
+	return compiled
 }
 
 // applyFailClosedDefaults fills in safe fail-closed values for any ExecutionPolicy field
