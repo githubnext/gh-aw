@@ -33,6 +33,8 @@
 const fs = require("fs");
 const path = require("path");
 
+const { ERR_VALIDATION } = require("./error_codes.cjs");
+
 const EVALS_DIR = "/tmp/gh-aw/evals";
 const EVALS_LOG_PATH = "/tmp/gh-aw/evals/evals.log";
 const EVALS_OUTPUT_PATH = "/tmp/gh-aw/evals.jsonl";
@@ -50,7 +52,7 @@ const AGENT_OUTPUT_FILENAME = "agent_output.json";
 async function setupMain() {
   const questionsRaw = process.env.GH_AW_EVALS_QUESTIONS;
   if (!questionsRaw) {
-    core.setFailed("ERR_VALIDATION: GH_AW_EVALS_QUESTIONS is not set");
+    core.setFailed(`${ERR_VALIDATION}: GH_AW_EVALS_QUESTIONS is not set`);
     return;
   }
 
@@ -58,12 +60,12 @@ async function setupMain() {
   try {
     questions = JSON.parse(questionsRaw);
   } catch (e) {
-    core.setFailed("ERR_VALIDATION: GH_AW_EVALS_QUESTIONS is not valid JSON: " + e.message);
+    core.setFailed(`${ERR_VALIDATION}: GH_AW_EVALS_QUESTIONS is not valid JSON: ` + e.message);
     return;
   }
 
   if (!Array.isArray(questions) || questions.length === 0) {
-    core.setFailed("ERR_VALIDATION: GH_AW_EVALS_QUESTIONS must be a non-empty JSON array");
+    core.setFailed(`${ERR_VALIDATION}: GH_AW_EVALS_QUESTIONS must be a non-empty JSON array`);
     return;
   }
 
@@ -77,7 +79,7 @@ async function setupMain() {
     agentOutputContent = fs.readFileSync(agentOutputPath, "utf-8");
     core.info(`Agent output loaded: ${agentOutputPath} (${stats.size} bytes)`);
   } else {
-    core.warning(`ERR_VALIDATION: Agent output not found at ${agentOutputPath}. ` + "Ensure the agent artifact includes agent_output.json. " + "Evaluation will proceed without agent context.");
+    core.warning(`Agent output not found at ${agentOutputPath}. ` + "Ensure the agent artifact includes agent_output.json. " + "Evaluation will proceed without agent context.");
   }
 
   const prompt = buildEvalPrompt(questions, agentOutputContent);
@@ -118,7 +120,7 @@ async function parseMain() {
   }
 
   if (!fs.existsSync(EVALS_LOG_PATH)) {
-    core.warning(`ERR_VALIDATION: Evals log not found at ${EVALS_LOG_PATH}; no results written`);
+    core.warning(`Evals log not found at ${EVALS_LOG_PATH}; no results written`);
     fs.writeFileSync(EVALS_OUTPUT_PATH, "");
     return;
   }

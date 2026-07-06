@@ -252,7 +252,11 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 	executionSteps := engine.GetExecutionSteps(evalsData, evalsLogPath)
 	for _, step := range executionSteps {
 		for i, line := range step {
-			// Prefix step IDs to avoid collisions with agent job step IDs.
+			// Prefix the agentic_execution step ID to avoid collisions with the agent job step
+			// IDs — job managers validate for duplicate step IDs across the compiled YAML.
+			// This mirrors the same pattern used in buildDetectionEngineExecutionStep (see
+			// threat_detection_inline_engine.go), where the ID is also a well-known literal
+			// produced by every engine's GetExecutionSteps implementation.
 			prefixed := strings.Replace(line, "id: agentic_execution", "id: evals_agentic_execution", 1)
 			steps = append(steps, prefixed+"\n")
 			// Inject always() condition and continue-on-error after the first line (- name:)
