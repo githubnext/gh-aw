@@ -98,7 +98,11 @@ func getOrCreateListRepoClone(ctx context.Context, owner, repo, ref, host string
 	if err != nil {
 		return "", err
 	}
-	return cloneDir.(string), nil
+	cloneDirPath, ok := cloneDir.(string)
+	if !ok {
+		return "", errors.New("internal error: clone result was not a string")
+	}
+	return cloneDirPath, nil
 }
 
 // ListWorkflowFiles lists workflow files from a remote GitHub repository
