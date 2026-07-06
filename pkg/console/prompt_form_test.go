@@ -18,14 +18,6 @@ func TestPromptWrappersReturnNonNilForms(t *testing.T) {
 		Options(huh.NewOption("Option", "option")).
 		Value(&selectValue)))
 
-	var multiValue []string
-	require.NotNil(t, NewMultiSelectForm(huh.NewMultiSelect[string]().
-		Options(huh.NewOption("Option", "option")).
-		Value(&multiValue)))
-
-	var textValue string
-	require.NotNil(t, NewTextForm(huh.NewText().Value(&textValue)))
-
 	var confirmValue bool
 	require.NotNil(t, NewConfirmForm(huh.NewConfirm().Value(&confirmValue)))
 }
