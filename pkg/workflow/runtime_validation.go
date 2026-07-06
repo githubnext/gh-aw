@@ -251,7 +251,7 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 // validateRuntimePackages validates that packages required by npx, pip, and uv are available
 func (c *Compiler) validateRuntimePackages(workflowData *WorkflowData) error {
 	// Detect runtime requirements
-	requirements := DetectRuntimeRequirements(workflowData)
+	requirements := detectRuntimeRequirementsCached(workflowData)
 	runtimeValidationLog.Printf("Validating runtime packages: found %d runtime requirements", len(requirements))
 
 	var errors []string

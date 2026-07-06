@@ -11,6 +11,28 @@ import (
 
 var runtimeSetupLog = logger.New("workflow:runtime_setup")
 
+func cloneRuntimeRequirements(requirements []RuntimeRequirement) []RuntimeRequirement {
+	if len(requirements) == 0 {
+		return nil
+	}
+	cloned := make([]RuntimeRequirement, len(requirements))
+	copy(cloned, requirements)
+	return cloned
+}
+
+func detectRuntimeRequirementsCached(workflowData *WorkflowData) []RuntimeRequirement {
+	if workflowData == nil {
+		return nil
+	}
+	if workflowData.CachedRuntimeRequirementsSet {
+		return cloneRuntimeRequirements(workflowData.CachedRuntimeRequirements)
+	}
+	requirements := DetectRuntimeRequirements(workflowData)
+	workflowData.CachedRuntimeRequirements = cloneRuntimeRequirements(requirements)
+	workflowData.CachedRuntimeRequirementsSet = true
+	return requirements
+}
+
 // DetectRuntimeRequirements analyzes workflow data to detect required runtimes
 func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement {
 	runtimeSetupLog.Print("Detecting runtime requirements from workflow data")
