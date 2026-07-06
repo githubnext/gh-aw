@@ -29,6 +29,8 @@ describe("require-error-cause-in-rethrow", () => {
         `try { doSomething(); } catch { throw new Error("Something went wrong"); }`,
         // Error subclass with cause (not flagged — rule only checks `new Error`)
         `try { doSomething(); } catch (err) { throw new TypeError(\`Failed: \${getErrorMessage(err)}\`, { cause: err }); }`,
+        // Error subclass without cause (not flagged — rule only checks `new Error`)
+        `try { doSomething(); } catch (err) { throw new TypeError(\`Failed: \${getErrorMessage(err)}\`); }`,
         // Direct catch var reference with cause
         `try { doSomething(); } catch (err) { throw new Error(\`Outer: \${err.message}\`, { cause: err }); }`,
         // Nested function inside catch — should NOT flag (deferred execution boundary)
@@ -37,6 +39,8 @@ describe("require-error-cause-in-rethrow", () => {
         `try { doSomething(); } catch (err) { const fn = () => { throw new Error(\`msg: \${getErrorMessage(err)}\`); }; }`,
         // Constructing Error without throw is not a rethrow
         `try { doSomething(); } catch (err) { const e = new Error(\`msg: \${getErrorMessage(err)}\`); log(e); }`,
+        // Existing cause property with wrapped expression should not be flagged.
+        `try { doSomething(); } catch (err) { throw new Error("Failed: " + getErrorMessage(err), { cause: new Error(err.message), code: 500 }); }`,
       ],
       invalid: [],
     });

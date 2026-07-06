@@ -57,20 +57,19 @@ function expressionReferencesCatchVar(node: TSESTree.Expression, varName: string
 
 /**
  * Returns true when the second argument of `new Error(msg, options)` already
- * contains a `cause` property that references the given catch variable.
+ * contains a `cause` property.
  * Accepts the forms:
  *   new Error(msg, { cause: catchVar })
  *   new Error(msg, { cause: catchVar, ... })
  */
-function hasCauseProperty(optionsArg: TSESTree.Expression, catchVarName: string): boolean {
+function hasCauseProperty(optionsArg: TSESTree.Expression): boolean {
   if (optionsArg.type !== AST_NODE_TYPES.ObjectExpression) return false;
   return optionsArg.properties.some(prop => {
     if (prop.type !== AST_NODE_TYPES.Property) return false;
     const key = prop.key;
     const isKeyNamed = (key.type === AST_NODE_TYPES.Identifier && key.name === "cause") || (key.type === AST_NODE_TYPES.Literal && key.value === "cause");
     if (!isKeyNamed) return false;
-    const value = prop.value;
-    return value.type === AST_NODE_TYPES.Identifier && value.name === catchVarName;
+    return true;
   });
 }
 
@@ -103,13 +102,8 @@ export const requireErrorCauseInRethrowRule = createRule({
 
     /**
      * Returns true if `node` is syntactically inside the try/catch clause
-     * referenced by the current `catchStack` top-frame — i.e., we have not
-     * crossed an intervening function boundary that would create a new execution
-     * context (arrow functions that are *not* immediately-invoked are deferred).
-     *
-     * We track this by inserting a "barrier" sentinel into catchStack whenever we
-     * enter a non-arrow function body, so that the innermost catch frame above
-     * the barrier is invisible to nodes inside the nested function.
+     * referenced by the current `catchStack` top-frame — i.e., we have not crossed
+     * an intervening function boundary that would create a new execution context.
      */
     function isInsideCatchBody(node: TSESTree.Node): boolean {
       const frame = innermostCatch();
@@ -170,7 +164,7 @@ export const requireErrorCauseInRethrowRule = createRule({
         // If a second argument exists, check that it contains { cause: catchVar }.
         if (args.length >= 2) {
           const secondArg = args[1];
-          if (secondArg.type !== "SpreadElement" && hasCauseProperty(secondArg, catchVarName)) {
+          if (secondArg.type !== "SpreadElement" && hasCauseProperty(secondArg)) {
             return; // Already has cause — no violation
           }
         }
@@ -190,11 +184,12 @@ export const requireErrorCauseInRethrowRule = createRule({
                   if (secondArg.type === "SpreadElement") return null;
                   if (secondArg.type === AST_NODE_TYPES.ObjectExpression) {
                     // Add cause property to the existing object
-                    const existingText = sourceCode.getText(secondArg);
-                    // Strip braces and trim
-                    const inner = existingText.slice(1, -1).trim();
-                    const newOptions = inner ? `{ cause: ${catchVarName}, ${inner} }` : `{ cause: ${catchVarName} }`;
-                    return fixer.replaceText(secondArg, newOptions);
+                    if (secondArg.properties.length === 0) {
+                      return fixer.replaceText(secondArg, `{ cause: ${catchVarName} }`);
+                    }
+                    const firstProp = secondArg.properties[0];
+                    if (!firstProp) return null;
+                    return fixer.insertTextBefore(firstProp, `cause: ${catchVarName}, `);
                   }
                   return null;
                 }
