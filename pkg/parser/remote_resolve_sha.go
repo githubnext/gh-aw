@@ -19,7 +19,7 @@ import (
 
 // resolveRefToSHAViaGit resolves a git ref to SHA using git ls-remote
 // This is a fallback for when GitHub API authentication fails
-func resolveRefToSHAViaGit(owner, repo, ref, host string) (string, error) {
+func resolveRefToSHAViaGit(ctx context.Context, owner, repo, ref, host string) (string, error) {
 	remoteLog.Printf("Attempting git ls-remote fallback for ref resolution: %s/%s@%s", owner, repo, ref)
 
 	var githubHost string
@@ -32,12 +32,12 @@ func resolveRefToSHAViaGit(owner, repo, ref, host string) (string, error) {
 
 	// Try to resolve the ref using git ls-remote
 	// Format: git ls-remote <repo> <ref>
-	cmd := exec.Command("git", "ls-remote", repoURL, ref)
+	cmd := exec.CommandContext(ctx, "git", "ls-remote", repoURL, ref)
 	output, err := cmd.Output()
 	if err != nil {
 		// If exact ref doesn't work, try with refs/heads/ and refs/tags/ prefixes
 		for _, prefix := range []string{"refs/heads/", "refs/tags/"} {
-			cmd = exec.Command("git", "ls-remote", repoURL, prefix+ref)
+			cmd = exec.CommandContext(ctx, "git", "ls-remote", repoURL, prefix+ref)
 			output, err = cmd.Output()
 			if err == nil && len(output) > 0 {
 				break
@@ -97,7 +97,7 @@ func resolveRefToSHA(ctx context.Context, owner, repo, ref, host string) (string
 		if gitutil.IsAuthError(outputStr) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s/%s@%s", owner, repo, ref)
 			// Try fallback using git ls-remote for public repositories
-			sha, gitErr := resolveRefToSHAViaGit(owner, repo, ref, host)
+			sha, gitErr := resolveRefToSHAViaGit(ctx, owner, repo, ref, host)
 			if gitErr != nil {
 				if host == "" || host == "github.com" {
 					remoteLog.Printf("Git fallback also failed, attempting unauthenticated API for %s/%s@%s", owner, repo, ref)

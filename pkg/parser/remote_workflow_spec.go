@@ -73,13 +73,13 @@ func isWorkflowSpec(path string) bool {
 // packages is tracked as a follow-up task; context.Background() is used in the interim.
 func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, error) {
 	remoteLog.Printf("Downloading from workflowspec: %s", spec)
-	owner, repo, filePath, ref, err := parseWorkflowSpecParts(spec)
+	host, owner, repo, filePath, ref, err := parseWorkflowSpecParts(spec)
 	if err != nil {
 		return "", err
 	}
-	remoteLog.Printf("Parsed workflowspec: owner=%s, repo=%s, file=%s, ref=%s", owner, repo, filePath, ref)
+	remoteLog.Printf("Parsed workflowspec: host=%s, owner=%s, repo=%s, file=%s, ref=%s", host, owner, repo, filePath, ref)
 
-	sha := resolveWorkflowSpecSHAForCache(owner, repo, ref, cache)
+	sha := resolveWorkflowSpecSHAForCache(owner, repo, ref, host, cache)
 	if cache != nil && sha != "" {
 		if cachedPath, found := cache.Get(owner, repo, filePath, sha); found {
 			remoteLog.Printf("Using cached import: %s/%s/%s@%s (SHA: %s)", owner, repo, filePath, ref, sha)
@@ -88,7 +88,12 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	}
 
 	remoteLog.Printf("Fetching file from GitHub: %s/%s/%s@%s", owner, repo, filePath, ref)
-	content, err := downloadFileFromGitHub(context.Background(), owner, repo, filePath, ref)
+	var content []byte
+	if host == "" {
+		content, err = downloadFileFromGitHub(context.Background(), owner, repo, filePath, ref)
+	} else {
+		content, err = downloadFileFromGitHubWithDepth(context.Background(), owner, repo, filePath, ref, 0, host)
+	}
 	if err != nil {
 		return "", fmt.Errorf("failed to download include from %s: %w", spec, err)
 	}
@@ -106,7 +111,7 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	return writeDownloadedIncludeToTempFile(content)
 }
 
-func parseWorkflowSpecParts(spec string) (string, string, string, string, error) {
+func parseWorkflowSpecParts(spec string) (string, string, string, string, string, error) {
 	cleanSpec := spec
 	if before, _, ok := strings.Cut(spec, "#"); ok {
 		cleanSpec = before
@@ -122,16 +127,22 @@ func parseWorkflowSpecParts(spec string) (string, string, string, string, error)
 	slashParts := strings.Split(pathPart, "/")
 	if len(slashParts) < 3 {
 		remoteLog.Printf("Invalid workflowspec format: %s", spec)
-		return "", "", "", "", errors.New("invalid workflowspec: must be owner/repo/path[@ref]")
+		return "", "", "", "", "", errors.New("invalid workflowspec: must be owner/repo/path[@ref]")
 	}
-	return slashParts[0], slashParts[1], strings.Join(slashParts[2:], "/"), ref, nil
+
+	// Optional host-prefixed format: host/owner/repo/path[@ref]
+	if len(slashParts) >= 4 && strings.Contains(slashParts[0], ".") {
+		return slashParts[0], slashParts[1], slashParts[2], strings.Join(slashParts[3:], "/"), ref, nil
+	}
+
+	return "", slashParts[0], slashParts[1], strings.Join(slashParts[2:], "/"), ref, nil
 }
 
-func resolveWorkflowSpecSHAForCache(owner, repo, ref string, cache *ImportCache) string {
+func resolveWorkflowSpecSHAForCache(owner, repo, ref, host string, cache *ImportCache) string {
 	if cache == nil {
 		return ""
 	}
-	resolvedSHA, err := resolveRefToSHA(context.Background(), owner, repo, ref, "")
+	resolvedSHA, err := resolveRefToSHA(context.Background(), owner, repo, ref, host)
 	if err != nil {
 		remoteLog.Printf("Failed to resolve ref to SHA, will skip cache: %v", err)
 		return ""

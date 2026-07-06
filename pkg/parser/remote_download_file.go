@@ -251,7 +251,10 @@ func resolveRemoteSymlinkComponent(
 		return "", false, err
 	}
 	remaining := strings.Join(parts[index:], "/")
-	resolvedPath := resolvedBase + "/" + remaining
+	resolvedPath := pathpkg.Clean(pathpkg.Join(resolvedBase, remaining))
+	if resolvedPath == "" || resolvedPath == "." || pathpkg.IsAbs(resolvedPath) || strings.HasPrefix(resolvedPath, "..") {
+		return "", false, fmt.Errorf("resolved symlink path escapes repository root: %s", resolvedPath)
+	}
 	remoteLog.Printf("Resolved symlink in remote path: %s -> %s (full: %s -> %s)", dirPath, target, filePath, resolvedPath)
 	return resolvedPath, true, nil
 }
@@ -304,7 +307,7 @@ func downloadFileViaGit(ctx context.Context, owner, repo, path, ref, host string
 	archiveOutput, err := cmd.Output()
 	if err != nil {
 		// If git archive fails, try with git clone + git show as a fallback
-		return downloadFileViaGitClone(owner, repo, path, ref, host)
+		return downloadFileViaGitClone(ctx, owner, repo, path, ref, host)
 	}
 
 	// Extract the file from the tar archive using Go's archive/tar (cross-platform)
@@ -324,15 +327,13 @@ func downloadFileViaRawURL(ctx context.Context, owner, repo, filePath, ref strin
 	remoteLog.Printf("Attempting raw URL download: %s", rawURL)
 
 	// Use a client with a timeout to prevent indefinite hangs on slow/unresponsive hosts.
-	rawClient := &http.Client{Timeout: constants.DefaultHTTPClientTimeout}
-
 	// #nosec G107 -- rawURL is constructed from workflow import configuration authored by
 	// the developer; the owner, repo, filePath, and ref are user-supplied workflow spec fields.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("raw URL request failed for %s: %w", rawURL, err)
 	}
-	resp, err := rawClient.Do(req)
+	resp, err := publicAPIClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("raw URL request failed for %s: %w", rawURL, err)
 	}
@@ -353,7 +354,7 @@ func downloadFileViaRawURL(ctx context.Context, owner, repo, filePath, ref strin
 
 // downloadFileViaGitClone downloads a file by shallow cloning the repository
 // This is used as a fallback when git archive doesn't work
-func downloadFileViaGitClone(owner, repo, path, ref, host string) ([]byte, error) {
+func downloadFileViaGitClone(ctx context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 	remoteLog.Printf("Attempting git clone fallback for %s/%s/%s@%s", owner, repo, path, ref)
 
 	// Create a temporary directory for the shallow clone
@@ -378,24 +379,24 @@ func downloadFileViaGitClone(owner, repo, path, ref, host string) ([]byte, error
 	if isSHA {
 		// For SHA refs, we need to clone without --branch and then checkout the specific commit
 		// Clone with minimal depth and no branch specified
-		cloneCmd = exec.Command("git", "clone", "--depth", "1", "--no-single-branch", repoURL, tmpDir)
+		cloneCmd = exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--no-single-branch", repoURL, tmpDir)
 		if output, err := cloneCmd.CombinedOutput(); err != nil {
 			// Try without --no-single-branch if the first attempt fails
 			remoteLog.Printf("Clone with --no-single-branch failed, trying full clone: %s", string(output))
-			cloneCmd = exec.Command("git", "clone", repoURL, tmpDir)
+			cloneCmd = exec.CommandContext(ctx, "git", "clone", repoURL, tmpDir)
 			if output, err := cloneCmd.CombinedOutput(); err != nil {
 				return nil, fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
 			}
 		}
 
 		// Now checkout the specific commit
-		checkoutCmd := exec.Command("git", "-C", tmpDir, "checkout", ref)
+		checkoutCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", ref)
 		if output, err := checkoutCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("failed to checkout commit %s: %w\nOutput: %s", ref, err, string(output))
 		}
 	} else {
 		// For branch/tag refs, use --branch flag
-		cloneCmd = exec.Command("git", "clone", "--depth", "1", "--branch", ref, repoURL, tmpDir)
+		cloneCmd = exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", ref, repoURL, tmpDir)
 		if output, err := cloneCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
 		}

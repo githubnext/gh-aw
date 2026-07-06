@@ -79,8 +79,7 @@ func isRepositoryImport(importPath string) bool {
 		return false
 	}
 
-	// Additional validation: check if it looks like a valid owner/repo format
-	// GitHub identifiers can't start with numbers, must be alphanumeric with hyphens/underscores
+	// Additional validation: check if it looks like a valid owner/repo format.
 	owner := parts[0]
 	repo := parts[1]
 
@@ -89,9 +88,11 @@ func isRepositoryImport(importPath string) bool {
 		return false
 	}
 
-	// Reject if repo part looks like a file extension (ends with .md, .yaml, etc.)
-	if strings.Contains(repo, ".") {
-		return false
+	// Reject if repo part looks like a file path with a known workflow/data extension.
+	for _, ext := range []string{".md", ".yaml", ".yml", ".json"} {
+		if strings.HasSuffix(strings.ToLower(repo), ext) {
+			return false
+		}
 	}
 
 	return true
