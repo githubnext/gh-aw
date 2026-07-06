@@ -845,6 +845,8 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
   // field rather than nesting it inside `data.input`/`data.parameters`, so fall back
   // to it (and merge it in when structured input lacks a command) to avoid dropping
   // the command from the rendered summary.
+  // Pass { includeCommand: false } when normalizing orphaned completion events that
+  // may still carry structured input but cannot reliably recover the original command.
   const buildToolInput = (data, options = {}) => {
     const { includeCommand = true } = options;
     const base = data.input || data.parameters;
