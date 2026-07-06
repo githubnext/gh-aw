@@ -11,7 +11,6 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
@@ -59,7 +58,7 @@ func run(pass *analysis.Pass) (any, error) {
 			}
 			ctxParamName, hasCtx := astutil.ContextParamName(pass, funcType)
 			if !hasCtx {
-				if _, isFuncLit := funcNode.(*ast.FuncLit); isFuncLit && !isGoOrDeferClosure(encl) {
+				if _, isFuncLit := funcNode.(*ast.FuncLit); isFuncLit && !astutil.IsGoOrDeferClosure(encl) {
 					break
 				}
 				continue
@@ -74,51 +73,6 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	return nil, nil
-}
-
-func isGoOrDeferClosure(funcLitCur inspector.Cursor) bool {
-	// Walk up from the FuncLit, unwrapping any ParenExpr wrappers, to find the
-	// enclosing CallExpr. This handles parenthesized forms like defer (func(){})().
-	cur := funcLitCur.Parent()
-	for {
-		if cur.Node() == nil {
-			return false
-		}
-		if _, ok := cur.Node().(*ast.ParenExpr); ok {
-			cur = cur.Parent()
-			continue
-		}
-		break
-	}
-
-	call, ok := cur.Node().(*ast.CallExpr)
-	if !ok {
-		return false
-	}
-	// Unwrap ParenExpr from call.Fun and verify it resolves to our FuncLit.
-	callee := call.Fun
-	for {
-		if paren, ok := callee.(*ast.ParenExpr); ok {
-			callee = paren.X
-		} else {
-			break
-		}
-	}
-	if callee != funcLitCur.Node() {
-		return false
-	}
-
-	grandparent := cur.Parent().Node()
-	if grandparent == nil {
-		return false
-	}
-
-	switch grandparent.(type) {
-	case *ast.GoStmt, *ast.DeferStmt:
-		return true
-	default:
-		return false
-	}
 }
 
 // isTimeSleepCall reports whether call is a call to time.Sleep.
