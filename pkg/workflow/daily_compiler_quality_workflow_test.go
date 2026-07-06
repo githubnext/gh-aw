@@ -18,6 +18,8 @@ func TestDailyCompilerQualityWorkflowRequiresExplicitSafeOutputCompletion(t *tes
 	for _, expected := range []string{
 		"  noop:",
 		"**Before finishing, confirm you called either `create_discussion` or `noop`.**",
+		"Keep the final `create_discussion.body` under **9 KB / 9000 bytes**.",
+		"Limit the report to the **top 3** strengths, **top 3** issues, and **top 3** recommended actions",
 	} {
 		if !strings.Contains(sourceContentStr, expected) {
 			t.Fatalf("expected workflow source to contain %q", expected)

@@ -367,7 +367,7 @@ async function ensureFullHistoryForBundle(execApi, options = {}, deepenOptions =
   try {
     ({ stdout } = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], options));
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     core.warning(`Could not determine shallow repository status; skipping full-history fetch probe: ${message}`);
     return;
   }

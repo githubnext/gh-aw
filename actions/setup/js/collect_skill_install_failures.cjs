@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const fs = require("fs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /** Path written by install_frontmatter_skills.cjs during the activation job. */
 const SKILL_FAILURES_FILE = "/tmp/gh-aw/skill_install_failures.json";
@@ -24,7 +25,7 @@ function readSkillInstallFailures() {
     return parsed.filter(entry => entry && typeof entry.skill === "string" && typeof entry.error === "string");
   } catch (readErr) {
     // Warn so "no failures" vs "couldn't read failures file" is distinguishable in logs
-    core.warning(`Could not read skill install failures file: ${readErr instanceof Error ? readErr.message : String(readErr)}`);
+    core.warning(`Could not read skill install failures file: ${getErrorMessage(readErr)}`);
     return [];
   }
 }

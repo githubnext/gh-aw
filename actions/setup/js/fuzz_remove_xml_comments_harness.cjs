@@ -6,6 +6,7 @@
  */
 
 const { removeXmlComments } = require("./sanitize_content_core.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Test the removeXmlComments function with given input
@@ -19,7 +20,7 @@ function testRemoveXmlComments(text) {
   } catch (err) {
     return {
       result: "",
-      error: err instanceof Error ? err.message : String(err),
+      error: getErrorMessage(err),
     };
   }
 }
@@ -40,7 +41,7 @@ if (require.main === module) {
       process.stdout.write(JSON.stringify(result));
       process.exit(0);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       process.stdout.write(JSON.stringify({ result: "", error: errorMsg }));
       process.exit(1);
     }

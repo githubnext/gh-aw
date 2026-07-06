@@ -12,6 +12,7 @@
  * @returns {Promise<void>}
  */
 const { ERR_SYSTEM } = require("./error_codes.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 async function generateStagedPreview(options) {
   const { title, description, items, renderItem } = options;
 
@@ -29,7 +30,7 @@ async function generateStagedPreview(options) {
     core.info(summaryContent);
     core.info(`📝 ${title} preview written to step summary`);
   } catch (error) {
-    core.setFailed(`${ERR_SYSTEM}: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`${ERR_SYSTEM}: ${getErrorMessage(error)}`);
   }
 }
 

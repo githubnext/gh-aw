@@ -1454,7 +1454,7 @@ async function main() {
           core.error(`✗ Failed to submit PR review: ${reviewFailureError}`);
         }
       } catch (reviewError) {
-        reviewFailureError = reviewError instanceof Error ? reviewError.message : String(reviewError);
+        reviewFailureError = getErrorMessage(reviewError);
         core.error(`✗ Exception while submitting PR review: ${reviewFailureError}`);
       }
 

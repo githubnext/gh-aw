@@ -24,6 +24,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 const NETWORK_ALLOWED_ENV_VAR = "GH_AW_WORKFLOW_CALL_NETWORK_ALLOWED";
 /** @typedef {{allowDomains?: string[]}} AWFNetworkConfig */
@@ -63,7 +64,7 @@ async function main() {
     config = JSON.parse(fs.readFileSync(configPath, "utf8"));
   } catch (/** @type {unknown} */ err) {
     const errCode = err && typeof err === "object" && "code" in err ? err.code : undefined;
-    const errMessage = err instanceof Error ? err.message : String(err);
+    const errMessage = getErrorMessage(err);
     if (errCode === "ENOENT") {
       process.stderr.write(`Missing AWF config file at ${configPath}\n`);
     } else if (err instanceof SyntaxError) {
@@ -92,7 +93,7 @@ async function main() {
     try {
       ecosystemMap = JSON.parse(ecosystemMapJSON);
     } catch (/** @type {unknown} */ err) {
-      const errMessage = err instanceof Error ? err.message : String(err);
+      const errMessage = getErrorMessage(err);
       process.stderr.write(`Invalid GH_AW_ECOSYSTEM_MAP_JSON: ${errMessage}\n`);
       process.exit(1);
     }
@@ -122,7 +123,7 @@ async function main() {
   try {
     fs.writeFileSync(configPath, JSON.stringify(config) + "\n");
   } catch (/** @type {unknown} */ err) {
-    const errMessage = err instanceof Error ? err.message : String(err);
+    const errMessage = getErrorMessage(err);
     process.stderr.write(`Failed to write AWF config file at ${configPath}: ${errMessage}\n`);
     process.exit(1);
   }
@@ -132,7 +133,7 @@ module.exports = { main };
 
 if (require.main === module) {
   main().catch((/** @type {unknown} */ err) => {
-    const errMessage = err instanceof Error ? err.message : String(err);
+    const errMessage = getErrorMessage(err);
     process.stderr.write(`Error: ${errMessage}\n`);
     process.exit(1);
   });

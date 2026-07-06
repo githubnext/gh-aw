@@ -3,6 +3,7 @@
 const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 const installedDependencyPromises = new Map();
 const perToolInstallPromises = new Map();
@@ -73,7 +74,7 @@ function executeInstallWithRetry(logger, toolName, dependency, command, args, cw
     } catch (error) {
       const stderr = error && error.stderr ? String(error.stderr) : "";
       const stdout = error && error.stdout ? String(error.stdout) : "";
-      const details = [stderr.trim(), stdout.trim(), error && error.message ? String(error.message) : ""].filter(Boolean).join("\n");
+      const details = [stderr.trim(), stdout.trim(), error ? getErrorMessage(error) : ""].filter(Boolean).join("\n");
 
       if (isDeterministicInstallFailure(details)) {
         logWithCore(logger, "error", `  [${toolName}] Deterministic dependency install failure for '${dependency}'`);

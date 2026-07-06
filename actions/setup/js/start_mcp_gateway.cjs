@@ -400,7 +400,7 @@ async function main() {
     core.error("ERROR: Configuration is not valid JSON");
     core.error("");
     core.error("JSON validation error:");
-    const parseMessage = /** @type {Error} */ err.message;
+    const parseMessage = getErrorMessage(err);
     core.error(parseMessage);
     const parseContext = getJSONParseErrorContext(mcpConfig, parseMessage);
     if (parseContext) {
@@ -806,7 +806,7 @@ async function main() {
     try {
       ({ dir: copilotConfigDir, file: copilotConfigFile } = resolveCopilotConfigPaths());
     } catch (err) {
-      core.error(`ERROR: ${err.message}`);
+      core.error(`ERROR: ${getErrorMessage(err)}`);
       process.exit(1);
     }
     core.info(`No agent-specific converter found for engine: ${engineType}`);
@@ -943,7 +943,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = getErrorMessage(err);
     const stack = err instanceof Error ? err.stack : undefined;
     if (stack) core.error(stack);
     core.setFailed(`FATAL: ${message}`);

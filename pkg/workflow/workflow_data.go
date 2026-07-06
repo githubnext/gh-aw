@@ -188,6 +188,7 @@ type WorkflowData struct {
 	ModelPolicyAllowed             []string                        // merged models.allowed policy list (union across imports + main frontmatter)
 	ModelPolicyBlocked             []string                        // merged models.blocked policy list (union across imports + main frontmatter)
 	ActionPinMappings              map[string]string               // action-pin redirect table from aw.json action_pins: maps "owner/repo@version" → "owner/repo@version"
+	Evals                          *EvalsConfig                    // BinEval evaluation configuration parsed from frontmatter evals field
 }
 
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.

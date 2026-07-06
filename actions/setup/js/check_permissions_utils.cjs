@@ -67,7 +67,7 @@ function readAllowBotAuthoredTriggerComment(payload) {
   } catch (err) {
     // Malformed aw_context is treated as absent — default to safe behaviour (flag is false).
     // Log at debug level so workflow authors can diagnose issues with aw_context format.
-    core.debug?.(`readAllowBotAuthoredTriggerComment: failed to parse aw_context: ${err?.message ?? String(err)}`);
+    core.debug?.(`readAllowBotAuthoredTriggerComment: failed to parse aw_context: ${getErrorMessage(err)}`);
     return false;
   }
 }

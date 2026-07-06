@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * @param {string} rawSkills
@@ -105,7 +106,7 @@ function appendSkillInstallFailure(skillSpec, errorMessage) {
     }
   } catch (parseErr) {
     // If reading/parsing fails, start fresh and warn so the issue is visible in logs
-    core.warning(`Could not read skill install failures file, starting fresh: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
+    core.warning(`Could not read skill install failures file, starting fresh: ${getErrorMessage(parseErr)}`);
     failures = [];
   }
   failures.push({ skill: skillSpec, error: errorMessage });
@@ -113,7 +114,7 @@ function appendSkillInstallFailure(skillSpec, errorMessage) {
     fs.mkdirSync(path.dirname(SKILL_FAILURES_FILE), { recursive: true });
     fs.writeFileSync(SKILL_FAILURES_FILE, JSON.stringify(failures, null, 2), "utf8");
   } catch (writeErr) {
-    core.warning(`Could not write skill install failures file: ${writeErr instanceof Error ? writeErr.message : String(writeErr)}`);
+    core.warning(`Could not write skill install failures file: ${getErrorMessage(writeErr)}`);
   }
 }
 
@@ -162,7 +163,7 @@ async function main() {
     try {
       await exec.exec("gh", command.args);
     } catch (err) {
-      const errorMessage = (err instanceof Error ? err.message : String(err)).replace(/\r?\n/g, " ");
+      const errorMessage = getErrorMessage(err).replace(/\r?\n/g, " ");
       core.warning(`Failed to install skill '${skillSpec}': ${errorMessage}`);
       failures.push({ skill: skillSpec, error: errorMessage });
       appendSkillInstallFailure(skillSpec, errorMessage);

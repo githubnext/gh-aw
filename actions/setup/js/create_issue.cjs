@@ -1224,7 +1224,7 @@ async function main(config = {}) {
             });
             core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
           } catch (commentError) {
-            core.info(`Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`);
+            core.info(`Warning: Could not add comment to parent issue: ${getErrorMessage(commentError)}`);
           }
         }
       } else if (effectiveParentIssueNumber && effectiveParentRepo !== qualifiedItemRepo) {

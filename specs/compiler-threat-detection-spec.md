@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.14  
+**Version**: 1.0.15  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.15` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), and `workflow_run` trigger branch scope enforcement (CTR-021). |
 | `1.0.14` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), and conditional import rejection (`imports.if` rejection for CTR-020). |
 | `1.0.13` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
 | `1.0.12` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
@@ -147,6 +148,7 @@ A conforming implementation MUST include detection coverage for at least the fol
 - **CTR-018 Version Integrity Bypass**: Detect `check-for-updates: false` in workflow frontmatter, which disables the compile-agentic version update check that ensures the workflow was compiled with a supported version of gh-aw. Warn in non-strict mode; reject in strict mode.
 - **CTR-019 Cache-Memory Integrity Enforcement**: Enforce that `update_cache_memory` job only runs when threat detection succeeds (not when skipped or failed); prevents cache pollution when agent outputs have not been validated or when detection was bypassed, ensuring cache-memory data integrity and preventing persistence of potentially malicious content from unvalidated agent sessions.
 - **CTR-020 Conditional Import Security**: Detect and reject `imports:` entries that contain an `if` field; conditional imports can alter workflow setup and security posture at runtime by making security-sensitive import decisions dependent on runtime conditions; reject compilation and direct authors to use `{{#if ...}}{{#runtime-import? ...}}{{/if}}` for experiment-specific prompt imports.
+- **CTR-021 Workflow Run Trigger Branch Scope**: Detect `workflow_run` triggers that lack `branches:` restrictions; unrestricted `workflow_run` triggers fire on any branch including attacker-controlled branches, which can expose workflow context data via `github.event.workflow_run.*` and enable unintended cross-workflow trigger chains; warn in non-strict mode and reject in strict mode. Also enforce that `workflow_run` must include a non-empty `workflows:` field (hard error in both modes).
 
 ### 5.2 Compiler Response Requirements
 
@@ -263,14 +265,15 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-018 Version Integrity Bypass | `pkg/workflow/strict_mode_update_check_validation.go` (`validateUpdateCheck`) | `pkg/workflow/strict_mode_update_check_validation_test.go` |
 | CTR-019 Cache-Memory Integrity Enforcement | `pkg/workflow/cache.go` (`buildUpdateCacheMemoryJob` using `buildDetectionSuccessCondition`), `pkg/workflow/expression_builder.go` (`buildDetectionSuccessCondition`) | `pkg/workflow/cache_memory_threat_detection_test.go`, `pkg/workflow/threat_detection_job_combinations_integration_test.go` |
 | CTR-020 Conditional Import Security | `pkg/parser/import_bfs.go` (`parseImportSpecsFromArray`: rejects import items that contain an `if` field) | `pkg/parser/import_bfs_test.go` (`TestParseImportSpecsFromArray_RejectsIfField`) |
+| CTR-021 Workflow Run Trigger Branch Scope | `pkg/workflow/agent_validation.go` (`validateWorkflowRunBranches`, `validateWorkflowRunHasWorkflows`, `emitWorkflowRunMissingBranches`) | `pkg/workflow/workflow_run_validation_test.go` (`TestWorkflowRunBranchValidation`, `TestWorkflowRunBranchValidationEdgeCases`) |
 
 The mappings above are pattern-based references and MUST be validated against concrete file paths whenever this specification is updated.
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 
-### 7.2 Mapping Audit (2026-06-29)
+### 7.2 Mapping Audit (2026-07-06)
 
-Audit result: ✅ all listed `CTR-001` through `CTR-020` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: commit d6d9160 (PR #42146), merged 2026-06-28. Security-relevant items evaluated: (1) **Conditional import `if` rejection** (`pkg/parser/import_bfs.go`, `parseImportSpecsFromArray`): compiler-level rejection of `imports:` entries containing an `if` field; rationale is that conditional imports can alter workflow setup and security posture at runtime; not covered by any prior CTR rule → **new CTR-020** added. (2) **Sandbox validation consolidation** (`pkg/workflow/sandbox_validation.go`, new file): new `validateSandboxConfig` enforces that `sandbox.agent: false` requires an explicit `dangerously-disable-sandbox-agent` feature flag with a non-expression justification string (minimum 20 chars); mount syntax validation and deprecated `sandbox.config` rejection also added; all covered by existing CTR-004 mapping pattern `pkg/workflow/sandbox_validation*.go`; no new rule required. (3) **Runtime import expression validation** (`pkg/workflow/runtime_import_validation.go`, new file): validates that `{{#runtime-import}}` macro targets contain only allowlisted expressions; extends CTR-010 expression safety coverage to runtime-import files → CTR-010 mapping updated to include `runtime_import_validation.go`. (4) **`network-isolation` → `sudo` rename** (`pkg/workflow/*.go`): frontmatter field renamed with inverted semantics; purely a refactoring with no new threat class; no new CTR rule required. (5) mcpg v0.3.32 and firewall v0.27.13 dependency bumps — runtime-only; outside compiler threat detection scope per Section 1.2.
+Audit result: ✅ all listed `CTR-001` through `CTR-021` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: commit c9361ed (squash merge), merged 2026-07-05. Security-relevant items evaluated: (1) **`workflow_run` trigger branch scope enforcement** (`pkg/workflow/agent_validation.go`, `validateWorkflowRunBranches`): compiler-level detection of `workflow_run` triggers lacking `branches:` restrictions; unrestricted triggers fire on any branch including attacker-controlled branches, potentially exposing `github.event.workflow_run.*` context data and enabling cross-workflow trigger chains; warn in non-strict mode, reject in strict mode; empty `workflows:` field is always a hard error regardless of mode; not covered by any prior CTR rule → **new CTR-021** added. (2) **OTLP auth headers via container env var** (`minor-otlp-headers-env-var`): compiler passes OTLP auth headers via container env var instead of gateway JSON config; compile-time artifact hardening only; no new threat class; no new CTR rule required. (3) **`remove-imports-if`**: covered by CTR-020; no new rule required. (4) **`sandbox.agent: false` / `disable-agent-sandbox-only`**: covered by CTR-004; no new rule required. (5) **`network-isolation` → `sudo` rename**: frontmatter-only refactoring; no new threat class; no new CTR rule required. (6) **MCP config schema validation**: schema validation for malformed MCP configs; covered by CTR-003/CTR-011 mapping patterns; no new rule required. (7) **Cross-repo allowlist validation**: strengthens CTR-005/CTR-012 boundaries; previously evaluated in spec v1.0.12; no new CTR rule required. (8) **`skip-empty-threat-detection`**: detection short-circuits with success when no agent output, strengthens CTR-019; no new rule required. (9) **`auto-hoist-run-expressions`**: extends expression hoisting to all `${{ }}` expressions (mitigation helper, related to CTR-006 coverage); no new rule required. (10) go-sdk security fix and dependency bumps: runtime-only; outside compiler threat detection scope per Section 1.2.
 
 ### 7.3 Sync Protocol for CTR Rule and Manifest Updates
 
@@ -322,6 +325,7 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 | **T-CTR-018** | CTR-018 Version Integrity Bypass | A workflow frontmatter sets `check-for-updates: false` | Compilation warning in non-strict mode identifying the disabled version check and advising removal; compilation failure in strict mode | `CTR-018` |
 | **T-CTR-019** | CTR-019 Cache-Memory Integrity Enforcement | A workflow has `cache-memory` enabled with `threat-detection: true`; the compiled lock file's `update_cache_memory` job condition must require `needs.detection.result == 'success'` (not accept `skipped`) | Compilation emits `update_cache_memory` job with condition `always() && needs.detection.result == 'success' && needs.agent.result == 'success'`; verified by integration tests | `CTR-019` |
 | **T-CTR-020** | CTR-020 Conditional Import Security | A workflow frontmatter `imports:` list contains an entry that is a YAML object with an `if` field (e.g., `- path: shared.md\n  if: experiments.variant == 'a'`) | Compilation failure with error `"import 'if' is no longer supported; use {{#if ...}}{{#runtime-import? ...}}{{/if}} for experiment-specific prompt imports"` | `CTR-020` |
+| **T-CTR-021** | CTR-021 Workflow Run Trigger Branch Scope | A workflow frontmatter declares `on: workflow_run:` without a `branches:` restriction (e.g., `on:\n  workflow_run:\n    workflows: ["CI"]\n    types: [completed]`) | Compilation warning in non-strict mode identifying the missing branch restriction and suggesting `branches: [$default-branch]`; compilation failure in strict mode. Separately, omitting `workflows:` or providing an empty list is always a hard error in both modes | `CTR-021` |
 
 ### 8.2 Test Coverage Requirements
 
@@ -342,6 +346,14 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.15 (2026-07-06)
+
+- Added CTR-021 Workflow Run Trigger Branch Scope (compiler-level detection of `workflow_run` triggers that lack `branches:` restrictions; unrestricted triggers fire on all branches including attacker-controlled branches and expose `github.event.workflow_run.*` context data; warn in non-strict mode, reject in strict mode; missing or empty `workflows:` field is always a hard error; implemented in `pkg/workflow/agent_validation.go` via `validateWorkflowRunBranches`, `validateWorkflowRunHasWorkflows`, `emitWorkflowRunMissingBranches`)
+- Added T-CTR-021 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-021 implementation references (`pkg/workflow/agent_validation.go`) and test coverage (`pkg/workflow/workflow_run_validation_test.go`)
+- Updated Section 7.2 mapping audit to 2026-07-06 covering commit c9361ed (squash merge, 2026-07-05): evaluated `workflow_run` branch scope enforcement (new CTR-021), OTLP headers env var (compile-time artifact hardening only), `remove-imports-if` (CTR-020 covered), `sandbox.agent: false` (CTR-004 covered), `network-isolation` → `sudo` rename (refactoring), MCP config schema validation (CTR-003/CTR-011 covered), cross-repo allowlist validation (CTR-005/CTR-012 covered), `skip-empty-threat-detection` (CTR-019 covered), `auto-hoist-run-expressions` (CTR-006 related, no new rule), and runtime-only dependency bumps
+- Updated Section 2 spec-to-implementation sync table with version 1.0.15 entry
 
 ### 1.0.14 (2026-06-29)
 
