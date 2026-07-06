@@ -61,10 +61,10 @@ tools:
 			expectedOn: `on:
   pull_request:
     branches:
-    - main
+      - main
   push:
     branches:
-    - main`,
+      - main`,
 		},
 		{
 			name: "custom on with multiple events",
@@ -82,10 +82,10 @@ tools:
 			expectedOn: `on:
   issues:
     types:
-    - opened
-    - closed
+      - opened
+      - closed
   schedule:
-  - cron: "0 8 * * *"
+    - cron: "0 8 * * *"
   workflow_dispatch:`,
 		},
 	}
