@@ -25,3 +25,15 @@ if setutil.Contains(seen, "foo") {
     // ...
 }
 ```
+
+## Dependencies
+
+**Internal**:
+- None
+
+**External**:
+- None beyond the Go standard library.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

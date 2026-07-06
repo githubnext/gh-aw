@@ -840,6 +840,28 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
     return "";
   };
 
+  // Builds the tool_use `input` object for a Copilot SDK tool event.
+  // Copilot SDK bash events carry the executed command as a top-level `data.command`
+  // field rather than nesting it inside `data.input`/`data.parameters`, so fall back
+  // to it (and merge it in when structured input lacks a command) to avoid dropping
+  // the command from the rendered summary.
+  // Pass { includeCommand: false } when normalizing orphaned completion events that
+  // may still carry structured input but cannot reliably recover the original command.
+  const buildToolInput = (data, options = {}) => {
+    const { includeCommand = true } = options;
+    const base = data.input || data.parameters;
+    if (base && typeof base === "object" && !Array.isArray(base)) {
+      if (includeCommand && base.command === undefined && typeof data.command === "string") {
+        return { ...base, command: data.command };
+      }
+      return base;
+    }
+    if (includeCommand && typeof data.command === "string") {
+      return { command: data.command };
+    }
+    return {};
+  };
+
   for (const entry of logEntries) {
     if (!entry || typeof entry !== "object") continue;
     const data = entry.data && typeof entry.data === "object" ? entry.data : {};
@@ -900,7 +922,7 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
         normalizedEntries.push({
           type: "assistant",
           message: {
-            content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: data.input || data.parameters || {} }],
+            content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: buildToolInput(data) }],
           },
         });
         break;
@@ -926,7 +948,9 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
           normalizedEntries.push({
             type: "assistant",
             message: {
-              content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: data.input || data.parameters || {} }],
+              // Orphaned completion events have no corresponding start event, so keep
+              // structured input but do not synthesize a command from completion data.
+              content: [{ type: "tool_use", id: resolvedToolId, name: toolName, input: buildToolInput(data, { includeCommand: false }) }],
             },
           });
         }

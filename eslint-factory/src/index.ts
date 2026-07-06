@@ -7,6 +7,7 @@ import { preferNumberIsNanRule } from "./rules/prefer-number-isnan";
 import { requireAsyncEntrypointCatchRule } from "./rules/require-async-entrypoint-catch";
 import { requireAwaitCoreSummaryWriteRule } from "./rules/require-await-core-summary-write";
 import { requireJsonParseTryCatchRule } from "./rules/require-json-parse-try-catch";
+import { requireErrorCauseInRethrowRule } from "./rules/require-error-cause-in-rethrow";
 import { requireParseIntRadixRule } from "./rules/require-parseInt-radix";
 
 const plugin = {
@@ -23,6 +24,7 @@ const plugin = {
     "prefer-number-isnan": preferNumberIsNanRule,
     "require-async-entrypoint-catch": requireAsyncEntrypointCatchRule,
     "require-await-core-summary-write": requireAwaitCoreSummaryWriteRule,
+    "require-error-cause-in-rethrow": requireErrorCauseInRethrowRule,
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,
     "require-parseInt-radix": requireParseIntRadixRule,
   },
