@@ -140,7 +140,14 @@ async function resolveEventEndpoints(eventName, owner, repo, payload) {
 async function main() {
   const reaction = process.env.GH_AW_REACTION || "eyes";
   const commandsJSON = process.env.GH_AW_COMMANDS;
-  const command = commandsJSON ? (JSON.parse(commandsJSON)[0] ?? null) : null; // Only present for command workflows
+  let command = null; // Only present for command workflows
+  if (commandsJSON) {
+    try {
+      command = JSON.parse(commandsJSON)[0] ?? null;
+    } catch (err) {
+      throw new Error("Failed to parse GH_AW_COMMANDS: " + getErrorMessage(err), { cause: err });
+    }
+  }
   const invocationContext = resolveInvocationContext(context);
   const runUrl = buildWorkflowRunUrl(context, invocationContext.workflowRepo);
 

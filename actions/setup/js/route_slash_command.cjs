@@ -6,6 +6,7 @@ const { REACTION_MAP } = require("./add_reaction.cjs");
 const { createOrReuseStatusComment } = require("./add_workflow_run_comment.cjs");
 const nodePath = require("node:path");
 const { matchesCommandName, parseSlashCommand } = require("./slash_command_matcher.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 // Keep this aligned with the current default stable GitHub REST API version used by workflows.
 // Update when GitHub advances the recommended version to avoid sunset/deprecation warnings.
 const GITHUB_API_VERSION = "2022-11-28";
@@ -638,8 +639,18 @@ async function main() {
   core.info("Starting centralized command routing.");
   core.info(`Incoming event name: '${context.eventName}'.`);
 
-  const slashRouteMap = JSON.parse(process.env.GH_AW_SLASH_ROUTING || "{}");
-  const labelRouteMap = JSON.parse(process.env.GH_AW_LABEL_ROUTING || "{}");
+  let slashRouteMap;
+  try {
+    slashRouteMap = JSON.parse(process.env.GH_AW_SLASH_ROUTING || "{}");
+  } catch (err) {
+    throw new Error("Failed to parse GH_AW_SLASH_ROUTING: " + getErrorMessage(err), { cause: err });
+  }
+  let labelRouteMap;
+  try {
+    labelRouteMap = JSON.parse(process.env.GH_AW_LABEL_ROUTING || "{}");
+  } catch (err) {
+    throw new Error("Failed to parse GH_AW_LABEL_ROUTING: " + getErrorMessage(err), { cause: err });
+  }
   core.info(`Configured centralized slash commands: ${Object.keys(slashRouteMap).length}.`);
   core.info(`Configured decentralized label commands: ${Object.keys(labelRouteMap).length}.`);
   const text = resolveBodyText();

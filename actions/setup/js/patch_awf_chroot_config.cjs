@@ -4,6 +4,8 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Patch the AWF config file with chroot settings for ARC/DinD runners.
  *
@@ -23,7 +25,12 @@ function patchAWFChrootConfig(options = {}) {
   const identityHome = options.identityHome || process.env.GH_AW_CHROOT_IDENTITY_HOME || "/tmp/gh-aw/home";
   const configPath = path.join(runnerTemp, "gh-aw", "awf-config.json");
   const artifactConfigPath = path.join(binariesSourcePath, "awf-config.json");
-  const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  let config;
+  try {
+    config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  } catch (err) {
+    throw new Error("Failed to parse AWF config file " + configPath + ": " + getErrorMessage(err), { cause: err });
+  }
   const userInfo = os.userInfo();
 
   config.chroot = {

@@ -32,6 +32,7 @@
 const fs = require("fs");
 const path = require("path");
 const { ERR_CONFIG } = require("./error_codes.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 const { parseRuntimeFeatures, hasRuntimeFeature } = require("./runtime_features.cjs");
 
 const ADD_COMMENT_DEFAULT_DISCUSSIONS_NOTE =
@@ -95,7 +96,12 @@ async function main() {
     throw new Error(msg);
   }
   /** @type {Array<{name: string, description: string, inputSchema?: {properties?: Record<string, unknown>}}>} */
-  const allTools = JSON.parse(fs.readFileSync(toolsSourcePath, "utf8"));
+  let allTools;
+  try {
+    allTools = JSON.parse(fs.readFileSync(toolsSourcePath, "utf8"));
+  } catch (err) {
+    throw new Error("Failed to parse tools source file " + toolsSourcePath + ": " + getErrorMessage(err), { cause: err });
+  }
 
   // Load config to determine which tools are enabled
   if (!fs.existsSync(configPath)) {
@@ -104,13 +110,22 @@ async function main() {
     throw new Error(msg);
   }
   /** @type {Record<string, unknown>} */
-  const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  let config;
+  try {
+    config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  } catch (err) {
+    throw new Error("Failed to parse config file " + configPath + ": " + getErrorMessage(err), { cause: err });
+  }
 
   // Load tools meta (description suffixes, repo params, dynamic tools)
   /** @type {{description_suffixes?: Record<string, string>, repo_params?: Record<string, {type: string, description: string}>, dynamic_tools?: Array<unknown>, required_field_removals?: Record<string, string[]>, required_field_additions?: Record<string, string[]>}} */
   let toolsMeta = { description_suffixes: {}, repo_params: {}, dynamic_tools: [] };
   if (fs.existsSync(toolsMetaPath)) {
-    toolsMeta = JSON.parse(fs.readFileSync(toolsMetaPath, "utf8"));
+    try {
+      toolsMeta = JSON.parse(fs.readFileSync(toolsMetaPath, "utf8"));
+    } catch (err) {
+      throw new Error("Failed to parse tools meta file " + toolsMetaPath + ": " + getErrorMessage(err), { cause: err });
+    }
   }
 
   // Build set of source tool names (predefined/static tools only)
@@ -127,7 +142,12 @@ async function main() {
     .filter(tool => enabledToolNames.has(tool.name))
     .map(tool => {
       // Deep copy to avoid modifying the original
-      const enhancedTool = JSON.parse(JSON.stringify(tool));
+      let enhancedTool;
+      try {
+        enhancedTool = JSON.parse(JSON.stringify(tool));
+      } catch (err) {
+        throw new Error("Failed to deep-copy tool " + tool.name + ": " + getErrorMessage(err), { cause: err });
+      }
 
       // Apply description suffix if available (e.g., " CONSTRAINTS: Maximum 5 issues.")
       const descSuffix = toolsMeta.description_suffixes?.[tool.name];
