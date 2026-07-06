@@ -48,6 +48,9 @@ function hasNoRequestedReviewersOrTeams(pullRequest) {
   return hasNoRequestedReviewers && hasNoRequestedTeams;
 }
 
+/** Maximum number of pages (100 reviews/page) fetched when enumerating PR reviews. */
+const MAX_REVIEW_PAGES = 10;
+
 /**
  * @param {any} githubClient
  * @param {string} owner
@@ -57,9 +60,8 @@ function hasNoRequestedReviewersOrTeams(pullRequest) {
  */
 async function listAllPullRequestReviews(githubClient, owner, repo, pullRequestNumber) {
   const all = [];
-  const maxPages = 10;
   let page = 1;
-  while (page <= maxPages) {
+  while (page <= MAX_REVIEW_PAGES) {
     const { data } = await githubClient.rest.pulls.listReviews({
       owner,
       repo,
@@ -72,7 +74,7 @@ async function listAllPullRequestReviews(githubClient, owner, repo, pullRequestN
     if (data.length < 100) break;
     page++;
   }
-  return { reviews: all, truncated: page > maxPages };
+  return { reviews: all, truncated: page > MAX_REVIEW_PAGES };
 }
 
 /**
@@ -184,7 +186,7 @@ async function main(config = {}) {
           if (truncated) {
             return {
               success: false,
-              error: `review_id=auto could not resolve: review history exceeds ${10 * 100} entries and was truncated; specify an explicit review_id instead`,
+              error: `review_id=auto could not resolve: review history exceeds ${MAX_REVIEW_PAGES * 100} entries and was truncated; specify an explicit review_id instead`,
             };
           }
           const isBlockedWithoutReviewers = hasNoRequestedReviewersOrTeams(pullRequest) && pullRequest?.mergeable_state === "blocked";
