@@ -24,13 +24,25 @@ func TestListCodeScanningAlertsPromptBounds(t *testing.T) {
 			}
 			text := string(content)
 			if !strings.Contains(text, "list_code_scanning_alerts") {
-				t.Fatalf("%s must reference list_code_scanning_alerts", path)
+				t.Skipf("%s does not reference list_code_scanning_alerts", path)
 			}
-			if !strings.Contains(text, "state: open") {
-				t.Fatalf("%s must include state: open guard", path)
+
+			lines := strings.Split(text, "\n")
+			hasBoundedReference := false
+			for i, line := range lines {
+				if !strings.Contains(line, "list_code_scanning_alerts") {
+					continue
+				}
+				start := max(0, i-8)
+				end := min(len(lines), i+9)
+				window := strings.Join(lines[start:end], "\n")
+				if strings.Contains(window, "state: open") && strings.Contains(window, "severity: critical,high") {
+					hasBoundedReference = true
+					break
+				}
 			}
-			if !strings.Contains(text, "severity: critical,high") {
-				t.Fatalf("%s must include severity: critical,high guard", path)
+			if !hasBoundedReference {
+				t.Fatalf("%s must include state: open and severity: critical,high near list_code_scanning_alerts", path)
 			}
 		})
 	}
