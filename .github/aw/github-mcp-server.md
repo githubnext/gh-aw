@@ -204,6 +204,8 @@ The following toolsets are recommended as defaults for typical agentic workflows
 | `get_code_scanning_alert` | Get details of a specific code scanning alert | `owner`, `repo`, `alert_number` |
 | `list_code_scanning_alerts` | List code scanning alerts for a repository | `owner`, `repo`, `state`, `severity` |
 
+When calling `list_code_scanning_alerts` in workflow prompts/templates, always bound requests with `state: open` and `severity: critical,high`.
+
 ---
 
 ### dependabot
@@ -368,4 +370,3 @@ Most toolsets work with the default `GITHUB_TOKEN` in GitHub Actions. Exceptions
 - `projects` — Requires a PAT with `project` scope
 - `security_advisories` (write) — Requires `security-events: write` permission
 - `actions` (write for `actions_run_trigger`) — Requires `actions: write` permission
-

@@ -138,6 +138,52 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("file1.txt");
     });
 
+    it("renders the bash command from data.command in Copilot CLI events.jsonl", () => {
+      // Real Copilot SDK events carry the executed command as a top-level data.command
+      // field on tool.execution_start, not nested inside data.input/data.parameters.
+      const eventsLog = [
+        '{"type":"user.message","timestamp":"2026-06-05T00:44:01.367Z","data":{}}',
+        '{"type":"tool.execution_start","timestamp":"2026-06-05T00:44:04.520Z","data":{"toolName":"bash","mcpServerName":"","command":"cat /tmp/gh-aw/agent/candidates.txt"}}',
+        '{"type":"tool.execution_complete","timestamp":"2026-06-05T00:44:04.700Z","data":{"toolName":"bash","mcpServerName":"","success":true,"result":{"content":"candidate-list-output"}}}',
+        '{"type":"assistant.message","timestamp":"2026-06-05T00:44:59.769Z","data":{"content":"Done"}}',
+      ].join("\n");
+
+      const result = parseCopilotLog(eventsLog);
+
+      expect(result.markdown).toContain("bash");
+      expect(result.markdown).toContain("cat /tmp/gh-aw/agent/candidates.txt");
+      expect(result.markdown).toContain("candidate-list-output");
+    });
+
+    it("merges data.command into existing data.input when command is absent there", () => {
+      const eventsLog = [
+        '{"type":"user.message","timestamp":"2026-06-05T00:44:01.367Z","data":{}}',
+        '{"type":"tool.execution_start","timestamp":"2026-06-05T00:44:04.520Z","data":{"toolName":"bash","mcpServerName":"","input":{"cwd":"/tmp"},"command":"ls"}}',
+        '{"type":"tool.execution_complete","timestamp":"2026-06-05T00:44:04.700Z","data":{"toolName":"bash","mcpServerName":"","success":true,"result":{"content":"file1.txt\\nfile2.txt"}}}',
+        '{"type":"assistant.message","timestamp":"2026-06-05T00:44:59.769Z","data":{"content":"Done"}}',
+      ].join("\n");
+
+      const result = parseCopilotLog(eventsLog);
+
+      expect(result.markdown).toContain("ls");
+      expect(result.markdown).toContain("/tmp");
+      expect(result.markdown).toContain("file1.txt");
+    });
+
+    it("preserves structured input for orphaned completion events without inventing a command", () => {
+      const eventsLog = [
+        '{"type":"user.message","timestamp":"2026-06-05T00:44:01.367Z","data":{}}',
+        '{"type":"tool.execution_complete","timestamp":"2026-06-05T00:44:04.700Z","data":{"toolName":"bash","mcpServerName":"","input":{"cwd":"/tmp"},"success":true,"result":{"content":"file1.txt\\nfile2.txt"}}}',
+        '{"type":"assistant.message","timestamp":"2026-06-05T00:44:59.769Z","data":{"content":"Done"}}',
+      ].join("\n");
+
+      const result = parseCopilotLog(eventsLog);
+
+      expect(result.markdown).toContain("bash");
+      expect(result.markdown).toContain("/tmp");
+      expect(result.markdown).toContain("file1.txt");
+    });
+
     it("renders tool output preview from array-based result.content in Copilot CLI events.jsonl", () => {
       const eventsLog = [
         '{"type":"user.message","timestamp":"2026-06-05T00:44:01.367Z","data":{}}',
