@@ -1566,7 +1566,7 @@ async function main() {
     }
 
     // Export processed count for consistency with project handler
-    core.setOutput("processed_count", successCount);
+    core.setOutput("processed_count", String(successCount));
 
     // Export assign_to_agent outputs when the handler was loaded
     if (messageHandlers.has("assign_to_agent")) {

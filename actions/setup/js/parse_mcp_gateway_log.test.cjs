@@ -767,6 +767,43 @@ Some content here.`;
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     });
+
+    test("calls setFailed when an unexpected error is thrown inside main", async () => {
+      const originalExistsSync = fs.existsSync;
+      const originalReadFileSync = fs.readFileSync;
+
+      const mockCore = {
+        info: vi.fn(),
+        debug: vi.fn(),
+        startGroup: vi.fn(),
+        endGroup: vi.fn(),
+        notice: vi.fn(),
+        warning: vi.fn(),
+        error: vi.fn(),
+        setFailed: vi.fn(),
+        exportVariable: vi.fn(),
+        setOutput: vi.fn(),
+        summary: {
+          addRaw: vi.fn().mockReturnThis(),
+          addDetails: vi.fn().mockReturnThis(),
+          write: vi.fn().mockRejectedValue(new Error("summary write failure")),
+        },
+      };
+
+      fs.existsSync = vi.fn(() => false);
+      fs.readFileSync = vi.fn((p, enc) => originalReadFileSync(p, enc));
+      global.core = mockCore;
+
+      try {
+        const { main } = require("./parse_mcp_gateway_log.cjs");
+        await main();
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("summary write failure"));
+      } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+        delete global.core;
+      }
+    });
   });
 
   describe("printAllGatewayFiles", () => {
