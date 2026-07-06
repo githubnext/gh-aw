@@ -49,8 +49,8 @@ export const noJsonStringifyErrorRule = createRule({
         "JSON.stringify({{errorVar}}) produces {} for Error objects — Error properties (message, stack, etc.) are non-enumerable. Prefer getErrorMessage({{errorVar}}) from error_helpers.cjs or explicitly serialize a guarded value after narrowing it.",
       useGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) — ensure getErrorMessage is imported from error_helpers.cjs.",
       useStringFallback: "Replace with String({{errorVar}}) — getErrorMessage is not in scope; String() is a safe import-free alternative.",
-      useDetailPreservingForm: "Replace with a template literal combining getErrorMessage({{errorVar}}) and {{errorVar}}.stack to preserve detail — ensure getErrorMessage is imported from error_helpers.cjs.",
-      useDetailPreservingFormFallback: "Replace with a template literal combining String({{errorVar}}) and {{errorVar}}.stack to preserve detail.",
+      useDetailPreservingForm: 'Replace with getErrorMessage({{errorVar}}) + "\\n" + ({{errorVar}}.stack ?? "") to preserve the stack trace — ensure getErrorMessage is imported from error_helpers.cjs.',
+      useDetailPreservingFormFallback: 'Replace with String({{errorVar}}) + "\\n" + ({{errorVar}}.stack ?? "") to preserve the stack trace.',
     },
   },
   defaultOptions: [],
@@ -166,14 +166,14 @@ export const noJsonStringifyErrorRule = createRule({
                   messageId: "useDetailPreservingForm" as const,
                   data: { errorVar },
                   fix(fixer) {
-                    return fixer.replaceText(node, `\`\${getErrorMessage(${errorVar})}\\n\${${errorVar}.stack ?? ""}\``);
+                    return fixer.replaceText(node, `getErrorMessage(${errorVar}) + "\\n" + (${errorVar}.stack ?? "")`);
                   },
                 } as const)
               : ({
                   messageId: "useDetailPreservingFormFallback" as const,
                   data: { errorVar },
                   fix(fixer) {
-                    return fixer.replaceText(node, `\`\${String(${errorVar})}\\n\${${errorVar}.stack ?? ""}\``);
+                    return fixer.replaceText(node, `String(${errorVar}) + "\\n" + (${errorVar}.stack ?? "")`);
                   },
                 } as const),
           ],
