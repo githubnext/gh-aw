@@ -57,7 +57,8 @@ function expressionReferencesCatchVar(node: TSESTree.Expression, varName: string
 
 /**
  * Returns true when the second argument of `new Error(msg, options)` already
- * contains a `cause` property.
+ * contains a `cause` property, regardless of the property value expression.
+ * This avoids false positives for wrapped causes like `{ cause: ensureError(err) }`.
  * Accepts the forms:
  *   new Error(msg, { cause: catchVar })
  *   new Error(msg, { cause: catchVar, ... })
@@ -188,7 +189,6 @@ export const requireErrorCauseInRethrowRule = createRule({
                       return fixer.replaceText(secondArg, `{ cause: ${catchVarName} }`);
                     }
                     const firstProp = secondArg.properties[0];
-                    if (!firstProp) return null;
                     return fixer.insertTextBefore(firstProp, `cause: ${catchVarName}, `);
                   }
                   return null;
