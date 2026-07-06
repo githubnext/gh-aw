@@ -244,11 +244,12 @@ func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, ve
 func parseIssueSpec(input string) string {
 	input = strings.TrimSpace(input)
 
-	// First try to match GitHub issue URLs (supports public GitHub and GHES via GH_HOST)
-	if u, err := url.Parse(input); err == nil && u.Scheme == "https" {
-		// Compare the URL host against the configured GitHub host (strip the https:// scheme)
-		configuredHost := strings.TrimPrefix(getGitHubHost(), "https://")
-		if u.Host == configuredHost {
+	// First try to match GitHub issue URLs (supports public GitHub and GHES via GH_HOST).
+	// Both the scheme and host are compared against the configured GitHub host so that
+	// HTTP-only GHES instances and unrelated hosts are handled correctly.
+	if u, err := url.Parse(input); err == nil && u.Host != "" {
+		configuredHostURL, err := url.Parse(getGitHubHost())
+		if err == nil && u.Scheme == configuredHostURL.Scheme && u.Host == configuredHostURL.Host {
 			if matches := issuePathPattern.FindStringSubmatch(u.Path); len(matches) >= 2 {
 				return matches[1]
 			}
