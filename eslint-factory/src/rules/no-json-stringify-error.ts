@@ -46,12 +46,18 @@ export const noJsonStringifyErrorRule = createRule({
     schema: [],
     messages: {
       jsonStringifyError:
-        "JSON.stringify({{errorVar}}) produces {} for Error objects — Error properties (message, stack, etc.) are non-enumerable. Prefer getErrorMessage({{errorVar}}) from error_helpers.cjs or explicitly serialize a guarded value after narrowing it.",
+        "JSON.stringify({{errorVar}}) produces {} for Error objects — Error properties (message, stack, etc.) are non-enumerable. Use getErrorMessage({{errorVar}}) if it is available, or String({{errorVar}}) as a safe import-free alternative.",
       useGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) — ensure getErrorMessage is imported from error_helpers.cjs.",
+      useStringFallback: "Replace with String({{errorVar}}) — getErrorMessage is not in scope; String() is a safe import-free alternative.",
+      useDetailPreservingForm: 'Replace with (getErrorMessage({{errorVar}}) + "\\n" + ({{errorVar}}?.stack ?? "")) to preserve the stack trace — ensure getErrorMessage is imported from error_helpers.cjs.',
+      useDetailPreservingFormFallback: 'Replace with (String({{errorVar}}) + "\\n" + ({{errorVar}}?.stack ?? "")) to preserve the stack trace.',
     },
   },
   defaultOptions: [],
   create(context) {
+    const sourceCode = context.sourceCode;
+    type SourceCodeScope = ReturnType<typeof sourceCode.getScope>;
+
     // Stack tracking caught error variable names.
     // Each scope entry holds varName (empty string for sentinel) and isSentinel flag.
     const scopeStack: ErrorScope[] = [];
@@ -85,6 +91,30 @@ export const noJsonStringifyErrorRule = createRule({
 
     function exitFunction(): void {
       scopeStack.pop();
+    }
+
+    function isDefinitionAvailableAtNode(definition: { type: string; name?: TSESTree.Node | null; node: TSESTree.Node }, node: TSESTree.Node): boolean {
+      if (definition.type === "ImportBinding" || definition.type === "FunctionName") {
+        return true;
+      }
+
+      const definitionNode = definition.name ?? definition.node;
+      return definitionNode.range[0] < node.range[0];
+    }
+
+    function hasResolvableLocalBinding(node: TSESTree.Node, name: string): boolean {
+      let scope: SourceCodeScope | null = sourceCode.getScope(node);
+
+      while (scope) {
+        const variable = scope.set.get(name);
+        if (variable && variable.defs.some(definition => isDefinitionAvailableAtNode(definition, node))) {
+          return true;
+        }
+
+        scope = scope.upper;
+      }
+
+      return false;
     }
 
     return {
@@ -125,18 +155,46 @@ export const noJsonStringifyErrorRule = createRule({
         if (!caughtNames.has(firstArg.name)) return;
 
         const errorVar = firstArg.name;
+
+        const getErrorMessageInScope = hasResolvableLocalBinding(node, "getErrorMessage");
+
         context.report({
           node,
           messageId: "jsonStringifyError",
           data: { errorVar },
           suggest: [
-            {
-              messageId: "useGetErrorMessage" as const,
-              data: { errorVar },
-              fix(fixer) {
-                return fixer.replaceText(node, `getErrorMessage(${errorVar})`);
-              },
-            },
+            // Suggestion 1: concise message-only replacement
+            getErrorMessageInScope
+              ? ({
+                  messageId: "useGetErrorMessage" as const,
+                  data: { errorVar },
+                  fix(fixer) {
+                    return fixer.replaceText(node, `getErrorMessage(${errorVar})`);
+                  },
+                } as const)
+              : ({
+                  messageId: "useStringFallback" as const,
+                  data: { errorVar },
+                  fix(fixer) {
+                    return fixer.replaceText(node, `String(${errorVar})`);
+                  },
+                } as const),
+            // Suggestion 2: detail-preserving replacement (retains stack trace)
+            getErrorMessageInScope
+              ? ({
+                  messageId: "useDetailPreservingForm" as const,
+                  data: { errorVar },
+                  fix(fixer) {
+                    return fixer.replaceText(node, `(getErrorMessage(${errorVar}) + "\\n" + (${errorVar}?.stack ?? ""))`);
+                  },
+                } as const)
+              : ({
+                  messageId: "useDetailPreservingFormFallback" as const,
+                  data: { errorVar },
+                  fix(fixer) {
+                    return fixer.replaceText(node, `(String(${errorVar}) + "\\n" + (${errorVar}?.stack ?? ""))`);
+                  },
+                } as const),
           ],
         });
       },

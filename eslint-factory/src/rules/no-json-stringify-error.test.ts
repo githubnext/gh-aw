@@ -75,9 +75,14 @@ describe("no-json-stringify-error", () => {
               data: { errorVar: "err" },
               suggestions: [
                 {
-                  messageId: "useGetErrorMessage",
+                  messageId: "useStringFallback",
                   data: { errorVar: "err" },
-                  output: `try { f(); } catch (err) { core.error(getErrorMessage(err)); }`,
+                  output: `try { f(); } catch (err) { core.error(String(err)); }`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "err" },
+                  output: 'try { f(); } catch (err) { core.error((String(err) + "\\n" + (err?.stack ?? ""))); }',
                 },
               ],
             },
@@ -99,9 +104,14 @@ describe("no-json-stringify-error", () => {
               data: { errorVar: "error" },
               suggestions: [
                 {
-                  messageId: "useGetErrorMessage",
+                  messageId: "useStringFallback",
                   data: { errorVar: "error" },
-                  output: `try { f(); } catch (error) { core.error(\`details: \${getErrorMessage(error)}\`); }`,
+                  output: `try { f(); } catch (error) { core.error(\`details: \${String(error)}\`); }`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "error" },
+                  output: 'try { f(); } catch (error) { core.error(`details: ${(String(error) + "\\n" + (error?.stack ?? ""))}`); }',
                 },
               ],
             },
@@ -123,9 +133,14 @@ describe("no-json-stringify-error", () => {
               data: { errorVar: "err" },
               suggestions: [
                 {
-                  messageId: "useGetErrorMessage",
+                  messageId: "useStringFallback",
                   data: { errorVar: "err" },
-                  output: `p.catch(err => core.error(getErrorMessage(err)));`,
+                  output: `p.catch(err => core.error(String(err)));`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "err" },
+                  output: 'p.catch(err => core.error((String(err) + "\\n" + (err?.stack ?? ""))));',
                 },
               ],
             },
@@ -147,9 +162,14 @@ describe("no-json-stringify-error", () => {
               data: { errorVar: "err" },
               suggestions: [
                 {
-                  messageId: "useGetErrorMessage",
+                  messageId: "useStringFallback",
                   data: { errorVar: "err" },
-                  output: `p.catch(function(err) { core.error(getErrorMessage(err)); });`,
+                  output: `p.catch(function(err) { core.error(String(err)); });`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "err" },
+                  output: 'p.catch(function(err) { core.error((String(err) + "\\n" + (err?.stack ?? ""))); });',
                 },
               ],
             },
@@ -171,9 +191,14 @@ describe("no-json-stringify-error", () => {
               data: { errorVar: "outer" },
               suggestions: [
                 {
-                  messageId: "useGetErrorMessage",
+                  messageId: "useStringFallback",
                   data: { errorVar: "outer" },
-                  output: `try { f(); } catch (outer) { try { g(); } catch (inner) { } core.error(getErrorMessage(outer)); }`,
+                  output: `try { f(); } catch (outer) { try { g(); } catch (inner) { } core.error(String(outer)); }`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "outer" },
+                  output: 'try { f(); } catch (outer) { try { g(); } catch (inner) { } core.error((String(outer) + "\\n" + (outer?.stack ?? ""))); }',
                 },
               ],
             },
@@ -209,9 +234,14 @@ describe("no-json-stringify-error", () => {
               data: { errorVar: "err" },
               suggestions: [
                 {
-                  messageId: "useGetErrorMessage",
+                  messageId: "useStringFallback",
                   data: { errorVar: "err" },
-                  output: `p.then(result => result, err => core.error(getErrorMessage(err)));`,
+                  output: `p.then(result => result, err => core.error(String(err)));`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "err" },
+                  output: 'p.then(result => result, err => core.error((String(err) + "\\n" + (err?.stack ?? ""))));',
                 },
               ],
             },
@@ -225,9 +255,14 @@ describe("no-json-stringify-error", () => {
               data: { errorVar: "err" },
               suggestions: [
                 {
-                  messageId: "useGetErrorMessage",
+                  messageId: "useStringFallback",
                   data: { errorVar: "err" },
-                  output: `p.then(null, err => core.error(getErrorMessage(err)));`,
+                  output: `p.then(null, err => core.error(String(err)));`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "err" },
+                  output: 'p.then(null, err => core.error((String(err) + "\\n" + (err?.stack ?? ""))));',
                 },
               ],
             },
@@ -249,9 +284,14 @@ describe("no-json-stringify-error", () => {
               data: { errorVar: "err" },
               suggestions: [
                 {
-                  messageId: "useGetErrorMessage",
+                  messageId: "useStringFallback",
                   data: { errorVar: "err" },
-                  output: `p.then(null, function(err) { core.error(getErrorMessage(err)); });`,
+                  output: `p.then(null, function(err) { core.error(String(err)); });`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "err" },
+                  output: 'p.then(null, function(err) { core.error((String(err) + "\\n" + (err?.stack ?? ""))); });',
                 },
               ],
             },
@@ -280,9 +320,14 @@ describe("no-json-stringify-error", () => {
               data: { errorVar: "e" },
               suggestions: [
                 {
-                  messageId: "useGetErrorMessage",
+                  messageId: "useStringFallback",
                   data: { errorVar: "e" },
-                  output: `try { fetch(url); } catch (e) { console.error(getErrorMessage(e)); }`,
+                  output: `try { fetch(url); } catch (e) { console.error(String(e)); }`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "e" },
+                  output: 'try { fetch(url); } catch (e) { console.error((String(e) + "\\n" + (e?.stack ?? ""))); }',
                 },
               ],
             },
@@ -296,9 +341,14 @@ describe("no-json-stringify-error", () => {
               data: { errorVar: "err" },
               suggestions: [
                 {
-                  messageId: "useGetErrorMessage",
+                  messageId: "useStringFallback",
                   data: { errorVar: "err" },
-                  output: `p.then(ok, err => console.error(getErrorMessage(err)));`,
+                  output: `p.then(ok, err => console.error(String(err)));`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "err" },
+                  output: 'p.then(ok, err => console.error((String(err) + "\\n" + (err?.stack ?? ""))));',
                 },
               ],
             },
@@ -320,9 +370,246 @@ describe("no-json-stringify-error", () => {
               data: { errorVar: "inner" },
               suggestions: [
                 {
-                  messageId: "useGetErrorMessage",
+                  messageId: "useStringFallback",
                   data: { errorVar: "inner" },
-                  output: `try { f(); } catch (outer) { try { g(); } catch (inner) { core.error(getErrorMessage(inner)); } }`,
+                  output: `try { f(); } catch (outer) { try { g(); } catch (inner) { core.error(String(inner)); } }`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "inner" },
+                  output: 'try { f(); } catch (outer) { try { g(); } catch (inner) { core.error((String(inner) + "\\n" + (inner?.stack ?? ""))); } }',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: when getErrorMessage is in scope, suggests getErrorMessage and detail-preserving form", () => {
+    cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const getErrorMessage = require('./error_helpers').getErrorMessage; try { f(); } catch (err) { core.error(JSON.stringify(err)); }`,
+          errors: [
+            {
+              messageId: "jsonStringifyError",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `const getErrorMessage = require('./error_helpers').getErrorMessage; try { f(); } catch (err) { core.error(getErrorMessage(err)); }`,
+                },
+                {
+                  messageId: "useDetailPreservingForm",
+                  data: { errorVar: "err" },
+                  output: 'const getErrorMessage = require(\'./error_helpers\').getErrorMessage; try { f(); } catch (err) { core.error((getErrorMessage(err) + "\\n" + (err?.stack ?? ""))); }',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: when getErrorMessage is in scope via destructured require, detail-preserving form uses getErrorMessage", () => {
+    cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const { getErrorMessage } = require('./error_helpers'); try { f(); } catch (error) { core.error(\`details: \${JSON.stringify(error, null, 2)}\`); }`,
+          errors: [
+            {
+              messageId: "jsonStringifyError",
+              data: { errorVar: "error" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "error" },
+                  output: `const { getErrorMessage } = require('./error_helpers'); try { f(); } catch (error) { core.error(\`details: \${getErrorMessage(error)}\`); }`,
+                },
+                {
+                  messageId: "useDetailPreservingForm",
+                  data: { errorVar: "error" },
+                  output: 'const { getErrorMessage } = require(\'./error_helpers\'); try { f(); } catch (error) { core.error(`details: ${(getErrorMessage(error) + "\\n" + (error?.stack ?? ""))}`); }',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: when getErrorMessage is imported via ESM, suggestions use getErrorMessage", () => {
+    esmRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `import { getErrorMessage } from "./error_helpers"; try { f(); } catch (err) { console.error(JSON.stringify(err)); }`,
+          errors: [
+            {
+              messageId: "jsonStringifyError",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `import { getErrorMessage } from "./error_helpers"; try { f(); } catch (err) { console.error(getErrorMessage(err)); }`,
+                },
+                {
+                  messageId: "useDetailPreservingForm",
+                  data: { errorVar: "err" },
+                  output: 'import { getErrorMessage } from "./error_helpers"; try { f(); } catch (err) { console.error((getErrorMessage(err) + "\\n" + (err?.stack ?? ""))); }',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: when getErrorMessage is declared earlier in the catch block, suggestions use getErrorMessage", () => {
+    cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { const getErrorMessage = customHelper; console.error(JSON.stringify(err)); }`,
+          errors: [
+            {
+              messageId: "jsonStringifyError",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { const getErrorMessage = customHelper; console.error(getErrorMessage(err)); }`,
+                },
+                {
+                  messageId: "useDetailPreservingForm",
+                  data: { errorVar: "err" },
+                  output: 'try { f(); } catch (err) { const getErrorMessage = customHelper; console.error((getErrorMessage(err) + "\\n" + (err?.stack ?? ""))); }',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: when getErrorMessage is declared after the call site, suggestions fall back to String()", () => {
+    cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { console.error(JSON.stringify(err)); const getErrorMessage = customHelper; }`,
+          errors: [
+            {
+              messageId: "jsonStringifyError",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useStringFallback",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { console.error(String(err)); const getErrorMessage = customHelper; }`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "err" },
+                  output: 'try { f(); } catch (err) { console.error((String(err) + "\\n" + (err?.stack ?? ""))); const getErrorMessage = customHelper; }',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: detail-preserving suggestion is parenthesized when the call is chained", () => {
+    cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { console.error(JSON.stringify(err).slice(0, 20)); }`,
+          errors: [
+            {
+              messageId: "jsonStringifyError",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useStringFallback",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { console.error(String(err).slice(0, 20)); }`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "err" },
+                  output: 'try { f(); } catch (err) { console.error((String(err) + "\\n" + (err?.stack ?? "")).slice(0, 20)); }',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: when getErrorMessage is in scope inside a promise rejection handler, suggestions use getErrorMessage", () => {
+    cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const { getErrorMessage } = require('./error_helpers'); p.catch(err => console.error(JSON.stringify(err)));`,
+          errors: [
+            {
+              messageId: "jsonStringifyError",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `const { getErrorMessage } = require('./error_helpers'); p.catch(err => console.error(getErrorMessage(err)));`,
+                },
+                {
+                  messageId: "useDetailPreservingForm",
+                  data: { errorVar: "err" },
+                  output: 'const { getErrorMessage } = require(\'./error_helpers\'); p.catch(err => console.error((getErrorMessage(err) + "\\n" + (err?.stack ?? ""))));',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: when getErrorMessage is not in scope, first suggestion uses String() fallback", () => {
+    cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { console.error(JSON.stringify(err)); }`,
+          errors: [
+            {
+              messageId: "jsonStringifyError",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useStringFallback",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { console.error(String(err)); }`,
+                },
+                {
+                  messageId: "useDetailPreservingFormFallback",
+                  data: { errorVar: "err" },
+                  output: 'try { f(); } catch (err) { console.error((String(err) + "\\n" + (err?.stack ?? ""))); }',
                 },
               ],
             },
