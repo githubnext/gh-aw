@@ -119,8 +119,8 @@ jobs:
 }
 
 // copilotSetupStepsYAML is a static dev-mode template used only for YAML validity tests.
-// It deliberately uses the mutable branch ref as a fallback; the runtime function
-// generateCopilotSetupStepsYAML resolves the ref to an immutable commit SHA whenever possible.
+// The URL is pinned to an immutable commit SHA as a representative example; the runtime
+// function generateCopilotSetupStepsYAML resolves the ref dynamically via ResolveGhAwRef.
 const copilotSetupStepsYAML = `name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
@@ -144,7 +144,7 @@ jobs:
       - name: Install gh-aw extension
         run: |
           mkdir -p /tmp/gh-aw
-          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh
+          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/21a6827c430f89d3b7443074cfc8bd25b84d278f/install-gh-aw.sh -o /tmp/gh-aw/install-gh-aw.sh
           bash /tmp/gh-aw/install-gh-aw.sh
 `
 
