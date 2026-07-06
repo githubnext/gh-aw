@@ -8,9 +8,15 @@ interface ErrorScope {
 }
 
 /**
- * Returns true when the function is passed directly as the first argument to a
- * `.catch()` call. Named-reference handlers (for example `p.catch(handler)`)
- * are intentionally out of scope.
+ * Returns true when the function node is a rejection-handler passed inline to
+ * a promise method:
+ *   - First argument of `.catch(fn)` — the canonical rejection handler.
+ *   - Second argument of `.then(onFulfilled, onRejected)` — semantically
+ *     equivalent to `.catch(onRejected)`.
+ *
+ * Named-reference handlers (for example `p.catch(handler)`) are intentionally
+ * out of scope because the rule cannot statically follow the reference to
+ * inspect its parameter list without cross-file analysis.
  */
 function isCatchCallback(node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): boolean {
   const parent = node.parent;
@@ -18,7 +24,12 @@ function isCatchCallback(node: TSESTree.ArrowFunctionExpression | TSESTree.Funct
   const callee = parent.callee;
   if (callee.type !== AST_NODE_TYPES.MemberExpression || callee.computed) return false;
   const prop = callee.property;
-  return prop.type === AST_NODE_TYPES.Identifier && prop.name === "catch" && parent.arguments[0] === node;
+  if (prop.type !== AST_NODE_TYPES.Identifier) return false;
+  // .catch(fn) — first argument
+  if (prop.name === "catch" && parent.arguments[0] === node) return true;
+  // .then(onFulfilled, onRejected) — second argument is the rejection handler
+  if (prop.name === "then" && parent.arguments[1] === node) return true;
+  return false;
 }
 
 export const noJsonStringifyErrorRule = createRule({
@@ -27,7 +38,10 @@ export const noJsonStringifyErrorRule = createRule({
     type: "problem",
     hasSuggestions: true,
     docs: {
-      description: "Disallow JSON.stringify() on caught error variables — Error properties (message, stack, etc.) are non-enumerable and produce {} silently",
+      description:
+        "Disallow JSON.stringify() on caught error variables — Error properties (message, stack, etc.) are non-enumerable and produce {} silently. " +
+        "Detected scopes: try/catch bindings, .catch(fn) inline callbacks, and .then(onFulfilled, onRejected) inline rejection handlers. " +
+        "Named-reference handlers (e.g. p.catch(handler)) are out of scope because the rule cannot statically follow the reference.",
     },
     schema: [],
     messages: {
@@ -87,7 +101,7 @@ export const noJsonStringifyErrorRule = createRule({
         scopeStack.pop();
       },
 
-      // Track .catch() callback parameters
+      // Track .catch() callback parameters and .then(_, onRejected) rejection handler parameters
       ArrowFunctionExpression: enterFunction,
       "ArrowFunctionExpression:exit": exitFunction,
       FunctionExpression: enterFunction,

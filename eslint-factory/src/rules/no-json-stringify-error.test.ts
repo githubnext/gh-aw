@@ -183,6 +183,75 @@ describe("no-json-stringify-error", () => {
     });
   });
 
+  it("valid: p.catch(handler) named-reference is not flagged (static cross-reference out of scope)", () => {
+    cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [`function handler(err) { JSON.stringify(err); } p.catch(handler);`],
+      invalid: [],
+    });
+  });
+
+  it("valid: p.then(ok, handler) named-reference rejection handler is not flagged", () => {
+    cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [`function onRejected(err) { JSON.stringify(err); } p.then(ok, onRejected);`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: JSON.stringify(err) in .then() second-argument rejection handler (arrow) is flagged", () => {
+    cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `p.then(result => result, err => core.error(JSON.stringify(err)));`,
+          errors: [
+            {
+              messageId: "jsonStringifyError",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `p.then(result => result, err => core.error(getErrorMessage(err)));`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: JSON.stringify(err) in .then() second-argument rejection handler (function) is flagged", () => {
+    cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `p.then(null, function(err) { core.error(JSON.stringify(err)); });`,
+          errors: [
+            {
+              messageId: "jsonStringifyError",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `p.then(null, function(err) { core.error(getErrorMessage(err)); });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("valid: first argument of .then() (onFulfilled) is not treated as a rejection handler", () => {
+    cjsRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
+      valid: [`p.then(result => JSON.stringify(result));`, `p.then(function(result) { JSON.stringify(result); });`],
+      invalid: [],
+    });
+  });
+
   it("invalid: works with ES module syntax", () => {
     esmRuleTester.run("no-json-stringify-error", noJsonStringifyErrorRule, {
       valid: [],
