@@ -9,14 +9,36 @@ import (
 )
 
 func TestMCPHTTPServerAddr_BindsToLoopback(t *testing.T) {
-	if got := mcpHTTPServerAddr(12345); got != "127.0.0.1:12345" {
-		t.Fatalf("mcpHTTPServerAddr(12345) = %q, want %q", got, "127.0.0.1:12345")
+	testCases := []struct {
+		port int
+		want string
+	}{
+		{port: 0, want: "127.0.0.1:0"},
+		{port: 12345, want: "127.0.0.1:12345"},
+		{port: 65535, want: "127.0.0.1:65535"},
+	}
+
+	for _, tc := range testCases {
+		if got := mcpHTTPServerAddr(tc.port); got != tc.want {
+			t.Fatalf("mcpHTTPServerAddr(%d) = %q, want %q", tc.port, got, tc.want)
+		}
 	}
 }
 
 func TestMCPHTTPServerDisplayURL_UsesLoopbackAddress(t *testing.T) {
-	if got := mcpHTTPServerDisplayURL(12345); got != "http://127.0.0.1:12345" {
-		t.Fatalf("mcpHTTPServerDisplayURL(12345) = %q, want %q", got, "http://127.0.0.1:12345")
+	testCases := []struct {
+		port int
+		want string
+	}{
+		{port: 0, want: "http://127.0.0.1:0"},
+		{port: 12345, want: "http://127.0.0.1:12345"},
+		{port: 65535, want: "http://127.0.0.1:65535"},
+	}
+
+	for _, tc := range testCases {
+		if got := mcpHTTPServerDisplayURL(tc.port); got != tc.want {
+			t.Fatalf("mcpHTTPServerDisplayURL(%d) = %q, want %q", tc.port, got, tc.want)
+		}
 	}
 }
 
