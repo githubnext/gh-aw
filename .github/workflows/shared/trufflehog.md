@@ -38,9 +38,12 @@ jobs:
         id: install-trufflehog
         env:
           TRUFFLEHOG_VERSION: "3.88.27"
+          TRUFFLEHOG_SHA256: "e3b2647b7a7bc1591f316da91fd33fc7397f8e3c21e2feed791c171f0c406bc7"
         run: |
-          echo "Installing TruffleHog v${TRUFFLEHOG_VERSION}..."
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin "v${TRUFFLEHOG_VERSION}"
+          echo "Downloading TruffleHog v${TRUFFLEHOG_VERSION}..."
+          curl -fsSL "https://github.com/trufflesecurity/trufflehog/releases/download/v${TRUFFLEHOG_VERSION}/trufflehog_${TRUFFLEHOG_VERSION}_linux_amd64.tar.gz" -o /tmp/trufflehog.tar.gz
+          echo "${TRUFFLEHOG_SHA256}  /tmp/trufflehog.tar.gz" | sha256sum -c -
+          sudo tar -xzf /tmp/trufflehog.tar.gz -C /usr/local/bin trufflehog
           trufflehog --version
 
       - name: Scan agent output for secrets
