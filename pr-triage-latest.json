@@ -1,135 +1,191 @@
 {
-  "run_date": "2026-07-06T07:51:16Z",
-  "run_id": "28776188550",
-  "prior_run_id": "28761293397",
+  "run_date": "2026-07-06T13:29:01Z",
+  "run_id": "28795034579",
+  "prior_run_id": "28776188550",
   "summary": {
-    "total": 8,
-    "new": 8,
-    "carry_over": 0,
-    "fast_track": 3,
+    "total": 12,
+    "new": 10,
+    "carry_over": 2,
+    "fast_track": 4,
+    "auto_merge": 3,
     "batch_review": 2,
     "defer": 3,
     "close": 0
   },
   "prior_run_resolution": {
-    "total": 5,
+    "total": 6,
     "merged": 5,
-    "closed": 0,
-    "merged_prs": [43641, 43639, 43638, 43637, 43495],
-    "closed_prs": []
+    "closed": 1,
+    "merged_prs": [43729, 43733, 43731, 43724, 43725],
+    "closed_prs": [43732]
   },
   "prs": [
+    {
+      "number": 43766,
+      "title": "fix(mcp-server): bind HTTP server to 127.0.0.1; document validation escalation",
+      "category": "bug",
+      "risk": "high",
+      "score": 82,
+      "action": "fast_track",
+      "batch": "pr-batch:go-security",
+      "draft": false,
+      "reviews": "CHANGES_REQUESTED(ci)",
+      "note": "Security: DNS-rebinding fix, bind MCP HTTP to loopback. 2 Go files."
+    },
     {
       "number": 43716,
       "title": "fix(security): replace curl|sh installer pipes with download+verify (RGS-018)",
       "category": "bug",
       "risk": "high",
-      "score": 88,
+      "score": 75,
       "action": "fast_track",
-      "batch": "pr-batch:go-runtime-fixes",
+      "batch": "pr-batch:go-security",
       "draft": false,
-      "reviews": "",
-      "note": "Security fix: curl|sh → download+verify for Ollama, trufflehog, copilot-setup. 4 files +94/-63."
+      "reviews": "CHANGES_REQUESTED(ci)",
+      "note": "Security: RGS-018 curl|sh → download+verify. 6 files. Carry-over."
     },
     {
-      "number": 43729,
-      "title": "fix: honor GH_HOST for --trigger-context issue URLs in gh aw trial",
+      "number": 43750,
+      "title": "[rendering-scripts] fix(copilot-parser): render bash command from data.command in SDK events",
       "category": "bug",
       "risk": "medium",
-      "score": 63,
+      "score": 59,
       "action": "fast_track",
-      "batch": "pr-batch:go-runtime-fixes",
+      "batch": null,
       "draft": false,
-      "reviews": "",
-      "note": "GHES URL fix: net/url.Parse + getGitHubHost(). Tests + ADR update. 5 files +137/-62."
-    },
-    {
-      "number": 43732,
-      "title": "fix: populate engine_id from lock file metadata when aw_info.json is absent",
-      "category": "bug",
-      "risk": "medium",
-      "score": 60,
-      "action": "fast_track",
-      "batch": "pr-batch:go-runtime-fixes",
-      "draft": false,
-      "reviews": "",
-      "note": "Fallback engine_id from lock file gh-aw-metadata. 3 Go files +333/-64."
+      "reviews": "COMMENTED",
+      "note": "Log parser missing bash command rendering. 2 files + tests."
     },
     {
       "number": 43700,
       "title": "compiler: add evals job for BinEval binary evaluations",
       "category": "feature",
       "risk": "high",
-      "score": 62,
+      "score": 53,
       "action": "batch_review",
       "batch": null,
       "draft": false,
-      "reviews": "",
-      "note": "New compiler feature: evals + push_evals jobs. 4 files +774/-11."
+      "reviews": "CHANGES_REQUESTED(dismissed)",
+      "note": "New evals/push_evals compiler jobs. +774 lines. Carry-over. @pelikhan engaged."
     },
     {
-      "number": 43731,
-      "title": "fix: exempt github_api_helpers.cjs from SEC-004 (false positive)",
-      "category": "chore",
-      "risk": "low",
-      "score": 40,
-      "action": "batch_review",
-      "batch": null,
-      "draft": false,
-      "reviews": "",
-      "note": "1-line @safe-outputs-exempt annotation. Very low risk. 1 file +51/-49 (mostly lock churn)."
-    },
-    {
-      "number": 43733,
-      "title": "[WIP] Fix failing GitHub Actions job: Integration Workflow Misc Part 2",
-      "category": "chore",
+      "number": 43758,
+      "title": "[eslint-miner] feat(eslint): add require-error-cause-in-rethrow rule",
+      "category": "feature",
       "risk": "medium",
-      "score": 40,
-      "action": "defer",
-      "batch": null,
-      "draft": true,
-      "reviews": "",
-      "note": "DRAFT/WIP. Agent actively fixing CI. 49 files +54/-54. Monitor for ready."
+      "score": 49,
+      "action": "batch_review",
+      "batch": "pr-batch:eslint-rules",
+      "draft": false,
+      "reviews": "COMMENTED",
+      "note": "New eslint rule catching silent stack-trace loss. 4 files."
     },
     {
-      "number": 43725,
-      "title": "Fix docs dev server network isolation and MonaSans preload warnings",
-      "category": "chore",
-      "risk": "low",
-      "score": 35,
-      "action": "defer",
-      "batch": null,
-      "draft": true,
-      "reviews": "",
-      "note": "DRAFT. Docs dev server moved inside agent context. Await ready signal."
-    },
-    {
-      "number": 43724,
-      "title": "eslint-factory: extend no-json-stringify-error to cover .then(_, onRejected)",
-      "category": "refactor",
-      "risk": "low",
-      "score": 30,
+      "number": 43747,
+      "title": "feat: add CI drift check for workflow markdown vs generated lock files",
+      "category": "feature",
+      "risk": "medium",
+      "score": 46,
       "action": "defer",
       "batch": null,
       "draft": false,
-      "reviews": "CHANGES_REQUESTED",
-      "note": "CHANGES_REQUESTED: missing ESM test + isCatchCallback rename. 51 files, mostly lock churn."
+      "reviews": "CHANGES_REQUESTED(ci)",
+      "note": "CI drift detection script. 3 files. Needs CI resolution."
+    },
+    {
+      "number": 43744,
+      "title": "Constrain list_code_scanning_alerts prompt usage with explicit state/severity bounds",
+      "category": "docs",
+      "risk": "low",
+      "score": 44,
+      "action": "fast_track",
+      "batch": null,
+      "draft": false,
+      "reviews": "COMMENTED(@pelikhan)",
+      "note": "MCP prompt guardrails. 3 files. @pelikhan engaged."
+    },
+    {
+      "number": 43748,
+      "title": "feat(no-json-stringify-error): scope-aware suggestions + detail-preserving second suggestion",
+      "category": "feature",
+      "risk": "medium",
+      "score": 38,
+      "action": "defer",
+      "batch": "pr-batch:eslint-rules",
+      "draft": false,
+      "reviews": "CHANGES_REQUESTED(ci)",
+      "note": "eslint-factory no-json-stringify-error enhancement. 2 files. CI blocking."
+    },
+    {
+      "number": 43776,
+      "title": "[docs] Update documentation for features from 2026-07-06",
+      "category": "docs",
+      "risk": "low",
+      "score": 37,
+      "action": "auto_merge",
+      "batch": "pr-batch:docs-auto",
+      "draft": false,
+      "reviews": "",
+      "note": "Daily automated docs. 1 file."
+    },
+    {
+      "number": 43754,
+      "title": "[instructions] Sync instruction files with release v0.82.2",
+      "category": "chore",
+      "risk": "low",
+      "score": 37,
+      "action": "auto_merge",
+      "batch": null,
+      "draft": false,
+      "reviews": "",
+      "note": "Instruction sync v0.82.2. 1 file."
+    },
+    {
+      "number": 43774,
+      "title": "[docs] Update glossary - weekly full scan",
+      "category": "docs",
+      "risk": "low",
+      "score": 32,
+      "action": "auto_merge",
+      "batch": "pr-batch:docs-auto",
+      "draft": false,
+      "reviews": "",
+      "note": "Weekly glossary scan. 1 file."
+    },
+    {
+      "number": 43779,
+      "title": "deps: bump charm.land/bubbles/v2 to v2.1.1",
+      "category": "chore",
+      "risk": "low",
+      "score": 23,
+      "action": "defer",
+      "batch": null,
+      "draft": true,
+      "reviews": "",
+      "note": "DRAFT dep bump. 2 files (go.mod/go.sum). Await ready signal."
     }
   ],
   "batches": [
     {
-      "id": "pr-batch:go-runtime-fixes",
-      "prs": [43716, 43729, 43732],
-      "note": "Go runtime behavior/security fixes. Review together in one pass."
+      "id": "pr-batch:go-security",
+      "prs": [43766, 43716],
+      "note": "Security fixes: DNS-rebinding (43766) + RGS-018 curl|sh (43716). Review together."
+    },
+    {
+      "id": "pr-batch:docs-auto",
+      "prs": [43776, 43774],
+      "note": "Automated daily/weekly docs updates. Auto-merge together."
+    },
+    {
+      "id": "pr-batch:eslint-rules",
+      "prs": [43758, 43748],
+      "note": "ESLint factory rule additions/improvements. Review together."
     }
   ],
   "flags": [
-    "PR 43716: SECURITY — curl|sh RGS-018 fix. Fast-track immediately.",
-    "pr-batch:go-runtime-fixes: 43716/43729/43732 are 3 related Go fixes — batch review.",
-    "PR 43700: Large compiler feature (BinEval, +774 lines). Needs careful review.",
-    "PR 43724: CHANGES_REQUESTED — missing ESM test + function rename.",
-    "PRs 43733 + 43725: Both DRAFT/WIP — agent still working."
-  ],
-  "report_issue_tid": "aw_triage_run11",
-  "non_eligible_open_prs": []
+    "SECURITY BATCH pr-batch:go-security: #43766 + #43716 — DNS-rebinding + RGS-018. Fast-track together.",
+    "PR 43700: Large compiler feature (+774 lines), carry-over, @pelikhan engaged. Needs careful review.",
+    "PR 43747: CI drift check — CHANGES_REQUESTED, monitor agent iteration.",
+    "PR 43779: DRAFT dep bump — await ready signal."
+  ]
 }
