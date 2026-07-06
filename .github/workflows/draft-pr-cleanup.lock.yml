@@ -60,8 +60,8 @@
 name: "Draft PR Cleanup"
 on:
   schedule:
-  - cron: "50 10 * * *"
-    # Friendly format: daily (scattered)
+    - cron: "50 10 * * *"
+      # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

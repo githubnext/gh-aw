@@ -66,8 +66,8 @@
 name: "Release"
 on:
   # roles: # Roles processed as role check in pre-activation job
-  # - admin # Roles processed as role check in pre-activation job
-  # - maintainer # Roles processed as role check in pre-activation job
+    # - admin # Roles processed as role check in pre-activation job
+    # - maintainer # Roles processed as role check in pre-activation job
   workflow_dispatch:
     inputs:
       aw_context:
@@ -79,9 +79,9 @@ on:
         default: patch
         description: Release type (patch, minor, or major)
         options:
-        - patch
-        - minor
-        - major
+          - patch
+          - minor
+          - major
         required: true
         type: choice
 

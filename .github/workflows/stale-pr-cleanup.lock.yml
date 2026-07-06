@@ -60,8 +60,8 @@
 name: "Stale PR Cleanup"
 on:
   schedule:
-  - cron: "6 8 * * 6"
-    # Friendly format: weekly (scattered)
+    - cron: "6 8 * * 6"
+      # Friendly format: weekly (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

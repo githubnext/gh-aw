@@ -63,7 +63,7 @@
 name: "Avenger"
 on:
   schedule:
-  - cron: "23 * * * *"
+    - cron: "23 * * * *"
   workflow_dispatch:
     inputs:
       aw_context:

@@ -58,7 +58,7 @@ name: "PR Description Updater"
 on:
   pull_request:
     types:
-    - closed
+      - closed
 
 permissions: {}
 

@@ -61,15 +61,15 @@ name: "Visual Regression Checker"
 on:
   pull_request:
     paths:
-    - docs/package.json
-    - docs/package-lock.json
-    - docs/src/**/*.css
-    - docs/src/**/*.tsx
-    - docs/src/**/*.astro
-    - docs/astro.config.mjs
+      - docs/package.json
+      - docs/package-lock.json
+      - docs/src/**/*.css
+      - docs/src/**/*.tsx
+      - docs/src/**/*.astro
+      - docs/astro.config.mjs
     types:
-    - opened
-    - synchronize
+      - opened
+      - synchronize
 
 permissions: {}
 

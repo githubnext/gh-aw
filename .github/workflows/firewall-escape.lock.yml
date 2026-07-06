@@ -61,12 +61,12 @@ name: "The Great Escapi"
 on:
   pull_request:
     # names: # Label filtering applied via job conditions
-    # - firewall-escape-test # Label filtering applied via job conditions
+      # - firewall-escape-test # Label filtering applied via job conditions
     types:
-    - labeled
+      - labeled
   schedule:
-  - cron: "41 4 * * *"
-    # Friendly format: daily (scattered)
+    - cron: "41 4 * * *"
+      # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

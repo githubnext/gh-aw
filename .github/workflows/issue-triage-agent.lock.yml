@@ -60,8 +60,8 @@
 name: "Issue Triage Agent"
 on:
   schedule:
-  - cron: "37 14 * * 1-5"
-    # Friendly format: daily around 14:00 on weekdays (scattered)
+    - cron: "37 14 * * 1-5"
+      # Friendly format: daily around 14:00 on weekdays (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

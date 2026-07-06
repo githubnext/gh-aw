@@ -64,9 +64,9 @@ name: "Dependabot Local Repair"
 on:
   pull_request:
     types:
-    - opened
-    - synchronize
-    - reopened
+      - opened
+      - synchronize
+      - reopened
 
 permissions: {}
 

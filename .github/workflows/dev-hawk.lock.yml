@@ -67,11 +67,11 @@ on:
   workflow_run:
     # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
     branches:
-    - copilot/*
+      - copilot/*
     types:
-    - completed
+      - completed
     workflows:
-    - Dev
+      - Dev
 
 permissions: {}
 

@@ -65,29 +65,29 @@ on:
   # permissions: # Permissions applied to pre-activation job
     # contents: read
   schedule:
-  - cron: "49 14 * * *"
-    # Friendly format: daily (scattered)
+    - cron: "49 14 * * *"
+      # Friendly format: daily (scattered)
   # steps: # Steps injected into pre-activation job
-  # - id: changes
-    # name: Detect recent compilation-related changes
-    # uses: actions/github-script@v9.0.0
-    # with:
-      # script: |
-        # const { owner, repo } = context.repo;
-        # const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        # // Check commits touching Go source, go.mod/go.sum, or Makefile in last 24h
-        # const checkPaths = ['go.mod', 'go.sum', 'Makefile', 'pkg', 'cmd'];
-        # let hasChanges = false;
-        # for (const path of checkPaths) {
-          # const resp = await github.rest.repos.listCommits({ owner, repo, since, path, per_page: 1 });
-          # if (resp.data.length > 0) {
-            # core.info(`Found recent compilation-related change via path: ${path}`);
-            # hasChanges = true;
-            # break;
+    # - id: changes
+      # name: Detect recent compilation-related changes
+      # uses: actions/github-script@v9.0.0
+      # with:
+        # script: |
+          # const { owner, repo } = context.repo;
+          # const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+          # // Check commits touching Go source, go.mod/go.sum, or Makefile in last 24h
+          # const checkPaths = ['go.mod', 'go.sum', 'Makefile', 'pkg', 'cmd'];
+          # let hasChanges = false;
+          # for (const path of checkPaths) {
+            # const resp = await github.rest.repos.listCommits({ owner, repo, since, path, per_page: 1 });
+            # if (resp.data.length > 0) {
+              # core.info(`Found recent compilation-related change via path: ${path}`);
+              # hasChanges = true;
+              # break;
+            # }
           # }
-        # }
-        # core.info(`has_changes=${hasChanges}`);
-        # core.setOutput('has_changes', hasChanges ? 'true' : 'false');
+          # core.info(`has_changes=${hasChanges}`);
+          # core.setOutput('has_changes', hasChanges ? 'true' : 'false');
   workflow_dispatch:
     inputs:
       aw_context:

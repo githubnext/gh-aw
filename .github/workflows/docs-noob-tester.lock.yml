@@ -64,8 +64,8 @@
 name: "Documentation Noob Tester"
 on:
   schedule:
-  - cron: "40 3 * * *"
-    # Friendly format: daily (scattered)
+    - cron: "40 3 * * *"
+      # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

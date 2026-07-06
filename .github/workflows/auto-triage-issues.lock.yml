@@ -62,11 +62,11 @@ name: "Auto-Triage Issues"
 on:
   issues:
     types:
-    - opened
-    - edited
+      - opened
+      - edited
   schedule:
-  - cron: "27 */6 * * *"
-    # Friendly format: every 6h (scattered)
+    - cron: "27 */6 * * *"
+      # Friendly format: every 6h (scattered)
   workflow_dispatch:
     inputs:
       aw_context:

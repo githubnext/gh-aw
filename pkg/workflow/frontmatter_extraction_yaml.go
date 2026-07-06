@@ -78,7 +78,11 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 		}
 	} else {
 		// Use standard marshaling for non-map types
-		yamlBytes, err = yaml.Marshal(map[string]any{key: value})
+		marshalOptions := DefaultMarshalOptions
+		if key == "on" {
+			marshalOptions = append(append([]yaml.EncodeOption{}, DefaultMarshalOptions...), yaml.IndentSequence(true))
+		}
+		yamlBytes, err = yaml.MarshalWithOptions(map[string]any{key: value}, marshalOptions...)
 		if err != nil {
 			return ""
 		}
