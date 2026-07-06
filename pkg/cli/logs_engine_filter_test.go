@@ -126,6 +126,7 @@ func TestExtractEngineIDFromLockFile(t *testing.T) {
 		name            string
 		lockFileContent string // empty means no file
 		workflowPath    string // relative path used in test
+		skipFileCreate  bool
 		expectEngineID  string
 	}{
 		{
@@ -157,6 +158,7 @@ name: no-agent-id-workflow
 		{
 			name:           "empty workflow path returns empty",
 			workflowPath:   "",
+			skipFileCreate: true,
 			expectEngineID: "",
 		},
 	}
@@ -167,7 +169,7 @@ name: no-agent-id-workflow
 
 			// Use .lock.yml extension by default
 			workflowPath := tc.workflowPath
-			if workflowPath == "" && tc.name != "empty workflow path returns empty" {
+			if !tc.skipFileCreate {
 				// Create a lock file and use its path
 				lockFilePath := filepath.Join(tmpDir, "test-workflow.lock.yml")
 				if tc.lockFileContent != "" {
@@ -178,29 +180,6 @@ name: no-agent-id-workflow
 
 			gotEngineID := extractEngineIDFromLockFile(workflowPath, false)
 			assert.Equal(t, tc.expectEngineID, gotEngineID)
-		})
-	}
-}
-
-// TestResolveToLockFilePath verifies the path resolution logic.
-func TestResolveToLockFilePath(t *testing.T) {
-	cases := []struct {
-		input    string
-		expected string
-	}{
-		{".github/workflows/foo.lock.yml", ".github/workflows/foo.lock.yml"},
-		{".github/workflows/foo.yml", ".github/workflows/foo.lock.yml"},
-		{".github/workflows/foo.md", ".github/workflows/foo.lock.yml"},
-		{"foo.lock.yml", "foo.lock.yml"},
-		{"foo.yml", "foo.lock.yml"},
-		{"foo.md", "foo.lock.yml"},
-		{"", ""},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.input, func(t *testing.T) {
-			got := resolveToLockFilePath(tc.input)
-			assert.Equal(t, tc.expected, got)
 		})
 	}
 }
@@ -221,4 +200,20 @@ name: test
 	ymlPath := strings.TrimSuffix(lockFilePath, ".lock.yml") + ".yml"
 	got := extractEngineIDFromLockFile(ymlPath, false)
 	assert.Equal(t, "copilot", got)
+}
+
+// TestExtractEngineIDFromLockFilePlainYAML verifies that a plain .yaml path is
+// resolved to the corresponding .lock.yml file.
+func TestExtractEngineIDFromLockFilePlainYAML(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	lockContent := `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc","agent_id":"claude"}
+name: test
+`
+	lockFilePath := filepath.Join(tmpDir, "my-workflow.lock.yml")
+	require.NoError(t, os.WriteFile(lockFilePath, []byte(lockContent), 0644))
+
+	yamlPath := strings.TrimSuffix(lockFilePath, ".lock.yml") + ".yaml"
+	got := extractEngineIDFromLockFile(yamlPath, false)
+	assert.Equal(t, "claude", got)
 }

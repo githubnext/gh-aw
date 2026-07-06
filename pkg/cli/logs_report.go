@@ -152,8 +152,9 @@ type RunData struct {
 }
 
 // buildLogsData creates structured logs data from processed runs
-func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData) LogsData {
+func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData, verboseFlags ...bool) LogsData {
 	reportLog.Printf("Building logs data from %d processed runs", len(processedRuns))
+	verbose := len(verboseFlags) > 0 && verboseFlags[0]
 
 	// Build summary
 	var totalDuration time.Duration
@@ -246,7 +247,10 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		// Fall back to the lock file's gh-aw-metadata when aw_info.json is absent
 		// or does not carry an engine_id (e.g. older runs that pre-date the artifact).
 		if engineID == "" {
-			engineID = extractEngineIDFromLockFile(run.WorkflowPath, false)
+			engineID = pr.LockFileEngineID
+		}
+		if engineID == "" {
+			engineID = extractEngineIDFromLockFile(run.WorkflowPath, verbose)
 		}
 		if engineName == "" {
 			engineName = engineID

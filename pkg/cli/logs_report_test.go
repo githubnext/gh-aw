@@ -10,6 +10,8 @@ import (
 
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestRenderLogsConsoleUnified tests the unified console rendering
@@ -1046,6 +1048,30 @@ name: test-workflow
 	if agentsByID[2] != "claude" {
 		t.Errorf("Run 2: expected agent=claude from lock file fallback, got %q", agentsByID[2])
 	}
+}
+
+func TestBuildLogsDataAwInfoTakesPrecedenceOverLockFile(t *testing.T) {
+	dir := t.TempDir()
+	awInfo := `{"engine_id":"claude","engine_name":"Claude","workflow_name":"test","created_at":"2024-01-01T00:00:00Z"}`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "aw_info.json"), []byte(awInfo), 0600))
+
+	lockPath := filepath.Join(dir, "wf.lock.yml")
+	lockContent := `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"x","agent_id":"copilot"}
+name: wf
+`
+	require.NoError(t, os.WriteFile(lockPath, []byte(lockContent), 0600))
+
+	processedRuns := []ProcessedRun{
+		{Run: WorkflowRun{DatabaseID: 1, WorkflowName: "wf", LogsPath: dir, WorkflowPath: lockPath}},
+	}
+
+	data := buildLogsData(processedRuns, "/tmp/logs", nil)
+
+	require.Len(t, data.Runs, 1)
+	assert.Equal(t, "claude", data.Runs[0].EngineID)
+	assert.Equal(t, "Claude", data.Runs[0].Engine)
+	assert.Equal(t, 1, data.Summary.EngineCounts["claude"])
+	assert.Equal(t, 0, data.Summary.EngineCounts["copilot"])
 }
 
 func TestBuildLogsDataAggregatesSteeringEvents(t *testing.T) {

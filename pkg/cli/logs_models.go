@@ -94,6 +94,7 @@ type ToolCallInfo = workflow.ToolCallInfo
 // ProcessedRun represents a workflow run with its associated analysis
 type ProcessedRun struct {
 	Run                     WorkflowRun
+	LockFileEngineID        string
 	AwContext               *AwContext
 	TaskDomain              *TaskDomainInfo
 	BehaviorFingerprint     *BehaviorFingerprint

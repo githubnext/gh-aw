@@ -16,13 +16,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var logsParsingCoreLog = logger.New("cli:logs_parsing_core")
+var lockFileEngineIDCache sync.Map
 
 // errWalkStop is a sentinel returned from filepath.Walk callbacks to stop traversal early.
 // It is shared across all walk-based file-search functions in this package.
@@ -131,18 +134,44 @@ func extractEngineIDFromLockFile(workflowPath string, verbose bool) string {
 		return ""
 	}
 
-	content, err := os.ReadFile(filepath.Clean(lockPath))
+	if !filepath.IsAbs(lockPath) {
+		repoRoot, err := gitutil.FindGitRoot()
+		if err == nil {
+			lockPath = filepath.Join(repoRoot, filepath.FromSlash(lockPath))
+		}
+	}
+
+	lockPath = filepath.Clean(lockPath)
+	if cachedEngineID, ok := lockFileEngineIDCache.Load(lockPath); ok {
+		engineID, _ := cachedEngineID.(string)
+		if engineID != "" {
+			logsParsingCoreLog.Printf("Using cached engine_id=%s from lock file %s", engineID, lockPath)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Detected engine from lock file metadata: "+engineID))
+			}
+		}
+		return engineID
+	}
+
+	content, err := os.ReadFile(lockPath)
 	if err != nil {
-		logsParsingCoreLog.Printf("Cannot read lock file %s: %v", lockPath, err)
+		lockFileEngineIDCache.Store(lockPath, "")
+		cwd, cwdErr := os.Getwd()
+		if cwdErr != nil {
+			cwd = "<unknown>"
+		}
+		logsParsingCoreLog.Printf("Cannot read lock file %s (cwd: %s): %v", lockPath, cwd, err)
 		return ""
 	}
 
 	metadata, _, err := workflow.ExtractMetadataFromLockFile(string(content))
 	if err != nil || metadata == nil || metadata.AgentID == "" {
+		lockFileEngineIDCache.Store(lockPath, "")
 		logsParsingCoreLog.Printf("No agent_id in lock file metadata: %s", lockPath)
 		return ""
 	}
 
+	lockFileEngineIDCache.Store(lockPath, metadata.AgentID)
 	logsParsingCoreLog.Printf("Extracted engine_id=%s from lock file %s", metadata.AgentID, lockPath)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Detected engine from lock file metadata: "+metadata.AgentID))
@@ -162,6 +191,8 @@ func resolveToLockFilePath(workflowPath string) string {
 		return strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
 	case strings.HasSuffix(workflowPath, ".yml"):
 		return strings.TrimSuffix(workflowPath, ".yml") + ".lock.yml"
+	case strings.HasSuffix(workflowPath, ".yaml"):
+		return strings.TrimSuffix(workflowPath, ".yaml") + ".lock.yml"
 	default:
 		return ""
 	}

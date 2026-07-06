@@ -310,6 +310,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	}
 
 	var processedRuns []ProcessedRun
+	lockFileEngineIDs := make(map[string]string)
 	var beforeDate string
 	iteration := 0
 
@@ -515,9 +516,18 @@ outerLoop:
 					awInfo, awInfoErr = parseAwInfo(awInfoPath, verbose)
 				}
 
+				lockFileEngineID := ""
+				if awInfoErr != nil || awInfo == nil || awInfo.EngineID == "" {
+					if cachedEngineID, ok := lockFileEngineIDs[result.Run.WorkflowPath]; ok {
+						lockFileEngineID = cachedEngineID
+					} else {
+						lockFileEngineID = extractEngineIDFromLockFile(result.Run.WorkflowPath, verbose)
+						lockFileEngineIDs[result.Run.WorkflowPath] = lockFileEngineID
+					}
+				}
+
 				// Apply engine filtering if specified
 				if engine != "" {
-					lockFileEngineID := extractEngineIDFromLockFile(result.Run.WorkflowPath, verbose)
 					engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, engine, lockFileEngineID)
 					if !engineMatches {
 						if detectedEngineID == "" {
@@ -636,6 +646,7 @@ outerLoop:
 
 				processedRun := ProcessedRun{
 					Run:                     run,
+					LockFileEngineID:        lockFileEngineID,
 					AwContext:               result.AwContext,
 					TaskDomain:              result.TaskDomain,
 					BehaviorFingerprint:     result.BehaviorFingerprint,
@@ -739,7 +750,7 @@ outerLoop:
 		// When JSON output is requested, output JSON first to stdout before any stderr messages
 		// This prevents stderr messages from corrupting JSON when both streams are redirected together
 		if jsonOutput {
-			logsData := buildLogsData([]ProcessedRun{}, outputDir, nil)
+			logsData := buildLogsData([]ProcessedRun{}, outputDir, nil, verbose)
 			logsData.Message = noRunsMessage(startDate, timeoutReached)
 			if err := renderLogsJSON(logsData, verbose); err != nil {
 				return fmt.Errorf("failed to render JSON output: %w", err)
@@ -816,7 +827,7 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 
 	// Build structured logs data
 	logsOrchestratorLog.Printf("Building logs data from %d processed runs (continuation=%t)", len(processedRuns), opts.continuation != nil)
-	logsData := buildLogsData(processedRuns, opts.outputDir, opts.continuation)
+	logsData := buildLogsData(processedRuns, opts.outputDir, opts.continuation, opts.verbose)
 
 	// When only the usage artifact was downloaded, add a hint so consumers know how
 	// to fetch additional artifact sets (agent logs, firewall data, etc.).
@@ -1089,7 +1100,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 
 	if len(runs) == 0 {
 		if opts.JSONOutput {
-			logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil)
+			logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil, opts.Verbose)
 			logsData.Message = "No runs found. No valid runs could be loaded from the provided input."
 			if err := renderLogsJSON(logsData, opts.Verbose); err != nil {
 				return fmt.Errorf("failed to render JSON output: %w", err)
@@ -1104,6 +1115,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 
 	// Process download results applying the same filters as DownloadWorkflowLogs
 	var processedRuns []ProcessedRun
+	lockFileEngineIDs := make(map[string]string)
 	for _, result := range downloadResults {
 		if result.Skipped {
 			if opts.Verbose && result.Error != nil {
@@ -1124,8 +1136,17 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 			awInfo, awInfoErr = parseAwInfo(awInfoPath, opts.Verbose)
 		}
 
+		lockFileEngineID := ""
+		if awInfoErr != nil || awInfo == nil || awInfo.EngineID == "" {
+			if cachedEngineID, ok := lockFileEngineIDs[result.Run.WorkflowPath]; ok {
+				lockFileEngineID = cachedEngineID
+			} else {
+				lockFileEngineID = extractEngineIDFromLockFile(result.Run.WorkflowPath, opts.Verbose)
+				lockFileEngineIDs[result.Run.WorkflowPath] = lockFileEngineID
+			}
+		}
+
 		if opts.Engine != "" {
-			lockFileEngineID := extractEngineIDFromLockFile(result.Run.WorkflowPath, opts.Verbose)
 			engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, opts.Engine, lockFileEngineID)
 			if !engineMatches {
 				if detectedEngineID == "" {
@@ -1223,6 +1244,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 
 		processedRun := ProcessedRun{
 			Run:                     run,
+			LockFileEngineID:        lockFileEngineID,
 			AwContext:               result.AwContext,
 			TaskDomain:              result.TaskDomain,
 			BehaviorFingerprint:     result.BehaviorFingerprint,
@@ -1264,7 +1286,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 
 	if len(processedRuns) == 0 {
 		if opts.JSONOutput {
-			logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil)
+			logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil, opts.Verbose)
 			logsData.Message = "No runs found matching the specified criteria."
 			if err := renderLogsJSON(logsData, opts.Verbose); err != nil {
 				return fmt.Errorf("failed to render JSON output: %w", err)
