@@ -575,7 +575,7 @@ jobs:
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
           ORGANIZATION: ${{ env.ORGANIZATION }}
       - name: Save stale repos output
-        run: |
+        run: |-
           mkdir -p /tmp/gh-aw/agent/stale-repos-data
           echo "$INACTIVE_REPOS" > /tmp/gh-aw/agent/stale-repos-data/inactive-repos.json
           echo "Stale repositories data saved"

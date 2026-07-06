@@ -537,7 +537,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Fetch PR comments for detailed analysis
-        run: "# Create comments directory\nmkdir -p /tmp/gh-aw/agent/pr-comments\n\n# Fetch detailed comments for each PR from the pre-fetched data\nPR_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-data/copilot-prs.json)\necho \"Fetching comments for $PR_COUNT PRs...\"\n\njq -r '.[].number' /tmp/gh-aw/agent/pr-data/copilot-prs.json | while read -r PR_NUM; do\n  echo \"Fetching comments for PR #${PR_NUM}\"\n  gh pr view \"${PR_NUM}\" \\\n    --json comments,reviews,reviewComments \\\n    > \"/tmp/gh-aw/agent/pr-comments/pr-${PR_NUM}.json\" 2>/dev/null || echo \"{}\" > \"/tmp/gh-aw/agent/pr-comments/pr-${PR_NUM}.json\"\n  sleep 0.5  # Rate limiting\ndone\n\necho \"Comment data saved to /tmp/gh-aw/agent/pr-comments/\"\n"
+        run: "# Create comments directory\nmkdir -p /tmp/gh-aw/agent/pr-comments\n\n# Fetch detailed comments for each PR from the pre-fetched data\nPR_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-data/copilot-prs.json)\necho \"Fetching comments for $PR_COUNT PRs...\"\n\njq -r '.[].number' /tmp/gh-aw/agent/pr-data/copilot-prs.json | while read -r PR_NUM; do\n  echo \"Fetching comments for PR #${PR_NUM}\"\n  gh pr view \"${PR_NUM}\" \\\n    --json comments,reviews,reviewComments \\\n    > \"/tmp/gh-aw/agent/pr-comments/pr-${PR_NUM}.json\" 2>/dev/null || echo \"{}\" > \"/tmp/gh-aw/agent/pr-comments/pr-${PR_NUM}.json\"\n  sleep 0.5  # Rate limiting\ndone\n\necho \"Comment data saved to /tmp/gh-aw/agent/pr-comments/\""
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
