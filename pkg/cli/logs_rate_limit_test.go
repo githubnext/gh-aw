@@ -155,9 +155,9 @@ func TestCheckAndWaitForRateLimitContextCancelled(t *testing.T) {
 
 func TestCheckAndWaitForRateLimitFetchErrorAndCancelledContext(t *testing.T) {
 	oldFetchRateLimitFunc := fetchRateLimitFunc
-	fetchErr := stderrors.New("fetch failure")
+	expectedFetchErr := stderrors.New("fetch failure")
 	fetchRateLimitFunc = func() (rateLimitResource, error) {
-		return rateLimitResource{}, fetchErr
+		return rateLimitResource{}, expectedFetchErr
 	}
 	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
 
@@ -166,6 +166,6 @@ func TestCheckAndWaitForRateLimitFetchErrorAndCancelledContext(t *testing.T) {
 
 	err := checkAndWaitForRateLimit(ctx, false)
 	require.Error(t, err)
-	require.ErrorIs(t, err, fetchErr)
+	require.ErrorIs(t, err, expectedFetchErr)
 	require.ErrorIs(t, err, context.Canceled)
 }
