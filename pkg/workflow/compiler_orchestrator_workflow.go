@@ -552,7 +552,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 		return fmt.Errorf("invalid evals configuration: %w", err)
 	}
 	if evalsConfig.HasEvals() {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("evals support is experimental and the implementation is not yet complete"))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("evals support is experimental; job compilation is pending"))
 		c.IncrementWarningCount()
 	}
 	workflowData.Evals = evalsConfig
