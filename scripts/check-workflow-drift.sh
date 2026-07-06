@@ -62,9 +62,12 @@ drift_modified=$(git diff --name-only -- '.github/workflows/*.lock.yml' 2>/dev/n
 drift_untracked=$(git ls-files --others --exclude-standard -- '.github/workflows/*.lock.yml' 2>/dev/null || true)
 drift_deleted=$(git ls-files --deleted -- '.github/workflows/*.lock.yml' 2>/dev/null || true)
 
-# Combine and de-duplicate
-all_drift=$(printf '%s\n%s\n%s\n' "$drift_modified" "$drift_untracked" "$drift_deleted" \
-    | grep -v '^$' | sort -u || true)
+# Combine and de-duplicate, skipping empty variables to avoid spurious grep failures.
+all_drift=$(
+    for v in "$drift_modified" "$drift_untracked" "$drift_deleted"; do
+        [ -n "$v" ] && printf '%s\n' "$v" || true
+    done | sort -u
+)
 
 if [ -z "$all_drift" ]; then
     echo -e "${GREEN}✓ All workflow lock files are in sync with their markdown sources.${NC}"
