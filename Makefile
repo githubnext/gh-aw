@@ -892,7 +892,9 @@ refresh-models-json:
 .PHONY: validate-models-json-sync
 validate-models-json-sync:
 	@echo "Validating models.json mirror consistency..."
-	@tmp1=$$(mktemp); tmp2=$$(mktemp); \
+	@set -e; \
+	command -v jq >/dev/null 2>&1 || { echo "jq is required for validate-models-json-sync"; exit 1; }; \
+	tmp1=$$(mktemp); tmp2=$$(mktemp); \
 	trap 'rm -f "$$tmp1" "$$tmp2"' EXIT; \
 	jq -S . pkg/cli/data/models.json > "$$tmp1"; \
 	jq -S . actions/setup/js/models.json > "$$tmp2"; \
