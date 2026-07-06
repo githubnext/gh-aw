@@ -16,13 +16,10 @@ organization to repository scope.
 ## What `gh aw env` manages
 
 `gh aw env` manages `GH_AW_DEFAULT_*` variables as GitHub
-Actions variables at one scope:
-
-- repository (`--scope repo`)
-- organization (`--scope org`)
-- enterprise (`--scope ent`)
-
-The command uses a YAML file with `default_` keys.
+Actions variables at repository (`--scope repo`),
+organization (`--scope org`), or enterprise
+(`--scope ent`) scope. The command uses a YAML file
+with `default_` keys.
 
 ```yaml title="defaults.yml"
 default_max_ai_credits: "5M"
@@ -68,15 +65,12 @@ gh aw env update org-defaults.yml --scope org --org MY_ORG --yes
 
 ## Governance rollout pattern
 
-Use a layered rollout to make defaults percolate down:
-
-1. Set enterprise baseline defaults.
-2. Set organization defaults only where needed.
-3. Set repository defaults only for true exceptions.
-4. Keep workflow frontmatter overrides rare and explicit.
-
-This keeps most repositories aligned while still allowing
-targeted exceptions.
+Use a layered rollout: set enterprise baseline defaults,
+add organization defaults only where needed, use
+repository defaults for true exceptions, and keep
+workflow frontmatter overrides rare and explicit. This
+keeps most repositories aligned while still allowing
+narrow overrides.
 
 ## How percolation and precedence work
 
@@ -123,15 +117,15 @@ jobs:
 
 ## Runtime Policy Variables
 
-Policy variables (`GH_AW_POLICY_*`) complement the default variables
-managed by `gh aw env`. Where `GH_AW_DEFAULT_*` variables tune numeric and
-model settings, policy variables enforce capability gates: a single boolean
-value permits or refuses a specific behavior at runtime — without
-recompiling any workflow.
+Policy variables (`GH_AW_POLICY_*`) complement the
+`GH_AW_DEFAULT_*` values managed by `gh aw env`. Defaults
+control numeric and model settings; policy variables are
+boolean capability gates that allow or deny specific
+runtime behaviors without recompiling workflows.
 
-Like default variables, policy variables are set as GitHub Actions variables
-at repository, organization, or enterprise scope and picked up automatically
-at workflow runtime through `vars.*`.
+Like defaults, they are set as GitHub Actions variables at
+repository, organization, or enterprise scope and are read
+at runtime through `vars.*`.
 
 ### Disabling `create-pull-request` org-wide
 
@@ -153,9 +147,10 @@ create-pull-request is disabled by runtime policy: GH_AW_POLICY_ALLOW_CREATE_PUL
 Remove safe-outputs.create-pull-request or set GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST=true.
 ```
 
-Any other value — including unset — leaves the tool enabled. To lift the
-restriction at a specific repository scope or re-enable it org-wide, set
-the variable to `"true"` or delete it:
+Any other value — including unset — leaves the tool
+enabled. To lift the restriction, set the variable to
+`"true"` or delete it, either org-wide or at repository
+scope:
 
 ```bash
 # Re-enable for the whole org
@@ -173,22 +168,15 @@ for the complete list of `GH_AW_POLICY_*` variables.
 
 ## Troubleshooting
 
-If `gh aw env update` fails validation:
-
-- use positive integers for `default_max_turns`,
-  `default_timeout_minutes`,
-  `default_max_turn_cache_misses`
-- use non-zero integers for
-  `default_max_ai_credits`,
-  `default_max_daily_ai_credits`,
-  `default_detection_max_ai_credits`
-- use a numeric UTC offset for `default_utc`
-  (for example `+00:00` or `-08:00`)
-- remove unknown YAML keys
+If `gh aw env update` fails validation, make sure turn and
+timeout settings are positive integers, AI credit limits
+are non-zero integers, `default_utc` uses a numeric offset
+(such as `+00:00` or `-08:00`), and the YAML file contains
+only supported keys.
 
 ## Related reference
 
-- [Environment Variables](/gh-aw/reference/environment-variables/)
-- [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/)
-- [Cost Management](/gh-aw/reference/cost-management/)
-- [Using at Scale in Organizations](/gh-aw/guides/using-at-scale/)
+See [Environment Variables](/gh-aw/reference/environment-variables/),
+[Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/),
+[Cost Management](/gh-aw/reference/cost-management/), and
+[Using at Scale in Organizations](/gh-aw/guides/using-at-scale/).
