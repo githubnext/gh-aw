@@ -1,102 +1,99 @@
 {
-  "run_date": "2026-07-05T18:34:11Z",
-  "run_id": "28750744185",
-  "prior_run_id": "28741077056",
+  "run_date": "2026-07-06T01:05:10Z",
+  "run_id": "28761293397",
+  "prior_run_id": "28750744185",
   "summary": {
     "total": 5,
-    "new": 5,
-    "carry_over": 0,
+    "new": 4,
+    "carry_over": 1,
     "auto_merge": 0,
-    "fast_track": 2,
-    "batch_review": 1,
+    "fast_track": 0,
+    "batch_review": 2,
     "defer": 2,
-    "close": 0
+    "close": 1
   },
   "prior_run_resolution": {
-    "total": 14,
-    "merged": 13,
-    "closed": 1,
-    "merged_prs": [43467, 43525, 43507, 43501, 43527, 43526, 43500, 43508, 43516, 43506, 43497],
-    "closed_prs": [43515]
+    "total": 5,
+    "merged": 5,
+    "closed": 0,
+    "merged_prs": [43594, 43599, 43589, 43587, 43588],
+    "closed_prs": []
   },
   "prs": [
     {
-      "number": 43594,
-      "title": "SPDD 2026-07-05: outcome evaluators, policy compiler, and spec coverage for batch 20-24",
+      "number": 43641,
+      "title": "feat: add BinEval evals support",
       "category": "feature",
       "risk": "high",
-      "score": 71,
-      "action": "fast_track",
-      "batch": null,
-      "draft": false,
-      "reviews": "DISMISSED+COMMENTED",
-      "note": "P0/P1/P2 gap fills: Go evaluators + PolicyCompiler. 16 files +1282/-6. CI passing. Needs human logic review."
-    },
-    {
-      "number": 43599,
-      "title": "Add explicit AI crawler allowlist to docs robots.txt",
-      "category": "docs",
-      "risk": "low",
-      "score": 62,
-      "action": "fast_track",
-      "batch": null,
-      "draft": false,
-      "reviews": "COMMENTED+APPROVED(bot)",
-      "note": "GEO audit docs fix. 2 files +27/-63. CI passing. No blocking reviews."
-    },
-    {
-      "number": 43589,
-      "title": "Wrap org runner and MCP list-tools stderr output with console formatting helpers",
-      "category": "refactor",
-      "risk": "low",
-      "score": 44,
-      "action": "batch_review",
-      "batch": "pr-batch:console-migration",
-      "draft": false,
-      "reviews": "DISMISSED",
-      "note": "3 files +89/-16. CI passing. Dismissed review had correctness concerns — verify resolved."
-    },
-    {
-      "number": 43587,
-      "title": "Centralize interactive huh form setup in `pkg/console` and remove CLI duplication",
-      "category": "refactor",
-      "risk": "high",
-      "score": 38,
+      "score": 42,
       "action": "defer",
-      "batch": "pr-batch:console-migration",
-      "draft": false,
-      "reviews": "CHANGES_REQUESTED",
-      "note": "15 files +268/-203. CHANGES_REQUESTED blocks. High risk — touches all interactive prompts."
+      "batch": null,
+      "draft": true,
+      "reviews": "",
+      "note": "DRAFT. 11 Go files +1175/-7. New BinEval frontmatter+compiler feature. Wait for ready+CI."
     },
     {
-      "number": 43588,
-      "title": "Fix trial_confirmation.go sub-step bullets to use console.FormatListItemStderr",
+      "number": 43639,
+      "title": "fix(setup/js): guard JSON.parse call sites with try/catch",
+      "category": "chore",
+      "risk": "low",
+      "score": 10,
+      "action": "close",
+      "batch": null,
+      "draft": false,
+      "reviews": "COMMENTED(bot)",
+      "note": "EMPTY PR — only Initial plan commit, 0 file changes. Agent failed to implement."
+    },
+    {
+      "number": 43638,
+      "title": "fix(setup/js): normalize unsafe caught/rejected error property access",
+      "category": "chore",
+      "risk": "medium",
+      "score": 54,
+      "action": "batch_review",
+      "batch": "pr-batch:setup-js-eslint",
+      "draft": false,
+      "reviews": "COMMENTED(bot)",
+      "note": "64 JS files +224/-171. Mechanical ESLint fix: prefer-get-error-message, safe error access."
+    },
+    {
+      "number": 43637,
+      "title": "fix(setup/js): numeric coercion, setOutput stringification, and async entrypoint cleanup",
       "category": "bug",
       "risk": "low",
-      "score": 28,
+      "score": 58,
+      "action": "batch_review",
+      "batch": "pr-batch:setup-js-eslint",
+      "draft": false,
+      "reviews": "COMMENTED(bot)",
+      "note": "28 JS files +59/-48. Correctness fixes: Number.isNaN, parseInt radix, async .catch."
+    },
+    {
+      "number": 43495,
+      "title": "Tighten step summary hierarchy and progressive disclosure",
+      "category": "formatting",
+      "risk": "medium",
+      "score": 15,
       "action": "defer",
-      "batch": "pr-batch:console-migration",
+      "batch": null,
       "draft": false,
       "reviews": "CHANGES_REQUESTED",
-      "note": "1 file +33/-27. CHANGES_REQUESTED blocks. Cosmetic consistency fix."
+      "note": "CARRY-OVER. CHANGES_REQUESTED still blocking. Unchanged since prior run."
     }
   ],
   "batches": [
     {
-      "id": "pr-batch:console-migration",
-      "prs": [43589, 43587, 43588],
-      "note": "Coordinated stderr/huh-form console helper migration. Resolve #43587 CHANGES_REQUESTED first."
+      "id": "pr-batch:setup-js-eslint",
+      "prs": [43637, 43638],
+      "note": "setup/js ESLint custom rule remediation. Review together. #43639 is empty (close)."
     }
   ],
   "flags": [
-    "PR 43594: SPDD batch — highest priority fast_track this cycle",
-    "PR 43599: trivial docs fix, CI passing — merge ASAP",
-    "console-migration cluster (43587/43588/43589): 2/3 blocked by CHANGES_REQUESTED",
-    "PR 43589 dismissed review: verify correctness concerns were addressed"
+    "PR 43639: EMPTY — agent wrote plan only, no implementation. Recommend close.",
+    "setup-js-eslint cluster (43637/43638/43639): 2 substantive, 1 empty",
+    "PR 43641: DRAFT large feature — BinEval evals support. Monitor for ready.",
+    "PR 43495: carry-over 2 runs, CHANGES_REQUESTED still blocking."
   ],
-  "report_issue_tid": "aw_triage_run9",
-  "non_eligible_open_prs": [
-    {"number": 43495, "author": "app/copilot-swe-agent", "note": "prior run deferred, still open, CHANGES_REQUESTED"},
-    {"number": 43228, "author": "app/github-actions", "note": "not copilot-swe-agent authored, needs-review label"}
-  ]
+  "report_issue_tid": "aw_triage_run10",
+  "non_eligible_open_prs": []
 }
