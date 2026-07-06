@@ -105,7 +105,13 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 		return nil, err
 	}
 
-	evalsConfigLog.Printf("Parsed %d eval definitions (model: %q)", len(cfg.Questions), cfg.Model)
+	perQuestionOverrides := 0
+	for _, q := range cfg.Questions {
+		if q.Model != "" {
+			perQuestionOverrides++
+		}
+	}
+	evalsConfigLog.Printf("Parsed %d eval definitions (model: %q, per-question overrides: %d)", len(cfg.Questions), cfg.Model, perQuestionOverrides)
 	return cfg, nil
 }
 

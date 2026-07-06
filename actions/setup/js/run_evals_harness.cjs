@@ -93,10 +93,18 @@ async function callInferenceAPI(endpoint, model, userMessage, token) {
 function parseAnswer(content) {
   const lines = content.split("\n").filter(l => l.trim() !== "");
   const lastLine = lines[lines.length - 1]?.trim().toUpperCase() || "";
-  const passed = lastLine === "YES" || lastLine.endsWith("YES") ? true : lastLine === "NO" || lastLine.endsWith("NO") ? false : null;
+
+  let passed;
+  if (lastLine === "YES" || lastLine.endsWith("YES")) {
+    passed = true;
+  } else if (lastLine === "NO" || lastLine.endsWith("NO")) {
+    passed = false;
+  } else {
+    passed = null;
+  }
 
   const rationale = lines.slice(0, -1).join(" ").trim() || content;
-  return { passed: passed ?? false, rationale };
+  return { passed: passed ?? false, rationale, indeterminate: passed === null };
 }
 
 /**
@@ -146,7 +154,7 @@ async function main() {
       passed = answer.passed;
       rationale = answer.rationale;
 
-      if (content && parseAnswer(content).passed === null) {
+      if (answer.indeterminate) {
         core.warning('Could not determine YES/NO answer for eval "' + q.id + '". Raw response: ' + content);
       }
 

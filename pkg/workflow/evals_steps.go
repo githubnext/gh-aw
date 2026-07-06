@@ -53,10 +53,13 @@ func (c *Compiler) buildEvalsPrepareFilesStep() []string {
 // the default alias is "small".
 func (c *Compiler) buildEvalsHarnessStep(data *WorkflowData) []string {
 	// Serialize questions as JSON for the env var.
+	// evalQ mirrors EvalDefinition for JSON output; Model is omitempty so questions
+	// without a per-question override do not include the field in the serialized JSON.
 	type evalQ struct {
 		ID       string `json:"id"`
 		Question string `json:"question"`
-		Model    string `json:"model,omitempty"`
+		// Model is an optional per-question model override (omitted when empty).
+		Model string `json:"model,omitempty"`
 	}
 	questions := make([]evalQ, len(data.Evals.Questions))
 	for i, q := range data.Evals.Questions {
