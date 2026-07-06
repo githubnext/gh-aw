@@ -8,6 +8,18 @@ import (
 	"testing"
 )
 
+func TestMCPHTTPServerAddr_BindsToLoopback(t *testing.T) {
+	if got := mcpHTTPServerAddr(12345); got != "127.0.0.1:12345" {
+		t.Fatalf("mcpHTTPServerAddr(12345) = %q, want %q", got, "127.0.0.1:12345")
+	}
+}
+
+func TestMCPHTTPServerDisplayURL_UsesLoopbackAddress(t *testing.T) {
+	if got := mcpHTTPServerDisplayURL(12345); got != "http://127.0.0.1:12345" {
+		t.Fatalf("mcpHTTPServerDisplayURL(12345) = %q, want %q", got, "http://127.0.0.1:12345")
+	}
+}
+
 func TestSanitizeForLog_NoSpecialChars(t *testing.T) {
 	input := "/api/v1/workflows"
 	got := sanitizeForLog(input)

@@ -29,6 +29,14 @@ type responseWriter struct {
 	statusCode int
 }
 
+func mcpHTTPServerAddr(port int) string {
+	return fmt.Sprintf("127.0.0.1:%d", port)
+}
+
+func mcpHTTPServerDisplayURL(port int) string {
+	return fmt.Sprintf("http://127.0.0.1:%d", port)
+}
+
 func loggingHandler(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -69,8 +77,9 @@ func runHTTPServer(server *mcp.Server, port int) error {
 	handler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
 		return server
 	}, &mcp.StreamableHTTPOptions{
-		SessionTimeout: 2 * time.Hour, // Close idle sessions after 2 hours
-		Logger:         logger.NewSlogLoggerWithHandler(mcpLog),
+		SessionTimeout:             2 * time.Hour, // Close idle sessions after 2 hours
+		DisableLocalhostProtection: false,         // Keep the SDK's localhost Host-header checks enabled.
+		Logger:                     logger.NewSlogLoggerWithHandler(mcpLog),
 	})
 
 	handlerWithLogging := loggingHandler(handler)
@@ -79,16 +88,15 @@ func runHTTPServer(server *mcp.Server, port int) error {
 	// cross-origin protection by default, so binding to 127.0.0.1 (instead
 	// of all interfaces) is the safest default for a local MCP server — it
 	// prevents the server from being reachable on non-localhost interfaces.
-	// The SDK's built-in localhost protection (DisableLocalhostProtection=false)
-	// additionally rejects requests with non-localhost Host headers.
-	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	// The SDK's localhost Host-header checks stay enabled as a second layer.
+	addr := mcpHTTPServerAddr(port)
 	httpServer := &http.Server{
 		Addr:              addr,
 		Handler:           handlerWithLogging,
 		ReadHeaderTimeout: MCPServerHTTPTimeout,
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting MCP server on http://localhost:%d", port)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting MCP server on "+mcpHTTPServerDisplayURL(port)))
 	mcpLog.Printf("HTTP server listening on %s", addr)
 
 	// Run the HTTP server
