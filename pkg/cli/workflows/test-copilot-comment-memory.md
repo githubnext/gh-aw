@@ -10,6 +10,10 @@ tools:
   comment-memory:
     max: 1
     memory-id: test-memory
+safe-outputs:
+  comment-memory:
+    max: 1
+    memory-id: test-memory
 timeout-minutes: 5
 ---
 
