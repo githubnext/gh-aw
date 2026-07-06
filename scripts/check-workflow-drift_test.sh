@@ -61,6 +61,9 @@ echo
 
 TMP_ROOT=$(mktemp -d)
 trap 'rm -rf "$TMP_ROOT"' EXIT
+TEST1_OUTPUT="$TMP_ROOT/test1-output.txt"
+TEST2_OUTPUT="$TMP_ROOT/test2-output.txt"
+TEST3_OUTPUT="$TMP_ROOT/test3-output.txt"
 
 # Test 1: matching lock file exits 0.
 echo "Test 1: matching lock file exits 0..."
@@ -68,10 +71,10 @@ TEST_REPO="$TMP_ROOT/stable"
 mkdir -p "$TEST_REPO"
 create_fixture_repo "$TEST_REPO"
 create_fake_binary "$TEST_REPO/fake-gh-aw"
-if (cd "$TEST_REPO" && FAKE_COMPILE_MODE=stable bash "$DRIFT_SCRIPT" "$TEST_REPO/fake-gh-aw" >/tmp/check-workflow-drift-test1.txt 2>&1); then
+if (cd "$TEST_REPO" && FAKE_COMPILE_MODE=stable bash "$DRIFT_SCRIPT" "$TEST_REPO/fake-gh-aw" >"$TEST1_OUTPUT" 2>&1); then
   pass "matching lock file exits 0"
 else
-  fail "matching lock file should exit 0" "$(cat /tmp/check-workflow-drift-test1.txt)"
+  fail "matching lock file should exit 0" "$(cat "$TEST1_OUTPUT")"
 fi
 
 # Test 2: drift is reported and the original file is restored afterwards.
@@ -80,14 +83,14 @@ TEST_REPO="$TMP_ROOT/mutate"
 mkdir -p "$TEST_REPO"
 create_fixture_repo "$TEST_REPO"
 create_fake_binary "$TEST_REPO/fake-gh-aw"
-if (cd "$TEST_REPO" && FAKE_COMPILE_MODE=mutate bash "$DRIFT_SCRIPT" "$TEST_REPO/fake-gh-aw" >/tmp/check-workflow-drift-test2.txt 2>&1); then
-  fail "drift should exit 1" "$(cat /tmp/check-workflow-drift-test2.txt)"
-elif grep -q ".github/workflows/example.lock.yml" /tmp/check-workflow-drift-test2.txt \
-  && grep -q "report_progress" /tmp/check-workflow-drift-test2.txt \
+if (cd "$TEST_REPO" && FAKE_COMPILE_MODE=mutate bash "$DRIFT_SCRIPT" "$TEST_REPO/fake-gh-aw" >"$TEST2_OUTPUT" 2>&1); then
+  fail "drift should exit 1" "$(cat "$TEST2_OUTPUT")"
+elif grep -q ".github/workflows/example.lock.yml" "$TEST2_OUTPUT" \
+  && grep -q "report_progress" "$TEST2_OUTPUT" \
   && grep -q "^lock: original$" "$TEST_REPO/.github/workflows/example.lock.yml"; then
   pass "drift is reported and the original file is restored"
 else
-  fail "drift output or restoration was incorrect" "$(cat /tmp/check-workflow-drift-test2.txt; echo; cat "$TEST_REPO/.github/workflows/example.lock.yml")"
+  fail "drift output or restoration was incorrect" "$(cat "$TEST2_OUTPUT"; echo; cat "$TEST_REPO/.github/workflows/example.lock.yml")"
 fi
 
 # Test 3: missing binary gets a targeted error.
@@ -95,12 +98,12 @@ echo "Test 3: missing binary path gets a targeted error..."
 TEST_REPO="$TMP_ROOT/missing-binary"
 mkdir -p "$TEST_REPO"
 create_fixture_repo "$TEST_REPO"
-if (cd "$TEST_REPO" && bash "$DRIFT_SCRIPT" "$TEST_REPO/does-not-exist" >/tmp/check-workflow-drift-test3.txt 2>&1); then
-  fail "missing binary should exit 1" "$(cat /tmp/check-workflow-drift-test3.txt)"
-elif grep -q "binary not found" /tmp/check-workflow-drift-test3.txt; then
+if (cd "$TEST_REPO" && bash "$DRIFT_SCRIPT" "$TEST_REPO/does-not-exist" >"$TEST3_OUTPUT" 2>&1); then
+  fail "missing binary should exit 1" "$(cat "$TEST3_OUTPUT")"
+elif grep -q "binary not found" "$TEST3_OUTPUT"; then
   pass "missing binary reports a targeted error"
 else
-  fail "missing binary error message was incorrect" "$(cat /tmp/check-workflow-drift-test3.txt)"
+  fail "missing binary error message was incorrect" "$(cat "$TEST3_OUTPUT")"
 fi
 
 echo
