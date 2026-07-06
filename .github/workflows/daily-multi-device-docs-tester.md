@@ -34,7 +34,7 @@ tools:
   cli-proxy: true
   github:
     mode: gh-proxy
-  timeout: 120  # Multi-device runs include docs build + preview startup
+  timeout: 120  # Multi-device runs include docs dev server startup + testing
   playwright:
     mode: cli
   bash:
@@ -93,45 +93,6 @@ pre-agent-steps:
     run: |
       cd "$EXPR_GITHUB_WORKSPACE/docs"
       node ../scripts/ensure-docs-slide-pdf.js
-  - name: Start docs server
-    env:
-      EXPR_GITHUB_RUN_ID: ${{ github.run_id }}
-      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
-    run: |
-      LOG_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.log"
-      PID_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.pid"
-      cd "$EXPR_GITHUB_WORKSPACE/docs"
-      npm run build
-      nohup npm run preview -- --host 0.0.0.0 --port 4321 > "$LOG_FILE" 2>&1 &
-      PID=$!
-      echo $PID > "$PID_FILE"
-      echo "Server PID: $PID"
-      echo "Server log: $LOG_FILE"
-  - name: Wait for server readiness
-    env:
-      EXPR_GITHUB_RUN_ID: ${{ github.run_id }}
-    run: |
-      PID_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.pid"
-      LOG_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.log"
-      MAX_WAIT=135  # Maximum 135 seconds wait time
-      WAITED=0
-      until curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do
-        # Check if the server process has already died
-        if [ -f "$PID_FILE" ] && ! kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-          echo "::error::Documentation server process died before becoming ready. Server log:"
-          cat "$LOG_FILE"
-          exit 1
-        fi
-        WAITED=$((WAITED + 3))
-        if [ $WAITED -ge $MAX_WAIT ]; then
-          echo "::error::Documentation server did not start after ${MAX_WAIT}s. Server log:"
-          cat "$LOG_FILE"
-          exit 1
-        fi
-        echo "Waiting for server... ($WAITED/${MAX_WAIT}s)"
-        sleep 3
-      done
-      echo "Server ready at http://localhost:4321/gh-aw/!"
 features:
   gh-aw-detection: true
 ---
@@ -161,15 +122,38 @@ This workflow has `strict: true` — it will fail if no safe output is produced.
 
 ## Your Mission
 
-Start the documentation preview server and perform comprehensive multi-device testing. Test layout responsiveness, accessibility, interactive elements, and visual rendering across all device types. Use a single Playwright browser instance for efficiency.
+Start the documentation dev server and perform comprehensive multi-device testing. Test layout responsiveness, accessibility, interactive elements, and visual rendering across all device types. Use a single Playwright browser instance for efficiency.
 
-## Step 1: Verify Server Availability
+## Step 1: Start and Verify the Docs Server
 
-The workflow pre-agent steps already installed docs dependencies, built the docs site, and started the Astro preview server.
-Quickly verify it is reachable before testing:
+The workflow pre-agent steps already installed docs dependencies. Start the Astro dev server and wait for it to be ready:
 
 ```bash
-curl -sf http://localhost:4321/gh-aw/ > /dev/null && echo "Docs server is ready"
+mkdir -p /tmp/gh-aw/agent
+cd ${{ github.workspace }}/docs
+nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/gh-aw/agent/preview.log 2>&1 &
+PID=$!
+echo $PID > /tmp/gh-aw/agent/server.pid
+echo "Server PID: $PID"
+```
+
+Then poll until the server is ready:
+
+```bash
+URL="http://localhost:4321/gh-aw/"
+STATUS=""
+echo "Readiness check target: $URL"
+for i in {1..45}; do
+  STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 5 "$URL" || true)
+  [ "$STATUS" = "200" ] && echo "Server ready at $URL" && break
+  if [ -z "$STATUS" ]; then STATUS="curl_error"; fi
+  echo "Waiting for server... ($i/45) (status: $STATUS)" && sleep 3
+done
+if [ "$STATUS" != "200" ]; then
+  echo "Dev server failed to start after 135 seconds (final status: $STATUS)"
+  cat /tmp/gh-aw/agent/preview.log || true
+  exit 1
+fi
 ```
 
 ## Step 2: Device Configuration
